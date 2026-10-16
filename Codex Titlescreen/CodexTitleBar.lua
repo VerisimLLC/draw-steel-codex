@@ -25,8 +25,9 @@ g_devInventorySetting:Set(true)
 -- the titlescreen is gone, so we host it on the game hud's dedicated
 -- fullscreen shopPanel instead.
 local function OpenShopScreen(inventory)
-    if dmhub.inGame and not dmhub.isLobbyGame and GameHud.instance and GameHud.instance.shopPanel then
-        local host = GameHud.instance.shopPanel
+    local hud = GameHud.instance
+    local host = hud and hud.shopPanel
+    if dmhub.inGame and not dmhub.isLobbyGame and host then
         host:AddChild(CreateShopScreen{ titlescreen = host, inventory = inventory })
     elseif CodexTitlescreenRoot ~= nil and CodexTitlescreenRoot.valid then
         CodexTitlescreenRoot:AddChild(CreateShopScreen{ titlescreen = CodexTitlescreenRoot, inventory = inventory })
@@ -667,15 +668,36 @@ end
 --of this file also treats as "not in a game" -- there is nothing to interrupt,
 --so the close stays immediate.
 --
---This guards OUR control only. A close that never reaches Lua (Alt+F4, the
+--This generic prompt guards OUR control only. Other closes (Alt+F4, the
 --taskbar menu, the system menu, the native caption in legacy strip mode)
---still quits straight away; catching those would need an engine-side WM_CLOSE
---hook.
+--reach Lua only through OnQuitRequested below, which consults a custom
+--interface's exit confirmation and otherwise lets them quit straight away.
 local m_quitConfirmDialog = nil
+
+--The engine calls this global before ANY quit (dmhub.QuitApplication, the
+--close button, Alt+F4, Cmd+Q). Returning true holds the quit: a custom
+--interface (Encounter of the Week) is showing its own confirmation, which
+--quits with dmhub.ForceQuitApplication if the user goes ahead.
+function OnQuitRequested()
+    if (not dmhub.inGame) or dmhub.isLobbyGame then
+        return false
+    end
+    local hud = rawget(_G, "GameHud")
+    if hud == nil then
+        return false
+    end
+    return hud.CustomInterfaceConfirmExit("quit", function() dmhub.ForceQuitApplication() end)
+end
 
 local function ConfirmCloseWindow()
     if (not dmhub.inGame) or dmhub.isLobbyGame then
         dmhub.CloseWindow()
+        return
+    end
+
+    --a custom interface with its own exit confirmation replaces the
+    --generic prompt below.
+    if OnQuitRequested() then
         return
     end
 
@@ -1332,6 +1354,11 @@ local function CreatePlayerStatusIcon(userid, charid, extraCount)
     return resultPanel
 end
 
+--the zero-size panel beneath the players row that the column hangs from.
+local g_playersToastAnchor = nil
+--the players panel itself, so CodexTitleBar.OpenPlayersPopout can click it.
+local g_connectivityPanel = nil
+
 local function CreateConnectivityPanel()
     local m_wifiIcon
 
@@ -1375,9 +1402,13 @@ local function CreateConnectivityPanel()
             end
             local newCache = {}
             local children = {}
+            --a directorless game's host is a player like the rest (their
+            --session still says dm), so they get a portrait too.
+            local directorless = false
+            pcall(function() directorless = dmhub.directorlessGame == true end)
             for _, userid in ipairs(dmhub.users or {}) do
                 local info = dmhub.GetSessionInfo(userid)
-                if info ~= nil and not info.dm then
+                if info ~= nil and (directorless or not info.dm) then
                     local owned = CharacterIdsOwnedBy(userid)
                     local mainid = info.primaryCharacter or owned[1]
                     local extraCount = 0
@@ -1440,7 +1471,16 @@ local function CreateConnectivityPanel()
                 element.popup = nil
                 return
             end
-            local factory = rawget(_G, "CreateHeroesPanelPopoutContent")
+            --a custom interface (Encounter of the Week) may put its own
+            --content here instead of the Heroes panel.
+            local factory = nil
+            local custom = nil
+            pcall(function() custom = GameHud.CustomInterfacePlayersPopout() end)
+            if custom ~= nil then
+                factory = function() return custom end
+            else
+                factory = rawget(_G, "CreateHeroesPanelPopoutContent")
+            end
             if factory == nil then
                 return
             end
@@ -1514,6 +1554,20 @@ local function CreateConnectivityPanel()
 
         contentPanel,
     }
+
+    --notices about the players hang beneath this panel
+    --(CodexTitleBar.ShowPlayersToast) as a popup of this anchor: the popup
+    --layer draws above the game hud, which the title bar itself does not.
+    --Its own anchor, so a notice never closes the Heroes popout.
+    g_playersToastAnchor = gui.Panel{
+        floating = true,
+        width = 1,
+        height = 1,
+        halign = "left",
+        valign = "bottom",
+    }
+    resultPanel:AddChild(g_playersToastAnchor)
+    g_connectivityPanel = resultPanel
     return resultPanel
 end
 
@@ -1534,6 +1588,253 @@ local g_initiativeStatusContainer = nil
 --`X = X or {}` idiom cannot be used here.
 if rawget(_G, "CodexTitleBar") == nil then
     CodexTitleBar = {}
+end
+
+local PLAYERS_TOAST_STYLES = {
+    {
+        selectors = {"playersToast"},
+        bgcolor = "#1b1c20ff",
+        borderColor = "#6a6f7a",
+    },
+    {
+        selectors = {"playersToast", "create", "~settled"},
+        transitionTime = 0.25,
+        opacity = 0,
+    },
+    {
+        selectors = {"playersToastButton"},
+        bgcolor = "#3a3d46",
+        color = "#e8e8e8",
+    },
+    {
+        selectors = {"playersToastButton", "hover"},
+        bgcolor = "#4e525e",
+    },
+    {
+        selectors = {"playersToastButton", "danger"},
+        bgcolor = "#7a2a2a",
+    },
+    {
+        selectors = {"playersToastButton", "danger", "hover"},
+        bgcolor = "#a03636",
+    },
+}
+
+--Open the popout under the players row (the Heroes panel, or what a custom
+--interface puts there), as if the player had clicked it.
+function CodexTitleBar.OpenPlayersPopout()
+    local panel = g_connectivityPanel
+    if panel == nil or not panel.valid or panel.popup ~= nil then
+        return
+    end
+    panel:FireEvent("click")
+end
+
+--the notices showing now, oldest first: { key, text, actions, fresh }.
+local g_playersToasts = {}
+local g_playersToastSeq = 0
+
+local RebuildPlayersToasts
+
+local function DismissPlayersToast(key)
+    for i, t in ipairs(g_playersToasts) do
+        if t.key == key then
+            table.remove(g_playersToasts, i)
+            RebuildPlayersToasts()
+            return
+        end
+    end
+end
+
+local function BuildPlayersToast(t)
+    local buttons = {}
+    for _, action in ipairs(t.actions or {}) do
+        local fn = action.click
+        buttons[#buttons + 1] = gui.Label{
+            classes = {"playersToastButton", cond(action.danger, "danger", nil)},
+            bgimage = "panels/square.png",
+            text = action.text,
+            fontSize = 13,
+            bold = true,
+            width = "auto",
+            height = "auto",
+            hpad = 10,
+            vpad = 4,
+            borderBox = true,
+            cornerRadius = 4,
+            lmargin = 8,
+            valign = "center",
+            textWrap = false,
+            click = function(element)
+                DismissPlayersToast(t.key)
+                if fn ~= nil then
+                    fn()
+                end
+            end,
+        }
+    end
+
+    --only a notice that just arrived fades in; the rest were already up.
+    local classes = {"playersToast"}
+    if not t.fresh then
+        classes[#classes + 1] = "settled"
+    end
+    t.fresh = false
+
+    return gui.Panel{
+        classes = classes,
+        styles = PLAYERS_TOAST_STYLES,
+        bgimage = "panels/square.png",
+        borderWidth = 1,
+        cornerRadius = 6,
+        flow = "horizontal",
+        width = "auto",
+        height = "auto",
+        maxWidth = 520,
+        hpad = 10,
+        vpad = 8,
+        borderBox = true,
+        tmargin = 4,
+        halign = "left",
+
+        gui.Label{
+            text = t.text or "",
+            fontSize = 14,
+            color = "#ececec",
+            width = "auto",
+            maxWidth = 360,
+            height = "auto",
+            valign = "center",
+            textWrap = true,
+        },
+
+        gui.Panel{
+            flow = "horizontal",
+            width = "auto",
+            height = "auto",
+            valign = "center",
+            children = buttons,
+        },
+
+        --close
+        gui.Panel{
+            bgimage = "ui-icons/close.png",
+            bgcolor = "#a0a0a0",
+            width = 12,
+            height = 12,
+            lmargin = 10,
+            valign = "center",
+            click = function()
+                DismissPlayersToast(t.key)
+            end,
+        },
+    }
+end
+
+--The popup is rebuilt whole, contents included, whenever the list changes:
+--popup placement is worked out from the panel as it is first shown, so a
+--column that grows afterwards spills upward over the bar.
+RebuildPlayersToasts = function()
+    local anchor = g_playersToastAnchor
+    if anchor == nil or not anchor.valid then
+        return
+    end
+    anchor.popup = nil
+    if #g_playersToasts == 0 then
+        return
+    end
+    local panels = {}
+    for _, t in ipairs(g_playersToasts) do
+        panels[#panels + 1] = BuildPlayersToast(t)
+    end
+    --the title bar's below-bar popup recipe (see ShowOverlayMenu): a
+    --sizeless shim placed against the whole players plate, and the column
+    --shifted back by the plate's width so it hangs from the plate's left
+    --edge.
+    local plate = g_connectivityPanel or anchor
+    anchor.popupPositioning = plate
+    anchor.popup = gui.Panel{
+        width = "auto",
+        height = "auto",
+        halign = "right",
+        valign = "bottom",
+        gui.Panel{
+            flow = "vertical",
+            width = "auto",
+            height = "auto",
+            x = -plate.renderedWidth,
+            valign = "bottom",
+            tmargin = 2,
+            children = panels,
+        },
+    }
+end
+
+--Is the notice with this id (ShowPlayersToast's args.id) still showing?
+function CodexTitleBar.HasPlayersToast(id)
+    if g_playersToastAnchor == nil or not g_playersToastAnchor.valid or g_playersToastAnchor.popup == nil then
+        return false
+    end
+    for _, t in ipairs(g_playersToasts) do
+        if t.id == id then
+            return true
+        end
+    end
+    return false
+end
+
+--Take down the notice with this id, if it is showing.
+function CodexTitleBar.DismissPlayersToast(id)
+    for _, t in ipairs(g_playersToasts) do
+        if t.id == id then
+            DismissPlayersToast(t.key)
+            return
+        end
+    end
+end
+
+--Show a notice hanging beneath the title bar's players row: who left, who
+--came back, who controls what. Newer notices stack below older ones.
+--  args.text      the message
+--  args.actions   optional { { text, click = fn, danger = bool }, ... };
+--                 pressing one runs it and dismisses the notice
+--  args.duration  seconds before it goes (default 8; 0 = stays until an
+--                 action or its close button)
+--  args.id        optional: a notice with the same id replaces this one
+--Clicking elsewhere closes the notices, as it does any popup.
+function CodexTitleBar.ShowPlayersToast(args)
+    args = args or {}
+    if g_playersToastAnchor == nil or not g_playersToastAnchor.valid then
+        return
+    end
+    --a click away closed the popup: those notices are gone.
+    if g_playersToastAnchor.popup == nil then
+        g_playersToasts = {}
+    end
+    if args.id ~= nil then
+        for i = #g_playersToasts, 1, -1 do
+            if g_playersToasts[i].id == args.id then
+                table.remove(g_playersToasts, i)
+            end
+        end
+    end
+    g_playersToastSeq = g_playersToastSeq + 1
+    local key = g_playersToastSeq
+    g_playersToasts[#g_playersToasts + 1] = {
+        key = key,
+        id = args.id,
+        text = args.text,
+        actions = args.actions,
+        fresh = true,
+    }
+    RebuildPlayersToasts()
+
+    local duration = args.duration or 8
+    if duration > 0 then
+        dmhub.Schedule(duration, function()
+            DismissPlayersToast(key)
+        end)
+    end
 end
 
 local function CreateInitiativeStatusHost()
@@ -1596,6 +1897,23 @@ local g_tileIndicator = {
     },
 }
 
+--Off = a still status bar for players distracted by flicker: the plate
+--shows only the map name and the floor the player is on, and the chip is
+--a plain Ground square, so nothing changes as the mouse crosses tiles.
+--No editor: the only place to change it is the top of the map overlay
+--menu (see CreateOverlayMenu), next to the readout it controls.
+g_tileIndicator.tileInfoSetting = setting{
+    id = "statusbar:tileinfo",
+    description = "Status Bar Shows Tile Info",
+    help = "Show the coordinates, terrain and elevation of the tile under the mouse in the status bar. Turn off for a status bar that does not change as the mouse moves.",
+    storage = "preference",
+    default = true,
+}
+
+function g_tileIndicator.ShowsTileInfo()
+    return g_tileIndicator.tileInfoSetting:Get() ~= false
+end
+
 --The same diagonal-stripe recipe as the Map Markup zone swatches
 --(m_zoneStripes.Gradient): a linear gradient one stripe period long
 --along a diagonal vector, hard flip between the color and its
@@ -1649,6 +1967,7 @@ end
 --string; white means "unset". Same normalization as the Map Markup
 --panel's KeywordColor.
 function g_tileIndicator.KeywordColor(kw)
+    ---@type Color|string|nil
     local color = nil
     pcall(function()
         local display = kw:try_get("display")
@@ -1658,7 +1977,8 @@ function g_tileIndicator.KeywordColor(kw)
     end)
 
     if type(color) == "userdata" then
-        local ok, str = pcall(function() return color.tostring end)
+        local colorValue = color --[[@as Color]]
+        local ok, str = pcall(function() return colorValue.tostring end)
         if ok and type(str) == "string" then
             color = str
         else
@@ -2224,6 +2544,17 @@ function g_tileIndicator.CreateOverlayMenu()
 
     local children = {}
 
+    --Before anything else: whether the plate this menu hangs from follows
+    --the mouse at all.
+    children[#children+1] = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        bmargin = 8,
+        SettingCheck("statusbar:tileinfo", "Status Bar Shows Tile Info",
+            "Show the coordinates, terrain and elevation of the tile under the mouse. Turn off to show only the map and floor name, which does not change as the mouse moves."),
+    }
+
     --Directors get the map appearance picker first: it is about the map
     --the clicked label names, the overlay toggles come after.
     local appearanceSection = g_tileIndicator.CreateAppearanceSection()
@@ -2413,7 +2744,13 @@ function g_tileIndicator.CreatePanel()
                 return
             end
 
-            local kind, colorOverride, nameOverride = g_tileIndicator.Classify()
+            --Tile info off: a fixed Ground square, whatever is under the mouse.
+            local kind, colorOverride, nameOverride
+            if g_tileIndicator.ShowsTileInfo() then
+                kind, colorOverride, nameOverride = g_tileIndicator.Classify()
+            else
+                kind = g_tileIndicator.kinds.ground
+            end
             local color = colorOverride or kind.color
             local key = (nameOverride or kind.name) .. "|" .. color
             if key == element.data.key then
@@ -2445,49 +2782,32 @@ local function CreateStatusBar()
     local m_mapNameLabel
     local m_mapCluster
 
-    --Encounter of the Week hides the cluster outright rather than merely
-    --dropping its plate: the map name and engine status are chrome the
-    --encounter's own presentation has no use for. Three signals, any of
-    --which suffices, because the EotW codemod is a separate mod that may not
-    --have loaded when the bar is first built: its own IsEotwGame, the
-    --account's dedicated EotW slot (set by the titlescreen's create/join
-    --flows), and the arrival args the titlescreen parks before entering.
-    --All pcall-guarded, exactly as DocumentNewUser does it.
-    --
-    --Latched once true, and deliberately one-way: a game never stops being
-    --an EotW game, which is what makes it safe to collapse the cluster --
-    --a collapsed panel's think does not run, so the collapse can never undo
-    --itself (the same trap the tile chip documents in g_tileIndicator).
-    local m_isEotwGame = false
-    local function IsEotwGame()
-        if m_isEotwGame then
-            return true
-        end
-
-        local eotw = false
-        pcall(function() eotw = EncounterOfTheWeekGame.IsEotwGame() end)
-        if not eotw then
-            pcall(function() eotw = (lobby.eotwGameid ~= nil and lobby.eotwGameid == dmhub.gameid) end)
-        end
-        if not eotw then
-            pcall(function()
-                local pending = rawget(_G, "EotwPendingArrival")
-                eotw = (type(pending) == "table" and pending.gameid ~= nil and pending.gameid == dmhub.gameid)
-            end)
-        end
-
-        m_isEotwGame = (eotw == true)
-        return m_isEotwGame
-    end
-
     local function MapClusterAvailable()
-        return dmhub.inGame and (not dmhub.isLobbyGame) and (not IsEotwGame())
+        return dmhub.inGame and (not dmhub.isLobbyGame)
     end
 
+    --Encounter of the Week covers the map with a full-screen script stage
+    --during montage and narrative beats. The map name, status and tile chip
+    --describe a map the player cannot see then, so the cluster collapses for
+    --as long as the stage is presented and returns when the map does. The
+    --EotW codemod is a separate mod (and absent outside EotW), hence the
+    --rawget and pcall.
+    local function ScriptStageCoversMap()
+        local covered = false
+        pcall(function()
+            local montage = rawget(_G, "EncounterMontage")
+            covered = montage ~= nil and montage.IsPresented() == true
+        end)
+        return covered
+    end
+
+    --Driven from the status bar's own think (see resultPanel below), NOT from
+    --anything inside the cluster: a collapsed panel's think does not run, so
+    --a driver inside it could collapse the cluster but never bring it back.
     local function RefreshMapClusterAffordance()
         if m_mapCluster ~= nil and m_mapCluster.valid then
             m_mapCluster:SetClass("menuItem", MapClusterAvailable())
-            m_mapCluster:SetClass("collapsed", IsEotwGame())
+            m_mapCluster:SetClass("collapsed", ScriptStageCoversMap())
         end
     end
 
@@ -2519,13 +2839,28 @@ local function CreateStatusBar()
         data = { fullText = "" },
         thinkTime = 0.1,
         think = function(element)
-            RefreshMapClusterAffordance()
             if (not dmhub.inGame) or dmhub.isLobbyGame then
                 element.data.fullText = ""
                 element.text = ""
                 return
             end
-            local text = string.format("%s %s", game.currentMap.description, dmhub.status)
+            local text
+            if g_tileIndicator.ShowsTileInfo() then
+                text = string.format("%s %s", game.currentMap.description, dmhub.status)
+            else
+                --The floor the player is ON, not the one under the mouse
+                --(which is what dmhub.status names), so it holds still.
+                local floor = game.currentFloor
+                local floorName = floor ~= nil and floor.description or nil
+                if type(floorName) == "string" and floorName ~= "" then
+                    text = string.format("%s, %s", game.currentMap.description, floorName)
+                else
+                    text = game.currentMap.description
+                end
+            end
+            if text == element.data.fullText then
+                return
+            end
             element.data.fullText = text
             element.text = text
         end,
@@ -2537,15 +2872,13 @@ local function CreateStatusBar()
     --here rather than on a half. hpad is inline rather than left to the
     --menuItem style so the cluster does not shift sideways on the frames
     --where the class is dropped.
-    --Built with the classes the current game already implies, so an EotW
-    --game never shows the cluster for the frames before the first think.
     --(A nil from cond() cannot simply be listed here -- it would truncate
     --the class list -- so the list is assembled.)
     local mapClusterClasses = {}
     if MapClusterAvailable() then
         mapClusterClasses[#mapClusterClasses+1] = "menuItem"
     end
-    if IsEotwGame() then
+    if ScriptStageCoversMap() then
         mapClusterClasses[#mapClusterClasses+1] = "collapsed"
     end
 
@@ -2592,6 +2925,11 @@ local function CreateStatusBar()
         -- instead of overrunning a hardcoded budget.
         width = "auto",
         halign = "right",
+
+        thinkTime = 0.1,
+        think = function(element)
+            RefreshMapClusterAffordance()
+        end,
 
         -- Dev-only note: when this game is loading its assets from a local
         -- directory (the "local assets" developer feature -- a custom data
@@ -3011,6 +3349,7 @@ local function CreateSearchBar()
         -- merged onto the right-hand type chip: Draw Steel villain/signature
         -- ability names are full sentences, so merging would clip the majority
         -- of monster-ability rows at the search box width.
+        ---@type Panel[]
         local blockChildren = { nameLabel }
 
         if result.subLabel ~= nil then
@@ -3670,6 +4009,14 @@ local function CreateSearchBar()
             -- Only treat the blur as a dismissal when the pointer is OUTSIDE
             -- the popup (mousePoint is normalized 0..1 inside a panel). The
             -- engine already closes the popup itself on outside clicks.
+            --
+            -- An installed screen search (the title screen's campaign filter)
+            -- has no popup to dismiss: its text IS the filter, so blurring --
+            -- e.g. clicking the campaign list's page arrows -- must keep it.
+            -- UninstallSearchHandler clears it when the screen goes away.
+            if TopBar.HasCustomSearch() then
+                return
+            end
             local popup = element.popup
             if popup ~= nil and popup.valid then
                 local mp = popup.mousePoint
@@ -4151,7 +4498,7 @@ local g_searchHandlers = {}
 TopBar = {}
 
 
---- @param documentids {string}
+--- @param documentids string[]
 TopBar.SetAdventureDocuments = function(info, documentids)
     if g_adventureDocumentsBar ~= nil and g_adventureDocumentsBar.valid then
         if info then
@@ -4228,11 +4575,18 @@ TopBar.UninstallSearchHandler = function(guid)
     print("SearchHandler: Uninstall", guid)
     g_searchHandlers[guid] = nil
 
+    local wasActive = g_searchStack[#g_searchStack] == guid
     for i=#g_searchStack,1,-1 do
         if g_searchStack[i] == guid then
             table.remove(g_searchStack, i)
             break
         end
+    end
+
+    --the box's text was this handler's filter (blur keeps it while a handler
+    --is installed); don't leave it showing over a screen it no longer filters.
+    if wasActive and g_searchBar ~= nil and g_searchBar.valid then
+        g_searchBar.text = ""
     end
 
     if #g_searchStack == 0 then
@@ -4354,7 +4708,7 @@ local function CreateTopBar()
         local m_submitting = false
         local m_submitted = false
         --The ticket id assigned to this report, captured once Submit completes.
-        --Surfaced to the user in statusLabel and copyable by clicking it.
+        --Shown to the user in the confirmation panel and copyable by clicking it.
         local m_reportid = nil
 
         local m_includeLog = isBugReport
@@ -4571,17 +4925,97 @@ local function CreateTopBar()
             textWrap = true,
             tmargin = 8,
             text = "",
-
-            --After submitting, this label shows the ticket id; clicking copies
-            --it to the clipboard so the user can quote it back to us. No-ops
-            --until a report has actually been submitted (m_reportid is nil).
-            click = function(element)
-                if m_reportid ~= nil and m_reportid ~= "" then
-                    gui.Tooltip{ text = "Copied to Clipboard", valign = "top", borderWidth = 0 }(element)
-                    dmhub.CopyToClipboard(m_reportid)
-                end
-            end,
         }
+
+        --The form. Hidden once the report is sent.
+        local formPanel = gui.Panel{
+            width = "100%",
+            height = 640,
+            vscroll = true,
+            flow = "vertical",
+            halign = "center",
+        }
+
+        --Shown in place of the form once the report is sent, so the user
+        --can't miss that it worked. Filled in by ShowConfirmation.
+        local confirmationPanel = gui.Panel{
+            classes = {"collapsed"},
+            width = "100%",
+            height = 640,
+            flow = "vertical",
+            halign = "center",
+        }
+
+        local SUCCESS_COLOR = "#5cb85c"
+
+        local function ShowConfirmation(reportid)
+            local children = {
+                gui.Panel{
+                    width = 96,
+                    height = 96,
+                    halign = "center",
+                    tmargin = 60,
+                    bgimage = "ui-icons/module-checkmark.png",
+                    bgcolor = SUCCESS_COLOR,
+                    interactable = false,
+                },
+
+                gui.Label{
+                    fontSize = 32,
+                    bold = true,
+                    width = "auto",
+                    height = "auto",
+                    halign = "center",
+                    tmargin = 16,
+                    color = SUCCESS_COLOR,
+                    text = "Sent!",
+                },
+
+                gui.Label{
+                    fontSize = 18,
+                    width = 760,
+                    height = "auto",
+                    halign = "center",
+                    textAlignment = "center",
+                    textWrap = true,
+                    tmargin = 16,
+                    text = kindInfo.thanks,
+                },
+            }
+
+            if kindInfo.ticketInfo ~= nil and TicketBridgeAvailable() then
+                children[#children + 1] = gui.Label{
+                    fontSize = 16,
+                    width = 760,
+                    height = "auto",
+                    halign = "center",
+                    textAlignment = "center",
+                    textWrap = true,
+                    tmargin = 12,
+                    text = kindInfo.ticketInfo,
+                }
+            end
+
+            if reportid ~= nil and reportid ~= "" then
+                --Click to copy, so the user can quote the id back to us.
+                children[#children + 1] = gui.Label{
+                    fontSize = 20,
+                    width = "auto",
+                    height = "auto",
+                    halign = "center",
+                    tmargin = 20,
+                    text = string.format("Your ticket ID is <b>%s</b> (click to copy)", reportid),
+                    click = function(element)
+                        gui.Tooltip{ text = "Copied to Clipboard", valign = "top", borderWidth = 0 }(element)
+                        dmhub.CopyToClipboard(reportid)
+                    end,
+                }
+            end
+
+            confirmationPanel.children = children
+            formPanel:SetClass("collapsed", true)
+            confirmationPanel:SetClass("collapsed", false)
+        end
 
         local submitButton
 
@@ -4591,7 +5025,12 @@ local function CreateTopBar()
             halign = "right",
             hmargin = 8,
             click = function(element)
-                if m_submitting or m_submitted then
+                --After a successful send this is the Close button.
+                if m_submitted then
+                    CloseDialog()
+                    return
+                end
+                if m_submitting then
                     return
                 end
 
@@ -4615,7 +5054,14 @@ local function CreateTopBar()
                     attachments = m_attachments,
                     progress = function(ratio)
                         if statusLabel.valid and not m_submitted then
-                            statusLabel.text = string.format("Submitting... %d%%", math.floor(ratio * 100 + 0.5))
+                            --Uploads stop at 95%. The rest is saving the report,
+                            --which sends no progress, so say so instead of
+                            --sitting on a number that looks stuck.
+                            if ratio >= 0.95 then
+                                statusLabel.text = "Upload complete. Saving your report..."
+                            else
+                                statusLabel.text = string.format("Submitting... %d%%", math.floor(ratio * 100 + 0.5))
+                            end
                         end
                     end,
                     complete = function(reportid)
@@ -4623,15 +5069,9 @@ local function CreateTopBar()
                         m_submitted = true
                         m_reportid = reportid
                         if statusLabel.valid then
-                            local text = kindInfo.thanks
-                            if kindInfo.ticketInfo ~= nil and TicketBridgeAvailable() then
-                                text = text .. "\n\n" .. kindInfo.ticketInfo
-                            end
-                            if reportid ~= nil and reportid ~= "" then
-                                text = text .. string.format("\n\nYour ticket ID is %s (click to copy).", reportid)
-                            end
-                            statusLabel.text = text
-                            submitButton:SetClass("hidden", true)
+                            statusLabel.text = ""
+                            ShowConfirmation(reportid)
+                            submitButton.text = "Close"
                         end
 
                         --pick up the freshly created ticket so Your Tickets
@@ -4769,6 +5209,8 @@ local function CreateTopBar()
         formChildren[#formChildren + 1] = attachButton
         formChildren[#formChildren + 1] = m_attachmentsList
 
+        formPanel.children = formChildren
+
         --sized so the whole form is visible without scrolling (the tallest
         --variant is a bug report with a screenshot section); vscroll remains
         --as a safety net for long attachment lists. Below the scroll region
@@ -4782,15 +5224,8 @@ local function CreateTopBar()
                 flow = "vertical",
                 halign = "center",
 
-                gui.Panel{
-                    width = "100%",
-                    height = 640,
-                    vscroll = true,
-                    flow = "vertical",
-                    halign = "center",
-
-                    children = formChildren,
-                },
+                formPanel,
+                confirmationPanel,
 
                 statusLabel,
 
@@ -4983,14 +5418,15 @@ local function CreateTopBar()
             if type(ms) ~= "number" then
                 return ""
             end
-            return os.date("%b %d, %Y", math.floor(ms / 1000))
+            --a format other than "*t" makes os.date return a string
+            return os.date("%b %d, %Y", math.floor(ms / 1000)) --[[@as string]]
         end
 
         local function FormatTime(ms)
             if type(ms) ~= "number" then
                 return ""
             end
-            return os.date("%b %d, %Y %H:%M", math.floor(ms / 1000))
+            return os.date("%b %d, %Y %H:%M", math.floor(ms / 1000)) --[[@as string]]
         end
 
         --messages arrive as a map keyed by chronologically sortable strings;
@@ -5615,13 +6051,27 @@ local function CreateTopBar()
     --dmhub.SubmitSurveyResponse. A user who already responded is thanked and
     --offered the chance to change their answers, which arrive prefilled from
     --their previous response.
+
+    --The survey definition dmhub.GetSurvey delivers (see its stub).
+    ---@class CodexSurveyDefinition
+    ---@field id string
+    ---@field title? string
+    ---@field intro? string
+    ---@field completedMessage? string
+    ---@field thanks? string
+    ---@field questions table[] each has id, type, prompt and type-specific fields
+
     local function CreateSurveyDialog()
         local m_dialog = nil
         local m_titlescreenModal = nil
 
-        local m_survey = nil     --survey definition table from the cloud.
+        --survey definition table from the cloud; nil if none is published. The
+        --pages that read it are only built once CheckLoadingComplete saw it non-nil.
+        ---@type CodexSurveyDefinition|nil
+        local m_survey = nil
         local m_response = nil   --the user's previous response record, if any.
         local m_answers = {}     --working answers, keyed by question id.
+        ---@type string|integer
         local m_page = "loading" --"loading", "error", "intro", "finished", or a question index.
         local m_errorMessage = nil
         local m_submitting = false
@@ -5698,6 +6148,8 @@ local function CreateTopBar()
         end
 
         local function BuildIntroPage()
+            --only reached once CheckLoadingComplete saw a survey (m_page "intro")
+            ---@cast m_survey -nil
             local alreadyCompleted = (m_response ~= nil)
 
             local message
@@ -5789,6 +6241,8 @@ local function CreateTopBar()
         end
 
         local function BuildFinishedPage()
+            --only reached after submitting the loaded survey (m_page "finished")
+            ---@cast m_survey -nil
             return gui.Panel{
                 width = "100%",
                 height = "100%",
@@ -6174,6 +6628,7 @@ local function CreateTopBar()
                     if not otherInput.valid then
                         return
                     end
+                    ---@type string|nil
                     local text = otherInput.text
                     if text == "" then
                         text = nil
@@ -6231,6 +6686,8 @@ local function CreateTopBar()
         end
 
         local function BuildQuestionPage(index)
+            --question pages follow the intro page, so the survey has loaded
+            ---@cast m_survey -nil
             local questions = m_survey.questions
             local q = questions[index]
             local nquestions = #questions
@@ -6298,6 +6755,7 @@ local function CreateTopBar()
 
             --the question block: prompt (plus an Optional note) and the answer
             --control, gathered into one column centered in the page.
+            ---@type Panel[]
             local questionChildren = {
                 gui.Label{
                     fontSize = 22,
@@ -6771,6 +7229,15 @@ local function CreateTopBar()
                     items[#items+1] = storeItem
                 end
 
+                --Encounter of the Week's debug rows (admin, town open).
+                --rawget: tolerate a codex without the EotW file loaded.
+                local eotw = rawget(_G, "EncounterOfTheWeek")
+                if eotw ~= nil and eotw.CodexMenuItems ~= nil then
+                    for _,eotwItem in ipairs(eotw.CodexMenuItems()) do
+                        items[#items+1] = eotwItem
+                    end
+                end
+
                 items[#items+1] = {
                     text = "Quit to Desktop",
                     icon = "game-icons/power-button.png",
@@ -7033,6 +7500,14 @@ local function CreateTopBar()
                                 menuItems[#menuItems+1] = entry
                             end
                         end
+                    end
+                end
+                --Encounter of the Week's situational rows (e.g. Skip to
+                --Combat during a montage). rawget: the EotW file may not load.
+                local eotwGame = rawget(_G, "EncounterOfTheWeekGame")
+                if eotwGame ~= nil and eotwGame.DeveloperMenuItems ~= nil then
+                    for _,item in ipairs(eotwGame.DeveloperMenuItems()) do
+                        menuItems[#menuItems+1] = item
                     end
                 end
                 return menuItems

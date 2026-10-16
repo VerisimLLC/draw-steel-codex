@@ -136,7 +136,7 @@ function FishSpeciesEditor.CreateEditor()
                 return
             end
             m_species:SetIcon(element.idChosen)
-            swatch.bgimage = element.idChosen
+            swatch.bgimage = element.idChosen --[[@as string]]
             Upload()
         end
     }
@@ -319,7 +319,7 @@ function FishSpeciesEditor.Show(parentPanel)
         idChosen = m_waterType,
         change = function(element)
             ---@cast element Dropdown
-            m_waterType = element.idChosen
+            m_waterType = element.idChosen --[[@as string]] -- option ids are WATER_TYPE keys
             --The selected species may not belong to the water now in view.
             editorPanel.data.SetData(nil)
             listPanel:FireEvent("refreshAssets")

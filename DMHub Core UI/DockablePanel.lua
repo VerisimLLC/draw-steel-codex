@@ -138,6 +138,7 @@ function GameHud:CreateSingleDock(params)
     local floating = params.floating or false
     params.floating = nil
 
+	---@type Panel
 	local resultPanel = nil
 
 	local offscreenSetting = string.format("%sdockoffscreen", params.halign)
@@ -244,6 +245,13 @@ function GameHud:CreateSingleDock(params)
 		}
 	end
 
+	---@class DockableVerticalResizingInfo
+	---@field heights number[]
+	---@field index integer|nil
+	---@field childElement Panel|nil
+	---@field nextElement Panel|nil
+
+	---@type DockableVerticalResizingInfo
 	local verticalResizingInfo = nil
 
 	--functions to compress and expand the vertical size of panels. We have deltaPixels to work with
@@ -1016,8 +1024,12 @@ CreateDockablePanelTabbedContainer = function(options)
 
 	local metrics = CalculatePanelMetrics()
 
+	--Set by the "dock" event, which addPanel/addPanelNoSize fire right after every
+	--container is built, so no UI handler below can run before it is set.
+	---@type Panel
 	local dock = nil
 
+	---@type Panel
 	local resultPanel
 
 	local beginDragY = nil
@@ -1334,6 +1346,8 @@ CreateDockablePanelTabbedContainer = function(options)
 		classes = {"verticalDragDivider"},
 		floating = true,
 		interactable = false,
+		--a handler for the custom "draggable" event (FireEventTree above), not the engine's draggable bool.
+		---@diagnostic disable-next-line: assign-type-mismatch
 		draggable = function(element, isdraggable)
 			element:SetClass("collapsed", not isdraggable)
 		end,
@@ -1735,7 +1749,10 @@ CreateDockablePanelTabbedContainer = function(options)
 		end,
 	}
 
+    --The floating panel is always sized in pixels (DockWidth, then dragging), never "auto".
+    ---@type number
     local m_baseWidth = 0
+    ---@type number
     local m_baseHeight = 0
 
     local dragHandle = gui.Panel{
@@ -1752,14 +1769,14 @@ CreateDockablePanelTabbedContainer = function(options)
         thinkTime = 1.0,
         think = function(element)
             if not element.dragging then
-                m_baseWidth = resultPanel.selfStyle.width
-                m_baseHeight = resultPanel.selfStyle.height
+                m_baseWidth = resultPanel.selfStyle.width --[[@as number]]
+                m_baseHeight = resultPanel.selfStyle.height --[[@as number]]
             end
         end,
         draggable = true,
         drag = function(element)
-            m_baseWidth = resultPanel.selfStyle.width
-            m_baseHeight = resultPanel.selfStyle.height
+            m_baseWidth = resultPanel.selfStyle.width --[[@as number]]
+            m_baseHeight = resultPanel.selfStyle.height --[[@as number]]
         end,
         dragging = function(element)
             resultPanel.selfStyle.width = math.max(DockablePanel.DockWidth, m_baseWidth + element.dragDelta.x)

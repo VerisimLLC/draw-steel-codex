@@ -7,7 +7,7 @@ local mod = dmhub.GetModLoading()
 --- @field name string Display name.
 --- @field attribute string Governing ability score id (e.g. "str", "dex").
 --- @field hasPassive boolean If true, a passive version of this skill exists.
---- @field specializations boolean|table If false, no specializations; otherwise a list of specialization objects.
+--- @field specializations false|SkillSpecialization[] If false, no specializations; otherwise a list of specialization objects.
 --- @field hidden boolean If true, this skill is hidden from UI menus.
 Skill = RegisterGameType("Skill")
 

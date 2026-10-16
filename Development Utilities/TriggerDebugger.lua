@@ -24,7 +24,7 @@ LaunchablePanel.Register{
                 local tokens = dmhub.selectedTokens
                 local tokenids = {}
                 for _,tok in ipairs(tokens) do
-                    tokenids[#tokenids+1] = tok.id
+                    tokenids[#tokenids+1] = tok.charid
                 end
 
                 if dmhub.DeepEqual(m_selectedTokenIds, tokenids) then
@@ -146,7 +146,7 @@ LaunchablePanel.Register{
                     creature.debugTriggerHandler = function(selfCreature, eventName, info, debugLog)
                         print("CALL WITH LOG:", debugLog)
                         local token = dmhub.LookupToken(selfCreature)
-                        if token == nil or m_selectedTokenIds == nil or (not table.contains(m_selectedTokenIds, token.id)) then
+                        if token == nil or m_selectedTokenIds == nil or (not table.contains(m_selectedTokenIds, token.charid)) then
                             return
                         end
 

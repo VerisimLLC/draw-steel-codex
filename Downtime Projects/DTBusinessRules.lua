@@ -48,6 +48,8 @@ function DTBusinessRules.CharacterHasRequisite(tokenId, requisite)
     local token = dmhub.GetCharacterById(tokenId)
     if token and token.properties then
         local character = token.properties
+        -- Project owners and rollers are hero tokens (DTProjectEditor._buildProjectRoll records the hero's id).
+        ---@cast character character
 
         local ancestry = character:AncestryOrInheritedAncestry()
         if ancestry then
@@ -148,6 +150,8 @@ function DTBusinessRules.GiveItemToCharacter(project)
             local projectGoal = item:try_get("projectGoal") or ""
             local projectGoalParser = "(?i)^\\d+\\s*\\(yields\\s+(?<dieRoll>\\d+d\\d+(?:\\s*[+-]\\s*\\d+)?)[^,]*(?:,\\s*or\\s+(?<yield>\\S+))?.*?(?:if\\s+crafted\\s+by\\s+a\\s+(?<condition>[^)]+))?\\)$" --"(?i)^\\d+\\s*\\(yields\\s+(?<dieRoll>\\d+d\\d+(?:\\s*[+-]\\s*\\d+)?).*?(?:,\\s*or\\s+(?<yield>\\S+))?.*?(?:if\\s+crafted\\s+by\\s+a\\s+(?<condition>[^)]+))?\\)$"
             local parseResult = regex.MatchGroups(projectGoal, projectGoalParser)
+            -- Without options.indexes every group comes back as a plain string.
+            ---@cast parseResult table<string, string>|nil
             if parseResult then
                 if parseResult.dieRoll then
                     qty = dmhub.RollInstant(parseResult.dieRoll)
@@ -155,7 +159,7 @@ function DTBusinessRules.GiveItemToCharacter(project)
                 if parseResult.yield and parseResult.condition then
                     if DTBusinessRules.ProjectMeetsRequisite(project, parseResult.condition) then
                         if DTHelpers.IsNumeric(parseResult.yield) then
-                            qty = tonumber(parseResult.yield)
+                            qty = tonumber(parseResult.yield) --[[@as number]] -- IsNumeric just passed
                         else
                             local numbersTable = { ["one"] = 1, ["two"] = 2, ["three"] = 3, ["four"] = 4, ["five"] = 5, ["six"] = 6, ["seven"] = 7, ["eight"] = 8, ["nine"] = 9, ["ten"] = 10, }
                             local x = numbersTable[parseResult.yield]

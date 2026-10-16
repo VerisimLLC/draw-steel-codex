@@ -141,6 +141,11 @@ local function NameChecks(parse)
                 zones[ins.zone] = true
             end
         end
+        for _, r in ipairs(beat.reinforcements or {}) do
+            if r.zone ~= nil then
+                zones[r.zone] = true
+            end
+        end
         for _, section in ipairs(EncounterScript.NarrativeSections(beat)) do
             for _, o in ipairs(section.options) do
                 CollectZones(o.effects)
@@ -151,10 +156,8 @@ local function NameChecks(parse)
                 CollectZones(entry.consequence.effects)
             end
             for _, o in ipairs(entry.options) do
-                if o.roll ~= nil then
-                    for t in ipairs(o.roll.tiers) do
-                        CollectZones(o.roll.effects[t])
-                    end
+                for _, effects in ipairs(EncounterScript.OptionEffectLists(o)) do
+                    CollectZones(effects)
                 end
             end
         end
@@ -287,9 +290,27 @@ local function Report(parse)
             if ins.kind == "placeobjects" then
                 Row(1, "rule", "setup %s: place %d x '%s' in %s zones%s", ins.label, ins.qty, ins.object, ins.zone,
                     cond(ins.deleteOthers, ", delete the other " .. ins.zone .. " zones", ""))
+            elseif ins.kind == "bystanders" then
+                Row(1, "rule", "setup %s: bystanders (no initiative): %s", ins.label, table.concat(ins.names or {}, ", "))
+            elseif ins.kind == "victory" then
+                Row(1, "rule", "%s: %s", ins.label, EncounterScript.DescribeVictory(ins) or "?")
             else
                 Row(1, "flavourUnknown", "setup %s: UNRECOGNIZED '%s'", ins.label, ins.text)
                 Problem("%s: setup instruction '%s' is not understood", EncounterScript.LineLabel(parse, ins.line), ins.text)
+            end
+        end
+
+        for _, r in ipairs(beat.reinforcements or {}) do
+            Row(1, "entry", "Reinforcements: %s", r.name)
+            Row(2, "rule", "arrive: %s", r.schedule ~= nil and EncounterScript.DescribeSchedule(r.schedule) or "NEVER (no Arrive: line)")
+            Row(2, "rule", "enter: %s", r.zone ~= nil and (r.zone .. " zone") or "the islands' saved positions")
+            if #r.islands > 1 then
+                Row(2, "note", "%d [[encounter]] islands take turns, one per arrival", #r.islands)
+            else
+                Row(2, "note", "%d [[encounter]] island", #r.islands)
+            end
+            for _, shout in ipairs(r.shouts or {}) do
+                Row(2, "flavour", "shout: \"%s\"", shout)
             end
         end
 
@@ -319,31 +340,48 @@ local function Report(parse)
                 if entry.consequence ~= nil then
                     RulesFor(3, "Consequence: ", entry.consequence.text)
                 end
-                for _, o in ipairs(entry.options) do
-                    counts.options = counts.options + 1
-                    Row(3, "option", "%s", o.name)
-                    if o.roll == nil then
-                        Row(4, "flavourUnknown", "no power roll")
-                    else
-                        Row(4, "roll", "%s: %s", o.roll.name, o.roll.attr)
-                        for _, problem in ipairs(AttrProblems(o.roll.attr)) do
-                            Row(5, "flavourUnknown", "%s", problem)
+                --one version of an option: its roll or its free rules, and
+                --its riders.
+                local function VersionRows(o, v, depth)
+                    for _, rider in ipairs(v.riders or {}) do
+                        Row(depth, cond(rider.requirement.unrecognized, "flavourUnknown", "rule"),
+                            "%s: %s", cond(rider.effect == "allow", "Secret (only for)", EncounterScript.RiderLabel(rider.effect, rider.round)), rider.text)
+                    end
+                    if v.roll ~= nil then
+                        Row(depth, "roll", "%s: %s", v.roll.name, v.roll.attr)
+                        for _, problem in ipairs(AttrProblems(v.roll.attr)) do
+                            Row(depth + 1, "flavourUnknown", "%s", problem)
                             Problem("%s: option '%s' -- %s", EncounterScript.LineLabel(parse, o.line), o.name, problem)
                         end
-                        for t in ipairs(o.roll.tiers) do
+                        for t in ipairs(v.roll.tiers) do
                             local label = string.format("tier %d: ", t)
                             if t == 4 then
-                                label = "critical: "
+                                label = cond(v.roll.critAuto, "critical (automatic): ", "critical: ")
                             end
-                            if o.roll.teasers[t] ~= nil then
-                                Row(5, "note", "%steaser '%s'", label, o.roll.teasers[t])
+                            if v.roll.teasers[t] ~= nil then
+                                Row(depth + 1, "note", "%steaser '%s'", label, v.roll.teasers[t])
                             end
-                            RulesFor(5, label, o.roll.tiers[t])
+                            RulesFor(depth + 1, label, v.roll.tiers[t])
                         end
-                        for _, rider in ipairs(o.roll.riders or {}) do
-                            Row(5, cond(rider.requirement.unrecognized, "flavourUnknown", "rule"),
-                                "%s: %s", EncounterScript.RiderLabel(rider.effect), rider.text)
+                        for _, rider in ipairs(v.roll.riders or {}) do
+                            Row(depth + 1, cond(rider.requirement.unrecognized, "flavourUnknown", "rule"),
+                                "%s: %s", cond(rider.effect == "allow", "Secret (only for)", EncounterScript.RiderLabel(rider.effect, rider.round)), rider.text)
                         end
+                    elseif v.free ~= nil then
+                        RulesFor(depth, "no roll: ", v.free.text)
+                    elseif o.delve ~= nil and v == o then
+                        Row(depth, "note", "enters the delve '%s'", o.delve)
+                    else
+                        Row(depth, "flavourUnknown", "no power roll and no rules")
+                    end
+                end
+                for _, o in ipairs(entry.options) do
+                    counts.options = counts.options + 1
+                    Row(3, "option", "%s%s", o.name, cond(EncounterScript.OptionIsSecret(o), "  (SECRET)", ""))
+                    VersionRows(o, o, 4)
+                    for _, k in ipairs(o.knacks or {}) do
+                        Row(4, cond(k.requirement.unrecognized, "flavourUnknown", "knack"), "Knack -- if %s:", k.requirementText)
+                        VersionRows(o, k, 5)
                     end
                 end
             end
@@ -366,6 +404,234 @@ local function Report(parse)
     return rows, problems, counts, textOnly
 end
 
+--- knack coverage ------------------------------------------------------------
+--
+--The standard (KNACKS_REFERENCE.md): every test carries a knack or two (an
+--edge rider, a knack version), every opportunity a secret option or knack,
+--and every hero of a party meets several across the montage. A party is
+--picked in the panel; in an authoring game that is the week's pregens,
+--which make a good breadth test -- but nothing here knows them by name.
+
+--Every hook an option offers, as { kind = "edge"|"secret"|"knack"|"bane",
+--requirement, text }.
+local function OptionHooks(o)
+    local hooks = {}
+    local function AddRiders(riders)
+        for _, r in ipairs(riders or {}) do
+            if r.effect == "allow" then
+                hooks[#hooks + 1] = { kind = "secret", requirement = r.requirement, text = r.text, round = r.round }
+            elseif r.effect == "bane" or r.effect == "doublebane" then
+                hooks[#hooks + 1] = { kind = "bane", requirement = r.requirement, text = r.text, round = r.round }
+            else
+                hooks[#hooks + 1] = { kind = "edge", requirement = r.requirement, text = r.text, round = r.round }
+            end
+        end
+    end
+    AddRiders(o.riders)
+    AddRiders((o.roll or {}).riders)
+    for _, k in ipairs(o.knacks or {}) do
+        if EncounterScript.KnackUsable(k) then
+            hooks[#hooks + 1] = { kind = "knack", requirement = k.requirement, text = k.requirementText }
+        end
+    end
+    return hooks
+end
+
+--Which party each character is in: charid -> partyid.
+local function PartyOfCharacters()
+    local result = {}
+    for partyid, _ in pairs(dmhub.GetTable(Party.tableName) or {}) do
+        for _, charid in ipairs(dmhub.GetCharacterIdsInParty(partyid) or {}) do
+            result[charid] = partyid
+        end
+    end
+    return result
+end
+
+--The heroes of one party (or every hero in the game for "all").
+local function PartyHeroes(partyid)
+    local heroes = {}
+    local partyOf = PartyOfCharacters()
+    for charid, tok in pairs(dmhub.GetAllCharacters() or {}) do
+        local isHero = false
+        pcall(function() isHero = tok.properties ~= nil and tok.properties:IsHero() end)
+        local inParty = partyid == "all" or partyOf[charid] == partyid
+        if isHero and inParty then
+            local name = tok.name
+            if type(name) ~= "string" or name == "" then
+                name = "(unnamed)"
+                pcall(function()
+                    local props = tok.properties --[[@as character]]
+                    local race = props:Race()
+                    local classes = props:GetClassesAndSubClasses()
+                    name = string.format("%s %s", race ~= nil and race.name or "?", classes[1] ~= nil and classes[1].class.name or "?")
+                end)
+            end
+            heroes[#heroes + 1] = { charid = charid, name = name, token = tok }
+        end
+    end
+    table.sort(heroes, function(a, b) return a.name < b.name end)
+    return heroes
+end
+
+--The parties with heroes in them, for the coverage picker.
+local function PartyOptions()
+    local counts = {}
+    local partyOf = PartyOfCharacters()
+    for charid, tok in pairs(dmhub.GetAllCharacters() or {}) do
+        local isHero = false
+        pcall(function() isHero = tok.properties ~= nil and tok.properties:IsHero() end)
+        local partyid = partyOf[charid]
+        if isHero and partyid ~= nil then
+            counts[partyid] = (counts[partyid] or 0) + 1
+        end
+    end
+    local options = {}
+    local parties = dmhub.GetTable(Party.tableName) or {}
+    local best, bestCount = "all", 0
+    for partyid, n in pairs(counts) do
+        local name = parties[partyid] ~= nil and parties[partyid].name or partyid
+        options[#options + 1] = { id = partyid, text = string.format("%s (%d heroes)", tostring(name), n) }
+        if n > bestCount then
+            best, bestCount = partyid, n
+        end
+    end
+    table.sort(options, function(a, b) return a.text < b.text end)
+    table.insert(options, 1, { id = "all", text = "All heroes in the game" })
+    return options, best
+end
+
+--Coverage rows for a parse against a party: { depth, class, text }.
+function EncounterScriptValidator.KnackCoverage(parse, partyid)
+    local rows = {}
+    local function Row(depth, class, fmt, ...)
+        rows[#rows + 1] = { depth = depth, class = class, text = string.format(fmt, ...) }
+    end
+    local heroes = PartyHeroes(partyid or "all")
+    local facts = {}
+    for _, hero in ipairs(heroes) do
+        local f = {}
+        pcall(function() f = TestRiders.CreatureFacts(hero.token.properties) end)
+        facts[hero.charid] = f
+    end
+    local function Met(requirement, f, round)
+        local ok = false
+        pcall(function()
+            local copy = {}
+            for k, v in pairs(f) do
+                copy[k] = v
+            end
+            copy.round = round
+            ok = EncounterScript.RequirementMet(requirement, copy) == true
+        end)
+        return ok
+    end
+
+    local testsTotal, testsBare = 0, {}
+    local oppTotal, oppBare = 0, {}
+    local threatTotal, threatWith = 0, 0
+    local byRequirement = {}
+    local hookTotal = 0
+    local perHero = {}
+    for _, hero in ipairs(heroes) do
+        perHero[hero.charid] = { count = 0, where = {} }
+    end
+
+    local function Visit(label, entry, round)
+        local entryHooks = 0
+        local entrySecrets = 0
+        for _, o in ipairs(entry.options or {}) do
+            local hooks = OptionHooks(o)
+            if o.roll ~= nil then
+                testsTotal = testsTotal + 1
+                local n = 0
+                for _, h in ipairs(hooks) do
+                    if h.kind ~= "bane" then
+                        n = n + 1
+                    end
+                end
+                if n == 0 then
+                    testsBare[#testsBare + 1] = string.format("%s -- %s", label, o.name)
+                end
+            end
+            for _, h in ipairs(hooks) do
+                if h.kind ~= "bane" then
+                    entryHooks = entryHooks + 1
+                    hookTotal = hookTotal + 1
+                    local key = string.lower(h.text or "")
+                    byRequirement[key] = (byRequirement[key] or 0) + 1
+                end
+                if h.kind == "secret" or h.kind == "knack" then
+                    entrySecrets = entrySecrets + 1
+                end
+                for _, hero in ipairs(heroes) do
+                    if h.kind ~= "bane" and Met(h.requirement, facts[hero.charid], h.round or round) then
+                        local ph = perHero[hero.charid]
+                        ph.count = ph.count + 1
+                        ph.where[label] = true
+                    end
+                end
+            end
+        end
+        if entry.kind == "opportunity" then
+            oppTotal = oppTotal + 1
+            if entrySecrets == 0 then
+                oppBare[#oppBare + 1] = label
+            end
+        elseif entry.kind == "threat" then
+            threatTotal = threatTotal + 1
+            if entrySecrets > 0 then
+                threatWith = threatWith + 1
+            end
+        end
+    end
+
+    for _, beat in ipairs(parse.beats or {}) do
+        for _, entry in ipairs(EncounterScript.MontageEntries(beat)) do
+            Visit(entry.name, entry, entry.round)
+        end
+    end
+    for _, delve in pairs(parse.delves or {}) do
+        for _, ob in ipairs(delve.obstacles or {}) do
+            Visit(string.format("%s: %s", delve.name, ob.name), ob, nil)
+        end
+    end
+
+    Row(0, cond(#testsBare == 0, "ok", "problem"), "Tests with a knack: %d of %d (standard: every test)", testsTotal - #testsBare, testsTotal)
+    for _, t in ipairs(testsBare) do
+        Row(1, "flavourUnknown", "no knack: %s", t)
+    end
+    Row(0, cond(#oppBare == 0, "ok", "problem"), "Opportunities with a secret option or knack: %d of %d (standard: most)", oppTotal - #oppBare, oppTotal)
+    for _, e in ipairs(oppBare) do
+        Row(1, "flavourUnknown", "none: %s", e)
+    end
+    Row(0, "note", "Threats with a secret option or knack: %d of %d (standard: some)", threatWith, threatTotal)
+
+    --one requirement carrying too much of the montage (5 Zaliac edges)
+    local heavy = {}
+    for req, n in pairs(byRequirement) do
+        if hookTotal >= 8 and n / hookTotal > 0.15 then
+            heavy[#heavy + 1] = string.format("'%s' x%d", req, n)
+        end
+    end
+    table.sort(heavy)
+    if #heavy > 0 then
+        Row(0, "flavourUnknown", "Leaning on one knack (over 15%% of %d hooks): %s", hookTotal, table.concat(heavy, ", "))
+    end
+
+    Row(0, "note", "Heroes (%d) -- knacks each meets (standard: 3 or more)", #heroes)
+    for _, hero in ipairs(heroes) do
+        local ph = perHero[hero.charid]
+        local where = {}
+        for name in pairs(ph.where) do
+            where[#where + 1] = name
+        end
+        table.sort(where)
+        Row(1, cond(ph.count >= 3, "ok", "problem"), "%s: %d  %s", hero.name, ph.count, table.concat(where, ", "))
+    end
+    return rows
+end
+
 --- the panel -----------------------------------------------------------------
 
 --Plain style tables, the way the stage declares its own, so they can go
@@ -381,6 +647,7 @@ local function Styles()
         { selectors = {"eotwValRow", "roll"}, italics = true, color = "#a8c4e0" },
         { selectors = {"eotwValRow", "tier"}, color = "#c0c0c0" },
         { selectors = {"eotwValRow", "rule"}, color = RULE_COLOR },
+        { selectors = {"eotwValRow", "knack"}, color = "#d9b3ff", bold = true },
         { selectors = {"eotwValRow", "flavour"}, color = FLAVOUR_COLOR, italics = true },
         { selectors = {"eotwValRow", "flavourUnknown"}, color = UNMATCHED_COLOR },
         { selectors = {"eotwValRow", "note"}, color = FLAVOUR_COLOR, italics = true },
@@ -406,7 +673,9 @@ local function RowLabel(row)
 end
 
 --Build the report body for one document id. Returns the list of children.
-function EncounterScriptValidator.BuildReport(docid)
+local g_coverageParty = nil
+
+function EncounterScriptValidator.BuildReport(docid, partyid)
     local children = {}
     local parse = LoadDocument(docid)
     if parse == nil then
@@ -462,6 +731,35 @@ function EncounterScriptValidator.BuildReport(docid)
         end
     end
 
+    --knack coverage against the chosen party (KNACKS_REFERENCE.md).
+    local partyOptions, bestParty = PartyOptions()
+    if g_coverageParty == nil then
+        g_coverageParty = partyid or bestParty
+    end
+    children[#children + 1] = gui.Label{ classes = {"eotwValSummary"}, text = "Knack coverage" }
+    children[#children + 1] = gui.Dropdown{
+        options = partyOptions,
+        idChosen = g_coverageParty,
+        width = 360,
+        height = 26,
+        halign = "left",
+        change = function(element)
+            ---@cast element Dropdown
+            g_coverageParty = element.idChosen
+            if EncounterScriptValidator.rebuild ~= nil then
+                EncounterScriptValidator.rebuild()
+            end
+        end,
+    }
+    local okCoverage, coverage = pcall(EncounterScriptValidator.KnackCoverage, parse, g_coverageParty)
+    if okCoverage then
+        for _, row in ipairs(coverage) do
+            children[#children + 1] = RowLabel(row)
+        end
+    else
+        children[#children + 1] = RowLabel{ depth = 1, class = "problem", text = "coverage failed: " .. tostring(coverage) }
+    end
+
     children[#children + 1] = gui.Label{ classes = {"eotwValSummary"}, text = "Script" }
     for _, row in ipairs(rows) do
         children[#children + 1] = RowLabel(row)
@@ -497,6 +795,7 @@ function EncounterScriptValidator.CreatePanel()
 
     local function Rebuild()
         local ok, children = pcall(EncounterScriptValidator.BuildReport, chosen)
+        EncounterScriptValidator.rebuild = Rebuild
         if not ok then
             children = { gui.Label{
                 classes = {"eotwValSummary"},

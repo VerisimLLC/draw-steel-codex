@@ -140,6 +140,11 @@ local function IsManifestMode(modifier)
     return modifier:try_get("treasureDelivery", "claim") == "manifest"
 end
 
+---@class ModifierGrantTreasureState
+---@field itemid? string
+---@field claimed boolean
+---@field manifested? {itemid: string, slot: string}
+
 --Per-creature record of the pick: { itemid = string|nil, claimed = boolean,
 --manifested = { itemid, slot }|nil }. manifested is set while a Manifest
 --Treasure behavior has the item equipped.
@@ -412,13 +417,14 @@ CharacterModifier.TypeInfo.granttreasure = {
                 change = function(element)
                     ---@cast element Dropdown
                     local current = GetGrantState(creature, modifier, true)
+                    ---@cast current ModifierGrantTreasureState
                     if current.claimed then
                         return
                     end
                     if element.idChosen == "none" then
                         current.itemid = nil
                     else
-                        current.itemid = element.idChosen
+                        current.itemid = element.idChosen --[[@as string]]
                     end
                     claimButton:SetClass("collapsed", current.itemid == nil or IsManifestMode(modifier))
                 end,
@@ -440,6 +446,9 @@ CharacterModifier.TypeInfo.granttreasure = {
 ]]
 --- @class CharacterTreasureGrantChoice: CharacterChoice
 --- @field new fun(o?: table): CharacterTreasureGrantChoice
+--- @field modifier CharacterModifier The granttreasure modifier this choice was built from.
+--- @field options {guid: string, name: string, unique: boolean, render: fun(): Panel}[] One entry per matching item.
+--- @field choices {id: string, text: string, unique: boolean, render: fun(): Panel}[] The same items in choice-list form.
 CharacterTreasureGrantChoice = RegisterGameType("CharacterTreasureGrantChoice", "CharacterChoice")
 
 CharacterTreasureGrantChoice.description = "Treasure Choice"
@@ -458,10 +467,23 @@ function CharacterTreasureGrantChoice.CreateNew(hero, feature, modifier)
     for _,entry in ipairs(MatchingItems(modifier)) do
         local item = entry.item
         local renderFn = function()
-            local content = item.description
+            --Render through the item's document so its annotations resolve
+            --(the image:main tag becomes the item icon); a bare markdown label
+            --only has the text and shows the tag literally.
+            local card = nil
             pcall(function()
-                content = item:RenderToMarkdown{ noninteractive = true }.content
+                card = item:Render{ noninteractive = true, width = "100%" }
             end)
+            if card ~= nil then
+                return gui.Panel{
+                    width = "98%",
+                    height = "auto",
+                    halign = "left",
+                    vmargin = 12,
+                    card,
+                }
+            end
+
             return gui.Label{
                 classes = {"builder-base", "label", "info"},
                 width = "98%",
@@ -470,7 +492,7 @@ function CharacterTreasureGrantChoice.CreateNew(hero, feature, modifier)
                 vmargin = 12,
                 textAlignment = "topleft",
                 markdown = true,
-                text = content,
+                text = item.description,
             }
         end
         options[#options+1] = {
@@ -567,6 +589,7 @@ end
 
 function CharacterTreasureGrantChoice:SaveSelection(hero, option)
     local state = GetGrantState(hero, self.modifier, true)
+    ---@cast state ModifierGrantTreasureState
     if not state.claimed then
         state.itemid = option.guid or option.id
     end
@@ -764,6 +787,7 @@ local function VanishTreasure(creature, modifier)
     if not IsManifested(creature, state) then
         return false
     end
+    ---@cast state ModifierGrantTreasureState
     local itemid = state.manifested.itemid
     local location = LocateItem(creature, itemid)
     if location == "inventory" then
@@ -842,7 +866,7 @@ function ActivatedAbilityManifestTreasureBehavior:EditorItems(parentPanel)
             idChosen = self.mode,
             change = function(element)
                 ---@cast element Dropdown
-                self.mode = element.idChosen
+                self.mode = element.idChosen --[[@as string]]
             end,
         },
     }

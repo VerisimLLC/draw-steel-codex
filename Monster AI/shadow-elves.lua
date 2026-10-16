@@ -276,7 +276,8 @@ local function FindAbilityByGuid(token, guid)
 end
 
 local function LocationProfile(token, loc)
-    local lookup = GenerateSymbols(Loc.Create(loc))
+    --GenerateSymbols returns nil only when given no object.
+    local lookup = GenerateSymbols(Loc.Create(loc)) --[[@as fun(symbol: string): any]]
     local environment = lookup("environment")
     local result = {
         darkness = environment ~= nil and environment:Has("Darkness"),
@@ -415,7 +416,6 @@ local function ExecuteAreaAbility(ai, token, ability, area, targets, options)
     local abilityClone = DeepCopy(ability)
 
     ai:ExecuteAbility(token, abilityClone, targets, options)
-    area:Destroy()
 end
 
 local function OffsetLoc(loc, dx, dy)
@@ -466,7 +466,6 @@ local function FindBestSplitbowLine(ai, token, ability)
                             numTargets = #targets,
                         }
                     end
-                    area:Destroy()
                 end
             end
         end
@@ -519,6 +518,7 @@ local function FindDarkTeleportLoc(token, ability, preferClose)
         radius = range,
         checklos = false,
     }
+    ---@type fun(loc: Loc): boolean
     local predicate = ability:TargetLocPassesFilterPredicate(token, {}) or function() return true end
     local bestLoc = nil
     local bestScore = nil
@@ -535,7 +535,6 @@ local function FindDarkTeleportLoc(token, ability, preferClose)
         end
     end
 
-    area:Destroy()
     return bestLoc
 end
 
@@ -1013,8 +1012,6 @@ MonsterAI:RegisterMove{
             if CountShadowAllies(largeArea) >= CountShadowAllies(normalArea) + 2 then
                 mode = 2
             end
-            normalArea:Destroy()
-            largeArea:Destroy()
         end
 
         local area = BuildCubeArea(token, layAbility, token.loc, mode)
@@ -1248,10 +1245,8 @@ local function FindBestUmbralHungerCube(token, ability)
                 numTargets = #targets,
             }
         end
-        area:Destroy()
     end
 
-    origins:Destroy()
     return best
 end
 

@@ -249,7 +249,7 @@ local STRIKE_MEMO_LIMIT = 512
 --- Finds the TriggeredAbility a prompt came from, preferring the persisted
 --- guid with a name fallback (the same lookup ActivateOrphanedTrigger uses,
 --- so a compendium re-import changing guids does not break classification).
---- @param creature creature
+--- @param creature creature|nil
 --- @param abilityGuid string|false
 --- @param abilityName string|false
 --- @return ActivatedAbility|nil
@@ -358,8 +358,9 @@ local triggerModifierOptions = {}
 --- @class TriggerModifierOption
 --- @field id string Unique identifier for this param type.
 --- @field text string Display name shown in the dropdown.
+--- @field index? number Position in the dropdown; defaults to the next free slot when registered.
 --- @field init fun(entry: table)|nil Called when a new entry of this type is added.
---- @field createEditor fun(modifier: CharacterModifier, entry: table, index: number, Refresh: fun()): Panel[] Returns editor panels for this entry.
+--- @field createEditor? fun(modifier: CharacterModifier, entry: table, index: number, Refresh: fun()): Panel[] Returns editor panels for this entry; entries without one (the "none" placeholder) show no editor.
 --- @field fillTriggerModes fun(modifier: CharacterModifier, entry: table, triggerInfo: ActiveTrigger, creature: creature, casterSymbols: function, index: number)|nil Called to inject modes into a trigger. index is the entry's position in modifier.attributes; pass it to TriggerModeMarker so the mode is only added once.
 
 --- @param options TriggerModifierOption
@@ -1090,7 +1091,7 @@ CharacterModifier.TypeInfo.modifytrigger = {
                         idChosen = modifier:try_get("replaceBehaviors", "after"),
                         change = function(element)
                             ---@cast element Dropdown
-                            modifier.replaceBehaviors = element.idChosen
+                            modifier.replaceBehaviors = element.idChosen --[[@as string]]
                         end,
                     },
                 }
@@ -1266,7 +1267,8 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
                     if shouldApply then
                         -- Clone only once so we don't mutate the original.
                         if triggerSelf == self then
-                            triggerSelf = self:MakeTemporaryClone()
+                            --the clone is a DeepCopy of self, so it keeps self's type.
+                            triggerSelf = self:MakeTemporaryClone() --[[@as TriggeredAbility]]
                         end
 
                         local replacementMode = ReplaceBehaviorToEnum(modifier:try_get("replaceBehaviors", "after"))

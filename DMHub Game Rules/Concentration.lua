@@ -6,8 +6,11 @@ local mod = dmhub.GetModLoading()
 --- @class Concentration: GameType
 --- @field new fun(o?: table): Concentration
 --- @field name string Name of the spell or ability being concentrated on.
---- @field duration number Duration in rounds.
+--- @field duration nil|number Duration in rounds; nil (key absent) for an indefinite one, which never expires.
 --- @field time table Timestamp object used to compute rounds elapsed.
+--- @field id string Guid set by creature:BeginConcentration.
+--- @field summonid? string[] Charids of creatures summoned under this concentration (AbilitySummon).
+--- @field objects? {floorid: string, objid: string}[] Map objects created under this concentration (Aura.lua).
 --- Tracks an active concentration effect on a creature. Stored in `creature.concentration`.
 Concentration = RegisterGameType("Concentration")
 function Concentration:HasExpired()

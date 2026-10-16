@@ -122,6 +122,7 @@ local CreateCustomMessagePanel = function(message)
 
     --pcall: a message may come from a client running a newer mod version whose
     --message type is not registered here; reading .Render on an unknown type raises.
+    --- @type Panel?
     local panel = nil
     pcall(function() panel = message.properties:Render(message) end)
     if panel == nil then
@@ -155,6 +156,7 @@ local CreateCustomMessagePanel = function(message)
         gui.Tooltip(DescribeServerTimestamp(message.timestamp))(element)
     end
 
+    ---@cast panel -nil
     if panel.events == nil then
         panel.events = {
             linger = linger,
@@ -626,6 +628,7 @@ local CreateRollMessagePanel = function(message, adoptiveParentPanel)
 			local info = message.resultInfo
 			local diceStyle = message.diceStyle
 
+			---@type Panel[]
 			local children = {headingLabel}
 
 			if outcomePanel ~= nil and message.properties ~= nil then
@@ -638,6 +641,8 @@ local CreateRollMessagePanel = function(message, adoptiveParentPanel)
 							outcomeText = StringInterpolateGoblinScript(outcomeText, token.properties)
 						end
 					end
+					--StringInterpolateGoblinScript returns nil only for a nil input.
+					---@cast outcomeText string
 					if #outcomeText < 14 then
 						-- Caller-supplied custom color stays inline; otherwise clear so
 						-- the cascade's @fgStrong on {roll-message-outcome} wins reactively.
@@ -818,6 +823,8 @@ local CreateRollMessagePanel = function(message, adoptiveParentPanel)
                 currentMessage = message
                 panel:FireEvent("refreshMessage", message)
                 rollContentPanel:SetClassTree("adopted", true)
+                --this is the not-adopted branch, which always builds avatarPanel.
+                ---@cast avatarPanel -nil
                 avatarPanel:FireEventTree("refreshMessage", message)
 
                 if m_cardToken ~= nil then
@@ -1505,6 +1512,8 @@ CreateChatPanel = function()
 
 										if ok then
 											child = result
+											--nil only for chat/data/object messages, which this branch excludes.
+											---@cast child -nil
 											child.data.adoptCastid = adoptCastid
 										else
 											dmhub.CloudError(string.format("Error creating chat panel in ActionLog: messageType=%s error=%s", tostring(message.messageType), tostring(result)))
@@ -1662,6 +1671,8 @@ CreateChatPanel = function()
 
                                 if ok then
                                     child = result
+                                    --nil only for chat/data/object messages, which this branch excludes.
+                                    ---@cast child -nil
                                     child.data.adoptCastid = adoptCastid
                                 else
 

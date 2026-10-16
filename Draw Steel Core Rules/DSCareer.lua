@@ -2,10 +2,7 @@ local mod = dmhub.GetModLoading()
 
 --- @class Background: GameType
 --- @field new fun(o?: table): Background
---- @field name string Display name of the career/background.
---- @field description string Descriptive text.
---- @field portraitid string Asset id for the career portrait.
---- @field tableName "backgrounds"|"careers" Data table name ("careers").
+--- Fields (name, description, portraitid, tableName) are declared in DMHub Game Rules/Background.lua.
 Background = RegisterGameType("Background")
 
 Background.tableName = "careers"
@@ -32,6 +29,7 @@ function Background:FillClassFeatures(choices, result)
 	for i,feature in ipairs(self:GetClassLevel().features) do
 
 		if feature.typeName == 'CharacterFeature' then
+			---@cast feature CharacterFeature
 			result[#result+1] = feature
 		else
 			feature:FillChoice(choices, result)

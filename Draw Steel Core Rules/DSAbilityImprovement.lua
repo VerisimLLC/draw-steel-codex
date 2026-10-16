@@ -7,7 +7,7 @@ CharacterModifier.ImprovementParamsById = {}
 --- @class AbilityImprovementParam
 --- @field id string Unique identifier for this param type.
 --- @field text string Display name shown in the "Add Param..." dropdown.
---- @field apply fun(ability: ActivatedAbility, value: number, casterToken: CharacterToken, symbols: table): fun() Temporarily patches ability fields and returns a restore function called after CalculateSpellTargeting.
+--- @field accumulate fun(ability: ActivatedAbility, value: number, casterToken: CharacterToken, symbols: table) Adds this param's value into the targeting symbols (e.g. symbols.abilityRangeBonus) before CalculateSpellTargeting.
 --- @field documentation table|nil GoblinScript input documentation shown in the editor value field.
 
 --- @param args AbilityImprovementParam

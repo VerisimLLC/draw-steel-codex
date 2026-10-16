@@ -25,8 +25,9 @@ local function InitParser()
             g_nameToExistingAbility[string.lower(v.signatureAbility.name)] = v.signatureAbility
         end
 
-        if v:has_key("kitManeuverAbility") then
-            g_nameToExistingManeuver[string.lower(v.kitManeuverAbility.name)] = v.kitManeuverAbility
+        --kitManeuver is false, a bare true in some data, or the maneuver ability.
+        if type(v.kitManeuver) == "table" then
+            g_nameToExistingManeuver[string.lower(v.kitManeuver.name)] = v.kitManeuver
         end
     end
 
@@ -82,7 +83,7 @@ import.Register{
         local currentClassMode = nil
         local currentLevel = nil
 
-        print("CLASSES:: COUNT", #sections.classes or 0)
+        print("CLASSES:: COUNT", #(sections.classes or {}))
         for lineNum,sline in ipairs(sections.classes or {}) do
 
             sline = trim(sline)
@@ -144,6 +145,8 @@ import.Register{
 
             elseif currentLevel ~= nil and currentLevel > 1 and currentClass ~= nil and regex.MatchGroups(sline, "^[0-9]+[a-z][a-z]-Level [A-Za-z ]+ Abilit(ies|y)$") then
                 local subclassNameMatch = regex.MatchGroups(sline, "^(?<level>[0-9]+[a-z][a-z])-Level (?<subclass>[A-Za-z ]+) Abilit(ies|y)$")
+                --the elseif above matched the same shape, and without `indexes` every group is a string.
+                ---@cast subclassNameMatch table<string, string>
                 currentClassMode = "abilities"
                 skipping = true
 
@@ -182,6 +185,8 @@ import.Register{
             end
 
             if (not skipping) and currentClass ~= nil then
+                --currentClassMode is set to "flavor" together with currentClass and never cleared.
+                ---@cast currentClassMode -nil
                 local lines = currentClass[currentClassMode] or {}
                 currentClass[currentClassMode] = lines
                 lines[#lines+1] = sline
@@ -205,11 +210,21 @@ import.Register{
 
         local kitType = nil
         local kitInfo = {}
+        --- A kit being read from the rules text: its stat lines and signature ability lines.
+        ---@class DSRulesImporterKitInfo
+        ---@field name string
+        ---@field type string
+        ---@field statsLines string[]
+        ---@field abilityLines string[]
+
+        ---@type DSRulesImporterKitInfo?
         local currentKit = nil
         local kitCount = 0
 
         for _,sline in ipairs(sections.kits or {}) do
             if mode == "kitStats" then
+                --mode only becomes kitStats/kitAbility right after currentKit is set, and leaves them when it is cleared.
+                ---@cast currentKit -nil
                 if regex.MatchGroups(sline, "^Signature Ability$") ~= nil then
                     mode = "kitAbility"
                 else
@@ -217,6 +232,8 @@ import.Register{
                 end
 
             elseif mode == "kitAbility" then
+                --see kitStats above.
+                ---@cast currentKit -nil
                 if regex.MatchGroups(sline, "^You gain the following signature ability") ~= nil then
                     --pass. This line shouldn't be present?
                 elseif regex.MatchGroups(sline, "^[^<]") ~= nil and #currentKit.abilityLines > 3 then

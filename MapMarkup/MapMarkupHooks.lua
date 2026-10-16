@@ -15,6 +15,10 @@ m.mode = "walls"
 m.markupModeRef = function() return m.mode end
 m.selectedIndex = 1
 m.paletteEntries = {}
+--Wall height chosen per wall type this session, keyed by EntryHeightKey
+--(MapMarkupWallData.lua):
+--a number of tiles, or false for To Roof. See MM.ApplyEntryHeight.
+m.entryHeights = {}
 --"rectangle" / "line" / "free" draw walls through the engine building tools,
 --and "points" drives the engine's wall vertex-editing tool the same way;
 --"erase" / "delete" and the solid shape tools are custom map tools driven
@@ -144,6 +148,9 @@ m.zonePaletteEntries = {}
 m.zoneSelectedType = 1
 m.zoneToolId = "zonerect"
 m.zoneTargetId = nil
+--"New Patch" one-shot: the next paint stroke becomes its own zone record even
+--where it touches zones of the same type. Set/cleared via MM.SetZoneNewPatch.
+m.zoneNewPatch = false
 
 --Footsteps mode state: the selected surface family (AudioSurfaceTypes id)
 --and the active paint tool.
@@ -595,6 +602,12 @@ MapMarkupHooks.cancelEditingWrapper = function(sheet)
     --is what stops the window's own escape handler closing the panel out from
     --under a single keypress.
     if m.arm.Armed() then
+        --An armed "New Patch" is the smaller thing to back out of: the first
+        --Escape cancels it and leaves the tool live, like a half-drawn stroke.
+        if m.zoneNewPatch and m.mode == "zones" then
+            MM.SetZoneNewPatch(false)
+            return true
+        end
         --m.arm.Set repaints the strip and unregisters the map tools.
         m.arm.Set(false)
         --Drop focus with the tool, exactly like panelEscape does: both

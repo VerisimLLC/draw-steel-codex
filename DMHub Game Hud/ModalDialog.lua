@@ -1,10 +1,9 @@
 local mod = dmhub.GetModLoading()
 
 --- @class ModalDialogArgs:PanelArgs
---- @param title string
---- @param buttons {text: string, click: nil|function, escapeActivates: boolean}[]
---- @param buttonsHalign nil|string Alignment of the button row ("right" default, or "center"/"left").
---- @param classes: nil|string[]
+--- @field title string
+--- @field buttons? {text: string, click: nil|function, escapeActivates: nil|boolean}[] Defaults to a single "Close" button.
+--- @field buttonsHalign nil|string Alignment of the button row ("right" default, or "center"/"left").
 
 --- Create a modal dialog
 --- @param options ModalDialogArgs

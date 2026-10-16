@@ -2205,6 +2205,7 @@ end
 -- ability.modeList (array of {text, rules, condition, hasAbility, variation}).
 _buildModesBlock = function(ability, fireChange)
     local children = {}
+    ---@type Panel
     local modesListPanel = nil
 
     children[#children + 1] = _makeFieldRow("Modes",
@@ -2555,6 +2556,56 @@ local function _buildCostAndActionSection(ability, fireChange)
             end,
         }
     )
+
+    -- 1b. Used By: for a dynamic terrain object's abilities ("Main action
+    -- (Adjacent creature)"). "Operated": the object is the caster and the
+    -- adjacent creature spends the action. "Granted": the adjacent creature
+    -- gets the ability as its own and can only use it on the object.
+    local function usedById()
+        if ability.operatedByAdjacentCreature then
+            return "operated"
+        elseif ability.grantedToAdjacentCreatures then
+            return "granted"
+        end
+        return "self"
+    end
+    children[#children + 1] = _makeFieldRow("Used By",
+        gui.Dropdown{
+            classes = {"nae-field-dropdown"},
+            idChosen = usedById(),
+            options = {
+                { id = "self", text = "This Creature" },
+                { id = "operated", text = "Adjacent Creature, Object Acts" },
+                { id = "granted", text = "Adjacent Creature, as Its Own" },
+            },
+            hover = gui.Tooltip("For objects such as a Field Ballista. Object Acts: a creature adjacent to the object uses the ability and spends the action, but the object is the caster, so range and rolls are the object's (Release Bolt). As Its Own: adjacent creatures get the ability as their own and can only use it on the object (Deactivate)."),
+            change = function(element)
+                ---@cast element Dropdown
+                ability.operatedByAdjacentCreature = element.idChosen == "operated"
+                ability.grantedToAdjacentCreatures = element.idChosen == "granted"
+                fireChange()
+            end,
+        }
+    )
+
+    -- 1c. Turn to Face Target: an object caster (a ballista) turns toward its
+    -- target while the ability is aimed. Speed and art direction are set on the
+    -- object's Targetable component (Turn Speed, Facing).
+    children[#children + 1] = gui.Panel{
+        classes = {"nae-field-row-inline"},
+        children = {
+            gui.Check{
+                classes = {"nae-toggle-check"},
+                text = "Turn to Face Target",
+                value = ability.aimCasterAtTarget == true,
+                hover = gui.Tooltip("When an object casts this (a ballista firing), it turns to face its target while being aimed and keeps that facing once cast. Set its Turn Speed and Facing on the object's Targetable component."),
+                change = function(element)
+                    ability.aimCasterAtTarget = element.value
+                    fireChange()
+                end,
+            },
+        },
+    }
 
     -- 2. Resource Cost
     children[#children + 1] = _makeFieldRow("Resource Cost",
@@ -4455,6 +4506,7 @@ local function _buildPresentationSection(ability, fireChange)
     -- ----------------------------------------------------------------
     -- Custom Icon toggle + conditional controls
     -- ----------------------------------------------------------------
+    ---@type Panel
     local customIconControls = nil
 
     local customIconCheck = gui.Check{
@@ -4614,7 +4666,9 @@ local function _buildPresentationSection(ability, fireChange)
             }
             local projectileFolderId = "14d073f8-d00a-4ab4-b184-0545124c9940"
             local objectProjectilesFolder = assets:GetObjectNode(projectileFolderId)
-            for _, projectileObject in ipairs(objectProjectilesFolder.children) do
+            --the core projectiles folder can be deleted from a game; offer only "(None)" then.
+            local projectileObjects = objectProjectilesFolder ~= nil and objectProjectilesFolder.children or {}
+            for _, projectileObject in ipairs(projectileObjects) do
                 if not projectileObject.isfolder then
                     options[#options + 1] = {
                         id = projectileObject.id,

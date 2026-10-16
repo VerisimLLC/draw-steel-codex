@@ -102,6 +102,9 @@ CreateGameControls = function()
 	            local doc = FullscreenDisplay.GetDocumentSnapshot()
                 doc:BeginChange()
                 doc.data.coverart = element.value
+                --a picked image has no scene "Art by" credit (an image tagged
+                --in CreatorCredit is still badged).
+                doc.data.coverartCredit = false
                 doc:CompleteChange("Show Fullscreen Display")
 			end,
 

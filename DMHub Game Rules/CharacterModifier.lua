@@ -23,6 +23,46 @@ local mod = dmhub.GetModLoading()
 --- @field valueTypes {id: string, text: string, get: fun(c: creature): number}[] Available value type descriptors.
 --- @field Types {id: string, text: string}[] Ordered list of all registered modifier types.
 --- @field TypesById table<string, {id: string, text: string}> Registered modifier types keyed by id.
+--- Behavior-specific fields. Each exists only on modifiers of the behavior(s) named; reading one on
+--- any other modifier raises, so use try_get/has_key unless the behavior is known.
+--- @field filterCondition? string GoblinScript: the modifier applies only when truthy (most behaviors).
+--- @field modifyType? string "d20": "roll", "advantage", "disadvantage", "proficient" or "expert".
+--- @field modifyRoll? string "d20", "damage": roll expression added to the roll (e.g. " + 2").
+--- @field applyOngoingEffects? {ongoingEffect: string, duration: nil|number}[] "d20": ongoing effects applied to self on use.
+--- @field activationCondition? boolean|string "power", "d20", "attribute": true = always, false = never, else GoblinScript.
+--- @field rollType? string "power": the roll type it modifies (e.g. "ability_power_roll", "test_power_roll").
+--- @field modtype? string "power": how the roll is modified ("none", "nottierone", ...).
+--- @field rules? string "power", "powertabletrigger", "abilityimprovement": rules text.
+--- @field damageModifier? string|number|table "power": damage added to the roll (GoblinScript).
+--- @field potencymod? string "power": potency change ("none", "custom" or a number string).
+--- @field damageTypeMappings? table<string, string> "power": damage type -> replacement damage type.
+--- @field casterCharid? string "power": charid of the creature whose trigger produced this modifier (stamped at runtime).
+--- @field forceReroll? boolean "powertabletrigger": forces a re-roll when triggered (read via ActiveTrigger.powerRollModifier, which is this modifier's clone).
+--- @field _tmp_customisations? table "abilitycustomisation": the customisations rebuilt each cycle.
+--- @field powerRollModifier? CharacterModifier "powertabletrigger": the "power" modifier applied when it triggers.
+--- @field additionalCostModifiers? CharacterModifier[] "powertabletrigger": extra "power" modifiers bought with additional cost.
+--- @field type? string "powertabletrigger": "trigger", "free" or "passive".
+--- @field targetType? string "powertabletrigger": who can trigger it ("self", "ally", "selforally", "enemy", ...).
+--- @field trigger? string "powertabletrigger": trigger event id (e.g. "takedamage", "casting").
+--- @field multitarget? string "powertabletrigger": how multiple targets are handled.
+--- @field range? number|string "powertabletrigger", "kitmodifyability": range (GoblinScript).
+--- @field damageType? string "powertabletrigger": damage filter ("all", "typed", "untyped").
+--- @field castingFilter? string "powertabletrigger": GoblinScript filter on the cast.
+--- @field castingCostOverride? string "powertabletrigger": GoblinScript cost override.
+--- @field abilityTargets? string "powertabletrigger": GoblinScript target restriction.
+--- @field abilityFilter? string "powertabletrigger", "suppressabilities", "abilityimprovement": GoblinScript ability filter.
+--- @field targetFilter? string "powertabletrigger": GoblinScript target filter.
+--- @field additionalModifier? CharacterModifier "powertableadditional": the "power" modifier it adds.
+--- @field original? string "powertableadditional": original text.
+--- @field gobefore? boolean "power" (as a powertableadditional's additionalModifier): apply before the base modifier instead of after.
+--- @field ability? ActivatedAbility "modifyability", "modifytrigger", "triggerdisplay", "routine": the ability it grants or modifies with.
+--- @field attributes? table[] "modifyability", "modifytrigger", "transform": list of attribute modification entries ({id = ...}).
+--- @field replaceBehaviors? string|boolean "modifyability", "modifytrigger": replacement mode ("after", ...; legacy boolean).
+--- @field triggerCondition? string "modifytrigger": GoblinScript condition on the trigger.
+--- @field interceptStrikes? boolean "modifytrigger": if true, intercepts strikes.
+--- @field classid? string "spellcasting": the spellcasting type id (a class id, "monster" or "none").
+--- @field spellcastingLevel? number "spellcasting": caster level (monster spellcasting).
+--- @field spellcasting? SpellcastingFeature "spellcasting": the spellcasting feature it grants (created by the type's init).
 CharacterModifier = RegisterGameType("CharacterModifier")
 
 CharacterModifier.name = "UNKNOWN"
@@ -227,7 +267,7 @@ function CharacterModifier:ResourceCostEditor(options)
 			options = resourceOptions,
 			change = function(element)
 				---@cast element Dropdown
-				self.resourceCost = element.idChosen
+				self.resourceCost = element.idChosen --[[@as string]]
 				resultPanel:FireEvent("change")
 			end,
 		},
@@ -352,10 +392,10 @@ function CharacterModifier:UsageLimitEditor(options)
                     local text = trim(element.text)
                     element.text = text
                     if text == "" then
-                        text = nil
+                        self.resourceCostId = nil
+                    else
+                        self.resourceCostId = text
                     end
-
-                    self.resourceCostId = text
                 end,
             }
 		}
@@ -537,10 +577,16 @@ CharacterModifier.TypeInfo.attribute = {
 
 	fillStatusIcons = function(self, creature, result)
 		if self:try_get("displayIcon", false) and self:has_key("statusIcon") then
+			--Show the rules text under a bold name so the icon explains itself.
+			local hoverText = self.name
+			local description = self:try_get("description", "")
+			if description ~= "" then
+				hoverText = string.format("<b>%s</b> - %s", self.name, description)
+			end
 			result[#result+1] = {
 				id = self.name,
 				icon = self.statusIcon,
-				hoverText = self.name,
+				hoverText = hoverText,
 				style = {
 					bgcolor = self:try_get("iconColor", "#ffffffff"),
 				},
@@ -649,6 +695,7 @@ CharacterModifier.TypeInfo.attribute = {
 								Refresh()
 							end,
 							linger = function(element)
+								---@cast element Dropdown
 								local tooltip = "The value will be added to the attribute"
 								if element.idChosen == "max" then
 									tooltip = "The attribute will be set to be equal to the value. It won't change if it's already higher than the value."
@@ -754,7 +801,8 @@ CharacterModifier.TypeInfo.attribute = {
 								if element.idChosen ~= "none" then
 									modifier.attribute = element.idChosen
 									local newAttributeType = CustomAttribute.GetAttributeType(modifier.attribute)
-									if newAttributeType ~= attributeType then
+									--nil when a custom attribute names a type no loaded code registers.
+									if newAttributeType ~= nil and newAttributeType ~= attributeType then
 										modifier.value = newAttributeType:DefaultModifierValue()
 									end
 								end
@@ -792,7 +840,8 @@ CharacterModifier.TypeInfo.attribute = {
 			if attributeType.enum then
 				local isCreatureSetFilter = AttributeTypeCreatureSet.IsFilterValue(modifier.value)
 
-				local dropdownIdChosen = modifier.value
+				--Enum attribute values are string option ids; a filter table is swapped for the sentinel below.
+				local dropdownIdChosen = modifier.value --[[@as string|nil]]
 				if isCreatureSetFilter then
 					dropdownIdChosen = AttributeTypeCreatureSet.FilterSentinelId
 				end
@@ -2282,6 +2331,7 @@ CharacterModifier.TypeInfo.spell = {
 
 			table.sort(options, function(a,b) return a.text < b.text end)
 
+			---@type Panel
 			local levelPanel = nil
 
 			children[#children+1] = gui.Panel{
@@ -3153,7 +3203,7 @@ function CharacterModifier:PopupEditor()
 								events = {
 									change = function(element)
 										---@cast element Dropdown
-										self.behavior = element.idChosen
+										self.behavior = element.idChosen --[[@as string]]
 
 										--A leftover triggeredAbility from a previous "trigger"
 										--behavior would linger on the modifier forever (and has
@@ -3704,6 +3754,24 @@ function CharacterModifier:ConsumeResourceInternal(creature, modContext)
 
 	creature:ConsumeResource(self:GetResourceRefreshId(), refreshType)
 	return true
+end
+
+--- The modifier's resource cost as a number. resourceCostAmount is GoblinScript (it is
+--- edited with a GoblinScriptInput), so a formula is evaluated the way ConsumeResource and
+--- HasResourcesAvailable evaluate it; a plain number is returned as-is, unevaluated.
+--- @param creature creature|nil Whose symbols the formula sees. nil: a formula counts as 0.
+--- @param symbols? table Defaults to the modifier's _tmp_symbols, as ConsumeResource uses.
+--- @return number
+function CharacterModifier:ResolveResourceCostAmount(creature, symbols)
+	local raw = self:try_get("resourceCostAmount", "1")
+	local n = tonumber(raw)
+	if n ~= nil then
+		return n
+	end
+	if creature == nil or type(raw) ~= "string" or trim(raw) == "" then
+		return 0
+	end
+	return ExecuteGoblinScript(raw, creature:LookupSymbol(symbols or self:try_get("_tmp_symbols", {})), 0)
 end
 
 function CharacterModifier:HasResourcesAvailable(creature)

@@ -42,11 +42,12 @@ local g_shownCorpses = {}
 local g_showBlood = setting{
     id = "blood:show",
     description = "Show Blood",
-    help = "When a creature takes damage, blood sprays out of it away from its attacker and spatters the ground, more for bigger hits. The blood fades away over the Blood Fade Time. A corpse lies in its own blood for as long as it is on the map.",
+    help = "When a creature takes damage, blood sprays out of it away from its attacker and spatters the ground, more for bigger hits. The blood fades away after a minute. A corpse lies in its own blood for as long as it is on the map.",
     editor = "check",
     default = false,
     storage = "game",
     section = "game",
+    classes = {"dmonly"},
     onchange = function()
         for _,entry in pairs(g_shownCorpses) do
             BloodSpatter.RefreshCorpse(entry.component, entry.obj)
@@ -81,14 +82,14 @@ g_hideGore = setting{
     end,
 }
 
+--No editor, so it never shows in the settings panel; the default is what every game
+--uses unless something sets it from Lua.
 local g_fadeTime = setting{
     id = "blood:fadetime",
     description = "Blood Fade Time",
     help = "How long spattered blood takes to fade away.",
-    editor = "dropdown",
     default = 60,
     storage = "game",
-    section = "game",
     enum = {
         {value = 15, text = "15 seconds"},
         {value = 30, text = "30 seconds"},
@@ -97,10 +98,6 @@ local g_fadeTime = setting{
         {value = 300, text = "5 minutes"},
         {value = 600, text = "10 minutes"},
     },
-    visible = function()
-        return g_showBlood:Get() == true
-    end,
-    monitorVisible = {"blood:show"},
 }
 
 --the radius of a medium (1x1) creature's token; blood scales with token size.

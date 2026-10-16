@@ -13,6 +13,8 @@ Compendium.Register{
 
 ShowShopPanel = function(parentPanel)
     local m_couponMonitor = nil
+    --Set by editingPanel's item event before the panel is first shown, never cleared.
+    ---@type ShopItemLua
     local m_item = nil
 
     --Left-list view state, shared between the editing panel's Hidden checkbox
@@ -577,6 +579,7 @@ ShowShopPanel = function(parentPanel)
 
         gui.Check{
             text = "Hidden",
+            value = false,
             tooltip = "Hide this item from the shop list. Items that are on the store (live or preview) cannot be hidden.",
             styles = {
                 {
@@ -681,7 +684,7 @@ ShowShopPanel = function(parentPanel)
                     if element.idChosen == "none" then
                         m_item.artistid = nil
                     else
-                        m_item.artistid = element.idChosen
+                        m_item.artistid = element.idChosen --[[@as string]]
                     end
 
                     m_item:Upload()
@@ -703,8 +706,9 @@ ShowShopPanel = function(parentPanel)
                     element.text = string.format("%d", item.price)
                 end,
                 change = function(element)
-                    if tonumber(element.text) then
-                        m_item.price = math.floor(tonumber(element.text))
+                    local price = tonumber(element.text)
+                    if price then
+                        m_item.price = math.floor(price)
                         m_item:Upload()
                     end
 
@@ -765,7 +769,7 @@ ShowShopPanel = function(parentPanel)
                 end,
                 change = function(element)
                     ---@cast element Dropdown
-                    m_item.itemType = element.idChosen
+                    m_item.itemType = element.idChosen --[[@as string]]
                     m_item:Upload()
                     editingPanel:FireEventTree("item", m_item)
                 end,
@@ -903,7 +907,7 @@ ShowShopPanel = function(parentPanel)
                     end,
                     change = function(element)
                         ---@cast element Dropdown
-                        m_item.assetid = element.idChosen
+                        m_item.assetid = element.idChosen --[[@as string]]
                         m_item:Upload()
                         --New dice set: refresh both live previews.
                         PreviewDiceDisplays()
@@ -1017,6 +1021,7 @@ ShowShopPanel = function(parentPanel)
 
                     gui.Check{
                         text = "Customize preview display",
+                        value = false,
                         tooltip = "When unchecked, the preview tile is generated automatically from the Shop Banner settings. Check to give this item its own tile art and dice placement.",
                         refreshPreview = function(element, cfg)
                             element.value = cfg ~= nil

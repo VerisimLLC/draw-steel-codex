@@ -157,7 +157,7 @@ local function _characterSelector(args)
                 local followers = token.properties:try_get("followers") or {}
                 for followerId,_ in pairs(followers) do
                     local follower = dmhub.GetCharacterById(followerId)
-                    if follower and (fnFollowerFilter == nil or fnFollowerFilter(follower)) then
+                    if follower and (not fnFollowerFilter or fnFollowerFilter(follower)) then
                         panels[#panels+1] = buildTokenPanel(follower, token)
                     end
                 end
@@ -373,7 +373,7 @@ local function _characterSelector(args)
 
     panelOpts.children = children
 
-    return gui.Panel(panelOpts)
+    return gui.Panel(panelOpts) --[[@as CharacterSelect]]
 end
 
 if gui.CharacterSelect == nil then

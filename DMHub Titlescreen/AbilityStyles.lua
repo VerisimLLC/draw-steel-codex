@@ -296,7 +296,6 @@ Styles.ActionMenu = {
         valign = "center",
         textAlignment = "center",
         bold = true,
-        color = "white",
         fontSize = 16,
         minFontSize = 6,
         textWrap = false,

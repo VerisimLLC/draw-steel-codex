@@ -20,8 +20,10 @@ local mod = dmhub.GetModLoading()
 --- appears as you go. Cancelling targeting tears the placed squares back down;
 --- a committed cast consumes the session instead of spawning the wall again.
 ---
---- Stacking limit: a tile's voxel column may not exceed the floor's ceiling
---- (floor.ceilingHeightInTiles -- see WallCeiling/StackedToCeiling below).
+--- Stacking limit: a tile's voxel column may not rise past the floor's ceiling
+--- (floor.ceilingHeightInTiles -- see WallCeiling/StackedToCeiling below). A
+--- column stands on the ground under it, so raised ground leaves room for fewer
+--- cubes.
 --- The action bar refuses clicks on at-ceiling columns and shows "Walls
 --- Stacked to Ceiling"; the engine treats at-ceiling columns as full-height
 --- blocks, so creatures cannot stand on or fly over them. While a wallStacking
@@ -224,8 +226,10 @@ end
 
 --- True if the tile's wall-voxel column has reached the floor's ceiling: no
 --- further cubes can be stacked there (and the engine treats the column as a
---- full-height block -- nothing can stand on top of it). The action bar checks
---- this to refuse the click and show the "Walls Stacked to Ceiling" tooltip.
+--- full-height block -- nothing can stand on top of it). The column rises from
+--- the ground under it (floor:GetWallVoxelColumnBase), so its top is that ground
+--- plus the cube count. The action bar checks this to refuse the click and show
+--- the "Walls Stacked to Ceiling" tooltip.
 function ActivatedAbilityBuildWallBehavior.StackedToCeiling(loc)
     if loc == nil then
         return false
@@ -241,7 +245,7 @@ function ActivatedAbilityBuildWallBehavior.StackedToCeiling(loc)
         return false
     end
 
-    return #floor:GetWallVoxelsAt(loc) >= ceiling
+    return floor:GetWallVoxelColumnBase(loc) + #floor:GetWallVoxelsAt(loc) >= ceiling
 end
 
 --find the Build Wall behavior that applies for the given mode index.
@@ -314,11 +318,12 @@ local function UpdateHeightLabel(session, loc)
 
     --sit the number on the column's top face: point.z is world altitude in tiles
     --and altitude parallaxes the canvas up with the wall (same recipe as the cube
-    --AoE labels in DrawSteelActionBar).
+    --AoE labels in DrawSteelActionBar). The column stands on the ground under it.
+    local top = floor:GetWallVoxelColumnBase(loc) + count
     session.heightLabels[key] = dmhub.CreateCanvasOnMap{
-        point = core.Vector3(loc.x, loc.y, count),
+        point = core.Vector3(loc.x, loc.y, top),
         floorIndex = loc.floor,
-        altitude = count,
+        altitude = top,
         sheet = gui.Label{
             interactable = false,
             halign = "center",

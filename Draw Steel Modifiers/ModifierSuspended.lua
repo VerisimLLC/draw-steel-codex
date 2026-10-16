@@ -9,7 +9,6 @@ CharacterModifier.TypeInfo.suspended = {
 
     onTokenRefresh = function(modifier, creature, token)
         creature._tmp_suspended = modifier.altitude
-        print("SUSPENDED::", modifier.altitude)
     end,
 
     createEditor = function(modifier, element)

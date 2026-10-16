@@ -64,6 +64,9 @@ end
 --- @class ParticleEffectGroup
 --- @field handles ParticleSystemHandleLua[]
 --- @field alive boolean
+--- @field placement {locs: nil|Loc[], loc: nil|Loc, followToken: nil|string|CharacterToken} The group's own copy of where the effect sits.
+--- @field recipe table The recipe (layers) the group was built from.
+--- @field scale number Size multiplier.
 local ParticleEffectGroup = {}
 ParticleEffectGroup.__index = function(t, key)
     if key == "alive" then

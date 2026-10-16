@@ -20,12 +20,12 @@ function import.CreateImporter() end
 function import:BookmarkLog() end
 
 --- Returns true if the asset was previously imported and is being reimported.
---- @param asset import|MonsterAssetLua|CharacterToken The asset to check.
+--- @param asset table|MonsterAssetLua|CharacterToken The asset to check.
 --- @return boolean
 function import:IsReimport(asset) end
 
 --- Returns the import log stored on the given asset, or nil if none exists.
---- @param asset import|MonsterAssetLua|CharacterToken The asset to retrieve the log from.
+--- @param asset table|MonsterAssetLua|CharacterToken The asset to retrieve the log from.
 --- @return nil|table
 function import:GetAssetLog(asset) end
 
@@ -36,7 +36,7 @@ function import:GetImage(asset) end
 
 --- Stores log entries accumulated since the given bookmark onto the asset's metadata, then removes them from the main log.
 --- @param bookmark integer The bookmark index returned by BookmarkLog.
---- @param asset import|MonsterAssetLua|CharacterToken The asset to attach the log to.
+--- @param asset table|MonsterAssetLua|CharacterToken The asset to attach the log to.
 function import:StoreLogFromBookmark(bookmark, asset) end
 
 --- Returns a table containing all log entries recorded during this import session.

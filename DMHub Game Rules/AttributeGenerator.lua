@@ -35,6 +35,8 @@ AttributeGenerator.points = 27
 
 function AttributeGenerator:GetPointBuyDefaultValue()
     local t = self:GetPointBuyTable()
+    --GetPointBuyTable returns pointBuyTable only after has_key, else a fresh default table.
+    ---@cast t -nil
     local firstValue = nil
 
     for k,entry in ipairs(t.entries) do
@@ -420,6 +422,8 @@ function AttributeGenerator.CreateEditor()
         },
 
         change = function(element)
+            --only the editor controls fire change, and SetData builds them only once m_data is set.
+            ---@cast m_data -nil
             dmhub.SetAndUploadTableItem(AttributeGenerator.tableName, m_data)
             resultPanel.data.SetData(m_key)
         end,

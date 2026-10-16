@@ -375,7 +375,7 @@ local growingListCard = gui.Panel{
                 width = "100%-8", height = 52, margin = 4,
                 text = "+ ADD ITEM", fontSize = 14, bold = true, textAlignment = "center",
                 click = function(button)
-                    local list = button:Get("growing-list")
+                    local list = button:Get("growing-list") --[[@as Panel]] --built above in this gallery
                     list:AddChild(makeGrowingListItem("Added"))
                     updateGrowingListStatus(list)
                 end,
@@ -474,7 +474,6 @@ local pointerBehaviorCard = gui.Panel{
             gui.Label{
                 id = "alpha-hit-underlay", classes = {"interactive"},
                 width = "100%-12", height = "100%-12", halign = "center", valign = "center",
-                hoverCursor = "hand",
                 text = "UNDERLAY\nclick a transparent triangle corner",
                 fontSize = 12, textAlignment = "center",
                 click = function(element)
@@ -509,7 +508,7 @@ local pointerBehaviorCard = gui.Panel{
                 text = "mousePoint = nil", fontSize = 12, textAlignment = "center",
                 thinkTime = 0.05,
                 think = function(element)
-                    local target = element:Get("alpha-hit-triangle")
+                    local target = element:Get("alpha-hit-triangle") --[[@as Panel]] --sibling tile in this gallery
                     local point = target.mousePoint
                     if point == nil then
                         element.text = "mousePoint = nil\nbuttons: L=false R=false M=false"
@@ -817,7 +816,7 @@ return gui.Panel{
                 text = "BROADCAST CUSTOM EVENT", bold = true,
                 fontSize = 13, textAlignment = "center",
                 click = function(element)
-                    local bus = element:Get("event-bus")
+                    local bus = element:Get("event-bus") --[[@as Panel]] --built just below in this card
                     bus.data.serial = bus.data.serial + 1
                     bus:FireEventTree("broadcast", bus.data.serial)
                 end,
@@ -955,7 +954,8 @@ return gui.Panel{
                     width = "100%-10", height = 38,
                     text = "SET TEXT + CARET", fontSize = 12, bold = true, textAlignment = "center",
                     click = function(element)
-                        element.parent:Get("input-consume-tab"):SetTextAndCaret(5, "ready: edit me")
+                        local input = element.parent:Get("input-consume-tab") --[[@as Input]] --the gui.Input above
+                        input:SetTextAndCaret(5, "ready: edit me")
                     end,
                 },
                 captionLabel("Programmatic focus and delayed caretReady", 28),

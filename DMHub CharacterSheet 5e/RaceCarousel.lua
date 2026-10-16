@@ -182,6 +182,7 @@ function CharSheet.RaceChoicePanel(options)
         end,
 
         create = function(element)
+            ---@cast element LuaSheetCarousel
             element.targetPosition = 0
             element:FireEvent("refreshBuilder")
         end,
@@ -521,7 +522,7 @@ function CharSheet.RaceChoicePanel(options)
         if m_selectedSubrace ~= nil then
             local subracesTable = dmhub.GetTable('subraces') or {}
             local foundSubrace = subracesTable[m_selectedSubrace]
-            if foundSubrace ~= nil and foundSubrace:try_get("parentRace") == race.id then
+            if foundSubrace ~= nil and race ~= nil and foundSubrace:try_get("parentRace") == race.id then
                 subrace = foundSubrace
             end
         end
@@ -1034,6 +1035,10 @@ function CharSheet.RaceChoicePanel(options)
                 local creature = CharacterSheet.instance.data.info.token.properties
 
                 local race = GetSelectedRace()
+                --nil while no race panel is displayed (e.g. no races to choose from).
+                if race == nil then
+                    return
+                end
                 local subrace = GetSelectedSubrace()
 
                 creature.raceid = race.id

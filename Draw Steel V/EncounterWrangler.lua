@@ -492,7 +492,6 @@ local function CreateInstanceRow(unit, groupName)
         bgimage = "panels/initiative/initiative-icon2.png",
         bgcolor = "white",
         interactable = false,
-        hoverCursor = "pressbutton",
         swallowPress = true,
         selfStyle = {
             opacity = 0,
@@ -536,7 +535,6 @@ local function CreateInstanceRow(unit, groupName)
         height = 14,
         halign = "left",
         valign = "center",
-        hoverCursor = "pressbutton",
         swallowPress = true,
         linger = function(element)
             gui.Tooltip("Add a condition or effect")(element)
@@ -573,7 +571,6 @@ local function CreateInstanceRow(unit, groupName)
             bgimage = entry.icon,
             bgcolor = entry.display.bgcolor or "white",
             hueshift = entry.display.hueshift or 0,
-            hoverCursor = "pressbutton",
             swallowPress = true,
             linger = function(element)
                 gui.Tooltip(string.format("%s\n<i>Click to remove.</i>", entry.tooltip))(element)
@@ -602,7 +599,6 @@ local function CreateInstanceRow(unit, groupName)
         valign = "center",
         bgimage = "panels/square.png",
         bgcolor = "clear",
-        hoverCursor = "pressbutton",
         linger = function(element)
             gui.Tooltip("Select and center on this monster")(element)
         end,
@@ -742,7 +738,6 @@ local function CreateInstanceRow(unit, groupName)
                     lmargin = 2,
                     bgimage = "panels/square.png",
                     bgcolor = "clear",
-                    hoverCursor = "pressbutton",
                     swallowPress = true,
                     linger = function(element)
                         gui.Tooltip(label)(element)
@@ -1069,7 +1064,6 @@ local function CreateAbilityOverlay(abilityName, nameLabel, includeGlobal)
         bgcolor = "clear",
         interactable = false,
         swallowPress = true,
-        hoverCursor = "pressbutton",
 
         updateAbilityUsable = function(element, casterid, usableByName, castingName)
             m_casterid = casterid

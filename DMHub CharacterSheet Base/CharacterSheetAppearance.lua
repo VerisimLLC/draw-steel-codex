@@ -637,7 +637,8 @@ function CharSheet.FramePreviewPanel()
                                     local sw = dmhub.Stopwatch()
 
                                     if g_previewToken.properties == nil then
-                                        g_previewToken.properties = {}
+                                        --a blank table (not yet a creature) for the Patch below to fill in.
+                                        g_previewToken.properties = {} --[[@as any]]
                                     end
 
                                     local diffs = 0
@@ -732,7 +733,9 @@ function CharSheet.FramePreviewPanel()
                     element:ScheduleEvent("refreshAppearanceForce", 0.1)
                 elseif #element.children == 0 then
                     local dragging = false
+                    ---@type Vector2?
                     local dragAnchor = nil
+                    ---@type Vector2?
                     local dragValue = nil
                     element.data.portrait = info.token.portrait
                     element.data.offTokenPortrait = info.token.offTokenPortrait
@@ -776,6 +779,9 @@ function CharSheet.FramePreviewPanel()
 
                             think = function(element)
                                 if dragging then
+                                    --press sets dragging together with both of these.
+                                    ---@cast dragAnchor -nil
+                                    ---@cast dragValue -nil
                                     local dx = element.mousePoint.x - dragAnchor.x
                                     local dy = element.mousePoint.y - dragAnchor.y
                                     local val = {
@@ -1082,6 +1088,7 @@ function CharSheet.FramePreviewPanel()
         gui.Check {
             id = "castShadowCheck",
             text = "Cast Shadow",
+            value = false,
             halign = "center",
             vmargin = 8,
             refreshAppearance = function(element, info)
@@ -2109,7 +2116,10 @@ function CharSheet.SummonsAppearancePanel()
             swatchContainer.children = children
 
             UpdateSelectionClasses()
-            element:FireEventTree("refreshSummonLook")
+
+            --After switching characters, the summon preview used to keep
+            --showing the last character's summon look.
+            CharacterSheet.instance:FireEventTree("refreshSummonLook")
         end,
     }
 

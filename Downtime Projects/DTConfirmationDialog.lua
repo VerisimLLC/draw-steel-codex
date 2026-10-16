@@ -73,7 +73,8 @@ function DTConfirmationDialog._createPanel(title, message, confirmButtonText, ca
         end,
     }
 
-    return dlg:Root()
+    -- DialogShell.new always builds root; Root() is Panel|nil only because it reads via try_get.
+    return dlg:Root() --[[@as Panel]]
 end
 
 --- Shows a generic confirmation dialog with customizable title and message

@@ -187,6 +187,7 @@ function CharSheet.KitChoicePanel(options)
 
 
          refreshBuilder = function(element)
+             ---@cast element LuaSheetCarousel
              local creature = CharacterSheet.instance.data.info.token.properties
              local kitTypes = creature:KitTypesAllowed()
              local kitTypesChanged = false
@@ -221,6 +222,7 @@ function CharSheet.KitChoicePanel(options)
          end,
 
         create = function(element)
+            ---@cast element LuaSheetCarousel
             element.targetPosition = 0
             element:FireEvent("refreshBuilder")
         end,
@@ -908,7 +910,7 @@ function CharSheet.KitChoicePanel(options)
             height = 26,
             change = function(element)
                 ---@cast element Dropdown
-                g_kitid = element.idChosen
+                g_kitid = element.idChosen --[[@as string]]
                 resultPanel:FireEventTree("refreshBuilder")
             end,
         }

@@ -259,6 +259,11 @@ local shopStyles = {
 		selectors = {"collapsedWhenRedeeming", "redeemingCoupon"},
 		collapsed = 1,
 	},
+	--Browse Free Items replaces the store page the same way redeeming does.
+	{
+		selectors = {"collapsedWhenRedeeming", "browsingFreeItems"},
+		collapsed = 1,
+	},
 	{
 		selectors = {"collapsedUnlessInventory", "~inventory"},
 		collapsed = 1,
@@ -2384,6 +2389,7 @@ end
 
 local MakeShopItemText = function(options)
 	local m_itemId = ""
+	---@type ShopItemLua
 	local m_item = nil
 
 	options = options or {}
@@ -2408,29 +2414,84 @@ local MakeShopItemText = function(options)
 			end,
 		},
 
-		gui.Label{
-			classes = {"authorLabel"},
-			data = {
-				artistid = nil,
+		--The artist (or an adventure's publisher) with the adventure's tag
+		--chips beside it, sharing a line to leave room for the description.
+		gui.Panel{
+			flow = "horizontal",
+			width = "100%",
+			height = "auto",
+
+			gui.Label{
+				classes = {"authorLabel"},
+				data = {
+					artistid = nil,
+				},
+				refreshItem = function(element, item)
+					local artist = nil
+					if item.artistid ~= nil then
+						artist = assets.artists[item.artistid]
+					end
+
+					--Adventures have no artist; their page config names the
+					--publisher instead, shown as plain (unclickable) text.
+					local adventure = AdventurePage.Read(item)
+					local publisher = adventure ~= nil and adventure.publisher or ""
+
+					element.data.artistid = nil
+					if artist ~= nil then
+						element:SetClass("collapsed", false)
+						element.text = artist.name
+						element.data.artistid = item.artistid
+					elseif publisher ~= "" then
+						element:SetClass("collapsed", false)
+						element.text = "By " .. publisher
+					else
+						element:SetClass("collapsed", true)
+					end
+				end,
+
+				click = function(element)
+					if element.data.artistid == nil then
+						return
+					end
+					element:FireEventOnParents("focusArtist", element.data.artistid)
+				end,
 			},
-			refreshItem = function(element, item)
-				local artist = nil
-				if item.artistid ~= nil then
-					artist = assets.artists[item.artistid]
-				end
 
-				if artist == nil then
-					element:SetClass("collapsed", true)
-				else
-					element:SetClass("collapsed", false)
-					element.text = artist.name
-					element.data.artistid = item.artistid
-				end
-			end,
-
-			click = function(element)
-				element:FireEventOnParents("focusArtist", element.data.artistid)
-			end,
+			--An adventure's tags ("Level 2", "1-2 sessions"), as small versions
+			--of the chips on its store page (AdventurePage's hero).
+			gui.Panel{
+				classes = {"collapsed"},
+				flow = "horizontal",
+				width = "auto",
+				height = "auto",
+				lmargin = 10,
+				valign = "top",
+				refreshItem = function(element, item)
+					local adventure = AdventurePage.Read(item)
+					local chips = {}
+					for i, tag in ipairs(adventure ~= nil and adventure.tags or {}) do
+						chips[#chips + 1] = gui.Label{
+							text = tag,
+							fontSize = 11,
+							color = "#d9d2c5ff",
+							width = "auto",
+							height = 20,
+							hpad = 8,
+							borderBox = true,
+							textAlignment = "center",
+							lmargin = cond(i == 1, 0, 6),
+							bgimage = "panels/square.png",
+							bgcolor = "#00000059",
+							borderWidth = 1,
+							borderColor = "#ffffff38",
+							cornerRadius = 10,
+						}
+					end
+					element.children = chips
+					element:SetClass("collapsed", #chips == 0)
+				end,
+			},
 		},
 
 		gui.Label{
@@ -2461,6 +2522,18 @@ local MakeShopItemText = function(options)
 				local text = item.details
 				if text == nil then
 					text = ""
+				end
+
+				--Adventures keep their description in the page config (about,
+				--or failing that the one-line tagline) rather than details.
+				if text == "" then
+					local adventure = AdventurePage.Read(item)
+					if adventure ~= nil then
+						text = adventure.about or ""
+						if text == "" then
+							text = adventure.tagline or ""
+						end
+					end
 				end
 
 				if item.hasBundle then
@@ -2720,7 +2793,8 @@ local function ShowDiceTryRoll(item)
 
 		--The dice cage: rolled dice tumble inside this panel, and dragging
 		--inside it grabs + throws them (mirrors the embedded roll dialog).
-		gui.Panel{
+		--Must be a gui.DicePreview: SetAsDicePreviewPanel exists only on that type.
+		gui.DicePreview{
 			width = "92%",
 			height = 210,
 			halign = "center",
@@ -2732,9 +2806,11 @@ local function ShowDiceTryRoll(item)
 			thinkTime = 0.01,
 
 			create = function(element)
+				---@cast element DicePreview
 				element:SetAsDicePreviewPanel(true)
 			end,
 			destroy = function(element)
+				---@cast element DicePreview
 				element:SetAsDicePreviewPanel(false)
 			end,
 			hover = function(element) dice.MouseEnter() end,
@@ -3396,7 +3472,7 @@ local ShowItemDetailsInternal = function(args)
 	--trick as detailsBackingGradient below -- bgcolor supplies the hue, the
 	--gradient supplies the alpha. Note position 0 is the BOTTOM of the panel,
 	--not the top, so the dark stop comes first.
-	local heroTextScrim = core.Gradient{
+	local heroTextScrim = gui.Gradient{
 		point_a = {x = 0.5, y = 0},
 		point_b = {x = 0.5, y = 1},
 		stops = {
@@ -3495,7 +3571,7 @@ local ShowItemDetailsInternal = function(args)
 	--shadowed look). The gradient holds solid through the body and softly fades
 	--out at the very bottom so the band dissolves rather than ending on a hard
 	--line. bgcolor sets the hue; the gradient supplies the alpha.
-	local detailsBackingGradient = core.Gradient{
+	local detailsBackingGradient = gui.Gradient{
 		point_a = {x = 0.5, y = 0},
 		point_b = {x = 0.5, y = 1},
 		stops = {
@@ -3591,6 +3667,9 @@ local ShowItemDetailsInternal = function(args)
 				--setting/clearing them twice is harmless. All of it is torn down on
 				--destroy so nothing leaks into in-game rolls once the shop closes.
 				create = function(element)
+					--Built by gui.DicePreview; the gui.Panel fallback (older binary)
+					--lacks these members, which is why every use is pcall-guarded.
+					---@cast element DicePreview
 					pcall(function() dice.SetPreviewRollScreenBounds(true) end)
 					pcall(function() element:SetAsDicePreviewPanel(true) end)
 					--Pull a pair of try-dice a little closer together than the default
@@ -3699,6 +3778,7 @@ local ShowItemDetailsInternal = function(args)
 					pcall(function() element:DicePreviewMouseLeave() end)
 				end,
 				click = function(element)
+					---@cast element DicePreview
 					pcall(function() element:DicePreviewClick() end)
 				end,
 				dragging = function(element)
@@ -3710,6 +3790,119 @@ local ShowItemDetailsInternal = function(args)
 			},
 
 			captionLabel,
+		}
+	end
+
+	--Hero module switch (inventory only): when the viewed item sells a premium
+	--Hero module the player owns (bought, or granted by Patreon), a button turning its classes, ancestries and
+	--other options on or off for their heroes (HeroModules.SetEnabled). The
+	--item only names the module, so its record is downloaded to learn whether
+	--it is a Hero module; the panel stays collapsed until then.
+	local m_heroModuleToggle = nil
+	if not args.gift then
+		local heroToggleLabel = gui.Label{
+			text = "",
+			fontSize = 14,
+			width = 600,
+			height = "auto",
+			halign = "left",
+			textAlignment = "left",
+			vmargin = 4,
+		}
+
+		local heroToggleButton
+		heroToggleButton = gui.Label{
+			classes = {"itemButton"},
+			text = "",
+			width = 300,
+			halign = "left",
+			data = { fullid = nil, enabled = true },
+			press = function(element)
+				if element.data.fullid ~= nil then
+					--the change notification refreshes the panel.
+					HeroModules.SetEnabled(element.data.fullid, not element.data.enabled)
+				end
+			end,
+		}
+
+		m_heroModuleToggle = gui.Panel{
+			classes = {"collapsedUnlessInventory", "collapsed"},
+			flow = "vertical",
+			width = "auto",
+			height = "auto",
+			halign = "left",
+			vmargin = 8,
+			data = { requestId = 0, info = nil },
+
+			create = function(element)
+				HeroModules.Listen(element)
+			end,
+
+			heroModulesChanged = function(element)
+				element:FireEvent("refreshHeroToggle")
+			end,
+
+			showProductDetails = function(element, item)
+				local requestId = element.data.requestId + 1
+				element.data.requestId = requestId
+				element.data.info = nil
+				element:FireEvent("refreshHeroToggle")
+
+				if item == nil or item.itemType ~= "Module" or item.assetid == nil or item.assetid == "" then
+					return
+				end
+
+				module.DownloadModuleInfo{
+					moduleid = item.assetid,
+					success = function(info)
+						if not element.valid or element.data.requestId ~= requestId then
+							return
+						end
+						--owned covers a purchase and a Patreon membership alike.
+						if info.isHeroModule and info.premium and info.owned then
+							element.data.info = info
+							element:FireEvent("refreshHeroToggle")
+						end
+					end,
+					failure = function(message)
+						print(string.format("Shop: could not download module %s: %s", item.assetid, tostring(message)))
+					end,
+				}
+			end,
+
+			hideProductDetails = function(element)
+				element.data.requestId = element.data.requestId + 1
+				element.data.info = nil
+				element:FireEvent("refreshHeroToggle")
+			end,
+
+			refreshHeroToggle = function(element)
+				local info = element.data.info
+				element:SetClass("collapsed", info == nil)
+				if info == nil then
+					heroToggleButton.data.fullid = nil
+					return
+				end
+
+				local fullid = info.fullid
+				local enabled = HeroModules.IsEnabled(fullid)
+				heroToggleButton.data.fullid = fullid
+				heroToggleButton.data.enabled = enabled
+				heroToggleButton.text = cond(enabled, "Used with my Heroes", "Use with my Heroes")
+				heroToggleButton:SetClass("equipped", enabled)
+
+				local err = HeroModules.GetError(fullid)
+				if not enabled then
+					heroToggleLabel.text = "Switched off: its classes, ancestries and other options are not used with your heroes."
+				elseif err ~= nil then
+					heroToggleLabel.text = string.format("<color=#ff8888>%s</color>", err)
+				else
+					heroToggleLabel.text = "Its classes, ancestries and other options are available when you build heroes, and come with your heroes into the games they join. Press to switch it off."
+				end
+			end,
+
+			heroToggleLabel,
+			heroToggleButton,
 		}
 	end
 
@@ -4329,6 +4522,8 @@ local ShowItemDetailsInternal = function(args)
 				halign = "left",
 				m_shopItemText,
 			}),
+
+			m_heroModuleToggle,
 		},
 
 		--The adventure store page (hero, media viewer, about/cast, buy box).
@@ -4395,6 +4590,143 @@ function ShowShopItemDetails(args)
 	params.gift = nil
 
 	return gui.Panel(params)
+end
+
+--One free Hero module (a module of classes, ancestries and other hero options,
+--see HeroModules.lua) as a card in Browse Free Items: the module browser's own
+--card over an Add / Remove button. An added module is used with the player's
+--heroes; removing it stops that. The card doesn't open the module's page: the
+--browser is a modal, and the store sits above the modal layer, so it would
+--open out of sight.
+--- @param info ModuleLua
+--- @return Panel
+local MakeHeroModuleCard = function(info)
+	local slot = ModuleBrowser.CreateModuleSlot{}
+
+	local statusLabel = gui.Label{
+		text = "",
+		fontSize = 14,
+		width = 312,
+		height = "auto",
+		textAlignment = "center",
+		halign = "center",
+		vmargin = 2,
+	}
+
+	local controls = gui.Panel{
+		flow = "horizontal",
+		width = "auto",
+		height = "auto",
+		halign = "center",
+		vmargin = 4,
+	}
+
+	local Refresh = function()
+		local fullid = info.fullid
+		local added = HeroModules.IsAdded(fullid)
+		statusLabel.text = ""
+
+		if added then
+			controls.children = {
+				gui.Label{
+					text = "Added",
+					fontSize = 16,
+					width = "auto",
+					height = "auto",
+					valign = "center",
+					hmargin = 8,
+				},
+				gui.Button{
+					text = "Remove",
+					width = 100,
+					height = 30,
+					fontSize = 14,
+					valign = "center",
+					click = function()
+						HeroModules.Remove(fullid)
+					end,
+				},
+			}
+
+			local err = HeroModules.GetError(fullid)
+			if err ~= nil then
+				statusLabel.text = string.format("<color=#ff8888>%s</color>", err)
+			end
+		else
+			controls.children = {
+				gui.Button{
+					text = "Add to my Inventory",
+					width = 200,
+					height = 34,
+					fontSize = 16,
+					click = function()
+						HeroModules.Add(fullid)
+					end,
+				},
+			}
+		end
+	end
+
+	--fixed width so three cards fit a row of the store column whatever the
+	--controls under them hold.
+	return gui.Panel{
+		flow = "vertical",
+		width = 330,
+		height = "auto",
+		margin = 10,
+		create = function(element)
+			HeroModules.Listen(element)
+			slot:FireEvent("setmodule", info)
+			Refresh()
+		end,
+		heroModulesChanged = function(element)
+			Refresh()
+		end,
+		slot,
+		controls,
+		statusLabel,
+	}
+end
+
+--A wrapping grid of Hero module cards, centered in the store column. The cards
+--carry the module browser's classes, so the grid carries its styles.
+--- @return Panel
+local MakeHeroModuleGrid = function()
+	return gui.Panel{
+		flow = "horizontal",
+		wrap = true,
+		width = g_bannerDisplayWidth,
+		height = "auto",
+		halign = "center",
+		styles = ThemeEngine.MergeTokens(ModuleBrowser.moduleStyles),
+	}
+end
+
+--An inventory entry for a Hero module no store item sells (one a Patreon
+--membership grants): a plain table with the ShopItemLua fields the grid and
+--the details page read, so it shows and opens like a real item.
+--- @param info ModuleLua
+--- @return ShopItemLua
+local MakeHeroModuleShopEntry = function(info)
+	local images = {}
+	if type(info.coverart) == "string" and info.coverart ~= "" then
+		images[1] = info.coverart
+	end
+	local entry = {
+		id = "heromodule:" .. info.fullid,
+		name = info.name or "",
+		details = info.details or "",
+		itemType = "Module",
+		assetid = info.fullid,
+		price = 0,
+		images = images,
+		keywords = "",
+		onsale = false,
+		hasBundle = false,
+		bundle = {},
+		ctime = 0,
+	}
+	return entry --[[@as ShopItemLua]]
 end
 
 --Builds one row displaying a gift code the user owns: item name, purchase
@@ -4494,7 +4826,7 @@ local function CreateShopScreenInternal(arguments)
 			},
 	}
 
-	local dividerGradient = core.Gradient{
+	local dividerGradient = gui.Gradient{
 		point_a = {x=0,y=0},
 		point_b = {x=1,y=0},
 		stops = {
@@ -4532,7 +4864,17 @@ local function CreateShopScreenInternal(arguments)
 		fullProductDatabase[#fullProductDatabase+1] = shopItem
 	end
 
-	table.sort(productDatabase, function(a,b) return a.name < b.name end)
+	--Adventures first, then everything else; alphabetical within each group.
+	local isAdventure = {}
+	for _,item in ipairs(productDatabase) do
+		isAdventure[item.id] = AdventurePage.Has(item)
+	end
+	table.sort(productDatabase, function(a,b)
+		if isAdventure[a.id] ~= isAdventure[b.id] then
+			return isAdventure[a.id]
+		end
+		return a.name < b.name
+	end)
 
 	local DisplayShop = function(productDatabase)
 
@@ -4595,7 +4937,14 @@ local function CreateShopScreenInternal(arguments)
 
 		end
 
+		--the last search, so a list that grows later can be searched again.
+		local m_searchText = ""
+
+		--bumped by each showInventory, so a stale Patreon lookup is dropped.
+		local m_patreonRequest = 0
+
 		local ExecuteSearch = function(str)
+			m_searchText = str or ""
 			local words = {}
 
 			if str ~= nil then
@@ -4949,6 +5298,8 @@ local function CreateShopScreenInternal(arguments)
 					resultPanel:FireEventTree("clearredeem")
 				end
 
+				resultPanel:SetClassTree("browsingFreeItems", false)
+
 				local productIndex = {}
 				for _,item in ipairs(fullProductDatabase) do
 					productIndex[item.id] = item
@@ -5007,12 +5358,53 @@ local function CreateShopScreenInternal(arguments)
 				element:SetClassTree("inventory", true)
 
 				ExecuteSearch("")
+
+				--Hero modules a Patreon membership grants have no purchase, so
+				--they join the list once their records arrive: as the store item
+				--selling the module, or a generated entry if none does. Their
+				--details page carries the switch that turns them on or off.
+				m_patreonRequest = m_patreonRequest + 1
+				local requestId = m_patreonRequest
+				HeroModules.CollectInventory(function(heroItems)
+					if requestId ~= m_patreonRequest or not resultPanel.valid or not resultPanel:HasClass("inventory") then
+						return
+					end
+
+					local purchased = {}
+					for _, id in ipairs(module.GetOurPurchasedModules()) do
+						purchased[id] = true
+					end
+
+					local listed = {}
+					for _, product in ipairs(m_allProducts) do
+						listed[product.id] = true
+					end
+
+					local addedAny = false
+					for _, heroItem in ipairs(heroItems) do
+						local info = heroItem.module
+						if not heroItem.added and info.premium and info.owned and not purchased[info.fullid] then
+							local product = CodexShop.ItemForModule(info.fullid) or MakeHeroModuleShopEntry(info)
+							if not listed[product.id] then
+								listed[product.id] = true
+								m_allProducts[#m_allProducts+1] = product
+								addedAny = true
+							end
+						end
+					end
+
+					if addedAny then
+						ExecuteSearch(m_searchText)
+					end
+				end)
 			end,
 
 			hideInventory = function(element)
 				if element:HasClass("showingCouponInventory") then
 					resultPanel:FireEventTree("clearCouponDisplay")
 				end
+
+				resultPanel:SetClassTree("browsingFreeItems", false)
 
 				if element:HasClass("redeemingCoupon") then
 					resultPanel:FireEventTree("clearredeem")
@@ -5237,6 +5629,10 @@ local function CreateShopScreenInternal(arguments)
 								collapsed = 1,
 							},
 							{
+								selectors = {"browsingFreeItems"},
+								collapsed = 1,
+							},
+							{
 								selectors = {"categoryLabel"},
 								bgimage = "panels/square.png",
 								minWidth = 120,
@@ -5453,7 +5849,6 @@ local function CreateShopScreenInternal(arguments)
 								halign = "center",
 								textAlignment = "center",
 								height = 24,
-								halign = "center",
 								vmargin = 4,
 
 								showgift = function(element, item)
@@ -5681,6 +6076,72 @@ local function CreateShopScreenInternal(arguments)
 					end,
 				},
 
+				--Browse Free Items: the free Hero modules anyone can add to their
+				--inventory. Takes the store page's place, like redeem mode; rebuilt
+				--each time it is opened so it shows the current module index.
+				gui.Panel{
+					id = "freeHeroModules",
+					classes = {"freeHeroModules"},
+					flow = "vertical",
+					width = "100%",
+					height = "auto",
+
+					styles = {
+						{
+							selectors = {"freeHeroModules", "~browsingFreeItems"},
+							collapsed = 1,
+						},
+					},
+
+					browsefreeitems = function(element)
+						local statusLabel = gui.Label{
+							classes = {"noresultsLabel"},
+							maxWidth = 800,
+							text = "Loading...",
+						}
+						local grid = MakeHeroModuleGrid()
+
+						element.children = {
+							gui.Panel{
+								halign = "center",
+								flow = "vertical",
+								width = "auto",
+								height = "auto",
+								gui.Label{
+									classes = {"shopTitle"},
+									text = "Free Items",
+								},
+								gui.Label{
+									classes = {"shopDescription"},
+									text = "Classes, ancestries and more for your heroes. Add them to your inventory for free.",
+								},
+							},
+							statusLabel,
+							grid,
+						}
+
+						HeroModules.QueryFreeModules(function(items, err)
+							if not grid.valid then
+								return
+							end
+							if items == nil then
+								statusLabel.text = string.format("Could not load the free items: %s", err or "unknown error")
+								return
+							end
+							if #items == 0 then
+								statusLabel.text = "There are no free items yet. Check back soon!"
+								return
+							end
+							statusLabel:SetClass("collapsed", true)
+							local cards = {}
+							for _, info in ipairs(items) do
+								cards[#cards+1] = MakeHeroModuleCard(info)
+							end
+							grid.children = cards
+						end)
+					end,
+				},
+
 				--Search bar row: occupies the gap between the featured banner and
 				--the product grid, right-aligned so the search box's right edge
 				--lines up with the banner's right edge. Hidden (keeping the gap)
@@ -5713,6 +6174,10 @@ local function CreateShopScreenInternal(arguments)
 						{
 							selectors = {"redeemingCoupon"},
 							hidden = 1,
+						},
+						{
+							selectors = {"browsingFreeItems"},
+							collapsed = 1,
 						},
 					},
 
@@ -5774,6 +6239,10 @@ local function CreateShopScreenInternal(arguments)
 						},
 						{
 							selectors = {"redeemingCoupon"},
+							collapsed = 1,
+						},
+						{
+							selectors = {"browsingFreeItems"},
 							collapsed = 1,
 						},
 					},
@@ -6265,6 +6734,59 @@ local function CreateShopScreenInternal(arguments)
 				height = "auto",
 				flow = "horizontal",
 
+				--free Hero modules (HeroModules.lua). A second press goes back to
+				--the store.
+				gui.Label{
+					bgcolor = "clear",
+					width = "auto",
+					height = "auto",
+					fontSize = 18,
+					valign = "center",
+					rmargin = 16,
+					text = "Browse Free Items",
+					fontWeight = "regular",
+
+					styles = {
+						{
+							selectors = {"hover"},
+							color = "#ffffff",
+						},
+					},
+
+					press = function(element)
+						if element:HasClass("browsingFreeItems") then
+							resultPanel:SetClassTree("browsingFreeItems", false)
+							return
+						end
+
+						if element:HasClass("inventory") then
+							resultPanel:FireEvent("hideInventory")
+						end
+						if element:HasClass("showingCart") then
+							resultPanel:FireEvent("hideCart")
+						end
+						if element:HasClass("artistFocus") then
+							resultPanel:FireEvent("focusArtist", nil)
+						end
+						resultPanel:SetClassTree("showingCouponInventory", false)
+						resultPanel:SetClassTree("redeemingCoupon", false)
+						resultPanel:FireEventTree("hideProductDetails")
+						resultPanel:SetClassTree("browsingFreeItems", true)
+						resultPanel:FireEventTree("browsefreeitems")
+					end,
+				},
+
+				--Divider between the free items and redeem links.
+				gui.Panel{
+					bgimage = "panels/square.png",
+					bgcolor = "white",
+					opacity = 0.4,
+					width = 2,
+					height = 24,
+					valign = "center",
+					rmargin = 16,
+				},
+
 				--redeem code.
 				gui.Label{
 					bgcolor = "clear",
@@ -6284,6 +6806,7 @@ local function CreateShopScreenInternal(arguments)
 					},
 
 					press = function(element)
+						resultPanel:SetClassTree("browsingFreeItems", false)
 						if element:HasClass("redeemingCoupon") then
 							resultPanel:SetClassTree("redeemingCoupon", false)
 						else
@@ -6339,6 +6862,8 @@ local function CreateShopScreenInternal(arguments)
 						if element:HasClass("redeemingCoupon") then
 							resultPanel:FireEventTree("clearredeem")
 						end
+
+						resultPanel:SetClassTree("browsingFreeItems", false)
 
 						element:FireEventOnParents("showCart")
 

@@ -21,3 +21,7 @@ function editor:ShowModSettingsDialog() end
 --- @param toolInfo table Configuration table for the custom map tool.
 --- @return nil|EventSourceLua
 function editor:SetMapTool(toolInfo) end
+
+--- Cancels a stroke the user is part-way through drawing with the multi-click 'shape' map tool (including one set through SetMapTool): the placed points are discarded and the tool stays active for a fresh stroke. Returns true if there was a stroke to cancel. The polygon tool normally does this itself on Escape, but a rail window's escape capture outranks it, so a panel that handles Escape itself calls this first.
+--- @return boolean
+function editor:CancelMapStroke() end

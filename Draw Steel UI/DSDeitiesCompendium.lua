@@ -170,7 +170,7 @@ ShowDeities = function(contentPanel)
         itemsListPanel,
         Compendium.AddButton{
             click = function()
-                dmhub.SetAndUploadTableItem(Deity.tableName, Deity.CreateNew{})
+                dmhub.SetAndUploadTableItem(Deity.tableName, Deity.CreateNew())
             end,
         }
     }

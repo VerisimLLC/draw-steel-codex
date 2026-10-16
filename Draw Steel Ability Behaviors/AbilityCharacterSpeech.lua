@@ -2,6 +2,7 @@ local mod = dmhub.GetModLoading()
 
 --- @class ActivatedAbilityCharacterSpeechBehavior:ActivatedAbilityBehavior
 --- @field new fun(o?: table): ActivatedAbilityCharacterSpeechBehavior
+--- @field variations string[] Speech lines; one is picked (shuffled, without repeats) per cast.
 ActivatedAbilityCharacterSpeechBehavior = RegisterGameType("ActivatedAbilityCharacterSpeechBehavior", "ActivatedAbilityBehavior")
 
 ActivatedAbilityCharacterSpeechBehavior.summary = 'Character Speech'

@@ -105,5 +105,6 @@ function DTShareDialog._createPanel(options)
         end,
     }
 
-    return dlg:Root()
+    -- DialogShell.new always builds root; Root() is Panel|nil only because it reads via try_get.
+    return dlg:Root() --[[@as Panel]]
 end

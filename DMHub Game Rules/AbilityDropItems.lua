@@ -4,7 +4,7 @@ local mod = dmhub.GetModLoading()
 --- @field new fun(o?: table): ActivatedAbilityDropItemsBehavior
 --- @field summary string Short label shown in behavior lists.
 --- @field slotTarget string Equipment slot to drop items from (e.g. "hands").
---- @field number string|number Number of items to drop, or "all".
+--- @field number string How many items to drop: "one", "multiple" or "all" (ids from numberOptions).
 ActivatedAbilityDropItemsBehavior = RegisterGameType("ActivatedAbilityDropItemsBehavior", "ActivatedAbilityBehavior")
 
 
@@ -227,7 +227,7 @@ function ActivatedAbilityDropItemsBehavior:EditorItems(parentPanel)
             options = ActivatedAbilityDropItemsBehavior.slotTargetTypes,
             change = function(element)
                 ---@cast element Dropdown
-                self.slotTarget = element.idChosen
+                self.slotTarget = element.idChosen --[[@as string]]
             end,
 
         },
@@ -245,7 +245,7 @@ function ActivatedAbilityDropItemsBehavior:EditorItems(parentPanel)
             options = ActivatedAbilityDropItemsBehavior.numberOptions,
             change = function(element)
                 ---@cast element Dropdown
-                self.number = element.idChosen
+                self.number = element.idChosen --[[@as string]]
             end,
 
         },

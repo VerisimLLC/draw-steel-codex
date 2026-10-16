@@ -7,8 +7,8 @@
 --- @field previewDirectory any The directory the current game's map preview JPEGs are cached in.
 MapExportCameraLua = {}
 
---- SetMapTourExport
---- @param options? any
+--- Switch the export to a map tour: a seamless looping video that sweeps the camera across the map and back, showing parallax, and fading out each floor from the top down to reveal the one beneath (fading them back in on the return). #MapExport shows the tour live. duration is the length of one full loop in seconds.
+--- @param options {width: number|nil, height: number|nil, duration: number|nil}
 function MapExportCameraLua:SetMapTourExport(options) end
 
 --- SetFullMapExport

@@ -145,9 +145,22 @@ function ActivatedAbilityCustomTriggerBehavior:Cast(ability, casterToken, target
             local value = ExecuteGoblinScript(self.value, target.token.properties:LookupSymbol(options.symbols), 0, "Determine custom trigger value")
             print("GoblinScript:: symbols", options.symbols, "self.value =", self.value, "result =", value)
 
+            --Forward the Monster AI activity this cast belongs to (e.g. a hero's
+            --Overwatch provoked by a monster's move, directing an ally). The
+            --receiving hero's prompt then becomes its own pending AI reaction
+            --(TriggeredAbility:Trigger), and DispatchEvent routes it to a remote
+            --controller through the AI reaction queue. Only the AI host stamps
+            --the in-flight activity itself, so a cast on a player's machine
+            --must carry it.
+            local aiActivityId = options.symbols.aiActivityId
+            if type(aiActivityId) ~= "string" or aiActivityId == "" then
+                aiActivityId = nil
+            end
+
             target.token.properties:DispatchEvent("custom", {
                 triggername = self.triggerName,
                 triggervalue = value,
+                aiActivityId = aiActivityId,
             })
 
             if self:try_get("waitForResolution", false) then

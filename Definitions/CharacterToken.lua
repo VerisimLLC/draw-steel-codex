@@ -1,18 +1,20 @@
 ---@meta
 
 --- @class CharacterToken
+--- @field debugFlag boolean (Undocumented: engine-internal, not part of the modding API.)
 --- @field charid string The charid (also known as tokenid) of the token/character. Uniquely identifies this token.
 --- @field debugInfo string A summary of this token suitable for outputting to a debug log.
 --- @field monitorPath string (Read-only) The 'path' within the game's cloud storage that this token resides at. If you want to see if this token has changed, you can monitor that path. @see Panel.monitorGame
 --- @field isCorpse boolean If this token is a corpse
 --- @field isObject boolean If this token is an object, not a creature
 --- @field isAttackableObject boolean If this token is an attackable object, as opposed to e.g. a corpse.
+--- @field objectInvisibleToPlayers boolean If this token is an object whose sprite is invisible to players (e.g. a hidden trap). The object still exists and works for everyone, but players cannot see it. Always false for creatures; use invisibleToPlayers for those.
 --- @field objectComponent any
 --- @field hasTokenOnThisMap boolean If this token is deployed on the current map.
 --- @field hasTokenOnAnyMap boolean If this token is deployed on a map somewhere.
 --- @field summonerid nil|string (Read-only) the tokenid of the token that summoned this token, if there is one.
 --- @field bestiaryId nil|string (Read-only) The id of this token's entry in the bestiary, if it was spawned from or added to the bestiary. nil for tokens with no bestiary entry. Used to key per-monster-type state such as what players have learned about the monster.
---- @field mountObject nil|LuaObjectComponent The object that this token is mounted on. e.g. sitting on a chair.
+--- @field mountObject nil|LuaObjectComponentMount The object that this token is mounted on. e.g. sitting on a chair.
 --- @field mountedOn nil|string The tokenid of the token this token is mounted on.
 --- @field saddleUnlocked boolean If mounted on a saddle, returns true if that saddle is in the 'unlocked' state.
 --- @field selfOrMount CharacterToken (Read-only) If mounted on a token, returns the token mounted on. Otherwise is equal to this token itself.
@@ -37,6 +39,7 @@
 --- @field playerName string (Read-only) The name of the player controling this token. Will result in 'NPC Ally' or 'NPC/Monster' if not controlled by a player.
 --- @field ownerId nil|string The userid of the player who owns this token, 'PARTY' if the token is owned by a party, nil if the token is GM-controlled. If 'PARTY' then @see partyId to get the partyid of the controlling party.
 --- @field partyId nil|string The id of the party that controls this token, if they are controlled by a party.
+--- @field partyid nil|string The id of the party that controls this token, or nil (an empty id reads as nil). Setting it only has an effect when the token is already party-owned, and only changes the local token: upload it afterwards. Use @see partyId to make a token party-owned. (Undocumented: engine-internal, not part of the modding API.)
 --- @field playerColor Color (Read-only) the color of the player who owns this token. White if not controlled by a player.
 --- @field playerControlled boolean (Read-only) True if this token is controlled by a player, or by the player's party.
 --- @field playerControlledNotShared boolean (Read-only) True if this token is controlled directly by a player.
@@ -45,7 +48,7 @@
 --- @field primaryCharacter boolean (Read-only) True if this is the primary character of the current user.
 --- @field playerControlledAndPrimary boolean (Read-only) True if this is the primary character of a player.
 --- @field activeControllerId nil|string (Read-only) the userid of the user who is best suited to responding to prompts on this token right now. Will return nil if the current user is the best suited to responding to prompts on this character.
---- @field canSee boolean (Read-only) True if the current user can see this token (it's in their vision).
+--- @field canSee boolean (Read-only) True if the current user can see this token (it's in their vision). False for a token that is not spawned on the current map, e.g. one from dmhub.GetCharacterById that lives on another map.
 --- @field sheet Panel The panel that is attached to this token to display their UI.
 --- @field topsheet Panel The panel that is attached to this token to display their UI.
 --- @field bottomsheet Panel The panel that is attached to this token to display their UI.
@@ -70,6 +73,7 @@
 --- @field mapid string (Read-only) the id of the map the token is currently on.
 --- @field floorid string (Read-only) the id of the floor the token is currently on.
 --- @field canCurrentlyClimb boolean True if the creature can climb in the current location it is in now.
+--- @field isCeilingClinging boolean True while the creature is clinging upside down to the ceiling. Starts when a climber (Lua creature:CanClingToCeiling) already at the ceiling moves up again; ends when it moves down, is force-moved or teleported, or goes prone.
 --- @field isFriendOfPlayer boolean
 --- @field objectInstance LuaObjectInstance|nil
 --- @field properties Creature The token's lua properties representing game-specific character information. Often this is of type @see Creature
@@ -80,6 +84,7 @@
 --- @field portraitFrameBrightness number
 --- @field portraitFrame nil|string
 --- @field portraitFrameMaterial nil|string Id of a premium frame material registered with dmhub.tokenFrames:Register that lights this token's frame ring (normal map, roughness/metallic, sheen). nil or empty = plain frame texture. This does not change portraitFrame: set portraitFrame to the material's albedo asset as well, so clients and UI that only know the flat frame still show it. Upload with UploadAppearance.
+--- @field portraitRibbon nil|string (Undocumented: engine-internal, not part of the modding API.)
 --- @field teleportAnimation string The id of the registered token animation (see dmhub.tokenAnimations:RegisterTeleport) played when this token teleports. Empty string -> no animation, logical teleport only.
 --- @field animation CharacterTokenAnimationLua The per-token animation interface used inside a token-animation callback. Provides Light / Billboard / PlayEffect / Tween / SetVisible primitives plus a sound passthrough. Spawns made while a scripted animation is running are tracked and stopped automatically when the animation ends.
 --- @field offTokenPortrait string
@@ -107,8 +112,8 @@
 --- @field lookAtMouse boolean
 --- @field floorIndex number
 --- @field initiativeStatus InitiativeStatus (Read-only) the initiative status of the token.
---- @field countFloorsWithVisionAbove number The number of floors above this token that the token can 'look up' at. Generally this requires there being a hole directly above the token. A roof or canopy floor ends the count: roofs are shown from below by the roof/canopy cutaway and are never looked up at.
---- @field countFloorsAbove number The number of floors above this token, regardless of whether there are holes above them. A roof or canopy floor ends the count.
+--- @field countFloorsWithVisionAbove number The number of floors above this token that the token can 'look up' at. Generally this requires there being a hole directly above the token.
+--- @field countFloorsAbove number The number of floors above this token, regardless of whether there are holes above them.
 CharacterToken = {}
 
 --- Returns true if this token id is not a 'real' in game token but instead a preview token shown to an in app camera.
@@ -176,7 +181,7 @@ function CharacterToken:SerializeAppearanceFromString(s) end
 function CharacterToken:PrepareUploadAppearance() end
 
 --- Upload the @see appearance section of the token. If a snapshot from @see PrepareUploadAppearance is provided, the change will be undoable.
---- @param snapshot string A snapshot from @see PrepareUploadAppearance representing the previous appearance to restore on undo.
+--- @param snapshot? string A snapshot from @see PrepareUploadAppearance representing the previous appearance to restore on undo.
 function CharacterToken:UploadAppearance(snapshot) end
 
 --- Disguise as another token. The disguise will be uploaded.
@@ -221,8 +226,8 @@ function CharacterToken:RecalculateElevation() end
 function CharacterToken:Flip() end
 
 --- GetNameMaxLength
---- @param maxLen? number
---- @return string
+--- @param maxLen number
+--- @return nil|string The name, shortened to at most maxLen characters, or nil if the token has no name.
 function CharacterToken:GetNameMaxLength(maxLen) end
 
 --- DescribeRollAgainst
@@ -231,15 +236,15 @@ function CharacterToken:GetNameMaxLength(maxLen) end
 function CharacterToken:DescribeRollAgainst(rollStr) end
 
 --- Where the token should be positioned if it's standing at the given location.
---- @param loc Loc
+--- @param loc? Loc Defaults to the token's current location.
 --- @return Vector3
 function CharacterToken:PosAtLoc(loc) end
 
 --- Create a local map tag using the targeting modifier label renderer. Destroy the returned marker when the preview ends.
 --- @param location Loc
 --- @param text string
---- @param category string
---- @param offsetY number
+--- @param category? string
+--- @param offsetY? number
 --- @return LuaTargetingMarkers
 function CharacterToken:CreateMapTag(location, text, category, offsetY) end
 
@@ -285,7 +290,7 @@ function CharacterToken:Move(loc, options) end
 
 --- Teleport the token to the target location. A token riding in a saddle dismounts as part of the teleport (unless teleportMount is true, which brings the mount along instead).
 --- @param loc Loc
---- @param teleportMount boolean Teleport the mount also if this creature is mounted.
+--- @param teleportMount? boolean Teleport the mount also if this creature is mounted.
 function CharacterToken:Teleport(loc, teleportMount) end
 
 --- Immediately relocate creature to target location
@@ -305,6 +310,11 @@ function CharacterToken:IsFriend(other) end
 --- @deprecated
 --- @return any
 function CharacterToken:GetCreature() end
+
+--- Plays a named particle effect (any effect in the token or dice effect libraries -- the names the Dice Studio particle picker lists) on this token for EVERY client on the map, not just this one. Args are those of token.animation:PlayEffect except pos: id, scale, rotation (degrees about Z, or an {x,y,z} euler table), tint, looping, ttl (a looping effect with a ttl stops itself after it -- recommended, as a safety net), delay. Each client plays it only while it can see the token, and loads the effect first if it isn't loaded yet. Transient: clients that arrive on the map later do not see it. handle:Stop() on this client stops it everywhere. Do not call it from inside a token animation (those already run on every client); use token.animation:PlayEffect there.
+--- @param args {id: string, scale: nil|number, rotation: nil|number|{x: number, y: number, z: number}, tint: nil|ColorArg, looping: nil|boolean, ttl: nil|number, delay: nil|number}
+--- @return NetworkedEffectHandleLua
+function CharacterToken:BroadcastEffect(args) end
 
 --- Set the spine animation playing on this token. id is the animation name (required); transition is the cross-fade duration in seconds (optional); loop defaults to true; track defaults to 0. No-op if the token doesn't have an active spine animation or if the named animation isn't found in the skeleton.
 --- @param options {id: string, transition: nil|number, loop: nil|boolean, track: nil|number}
@@ -334,8 +344,9 @@ function CharacterToken:InvalidateObjects() end
 
 --- aspect is the width as a percentage of the height. e.g. 0.5 = width is half of height.
 --- @param aspect number
+--- @param portrait nil|string The image id of the portrait to fit. Defaults to the token's own portrait.
 --- @return Vector4
-function CharacterToken:GetPortraitRectForAspect(aspect) end
+function CharacterToken:GetPortraitRectForAspect(aspect, portrait) end
 
 --- Returns walk of swim depending on the type of movement the creature will have to move on the ground. preferWater is used if the token straddles water and land and chooses the preferred type for the token.
 --- @param preferWater boolean
@@ -403,32 +414,32 @@ function CharacterToken:ConsumeClick() end
 
 --- Renders this token's creature into a tooltip panel and returns it.
 --- @param args table
---- @param options table
+--- @param options? table
 --- @return nil|Panel
 function CharacterToken:Render(args, options) end
 
 --- Renders a movement radius marker showing how far the token can move. Returns a reference controlling it. Remember to call Destroy on it when you want the radius to disappear!
---- @param movementAllowance movement allowance in decitiles.
+--- @param movementAllowance number movement allowance in decitiles.
 --- @param args nil|{waypoints: nil|Loc[], mask: nil|Loc[], filter: nil|function, moveFlags: nil|('IgnoreMovementType'|'CannotMoveThroughFriends'|'CanFly'|'IgnoreOtherCreatures'|'Shifting'|'IgnoreWalls')[] }
 --- @return LuaMultiObjectReference
 function CharacterToken:MarkMovementRadius(movementAllowance, args) end
 
 --- Returns the exact list of tiles that MarkMovementRadius would highlight, given the same arguments. Uses identical underlying logic, so callers can confine targeting to exactly the tiles the movement radius draws.
---- @param movementAllowance movement allowance in decitiles.
+--- @param movementAllowance number movement allowance in decitiles.
 --- @param args nil|{waypoints: nil|Loc[], mask: nil|Loc[], filter: nil|function, moveFlags: nil|('IgnoreMovementType'|'CannotMoveThroughFriends'|'CanFly'|'IgnoreOtherCreatures'|'Shifting'|'IgnoreWalls')[] }
 --- @return Loc[]
 function CharacterToken:CalculateMovementPerimeter(movementAllowance, args) end
 
 --- Returns every tile a straight-line jump of the given distance and jump height could land on: within distance of the token, no full-height wall or too-tall height-limited wall/block on the line, and no ground along the line rising more than jumpHeight above the takeoff ground. Landing lower is always allowed. Mirrors Move with movementType='jump', so the set matches where such a jump can actually go.
---- @param distance jump distance in tiles (Chebyshev).
---- @param jumpHeight the height in tiles the jump clears; also the most the ground may rise above the takeoff along the line or at the landing tile.
+--- @param distance number jump distance in tiles (Chebyshev).
+--- @param jumpHeight number the height in tiles the jump clears; also the most the ground may rise above the takeoff along the line or at the landing tile.
 --- @return Loc[]
 function CharacterToken:CalculateJumpReachable(distance, jumpHeight) end
 
 --- Draw a movement arrow. @see ClearMovementArrow to clear the movement arrow.
 --- @param targetLoc Loc
 --- @param options nil|table
---- @return nil|{path: LuaPath, collideWith: CharacterToken[]}
+--- @return nil|{path: LuaPath, collideWith: nil|CharacterToken[], bounceCollisions: nil|{speed: number, collideWith: CharacterToken[], destination: Loc}[]}
 function CharacterToken:MarkMovementArrow(targetLoc, options) end
 
 --- Plan a same-floor straight charge with at most one jump. Prefer guaranteed routes; optional tier capabilities permit a roll-dependent route with fixed takeoff/landing and per-tier outcomes. Does not move the token.
@@ -436,6 +447,15 @@ function CharacterToken:MarkMovementArrow(targetLoc, options) end
 --- @param options {chargeJumpDistance: number, chargeJumpHeight: number, chargeDistance: number, chargeJumpTierDistances: nil|number[], chargeJumpTierHeights: nil|number[], chargeJumpGuaranteedTier: nil|number}
 --- @return nil|table
 function CharacterToken:PlanCharge(targetLoc, options) end
+
+--- Plans a straight charge with no jump from this token's location to every square around the enemy that is within range of it -- what PlanCharge would find for each of those squares -- and returns the routes that work, cheapest first, ties in Loc:LocsInRadius order. dest is where a route ends, with its ground altitude. With a cache, a route already planned (from the same spot, perhaps toward another enemy beside the same square) is not planned again; the cache must not outlive the board state it was filled from. Does not move the token.
+--- @param enemy CharacterToken The creature being charged.
+--- @param radius integer How far around the enemy to look for landing squares, in tiles (as Loc:LocsInRadius).
+--- @param range number The strike's reach in native units: a landing square must be this close to the enemy (as CharacterToken:Distance).
+--- @param distance number The charge distance in tiles.
+--- @param cache nil|LuaChargeRouteCache Routes remembered between calls (dmhub.CreateChargeRouteCache).
+--- @return {dest: Loc, cost: integer}[]
+function CharacterToken:FindChargeRoutes(enemy, radius, range, distance, cache) end
 
 --- Preview one charge jump from a fixed takeoff toward its original landing with the rolled distance and height. Returns native target, projected landing and fall, preserving the original straight line even on a shortfall. Does not move the token or resolve reactions.
 --- @param sourceLoc Loc

@@ -2,6 +2,8 @@ local mod = dmhub.GetModLoading()
 
 --- @class TimerChatMessage: GameType
 --- @field new fun(o?: table): TimerChatMessage
+--- @field duration number Length of the countdown in seconds.
+--- @field timestamp number Server time the timer started (dmhub.serverTime).
 TimerChatMessage = RegisterGameType("TimerChatMessage")
 
 function TimerChatMessage.Render(self, message)

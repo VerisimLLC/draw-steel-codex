@@ -1,5 +1,9 @@
 local mod = dmhub.GetModLoading()
 
+--What dmhub.GetTypeDocumentation actually returns (the engine stub declares
+--the bare fields array, but the C# wraps it in a { fields = ... } table).
+---@class APIDocumentationTypeDocs
+---@field fields {name: string, type: string, documentation: string|nil, typeSignature: string|nil}[]
 
 dmhub.RegisterEventHandler("link", function(url)
 
@@ -14,6 +18,7 @@ dmhub.RegisterEventHandler("link", function(url)
     if docs == nil then
         return
     end
+    ---@cast docs APIDocumentationTypeDocs
 
     for i=1,10 do
         if rawtypename == nil then
@@ -24,6 +29,7 @@ dmhub.RegisterEventHandler("link", function(url)
             rawtypename = typeInfo.mt.baseTypeName
             if rawtypename ~= nil then
                 local baseDocs = dmhub.GetTypeDocumentation(rawtypename)
+                ---@cast baseDocs APIDocumentationTypeDocs
 
                 --merge into the main docs.
                 for _,field in ipairs(baseDocs.fields) do

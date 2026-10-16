@@ -18,7 +18,7 @@ function DTFollowers.CreateNew(followers, creature)
     if followers and type(followers) == "table" and next(followers) then
         for followerId,_ in pairs(followers) do
             local follower = dmhub.GetCharacterById(followerId)
-            if follower then instance.followers[follower.id] = follower end
+            if follower then instance.followers[follower.charid] = follower end
         end
     end
 
@@ -27,7 +27,7 @@ end
 
 --- Retrieve a specific follower using its key
 --- @param followerId string GUID identifier for the follower
---- @return DTFollower|nil follower The follower or nil if the key wasn't provided or found
+--- @return CharacterToken|nil follower The follower's token (CreateNew stores GetCharacterById results) or nil if the key wasn't provided or found
 function DTFollowers:GetFollower(followerId)
     return self.followers[followerId or ""]
 end

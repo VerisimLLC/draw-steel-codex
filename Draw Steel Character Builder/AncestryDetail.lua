@@ -58,7 +58,8 @@ function CBAncestryDetail._navPanel()
         end,
         refreshBuilderState = function(element, state)
             local hero = _getHero()
-            local isAvailable = state:Get(SELECTOR .. ".selectedId") ~= nil and hero:try_get("raceid") == nil
+            --hero is nil while the builder is open on a monster.
+            local isAvailable = hero ~= nil and state:Get(SELECTOR .. ".selectedId") ~= nil and hero:try_get("raceid") == nil
             element:SetClass("collapsed", not isAvailable)
             element:FireEvent("setAvailable", isAvailable)
         end,

@@ -1864,7 +1864,7 @@ local function ProceedEndCombat()
     Aura.RemoveExpiredMapAnchoredAurasAtEndOfCombat()
 
     local hud = GameHud.instance
-    if hud ~= nil then
+    if hud then
         for initiativeid, _ in pairs(q.entries) do
             local tokens = hud:GetTokensForInitiativeId(hud.initiativeInterface, initiativeid)
             for _, tok in ipairs(tokens) do
@@ -1881,6 +1881,46 @@ end
 -- on behalf of a player who pressed Proceed). Full-permission teardown: run it
 -- on a Director client.
 DSVictoryScreen.ProceedEndCombat = ProceedEndCombat
+
+-- Grant `amount` Victories to every hero in the battle -- what the Director's
+-- Award button does -- and network it so every client plays the drop
+-- animation. `exemptions` (optional) is { [charid] = note }: those heroes get
+-- nothing, and their card shows the note in grey italics where the
+-- "Victories: old -> new" line would be ("" shows nothing). Encounter of the
+-- Week awards automatically this way, exempting heroes who already won the
+-- encounter and heroes who died. Writes other players' heroes, so run it with
+-- Director capability (a player host elevates first).
+function DSVictoryScreen.AwardVictories(live, amount, exemptions)
+    amount = math.max(0, math.floor(tonumber(amount) or 1))
+    exemptions = exemptions or {}
+    for _, token in ipairs(live:GetBattleHeroTokens()) do
+        if exemptions[token.charid] == nil and amount > 0 then
+            token:ModifyProperties{
+                description = "Award Victories",
+                combine = true,
+                execute = function()
+                    token.properties:SetVictories(token.properties:GetVictories() + amount)
+                end,
+            }
+        end
+    end
+
+    --record the awarded amount + flag on the live encounter and network it so
+    --every client plays the drop animation and shows the change.
+    live.victories = amount
+    live.victoryExemptions = exemptions
+    live.victoriesAwarded = true
+    dmhub:UploadInitiativeQueue()
+end
+
+-- Extra lines other modules add under a hero's card (Encounter of the Week
+-- lists the treasure a hero is taking home). id -> fn(live, token), which
+-- returns a short line of text or nil.
+local g_heroCardNotes = {}
+
+function DSVictoryScreen.RegisterHeroCardNote(id, fn)
+    g_heroCardNotes[id] = fn
+end
 
 -- Build a single hero's card: portrait, name, Stamina bar, Recoveries change, the fun
 -- role they earned (if any -- see ComputeHeroRoles; roleInfo may be nil and the role
@@ -2078,6 +2118,31 @@ local function BuildHeroCard(live, token, roleInfo)
         fontSize = 13,
     }
 
+    -- Lines registered by other modules (DSVictoryScreen.RegisterHeroCardNote).
+    local noteLines = {}
+    for _, fn in pairs(g_heroCardNotes) do
+        local ok, text = pcall(fn, live, token)
+        if ok and type(text) == "string" and text ~= "" then
+            noteLines[#noteLines + 1] = text
+        end
+    end
+    table.sort(noteLines)
+    local notesLabel = gui.Label{
+        classes = {"victoryFade", "info"},
+        interactable = false,
+        text = table.concat(noteLines, "\n"),
+        width = "100%",
+        height = "auto",
+        halign = "center",
+        tmargin = 8,
+        textAlignment = "center",
+        textWrap = true,
+        fontFace = "Book",
+        fontSize = 14,
+        fontWeight = "bold",
+    }
+    notesLabel:SetClass("collapsed", #noteLines == 0)
+
     -- "Victories: old -> new" line, hidden until the Award animation finishes.
     local victoriesLabel = gui.Label{
         classes = {"victoryFade", "scalein", "info"},
@@ -2148,7 +2213,7 @@ local function BuildHeroCard(live, token, roleInfo)
 
         -- dropLayer is LAST so it draws on top of the card content (in DMHub later
         -- siblings render above earlier ones), letting the icons land over the card.
-        children = { portraitPanel, nameLabel, staminaBar, recoveriesLabel, roleTitleLabel, roleTextLabel, victoriesLabel, dropLayer },
+        children = { portraitPanel, nameLabel, staminaBar, recoveriesLabel, roleTitleLabel, roleTextLabel, notesLabel, victoriesLabel, dropLayer },
 
         -- Drop `amount` victory icons into this card one at a time, then reveal the
         -- "Victories: old -> new" line. Orchestrated per-card by the screen's playAward.
@@ -2207,6 +2272,21 @@ local function BuildHeroCard(live, token, roleInfo)
         finishAward = function(card, amount)
             local newV = card.data.victoriesOld + amount
             victoriesLabel.text = string.format("Victories: %d -> %d", card.data.victoriesOld, newV)
+            victoriesLabel:SetClass("collapsed", false)
+            victoriesLabel:SetClass("shown", false)
+            victoriesLabel:SetClass("shown", true)
+        end,
+
+        -- A hero the award exempted (see DSVictoryScreen.AwardVictories): no
+        -- icons, just the reason in grey italics where the Victories line goes.
+        showVictoryNote = function(card, note)
+            if note == nil or note == "" then
+                return
+            end
+            victoriesLabel.text = note
+            victoriesLabel.selfStyle.italics = true
+            victoriesLabel.selfStyle.fontWeight = "regular"
+            victoriesLabel.selfStyle.color = "#9a9a9a"
             victoriesLabel:SetClass("collapsed", false)
             victoriesLabel:SetClass("shown", false)
             victoriesLabel:SetClass("shown", true)
@@ -2881,25 +2961,7 @@ function DSVictoryScreen.Create()
             if not dmhub.isDM then return end
             local live, outcome = GetActiveOutcome()
             if live == nil or outcome ~= "victory" then return end
-            local n = tonumber(victoryAmountInput.text) or 1
-            n = math.floor(n)
-            if n < 0 then n = 0 end
-
-            for _, token in ipairs(live:GetBattleHeroTokens()) do
-                token:ModifyProperties{
-                    description = "Award Victories",
-                    combine = true,
-                    execute = function()
-                        token.properties:SetVictories(token.properties:GetVictories() + n)
-                    end,
-                }
-            end
-
-            --record the awarded amount + flag on the live encounter and network it so
-            --every client plays the drop animation and shows the change.
-            live.victories = n
-            live.victoriesAwarded = true
-            dmhub:UploadInitiativeQueue()
+            DSVictoryScreen.AwardVictories(live, tonumber(victoryAmountInput.text) or 1)
             if rootPanel ~= nil then
                 rootPanel:FireEvent("checkVictory")
             end
@@ -3116,8 +3178,9 @@ function DSVictoryScreen.Create()
 
         showTitle = function(element, g)
             if g ~= element.data.generation then return end
-            --play the same dramatic-banner sword sound as the swords sweep apart.
-            audio.FireSoundEvent(DramaticBanner.defaultSound)
+            --big-banner sting as the swords sweep apart: positive for a
+            --victory, negative for a defeat.
+            audio.FireSoundEvent(cond(element.data.outcome == "defeat", "Notify.BigBanner_Neg", "Notify.BigBanner_Pos"))
             titleLabel:SetClass("shown", true)
             titleShadow:SetClass("shown", true)
             titleClip:SetClass("titleClip-closed", false)
@@ -3135,6 +3198,7 @@ function DSVictoryScreen.Create()
                 --ITSELF -- the fade rule {"victoryFade","shown"} matches same-element, like
                 --the title. A plain SetClass would only mark the card, leaving leaves hidden.
                 card:SetClassTree("shown", true)
+                audio.FireSoundEvent("Notify.Victory_Card")
             end
         end,
 
@@ -3227,7 +3291,7 @@ function DSVictoryScreen.Create()
 
             --once the Director awards Victories, play the icon-drop animation
             --(once; victory outcomes only).
-            if active and outcome == "victory" and element.data.shown and not element.data.awardPlayed
+            if live ~= nil and outcome == "victory" and element.data.shown and not element.data.awardPlayed
                 and live:try_get("victoriesAwarded", false) then
                 element.data.awardPlayed = true
                 element:FireEvent("playAward", live)
@@ -3238,6 +3302,7 @@ function DSVictoryScreen.Create()
         playAward = function(element, live)
             local g = element.data.generation
             local n = live:try_get("victories", 1)
+            local exemptions = live:try_get("victoryExemptions") or {}
             --the drop animation lands on the hero cards, so make sure this client
             --is looking at them.
             element:FireEvent("selectTab", "heroes")
@@ -3246,13 +3311,19 @@ function DSVictoryScreen.Create()
             local cards = heroRow.children
             local perCard = 0.7
             for i, card in ipairs(cards) do
-                element:ScheduleEvent("awardCard", (i - 1) * perCard, g, card, n)
+                local token = card.data.token
+                local note = token ~= nil and exemptions[token.charid] or nil
+                element:ScheduleEvent("awardCard", (i - 1) * perCard, g, card, n, note)
             end
         end,
 
-        awardCard = function(element, g, card, n)
+        awardCard = function(element, g, card, n, note)
             if g ~= element.data.generation then return end
             if card ~= nil and card.valid then
+                if note ~= nil then
+                    card:FireEvent("showVictoryNote", note)
+                    return
+                end
                 --pickup sound as each player is awarded their victory.
                 audio.FireSoundEvent("UI.Inv_Item_Pickup_Special")
                 card:FireEvent("awardVictories", n)

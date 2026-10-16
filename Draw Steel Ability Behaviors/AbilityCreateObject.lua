@@ -417,10 +417,10 @@ function ActivatedAbilityCreateLaneObjectBehavior:Cast(ability, casterToken, tar
     local seen = {}
     for _,loc in ipairs(locations) do
         for _,tok in ipairs(game.GetTokensAtLoc(loc) or {}) do
-            if tok.valid and (not tok.isObject) and (not seen[tok.id]) then
-                seen[tok.id] = true
-                state.insideTokens[tok.id] = true
-                if tok.properties ~= nil and (not tok.properties:IsDead()) and Aura.laneInternal.TokenMaySlide(tok.id) then
+            if tok.valid and (not tok.isObject) and (not seen[tok.charid]) then
+                seen[tok.charid] = true
+                state.insideTokens[tok.charid] = true
+                if tok.properties ~= nil and (not tok.properties:IsDead()) and Aura.laneInternal.TokenMaySlide(tok.charid) then
                     Aura.laneInternal.SlideToken(tok, dir, slideDist, state)
                 end
             end

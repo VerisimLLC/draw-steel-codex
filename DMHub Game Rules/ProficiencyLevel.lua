@@ -72,7 +72,7 @@ function ProficiencyLevel.GetDropdownOptions(includeNone)
         result[#result+1] = {
             id = v.id,
             text = v.name,
-            ord = v.level,
+            ord = v.value,
         }
     end
 

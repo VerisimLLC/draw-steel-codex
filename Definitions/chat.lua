@@ -15,14 +15,14 @@ function chat.DiceEvents(guid) end
 --- @param message string
 function chat.Send(message) end
 
---- Send a CustomChatPanel to chat.
---- @param panel CustomChatPanel
+--- Send a custom chat message (an instance of a registered game type) to chat.
+--- @param panel GameType An instance of a message type registered with RegisterGameType; it is serialized as the message's properties and rendered by the Lua chat panel.
 --- @return string The guid of the message.
 function chat.SendCustom(panel) end
 
---- Updates a CustomChatPanel in chat. The key is the guid previously returned by @see SendCustom
+--- Updates a custom chat message in chat. The key is the guid previously returned by @see SendCustom
 --- @param key string
---- @param properties CustomChatPanel
+--- @param properties GameType The replacement message: an instance of a registered game type, as passed to @see SendCustom.
 function chat.UpdateCustom(key, properties) end
 
 --- Share a game object (e.g. a spell, ability, or item) to the chat.
@@ -30,8 +30,8 @@ function chat.UpdateCustom(key, properties) end
 function chat.ShareData(data) end
 
 --- Shares a game object from a data table to the chat by table id and object id.
---- @param tableid string The data table identifier.
---- @param objid string The object identifier within the table.
+--- @param tableid nil|string The data table identifier.
+--- @param objid nil|string The object identifier within the table.
 --- @param properties nil|table Optional additional properties to include.
 function chat.ShareObjectInfo(tableid, objid, properties) end
 
@@ -47,7 +47,7 @@ function chat.PreviewChat(message) end
 --- @return string[]
 function chat.GetCommandCompletions(command) end
 
---- Returns the chat message info for a dice roll by its key.
+--- Returns the chat message info for a dice roll by its key, or nil if no message has that key. The key must name a dice roll: a non-roll message is returned as its own wrapper class, which has none of the roll fields.
 --- @param key string The chat message key.
---- @return ChatMessageInfoLua|nil
+--- @return ChatMessageDiceRollInfoLua|nil
 function chat.GetRollInfo(key) end

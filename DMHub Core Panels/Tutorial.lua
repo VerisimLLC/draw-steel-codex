@@ -136,6 +136,7 @@ local g_tutorialDialog = nil
 
 CreateTutorialDialog = function()
 
+    ---@type Panel[]
     local tutorialLinks = {
         gui.Label{
             width = "90%",

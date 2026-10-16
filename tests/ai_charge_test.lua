@@ -4,10 +4,13 @@ local source = f:read("*a"):gsub("\r\n", "\n"); f:close()
 local first = assert(source:find("function MonsterAI:ChargeProbe", 1, true))
 local last = assert(source:find("function MonsterAI:LeapProbe", first, true))
 MonsterAI = {}
+--The AI profiler's file locals are no-ops here.
+local function noop() end
+ProfBegin, ProfEnd, ProfCount, ProfPhaseBegin, ProfPhaseEnd, ProfRequestReport = noop, noop, noop, noop, noop, noop
 local helperStart = assert(source:find("function MonsterAI.TargetDistance", 1, true))
 local helperEnd = assert(source:find("function MonsterAI:MovementTokenIsAtLoc", helperStart, true))
 assert(load(source:sub(helperStart, helperEnd-1)))()
-dmhub = {unitsPerSquare=1, Time = function() return 1 end}
+dmhub = {unitsPerSquare=1, Time = function() return 1 end, CreateChargeRouteCache = function() return {} end}
 assert(load(source:sub(first, last-1)))()
 local function loc(x, altitude)
     return {x=x, altitude=altitude, str=x .. ":" .. altitude,
@@ -32,6 +35,12 @@ function mover:PlanCharge(dest, options)
     return {validCharge=true, requiresRoll=mode == "rolled", path={destination=ground,cost=20},
         chargeSegments={{loc=relative,expectedLoc=ground,jump=false}}}
 end
+--The engine plans no-jump routes only, so a roll-dependent route never comes back.
+function mover:FindChargeRoutes(target, radius, range, distance, cache)
+    assert(target == enemy and radius == 2 and range == 1 and distance == 6 and cache ~= nil)
+    if mode == "blocked" or mode == "rolled" then return {} end
+    return {{dest=ground, cost=20}}
+end
 local ai = setmetatable({}, {__index=MonsterAI})
 function ai:try_get(k, default) if self[k] == nil then return default end return self[k] end
 function ai:GetMovementToken() return mover end
@@ -50,7 +59,7 @@ assert(ai:ExecuteChargeMovement(mover, ground), "execute elevated charge")
 assert(ai._tmp_moveFailure == nil)
 mover.loc=origin
 for _,blocked in ipairs({"blocked", "rolled"}) do
-    mode=blocked; ai._tmp_chargePlanTime=nil
+    mode=blocked; ai:InvalidatePlanningMemo()
     assert(ai:ChargeProbe(mover,enemy,6,1) == nil, "reject blocked or roll-dependent route")
 end
 for _,failure in ipairs({"no path", "short"}) do
@@ -60,9 +69,9 @@ for _,failure in ipairs({"no path", "short"}) do
     mode="legal"
     assert(ai:ChargeProbe(mover,enemy,6,1) == nil, "same route excluded even for another strike registration")
 end
-mode="legal"; ai._tmp_failedChargePlans={}; ai._tmp_chargePlanTime=nil
+mode="legal"; ai._tmp_failedChargePlans={}; ai:InvalidatePlanningMemo()
 enemy.altitude=7
 assert(ai:ChargeProbe(mover,enemy,6,1) == nil, "ground charge cannot reach flying enemy")
-enemy.altitude=3; ai._tmp_chargePlanTime=nil
+enemy.altitude=3; ai:InvalidatePlanningMemo()
 assert(ai:ChargeProbe(mover,enemy,6,1), "charge permits one-square vertical diagonal")
 print("AI charge altitude, validation, and failed-route tests passed")

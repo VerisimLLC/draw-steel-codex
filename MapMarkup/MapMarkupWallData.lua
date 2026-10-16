@@ -649,12 +649,63 @@ local function SetWallHeightSetting(height)
     end
 end
 
+--Wall height is remembered PER WALL TYPE. The height settings are global
+--(and stored as preferences, so they even outlive the app), and a height
+--set for one type used to carry over to the next: pick Wooden Fence (height
+--1), then a full-wall custom type, and every wall drawn came out height 1
+--and could be seen over (J8PFJJ4Z). Now selecting a type restores the height
+--last chosen for it with the stepper, falling back to its preset height, or
+--To Roof for library/custom walls. Session-only, in m.entryHeights.
+local function EntryHeightKey(entry)
+    if entry == nil then
+        return nil
+    end
+    if entry.kind == "preset" then
+        --keyed by the preset rather than the guid, which only exists once
+        --the preset has materialized.
+        return "preset:" .. tostring(entry.key)
+    end
+    return entry.guid
+end
+
+--Pushes the height for this palette entry into the height settings.
+local function ApplyEntryHeight(entry)
+    local key = EntryHeightKey(entry)
+    local remembered = nil
+    if key ~= nil then
+        remembered = m.entryHeights[key]
+    end
+    if remembered ~= nil then
+        --false = To Roof
+        SetWallHeightSetting(remembered or nil)
+        return
+    end
+
+    local preset = PresetForEntry(entry)
+    if preset ~= nil then
+        SetWallHeightSetting(preset.height)
+    else
+        SetWallHeightSetting(nil)
+    end
+end
+
+--The height stepper's write: sets the height and remembers it for the
+--selected wall type. nil = To Roof.
+local function SetSelectedEntryHeight(height)
+    SetWallHeightSetting(height)
+    local key = EntryHeightKey(m.paletteEntries[m.selectedIndex or 0])
+    if key ~= nil then
+        m.entryHeights[key] = height or false
+    end
+end
+
 
 --============================================================================
 --Exports: the other MapMarkup files call these through MM.
 --============================================================================
 MM.ApplyFieldsToWall = ApplyFieldsToWall
 MM.AssetFields = AssetFields
+MM.ApplyEntryHeight = ApplyEntryHeight
 MM.AssetIsOpenable = AssetIsOpenable
 MM.CreateDoorLinePreview = CreateDoorLinePreview
 MM.CreateMarkupWallAsset = CreateMarkupWallAsset
@@ -671,6 +722,7 @@ MM.PresetForEntry = PresetForEntry
 MM.SavePalette = SavePalette
 MM.SerializePalette = SerializePalette
 MM.SetAssetOpenable = SetAssetOpenable
+MM.SetSelectedEntryHeight = SetSelectedEntryHeight
 MM.SetWallHeightSetting = SetWallHeightSetting
 MM.SummarizeEntry = SummarizeEntry
 MM.SummarizeFields = SummarizeFields

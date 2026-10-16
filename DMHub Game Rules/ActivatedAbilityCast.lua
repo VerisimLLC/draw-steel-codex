@@ -28,6 +28,7 @@ local mod = dmhub.GetModLoading()
 --- @field forcedMovementCreatureCollisionIds table
 --- @field ability ActivatedAbility
 --- @field auraObject false|table
+--- @field _tmp_maliceBannerShown? boolean Set once the Malice ability banner has been shown for this cast; read with try_get.
 ActivatedAbilityCast = RegisterGameType("ActivatedAbilityCast")
 
 ActivatedAbilityCast.mode = 1
@@ -188,6 +189,11 @@ ActivatedAbilityCast.helpSymbols = {
         name = "HasTarget",
         type = "function",
         desc = "A function which will return true if this ability has the given creature as a target.",
+    },
+    counttargetswithin = {
+        name = "CountTargetsWithin",
+        type = "function",
+        desc = "Given a creature and a distance in squares, returns how many of this ability's targets are within that distance of the creature. Example: Cast.CountTargetsWithin(Self, 2) > 0",
     },
     withinarea = {
         name = "WithinArea",
@@ -423,6 +429,32 @@ ActivatedAbilityCast.lookupSymbols = {
             end
 
             return false
+        end
+    end,
+
+    --Counts this cast's targets standing within `distance` squares of `creature`
+    --(footprint-aware). Lets a trigger react once per ability rather than once per
+    --target, e.g. a shield aura counting one absorption for an area attack.
+    counttargetswithin = function(c)
+        return function(creature, distance)
+            if type(creature) == "function" then
+                creature = creature("self")
+            end
+
+            distance = tonumber(distance) or 0
+            local centerTok = type(creature) == "table" and dmhub.LookupToken(creature) or nil
+            if centerTok == nil then
+                return 0
+            end
+
+            local count = 0
+            for _,t in ipairs(c:try_get("targets", {})) do
+                if t.token ~= nil and t.token.valid and centerTok:Distance(t.token) <= distance then
+                    count = count + 1
+                end
+            end
+
+            return count
         end
     end,
 
@@ -758,10 +790,7 @@ function ActivatedAbilityCast:RecordForcedMovementCreatureCollision(movedToken, 
     end
 end
 
---- @param tokenid string
---- @param retargetid string
---- @param retargetType 'all'|'forcemove'|'none'
---- @param retarget {casterid: string, tokenid: string, retargetid: string, retargetType: 'all'|'forcemove'|'none'}
+--- @param retarget {casterid: string, tokenid: string, retargetid: string, retargetType: 'all'|'forcemove'|'none'|'caster'}
 function ActivatedAbilityCast:RecordRetarget(retarget)
     local retargets = self:get_or_add("retargets", {})
     retargets[#retargets+1] = retarget

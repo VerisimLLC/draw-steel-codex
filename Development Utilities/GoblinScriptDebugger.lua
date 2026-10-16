@@ -51,6 +51,7 @@ LaunchablePanel.Register{
                 end
 
                 local keys = table.keys(counts)
+                ---@cast keys -nil
                 table.sort(keys, function(a,b)
                     return counts[a] > counts[b]
                 end)
@@ -122,7 +123,6 @@ LaunchablePanel.Register{
 					height = "auto",
 					halign = "left",
                     lmargin = 16,
-					valign = "auto",
 					flow = "vertical",
 				},
 				{
@@ -145,7 +145,6 @@ LaunchablePanel.Register{
 				},
 				{
 					selectors = {"lookupValue"},
-					width = "40%",
 					width = "auto",
 					height = "auto",
 					halign = "right",
@@ -203,6 +202,7 @@ LaunchablePanel.Register{
 				count = 1,
 			}
 
+			---@type Panel
 			local lookupsPanel = nil
 			local lookupPanelsInit = false
 

@@ -640,10 +640,13 @@ end
 
 K.ENVIRONMENTAL_KEYWORDS_TABLE = "environmentalKeywords"
 
+---@return table<string, EnvironmentalKeyword>
 local function GetKeywordTable()
     return dmhub.GetTable(K.ENVIRONMENTAL_KEYWORDS_TABLE) or {}
 end
 
+---@param keywordid string|nil
+---@return EnvironmentalKeyword|nil
 local function GetKeyword(keywordid)
     if keywordid == nil then
         return nil
@@ -828,6 +831,7 @@ end
 --The keyword's stripe/chip color: its icon background color when it has a
 --real one, otherwise a fallback picked stably from the keyword id.
 local function KeywordColor(keywordid, kw)
+    ---@type string|Color|nil
     local color = nil
     if kw ~= nil then
         pcall(function()
@@ -845,7 +849,8 @@ local function KeywordColor(keywordid, kw)
     --fully-opaque alpha suffix so the overlay's standard stripe alpha
     --still applies (ZoneOverlayColor only decorates 7-char "#rrggbb").
     if type(color) == "userdata" then
-        local ok, str = pcall(function() return color.tostring end)
+        local userColor = color --[[@as Color]]
+        local ok, str = pcall(function() return userColor.tostring end)
         if ok and type(str) == "string" then
             color = str
         else

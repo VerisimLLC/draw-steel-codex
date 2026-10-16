@@ -92,9 +92,7 @@ local function CreatureFreeStrikeAbilities(token)
 end
 
 local function FreeStrikeTargetScore(targetInfo)
-    local stamina = targetInfo.token.properties:CurrentHitpoints()
-        / math.max(1, targetInfo.token.properties.max_hitpoints)
-    return 1 + (targetInfo.edges or 0)*0.1 + (1 - stamina)*0.08
+    return 1 + (targetInfo.edges or 0)*0.1 + MonsterAI.TargetStaminaBias(targetInfo.token)
 end
 
 local function FindBestImmediateFreeStrike(ai, actor, abilities)
@@ -302,6 +300,7 @@ local function PreferForcedMovementCandidate(candidateAltitude, candidateScore, 
 end
 
 local function FindBestPullLocation(invokerToken, casterToken, abilityClone, symbols, range, forcedMovement, preferAltitude)
+    ---@type fun(loc: Loc): boolean
     local filterTargetPredicate = abilityClone:TargetLocPassesFilterPredicate(casterToken, symbols)
         or function() return true end
     local shape = dmhub.CalculateShape{
@@ -376,9 +375,6 @@ local function FindBestPullLocation(invokerToken, casterToken, abilityClone, sym
     end
 
     casterToken:ClearMovementArrow()
-    if type(shape.Destroy) == "function" then
-        shape:Destroy()
-    end
     return bestLoc
 end
 

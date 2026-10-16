@@ -5,7 +5,7 @@ local mod = dmhub.GetModLoading()
 --- @field id string Key of this row in its data table; SetAndUploadTableItem sets it.
 --- @field name string Display name (e.g. "Elf", "Human").
 --- @field tableName "races" Data table name ("races").
---- @field height number Default height in feet.
+--- @field height number|string Default height; the race editor stores its free text, shown via %s in the ancestry text.
 --- @field weight string Weight description string.
 --- @field lifeSpan string Life span description string.
 --- @field size string Default creature size (e.g. "Medium").
@@ -14,6 +14,10 @@ local mod = dmhub.GetModLoading()
 --- @field subrace boolean If true, this is a subrace rather than a base race.
 --- @field details string Short lore summary.
 --- @field lore string Long-form lore text.
+--- @field parentRace? string For a subrace: id of its parent race; read with try_get.
+--- @field nameGenerator? string Id of the nameGenerators roll table used for this race ("none" if unset); read with try_get.
+--- @field footprintStyle? string Default footprint style id (FootprintStyle table id or built-in); nil = default.
+--- @field bloodColor? string Default blood color id for creatures of this race; nil = default.
 Race = RegisterGameType("Race")
 
 local defaultRace = nil
@@ -68,13 +72,14 @@ function Race:EnsureDomain()
 end
 
 --- Returns the CharacterAncestryInheritanceChoice feature if this race uses the Former Life mechanic, or false.
---- @return false|CharacterFeature
+--- @return false|CharacterAncestryInheritanceChoice
 function Race:IsInherited()
     local formerLifeFeature = self and self:GetClassLevel() and self:GetClassLevel().features[1]
     if formerLifeFeature == nil or formerLifeFeature.typeName ~= 'CharacterAncestryInheritanceChoice' then
         return false
     end
 
+    ---@cast formerLifeFeature CharacterAncestryInheritanceChoice
     return formerLifeFeature
 end
 
@@ -93,6 +98,7 @@ function Race:FillClassFeatures(characterLevel, choices, result)
 	self:EnsureDomain()
 	for i,feature in ipairs(self:GetClassLevel().features) do
 		if feature.typeName == 'CharacterFeature' then
+			---@cast feature CharacterFeature
 			result[#result+1] = feature
 		else
 			feature:FillChoice(choices, result)

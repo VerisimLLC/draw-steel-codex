@@ -568,7 +568,7 @@ mod.shared.BrushEditorPanel = function(settingid)
 
 							local scaling = tipAcross/tilesAcross
 
-							element.bgimageMaskRect = {x1 = 0, y1 = 0, x2 = scaling, y2 = scaling}
+							element.bgimageMaskRect = core.Vector4(0, 0, scaling, scaling)
 
 
 						end

@@ -3,7 +3,10 @@ local mod = dmhub.GetModLoading()
 
 local g_directlyLaunchingGame = false
 
-local g_titlescreen = nil
+--The titlescreen is only built on the first load (TitlescreenVersion guard
+--below), but this file re-runs when the codex reloads on entering the lobby
+--game. Adopt the existing root so TitlescreenHeroes.Edit/Create keep working.
+local g_titlescreen = rawget(_G, "CodexTitlescreenRoot")
 
 for _, str in ipairs(dmhub.commandLineArguments) do
     if str == "--gameid" then
@@ -247,8 +250,54 @@ local g_devStorePreviewSetting = setting{
 local g_selectionCardsBannerWidth = 1133 --500+500 cards + 133 gap (2/3 of the normal 200)
 local g_selectionCardsBannerScale = 0.92
 local g_selectionCardsBannerY = -86
+
+--Selection-screen layout when Encounter of the Week is enabled: a third card
+--(EotW) joins Director and Player, all three the same 500x700 card, evenly
+--spaced in one row. The whole row is scaled down a little to fit, and the
+--store banner (when shown) widens to match the row's scaled width, so its edges
+--line up with the outer cards. In the banner layout the row sits so its gap
+--above the banner equals the (scaled) gap between the cards. The container's
+--scale pivots on its top edge (measured live), so its bottom edge lands at
+--(1080 - 700) / 2 + y + 700 * scale; the banner's top is 1080 - bmargin 60 -
+--height 200.
+local g_eotwRowGap = 120
+local g_eotwRowWidth = 500 * 3 + g_eotwRowGap * 2
+local g_eotwRowScale = 0.8
+local g_eotwRowBannerY = (1080 - 60 - 200) - g_eotwRowGap * g_eotwRowScale - 700 * g_eotwRowScale - (1080 - 700) / 2
+
+--Whether the Encounter of the Week card (and so the three-card row) is shown.
+--rawget rather than a bare global read: globals are strict here, so a plain
+--read would raise if load order ever put this file first.
+local function EotwCardEnabled()
+    local eotw = rawget(_G, "EncounterOfTheWeek")
+    return eotw ~= nil and eotw.Enabled()
+end
+
+--The EotW card shows a centred, unstretched slice of the Custom Campaign art
+--(1920x1275): crop the width to the card's 500x700 aspect ratio.
+local g_eotwCardArtAspect = 1920 / 1275
+local g_eotwCardCrop = (500 / 700) / g_eotwCardArtAspect
+local g_eotwCardX1 = (1 - g_eotwCardCrop) / 2
+local g_eotwCardX2 = 1 - g_eotwCardX1
 local g_selectionBannerWidth = math.floor(g_selectionCardsBannerWidth * g_selectionCardsBannerScale + 0.5)
 local g_selectionBannerHeight = 200
+local g_selectionBannerEotwWidth = math.floor(g_eotwRowWidth * g_eotwRowScale + 0.5)
+
+--The banner art (1044x202) is drawn for the two-card banner. The wider
+--three-card banner shows a centred horizontal band of it instead of stretching
+--it: yFrac is the fraction of the art's height that fits, and the Hover rect
+--is the same band zoomed in 2%, matching the other cards' hover zoom.
+local g_storeBannerEotwYFrac = (1044 / 202) / (g_selectionBannerEotwWidth / g_selectionBannerHeight)
+local g_storeBannerEotwRect = {
+    x1 = 0, x2 = 1,
+    y1 = (1 - g_storeBannerEotwYFrac) / 2,
+    y2 = 1 - (1 - g_storeBannerEotwYFrac) / 2,
+}
+local g_storeBannerEotwHoverRect = {
+    x1 = 0.02, x2 = 0.98,
+    y1 = g_storeBannerEotwRect.y1 + 0.02 * g_storeBannerEotwYFrac,
+    y2 = g_storeBannerEotwRect.y2 - 0.02 * g_storeBannerEotwYFrac,
+}
 
 --Dice sets showcased in the store banner's mini dice preview (assetids from
 --the shop's Dice items). Each is rendered as its own idle-spinning preview die
@@ -525,6 +574,9 @@ local function MakeStoreBannerRollDie()
             },
 
             create = function(element)
+                --Built by gui.DicePreview; the gui.Panel fallback (older binary)
+                --lacks these members, which is why every use is pcall-guarded.
+                ---@cast element DicePreview
                 pcall(function() element:SetAsDicePreviewPanel(true) end)
                 --Thrown dice roll out to the real screen edges rather than a
                 --tight box around the cage (panel-scoped, unlike the shop's
@@ -725,6 +777,7 @@ local function MakeStoreBannerRollDie()
                 pcall(function() element:DicePreviewMouseLeave() end)
             end,
             click = function(element)
+                ---@cast element DicePreview
                 pcall(function() element:DicePreviewClick() end)
             end,
             dragging = function(element)
@@ -925,6 +978,11 @@ local function LobbyHeroes()
     local entries = {}
     for _, c in ipairs(table.values(dmhub.GetAllCharacters())) do
         local props = c.properties
+        --Encounter of the Week town heroes (Codex Titlescreen/EotwRoster.lua)
+        --are working copies of heroes stored in the Blackbottom city; they
+        --live in the lobby game too but are never titlescreen heroes.
+        --An unfinished EotW hero (eotwDraft) is the town builder's, too.
+        local townHero = props ~= nil and (rawget(props, "eotwHero") == true or rawget(props, "eotwDraft") == true)
         local ctime = props ~= nil and rawget(props, "ctime") or nil
         if type(ctime) ~= "number" then
             --Absent on module content; a non-number errors the comparator mid-sort.
@@ -940,7 +998,9 @@ local function LobbyHeroes()
             rank = 1
         end
 
-        entries[#entries+1] = { char = c, rank = rank, ctime = ctime }
+        if not townHero then
+            entries[#entries+1] = { char = c, rank = rank, ctime = ctime }
+        end
     end
 
     table.sort(entries, function(a, b)
@@ -1066,7 +1126,28 @@ local function ImportForgeSteel(element)
     end)
 end
 
-local function CreateHero(element)
+--Imports a hero from a Codex JSON file (the character sheet's Export -> Codex JSON).
+local function ImportCodexJson(element)
+    CharSheetPDFExport.ImportCharacterFromFile(function(c)
+        c:ModifyProperties {
+            description = "Create Character",
+            execute = function()
+                c.properties.mtime = ServerTimestamp()
+                c.properties.creatorid = dmhub.userid
+                --The file carries the source hero's id; this copy has a new one.
+                c.properties.originalid = c.charid
+                --A file exported from an Encounter of the Week hero keeps these
+                --flags, which would hide it from the lobby list.
+                c.properties.eotwHero = nil
+                c.properties.eotwDraft = nil
+            end,
+        }
+    end)
+end
+
+--onCreated (optional) runs once the builder closes on a hero that was kept
+--(not discarded as unstarted), with the character.
+local function CreateHero(element, onCreated)
     local heroType = nil
     local characterTypes = dmhub.GetTable(CharacterType.tableName)
     for k, v in pairs(characterTypes) do
@@ -1094,6 +1175,9 @@ local function CreateHero(element)
                         }
                         EditHero(element, c, function(character)
                             if HeroIsUnstarted(character) == false then
+                                if onCreated ~= nil then
+                                    onCreated(character)
+                                end
                                 return false
                             end
 
@@ -1108,6 +1192,37 @@ local function CreateHero(element)
                 coroutine.yield(0.01)
             end
         end)
+    end
+end
+
+-- Developer join codes, handed out by the internal dashboard's ticket page:
+-- "bug:<gameid>:<reportId>". Admin accounts only. The dashboard only issues one
+-- when the reporter allowed game entry (the app cannot read bug reports, so the
+-- consent check lives there). Returns gameid, reportId, or nil for anything else.
+-- Keep in step with internal-dashboards/src/dashboards/devJoin.js.
+local function ParseDevJoinCode(text)
+    if not dmhub.isAdminAccount then
+        return nil
+    end
+    local gameid, reportId = string.match(text, "^%s*bug:([^:%s]+):([^:%s]+)%s*$")
+    return gameid, reportId
+end
+
+--Wraps the function that pastes a hero into the game being entered so it runs
+--once the player's Hero modules (HeroModules.lua) are installed there too, and
+--the hero's class and ancestry exist when it lands. The wrapper runs in the
+--destination game, after this file may have unloaded, so HeroModules is looked
+--up there rather than captured here.
+--- @param paste fun()
+--- @return fun()
+local function AfterHeroModulesInstalled(paste)
+    return function()
+        local heroModules = rawget(_G, "HeroModules")
+        if heroModules ~= nil and heroModules.InstallIntoGame ~= nil then
+            heroModules.InstallIntoGame(paste)
+        else
+            paste()
+        end
     end
 end
 
@@ -1126,6 +1241,11 @@ local function CreateJoinGameModal(tokenToImport)
     end
 
     local m_password = ""
+
+    -- Set while the invite code box holds a developer join code: {reportId = ...}.
+    -- Skips the game password and posts a chat notice on entry.
+    ---@type {reportId: string}|nil
+    local m_devJoin = nil
 
     -- Dialog-internal layout rules: every label is 80%-wide, left-aligned,
     -- 16pt; every input fills 80%-16 to leave room for the border. Theme
@@ -1209,8 +1329,10 @@ local function CreateJoinGameModal(tokenToImport)
                         resultPanel:FireEventTree("searchingForGame")
 
                         local text = element.text
-                        lobby:LookupGame(text, function(gameInfo)
+                        local devGameid, devReportId = ParseDevJoinCode(text)
+                        lobby:LookupGame(devGameid or text, function(gameInfo)
                             if text == element.text then
+                                m_devJoin = cond(devGameid ~= nil, { reportId = devReportId }, nil)
                                 resultPanel:FireEventTree("lookupGame", gameInfo, text)
                             end
                         end)
@@ -1318,17 +1440,29 @@ local function CreateJoinGameModal(tokenToImport)
                     end,
                 },
 
-                gui.Label {
-                    fontSize = 20,
+                -- Capped and scrollable so a long description can't push the
+                -- Join Game button out of the fixed-height dialog.
+                gui.Panel {
+                    flow = "vertical",
                     width = "100%",
-                    textAlignment = "left",
-                    lookupGame = function(element, gameInfo)
-                        if gameInfo == nil then
-                            return
-                        end
+                    height = "auto",
+                    maxHeight = 180,
+                    vscroll = true,
+                    vmargin = 4,
 
-                        element.text = gameInfo.descriptionDetails
-                    end,
+                    gui.Label {
+                        fontSize = 20,
+                        width = "100%",
+                        textAlignment = "left",
+                        vmargin = 0,
+                        lookupGame = function(element, gameInfo)
+                            if gameInfo == nil then
+                                return
+                            end
+
+                            element.text = gameInfo.descriptionDetails
+                        end,
+                    },
                 },
 
                 gui.Panel {
@@ -1361,7 +1495,7 @@ local function CreateJoinGameModal(tokenToImport)
                 lookupGame = function(element, gameInfo)
                     element:SetClass("hidden",
                         gameInfo == nil or gameInfo.deleted or AlreadyInGame(gameInfo.gameid) or gameInfo.password == nil or
-                        gameInfo.password == "")
+                        gameInfo.password == "" or m_devJoin ~= nil)
                 end,
                 gui.Label {
                     fontSize = 16,
@@ -1393,6 +1527,26 @@ local function CreateJoinGameModal(tokenToImport)
                 },
             },
 
+            gui.Label {
+                classes = { "collapsed" },
+                fontSize = 16,
+                lookupGame = function(element, gameInfo)
+                    local show = m_devJoin ~= nil and gameInfo ~= nil and not gameInfo.deleted
+                    element:SetClass("collapsed", not show)
+                    if show and m_devJoin ~= nil then
+                        element.text = string.format(
+                            "Developer join for bug report %s. The game password is skipped, and a notice is posted in the game's chat when you enter. Use Leave Game on the game card when you are done.",
+                            m_devJoin.reportId)
+                    end
+                end,
+                searchingForGame = function(element)
+                    element:SetClass("collapsed", true)
+                end,
+                clearLookup = function(element)
+                    element:SetClass("collapsed", true)
+                end,
+            },
+
             gui.Button {
                 text = "Join Game",
                 classes = { "hidden" },
@@ -1406,7 +1560,7 @@ local function CreateJoinGameModal(tokenToImport)
                 lookupGame = function(element, gameInfo)
                     element:SetClass("hidden",
                         gameInfo == nil or gameInfo.deleted or AlreadyInGame(gameInfo.gameid) or
-                        (gameInfo.password ~= nil and gameInfo.password ~= "" and gameInfo.password ~= m_password))
+                        (m_devJoin == nil and gameInfo.password ~= nil and gameInfo.password ~= "" and gameInfo.password ~= m_password))
                     element.data.gameInfo = gameInfo
                 end,
                 passwordUpdated = function(element)
@@ -1416,7 +1570,7 @@ local function CreateJoinGameModal(tokenToImport)
                     end
                     element:SetClass("hidden",
                         gameInfo == nil or gameInfo.deleted or AlreadyInGame(gameInfo.gameid) or
-                        (gameInfo.password ~= nil and gameInfo.password ~= "" and gameInfo.password ~= m_password))
+                        (m_devJoin == nil and gameInfo.password ~= nil and gameInfo.password ~= "" and gameInfo.password ~= m_password))
                 end,
                 searchingForGame = function(element)
                     element:SetClass("hidden", true)
@@ -1444,6 +1598,7 @@ local function CreateJoinGameModal(tokenToImport)
 
                     lobby:JoinGame(gameid)
                     local root = element.root
+                    local devJoin = m_devJoin
 
                     dmhub.Coroutine(function()
                         for i = 1, 100 do
@@ -1454,8 +1609,20 @@ local function CreateJoinGameModal(tokenToImport)
                                         local callback
                                         if tokenToImport ~= nil then
                                             dmhub.CopyTokenToClipboard(tokenToImport)
-                                            callback = function()
+                                            callback = AfterHeroModulesInstalled(function()
                                                 dmhub.PasteTokenFromClipboard(core.Loc { x = 0, y = 0 })
+                                            end)
+                                        end
+                                        if devJoin ~= nil then
+                                            -- Tell the table why a stranger just walked in.
+                                            local baseCallback = callback
+                                            callback = function()
+                                                if baseCallback ~= nil then
+                                                    baseCallback()
+                                                end
+                                                chat.Send(string.format(
+                                                    "Hi! I'm from the Codex team, here to look into your bug report (%s). I'll leave when I'm done.",
+                                                    devJoin.reportId))
                                             end
                                         end
                                         root:FireEventTree("overrideLoadingScreenArt", game.coverart, game.gameid)
@@ -1522,7 +1689,7 @@ local function CreateJoinGameModal(tokenToImport)
 
                     dmhub.CopyTokenToClipboard(tokenToImport)
                     local root = element.root
-                    local callback = function()
+                    local callback = AfterHeroModulesInstalled(function()
                         local newCharId = dmhub.PasteTokenFromClipboard(core.Loc { x = 0, y = 0 })
                         print("AddCharacterToGame:: pasted charid =", tostring(newCharId), "addingAsDM =", tostring(addingAsDM))
                         if not addingAsDM or newCharId == nil then
@@ -1547,7 +1714,7 @@ local function CreateJoinGameModal(tokenToImport)
                             end
                             print("AddCharacterToGame:: gave up waiting for token/party to settle")
                         end)
-                    end
+                    end)
 
                     if root ~= nil and root.valid then
                         root:FireEventTree("overrideLoadingScreenArt", gameInfo.coverart, gameid)
@@ -1599,6 +1766,11 @@ local g_adventureOptions = {
     {
         id = "codex-redroad",
         text = "The Red Road",
+        -- Cover painting by Brian Terrero (a core image asset, 1920x992 WebP),
+        -- in place of the store page's key art.
+        coverart = "5911fa1a-175e-441c-b9c3-6ebdbb5fe92e",
+        coverWidth = 1920,
+        coverHeight = 992,
         store = true,
     },
     {
@@ -2440,6 +2612,7 @@ function RunRestoreOldVersionDialog(root, game)
     }
     local MAX_AGE_SECONDS = 30 * 86400
 
+    ---@type string|nil nil while a bookmark row is selected instead
     local m_selectedDurationId = "5m"
     local m_customDate = nil           -- table {year, month, day, hour, min} when "custom" picked
     local m_selectedBookmarkId = nil   -- numeric id from the bookmarks list (overrides duration)
@@ -2762,7 +2935,7 @@ function RunRestoreOldVersionDialog(root, game)
         idChosen = m_selectedDurationId,
         change = function(element)
             ---@cast element Dropdown
-            m_selectedDurationId = element.idChosen
+            m_selectedDurationId = element.idChosen --[[@as string]]
             m_selectedBookmarkId = nil
             customDateRow:SetClass("hidden", element.idChosen ~= "custom")
             if bookmarksList ~= nil and bookmarksList.valid then
@@ -3243,6 +3416,10 @@ end
 
 
 local function MakeGamePanel(gameIndex)
+    --Typed non-optional: it is nil only while the card is hidden, when the card's
+    --refreshGames halts propagation to its children and hidden panels take no
+    --input. The few readers that can run before that check for nil themselves.
+    ---@type LuaGameInfo
     local m_game = nil
 
     local addGameButton = gui.Panel {
@@ -5034,7 +5211,7 @@ function CreateGameDialog()
     }
 
     local modeSelector = gui.Panel{
-        classes = { cond(#m_modes <= 1, "collapsed") },
+        classes = { "collapsed", cond(#m_modes <= 1, "collapsed") },
         width = "auto",
         height = "auto",
         halign = "center",
@@ -5282,6 +5459,7 @@ function CreateGameDialog()
                 flow = "horizontal",
                 vmargin = 4,
                 hidden = not dmhub.GetSettingValue("dev"),
+                classes = {"collapsed"},
 
                 gui.Label {
                     text = "Storage Backend:",
@@ -5347,6 +5525,7 @@ end
 local function MakeHeroPanel(heroIndex)
     local resultPanel
 
+    ---@type CharacterToken|nil
     local m_character = nil
 
 
@@ -5611,6 +5790,8 @@ local function MakeHeroPanel(heroIndex)
         rmargin = 2,
         tmargin = 2,
         press = function(element)
+            --The button is hiddenWithNoCharacter, so a press means a hero is shown.
+            ---@cast m_character -nil
             local modal
             modal = gui.Panel {
                 classes = { "framedPanel" },
@@ -5659,9 +5840,14 @@ local function MakeHeroPanel(heroIndex)
                         fontSize = 24,
                         halign = "center",
                         click = function(element)
+                            -- The roster can refresh while this dialog is open and empty the slot.
+                            if m_character == nil then
+                                modal:DestroySelf()
+                                return
+                            end
                             -- Monster-typed heroes have creature properties, which have no GetClass.
                             local props = m_character.properties
-                            local classInfo = props.typeName == "character" and props:GetClass() or nil
+                            local classInfo = props.typeName == "character" and (props --[[@as character]]):GetClass() or nil
                             track("character_delete", {
                                 class = classInfo and classInfo.name or "",
                                 ancestry = m_character.properties:RaceOrMonsterType() or "",
@@ -5776,6 +5962,500 @@ local function MakeHeroPanel(heroIndex)
     }
 
     return resultPanel
+end
+
+----------------------------------------------------------------------------
+--"You have new items": announces Patreon promo grants -- store items a
+--creator gave to its patrons ("Patreon Promo Grants" in
+--cloud-functions/CLOUD_FUNCTIONS.md). The engine lists the grants this
+--account has not acknowledged yet; the dialog walks through their items one
+--at a time over each item's key art, and acknowledges all of them when the
+--user dismisses it, so each grant is announced once per account.
+--
+--Offered when the selection screen appears, and whenever the inventory
+--changes while the titlescreen is up -- a grant lands seconds after the user
+--links Patreon in Settings. It waits for the infernal contract rather than
+--stacking on top of it; the contract offers it again when it closes.
+----------------------------------------------------------------------------
+
+local g_promoDialog = nil
+
+--true while OfferInfernalContract is still deciding whether to open (it
+--waits on a cloud read), so the two dialogs never open on top of each other.
+local g_infernalContractDeciding = false
+
+local CreatePromoGrantDialog = function(titlescreen, entries)
+	local dialog = titlescreen.data.dialog
+
+	--palette and type from the adventure store page (AdventurePage.lua), so
+	--the gift reads as the same product the user would have bought. Gold is
+	--the shop's own accent.
+	local ACCENT = "srgb:#f6ddb6"
+	local TEXT_STRONG = "#f3ecdfff"
+	local TEXT_BODY = "#d9d2c5ff"
+	local TEXT_MUTED = "#9a958cff"
+	local CARD_BG = "#1c1c1eff"
+
+	local CARD_W = 1000
+	local CARD_H = 660
+	--the art sits inside the framedPanel border, 4px in on every side.
+	local ART_W = CARD_W - 8
+	local ART_H = 380
+	local BODY_PAD = 44
+
+	local m_acknowledged = false
+	local m_artItemId = nil
+
+	local promoDialog
+	local art
+	local kicker
+	local counter
+	local itemName
+	local tagline
+	local message
+	local nextButton
+
+	--acknowledges every instance this dialog announces, not just the ones
+	--paged to: dismissing the dialog is the user saying "seen it".
+	local function Acknowledge()
+		if m_acknowledged then
+			return
+		end
+		m_acknowledged = true
+		local ids = {}
+		for _, entry in ipairs(entries) do
+			ids[#ids + 1] = entry.instanceid
+		end
+		shop:AcknowledgeInventoryItems(ids)
+	end
+
+	local function ShowEntry(index)
+		local entry = entries[index]
+		local item = entry.item
+		local cfg = AdventurePage.Read(item)
+
+		kicker.text = string.upper(cond(entry.grant.title ~= "", entry.grant.title, "A gift for you"))
+		counter.text = string.format("%d of %d", index, #entries)
+		itemName.text = item.name or ""
+
+		local line = ""
+		if cfg ~= nil and type(cfg.tagline) == "string" then
+			line = cfg.tagline
+		end
+		tagline.text = line
+		tagline:SetClass("collapsed", line == "")
+
+		message.text = entry.grant.message
+		message:SetClass("collapsed", entry.grant.message == "")
+
+		nextButton:SetClass("collapsed", index >= #entries)
+		nextButton.data.index = index
+
+		art:FireEvent("showArt", item, cfg)
+	end
+
+	--the item's key art, cover-cropped to the strip exactly as the adventure
+	--page's hero does it. Transparent until the size is known, so a slow
+	--download shows the card background rather than a stretched image.
+	art = gui.Panel{
+		floating = true,
+		width = ART_W,
+		height = ART_H,
+		bgimage = "panels/square.png",
+		bgcolor = "#ffffff00",
+		interactable = false,
+
+		showArt = function(element, item, cfg)
+			element.selfStyle.bgcolor = "#ffffff00"
+			local itemid = item.id
+			m_artItemId = itemid
+			AdventurePage.PickHeroImage(item, cfg or {}, function(imageid)
+				--a later ShowEntry may have moved on before this resolved.
+				if mod.unloaded or not element.valid or imageid == nil or m_artItemId ~= itemid then
+					return
+				end
+				element.bgimage = imageid
+				AdventurePage.ImageDimensions(imageid, function(dims)
+					if mod.unloaded or not element.valid or element.bgimage ~= imageid then
+						return
+					end
+					if dims == nil or (dims.width or 0) <= 0 or (dims.height or 0) <= 0 then
+						return
+					end
+					element.selfStyle.imageRect = AdventurePage.CoverWindow(ART_W, ART_H, dims.width, dims.height, 1, 0.5, 0.25)
+					element.selfStyle.bgcolor = "#ffffffff"
+				end)
+			end)
+		end,
+	}
+
+	--dark from the left so the title always reads over bright art.
+	--bgcolor gives the hue, the gradient the alpha.
+	local sideScrim = gui.Panel{
+		floating = true,
+		width = ART_W,
+		height = ART_H,
+		interactable = false,
+		bgimage = "panels/square.png",
+		bgcolor = CARD_BG,
+		gradient = gui.Gradient{
+			point_a = {x = 0, y = 0.5},
+			point_b = {x = 1, y = 0.5},
+			stops = {
+				{position = 0, color = core.Color{r = 1, g = 1, b = 1, a = 0.9}},
+				{position = 0.35, color = core.Color{r = 1, g = 1, b = 1, a = 0.6}},
+				{position = 0.7, color = core.Color{r = 1, g = 1, b = 1, a = 0}},
+			},
+		},
+	}
+
+	--melts the art's bottom edge into the card. Gradient position 0 is the
+	--BOTTOM of the panel.
+	local bottomScrim = gui.Panel{
+		floating = true,
+		width = ART_W,
+		height = math.floor(ART_H * 0.5),
+		valign = "bottom",
+		interactable = false,
+		bgimage = "panels/square.png",
+		bgcolor = CARD_BG,
+		gradient = gui.Gradient{
+			point_a = {x = 0.5, y = 0},
+			point_b = {x = 0.5, y = 1},
+			stops = {
+				{position = 0, color = core.Color{r = 1, g = 1, b = 1, a = 1}},
+				{position = 1, color = core.Color{r = 1, g = 1, b = 1, a = 0}},
+			},
+		},
+	}
+
+	--small dark chip riding the art's top corners: the promo's title on the
+	--left (with the titlescreen's gold diamond), "2 of 3" on the right.
+	local Chip = function(halign, children)
+		return gui.Panel{
+			floating = true,
+			flow = "horizontal",
+			width = "auto",
+			height = "auto",
+			halign = halign,
+			valign = "top",
+			hmargin = 20,
+			vmargin = 20,
+			hpad = 14,
+			vpad = 7,
+			borderBox = true,
+			bgimage = "panels/square.png",
+			bgcolor = "#000000a6",
+			borderWidth = 1,
+			borderColor = "#ffffff26",
+			cornerRadius = 4,
+			interactable = false,
+			table.unpack(children),
+		}
+	end
+
+	kicker = gui.Label{
+		fontSize = 14,
+		fontWeight = "semibold",
+		color = ACCENT,
+		width = "auto",
+		height = "auto",
+		valign = "center",
+		lmargin = 10,
+		text = "",
+	}
+
+	counter = gui.Label{
+		fontSize = 14,
+		color = TEXT_BODY,
+		width = "auto",
+		height = "auto",
+		valign = "center",
+		text = "",
+	}
+
+	itemName = gui.Label{
+		--the MCDM display face, as on the adventure page's hero.
+		fontFace = "display",
+		fontSize = 50,
+		color = TEXT_STRONG,
+		width = 640,
+		height = "auto",
+		textAlignment = "left",
+		text = "",
+	}
+
+	tagline = gui.Label{
+		fontSize = 18,
+		fontWeight = "light",
+		color = TEXT_BODY,
+		width = 560,
+		height = "auto",
+		textAlignment = "left",
+		tmargin = 8,
+		text = "",
+	}
+
+	local hero = gui.Panel{
+		width = ART_W,
+		height = ART_H,
+		halign = "center",
+		valign = "top",
+		flow = "none",
+		clip = true,
+		bgimage = "panels/square.png",
+		bgcolor = CARD_BG,
+
+		art,
+		sideScrim,
+		bottomScrim,
+
+		Chip("left", {
+			gui.Panel{
+				bgimage = "panels/square.png",
+				rotate = 45,
+				width = 9,
+				height = 9,
+				bgcolor = ACCENT,
+				valign = "center",
+			},
+			kicker,
+		}),
+
+		(function()
+			local chip = Chip("right", {counter})
+			chip:SetClass("collapsed", #entries <= 1)
+			return chip
+		end)(),
+
+		gui.Panel{
+			floating = true,
+			flow = "vertical",
+			width = 660,
+			height = "auto",
+			halign = "left",
+			valign = "bottom",
+			x = BODY_PAD,
+			y = -18,
+
+			itemName,
+			AdventurePage.MakeTitleRule(),
+			tagline,
+		},
+	}
+
+	message = gui.Label{
+		color = TEXT_BODY,
+		fontSize = 17,
+		width = "100%",
+		height = "auto",
+		halign = "left",
+		tmargin = 8,
+		text = "",
+	}
+
+	local function Close()
+		Acknowledge()
+		promoDialog:DestroySelf()
+	end
+
+	nextButton = gui.Button{
+		text = "Show Next",
+		width = 180,
+		height = 38,
+		fontSize = 18,
+		halign = "right",
+		valign = "center",
+		lmargin = 12,
+		data = {index = 1},
+		click = function(element)
+			ShowEntry(element.data.index + 1)
+		end,
+	}
+
+	promoDialog = gui.Panel{
+		id = "promoGrantDialog",
+		floating = true,
+		halign = "center",
+		valign = "center",
+		width = dialog.width,
+		height = dialog.height,
+		bgimage = "panels/square.png",
+		--the same near-opaque frosted scrim as the infernal contract.
+		bgcolor = "#000000ee",
+		blurBackground = true,
+
+		styles = {
+			Styles.Default,
+			Styles.Panel,
+			--the legacy {label,button} style carries hmargin = 8; take it off so
+			--text and buttons share clean edges (see the infernal contract).
+			{
+				selectors = {"label", "button"},
+				hmargin = 0,
+			},
+			--the main action in the shop's gold. A class, not inline color:
+			--inline color beats the legacy hover rule, which inverts to a light
+			--fill and left the gold text invisible on it. Hover fills with the
+			--gold under dark text, like the shop's checkout button.
+			{
+				selectors = {"label", "button", "promoPrimary"},
+				color = ACCENT,
+				borderColor = ACCENT,
+			},
+			{
+				selectors = {"label", "button", "promoPrimary", "hover"},
+				color = "#222222",
+				bgcolor = ACCENT,
+			},
+		},
+
+		captureEscape = true,
+		escape = function(element)
+			Close()
+		end,
+
+		destroy = function(element)
+			if g_promoDialog == element then
+				g_promoDialog = nil
+			end
+		end,
+
+		gui.Panel{
+			classes = {"framedPanel"},
+			width = CARD_W,
+			height = CARD_H,
+			halign = "center",
+			valign = "center",
+
+			--a solid page inset 4px inside the frame: the frame keeps its border,
+			--and the art's scrims fade into a flat color with no seam (the
+			--frame's own background is a gradient).
+			gui.Panel{
+				width = CARD_W - 8,
+				height = CARD_H - 8,
+				halign = "center",
+				valign = "center",
+				flow = "vertical",
+				bgimage = "panels/square.png",
+				bgcolor = CARD_BG,
+
+				hero,
+
+				gui.Panel{
+					flow = "vertical",
+					width = "100%",
+					height = "auto",
+					hpad = BODY_PAD,
+					borderBox = true,
+					tmargin = 10,
+
+					gui.Label{
+						color = TEXT_STRONG,
+						fontFace = "book",
+						fontSize = 22,
+						width = "100%",
+						height = "auto",
+						halign = "left",
+						text = cond(#entries == 1, "YOU HAVE A NEW ITEM IN YOUR INVENTORY", string.format("YOU HAVE %d NEW ITEMS IN YOUR INVENTORY", #entries)),
+					},
+					message,
+				},
+
+				--Close on the left; paging and the way to the inventory on the
+				--right, with the inventory in the shop's gold as the main action.
+				gui.Panel{
+					flow = "horizontal",
+					width = "100%",
+					height = "auto",
+					valign = "bottom",
+					hpad = BODY_PAD,
+					borderBox = true,
+					bmargin = 28,
+
+					gui.Button{
+						text = "Close",
+						width = 140,
+						height = 38,
+						fontSize = 18,
+						halign = "left",
+						valign = "center",
+						click = function(element)
+							Close()
+						end,
+					},
+
+					gui.Panel{
+						flow = "horizontal",
+						width = "auto",
+						height = "auto",
+						halign = "right",
+						valign = "center",
+
+						nextButton,
+
+						gui.Button{
+							classes = {"promoPrimary"},
+							text = "View in Inventory",
+							width = 220,
+							height = 38,
+							fontSize = 18,
+							halign = "right",
+							valign = "center",
+							lmargin = 12,
+							click = function(element)
+								Close()
+								if titlescreen.valid then
+									titlescreen:AddChild(CreateShopScreen{ titlescreen = titlescreen, inventory = true })
+								end
+							end,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	ShowEntry(1)
+
+	return promoDialog
+end
+
+--Shows the dialog if this account has unannounced promo grants and nothing
+--else is in the way. Safe to call as often as we like.
+local OfferPromoGrants = function(titlescreen)
+	if titlescreen == nil or (not titlescreen.valid) or titlescreen:HasClass("starting-screen") then
+		return
+	end
+
+	if g_promoDialog ~= nil and g_promoDialog.valid then
+		return
+	end
+
+	--one modal at a time: the contract calls us again when it closes.
+	if g_infernalContractDeciding or titlescreen:Get("infernalContract") ~= nil then
+		return
+	end
+
+	--an item whose store entry has not loaded yet cannot be shown; it stays
+	--unacknowledged and is picked up on a later offer. assets.shopItems, not
+	--instance.shopItem: the latter is the raw engine object and reads as nil.
+	local entries = {}
+	for _, grant in ipairs(shop:GetUnacknowledgedPromoGrants()) do
+		for _, granted in ipairs(grant.items) do
+			local item = assets.shopItems[granted.itemid]
+			if item ~= nil then
+				entries[#entries + 1] = {grant = grant, instanceid = granted.instanceid, item = item}
+			end
+		end
+	end
+
+	if #entries == 0 then
+		return
+	end
+
+	g_promoDialog = CreatePromoGrantDialog(titlescreen, entries)
+	titlescreen:AddChild(g_promoDialog)
 end
 
 ----------------------------------------------------------------------------
@@ -6049,14 +6729,13 @@ local CreateInfernalContractDialog = function(titlescreen, args)
 	}
 
 	patreonButton = gui.Button{
+		classes = {"patreonAccent"},
 		text = "Link Patreon Account",
 		width = 220,
 		height = 34,
 		fontSize = 16,
 		halign = "left",
 		vmargin = 6,
-		borderColor = PATREON_ACCENT,
-		color = PATREON_ACCENT,
 		click = function(element)
 			local patreon = PatreonAccountGlobal()
 			if patreon == nil or patreon.BeginLink == nil then
@@ -6292,6 +6971,19 @@ local CreateInfernalContractDialog = function(titlescreen, args)
 				selectors = {"label", "button"},
 				hmargin = 0,
 			},
+			--the Patreon orange as a class, not inline color: inline color
+			--beats the legacy hover rule, which inverts to a light fill and left
+			--the orange text unreadable on it. Hover fills with the orange.
+			{
+				selectors = {"label", "button", "patreonAccent"},
+				color = PATREON_ACCENT,
+				borderColor = PATREON_ACCENT,
+			},
+			{
+				selectors = {"label", "button", "patreonAccent", "hover"},
+				color = "#ffffff",
+				bgcolor = PATREON_ACCENT,
+			},
 		},
 
 		captureEscape = true,
@@ -6301,6 +6993,13 @@ local CreateInfernalContractDialog = function(titlescreen, args)
 
 		closeContract = function(element)
 			element:DestroySelf()
+
+			--anything the new-items dialog held back while we were up.
+			dmhub.Schedule(0.3, function()
+				if not mod.unloaded then
+					OfferPromoGrants(titlescreen)
+				end
+			end)
 		end,
 
 		--live status: the confirmation link is clicked in a browser, so the
@@ -6457,6 +7156,16 @@ local OfferInfernalContract = function(titlescreen)
 
 	g_infernalContractOffered = true
 
+	--hold the new-items dialog until we know whether we are opening. A
+	--safety release in case the cloud read never answers (offline).
+	g_infernalContractDeciding = true
+	dmhub.Schedule(15, function()
+		if g_infernalContractDeciding and not mod.unloaded then
+			g_infernalContractDeciding = false
+			OfferPromoGrants(titlescreen)
+		end
+	end)
+
 	--ONE listener does both jobs: it answers the opening question, and then --
 	--if a dialog opens -- stays alive to tell it when the confirmation link is
 	--clicked in the browser. The dialog must not open its own: two monitors on
@@ -6487,6 +7196,8 @@ local OfferInfernalContract = function(titlescreen)
 		--deferred a frame: MonitorStatus can call back synchronously, before
 		--probe.handle has been assigned, and we need the handle to stop it.
 		dmhub.Schedule(0, function()
+			g_infernalContractDeciding = false
+
 			if mod.unloaded or (not titlescreen.valid) then
 				Release()
 				return
@@ -6497,6 +7208,7 @@ local OfferInfernalContract = function(titlescreen)
 			--nothing left to ask for.
 			if patreonLinked and emailConfirmed then
 				Release()
+				OfferPromoGrants(titlescreen)
 				return
 			end
 
@@ -6523,6 +7235,10 @@ function CreateTitlescreen(dialog, options)
 
     local m_currentSearch = nil
 
+    --the campaigns page the list was on when a search began, restored when
+    --the search is cleared (a search always shows its own first page).
+    local m_pageBeforeSearch = nil
+
     local m_states = { "starting-screen", "selection-screen", "games-screen" }
     local function SetTitlescreenState(state)
         for _, s in ipairs(m_states) do
@@ -6534,17 +7250,24 @@ function CreateTitlescreen(dialog, options)
         --its real 3D resting die on this).
         titlescreen:FireEventTree("titlescreenStateChanged", state)
 
+        if m_currentSearch ~= nil and m_pageBeforeSearch ~= nil then
+            g_gamePageSetting:Set(m_pageBeforeSearch)
+        end
         m_currentSearch = nil
+        m_pageBeforeSearch = nil
 
         --first arrival at the Director/Player cards is where we make the
         --Patreon/email offer, if there is anything left to offer.
         if state == "selection-screen" then
             OfferInfernalContract(titlescreen)
 
+            --store items granted to this account (a Patreon promo) that it
+            --has not been told about yet. Holds back if the contract opens.
+            OfferPromoGrants(titlescreen)
+
             --A debug Encounter of the Week player window (launched with
-            ----eotw-game) goes straight to the EotW screen, which then
-            --joins the named game. rawget: see the eotwTitlescreenLink
-            --note on load order.
+            ----eotw) goes straight to the EotW screen, once. rawget: see
+            --the eotwTitlescreenLink note on load order.
             local eotw = rawget(_G, "EncounterOfTheWeek")
             if eotw ~= nil and eotw.WantsAutoOpen ~= nil and eotw.WantsAutoOpen() then
                 eotw.ShowScreen()
@@ -6555,10 +7278,24 @@ function CreateTitlescreen(dialog, options)
         titlescreen.data.searchHandler = nil
         if state == "games-screen" then
             titlescreen.data.searchHandler = TopBar.InstallSearchHandler(function(text)
-                m_currentSearch = text
-                if m_currentSearch == "" then
-                    m_currentSearch = nil
+                local search = text
+                if search == "" then
+                    search = nil
                 end
+                if search ~= m_currentSearch then
+                    --the page setting persists, so without this a search
+                    --opened on whatever page the full list was last left on.
+                    if m_currentSearch == nil then
+                        m_pageBeforeSearch = g_gamePageSetting:Get()
+                    end
+                    if search == nil then
+                        g_gamePageSetting:Set(m_pageBeforeSearch or 1)
+                        m_pageBeforeSearch = nil
+                    else
+                        g_gamePageSetting:Set(1)
+                    end
+                end
+                m_currentSearch = search
                 titlescreen:FireEventTree("refreshLobby")
             end)
         else
@@ -6575,9 +7312,14 @@ function CreateTitlescreen(dialog, options)
         return math.ceil(#m_games / 4)
     end
 
+    --the stored page clamped to the pages that exist now: the setting
+    --persists and can be past the end of a shorter (e.g. filtered) list.
+    local function CurrentPage()
+        return clamp(round(g_gamePageSetting:Get()), 1, math.max(1, GetNumPages()))
+    end
+
     local function PageBaseIndex()
-        local npage = clamp(round(g_gamePageSetting:Get()), 1, GetNumPages())
-        return (npage - 1) * 4
+        return (CurrentPage() - 1) * 4
     end
 
     local RefreshAllPanels
@@ -6643,6 +7385,14 @@ function CreateTitlescreen(dialog, options)
                 versionEvents:Listen(element)
             end
             CheckAppVersion(element)
+
+            --a promo grant arrives as an inventory refresh, often seconds
+            --after the user links Patreon in Settings.
+            shop.events:Listen(element)
+        end,
+
+        refreshInventory = function(element)
+            OfferPromoGrants(element)
         end,
 
         appVersionStatus = function(element)
@@ -7188,43 +7938,6 @@ function CreateTitlescreen(dialog, options)
                 end,
             },
 
-            gui.Button {
-                -- Encounter of the Week entry point. Dev-gated behind
-                -- dev:encounteroftheweek (toggle via chat: /toggle
-                -- dev:encounteroftheweek); shown once past the starting
-                -- screen. Everything else about the mode lives in
-                -- EncounterOfTheWeek.lua in this module -- this link just
-                -- opens its screen. rawget rather than a bare global read:
-                -- globals are strict here, so a plain read would raise if
-                -- load order ever put this file first. The 'collapsed' cond
-                -- is listed last so a nil (setting on) cannot truncate the
-                -- classes array.
-                id = "eotwTitlescreenLink",
-                styles = ThemeEngine.GetStyles("default", "default"),
-                classes = { "hideOnStartingScreen", cond(rawget(_G, "EncounterOfTheWeek") ~= nil and EncounterOfTheWeek.Enabled(), nil, "collapsed") },
-                halign = "right",
-                valign = "top",
-                floating = true,
-                text = "Encounter of the Week",
-                width = "auto",
-                height = "auto",
-                pad = 6,
-                borderBox = true,
-                hmargin = 8,
-                vmargin = 24,
-                multimonitor = { "dev:encounteroftheweek" },
-                monitor = function(element)
-                    local eotw = rawget(_G, "EncounterOfTheWeek")
-                    element:SetClass("collapsed", eotw == nil or not eotw.Enabled())
-                end,
-                press = function(element)
-                    local eotw = rawget(_G, "EncounterOfTheWeek")
-                    if eotw ~= nil then
-                        eotw.ShowScreen()
-                    end
-                end,
-            },
-
             --top king panel
             gui.Panel {
 
@@ -7496,7 +8209,11 @@ function CreateTitlescreen(dialog, options)
 
             gui.Panel {
 
-                classes = { 'king-panel', cond(g_devStorePreviewSetting:Get(), "makeRoomForShopBanner") },
+                --eotwRow is also set on the children (SetClassTree below) so
+                --the Player card can re-align itself for the three-card row.
+                --Its cond never yields nil ("twoCardRow" is a placeholder) so
+                --it cannot truncate the array before the banner class.
+                classes = { 'king-panel', cond(EotwCardEnabled(), "eotwRow", "twoCardRow"), cond(g_devStorePreviewSetting:Get(), "makeRoomForShopBanner") },
 
                 bgimage = true,
                 --bgcolor = "white",
@@ -7514,9 +8231,10 @@ function CreateTitlescreen(dialog, options)
                 --When the store banner is shown at the bottom of the screen,
                 --pull the Director/Player cards closer together, shrink them
                 --a little, and shift them to make room for it.
-                multimonitor = { "dev:storepreview" },
+                multimonitor = { "dev:storepreview", "dev:encounteroftheweek" },
                 monitor = function(element)
                     element:SetClass("makeRoomForShopBanner", g_devStorePreviewSetting:Get())
+                    element:SetClassTree("eotwRow", EotwCardEnabled())
                 end,
 
                 styles = {
@@ -7537,6 +8255,21 @@ function CreateTitlescreen(dialog, options)
                         width = g_selectionCardsBannerWidth,
                         scale = g_selectionCardsBannerScale,
                         y = g_selectionCardsBannerY,
+                    },
+
+                    --Three-card row (Encounter of the Week enabled). Listed
+                    --after the banner variant so it wins over it.
+                    {
+                        classes = { 'king-panel', 'eotwRow' },
+                        width = g_eotwRowWidth,
+                        scale = g_eotwRowScale,
+                    },
+
+                    {
+                        classes = { 'king-panel', 'eotwRow', 'makeRoomForShopBanner' },
+                        width = g_eotwRowWidth,
+                        scale = g_eotwRowScale,
+                        y = g_eotwRowBannerY,
                     },
 
 
@@ -7648,7 +8381,7 @@ function CreateTitlescreen(dialog, options)
 
                     floating = true,
 
-                    halign = "right",
+                    --halign lives in styles: centred in the three-card row.
                     valign = "center",
 
 
@@ -7671,8 +8404,16 @@ function CreateTitlescreen(dialog, options)
 
                     flow = "vertical",
 
-                    classes = { "playersselectparent" },
+                    classes = { "playersselectparent", cond(EotwCardEnabled(), "eotwRow") },
                     styles = {
+                        {
+                            selectors = { "playersselectparent" },
+                            halign = "right",
+                        },
+                        {
+                            selectors = { "playersselectparent", "eotwRow" },
+                            halign = "center",
+                        },
                         {
                             selectors = { "playersselectparent", "hover" },
                             --scale = 1.015,
@@ -7731,8 +8472,169 @@ function CreateTitlescreen(dialog, options)
 
 
 
-                }
+                },
 
+
+                --Encounter of the Week card: the third card of the row,
+                --matching Director and Player. Shown only when EotW is enabled
+                --(dev:encounteroftheweek; toggle via chat: /toggle
+                --dev:encounteroftheweek). Everything else about the mode lives
+                --in EncounterOfTheWeek.lua -- this card just opens its screen.
+                --The 'collapsed' cond is listed last so a nil (setting on)
+                --cannot truncate the classes array.
+                gui.Panel {
+
+                    id = "eotwTitlescreenLink",
+
+                    bgimage = g_customCampaignOption.coverart,
+                    bgcolor = "white",
+                    width = 500,
+                    height = 700,
+
+                    floating = true,
+
+                    halign = "right",
+                    valign = "center",
+
+                    border = 1.5,
+                    borderColor = "white",
+                    cornerRadius = 2,
+
+                    flow = "vertical",
+
+                    classes = { "eotwselectparent", cond(EotwCardEnabled(), nil, "collapsed") },
+                    --imageRect lives in styles (not inline) so the hover
+                    --zoom can override it; inline properties beat styles.
+                    styles = {
+                        {
+                            selectors = { "eotwselectparent" },
+                            imageRect = { x1 = g_eotwCardX1, x2 = g_eotwCardX2, y1 = 0, y2 = 1 },
+                        },
+                        {
+                            selectors = { "eotwselectparent", "hover" },
+                            transitionTime = 0.12,
+                            imageRect = {
+                                x1 = g_eotwCardX1 + 0.02 * g_eotwCardCrop,
+                                x2 = g_eotwCardX2 - 0.02 * g_eotwCardCrop,
+                                y1 = 0.02,
+                                y2 = 0.98,
+                            },
+                        },
+                    },
+
+                    multimonitor = { "dev:encounteroftheweek" },
+                    monitor = function(element)
+                        element:SetClass("collapsed", not EotwCardEnabled())
+                    end,
+
+                    hover = function()
+                        audio.FireSoundEvent("Mouse.Hover")
+                    end,
+
+                    click = function(element)
+                        audio.FireSoundEvent("Mouse.Click")
+                        local eotw = rawget(_G, "EncounterOfTheWeek")
+                        if eotw ~= nil then
+                            eotw.ShowScreen()
+                        end
+                    end,
+
+                    gui.Panel {
+
+                        bgimage = true,
+
+                        height = "85%",
+                        width = "100%",
+
+                        --How many players are in Blackbottom right now, read over
+                        --HTTP so being on the titlescreen does not count you as in
+                        --town. Collapsed until the first answer, and while nobody is there.
+                        gui.Label {
+                            classes = { "collapsed" },
+                            bgimage = true,
+                            bgcolor = "#000000aa",
+                            cornerRadius = 4,
+                            fontSize = 20,
+                            fontFace = "newzald",
+                            color = "white",
+                            width = "auto",
+                            height = "auto",
+                            hpad = 12,
+                            vpad = 4,
+                            borderBox = true,
+                            halign = "center",
+                            valign = "bottom",
+                            bmargin = 10,
+                            text = "",
+
+                            data = { fetching = false },
+
+                            create = function(element)
+                                element:FireEvent("think")
+                            end,
+
+                            thinkTime = 60,
+                            think = function(element)
+                                local roster = rawget(_G, "EotwRoster")
+                                if element.data.fetching or roster == nil or not EotwCardEnabled() then
+                                    return
+                                end
+                                element.data.fetching = true
+                                roster.FetchHeadcount(function(count)
+                                    if mod.unloaded or not element.valid then
+                                        return
+                                    end
+                                    element.data.fetching = false
+                                    if count == nil then
+                                        --keep the last good count through a failed poll.
+                                        return
+                                    end
+                                    element:SetClass("collapsed", count < 1)
+                                    element.text = string.format("%d adventurer%s in Blackbottom", count, cond(count == 1, "", "s"))
+                                end)
+                            end,
+                        },
+
+                    },
+
+                    gui.Panel {
+
+                        bgimage = true,
+
+                        height = "15%",
+                        width = "100%",
+
+                        gui.Panel {
+
+                            bgimage = "panels/titlescreen/button.png",
+                            bgcolor = "white",
+
+                            height = 131 * 0.6,
+                            width = 632 * 0.6,
+
+                            halign = "center",
+                            valign = "bottom",
+
+                            bmargin = 3,
+
+                            gui.Label {
+
+                                text = "ENCOUNTER OF THE WEEK",
+                                fontSize = 30,
+                                fontFace = "newzald",
+                                color = "white",
+                                width = "auto",
+                                halign = "center",
+                                valign = "center",
+                                textAlignment = "center",
+                                y = 5,
+                            }
+
+                        }
+
+                    }
+
+                },
             },
 
             --Store banner across the bottom of the selection screen. Plain
@@ -7744,8 +8646,9 @@ function CreateTitlescreen(dialog, options)
 
                 --'storeBannerZoom' drives the hover zoom below; it is listed
                 --before the cond so a nil (storepreview on) can't truncate the
-                --array and drop it.
-                classes = { 'king-panel', 'shop-banner', 'storeBannerZoom', cond(g_devStorePreviewSetting:Get(), nil, "collapsed") },
+                --array and drop it. eotwRow (three-card row: wider banner) never
+                --yields nil, so it can sit before the collapsed cond.
+                classes = { 'king-panel', 'shop-banner', 'storeBannerZoom', cond(EotwCardEnabled(), "eotwRow", "twoCardRow"), cond(g_devStorePreviewSetting:Get(), nil, "collapsed") },
 
                 bgimage = g_storeBannerDefaultArt,
                 bgcolor = "white",
@@ -7776,7 +8679,8 @@ function CreateTitlescreen(dialog, options)
                 borderColor = "white",
 
 
-                width = g_selectionBannerWidth,
+                --width lives in the styles below so the three-card row can
+                --widen it; inline properties always override styles.
                 height = g_selectionBannerHeight,
 
                 floating = true,
@@ -7785,9 +8689,12 @@ function CreateTitlescreen(dialog, options)
                 valign = "bottom",
                 bmargin = 60,
 
-                multimonitor = { "dev:storepreview" },
+                --eotwRow is set on the whole tree so the cross-fade art layer
+                --crops the same way as the banner's own art.
+                multimonitor = { "dev:storepreview", "dev:encounteroftheweek" },
                 monitor = function(element)
                     element:SetClass("collapsed", not g_devStorePreviewSetting:Get())
+                    element:SetClassTree("eotwRow", EotwCardEnabled())
                 end,
 
                 --The whole banner is a button into the store. A click anywhere on
@@ -7828,6 +8735,21 @@ function CreateTitlescreen(dialog, options)
                         selectors = { "storeBannerZoom", "hover" },
                         transitionTime = 0.12,
                         imageRect = { x1 = 0.02, x2 = 0.98, y1 = 0.02, y2 = 0.98 },
+                    },
+
+                    { selectors = { "shop-banner" }, width = g_selectionBannerWidth },
+
+                    --Three-card row: as wide as the row, art cropped (not
+                    --stretched) to the wider shape.
+                    {
+                        selectors = { "shop-banner", "eotwRow" },
+                        width = g_selectionBannerEotwWidth,
+                        imageRect = g_storeBannerEotwRect,
+                    },
+                    {
+                        selectors = { "storeBannerZoom", "eotwRow", "hover" },
+                        transitionTime = 0.12,
+                        imageRect = g_storeBannerEotwHoverRect,
                     },
                 },
 
@@ -7872,6 +8794,16 @@ function CreateTitlescreen(dialog, options)
                             selectors = { "storeBannerFadeLayer", "parent:hover" },
                             transitionTime = 0.12,
                             imageRect = { x1 = 0.02, x2 = 0.98, y1 = 0.02, y2 = 0.98 },
+                        },
+                        --Three-card row: the same crop as the banner's own art.
+                        {
+                            selectors = { "storeBannerFadeLayer", "eotwRow" },
+                            imageRect = g_storeBannerEotwRect,
+                        },
+                        {
+                            selectors = { "storeBannerFadeLayer", "eotwRow", "parent:hover" },
+                            transitionTime = 0.12,
+                            imageRect = g_storeBannerEotwHoverRect,
                         },
                     },
 
@@ -8206,6 +9138,38 @@ function CreateTitlescreen(dialog, options)
 
                                     press = ImportForgeSteel,
                                 },
+
+                                --Codex JSON import button.
+                                gui.Button {
+                                    width = 48,
+                                    height = 48,
+                                    halign = "right",
+                                    valign = "center",
+                                    beveledcorners = true,
+                                    cornerRadius = 8,
+                                    y = -10,
+
+                                    hover = function(element)
+                                        gui.Tooltip("Import a Hero from a Codex JSON file")(element)
+                                    end,
+
+                                    monitorGame = "/characters",
+                                    refreshGame = function(element)
+                                        local _, nheroes = LobbyHeroes()
+                                        element:SetClass("hidden", nheroes >= 8)
+                                    end,
+
+                                    press = ImportCodexJson,
+
+                                    gui.Panel {
+                                        classes = { "headerActionIcon" },
+                                        width = "70%",
+                                        height = "70%",
+                                        halign = "center",
+                                        valign = "center",
+                                        bgimage = "game-icons/cloud-upload.png",
+                                    },
+                                },
                             }
                         },
 
@@ -8268,6 +9232,8 @@ function CreateTitlescreen(dialog, options)
                                 lobby:EnterLobbyGame(function()
                                     print("LOBBYGAME:: ENTERED!")
                                     g_titlescreen:FireEventTree("returnFromGameComplete")
+                                    --Hero modules may have been added or switched off elsewhere.
+                                    HeroModules.SyncLobby()
                                 end)
                             end,
 
@@ -8572,7 +9538,7 @@ function CreateTitlescreen(dialog, options)
                                 element:SetClass("hidden", npage <= 1)
                             end,
                             press = function(element)
-                                g_gamePageSetting:Set(g_gamePageSetting:Get() - 1)
+                                g_gamePageSetting:Set(CurrentPage() - 1)
                                 element.root:FireEventTree("refreshGames", m_games, PageBaseIndex())
                             end,
                         },
@@ -8603,7 +9569,7 @@ function CreateTitlescreen(dialog, options)
                                 element:SetClass("hidden", npage >= numPages)
                             end,
                             press = function(element)
-                                g_gamePageSetting:Set(g_gamePageSetting:Get() + 1)
+                                g_gamePageSetting:Set(CurrentPage() + 1)
                                 element.root:FireEventTree("refreshGames", m_games, PageBaseIndex())
                             end,
                         },
@@ -8966,6 +9932,7 @@ if rawget(_G, "TitlescreenVersion") ~= 2 then
         lobby:EnterLobbyGame(function()
             dmhub.TermsOfServiceAccepted()
             g_titlescreen:FireEventTree("lobbyGameLoaded")
+            HeroModules.SyncLobby()
         end)
     else
         ShowTermsOfService(g_titlescreen, {
@@ -8974,9 +9941,42 @@ if rawget(_G, "TitlescreenVersion") ~= 2 then
                 lobby:EnterLobbyGame(function()
                     dmhub.TermsOfServiceAccepted()
                     g_titlescreen:FireEventTree("lobbyGameLoaded")
+                    HeroModules.SyncLobby()
                 end)
             end,
         })
     end
 
 end
+
+--Hero creation for other titlescreen screens (the Encounter of the Week town,
+--Codex Titlescreen/EncounterOfTheWeek.lua): the same builder round trip the
+--titlescreen's own "+" uses. Create(onCreated) builds a new lobby hero and
+--calls onCreated(character) if it was kept; Edit(character, onClosed) opens an
+--existing one, calling onClosed(character) when the sheet closes.
+TitlescreenHeroes = {
+    Create = function(onCreated)
+        CreateHero(g_titlescreen, onCreated)
+    end,
+    Edit = function(character, onClosed)
+        EditHero(g_titlescreen, character, function(c)
+            if onClosed ~= nil then
+                onClosed(c)
+            end
+            return false
+        end)
+    end,
+    --The heroes in the titlescreen's HEROES slots, in slot order: the first
+    --8 of LobbyHeroes() (one per hard-coded MakeHeroPanel slot), minus
+    --abandoned empty shells. The EotW Guild offers these to copy into town.
+    List = function()
+        local result = {}
+        local chars = LobbyHeroes()
+        for i = 1, math.min(8, #chars) do
+            if not HeroIsUnstarted(chars[i]) then
+                result[#result+1] = chars[i]
+            end
+        end
+        return result
+    end,
+}

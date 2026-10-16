@@ -61,7 +61,9 @@ ImportUtils = {
         while attrid ~= nil do
 
             result[attrid] = tonumber(val)
-            
+
+            --a match (attrid ~= nil) always sets j.
+            ---@cast j -nil
             str = string.sub(str, j, #str)
             i,j,attrid,val = string.find(str, "(%a+) (%d+)")
         end

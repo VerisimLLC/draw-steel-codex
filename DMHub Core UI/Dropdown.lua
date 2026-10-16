@@ -17,26 +17,53 @@ end
 -- theme settings dialog. Same selectors are visible to gui.Multiselect's
 -- internal dropdown, so both render identically.
 
+--- Option ids are only used as table keys and compared with ==, so any of these works.
+--- Numeric ids are common (levels, echelons, setting enums) and are often saved to data.
+--- Keep one dropdown's ids one type: 1 and "1" are different ids. Options with a keybind
+--- must use string ids, because the engine hands keybind ids back as strings.
+--- @alias DropdownId string|number|boolean
+
 --- @class DropdownOption
---- @field id string|true|false
+--- @field id DropdownId
 --- @field text string
 --- @field tooltip nil|string|fun():string Tooltip text to show when hovering over this option.
+--- @field submenu nil|DropdownOption[] Child options shown in a flyout; the parent itself is not choosable.
 
 --- @class Dropdown:Panel
---- @field idChosen nil|true|false|string The id of the option currently chosen.
---- @field optionChosen nil|true|false|string Legacy alias of idChosen (GetOptionChosen/SetOptionChosen below).
---- @field options DropdownOption[] The possible options to choose from
- 
+--- @field idChosen nil|DropdownId The id of the option currently chosen.
+--- @field optionChosen nil|DropdownId Legacy alias of idChosen (GetOptionChosen/SetOptionChosen below).
+--- @field options DropdownOption[] The possible options to choose from. Reads always return the table form, even if strings were assigned.
+
 
 --- @class DropdownArgs:PanelArgs
---- @field idChosen nil|true|false|string The id of the option currently chosen.
+--- @field idChosen nil|DropdownId The id of the option currently chosen.
 --- @field textOverride nil|string The text to set on the dropdown, instead of showing the currently chosen option.
 --- @field textDefault nil|string The text to display for the dropdown if there is no option currently chosen.
---- @field options DropdownOption[] The possible options to choose from
+--- @field options? (DropdownOption|string)[] The possible options to choose from; may be set later through the options property. A bare string "x" is shorthand for {id = "x", text = "x"}.
 --- @field hasSearch nil|boolean If true, this dropdown will provide an input field to search it. Good to use on dropdowns with many options.
 --- @field menuAlign nil|"left"|"center"|"right" How the open menu sits against the control; defaults to "center". Only has an effect alongside menuWidth, since otherwise the menu matches the control's width exactly. "left" also brings the search field over the control.
 --- @field sort nil|boolean Sorts @see options before displaying.
+--- @field debug nil|boolean Consumed by gui.Dropdown and not passed to the panel.
+--- @field menuHeight nil|number Maximum height of the open menu; defaults to 300.
+--- @field dropdownHeight nil|number Older name for menuHeight.
+--- @field menuWidth nil|number Width of the open menu; defaults to the control's width.
+--- @field optionChosen nil|DropdownId Older name for idChosen.
 --- @field centerPopup nil|boolean If true, the menu that displays from this dropdown will appear parented to the root of the panel hierarchy and in the center -- i.e. it should pop up in the middle of the screen rather than attached to the dropdown.
+--- @field keybind nil|string|(fun(panel:Dropdown, bind:string, ...:any):nil)
+--- @field monitor nil|string|(fun(panel:Dropdown, ...:any):nil)
+--- @field closePopup nil|string|(fun(panel:Dropdown, ...:any):nil)
+--- @field delete nil|string|(fun(panel:Dropdown, ...:any):nil)
+--- @field change nil|string|(fun(panel:Dropdown, ...:any):nil)
+--- @field click nil|string|(fun(panel:Dropdown, ...:any):nil)
+--- @field rightClick nil|string|(fun(panel:Dropdown, ...:any):nil)
+--- @field rendered nil|string|(fun(panel:Dropdown, width:number,height:number, ...:any):nil)
+--- @field enable nil|string|(fun(panel:Dropdown, ...:any):nil)
+--- @field disable nil|string|(fun(panel:Dropdown, ...:any):nil)
+--- @field create nil|string|(fun(panel:Dropdown, ...:any):nil)
+--- @field think nil|string|(fun(panel:Dropdown, ...:any):nil)
+--- @field escape nil|string|(fun(panel:Dropdown, ...:any):nil)
+--- @field refreshGame nil|string|(fun(panel:Dropdown, ...:any):nil)
+--- @field imageLoaded nil|string|(fun(panel:Dropdown, ...:any):nil)
 
 
 --- Create a Dropdown panel
@@ -81,6 +108,7 @@ function gui.Dropdown(args)
         m_searchFocus = panel
     end
  
+	---@type Dropdown
 	local dropdownParent = nil
  
 	local menuHeight = args.menuHeight or args.dropdownHeight or 300
@@ -616,7 +644,8 @@ function gui.Dropdown(args)
 		if arguments.styles == nil then arguments.styles = {} end
 		arguments.styles = ThemeEngine.MergeStyles(arguments.styles)
 	end
-	dropdownParent = gui.Panel(arguments)
+	--the options/idChosen properties come from the get/set handlers in arguments.
+	dropdownParent = gui.Panel(arguments) --[[@as Dropdown]]
 
 	if options ~= nil then
 		dropdownParent.options = options

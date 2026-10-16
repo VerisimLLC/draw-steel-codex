@@ -145,7 +145,7 @@ A real-bestiary test sweep against `TEST_TRIGGER_PANEL_TESTS.md` (~25 representa
 ### Lua phases 2, 3, Effects replacement + bottom bar status (SHIPPED 2026-04-24)
 
 **Phase 2 (Trigger Event picker modal):**
-- `TRIGGER_METADATA` + `TRIGGER_GROUPS` tables in `NewTriggeredAbilityEditor.lua` with all approved renames applied as per-id `label` overrides (fallenon -> "Creature Lands On You", targetwithability -> "Targeted by an Ability", leaveadjacent -> "Adjacent Creature Moves Away", fall casing fix, beginround -> "Start of Round", teleport normalized).
+- `TRIGGER_METADATA` + `TRIGGER_GROUPS` tables in `NewTriggeredAbilityEditor.lua` with all approved renames applied as per-id `label` overrides (fallenon -> "Creature Lands On You", leaveadjacent -> "Adjacent Creature Moves Away", fall casing fix, beginround -> "Start of Round", teleport normalized).
 - `miss` + `attacked` explicitly excluded via `EXCLUDED_TRIGGER_IDS`; `fumble` filtered via its existing `hide()` predicate.
 - Field row is label + gold-accent-bar + bold cream text ("currently selected") + inline `[Change]` button that opens the picker modal. No dropdown mimicry.
 - Modal pattern lifted from `AbilityEditorBehaviorPicker.lua`: search input, categorized band list, Common band priority-sorted, other bands alphabetical.
@@ -492,7 +492,7 @@ Pattern lifted from `AbilityEditorBehaviorPicker.lua`. Mockup implements clickab
 
 **Combat** (alphabetical): Attack an Enemy, Attacked, Become Dying (Heroes Only), Become Winded, Creature Lands On You, Death, Drop to Zero Stamina, Gain Temporary Stamina, Kill a Creature, Made Reactive Roll Against damage, Regain Stamina.
 
-**Abilities & Power Rolls** (alphabetical): Finish Using an Ability, Targeted by an Ability, Use Signature Attack or Area.
+**Abilities & Power Rolls** (alphabetical): Finish Using an Ability, Target With Ability, Use Signature Attack or Area.
 
 **Movement** (alphabetical): Adjacent Creature Moves Away, Begin Movement, Break Through a Wall, Collide with a Creature or Object, Complete Movement, Force Moved, Land From a Fall, Move Through Creature, Stepped on a Pressure Plate, Teleport.
 
@@ -503,7 +503,6 @@ Pattern lifted from `AbilityEditorBehaviorPicker.lua`. Mockup implements clickab
 **Custom**: Custom Trigger.
 
 ### Approved renames (Display Name only - IDs untouched)
-- `targetwithability`: "Target With Ability" -> **Targeted by an Ability**
 - `moveawayfrom` (or equivalent): "Creature Moved Away From" -> **Adjacent Creature Moves Away**
 - `fallenon`: "A Creature Lands on You From a Fall" -> **Creature Lands On You** (placed under Combat, not Movement)
 - `fall`: "Land from a fall" -> **Land From a Fall** (casing fix)

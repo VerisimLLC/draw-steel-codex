@@ -57,7 +57,7 @@ function lobby:CloneDOGameToOtherEnvironment(gameid, options) end
 function lobby:CloneGameToLocal(gameid, options) end
 
 --- Creates a new game with the given options table. The options table may contain 'create' and 'error' callback functions, 'description', 'descriptionDetails' and 'coverart' for the game record, 'startingModule' (the module whose starter map the game opens on; an empty string skips the install), 'noSystemModule' (true to suppress the injected Draw Steel system module) and 'additionalModules' (a list of further module ids the Director's client installs once the game loads). Rate-limited to one creation every 3 seconds.
---- @param options table Options with optional 'create' and 'error' callback fields.
+--- @param options nil|table Options with optional 'create' and 'error' callback fields. May be omitted to create a game with defaults.
 function lobby:CreateGame(options) end
 
 --- Promote a local game to Durable Objects. Generates a new game id, copies all data to the cloud, verifies it, and then deletes the local copy. Options: 'gameid' (string, required - the local game's id), 'staging' (bool, optional - target the staging DO server instead of release), 'progress' (function(status, pct)), 'complete' (function(success, newGameid, error)).
@@ -74,10 +74,11 @@ function lobby:ListRollbackBookmarks(gameid, callback) end
 --- @param options table Target + callbacks.
 function lobby:PerformRollback(gameid, options) end
 
---- Enters the game with the given ID, optionally executing a Lua function after entering.
+--- Enters the game with the given ID, optionally executing a Lua function after entering. options.startMap names a map (by its name) to start on when this player has no saved position or token in the game, instead of the game's first map.
 --- @param gameid string The ID of the game to enter.
 --- @param executeFunction nil|function Optional function to execute after entering the game.
-function lobby:EnterGame(gameid, executeFunction) end
+--- @param options nil|{startMap: nil|string} Optional entry options.
+function lobby:EnterGame(gameid, executeFunction, options) end
 
 --- Looks up a game by its ID asynchronously. Calls the callback with a LuaGameInfo if found, or with no arguments if not found.
 --- @param gameid string The ID of the game to look up.

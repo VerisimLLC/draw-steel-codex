@@ -162,6 +162,7 @@ function CBKitDetail._overviewPanel()
                 end,
                 refreshBuilderState = function(element, state)
                     local hero = _getHero()
+                    if hero == nil then return end
                     local kits = element.data.kits or {}
                     local selected1 = Kit.DamageBonusSelected(hero, element.data.bonusItemId, kits[1], kits[2])
                     element:SetClass("selected", (selected1 and element.data.index == 1) or (not selected1 and element.data.index == 2))

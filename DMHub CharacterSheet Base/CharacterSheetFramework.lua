@@ -74,6 +74,12 @@ CharSheet.TabsStyles = {
 CharSheet.TabOptions = {}
 
 print("CharSheetFramework.lua loaded")
+--tab = { id, text, panel = function() -> Panel, order?, visible?, lazy? }.
+--lazy = true builds the tab's panel the first time the tab is shown instead of
+--with the sheet (the sheet is built with every game's hud, so an expensive tab
+--costs every game load). Only for a tab whose panel reads what it shows when
+--it is activated (charsheetActivate) rather than relying on events fired
+--before it existed.
 function CharSheet.RegisterTab(tab)
 	local index = #CharSheet.TabOptions+1
 	for i,t in ipairs(CharSheet.TabOptions) do
@@ -117,24 +123,6 @@ function CharSheet.RegisterSheetAction(action)
 		end
 	end
 	CharSheet.SheetActions[index] = action
-end
-
-dmhub.IsDialogOpen = function()
-	--a popped-out sheet lives in its own OS window and must not count as a
-	--dialog covering the main window.
-	if g_charSheet ~= nil and g_charSheet.valid and g_charSheet.enabled and (not g_charSheet.data.poppedOut) then
-		return true
-	end
-
-	if gui.GetModal() ~= nil then
-		return true
-	end
-
-	if gamehud ~= nil and gamehud.inventoryDialog ~= nil and gamehud.inventoryDialog.valid and gamehud.inventoryDialog.enabled then
-		return true
-	end
-
-	return false
 end
 
 local CharacterSheetStyles = {
@@ -1110,9 +1098,14 @@ function CharSheet.CreateCharacterSheet(params)
 	table.sort(CharSheet.TabOptions, function(a, b) return tostring(a.order or a.text) < tostring(b.order or b.text) end)
 
 	local tabPanels = {}
-	for _,tabOption in ipairs(CharSheet.TabOptions) do
+	--index -> true while that tab's slot holds a placeholder (see lazy above).
+	local lazyPlaceholders = {}
+	for i,tabOption in ipairs(CharSheet.TabOptions) do
 		local panel = nil
-		if tabOption.panel ~= nil then
+		if tabOption.lazy and tabOption.panel ~= nil and tabOption.id ~= selectedTab then
+			panel = gui.Panel{ classes = {"hidden"}, width = 1, height = 1, floating = true }
+			lazyPlaceholders[i] = true
+		elseif tabOption.panel ~= nil then
 			panel = tabOption.panel()
             if panel == nil then
                 dmhub.Error("CharSheet" .. tabOption.id .. "returned nil from the panel function: " .. traceback())
@@ -1186,6 +1179,18 @@ function CharSheet.CreateCharacterSheet(params)
 		end,
 
 		showTab = function(element, tabIndex)
+			if lazyPlaceholders[tabIndex] then
+				lazyPlaceholders[tabIndex] = nil
+				local panel = CharSheet.TabOptions[tabIndex].panel()
+				if panel ~= nil then
+					local placeholder = tabPanels[tabIndex]
+					tabPanels[tabIndex] = panel
+					element:AddChild(panel)
+					if placeholder ~= nil and placeholder.valid then
+						placeholder:DestroySelf()
+					end
+				end
+			end
 			for i,p in ipairs(tabPanels) do
 				if p ~= nil then
 					local hidden = (tabIndex ~= i)
@@ -1449,6 +1454,24 @@ function CharSheet.CreateCharacterSheet(params)
 		end,
 
 		show = function(element, info, tabid)
+			--a game mode's own interface may show its own view of this
+			--character instead (Encounter of the Week's hero sheet). The
+			--sheet then stays hidden and tells the engine it closed, so the
+			--next open (c, the radial, search...) starts afresh.
+			local token = info ~= nil and info.token or nil
+			if token ~= nil and GameHud ~= nil and GameHud.CustomInterfaceOpenSheet ~= nil
+					and GameHud.CustomInterfaceOpenSheet(token, tabid) then
+				element:SetClass("collapsed", true)
+				dmhub.Schedule(0.01, function()
+					if not mod.unloaded and dmhub.inCharacterSheet then
+						dmhub.CloseCharacterSheet()
+					end
+				end)
+				return
+			end
+			if element.data.refreshDeferred then
+				element:FireEvent("refreshAll")
+			end
             element.data.richstatusid = dmhub.PushUserRichStatus("Viewing Character Sheet", element.data.richstatusid)
 			SelectTab(tabid or CharSheet.defaultSheet)
 			resultPanel:PulseClassTree("fadein")
@@ -1520,7 +1543,21 @@ function CharSheet.CreateCharacterSheet(params)
 			if info ~= nil then
 				contextInfo = info
 				element.data.info = contextInfo
+
+				--the engine refreshes the sheet just before show. When a game
+				--mode will show its own view instead (see show), refreshing
+				--this hidden sheet is wasted work; show catches up if it does not.
+				local token = info.token
+				if token ~= nil and GameHud ~= nil and GameHud.CustomInterfaceOwnsSheet ~= nil
+						and GameHud.CustomInterfaceOwnsSheet(token) then
+					if token.properties ~= nil then
+						token.properties:Invalidate()
+					end
+					element.data.refreshDeferred = true
+					return
+				end
 			end
+			element.data.refreshDeferred = false
 
 			if contextInfo ~= nil then
 				local sw = dmhub.Stopwatch()

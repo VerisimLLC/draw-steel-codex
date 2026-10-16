@@ -10,7 +10,7 @@ local mod = dmhub.GetModLoading()
 --- @field name string Display name of the attack.
 --- @field iconid string Asset id for the attack icon.
 --- @field range nil|string Range string (e.g. "5", "20/60", "touch").
---- @field damageInstances {damage: string, damageType: string, damageMagical: nil|boolean, flags: table<string, boolean>}[] List of damage rolls.
+--- @field damageInstances DamageInstance[] List of damage rolls (DamageInstance game-type objects).
 --- @field hit number Hit bonus applied to the attack roll.
 --- @field isSpell boolean If true, this is a spell attack rather than a weapon attack.
 --- @field hands integer Number of hands required (1 or 2).
@@ -21,8 +21,11 @@ local mod = dmhub.GetModLoading()
 --- @field meleeRange nil|number If set, the attack is melee when within this range (for thrown weapons).
 --- @field attrid nil|string Attribute id used for this attack (e.g. "str", "dex").
 --- @field consumeAmmo nil|table<string, number> Map of item id to quantity consumed as ammo.
+--- @field ammoType nil|string Equipment category of the ammunition the weapon uses (its ammunitionType).
 --- @field outOfAmmo nil|boolean If true, there is no available ammo for this attack.
 --- @field properties nil|table Weapon property objects keyed by property id.
+--- @field weaponid nil|string Gear id of the equipped weapon this attack comes from.
+--- @field baseAttackIndex nil|integer Index into the creature's innateAttacks this attack was generated from.
 -- name: name of attack
 -- iconid: string
 -- range: string

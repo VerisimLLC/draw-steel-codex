@@ -179,7 +179,8 @@ end
 --Suggested characteristics, in the game's canonical characteristic order.
 function HeroicTestDocument:CharacteristicNames()
     self:EnsureTables()
-    local keys = table.keys(self.characteristics)
+    --the live table.keys (Utils.lua) always returns a list; only the lua-core one can return nil.
+    local keys = table.keys(self.characteristics) --[[@as string[] ]]
     table.sort(keys, function(a, b)
         return creature.attributesInfo[a].order < creature.attributesInfo[b].order
     end)

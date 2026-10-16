@@ -951,7 +951,8 @@ local SetClass = function(tableName, classPanel, classid)
 				fontSize = 20,
 				change = function(element)
 					---@cast element Dropdown
-					class.hit_die = tonumber(element.idChosen)
+					--options are diceTypeOptionsNoNil, whose ids are all integer strings.
+					class.hit_die = tonumber(element.idChosen) --[[@as integer]]
 					UploadClass()
 				end,
 			},
@@ -995,7 +996,8 @@ local SetClass = function(tableName, classPanel, classid)
 				fontSize = 20,
 				change = function(element)
 					---@cast element Dropdown
-					class.primaryClassId = element.idChosen
+					--every option id is a class id string (or "").
+					class.primaryClassId = element.idChosen --[[@as string]]
 					class:ForceDomains()
 					UploadClass()
 				end,
@@ -1099,12 +1101,14 @@ local SetClass = function(tableName, classPanel, classid)
 		fontSize = 20,
 
 		change = function(element)
+			---@cast element Dropdown
 			if element.idChosen ~= 'none' then
 				if #class.savingThrows == 0 then
 					--make sure the class has its own saving throws table rather than class static instance.
 					class.savingThrows = {}
 				end
-				class.savingThrows[#class.savingThrows+1] = element.idChosen
+				--option ids are all saving throw id strings.
+				class.savingThrows[#class.savingThrows+1] = element.idChosen --[[@as string]]
 				element.idChosen = 'none'
 				UploadClass()
 				savingsThrowList:FireEvent("create")
@@ -1246,6 +1250,7 @@ mod.shared.StartingEquipmentEditor = function(options)
 
 		for i,equipmentEntry in ipairs(startingEquipment) do
 
+			---@type Panel[]
 			local entryChildren = {
 				gui.Label{
 					fontSize = 22,

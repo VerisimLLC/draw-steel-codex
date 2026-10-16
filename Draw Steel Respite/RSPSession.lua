@@ -322,6 +322,9 @@ function RSPSession.Roster()
     table.sort(result, function(a, b)
         local ta = dmhub.GetCharacterById(a)
         local tb = dmhub.GetCharacterById(b)
+        --Consider only adds a charid after GetCharacterById found it, earlier in this call.
+        ---@cast ta -nil
+        ---@cast tb -nil
         return string.lower(ta.name or "") < string.lower(tb.name or "")
     end)
 
@@ -741,7 +744,7 @@ function RSPSession.FollowersOf(charid, includeRetainers)
         local follower = dmhub.GetCharacterById(followerId)
         local followerType = nil
         pcall(function()
-            if follower.properties:IsFollower() then
+            if follower ~= nil and follower.properties:IsFollower() then
                 followerType = string.lower(follower.properties:try_get("followerType", ""))
             end
         end)
@@ -759,15 +762,15 @@ function RSPSession.FollowersOf(charid, includeRetainers)
     table.sort(result, function(a, b)
         local ta = dmhub.GetCharacterById(a)
         local tb = dmhub.GetCharacterById(b)
+        --a follower is only added once GetCharacterById found it, earlier in this call.
+        ---@cast ta -nil
+        ---@cast tb -nil
         return string.lower(ta.name or "") < string.lower(tb.name or "")
     end)
 
     return result
 end
 
---- Heroes with their followers indented beneath them, ready for a list.
---- @param charids string[] heroes, already in the order they should appear
---- @return table[] entries {charid, indent}
 --- The rows a run step shows. Every covered hero with its followers beneath
 --- it, plus any hero the non-participants rule excluded who still has
 --- followers: followers may always act, and the hero row is what they hang
@@ -795,7 +798,9 @@ function RSPSession.ActingEntries(charids)
     return entries
 end
 
---- @param charids string[]
+--- Heroes with their followers indented beneath them, ready for a list.
+--- Each entry is {charid, indent, owner?}.
+--- @param charids string[] heroes, already in the order they should appear
 --- @return table[] entries
 function RSPSession.EntriesWithFollowers(charids)
     local entries = {}

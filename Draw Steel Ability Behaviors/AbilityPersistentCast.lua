@@ -2,6 +2,7 @@ local mod = dmhub.GetModLoading()
 
 --- @class Persistence: GameType
 --- @field new fun(o?: table): Persistence
+--- @field guid string Unique id of this persistence entry.
 Persistence = RegisterGameType("Persistence")
 Persistence.name = ""
 
@@ -11,6 +12,9 @@ ActivatedAbilityPersistenceControlBehavior = RegisterGameType("ActivatedAbilityP
 
 --- @class ActivatedAbilityPersistenceCastBehavior:ActivatedAbilityBehavior
 --- @field new fun(o?: table): ActivatedAbilityPersistenceCastBehavior
+--- @field token CharacterToken The token that keeps the ability persisting.
+--- @field ability ActivatedAbility The persistent ability to recast.
+--- @field targets? {token: CharacterToken}[] Targets to recast on; nil when the ability has none.
 ActivatedAbilityPersistenceCastBehavior = RegisterGameType("ActivatedAbilityPersistenceCastBehavior", "ActivatedAbilityBehavior")
 
 RegisterGoblinScriptSymbol(creature, {
@@ -89,19 +93,20 @@ function ActivatedAbilityPersistenceControlBehavior:Cast(ability, casterToken, t
         return
     end
 
-    local caster = casterToken:GetCreature()
+    local caster = casterToken.properties
     local casterClasses = caster:GetClassesAndSubClasses()
-    local startOfTurnHeroicResource = 0
+    local startOfTurnFormula = 0
     for _, classInfo in pairs(casterClasses) do
         local heroicResource = classInfo.class:get_or_add("heroicResourceChecklist", {})
         for _, resourceInfo in pairs(heroicResource) do
             if string.lower(resourceInfo.name or "") == "start of turn" then
-                startOfTurnHeroicResource = resourceInfo.quantity or 0
+                startOfTurnFormula = resourceInfo.quantity or 0
             end
         end
     end
 
-    startOfTurnHeroicResource = tonumber(dmhub.EvalGoblinScript(startOfTurnHeroicResource, caster:LookupSymbol(), string.format("Calculating Start of Turn Resources")))
+    --a formula that does not reduce to a number counts as 0.
+    local startOfTurnHeroicResource = tonumber(dmhub.EvalGoblinScript(startOfTurnFormula, caster:LookupSymbol(), string.format("Calculating Start of Turn Resources"))) or 0
 
     local persistenceAbilities = casterToken.properties:try_get("persistentAbilities") or {}
 

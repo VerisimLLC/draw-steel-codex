@@ -3,7 +3,7 @@ local mod = dmhub.GetModLoading()
 --- @class GameSystem: GameType
 --- @field new fun(o?: table): GameSystem
 --- @field rollTypes table[] Registered roll type descriptors for this game system.
---- @field leveledProficiencyTypes table[] Proficiency types that scale with level.
+--- @field leveledProficiencyTypes table<string, boolean> Set of proficiency type ids (e.g. "skill") that scale with level.
 --- @field HitpointsName string Localized term for hit points.
 --- @field AttributeName string Localized term for a single attribute.
 --- @field AttributeNamePlural string Localized plural for attributes.
@@ -34,6 +34,7 @@ local mod = dmhub.GetModLoading()
 --- @field CalculateAttributeModifier fun(attributeInfo: table, attributeValue: number): number Converts a raw attribute score to its modifier.
 --- @field CalculateInitiativeModifier fun(creature: creature): number Returns the initiative modifier for a creature.
 --- @field AllowBoonsForRoll fun(options: table): boolean Returns true if boons/banes apply to the given roll.
+--- @field RollDialogDismissDelay? number Seconds an auto-resolved roll dialog lingers before hiding; set only by game systems that define RollDialogAutoProceed (Crows).
 GameSystem = RegisterGameType("GameSystem")
 
 --- @class RollRules: GameType
@@ -97,11 +98,12 @@ GameSystem.CalculateAttributeModifier = function(attributeInfo, attributeValue)
 		n = n-1
 	end
 
-	return math.tointeger((n/2) - 5)
+	--attribute scores are integers and n is now even, so n/2 is integral and tointeger never fails.
+	return math.tointeger((n/2) - 5) --[[@as integer]]
 end
 
 GameSystem.CalculateInitiativeModifier = function(creature)
-	return self:GetAttribute('dex'):Modifier()
+	return creature:GetAttribute('dex'):Modifier()
 end
 
 --This calculates which attribute is used to add its modifier for bonus damage

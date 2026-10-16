@@ -8,7 +8,7 @@
 --- @field editable boolean (default=true) If the input is editable by the user.
 --- @field multiline boolean (default=false) If the input displays multiple lines.
 --- @field verticalScrollbar boolean (default=false) If set to true, a vertical scrollbar is shown on the input when in multiline mode. The scrollbar color can be styled using the scrollHandleColor style property.
---- @field lineType "SingleLine"|"MultiLineSubmit"|"MultiLineNewLine" When this is SingleLine, the input is a single line. Pressing enter will fire the 'submit' event. When MultiLineSubmit, the input is multiple lines but pressing enter will still fire 'submit'. The user can press shift+enter to enter a new line. MultiLineNewLine will be multiple lines. Pressing enter will create a new line, rather than firing submit.
+--- @field lineType InputLineType|"MultiLineNewLine" When this is SingleLine, the input is a single line. Pressing enter will fire the 'submit' event. When MultiLineSubmit, the input is multiple lines but pressing enter will still fire 'submit'. The user can press shift+enter to enter a new line. MultiLineNewLine will be multiple lines. Pressing enter will create a new line, rather than firing submit.
 --- @field characterLimit number The maximum number of characters this input can contain.
 --- @field hasInputFocus boolean True if this input has the input focus.
 --- @field selectAllOnFocus boolean If set to true, the text will be selected when the input clicks on the input. This is useful to turn on for inputs the user is very likely to want to change in their entirety.
@@ -42,7 +42,7 @@ function Input:GetCharWorldPosition(charIndex) end
 --- @field editable? boolean (default=true) If the input is editable by the user.
 --- @field multiline? boolean (default=false) If the input displays multiple lines.
 --- @field verticalScrollbar? boolean (default=false) If set to true, a vertical scrollbar is shown on the input when in multiline mode. The scrollbar color can be styled using the scrollHandleColor style property.
---- @field lineType? "SingleLine"|"MultiLineSubmit"|"MultiLineNewLine" When this is SingleLine, the input is a single line. Pressing enter will fire the 'submit' event. When MultiLineSubmit, the input is multiple lines but pressing enter will still fire 'submit'. The user can press shift+enter to enter a new line. MultiLineNewLine will be multiple lines. Pressing enter will create a new line, rather than firing submit.
+--- @field lineType? InputLineType|"MultiLineNewLine" When this is SingleLine, the input is a single line. Pressing enter will fire the 'submit' event. When MultiLineSubmit, the input is multiple lines but pressing enter will still fire 'submit'. The user can press shift+enter to enter a new line. MultiLineNewLine will be multiple lines. Pressing enter will create a new line, rather than firing submit.
 --- @field characterLimit? number The maximum number of characters this input can contain.
 --- @field hasInputFocus? boolean True if this input has the input focus.
 --- @field selectAllOnFocus? boolean If set to true, the text will be selected when the input clicks on the input. This is useful to turn on for inputs the user is very likely to want to change in their entirety.

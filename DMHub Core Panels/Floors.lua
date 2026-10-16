@@ -347,6 +347,54 @@ function FloorNavigation.ChangeFloorRelative(offset)
 	end
 end
 
+--Entering a map can land on a hidden floor (a downloaded module opens on its top floor), which
+--shows the floors below while clicks hit the invisible one. On a game/map change, hop to the
+--highest visible floor; same-map floor changes are left alone so deliberate picks stick.
+local g_lastLoadedMapKey = nil
+
+dmhub.RegisterEventHandler("ChangeCurrentFloor", function()
+	--Floor visibility is a director tool; a player's floor follows their token instead.
+	if mod.unloaded or not dmhub.isDM then
+		return
+	end
+
+	--Includes the game id: downloading a module enters a new game but keeps the same map ids.
+	local key = string.format("%s/%s", tostring(dmhub.gameid), tostring(game.currentMapId))
+	if key == g_lastLoadedMapKey then
+		return
+	end
+	g_lastLoadedMapKey = key
+
+	--Deferred as a precaution: the event fires mid-load, so let the map settle before moving.
+	dmhub.Schedule(0.1, function()
+		local currentMap = game.currentMap
+		local cf = game.currentFloor
+		if mod.unloaded or currentMap == nil or cf == nil then
+			return
+		end
+
+		--Layers always report visible (only main floors carry the eye toggle), so check the parent.
+		---@type MapFloorLua|nil
+		local top = cf
+		if cf.parentFloor ~= nil then
+			top = game.GetFloor(cf.parentFloor)
+		end
+		if top == nil or top.floorInvisible ~= true then
+			return
+		end
+
+		--Floors are listed lowest first, so walk down from the top.
+		local floors = currentMap.floors or {}
+		for i = #floors, 1, -1 do
+			local f = floors[i]
+			if f.parentFloor == nil and f.floorInvisible ~= true then
+				game.ChangeMap(currentMap, f)
+				break
+			end
+		end
+	end)
+end)
+
 --Custom themed styling for the map-appearance gallery tiles. Hover/selected states live in the style
 --cascade (not inline) so they can flip on mouse-over and recolor with the active scheme. Colors use
 --@tokens so the highlight tracks the user's color scheme.
@@ -393,6 +441,8 @@ local appearanceTileStyles = {
 	},
 }
 
+---@param floor MapFloorLua
+---@param onHeightChanged? fun()
 local function ShowFloorSettings(floor, onHeightChanged)
 
 	--Sub-layers (parentFloor ~= nil) are layers within a floor rather than floors in their
@@ -1746,6 +1796,7 @@ CreateLayersPanel = function()
 				local floor = floors[i]
 
 				if floor.parentFloor == nil then
+					---@type Panel?
 					local floorPanel = floorItems[floor.floorid]
 
 					if floorPanel == nil then
@@ -2265,6 +2316,8 @@ CreateLayersPanel = function()
 							end,
 
 							refreshFloorSelection = function(element)
+								--built by now (LuaLS sees the nil it had when this closure was made).
+								---@cast floorPanel Panel
 								floorPanel:SetClassTree('selected', game.currentFloor.actualFloor == floor.actualFloor)
 							end,
 							click = function(element)
@@ -2706,7 +2759,8 @@ CreateLayersPanel = function()
 
 	ThemeEngine.OnThemeChanged(mod, function()
 		if resultPanel ~= nil and resultPanel.valid then
-			resultPanel.styles = ThemeEngine.MergeTokens(buildLocalStyles())
+			--MergeTokens only returns nil for nil input; buildLocalStyles always returns rules.
+			resultPanel.styles = ThemeEngine.MergeTokens(buildLocalStyles()) --[[@as StyleArgs[] ]]
 		end
 	end)
 
@@ -2752,6 +2806,7 @@ CreateLayersList = function(parentFloor)
 				local floor = floors[i]
 
 				if floor.floorid == parentFloor.floorid or floor.parentFloor == parentFloor.floorid then
+					---@type Panel?
 					local floorPanel = floorItems[floor.floorid]
 
 					if floorPanel == nil then
@@ -3130,6 +3185,8 @@ CreateLayersList = function(parentFloor)
 								floorLabel.text = text
 							end,
 							refreshFloorSelection = function(element)
+								--built by now (LuaLS sees the nil it had when this closure was made).
+								---@cast floorPanel Panel
 								floorPanel:SetClassTree('selected', game.currentFloor.floorid == floor.floorid)
 							end,
 							click = function(element)

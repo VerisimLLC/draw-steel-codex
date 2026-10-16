@@ -130,10 +130,11 @@ gui.Panel{
 }
 ```
 
-**Checkpoint backups** -- register a document so it is included in game-state checkpoint saves:
+**Combat checkpoints** -- register a document so **Revert Turn** rolls it back along with the rest of the board:
 ```lua
 mod:RegisterDocumentForCheckpointBackups("myDocId")
 ```
+This has nothing to do with saving: ordinary game backups include every document. Register only state the current turn can change and that should be undone with it (resources, Malice, combat logs). Do not register Director or table settings (audio, safety tools, campaign tracking) -- reverting a turn would silently undo them.
 
 **Helper for path** -- `mod:GetDocumentPath("myDocId")` returns the monitoring path string directly (equivalent to `mod:GetDocumentSnapshot("myDocId").path`).
 
@@ -221,7 +222,10 @@ ceiling. Treat that as a failing test: fix the problems it lists. It does not se
 made through Bash (sed, scripts), and it is not the full run.
 
 The ceiling has slack in it because LuaLS is not deterministic here (the same code checks
-to a number ~12 wide), so do not read small count changes as signal in either direction.
+to a number a few problems wide), so do not read small count changes as signal in either
+direction. **Except in clean files:** a file that checks clean, and any new file, has a
+ceiling of 0 and no slack -- one problem in it fails. Most of the codex is in that state,
+so new code is expected to check clean.
 
 Adding to a file that is already over its ceiling is fine as long as you do not push it
 further. If your change genuinely improves a file, re-record with `-UpdateBaseline` and

@@ -245,8 +245,9 @@ function ActivatedAbilityPurgeEffectsBehavior:Cast(ability, casterToken, targets
             options.symbols = {}
         end
         local conferObj = EvalCreatureField(self.conferTo, "Determine confer recipient")
-        if conferObj ~= nil then
-            conferToken = dmhub.GetCharacterById(dmhub.LookupTokenId(conferObj))
+        local conferId = conferObj ~= nil and dmhub.LookupTokenId(conferObj) or nil
+        if conferId ~= nil then
+            conferToken = dmhub.GetCharacterById(conferId)
         end
     end
 
@@ -314,6 +315,7 @@ function ActivatedAbilityPurgeEffectsBehavior:Cast(ability, casterToken, targets
         if not confirmed then
             return
         end
+        ---@cast replacements -nil
 
         ability:CommitToPaying(casterToken, options)
 
@@ -401,6 +403,7 @@ function ActivatedAbilityPurgeEffectsBehavior:Cast(ability, casterToken, targets
         if not confirmed then
             return
         end
+        ---@cast selections -nil
 
         -- CommitToPaying after confirm, matching the per-dialog call sites in the old flow.
         ability:CommitToPaying(casterToken, options)
@@ -2445,7 +2448,7 @@ function ActivatedAbilityPurgeEffectsBehavior:EditorItems(parentPanel)
                     change = function(element)
                         ---@cast element Dropdown
                         if element.idChosen ~= "none" then
-                            self.conditions[#self.conditions+1] = element.idChosen
+                            self.conditions[#self.conditions+1] = element.idChosen --[[@as string]]
                         end
                         parentPanel:FireEventTree("refreshPurge")
                     end,

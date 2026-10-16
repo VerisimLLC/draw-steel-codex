@@ -30,6 +30,13 @@ function MM.BuildWallsMode()
         m.selectedIndex = 1
     end
 
+    --The height settings are preferences and outlive the session, so the
+    --selected type starts at its own height rather than whatever the last
+    --type drawn (possibly in a previous session) left behind (J8PFJJ4Z).
+    if m.selectedIndex ~= nil then
+        MM.ApplyEntryHeight(m.paletteEntries[m.selectedIndex])
+    end
+
     --Each mode's default drawing tool is its first: the rectangle, in both.
     --Solid mode's tools are custom map tools, so it leaves the shared
     --building-tool settings alone. Openable (door) types are thin-only.
@@ -210,21 +217,23 @@ function MM.BuildWallsMode()
 
         m.selectedIndex = index
 
-        local preset = MM.PresetForEntry(entry)
-        if preset ~= nil then
+        if MM.PresetForEntry(entry) ~= nil then
             MaterializeEntry(entry)
-            MM.SetWallHeightSetting(preset.height)
         end
+        --every type, not just presets: a height set for the previous type
+        --must not carry over (J8PFJJ4Z).
+        MM.ApplyEntryHeight(entry)
 
         --Picking a wall type means "I want to draw this", so the destructive
         --tools don't stay armed on the new type: Eraser / Delete Wall fall
         --back to the active strip's default drawing tool (the rectangle).
         --Secret Door falls back too: it acts on existing doors rather than
-        --drawing, and is only offered while a door type is selected.
+        --drawing, and is only offered while a door type is selected. So does
+        --the Picker: a pick IS choosing the type you want to draw next.
         --Deliberately only for those - a drawing tool the user chose is
         --their choice and survives changing type.
         local rearmedTool = nil
-        if m.toolId == "erase" or m.toolId == "delete" or m.toolId == "secret" then
+        if m.toolId == "erase" or m.toolId == "delete" or m.toolId == "secret" or m.toolId == "picker" then
             local defaultTool = MM.ActiveToolInfos()[1]
             m.toolId = defaultTool.id
             rearmedTool = defaultTool
@@ -917,6 +926,12 @@ function MM.BuildWallsMode()
     local BuildToolButtons = function()
         local result = {}
         local dividerAdded = false
+        --Chips share the strip's width equally (capped at 44px) so the whole
+        --strip fits a narrow docked panel instead of clipping its last tools.
+        --The px offset covers each chip's 2px margins plus its share of the
+        --9px divider.
+        local toolCount = #MM.ActiveToolInfos()
+        local chipWidth = string.format("%d%%-%d", math.floor(100 / toolCount), 2 + math.ceil(9 / toolCount))
         for _,toolInfo in ipairs(MM.ActiveToolInfos()) do
             local destructive = toolInfo.id == "erase" or toolInfo.id == "delete"
             if destructive and not dividerAdded then
@@ -944,7 +959,8 @@ function MM.BuildWallsMode()
 
             result[#result+1] = gui.Panel{
                 classes = chipClasses,
-                width = 44,
+                width = chipWidth,
+                maxWidth = 44,
                 height = 42,
                 flow = "vertical",
                 bgimage = true,
@@ -1036,6 +1052,7 @@ function MM.BuildWallsMode()
                     end
                 end
 
+                ---@type string|nil
                 local activeid = m.toolId
                 if activeInfo == nil or activeInfo.mapTool == nil then
                     activeid = nil
@@ -1114,7 +1131,7 @@ function MM.BuildWallsMode()
                 --targeting etc. This runs before the m.mode guard so
                 --switching mode/tool tears the overlay down promptly.
                 local wantDelete = m.mode == "walls"
-                    and (m.toolId == "delete" or m.toolId == "retype" or m.toolId == "secret")
+                    and (m.toolId == "delete" or m.toolId == "retype" or m.toolId == "secret" or m.toolId == "picker")
                     and m.arm.Armed()
 
                 if wantDelete then
@@ -1127,6 +1144,9 @@ function MM.BuildWallsMode()
                     end
                     MM.ClearDeleteHighlight()
                     m.mapScope.retypeAnchor = nil
+                end
+                if m.toolId ~= "picker" or not wantDelete then
+                    m.mapScope.ClearPickerTooltip()
                 end
 
                 if m.mode ~= "walls" then
@@ -1172,10 +1192,10 @@ function MM.BuildWallsMode()
                     snapToGrid = toolInfo.id ~= "retype",
                     --Show the engine's editor cursor dot (where a stroke would
                     --start), like the Building editor's tools do. Not for the
-                    --Delete / Secret Door sentinels: they highlight the hovered
-                    --wall segment / door instead, and a dot would suggest
-                    --drawing. Older engines ignore the field.
-                    editorCursor = toolInfo.id ~= "delete" and toolInfo.id ~= "secret",
+                    --Delete / Secret Door / Picker sentinels: they highlight
+                    --the hovered wall segment / door instead, and a dot would
+                    --suggest drawing. Older engines ignore the field.
+                    editorCursor = toolInfo.id ~= "delete" and toolInfo.id ~= "secret" and toolInfo.id ~= "picker",
                     --Draw the stroke preview in the erase colour (red) rather
                     --than white. A custom map tool's stroke comes back to us
                     --as a 'tool' event instead of going through the engine's
@@ -1414,8 +1434,66 @@ function MM.BuildWallsMode()
             --  Apply Type drag   - the edges the current marquee rect would
             --                      convert, live as the rect grows.
             maphover = function(element, loc, point)
-                if m.mode ~= "walls" or (m.toolId ~= "delete" and m.toolId ~= "retype" and m.toolId ~= "secret") then
+                if m.mode ~= "walls" or m.toolId ~= "picker" then
+                    m.mapScope.ClearPickerTooltip()
+                end
+                if m.mode ~= "walls" or (m.toolId ~= "delete" and m.toolId ~= "retype" and m.toolId ~= "secret" and m.toolId ~= "picker") then
                     MM.ClearDeleteHighlight()
+                    return
+                end
+
+                --Picker hover: the whole wall (or door) under the cursor in
+                --its type's markup color, with the type's name beside it.
+                if m.toolId == "picker" then
+                    --the Building editor's eyedropper cursor; maphover fires
+                    --every frame over the map, so a short override lapses as
+                    --soon as the mouse moves onto the UI.
+                    dmhub.OverrideMouseCursor("eyedropper", 0.2)
+
+                    local hit = MM.FindWallTypeAtPoint(point)
+                    if hit == nil then
+                        MM.ClearDeleteHighlight()
+                        m.mapScope.ClearPickerTooltip()
+                        return
+                    end
+
+                    local paletteEntry = nil
+                    for _,entry in ipairs(m.paletteEntries) do
+                        if entry.guid == hit.wallid then
+                            paletteEntry = entry
+                            break
+                        end
+                    end
+
+                    --palette entries know their name and color even when the
+                    --wall asset behind them is missing from the game.
+                    local asset = assets.walls[hit.wallid]
+                    local color = nil
+                    local name = nil
+                    if paletteEntry ~= nil then
+                        color = m_wallColor.EntryColor(paletteEntry)
+                        name = MM.EntryDisplayName(paletteEntry)
+                    elseif asset ~= nil then
+                        pcall(function()
+                            local c = asset.markupColor
+                            if type(c) == "string" and c ~= "" then
+                                color = c
+                            end
+                        end)
+                        name = asset.description or "Wall"
+                    end
+                    m.mapScope.ShowSegmentsHighlight(hit.segments, color or "#ffffff")
+
+                    local text
+                    if paletteEntry ~= nil then
+                        text = name .. "\nClick to select"
+                    else
+                        text = name .. "\nClick to add to palette"
+                    end
+                    if asset == nil then
+                        text = text .. "\n(wall type missing from this game)"
+                    end
+                    m.mapScope.ShowPickerTooltip(point, text)
                     return
                 end
 
@@ -1514,6 +1592,34 @@ function MM.BuildWallsMode()
                 if m.mode ~= "walls" then
                     return
                 end
+                if m.toolId == "picker" then
+                    --Picker click: select the hovered wall's type, adding it
+                    --to the palette first when it is missing. Both paths end
+                    --in SelectChip, which also drops the Picker back to the
+                    --default drawing tool so the next stroke draws that type.
+                    local hit = MM.FindWallTypeAtPoint(point)
+                    if hit == nil then
+                        return
+                    end
+                    MM.ClearDeleteHighlight()
+                    m.mapScope.ClearPickerTooltip()
+                    for index,entry in ipairs(m.paletteEntries) do
+                        if entry.guid == hit.wallid then
+                            SelectChip(index)
+                            return
+                        end
+                    end
+                    --FindWallTypeAtPoint only returns a missing-asset wall
+                    --when its guid is in the palette (handled above).
+                    if assets.walls[hit.wallid] == nil then
+                        return
+                    end
+                    AddPaletteEntry{
+                        kind = "wall",
+                        guid = hit.wallid,
+                    }
+                    return
+                end
                 if m.toolId == "retype" then
                     --the press anchors a potential marquee (maphover shows
                     --the live rect's captured edges while the button stays
@@ -1583,6 +1689,7 @@ function MM.BuildWallsMode()
                     element.mapfocus = false
                 end
                 MM.ClearDeleteHighlight()
+                m.mapScope.ClearPickerTooltip()
             end,
         },
 
@@ -1772,9 +1879,9 @@ function MM.BuildWallsMode()
                             return
                         end
                         if height <= 1 then
-                            MM.SetWallHeightSetting(nil)
+                            MM.SetSelectedEntryHeight(nil)
                         else
-                            MM.SetWallHeightSetting(height - 1)
+                            MM.SetSelectedEntryHeight(height - 1)
                         end
                     end,
                 },
@@ -1811,9 +1918,9 @@ function MM.BuildWallsMode()
                     click = function()
                         local height = MM.GetWallHeightSetting()
                         if height == nil then
-                            MM.SetWallHeightSetting(1)
+                            MM.SetSelectedEntryHeight(1)
                         elseif height < 10 then
-                            MM.SetWallHeightSetting(height + 1)
+                            MM.SetSelectedEntryHeight(height + 1)
                         end
                     end,
                 },

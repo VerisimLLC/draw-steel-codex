@@ -2,10 +2,21 @@ local mod = dmhub.GetModLoading()
 
 --- @class ActivatedAbilityInvokeAbilityBehavior: ActivatedAbilityBehavior
 --- @field new fun(o?: table): ActivatedAbilityInvokeAbilityBehavior
+--- @field customAbility ActivatedAbility
 ActivatedAbilityInvokeAbilityBehavior = RegisterGameType("ActivatedAbilityInvokeAbilityBehavior", "ActivatedAbilityBehavior")
 
 --- @class AbilityInvocation: GameType
 --- @field new fun(o?: table): AbilityInvocation
+--- @field symbols table
+--- @field userid string
+--- @field targetid string
+--- @field subjectid string?
+--- @field namedAbility string
+--- @field standardAbility string
+--- @field standardAbilityParams table?
+--- @field abilityAttr table?
+--- @field targetingOverride string?
+--- @field timestamp number|string Server time once the server resolves it; the ServerTimestamp() placeholder string until then.
 AbilityInvocation = RegisterGameType("AbilityInvocation")
 
 AbilityUtils = {
@@ -93,8 +104,11 @@ AbilityUtils = {
 
 	--utility to scan for an <<expression>> in a string and evaluate it as goblin script.
 	--Useful to evaluate in the context of the caster.
+	---@param str string
+	---@param symbols any Symbol lookup for the GoblinScript.
+	---@return string
 	SubstituteAbilityParameters = function(str, symbols)
-        str = StringInterpolateGoblinScript(str, symbols)
+        str = StringInterpolateGoblinScript(str, symbols) --[[@as string]]
 		local result = ""
 		for i=1,8 do
 			local match = regex.MatchGroups(str, "^(?<head>.*)?<<(?<expression>.*?)>>(?<tail>.*)$")
@@ -170,8 +184,8 @@ local function GetParentCurrentTargetTokenId(options, currentToken)
         for _,pair in ipairs(symbols.targetPairs or {}) do
             if pair.a == currentToken.charid or pair.a == currentToken.id then
                 local targetToken = dmhub.GetTokenById(pair.b)
-                if targetToken ~= nil and targetToken.valid and targetToken.id ~= nil then
-                    return targetToken.id
+                if targetToken ~= nil and targetToken.valid and targetToken.charid ~= nil then
+                    return targetToken.charid
                 end
             end
         end
@@ -710,11 +724,14 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
     local rangeOrigin = self:try_get("rangeOrigin", "")
 
     local targetChoices = {}
+    --What was already happening before this started, so we can tell which triggers it set off.
+    local castsBeforeInvoke = nil
     if promptWhenResolving then
         for _,target in ipairs(targets or {}) do
             local targetToken = target.token
             targetChoices[#targetChoices+1] = targetToken
         end
+        castsBeforeInvoke = ActivatedAbility.GetActiveCastSnapshot()
     end
 
     repeat
@@ -733,6 +750,20 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
         end
 
         if promptWhenResolving and #targetChoices > 0 then
+
+            --Finish any triggers the last target set off before asking for the next one.
+            --Pulling a creature into a hazard used to cancel both the hazard's teleport
+            --and the pull on the next target (7A3ZZEPE).
+            coroutine.yield()
+            coroutine.yield()
+            while (gamehud.rollDialog.valid and gamehud.rollDialog.data.IsShown())
+                or (gamehud.actionBarPanel.valid and gamehud.actionBarPanel.data.IsCastingSpell())
+                or ActivatedAbility.HasCoroutinesNotInSnapshot(castsBeforeInvoke) do
+                coroutine.yield(0.1)
+                if casterToken == nil or not casterToken.valid or casterToken.properties == nil then
+                    break
+                end
+            end
 
             print("INVOKE:: ChooseTarget:: prompting...")
             targets = nil
@@ -803,6 +834,12 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                 targets = { { token = overrideLead } }
             else
                 targets, squadParticipantsByLead = CollapseTargetsBySquad(targets)
+                --Applying to the caster picks no minions, so don't narrow the squad to
+                --the caster alone: the whole squad joins in, as with a normal squad
+                --cast (e.g. Charge's follow-up attack must let every runner strike).
+                if self.applyto == "caster" then
+                    squadParticipantsByLead = nil
+                end
             end
         end
 
@@ -853,6 +890,17 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
 
                 --be careful not to put anything in here we don't want to transmit to the database.
                 local symbols = { spellname = options.symbols.spellname or ability.name, charges = options.symbols.charges, cast = options.symbols.cast, forcedMovementOrigin = options.symbols.forcedMovementOrigin, forcedMovementOriginTokenId = options.symbols.forcedMovementOriginTokenId, movementtargetvalid = options.symbols.movementtargetvalid }
+
+                --The Monster AI activity this cast is reacting to (a hero trigger
+                --provoked by a monster's move or strike). Carried into the invoked
+                --ability so a custom trigger it fires still holds the AI open --
+                --see ActivatedAbilityCustomTriggerBehavior:Cast. A plain string,
+                --so safe for the remote invocation record.
+                local aiActivityId = options.symbols.aiActivityId
+                if type(aiActivityId) == "string" and aiActivityId ~= "" then
+                    symbols.aiActivityId = aiActivityId
+                end
+
                 if parentTargetToken ~= nil then
                     symbols.parenttarget = GenerateSymbols(parentTargetToken.properties)
                 end
@@ -942,8 +990,8 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                         standardAbilityParams = self:try_get("standardAbilityParams"),
                         targeting = self.targeting,
                         invokerid = invokeSource.id,
-                        casterid = cond(self.invokeOnCaster, casterToken.id, target.token.id),
-                        targetid = target.token.id,
+                        casterid = cond(self.invokeOnCaster, casterToken.id, target.token.charid),
+                        targetid = target.token.charid,
                         subjectid = subjectid,
                         symbols = symbols,
                         abilityAttr = {
@@ -956,6 +1004,8 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                     if rangeOriginTokenId ~= nil then
                         invocation.abilityAttr.rangeOriginTokenId = rangeOriginTokenId
                     end
+                    --Send the override along, since the ability itself is rebuilt on the other machine.
+                    invocation.targetingOverride = self:GetTargetingOverride()
                     if self:try_get("movementConstraintStraightLine", false) then
                         invocation.abilityAttr.targeting = "straightpath"
                     end
@@ -1116,6 +1166,12 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                             end
                         end
 
+                        --A modifier on the invoker (e.g. Suppress Abilities) removed the
+                        --invoked ability, so there is nothing to cast for this target.
+                        if abilityClone == nil then
+                            goto skip_invoked_ability
+                        end
+
                         --When inheritRoll is set, force the invoked ability's power roll(s)
                         --to reuse the parent cast's raw d10 result instead of rolling fresh.
                         --PowerRollBehavior reads this off symbols.forcedroll and substitutes
@@ -1135,6 +1191,12 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
 
                         if self:try_get("hideSightlines", false) then
                             abilityClone.hideSightlines = true
+                        end
+
+                        --Change who the invoked ability can target, if the invoke asks for it.
+                        local targetingOverride = self:GetTargetingOverride()
+                        if targetingOverride ~= nil and abilityClone ~= nil then
+                            abilityClone:OverrideTargeting(targetingOverride)
                         end
 
                         --Set on the clone because ExecuteInvoke only receives the ability, not this behavior.
@@ -1272,6 +1334,7 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                             invokerToken.properties._tmp_squadParticipants = nil
                             invokerToken.properties._tmp_squadParticipantsTurn = nil
                         end
+                        ::skip_invoked_ability::
                     end
                 end
 
@@ -1504,14 +1567,26 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
             end
         end
 
-        print("AI:: PUSH:: IN INVOKE token", creature.GetTokenDescription(invokerToken), "targeting =", targeting, "ai", invokerToken.properties._tmp_aicontrol, "promptCallback =", invokerToken.properties._tmp_aipromptCallback, "for", abilityClone.name, coroutine.running())
+        --false unless the Monster AI controls the invoker.
+        local aiPromptCallback = creature.GetTokenAIPromptCallback(invokerToken.charid)
+        --A Director-run creature the AI is not driving right now (a dying minion's
+        --death strike on a hero's turn) still has its prompts answered while the AI
+        --runs, as its rolls already are. rawget: Monster AI may not be loaded.
+        if not aiPromptCallback and (targeting == "prompt" or targeting == "prompt_inherit") then
+            local monsterAI = rawget(_G, "MonsterAI")
+            local fallback = monsterAI ~= nil and rawget(monsterAI, "PromptCallbackForCreature") or nil
+            if fallback ~= nil then
+                aiPromptCallback = fallback(invokerToken) or false
+            end
+        end
+        print("AI:: PUSH:: IN INVOKE token", creature.GetTokenDescription(invokerToken), "targeting =", targeting, "ai", creature.IsTokenAIControlled(invokerToken.charid), "promptCallback =", aiPromptCallback, "for", abilityClone.name, coroutine.running())
         --Set when an AI prompt callback answered the prompt: the targets are already
         --resolved, so the cast below must NOT be routed through the action bar UI
         --(which would wait for player clicks that will never come).
         local aiResolvedTargeting = false
-        if (targeting == "prompt" or targeting == "prompt_inherit") and invokerToken.properties._tmp_aicontrol > 0 and invokerToken.properties._tmp_aipromptCallback then
+        if (targeting == "prompt" or targeting == "prompt_inherit") and aiPromptCallback then
             print("PUSH:: INVOKING!!!!!")
-            targeting = invokerToken.properties._tmp_aipromptCallback(invokerToken, casterToken, abilityClone, symbols, options)
+            targeting = aiPromptCallback(invokerToken, casterToken, abilityClone, symbols, options)
             aiResolvedTargeting = (targeting ~= "prompt" and targeting ~= "prompt_inherit")
         end
 
@@ -1638,6 +1713,18 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
                     tostring(isPreparing ~= false and isPreparing ~= nil), now))
             end
 
+            --The caster was despawned while its prompt was still open (e.g. Monster
+            --Death removing a creature whose death trigger is prompting). Cast runs
+            --inside casterToken:ModifyProperties, which no-ops on a removed token, so
+            --this prompt can never complete: cancel it now rather than after the timeout.
+            --Only while no cast has begun -- a running cast may still finish on its own.
+            if (not isCasting) and isPreparing and (casterToken == nil or not casterToken.valid or casterToken.properties == nil) then
+                printf("INVOKEDIAG:: caster of %s is gone -- treating the invoke as cancelled", tostring(abilityClone.name))
+                timedOut = true
+                gamehud.actionBarPanel:FireEventTree("cancelCasting")
+                return false
+            end
+
             if (isCasting or isPreparing) and now - waitStarted > INVOKE_WAIT_TIMEOUT_SECONDS then
                 printf("INVOKEDIAG:: giving up on %s after %ds (casting=%s preparing=%s) -- treating the invoke as cancelled",
                     tostring(abilityClone.name), math.floor(now - waitStarted),
@@ -1685,6 +1772,11 @@ ActivatedAbilityInvokeAbilityBehavior.chooseAbilityEmptyText = "You have no abil
 --Set when the invoking ability already charges the action cost for the whole package,
 --so the invoked ability should not charge its own on top.
 ActivatedAbilityInvokeAbilityBehavior.suppressInvokedActionCost = false
+
+--When overrideTargeting is on, the invoked ability targets "any", "ally" or "enemy"
+--creatures instead of its usual ones. Used by Subvert the Green Within.
+ActivatedAbilityInvokeAbilityBehavior.overrideTargeting = false
+ActivatedAbilityInvokeAbilityBehavior.targetingOverride = "any"
 ActivatedAbilityInvokeAbilityBehavior.targeting = "prompt"
 ActivatedAbilityInvokeAbilityBehavior.inheritRange = false
 
@@ -1692,6 +1784,15 @@ ActivatedAbilityInvokeAbilityBehavior.inheritRange = false
 --filter is preselected, so the player just confirms or skips (set a prompt text, or it casts
 --without asking). If no target passes, the invoke is skipped: no prompt and no cost.
 ActivatedAbilityInvokeAbilityBehavior.autoSelectInheritedTargets = false
+
+--- The targeting override for the invoked ability, or nil if there is none.
+--- @return nil|string
+function ActivatedAbilityInvokeAbilityBehavior:GetTargetingOverride()
+    if not self:try_get("overrideTargeting", false) then
+        return nil
+    end
+    return self:try_get("targetingOverride", "any")
+end
 
 function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
 
@@ -1888,6 +1989,40 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
 		change = function(element)
 			self.suppressInvokedActionCost = element.value
 		end,
+	}
+
+	result[#result+1] = gui.Check{
+		text = "Override Targeting",
+		hover = gui.Tooltip("Replace which creatures the invoked ability may target."),
+		value = self:try_get("overrideTargeting", false),
+		change = function(element)
+			self.overrideTargeting = element.value
+			parentPanel:FireEventTree("refreshInvoke")
+		end,
+	}
+
+	result[#result+1] = gui.Panel{
+		classes = {"formPanel", cond(not self:try_get("overrideTargeting", false), "collapsed")},
+		refreshInvoke = function(element)
+			element:SetClass("collapsed", not self:try_get("overrideTargeting", false))
+		end,
+		gui.Label{
+			classes = {"formLabel"},
+			text = "Can Target:",
+		},
+		gui.Dropdown{
+			classes = {"formDropdown"},
+			options = {
+				{ text = "Any Creature", id = "any" },
+				{ text = "Allies", id = "ally" },
+				{ text = "Enemies", id = "enemy" },
+			},
+			idChosen = self:try_get("targetingOverride", "any"),
+			change = function(element)
+				---@cast element Dropdown
+				self.targetingOverride = element.idChosen
+			end,
+		},
 	}
 
 	result[#result+1] = gui.Check{
@@ -2148,6 +2283,12 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
 		end,
 	}
 
+    --The anchor fields only mean something once a constraint is chosen.
+    local function movementConstraintOff()
+        local mode = self:try_get("movementConstraint", "none")
+        return mode == "none" or mode == ""
+    end
+
     result[#result+1] = gui.Panel{
         classes = {"formPanel"},
         gui.Label{
@@ -2161,12 +2302,16 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
             change = function(element)
                 ---@cast element Dropdown
                 self.movementConstraint = element.idChosen
+                parentPanel:FireEventTree("refreshInvoke")
             end,
         },
     }
 
     result[#result+1] = gui.Panel{
-        classes = {"formPanel"},
+        classes = {"formPanel", cond(movementConstraintOff(), "collapsed")},
+        refreshInvoke = function(element)
+            element:SetClass("collapsed", movementConstraintOff())
+        end,
         gui.Label{
             classes = {"formLabel"},
             text = "Movement Anchor:",
@@ -2183,7 +2328,10 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
     }
 
     result[#result+1] = gui.Panel{
-        classes = {"formPanel"},
+        classes = {"formPanel", cond(movementConstraintOff(), "collapsed")},
+        refreshInvoke = function(element)
+            element:SetClass("collapsed", movementConstraintOff())
+        end,
         gui.Label{
             classes = {"formLabel"},
             text = "Anchor Filter:",
@@ -2210,7 +2358,10 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
     }
 
     result[#result+1] = gui.Panel{
-        classes = {"formPanel"},
+        classes = {"formPanel", cond(movementConstraintOff(), "collapsed")},
+        refreshInvoke = function(element)
+            element:SetClass("collapsed", movementConstraintOff())
+        end,
         gui.Label{
             classes = {"formLabel"},
             text = "Maximum Anchor Distance:",
@@ -2238,6 +2389,10 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
     }
 
     result[#result+1] = gui.Check{
+        classes = {cond(movementConstraintOff(), "collapsed")},
+        refreshInvoke = function(element)
+            element:SetClass("collapsed", movementConstraintOff())
+        end,
         text = "Use Anchor as Forced Movement Origin",
         value = self:try_get("movementConstraintAsForcedMovementOrigin", false),
         change = function(element)
@@ -2246,6 +2401,10 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
     }
 
     result[#result+1] = gui.Check{
+        classes = {cond(movementConstraintOff(), "collapsed")},
+        refreshInvoke = function(element)
+            element:SetClass("collapsed", movementConstraintOff())
+        end,
         text = "Remember Anchor as MovementTarget",
         value = self:try_get("rememberMovementConstraintTarget", false),
         change = function(element)
@@ -2350,10 +2509,10 @@ function AbilityInvocation:Invoke()
 		local allParameters = {}
 		AbilityUtils.ExtractAbilityParameters(abilityClone, allParameters)
 
-        lookupSymbols = invokerToken.properties:LookupSymbol(lookupSymbols)
+        local symbolLookup = invokerToken.properties:LookupSymbol(lookupSymbols)
 		for k,v in pairs(self:try_get("standardAbilityParams", {})) do
             allParameters[k] = nil
-			local str = AbilityUtils.SubstituteAbilityParameters(v, lookupSymbols)
+			local str = AbilityUtils.SubstituteAbilityParameters(v, symbolLookup)
 			AbilityUtils.DeepReplaceAbility(abilityClone, "<<"..k..">>", str)
 		end
 
@@ -2365,6 +2524,10 @@ function AbilityInvocation:Invoke()
 
 	for k,v in pairs(self:try_get("abilityAttr", {})) do
 		abilityClone[k] = v
+	end
+
+	if self:try_get("targetingOverride") ~= nil then
+		abilityClone:OverrideTargeting(self.targetingOverride)
 	end
 
 	-- Apply forced movement bonuses if this is a forced movement ability
@@ -2617,6 +2780,8 @@ function AbilityInvocation.ActivateInvocationPrompt(casterToken, triggerid)
     --Resolve "charid:"/"tokenid:" refs in the stored record back to live
     --objects, the same way PumpRemoteInvokes does for remote invocations.
     local invoke = DeserializeEventValue(DeepCopy(invocation))
+    --invocation is a non-nil table (checked above), so this is its deserialized copy.
+    ---@cast invoke -nil
 
     dmhub.Coroutine(function()
         local invoked = invoke:Invoke()

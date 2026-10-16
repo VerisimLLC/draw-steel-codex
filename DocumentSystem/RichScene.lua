@@ -5,9 +5,22 @@ local mod = dmhub.GetModLoading()
 RichScene = RegisterGameType("RichScene", "RichTag")
 RichScene.tag = "scene"
 RichScene.image = false
+--"Art by": the id of the creator whose art this is (DMHub Core UI/
+--CreatorCredit.lua), or false. Showing the scene puts their logo badge on it.
+RichScene.credit = false
 
 function RichScene.Create()
     return RichScene.new{}
+end
+
+--- The creator id credited for this scene's art, or nil.
+--- @return nil|string
+function RichScene:GetCredit()
+    local credit = self.credit
+    if type(credit) == "string" and credit ~= "" and credit ~= "none" then
+        return credit
+    end
+    return nil
 end
 
 local function SceneStyles(pal)
@@ -45,6 +58,7 @@ function RichScene.CreateDisplay(self)
 
 	local doc = FullscreenDisplay.GetDocumentSnapshot()
     local m_image = nil
+    local m_credit = nil
     return gui.Panel{
         width = 1920*0.15,
         height = "auto",
@@ -83,6 +97,7 @@ function RichScene.CreateDisplay(self)
             refreshTag = function(element, tag, match, token)
                 tag = tag or self
                 m_image = tag.image or nil
+                m_credit = tag:GetCredit()
                 element.bgimage = tag.image or nil
             end,
         },
@@ -100,6 +115,8 @@ function RichScene.CreateDisplay(self)
                 doc:BeginChange()
                 doc.data.show = element.value
                 doc.data.coverart = m_image
+                --the full-screen display shows this creator's badge.
+                doc.data.coverartCredit = m_credit or false
                 doc:CompleteChange("Show Fullscreen Display")
             end,
 
@@ -137,27 +154,43 @@ function RichScene.CreateEditor(self)
         refreshEditor = function(element, richTag)
             self = richTag or self
         end,
-        -- This seems to do nothing?
-        -- gui.Button{
-        --     classes = {"settingsButton", "sizeXxs"},
-        --     halign = "right",
-        --     valign = "top",
-        --     press = function(element)
-        --         if element.popup ~= nil then
-        --             element.popup = nil
-        --             return
-        --         end
-        --         element.popup = gui.Panel{
-        --             styles = Styles.Default,
-        --             bgimage = true,
-        --             bgcolor = "black",
-        --             opacity = 0.8,
-        --             width = "auto",
-        --             height = "auto",
-        --             flow = "vertical",
-        --         }
-        --     end,
-        -- },
+        --settings: who made the art ("Art by"), for the logo badge.
+        gui.Button{
+            classes = {"settingsButton", "sizeXxs"},
+            halign = "right",
+            valign = "top",
+            press = function(element)
+                if element.popup ~= nil then
+                    element.popup = nil
+                    return
+                end
+                element.popupsInheritStyles = true
+                element.popup = gui.Panel{
+                    classes = {"bordered", "bg"},
+                    width = "auto",
+                    height = "auto",
+                    flow = "vertical",
+                    pad = 8,
+
+                    gui.Label{
+                        classes = {"sizeXs"},
+                        width = "auto",
+                        height = "auto",
+                        text = "Art by:",
+                    },
+                    gui.Dropdown{
+                        width = 200,
+                        options = CreatorCredit.DropdownOptions(),
+                        idChosen = self:GetCredit() or "none",
+                        change = function(element)
+                            ---@cast element Dropdown
+                            local id = element.idChosen
+                            self.credit = cond(type(id) == "string" and id ~= "none", id, false)
+                        end,
+                    },
+                }
+            end,
+        },
         gui.IconEditor{
             width = 64,
             height = 64,

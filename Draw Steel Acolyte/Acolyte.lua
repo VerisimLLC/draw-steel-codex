@@ -322,7 +322,6 @@ DrawSteelActionBar.RegisterCastControl{
 
         local toggle
         toggle = gui.Button{
-            classes = {"sizeM"},
             width = 140,
             text = labelOff,
             classes = {},
@@ -772,7 +771,8 @@ function ActivatedAbilityPatronGazeResolveBehavior:Cast(ability, casterToken, ta
     --Open the normal roll dialog. Its standard roll card is suppressed by the
     --RollDialog.OnBeforeRoll hook in section 8b (keyed on this description).
     local rollDialog = GameHud.instance and GameHud.instance.rollDialog
-    if rollDialog == nil or rollDialog.data == nil then
+    --GameHud.instance starts as false, not nil, so test falsiness.
+    if not rollDialog or rollDialog.data == nil then
         return
     end
 
@@ -1081,6 +1081,7 @@ local function CreatePatronsGazeBox()
                     element:FireEvent("refreshCharacter", token)
                 end,
                 change = function(element)
+                    ---@cast element Input
                     local displayToken = element.parent.parent.data.displayToken
                     if displayToken == nil then return end
                     local n = tonumber(element.text) or 0

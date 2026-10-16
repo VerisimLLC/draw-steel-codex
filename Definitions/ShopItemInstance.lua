@@ -6,4 +6,5 @@
 --- @field itemid string The shop item identifier.
 --- @field ctime number The creation/purchase timestamp.
 --- @field bundleid string
+--- @field promoId string The id of the Patreon promo that granted this item, or nil if it came from a purchase, a gift code, or anything else. See shop:GetUnacknowledgedPromoGrants.
 ShopItemInstance = {}

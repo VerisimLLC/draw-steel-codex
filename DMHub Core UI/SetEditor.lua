@@ -19,6 +19,7 @@ function gui.SetEditor(args)
             hasSearch = true,
 			textOverride = addItemText,
 			create = function(element)
+				---@cast element Dropdown
 				local dropdownOptions = {}
 				for _,option in ipairs(options) do
 					if value[option.id] == nil then

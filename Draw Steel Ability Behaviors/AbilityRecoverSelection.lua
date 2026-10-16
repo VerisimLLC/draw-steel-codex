@@ -35,9 +35,10 @@ function ActivatedAbilityRecoverySelectionBehavior:Cast(ability, casterToken, ta
 
     for _, tok in pairs(targetTokenids) do
         local token = dmhub.GetTokenById(tok)
-        if token.valid then
-            effectTargets[token.id] = {}
-            recoveryTargets[token.id] = 1
+        --nil when the target left the map (deleted/despawned) after it was targeted.
+        if token ~= nil and token.valid then
+            effectTargets[token.charid] = {}
+            recoveryTargets[token.charid] = 1
         end
     end
 
@@ -62,6 +63,7 @@ function ActivatedAbilityRecoverySelectionBehavior:Cast(ability, casterToken, ta
     end
 
     local recoveryid = nil
+    ---@type CharacterResource?
     local recoveryInfo = nil
     local resourcesTable = dmhub.GetTable(CharacterResource.tableName)
     for k,v in unhidden_pairs(resourcesTable) do
@@ -69,6 +71,9 @@ function ActivatedAbilityRecoverySelectionBehavior:Cast(ability, casterToken, ta
             recoveryid = k
             recoveryInfo = v
         end
+    end
+    if recoveryInfo == nil then
+        return
     end
 
     local conditionsTable = dmhub.GetTable(CharacterCondition.tableName)
@@ -111,11 +116,11 @@ function ActivatedAbilityRecoverySelectionBehavior:Cast(ability, casterToken, ta
                     flow = "horizontal",
 
                     press = function(element)
-                        if effectTargets[token.id][capturedEffect.ongoingEffectid] then
-                            effectTargets[token.id][capturedEffect.ongoingEffectid] = nil
+                        if effectTargets[token.charid][capturedEffect.ongoingEffectid] then
+                            effectTargets[token.charid][capturedEffect.ongoingEffectid] = nil
                             element:SetClass("recovery-chip-selected", false)
                         else
-                            effectTargets[token.id][capturedEffect.ongoingEffectid] = true
+                            effectTargets[token.charid][capturedEffect.ongoingEffectid] = true
                             element:SetClass("recovery-chip-selected", true)
                         end
                         refreshCostLabel()
@@ -147,11 +152,11 @@ function ActivatedAbilityRecoverySelectionBehavior:Cast(ability, casterToken, ta
                     flow = "horizontal",
 
                     press = function(element)
-                        if effectTargets[token.id][capturedId] then
-                            effectTargets[token.id][capturedId] = nil
+                        if effectTargets[token.charid][capturedId] then
+                            effectTargets[token.charid][capturedId] = nil
                             element:SetClass("recovery-chip-selected", false)
                         else
-                            effectTargets[token.id][capturedId] = true
+                            effectTargets[token.charid][capturedId] = true
                             element:SetClass("recovery-chip-selected", true)
                         end
                         refreshCostLabel()
@@ -185,12 +190,12 @@ function ActivatedAbilityRecoverySelectionBehavior:Cast(ability, casterToken, ta
                 press = function(element)
                     local minRecoveries = 1
                     -- Clicking the currently highest selected chip deselects to minimum.
-                    if recoveryTargets[token.id] == num then
-                        recoveryTargets[token.id] = minRecoveries
+                    if recoveryTargets[token.charid] == num then
+                        recoveryTargets[token.charid] = minRecoveries
                     else
-                        recoveryTargets[token.id] = num
+                        recoveryTargets[token.charid] = num
                     end
-                    local selected = recoveryTargets[token.id]
+                    local selected = recoveryTargets[token.charid]
                     for j, el in ipairs(recoveryChipElements) do
                         el:SetClass("recovery-num-chip-selected", j <= selected)
                     end
@@ -199,7 +204,7 @@ function ActivatedAbilityRecoverySelectionBehavior:Cast(ability, casterToken, ta
 
                 create = function(element)
                     recoveryChipElements[#recoveryChipElements+1] = element
-                    if num <= (recoveryTargets[token.id] or 0) then
+                    if num <= (recoveryTargets[token.charid] or 0) then
                         element:SetClass("recovery-num-chip-selected", true)
                     end
                 end,
@@ -267,7 +272,7 @@ function ActivatedAbilityRecoverySelectionBehavior:Cast(ability, casterToken, ta
     local tokenPanels = {}
     for _, tok in pairs(targetTokenids) do
         local token = dmhub.GetTokenById(tok)
-        if token.valid then
+        if token ~= nil and token.valid then
             tokenPanels[#tokenPanels+1] = CreateTokenPanel(token)
         end
     end
@@ -600,16 +605,17 @@ function ActivatedAbilityRecoverySelectionBehavior:Cast(ability, casterToken, ta
 
     for _, tok in pairs(targetTokenids) do
         local token = dmhub.GetTokenById(tok)
-        local targetCreature = token:GetCreature()
-        if token.valid then
-            local numRecoveries = recoveryTargets[token.id] or 0
+        --the modal above waits on the user, so a target can leave the map meanwhile.
+        if token ~= nil and token.valid then
+            local targetCreature = token.properties
+            local numRecoveries = recoveryTargets[token.charid] or 0
             if numRecoveries > 0 then
                 local maySpendRecovery = DeepCopy(MCDMUtils.GetStandardAbility("Prompt Spend Recovery"))
                 AbilityUtils.DeepReplaceAbility(maySpendRecovery, "<<numrecoveries>>", string.format("%d", numRecoveries))
                 ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(token, maySpendRecovery, token, "self", options.symbols, options)
             end
 
-            for effectId, value in pairs(effectTargets[token.id] or {}) do
+            for effectId, value in pairs(effectTargets[token.charid] or {}) do
                 if value then
                     if conditionsTable[effectId] then
                         token:ModifyProperties{

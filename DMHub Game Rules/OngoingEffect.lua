@@ -3,6 +3,11 @@ local mod = dmhub.GetModLoading()
 --- @class CharacterOngoingEffect: CharacterFeature
 --- @field new fun(o?: table): CharacterOngoingEffect
 --- @field id string Key of this row in its data table; SetAndUploadTableItem sets it.
+--- @field iconid string Icon asset id.
+--- @field display table Icon display settings {bgcolor, hueshift, saturation, brightness, blend?}; bgcolor is a string or Color.
+--- @field custom? boolean True for effects created from an ability's editor (attached to that ability).
+--- @field recoverySharing? boolean With casterTracking "bond": the bonded creatures share recoveries.
+--- @field bondSaveEndsAll? boolean With casterTracking "bond": one bonded creature passing its save ends the effect for every creature in the bond (e.g. Net Trap).
 CharacterOngoingEffect = RegisterGameType("CharacterOngoingEffect", "CharacterFeature")
 CharacterOngoingEffect.tableName = "characterOngoingEffects"
 CharacterOngoingEffect.stackable = false
@@ -192,6 +197,7 @@ end
 
 function CharacterOngoingEffect:GetEndAbility()
 	if self.canEndWithAction then
+		---@type string|nil
 		local resourceid = self.endActionType
 		local moveCost = nil
 		if resourceid == "halfmove" then
@@ -232,6 +238,12 @@ end
 --a point in time in the game.
 --- @class TimePoint: GameType
 --- @field new fun(o?: table): TimePoint
+--- @field time number Game date/time (CalculateGameDateAndTime) when created.
+--- @field queueguid? string Guid of the initiative queue active when created; nil outside combat.
+--- @field round? number Initiative round when created; set with queueguid.
+--- @field initiativeid? string Initiative id of the entry holding the turn when created, if any.
+--- @field initiativeord? number Initiative order value of that entry (0 if none); set with queueguid.
+--- @field turn? number The queue's per-round turn counter when created; nil for older queues.
 TimePoint = RegisterGameType("TimePoint")
 
 function TimePoint.Create()
@@ -373,13 +385,15 @@ end
 --- @field momentaryDuration boolean
 --- @field removeOnLongRest boolean
 --- @field removeOnShortRest boolean
---- @field removeAtNextTurnEnd boolean
+--- @field removeAtNextTurnEnd boolean|number true, or a count of turn ends still to pass (2 for "end_of_next_turn_from_turnstart").
 --- @field removeAtRoundEnd boolean|number
 --- @field removeOnSave boolean
 --- @field removeOnEoEOrDying boolean
 --- @field removeOnEoE boolean
 --- @field timestamp string|number
 --- @field bondid string|false if this effect tracks casters by bond, this is the bond id.
+--- @field repeatSaveModifier? CharacterModifier Trigger modifier that repeats the save each round; set when the applying ability has repeatSave.
+--- @field stolenAbility? ActivatedAbility Ability granted while the effect lasts (Steal Ability behavior).
 CharacterOngoingEffectInstance = RegisterGameType("CharacterOngoingEffectInstance")
 
 CharacterOngoingEffectInstance.timestamp = 0

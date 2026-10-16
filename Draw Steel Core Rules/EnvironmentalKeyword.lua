@@ -19,10 +19,12 @@ local mod = dmhub.GetModLoading()
 --- @field iconid string Icon shown in the UI. Class-level default applies when absent.
 --- @field display table Icon display settings (bgcolor/hueshift/saturation/brightness).
 --- @field difficultTerrain boolean If true, an area marked with this keyword counts as difficult terrain. Uses the same terrain rule flag name as tiles (asset.rules.difficultTerrain).
+--- @field terrainKeywords table<string, boolean>|nil Ability keywords (keyword -> true, e.g. {Magic = true}) attached to the difficult terrain of areas marked with this keyword. Folded onto the aura's difficultTerrainKeywords by ApplyToAura; a creature whose Ignore Difficult Terrain modifier names any of them ignores that difficult terrain. No class default: absent = none.
 --- @field water boolean If true, an area marked with this keyword counts as water. Uses the same terrain rule flag name as tiles (asset.rules.water).
 --- @field concealment boolean If true, an area marked with this keyword grants concealment. Uses the same terrain rule flag name as tiles (asset.rules.concealment).
 --- @field climbable boolean If true, an area marked with this keyword can be climbed, like a climbable wall: creatures in it may climb up to the ceiling of the floor.
 --- @field climbersOnly boolean Only meaningful when climbable is true: restricts climbing to natural climbers (climb speed >= walk speed), matching walls' "Climbable (Climbers Only)". Uses the same terrain rule flag name as tiles (rules.climbersOnly).
+--- @field stepped boolean "Stepped Terrain": a 1-square change in ground height whose HIGHER tile is in an area marked with this keyword is a sharp step, not a slope. Forced movement bangs into the step going up (a collision) and is carried out over it going down (falling at the end), exactly like a cliff. Walking is unaffected. Solid building blocks are always stepped without it. Engine: Aura.stepped -> TileGameRules.stepped, read by CharacterToken.FindStraightLinePath.
 --- @field dynamicLight boolean If true, the Map Markup zone palette offers the "Dynamic Light" option for this keyword (its zones/blanket apply only where the light added by light sources is at or below a per-map threshold; ambient light is ignored). Purely a UI/eligibility gate: the sampling and carving live in MapMarkupPanel.lua; unchecking disables an already-configured threshold without deleting it.
 --- @field dispels string[]|nil Ids (environmentalKeywords table keys) of keywords this keyword dispels. Painting a zone of this keyword deletes the overlap from zones of a dispelled keyword (and a dispelled keyword cannot be painted over this one); an aura carrying this keyword suppresses zones of dispelled keywords beneath it for as long as the aura covers them. No class default: assigned per instance by the editor (a class-level default table would be shared-mutable).
 --- @field movedamage string Damage type dealt to creatures moving through an area with this keyword, or "none" for no damage. Uses the same field names as Aura so the values copy straight onto zone auras.
@@ -40,8 +42,12 @@ local mod = dmhub.GetModLoading()
 --- @field defaultPlayerVisible boolean|nil When false, new zones painted with this keyword from the Map Markup panel start hidden from players (record field playerVisible). Set by the "New Zones Visible to Players" check in the keyword editor. Only a DEFAULT stamped at paint time: each painted zone owns its own flag afterward (the Edit Zone dialog), so flipping this never disturbs existing zones. No class default: absent = visible.
 --- @field script string|nil Optional Lua zone-script source, edited in the Edit Script dialog. When set, one instance of the script runs on EVERY client for each zone of this keyword on the current map (Entire Map blankets included). The source must RETURN a table of handlers, all optional: create(zone), destroy(zone), locsChanged(zone), think(zone), and thinkInterval (seconds between think calls, default 1). destroy is guaranteed to run when the zone is de-instantiated: erased or deleted, its keyword deleted, the map changed, the script edited, or mods reloaded. If locsChanged is absent the script is restarted (destroy then create) whenever the zone's tiles change. The zone object passed to handlers carries zoneid/floorid/floorIndex/mapid, name, keyword (type name), keywordid, color, altitude, height (nil = unlimited), entireMap, locs (list of Loc userdata, ready for e.g. dmhub.CreateWorldDistortion), locsAndAdjacent (locs plus every tile 8-way adjacent to the zone; computed lazily on first read and refreshed when the zone's tiles change) and data (an empty scratch table for script state). No class default: absent = no script.
 --- @field entryEffectRule string|nil A rules-engine rule string (the same syntax as a power table tier, e.g. "3 fire damage; burning (save ends)") applied, with no roll, to any creature entering the area or starting its turn there. Same field name as Aura; copied onto zone auras (Aura:GetSimpleEntryEffectTrigger). Never applies to adjacent-only contact. No class default: absent = no entry effect.
+--- @field spreadsInto string|nil Id (environmentalKeywords key) of the keyword this keyword spreads into. At the end of each combat round, every zone record of that keyword sharing an edge (4-adjacency; corners do not count) with a zone of this keyword on the same floor becomes this keyword, is revealed to players, and each creature in it takes this keyword's entryEffectRule. Zones are snapshotted first, so the spread advances one zone per round (EnvironmentalKeyword.SpreadZonesAtEndOfRound). No class default: absent = no spread.
+--- @field objectKeyword string|nil An object keyword (the Core keywords on a map object, matched ignoring case, e.g. "burning"). When a Targetable object with it is in a zone of this keyword, the zone record becomes objectKeywordBecomes and is revealed to players, e.g. a burning Candelabra thrown into Flammable Oil setting it alight. Checked by the elected host every 0.7s, so it catches however the object got there (EnvironmentalKeyword.ObjectKeywordZoneTick). Only meaningful with objectKeywordBecomes. No class default: absent = none.
+--- @field objectKeywordBecomes string|nil Id (environmentalKeywords key) of the keyword a zone of this keyword becomes when an object with objectKeyword is in it. No class default: absent = none.
 --- @field mapFeature CharacterFeature|nil Map-wide features: modifiers granted to every creature on a map that has at least one zone of this keyword, anywhere on any floor (e.g. a trap's "Allied Awareness" ability). Each modifier's own filter decides which creatures take it. A player-controlled creature only counts zones that are visible to players, so a concealed trap never tips off the heroes. No class default: absent = none.
 --- @field mapid string|nil When set, this keyword is a map-scoped zone type: it was created from that map's Zone Types palette and is hidden from the compendium, other maps' palettes, and keyword dropdowns until promoted ("Make Available to All Maps" clears the field). No class default: absent = a full keyword.
+--- @field hidden? boolean Soft-delete flag (unhidden_pairs skips it); set when an unused map-scoped zone type is retired.
 EnvironmentalKeyword = RegisterGameType("EnvironmentalKeyword", "CharacterFeature")
 
 EnvironmentalKeyword.name = "New Environmental Keyword"
@@ -54,6 +60,7 @@ EnvironmentalKeyword.water = false
 EnvironmentalKeyword.concealment = false
 EnvironmentalKeyword.climbable = false
 EnvironmentalKeyword.climbersOnly = false
+EnvironmentalKeyword.stepped = false
 EnvironmentalKeyword.dynamicLight = false
 EnvironmentalKeyword.movedamage = "none"
 EnvironmentalKeyword.damage = 0
@@ -137,6 +144,8 @@ function EnvironmentalKeyword.ApplyToAura(auraDef, keywordid)
 		if keyword:try_get("difficultTerrain", false) == true then
 			auraDef.difficult_terrain = true
 		end
+		--keywords on the terrain (e.g. Magic), matched by Ignore Difficult Terrain modifiers.
+		Aura.AddDifficultTerrainKeywords(auraDef, keyword:try_get("terrainKeywords"))
 		if keyword:try_get("water", false) == true then
 			auraDef.water = true
 		end
@@ -151,6 +160,9 @@ function EnvironmentalKeyword.ApplyToAura(auraDef, keywordid)
 			if keyword:try_get("climbersOnly", false) == true then
 				auraDef.climbersOnly = true
 			end
+		end
+		if keyword:try_get("stepped", false) == true then
+			auraDef.stepped = true
 		end
 		--the area extends one tile outward for enter/start-of-turn trigger
 		--contact (adjacent tiles never take terrain rules or modifiers, so
@@ -382,6 +394,8 @@ local ShowAppearanceDialog = function(keyword, UploadKeyword, onChanged)
 	end
 
 	local modalLayer = nil
+	--assigned below, before the dialog is shown or any handler can run.
+	---@type Panel
 	local dialogPanel = nil
 
 	local Commit = function()
@@ -1126,6 +1140,7 @@ local ShowAppearanceDialog = function(keyword, UploadKeyword, onChanged)
 
 	--=== dialog shell ===
 
+	---@type Panel[]
 	local children = {
 		gui.Label{
 			classes = {"dialogTitle"},
@@ -1681,6 +1696,8 @@ end
 --an unedited starter template is never saved.
 ZoneScripts.ShowDialog = function(keyword, UploadKeyword, onChanged)
 	local modalLayer = nil
+	--assigned below, before the dialog is shown or any handler can run.
+	---@type Panel
 	local dialogPanel = nil
 
 	local Commit = function(text)
@@ -1961,6 +1978,25 @@ local SetData = function(tableName, keywordPanel, keyid)
 		}
 	}
 
+	--keywords on this keyword's difficult terrain (e.g. Magic), which Ignore Difficult
+	--Terrain modifiers can match. Only shown while the keyword is difficult terrain.
+	local terrainKeywordsRow = gui.Panel{
+		classes = {"formStackedRow", cond(keyword:try_get("difficultTerrain", false), nil, "collapsed")},
+		gui.Label{
+			classes = {"formStacked"},
+			text = "Difficult Terrain Keywords:",
+		},
+		CharacterModifier.CreateKeywordSetEditor{
+			get = function()
+				return keyword:try_get("terrainKeywords")
+			end,
+			set = function(keywords)
+				keyword.terrainKeywords = keywords
+				UploadKeyword()
+			end,
+		},
+	}
+
 	--an area marked with this keyword is difficult terrain.
 	children[#children+1] = gui.Panel{
 		classes = {"formStackedRow"},
@@ -1969,10 +2005,13 @@ local SetData = function(tableName, keywordPanel, keyid)
 			text = "Difficult Terrain",
 			change = function(element)
 				keyword.difficultTerrain = element.value
+				terrainKeywordsRow:SetClass("collapsed", not element.value)
 				UploadKeyword()
 			end,
 		},
 	}
+
+	children[#children+1] = terrainKeywordsRow
 
 	--an area marked with this keyword is water.
 	children[#children+1] = gui.Panel{
@@ -2031,6 +2070,21 @@ local SetData = function(tableName, keywordPanel, keyid)
 			end,
 		},
 		climbersOnlyCheck,
+	}
+
+	--Stepped Terrain: 1-square height changes at the edge of this area are
+	--sharp steps rather than slopes, but only for forced movement.
+	children[#children+1] = gui.Panel{
+		classes = {"formStackedRow"},
+		gui.Check{
+			value = keyword:try_get("stepped", false),
+			text = "Stepped Terrain",
+			hover = gui.Tooltip("A 1-square rise or drop whose higher side is in this area is a sharp step, not a slope. A creature force moved into the step collides with it, and one force moved off it is carried out over the edge and falls, as at a cliff. Walking is unaffected. Solid blocks are always stepped."),
+			change = function(element)
+				keyword.stepped = element.value
+				UploadKeyword()
+			end,
+		},
 	}
 
 	--How far up a zone painted with this keyword reaches, by default. Zone bands
@@ -2360,7 +2414,7 @@ local SetData = function(tableName, keywordPanel, keyid)
 			options = table.append_arrays({{id = "none", text = "none"}}, map(rules.damageTypesAvailable, function(a) return {id = a, text = a} end)),
 			change = function(element)
 				---@cast element Dropdown
-				keyword.movedamage = element.idChosen
+				keyword.movedamage = element.idChosen --[[@as string]]
 				moveDamageDetails:SetClass("collapsed", element.idChosen == "none")
 				UploadKeyword()
 			end,
@@ -2402,7 +2456,7 @@ local SetData = function(tableName, keywordPanel, keyid)
 			},
 			change = function(element)
 				---@cast element Dropdown
-				keyword.movementDamageFilter = element.idChosen
+				keyword.movementDamageFilter = element.idChosen --[[@as string]]
 				UploadKeyword()
 			end,
 		},
@@ -2516,6 +2570,97 @@ local SetData = function(tableName, keywordPanel, keyid)
 			end,
 		},
 		entryEffectPreview,
+	}
+
+	--optional end-of-round spread: at the end of each combat round, zones of
+	--the chosen keyword that share an edge with a zone of this keyword become
+	--this keyword (e.g. Burning Oil consuming neighbouring Flammable Oil).
+	local spreadOptions = { { id = "none", text = "(None)" } }
+	for k,other in unhidden_pairs(dmhub.GetTable(tableName) or {}) do
+		local mapid = other:try_get("mapid")
+		if k ~= keyid and (mapid == nil or mapid == game.currentMapId) then
+			spreadOptions[#spreadOptions+1] = { id = k, text = other.name }
+		end
+	end
+	table.sort(spreadOptions, function(a,b)
+		if a.id == "none" or b.id == "none" then
+			return a.id == "none" and b.id ~= "none"
+		end
+		return a.text < b.text
+	end)
+	children[#children+1] = gui.Panel{
+		classes = {"formStackedRow"},
+		gui.Label{
+			classes = {"formStacked"},
+			text = "Spreads at End of Round Into:",
+			hover = gui.Tooltip("Optional. At the end of each combat round, every zone of the chosen type that shares an edge with a zone of this type (corners do not count) becomes this type, and creatures in it take this type's Effect on Enter. Spreads one zone per round."),
+		},
+		gui.Dropdown{
+			classes = {"formStacked"},
+			options = spreadOptions,
+			idChosen = keyword:try_get("spreadsInto") or "none",
+			hasSearch = true,
+			change = function(element)
+				---@cast element Dropdown
+				if element.idChosen == "none" or element.idChosen == nil then
+					--nil-assignment removes the field from serialization.
+					keyword.spreadsInto = nil
+				else
+					keyword.spreadsInto = element.idChosen --[[@as string]]
+				end
+				UploadKeyword()
+			end,
+		},
+	}
+
+	--optional object trigger: a zone of this keyword with an object carrying
+	--the given object keyword in it becomes another keyword (e.g. a burning
+	--Candelabra setting Flammable Oil alight).
+	children[#children+1] = gui.Panel{
+		classes = {"formStackedRow"},
+		gui.Label{
+			classes = {"formStacked"},
+			text = "Changes When an Object With This Keyword Is In It:",
+			hover = gui.Tooltip("Optional. An object keyword (e.g. burning). When a targetable object with that keyword is in a zone of this type, however it got there, the zone becomes the type chosen below and is revealed to players."),
+		},
+		gui.Input{
+			classes = {"formStacked"},
+			width = "100%",
+			text = keyword:try_get("objectKeyword", "") or "",
+			placeholderText = "e.g. burning",
+			characterLimit = 64,
+			change = function(element)
+				local text = trim(element.text)
+				if text == "" then
+					keyword.objectKeyword = nil
+				else
+					keyword.objectKeyword = text
+				end
+				UploadKeyword()
+			end,
+		},
+	}
+	children[#children+1] = gui.Panel{
+		classes = {"formStackedRow"},
+		gui.Label{
+			classes = {"formStacked"},
+			text = "...and Becomes:",
+		},
+		gui.Dropdown{
+			classes = {"formStacked"},
+			options = spreadOptions,
+			idChosen = keyword:try_get("objectKeywordBecomes") or "none",
+			hasSearch = true,
+			change = function(element)
+				---@cast element Dropdown
+				if element.idChosen == "none" or element.idChosen == nil then
+					keyword.objectKeywordBecomes = nil
+				else
+					keyword.objectKeywordBecomes = element.idChosen --[[@as string]]
+				end
+				UploadKeyword()
+			end,
+		},
 	}
 
 	--list of modifiers that this keyword applies to affected creatures.
@@ -2783,10 +2928,17 @@ end)
 --are NOT applied: there is no creature standing on the square to test.
 --------------------------------------------------------------------------------
 
---True if the aura instance's vertical band covers a creature standing at
---refAltitude. nil height means unlimited height (the engine skips the
---vertical test entirely in that case too).
-local function AuraBandCoversAltitude(auraInstance, refAltitude)
+--True if the aura instance's vertical band overlaps the vertical span
+--[spanBottom, spanTop] (inclusive). groundAltitude is the ground a
+--ground-relative band is measured from. Mirrors the engine's
+--Aura.ApplyToIgnoringCreatureFilter overlap test. nil height means unlimited
+--height (the engine skips the vertical test entirely in that case too).
+--- @param auraInstance any
+--- @param groundAltitude number
+--- @param spanBottom number
+--- @param spanTop number
+--- @return boolean
+local function AuraBandOverlapsSpan(auraInstance, groundAltitude, spanBottom, spanTop)
 	local height = auraInstance:GetHeight()
 	if height == nil then
 		return true
@@ -2802,10 +2954,10 @@ local function AuraBandCoversAltitude(auraInstance, refAltitude)
 	local groundRelative = false
 	pcall(function() groundRelative = auraInstance:GetGroundRelative() == true end)
 	if groundRelative then
-		base = refAltitude + base
+		base = groundAltitude + base
 	end
 
-	return refAltitude >= base and refAltitude <= base + height
+	return spanBottom <= base + height and spanTop >= base
 end
 
 --Aura.LocOnlyAdjacent is a newer engine method (includeAdjacent auras); on an
@@ -2829,9 +2981,17 @@ end
 
 EnvironmentalKeyword.AuraLocOnlyAdjacent = AuraLocOnlyAdjacent
 
---Returns the (Lua) AuraInstances covering a single square, band-tested at the
---square's ground altitude. engineLoc is an engine Loc userdata.
-local function AuraInstancesCoveringSquare(engineLoc)
+--Returns the (Lua) AuraInstances covering a single square. engineLoc is an
+--engine Loc userdata. By default each aura is band-tested at the square's
+--ground altitude (what a size-1 creature standing there would occupy; used by
+--square targeting). Pass span to test a creature's actual vertical extent
+--instead: span.bottom/span.top (inclusive altitudes) and optionally
+--span.ground, the ground a ground-relative band is measured from (defaults to
+--the square's own ground).
+--- @param engineLoc Loc
+--- @param span? {bottom: number, top: number, ground?: number}
+--- @return table[]
+local function AuraInstancesCoveringSquare(engineLoc, span)
 	local result = {}
 
 	--normalize the query the way the engine does for tokens: the aura index
@@ -2843,6 +3003,12 @@ local function AuraInstancesCoveringSquare(engineLoc)
 	end
 
 	local refAltitude = engineLoc.withGroundAltitude.altitude
+	local groundAltitude, spanBottom, spanTop = refAltitude, refAltitude, refAltitude
+	if span ~= nil then
+		groundAltitude = span.ground or refAltitude
+		spanBottom = span.bottom
+		spanTop = span.top
+	end
 
 	for _,aura in ipairs(auras) do
 		local instance = aura.auraInstance
@@ -2851,7 +3017,7 @@ local function AuraInstancesCoveringSquare(engineLoc)
 		if instance ~= nil and not AuraLocOnlyAdjacent(aura, queryLoc) then
 			--tolerate aura instances that do not implement the AuraInstance
 			--interface: skip them rather than erroring the whole filter.
-			local ok, covers = pcall(AuraBandCoversAltitude, instance, refAltitude)
+			local ok, covers = pcall(AuraBandOverlapsSpan, instance, groundAltitude, spanBottom, spanTop)
 			if ok and covers then
 				result[#result+1] = instance
 			end
@@ -2947,7 +3113,9 @@ EnvironmentalKeyword.AuraInstancesCoveringSquare = AuraInstancesCoveringSquare
 
 --- Returns the keyword ids (environmentalKeywords keys) of the map zones
 --- covering any square the token occupies or any square 8-adjacent to one, as a
---- set {keywordid = true}. Squares are band-tested at their ground altitude.
+--- set {keywordid = true}. A zone only counts when its vertical band overlaps
+--- the token's own vertical extent, so a creature flying above a ground-only
+--- zone is not at or next to it (zones with unlimited height still count).
 --- @param token CharacterToken
 --- @return table<string, boolean>
 function EnvironmentalKeyword.KeywordIdsAtOrAdjacentToToken(token)
@@ -2956,15 +3124,44 @@ function EnvironmentalKeyword.KeywordIdsAtOrAdjacentToToken(token)
 		return result
 	end
 
+	local tokenLoc = token.loc
+	if tokenLoc == nil then
+		return result
+	end
+
+	--The token's vertical extent, as the engine's Aura.ApplyTo reads it
+	--(altitudeBottom .. altitudeTop).
+	local tokenBottom = tokenLoc.altitude
+	local tokenTop = tokenBottom + (token.tileSize or 1) - 1
+
+	--Squares the token stands on measure a ground-relative band from the
+	--HIGHEST ground under the token (engine Aura.BandBaseForToken), so a
+	--creature straddling a ledge counts as on the ledge. Neighbouring squares
+	--measure from their own ground, where the zone actually lies.
+	local occupiedKeys = {}
+	local tokenGround = nil
+	local locsOccupying = token.locsOccupying or {}
+	for _,occupied in ipairs(locsOccupying) do
+		occupiedKeys[string.format("%d,%d,%d", occupied.x, occupied.y, occupied.floor or 0)] = true
+		local ground = occupied.withGroundAltitude.altitude
+		if tokenGround == nil or ground > tokenGround then
+			tokenGround = ground
+		end
+	end
+
 	local seenSquares = {}
-	for _,occupied in ipairs(token.locsOccupying or {}) do
+	for _,occupied in ipairs(locsOccupying) do
 		for dy = -1,1 do
 			for dx = -1,1 do
 				local loc = occupied:dir(dx, dy)
 				local key = string.format("%d,%d,%d", loc.x, loc.y, loc.floor or 0)
 				if seenSquares[key] == nil then
 					seenSquares[key] = true
-					for _,instance in ipairs(AuraInstancesCoveringSquare(loc)) do
+					local span = { bottom = tokenBottom, top = tokenTop }
+					if occupiedKeys[key] then
+						span.ground = tokenGround
+					end
+					for _,instance in ipairs(AuraInstancesCoveringSquare(loc, span)) do
 						local auraDef = instance:try_get("aura")
 						local keywordid = auraDef ~= nil and auraDef:try_get("environmentalKeywordId") or nil
 						if keywordid ~= nil then
@@ -2977,6 +3174,335 @@ function EnvironmentalKeyword.KeywordIdsAtOrAdjacentToToken(token)
 	end
 	return result
 end
+
+--- End-of-round zone spread (EnvironmentalKeyword.spreadsInto), e.g. fire in a
+--- Burning Oil patch consuming every Flammable Oil patch that shares an edge
+--- with it. Converts those whole zone records into the spreading keyword
+--- (revealed to players), then hits each creature standing in a converted zone
+--- with the spreading keyword's entryEffectRule, exactly as entering it would.
+--- Every conversion is decided from a snapshot taken before any write, so the
+--- spread advances one zone per round rather than chaining across the map.
+--- Runs once per round end on the elected host (see the round watcher
+--- below), which is the client that sees hidden tokens. Covers every floor of
+--- the current map.
+function EnvironmentalKeyword.SpreadZonesAtEndOfRound()
+	local map = game.currentMap
+	if map == nil or rawget(_G, "ActivatedAbilityTransformZoneBehavior") == nil then
+		return
+	end
+
+	--spreading keyword id -> id of the keyword it consumes.
+	local keywordsTable = dmhub.GetTable(EnvironmentalKeyword.tableName) or {}
+	local spreads = {}
+	for k,keyword in unhidden_pairs(keywordsTable) do
+		local into = keyword:try_get("spreadsInto")
+		if type(into) == "string" and into ~= "" and into ~= k and keywordsTable[into] ~= nil then
+			spreads[k] = into
+		end
+	end
+	if next(spreads) == nil then
+		return
+	end
+
+	local function SquareKey(x, y)
+		return string.format("%d,%d", x, y)
+	end
+
+	--4-adjacency only: a zone touching the spreading squares at a corner does
+	--not catch. An overlapping square counts as touching.
+	local function RecordTouchesSquares(record, squares)
+		for _,l in ipairs(record.locs or {}) do
+			if type(l) == "table" and l.x ~= nil and l.y ~= nil then
+				local x = math.floor(l.x)
+				local y = math.floor(l.y)
+				if squares[SquareKey(x, y)] or squares[SquareKey(x+1, y)] or squares[SquareKey(x-1, y)]
+					or squares[SquareKey(x, y+1)] or squares[SquareKey(x, y-1)] then
+					return true
+				end
+			end
+		end
+		return false
+	end
+
+	--the snapshot: which records convert into which keyword. Adjacency only
+	--counts within one floor.
+	local conversions = {}   --"from|to" -> {fromKeyword, toKeyword, zoneids}
+	local zoneFloors = {}    --zoneid -> floor
+	for _,floor in ipairs(map.floors or {}) do
+		local zones = nil
+		pcall(function()
+			zones = floor.markupZones
+		end)
+		if zones ~= nil then
+			local spreadSquares = {}   --spreading keyword id -> set of "x,y"
+			for _,record in pairs(zones) do
+				if type(record) == "table" and record.category == nil and spreads[record.keyword] ~= nil then
+					local squares = spreadSquares[record.keyword] or {}
+					spreadSquares[record.keyword] = squares
+					for _,l in ipairs(record.locs or {}) do
+						if type(l) == "table" and l.x ~= nil and l.y ~= nil then
+							squares[SquareKey(math.floor(l.x), math.floor(l.y))] = true
+						end
+					end
+				end
+			end
+
+			for zoneid,record in pairs(zones) do
+				if type(record) == "table" and record.category == nil and record.keyword ~= nil then
+					for spreadingId,squares in pairs(spreadSquares) do
+						if spreads[spreadingId] == record.keyword and RecordTouchesSquares(record, squares) then
+							local key = record.keyword .. "|" .. spreadingId
+							local entry = conversions[key]
+							if entry == nil then
+								entry = { fromKeyword = record.keyword, toKeyword = spreadingId, zoneids = {} }
+								conversions[key] = entry
+							end
+							entry.zoneids[#entry.zoneids+1] = zoneid
+							zoneFloors[zoneid] = floor
+							break
+						end
+					end
+				end
+			end
+		end
+	end
+
+	if next(conversions) == nil then
+		return
+	end
+
+	--write the conversions, then note which zones actually changed (the
+	--rewrite skips a record whose keyword changed under us) and so need their
+	--entry effect applied.
+	local converted = {}   --zoneid -> new keyword id
+	local anyConverted = false
+	for _,entry in pairs(conversions) do
+		ActivatedAbilityTransformZoneBehavior.RewriteZoneRecords(entry.zoneids, entry.fromKeyword, entry.toKeyword, true)
+		local rule = trim(keywordsTable[entry.toKeyword]:try_get("entryEffectRule", "") or "")
+		for _,zoneid in ipairs(entry.zoneids) do
+			local stored = zoneFloors[zoneid].markupZones[zoneid]
+			if rule ~= "" and stored ~= nil and stored.keyword == entry.toKeyword then
+				converted[zoneid] = entry.toKeyword
+				anyConverted = true
+			end
+		end
+	end
+
+	if not anyConverted then
+		return
+	end
+
+	--The engine rebuilds zone auras from the records a frame or so after the
+	--write; the entry effect must come from the REBUILT aura (it carries the
+	--new keyword's rule, filter and height band), so wait for it.
+	local function AuraRebuilt(zoneid, keywordid)
+		local floor = zoneFloors[zoneid]
+		if floor.floorIndex == nil or floor.floorIndex < 0 then
+			--a floor that is not currently shown builds no zone auras at all.
+			return true
+		end
+		local stored = floor.markupZones[zoneid]
+		local first = stored ~= nil and stored.locs ~= nil and stored.locs[1] or nil
+		if first == nil or first.x == nil or first.y == nil then
+			return true
+		end
+		local loc = core.Loc{ x = math.floor(first.x), y = math.floor(first.y), floorIndex = floor.floorIndex }
+		for _,aura in ipairs(game.GetAurasAtLoc(loc) or {}) do
+			local instance = aura.auraInstance
+			if instance ~= nil and instance:try_get("guid") == zoneid then
+				local auraDef = instance:try_get("aura")
+				return auraDef ~= nil and auraDef:try_get("environmentalKeywordId") == keywordid
+			end
+		end
+		return false
+	end
+
+	dmhub.Coroutine(function()
+		local deadline = dmhub.Time() + 5
+		while true do
+			if mod.unloaded then
+				return
+			end
+			local ready = true
+			for zoneid,keywordid in pairs(converted) do
+				local okCheck, rebuilt = pcall(AuraRebuilt, zoneid, keywordid)
+				if okCheck and not rebuilt then
+					ready = false
+					break
+				end
+			end
+			if ready then
+				break
+			end
+			if dmhub.Time() >= deadline then
+				print("ZONESPREAD:: zone auras not rebuilt after 5s; applying entry effects to what is there")
+				break
+			end
+			coroutine.yield(0.1)
+		end
+
+		--each creature takes the effect once, however many converted squares
+		--or zones it stands in. Adjacent-only contact is excluded, as on entry.
+		local tokens = dmhub.allTokensIncludingObjects or dmhub.allTokens or {}
+		for _,tok in ipairs(tokens) do
+			if tok.valid and tok.properties ~= nil then
+				local ok, err = pcall(function()
+					for _,auraInfo in ipairs(tok.properties:GetAurasAffecting(tok) or {}) do
+						local instance = auraInfo.auraInstance
+						local keywordid = instance ~= nil and converted[instance:try_get("guid") or ""] or nil
+						local auraDef = keywordid ~= nil and instance:try_get("aura") or nil
+						if auraDef ~= nil and auraDef:try_get("environmentalKeywordId") == keywordid then
+							local trigger = auraDef:GetSimpleEntryEffectTrigger()
+							if trigger ~= nil then
+								instance:FireTriggeredAbility(trigger.ability, tok.properties, tok)
+							end
+							return
+						end
+					end
+				end)
+				if not ok then
+					print("ZONESPREAD:: entry effect failed:", tostring(err))
+				end
+			end
+		end
+	end)
+end
+
+--Round watcher for the zone spread. Every client polls the initiative round;
+--only the elected host (LiveEncounter.IsElectedHost: Director or player host,
+--the same election encounter scripts use) acts. The last round handled is
+--kept in a shared document keyed by the combat's queue guid, so the spread
+--fires once per round boundary even across a host handover or a reload, and
+--the client that advanced the round never runs it itself.
+local g_zoneSpreadDocId = "zoneSpreadRounds"
+
+function EnvironmentalKeyword.ZoneSpreadRoundTick()
+	local q = dmhub.initiativeQueue
+	if q == nil or q.hidden then
+		return
+	end
+	--MCDMEncounter loads after this file; resolve at call time.
+	local electedHost = rawget(rawget(_G, "LiveEncounter") or {}, "IsElectedHost")
+	if electedHost == nil or not electedHost() then
+		return
+	end
+
+	local queueGuid = tostring(q:try_get("guid"))
+	local round = q.round or 0
+	local doc = mod:GetDocumentSnapshot(g_zoneSpreadDocId)
+	local seenGuid = doc.data.queueGuid
+	local seenRound = doc.data.round
+	if seenGuid == queueGuid and seenRound == round then
+		return
+	end
+
+	--a new combat (or first sight of this one) only records the round: no
+	--round has ended that we know of. A round that went backwards (a turn
+	--revert restoring a checkpoint) is re-recorded so it can fire again.
+	local fire = seenGuid == queueGuid and type(seenRound) == "number" and round > seenRound
+
+	--watermark first, so an error in the spread cannot refire it every tick.
+	doc:BeginChange()
+	doc.data.queueGuid = queueGuid
+	doc.data.round = round
+	doc:CompleteChange("Zone spread round", { undoable = false })
+
+	if fire then
+		EnvironmentalKeyword.SpreadZonesAtEndOfRound()
+	end
+end
+
+--- Object-triggered zone changes (EnvironmentalKeyword.objectKeyword /
+--- objectKeywordBecomes), e.g. a burning Candelabra thrown, dragged or pushed
+--- into Flammable Oil turning the whole patch into Burning Oil. Polled rather
+--- than hooked because nothing reports an object's moves to Lua. Runs on the
+--- elected host, in or out of combat; converting a record is idempotent
+--- (RewriteZoneRecords skips a record that already changed). Only Targetable
+--- objects count: they are the ones with tokens.
+function EnvironmentalKeyword.ObjectKeywordZoneTick()
+	if game.currentMap == nil or rawget(_G, "ActivatedAbilityTransformZoneBehavior") == nil then
+		return
+	end
+
+	--zone keyword id -> {objectKeyword (lower case), into}
+	local keywordsTable = dmhub.GetTable(EnvironmentalKeyword.tableName) or {}
+	local rules = nil
+	for k,keyword in unhidden_pairs(keywordsTable) do
+		local objectKeyword = trim(keyword:try_get("objectKeyword", "") or "")
+		local into = keyword:try_get("objectKeywordBecomes")
+		if objectKeyword ~= "" and type(into) == "string" and into ~= k and keywordsTable[into] ~= nil then
+			rules = rules or {}
+			rules[k] = { objectKeyword = string.lower(objectKeyword), into = into }
+		end
+	end
+	if rules == nil then
+		return
+	end
+
+	local electedHost = rawget(rawget(_G, "LiveEncounter") or {}, "IsElectedHost")
+	if electedHost == nil or not electedHost() then
+		return
+	end
+
+	local conversions = {}   --"from|to" -> {fromKeyword, toKeyword, zoneids, seen}
+	for _,tok in ipairs(dmhub.allTokensIncludingObjects or {}) do
+		if tok.valid and tok.isObject then
+			local component = tok.objectComponent
+			local levelObject = component ~= nil and component.levelObject or nil
+			local objectKeywords = levelObject ~= nil and levelObject.keywords or nil
+			if objectKeywords ~= nil then
+				local lowered = {}
+				for kw,_ in pairs(objectKeywords) do
+					lowered[string.lower(kw)] = true
+				end
+				for _,loc in ipairs(tok.locsOccupying or {}) do
+					for _,instance in ipairs(AuraInstancesCoveringSquare(loc)) do
+						local auraDef = instance:try_get("aura")
+						local fromId = auraDef ~= nil and auraDef:try_get("environmentalKeywordId") or nil
+						local rule = fromId ~= nil and rules[fromId] or nil
+						local zoneid = instance:try_get("guid")
+						if rule ~= nil and zoneid ~= nil and lowered[rule.objectKeyword] then
+							local key = fromId .. "|" .. rule.into
+							local entry = conversions[key]
+							if entry == nil then
+								entry = { fromKeyword = fromId, toKeyword = rule.into, zoneids = {}, seen = {} }
+								conversions[key] = entry
+							end
+							if not entry.seen[zoneid] then
+								entry.seen[zoneid] = true
+								entry.zoneids[#entry.zoneids+1] = zoneid
+							end
+						end
+					end
+				end
+			end
+		end
+	end
+
+	for _,entry in pairs(conversions) do
+		ActivatedAbilityTransformZoneBehavior.RewriteZoneRecords(entry.zoneids, entry.fromKeyword, entry.toKeyword, true)
+	end
+end
+
+--0.7s heartbeat, like the encounter-script driver. The Schedule chain never
+--overlaps itself and stops on hot reload via mod.unloaded.
+local function ScheduleZoneSpreadWatcher()
+	dmhub.Schedule(0.7, function()
+		if mod.unloaded then
+			return
+		end
+		local ok, err = pcall(EnvironmentalKeyword.ZoneSpreadRoundTick)
+		if not ok then
+			print("ZONESPREAD:: round watcher failed:", tostring(err))
+		end
+		ok, err = pcall(EnvironmentalKeyword.ObjectKeywordZoneTick)
+		if not ok then
+			print("ZONESPREAD:: object keyword watcher failed:", tostring(err))
+		end
+		ScheduleZoneSpreadWatcher()
+	end)
+end
+ScheduleZoneSpreadWatcher()
 
 creature.RegisterSymbol {
 	symbol = "adjacentenvironment",

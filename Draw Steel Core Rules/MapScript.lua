@@ -77,6 +77,7 @@ local mod = dmhub.GetModLoading()
 --- @field name string Display name of the library script.
 --- @field description string What the script does, shown in pickers and the compendium.
 --- @field code string The Lua source; must return a definition table.
+--- @field guid string Unique id; OnDeserialize fills it in when missing.
 MapScript = RegisterGameType("MapScript")
 
 MapScript.name = "New Map Script"
@@ -433,7 +434,8 @@ local g_definitionCache = {}
 --- Follows the AbilityScript.lua precedent: load(code, name, "t", env) with an
 --- environment that reads globals but keeps writes local to the chunk.
 --- @param code string
---- @return table|nil, string|nil definition, error
+--- @return table|nil definition
+--- @return string|nil error
 function MapScript.CompileDefinition(code)
     if code == nil or code == "" then
         return nil, "The script is empty"
@@ -623,7 +625,8 @@ function MapScript.GetRecordCode(rec)
 end
 
 --- Resolve + compile a record's definition.
---- @return table|nil, string|nil definition, error
+--- @return table|nil definition
+--- @return string|nil error
 function MapScript.GetRecordDefinition(rec)
     local code, err = MapScript.GetRecordCode(rec)
     if code == nil then

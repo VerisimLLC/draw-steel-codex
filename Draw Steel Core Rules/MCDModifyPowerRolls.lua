@@ -233,9 +233,11 @@ function CharacterModifier:CheckRollRequirement(rollInfo, enabledModifiers, roll
     elseif requirement == "doubleedge" then
         return edges >= 2 and banes <= 0
     elseif requirement == "nobane" then
-        return banes <= 0
+        --Edges and banes cancel one for one, so "no bane" means the NET result is not a bane
+        --(1 edge + 1 bane is a normal roll). Same cancellation as the "bane" case above.
+        return not (banes > edges and edges < 2)
     elseif requirement == "noedge" then
-        return edges <= 0
+        return not (edges > banes and banes < 2)
     elseif requirement == "skilled" or requirement == "unskilled" then
         local hasSkill = false
         for _,mod in ipairs(enabledModifiers) do
@@ -284,7 +286,8 @@ CharacterModifier.TypeInfo.power = {
             local token = dmhub.LookupToken(creature)
 
 
-            print("TRIGGER:: TRIGGER", token.charid)
+            --token can be nil here; the deferred trigger below handles that case.
+            print("TRIGGER:: TRIGGER", token ~= nil and token.charid or nil)
             --Deferred until the casts currently resolving on this client
             --complete (see ActivatedAbility.RunWhenCastsComplete): a custom
             --trigger activated from the roll dialog (e.g. In All This
@@ -339,12 +342,21 @@ CharacterModifier.TypeInfo.power = {
 				end
 			end
 
+			--Duration 0 expires instantly outside combat (see
+			--CharacterOngoingEffectInstance:Expired). armEffectIndefinite applies the
+			--marker with no duration instead; the marker must then purge itself.
+			---@type number|nil
+			local armDuration = 0
+			if modifier:try_get("armEffectIndefinite", false) then
+				armDuration = nil
+			end
+
 			local armToken = dmhub.LookupToken(armSubject)
 			if armToken ~= nil and armToken.valid then
 				if armSubject == creature then
 					--the owner's properties are already inside the caller's
 					--ModifyProperties block (see ConsumeResource in DSRollDialog).
-					armToken.properties:ApplyOngoingEffect(armEffect, 0, nil, {})
+					armToken.properties:ApplyOngoingEffect(armEffect, armDuration, nil, {})
 				else
 					--a different token: needs its own ModifyProperties or the
 					--mutation never uploads.
@@ -352,10 +364,15 @@ CharacterModifier.TypeInfo.power = {
 						description = "Arm Triggered Effect",
 						undoable = false,
 						execute = function()
-							armToken.properties:ApplyOngoingEffect(armEffect, 0, nil, {})
+							armToken.properties:ApplyOngoingEffect(armEffect, armDuration, nil, {})
 						end,
 					}
 				end
+
+				--Damage resolves in the same frame as roll-confirm, so drop the cached
+				--modifier list now; otherwise the marker's own modifiers (e.g. an
+				--immunity) are invisible to that damage and to its cleanup triggers.
+				armToken.properties:Invalidate()
 			end
 		end
 
@@ -1221,7 +1238,6 @@ CharacterModifier.TypeInfo.power = {
                     visible = not spoilered,
                     hmargin = 6,
                     valign = "center",
-                    hoverCursor = "hand",
                     click = function(element)
                         local name = modifier.name or ""
                         if spoilers.HasSpoiler(name) then
@@ -2319,8 +2335,9 @@ CharacterModifier.TypeInfo.power = {
                     return
                 end
 
-                local source = dropdownSourceType.idChosen
-                local destType = dropdownDestType.idChosen
+                --both are damage type ids (strings); "none" returned above.
+                local source = dropdownSourceType.idChosen --[[@as string]]
+                local destType = dropdownDestType.idChosen --[[@as string]]
 
                 --A source may map to multiple candidate destinations; the user
                 --chooses between them at roll time. Single mappings stay stored

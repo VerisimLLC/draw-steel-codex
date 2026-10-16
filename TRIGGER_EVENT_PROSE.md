@@ -22,9 +22,9 @@ When `conditionFormula` is empty, the comma clause is omitted -- e.g. Stand Fast
 **Verb agreement markers.** English 2nd-person present uses the base verb form ("you take damage") while 3rd-person singular needs -s / -es ("any enemy takes damage", "any enemy finishes an ability"). Templates mark agreement-sensitive verbs with three placeholders:
 - `{s}` -- regular -s suffix. Composer substitutes `""` when subject is exactly `"you"`, `"s"` otherwise. Example: `{subject} take{s} damage` -> `"you take damage"` / `"any enemy takes damage"`.
 - `{es}` -- -es suffix for stems ending in -s/-sh/-ch/-x/-z. Composer substitutes `""` when subject is exactly `"you"`, `"es"` otherwise. Example: `{subject} finish{es} an ability` -> `"you finish an ability"` / `"any enemy finishes an ability"`.
-- `{is}` -- irregular "is"/"are" verb. Composer substitutes `"are"` when subject is exactly `"you"`, `"is"` otherwise. Example: `{subject} {is} targeted by an ability` -> `"you are targeted by an ability"` / `"any enemy is targeted by an ability"`.
+- `{is}` -- irregular "is"/"are" verb. Composer substitutes `"are"` when subject is exactly `"you"`, `"is"` otherwise. Example: `{subject} {is} attacked` -> `"you are attacked"` / `"any enemy is attacked"`.
 
-Compound subjects (`you or any ally`, `you or any hero`) follow the proximity rule and use 3rd-singular agreement -- `{s}` substitutes to `"s"` -- so `"you or any ally takes damage"`, `"you or any hero is targeted by an ability"`. Detection is literal-string: the composer only strips `{s}` and uses `"are"` when the subject prose equals `"you"` exactly.
+Compound subjects (`you or any ally`, `you or any hero`) follow the proximity rule and use 3rd-singular agreement -- `{s}` substitutes to `"s"` -- so `"you or any ally takes damage"`, `"you or any hero is attacked"`. Detection is literal-string: the composer only strips `{s}` and uses `"are"` when the subject prose equals `"you"` exactly.
 
 ---
 
@@ -170,11 +170,11 @@ Priority-sorted for display. These are the most-used triggers per the design doc
 - **Example (subject=enemy):** *"When any enemy finishes using an ability."*
 - **Status:** `OK`
 
-### `targetwithability` ("Targeted by an Ability")
-- **Engine description:** Fires on the subject when another creature targets them with an ability.
-- **Template:** `when {subject} {is} targeted by an ability`
-- **Example (subject=self):** *"When you are targeted by an ability."*
-- **Example (subject=enemy):** *"When any enemy is targeted by an ability."*
+### `targetwithability` ("Target With Ability")
+- **Engine description:** Fires when the subject uses an ability, once for each creature it targets.
+- **Template:** `when {subject} target{s} a creature with an ability`
+- **Example (subject=self):** *"When you target a creature with an ability."*
+- **Example (subject=enemy):** *"When any enemy targets a creature with an ability."*
 - **Status:** `OK`
 
 ### `castsignature` ("Use Signature Attack or Area")

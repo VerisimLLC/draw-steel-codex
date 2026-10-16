@@ -120,6 +120,12 @@ function table.union(a,b)
 	return c
 end
 
+--- The keys of t as an array, in pairs() order. Returns nil when t is not a table,
+--- but the codex (DMHub Utils/Utils.lua) replaces this with a version that requires a
+--- table and always returns an array, so that is the contract typed here.
+---@generic K
+---@param t table<K, any>
+---@return K[]
 function table.keys(t)
 	if type(t) ~= "table" then
 		return nil
@@ -512,8 +518,10 @@ function round(n)
 	return math.floor(n + 0.5)
 end
 
----@param s string
----@return string
+--- s without leading and trailing whitespace; any value that is not a string is returned unchanged.
+---@generic T
+---@param s T
+---@return T
 function trim(s)
    if type(s) ~= "string" then
        return s

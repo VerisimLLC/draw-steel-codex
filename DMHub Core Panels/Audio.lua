@@ -10,15 +10,19 @@ local audioMixDocId = "audioMix"
 --by mix-group id so each maps 1:1 to an audio.SetGroupShared call.
 local broadcastGroupIds = { "music", "ambience", "effects", "uisounds", "anthem" }
 
---Keep the DM's broadcast levels in checkpoint backups (game-scoped DM state).
-mod:RegisterDocumentForCheckpointBackups(audioMixDocId)
+--Let the engine apply these levels itself on game load, before the game's sounds start,
+--so they never play at full volume while the sync poll below catches up. pcall because
+--engines older than this call do not have it; they keep the poll-only behaviour.
+pcall(function()
+	---@diagnostic disable-next-line: undefined-field
+	mod:RegisterBroadcastMixDocument(audioMixDocId)
+end)
 
 --Game-scoped doc holding the manual order of clips within each library folder.
 --AudioAssetLua has no writable `ord` (folders do, clips don't), so the Audio
 --Studio library keeps per-folder clip order here: data.order[folderid] = { assetid,
 --... }. Clips not listed sort after the listed ones, alphabetically.
 local audioClipOrderDocId = "audioClipOrder"
-mod:RegisterDocumentForCheckpointBackups(audioClipOrderDocId)
 
 --All-clients broadcast sync. The Audio panel's full surface is Director-or-DJ only
 --(see CanControlAudio), but this file's module-load code
@@ -718,11 +722,12 @@ end
 --Playlist core (chunk H-core): engine logic only, no UI (that is later chunks). Two
 --game-scoped shared docs, split by lifecycle:
 --  - "audioPlaylists" holds DM-authored definitions (playlists, tracks, shuffle/
---    playTogether/crossfade/loop settings, and the gamemode->playlist bindings). This
---    is checkpoint-backed like any other DM content.
+--    playTogether/crossfade/loop settings, and the gamemode->playlist bindings).
 --  - "audioPlaylistState" holds live/ephemeral playback state (what's playing, whose
---    client is driving it, the auto-switch bracket). This is NOT checkpoint-backed --
---    it is transient session state, not content, and would be stale/wrong on restore.
+--    client is driving it, the auto-switch bracket). It is transient session state,
+--    not content.
+--Neither is registered for combat checkpoints: Revert Turn must not undo the
+--Director's music.
 --
 --Driver model: whichever client calls AudioPlaylistPlay "drives" that playlist's
 --advance loop from then on (state.playing.driver = dmhub.userid). A single 0.5s poll
@@ -747,6 +752,8 @@ end
 --- @class AudioPlaylist: GameType
 --- @field new fun(o?: table): AudioPlaylist
 --- @field id string Key of this row in its data table; SetAndUploadTableItem sets it.
+--- @field tracks string[] Audio asset ids in play order.
+--- @field hidden? boolean Soft-delete flag; set when the playlist is deleted.
 AudioPlaylist = RegisterGameType("AudioPlaylist")
 AudioPlaylist.tableName = "audioPlaylists"
 AudioPlaylist.name = "New playlist"
@@ -802,14 +809,12 @@ end
 -- dropdown handler for why gating them on dmhub.gameLoadingProgress broke saving
 -- outright (report 6UMTQEEE).
 local audioPlaylistBindingsDocId = "audioPlaylistBindings"
-mod:RegisterDocumentForCheckpointBackups(audioPlaylistBindingsDocId)
 
 local function GetBindingsDoc()
 	return mod:GetDocumentSnapshot(audioPlaylistBindingsDocId)
 end
 
 local audioPlaylistStateDocId = "audioPlaylistState"
---(state doc deliberately NOT registered for checkpoint backups -- see banner above)
 
 local function GetPlaylistStateDoc()
 	return mod:GetDocumentSnapshot(audioPlaylistStateDocId)
@@ -997,7 +1002,7 @@ WriteAudioLogSubscription = function()
     local subs = doc.data.subs
     local cur = (subs ~= nil) and subs[uid] or nil
     --Skip the write when nothing changed (avoids doc churn on every load/reload).
-    if (cur == nil) == (want == nil) and (cur == nil or (cur.m == want.m and cur.e == want.e)) then
+    if (cur == nil and want == nil) or (cur ~= nil and want ~= nil and cur.m == want.m and cur.e == want.e) then
         return
     end
     doc:BeginChange()
@@ -1073,8 +1078,6 @@ local function SetAudioDelegate(userid, granted)
 	doc.data.delegates[userid] = granted == true or nil
 	doc:CompleteChange(granted and "Assign DJ" or "Revoke DJ", {undoable = false})
 end
-
-mod:RegisterDocumentForCheckpointBackups("audioDelegates")
 
 local function AnyAudioLogSubscriber(needEffects)
     local subs = AudioLogSubDoc().data.subs
@@ -1638,6 +1641,8 @@ local function SeekBroadcastClip(assetid, t)
 	end
 
 	if seekedTogether then
+		--seekedTogether is only set inside the pl ~= nil branch above.
+		---@cast pl -nil
 		for _,tid in ipairs(pl.tracks) do
 			local instance = audio.currentlyPlaying[tid]
 			if instance ~= nil then
@@ -2197,6 +2202,14 @@ local g_studioLeftTab = "library"
 --playlist session, or { poolid, count, added, snapshot } for a variant pool session
 --(K1.5-studio). The presence of .poolid vs .playlistid is the discriminator -- exactly
 --one of the two is ever set on a given session table.
+--- @class AudioStudioBuildSession
+--- @field playlistid nil|string
+--- @field poolid nil|string
+--- @field count number
+--- @field added nil|table<string, boolean>
+--- @field snapshot nil|string[]
+
+--- @type AudioStudioBuildSession?
 local m_studioBuildMode = nil
 --Assigned inside CreateAudioStudio / CreateAudioLibraryTree so distant code
 --(playlist rows, library rows) can drive tab switches and tree rebuilds.
@@ -2307,6 +2320,7 @@ end
 --- @class VariantPool: GameType
 --- @field new fun(o?: table): VariantPool
 --- @field id string Key of this row in its data table; SetAndUploadTableItem sets it.
+--- @field members string[] Audio asset ids in the pool, in authored order (set by CreateNew).
 VariantPool = RegisterGameType("VariantPool")
 VariantPool.tableName = "audioVariantPools"
 VariantPool.pool = true            -- kept so existing "entry.pool == true" validity
@@ -2776,6 +2790,8 @@ function VariantPools.Fire(poolid, opts)
 		return nil
 	end
 	local entry = GetPool(poolid)
+	--IsPool just read this same row and found a table.
+	---@cast entry -nil
 	local members = VariantPools.Members(poolid)
 	if #members == 0 then
 		return nil
@@ -5304,6 +5320,8 @@ local function BuildSoundPanelContent()
 		progressBar.selfStyle.width = "100%-134"
 
 		if pl ~= nil then
+			--pl is only looked up when playing ~= nil.
+			---@cast playing -nil
 			--"Following game mode" only has signed copy for the auto-switch case;
 			--manual playlist plays stay silent about their origin. Additionally
 			--gated on the hero card actually SHOWING a track of the driving
@@ -5946,7 +5964,7 @@ local function BuildSoundPanelContent()
 		create = function(element)
 			element.data.themeSub = ThemeEngine.OnThemeChanged(mod, function()
 				if element.valid then
-					element.styles = ThemeEngine.MergeTokens(AudioSoundboardButtonStyles)
+					element.styles = ThemeEngine.MergeTokens(AudioSoundboardButtonStyles) --[[@as StyleArgs[] ]]
 					element.data.themeTick = not element.data.themeTick
 					element:SetClassTree("themeRefreshTick", element.data.themeTick == true)
 				end
@@ -7328,6 +7346,7 @@ end
 --so it at least tracks the DM's master fader instead of blasting at raw asset
 --volume. Tracked at module scope so starting a cue in one row stops the cue in
 --another.
+--- @type SoundEventInstanceLua?
 local g_studioCueInstance = nil
 local g_studioCueAssetId = nil
 local function StopStudioCue()
@@ -10570,7 +10589,6 @@ local CreateStudioPlaylistsCard = function(heightSpec)
 					width = "100%",
 					height = 24,
 					vmargin = 1,
-					hoverCursor = "hand",
 					bgimage = "panels/square.png",
 					data = { trackIndex = trackIndex, playlistid = playlistid, assetid = assetid },
 					draggable = true,
@@ -11434,7 +11452,6 @@ local CreateStudioVariantPoolsCard = function(heightSpec)
 						width = "100%",
 						height = 24,
 						vmargin = 1,
-						hoverCursor = "hand",
 						bgimage = "panels/square.png",
 						data = { memberIndex = memberIndex, poolid = poolid, assetid = asset.id },
 						draggable = true,
@@ -11878,6 +11895,7 @@ local function CreateStudioNowPlayingStrip()
 	--and stop. table.sort is not needed here -- PlayOrderOf/PlayingTracksForCategory
 	--(module-scoped, chunk D7) already return tracks oldest-first.
 	local function CreateCategoryRow(categoryLabel, entries)
+		---@type Panel[]
 		local children = {
 			gui.Label{
 				classes = {"sizeXs", "bold"},
@@ -12334,6 +12352,7 @@ CreateAudioStudio = function()
 			libraryNormalGroup:SetClass("collapsed", active)
 			libraryBuildGroup:SetClass("collapsed", not active)
 			if active then
+				---@cast m_studioBuildMode -nil
 				local targetName
 				if m_studioBuildMode.poolid ~= nil then
 					targetName = VariantPools.Name(m_studioBuildMode.poolid) or "variant pool"

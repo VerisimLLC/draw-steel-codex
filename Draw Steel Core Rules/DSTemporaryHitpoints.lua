@@ -16,6 +16,7 @@ end
 --- @class ActivatedAbilityTemporaryStaminaChatMessage: GameType
 --- @field new fun(o?: table): ActivatedAbilityTemporaryStaminaChatMessage
 --- @field ability ActivatedAbility
+--- @field amount number Temporary stamina granted.
 ActivatedAbilityTemporaryStaminaChatMessage = RegisterGameType("ActivatedAbilityTemporaryStaminaChatMessage")
 ActivatedAbilityTemporaryStaminaChatMessage.amount = 0
 ActivatedAbilityTemporaryStaminaChatMessage.chatMessage = ""
@@ -107,7 +108,7 @@ end
 
 --- @class ActivatedAbilityGrantTemporaryStaminaBehavior:ActivatedAbilityBehavior
 --- @field new fun(o?: table): ActivatedAbilityGrantTemporaryStaminaBehavior
---- @field amount nil|string GoblinScript expression for the temporary stamina amount to grant.
+--- @field stamina number|string GoblinScript expression for the temporary stamina amount to grant (the default is the number 5).
 --- Behavior that grants temporary stamina (temporary hit points) to the target.
 ActivatedAbilityGrantTemporaryStaminaBehavior = RegisterGameType("ActivatedAbilityGrantTemporaryStaminaBehavior", "ActivatedAbilityBehavior")
 
@@ -148,8 +149,10 @@ function ActivatedAbilityGrantTemporaryStaminaBehavior:Cast(ability, casterToken
     local granted = false
 
     for _,target in ipairs(targets) do
+        ---@type string|number
         local roll = dmhub.EvalGoblinScript(self.stamina, casterToken.properties:LookupSymbol(options.symbols), string.format("Grant stamina roll for %s", ability.name))
         if tonumber(roll) == nil then
+            ---@type number?
             local result = nil
             local canceled = false
             local rollid = gamehud.rollDialog.data.ShowDialog{
@@ -176,11 +179,12 @@ function ActivatedAbilityGrantTemporaryStaminaBehavior:Cast(ability, casterToken
                 break
             end
 
-            roll = result
+            roll = result --[[@as number]] --non-nil: a nil total broke out above.
         end
 
         if logMessage ~= nil then
-            logMessage.amount = tonumber(roll)
+            --roll is numeric here: a non-numeric roll was replaced by the dialog's total or broke out above.
+            logMessage.amount = tonumber(roll) --[[@as number]]
         end
 
         ability.RecordTokenMessage(target.token, options, string.format("%d temporary stamina", tonumber(roll)))

@@ -5,6 +5,7 @@ local mod = dmhub.GetModLoading()
 --- @class ActivatedAbilityLimitBehavior:ActivatedAbilityBehavior
 --- @field new fun(o?: table): ActivatedAbilityLimitBehavior
 --- @field summary string Short label shown in behavior lists.
+--- @field key string Guid keying this limit's use count in the caster's abilityUses.
 ActivatedAbilityLimitBehavior = RegisterGameType("ActivatedAbilityLimitBehavior", "ActivatedAbilityBehavior")
 
 ActivatedAbilityLimitBehavior.summary = 'Limit Ability Uses'

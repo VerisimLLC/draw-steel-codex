@@ -103,7 +103,7 @@ function ActivatedAbilityModifyCastBehavior:EditorItems(parentPanel)
             idChosen = self.paramid,
             change = function(element)
                 ---@cast element Dropdown
-                self.paramid = element.idChosen
+                self.paramid = element.idChosen --[[@as string]]
             end,
         }
     }

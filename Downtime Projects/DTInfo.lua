@@ -303,7 +303,7 @@ creature.GetFishingRecord = function(self)
 end
 
 --- Extend creature to get Downtime Information
---- @return DTinfo|nil downtimeInfo the Downtme Info for the character or nil if we can't find or create
+--- @return DTInfo|nil downtimeInfo the Downtme Info for the character or nil if we can't find or create
 creature.GetDowntimeInfo = function(self)
     local downtimeInfo = self:try_get(DTConstants.CHARACTER_STORAGE_KEY)
     if downtimeInfo == nil then

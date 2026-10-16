@@ -126,7 +126,7 @@ function CharSheet.FeaturePanel()
 				m_pointsLabel = m_pointsLabel or gui.Label{
 					classes = {"featureDescription", "sheetLabel"},
 				}
-				m_pointsLabel.text = string.format("%d %s to spend", numChoices, featureInfo.feature:try_get("pointsName", "Points")),
+				m_pointsLabel.text = string.format("%d %s to spend", numChoices, featureInfo.feature:try_get("pointsName", "Points"))
 
 				m_pointsLabel:SetClass("collapsed", false)
 				children[#children+1] = m_pointsLabel
@@ -309,6 +309,7 @@ function CharSheet.FeatureDetailsPanel(params)
 			local children = {}
 			local token = CharacterSheet.instance.data.info.token
 			for i,featureInfo in ipairs(g_characterFeatures) do
+				---@type false|string
 				local exclude = false
                 --print("MATCH:: matching", featureInfo.feature.name, "against criteria", element.data.criteria)
 				for k,item in pairs(element.data.criteria) do

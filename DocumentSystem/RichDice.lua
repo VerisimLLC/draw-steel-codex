@@ -51,7 +51,7 @@ function RichDice.CreateDisplay(self)
                 element.selfStyle.scale = 1.05
                 element.selfStyle.opacity = 1
 
-                self.popup = gui.Tooltip("Roll " .. dice)(element)
+                gui.Tooltip("Roll " .. dice)(element)
             end,
 
             click = function(element)

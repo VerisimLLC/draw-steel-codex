@@ -251,7 +251,9 @@ function CharSheet.StartingEquipmentDisplay(claimedKey, hasclassStyle)
                                         local crossfading = false
                                         local fadeIndex = 1
 
+                                        ---@type Panel?
                                         local mainPanel = nil
+                                        ---@type Panel?
                                         local fadedPanel = nil
 
                                         local displayedItem = nil
@@ -279,6 +281,9 @@ function CharSheet.StartingEquipmentDisplay(claimedKey, hasclassStyle)
                                                     fadedPanel = iconPanelCrossfade
                                                 end
 
+                                                --both are set whenever iconPanelCrossfade is (removeCrossfade clears all three).
+                                                ---@cast mainPanel -nil
+                                                ---@cast fadedPanel -nil
                                                 fadedPanel.bgimage = imageid
                                                 mainPanel:SetClass("fade", true)
                                                 fadedPanel:SetClass("fade", false)
@@ -343,6 +348,7 @@ function CharSheet.StartingEquipmentDisplay(claimedKey, hasclassStyle)
                                                     local equipmentCategoriesTable = dmhub.GetTable(EquipmentCategory.tableName)
                                                     local currencyTable = dmhub.GetTable(Currency.tableName)
 
+                                                    ---@type equipment|EquipmentCategory|Currency|nil
                                                     local itemInfo = inventoryTable[itemEntry.itemid]
                                                     
                                                     if itemInfo == nil then
@@ -379,6 +385,11 @@ function CharSheet.StartingEquipmentDisplay(claimedKey, hasclassStyle)
                                                     end
 
                                                     displayedItem = itemInfo
+                                                    --nil when the id is in none of the three tables (e.g. the item was deleted).
+                                                    if itemInfo == nil then
+                                                        element.text = ""
+                                                        return
+                                                    end
                                                     element.text = string.format("%s x %d", tr(itemInfo.name), itemEntry.quantity)
 
                                                 end,
@@ -1011,6 +1022,7 @@ function CharSheet.ClassChoicePanel(options, classIndex)
 
 
          refreshBuilder = function(element)
+             ---@cast element LuaSheetCarousel
              local creature = CharacterSheet.instance.data.info.token.properties
              if creature:try_get("classes", {})[classIndex] ~= nil then
                 element.draggable = false
@@ -1032,6 +1044,7 @@ function CharSheet.ClassChoicePanel(options, classIndex)
          end,
 
         enable = function(element)
+            ---@cast element LuaSheetCarousel
             element.targetPosition = 0
             element.currentPosition = 0
             element:FireEvent("refreshBuilder")
@@ -1937,6 +1950,7 @@ function CharSheet.ClassChoicePanel(options, classIndex)
                             local panels = {}
                             local panelsStartIndex = #children+1
 
+                            ---@type Panel
                             local collapseTarget = nil
                             local levelNum = lvl
                             children[#children+1] = gui.Panel{
@@ -2148,6 +2162,10 @@ function CharSheet.ClassChoicePanel(options, classIndex)
 			    local creature = CharacterSheet.instance.data.info.token.properties
 
                 local class = GetSelectedClass()
+                --nil while no class panel is displayed (e.g. no classes to choose from).
+                if class == nil then
+                    return
+                end
 
                 creature:SetClass(class.id, 1)
 

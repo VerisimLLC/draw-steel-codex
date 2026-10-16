@@ -2,6 +2,8 @@
 
 --- Provides backup and restore functionality for game and map data, including automatic periodic backups.
 --- @class backup
+--- @field checkpointCacheVerify boolean Diagnostics: when true, combat checkpoints check every record they reuse from the checkpoint record cache (and every record Restore skips as unchanged) against a fresh serialization, logging an error for any change that did not come through a game update. Slower; for testing.
+--- @field checkpointCacheMismatches number Diagnostics: how many checkpoint cache verify mismatches have been found since the app started (see checkpointCacheVerify).
 --- @field autoBackupInterval number The interval in minutes between automatic backups. Defaults to 20.
 --- @field backupPath string The file system path where backups are stored for the current game.
 --- @field manifest table The game backup manifest containing all backup entries with filenames and timestamps.

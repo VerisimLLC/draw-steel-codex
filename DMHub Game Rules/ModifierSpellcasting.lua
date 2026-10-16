@@ -279,8 +279,10 @@ CharacterModifier.TypeInfo.spellcasting = {
                         halign = "left",
                         text = modifier:try_get("spellcastingLevel", 1),
                         change = function(element)
-                            local num = math.floor(tonumber(element.text))
-                            if num == nil then
+                            local num = tonumber(element.text)
+                            if num ~= nil then
+                                num = math.floor(num)
+                            else
                                 num = modifier:try_get("spellcastingLevel", 1)
                             end
                             modifier.spellcastingLevel = num

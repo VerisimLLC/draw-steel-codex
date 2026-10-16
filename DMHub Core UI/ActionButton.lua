@@ -289,7 +289,8 @@ function gui.ActionButton(options)
 
     ThemeEngine.OnThemeChanged(mod, function()
         if mainPanel ~= nil and mainPanel.valid then
-            mainPanel.styles = ThemeEngine.MergeTokens(styles)
+            --styles always holds actionButtonStyles, so MergeTokens never returns nil here.
+            mainPanel.styles = ThemeEngine.MergeTokens(styles) --[[@as StyleArgs[] ]]
         end
     end)
 

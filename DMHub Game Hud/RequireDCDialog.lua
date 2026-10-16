@@ -608,6 +608,7 @@ function GameHud:RequireRollListenerPanel()
 end
 --]==]
 
+---@type Panel?
 local g_requireRollDialog = nil
 
 local function CloseRequireRollDialog()
@@ -862,6 +863,8 @@ function ShowRequireRollDialog(args)
 				end
 
 				checkSelectedIndex = options.index
+				--these options live inside g_requireRollDialog, which is only cleared once destroyed.
+				---@cast g_requireRollDialog -nil
 				g_requireRollDialog:FireEventTree('refreshDiceCheck')
 			end,
 		}
@@ -998,7 +1001,6 @@ function ShowRequireRollDialog(args)
 		
 		gui.Panel{
 			id = 'roll-type-panel',
-			flow = 'horizontal',
 			halign = 'center',
 			valign = 'top',
 			vmargin = 6,

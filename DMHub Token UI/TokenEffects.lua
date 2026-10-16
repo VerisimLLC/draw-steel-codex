@@ -402,16 +402,16 @@ function GetTokenEffects(id)
 		return { result }
 	end
 
-	result = assets:FindEmojiByIdOrName(id)
-	if result ~= nil then
+	local emoji = assets:FindEmojiByIdOrName(id)
+	if emoji ~= nil then
 		local items = {
-			CreateTokenEffectFromEmoji(result, result.looping)
+			CreateTokenEffectFromEmoji(emoji, emoji.looping)
 		}
 
-		for i,child in ipairs(result.childEmoji) do
+		for i,child in ipairs(emoji.childEmoji) do
 			local childEmoji = assets.emojiTable[child]
 			if childEmoji ~= nil then
-				items[#items+1] = CreateTokenEffectFromEmoji(childEmoji, result.looping)
+				items[#items+1] = CreateTokenEffectFromEmoji(childEmoji, emoji.looping)
 			end
 		end
 

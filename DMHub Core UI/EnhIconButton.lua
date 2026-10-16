@@ -45,7 +45,7 @@ local function _iconButton(args)
         end
     end
 
-    return gui.Panel(panelArgs)
+    return gui.Panel(panelArgs) --[[@as IconButton]]
 end
 
 if gui.EnhIconButton == nil then

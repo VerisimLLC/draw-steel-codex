@@ -187,7 +187,8 @@ function DTSelectItemDialog._createPanel(callbacks)
 
     SelectSource("crafting")
 
-    return dlg:Root()
+    -- DialogShell.new always builds root; Root() is Panel|nil only because it reads via try_get.
+    return dlg:Root() --[[@as Panel]]
 end
 
 --- Creates a select item dialog for AddChild usage

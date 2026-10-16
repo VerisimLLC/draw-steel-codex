@@ -1505,7 +1505,7 @@ local function SearchObjectItems(query, currentId)
             for id,v in pairs(assets.allObjects) do
                 if v ~= nil and not v.isfolder and not seen[id] then
                     local head = string.lower(string.sub(
-                        tostring(v.description or v.name or id), 1, SEARCH_HEAD_LEN))
+                        tostring(v.description or id), 1, SEARCH_HEAD_LEN))
                     if string.find(head, q, 1, true) ~= nil then
                         record(id, v)
                     end

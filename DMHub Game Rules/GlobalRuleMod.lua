@@ -7,6 +7,8 @@ local mod = dmhub.GetModLoading()
 --- @field applyMonsters boolean If true, this modifier applies to monsters.
 --- @field applyRetainers boolean If true, this modifier applies to retainers.
 --- @field applyCompanions boolean If true, this modifier applies to companions.
+--- @field name string Display name, set by CreateNew.
+--- @field encounterId? string For a rule in the "encounterRuleMods" table: id of the encounter rule set it belongs to; read with try_get.
 --- A global rule modifier that is applied to all creatures of matching types without being attached to any character.
 GlobalRuleMod = RegisterGameType("GlobalRuleMod")
 

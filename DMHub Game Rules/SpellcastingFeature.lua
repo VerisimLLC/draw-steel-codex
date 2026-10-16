@@ -10,7 +10,7 @@ local mod = dmhub.GetModLoading()
 --- @field spellbook boolean If true, this class uses a spellbook.
 --- @field spellbookSize number|string|table Number of spells the spellbook can hold.
 --- @field spellbookSpells table[] List of spells in the spellbook.
---- @field spellLists table[] Spell lists available to this feature.
+--- @field spellLists string[] Ids of the spell lists (SpellList table keys) available to this feature.
 --- @field dc number Spell save DC base value.
 --- @field attackBonus number Spell attack bonus base value.
 --- @field maxSpellLevel number Maximum spell slot level available.
@@ -19,7 +19,7 @@ local mod = dmhub.GetModLoading()
 --- @field knownCantrips string[] Ids of known cantrips.
 --- @field knownSpells string[] Ids of known spells.
 --- @field memorizedSpells string[] Ids of memorized (prepared) spells.
---- @field grantedSpells string[] Ids of spells automatically granted by this feature.
+--- @field grantedSpells {spellid: string, source: string}[] Spells automatically granted by this feature, with the name of the modifier granting each (see ModifierGrantSpells).
 --- @field upcastingType string When upcasting is allowed: "cast", "prepared", or "none".
 --- @field canUseSpellSlots boolean If true, the caster can spend spell slots.
 --- @field ritualCasting boolean If true, the caster can cast rituals without expending a slot.

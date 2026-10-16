@@ -79,13 +79,15 @@ gui.Panel{
 }
 ```
 
-## Checkpoint backups
+## Combat checkpoints
 
-Register a document so it's included in game-state saves:
+Register a document so **Revert Turn** rolls it back along with the rest of the board:
 
 ```lua
 mod:RegisterDocumentForCheckpointBackups("myDocId")
 ```
+
+This has nothing to do with saving: ordinary game backups include every document. Register only state the current turn can change and that should be undone with it (resources, Malice, combat logs). Do not register Director or table settings (audio, safety tools, campaign tracking) -- reverting a turn would silently undo them.
 
 ## Helper
 
@@ -97,5 +99,5 @@ mod:RegisterDocumentForCheckpointBackups("myDocId")
 - **Read** directly from `.data`
 - **Write** by wrapping in `BeginChange()` / `CompleteChange(description)`
 - **Monitor** with `monitorGame` + `refreshGame` on UI panels, or `think` callbacks
-- **Register** for checkpoint backups if the data should survive save/load
+- **Register** for combat checkpoints only if Revert Turn should roll the data back
 - Document IDs are arbitrary strings — choose descriptive names

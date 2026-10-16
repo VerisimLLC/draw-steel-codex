@@ -623,6 +623,7 @@ end
 
 local function CreateTriggeredAbilityPanel()
     local resultPanel
+    ---@type TriggeredAbilityDisplay
     local m_triggeredAbility = nil
 
     resultPanel = gui.Panel {
@@ -843,7 +844,7 @@ local function CreateAbilityListPanel()
                 borderBox = true,
                 vmargin = 3,
                 click = function(element)
-                    local token = CharacterSheet.instance ~= nil
+                    local token = CharacterSheet.instance
                         and CharacterSheet.instance.data.info.token or nil
                     if token ~= nil and ShowVillainActionPicker ~= nil then
                         ShowVillainActionPicker(token, capturedSlot)
@@ -1191,7 +1192,7 @@ local function CreateAbilityListPanel()
         --instead of a filled ability. Reuses the search-reveal pulse, so the
         --signpost is the same gentle animation the director already knows.
         revealEmptyVillainSlot = function(element)
-            if CharacterSheet.instance == nil
+            if not CharacterSheet.instance
                 or CharacterSheet.instance.data.info.token == nil then
                 return
             end
@@ -1211,7 +1212,8 @@ local function CreateAbilityListPanel()
 
     ThemeEngine.OnThemeChanged(mod, function()
         if resultPanel ~= nil and resultPanel.valid then
-            resultPanel.styles = buildActionMenuStyles()
+            --MergeTokens returns nil only for a nil rule list; this one is a literal.
+            resultPanel.styles = buildActionMenuStyles() --[[@as StyleArgs[] ]]
         end
     end)
 
@@ -1238,8 +1240,9 @@ end
 --does not propagate to ancestors, while hover propagates from the editor's
 --inner widgets up to the container this is attached to.
 local function ImplementationStatusHover(element)
+    --CharacterSheet.instance is false, not nil, while no sheet exists.
     local sheet = CharacterSheet.instance
-    if sheet == nil then
+    if not sheet then
         return
     end
     local token = sheet.data.info.token
@@ -1629,7 +1632,7 @@ function CharSheet.CharacterSheetAndAvatarPanel()
                         else
                             s = band.name
                             local keywords = {}
-                            for keyword, _ in pairs(info.token.properties.keywords or {}) do
+                            for keyword, _ in pairs(info.token.properties:Keywords() or {}) do
                                 if keyword ~= band.name then
                                     keywords[#keywords + 1] = keyword
                                 end
@@ -2078,7 +2081,7 @@ function CharSheet.CharacterSheetAndAvatarPanel()
                 end,
                 click = function(element)
                     local sheet = CharacterSheet.instance
-                    if sheet == nil then
+                    if not sheet then
                         return
                     end
                     local token = sheet.data.info.token
@@ -2228,7 +2231,7 @@ function CharSheet.CharacterSheetAndAvatarPanel()
                     end,
                     change = function(element)
                         local sheet = CharacterSheet.instance
-                        if sheet == nil then
+                        if not sheet then
                             return
                         end
                         local c = sheet.data.info.token.properties
@@ -2257,7 +2260,7 @@ function CharSheet.CharacterSheetAndAvatarPanel()
                     end,
                     click = function(element)
                         local sheet = CharacterSheet.instance
-                        if sheet == nil then
+                        if not sheet then
                             return
                         end
                         local c = sheet.data.info.token.properties
@@ -2553,6 +2556,7 @@ local EditResistanceEntry = function(creature, resistanceEntry, params)
                     end,
 
                     refresh = function(element)
+                        ---@cast element Dropdown
                         element.idChosen = cond(resistanceEntry.dr >= 0, "immunity", "vulnerability")
                     end,
                 },
@@ -3361,7 +3365,7 @@ local function ShowAdjustLevelDialog(token)
                                         report = token.properties:ConvertToCustomRetainer()
                                     end,
                                 }
-                                if CharacterSheet.instance ~= nil then
+                                if CharacterSheet.instance then
                                     CharacterSheet.instance:FireEvent("refreshAll")
                                 end
                                 gui.CloseModal()
@@ -3426,7 +3430,7 @@ local function ShowAdjustLevelDialog(token)
                             end,
                         }
                     end
-                    if CharacterSheet.instance ~= nil then
+                    if CharacterSheet.instance then
                         CharacterSheet.instance:FireEvent("refreshAll")
                     end
                     gui.CloseModal()
@@ -4037,7 +4041,7 @@ function ShowVillainActionPicker(token, slot)
                     token.properties:AddInnateActivatedAbility(copy)
                 end,
             }
-            if CharacterSheet.instance ~= nil then
+            if CharacterSheet.instance then
                 CharacterSheet.instance:FireEvent("refreshAll")
             end
             gui.CloseModal()
@@ -4134,7 +4138,7 @@ function ShowVillainActionPicker(token, slot)
                 },
                 click = function(element)
                     gui.CloseModal()
-                    if CharacterSheet.instance == nil then
+                    if not CharacterSheet.instance then
                         return
                     end
                     local newAbility = ActivatedAbility.Create {
@@ -4299,6 +4303,15 @@ local function DSCharSheet()
                                         end
                                         local baseValue = token.properties:GetBaseAttribute(attrid).baseValue
                                         local modifiers = token.properties:DescribeModifications(attrid, baseValue)
+
+                                        --the listed modifiers can add up past the hero cap; say why the score shows lower.
+                                        local uncapped = token.properties:CalculateAttribute(attrid, baseValue)
+                                        if token.properties:HeroCharacteristicIsCapped(attrid, uncapped) then
+                                            modifiers[#modifiers+1] = {
+                                                key = "Hero Maximum",
+                                                value = string.format("Capped at %d", creature.heroCharacteristicMax),
+                                            }
+                                        end
 
                                         print("POPUP::", attrid, info.description)
 
@@ -5097,7 +5110,11 @@ local function DSCharSheet()
                                             end,
                                         }
                                     }
-                                    CharacterSheet.instance:AddChild(CharacterSkillDialog.CreateAsChild(options))
+                                    --nil when the sheet's token is not a hero or follower.
+                                    local dialog = CharacterSkillDialog.CreateAsChild(options)
+                                    if dialog ~= nil then
+                                        CharacterSheet.instance:AddChild(dialog)
+                                    end
                                 end,
                             },
 
@@ -5659,7 +5676,8 @@ local function DSCharSheet()
                                         end
                                         ThemeEngine.OnThemeChanged(mod, function()
                                             if element ~= nil and element.valid then
-                                                element.styles = rebuild()
+                                                --MergeTokens returns nil only for a nil rule list; this one is a literal.
+                                                element.styles = rebuild() --[[@as StyleArgs[] ]]
                                             end
                                         end)
                                     end,
@@ -5880,7 +5898,7 @@ local function DSCharSheet()
                                     -- names the base level and the revert path.
                                     hover = function(element)
                                         local sheet = CharacterSheet.instance
-                                        if sheet == nil then
+                                        if not sheet then
                                             return
                                         end
                                         local token = sheet.data.info.token
@@ -5903,7 +5921,7 @@ local function DSCharSheet()
                                     -- editing and this is a no-op.
                                     click = function(element)
                                         local sheet = CharacterSheet.instance
-                                        if sheet == nil then
+                                        if not sheet then
                                             return
                                         end
                                         local token = sheet.data.info.token
@@ -5920,7 +5938,7 @@ local function DSCharSheet()
                                         -- did not actually change: a spurious refreshAll mid-destroy
                                         -- recomputes stats while the modifier pipeline is half torn
                                         -- down (e.g. Stability transiently nil).
-                                        if CharacterSheet.instance == nil then
+                                        if not CharacterSheet.instance then
                                             return
                                         end
                                         local token = CharacterSheet.instance.data.info.token
@@ -6320,7 +6338,6 @@ local function DSCharSheet()
 
                             width = 220,
                             height = 70,
-                            halign = "horizontal",
                             valign = "top",
 
                             lmargin = 20,
@@ -6467,7 +6484,6 @@ local function DSCharSheet()
 
                             width = 120,
                             height = 120,
-                            halign = "horizontal",
                             valign = "center",
 
                             lmargin = -2,
@@ -6695,8 +6711,6 @@ local function DSCharSheet()
                                 bgcolor = "clear",
                                 width = "auto",
                                 height = "50%",
-                                bgimage = true,
-                                bgcolor = "clear",
 
                                 valign = "center",
                                 halign = "center",
@@ -7921,6 +7935,45 @@ local function FeatureEntryDescription(entry)
     return desc
 end
 
+--Features picked from a creature's template choices (e.g. animal traits),
+--using the deepest pick: "Elemental (Fire)" rather than "Elemental".
+--- @param creature creature
+--- @return CharacterFeature[]
+local function ChosenTemplateFeatures(creature)
+    local result = {}
+    local levelChoices = creature:GetLevelChoices() or {}
+    local function walk(choice)
+        local picks = levelChoices[choice.guid]
+        if picks == nil or #picks == 0 then
+            return
+        end
+        local options = choice:GetOptions(levelChoices) or {}
+        for _,pickid in ipairs(picks) do
+            for _,option in ipairs(options) do
+                if option.guid == pickid then
+                    local nestedPicks = levelChoices[option.guid]
+                    if option.IsDerivedFrom("CharacterFeatureChoice") and nestedPicks ~= nil and #nestedPicks > 0 then
+                        walk(option)
+                    else
+                        result[#result+1] = option
+                    end
+                end
+            end
+        end
+    end
+    for _,template in ipairs(creature:GetActiveTemplates()) do
+        --pcall: a malformed template entry should not blank the whole tab.
+        pcall(function()
+            for _,feature in ipairs(template.modifierInfo.features) do
+                if feature.IsDerivedFrom("CharacterFeatureChoice") then
+                    walk(feature)
+                end
+            end
+        end)
+    end
+    return result
+end
+
 --Display names of the options a fully-made choice slot resolved to, so the
 --row can read "Forgettable Face" rather than "Agent Perk".
 local function FeatureChosenTexts(feature, creature)
@@ -8455,6 +8508,8 @@ local function FeaturesIndexPanel()
             height = "auto",
             flow = "horizontal",
             press = cond(expandable, function(element)
+                --only installed on expandable rows, which always build tri.
+                ---@cast tri -nil
                 local nowExpanded = not tri:HasClass("expanded")
                 tri:SetClass("expanded", nowExpanded)
                 body:SetClass("collapsed", not nowExpanded)
@@ -9184,6 +9239,41 @@ function CharSheet.InnerFeaturesPanel()
                 end,
             },
 
+            --Template traits picked in the builder (read-only here).
+            gui.Panel {
+                height = "auto",
+                halign = "center",
+                width = "100%-16",
+                flow = "vertical",
+                bmargin = 12,
+
+                refreshToken = function(element, info)
+                    local creature = info.token.properties
+                    local features = ChosenTemplateFeatures(creature)
+                    local children = {}
+                    for _,feature in ipairs(features) do
+                        --Match the ListEditor rows above, whose styles are scoped to it.
+                        children[#children+1] = gui.Panel {
+                            classes = { "modifier-summary-panel" },
+                            width = "100%",
+                            height = "auto",
+                            flow = "horizontal",
+                            vmargin = 2,
+                            gui.Label {
+                                classes = { "modifier-summary-label" },
+                                width = "100%-200",
+                                height = "auto",
+                                fontSize = 14,
+                                text = StringInterpolateGoblinScript(feature:GetSummaryText(), creature),
+                                markdown = true,
+                            },
+                        }
+                    end
+                    element.children = children
+                    element:SetClass("collapsed", #children == 0)
+                end,
+            },
+
             --creature templates.
             gui.Panel {
                 height = "auto",
@@ -9231,8 +9321,17 @@ function CharSheet.InnerFeaturesPanel()
                                     end
 
                                     element:SetClass("collapsed", false)
-                                    if templateInfo.description ~= '' then
-                                        label.text = string.format("%s--%s", templateInfo.name, templateInfo.description)
+                                    --Rules text lives in the builder; point there.
+                                    local hasChoices = false
+                                    pcall(function()
+                                        for _,feature in ipairs(templateInfo.modifierInfo.features) do
+                                            if feature.IsDerivedFrom("CharacterChoice") then
+                                                hasChoices = true
+                                            end
+                                        end
+                                    end)
+                                    if hasChoices then
+                                        label.text = string.format("%s - Traits can be chosen or adjusted in the Builder tab.", templateInfo.name)
                                     else
                                         label.text = templateInfo.name
                                     end

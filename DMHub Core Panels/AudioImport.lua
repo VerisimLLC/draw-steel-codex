@@ -154,7 +154,7 @@ local function ImportAudioWizard()
 		end,
 
 		output = function(element, info)
-			dmhub.Debug(string.format("OPEN FILES: update = %s; sheets = %s", json(info), json(importer.sheets)))
+			dmhub.Debug(string.format("OPEN FILES: update = %s", json(info)))
 
 			element:FireEventTree("refresh")
 		end,

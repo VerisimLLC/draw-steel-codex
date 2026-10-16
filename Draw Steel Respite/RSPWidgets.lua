@@ -5,13 +5,22 @@ local mod = dmhub.GetModLoading()
 --- @field new fun(o?: table): RSPWidgets
 RSPWidgets = RegisterGameType("RSPWidgets")
 
+--- @class RSPStepperArgs
+--- @field get fun(): number
+--- @field set fun(n: number)
+--- @field min number
+--- @field max number
+--- @field width? number|string
+--- @field label? string
+--- @field lmargin? number
+
 --- A "- [n] +" stepper over a bounded integer held in the session.
 --- The well never holds the value: it repaints from get() on every
 --- respiteChanged, and every edit routes through set().
 --- Pass label to cap the well with a small centered header. The header is a
 --- fixed line above an untouched strip: well-wide, indented one button, so it
 --- spans exactly the well's run and centers over the text box.
---- @param args {get: fun(): number, set: fun(n: number), min: number, max: number, width: nil|number|string, label: nil|string, lmargin: nil|number}
+--- @param args RSPStepperArgs
 --- @return Panel
 function RSPWidgets.Stepper(args)
     local well
@@ -102,20 +111,26 @@ function RSPWidgets.Stepper(args)
     }
 end
 
+--- @class RSPInstructionsArgs
+--- @field text string|(fun(): string)
+--- @field orientation string
+
 --- The pane in which a step explains itself. Runs down the left of the working
 --- area, or across the top of it.
 --- text may be a function when the copy depends on the session, in which case
 --- it is asked again on every respiteChanged.
---- @param args {text: string|fun(): string, orientation: string}
+--- @param args RSPInstructionsArgs
 --- @return Panel
 function RSPWidgets.Instructions(args)
     local side = args.orientation == RSPConstants.orientSide
 
+    --- @return string
     local function Text()
-        if type(args.text) == "function" then
-            return args.text()
+        local text = args.text
+        if type(text) == "function" then
+            return text()
         end
-        return args.text
+        return text
     end
 
     return gui.Panel{
@@ -170,12 +185,32 @@ local function TrailingCount(...)
     return count
 end
 
+--- Per-character callbacks shared by CharacterRow and CharacterList. owner is
+--- the hero a follower's row belongs to, nil on a hero's own row.
+--- @class RSPCharacterCallbacks
+--- @field highlight? fun(charid: string): boolean
+--- @field click? fun(charid: string, owner: string|nil)
+--- @field indicator? fun(charid: string): string
+--- @field check? fun(charid: string): boolean
+--- @field attention? fun(charid: string): boolean
+--- @field rolls? fun(charid: string, owner: string|nil): number
+--- @field sheet? fun(charid: string, owner: string|nil)
+--- @field lock? fun(charid: string): boolean
+
+--- @class RSPCharacterRowArgs: RSPCharacterCallbacks
+--- @field charid string
+--- @field owner? string
+--- @field indent? boolean
+
+--- @class RSPCharacterListArgs: RSPCharacterCallbacks
+--- @field roster string[]|function
+
 --- One character in a list: token image, name, and whatever the step uses to
 --- show that character's standing. The row holds no state - highlight() and
 --- indicator() are asked again on every respiteChanged.
 --- Set indent to sit the row under the one above it, which is how a follower
 --- reads as belonging to its hero.
---- @param args {charid: string, highlight: fun(charid: string): boolean, click: nil|fun(charid: string), indicator: nil|fun(charid: string): string, check: nil|fun(charid: string): boolean, indent: nil|boolean}
+--- @param args RSPCharacterRowArgs
 --- @return Panel|nil
 function RSPWidgets.CharacterRow(args)
     local token = dmhub.GetCharacterById(args.charid)
@@ -397,7 +432,7 @@ end
 --- list rebuilds them when the roster itself changes - a window built before
 --- the Director picked participants would otherwise keep the empty roster it
 --- started with for the rest of the Respite.
---- @param args {roster: string[]|function, highlight: fun(charid: string): boolean, click: nil|fun(charid: string), indicator: nil|fun(charid: string): string, check: nil|fun(charid: string): boolean}
+--- @param args RSPCharacterListArgs
 --- @return Panel
 function RSPWidgets.CharacterList(args)
     --Forward-declared: the token watchers below are built as children, so they

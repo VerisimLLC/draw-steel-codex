@@ -39,7 +39,7 @@ assets = {}
 function assets:GetMonsterNode(id) end
 
 --- Creates and uploads a new artist entry with the given ID.
---- @param id string The artist ID.
+--- @param id? string The artist ID; a new id is generated when nil.
 function assets:AddAndUploadArtist(id) end
 
 --- Searches the built-in phosphor icon set by filename substring (case-insensitive), returning up to maxResults icon ids of the form "phosphor/<name>.png" in sorted order. Only the name index is consulted -- no icon textures are loaded. Pass an empty filter to page from the start of the set.
@@ -94,7 +94,7 @@ function assets:CreateNewImageLibrary(options) end
 
 --- Finds an emoji asset by its ID or name, optionally filtering by emoji type. Returns nil if not found.
 --- @param name string The emoji ID or display name.
---- @param emojiType string The emoji type filter, or nil for any type.
+--- @param emojiType nil|string The emoji type filter, or nil for any type.
 --- @return nil|EmojiAssetLua
 function assets:FindEmojiByIdOrName(name, emojiType) end
 
@@ -117,7 +117,7 @@ function assets.UploadPDFDocumentAsset(options) end
 --- @param tableArgs table The folder properties.
 function assets:UploadNewDocumentFolder(tableArgs) end
 
---- Uploads an audio file. Automatically converts FLAC and M4A (AAC/MPEG-4) files to MP3. Options include path, guid, parentFolder, description, error, progress, and upload callbacks.
+--- Uploads an audio file. Automatically converts FLAC and M4A (AAC/MPEG-4) files to MP3, and any other file Unity cannot decode (e.g. Opus) to Ogg Vorbis. Options include path, guid, parentFolder, description, error, progress, and upload callbacks.
 --- @param options table Upload options.
 --- @return nil|string The GUID of the uploaded audio asset, or nil on failure.
 function assets:UploadAudioAsset(options) end

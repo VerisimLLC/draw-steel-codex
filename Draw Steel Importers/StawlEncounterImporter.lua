@@ -468,7 +468,7 @@ local function ImportStawlEncounter(doc)
 
     --open the encounter builder on the imported encounter for review. "Save"
     --labels the save button correctly for an already-persisted encounter.
-    if GameHud.instance ~= nil and Encounter.CreateEditorDialog ~= nil then
+    if GameHud.instance and Encounter.CreateEditorDialog ~= nil then
         Encounter.CreateEditorDialog(encounter, { mode = "Save" })
     end
 

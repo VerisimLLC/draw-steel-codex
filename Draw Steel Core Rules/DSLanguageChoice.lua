@@ -183,7 +183,7 @@ function CharacterLanguageChoice:CreateEditor(classOrRace, params)
             gui.Input{
                 classes = {"formStacked"},
                 width = 180,
-                text = tonumber(self.numChoices),
+                text = tostring(self.numChoices),
                 characterLimit = 2,
                 numeric = true,
                 change = function(element)
@@ -412,7 +412,7 @@ function CharacterForgetLanguageChoice:CreateEditor(classOrRace, params)
             gui.Input{
                 classes = {"formStacked"},
                 width = 180,
-                text = tonumber(self.numChoices),
+                text = tostring(self.numChoices),
                 characterLimit = 2,
                 numeric = true,
                 change = function(element)

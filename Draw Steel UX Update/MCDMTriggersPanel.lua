@@ -278,6 +278,8 @@ local function RenderTriggerCard(triggerDisplay, caster, collapsedSet, manualAbi
 	else
 		local keywords = triggerDisplay:try_get("keywords") or {}
 		local keywordKeys = table.keys(keywords)
+		--table.keys is nil only for a non-table, and keywords is a keyword set or {}.
+		---@cast keywordKeys -nil
 		local keywordStr = "-"
 		if #keywordKeys > 0 then
 			local sorted = {}

@@ -18,6 +18,7 @@ MonsterAI = {
     tactics = {dwarf = {}},
     MoveMatchesMonster = function() return true end,
     RegisterMaliceAbility = function(_, entry) registration = entry end,
+    TargetStaminaBias = function() return 0 end,
 }
 local turnId = "dwarves"
 dmhub = {initiativeQueue = {round = 1, CurrentInitiativeId = function() return turnId end}}

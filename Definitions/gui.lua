@@ -28,7 +28,7 @@ function gui.Carousel(args) end
 
 --- Create a MapImport panel for importing map files.
 --- @param table table The map import configuration.
---- @return Panel
+--- @return LuaSheetMapImport
 function gui.MapImport(table) end
 
 --- Create a Table panel

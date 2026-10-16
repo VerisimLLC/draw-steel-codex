@@ -184,6 +184,7 @@ local function CreateNoteRow(noteid)
         local cur = GetNote(noteid)
         if cur == nil then return end
 
+        ---@type MarkdownDocument
         local doc = cur
         if liveText ~= nil then
             if previewDoc == nil then
@@ -924,8 +925,6 @@ DockablePanel.Register {
 
 local RUN_AGENDA_DOC = "runagenda"
 
-mod:RegisterDocumentForCheckpointBackups(RUN_AGENDA_DOC)
-
 --Phosphor masks, matching the doc-type glyphs so a Run row reads the same
 --whether it points at a doc (which supplies its own DocTypeIcon) or, for a
 --token-backed item, falls back to one of these. Tinted @fg at the callsite.
@@ -969,6 +968,17 @@ function RunAgenda.AddDocument(doc)
         done = false,
     }
 end
+
+CustomDocument.RegisterAction{
+    id = "run.add",
+    text = "Add to the Run",
+    mode = "read",
+    directorOnly = true,
+    anyPage = true,
+    run = function(doc)
+        RunAgenda.AddDocument(doc)
+    end,
+}
 
 --scripting hooks: read or replace the whole agenda from the console or
 --tooling. The Run panel monitors the shared document, so a SetItems
@@ -1062,6 +1072,7 @@ local function CreateRunItemRow(item, isCurrent)
     --the accordion body. Content is built lazily on first expand: the
     --embedded page render is heavy, and most rows stay closed.
     local bodyPanel = nil
+    ---@type Panel?
     local arrow = nil
     if expandable then
         local bodyClasses = {}
@@ -1099,6 +1110,8 @@ local function CreateRunItemRow(item, isCurrent)
         local function Toggle()
             local nowExpanded = not (g_runRowExpanded[item.id] == true)
             g_runRowExpanded[item.id] = nowExpanded or nil
+            --Toggle is the arrow's own click handler, so the arrow exists.
+            ---@cast arrow -nil
             arrow:SetClass("expanded", nowExpanded)
             bodyPanel:SetClass("collapsed", not nowExpanded)
             if nowExpanded then
@@ -1756,8 +1769,6 @@ DockablePanel.Register {
 
 local CAMPAIGN_STATE_DOC = "campaignstate"
 
-mod:RegisterDocumentForCheckpointBackups(CAMPAIGN_STATE_DOC)
-
 CampaignState = rawget(_G, "CampaignState") or {}
 
 --The monitorGame path for panels that react to state changes.
@@ -1944,8 +1955,6 @@ end
 ----------------------------------------------------------------------
 
 local OFFER_DOC = "inteltrackeroffer"
-
-mod:RegisterDocumentForCheckpointBackups(OFFER_DOC)
 
 local function OfferPath()
     return mod:GetDocumentPath(OFFER_DOC)
@@ -3220,7 +3229,7 @@ local function FlowSceneType(doc)
         id = FLOW_SUBTITLE_TYPE[word] or "narration"
     end
 
-    local info = CustomDocument.docTypeInfo[id]
+    local info = CustomDocument.DocTypeInfoById(id) or CustomDocument.docTypeInfo.narration
     local tooltip = (italic ~= nil and italic ~= "") and italic or info.text
     return info.icon, tooltip
 end
@@ -3241,7 +3250,10 @@ local function BuildFlowGraph(folderid)
     end
     table.sort(nodes, function(a, b) return a.name < b.name end)
 
-    --map "C1-NN"-style name prefixes to nodes for exit-link resolution.
+    --DEPRECATED, kept as a shim: edges from "C1-NN" name prefixes and a
+    --"## Exit" heading in the prose. No shipped module names pages this way
+    --(the convention in use is TC-NN), so this matches nothing today. Exits
+    --are declared now -- [[exit]] tags and class exits, read below.
     local byPrefix = {}
     for _, node in ipairs(nodes) do
         local prefix = string.match(node.name, "^(C%d+%-%d+)")
@@ -3268,14 +3280,35 @@ local function BuildFlowGraph(folderid)
             end
         end
 
-        local ann = node.doc:try_get("annotations")
-        local exitAnn = ann ~= nil and ann.exit or nil
-        if exitAnn ~= nil and type(exitAnn) == "table" and exitAnn.typeName == "RichExit" then
-            local nd = exitAnn:try_get("nextDocid")
+        --Every [[exit]] on the page is an edge, not only the first. A page's
+        --second exit is keyed "exit:<name>", and reading only "exit" drew a
+        --branching scene as a straight line.
+        node.exitIds = {}
+        local ann = node.doc:try_get("annotations") or {}
+        local exitKeys = {}
+        for key, value in pairs(ann) do
+            if type(value) == "table" and value.typeName == "RichExit" then
+                exitKeys[#exitKeys + 1] = key
+            end
+        end
+        table.sort(exitKeys)
+        for _, key in ipairs(exitKeys) do
+            local nd = ann[key]:try_get("nextDocid")
             if type(nd) == "string" then
                 AddEdge(nd)
             end
-            node.exitId = exitAnn:try_get("id")
+            local exitId = ann[key]:try_get("id")
+            if exitId then
+                node.exitIds[#node.exitIds + 1] = exitId
+            end
+        end
+
+        --Exits the page's class declares (dev:documentclasses).
+        for _, exit in ipairs(CustomDocument.DeclaredExits(node.doc)) do
+            if exit.nextDocid then
+                AddEdge(exit.nextDocid)
+            end
+            node.exitIds[#node.exitIds + 1] = exit.id
         end
     end
 
@@ -3424,7 +3457,9 @@ local function CreateFlowPanel()
             local typeIcon, sceneType = FlowSceneType(node.doc)
 
             local happened = doneDocids[node.id] == true
-                or (node.exitId ~= nil and exitsTaken[node.exitId] == true)
+            for _, exitId in ipairs(node.exitIds) do
+                happened = happened or exitsTaken[exitId] == true
+            end
             local isNow = (node.id == nowDocid)
 
             local nodeClasses = { "bordered", "hoverable" }

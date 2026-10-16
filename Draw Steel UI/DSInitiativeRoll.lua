@@ -47,6 +47,49 @@ local g_monsterTokensOpenInitiative = nil
 --the controller's queue creation. nil means "Custom" (no live encounter).
 local g_selectedEncounterOpenInitiative = nil
 
+--The Draw Steel roll this client is running as the controller:
+--{ guid, holdBeforeQueue, reroll, done }. It lives outside the banner so a
+--banner relaunched from the presentdialog doc on this same client can take
+--over: a late echo of an earlier presentdialog write can make GameHud tear the
+--controller's banner down and relaunch a plain one, and then nobody created
+--the initiative queue (KPM5CV7T). done = a banner has acted on the roll.
+local m_controllerRoll = nil
+
+--Every Draw Steel banner created on this client; see Encounter.DrawSteelBannerActive.
+local m_liveBanners = {}
+
+--Drop destroyed banners from m_liveBanners and return how many are left.
+local function PruneLiveBanners()
+    local alive = {}
+    for _,panel in ipairs(m_liveBanners) do
+        if panel.valid then
+            alive[#alive+1] = panel
+        end
+    end
+    m_liveBanners = alive
+    return #alive
+end
+
+--The lowest Initiative Threshold among the heroes (a set of charids) who are
+--not Surprised; 6 by default. The die must reach it for the heroes to win.
+local function InitiativeThresholdFor(playerCharids)
+    local threshold = 6
+    local surprised = CharacterCondition.conditionsByName["surprised"]
+    for charid,_ in pairs(playerCharids or {}) do
+        local tok = dmhub.GetCharacterById(charid)
+        if tok ~= nil and tok.valid then
+            local isSurprised = surprised ~= nil and tok.properties:HasCondition(surprised.id)
+            if not isSurprised then
+                local t = tok.properties:CalculateNamedCustomAttribute("Initiative Threshold")
+                if type(t) == "number" and t > 0 and t < threshold then
+                    threshold = t
+                end
+            end
+        end
+    end
+    return threshold
+end
+
 local function track(eventType, fields)
     if dmhub.GetSettingValue("telemetry_enabled") == false then
         return
@@ -58,14 +101,105 @@ local function track(eventType, fields)
     analytics.Event(fields)
 end
 
+--Create the initiative queue for a resolved Draw Steel banner, with the side
+--that won going first: the live encounter, onset bookkeeping, the readied
+--encounter cleanup and the encounter_start telemetry. Runs on the controller.
+local function CreateCombatQueue(heroesWin)
+    local info = GameHud.instance.initiativeInterface
+    info.initiativeQueue = InitiativeQueue.Create()
+    info.initiativeQueue.playersGoFirst = heroesWin
+    info.initiativeQueue.playersTurn = heroesWin
+
+    --If an encounter was chosen (not "Custom"), attach a live encounter
+    --built from a deep copy of it. For a Custom combat there is no authored
+    --encounter, but we still create a basic live encounter so victory can be
+    --tracked and awarded -- it uses the Encounter defaults (1 Victory reward
+    --and the "all monsters defeated" victory condition).
+    if g_selectedEncounterOpenInitiative ~= nil then
+        info.initiativeQueue.liveEncounter = LiveEncounter.Create(g_selectedEncounterOpenInitiative)
+    else
+        local live = LiveEncounter.Create(Encounter.new())
+        --CountVictoryUnits (called in Create) reads the authored monster
+        --list, which is empty for Custom, so seed onsetMonsterCount from the
+        --actual monster tokens entering combat, one per minion squad. Without
+        --this, CheckVictory short-circuits ("no monsters -> nothing to win").
+        local onsetMonsters = 0
+        local countedUnits = {}
+        for charid,_ in pairs(g_monsterTokensOpenInitiative or {}) do
+            local tok = dmhub.GetCharacterById(charid)
+            if tok ~= nil and tok.valid then
+                local unit = Encounter.VictoryUnitKey(tok)
+                if unit ~= nil and not countedUnits[unit] then
+                    countedUnits[unit] = true
+                    onsetMonsters = onsetMonsters + 1
+                end
+            end
+        end
+        live.onsetMonsterCount = onsetMonsters
+        info.initiativeQueue.liveEncounter = live
+    end
+    ConfigureCombatSetupExtensions(info.initiativeQueue.liveEncounter)
+    --Snapshot the heroes' Recoveries at the onset of combat so the
+    --victory screen can show how they changed over the fight.
+    --both branches above just assigned a LiveEncounter.
+    local onsetEncounter = info.initiativeQueue.liveEncounter --[[@as LiveEncounter]]
+    onsetEncounter:RecordOnsetHeroes(g_playerTokensOpenInitiative)
+    g_selectedEncounterOpenInitiative = nil
+
+    --Combat has started: the readied encounter is consumed.
+    --Whatever route the monsters took onto the map, an armed
+    --click-to-place is now stale -- it would drop a second
+    --copy of the encounter into the fight -- so drop that too.
+    Encounter.ClearReadiedEncounter()
+    Encounter.DisarmClickToPlace()
+
+    Commands.rollinitiative()
+
+    -- Track encounter_start event
+    local heroCount = 0
+    local monsterCount = 0
+    local monsterTypes = {}
+    local monsterRoles = {}
+    for charid,_ in pairs(g_playerTokensOpenInitiative or {}) do
+        heroCount = heroCount + 1
+    end
+    for charid,_ in pairs(g_monsterTokensOpenInitiative or {}) do
+        monsterCount = monsterCount + 1
+        local tok = dmhub.GetCharacterById(charid)
+        if tok ~= nil and tok.valid then
+            local monsterType = tok.properties:try_get("monster_type", "unknown")
+            monsterTypes[#monsterTypes+1] = monsterType
+            local role = tok.properties:try_get("role", "")
+            if role ~= "" then
+                monsterRoles[#monsterRoles+1] = role
+            end
+        end
+    end
+    track("encounter_start", {
+        heroCount = heroCount,
+        monsterCount = monsterCount,
+        monsterTypes = table.concat(monsterTypes, ","),
+        monsterRoles = table.concat(monsterRoles, ","),
+        roundNumber = 1,
+        mapId = game.currentMapId,
+        mapName = (game.currentMap and game.currentMap.description) or "unknown",
+        dailyLimit = 10,
+    })
+end
+
 local function createDrawSteelBanner(options)
     print("BANNER:: CREATE")
 
     local m_document = mod:GetDocumentSnapshot("drawsteel")
 
+    --the controller roll this banner acts on when it resolves; nil for a
+    --banner that only shows the roll.
+    local m_roll = nil
+
     if options.controller then
+        local guid = dmhub.GenerateGuid()
         m_document:BeginChange()
-        m_document.data.guid = dmhub.GenerateGuid()
+        m_document.data.guid = guid
         m_document.data.claims = {}
         m_document.data.finished = nil
         m_document.data.delayFinished = nil
@@ -75,6 +209,16 @@ local function createDrawSteelBanner(options)
             m_document.data.delayFinished = 1
         end
         m_document:CompleteChange("Initialize initiative")
+
+        m_roll = { guid = guid, holdBeforeQueue = options.holdBeforeQueue, reroll = options.reroll == true, done = false }
+        m_controllerRoll = m_roll
+    elseif options.controllerUserId ~= nil and options.controllerUserId == dmhub.loginUserid
+        and m_controllerRoll ~= nil and m_controllerRoll.guid == options.rollGuid and not m_controllerRoll.done then
+        --relaunched from the presentdialog doc on the controller's own client
+        --(see m_controllerRoll): take over its duties for the roll already
+        --under way, without initializing it again.
+        print("BANNER:: taking over the controller's roll", options.rollGuid)
+        m_roll = m_controllerRoll
     end
 
     local m_heroesWin = nil
@@ -83,20 +227,7 @@ local function createDrawSteelBanner(options)
         m_heroesWin = cond(options.immediateResult == "heroes", true, false)
     end
 
-    local m_initiativeThreshold = 6
-    local surprisedConditionForThreshold = CharacterCondition.conditionsByName["surprised"]
-    for charid,_ in pairs(g_playerTokensOpenInitiative or {}) do
-        local tok = dmhub.GetCharacterById(charid)
-        if tok ~= nil and tok.valid then
-            local isSurprised = surprisedConditionForThreshold ~= nil and tok.properties:HasCondition(surprisedConditionForThreshold.id)
-            if not isSurprised then
-                local t = tok.properties:CalculateNamedCustomAttribute("Initiative Threshold")
-                if type(t) == "number" and t > 0 and t < m_initiativeThreshold then
-                    m_initiativeThreshold = t
-                end
-            end
-        end
-    end
+    local m_initiativeThreshold = InitiativeThresholdFor(g_playerTokensOpenInitiative)
 
     local m_rollInfo = nil
     local m_rollConfirmedStarting = false
@@ -231,7 +362,10 @@ local function createDrawSteelBanner(options)
 
                 dmhub.Coroutine(function()
                     self:SetClassTree("shine", true)
+                    --both ids are children of this banner (see heroesText/monstersText below).
                     local targetPanel = self:Get(cond(m_heroesWin, "heroesText", "monstersText"))
+                    ---@cast targetPanel -nil
+
                     local start = self.aliveTime
                     local t = self.aliveTime - start
 
@@ -248,8 +382,15 @@ local function createDrawSteelBanner(options)
                     coroutine.yield(0.8)
 
                     --as the controller who called for this dialog,
-                    --create initiative for everyone now.
-                    if options.controller and options.reroll then
+                    --create initiative for everyone now. Only one banner
+                    --acts on a roll: the controller's, or the one that took
+                    --over from it.
+                    local roll = nil
+                    if m_roll ~= nil and not m_roll.done then
+                        m_roll.done = true
+                        roll = m_roll
+                    end
+                    if roll ~= nil and roll.reroll then
                         --Per-round "who goes first" reroll (Crows): combat already
                         --exists, so do NOT create a queue. Just record which side
                         --goes first this round and refresh the initiative bar.
@@ -259,85 +400,33 @@ local function createDrawSteelBanner(options)
                             q.playersGoFirst = m_heroesWin
                             q.playersTurn = m_heroesWin
                             dmhub:UploadInitiativeQueue()
-                            if GameHud.instance ~= nil and GameHud.instance:has_key("choiceInitiativeBar") then
+                            if GameHud.instance and GameHud.instance:has_key("choiceInitiativeBar") then
                                 GameHud.instance.choiceInitiativeBar:FireEvent("refresh")
                             end
                         end
-                    elseif options.controller then
-                        local info = GameHud.instance.initiativeInterface
-                        info.initiativeQueue = InitiativeQueue.Create()
-                        info.initiativeQueue.playersGoFirst = m_heroesWin
-                        info.initiativeQueue.playersTurn = m_heroesWin
-
-                        --If an encounter was chosen (not "Custom"), attach a live encounter
-                        --built from a deep copy of it. For a Custom combat there is no authored
-                        --encounter, but we still create a basic live encounter so victory can be
-                        --tracked and awarded -- it uses the Encounter defaults (1 Victory reward
-                        --and the "all monsters defeated" victory condition).
-                        if g_selectedEncounterOpenInitiative ~= nil then
-                            info.initiativeQueue.liveEncounter = LiveEncounter.Create(g_selectedEncounterOpenInitiative)
+                    elseif roll ~= nil then
+                        --a caller may hold the start of combat once the winner
+                        --is known (Encounter of the Week lets the heroes arrange
+                        --themselves when they win): it gets the result and a
+                        --begin function to call when it is ready.
+                        local heroesWin = m_heroesWin
+                        local begun = false
+                        local function Begin()
+                            if begun then
+                                return
+                            end
+                            begun = true
+                            CreateCombatQueue(heroesWin)
+                        end
+                        if roll.holdBeforeQueue ~= nil then
+                            local ok, err = pcall(roll.holdBeforeQueue, heroesWin, Begin)
+                            if not ok then
+                                print("BANNER:: holdBeforeQueue failed; starting combat now:", err)
+                                Begin()
+                            end
                         else
-                            local live = LiveEncounter.Create(Encounter.new())
-                            --CountNonMinionMonsters (called in Create) reads the authored monster
-                            --list, which is empty for Custom, so seed onsetMonsterCount from the
-                            --actual non-minion monster tokens entering combat. Without this,
-                            --CheckVictory short-circuits ("no monsters -> nothing to win").
-                            local onsetMonsters = 0
-                            for charid,_ in pairs(g_monsterTokensOpenInitiative or {}) do
-                                local tok = dmhub.GetCharacterById(charid)
-                                if tok ~= nil and tok.valid and tok.properties ~= nil
-                                    and tok.properties:IsMonster() and not tok.properties.minion then
-                                    onsetMonsters = onsetMonsters + 1
-                                end
-                            end
-                            live.onsetMonsterCount = onsetMonsters
-                            info.initiativeQueue.liveEncounter = live
+                            Begin()
                         end
-                        ConfigureCombatSetupExtensions(info.initiativeQueue.liveEncounter)
-                        --Snapshot the heroes' Recoveries at the onset of combat so the
-                        --victory screen can show how they changed over the fight.
-                        info.initiativeQueue.liveEncounter:RecordOnsetHeroes(g_playerTokensOpenInitiative)
-                        g_selectedEncounterOpenInitiative = nil
-
-                        --Combat has started: the readied encounter is consumed.
-                        --Whatever route the monsters took onto the map, an armed
-                        --click-to-place is now stale -- it would drop a second
-                        --copy of the encounter into the fight -- so drop that too.
-                        Encounter.ClearReadiedEncounter()
-                        Encounter.DisarmClickToPlace()
-
-                        Commands.rollinitiative()
-
-                        -- Track encounter_start event
-                        local heroCount = 0
-                        local monsterCount = 0
-                        local monsterTypes = {}
-                        local monsterRoles = {}
-                        for charid,_ in pairs(g_playerTokensOpenInitiative or {}) do
-                            heroCount = heroCount + 1
-                        end
-                        for charid,_ in pairs(g_monsterTokensOpenInitiative or {}) do
-                            monsterCount = monsterCount + 1
-                            local tok = dmhub.GetCharacterById(charid)
-                            if tok ~= nil and tok.valid then
-                                local monsterType = tok.properties:try_get("monster_type", "unknown")
-                                monsterTypes[#monsterTypes+1] = monsterType
-                                local role = tok.properties:try_get("role", "")
-                                if role ~= "" then
-                                    monsterRoles[#monsterRoles+1] = role
-                                end
-                            end
-                        end
-                        track("encounter_start", {
-                            heroCount = heroCount,
-                            monsterCount = monsterCount,
-                            monsterTypes = table.concat(monsterTypes, ","),
-                            monsterRoles = table.concat(monsterRoles, ","),
-                            roundNumber = 1,
-                            mapId = game.currentMapId,
-                            mapName = (game.currentMap and game.currentMap.description) or "unknown",
-                            dailyLimit = 10,
-                        })
                     end
 
                     self:DestroySelf()
@@ -438,8 +527,11 @@ local function createDrawSteelBanner(options)
 
         create = function(self)
             audio.FireSoundEvent("UI.DrawSteel")
-            if options.controller then
-			    GameHud.PresentDialogToUsers(self,"DrawSteel",{ ttl = 10, mapid = game.currentMapId, immediateResult = options.immediateResult })
+            if options.controller and m_roll ~= nil then
+                --controllerUserId + rollGuid let a banner relaunched on this
+                --client recognise the roll as ours (see m_controllerRoll).
+			    GameHud.PresentDialogToUsers(self,"DrawSteel",{ ttl = 10, mapid = game.currentMapId, immediateResult = options.immediateResult,
+                    controllerUserId = dmhub.loginUserid, rollGuid = m_roll.guid })
             end
         end,
 
@@ -792,7 +884,7 @@ local function createDrawSteelBanner(options)
                         selectors = {"pulse"},
                         uiscale = 1.05,
                         transitionTime = 0.7,
-                        easing = "easeinOutSine",
+                        easing = "EaseInOutSine",
                     },
 
                     {
@@ -904,11 +996,15 @@ local function createDrawSteelBanner(options)
         BannerPanel:SetClassTree("monsters", options.immediateResult ~= "heroes")
     end
 
+    PruneLiveBanners()
+    m_liveBanners[#m_liveBanners+1] = BannerPanel
+
     return BannerPanel
 end
 
-function showDrawSteelBanner(result)
-    local banner = createDrawSteelBanner{ controller = true, immediateResult = result }
+--holdBeforeQueue (optional): see Encounter.StartCombatWithTokens.
+function showDrawSteelBanner(result, holdBeforeQueue)
+    local banner = createDrawSteelBanner{ controller = true, immediateResult = result, holdBeforeQueue = holdBeforeQueue }
     GameHud.instance.parentPanel:AddChild(banner)
 end
 
@@ -919,7 +1015,7 @@ end
 --createDrawSteelBanner). Call this on a single client (the one advancing the
 --round); it broadcasts the banner to the other users itself.
 function showDrawSteelRerollBanner()
-    if GameHud.instance == nil or GameHud.instance.parentPanel == nil then
+    if not GameHud.instance or GameHud.instance.parentPanel == nil then
         return
     end
     local banner = createDrawSteelBanner{ controller = true, reroll = true }
@@ -965,6 +1061,11 @@ end
 --  surprisedTokens: optional list of tokens given the Surprised condition
 --                 (until end of encounter) before the banner shows, the way
 --                 the dialog's "All Surprised" slider marks a side.
+--  holdBeforeQueue: optional function(heroesWin, begin). Called once the
+--                 banner has resolved who goes first, INSTEAD of creating the
+--                 initiative queue; call begin() (once, any time later) to
+--                 create it. Lets a game mode pause between the roll and the
+--                 first turn.
 --Returns true, or false + a reason string when combat cannot start.
 local SetTokenSurprised
 function Encounter.StartCombatWithTokens(args)
@@ -975,7 +1076,7 @@ function Encounter.StartCombatWithTokens(args)
         return false, "combat is already running"
     end
 
-    if GameHud.instance == nil or GameHud.instance.parentPanel == nil then
+    if not GameHud.instance or GameHud.instance.parentPanel == nil then
         return false, "no game hud to host the Draw Steel banner"
     end
 
@@ -1017,8 +1118,36 @@ function Encounter.StartCombatWithTokens(args)
     --nil = no immediate result: the banner runs the normal claim-the-die
     --"Draw Steel" roll, and queue creation (plus readied-encounter cleanup)
     --happens when it resolves, exactly like the dialog path.
-    showDrawSteelBanner(immediateResult)
+    showDrawSteelBanner(immediateResult, args.holdBeforeQueue)
     return true
+end
+
+--True while any Draw Steel banner is on this client's screen: a roll is still
+--waiting for its die, or a resolved one is about to create the queue. A game
+--mode watching for a combat start that never happened waits on this.
+function Encounter.DrawSteelBannerActive()
+    return PruneLiveBanners() > 0
+end
+
+--The side the last Draw Steel die gave the initiative to, "heroes" or
+--"monsters"; nil when no die has landed since the banner was last shown (a
+--banner shown with an immediate result rolls no die). playerTokens: the
+--heroes in the fight, whose Initiative Threshold the die is read against.
+function Encounter.DrawSteelRollOutcome(playerTokens)
+    local doc = mod:GetDocumentSnapshot("drawsteel")
+    if doc.data.finished ~= true or type(doc.data.result) ~= "number" then
+        return nil
+    end
+    local charids = {}
+    for _,token in ipairs(playerTokens or {}) do
+        if token.valid then
+            charids[token.charid] = true
+        end
+    end
+    if doc.data.result >= InitiativeThresholdFor(charids) then
+        return "heroes"
+    end
+    return "monsters"
 end
 
 --- @class RollInitiativeChatMessage: GameType
@@ -2000,14 +2129,16 @@ local function ShowCombatSetupDialog(selectedTokens, preselectEncounter, presele
     local playerParty = GetParty(GetDefaultPartyID())
     local heroVictories = {}
     for _,tok in ipairs(tokens) do
-        if tok ~= nil and tok.valid then
+        --nil for a token with no creature data (its character record has no
+        --properties): it has nothing to roll, so it is left out like an invalid token.
+        local initiativeId = (tok ~= nil and tok.valid) and InitiativeQueue.GetInitiativeId(tok) or nil
+        if initiativeId ~= nil then
             local partyid = tok.partyId
             local playerSide = partyid ~= nil and ((partyid == playerPartyId) or (playerParty ~= nil and playerParty:GetAllyParties()[partyid] ~= nil))
             if not playerSide and tok.playerControlled then
                 playerSide = true
             end
 
-            local initiativeId = InitiativeQueue.GetInitiativeId(tok)
             groupings[initiativeId] = groupings[initiativeId] or { playerSide = playerSide, tokens = {}}
             local group = groupings[initiativeId]
             group.tokens[#group.tokens+1] = tok
@@ -2199,6 +2330,7 @@ local function ShowCombatSetupDialog(selectedTokens, preselectEncounter, presele
         return entries
     end
 
+    ---@type string|nil
     local m_initiativeResult = "roll"
     local m_initiativeLocked = false
 
@@ -2423,7 +2555,8 @@ local function ShowCombatSetupDialog(selectedTokens, preselectEncounter, presele
                     idChosen = m_selectedEncounterId,
                     change = function(element)
                         ---@cast element Dropdown
-                        m_selectedEncounterId = element.idChosen
+                        --every m_encounterOptions id is a string.
+                        m_selectedEncounterId = element.idChosen --[[@as string]]
                         ApplyEncounterToMonsters(ResolveEncounterEntry(m_selectedEncounterId))
                         element.root:FireEventTree("refreshSurprise")
                     end,

@@ -159,7 +159,7 @@ local function FocusBubble(bubble)
         dmhub.CenterOnLoc{ x = p.x, y = p.y, floorid = bubble.floorid, smooth = true }
     end)
     local hud = GameHud.instance
-    if hud ~= nil then
+    if hud then
         hud:DisplayDocument(bubble)
     end
 end
@@ -258,11 +258,14 @@ function CustomDocument.PreviewLink(element, link, options)
         elseif content.typeName == "CommandDocument" then
             return
         elseif content.IsDerivedFrom("CustomDocument") then
+            ---@cast content CustomDocument
             panel = content:Render{summary = nil}
             if panel == nil then
                 gui.Tooltip(content:PreviewDescription())(element)
             end
         else
+            --the only other table ResolveLink returns (PDF assets are userdata).
+            ---@cast content PDFFragment
             panel = content:Render{}
         end
 
@@ -587,7 +590,8 @@ function CustomDocument.ResolveLink(link)
         return original_link
     end
 
-    local matchPrefix = regex.MatchGroups(link, "^(?<prefix>[^:]+):(?<rest>.+)$")
+    --no indexes option, so every group is a plain string.
+    local matchPrefix = regex.MatchGroups(link, "^(?<prefix>[^:]+):(?<rest>.+)$") --[[@as table<string, string>?]]
     if matchPrefix ~= nil then
         --see if this is a reference to a markdownable document somewhere.
         local markdownTable = MarkdownRender.FindTableFromPrefix(matchPrefix.prefix)
@@ -803,6 +807,8 @@ function CustomDocument.OpenContent(node)
         local doc = MarkdownRender.RenderToMarkdown(node, {
             noninteractive = false,
         })
+        --RenderToMarkdown is nil only for what IsRenderable just rejected.
+        ---@cast doc -nil
 
         doc:ShowDocument()
     else

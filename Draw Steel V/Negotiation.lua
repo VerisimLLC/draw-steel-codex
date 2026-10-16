@@ -75,7 +75,7 @@ CreateNegotiationDialog = function(options)
 
 	if token.properties:has_key("negotiation") == false then
 		token:BeginChanges()
-		token.properties.negotiation = MCDMNegotiation.Create {}
+		token.properties.negotiation = MCDMNegotiation.Create()
 		token:CompleteChanges("Added Negotiation")
 	end
 

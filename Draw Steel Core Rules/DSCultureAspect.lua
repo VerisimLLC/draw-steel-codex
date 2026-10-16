@@ -7,6 +7,7 @@ local mod = dmhub.GetModLoading()
 --- @field description string Descriptive text.
 --- @field tableName "cultureAspects" Data table name ("cultureAspects").
 --- @field category string Aspect category id: "environment", "organization", or "upbringing".
+--- @field modifierInfo ClassLevel Holds the aspect's modifiers and features, like a class level.
 CultureAspect = RegisterGameType("CultureAspect")
 
 CultureAspect.tableName = "cultureAspects"
@@ -51,6 +52,7 @@ end
 function CultureAspect:FillClassFeatures(choices, result)
 	for i,feature in ipairs(self:GetClassLevel().features) do
 		if feature.typeName == 'CharacterFeature' then
+			---@cast feature CharacterFeature
 			result[#result+1] = feature
 		else
 			feature:FillChoice(choices, result)
@@ -128,7 +130,7 @@ local SetCultureAspect = function(cultureAspectPanel, cultureAspectid)
 			idChosen = cultureAspect.category,
 			change = function(element)
 				---@cast element Dropdown
-				cultureAspect.category = element.idChosen
+				cultureAspect.category = element.idChosen --[[@as string]]
 				UploadCultureAspect()
 			end,
 		},
@@ -197,6 +199,7 @@ local ShowCultureAspectPanel = function(parentPanel)
 
 	local editorPanel = CultureAspect.CreateEditor()
 
+	---@type Panel
 	local itemsListPanel = nil
 
     local m_headingPanels = {}
@@ -270,8 +273,7 @@ local ShowCultureAspectPanel = function(parentPanel)
 		Compendium.AddButton{
 
 			click = function(element)
-				dmhub.SetAndUploadTableItem(tableName, CultureAspect.CreateNew{
-				})
+				dmhub.SetAndUploadTableItem(tableName, CultureAspect.CreateNew())
 			end,
 		}
 	}

@@ -127,6 +127,8 @@ mod.shared.EditTilesheetAssetDialog = function(tileid, startingValues)
 	if asset == nil then
 		dmhub.Debug('ASSET IS NIL')
 	end
+	--asset.loaded above already errors on a nil asset; this check only re-widens the type.
+	---@cast asset -nil
 
 	local buttonPanel = gui.Panel{
 		id = 'BottomButtons',
@@ -205,6 +207,7 @@ mod.shared.EditTilesheetAssetDialog = function(tileid, startingValues)
 
 	local tilesheetStyleDropdown = nil
 	local tilesheetDimensionsWarning = nil
+	---@type Panel
 	local randomOrientationCheck = nil
 	local effectLayerDropdown = nil
 	local effectAlphaThresholdDropdown = nil
@@ -327,7 +330,7 @@ mod.shared.EditTilesheetAssetDialog = function(tileid, startingValues)
 					events = {
 						change = function(element)
 							---@cast element Dropdown
-							asset.effectLayer = element.idChosen
+							asset.effectLayer = element.idChosen --[[@as string]]
 							assets:RefreshAssets("Tilesheet")
 						end,
 					},

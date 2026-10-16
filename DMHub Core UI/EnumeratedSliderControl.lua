@@ -2,6 +2,7 @@ local mod = dmhub.GetModLoading()
 
 --- gui.EnumeratedSliderControl -- a horizontal row of selectable options.
 function gui.EnumeratedSliderControl(args)
+    --- @type Panel
     local m_resultPanel = nil
 
     local options = args.options

@@ -21,27 +21,36 @@ local mod = dmhub.GetModLoading()
 --- @field spellsKnownFormula string GoblinScript formula for number of spells known.
 --- @field hasSpellbook boolean If true, the class uses a spellbook instead of a spell list.
 --- @field spellbookSizeFormula string GoblinScript formula for spellbook size.
+--- @field startingCurrency? string Starting main currency amount as typed in the class editor; read with try_get.
+--- @field heroicResourceChecklist? table[] Heroic resource gain items ({guid, name, quantity, ...}); created via get_or_add.
 Class = RegisterGameType("Class")
 
 --- @class ClassLevel: GameType
 --- @field new fun(o?: table): ClassLevel
---- @field features (CharacterFeature|CharacterChoice)[] Features and choices granted at this level.
+--- @field features (CharacterFeature|CharacterFeatureList|CharacterChoice|CharacterSingleFeat)[] Features and choices granted at this level.
 ClassLevel = RegisterGameType("ClassLevel") --type which represents the benefits a character gets at a specific level.
 
 --- @class CharacterChoice: GameType
 --- @field new fun(o?: table): CharacterChoice
+--- @field guid string Identifies the choice; the key of the hero's picks in its level choices.
 CharacterChoice = RegisterGameType("CharacterChoice")
 
 --- @class CharacterFeatureChoice:CharacterChoice
 --- @field new fun(o?: table): CharacterFeatureChoice
+--- @field guid string Unique id of this choice; choices made are keyed by it.
+--- @field options (CharacterFeature|CharacterFeatureList|CharacterChoice|CharacterSingleFeat)[] The options to choose from (features, feature lists, nested choices, single feats).
+--- @field prerequisites? CharacterPrerequisite[] Prerequisites that must be met to make this choice.
+--- @field imported? string Import guid stamped by the rules importer on the choices it creates.
 CharacterFeatureChoice = RegisterGameType("CharacterFeatureChoice", "CharacterChoice")
 
 --- @class CharacterSubclassChoice:CharacterChoice
 --- @field new fun(o?: table): CharacterSubclassChoice
+--- @field classid string Id of the class whose subclasses are offered (set by the class editor).
 CharacterSubclassChoice = RegisterGameType("CharacterSubclassChoice", "CharacterChoice")
 
 --- @class CharacterFeatureList: GameType
 --- @field new fun(o?: table): CharacterFeatureList
+--- @field features (CharacterFeature|CharacterFeatureList|CharacterChoice|CharacterSingleFeat)[] The grouped features, set by CreateNew.
 CharacterFeatureList = RegisterGameType("CharacterFeatureList")
 
 --- @param options nil|table
@@ -542,7 +551,12 @@ function CharacterChoice:Choices(numOption, existingChoices, creature)
 	return nil
 end
 
-function CharacterChoice:GetOptions(choices)
+--- The options a hero picks from. nil on the base type; subclasses override it,
+--- and some also take the creature making the choice.
+--- @param choices table The hero's level choices.
+--- @param creature? creature
+--- @return table|nil
+function CharacterChoice:GetOptions(choices, creature)
 	return nil
 end
 
@@ -792,6 +806,15 @@ function CharacterFeatureChoice:Choices(numOption, existingChoices, creature)
 			end
 
 			local text = feature.name
+			local description
+			if feature.typeName == "CharacterSingleFeat" then
+				--a single feat has no name or description of its own (reading
+				--`description` raises); show the feat it grants.
+				text = feature:Describe()
+				description = feature:GetDescription()
+			else
+				description = feature.description
+			end
 			-- if usePoints then
 			-- 	local cost = feature:try_get("pointsCost", 1)
 			-- 	text = string.format("%s (%d %s)", text, cost, self.pointsName)
@@ -799,13 +822,13 @@ function CharacterFeatureChoice:Choices(numOption, existingChoices, creature)
 			result[#result+1] = {
 				id = feature.guid,
 				text = text,
-				description = feature.description,
+				description = description,
 				classes = classes,
 				pointsCost = rawget(feature, "pointsCost") or 1,
 				modifiers = rawget(feature, "modifiers"),
                 hasCustomPanel = feature.typeName and feature:HasCustomDropdownPanel(),
                 panel = function()
-                    return feature:CreateDropdownPanel(text)
+                    return feature:CreateDropdownPanel()
                 end,
 			}
 		end

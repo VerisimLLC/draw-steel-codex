@@ -56,6 +56,129 @@ end
 
 local CreateObjectNode
 
+--"Objects for this map": when the current map came from a map pack that
+--ships props, the engine merges that map's set into the asset tree as a
+--transient store (MapPackObjects.cs, MAP_PACK_OBJECTS_PLAN.md). Its root
+--folder is pinned to the top of the library and starts expanded. Its folders
+--vanish on other maps, so they cannot be renamed, deleted, or filed into.
+local function MapPackObjectsFolderId()
+	local info = mappacks.currentMapObjects
+	if info == nil or info.status ~= "loaded" or info.folderid == "" then
+		return nil
+	end
+	return info.folderid
+end
+
+--the status line under the library's search box while the current map's set
+--is not usable yet: loading, locked behind a Patreon tier, or failed. nil
+--when there is nothing to say (no set, or it is loaded).
+local function MapPackObjectsStatusText(info, creatorName)
+	if info == nil or info.status == "loaded" then
+		return nil
+	end
+	if info.status == "loading" then
+		return "Loading objects for this map..."
+	end
+	if info.status == "error" then
+		return "Could not load the objects for this map."
+	end
+	local objects = cond(info.count == 1, "1 object", string.format("%d objects", info.count))
+	if info.tier > 0 then
+		local requirement = mod.shared.MapPackPatreonText({tier = info.tier, tierName = info.tierName, owned = false}, creatorName)
+		return string.format("This map comes with %s. %s.", objects, requirement)
+	end
+	return string.format("This map comes with %s, unlocked along with the map.", objects)
+end
+
+--Props packs (PropsPackManager.cs, PROPS_PACKS_PLAN.md): each synced pack is
+--a folder at the library root holding a folder per bundle. A bundle's objects
+--are loaded only when its folder is opened or a search hits it, so until then
+--the folder is empty and a status line under it says why.
+
+--{pack = PropsPackInfo, bundle = nil|PropsPackBundleInfo} for a pack or
+--bundle folder, else nil.
+local function PropsPackFolderInfo(nodeid)
+	local folder = propspacks.GetFolder(nodeid)
+	if folder == nil then
+		return nil
+	end
+	local pack = propspacks.GetPack(folder.pack)
+	if pack == nil then
+		return nil
+	end
+	if folder.bundle == nil then
+		return {pack = pack}
+	end
+	for _,bundle in ipairs(pack.bundles) do
+		if bundle.key == folder.bundle then
+			return {pack = pack, bundle = bundle}
+		end
+	end
+	return nil
+end
+
+--the line under a pack or bundle folder, or nil when there is nothing to say.
+local function PropsPackStatusText(info, creatorName)
+	if info == nil then
+		return nil
+	end
+	local pack = info.pack
+	local bundle = info.bundle
+	if bundle == nil then
+		if pack.access then
+			return nil
+		end
+		local requirement = mod.shared.MapPackPatreonText({tier = pack.tier, tierName = pack.tierName, owned = false}, creatorName)
+		return string.format("%d props in %d bundles. %s.", pack.count, #pack.bundles, requirement or "Locked")
+	end
+	if bundle.status == "loading" or bundle.status == "unloaded" then
+		return string.format("Loading %d props...", bundle.count)
+	end
+	if bundle.status == "error" then
+		return "Could not load these props."
+	end
+	if bundle.status == "locked" then
+		local requirement = mod.shared.MapPackPatreonText({tier = bundle.tier, tierName = bundle.tierName, owned = false}, creatorName)
+		return string.format("%d props. %s.", bundle.count, requirement or "Locked")
+	end
+	return nil
+end
+
+--Loads every unlocked, not yet loaded bundle that has an object matching
+--text. Returns true if it started any load.
+local function LoadPropsPackBundlesMatching(text)
+	local hits = propspacks.Search{text = text, maxResults = 2000}
+	if #hits == 0 then
+		return false
+	end
+	local wanted = {}
+	for _,hit in ipairs(hits) do
+		wanted[hit.pack .. "/" .. hit.bundle] = {pack = hit.pack, bundle = hit.bundle}
+	end
+	local started = false
+	for _,pack in ipairs(propspacks.packs) do
+		for _,bundle in ipairs(pack.bundles) do
+			if wanted[pack.id .. "/" .. bundle.key] ~= nil and bundle.status == "unloaded" then
+				if propspacks.LoadBundle(pack.id, bundle.key) then
+					started = true
+				end
+			end
+		end
+	end
+	return started
+end
+
+local function PropsPackBundlesLoading()
+	for _,pack in ipairs(propspacks.packs) do
+		for _,bundle in ipairs(pack.bundles) do
+			if bundle.status == "loading" then
+				return true
+			end
+		end
+	end
+	return false
+end
+
 mod.shared.selectedObjectEntries = {}
 
 local ObjectPanelHeight = 30
@@ -82,6 +205,9 @@ local ShowObjectTooltip = function(element)
 	assert(dock ~= nil)
 	
 	local node = assets:GetObjectNode(element.data.nodeid)
+	--Only an object entry's linger calls this: deleted nodes stay in the tree (hidden), and
+	--an entry whose node vanished is removed by its folder's refreshAssets.
+	---@cast node -nil
 
 	local duplicatedText = {}
 
@@ -190,6 +316,8 @@ local ShowObjectTooltip = function(element)
 							},
 							events = {
 								imageDimensions = function(element, info)
+									--node.components above already errors on a nil node.
+									---@cast node -nil
 									if element.bgsprite == nil then
 										dmhub.Debug('NO BG SPRITE')
 									end
@@ -463,11 +591,14 @@ local g_objectEntryStyles = {
 
 local function CreateObjectEntry(nodeid, parentElement, options)
 	local node = assets:GetObjectNode(nodeid)
+	--Callers pass the id of a live node; refreshAssets keeps it non-nil after that.
+	---@cast node -nil
 
 	local searchActive = false
 	local matchesSearch = true
 	local parentCollapsed = false
 
+	---@type Panel
 	local resultPanel = nil
 
 
@@ -549,6 +680,9 @@ local function CreateObjectEntry(nodeid, parentElement, options)
 					--swapping the objects that are subject of the drag.
 					local sourceNode = assets:GetObjectNode(element.data.nodeid)
 					local targetNode = assets:GetObjectNode(target.data.nodeid)
+					--Both are live object entries; same invariant as CreateObjectEntry's node.
+					---@cast sourceNode -nil
+					---@cast targetNode -nil
 
 					local sourceOrd = sourceNode.ord
 					local targetOrd = targetNode.ord
@@ -628,7 +762,12 @@ local function CreateObjectEntry(nodeid, parentElement, options)
 			end,
 
 			refreshAssets = function(element)
-				node = assets:GetObjectNode(nodeid)
+				local refreshed = assets:GetObjectNode(nodeid)
+				if refreshed == nil then
+					--the object was deleted; the parent folder's refresh removes this entry.
+					return
+				end
+				node = refreshed
 				objImagePanel.bgimageStreamed = node.thumbnailId
 
 				if element:HasClass('focus') then
@@ -924,7 +1063,22 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 	local isCollapsed = true
 	local refreshAssetsDirty = false
 	local node = assets:GetObjectNode(nodeid)
+	--Callers pass the root ('') or a live folder's id; refreshAssets keeps it non-nil after that.
+	---@cast node -nil
 
+	--a folder of the current map's "Objects for this map" set; see MapPackObjectsFolderId.
+	local fromMapPack = nodeid ~= '' and node.fromMapPack
+	if fromMapPack and nodeid == MapPackObjectsFolderId() then
+		isCollapsed = false
+	end
+
+	--a props pack's folder or one of its bundle folders; see PropsPackFolderInfo.
+	local propsFolder = nil
+	if fromMapPack then
+		propsFolder = propspacks.GetFolder(nodeid)
+	end
+
+	---@type Panel
 	local folderPane = nil
 
 	--the root folder gets additional UI, such as a search and ways to add objects.
@@ -937,13 +1091,32 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 
 		isCollapsed = false
 
-		local updateSearch = function(element)
+		local updateSearch
+		updateSearch = function(element)
 			local text = element.text
 			if string.len(text) <= 1 then
 				--one character searches just count as no search.
 				text = ""
 			end
 			local count = 0
+			if text ~= "" and LoadPropsPackBundlesMatching(text) then
+				--props pack bundles with matches are loading: search again
+				--once they have landed so their objects show up too.
+				local searchedText = element.text
+				local function rerun()
+					dmhub.Schedule(0.5, function()
+						if mod.unloaded or not element.valid or element.text ~= searchedText then
+							return
+						end
+						if PropsPackBundlesLoading() then
+							rerun()
+						else
+							updateSearch(element)
+						end
+					end)
+				end
+				rerun()
+			end
 			if text ~= "" then
 				local nodeids = node:GetNodeIdsMatchingSearch(element.text)
 				--GetNodeIdsMatchingSearch returns nil if the C# search aborted (e.g. it hit a
@@ -1054,10 +1227,54 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 						},
 					},
 				},
+
+				--the current map's "Objects for this map" set while it is
+				--loading, locked or failed; once loaded it is a folder below.
+				gui.Label{
+					classes = {"collapsed"},
+					width = "95%",
+					height = "auto",
+					halign = "left",
+					fontSize = 12,
+					italics = true,
+					color = "#bbbbbb",
+					textWrap = true,
+					vmargin = 2,
+					create = function(element)
+						element:FireEvent("refreshAssets")
+					end,
+					refreshAssets = function(element)
+						local info = mappacks.currentMapObjects
+						local text = MapPackObjectsStatusText(info)
+						element:SetClass("collapsed", text == nil)
+						if info == nil or text == nil then
+							return
+						end
+						element.text = text
+						element.data.error = cond(info.status == "error", info.error)
+						if info.status == "locked" and info.tier > 0 then
+							--name the creator once the lookup lands.
+							mod.shared.GetMapPackCreator({pack = info.pack}, function(creator)
+								if element.valid then
+									local current = mappacks.currentMapObjects
+									if current ~= nil and current.status == "locked" and current.pack == info.pack then
+										element.text = MapPackObjectsStatusText(current, creator.displayName)
+									end
+								end
+							end)
+						end
+					end,
+					hover = function(element)
+						if element.data.error ~= nil and element.data.error ~= "" then
+							gui.Tooltip(element.data.error)(element)
+						end
+					end,
+				},
 			},
 		}
 	end
 
+	---@type Panel
 	local triangle = nil
 	triangle = gui.Panel({
 				bgimage = 'panels/triangle.png',
@@ -1099,7 +1316,8 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 							end
 
 						end
-						element:SetClass('empty', nchildren < 1)
+						--a props bundle folder is empty until it is opened and loads.
+						element:SetClass('empty', nchildren < 1 and (propsFolder == nil or propsFolder.bundle == nil))
 					end,
 					refreshCollapse = function(element)
 						element:SetClass('expanded', not isCollapsed)
@@ -1135,6 +1353,11 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 						triangle:SetClass('expanded', not isCollapsed)
 						folderPane.data.refreshCollapsed(folderPane)
 
+						if propsFolder ~= nil and propsFolder.bundle ~= nil and not isCollapsed then
+							--fills the folder in when it lands (the objects category refreshes).
+							propspacks.LoadBundle(propsFolder.pack, propsFolder.bundle)
+						end
+
 						if rootPanel ~= nil and not isCollapsed then
 							--send the parent of the objects an expand event to collapse other areas.
 							folderPane.parent:FireEvent('expand')
@@ -1151,8 +1374,10 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 			wrap = true,
 		},
 
-		classes = {'object-drag-target'},
-		dragTarget = true,
+		--a map-pack folder is not a drop target: anything filed into it
+		--would land at the library root on other maps.
+		classes = {cond(not fromMapPack, 'object-drag-target')},
+		dragTarget = not fromMapPack,
 		dragTargetPriority = 0,
 
 		children = {},
@@ -1166,10 +1391,10 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 	local headerPanel = gui.Panel({
 		
 		bgimage = 'panels/square.png',
-		classes = {'folderHeader','object-drag-target'},
-		dragTarget = true,
+		classes = {'folderHeader', cond(not fromMapPack, 'object-drag-target')},
+		dragTarget = not fromMapPack,
 
-		draggable = nodeid ~= '',
+		draggable = nodeid ~= '' and not fromMapPack,
 		canDragOnto = function(element, target)
 			return target:HasClass('object-drag-target') and not IsObjectNodeSelfOrChildOf(element.data.nodeid, target.data.nodeid)
 		end,
@@ -1218,7 +1443,7 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 
 			gui.Label({
 				text = 'Object Library',
-				editableOnDoubleClick = (nodeid ~= ''), --all folders except the root Object folder can be renamed.
+				editableOnDoubleClick = (nodeid ~= '' and not fromMapPack), --all folders except the root Object folder and map-pack folders can be renamed.
 				characterLimit = 52,
 				events = {
 					moduleInstalled = function(element)
@@ -1262,6 +1487,145 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 
 		},
 	})
+
+	--under the "Objects for this map" folder: who made the props.
+	local creditPanel = nil
+	if fromMapPack and nodeid == MapPackObjectsFolderId() then
+		local creditLogo = gui.Panel{
+			classes = {"collapsed"},
+			width = 16,
+			height = 16,
+			valign = "center",
+			hmargin = 4,
+			bgcolor = "white",
+		}
+		local creditLabel = gui.Label{
+			width = "auto",
+			height = "auto",
+			maxWidth = 240,
+			valign = "center",
+			fontSize = 12,
+			italics = true,
+			color = "#bbbbbb",
+			text = "",
+		}
+		creditPanel = gui.Panel{
+			classes = {cond(isCollapsed, "collapsed")},
+			x = 18,
+			width = "auto",
+			height = "auto",
+			halign = "left",
+			flow = "horizontal",
+			vmargin = 2,
+			children = {creditLogo, creditLabel},
+		}
+
+		local info = mappacks.currentMapObjects
+		if info ~= nil then
+			mod.shared.GetMapPackCreator({pack = info.pack}, function(creator)
+				if not creditLabel.valid then
+					return
+				end
+				if (creator.displayName or "") ~= "" then
+					creditLabel.text = string.format("From %s", creator.displayName)
+				end
+				if (creator.logo or "") ~= "" then
+					creditLogo.bgimage = creator.logo
+					creditLogo:SetClass("collapsed", false)
+				end
+			end)
+		end
+	elseif propsFolder ~= nil then
+		--under a props pack's folder: who made it, and what unlocks it while
+		--locked; under a bundle folder: loading, locked or failed.
+		local creatorName = nil
+		local children = {}
+		local creditLogo = nil
+		local creditLabel = nil
+		if propsFolder.bundle == nil then
+			creditLogo = gui.Panel{
+				classes = {"collapsed"},
+				width = 16,
+				height = 16,
+				valign = "center",
+				hmargin = 4,
+				bgcolor = "white",
+			}
+			creditLabel = gui.Label{
+				width = "auto",
+				height = "auto",
+				maxWidth = 240,
+				valign = "center",
+				fontSize = 12,
+				italics = true,
+				color = "#bbbbbb",
+				text = "",
+			}
+			children[#children+1] = gui.Panel{
+				width = "auto",
+				height = "auto",
+				halign = "left",
+				flow = "horizontal",
+				children = {creditLogo, creditLabel},
+			}
+		end
+		local statusLabel
+		statusLabel = gui.Label{
+			classes = {"collapsed"},
+			width = 260,
+			height = "auto",
+			halign = "left",
+			fontSize = 12,
+			italics = true,
+			color = "#bbbbbb",
+			textWrap = true,
+			create = function(element)
+				element:FireEvent("refreshAssets")
+			end,
+			refreshAssets = function(element)
+				local info = PropsPackFolderInfo(nodeid)
+				local text = PropsPackStatusText(info, creatorName)
+				element:SetClass("collapsed", text == nil)
+				if text ~= nil then
+					element.text = text
+				end
+				element.data.error = info ~= nil and info.bundle ~= nil and info.bundle.error or nil
+			end,
+			hover = function(element)
+				if element.data.error ~= nil and element.data.error ~= "" then
+					gui.Tooltip(element.data.error)(element)
+				end
+			end,
+		}
+		children[#children+1] = statusLabel
+		creditPanel = gui.Panel{
+			classes = {cond(isCollapsed, "collapsed")},
+			x = 18,
+			width = "auto",
+			height = "auto",
+			halign = "left",
+			flow = "vertical",
+			vmargin = 2,
+			children = children,
+		}
+
+		mod.shared.GetMapPackCreator({pack = propsFolder.pack}, function(creator)
+			creatorName = creator.displayName
+			if statusLabel.valid then
+				statusLabel:FireEvent("refreshAssets")
+			end
+			if creditLabel == nil or not creditLabel.valid then
+				return
+			end
+			if (creator.displayName or "") ~= "" then
+				creditLabel.text = string.format("From %s", creator.displayName)
+			end
+			if (creator.logo or "") ~= "" and creditLogo ~= nil then
+				creditLogo.bgimage = creator.logo
+				creditLogo:SetClass("collapsed", false)
+			end
+		end)
+	end
 
 	local elements = {}
 
@@ -1328,6 +1692,10 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 					rootPanel:SetClass('collapsed', isCollapsed)
 				end
 
+				if creditPanel ~= nil then
+					creditPanel:SetClass('collapsed', isCollapsed)
+				end
+
 				for k,v in pairs(elements) do
 					v.data.setParentCollapsed(v, isCollapsed)
 				end
@@ -1352,6 +1720,11 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 			end,
 
 			rightClick = function(element)
+				if fromMapPack then
+					--map-pack folders come and go with the map; nothing to edit.
+					return
+				end
+
 				--create the context menu for this folder.
 				local menuItems = {}
 				local parentElement = element
@@ -1447,12 +1820,18 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 
 				refreshAssetsDirty = isCollapsed
 
-				node = assets:GetObjectNode(nodeid)
+				local refreshed = assets:GetObjectNode(nodeid)
+				if refreshed == nil then
+					--the folder was deleted; its parent folder's refresh removes it.
+					return
+				end
+				node = refreshed
 
 				if (not isCollapsed) or searchNodes ~= nil then
 					local newElements = {}
 					for i,v in ipairs(node.children) do
-						if (not options.hideobjects) or v.isfolder then
+						--a folder picker (selectfolders) never offers map-pack folders.
+						if ((not options.hideobjects) or v.isfolder) and not (options.selectfolders and v.fromMapPack) then
 							--if we are searching, only create the elements that match the search.
 							if elements[v.id] == nil and ((not isCollapsed) or searchNodes == nil or searchNodes[v.id]) then
 								newElements[v.id] = CreateObjectNode(v, folderPane, options)
@@ -1469,7 +1848,7 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 						end
 					end
 
-					local newChildren = {headerPanel, rootPanel}
+					local newChildren = {headerPanel, rootPanel or creditPanel}
 					local newPalette = {}
 
 					element.data.childObjectPanels = {}
@@ -1485,7 +1864,27 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 						end
 					end
 
-					table.sort(folderChildren, function(a,b) return a.data.node().description < b.data.node().description end)
+					--the current map's "Objects for this map" folder goes first,
+					--the game's own folders next, props packs last.
+					local pinnedFolder = MapPackObjectsFolderId()
+					local function rank(folder)
+						local folderNode = folder.data.node()
+						if folderNode.id == pinnedFolder then
+							return 0
+						end
+						if nodeid == '' and folderNode.fromMapPack and propspacks.GetFolder(folderNode.id) ~= nil then
+							return 2
+						end
+						return 1
+					end
+					table.sort(folderChildren, function(a,b)
+						local aRank = rank(a)
+						local bRank = rank(b)
+						if aRank ~= bRank then
+							return aRank < bRank
+						end
+						return a.data.node().description < b.data.node().description
+					end)
 					for _,folder in ipairs(folderChildren) do
 						newChildren[#newChildren+1] = folder
 					end
@@ -1508,7 +1907,7 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 
 		children = {
 			headerPanel,
-			rootPanel,
+			rootPanel or creditPanel,
 			palettePanel,
 		}
 	})
@@ -1886,6 +2285,7 @@ local function CreateObjectInstanceHierarchy()
 	local resultPanel
 
 	local m_currentFloorId = nil
+	---@type Panel?
 	local bodyPanel = nil
 
 	local triangle = nil
@@ -1943,6 +2343,8 @@ local function CreateObjectInstanceHierarchy()
 
 								thinkTime = 0.3,
 								think = function(element)
+									--built by the time it thinks (LuaLS sees the nil it had when this closure was made).
+									---@cast bodyPanel Panel
 									if bodyPanel:HasClass("collapsed") then
 										return
 									end
@@ -1954,6 +2356,7 @@ local function CreateObjectInstanceHierarchy()
 								end,
 
 								refreshObjectInstances = function(element)
+									---@cast bodyPanel Panel
 									if bodyPanel:HasClass("collapsed") then
 										return
 									end
@@ -2219,7 +2622,7 @@ mod.shared.CreateObjectEditor = function(options)
             	dockablePanel:SetClass("highlightPanel", false)
 			end
 
-			if focusInfo.oldFocus ~= element and focusInfo.newFocus == nil and (not dmhub.KeyPressed("escape")) then
+			if focusInfo.oldFocus ~= element and focusInfo.newFocus == nil and (not dmhub.KeyPressed("Escape")) then
 				focusInfo.newFocus = element
 			end
         end,

@@ -6,6 +6,9 @@
 ]]
 --- @class CharacterCharacteristicChoice: CharacterChoice
 --- @field new fun(o?: table): CharacterCharacteristicChoice
+--- @field options {guid: string, name: string, unique: boolean, arrayIndex: integer, order: string}[] One entry per characteristic array.
+--- @field choices {id: string, text: string, unique: boolean, arrayIndex: integer, order: string}[] The same arrays in choice-list form.
+--- @field baseChars? table The class's baseCharacteristics: attribute id -> fixed value, plus `arrays` (the selectable score arrays); nil if the class has none.
 CharacterCharacteristicChoice = RegisterGameType("CharacterCharacteristicChoice", "CharacterChoice")
 
 --- Construct from a class

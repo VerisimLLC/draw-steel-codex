@@ -6,9 +6,13 @@ local function section(first, last)
     return source:sub(start, assert(source:find(last, start + #first, true)) - 1)
 end
 local function noop() end
+--The AI profiler's file locals are no-ops here.
+ProfBegin, ProfEnd, ProfCount, ProfPhaseBegin, ProfPhaseEnd, ProfRequestReport = noop, noop, noop, noop, noop, noop
 MonsterAI = {TokenIsLiveCombatant = function(t) return t and t.valid end,
     TokenLogName = tostring, TargetsLogName = tostring, AbilityActionLogName = tostring,
     LogDecision = noop}
+--Planning answers are not remembered between calls here.
+function MonsterAI:PlanningMemo() return {filters = {}, lineOfSight = {}, chargeProbes = {}, chargeRoutes = false} end
 dmhub = {unitsPerSquare = 1}
 assert(load(section("function MonsterAI.TargetDistance", "function MonsterAI:MovementTokenIsAtLoc")))()
 assert(load(section("function MonsterAI:FindValidTargetsOfStrike", "function MonsterAI:FindSquadMemberStrikeOptions")))()
@@ -16,7 +20,7 @@ assert(load(section("function MonsterAI:FindValidTargetsOfStrike", "function Mon
 assert(load(section("function MonsterAI:ExecuteAbility(", "    if targetArea ~= nil and options.telegraphArea") .. "return true, targets, ability end"))()
 table.resize_array = function(t, n) for i = #t,n+1,-1 do t[i] = nil end end
 local function token(x, altitude, size)
-    local t = {valid = true, loc = {x = x, altitude = altitude}, tileSize = size or 1}
+    local t = {valid = true, charid = "token" .. x, loc = {x = x, altitude = altitude, str = x .. ":" .. altitude}, tileSize = size or 1}
     setmetatable(t, {__index = function(self, key)
         if key == "altitude" then return self.loc.altitude end
     end})
@@ -82,6 +86,7 @@ assert(ok and chosen == ranged, "altitude chooses ranged instead of melee variat
 dmhub.allTokens = {goblin, pixie}
 local burst = setmetatable({targetType = "all", range = 1}, {__index = ability})
 local _, targets = ai:ExecuteAbility(goblin, burst)
+assert(targets ~= nil, "burst resolves targets")
 assert(#targets == 1 and targets[1].token == goblin, "burst excludes vertically distant creatures")
 local map = setmetatable({targetType = "map"}, {__index = ability})
 _, targets = ai:ExecuteAbility(goblin, map)

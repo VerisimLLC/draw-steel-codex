@@ -4,7 +4,9 @@ mod.shared.CreateEffectDialog = nil
 
 mod.shared.CreateEffectsLayerTexture = function()
 
+	--- @type Panel
 	local dialogPanel = nil
+	--- @type Panel
 	local objectsList = nil
 
 	local seed = math.random(1000)
@@ -711,6 +713,8 @@ mod.shared.CreateEffectsLayerTexture = function()
 
 	local CreateObjectPanel = function(objid)
 		local objnode = assets:GetObjectNode(objid)
+		--objid comes from an object palette entry being dragged in, so the node exists.
+		---@cast objnode -nil
 
 		local imagePanel = gui.Panel{
 			classes = {'object-icon'},
@@ -728,6 +732,7 @@ mod.shared.CreateEffectsLayerTexture = function()
 			},
 		}
 
+		--- @type Panel
 		local resultPanel = nil
 
 		local selectionPanel = gui.Panel{

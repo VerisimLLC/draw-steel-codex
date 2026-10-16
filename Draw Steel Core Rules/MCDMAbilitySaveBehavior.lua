@@ -46,6 +46,7 @@ end
 -- Build the list of conditions/effects a target can save against.
 -- Each entry: { type = "condition"|"ongoingEffect", id = <conditionid or effectTypeid>,
 --               instanceId = <ongoing effect instance id>, name = <display name>,
+--               bondid = <ongoing effect instance bond id or false>,
 --               duration = <duration string or nil> }
 function ActivatedAbilitySaveBehavior:GetSaveItems(targetCreature)
     local conditionsTable = dmhub.GetTable(CharacterCondition.tableName) or {}
@@ -73,6 +74,7 @@ function ActivatedAbilitySaveBehavior:GetSaveItems(targetCreature)
                     id = effectInstance.ongoingEffectid,
                     instanceId = effectInstance.id,
                     name = ongoingEffectEntry.name,
+                    bondid = effectInstance.bondid,
                 }
             end
         end
@@ -146,6 +148,39 @@ function ActivatedAbilitySaveBehavior:PurgeSaveItem(targetToken, item)
                 targetToken.properties:RemoveOngoingEffect(item.id)
             end,
         }
+    end
+end
+
+-- After a passed save against a bonded ongoing effect whose definition has
+-- bondSaveEndsAll set (e.g. Net Trap: "any creature who makes their save ends
+-- that effect for all targets"), remove the same bond from every other creature.
+-- item.bondid is captured by GetSaveItems, since the saver's own instance is
+-- already gone by the time this runs.
+function ActivatedAbilitySaveBehavior:EndBondedSaveItem(targetToken, item)
+    if item.type ~= "ongoingEffect" or not item.bondid then
+        return
+    end
+
+    local ongoingEffect = (dmhub.GetTable(CharacterOngoingEffect.tableName) or {})[item.id]
+    if ongoingEffect == nil or ongoingEffect.casterTracking ~= "bond" or not ongoingEffect:try_get("bondSaveEndsAll", false) then
+        return
+    end
+
+    for _, tok in ipairs(dmhub.allTokens) do
+        if tok.charid ~= targetToken.charid and tok.properties:HasBondForOngoingEffect(item.id, item.bondid) then
+            tok:ModifyProperties{
+                description = string.format("%s ends for all bonded creatures", item.name),
+                execute = function()
+                    local kept = {}
+                    for _, inst in ipairs(tok.properties:try_get("ongoingEffects", {})) do
+                        if inst.ongoingEffectid ~= item.id or inst.bondid ~= item.bondid then
+                            kept[#kept+1] = inst
+                        end
+                    end
+                    tok.properties.ongoingEffects = kept
+                end,
+            }
+        end
     end
 end
 
@@ -531,6 +566,7 @@ function ActivatedAbilitySaveBehavior:RollSaveInTimeline(ability, casterToken, t
             local passed = saveState.forced or rollInfo.total >= saveEnds
             if passed then
                 self:PurgeSaveItem(targetToken, item)
+                self:EndBondedSaveItem(targetToken, item)
             elseif item.type == "ongoingEffect" or item.type == "condition" then
                 -- Failed save against an ongoing effect OR condition that
                 -- did NOT end (it persists). Fire the savefail trigger so
@@ -717,7 +753,7 @@ function ActivatedAbilitySaveBehavior:EditorItems(parentPanel)
             },
             change = function(element)
                 ---@cast element Dropdown
-                self.conditionsMode = element.idChosen
+                self.conditionsMode = element.idChosen --[[@as string]]
                 --parentPanel:FireEvent("refreshBehavior")
             end,
 
@@ -742,7 +778,7 @@ function ActivatedAbilitySaveBehavior:EditorItems(parentPanel)
             },
             change = function(element)
                 ---@cast element Dropdown
-                self.durationScope = element.idChosen
+                self.durationScope = element.idChosen --[[@as string]]
             end,
         },
     }
@@ -781,11 +817,288 @@ function ActivatedAbilitySaveBehavior:EditorItems(parentPanel)
             },
             change = function(element)
                 ---@cast element Dropdown
-                self.rollMode = element.idChosen
+                self.rollMode = element.idChosen --[[@as string]]
                 --parentPanel:FireEvent("refreshBehavior")
             end,
 
         },
+    }
+
+    return result
+end
+
+--- @class ActivatedAbilitySaveEndsToEotChatMessage: GameType
+--- @field new fun(o?: table): ActivatedAbilitySaveEndsToEotChatMessage
+--- Action log card for ActivatedAbilitySaveEndsToEotBehavior: names the
+--- ability (e.g. Otherworldly Grace) and the effect that now ends at end of turn.
+ActivatedAbilitySaveEndsToEotChatMessage = RegisterGameType("ActivatedAbilitySaveEndsToEotChatMessage")
+ActivatedAbilitySaveEndsToEotChatMessage.casterid = ""
+ActivatedAbilitySaveEndsToEotChatMessage.abilityName = ""
+ActivatedAbilitySaveEndsToEotChatMessage.effectName = ""
+
+function ActivatedAbilitySaveEndsToEotChatMessage:Render(message)
+    local token = dmhub.GetCharacterById(self.casterid)
+    if token == nil or not token.valid then
+        return gui.Panel{ width = 0, height = 0 }
+    end
+
+    return gui.Panel{
+        classes = {"chat-message-panel"},
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+        refreshMessage = function(element, message)
+        end,
+        CreateActionLogCard{
+            token = token,
+            content = {
+                gui.Label{
+                    classes = {"action-log-detail", "sizeXs", "fg"},
+                    text = self.abilityName,
+                },
+                gui.Label{
+                    classes = {"action-log-subtext", "sizeXxs", "fgMuted"},
+                    text = string.format("%s: changed from Save Ends to End of Turn", self.effectName),
+                },
+            },
+        },
+    }
+end
+
+--- @class ActivatedAbilitySaveEndsToEotBehavior:ActivatedAbilityBehavior
+--- @field new fun(o?: table): ActivatedAbilitySaveEndsToEotBehavior
+--- @field allowMultiple boolean
+--- Changes one save-ends condition or ongoing effect on each target so it ends
+--- at the end of the target's turn instead (High/Wode Elf Otherworldly Grace).
+--- The duration is changed in place, so caster, riders and stacks are kept and
+--- no "condition applied" triggers or immunities fire a second time.
+ActivatedAbilitySaveEndsToEotBehavior = RegisterGameType("ActivatedAbilitySaveEndsToEotBehavior", "ActivatedAbilityBehavior")
+ActivatedAbilitySaveEndsToEotBehavior.summary = 'Save Ends To End Of Turn'
+--When true the player may pick several effects at once (Ordinator's Otherworldly Blessing).
+ActivatedAbilitySaveEndsToEotBehavior.allowMultiple = false
+
+ActivatedAbility.RegisterType
+{
+    id = 'save_ends_to_eot',
+    text = 'Save Ends To End Of Turn',
+    createBehavior = function()
+        return ActivatedAbilitySaveEndsToEotBehavior.new{
+        }
+    end
+}
+
+function ActivatedAbilitySaveEndsToEotBehavior:SummarizeBehavior(ability, creatureLookup)
+    return "Save ends effect ends at end of turn"
+end
+
+--- Lists the target's save-ends items in the same shape GetSaveItems uses.
+--- @param targetCreature creature
+--- @return table[]
+function ActivatedAbilitySaveEndsToEotBehavior.GetSaveEndsItems(targetCreature)
+    local items = {}
+    for _, item in ipairs(ActivatedAbilitySaveBehavior.new{durationScope = "save"}:GetSaveItems(targetCreature)) do
+        if item.type == "ongoingEffect" or item.duration == "save" then
+            items[#items+1] = item
+        end
+    end
+    table.sort(items, function(a, b) return a.name < b.name end)
+    return items
+end
+
+--- Small modal listing the save-ends items. Returns the chosen items, or nil if canceled.
+--- With allowMultiple the buttons toggle and a Confirm button commits the selection.
+local function ChooseSaveEndsItems(title, targetToken, items, allowMultiple)
+    local chosen = nil
+    local finished = false
+    local selected = {}
+
+    local confirmButton = nil
+    if allowMultiple then
+        confirmButton = gui.Button{
+            classes = {"sizeM", "disabled"},
+            halign = "center",
+            rmargin = 8,
+            text = "Confirm",
+            click = function(element)
+                if element:HasClass("disabled") then
+                    return
+                end
+                chosen = {}
+                for _, item in ipairs(items) do
+                    if selected[item] then
+                        chosen[#chosen+1] = item
+                    end
+                end
+                finished = true
+                gui.CloseModal()
+            end,
+        }
+    end
+
+    local buttons = {}
+    for _, item in ipairs(items) do
+        buttons[#buttons+1] = gui.Button{
+            classes = {"sizeL"},
+            width = "100%",
+            halign = "center",
+            vmargin = 3,
+            text = item.name,
+            click = function(element)
+                if not allowMultiple then
+                    chosen = {item}
+                    finished = true
+                    gui.CloseModal()
+                    return
+                end
+                selected[item] = (not selected[item]) or nil
+                element:SetClass("selected", selected[item] == true)
+                confirmButton:SetClass("disabled", next(selected) == nil)
+            end,
+        }
+    end
+
+    local prompt = cond(allowMultiple,
+        "Choose any number of save ends effects on %s. They will end at the end of this turn instead.",
+        "Choose a save ends effect on %s. It will end at the end of this turn instead.")
+
+    gui.ShowModal(gui.Panel{
+        classes = {"framedPanel"},
+        --Modals sit outside the HUD's style cascade, so pull the theme in here.
+        styles = ThemeEngine.GetStyles(),
+        width = 420,
+        height = "auto",
+        pad = 16,
+        borderBox = true,
+        flow = "vertical",
+        destroy = function()
+            finished = true
+        end,
+
+        gui.Label{
+            classes = {"dialogTitle"},
+            width = "100%",
+            height = "auto",
+            text = title,
+        },
+        gui.Label{
+            classes = {"sizeS"},
+            width = "100%",
+            height = "auto",
+            textAlignment = "center",
+            vmargin = 8,
+            text = string.format(prompt, targetToken.name or "this creature"),
+        },
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            children = buttons,
+        },
+        gui.Panel{
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            flow = "horizontal",
+            tmargin = 10,
+            confirmButton,
+            gui.Button{
+                classes = {"sizeM"},
+                halign = "center",
+                text = "Cancel",
+                escapeActivates = true,
+                escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+                click = function()
+                    finished = true
+                    gui.CloseModal()
+                end,
+            },
+        },
+    })
+
+    while not finished do
+        coroutine.yield(0.1)
+    end
+
+    return chosen
+end
+
+--- Flips one save-ends item to end-of-turn in place. Call inside ModifyProperties.
+local function ConvertItemToEot(props, item)
+    if item.type == "condition" then
+        local entry = props:try_get("inflictedConditions", {})[item.id]
+        if entry ~= nil then
+            --"eot" conditions are expired by the End Turn Save rule at this turn's end.
+            entry.duration = "eot"
+        end
+    else
+        for _, effectInstance in ipairs(props:try_get("ongoingEffects", {})) do
+            if effectInstance.id == item.instanceId then
+                --removeAtNextTurnEnd=true expires at the next EndTurn of this
+                --creature, which is the end of the turn this runs at the start of.
+                effectInstance.removeOnSave = false
+                effectInstance.removeAtNextTurnEnd = true
+            end
+        end
+    end
+end
+
+function ActivatedAbilitySaveEndsToEotBehavior:Cast(ability, casterToken, targets, options)
+    for _, target in ipairs(targets) do
+        local targetToken = target.token
+        if targetToken ~= nil and targetToken.valid then
+            local items = ActivatedAbilitySaveEndsToEotBehavior.GetSaveEndsItems(targetToken.properties)
+
+            local chosen = items
+            if #items > 1 then
+                local picked = ChooseSaveEndsItems(ability.name, targetToken, items, self.allowMultiple)
+                if picked == nil then
+                    --Declining the menu cancels the whole cast, so nothing is spent.
+                    options.abort = true
+                    options.stopProcessing = true
+                    return
+                end
+                chosen = picked
+            end
+
+            if #chosen > 0 then
+                ability:CommitToPaying(casterToken, options)
+
+                local names = {}
+                for _, item in ipairs(chosen) do
+                    names[#names+1] = item.name
+                end
+                local effectNames = table.concat(names, ", ")
+
+                targetToken:ModifyProperties{
+                    description = string.format("%s: %s ends at end of turn", ability.name, effectNames),
+                    execute = function()
+                        for _, item in ipairs(chosen) do
+                            ConvertItemToEot(targetToken.properties, item)
+                        end
+                    end,
+                }
+
+                chat.SendCustom(ActivatedAbilitySaveEndsToEotChatMessage.new{
+                    casterid = ActivatedAbility.GetLogActorId(targetToken, options),
+                    abilityName = ability.name,
+                    effectName = effectNames,
+                })
+            end
+        end
+    end
+end
+
+function ActivatedAbilitySaveEndsToEotBehavior:EditorItems(parentPanel)
+    local result = {}
+    self:ApplyToEditor(parentPanel, result)
+    self:FilterEditor(parentPanel, result)
+
+    result[#result+1] = gui.Check{
+        text = "Choose Any Number",
+        value = self.allowMultiple,
+        change = function(element)
+            self.allowMultiple = element.value
+        end,
     }
 
     return result

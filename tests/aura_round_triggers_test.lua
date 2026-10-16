@@ -6,6 +6,7 @@ f:close()
 local first = assert(source:find("function creature:GetTurnId()", 1, true))
 local last = assert(source:find("--Remove ongoing effects that expire on a rest", first, true))
 creature = {}
+---@type string|nil, string
 local roundId, turnId = "combat-1", "turn-1"
 dmhub = {
     initiativeQueue = {GetRoundId = function() return roundId end},

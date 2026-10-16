@@ -8,6 +8,8 @@ local function section(first, last)
     return source:sub(start, assert(source:find(last, start + #first, true)) - 1)
 end
 local function noop() end
+--The AI profiler's file locals are no-ops here.
+ProfBegin, ProfEnd, ProfCount, ProfPhaseBegin, ProfPhaseEnd, ProfRequestReport = noop, noop, noop, noop, noop, noop
 --Exercise the actual manual-targeting rule as well as the AI planner.
 local rulesFile = assert(io.open("Draw Steel Core Rules/MCDMActivatedAbility.lua", "r"))
 local rulesSource = rulesFile:read("*a")
@@ -39,6 +41,14 @@ MonsterAI = {
     AbilityActionLogName = function() return "Main Action" end,
     LogDecision = noop, LogMove = noop, SetLogContext = noop, SetMoveLogContext = noop,
     RefreshCombatants = noop, Sleep = noop,
+    --The squad's speech, reservations and side-by-side movement are covered by
+    --ai_squad_volley_test.lua; these fixtures use string locs, so every square is free.
+    SpeakNow = noop, AnnounceSquadStrike = noop, ReserveSquadOption = noop,
+    NewSquadReservations = function() return {squares = {}, lanes = {}} end,
+    SquadFootprintOffsets = function() return {{0, 0}} end,
+    SquadOptionIsFree = function() return true end,
+    RunConcurrently = function(_, fns) for _,fn in ipairs(fns) do fn() end end,
+    MovementTokenIsAtLoc = function(_, t, loc) return t.loc == loc end,
 }
 assert(load(section("function MonsterAI.TargetDistance", "-- Use the real token volume")))()
 assert(load(section("function MonsterAI:ExecuteSquadStrike(ability)", "function MonsterAI:FindBestMoveToUseStrike")))()
@@ -124,6 +134,7 @@ end
 assert(load(section("function MonsterAI:FindSquadMemberStrikeOptions", "function MonsterAI:ExecuteSquadStrike")))()
 local sniperTactic
 function MonsterAI:RegisterTactic(tactic) sniperTactic = tactic end
+function MonsterAI:RegisterMaliceAbility() end
 dmhub = {GetModLoading = function() return {} end}
 dofile("Monster AI/MonsterAIGoblins.lua")
 

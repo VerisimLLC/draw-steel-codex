@@ -102,9 +102,7 @@ local function DefaultTargetScore(targetInfo)
     if targetInfo.token.isObject or targetInfo.token.properties == nil then
         return 0.1
     end
-    local stamina = targetInfo.token.properties:CurrentHitpoints()
-        / math.max(1, targetInfo.token.properties.max_hitpoints)
-    return 1 + (targetInfo.edges or 0)*0.1 + (1 - stamina)*0.08
+    return 1 + (targetInfo.edges or 0)*0.1 + MonsterAI.TargetStaminaBias(targetInfo.token)
 end
 
 -- Keep the chosen targets with the movement plan so execution does not make a
@@ -275,9 +273,6 @@ local function FindBestCubePlanAtCurrentLoc(token, ability, candidates)
                     targets = targets,
                     utility = utility,
                 }
-            end
-            if type(area.Destroy) == "function" then
-                area:Destroy()
             end
         end
     end

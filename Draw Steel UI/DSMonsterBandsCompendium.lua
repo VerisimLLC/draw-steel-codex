@@ -339,6 +339,7 @@ local function ChipPicker(set, options, addText, onChange)
             element:SetClass("collapsed", #opts == 0)
         end,
         change = function(element)
+            ---@cast element Dropdown
             local chosen = element.idChosen
             if chosen ~= nil and chosen ~= "none" then
                 set[chosen] = true
@@ -917,6 +918,10 @@ ShowMonsterBands = function(contentPanel)
         width = "100%", height = "100%", flow = "horizontal",
         pad = 8, borderBox = true,
         create = function(element)
+            -- a link straight to a band has already shown it.
+            if #rightPane.children > 0 then
+                return
+            end
             local t = dmhub.GetTable(MonsterGroup.tableName) or {}
             local first = nil
             for k, v in unhidden_pairs(t) do

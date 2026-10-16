@@ -551,6 +551,11 @@ function ActivatedAbilityJumpBehavior:ExecuteJump(ability, casterToken, targetLo
     --The roll-preview arrow lives until the jump actually executes.
     casterToken:ClearMovementArrow()
 
+    --An attempt always costs at least the distance tried, capped at what the
+    --tier allows, even if a wall or ledge stops it early. Without this a jump
+    --that fails to move can be retried over and over for free.
+    local minimumCharge = math.min(casterToken.loc:DistanceInTiles(targetLoc), dists[tier])
+
     local landLoc = ActivatedAbilityJumpBehavior.ShortLandingLoc(casterToken.loc, targetLoc, dists[tier])
 
     --Saved and restored rather than cleared outright so this never stomps a value an
@@ -570,10 +575,16 @@ function ActivatedAbilityJumpBehavior:ExecuteJump(ability, casterToken, targetLo
 
     casterToken.properties._tmp_freeMovement = previousFreeMovement
 
-    if path ~= nil and path.numSteps ~= 0 then
-        options.symbols.cast.spacesMoved = options.symbols.cast.spacesMoved + path.numSteps
+    local stepsMoved = 0
+    if path ~= nil then
+        stepsMoved = path.numSteps
+    end
 
-        local numSteps = path.numSteps
+    --spacesMoved stays the real distance travelled; only the budget gets the minimum.
+    options.symbols.cast.spacesMoved = options.symbols.cast.spacesMoved + stepsMoved
+
+    local numSteps = math.max(stepsMoved, minimumCharge)
+    if numSteps > 0 then
         casterToken:ModifyProperties{
             description = "Jump Move Cost",
             undoable = false,

@@ -102,7 +102,7 @@ local SetKit = function(tableName, kitPanel, kitid)
 			options = Kit.kitTypes,
 			change = function(element)
 				---@cast element Dropdown
-				kit.type = element.idChosen
+				kit.type = element.idChosen --[[@as string]]
 				UploadKit()
 				element.parent:FireEventTree("changeType")
 			end,
@@ -173,7 +173,7 @@ local SetKit = function(tableName, kitPanel, kitid)
 			options = Kit.armorTypes,
 			change = function(element)
 				---@cast element Dropdown
-				kit.armor = element.idChosen
+				kit.armor = element.idChosen --[[@as string]]
 				UploadKit()
 			end,
 		},
@@ -292,6 +292,7 @@ local ShowKitsPanel = function(parentPanel)
 
 	local kitPanel = Kit.CreateEditor()
 
+	--- @type Panel
 	local itemsListPanel = nil
 
 	local kitItems = {}
@@ -364,8 +365,7 @@ local ShowKitsPanel = function(parentPanel)
 		Compendium.AddButton{
 
 			click = function(element)
-				dmhub.SetAndUploadTableItem(tableName, Kit.CreateNew{
-				})
+				dmhub.SetAndUploadTableItem(tableName, Kit.CreateNew())
 			end,
 		}
 	}

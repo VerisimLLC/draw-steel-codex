@@ -340,13 +340,14 @@ function CharacterBuilder._functionOrValue(item)
 end
 
 --- Returns the character sheet instance if we're operating inside it
+--- (CharacterSheet.instance is false, not nil, when there is no sheet).
 --- @return Panel|nil
 function CharacterBuilder._getCharacterSheet()
-    return CharacterSheet.instance
+    return CharacterSheet.instance or nil
 end
 
---- Returns the builder controller
---- @return Panel
+--- Returns the builder controller, or nil before CreatePanel has built it
+--- @return Panel|nil
 function CharacterBuilder._getController()
     return CharacterBuilder:try_get("builderPanel")
 end
@@ -356,7 +357,8 @@ end
 function CharacterBuilder._getHero()
     local token = CharacterBuilder._getToken()
     if token and token.properties and token.properties:IsHero() then
-        return token.properties
+        --IsHero() is true only for character properties.
+        return token.properties --[[@as character]]
     end
     return nil
 end
@@ -374,7 +376,7 @@ function CharacterBuilder._getCreature()
 end
 
 --- Returns the builder state
---- @return @CharacterBuilderState|nil
+--- @return CharacterBuilderState|nil
 function CharacterBuilder._getState()
     local controller = CharacterBuilder._getController()
     if controller then return controller.data.state end
@@ -382,7 +384,7 @@ function CharacterBuilder._getState()
 end
 
 --- Returns the character token we are working with or nil if we can't get to it
---- @return LuaCharacterToken|nil
+--- @return CharacterToken|nil
 function CharacterBuilder._getToken()
     local cs = CharacterBuilder._getCharacterSheet()
     if cs then
@@ -405,8 +407,8 @@ function CharacterBuilder._hasFn(object, fnName)
 end
 
 --- @return boolean
-function CharacterBuilder._inCharSheet(element)
-    return CharacterBuilder._getCharacterSheet(element) ~= nil
+function CharacterBuilder._inCharSheet()
+    return CharacterBuilder._getCharacterSheet() ~= nil
 end
 
 --- Filters a string against filter text with special operators
@@ -637,6 +639,8 @@ function CharacterBuilder._confirmDialog(opts)
         end
     end
 
+    --assigned just below, before any of its handlers can run.
+    ---@type Panel
     local resultPanel = nil
     resultPanel = gui.Panel {
         styles = ThemeEngine.MergeStyles(CBStyles.GetStyles()),
@@ -724,10 +728,17 @@ function CharacterBuilder._confirmDialog(opts)
     return resultPanel
 end
 
+--- Options for the builder's category and detail-nav buttons, passed on to gui.SelectorButton.
+--- @class CBCategoryButtonOptions: ButtonArgs
+--- @field text string
+--- @field fontSize? integer
+--- @field press? fun(element: Panel)
+--- @field refreshBuilderState? fun(element: Panel, state: CharacterBuilderState)
+
 --- Build a Category button, forcing consistent styling.
 --- Be sure to add behaviors for click and refreshBuilderState
---- @param options ButtonOptions
---- @return SelectorButton|Panel
+--- @param options CBCategoryButtonOptions
+--- @return Panel
 function CharacterBuilder._makeCategoryButton(options)
     local fontSize = options.fontSize or 22
     options.fontSize = CharacterBuilder._fitFontSize(fontSize, 21, #options.text)
@@ -740,8 +751,8 @@ end
 
 --- Build a nav button for the detail pane
 --- @param selector string The selector name the detail panel resides under
---- @param options table 
---- @return SelectorButton|Panel
+--- @param options CBCategoryButtonOptions
+--- @return Panel
 function CharacterBuilder._makeDetailNavButton(selector, options)
     if options.press == nil then
         options.press = function(element)
@@ -788,7 +799,6 @@ end
 --- This is the mechanism by which the various detail panels add buttons
 --- and feature selectors into columns 2 & 3.
 --- @param options CBFeatureRegistryOptions
---- @param feature CBFeatureWrapper
 --- @return table|nil
 function CharacterBuilder._makeFeatureRegistry(options)
     local feature = options.feature
@@ -862,7 +872,7 @@ function CharacterBuilder._makeFeatureRegistry(options)
                     refreshBuilderState = function(element, state)
                         local tokenSelected = getSelected(CharacterBuilder._getHero()) or "nil"
                         local featureCache = state:Get(selector .. ".featureCache")
-                        feature = featureCache and featureCache:GetFeature(element.parent.data.featureId)
+                        local feature = featureCache and featureCache:GetFeature(element.parent.data.featureId)
                         local featureAvailable = feature ~= nil
                         local visible = (tokenSelected == element.parent.data.selectedId) and featureAvailable
                         element:FireEvent("setAvailable", visible)
@@ -882,15 +892,46 @@ function CharacterBuilder._makeFeatureRegistry(options)
                     cornerRadius = 3,
                     refreshBuilderState = function(element, state)
                         local visible = state:Get(selector .. ".blockFeatureSelection") ~= true
+                        local pointsLabel = nil
                         if visible then
                             local featureCache = state:Get(selector .. ".featureCache")
                             local feature = featureCache and featureCache:GetFeature(element.parent.data.featureId)
                             visible = visible and (feature and not feature:SuppressStatus())
                             local filled = feature and feature:IsComplete()
+                            -- Open-ended choices always count as complete; fill once something is bought.
+                            if feature and feature:IsUnbounded() then
+                                filled = #feature:GetSelectedNames() > 0
+                                local creature = CharacterBuilder._getCreature()
+                                if feature:CostsPoints() and creature ~= nil then
+                                    local spent = 0
+                                    for _,item in ipairs(creature.PointsSpentBreakdown(creature, feature:GetPointsName())) do
+                                        if item.choiceGuid == element.parent.data.featureId then
+                                            spent = spent + item.cost
+                                        end
+                                    end
+                                    filled = spent > 0
+                                    if spent > 0 then
+                                        pointsLabel = tostring(spent)
+                                    end
+                                end
+                            end
                             element:SetClass("filled", filled)
                         end
                         element:SetClass("collapsed", not visible)
+                        element:FireEventTree("setPipPoints", pointsLabel)
                     end,
+                    -- Points spent in this choice; the pip grows to fit it.
+                    gui.Label{
+                        classes = {"builder-base", "label", "progress-pip-count", "collapsed"},
+                        interactable = false,
+                        setPipPoints = function(element, text)
+                            element:SetClass("collapsed", text == nil)
+                            element.text = text or ""
+                            local size = text ~= nil and 18 or 12
+                            element.parent.selfStyle.width = size
+                            element.parent.selfStyle.height = size
+                        end,
+                    },
                 }),
                 gui.NewContentAlert{
                     classes = {"collapsed"},
@@ -925,8 +966,8 @@ function CharacterBuilder._makeFeatureRegistry(options)
 end
 
 --- Build a Select button, forcing consistent styling
---- @param options ButtonOptions 
---- @return PrettyButton|Panel
+--- @param options ButtonArgs
+--- @return Label|Panel
 function CharacterBuilder._makeSelectButton(options)
     local opts = {
         classes = {"builder-base", "button", "select"},
@@ -946,7 +987,14 @@ function CharacterBuilder._makeSelectButton(options)
     }
     for k, v in pairs(options) do
         if k == "classes" or k == "styles" then
-            table.move(v, 1, #v, #opts[k] + 1, opts[k])
+            --opts has no default styles list, so start one rather than index nil.
+            local dest = opts[k]
+            if dest == nil then
+                dest = {}
+                opts[k] = dest
+            end
+            ---@cast dest table
+            table.move(v, 1, #v, #dest + 1, dest)
         else
             opts[k] = v
         end

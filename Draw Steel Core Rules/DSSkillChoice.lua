@@ -255,7 +255,7 @@ function CharacterSkillChoice:CreateEditor(classOrRace, params)
             },
             gui.Input{
                 classes = {"formStacked"},
-                text = tonumber(self.numChoices),
+                text = tostring(self.numChoices),
                 characterLimit = 2,
 
                 change = function(element)

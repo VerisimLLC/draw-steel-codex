@@ -31,6 +31,7 @@ DockablePanel.Register {
 }
 
 local ShowTimeOfDaySettingsDialog
+---@type fun()
 local UploadTimeBasis = nil
 
 function UploadDayNightInfo()
@@ -240,7 +241,7 @@ local CalculateGameTimeSeek = function()
 	return t - math.floor(t), isSeeking
 end
 
-local g_dayNightGradient = core.Gradient {
+local g_dayNightGradient = gui.Gradient {
 			point_a = { x = 0, y = 0 },
 			point_b = { x = 1, y = 0 },
 			stops = {
@@ -283,7 +284,7 @@ local g_dayNightGradient = core.Gradient {
 			},
 		}
 
-local g_undergroundGradient = core.Gradient {
+local g_undergroundGradient = gui.Gradient {
 			point_a = { x = 0, y = 0 },
 			point_b = { x = 1, y = 0 },
 			stops = {
@@ -455,6 +456,8 @@ dmhub.GetLightingInfo = function(floorid)
 	end
 
 
+	--the embargo is only set once initiativeBarState is known, so the first call always samples.
+	---@cast currentGameDateAndTime -nil
 	local t = currentGameDateAndTime - math.floor(currentGameDateAndTime)
 
 	if dayInfo.var then
@@ -767,7 +770,7 @@ CreateTimeOfDayPanel = function()
 									--make sure seeking is turned off and we can jump straight there after a drag.
 									g_dateAndTimeSet = nil
 									g_dateAndTime = nil
-									g_dateAndTimeSeeking = nil
+									g_dateAndTimeSeeking = false
 								end
 
 								element.data.previewing = false
@@ -866,6 +869,7 @@ local m_dayNightSettingsDialog = nil
 
 ShowTimeOfDaySettingsDialog = function()
 	if not m_dayNightSettingsDialog then
+		---@type fun()
 		local UpdateTime = nil
 
 		local hoursLabel = gui.Label {
@@ -901,7 +905,7 @@ ShowTimeOfDaySettingsDialog = function()
 			local minutes = tonumber(minutesLabel.text)
 			local seconds = tonumber(secondsLabel.text)
 
-			if hours == nil or minutes == nil or seconds == nil or hours < 0 or minutes < 0 or seconds < 0 or hours > 23 or hours > 59 or seconds > 59 then
+			if hours == nil or minutes == nil or seconds == nil or hours < 0 or minutes < 0 or seconds < 0 or hours > 23 or minutes > 59 or seconds > 59 then
 				return
 			end
 
@@ -935,6 +939,8 @@ ShowTimeOfDaySettingsDialog = function()
 				valign = "top",
 				margin = 8,
 				click = function(element)
+					--this button lives inside the dialog, so the dialog exists when it is clicked.
+					---@cast m_dayNightSettingsDialog Panel
 					m_dayNightSettingsDialog:SetClass("hidden", true)
 				end,
 			},

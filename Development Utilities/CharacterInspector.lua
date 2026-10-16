@@ -155,6 +155,7 @@ CreateInspectorPanel = function()
     local searchInput = gui.SearchInput{
         vmargin = 4,
         edit = function(element)
+            ---@type string|nil
             local s = trim(string.lower(element.text))
             if s == "" then
                 s = nil

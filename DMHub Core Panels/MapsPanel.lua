@@ -95,6 +95,46 @@ local RefreshMapDialogs = function()
 	end
 end
 
+--The map the user just clicked, shown as selected straight away while the
+--travel is still loading or dissolving in. game.currentMapId takes over once
+--the travel lands; a travel that never lands gives up after the timeout.
+local g_pendingMap = nil
+local PENDING_MAP_TIMEOUT = 30
+
+local SelectedMapId = function()
+	if g_pendingMap ~= nil then
+		if g_pendingMap.id ~= game.currentMapId and dmhub.Time() < g_pendingMap.time + PENDING_MAP_TIMEOUT then
+			return g_pendingMap.id
+		end
+		g_pendingMap = nil
+	end
+	return game.currentMapId
+end
+
+--Click on a map row: highlight it in every open map list now, then travel.
+local TravelToMap = function(map)
+	g_pendingMap = { id = map.id, time = dmhub.Time() }
+	RefreshMapDialogs()
+
+	--travel a frame later, so the highlight is drawn before the dissolve
+	--freezes a snapshot of the screen.
+	dmhub.Coroutine(function()
+		coroutine.yield(0)
+		if mod.unloaded or not map.valid then
+			return
+		end
+		map:Travel()
+	end)
+
+	--if the travel never lands, put the highlight back on the current map.
+	dmhub.Schedule(PENDING_MAP_TIMEOUT + 0.5, function()
+		if mod.unloaded then
+			return
+		end
+		RefreshMapDialogs()
+	end)
+end
+
 --Party tokens grouped by the map they are standing on -- the portrait strip
 --on each map row reads it. Rebuilt at the top of every refresh pass (a
 --dialog's own refreshMaps runs before its children's, top-down), so one
@@ -593,7 +633,11 @@ local CreateMapTokenContainer = function(map, onClick)
 							return
 						end
 
-						local partyid = tok.partyid
+						--same as the deprecated tok.partyid, which reads an empty id as nil.
+						local partyid = tok.partyId
+						if partyid == "" then
+							partyid = nil
+						end
 						local party = GetParty(partyid)
 						if party ~= nil then
 							gui.Tooltip(string.format("%s -- %s", tok.description, party.name))(element)
@@ -687,13 +731,20 @@ local CreateMapNode = function(map)
 		draggable = true,
 
 		refreshMaps = function(element)
-			element:SetClass("selected", map.valid and map.id == game.currentMapId)
+			element:SetClass("selected", map.valid and map.id == SelectedMapId())
 		end,
 
 		canDragOnto = function(element, target)
             return target ~= nil and target:HasClass("mapDragTarget")
 		end,
 		drag = DragNode,
+
+		--start syncing the map so the click that usually follows skips the loading screen.
+		hover = function(element)
+			if map.valid and map.id ~= game.currentMapId then
+				map:Prefetch()
+			end
+		end,
 
 		search = function(element, text)
 			local mapName = string.lower(map.description)
@@ -793,7 +844,7 @@ local CreateMapNode = function(map)
 				return
 			end
 
-			if (not map.valid) or map.id == game.currentMapId then
+			if (not map.valid) or map.id == SelectedMapId() then
 				return
 			end
 
@@ -803,7 +854,7 @@ local CreateMapNode = function(map)
 				module.RemoveNovelContent("map", map.id)
 			end
 
-			map:Travel()
+			TravelToMap(map)
 		end,
 
 		data = {
@@ -1162,7 +1213,7 @@ local CreatePlayerMapNode = function(map)
 		classes = {"mapRow"},
 
 		refreshMaps = function(element)
-			element:SetClass("selected", map.valid and map.id == game.currentMapId)
+			element:SetClass("selected", map.valid and map.id == SelectedMapId())
 		end,
 
 		search = function(element, text)
@@ -1171,9 +1222,16 @@ local CreatePlayerMapNode = function(map)
 			element:SetClass("collapsed", string.find(mapName, searchText) == nil)
 		end,
 
-		click = function(element)
+		--start syncing the map so the click that usually follows skips the loading screen.
+		hover = function(element)
 			if map.valid and map.id ~= game.currentMapId then
-				map:Travel()
+				map:Prefetch()
+			end
+		end,
+
+		click = function(element)
+			if map.valid and map.id ~= SelectedMapId() then
+				TravelToMap(map)
 			end
 		end,
 

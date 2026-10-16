@@ -4,6 +4,21 @@
 --- @class MultiselectArgs:DropdownArgs
 --- @field flow? "vertical"|"horizontal"
 --- @field chipPos? "top"|"bottom"|"left"|"right" Position of chips relative to dropdown. For vertical flow: "top" or "bottom" (default "top"). For horizontal flow: "left" or "right" (default "right").
+--- @field change? fun(element: Multiselect, value: table<string, boolean>) Fired when the selection changes; value is the live set of selected ids (id -> true).
+--- @field keybind nil|string|(fun(panel:Multiselect, bind:string, ...:any):nil)
+--- @field monitor nil|string|(fun(panel:Multiselect, ...:any):nil)
+--- @field closePopup nil|string|(fun(panel:Multiselect, ...:any):nil)
+--- @field delete nil|string|(fun(panel:Multiselect, ...:any):nil)
+--- @field click nil|string|(fun(panel:Multiselect, ...:any):nil)
+--- @field rightClick nil|string|(fun(panel:Multiselect, ...:any):nil)
+--- @field rendered nil|string|(fun(panel:Multiselect, width:number,height:number, ...:any):nil)
+--- @field enable nil|string|(fun(panel:Multiselect, ...:any):nil)
+--- @field disable nil|string|(fun(panel:Multiselect, ...:any):nil)
+--- @field create nil|string|(fun(panel:Multiselect, ...:any):nil)
+--- @field think nil|string|(fun(panel:Multiselect, ...:any):nil)
+--- @field escape nil|string|(fun(panel:Multiselect, ...:any):nil)
+--- @field refreshGame nil|string|(fun(panel:Multiselect, ...:any):nil)
+--- @field imageLoaded nil|string|(fun(panel:Multiselect, ...:any):nil)
 
 -- Multiselect is a first-class widget — its internal selectors
 -- (multiselectChip, multiselectChipText, multiselectChipRemove) live in
@@ -317,7 +332,7 @@ local function _multiselect(args)
             if panelOpts.styles == nil then panelOpts.styles = {} end
             panelOpts.styles = ThemeEngine.MergeStyles(panelOpts.styles)
         end
-        return gui.Panel(panelOpts)
+        return gui.Panel(panelOpts) --[[@as Multiselect]]
     end
     m_panel = buildController()
 
@@ -334,4 +349,5 @@ end
 --widget could ever be tested without restarting the app. Nothing else assigns
 --gui.Multiselect, and a cold boot installs this same closure either way, so
 --dropping the guard changes nothing at runtime -- only whether F4 works.
+---@type fun(args: MultiselectArgs): Multiselect
 gui.Multiselect = _multiselect

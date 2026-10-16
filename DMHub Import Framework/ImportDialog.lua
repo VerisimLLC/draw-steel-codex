@@ -4,8 +4,9 @@ local CreateImportAssetsDialog
 
 LaunchablePanel.Register{
 	name = "Import...",
-	halign = "center",
-	valign = "center",
+	--The dialog centres itself, then can be resized from any edge.
+	halign = "left",
+	valign = "top",
     group = "share",
 	hidden = function()
 		return not dmhub.isDM
@@ -22,15 +23,16 @@ local g_currentImporterSetting = setting{
     storage = "preference",
 }
 
---The import dialog is a fixed size. Most importers put a small input panel at the top and
---fill the space beneath it with the parsed-content panel, the bandwidth notice and the
---Import button, all of which are anchored/centred in the dialog by CreateImportAssetsDialog.
---The My Content browser carries its own footer (dependency notice + cost + Import) inside
---its panel, so none of that lower furniture applies to it and it gets everything under the
---title + importer-dropdown header: ~120px of header plus the input panel's own 16px bottom
---margin. Kept here as constants so the browser's height tracks the dialog's.
+--The My Content browser's starting height, before the dialog has sized itself.
 local g_importDialogHeight = 940
 local g_importDialogHeaderHeight = 140
+
+--Where the dialog was last left and how big, kept until the next Lua reload.
+local g_importDialogPlacement = {
+    try_get = function(self, key)
+        return rawget(self, key)
+    end,
+}
 
 --display names for compendium tables shown by the My Content importer.
 local g_tableDisplayNames = {
@@ -40,6 +42,10 @@ local g_tableDisplayNames = {
     classes = "Classes",
     feats = "Feats",
     backgrounds = "Backgrounds",
+    careers = "Careers",
+    complications = "Complications",
+    titles = "Titles",
+    characteristicsTable = "Inciting Incident Tables",
     charConditions = "Character Conditions",
     characterOngoingEffects = "Ongoing Effects",
     characterResources = "Character Resources",
@@ -52,6 +58,7 @@ local g_tableDisplayNames = {
     featurePrefabs = "Character Feature Prefabs",
     globalRuleMods = "Global Rules",
     languages = "Languages",
+    cultures = "Cultures",
     lootTables = "Loot Tables",
     nameGenerators = "Name Generators",
     parties = "Parties",
@@ -68,6 +75,10 @@ local g_tableDisplayNamesSingular = {
     classes = "Class",
     feats = "Feat",
     backgrounds = "Background",
+    careers = "Career",
+    complications = "Complication",
+    titles = "Title",
+    characteristicsTable = "Inciting Incident Table",
     charConditions = "Character Condition",
     characterOngoingEffects = "Ongoing Effect",
     characterResources = "Character Resource",
@@ -1515,34 +1526,35 @@ CreateMyContentImportPanel = function()
             },
             {
                 selectors = {"mcRow", "hover"},
-                bgcolor = "#ffffff22",
+                bgcolor = "@bgAlt",
             },
             {
                 selectors = {"mcTile"},
-                bgcolor = "#ffffff08",
+                bgcolor = "@bgAlt",
+                borderWidth = 1,
+                borderColor = "@border",
             },
             {
                 selectors = {"mcTile", "hover"},
-                bgcolor = "#ffffff22",
+                borderColor = "@accent",
             },
             {
                 selectors = {"mcCharTile"},
-                bgcolor = "#ffffff08",
+                bgcolor = "@bgAlt",
                 borderWidth = 2,
-                borderColor = "#00000000",
+                borderColor = "@border",
             },
             {
                 selectors = {"mcCharTile", "hover"},
-                bgcolor = "#ffffff22",
+                borderColor = "@accent",
             },
             {
                 selectors = {"mcCharTile", "selected"},
-                bgcolor = "#ffcc6622",
-                borderColor = "#ffcc66",
+                borderColor = "@accent",
             },
             {
                 selectors = {"unavailable"},
-                color = "#888888",
+                color = "@fgMuted",
                 strikethrough = true,
             },
         },
@@ -1577,10 +1589,47 @@ end
 CreateImportAssetsDialog = function(args)
     local dialogPanel
 
+    --- The options table an importer was registered with (import.Register).
+    ---@class ImportDialogImporter
+    ---@field description string
+    ---@field priority? number
+    ---@field input? string
+    ---@field translateurl? fun(url: string): string?
+    ---@field translateerror? fun(error: string): string?
+    ---@field notes? string Markdown shown under the importer dropdown while it is chosen.
+    ---@field hidden? fun(): boolean Returns true to leave the importer out of the dropdown.
+    ---@field reviewChecks? fun(asset: any, tableid: string): ImportReviewCheck[]?
+    ---@field renderReview? fun(asset: any, tableid: string, review: ImportReviewApi): Panel?
+    ---@field onRemovedChanged? fun(asset: any, tableid: string, removed: boolean, review: ImportReviewApi)
+
+    --- One finding an importer's reviewChecks hook reports for a staged item.
+    ---@class ImportReviewCheck
+    ---@field status "warning"|"info"
+    ---@field text string
+
+    --- The table the review hooks get for talking back to the dialog.
+    ---@class ImportReviewApi
+    ---@field refresh fun()
+    ---@field setRemoved fun(key: string, removed: boolean)
+    ---@field isRemoved fun(key: string): boolean
+    ---@field select fun(key: string|nil)
+
+    ---@type ImportDialogImporter
     local m_currentImporter = nil
     local m_currentImporterId = nil
 
-    import:ClearState()
+    --Review rail state. Kept here so it survives the list being rebuilt, and
+    --cleared when new files are read.
+    local m_removedAssets = {}
+    local m_selectedAssetKey = nil
+
+    local function ClearImportState()
+        import:ClearState()
+        m_removedAssets = {}
+        m_selectedAssetKey = nil
+    end
+
+    ClearImportState()
 
     local textImport
     local textImportButton = gui.Button{
@@ -1629,7 +1678,7 @@ CreateImportAssetsDialog = function(args)
  
         openFiles = function(element, paths)
             if paths ~= nil and #paths > 0 then
-                import:ClearState()
+                ClearImportState()
                 import:SetActiveImporter(m_currentImporterId)
                 for _,path in ipairs(paths) do
                     local data = dmhub.ReadTextFile(path, function(err)
@@ -1682,7 +1731,7 @@ CreateImportAssetsDialog = function(args)
  
         openFiles = function(element, paths)
             if paths ~= nil and #paths > 0 then
-                import:ClearState()
+                ClearImportState()
                 import:SetActiveImporter(m_currentImporterId)
                 for _,path in ipairs(paths) do
                     local data = dmhub.ParseDocxFile(path, function(err)
@@ -1754,7 +1803,7 @@ CreateImportAssetsDialog = function(args)
 
         openFiles = function(element, paths)
             if paths ~= nil and #paths > 0 then
-                import:ClearState()
+                ClearImportState()
                 import:SetActiveImporter(m_currentImporterId)
                 for _,path in ipairs(paths) do
                     local data = dmhub.ParseJsonFile(path, function(err)
@@ -1780,7 +1829,7 @@ CreateImportAssetsDialog = function(args)
             click = function(element)
                 dmhub.OpenFileDialog{
                     id = "Import",
-                    extensions = {"json"},
+                    extensions = {"json", "ds-culture", "ds-ancestry", "ds-kit", "ds-class", "ds-subclass", "ds-career", "ds-complication", "ds-perk", "ds-title", "ds-hero"},
                     multiFiles = true,
                     prompt = "Choose files to import...",
                     openFiles = function(paths)
@@ -1801,7 +1850,7 @@ CreateImportAssetsDialog = function(args)
             click = function(element)
                 dmhub.OpenFolderDialog{
                     id = "Import",
-                    extensions = {"json"},
+                    extensions = {"json", "ds-culture", "ds-ancestry", "ds-kit", "ds-class", "ds-subclass", "ds-career", "ds-complication", "ds-perk", "ds-title", "ds-hero"},
                     prompt = "Choose folder to import...",
                     open = function(folderPath, files)
                         filesImportPanel:FireEvent("openFiles", files)
@@ -1899,49 +1948,64 @@ CreateImportAssetsDialog = function(args)
 
     local myContentImportPanel = CreateMyContentImportPanel()
 
+    local contentPanel
+    local footerPanel
+
     local importers = import.importers
     local importerOptions = {}
     for key,importer in pairs(importers) do
-        importerOptions[#importerOptions+1] = {
-            id = key,
-            text = importer.description,
-            ord = importer.priority or 0,
-        }
+        --An importer can hide itself, e.g. one meant only for the lobby.
+        local hidden = type(importer.hidden) == "function" and importer.hidden()
+        if not hidden then
+            importerOptions[#importerOptions+1] = {
+                id = key,
+                text = importer.description,
+                ord = importer.priority or 0,
+            }
+        end
     end
 
     table.sort(importerOptions, function(a,b) return a.ord > b.ord end)
 
-    local importPanel = gui.Panel{
-        flow = "vertical",
+    --Shows the chosen importer's notes, such as which files it accepts.
+    local notesLabel = gui.Label{
+        classes = {"collapsed"},
+        width = "100%",
+        height = "auto",
+        halign = "left",
+        tmargin = 8,
+        fontSize = 15,
+        textWrap = true,
+        textAlignment = "left",
+        markdown = true,
+        importer = function(element, importer)
+            local notes = importer ~= nil and importer.notes or nil
+            element.text = notes or ""
+            element:SetClass("collapsed", notes == nil or notes == "")
+        end,
+    }
+
+    --The chosen importer's way in: file buttons, a paste box or a URL.
+    local inputPanel = gui.Panel{
+        importer = function(element, importer)
+            for _,child in ipairs(element.children) do
+                child:SetClass("collapsed", child.data.type ~= importer.input)
+            end
+        end,
+        flow = "none",
+        halign = "right",
+        valign = "center",
         width = "auto",
         height = "auto",
-        hmargin = 32,
-        halign = "center",
-        valign = "top",
-        vmargin = 16,
-        import = function(element)
-        end,
-
-        gui.Panel{
-            importer = function(element, importer)
-                local children = element.children
-                for _,child in ipairs(children) do
-                    child:SetClass("collapsed", child.data.type ~= importer.input)
-                end
-            end,
-            flow = "none",
-            halign = "center",
-            valign = "center",
-            width = "auto",
-            height = "auto",
-            textImportPanel,
-            plaintextImportPanel,
-            filesImportPanel,
-            docxImportPanel,
-            urlImportPanel,
-            myContentImportPanel,
-        },
+        textImportPanel,
+        plaintextImportPanel,
+        filesImportPanel,
+        docxImportPanel,
+        urlImportPanel,
     }
+
+    --My Other Games brings its own browser, which takes the whole body.
+    myContentImportPanel.selfStyle.height = "100%"
 
     --read the last used importer, but also make sure it's valid.
     local importerid = importerOptions[1].id
@@ -1965,22 +2029,31 @@ CreateImportAssetsDialog = function(args)
             ---@cast element Dropdown
             g_currentImporterSetting:Set(element.idChosen)
             m_currentImporter = importers[element.idChosen]
-            m_currentImporterId = element.idChosen
+            --option ids are importer id strings.
+            m_currentImporterId = element.idChosen --[[@as string]]
             import:SetActiveImporter(m_currentImporterId)
-            importPanel:FireEventTree("importer", importers[element.idChosen])
+            local importer = importers[element.idChosen]
+            notesLabel:FireEvent("importer", importer)
+            inputPanel:FireEventTree("importer", importer)
+            myContentImportPanel:FireEventTree("importer", importer)
+            myContentImportPanel:SetClass("collapsed", importer.input ~= "mycontent")
+            if footerPanel ~= nil then
+                footerPanel:SetClass("collapsed", importer.input == "mycontent")
+            end
+            if contentPanel ~= nil and importer.input == "mycontent" then
+                contentPanel:SetClass("collapsed", true)
+            end
         end,
     }
 
     local importerSelectionPanel = gui.Panel{
         flow = "horizontal",
-        halign = "center",
-        valign = "top",
+        halign = "left",
+        valign = "center",
         width = "auto",
         height = "auto",
-        hmargin = 8,
-        vmargin = 16,
         gui.Label{
-            hmargin = 8,
+            rmargin = 8,
             text = "Choose Importer:",
             height = 28,
             fontSize = 18,
@@ -1990,38 +2063,524 @@ CreateImportAssetsDialog = function(args)
         importerDropdown,
     }
 
-    local contentPanel = gui.Panel{
-        classes = "collapsed",
-        halign = "center",
-        valign = "center",
+    --Optional review hooks an importer can pass to import.Register:
+    --
+    --  reviewChecks(asset, tableid)
+    --      Returns a list of {status = "warning"|"info", text = string} for one
+    --      staged item. A warning puts an amber mark on the item's row, and
+    --      every finding is listed in the rail's Checks view.
+    --
+    --  renderReview(asset, tableid, review)
+    --      Returns the panel the rail shows when the item is selected. The
+    --      review table lets it talk back to the dialog:
+    --        review.refresh()                re-read checks after an edit
+    --        review.setRemoved(key, removed) include or exclude a staged item
+    --        review.isRemoved(key)           whether a staged item is excluded
+    --        review.select(key)              show another item, or nil for Checks
+    --
+    --  onRemovedChanged(asset, tableid, removed, review)
+    --      Called when the user excludes or restores a row, so the importer
+    --      can keep related items consistent.
+    --
+    --  notes (a string, not a hook)
+    --      Markdown shown under the importer dropdown while it is chosen, to
+    --      say which files the importer accepts.
+    --
+    --  hidden()
+    --      Returns true to leave the importer out of the dropdown when the
+    --      dialog opens.
+    --
+    --An importer that supplies renderReview gets the list plus a review rail.
+    --Every other importer keeps the original single list.
+
+
+    local function ReviewImporter()
+        if m_currentImporter ~= nil and m_currentImporter.renderReview ~= nil then
+            return m_currentImporter
+        end
+        return nil
+    end
+
+    --Finds a staged item by key. Returns the asset and its table id, or nil.
+    local function FindStagedAsset(key)
+        if key == nil then
+            return nil
+        end
+        for tableid,tableInfo in pairs(import:GetImports()) do
+            local asset = tableInfo[key]
+            if asset ~= nil then
+                return asset, tableid
+            end
+        end
+        return nil
+    end
+
+    --Staged items in the order the list shows them.
+    local function SortedStagedAssets()
+        local result = {}
+        for tableid,tableInfo in pairs(import:GetImports()) do
+            for key,asset in pairs(tableInfo) do
+                result[#result+1] = {key = key, asset = asset, tableid = tableid}
+            end
+        end
+        table.sort(result, function(a, b)
+            if a.tableid ~= b.tableid then
+                return a.tableid < b.tableid
+            end
+            return tostring(a.asset.name) < tostring(b.asset.name)
+        end)
+        return result
+    end
+
+    --The findings for one staged item. A broken importer hook must not take
+    --the dialog down, so a failure is printed and treated as no findings.
+    local function ReviewChecksFor(asset, tableid)
+        local importer = ReviewImporter()
+        if importer == nil or importer.reviewChecks == nil then
+            return {}
+        end
+        local ok, checks = pcall(importer.reviewChecks, asset, tableid)
+        if not ok then
+            print("IMPORT:: reviewChecks failed:", checks)
+            return {}
+        end
+        return checks or {}
+    end
+
+    local reviewApi
+    reviewApi = {
+        refresh = function()
+            contentPanel:FireEventTree("reviewChecksChanged")
+        end,
+        setRemoved = function(key, removed)
+            m_removedAssets[key] = removed or nil
+            import:SetImportRemoved(key, removed)
+            contentPanel:FireEventTree("reviewSetRemoved", key, removed)
+            reviewApi.refresh()
+        end,
+        isRemoved = function(key)
+            return m_removedAssets[key] == true
+        end,
+        select = function(key)
+            m_selectedAssetKey = key
+            contentPanel:FireEventTree("reviewSelectionChanged")
+        end,
+    }
+
+    --Rows and panels sit on the dialog's own background, like the Compendium.
+    local g_reviewStyles = {
+        {
+            selectors = {"importItemPanel"},
+            bgcolor = "clear",
+        },
+        {
+            selectors = {"importItemPanel", "hover", "~rowSelected"},
+            bgcolor = "@bgAlt",
+        },
+        {
+            selectors = {"importItemPanel", "rowSelected"},
+            bgcolor = "@bgInverse",
+        },
+        {
+            selectors = {"label", "rowSelected"},
+            color = "@fgInverse",
+        },
+        {
+            selectors = {"label", "exclude"},
+            strikethrough = true,
+            color = "@fgMuted",
+        },
+        {
+            selectors = {"reviewRail"},
+            bgcolor = "clear",
+        },
+        {
+            selectors = {"reviewDivider"},
+            bgcolor = "@border",
+        },
+        {
+            selectors = {"reviewMark", "warning"},
+            bgcolor = "@warning",
+        },
+        {
+            selectors = {"reviewMark", "info"},
+            bgcolor = "@fgMuted",
+        },
+        {
+            selectors = {"label", "reviewMarkCount"},
+            fontSize = 14,
+            color = "@fgMuted",
+        },
+        {
+            selectors = {"label", "reviewMarkCount", "warning"},
+            color = "@warning",
+        },
+        {
+            selectors = {"label", "reviewTitle"},
+            fontSize = 20,
+            bold = true,
+            width = "auto",
+            height = "auto",
+            bmargin = 8,
+        },
+        {
+            selectors = {"label", "reviewHint"},
+            fontSize = 14,
+            color = "@fgMuted",
+            width = "100%",
+            height = "auto",
+            textWrap = true,
+            vmargin = 4,
+        },
+        {
+            selectors = {"reviewItem"},
+            bgcolor = "@bgAlt",
+            borderColor = "@border",
+            borderWidth = 1,
+        },
+        {
+            selectors = {"reviewItem", "hover"},
+            borderColor = "@accent",
+        },
+        {
+            selectors = {"label", "reviewItemName"},
+            fontSize = 18,
+            bold = true,
+        },
+        {
+            selectors = {"label", "reviewItemType"},
+            fontSize = 14,
+            color = "@fgMuted",
+        },
+        {
+            selectors = {"reviewBack"},
+            bgcolor = "clear",
+        },
+        {
+            selectors = {"reviewBackIcon"},
+            bgcolor = "@fgMuted",
+        },
+        {
+            selectors = {"label", "reviewBackLabel"},
+            fontSize = 14,
+            color = "@fgMuted",
+        },
+        {
+            selectors = {"label", "reviewBackLabel", "parent:hover"},
+            color = "@fg",
+        },
+    }
+
+    --One row per staged item that opens it, with its findings listed under it.
+    local function CreateItemCard(entry, checks)
+        local warnings, infos = 0, 0
+        for _,check in ipairs(checks) do
+            if check.status == "warning" then
+                warnings = warnings + 1
+            else
+                infos = infos + 1
+            end
+        end
+
+        --"2 things to check", amber when any of them is a warning.
+        local counts = {}
+        local total = warnings + infos
+        if total > 0 then
+            local tone = cond(warnings > 0, "warning", "info")
+            counts[#counts+1] = gui.Panel{
+                classes = {"reviewMark", tone},
+                bgimage = cond(warnings > 0, "phosphor/warning-bold.png", "phosphor/info-bold.png"),
+                width = 16,
+                height = 16,
+                valign = "center",
+            }
+            counts[#counts+1] = gui.Label{
+                classes = {"reviewMarkCount", cond(warnings > 0, "warning", nil)},
+                text = cond(total == 1, "1 thing to check", string.format("%d things to check", total)),
+                width = "auto",
+                height = "auto",
+                lmargin = 4,
+                rmargin = 12,
+                valign = "center",
+            }
+        end
+        counts[#counts+1] = gui.Panel{
+            classes = {"reviewMark", "info"},
+            bgimage = "phosphor/caret-right-bold.png",
+            width = 14,
+            height = 14,
+            valign = "center",
+        }
+
+        local name = entry.asset.name or "Unnamed"
+        local children = {
+            gui.Panel{
+                classes = {"reviewItem"},
+                bgimage = "panels/square.png",
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+                pad = 8,
+                click = function(element)
+                    reviewApi.select(entry.key)
+                end,
+                hover = function(element)
+                    element.tooltip = gui.TooltipFrame(gui.Label{
+                        text = string.format("Click to open %s and review it.", name),
+                        width = "auto",
+                        height = "auto",
+                        fontSize = 14,
+                    }, {halign = "left", valign = "center"})
+                end,
+                gui.Label{
+                    classes = {"reviewItemName"},
+                    text = name,
+                    width = "auto",
+                    height = "auto",
+                    valign = "center",
+                },
+                gui.Label{
+                    classes = {"reviewItemType"},
+                    text = g_tableDisplayNamesSingular[entry.tableid] or entry.tableid,
+                    width = "auto",
+                    height = "auto",
+                    lmargin = 10,
+                    valign = "center",
+                },
+                gui.Panel{
+                    flow = "horizontal",
+                    width = "auto",
+                    height = "auto",
+                    halign = "right",
+                    valign = "center",
+                    children = counts,
+                },
+            },
+        }
+
+        --The item's name already heads the card, so drop it from each line.
+        local prefix = name .. ": "
+        for _,check in ipairs(checks) do
+            local tone = cond(check.status == "warning", "warning", "info")
+            local text = check.text
+            if string.sub(text, 1, #prefix) == prefix then
+                text = string.sub(text, #prefix + 1)
+                text = string.upper(string.sub(text, 1, 1)) .. string.sub(text, 2)
+            end
+            children[#children+1] = gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+                lmargin = 24,
+                tmargin = 6,
+                gui.Panel{
+                    classes = {"reviewMark", tone},
+                    bgimage = cond(tone == "warning", "phosphor/warning-bold.png", "phosphor/info-bold.png"),
+                    width = 16,
+                    height = 16,
+                    valign = "top",
+                    rmargin = 8,
+                },
+                gui.Label{
+                    text = text,
+                    width = "100%-48",
+                    height = "auto",
+                    fontSize = 16,
+                    textWrap = true,
+                },
+            }
+        end
+
+        return gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            bmargin = 14,
+            children = children,
+        }
+    end
+
+    local function CreateChecksView()
+        ---@type Panel[]
+        local children = {
+            gui.Label{
+                classes = {"reviewTitle"},
+                text = "Checks",
+            },
+            gui.Label{
+                classes = {"reviewHint"},
+                bmargin = 8,
+                text = "Click an item to open it and review it. When you're done, select Import below to bring everything into the Codex.",
+            },
+        }
+
+        local count = 0
+        for _,entry in ipairs(SortedStagedAssets()) do
+            if not m_removedAssets[entry.key] then
+                count = count + 1
+                children[#children+1] = CreateItemCard(entry, ReviewChecksFor(entry.asset, entry.tableid))
+            end
+        end
+
+        if count == 0 then
+            children[#children+1] = gui.Label{
+                classes = {"reviewHint"},
+                text = "Nothing to check.",
+            }
+        end
+
+        return children
+    end
+
+    local function CreateInspectorView(importer, asset, tableid)
+        local children = {
+            gui.Panel{
+                classes = {"reviewBack"},
+                bgimage = "panels/square.png",
+                flow = "horizontal",
+                width = "auto",
+                height = "auto",
+                bmargin = 8,
+                click = function(element)
+                    reviewApi.select(nil)
+                end,
+                gui.Panel{
+                    classes = {"reviewBackIcon"},
+                    bgimage = "phosphor/caret-left-bold.png",
+                    width = 14,
+                    height = 14,
+                    valign = "center",
+                },
+                gui.Label{
+                    classes = {"reviewBackLabel"},
+                    text = "Checks",
+                    width = "auto",
+                    height = "auto",
+                    lmargin = 4,
+                },
+            },
+        }
+
+        local ok, panel = pcall(importer.renderReview, asset, tableid, reviewApi)
+        if not ok then
+            print("IMPORT:: renderReview failed:", panel)
+            panel = nil
+        end
+
+        if panel == nil then
+            children[#children+1] = gui.Label{
+                classes = {"reviewHint"},
+                text = "Nothing to review for this item.",
+            }
+        else
+            children[#children+1] = panel
+        end
+
+        return children
+    end
+
+    --The list keeps this width when a review rail sits beside it.
+    local LIST_WIDTH = 420
+
+    local reviewDivider = gui.Panel{
+        classes = {"reviewDivider", "collapsed"},
+        bgimage = "panels/square.png",
+        width = 1,
+        height = "100%",
+        hmargin = 12,
+
+        import = function(element)
+            element:SetClass("collapsed", ReviewImporter() == nil)
+        end,
+    }
+
+    local reviewRail = gui.Panel{
+        classes = {"reviewRail", "collapsed"},
+        bgimage = "panels/square.png",
+        --25 for the divider.
+        width = string.format("100%%-%d", LIST_WIDTH + 25),
+        height = "100%",
+        pad = 12,
+        borderBox = true,
         flow = "vertical",
-        hpad = 20,
-        width = 500,
-        height = 420,
+        vscroll = true,
+
+        import = function(element)
+            element:SetClass("collapsed", ReviewImporter() == nil)
+            element:FireEvent("reviewRebuildRail")
+        end,
+
+        reviewSelectionChanged = function(element)
+            element:FireEvent("reviewRebuildRail")
+        end,
+
+        --Rebuilding the selected item's panel would interrupt the user mid-edit,
+        --so only the Checks view is rebuilt.
+        reviewChecksChanged = function(element)
+            if m_selectedAssetKey == nil then
+                element:FireEvent("reviewRebuildRail")
+            end
+        end,
+
+        reviewRebuildRail = function(element)
+            local importer = ReviewImporter()
+            if importer == nil then
+                element.children = {}
+                return
+            end
+
+            local asset, tableid = FindStagedAsset(m_selectedAssetKey)
+            if asset == nil then
+                m_selectedAssetKey = nil
+                element.children = CreateChecksView()
+            else
+                element.children = CreateInspectorView(importer, asset, tableid)
+            end
+        end,
+    }
+
+    local itemListPanel
+
+    contentPanel = gui.Panel{
+        classes = "collapsed",
+        halign = "left",
+        valign = "top",
+        flow = "horizontal",
+        width = "100%",
+        height = "100%",
 
         error = function(element)
             element:SetClass("collapsed", true)
         end,
 
         import = function(element)
-            element:SetClass("collapsed", false)
+            element:SetClass("collapsed", m_currentImporter ~= nil and m_currentImporter.input == "mycontent")
         end,
+
+        --The item list, with the import log under it.
+        gui.Panel{
+            flow = "vertical",
+            width = "100%",
+            height = "100%",
+
+            import = function(element)
+                element.selfStyle.width = cond(ReviewImporter() ~= nil, LIST_WIDTH, "100%")
+            end,
 
         gui.Panel{
             width = "100%",
             height = "100%",
             flow = "vertical",
             vpad = 8,
+            borderBox = true,
             vscroll = true,
 		    hideObjectsOutOfScroll = true,
 
-            styles = {
-                {
-                    selectors = {"exclude"},
-                    strikethrough = true,
-                    color = "#777777",
-                },
+            create = function(element)
+                itemListPanel = element
+            end,
 
+            styles = {
                 {
                     selectors = {"deleteItemButton"},
                     hidden = 1,
@@ -2036,6 +2595,8 @@ CreateImportAssetsDialog = function(args)
             },
 
             import = function(element)
+                local reviewImporter = ReviewImporter()
+
                 local children = {}
                 local imports = import:GetImports()
                 local count = 0
@@ -2090,7 +2651,7 @@ CreateImportAssetsDialog = function(args)
 
                         local reimportIcon
 
-                        if import:IsReimport(asset) then
+                        if import:IsReimport(asset) and reviewImporter == nil then
                             reimportIcon = gui.Panel{
                                 floating = true,
                                 halign = "right",
@@ -2109,7 +2670,7 @@ CreateImportAssetsDialog = function(args)
 
                         local alertIcon
 
-                        if import:GetAssetLog(asset) ~= nil then
+                        if import:GetAssetLog(asset) ~= nil and reviewImporter == nil then
                             alertIcon = gui.Label{
                                 floating = true,
                                 halign = "right",
@@ -2177,7 +2738,8 @@ CreateImportAssetsDialog = function(args)
 
                                     else
                                         local text = ""
-                                        for _,log in ipairs(import:GetAssetLog(asset)) do
+                                        --this alert icon is only built when the asset has a log.
+                                        for _,log in ipairs(import:GetAssetLog(asset) --[[@as table]]) do
                                             if text ~= "" then
                                                 text = text .. "\n"
                                             end
@@ -2191,33 +2753,105 @@ CreateImportAssetsDialog = function(args)
                             }
                         end
 
+                        --Each row gets one mark: amber when something needs a
+                        --look, muted when there is only information, none otherwise.
+                        local reviewMark
+                        if reviewImporter ~= nil then
+                            reviewMark = gui.Panel{
+                                classes = {"hidden"},
+                                floating = true,
+                                halign = "right",
+                                valign = "center",
+                                hmargin = 40,
+                                width = "auto",
+                                height = 20,
+                                flow = "horizontal",
+
+                                create = function(element)
+                                    element:FireEvent("reviewChecksChanged")
+                                end,
+
+                                reviewChecksChanged = function(element)
+                                    local warnings = 0
+                                    local infos = 0
+                                    if not m_removedAssets[key] then
+                                        for _,check in ipairs(ReviewChecksFor(asset, tableid)) do
+                                            if check.status == "warning" then
+                                                warnings = warnings + 1
+                                            else
+                                                infos = infos + 1
+                                            end
+                                        end
+                                    end
+
+                                    element:SetClass("hidden", warnings + infos == 0)
+                                    if warnings > 0 then
+                                        element:FireEventTree("setReviewMark", "warning", warnings)
+                                    else
+                                        element:FireEventTree("setReviewMark", "info", infos)
+                                    end
+                                end,
+
+                                gui.Panel{
+                                    classes = {"reviewMark", "info"},
+                                    bgimage = "phosphor/info-bold.png",
+                                    width = 16,
+                                    height = 16,
+                                    valign = "center",
+                                    setReviewMark = function(element, tone, count)
+                                        element.bgimage = cond(tone == "warning", "phosphor/warning-bold.png", "phosphor/info-bold.png")
+                                        element:SetClass("warning", tone == "warning")
+                                        element:SetClass("info", tone ~= "warning")
+                                    end,
+                                },
+                                gui.Label{
+                                    classes = {"reviewMarkCount"},
+                                    width = "auto",
+                                    height = "auto",
+                                    lmargin = 4,
+                                    valign = "center",
+                                    setReviewMark = function(element, tone, count)
+                                        element.text = tostring(count)
+                                        element:SetClass("warning", tone == "warning")
+                                    end,
+                                },
+                            }
+                        end
+
                         local panel
                         panel = gui.Panel{
                             classes = {"importItemPanel"},
                             bgimage = "panels/square.png",
-                            width = "90%",
+                            width = "100%-16",
                             height = 40,
                             halign = "left",
                             hmargin = 8,
                             flow = "vertical",
 
-                            styles = {
-                                {
-                                    bgcolor = "clear",
-                                },
-                                {
-                                    selectors = {"hover"},
-                                    bgcolor = "#ffffff22",
-                                },
-                            },
-
                             data = {
                                 ord = {tableid, asset.name},
                             },
 
+                            click = function(element)
+                                if reviewImporter ~= nil then
+                                    reviewApi.select(key)
+                                end
+                            end,
+
+                            reviewSelectionChanged = function(element)
+                                element:SetClassTree("rowSelected", key == m_selectedAssetKey)
+                            end,
+
+                            reviewSetRemoved = function(element, removedKey, removed)
+                                if removedKey == key then
+                                    element:SetClassTree("exclude", removed)
+                                end
+                            end,
+
                             alertIcon,
                             reimportIcon,
                             outcomeIcon,
+                            reviewMark,
 
                             gui.Panel{
                                 flow = "horizontal",
@@ -2264,7 +2898,7 @@ CreateImportAssetsDialog = function(args)
                                         vmargin = 1,
                                         hmargin = 4,
                                         valign = "top",
-                                        text = tableid,
+                                        text = cond(reviewImporter ~= nil, g_tableDisplayNames[tableid] or tableid, tableid),
                                     },
                                 },
                             },
@@ -2276,10 +2910,30 @@ CreateImportAssetsDialog = function(args)
                                 valign = "top",
                                 click = function(element)
                                     panel:SetClassTree("exclude", not panel:HasClass("exclude"))
-                                    import:SetImportRemoved(key, panel:HasClass("exclude"))
+                                    local removed = panel:HasClass("exclude")
+                                    m_removedAssets[key] = removed or nil
+                                    import:SetImportRemoved(key, removed)
+
+                                    if reviewImporter ~= nil then
+                                        if reviewImporter.onRemovedChanged ~= nil then
+                                            local ok, err = pcall(reviewImporter.onRemovedChanged, asset, tableid, removed, reviewApi)
+                                            if not ok then
+                                                print("IMPORT:: onRemovedChanged failed:", err)
+                                            end
+                                        end
+                                        reviewApi.refresh()
+                                        contentPanel:FireEventTree("reviewRebuildRail")
+                                    end
                                 end,
                             },
                         }
+
+                        --The list is rebuilt on every refresh, so restore
+                        --any exclusion the user already made.
+                        if m_removedAssets[key] then
+                            panel:SetClassTree("exclude", true)
+                        end
+                        panel:SetClassTree("rowSelected", reviewImporter ~= nil and key == m_selectedAssetKey)
 
                         children[#children+1] = panel
                     end
@@ -2292,6 +2946,7 @@ CreateImportAssetsDialog = function(args)
                             return a.data.ord[i] < b.data.ord[i]
                         end
                     end
+                    return false
                 end)
 
 
@@ -2300,51 +2955,53 @@ CreateImportAssetsDialog = function(args)
             end,
         },
 
-    }
+        --The import log, under the list. The list gives up room for it only
+        --when there is something to show.
+        gui.Panel{
+            classes = {"collapsed"},
+            vscroll = true,
+            height = 200,
+            width = "100%",
+            flow = "vertical",
+            tmargin = 8,
 
-    local logPanel = gui.Panel{
-        vscroll = true,
-        height = 240,
-        width = 400,
-        flow = "vertical",
-        floating = true,
-        halign = "right",
-        valign = "bottom",
-        margin = 8,
+            styles = {
+                {
+                    selectors = {"label"},
+                    width = "90%",
+                    height = "auto",
+                    fontSize = 16,
+                    halign = "left",
+                    hmargin = 4,
+                    textWrap = true,
+                }
+            },
 
-        styles = {
-            {
-                selectors = {"label"},
-                width = "90%",
-                height = "auto",
-                fontSize = 16,
-                halign = "left",
-                hmargin = 4,
-                textWrap = true,
-            }
+            import = function(element)
+                local children = {}
+                for _,entry in ipairs(import:GetLog()) do
+                    children[#children+1] = gui.Label{
+                        text = entry,
+                    }
+                end
+
+                element.children = children
+                element:SetClass("collapsed", #children == 0)
+                if itemListPanel ~= nil then
+                    itemListPanel.selfStyle.height = cond(#children == 0, "100%", "100%-208")
+                end
+            end,
+        },
         },
 
-        import = function(element)
-            local children = {}
-            local imports = import:GetImports()
-            for _,entry in ipairs(import:GetLog()) do
-
-                local label = gui.Label{
-                    text = entry,
-                }
-
-                children[#children+1] = label
-            end
-
-            element.children = children
-        end,
+        reviewDivider,
+        reviewRail,
     }
 
     local statusMessage = gui.Label{
         classes = {"collapsed"},
-        halign = "left",
+        halign = "center",
         valign = "center",
-        hmargin = 64,
         width = "auto",
         height = "auto",
         maxWidth = 400,
@@ -2366,8 +3023,8 @@ CreateImportAssetsDialog = function(args)
 
     local completeButton = gui.Button{
         classes = {"sizeL", "hidden"},
-        halign = "center",
-        valign = "bottom",
+        halign = "right",
+        valign = "center",
         text = "Finish",
         click = function(element)
             dialogPanel.parent:DestroySelf()
@@ -2376,13 +3033,12 @@ CreateImportAssetsDialog = function(args)
 
     local importingText = gui.Label{
         classes = {"hidden"},
-        halign = "center",
-        valign = "bottom",
+        halign = "right",
+        valign = "center",
         text = "Importing",
         fontSize = 22,
         width = "auto",
         height = "auto",
-        vmargin = 16,
 
         think = function(element)
             if element.text == "Importing" then
@@ -2421,11 +3077,8 @@ CreateImportAssetsDialog = function(args)
 
 
     local bandwidthLabel = gui.Label{
-        floating = true,
         halign = "left",
-        valign = "bottom",
-        hmargin = 16,
-        vmargin = 64,
+        valign = "center",
         fontSize = 16,
         width = 420,
         height = "auto",
@@ -2450,8 +3103,8 @@ CreateImportAssetsDialog = function(args)
 
     local importButton = gui.Button{
         classes = {"sizeL", "hidden"},
-        halign = "center",
-        valign = "bottom",
+        halign = "right",
+        valign = "center",
         text = "Import",
         refreshImport = function(element)
             if import.error ~= nil then
@@ -2478,10 +3131,128 @@ CreateImportAssetsDialog = function(args)
 
 
 
-    dialogPanel = gui.Panel{
-        width = 1200,
-        height = g_importDialogHeight,
+    local FOOTER_HEIGHT = 64
+
+    --The title on its own row, then the importer choice and the way in, then
+    --the importer's notes.
+    local headerPanel = gui.Panel{
         flow = "vertical",
+        width = "100%",
+        height = "auto",
+        valign = "top",
+
+        gui.Label{
+            classes = {"title"},
+            halign = "left",
+            width = "auto",
+            height = "auto",
+            fontSize = 26,
+            bold = true,
+            bmargin = 8,
+            text = "Importer",
+        },
+
+        gui.Panel{
+            flow = "none",
+            width = "100%",
+            height = "auto",
+            importerSelectionPanel,
+            inputPanel,
+        },
+
+        notesLabel,
+    }
+
+    local bodyPanel = gui.Panel{
+        flow = "none",
+        width = "100%",
+        height = 600,
+        tmargin = 12,
+        contentPanel,
+        myContentImportPanel,
+    }
+
+    --My Other Games has its own footer, so this one hides for it.
+    footerPanel = gui.Panel{
+        flow = "none",
+        width = "100%",
+        height = FOOTER_HEIGHT,
+        tmargin = 8,
+        bandwidthLabel,
+        statusMessage,
+        importingText,
+        completeButton,
+        importButton,
+    }
+
+    dialogPanel = gui.Panel{
+        width = "100%",
+        height = "100%",
+        flow = "vertical",
+        hpad = 24,
+        vpad = 16,
+        borderBox = true,
+        --These styles use theme colors, which only show through the theme.
+        styles = ThemeEngine.MergeStyles(g_reviewStyles),
+        data = {},
+
+        --The body gets whatever height the header and footer leave.
+        thinkTime = 0.2,
+        think = function(element)
+            --Transparent UI shows the map through the dialog as tinted glass,
+            --like the docked panels. Colors come from the user's theme.
+            local frame = element.parent
+            if frame ~= nil then
+                --The engine marks the frame "uiblur" while the blur is really on.
+                local glass = frame:HasClass("uiblur")
+                local token = cond(glass, "@bg", "@bgAlt")
+                local color = ThemeEngine.MergeTokens({{selectors = {"_resolve"}, bgcolor = token}})[1].bgcolor
+                --Always give the alpha: a six-digit color here draws partly see-through.
+                if type(color) == "string" then
+                    color = string.sub(color, 1, 7) .. cond(glass, "F2", "FF")
+                end
+                if element.data.frameColor ~= color then
+                    element.data.frameColor = color
+                    frame.selfStyle.bgcolor = color
+                end
+            end
+
+            local host = frame ~= nil and frame.parent or nil
+            if frame == nil or host == nil or host.renderedWidth <= 0 or host.renderedHeight <= 0 then
+                return
+            end
+
+            --First time: centred at a comfortable size, or where it was left
+            --last time, kept on screen. Then edges and corners resize it.
+            if not element.data.placed then
+                element.data.placed = true
+                local screenW, screenH = host.renderedWidth, host.renderedHeight
+                local loc = g_importDialogPlacement:try_get("_tmp_location")
+                local width = math.min(screenW, (loc and loc.width) or math.floor(screenW * 0.63))
+                local height = math.min(screenH, (loc and loc.height) or math.floor(screenH * 0.765))
+                local x = (loc and loc.x) or math.floor((screenW - width) / 2)
+                local y = (loc and loc.y) or math.floor((screenH - height) / 2)
+                frame.selfStyle.width = width
+                frame.selfStyle.height = height
+                frame.x = math.max(0, math.min(x, screenW - width))
+                frame.y = math.max(0, math.min(y, screenH - height))
+                frame:AddChild(gui.WindowResizePanel(g_importDialogPlacement, width, height, {
+                    minWidth = 900,
+                    minHeight = 520,
+                }))
+            end
+
+            local height = frame.selfStyle.height
+            if type(height) ~= "number" then
+                height = frame.renderedHeight
+            end
+            local footerHeight = cond(footerPanel:HasClass("collapsed"), 0, FOOTER_HEIGHT + 8)
+            local bodyHeight = math.max(200, height - 32 - 12 - headerPanel.renderedHeight - footerHeight)
+            if element.data.bodyHeight ~= bodyHeight then
+                element.data.bodyHeight = bodyHeight
+                bodyPanel.selfStyle.height = bodyHeight
+            end
+        end,
 
         refreshImport = function(element)
             if import.error == nil then
@@ -2491,30 +3262,13 @@ CreateImportAssetsDialog = function(args)
             end
         end,
 
-        gui.Label{
-            classes = {"title"},
-            vmargin = 16,
-            valign = "top",
-            halign = "center",
-            width = "auto",
-            height = "auto",
-            text = "Importer",
-        },
-
-        importerSelectionPanel,
-        importPanel,
-        contentPanel,
-
-        statusMessage,
-        importingText,
-        completeButton,
-
-        bandwidthLabel,
-        importButton,
-
-        logPanel,
-
+        headerPanel,
+        bodyPanel,
+        footerPanel,
     }
+
+    --Pick the importer now, so files read straight away use it.
+    importerDropdown:FireEvent("change")
 
     return dialogPanel
 end

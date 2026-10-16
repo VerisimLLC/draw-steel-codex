@@ -131,7 +131,7 @@ check(findPending(queue) == nil, "dismissed legacy card must not block")
 --monster turn, resumes after completion, and remains stoppable while waiting.
 mod = {}
 ElevateToHostPermissions = noop
-creature = {SetAIActivityInProgress = noop}
+creature = {SetAIActivityInProgress = noop, ClearAIControl = noop}
 FindPendingPlayerSave = findPending
 GameHud = {BetweenTurnTransitionInProgress = function(...) return false end,
     instance = {initiativeInterface = {}}, GetTokensForInitiativeId = function(...) return {} end}
@@ -139,6 +139,8 @@ local turns = 0
 local process = {}
 MonsterAI.ClearWaiting = noop
 MonsterAI.SetWaiting = noop
+--The AI profiler is a no-op here.
+MonsterAI.ProfBegin, MonsterAI.ProfEnd, MonsterAI.ProfPhaseBegin, MonsterAI.ProfPhaseEnd = noop, noop, noop, noop
 MonsterAI.new = function(...)
     return {LogDecision = noop, RunYieldingFunction = function(_, fn) return pcall(fn) end,
         PlayTurnSafely = function() turns = turns + 1; process.stopRequested = true end}

@@ -79,6 +79,7 @@ end
 
 
 local CreateGameScreen = function(titlescreen)
+    --- @type Panel
     local m_gamescreen = nil
 
     local m_gameBackgroundContainer = nil
@@ -170,6 +171,7 @@ local CreateGameScreen = function(titlescreen)
 
     RefreshGames()
 
+    --- @type LuaGameInfo?
     local m_currentGame = nil
 
     local m_messagePanel = gui.Label{
@@ -550,6 +552,8 @@ local CreateGameScreen = function(titlescreen)
 					prompt = string.format("Choose image or video to use for your game's cover art"),
 					open = function(path)
                         local imageid
+						--the game settings panel holding this control is collapsed while m_currentGame is nil.
+						---@cast m_currentGame -nil
 						imageid = m_currentGame:UploadCoverArt{
 							path = path,
 							upload = function()

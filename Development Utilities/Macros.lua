@@ -22,7 +22,10 @@ Commands.RegisterMacro{
         end
 
         print("Checkpoint: restoring...")
-        g_checkpoint:Restore()
+        local err = g_checkpoint:Restore()
+        if err ~= nil then
+            print("Checkpoint: not restored: " .. err)
+        end
     end,
 }
 
@@ -123,6 +126,8 @@ Commands.RegisterMacro{
             description = "schema-guard test: bad attributes shape",
             undoable = false,
             execute = function()
+                --the wrong type is the point: this write must trip the server's schema guard.
+                ---@diagnostic disable-next-line: assign-type-mismatch
                 token.properties.attributes = "this-should-be-rejected"
             end,
         }

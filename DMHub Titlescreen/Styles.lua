@@ -1068,7 +1068,6 @@ Styles = {
 		gui.Style({
 			selectors = {'context-menu-item'},
 			fontSize = 20,
-			color = '#ffffff',
 			height = "auto",
 			width = "100%",
 			bgcolor = '#994444',

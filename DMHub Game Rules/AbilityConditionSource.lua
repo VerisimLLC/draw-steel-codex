@@ -92,7 +92,7 @@ function ActivatedAbilityConditionSourceBehavior:EditorItems(parentPanel)
             idChosen = self.condid,
             change = function(element)
                 ---@cast element Dropdown
-                self.condid = element.idChosen
+                self.condid = element.idChosen --[[@as string]]
             end,
         },
     }

@@ -1160,7 +1160,7 @@ GoblinScriptProse.eventProse = {
 
     -- Abilities & Power Rolls band
     finishability     = "when {subject} finish{es} using an ability",
-    targetwithability = "when {subject} {is} targeted by an ability",
+    targetwithability = "when {subject} target{s} a creature with an ability",
     castsignature     = "when {subject} use{s} a signature ability or area ability",
 
     -- Movement band

@@ -219,7 +219,7 @@ function DTProject:GetProjectGoal()
 end
 
 --- Sets the project goal
---- @param goal number The total project points needed to complete
+--- @param goal number|nil The total project points needed to complete; nil means 1
 --- @return DTProject self For chaining
 function DTProject:SetProjectGoal(goal)
     self.projectGoal = math.max(1, math.floor(goal or 1))
@@ -418,7 +418,7 @@ end
 
 --- Adds a project roll to this project
 --- **NOTE:** This method automatically calculates status
---- @param roll DTRoll|DTProgressItem The roll to add
+--- @param roll DTRoll The roll to add (only DTRoll has GetBreakthrough; AddRolls is the sole caller)
 --- @return DTProject self For chaining
 function DTProject:AddRoll(roll)
     

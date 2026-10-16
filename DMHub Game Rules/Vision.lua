@@ -70,6 +70,7 @@ end
 function VisionType.CreateEditor()
     local resultPanel
 
+    --- @type VisionType
     local m_vision = nil
 
     local Upload = function()
@@ -130,7 +131,7 @@ function VisionType.CreateEditor()
                 end,
                 change = function(element)
                     ---@cast element Dropdown
-                    m_vision.type = element.idChosen
+                    m_vision.type = element.idChosen --[[@as string]]
                     Upload()
                 end,
             }
@@ -140,6 +141,7 @@ function VisionType.CreateEditor()
             classes = {"formStackedRow"},
             gui.Check{
                 text = "Penetrates Solid",
+                value = false,
 
                 vision = function(element)
                     element.value = m_vision.penetrateWalls
@@ -155,6 +157,7 @@ function VisionType.CreateEditor()
             classes = {"formStackedRow"},
             gui.Check{
                 text = "Respect Field of View",
+                value = false,
 
                 vision = function(element)
                     element.value = m_vision.fieldOfView
@@ -170,6 +173,7 @@ function VisionType.CreateEditor()
             classes = {"formStackedRow"},
             gui.Check{
                 text = "Always Show on Character Sheet",
+                value = false,
 
                 vision = function(element)
                     element.value = m_vision.alwaysShowOnCharacterSheet

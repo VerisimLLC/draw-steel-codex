@@ -767,14 +767,14 @@ mod.shared.CreateTriggerPanel = function()
 								text = trigger.activateText,
 								press = function(element)
 
-                                    audio.DispatchSoundEvent("Notify.TriggerUse", {})
+                                    audio.DispatchSoundEvent("Notify.TriggerUse", { tokenid = g_token ~= nil and g_token.charid or nil })
 
 
                                     if (not trigger.triggered) and #trigger.targets > 0 and trigger.powerRollModifier and trigger.powerRollModifier.powerRollModifier:try_get("changeTarget") and not trigger.powerRollModifier.powerRollModifier:try_get("hasTriggerBefore") then
                                         --this changes the target of the trigger.
 								        local targetToken = dmhub.GetTokenById(trigger.targets[1])
                                         local casterToken = dmhub.GetTokenById(trigger.casterid)
-                                        if targetToken == nil then
+                                        if targetToken == nil or casterToken == nil then
                                             return
                                         end
                                         local symbols = {
@@ -790,7 +790,7 @@ mod.shared.CreateTriggerPanel = function()
                                         local range = tonumber(ExecuteGoblinScript(trigger.powerRollModifier.range, g_token.properties:LookupSymbol(symbols), 10))
                                         local rangeType = trigger.powerRollModifier.powerRollModifier:try_get("changeTargetRange", "none")
                                         if rangeType == "ability" then
-                                            sourceToken = dmhub.GetTokenById(trigger.casterid)
+                                            sourceToken = casterToken
                                             range = trigger.originalAbilityRange
                                         elseif rangeType == "distance" then
                                             range = trigger.powerRollModifier.powerRollModifier:try_get("changeTargetDistance", 10)
@@ -1001,13 +1001,13 @@ mod.shared.CreateTriggerPanel = function()
                                             return
                                         end
 
-                                        audio.DispatchSoundEvent("Notify.TriggerUse", {})
+                                        audio.DispatchSoundEvent("Notify.TriggerUse", { tokenid = g_token ~= nil and g_token.charid or nil })
 
                                         if (not trigger.triggered) and #trigger.targets > 0 and trigger.powerRollModifier and trigger.powerRollModifier.powerRollModifier:try_get("changeTarget") and not trigger.powerRollModifier.powerRollModifier:try_get("hasTriggerBefore") then
                                             --this changes the target of the trigger.
                                             local targetToken = dmhub.GetTokenById(trigger.targets[1])
                                             local casterToken = dmhub.GetTokenById(trigger.casterid)
-                                            if targetToken == nil then
+                                            if targetToken == nil or casterToken == nil then
                                                 return
                                             end
                                             local symbols = {
@@ -1023,7 +1023,7 @@ mod.shared.CreateTriggerPanel = function()
                                             local range = tonumber(ExecuteGoblinScript(trigger.powerRollModifier.range, g_token.properties:LookupSymbol(symbols), 10))
                                             local rangeType = trigger.powerRollModifier.powerRollModifier:try_get("changeTargetRange", "none")
                                             if rangeType == "ability" then
-                                                sourceToken = dmhub.GetTokenById(trigger.casterid)
+                                                sourceToken = casterToken
                                                 range = trigger.originalAbilityRange
                                             elseif rangeType == "distance" then
                                                 range = trigger.powerRollModifier.powerRollModifier:try_get("changeTargetDistance", 10)
@@ -1263,13 +1263,13 @@ mod.shared.CreateTriggerPanel = function()
 
                                     print("TRIGGER:: PRESS")
 
-                                    audio.DispatchSoundEvent("Notify.TriggerUse", {})
+                                    audio.DispatchSoundEvent("Notify.TriggerUse", { tokenid = g_token ~= nil and g_token.charid or nil })
 
                                     if (not trigger.triggered) and #trigger.targets > 0 and trigger.powerRollModifier and trigger.powerRollModifier.powerRollModifier:try_get("changeTarget") and not trigger.powerRollModifier.powerRollModifier:try_get("hasTriggerBefore") then
                                         --this changes the target of the trigger.
 								        local targetToken = dmhub.GetTokenById(targetId)
                                         local casterToken = dmhub.GetTokenById(trigger.casterid)
-                                        if targetToken == nil then
+                                        if targetToken == nil or casterToken == nil then
                                             return
                                         end
                                         local symbols = {
@@ -1285,7 +1285,7 @@ mod.shared.CreateTriggerPanel = function()
                                         local range = tonumber(ExecuteGoblinScript(trigger.powerRollModifier.range, g_token.properties:LookupSymbol(symbols), 10))
                                         local rangeType = trigger.powerRollModifier.powerRollModifier:try_get("changeTargetRange", "none")
                                         if rangeType == "ability" then
-                                            sourceToken = dmhub.GetTokenById(trigger.casterid)
+                                            sourceToken = casterToken
                                             range = trigger.originalAbilityRange
                                         elseif rangeType == "distance" then
                                             range = trigger.powerRollModifier.powerRollModifier:try_get("changeTargetDistance", 10)
@@ -1852,13 +1852,13 @@ mod.shared.CreateTriggerPanel = function()
                                         end
                                         local targetId = chosenTargetId or trigger:GetTargetId()
 
-                                        audio.DispatchSoundEvent("Notify.TriggerUse", {})
+                                        audio.DispatchSoundEvent("Notify.TriggerUse", { tokenid = g_token ~= nil and g_token.charid or nil })
 
                                         if (not trigger.triggered) and #trigger.targets > 0 and trigger.powerRollModifier and trigger.powerRollModifier.powerRollModifier:try_get("changeTarget") and not trigger.powerRollModifier.powerRollModifier:try_get("hasTriggerBefore") then
                                             --this changes the target of the trigger.
                                             local targetToken = dmhub.GetTokenById(targetId)
                                             local casterToken = dmhub.GetTokenById(trigger.casterid)
-                                            if targetToken == nil then
+                                            if targetToken == nil or casterToken == nil then
                                                 return
                                             end
                                             local symbols = {
@@ -1874,7 +1874,7 @@ mod.shared.CreateTriggerPanel = function()
                                             local range = tonumber(ExecuteGoblinScript(trigger.powerRollModifier.range, g_token.properties:LookupSymbol(symbols), 10))
                                             local rangeType = trigger.powerRollModifier.powerRollModifier:try_get("changeTargetRange", "none")
                                             if rangeType == "ability" then
-                                                sourceToken = dmhub.GetTokenById(trigger.casterid)
+                                                sourceToken = casterToken
                                                 range = trigger.originalAbilityRange
                                             elseif rangeType == "distance" then
                                                 range = trigger.powerRollModifier.powerRollModifier:try_get("changeTargetDistance", 10)

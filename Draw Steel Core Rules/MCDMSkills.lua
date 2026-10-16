@@ -5,6 +5,7 @@ local mod = dmhub.GetModLoading()
 Skill = RegisterGameType("Skill")
 --- @class SkillSpecialization: GameType
 --- @field new fun(o?: table): SkillSpecialization
+--- @field text string Display name of this specialization (the Draw Steel editor names it text, not name).
 SkillSpecialization = RegisterGameType("SkillSpecialization")
 
 Skill.tableName = "Skills"
@@ -67,6 +68,9 @@ function Skill.GetSpecializationDropdownOptions(self)
 	return result
 end
 
+--- specializations is false (none) or a list, so this is always a list.
+--- @param self Skill
+--- @return SkillSpecialization[]
 function Skill.GetSpecializations(self)
 	return self.specializations or {}
 end
@@ -275,7 +279,7 @@ local ShowSkillsPanel = function(parentPanel)
 				idChosen = skill.attribute,
 				change = function(element)
 					---@cast element Dropdown
-					skill.attribute = element.idChosen
+					skill.attribute = element.idChosen --[[@as string]]
 					UploadSkill()
 				end,
 			},
@@ -396,6 +400,7 @@ local ShowSkillsPanel = function(parentPanel)
 
     local CreateItemList = function(catid, catname)
 
+        ---@type Panel
         local itemsListPanel = nil
 
         local skillItems = {}

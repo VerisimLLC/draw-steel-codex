@@ -9,12 +9,16 @@ local mod = dmhub.GetModLoading()
 --- @field value string Setting value id for this system (used to match dmhub.GetSettingValue("measurementsystem")).
 --- @field unitName string Plural unit label (e.g. "feet", "meters").
 --- @field unitSingular string Singular unit label (e.g. "foot", "meter").
+--- @field text string Label shown in the setting dropdown.
+--- @field abbreviation string Short unit label (e.g. "ft", "m").
+--- @field tileSize number How many of this unit one tile spans.
 --- Manages conversion between native (world unit) measurements and display units.
 MeasurementSystem = RegisterGameType("MeasurementSystem")
 
 dmhub.unitsPerSquare = 5
 
 local g_cachedSetting = nil
+---@type MeasurementSystem
 local g_currentSystem = nil
 function MeasurementSystem.CurrentSystem()
     local setting = dmhub.GetSettingValue("measurementsystem")
@@ -177,9 +181,9 @@ dmhub.DistanceDisplayFunction = function(num)
     local sys = MeasurementSystem.CurrentSystem()
     local n = tonumber(num)
     if sys == nil or n == nil then
-        return num
+        return tostring(num)
     end
 
-    n = MeasurementSystem.NativeToDisplay(n, sys)
-    return string.format("%s %s", n, sys.unitName)
+    local display = MeasurementSystem.NativeToDisplay(n, sys)
+    return string.format("%s %s", display, sys.unitName)
 end

@@ -12,6 +12,7 @@ local mod = dmhub.GetModLoading()
 --- @field hidden boolean If true, this denomination is hidden from UI.
 --- @field weight number Weight in lbs per unit.
 --- @field standard string Id of the monetary standard this denomination belongs to (usually the gold piece id).
+--- @field iconid string Icon asset id.
 Currency = RegisterGameType("Currency")
 
 Currency.name = "New Currency"
@@ -221,7 +222,7 @@ local SetData = function(tableName, currencyPanel, condid)
 			end,
 			change = function(element)
 				---@cast element Dropdown
-				currency.standard = element.idChosen
+				currency.standard = element.idChosen --[[@as string]]
 				valuePanel:FireEvent("showValue")
 				UploadCurrency()
 			end,

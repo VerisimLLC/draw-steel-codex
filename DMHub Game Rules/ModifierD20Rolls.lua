@@ -724,7 +724,7 @@ CharacterModifier.TypeInfo.d20 = {
 								text = tostring(cond.duration),
 								events = {
 									change = function(element)
-										cond.duration = math.floor(tonumber(element.text)) or 1
+										cond.duration = math.floor(tonumber(element.text) or 1)
 										Refresh()
 									end,
 								},

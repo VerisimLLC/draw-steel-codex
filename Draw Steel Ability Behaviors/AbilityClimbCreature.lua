@@ -88,7 +88,7 @@ local function IsLegalDismountLoc(riderToken, mountToken, loc)
 	end
 
 	for _,occupant in ipairs(game.GetTokensAtLoc(loc) or {}) do
-		if occupant.id ~= riderToken.id then
+		if occupant.charid ~= riderToken.charid then
 			return false
 		end
 	end
@@ -133,7 +133,7 @@ end
 
 --- @param ability ActivatedAbility
 --- @param casterToken CharacterToken
---- @param targets AbilityTarget[]
+--- @param targets {loc: Loc, token: nil|CharacterToken}[]
 --- @param options any
 function ActivatedAbilityClimbCreatureBehavior:Cast(ability, casterToken, targets, options)
 	if self.operation == "dismount" then
@@ -155,7 +155,7 @@ end
 --emptyspace ability did the asking); nil means pick the nearest legal one.
 --- @param ability ActivatedAbility
 --- @param casterToken CharacterToken
---- @param riderToken CharacterToken
+--- @param riderToken nil|CharacterToken
 --- @param chosenLoc nil|Loc
 --- @param options any
 function ActivatedAbilityClimbCreatureBehavior:DismountCreature(ability, casterToken, riderToken, chosenLoc, options)
@@ -207,7 +207,7 @@ end
 
 --- @param ability ActivatedAbility
 --- @param casterToken CharacterToken
---- @param targets AbilityTarget[]
+--- @param targets {loc: Loc, token: nil|CharacterToken}[]
 --- @param options any
 function ActivatedAbilityClimbCreatureBehavior:CastDismount(ability, casterToken, targets, options)
 	--Two shapes:
@@ -261,7 +261,7 @@ function ActivatedAbilityClimbCreatureBehavior:EditorItems(parentPanel)
 			},
 			change = function(element)
 				---@cast element Dropdown
-				self.operation = element.idChosen
+				self.operation = element.idChosen --[[@as string]] -- option ids are 'climb' / 'dismount'
 				dismountPanel:SetClass("collapsed", self.operation ~= "dismount")
 			end,
 		},

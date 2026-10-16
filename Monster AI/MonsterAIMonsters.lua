@@ -25,6 +25,8 @@ MonsterAI:RegisterMove{
     description = "Move to melee range and use a free strike, charging if possible. This is a generic move that is used if no other good options are available.",
     abilities = {"Melee Free Strike"},
     score = GenerateStandardStrikeScoreFunction(0.2),
+    --always scores exactly 0.2, so it is not even scored once a better move is found.
+    maxScore = 0.2,
     execute = GenerateStandardStrikeExecuteFunction(),
 }
 
@@ -34,6 +36,8 @@ MonsterAI:RegisterMove{
     description = "Move to ranged attack range and use a free strike. This is a generic move that is used if no other good options are available.",
     abilities = {"Ranged Free Strike"},
     score = GenerateStandardStrikeScoreFunction(0.2),
+    --always scores exactly 0.2, so it is not even scored once a better move is found.
+    maxScore = 0.2,
     execute = GenerateStandardStrikeExecuteFunction(),
 }
 

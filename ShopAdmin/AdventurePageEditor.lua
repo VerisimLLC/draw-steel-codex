@@ -267,7 +267,8 @@ end
 --Builds the editor. It listens for the admin's `item` event (fired down the
 --item editor whenever an item is selected or changed).
 function AdventurePageEditor.Create()
-    ---@type ShopItemLua?
+    --Set by the item event before the editor is shown; the editor collapses unless it is set.
+    ---@type ShopItemLua
     local m_item = nil
     --the item whose page is loaded into m_cfg (m_item is merely the selection).
     local m_loadedItem = nil
@@ -2083,6 +2084,7 @@ function AdventurePageEditor.Create()
 
     local enableCheck = gui.Check{
         text = "Use adventure page",
+        value = false,
         tooltip = "Give this adventure the full store page. Turning it off deletes the page settings and the item goes back to the plain details layout.",
         change = function(element)
             if m_item == nil then

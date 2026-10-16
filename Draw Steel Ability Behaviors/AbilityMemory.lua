@@ -28,9 +28,10 @@ function ActivatedAbilityRememberBehavior:Cast(ability, casterToken, targets, op
     local symbols = table.shallow_copy(options.symbols)
     symbols.caster = casterToken.properties
     local val = 0
-    if #targets == 0 then
+    if #targets == 0 and trim(self.filterTarget) == "" then
         -- Allow targetless remembers (e.g., used at the start of a move-then-strike
         -- ability to snapshot the caster's pre-move state). Use the caster as Self.
+        -- Not when a filter emptied the list: that remembers 0.
         val = ExecuteGoblinScript(self.calculation, casterToken.properties:LookupSymbol(symbols), 0, "Remember Value Calculation")
     else
         for _, target in ipairs(targets) do

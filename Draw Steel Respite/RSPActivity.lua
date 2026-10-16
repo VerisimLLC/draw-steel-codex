@@ -38,10 +38,24 @@ RSPActivity.name = "Activity"
 --- key -> RSPActivity
 local m_activities = {}
 
+--- What RSPActivity.Register takes; the fields mean what they do on RSPActivity.
+---@class RSPActivityRegisterArgs
+---@field key string
+---@field name string
+---@field paint? fun(): Panel
+---@field paintPlayer? fun(args: table): Panel
+---@field paintDirector? fun(args: table): Panel
+---@field needsAttention? fun(args: table): boolean
+---@field onStart? fun()
+---@field onComplete? fun()
+---@field onRested? fun()
+---@field journalDetail? fun(): string|nil
+---@field journalSummary? fun(args: table): string[]|nil
+
 --- Offer an activity to the Respite.
 --- Registering a key twice replaces the earlier entry, so a code reload
 --- refreshes an activity instead of doubling it.
---- @param args {key: string, name: string, paint: nil|fun(): Panel, paintPlayer: nil|fun(args: table): Panel, paintDirector: nil|fun(args: table): Panel, needsAttention: nil|fun(args: table): boolean}
+--- @param args RSPActivityRegisterArgs
 function RSPActivity.Register(args)
     if args == nil or type(args.key) ~= "string" or #args.key == 0 then
         return

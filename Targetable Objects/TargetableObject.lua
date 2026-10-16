@@ -2,6 +2,7 @@ local mod = dmhub.GetModLoading()
 
 --- @class TargetableObject : creature
 --- @field new fun(o?: table): TargetableObject
+--- @field custom_collision? ActivatedAbility Custom Collision Behavior cast when something collides with the object; replaces collision damage.
 TargetableObject = RegisterGameType("TargetableObject", "creature")
 TargetableObject.resourceid = CharacterResource.maliceResourceId
 
@@ -39,8 +40,74 @@ function TargetableObject.TakeDamage(self, amount, note, info)
     local staminaAfter = self:CurrentHitpoints()
     if staminaBefore > 0 and staminaAfter <= 0 then
         local token = dmhub.LookupToken(self)
+        --Damage is only dealt to properties that belong to a live object token.
+        ---@cast token -nil
         token.objectComponent:OnDeath()
     end
+end
+
+--Engine hook (ObjectComponentTargetable.GenerateOperateCommand), asked while the
+--object is hovered: can `token` operate this object (a Field Ballista with
+--adjacent-creature abilities)? Returns the hover text and cursor to show, or
+--nil for no command. Clicking runs TargetableObject:Operate.
+--- @param token CharacterToken the local user's current token
+--- @param objectToken CharacterToken this object's token
+--- @return nil|{text: string, cursor: string}
+function TargetableObject:GetOperateCommand(token, objectToken)
+    local actionBar = rawget(_G, "DrawSteelActionBar")
+    if actionBar == nil or token == nil or not token.canControlAsUser then
+        return nil
+    end
+
+    local operation = actionBar.GetOperation()
+    if operation ~= nil and operation.object.charid == objectToken.charid then
+        return nil
+    end
+
+    if not ActivatedAbility.CanOperate(token, objectToken) then
+        return nil
+    end
+
+    --An object with just one ability (a Candelabra's Throw) names it: the
+    --click casts it directly. When the rules won't allow it right now, the
+    --hover says why and the click does nothing.
+    local single = ActivatedAbility.GetSingleAdjacentAbility(objectToken, token)
+    if single ~= nil then
+        local reason = ActivatedAbility.AdjacentAbilityBlockedReason(single, token, objectToken)
+        return {
+            text = cond(reason == nil, single.name, string.format("%s (%s)", single.name, reason)),
+            cursor = "hand",
+        }
+    end
+
+    --"Use" for an object that only grants abilities (a Candelabra to throw).
+    local verb = cond(ActivatedAbility.HasOperatedAbilities(objectToken), "Operate", "Use")
+    return {
+        text = string.format("%s %s", verb, creature.GetTokenDescription(objectToken)),
+        cursor = "hand",
+    }
+end
+
+--Engine hook: the Operate command was clicked. An object with one ability
+--casts it straight away (Escape cancels; the action bar is never taken
+--over); one with several switches the action bar to them, operated by `token`.
+--- @param token CharacterToken
+--- @param objectToken CharacterToken
+function TargetableObject:Operate(token, objectToken)
+    local actionBar = rawget(_G, "DrawSteelActionBar")
+    if actionBar == nil then
+        return
+    end
+
+    local single = ActivatedAbility.GetSingleAdjacentAbility(objectToken, token)
+    if single ~= nil then
+        if ActivatedAbility.AdjacentAbilityBlockedReason(single, token, objectToken) == nil then
+            actionBar.CastAdjacentAbility(token, objectToken, single)
+        end
+        return
+    end
+
+    actionBar.BeginOperating(token, objectToken)
 end
 
 dmhub.CreateTargetableComponent = function()
@@ -129,25 +196,26 @@ GameSystem.RegisterGoblinScriptField{
     end,
 }
 
+--The custom behavior runs alongside the standard damage rather than replacing it:
+--only "No Collision Damage" opts the object out of taking collision damage.
 function TargetableObject:OnCollide(collidingToken, symbols)
+    local token = dmhub.LookupToken(self)
+    if token == nil then
+        return
+    end
+
     if self:has_key("custom_collision") then
-        local token = dmhub.LookupToken(self)
-        if token ~= nil then
-            self.custom_collision:Cast(token, { { token = collidingToken } }, symbols)
-        end
-    else
-        if symbols.speed and not self:try_get("no_collision_damage", false) then
-            local token = dmhub.LookupToken(self)
-            if token ~= nil then
-                token:ModifyProperties{
-                    description = "Collision",
-                    undoable = false,
-                    execute = function()
-                        token.properties:InflictDamageInstance(symbols.speed, "untyped", {}, "Collision", {})
-                    end,
-                }
-            end
-        end
+        self.custom_collision:Cast(token, { { token = collidingToken } }, symbols)
+    end
+
+    if symbols.speed and not self:try_get("no_collision_damage", false) then
+        token:ModifyProperties{
+            description = "Collision",
+            undoable = false,
+            execute = function()
+                token.properties:InflictDamageInstance(symbols.speed, "untyped", {}, "Collision", {})
+            end,
+        }
     end
 end
 
@@ -195,13 +263,13 @@ function TargetableObject.CreateMultiPropertiesEditor(components)
                 classes = {"field-editor-input"},
                 halign = "right",
                 valign = "center",
-                text = (components[1].properties.max_hitpoints or 1) - (components[1].properties.damage_taken or 0),
+                text = tostring((components[1].properties.max_hitpoints or 1) - (components[1].properties.damage_taken or 0)),
                 width = 30,
                 characterLimit = 3,
                 events = {
                     refresh = function(element)
                         local stamina = (components[1].properties.max_hitpoints or 1) - (components[1].properties.damage_taken or 0)
-                        element.text = stamina
+                        element.text = tostring(stamina)
                     end,
                     change = function(element)
                         local n = tonumber(element.text)
@@ -233,14 +301,14 @@ function TargetableObject.CreateMultiPropertiesEditor(components)
             },
             gui.Input{
                 classes = {"field-editor-input"},
-                text = components[1].properties.max_hitpoints or 1,
+                text = tostring(components[1].properties.max_hitpoints or 1),
                 width = 30,
                 halign = "right",
                 valign = "center",
                 characterLimit = 3,
                 events = {
                     refresh = function(element)
-                        element.text = components[1].properties.max_hitpoints or 1
+                        element.text = tostring(components[1].properties.max_hitpoints or 1)
                     end,
                     change = function(element)
                         local n = tonumber(element.text)

@@ -39,8 +39,6 @@ local function getColorFromString(str)
     return g_defaultColors[index]
 end
 
---- @module DrawSteelMinion
-
 --- @class DrawSteelMinion: GameType
 --- @field new fun(o?: table): DrawSteelMinion
 --- @field squads nil|table<string, {color: string}> Per-session squad color overrides, keyed by squad name.
@@ -48,9 +46,9 @@ end
 DrawSteelMinion = RegisterGameType("DrawSteelMinion")
 
 
---- Given the name of a squad get the color we should display for it.
+--- Given the name of a squad get the color we should display for it, as a color string.
 --- @param name string
---- @return Color
+--- @return string
 DrawSteelMinion.GetSquadColor = function(name)
 	local doc = mod:GetDocumentSnapshot(g_docid)
     if doc.data.squads == nil or doc.data.squads[name] == nil then
@@ -63,7 +61,7 @@ end
 
 --- Set the color for a squad.
 --- @param name string
---- @return Color
+--- @param color string A color string, as GetSquadColor returns.
 DrawSteelMinion.SetSquadColor = function(name, color)
     local doc = mod:GetDocumentSnapshot(g_docid)
     doc:BeginChange()
@@ -268,11 +266,15 @@ DrawSteelMinion.SetSummoner = function(monsterToken, summonerToken)
     monsterToken:UploadToken("Assign Summoner")
 
     if newSummonerId ~= nil then
+        --newSummonerId is only set from a valid summonerToken.
+        ---@cast summonerToken -nil
         if monsterToken.properties.minion then
             --minions join the summoner's roster (so they appear in the Summoner
             --panel and squad manager) and group into the summoner's initiative
             --slot, mirroring what AbilitySummon does at cast time.
             local squadName = monsterToken.properties:MinionSquad()
+            --MinionSquad only returns nil for a non-minion.
+            ---@cast squadName -nil
             local monsterType = monsterToken.properties:try_get("monster_type", "")
             summonerToken:ModifyProperties{
                 description = "Assign Summoner",
@@ -958,7 +960,10 @@ DrawSteelMinion.EvaluateCaptainSelection = function(tokens)
         nminions = nminions,
     }
 
-    if nminions == #tokens-1 and potentialCaptain ~= nil and potentialCaptain.ownerId == minionParty then
+    --The minions must already share one squad (squadid is false when they span several,
+    --nil when there are none): a captain joins a squad, so with mixed squads the action
+    --would store minionSquad = false. Form the squad first, then make the captain.
+    if nminions == #tokens-1 and potentialCaptain ~= nil and potentialCaptain.ownerId == minionParty and type(squadid) == "string" then
         result.show = true
         if squadid ~= false and squadid ~= nil and potentialCaptain.properties:MinionSquad() == squadid then
             result.nminions = nminions + 1
@@ -1012,13 +1017,16 @@ DrawSteelMinion.SetSquadCaptain = function(tokens, squadid, isMakeCaptain)
     local captainid = nil
     for _,tok in ipairs(tokens) do
         if (not tok.properties.minion) then
-            captainid = tok.id
+            captainid = tok.charid
             tok:ModifyProperties{
                 groupid = groupid,
                 description = "Set Squad",
                 execute = function()
                     tok.properties.initiativeGrouping = initiativeGrouping
                     if isMakeCaptain then
+                        --Both callers only offer the action when EvaluateCaptainSelection's
+                        --show is set, which requires squadid to be a squad name.
+                        ---@cast squadid string
                         tok.properties.minionSquad = squadid
                     else
                         tok.properties.minionSquad = nil
@@ -1039,7 +1047,7 @@ DrawSteelMinion.SetSquadCaptain = function(tokens, squadid, isMakeCaptain)
     if captainid ~= nil then
         local monsterTokens = dmhub.GetTokens{}
         for _,tok in ipairs(monsterTokens) do
-            if tok.id ~= captainid and (not tok.properties.minion) and tok.properties:MinionSquad() == squadid then
+            if tok.charid ~= captainid and (not tok.properties.minion) and tok.properties:MinionSquad() == squadid then
                 tok:ModifyProperties{
                     description = "Set Squad",
                     execute = function()
@@ -1056,6 +1064,7 @@ end
 --- @param tokens CharacterToken[]
 --- @return boolean
 DrawSteelMinion.CanGroupInitiative = function(tokens)
+    ---@type string|false
     local initiativeid = false
     for _,tok in ipairs(tokens) do
         if tok.properties.initiativeGrouping == false or (initiativeid ~= false and tok.properties.initiativeGrouping ~= initiativeid) then
@@ -1092,6 +1101,8 @@ DrawSteelMinion.GroupInitiativeForTokens = function(tokens)
 
     for _,tok in ipairs(grownTokens) do
         local initiativeid = InitiativeQueue.GetInitiativeId(tok)
+        --nil only for a token without properties, which the write just below needs anyway.
+        ---@cast initiativeid -nil
         existingInitiative[initiativeid] = true
         tok:ModifyProperties{
             description = "Set Initiative",
@@ -1311,7 +1322,9 @@ DrawSteelMinion.SquadHud = function(floorid, squad)
 
         local m_BarWidth = 100
 
+        ---@type {x: number, y: number}?
         local m_pos = nil
+        ---@type {x: number, y: number}?
         local m_targetPos = nil
 
         local m_currentPos = nil
@@ -1365,6 +1378,7 @@ DrawSteelMinion.SquadHud = function(floorid, squad)
                 --to create a new squad that is split off.
                 if dmhub.isDM and squad.damage_taken < squad.health_single then
                     local selectedTokens = dmhub.selectedOrPrimaryTokens
+                    ---@type false|CharacterToken
                     local foundNonMinion = false
                     local matchingMinions = 0
                     local monster_type = nil
@@ -1456,9 +1470,9 @@ DrawSteelMinion.SquadHud = function(floorid, squad)
 
             if #squad.tokens ~= m_numTokens then
                 m_numTokens = #squad.tokens
-                local color = core.Color(squad.color)
-                color.v = color.v*0.35
-                color = color.tostring
+                local dimmed = core.Color(squad.color)
+                dimmed.v = dimmed.v*0.35
+                local color = dimmed.tostring
                 local children = {}
                 if m_numTokens > 1 then
                     for i=1,m_numTokens-1 do
@@ -1808,6 +1822,11 @@ DrawSteelMinion.SquadHud = function(floorid, squad)
 
                         m_lock:SetClass("hidden", squad.pos == nil)
 
+                        --calculate leaves these unset while the squad has no valid tokens.
+                        if m_pos == nil or m_targetPos == nil then
+                            return
+                        end
+
                         m_pos.x = m_pos.x + (m_targetPos.x - m_pos.x) * 0.1
                         m_pos.y = m_pos.y + (m_targetPos.y - m_pos.y) * 0.1
 
@@ -2070,7 +2089,7 @@ DrawSteelMinion.withCaptainEffects = {}
 --handle "with captain" traits.
 
 ---@param text string
----@return CharacterFeature
+---@return CharacterFeature|nil
 function DrawSteelMinion.GetWithCaptainEffect(text)
     if text == nil or text == false or text == "" then
         return nil

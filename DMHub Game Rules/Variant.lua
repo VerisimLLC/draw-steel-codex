@@ -54,6 +54,9 @@ end
 --- @field type string Variant content type: "text", "currency", "item", "tableRoll", "resource", "monster".
 --- @field quantity number|string Quantity of the item/roll granted (can be a dice expression).
 --- @field key nil|string Key into the relevant data table (e.g. item id, monster key).
+--- @field value? string|table<string, string> "text": the text; "currency": map of currency id -> quantity (a roll string).
+--- @field dataTable? string "tableRoll": name of the data table holding the roll table.
+--- @field choiceIndex? integer "tableRoll": a fixed row to use instead of rolling.
 --- A single entry in a loot table or reward list; represents one possible reward of a given type.
 Variant = RegisterGameType("Variant")
 
@@ -65,7 +68,7 @@ function Variant:HasQuantity()
 end
 
 function Variant:RollQuantity()
-	return dmhub.RollInstant(self.quantity)
+	return dmhub.RollInstant(tostring(self.quantity))
 end
 
 function Variant:Value()
@@ -85,7 +88,7 @@ function Variant:Value()
 		--resources don't have monetary value.
 	elseif self.type == "currency" then
 		local currencyTable = dmhub.GetTable(Currency.tableName)
-		for k,v in pairs(self.value) do
+		for k,v in pairs(self.value --[[@as table<string, string>]]) do
 			local currency = currencyTable[k]
 			if currency ~= nil and (not currency.hidden) then
 				local tmp = VariantValue.new{}
@@ -127,9 +130,10 @@ function Variant:TableName()
 	end
 end
 
+--- @return string
 function Variant:ToString()
 	if self.type == "text" then
-		return self.value
+		return self.value --[[@as string]]
 	elseif self.type == "tableRoll" then
 		local dataTable = dmhub.GetTable(self.dataTable) or {}
 		local rollTable = dataTable[self.key]
@@ -466,6 +470,8 @@ function Variant:CreateEditor(options)
 				editable = true,
 				text = tostring(value.quantity),
 				change = function(element)
+					--A number, or a dice expression string.
+					---@type number|string|nil
 					local quantity = tonumber(element.text)
 					if quantity == nil then
 						if dmhub.RollExpectedValue(element.text) ~= 0 then
@@ -987,11 +993,12 @@ function gui.VariantCollectionEditor(args)
 								end
 
 								data = (data or {})
-								local cost = item:GetCostInGold()
-								if cost == math.floor(cost) then
-									cost = string.format("%dgp", cost)
+								local costInGold = item:GetCostInGold()
+								local cost
+								if costInGold == math.floor(costInGold) then
+									cost = string.format("%dgp", costInGold)
 								else
-									cost = string.format("%.2f", cost)
+									cost = string.format("%.2f", costInGold)
 								end
 									
 								data[#data+1] = cost
@@ -1228,7 +1235,7 @@ function gui.VariantCollectionEditor(args)
 		return value
 	end
 
-	resultPanel.SetValue = function(element, val, fireevent)
+	resultPanel.SetValue = function(element, val)
 		value = val
 		element:FireEvent("rebuild")
 	end

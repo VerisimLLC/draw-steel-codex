@@ -10,6 +10,10 @@ local mod = dmhub.GetModLoading()
 --- @field mandatory boolean|string If true, fires automatically; if false, prompts the player; if a string, uses that setting id.
 --- @field trigger string The event id that triggers this ability.
 --- @field triggerFilter nil|string GoblinScript formula that must be truthy for the trigger to fire.
+--- @field characterConditionRequired? string Condition id the subject must have for the trigger to fire ("none"/nil for no requirement); read with try_get.
+--- @field whenActive? string "always" (default) or "combat": when the trigger can fire; read with try_get.
+--- @field allowDuplicateTriggers? boolean If true, repeated prompts from this trigger are not deduplicated; read with try_get.
+--- @field abilityType? string Legacy ability type id from ActivatedAbility.StandardArgs ("none").
 TriggeredAbility = RegisterGameType("TriggeredAbility", "ActivatedAbility")
 
 --How many triggered abilities have got past their gates and fired or prompted.
@@ -80,8 +84,8 @@ function TriggeredAbility:IsMandatory(token)
         return false
     end
 
-    --mandatory/automatic.
-    local mandatory = dmhub.GetSettingValue(self.mandatory)
+    --mandatory/automatic. Both booleans returned above, so this is a setting id.
+    local mandatory = dmhub.GetSettingValue(self.mandatory --[[@as string]])
     return mandatory
 end
 
@@ -686,6 +690,34 @@ TriggeredAbility.RegisterTrigger{
     }
 }
 
+--Fires once when a creature is added to the map from the bestiary (or an
+--encounter), on the placing client only, so map loads and copies never re-fire it.
+TriggeredAbility.RegisterTrigger{
+    id = "placedonmap",
+    text = "Placed on Map",
+}
+
+dmhub.RegisterEventHandler("spawnFromBestiary", function(charids)
+    --Spawned tokens can take a few frames to appear; retry briefly for each one.
+    local function dispatch(charid, attempts)
+        if mod.unloaded then
+            return
+        end
+        local token = dmhub.GetTokenById(charid)
+        if token == nil or token.properties == nil then
+            if attempts > 0 then
+                dmhub.Schedule(0.1, function() dispatch(charid, attempts - 1) end)
+            end
+            return
+        end
+        token.properties:DispatchEvent("placedonmap", {})
+    end
+
+    for _,charid in ipairs(charids or {}) do
+        dispatch(charid, 20)
+    end
+end)
+
 TriggeredAbility.RegisterTrigger{
     id = "dealdamage",
     text = "Damage an Enemy",
@@ -1015,13 +1047,22 @@ local function SubjectRangeDistance(triggerName, subjectToken, casterToken, symb
     return result
 end
 
+--- Options for TriggeredAbility:Trigger. Every field is optional (nil options = {}).
+--- @class TriggeredAbilityTriggerOptions
+--- @field complete nil|function
+--- @field debugLog nil|table Receives {name, success, reason} records when set.
+--- @field remoteExecution nil|{targets: table, dismiss: boolean, alreadyPaid: boolean, aiActivityId: string|false|nil, aiReactionId: string|false|nil} An accepted trigger shipped to this client to execute.
+--- @field aiActivityId nil|string
+--- @field aiReactionId nil|string
+--- @field alreadyPaid nil|boolean
+
 --auraControllerToken: token controlling an aura this is triggered from, or can be nil for a regular trigger attached to the creature it's triggering on.
 --- @param characterModifier CharacterModifier
 --- @param creature Creature
 --- @param symbols table
 --- @param auraControllerToken nil|CharacterToken
 --- @param modContext table
---- @param argOptions {complete: function, debugLog: table}
+--- @param argOptions TriggeredAbilityTriggerOptions
 --- @return nil
 function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraControllerToken, modContext, argOptions)
 
@@ -1049,6 +1090,7 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 	--that triggered Rise!), which would spuriously fail them.
 	if argOptions.remoteExecution ~= nil then
 		local remoteExecution = argOptions.remoteExecution
+		---@cast remoteExecution -nil
 
 		symbols = table.shallow_copy(symbols or {})
 		symbols.mode = symbols.mode or 1
@@ -1082,6 +1124,7 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 	end
 
     local subjectTarget = self:try_get("subject", "self")
+    ---@type creature|nil
     local subject = symbols and symbols.subject
 
     if subject == creature then
@@ -1147,7 +1190,7 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
             local range = ExecuteGoblinScript(subjectRangeFormula, creature:LookupSymbol(symbols), nil, "Calculate Subject Range")
             if range ~= nil then
                 local distance = SubjectRangeDistance(self:try_get("trigger", ""), subjectToken, casterToken, symbols)
-                range = tonumber(range)
+                range = tonumber(range) --[[@as number]] -- a range formula evaluates to a number
                 if distance > range then
                     --out of range.
 
@@ -1236,7 +1279,7 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 		targets = {}
 		local range = self:GetRange(creature)
 		for i,tok in ipairs(dmhub.allTokens) do
-			if (tok.id ~= casterToken.id or self:try_get("selfTarget", false)) and self:TargetPassesFilter(casterToken, tok, symbols) and range >= tok:Distance(casterToken) then
+			if (tok.id ~= casterToken.charid or self:try_get("selfTarget", false)) and self:TargetPassesFilter(casterToken, tok, symbols) and range >= tok:Distance(casterToken) then
 				targets[#targets+1] = {
 					loc = tok.loc,
 					token = tok,
@@ -1281,7 +1324,7 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 
         local tokens = dmhub.allTokens
         for i,tok in ipairs(tokens) do
-            if tok.id ~= casterToken.id and aura.area:ContainsToken(tok) and self:TargetPassesFilter(casterToken, tok, symbols) then
+            if tok.id ~= casterToken.charid and aura.area:ContainsToken(tok) and self:TargetPassesFilter(casterToken, tok, symbols) then
                 targets = targets or {}
                 targets[#targets+1] = {
                     loc = tok.loc,
@@ -1524,53 +1567,83 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 
             local activateText = nil
             local activateRules = nil
+            local activateModeIndex = 1
             local modes = nil
             if self.multipleModes then
                 local modeList = self:try_get("modeList", {})
-                --Mode 1 is carried separately from the modes list: it is the
-                --trigger's own card in the trigger panel, and the panel shows
-                --its name and rules there when other modes are present.
-                if modeList[1] ~= nil then
-                    activateText = modeList[1].text
-                    activateRules = StringInterpolateGoblinScript(modeList[1].rules or "", casterSymbols)
-                end
-                for i=2,#modeList do
-                    local modeEntry = modeList[i]
-                    local passes = true
+
+                local function ModePasses(modeEntry)
                     local formula = modeEntry.condition or ""
-                    if formula ~= "" then
-                        local condition = ExecuteGoblinScript(formula, creature:LookupSymbol(symbols), 0, "Trigger condition")
-                        if tonumber(condition) == 0 then
-                            passes = false
-                        end
+                    if formula == "" then
+                        return true
+                    end
+                    local condition = ExecuteGoblinScript(formula, creature:LookupSymbol(symbols), 0, "Trigger condition")
+                    return tonumber(condition) ~= 0
+                end
+
+                --A failed condition hides the mode, as it always has, unless
+                --the author gave it a Condition Reason: then it is offered
+                --anyway, greyed out and annotated with that reason, and the
+                --player may override it.
+                --modeIndex is what selects the behaviors to run. Hidden modes
+                --leave holes in this list, so an option's position in it is not
+                --its position in modeList -- the index has to be carried rather
+                --than inferred, or every mode after a hidden one runs the wrong
+                --modeList entry's behaviors.
+                local function ModeOption(i, passes)
+                    local modeEntry = modeList[i]
+                    local reason = trim(modeEntry.conditionReason or "")
+                    if (not passes) and reason == "" then
+                        return nil
                     end
 
-                    --A failed condition hides the mode, as it always has, unless
-                    --the author gave it a Condition Reason: then it is offered
-                    --anyway, greyed out and annotated with that reason, and the
-                    --player may override it.
-                    local reason = trim(modeEntry.conditionReason or "")
+                    local entry = {
+                        text = modeEntry.text,
+                        rules = StringInterpolateGoblinScript(modeEntry.rules or "", casterSymbols),
+                        modeIndex = i,
+                    }
 
-                    if passes or reason ~= "" then
-                        --modeIndex is what selects the behaviors to run.
-                        --Hidden modes leave holes in this list, so an option's
-                        --position in it is not its position in modeList -- the
-                        --index has to be carried rather than inferred, or every
-                        --mode after a hidden one runs the wrong modeList
-                        --entry's behaviors.
-                        local entry = {
-                            text = modeEntry.text,
-                            rules = StringInterpolateGoblinScript(modeEntry.rules, casterSymbols),
-                            modeIndex = i,
-                        }
+                    if not passes then
+                        entry.unavailable = true
+                        entry.conditionReason = StringInterpolateGoblinScript(reason, casterSymbols)
+                    end
 
-                        if not passes then
-                            entry.unavailable = true
-                            entry.conditionReason = StringInterpolateGoblinScript(reason, casterSymbols)
+                    return entry
+                end
+
+                local passList = {}
+                for i=1,#modeList do
+                    passList[i] = ModePasses(modeList[i])
+                end
+
+                --The trigger's own card (the "activate" slot) is normally mode 1,
+                --carried separately from the modes list. If mode 1's condition
+                --fails, the first mode that passes takes the card instead (e.g.
+                --Mark's extra damage once the marked creature is dead). If none
+                --passes, mode 1 keeps the card as before.
+                if modeList[1] ~= nil and not passList[1] then
+                    for i=2,#modeList do
+                        if passList[i] then
+                            activateModeIndex = i
+                            break
                         end
+                    end
+                end
 
-                        modes = modes or {}
-                        modes[#modes+1] = entry
+                if modeList[activateModeIndex] ~= nil then
+                    activateText = modeList[activateModeIndex].text
+                    activateRules = StringInterpolateGoblinScript(modeList[activateModeIndex].rules or "", casterSymbols)
+                end
+
+                for i=1,#modeList do
+                    --a mode 1 that lost the card to its failed condition joins the
+                    --list like any other failed mode: greyed out if it has a reason.
+                    if i ~= activateModeIndex then
+                        local entry = ModeOption(i, passList[i])
+                        if entry ~= nil then
+                            modes = modes or {}
+                            modes[#modes+1] = entry
+                        end
                     end
                 end
             end
@@ -1591,10 +1664,14 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
                 auraControllerId = auraControllerToken.charid
             end
 
-			local trigger = ActiveTrigger.new{
+			--Re-read from the caster's available triggers each frame below; nil once it is gone.
+			---@type ActiveTrigger|nil
+			local trigger
+			trigger = ActiveTrigger.new{
 				id = guid,
                 activateText = activateText,
                 activateRules = activateRules,
+                activateModeIndex = activateModeIndex,
 				text = text,
 				rules = StringInterpolateGoblinScript(self:try_get("triggerPrompt"), casterSymbols),
                 targets = targetids,
@@ -1633,7 +1710,7 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 				end,
 			}
 
-            local tokid = casterToken.id
+            local tokid = casterToken.charid
 
             local triggers = casterToken.properties:GetAvailableTriggers() or {}
             trigger = triggers[guid]
@@ -1814,7 +1891,9 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 			if dismissed and not self:HasDismissBehaviors() then
 				dismissed = false
 			end
-			if accepted or dismissed then
+			--casterToken is nil when the caster went invalid in the same frame the
+			--answer was read and the re-fetch above found no token: nothing to cast.
+			if (accepted or dismissed) and casterToken ~= nil then
 				if aiActivityId ~= nil then
 					casterToken.properties:SetAIActivityReactionResolving(aiActivityId, guid)
 				end
@@ -2018,7 +2097,7 @@ function TriggeredAbility:ExecuteTriggerCast(args)
 				return
 			end
 			dmhub.CoroutineSynchronous(TriggeredAbility.TriggerCo, self, targets, args.characterModifier, casterToken, args.creature, symbols, args.auraControllerToken, args.modContext, argOptions)
-		end)
+		end, {casterid = casterToken ~= nil and casterToken.charid or nil})
 	end
 
 	g_triggerDepth = g_triggerDepth - 1
@@ -2031,6 +2110,8 @@ end
 --Invoke(), mirroring AbilityInvocation in AbilityInvokeAbility.lua.
 --- @class TriggeredAbilityRemoteExecution: GameType
 --- @field new fun(o?: table): TriggeredAbilityRemoteExecution
+--- @field timestamp number|string When the invocation was shipped: the ServerTimestamp() sentinel until the server resolves it.
+--- @field auraControllerId? string Charid of the aura's controller when it is not the caster.
 TriggeredAbilityRemoteExecution = RegisterGameType("TriggeredAbilityRemoteExecution")
 
 --Ships an accepted trigger cast to the caster's controlling client. Symbols
@@ -2085,7 +2166,7 @@ function TriggeredAbility:SendTriggerCastToController(controllerid, args)
 				invokes[#invokes+1] = DeepCopy(invocation)
 			end,
 		}
-	end)
+	end, {casterid = casterToken.charid})
 end
 
 --Invoked by PumpRemoteInvokes on the controlling client. Reconstructs the
@@ -2287,6 +2368,7 @@ function TriggeredAbility.ActivateOrphanedTrigger(casterToken, triggerid)
 	--pcall-protected (they cannot yield); the Trigger call is not, since this
 	--runtime forbids yielding across a pcall boundary.
 	dmhub.Coroutine(function()
+		---@type table<string, any>|nil
 		local symbols = nil
 		local targets = nil
 		local ok, err = pcall(function()
@@ -2324,6 +2406,9 @@ function TriggeredAbility.ActivateOrphanedTrigger(casterToken, triggerid)
 			CompleteAIReactionFromOptions(casterToken, aiReactionOptions)
 			return
 		end
+
+		--The pcall body always sets symbols (to at least {}) when it succeeds.
+		---@cast symbols -nil
 
 		--the first mode is just the 'activate' which shows up as true.
 		symbols.mode = record:ModeIndexForTriggered(record.triggered)

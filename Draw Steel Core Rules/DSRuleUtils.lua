@@ -404,3 +404,29 @@ RuleUtils = {
         return powerMod:try_get("changeTargetAllowOriginal", false) == true
     end,
 }
+
+--Lets a square-targeting ability (Empty Space / Any Space) refuse squares the
+--caster can't reach through walls, e.g. throwing an object: put
+--"target.LineOfEffect" in the ability's target filter. The action bar only
+--range-checks those squares otherwise.
+GameSystem.RegisterGoblinScriptField{
+    target = Loc,
+    name = "LineOfEffect",
+    type = "boolean",
+    desc = "True if the creature using the ability has line of effect to this location: walls don't block every line from its squares to it. True when there is no such creature to measure from.",
+    seealso = {"Environment"},
+    examples = {"target.LineOfEffect"},
+    calculate = function(c)
+        local engineLoc = rawget(c, "_tmp_loc")
+        local casterid = rawget(c, "_tmp_casterid")
+        if engineLoc == nil or casterid == nil then
+            return true
+        end
+        local caster = dmhub.GetTokenById(casterid)
+        if caster == nil or not caster.valid or caster.properties == nil then
+            return true
+        end
+        --GetPierceWalls is a count; a bare 0 would read as true (pierce).
+        return caster:GetLineOfSight(engineLoc, caster.properties:GetPierceWalls() > 0) > 0
+    end,
+}

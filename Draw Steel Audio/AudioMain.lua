@@ -13,6 +13,17 @@ setting{
     storage = "preference",
 }
 
+--Per-player variants. Any audio.SoundEvent below can add:
+--  controlledVolume = 1.5               --volume x1.5 when the sound is about a token this player controls
+--  controlledSound = "Attack.Hit_Mine"  --...or play this other sound event instead
+--  localVolume / localSound             --same, when this client fired the sound itself (not a replay
+--                                       --of another player's dispatched sound)
+--"About a token" = the args' tokenid (the token it happens to) or attackerid (who caused it).
+--Hits, heals, conditions, winded/dying/dead, power rolls, triggers, resources and footsteps
+--pass them. When both apply the higher volume wins and controlledSound beats localSound.
+--The Director controls every token, so on the Director's machine every token sound is "controlled".
+--Volume cannot go above 1.0 after all multipliers, so leave headroom in the base volume.
+
 --Mix Groups
 
 --Parent bus for the app's own feedback SFX (UI clicks, dice, gameplay, damage).
@@ -164,6 +175,50 @@ audio.SoundEvent{
 }
 
 
+audio.SoundEvent{
+    name = "Notify.Malice_Use",
+    mixgroup = "ui",
+    sounds = {"Notify_Malice_Used_v1_01.wav"},
+    volume = 0.3,
+    ignoreDuplicates = 1,
+}
+
+audio.SoundEvent{
+    name = "Notify.BigBanner_Pos",
+    mixgroup = "ui",
+    sounds = {"Notify_BigBanner_Positive_v1_01.wav"},
+    volume = 0.2,
+    pitchRand = 0.2,
+    ignoreDuplicates = 1,
+}
+
+audio.SoundEvent{
+    name = "Notify.BigBanner_Neg",
+    mixgroup = "ui",
+    sounds = {"Notify_BigBanner_Negative_v1_01.wav"},
+    volume = 0.2,
+    pitchRand = 0.2,
+    ignoreDuplicates = 1,
+}
+
+audio.SoundEvent{
+    name = "Notify.BigBanner_Generic",
+    mixgroup = "ui",
+    sounds = {"Notify_BigBanner_Generic_v1_01.wav"},
+    volume = 0.2,
+    pitchRand = 0.2,
+    ignoreDuplicates = 1,
+}
+
+audio.SoundEvent{
+    name = "Notify.Victory_Card",
+    mixgroup = "ui",
+    sounds = {"Notify_Victory_Card_v1_01.wav"},
+    volume = 0.05,
+    pitchRand = 0.2,
+    ignoreDuplicates = 0.01,
+}
+
 
 
 
@@ -213,7 +268,6 @@ audio.SoundEvent{
     mixgroup = "ui",
     sounds = {"Notify_TempStam_Gain_v1_01.wav"},
     volume = 0.3,
-    ignoreDuplicates = 0.2,
     ignoreDuplicates = 0.2,--ignore duplicates for 0.2 seconds
 }
 
@@ -244,7 +298,7 @@ audio.SoundEvent{
     name = "Notify.Ping",
     mixgroup = "ui",
     sounds = {"Notify_Ping_v1_01.wav"},
-    volume = 1.0,
+    volume = 0.9,
     ignoreDuplicates = 1, --ignore duplicates for 1 seconds
 }
 
@@ -344,6 +398,7 @@ audio.SoundEvent{
     volume = 0.4,
     pitchRand = 0.2,
     ignoreDuplicates = 0.02,
+    delay = 0.5,
 }
 
 audio.SoundEvent{
@@ -353,6 +408,7 @@ audio.SoundEvent{
     volume = 0.4,
     pitchRand = 0.2,
     ignoreDuplicates = 0.02,
+    delay = 0.5,
 }
 
 audio.SoundEvent{
@@ -362,6 +418,7 @@ audio.SoundEvent{
     volume = 0.4,
     pitchRand = 0.2,
     ignoreDuplicates = 0.02,
+    delay = 0.5,
 }
 
 audio.SoundEvent{
@@ -371,15 +428,17 @@ audio.SoundEvent{
     volume = 0.2,
     pitchRand = 0.2,
     ignoreDuplicates = 0.02,
+    delay = 0.5,
 }
 
 audio.SoundEvent{
     name = "Condition.Winded",
     mixgroup = "ui",
     sounds = {"status/Notify_Status_Start_Winded_v1_01.wav"},
-    volume = 0.3,
+    volume = 0.2,
     pitchRand = 0.05,
     ignoreDuplicates = 0.02,
+    delay = 0.5,
 }
 
 audio.SoundEvent{
@@ -389,6 +448,7 @@ audio.SoundEvent{
     volume = 0.3,
     pitchRand = 0.05,
     ignoreDuplicates = 0.02,
+    delay = 0.5,
 }
 
 audio.SoundEvent{
@@ -398,6 +458,7 @@ audio.SoundEvent{
     volume = 0.3,
     pitchRand = 0.05,
     ignoreDuplicates = 0.02,
+    delay = 0.5,
 }
 
 audio.SoundEvent{
@@ -407,6 +468,7 @@ audio.SoundEvent{
     volume = 0.3,
     pitchRand = 0.05,
     ignoreDuplicates = 0.02,
+    delay = 0.5,
 }
 
 
@@ -513,6 +575,46 @@ audio.SoundEvent{
 --Gameplay Sounds
 
 
+
+
+--Collar
+
+audio.SoundEvent{
+    name = "Ability.Collar_Attach",
+    mixgroup = "gameplay",
+    sounds = {"abl/collar/Abl_Collar_Attach_v1_01.wav","abl/collar/Abl_Collar_Attach_v1_02.wav","abl/collar/Abl_Collar_Attach_v1_03.wav"},
+    volume = 0.25,
+    pitchRand = 0.05,
+    ignoreDuplicates = 0.1,
+}
+
+audio.SoundEvent{
+    name = "Ability.Collar_Remove",
+    mixgroup = "gameplay",
+    sounds = {"abl/collar/Abl_Collar_Remove_v1_01.wav","abl/collar/Abl_Collar_Remove_v1_02.wav","abl/collar/Abl_Collar_Remove_v1_03.wav"},
+    volume = 0.3,
+    pitchRand = 0.05,
+    ignoreDuplicates = 0.1,
+}
+
+
+audio.SoundEvent{
+    name = "Ability.Collar_DetonateBeep",
+    mixgroup = "gameplay",
+    --v1_03/v1_04 were listed as "abl/collarCollar_..." (missing slash) and never uploaded, so they
+    --played silence; add them back once uploaded under the right path.
+    sounds = {"abl/collar/Collar_Detonate_Beep_v1_01.wav","abl/collar/Collar_Detonate_Beep_v1_02.wav"},
+    volume = 0.3,
+    pitchRand = 0.01,
+    ignoreDuplicates = 0.01,
+}
+
+
+
+
+
+
+
 --Torch On/Off
 audio.SoundEvent{
     name = "Ability.Torch_On",
@@ -546,7 +648,7 @@ audio.SoundEvent{
     name = "Ability.Heal_Generic",
     mixgroup = "gameplay",
     sounds = {"Abl_Heal_Gnrc_v1_01.wav"},
-    volume = 0.5,
+    volume = 0.3,
     pitchRand = 0.05,
 }
 
@@ -731,6 +833,26 @@ audio.SoundEvent{
 
 
 
+--Explosions
+
+
+audio.SoundEvent{
+    name = "Ability.Explosion_Medium_Short",
+    mixgroup = "gameplay",
+    --v1_03 was listed as "explo/..." (missing "abl/") and never uploaded, so it played silence;
+    --add it back once uploaded under the right path.
+    sounds = {"abl/explo/Explo_Medium_Short_v1_01.wav","abl/explo/Explo_Medium_Short_v1_02.wav",},
+    volume = 0.2,
+    pitchRand = 0.15,
+    ignoreDuplicates = 0.1
+,
+}
+
+
+
+
+
+
 
 
 
@@ -765,7 +887,7 @@ audio.SoundEvent{
     name = "Attack.Hit",
     mixgroup = "damage",
     sounds = {"Atk_Hit/Atk_Hit_Gnrc_v1_01.wav","Atk_Hit/Atk_Hit_Gnrc_v1_02.wav","Atk_Hit/Atk_Hit_Gnrc_v1_03.wav","Atk_Hit/Atk_Hit_Gnrc_v1_04.wav"},
-    volume = 1.0,
+    volume = 0.7,
     ignoreDuplicates = 0.2,
     pitchRand = 0.2,
 }
@@ -774,7 +896,7 @@ audio.SoundEvent{
     name = "Attack.Hit_acid",
     mixgroup = "damage",
     sounds = {"Atk_Hit/Atk_Hit_Acid_v1_01.wav","Atk_Hit/Atk_Hit_Acid_v1_02.wav","Atk_Hit/Atk_Hit_Acid_v1_03.wav","Atk_Hit/Atk_Hit_Acid_v1_04.wav"},
-    volume = 1.0,
+    volume = 0.7,
     ignoreDuplicates = 0.2,
     pitchRand = 0.2,
 }
@@ -783,7 +905,7 @@ audio.SoundEvent{
     name = "Attack.Hit_cold",
     mixgroup = "damage",
     sounds = {"Atk_Hit/Atk_Hit_Cold_v1_01.wav","Atk_Hit/Atk_Hit_Cold_v1_02.wav","Atk_Hit/Atk_Hit_Cold_v1_03.wav","Atk_Hit/Atk_Hit_Cold_v1_04.wav","Atk_Hit/Atk_Hit_Cold_v1_05.wav"},
-    volume = 1.0,
+    volume = 0.7,
     ignoreDuplicates = 0.2,
     pitchRand = 0.2,
 }
@@ -792,7 +914,7 @@ audio.SoundEvent{
     name = "Attack.Hit_corruption",
     mixgroup = "damage",
     sounds = {"Atk_Hit/Atk_Hit_Corruption_v1_01.wav","Atk_Hit/Atk_Hit_Corruption_v1_02.wav","Atk_Hit/Atk_Hit_Corruption_v1_03.wav","Atk_Hit/Atk_Hit_Corruption_v1_04.wav"},
-    volume = 1.0,
+    volume = 0.7,
     ignoreDuplicates = 0.2,
     pitchRand = 0.2,
 }
@@ -801,7 +923,7 @@ audio.SoundEvent{
     name = "Attack.Hit_fire",
     mixgroup = "damage",
     sounds = {"Atk_Hit/Atk_Hit_Fire_v1_01.wav","Atk_Hit/Atk_Hit_Fire_v1_02.wav","Atk_Hit/Atk_Hit_Fire_v1_03.wav","Atk_Hit/Atk_Hit_Fire_v1_04.wav"},
-    volume = 1.0,
+    volume = 0.7,
     ignoreDuplicates = 0.2,
     pitchRand = 0.2,
 }
@@ -810,7 +932,7 @@ audio.SoundEvent{
     name = "Attack.Hit_holy",
     mixgroup = "damage",
     sounds = {"Atk_Hit/Atk_Hit_Holy_v2_01.wav","Atk_Hit/Atk_Hit_Holy_v2_02.wav","Atk_Hit/Atk_Hit_Holy_v2_03.wav","Atk_Hit/Atk_Hit_Holy_v2_04.wav"},
-    volume = 1.0,
+    volume = 0.6,
     ignoreDuplicates = 0.2,
     pitchRand = 0.2,
 }
@@ -819,7 +941,7 @@ audio.SoundEvent{
     name = "Attack.Hit_lightning",
     mixgroup = "damage",
     sounds = {"Atk_Hit/Atk_Hit_Lightning_v1_01.wav","Atk_Hit/Atk_Hit_Lightning_v1_02.wav","Atk_Hit/Atk_Hit_Lightning_v1_03.wav","Atk_Hit/Atk_Hit_Lightning_v1_04.wav"},
-    volume = 1.0,
+    volume = 0.7,
     ignoreDuplicates = 0.2,
     pitchRand = 0.2,
 }
@@ -828,7 +950,7 @@ audio.SoundEvent{
     name = "Attack.Hit_poison",
     mixgroup = "damage",
     sounds = {"Atk_Hit/Atk_Hit_Poison_v1_01.wav","Atk_Hit/Atk_Hit_Poison_v1_02.wav","Atk_Hit/Atk_Hit_Poison_v1_03.wav"},
-    volume = 1.0,
+    volume = 0.7,
     ignoreDuplicates = 0.2,
     pitchRand = 0.2,
 }
@@ -837,7 +959,7 @@ audio.SoundEvent{
     name = "Attack.Hit_psychic",
     mixgroup = "damage",
     sounds = {"Atk_Hit/Atk_Hit_Psychic_v2_01.wav","Atk_Hit/Atk_Hit_Psychic_v2_02.wav","Atk_Hit/Atk_Hit_Psychic_v2_03.wav","Atk_Hit/Atk_Hit_Psychic_v2_04.wav"},
-    volume = 1.0,
+    volume = 0.7,
     ignoreDuplicates = 0.2,
     pitchRand = 0.2,
 }
@@ -846,7 +968,7 @@ audio.SoundEvent{
     name = "Attack.Hit_sonic",
     mixgroup = "damage",
     sounds = {"Atk_Hit/Atk_Hit_Sonic_v1_01.wav","Atk_Hit/Atk_Hit_Sonic_v1_02.wav","Atk_Hit/Atk_Hit_Sonic_v1_03.wav","Atk_Hit/Atk_Hit_Sonic_v1_04.wav"},
-    volume = 1.0,
+    volume = 0.7,
     ignoreDuplicates = 0.2,
     pitchRand = 0.2,
 }
@@ -857,7 +979,7 @@ audio.SoundEvent{
     name = "Attack.Enviro",
     mixgroup = "damage",
     sounds = {"Atk_Enviro_Gnrc_v1_01.wav"},
-    volume = 1.0,
+    volume = 0.7,
     ignoreDuplicates = 0.2,
 }
 
@@ -1942,6 +2064,21 @@ local function LeaveFootprints(args, surfaceInfo, leaveTracks)
     end
 end
 
+--- The engine's TokenMovingOnPath args: one table reused for the whole move, so
+--- this file keeps its own per-move scratch fields on it between frames.
+---@class TokenMovingOnPathArgs
+---@field token CharacterToken
+---@field path LuaPath
+---@field position Vector3
+---@field delta Vector3
+---@field distanceMoved number
+---@field stepIndex number
+---@field lastPlayed? number Distance moved when the last footstep sound played.
+---@field footprintStyle? table|false Cached style for this move; false = no prints.
+---@field nextFootprint? number Distance moved at which the next print is laid.
+---@field footprintLeft? boolean True when the next print is a left foot.
+
+---@param args TokenMovingOnPathArgs
 dmhub.TokenMovingOnPath = function(args)
     local surface = args.path:GetStepSurfaceType(args.stepIndex) or 0
     local surfaceInfo = AudioSurfaceTypes.surfaces[surface]
@@ -2053,6 +2190,7 @@ dmhub.TokenMovingOnPath = function(args)
             audio.FireSoundEvent(sound, {
                 volume = volumeScale,
                 pitch = pitch,
+                tokenid = args.token.charid,
             })
 
             if puddle then

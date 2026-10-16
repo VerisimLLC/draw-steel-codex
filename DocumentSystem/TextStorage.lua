@@ -71,6 +71,7 @@ end
 
 ---@class TextStorage: GameType
 --- @field new fun(o?: table): TextStorage
+--- @field sections table<string, string> The text split into chunks; concatenating them in sorted key order gives the content.
 TextStorage = RegisterGameType("TextStorage")
 
 --The digit value of the i'th char of a key, or nil past the end of the key.
@@ -207,7 +208,8 @@ function TextStorage.Create(str)
 end
 
 function TextStorage:GetContent()
-    local keys = table.keys(self.sections)
+    --the live table.keys (Utils.lua) always returns a list; only the lua-core one can return nil.
+    local keys = table.keys(self.sections) --[[@as string[] ]]
     table.sort(keys)
     local result = ""
     for i,k in ipairs(keys) do
@@ -221,7 +223,7 @@ function TextStorage:SetContent(str)
     --the changed span below. The re-key path needs the whole document.
     local fullStr = str
 
-    local keys = table.keys(self.sections)
+    local keys = table.keys(self.sections) --[[@as string[] ]]
     table.sort(keys)
 
     --print("MERGE:: SET TEXT", str)

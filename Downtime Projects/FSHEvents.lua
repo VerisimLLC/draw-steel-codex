@@ -157,7 +157,7 @@ function FSHEvents.Roll(charid)
         guid = dmhub.GenerateGuid(),
         roll = "1d10",
         description = "Fishing Events",
-        tokenid = token.id,
+        tokenid = token.charid,
         complete = function(rollInfo)
             FSHEvents.Apply(charid, rollInfo.total or 1)
         end

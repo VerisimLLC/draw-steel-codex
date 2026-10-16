@@ -22,6 +22,13 @@ local logs = {}
 dmhub = {Time = function() return now end}
 ActivatedAbility = {CountActiveCasts = function() return activeCasts end}
 printf = function(fmt, ...) logs[#logs+1] = string.format(fmt, ...) end
+--- The args the code under test hands GameHud.RegisterBetweenTurnHandler.
+---@class EndTurnCastWaitTestHandler
+---@field id string
+---@field priority number
+---@field run fun(context: table)
+
+---@type EndTurnCastWaitTestHandler?
 local registered = nil
 GameHud = {RegisterBetweenTurnHandler = function(args) registered = args end}
 
@@ -29,6 +36,8 @@ assert(load(section("Draw Steel Core Rules/MCDMInitiativeBar.lua",
     "--How long the ended turn stays current", "function GameHud:NextInitiative(oncomplete)")))()
 
 check(registered ~= nil and registered.id == "End Turn Casts", "handler registers")
+--check() asserts, so registered is non-nil past this point.
+---@cast registered -nil
 check(registered.priority == 0, "handler runs before the villain-action window (priority 50)")
 
 --Drive the wait the way RunBetweenTurnHandler does: resume, honor the yielded

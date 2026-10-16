@@ -41,7 +41,8 @@ function ActivatedAbilityDramaticBannerBehavior:Cast(ability, casterToken, targe
             local symbols = tok.properties:LookupSymbol{ name = tok.name }
             DramaticBanner.Show{
                 tokenid = tok.charid,
-                text = StringInterpolateGoblinScript(self.title, symbols),
+                -- Only a nil input yields nil, and title has a "" prototype default.
+                text = StringInterpolateGoblinScript(self.title, symbols) --[[@as string]],
                 subtitle = StringInterpolateGoblinScript(self.subtitle, symbols),
                 bannerType = self.bannerType,
             }
@@ -81,7 +82,7 @@ function ActivatedAbilityDramaticBannerBehavior:EditorItems(parentPanel)
             options = typeOptions,
             change = function(element)
                 ---@cast element Dropdown
-                self.bannerType = element.idChosen
+                self.bannerType = element.idChosen --[[@as string]] -- option ids are DramaticBanner.types ids
             end,
         },
     }

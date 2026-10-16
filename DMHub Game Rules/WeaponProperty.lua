@@ -12,6 +12,7 @@ local mod = dmhub.GetModLoading()
 --- @field modifiesAttacks boolean If true, this property modifies attack rolls.
 --- @field itemType string Equipment category this property applies to: "weapon", "armor", "shield", "other", or "all".
 --- @field features table[] List of features/modifiers granted by this property.
+--- @field attackModifier? CharacterModifier The modifyability modifier applied to attacks when modifiesAttacks is set; created on first enable.
 --- These are more correctly called "EquipmentProperty"; "WeaponProperty" is a historical name.
 WeaponProperty = RegisterGameType("WeaponProperty")
 
@@ -95,11 +96,15 @@ end
 
 
 function WeaponProperty.CreateEditor()
+    ---@type Panel
     local resultPanel
+    ---@type WeaponProperty?
     local m_item = nil
     local m_itemOriginal = nil
 
+    --The editor stays hidden until editItem sets m_item, so every caller below has one.
     local Upload = function()
+        ---@cast m_item -nil
         printf("UPLOAD:: %s", traceback())
         dmhub.SetAndUploadTableItem(WeaponProperty.tableName, m_item)
         m_itemOriginal = DeepCopy(m_item)
@@ -166,7 +171,7 @@ function WeaponProperty.CreateEditor()
                 end,
                 change = function(element)
                     ---@cast element Dropdown
-                    m_item.itemType = element.idChosen
+                    m_item.itemType = element.idChosen --[[@as string]]
                     OnChange()
                 end,
             },
@@ -215,6 +220,7 @@ function WeaponProperty.CreateEditor()
             classes = {"formStackedRow"},
             gui.Check{
                 text = "Has Value",
+                value = false,
                 editItem = function(element, item)
                     element.value = item.hasValue
                 end,
@@ -233,10 +239,13 @@ function WeaponProperty.CreateEditor()
             end,
             gui.Check{
                 text = "Modifies Attacks",
+                value = false,
                 editItem = function(element, item)
                     element.value = item.modifiesAttacks
                 end,
                 change = function(element)
+                    --Only reachable once editItem has set m_item (the editor is hidden before).
+                    ---@cast m_item -nil
                     if m_item.modifiesAttacks == element.value then
                         return
                     end

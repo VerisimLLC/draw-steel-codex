@@ -47,6 +47,8 @@ CreateClipboard = function(options)
     local previewImage = nil
 
     local selectionEditor = CreateSettingsEditor("selectiontool")
+    --"selectiontool" is registered (DMHub Titlescreen/Settings.lua) with an editor, so this is a panel.
+    ---@cast selectionEditor -nil
 
     contentPanel = gui.Panel{
         id = "ClipboardPanel",
@@ -335,6 +337,7 @@ local CreateClipboardFolder = function(folderid)
 			classes = {"folderLabel"},
 			text = folder.description,
 			change = function(element)
+				---@cast element Label
 				element.editable = false
 				if element.text == "" then
 					element.text = folder.description
@@ -430,7 +433,6 @@ local CreateClipboardFolder = function(folderid)
                         bgimage = k,
                         width = 96,
                         height = 96,
-                        halign = "center",
                         vmargin = 4,
                         halign = "left",
                         draggable = true,

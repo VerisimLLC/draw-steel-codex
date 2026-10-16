@@ -7,8 +7,9 @@ regex = {}
 --- Matches a string against a regex pattern and returns named capture groups. Group '0' is returned as key 'all'. If options.indexes is true, each group value is a table with value, index, and length fields instead of a plain string.
 --- @param str string The string to match against.
 --- @param pattern string The regex pattern with named capture groups.
---- @param options nil|{indexes: nil|boolean} If indexes is true, each group is returned as a table with value, index, and length fields.
---- @return nil|table<string, string|{value: string, index: integer, length: integer}> Capture groups keyed by group name, or nil if no match.
+--- @param options nil|{indexes: false|nil} Omit for plain string groups; see the overload for indexes = true.
+--- @overload fun(str: string, pattern: string, options: {indexes: true}): nil|table<string, string|{value: string, index: integer, length: integer}>
+--- @return nil|table<string, string> Capture groups keyed by group name, or nil if no match.
 function regex.MatchGroups(str, pattern, options) end
 
 --- Matches a string against a regex pattern and returns the capture groups as multiple return values.

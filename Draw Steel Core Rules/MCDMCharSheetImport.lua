@@ -72,6 +72,7 @@ local function CreateCharSheetImport()
 
     local m_importedText = nil
 
+    ---@type creature?
     local m_displayedMonsterProperties = nil
     local m_displayedMonsterLog = nil
 
@@ -178,6 +179,8 @@ local function CreateCharSheetImport()
             click = function(element)
 				local token = CharacterSheet.instance.data.info.token
 
+                --this button is hidden (refreshVisibility) whenever no monster is displayed.
+                ---@cast m_displayedMonsterProperties -nil
                 if token.properties == m_displayedMonsterProperties then
                     print("ERROR: Token properties are the same as the displayed monster properties")
                     return

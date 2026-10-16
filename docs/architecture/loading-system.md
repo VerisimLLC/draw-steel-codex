@@ -82,7 +82,7 @@ The `mod` object provides:
     ```
 
 - **`mod:GetDocumentSnapshot(id)`** — Access shared cloud documents (see [Shared Documents](../patterns/shared-documents.md))
-- **`mod:RegisterDocumentForCheckpointBackups(id)`** — Register documents for save-state backups
+- **`mod:RegisterDocumentForCheckpointBackups(id)`** — Include a document in combat checkpoints, so Revert Turn rolls it back (not related to saving)
 
 ## Why you cannot create new files
 

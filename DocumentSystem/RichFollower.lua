@@ -158,7 +158,7 @@ function RichFollower.CreateDisplay(self)
                         revokeMode = false,
                     },
                     refreshTag = function(element)
-                        element.data.revokeMode = self.follower.assignedTo == token.id
+                        element.data.revokeMode = self.follower.assignedTo == token.charid
                     end,
                     press = function(element)
                         if element.data.revokeMode then
@@ -168,7 +168,7 @@ function RichFollower.CreateDisplay(self)
                         end
                     end,
                     assign = function(element)
-                        self.follower.assignedTo = token.id
+                        self.follower.assignedTo = token.charid
                         element:FireEvent("saveDoc")
                         resultPanel:FireEventTree("refreshTag")
                     end,

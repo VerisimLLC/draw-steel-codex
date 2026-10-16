@@ -3,6 +3,7 @@ local mod = dmhub.GetModLoading()
 
 --- @class ActivatedAbilityApplyAbilityDurationEffect: ActivatedAbilityBehavior
 --- @field new fun(o?: table): ActivatedAbilityApplyAbilityDurationEffect
+--- @field momentaryEffect CharacterOngoingEffect The effect applied to each target for the ability's duration.
 ActivatedAbilityApplyAbilityDurationEffect = RegisterGameType("ActivatedAbilityApplyAbilityDurationEffect", "ActivatedAbilityBehavior")
 
 ActivatedAbility.RegisterType

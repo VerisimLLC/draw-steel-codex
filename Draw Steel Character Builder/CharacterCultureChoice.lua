@@ -11,9 +11,13 @@
 ]]
 --- @class CharacterAspectChoice: CharacterChoice
 --- @field new fun(o?: table): CharacterAspectChoice
+--- @field options {guid: string, name: string}[] One entry per culture aspect in this category.
+--- @field choices {id: string, text: string}[] The same aspects in choice-list form.
 CharacterAspectChoice = RegisterGameType("CharacterAspectChoice", "CharacterChoice")
 --- @class CharacterCultureAggregateChoice: CharacterChoice
 --- @field new fun(o?: table): CharacterCultureAggregateChoice
+--- @field options {guid: string, name: string, description: string, aspects: table, languageId: string|nil}[] One entry per aggregate culture in the group.
+--- @field choices {id: string, text: string, description: string, aspects: table, languageId: string|nil}[] The same cultures in choice-list form.
 CharacterCultureAggregateChoice = RegisterGameType("CharacterCultureAggregateChoice", "CharacterChoice")
 
 CharacterAspectChoice.description = "Culture Aspect Choice"
@@ -40,7 +44,6 @@ function CharacterAspectChoice.CreateNew(aspect)
 end
 
 --- Populate all the culture choices
---- @param hero character
 --- @return table
 function CharacterAspectChoice.CreateAll()
     local items = {}
@@ -194,13 +197,13 @@ function CharacterCultureAggregateChoice.CreateNew(items)
             local o = aspectsTable[item.aspects.organization]
             local u = aspectsTable[item.aspects.upbringing]
             local l = languagesTable[languageId]
-            e = e and e.name or "(not found)"
-            o = o and o.name or "(not found)"
-            u = u and u.name or "(not found)"
-            l = l and l.name or nil
-            description = string.format("**Environment:** %s; **Organization:** %s; **Upbringing:** %s", e, o, u)
-            if l then
-                description = string.format("%s; **Language:** %s", description, l)
+            local eName = e and e.name or "(not found)"
+            local oName = o and o.name or "(not found)"
+            local uName = u and u.name or "(not found)"
+            local lName = l and l.name or nil
+            description = string.format("**Environment:** %s; **Organization:** %s; **Upbringing:** %s", eName, oName, uName)
+            if lName then
+                description = string.format("%s; **Language:** %s", description, lName)
             end
             g_descriptionCache[item.id] = description
         end

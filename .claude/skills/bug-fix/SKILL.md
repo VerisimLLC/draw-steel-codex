@@ -78,17 +78,10 @@ report record, unabridged.
 - `source`: `BugReports` = still novel/un-triaged; `BugReportsArchive` = already processed.
 - `report.triage.analysis` (present once archived) is the triage agent's prior write-up
   for this issue: summary, root-cause hypothesis, **suggested fix** with `file:line`, and
-<<<<<<< HEAD
   the verbatim user quote. `report.triage.issueId` is the issue registry key -- NOT a
   Discord thread id (since 2026-09-17 it is the opening report's short id); `issue` is the
   registry node (title / type / signature / all reportIds folded into it), and its
   `threadId` field is the Discord thread, absent when nobody has opened one.
-=======
-  the verbatim user quote. `report.triage.issueId` is the issue's registry key -- a Discord thread id only for
-  issues filed before 2026-09-17; since then it is the opening report's id and there is
-  no thread unless a human opened one. `issue` is the
-  registry node (title / type / signature / all reportIds folded into it).
->>>>>>> adac56ee375e55bfb7c896884bc8d26d041693b5
 - `ticket` is `{uid, exists}` -- whether the reporter has a user-facing ticket, which is
   what decides if a closeout has a ticket half at all.
 
@@ -139,6 +132,28 @@ Do exactly what the user asked. Common cases:
   instruction -- never as an automatic follow-on to fixing.
 - Anything else -> follow the instruction using the loaded context.
 
+## Committing a fix: always name the ticket id(s)
+
+Every git commit that carries a bug fix MUST name the ticket id of each report it
+fixes. This holds whenever the commit happens -- in this session or later when the
+user asks for it -- and in every repo the fix touches (`dmhub`, `draw-steel-codex`,
+`draw-steel-data`, ...): each of those commits gets the ids.
+
+- **The ticket id is the report id**: the short code the reporter was shown
+  (e.g. `5PFECU2K`). Older reports have a Firebase push id instead
+  (`-OwzDc6XqNM0KiXkOzOr`); use that as-is.
+- **Include every matching report, not just the one you were given.** Collect the
+  ids from `issue.reportIds` (every report folded into the same issue), plus any
+  other report the user named or that you found to have the same root cause. If you
+  find a likely match you are not sure about, ask the user before adding it.
+- **Format**: put the ids in parentheses at the end of the subject line, matching
+  existing history -- `Terrain edits resettle tokens instead of dropping them (K4G9W9MZ)`.
+  For several: `(QKG5YTWG, 3GJJQYJV)`. If they would make the subject too long, keep
+  the first in the subject and list all of them on a `Fixes: <id>, <id>, ...` line
+  in the body.
+- When you hand the user an uncommitted fix, give them the ticket ids for the
+  commit message.
+
 ## Closing out a bug (only when explicitly instructed)
 
 "Close out the bug" means the fix is done and the reporter + forum should be told.
@@ -162,16 +177,10 @@ python <S>/bug-close-out.py <reportId> [--dry-run]
    in-app "developer responded" marker:
    *"Thank you for reporting this issue, we have a fix scheduled with the next update"*
 2. Closes that ticket (`/api/tickets/status` -> `closed`).
-<<<<<<< HEAD
 3. Replies **"Fixed and Closed"** into the issue's Discord thread (`issue.threadId`)
    -- in `#bugs` or `#user-feedback`, whichever forum that thread was opened in.
    Most issues since 2026-09-17 have no thread; steps 3 and 4 are then skipped with a
    note, which is not a failure.
-=======
-3. Replies **"Fixed and Closed"** into the issue's Discord thread, when it has one
-   -- in `#bugs` or `#user-feedback`, whichever forum that thread was opened in. Most
-   issues filed since 2026-09-17 have none, and then steps 3 and 4 are skipped.
->>>>>>> adac56ee375e55bfb7c896884bc8d26d041693b5
 4. **Archives that thread**, so it leaves the forum's active list. Archived, not
    locked, on purpose: if the reporter replies "still broken" the thread un-archives
    itself, which is how a closed-too-early bug comes back to us. This step needs a
@@ -194,15 +203,10 @@ Notes:
   `~/.dmhub/tickets-password.txt`, or config `ticketsPassword`).
 - Steps 3 and 4 run through the dashboard, which holds the webhooks and bot token and
   picks the thread's forum from the issue registry itself.
-<<<<<<< HEAD
-- The script does NOT touch the `/BugReportTriage/issues/{issueId}` registry `status`
-  or re-archive the report; mention that if the user wants the registry updated too.
-=======
 - The script does not write the registry `status`, and does not need to: an issue whose
   tickets are all closed counts as closed everywhere (the dashboard and the triage
   scripts share that rule). To also record *that it was fixed, and by what*, use
   dmhub-triage's `bug-report-check-prs.py --mark-fixed <issue> <commit>` instead.
->>>>>>> adac56ee375e55bfb7c896884bc8d26d041693b5
 
 ## Rules
 

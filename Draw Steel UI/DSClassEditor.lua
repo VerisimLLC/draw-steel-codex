@@ -593,6 +593,7 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 		}
 	end
 
+	--- @type Panel
 	local prerequisitesEditor = nil
 	local BuildPrerequisitesEditor = nil
 	if feature.typeName == "CharacterFeatureList" then
@@ -1062,8 +1063,7 @@ function ClassLevel:CreateEditor(classOrRace, levelNum, params)
                         }
                         resultPanel:FireEvent("change", self)
 					elseif element.idChosen == 'multiple' then
-						self.features[#self.features+1] = CharacterFeatureList.CreateNew{
-						}
+						self.features[#self.features+1] = CharacterFeatureList.CreateNew()
 						resultPanel:FireEvent("change", self)
 					elseif element.idChosen == 'choice' then
 						self.features[#self.features+1] = CharacterFeatureChoice.CreateNew()
@@ -1199,7 +1199,7 @@ local SetClass = function(tableName, classPanel, classid)
 				height = 40,
 				change = function(element)
 					---@cast element Dropdown
-					class.hit_die = tonumber(element.idChosen)
+					class.hit_die = tonumber(element.idChosen) --[[@as integer]] -- every option id is a die size ("4".."12")
 					UploadClass()
 				end,
 			},
@@ -1240,7 +1240,7 @@ local SetClass = function(tableName, classPanel, classid)
 				idChosen = class.primaryClassId,
 				change = function(element)
 					---@cast element Dropdown
-					class.primaryClassId = element.idChosen
+					class.primaryClassId = element.idChosen --[[@as string]]
 					class:ForceDomains()
 					UploadClass()
 				end,
@@ -1785,16 +1785,13 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
 						}
 						resultPanel:FireEvent("change", self)
 					elseif element.idChosen == 'multiple' then
-						self.options[#self.options+1] = CharacterFeatureList.CreateNew{
-						}
+						self.options[#self.options+1] = CharacterFeatureList.CreateNew()
 						resultPanel:FireEvent("change", self)
 					elseif element.idChosen == 'feat' then
-						self.options[#self.options+1] = CharacterFeatChoice.CreateNew{
-						}
+						self.options[#self.options+1] = CharacterFeatChoice.CreateNew()
 						resultPanel:FireEvent("change", self)
 					elseif element.idChosen == 'onefeat' then
-						self.options[#self.options+1] = CharacterSingleFeat.CreateNew{
-						}
+						self.options[#self.options+1] = CharacterSingleFeat.CreateNew()
 						resultPanel:FireEvent("change", self)
 					elseif element.idChosen == 'paste' then
                         local clipboardItem = dmhub.GetInternalClipboard()
@@ -1881,7 +1878,8 @@ function CharacterSubclassChoice:CreateEditor(class, params)
 end
 
 function CharacterFeatureList:CreateEditor(class, params)
-	local subpanel = ClassLevel.CreateEditor(self, class, -1, params)
+	-- ClassLevel's editor only touches self.features, which a feature list shares.
+	local subpanel = ClassLevel.CreateEditor(self --[[@as ClassLevel]], class, -1, params)
 
 	return subpanel
 end
@@ -1945,6 +1943,7 @@ mod.shared.StartingEquipmentEditor = function(options)
 
 		for i,equipmentEntry in ipairs(startingEquipment) do
 
+			---@type Panel[]
 			local entryChildren = {
 				gui.Label{
 					classes = {"sizeXl", "bold", "underline"},

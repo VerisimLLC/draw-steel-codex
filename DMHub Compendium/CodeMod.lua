@@ -40,11 +40,13 @@ local g_searchRegexSetting = setting{
 CodeMod = {
 
 CreateEditor = function(panelArgs)
+	---@type Panel
 	local resultPanel = nil
 	local m_containerPanel
 
 	local errorPanel = nil
 
+	---@type CodeModLua
 	local mod = nil
 
 	local expandedPanel = nil

@@ -6,6 +6,10 @@ local mod = dmhub.GetModLoading()
 --- @class CharacterResource: GameType
 --- @field new fun(o?: table): CharacterResource
 --- @field id string Key of this row in its data table; SetAndUploadTableItem sets it.
+--- @field history false|StatHistory Change history of a global resource entry; false until first set.
+--- @field refreshid string|nil Usage-entry stamp from GetResourceRefreshId; a nil write (hidden combat) reads back as the '' default.
+--- @field turnPeak number Most heroic resource held during the turn named by turnPeakId.
+--- @field turnPeakId string|nil Initiative turn id that turnPeak belongs to.
 CharacterResource = RegisterGameType("CharacterResource")
 
 local g_sharedGlobalResourceDoc = "globalResourcesv2"
@@ -106,6 +110,7 @@ function CharacterResource.GetGlobalResource(resourceid)
 end
 
 --- @return table<string, CharacterResource>
+--- @return LuaCodeModDocumentSnapshot|nil doc The shared document, for "global" resources only.
 function creature:GetResourceTable(refreshType)
 	if refreshType == "global" then
 		local doc = mod:GetDocumentSnapshot(g_sharedGlobalResourceDoc)
@@ -129,6 +134,34 @@ CharacterResource.tableName = "characterResources"
 CharacterResource.nameToId = {}
 
 CharacterResource.unbounded = 0
+CharacterResource.turnPeak = 0
+
+--Remember the most heroic resource held this turn, just before some is spent.
+--Benefits like Growing Ferocity last all turn, but used to switch off if the
+--game refreshed after the hero spent their Ferocity.
+--- @param entry CharacterResource
+--- @param before number the amount held before the decrease
+local function RecordTurnPeak(entry, before)
+    local q = dmhub.initiativeQueue
+    if q == nil or q.hidden or q.GetTurnId == nil then
+        return
+    end
+
+    local turnid = q:GetTurnId()
+    if turnid == nil then
+        return
+    end
+
+    local peak = before or 0
+    if entry:try_get("turnPeakId") == turnid then
+        peak = math.max(peak, entry.turnPeak)
+    end
+
+    if entry:try_get("turnPeakId") ~= turnid or entry.turnPeak ~= peak then
+        entry.turnPeak = peak
+        entry.turnPeakId = turnid
+    end
+end
 
 --maps a lower level resourceid to a higher level resourceid
 CharacterResource.levelingMap = {}
@@ -918,6 +951,10 @@ function creature:ConsumeResource(key, refreshType, quantity, note)
             resource.combatid = q.guid
         end
 
+        if key == CharacterResource.heroicResourceId and quantity > 0 then
+            RecordTurnPeak(resource, before)
+        end
+
         if resourceInfo ~= nil then
 		    resource.unbounded = resourceInfo:ClampQuantity(self, before - quantity)
             self:InvalidateResources()
@@ -956,6 +993,8 @@ function creature:ConsumeResource(key, refreshType, quantity, note)
 	local totalResources = self:GetResources()[key] or 0
 	local usage = self:GetResourceUsage(key, refreshType)
 
+	--The history entry shows "remaining/total" for resources that track usage.
+	---@type number|string
 	local quantity = totalResources
 	if refreshType ~= "unbounded" and refreshType ~= "global" then
 		quantity = string.format("%d/%d", totalResources - usage, quantity)
@@ -1107,6 +1146,8 @@ function creature:RefreshResource(key, refreshType, quantity, note)
 	local totalResources = self:GetResources()[key] or 0
 	local usage = self:GetResourceUsage(key, refreshType)
 
+	--The history entry shows "remaining/total" for resources that track usage.
+	---@type number|string
 	local quantity = totalResources
 	if refreshType ~= "unbounded" and refreshType ~= "global" then
 		quantity = string.format("%d/%d", totalResources - usage, quantity)
@@ -1172,6 +1213,9 @@ function creature:AddUnboundedResource(key, quantity, note)
     end
 
     local previousValue = resourceEntry.unbounded or 0
+    if key == CharacterResource.heroicResourceId and quantity < 0 then
+        RecordTurnPeak(resourceEntry, previousValue)
+    end
 	resourceEntry.unbounded = resource:ClampQuantity(self, resourceEntry.unbounded + quantity)
     self:InvalidateResources()
 
@@ -1271,7 +1315,7 @@ end)
 
 --- @class CharacterResourceCollection: GameType
 --- @field new fun(o?: table): CharacterResourceCollection
---- @field helpSymbols table GoblinScript help symbol table for this collection (keyed by resource name).
+--- @field helpSymbols table<string, string|{name: string, type: string, desc: string}> GoblinScript help symbol table for this collection (keyed by resource name; "__name" holds the collection's name).
 --- @field lookupSymbols table GoblinScript lookup symbols populated from resource table data.
 --- Represents all resources a character currently has, used as the GoblinScript "resources" object.
 CharacterResourceCollection = RegisterGameType("CharacterResourceCollection")

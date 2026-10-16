@@ -629,11 +629,14 @@ local function StageGroupAtSavedLocations(encounter, groupIndex, group, numHeroe
         for i = 1, quantity do
             local entry = TakeBankedPosition(queues, legacy, monsterid)
             local loc = entry ~= nil and entry.loc or nil
+            --grid locs have no altitude: the engine stands them on the ground.
+            local onGround = false
             if loc ~= nil then
                 if not loc.isValidFloor then
                     loc = loc.withCurrentFloor
                 end
             else
+                onGround = true
                 --Same 5-wide grid SpawnGroupForReal uses for unbanked monsters.
                 --Skipping instead (as this did) silently lost the monster: the
                 --user got a captain and seven of their eight minions, with no
@@ -644,7 +647,7 @@ local function StageGroupAtSavedLocations(encounter, groupIndex, group, numHeroe
                 fallbackIndex = fallbackIndex + 1
             end
 
-            local token = game.SpawnTokenFromBestiaryLocally(monsterid, loc, { fitLocation = true })
+            local token = game.SpawnTokenFromBestiaryLocally(monsterid, loc, { fitLocation = true, onGround = onGround })
             if token ~= nil then
                 token.properties.encounterPlacementId = placementid
                 token.properties.encounterSpawnSlot = slot
@@ -677,37 +680,10 @@ end
 local ShowPlacementBanner
 local ShowStagingBanner
 
---The party the builder balances against. Heroes come from the numheroes
---setting; level and victories default from the hero tokens on the current
---map so the budget matches the real party, with manual override via the
---party bar steppers.
+--The party the builder balances against. See Encounter.CurrentParty.
 local function DefaultParty()
-    local numHeroes = dmhub.GetSettingValue("numheroes") or 4
-
-    local totalLevel = 0
-    local totalVictories = 0
-    local count = 0
-    for _, tok in ipairs(dmhub.allTokens) do
-        local props = tok.properties
-        if props ~= nil and props:IsHero() then
-            count = count + 1
-            totalLevel = totalLevel + props:CharacterLevel()
-            totalVictories = totalVictories + props:GetVictories()
-        end
-    end
-
-    local level = 1
-    local victories = 0
-    if count > 0 then
-        level = math.max(1, round(totalLevel / count))
-        victories = math.max(0, round(totalVictories / count))
-    end
-
-    return {
-        numHeroes = numHeroes,
-        level = level,
-        victories = victories,
-    }
+    Encounter.SyncAutoPartySize()
+    return Encounter.CurrentParty()
 end
 
 -- ===========================================================================
@@ -901,6 +877,11 @@ local function CreateStepper(args)
         text = formatValue(value),
         editable = args.editable ~= false,
         characterLimit = 3,
+        --args.sync lets the owner change the value from outside the stepper.
+        refreshBuilder = args.sync ~= nil and function(element)
+            value = args.sync()
+            element.text = formatValue(value)
+        end or nil,
         change = function(element)
             local n = tonumber(element.text)
             if n == nil then
@@ -1403,6 +1384,7 @@ local function CreatePartyBar(encounter, party, refresh, rebuild, budgetDial)
         classes = { "number", "sizeXl", "bold" },
         width = "auto",
         height = "auto",
+        halign = "left",
         text = "",
         refreshBuilder = function(element)
             local strength = Encounter.PartyStrength(party)
@@ -1414,15 +1396,18 @@ local function CreatePartyBar(encounter, party, refresh, rebuild, budgetDial)
         classes = { "fgMuted", "sizeXxs" },
         width = "auto",
         height = "auto",
+        halign = "left",
         lmargin = 8,
         valign = "bottom",
         bmargin = 4,
         text = "",
         refreshBuilder = function(element)
             local strength = Encounter.PartyStrength(party)
+            --the victories bonus goes on its own line so the readout keeps to
+            --the column's fixed width.
             local text = string.format("%d ES x %d heroes", strength.singleHero, strength.numHeroes)
             if strength.victoryBonus > 0 then
-                text = string.format("%s + %d from victories", text, strength.victoryBonus)
+                text = string.format("%s\n+ %d from victories", text, strength.victoryBonus)
             end
             element.text = text
         end,
@@ -1448,12 +1433,12 @@ local function CreatePartyBar(encounter, party, refresh, rebuild, budgetDial)
     local balanceButton = gui.Button {
         classes = { "sizeXs" },
         floating = true,
-        width = 60,
-        height = 16,
-        fontSize = 10,
+        width = 80,
+        height = 22,
+        fontSize = 12,
         halign = "center",
         valign = "bottom",
-        y = 26,
+        y = 40,
         text = "Balance",
         data = { tip = "" },
         refreshBuilder = function(element)
@@ -1481,6 +1466,66 @@ local function CreatePartyBar(encounter, party, refresh, rebuild, budgetDial)
         end,
     }
 
+    --Any stepper change is an override: save it and stop auto-calculating.
+    local function overrideParty()
+        party.manual = true
+        Encounter.SetManualParty(party)
+        refresh()
+    end
+
+    --Beneath the Level and Victories steppers, level with the Balance button:
+    --where the numbers came from, or (once overridden) the way back to the
+    --player party. x backs out the trailing column margin to center them.
+    local autoSourceLabel = gui.Label {
+        classes = { "fgMuted", "sizeXxs" },
+        floating = true,
+        width = "auto",
+        height = "auto",
+        halign = "center",
+        valign = "bottom",
+        x = -9,
+        y = 24,
+        text = "From the player party",
+        refreshBuilder = function(element)
+            element:SetClass("collapsed", party.manual)
+        end,
+        create = function(element)
+            element:FireEvent("refreshBuilder")
+        end,
+    }
+
+    local autoButton = gui.Button {
+        classes = { "sizeXs" },
+        floating = true,
+        width = 140,
+        height = 22,
+        fontSize = 12,
+        halign = "center",
+        valign = "bottom",
+        x = -9,
+        y = 40,
+        text = "",
+        hover = gui.Tooltip("Go back to the Heroes / Level / Victories worked out from the heroes in the player party, and keep them up to date with it."),
+        refreshBuilder = function(element)
+            element:SetClass("collapsed", not party.manual)
+            if party.manual then
+                local auto = Encounter.AutoParty()
+                element.text = string.format("Use party: %d / %d / %d", auto.numHeroes, auto.level, auto.victories)
+            end
+        end,
+        create = function(element)
+            element:FireEvent("refreshBuilder")
+        end,
+        press = function(element)
+            local auto = Encounter.ClearManualParty()
+            party.numHeroes = auto.numHeroes
+            party.level = auto.level
+            party.victories = auto.victories
+            party.manual = false
+            refresh()
+        end,
+    }
+
     --The bar is a vertical stack: the classic horizontal row of columns, plus
     --an encounter-script parameter row beneath it that only appears when an
     --attached script declares parameters.
@@ -1494,32 +1539,44 @@ local function CreatePartyBar(encounter, party, refresh, rebuild, budgetDial)
             value = party.numHeroes,
             min = 3,
             max = 7,
+            sync = function() return party.numHeroes end,
             change = function(v)
                 party.numHeroes = v
-                dmhub.SetSettingValue("numheroes", v)
-                refresh()
+                overrideParty()
             end,
         }, balanceButton),
 
-        partyColumn("Level", CreateStepper {
-            value = party.level,
-            min = 1,
-            max = 10,
-            change = function(v)
-                party.level = v
-                refresh()
-            end,
-        }),
+        gui.Panel {
+            flow = "horizontal",
+            width = "auto",
+            height = "auto",
+            valign = "center",
 
-        partyColumn("Victories", CreateStepper {
-            value = party.victories,
-            min = 0,
-            max = 15,
-            change = function(v)
-                party.victories = v
-                refresh()
-            end,
-        }),
+            partyColumn("Level", CreateStepper {
+                value = party.level,
+                min = 1,
+                max = 10,
+                sync = function() return party.level end,
+                change = function(v)
+                    party.level = v
+                    overrideParty()
+                end,
+            }),
+
+            partyColumn("Victories", CreateStepper {
+                value = party.victories,
+                min = 0,
+                max = 15,
+                sync = function() return party.victories end,
+                change = function(v)
+                    party.victories = v
+                    overrideParty()
+                end,
+            }),
+
+            autoSourceLabel,
+            autoButton,
+        },
 
         gui.Panel {
             flow = "vertical",
@@ -1530,9 +1587,11 @@ local function CreatePartyBar(encounter, party, refresh, rebuild, budgetDial)
 
             FieldCaption("Party Encounter Strength"),
 
+            --Fixed width, or every stepper press shifts the columns to the
+            --right as the readout changes length.
             gui.Panel {
                 flow = "horizontal",
-                width = "auto",
+                width = 170,
                 height = "auto",
                 esValueLabel,
                 esBreakdownLabel,
@@ -1563,6 +1622,7 @@ local function CreatePartyBar(encounter, party, refresh, rebuild, budgetDial)
                 data = { hasLeader = nil },
                 thinkTime = 0.5,
                 think = function(element)
+                    ---@cast element Dropdown
                     local hasLeader = Encounter.HasMonsterWithOrganization(encounter, "leader")
                     if hasLeader ~= element.data.hasLeader then
                         element.data.hasLeader = hasLeader
@@ -3840,6 +3900,10 @@ function Encounter.SpawnGroupForReal(group, numHeroes, fallbackAnchor)
         for i = 1, quantity do
             local entry = TakeBankedPosition(queues, legacy, monsterid)
             local loc = entry ~= nil and entry.loc or nil
+            --a grid loc has no altitude of its own: the engine stands it on
+            --the ground (down into a pit as well as up a cliff). A banked
+            --position keeps its saved height.
+            local onGround = false
             if loc ~= nil then
                 if not loc.isValidFloor then
                     loc = loc.withCurrentFloor
@@ -3849,9 +3913,10 @@ function Encounter.SpawnGroupForReal(group, numHeroes, fallbackAnchor)
                 local row = math.floor(fallbackIndex / 5)
                 loc = core.Loc { x = baseX + col, y = baseY + row, floorIndex = floorIndex }
                 fallbackIndex = fallbackIndex + 1
+                onGround = true
             end
 
-            local token = game.SpawnTokenFromBestiaryLocally(monsterid, loc, { fitLocation = true })
+            local token = game.SpawnTokenFromBestiaryLocally(monsterid, loc, { fitLocation = true, onGround = onGround })
             if token ~= nil then
                 token.properties.initiativeGrouping = groupid
                 token.properties:OnCreateFromBestiary(token, groupid)
@@ -4072,7 +4137,8 @@ local function PlaceEncounterForReal(encounter, party, opts)
                 --map click away from spawning the encounter a second time.
                 Encounter.DisarmClickToPlace()
 
-                if queueActive then
+                --queueActive implies queue ~= nil; the extra test lets the checker see it.
+                if queueActive and queue ~= nil then
                     --mid-combat: the new arrivals join the running fight,
                     --same as a deployed wave; no combat-setup dialog.
                     for _, groupid in ipairs(spawnedGroupids) do
@@ -4917,11 +4983,16 @@ CreateEncounterPanel = function()
                         vmargin = 8,
                         draggable = true,
 
+                        --"documentPanel" is an open journal document you can edit.
                         canDragOnto = function(self, target)
-                            return target ~= nil and target:HasClass("folder")
+                            return target ~= nil and (target:HasClass("folder") or target:HasClass("documentPanel"))
                         end,
 
+                        --dropping on a document adds a copy of this encounter to it.
                         drag = function(self, target)
+                            if target ~= nil and target.valid and target:HasClass("documentPanel") then
+                                target:FireEvent("insertRichTag", RichEncounter.FromEncounter(encounter), encounter.name)
+                            end
                         end,
 
                         data = {

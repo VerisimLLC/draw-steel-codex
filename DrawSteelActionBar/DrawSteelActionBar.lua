@@ -169,7 +169,8 @@ function DrawSteelActionBar.ClearCastHint()
     DrawSteelActionBar.ShowCastPrompt(nil)
 end
 
---- @type nil|Panel
+--Set in CreateActionBar, before any handler that reads it can run.
+--- @type Panel
 local g_triggerPanel = nil
 
 --- @type nil|Panel
@@ -189,7 +190,9 @@ local g_manualTargetChosen = false
 --- @type nil|string The first target chosen by the player, the charid of this token.
 local g_firstTarget = nil
 
---- @type Loc[]
+--- Chosen space targets as {loc=, marker=, token=} records, except that a "line"
+--- ability stores its start square as a bare Loc at index 1.
+--- @type {loc: Loc, marker: nil|LuaMultiObjectReference, token: nil|CharacterToken}[]
 local m_positionTargetsChosen = {} --list of Locs for targets. Used on emptyspace targeting.
 
 --- @type nil|ActivatedAbility
@@ -213,6 +216,25 @@ local g_creature
 --the director's multi-monster overview ("Unique Abilities" drawer).
 --- @type CharacterToken[]
 local g_selectedTokens = {}
+
+--A creature operating an object (a Field Ballista): the bar is bound to the
+--object and lists only its adjacent-creature abilities. The object is the
+--caster; the operator's actions pay (ActivatedAbility:GetOperatorToken), and
+--the drawers count the operator's actions. `operation` is nil when not
+--operating. Started by DrawSteelActionBar.BeginOperating; ends on the stop
+--tile, Escape, a new selection, or the operator no longer being adjacent.
+--Kept on the global table, with its helpers, because this file's main chunk
+--is at Lua's 200-local limit.
+--A Lua reload mid-operation would otherwise leave the object stuck as the
+--engine's selected-token override (the character panel would keep showing it).
+if rawget(DrawSteelActionBar, "_operate") ~= nil and DrawSteelActionBar._operate.operation ~= nil then
+    pcall(function() dmhub.tokenInfo:PopSelectedTokenOverride() end)
+end
+--- @class ActionBarOperate
+--- @field operation nil|{operator: CharacterToken, object: CharacterToken}
+--- @field promptShown nil|boolean True while our "Operating X" prompt is up.
+--- @field menuPanel nil|Panel The drawer menu; the prompt hides while it is open.
+DrawSteelActionBar._operate = { operation = nil }
 
 --Identity of the current selection (charids in selection order). The engine
 --only re-fires the bar's "refresh" when the PRIMARY selected token changes;
@@ -260,7 +282,7 @@ end
 --Action / Maneuver / Move drawers are identical across creatures so they are
 --hidden.
 local function InOverviewMode()
-    if not dmhub.isDM then
+    if not dmhub.isDM or DrawSteelActionBar._operate.operation ~= nil then
         return false
     end
     if #g_selectedTokens < 2 then
@@ -520,12 +542,39 @@ local function SquadIsActiveMinionToken(tok)
     return false
 end
 
---- @type nil|Panel
+--Set in CreateAbilityController, before any handler that reads it can run.
+--- @type Panel
 local g_channeledResourcePanel
 
 local g_casterTokenStack = {}
 
---- @type {shapePathEnd: nil|LuaShape[], labelsAtPathEnd: nil|LuaObjectReference[], pathEndOvershoot: nil|number, fallingShape: nil|LuaObjectReference, fallDamageLabel: nil|LuaObjectReference, fallDamageKey: nil|string, shapeRequiresConfirm: nil|boolean, shapeConfirmedLoc: nil|Loc, shape: nil|LuaShape, label: nil|LuaObjectReference, radius: nil|LuaObjectReference, showingMovementArrow: nil|boolean}
+--- Point/area targeting preview state; reset to {} whenever targeting ends.
+---@class DSActionBarPointTargeting
+---@field shapePathEnd nil|LuaShape[]
+---@field labelsAtPathEnd nil|(LuaObjectReference|SheetContainer)[]
+---@field pathEndOvershoot nil|number
+---@field fallingShape nil|LuaObjectReference
+---@field fallDamageLabel nil|SheetContainer
+---@field fallDamageKey nil|string
+---@field chargeJumpLabel nil|LuaTargetingMarkers
+---@field chargeJumpLabelKey nil|string
+---@field chargeJumpUnreachable nil|boolean
+---@field chargeJumpRequiresRoll nil|boolean
+---@field labelsAtThroughCreatures nil|(LuaObjectReference|SheetContainer)[]
+---@field shapeRequiresConfirm nil|boolean
+---@field shapeConfirmedLoc nil|Loc
+---@field shape nil|LuaShape
+---@field label nil|SheetContainer
+---@field radius nil|LuaObjectReference
+---@field partnerShape nil|LuaShape
+---@field partnerRadius nil|LuaObjectReference
+---@field partnerCasterToken nil|CharacterToken
+---@field partnerBurstRadius nil|number
+---@field partnerOnlyTokenIds nil|table<string, boolean>
+---@field showingMovementArrow nil|boolean
+---@field showingWarningArrows nil|boolean
+
+---@type DSActionBarPointTargeting
 local g_pointTargeting = {}
 
 --- Partner burst: pre-create the cast object carrying "caster" retargets for the
@@ -569,7 +618,7 @@ local function RecordPartnerBurstRetargets(targets)
     end
 end
 
---- @type nil|{oncast=nil|function, oncancel=nil|function}
+--- @type nil|{oncast: nil|function, oncancel: nil|function}
 local g_invokerInfo = nil
 
 --tokens we are force targeting based on them being in a radius. A mapping of tokenid -> token
@@ -600,6 +649,7 @@ local function RefreshCastingDurationEffects()
     local liveBehaviors = {}
     for _, behavior in ipairs(g_currentAbility.behaviors) do
         if behavior.typeName == "ActivatedAbilityApplyAbilityDurationEffect" then
+            ---@cast behavior ActivatedAbilityApplyAbilityDurationEffect
             liveBehaviors[behavior] = true
 
             local shouldApply = behavior:CastingFilterPasses(g_token, g_currentSymbols)
@@ -820,7 +870,7 @@ local function OverviewAbilityFacets(ability)
                     if f.damage ~= nil then
                         facets.damage = true
                         if i == 2 or (i == #tiers and facets.damageValue == 0) then
-                            facets.damageValue = f.damage
+                            facets.damageValue = f.damage --[[@as number]] --checked ~= nil above
                         end
                     end
                     if f.forced ~= nil then
@@ -875,7 +925,7 @@ local function OverviewAbilityFacets(ability)
                     if f.damage ~= nil then
                         facets.damage = true
                         if facets.damageValue == 0 then
-                            facets.damageValue = f.damage
+                            facets.damageValue = f.damage --[[@as number]] --checked ~= nil above
                         end
                     end
                     if f.forced ~= nil then
@@ -1088,7 +1138,7 @@ local function ShowMovementDiagram(token, path, label, alternates, damages, text
     if text == nil then
         text = label
         if path.numSteps ~= nil then
-            local distance = path.numSteps * dmhub.FeetPerTile
+            local distance = path.numSteps * dmhub.unitsPerSquare
             text = string.format("%s: %s %s", label, MeasurementSystem.NativeToDisplayString(distance), string.lower(MeasurementSystem.UnitName()))
         end
     end
@@ -1193,6 +1243,7 @@ function CrossSection.ShowAttack(sourceToken, targetToken)
         text = tr("Line of Effect")
     end
 
+    ---@type nil|string
     local what = result.description
     if what == "ridge" then
         what = tr("the terrain")
@@ -1293,7 +1344,7 @@ local function BroadcastMovementPlan(caster, path, movementType)
         return
     end
     for _, tok in ipairs(dmhub.allTokens) do
-        if tok ~= nil and tok.valid and tok.id ~= caster.id and tok.sheet ~= nil then
+        if tok ~= nil and tok.valid and tok.charid ~= caster.charid and tok.sheet ~= nil then
             tok.sheet:FireEventTree("movementplan", tok, caster, path, movementType)
         end
     end
@@ -1312,18 +1363,282 @@ local function PushCasterToken(token)
     g_creature = g_token.properties
 end
 
+--The token the bar is bound to when no cast has pushed a caster: the object
+--being operated, else the selection.
+--- @return nil|CharacterToken
+function DrawSteelActionBar._operate.BaseBarToken()
+    if DrawSteelActionBar._operate.operation ~= nil then
+        return DrawSteelActionBar._operate.operation.object
+    end
+    return dmhub.selectedOrPrimaryTokens[1]
+end
+
 local function TryPopCasterToken()
     if #g_casterTokenStack == 0 then
         return false
     end
 
-    dmhub.tokenInfo:PopSelectedTokenOverride(g_casterTokenStack[#g_casterTokenStack])
-    g_token = dmhub.selectedOrPrimaryTokens[1]
+    dmhub.tokenInfo:PopSelectedTokenOverride()
+    g_token = DrawSteelActionBar._operate.BaseBarToken()
     print("ActionBar:: pop g_token =", g_token)
     g_creature = g_token and g_token.properties or nil
 
     g_casterTokenStack[#g_casterTokenStack] = nil
     return true
+end
+
+--True while the bar is showing an operated object's abilities (and not some
+--other caster pushed on top of it by an invoked cast).
+--- @return boolean
+function DrawSteelActionBar._operate.IsOperatingBound()
+    return DrawSteelActionBar._operate.operation ~= nil and g_token ~= nil and g_token.valid and g_token.charid == DrawSteelActionBar._operate.operation.object.charid
+end
+
+--The token whose action economy the drawers show and spend: the operator
+--while operating, otherwise the bar's own token. Only called while the bar
+--is bound to a token.
+--- @return CharacterToken
+function DrawSteelActionBar._operate.ResourceToken()
+    if DrawSteelActionBar._operate.IsOperatingBound() then
+        return DrawSteelActionBar._operate.operation.operator
+    end
+    return g_token --[[@as CharacterToken]]
+end
+
+--- @param norefresh nil|boolean true when called from inside the bar's own refresh
+function DrawSteelActionBar._operate.EndOperating(norefresh)
+    if DrawSteelActionBar._operate.operation == nil then
+        return
+    end
+
+    --A cast in flight is cancelled first: it may have pushed a caster of its
+    --own, which has to come off the override stack before ours does.
+    if g_currentAbility ~= nil and g_abilityController ~= nil then
+        g_abilityController:FireEvent("cancelCasting")
+    end
+
+    DrawSteelActionBar._operate.operation = nil
+    dmhub.tokenInfo:PopSelectedTokenOverride()
+
+    if DrawSteelActionBar._operate.promptShown then
+        DrawSteelActionBar._operate.promptShown = false
+        DrawSteelActionBar.ClearCastPrompt()
+    end
+
+    if (not norefresh) and g_actionBar ~= nil and g_actionBar.valid then
+        g_actionBar:FireEventTree("closemenu")
+        g_actionBar:FireEventTree("refresh")
+    end
+end
+
+--- Bind the action bar to objectToken's adjacent-creature abilities, with
+--- operatorToken spending the actions (a hero firing a Field Ballista). The
+--- object becomes the selected-token override, so the character panel shows it.
+--- @param operatorToken CharacterToken
+--- @param objectToken CharacterToken
+--- @return boolean started
+function DrawSteelActionBar.BeginOperating(operatorToken, objectToken)
+    if not ActivatedAbility.CanOperate(operatorToken, objectToken) then
+        return false
+    end
+
+    DrawSteelActionBar._operate.EndOperating(true)
+
+    if g_currentAbility ~= nil and g_abilityController ~= nil then
+        g_abilityController:FireEvent("cancelCasting")
+    end
+
+    DrawSteelActionBar._operate.operation = { operator = operatorToken, object = objectToken }
+    dmhub.tokenInfo:PushSelectedTokenOverride(objectToken)
+
+    if g_actionBar ~= nil and g_actionBar.valid then
+        g_actionBar:FireEventTree("closemenu")
+        g_actionBar:FireEventTree("refresh")
+    end
+    return true
+end
+
+--- Cast an object's only adjacent-creature ability straight from a click on
+--- the object (a Candelabra's Throw), without binding the bar to the object.
+--- Runs through invokeAbility, so the drawers hide while it is aimed and
+--- Escape or cancelling returns the bar to the creature.
+--- @param creatureToken CharacterToken the adjacent creature using it
+--- @param objectToken CharacterToken
+--- @param ability ActivatedAbility from ActivatedAbility.GetSingleAdjacentAbility
+function DrawSteelActionBar.CastAdjacentAbility(creatureToken, objectToken, ability)
+    if gamehud == nil or gamehud.actionBarPanel == nil then
+        return
+    end
+
+    DrawSteelActionBar._operate.EndOperating(true)
+    if g_currentAbility ~= nil and g_abilityController ~= nil then
+        g_abilityController:FireEvent("cancelCasting")
+    end
+
+    --a granted ability is the creature's own; an operated one is cast by the
+    --object, with the creature paying (operatorTokenId on the clone).
+    local caster = cond(ability.grantedToAdjacentCreatures, creatureToken, objectToken)
+    gamehud.actionBarPanel:FireEventTree("invokeAbility", caster, ability, {})
+end
+
+--- Stop operating an object and return the bar to the operator.
+function DrawSteelActionBar.EndOperating()
+    DrawSteelActionBar._operate.EndOperating()
+end
+
+--- @return nil|{operator: CharacterToken, object: CharacterToken}
+function DrawSteelActionBar.GetOperation()
+    return DrawSteelActionBar._operate.operation
+end
+
+--An object caster turning to face its target while an ability with "Turn to
+--Face Target" is aimed (a Field Ballista's Release Bolt). The engine eases the
+--turn at the object's Turn Speed and streams it live to the other players; the
+--final facing is saved when the ability is cast. On the global table: this file
+--is at the 200-local limit.
+--- @class ActionBarAim
+--- @field token nil|CharacterToken The object currently being aimed.
+DrawSteelActionBar._aim = { token = nil }
+
+--Where the ability is pointing: its first chosen target, else the token or map
+--point under the mouse.
+--- @return nil|{x: number, y: number}
+function DrawSteelActionBar._aim.TargetPoint()
+    local chosen = g_targetsChosen[1]
+    if chosen ~= nil then
+        local tok = dmhub.GetTokenById(chosen)
+        if tok ~= nil and tok.valid then
+            return tok.pos
+        end
+    end
+    local hovered = dmhub.tokenHovered
+    if hovered ~= nil and hovered.valid and (g_token == nil or hovered.charid ~= g_token.charid) then
+        return hovered.pos
+    end
+    return dmhub.GetMouseWorldPoint()
+end
+
+--Polled with the operate upkeep: aims the caster while such an ability is being
+--targeted, and lets go (turning back) if the cast is abandoned.
+function DrawSteelActionBar._aim.Update()
+    local aim = DrawSteelActionBar._aim
+    local caster = g_token
+    local aiming = g_currentAbility ~= nil and g_currentAbility.aimCasterAtTarget
+        and caster ~= nil and caster.valid and caster.isObject and caster.objectComponent ~= nil
+
+    if aim.token ~= nil and ((not aiming) or caster == nil or aim.token.charid ~= caster.charid) then
+        if aim.token.valid and aim.token.objectComponent ~= nil then
+            aim.token.objectComponent:ClearAim()
+        end
+        aim.token = nil
+    end
+
+    if not aiming or caster == nil then
+        return
+    end
+
+    local point = aim.TargetPoint()
+    if point ~= nil then
+        caster.objectComponent:AimAt(point.x, point.y)
+        aim.token = caster
+    end
+end
+
+--Called as the ability is cast: points at the chosen target and keeps that facing.
+--- @param casterToken nil|CharacterToken
+--- @param targets nil|table The cast's targets ({token=} or {loc=} entries).
+function DrawSteelActionBar._aim.Commit(casterToken, targets)
+    local aim = DrawSteelActionBar._aim
+    if aim.token == nil or casterToken == nil or aim.token.charid ~= casterToken.charid then
+        return
+    end
+
+    local target = targets ~= nil and targets[1] or nil
+    if target ~= nil and target.token ~= nil and target.token.valid then
+        casterToken.objectComponent:AimAt(target.token.pos.x, target.token.pos.y)
+    end
+    casterToken.objectComponent:CommitAim()
+    aim.token = nil
+end
+
+--Teleport destination check that respects altitude. The engine's requireEmpty
+--treats a creature as filling its whole column, which forbade teleporting into
+--the air above another creature. Here a space is blocked only when another
+--creature's vertical span (altitude up to altitude + height) overlaps the
+--mover's span at the chosen landing altitude.
+--- @param mover CharacterToken The creature being teleported (never blocks itself).
+--- @param locs Loc[] The squares the mover would occupy.
+--- @param altitude number The chosen landing altitude, in tiles.
+--- @return boolean
+function DrawSteelActionBar.TeleportSpaceBlocked(mover, locs, altitude)
+    local moverTop = altitude + math.max(1, mover.characterHeight)
+    for _, loc in ipairs(locs) do
+        for _, tok in ipairs(dmhub.GetTokensAtLoc(loc) or {}) do
+            if tok.charid ~= mover.charid then
+                local bottom = tok.loc.altitude
+                local top = bottom + math.max(1, tok.characterHeight)
+                if altitude < top and bottom < moverTop then
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
+--Polled by the bar's container, since nothing refreshes the bar when a token
+--merely moves. Ends operating once the operator can no longer operate the
+--object, and keeps "Operating X [Stop]" in the cast prompt whenever no cast
+--is using that prompt.
+function DrawSteelActionBar._operate.Upkeep()
+    local operate = DrawSteelActionBar._operate
+    local operation = operate.operation
+    if operation == nil then
+        return
+    end
+
+    if g_currentAbility ~= nil or #g_casterTokenStack > 0 then
+        --A cast may put its own prompt up; ours goes back once it is done.
+        operate.promptShown = false
+        return
+    end
+
+    if not ActivatedAbility.CanOperate(operation.operator, operation.object) then
+        operate.EndOperating()
+        return
+    end
+
+    --Hidden while a drawer menu is open, which it would otherwise sit on top of.
+    local menu = operate.menuPanel
+    if menu ~= nil and menu.valid and not menu:HasClass("hidden") then
+        if operate.promptShown then
+            operate.promptShown = false
+            DrawSteelActionBar.ClearCastPrompt()
+        end
+        return
+    end
+
+    if not operate.promptShown then
+        operate.promptShown = DrawSteelActionBar.ShowCastPrompt{
+            --"Using" for an object that only grants abilities (a Candelabra).
+            text = string.format("%s %s", cond(ActivatedAbility.HasOperatedAbilities(operation.object), "Operating", "Using"), creature.GetTokenDescription(operation.object)),
+            choices = {
+                { text = "Stop", click = function() operate.EndOperating() end },
+            },
+        }
+    end
+end
+
+--Clicking the creature that is operating an object takes the bar back to it.
+if TokenUI ~= nil and TokenUI.RegisterClickHandler ~= nil then
+    TokenUI.RegisterClickHandler("operateObject", function(token)
+        local operation = DrawSteelActionBar._operate.operation
+        if operation == nil or token == nil or token.charid ~= operation.operator.charid then
+            return false
+        end
+        DrawSteelActionBar._operate.EndOperating()
+        return true
+    end)
 end
 
 --- @type nil|string
@@ -1335,6 +1650,18 @@ local g_resources
 --- @type ActivatedAbility[]
 local g_abilities
 local g_initiative
+
+--Writes a line to the log when the action bar hides, shows, or ignores a click.
+--A player once could not act for the rest of their turn and the log could not say why.
+function DrawSteelActionBar._diag(event, detail)
+    local tokenName = "nil"
+    if g_token ~= nil and g_token.valid then
+        tokenName = g_token.name or g_token.charid
+    end
+    print(string.format("ACTIONBARDIAG:: %s %s token=%s abilities=%d casting=%s stack=%d T=%.2f",
+        event, detail or "", tostring(tokenName), g_abilities ~= nil and #g_abilities or -1,
+        g_currentAbility ~= nil and g_currentAbility.name or "nil", #g_casterTokenStack, dmhub.Time()))
+end
 
 local g_newActionBar = setting {
     id = "newactionbar",
@@ -1455,6 +1782,11 @@ local g_ackedNovelCharid = nil
 local function NovelAbilityKey(ability)
     local ok, key = pcall(function()
         local guid = ability:try_get("guid") or ability.name
+        --Each steal is a fresh arrival, even if the same ability was stolen before.
+        local stolenStamp = ability:try_get("stolenStamp")
+        if stolenStamp ~= nil then
+            guid = guid .. ":stolen:" .. stolenStamp
+        end
         if ability:try_get("isMeleeVariation") then
             return guid .. ":melee"
         elseif ability:try_get("isRangedVariation") then
@@ -2694,6 +3026,8 @@ local function ActionBarDrawer(args)
             },
 
             refresh = function(element)
+                --Fired from the root refresh, which halts propagation when there is no token.
+                ---@cast g_creature -nil
                 local movementSpeed = math.max(0, g_creature:CurrentMovementSpeed())
                 local moved = g_creature:DistanceMovedThisTurn()
 
@@ -2903,9 +3237,24 @@ local function ActionBarDrawer(args)
 
         refresh = function(element)
             if g_token == nil then return end
+            --g_creature is always set alongside g_token (g_token.properties).
+            ---@cast g_creature -nil
             local newToken = g_token.charid ~= element.data.lastcharid
 
             element.data.lastcharid = g_token.charid
+
+            --Operating an object: only Main Action and Maneuver (which also
+            --lists free abilities) apply. Trigger and Respite are the drawers
+            --no branch below un-collapses, so they are restored here.
+            if DrawSteelActionBar._operate.IsOperatingBound() then
+                if args.type ~= "action" and args.type ~= "maneuver" then
+                    resultPanel:SetClass("collapsed", true)
+                    return
+                end
+                resultPanel:SetClass("collapsed", false)
+            elseif args.type == "trigger" or args.type == "respite" then
+                resultPanel:SetClass("collapsed", false)
+            end
 
             --Director multi-monster overview: the "unique" drawer exists only
             --in overview mode, and while it is up the per-creature Main
@@ -3010,7 +3359,7 @@ local function ActionBarDrawer(args)
                 return
             end
 
-            if args.type ~= "trigger" and (not g_token.properties:IsOurTurn()) then
+            if args.type ~= "trigger" and (not DrawSteelActionBar._operate.ResourceToken().properties:IsOurTurn()) then
                 if newToken then
                     resultPanel:SetClassTreeImmediate("available", false)
                 else
@@ -3070,6 +3419,8 @@ local function ActionBarDrawer(args)
 
                 local isAvailable = true
                 if m_resourceid ~= nil then
+                    --m_resourceid is cleared at construction whenever m_resourceInfo is missing.
+                    ---@cast m_resourceInfo -nil
                     local usage = g_creature:GetResourceUsage(m_resourceid, m_resourceInfo.usageLimit)
                     local available = (g_resources[m_resourceid] or 0) - usage
                     isAvailable = count > 0 or available > 0
@@ -3129,7 +3480,8 @@ local function ActionBarDrawer(args)
             local hideAbilityIcon = true
 
             if m_resourceid ~= nil then
-                local usage = g_creature:GetResourceUsage(m_resourceid, m_resourceInfo.usageLimit)
+                ---@cast m_resourceInfo -nil
+                local usage = DrawSteelActionBar._operate.ResourceToken().properties:GetResourceUsage(m_resourceid, m_resourceInfo.usageLimit)
                 local available = (g_resources[m_resourceid] or 0) - usage
 
                 if newToken then
@@ -3210,7 +3562,9 @@ local function ActionBarDrawer(args)
                 press = function(element)
                     if g_creature == nil or g_token == nil then return end
                     if m_resourceid ~= nil then
-                        local usage = g_creature:GetResourceUsage(m_resourceid, m_resourceInfo.usageLimit)
+                        ---@cast m_resourceInfo -nil
+                        local tok = DrawSteelActionBar._operate.ResourceToken()
+                        local usage = tok.properties:GetResourceUsage(m_resourceid, m_resourceInfo.usageLimit)
                         local available = (g_resources[m_resourceid] or 0) - usage
 
                         local target = available - 1
@@ -3223,13 +3577,13 @@ local function ActionBarDrawer(args)
                             return
                         end
 
-                        g_token:ModifyProperties {
+                        tok:ModifyProperties {
                             description = "Manually Update Resource",
                             execute = function()
                                 if diff > 0 then
-                                    g_token.properties:RefreshResource(m_resourceid, m_resourceInfo.usageLimit, diff)
+                                    tok.properties:RefreshResource(m_resourceid, m_resourceInfo.usageLimit, diff)
                                 else
-                                    g_token.properties:ConsumeResource(m_resourceid, m_resourceInfo.usageLimit, -diff)
+                                    tok.properties:ConsumeResource(m_resourceid, m_resourceInfo.usageLimit, -diff)
                                 end
                             end,
                         }
@@ -3307,6 +3661,10 @@ local function CreateTriggerReactionPanel()
             element:FireEvent("think")
         end,
         think = function(element)
+            --thinkTime stays set after the countdown expires and clears m_state.
+            if m_state == nil then
+                return
+            end
             local time = dmhub.Time()
             local elapsed = time - m_stateBaseline
             local r = ((m_state.current + elapsed) - m_state.start)/(m_state.expire - m_state.start)
@@ -3400,6 +3758,7 @@ local function CreateActionBar()
     end
 
     local m_actionMenu = ActionMenu()
+    DrawSteelActionBar._operate.menuPanel = m_actionMenu
 
     g_abilityController = CreateAbilityController()
 
@@ -3511,8 +3870,19 @@ local function CreateActionBar()
         end,
 
         refresh = function(element)
+            --Operating ends when the operator is no longer the selection or can
+            --no longer operate (moved away, fell unconscious). Not mid-cast:
+            --the stop tile's poll ends it once the cast is over.
+            if DrawSteelActionBar._operate.operation ~= nil and #g_casterTokenStack == 0 and g_currentAbility == nil then
+                local selected = dmhub.selectedOrPrimaryTokens[1]
+                if selected == nil or selected.charid ~= DrawSteelActionBar._operate.operation.operator.charid
+                    or not ActivatedAbility.CanOperate(DrawSteelActionBar._operate.operation.operator, DrawSteelActionBar._operate.operation.object) then
+                    DrawSteelActionBar._operate.EndOperating(true)
+                end
+            end
+
             if #g_casterTokenStack == 0 then
-                g_token = dmhub.selectedOrPrimaryTokens[1]
+                g_token = DrawSteelActionBar._operate.BaseBarToken()
             end
 
             --Capture the whole selection for the director overview. Only
@@ -3539,6 +3909,10 @@ local function CreateActionBar()
             if g_token == nil or not g_token.valid then
                 g_abilities = {}
                 g_prevCharid = nil
+                if element.data.diagState ~= "notoken" then
+                    element.data.diagState = "notoken"
+                    DrawSteelActionBar._diag("hidden", "reason=no-token")
+                end
                 element:SetClass("hidden", true)
                 element:HaltEventPropagation()
                 element:FireEventTree("closemenu")
@@ -3557,8 +3931,13 @@ local function CreateActionBar()
             end
 
             --Hide the bar when the selected token is a fixture/object, EXCEPT
-            --while an invoked cast is driving us (g_casterTokenStack non-empty).
-            if g_creature:try_get("treatAsObject", false) and #g_casterTokenStack == 0 then
+            --while an invoked cast is driving us (g_casterTokenStack non-empty)
+            --or a creature is operating it.
+            if g_creature:try_get("treatAsObject", false) and #g_casterTokenStack == 0 and not DrawSteelActionBar._operate.IsOperatingBound() then
+                if element.data.diagState ~= "object" then
+                    element.data.diagState = "object"
+                    DrawSteelActionBar._diag("hidden", "reason=object")
+                end
                 element:SetClass("hidden", true)
                 element:HaltEventPropagation()
                 element:FireEventTree("closemenu")
@@ -3584,12 +3963,25 @@ local function CreateActionBar()
             --left g_abilities holding the PREVIOUS token's list. Fall back to
             --empty lists so the bar always renders (movement and free-action
             --drawers stay usable) and never shows another creature's abilities.
+            --While operating, the resources are the operator's (they pay) and
+            --the abilities are only the object's adjacent-creature ones.
+            local operating = DrawSteelActionBar._operate.IsOperatingBound()
             local okResources, resources = pcall(function()
-                return g_token.properties:GetResources()
+                return DrawSteelActionBar._operate.ResourceToken().properties:GetResources()
             end)
             g_resources = (okResources and resources) or {}
 
             local okAbilities, abilitiesOrErr = pcall(function()
+                if operating then
+                    --The object's whole stat block: abilities it casts, plus
+                    --ones it grants the operator (cast by the operator).
+                    local operation = DrawSteelActionBar._operate.operation --[[@as {operator: CharacterToken, object: CharacterToken}]]
+                    local list = ActivatedAbility.GetOperatedAbilities(operation.object, operation.operator)
+                    for _, ability in ipairs(ActivatedAbility.GetGrantedAbilitiesFrom(operation.object, operation.operator)) do
+                        list[#list + 1] = ability
+                    end
+                    return list
+                end
                 return g_token.properties:GetActivatedAbilities { bindCaster = true, manualTriggers = true }
             end)
             g_abilities = (okAbilities and abilitiesOrErr) or {}
@@ -3614,6 +4006,13 @@ local function CreateActionBar()
             end
 
             g_abilities = abilities
+
+            --Only log when this changes, not on every refresh.
+            local shownState = "shown:" .. tostring(g_token.charid) .. ":" .. tostring(#g_abilities == 0)
+            if element.data.diagState ~= shownState then
+                element.data.diagState = shownState
+                DrawSteelActionBar._diag("shown")
+            end
 
             --Diff the freshly generated list against what this creature had
             --last time we looked, so newly gained abilities can announce
@@ -3674,6 +4073,20 @@ local function CreateActionBar()
         height = "auto",
         flow = "vertical",
         valign = "bottom",
+
+        --Operating an object: Escape stops (below an open menu or a cast in
+        --progress), and the operate state is kept up to date.
+        escapePriority = EscapePriority.CANCEL_TOKEN_MENU,
+        escape = function(element)
+            DrawSteelActionBar._operate.EndOperating()
+        end,
+        thinkTime = 0.1,
+        think = function(element)
+            DrawSteelActionBar._operate.Upkeep()
+            DrawSteelActionBar._aim.Update()
+            element.captureEscape = DrawSteelActionBar._operate.operation ~= nil and g_currentAbility == nil
+        end,
+
         g_triggerReactionPanel,
         resultPanel,
         --Outside resultPanel so it survives the bar hiding itself (no token selected).
@@ -3698,6 +4111,15 @@ local m_activeImprovements = {}
 --One table, not three locals: the merged file sits at Lua's 200
 --top-level-locals ceiling (same consolidation as g_overviewRisk).
 local g_filterSightlines = { rays = {}, owner = nil, MAX = 12 }
+
+--Red links the Chain Reaction hover preview draws (see highlightTargetToken). A table field,
+--not a local: this file's main chunk is at the 200-local ceiling.
+g_filterSightlines.ClearChainHover = function()
+    for _, ray in ipairs(g_filterSightlines.chainHover or {}) do
+        pcall(function() ray:Destroy() end)
+    end
+    g_filterSightlines.chainHover = nil
+end
 
 local function ClearFilterSightlineRays()
     for _,ray in ipairs(g_filterSightlines.rays) do
@@ -3742,7 +4164,7 @@ local function ShowFilterSightlineRays(ownerElement)
     g_filterSightlines.owner = ownerElement
 end
 
---- @param args nil|{casterToken: nil|CharacterToken, ability: nil|ActivatedAbility, instantCast: nil|boolean, targets: nil|table, cast: nil|table, symbols: nil|table}
+--- @param args nil|{casterToken: nil|CharacterToken, ability: nil|ActivatedAbility, instantCast: nil|boolean, targets: nil|table, cast: nil|table, symbols: nil|table, overviewPress: nil|function}
 local function AbilityHeading(args)
     local args = args or {}
 
@@ -3771,10 +4193,21 @@ local function AbilityHeading(args)
     --"setCasterToken" event below. A caster that has since died/despawned
     --(.valid == false) falls back to g_token so the chip never dereferences a
     --nil .properties.
-    local function CasterToken()
+    --An ability an object grants to the creature operating it is cast by that
+    --creature, not by the object the bar is bound to. The "ability" handlers
+    --pass the incoming ability, since they run before m_ability is updated.
+    local function CasterToken(ability)
         local caster = args.casterToken
         if caster ~= nil and caster.valid then
             return caster
+        end
+        ability = ability or m_ability
+        local granteeid = ability ~= nil and ability:try_get("grantedToTokenId") or nil
+        if granteeid ~= nil then
+            local grantee = dmhub.GetTokenById(granteeid)
+            if grantee ~= nil and grantee.valid then
+                return grantee
+            end
         end
         return g_token
     end
@@ -3800,7 +4233,8 @@ local function AbilityHeading(args)
         if q == nil or q.hidden then
             return false
         end
-        local caster = CasterToken()
+        --An operated object never has a turn; its operator's turn is what counts.
+        local caster = ability:GetOperatorToken() or CasterToken(ability)
         if caster == nil or not caster.valid or caster.properties == nil then
             return false
         end
@@ -3979,7 +4413,7 @@ local function AbilityHeading(args)
             local suppressMessage = ability:try_get("suppressExplanation")
             local suppressFilter = nil
             if suppressMessage == nil then
-                suppressMessage, suppressFilter = ability:AbilityFilterFailureMessage(CasterToken().properties)
+                suppressMessage, suppressFilter = ability:AbilityFilterFailureMessage(CasterToken(ability).properties)
             end
             m_suppressed = suppressMessage ~= nil
             m_sightlineFilter = m_suppressed and suppressFilter ~= nil and suppressFilter.sightlines == true
@@ -3994,6 +4428,8 @@ local function AbilityHeading(args)
         end,
 
         rightClick = function(element)
+            --A chip is only shown once its "ability" event has bound m_ability.
+            ---@cast m_ability -nil
             local entries = {}
             entries[#entries + 1] = {
                 text = 'Share to Chat',
@@ -4026,6 +4462,7 @@ local function AbilityHeading(args)
                 end
 
                 if innateAbility then
+                    ---@cast innateAbility -nil
                     entries[#entries + 1] = {
                         text = 'Edit Ability',
                         click = function()
@@ -4035,6 +4472,9 @@ local function AbilityHeading(args)
                                 close = function()
                                     --resolved at close time, as the original g_token read was.
                                     local tok = CasterToken()
+                                    if tok == nil then
+                                        return
+                                    end
                                     tok:ModifyProperties{
                                         description = "Edit Innate Ability",
                                         execute = function()
@@ -4104,6 +4544,7 @@ local function AbilityHeading(args)
             -- While the Director has the game frozen, players cannot act at
             -- all; the FROZEN banner on screen explains why. Directors bypass.
             if (not dmhub.isDM) and dmhub.frozen then
+                DrawSteelActionBar._diag("press-refused", "reason=frozen")
                 return
             end
 
@@ -4114,13 +4555,18 @@ local function AbilityHeading(args)
             -- still demo or override the rules.
             if (not dmhub.isDM) and dmhub.GetSettingValue("strict:resources") then
                 if m_cannotAfford or m_expended or m_suppressed or m_offTurn then
+                    DrawSteelActionBar._diag("press-refused", string.format("reason=strict ability=%s cannotAfford=%s expended=%s suppressed=%s offTurn=%s",
+                        m_ability ~= nil and m_ability.name or "nil", tostring(m_cannotAfford), tostring(m_expended), tostring(m_suppressed), tostring(m_offTurn)))
                     return
                 end
             end
 
             audio.FireSoundEvent("Mouse.Click")
             --this will be adopted by the ability controller
-            if g_abilityController == nil then return end
+            if g_abilityController == nil then
+                DrawSteelActionBar._diag("press-refused", "reason=no-controller")
+                return
+            end
             local menu = element:FindParentWithClass("actionMenu")
             if menu ~= nil then
                 print("MENU:: ONCAST")
@@ -4161,6 +4607,16 @@ local function AbilityHeading(args)
             --ability, exactly as before.
             local function commit(casterToken, ability)
                 ability = ability or m_ability
+                --The caster was removed from the map (e.g. despawned by Monster
+                --Death while its death-trigger prompt was open): nothing can be
+                --cast for it, so drop the prompt instead of erroring below.
+                if casterToken ~= nil and (not casterToken.valid or casterToken.properties == nil) then
+                    print("MENU:: CASTER GONE")
+                    if g_currentAbility ~= nil then
+                        g_abilityController:FireEvent("cancelCasting")
+                    end
+                    return
+                end
                 if casterToken ~= nil and (g_token == nil or casterToken.charid ~= g_token.charid) then
                     if g_currentAbility ~= nil then
                         g_abilityController:FireEvent("cancelCasting")
@@ -4358,7 +4814,7 @@ local function AbilityHeading(args)
                 classes = { "abilityInfoLabel" },
                 text = "Ability Info",
                 ability = function(element, ability)
-                    local costInfo = ability:GetCost(CasterToken())
+                    local costInfo = ability:GetCost(CasterToken(ability))
 
                     --look for heroic resource or malice cost and see if we can afford it.
                     local cannotAfford = false
@@ -4533,6 +4989,9 @@ local function TriggerPreviewPanel()
                 text = 'Share to Chat',
                 click = function()
                     element.popup = nil
+                    if g_token == nil then
+                        return
+                    end
                     chat.ShareObjectInfo(nil, nil, { charid = g_token.charid, ability = m_trigger })
                 end,
             }
@@ -6808,6 +7267,8 @@ local function OverviewColumnFooter()
                 return
             end
 
+            --The prompt is dropped above whenever there is no column.
+            ---@cast m_column -nil
             local name = m_column.name or "creature"
             if prompt.ability ~= nil then
                 promptLabel.text = string.format("Choose which %s uses %s", name, prompt.ability.name)
@@ -7455,8 +7916,6 @@ local function ActionSubMenu(args)
                 element.children = m_children
             end
         end,
-
-        children = m_children,
     }
 
     return resultPanel
@@ -7515,7 +7974,7 @@ local function BuildOverviewColumns()
         if tok ~= nil and tok.valid and tok.properties ~= nil then
             local statblock = nil
             pcall(function() statblock = tok.properties:GetMonsterType() end)
-            local key = statblock or tok.id
+            local key = statblock or tok.charid
             local column = byKey[key]
             if column == nil then
                 column = {
@@ -8082,6 +8541,7 @@ ActionMenu = function()
 
         menu = function(element, args)
             if element.data.shownMenuTime == dmhub.Time() or g_token == nil then
+                DrawSteelActionBar._diag("menu-refused", string.format("drawer=%s sameFrame=%s", tostring(args.type), tostring(element.data.shownMenuTime == dmhub.Time())))
                 return
             end
 
@@ -8118,6 +8578,7 @@ ActionMenu = function()
             element.data.shownMenuTime = dmhub.Time()
 
             if (not element:HasClass("hidden")) and m_args ~= nil and m_args.drawer == args.drawer then
+                DrawSteelActionBar._diag("menu-closed", "drawer=" .. tostring(args.type))
                 element:SetClass("hidden", true)
                 element:HaltEventPropagation()
                 element:FindParentWithClass("actionBar"):FireEventTree("menuStatus")
@@ -8267,12 +8728,14 @@ ActionMenu = function()
             end
 
             if #abilities == 0 and #triggers == 0 then
+                DrawSteelActionBar._diag("menu-empty", "drawer=" .. tostring(args.type))
                 element:SetClass("hidden", true)
                 element:HaltEventPropagation()
                 element:FindParentWithClass("actionBar"):FireEventTree("menuStatus")
                 return
             end
 
+            DrawSteelActionBar._diag("menu-opened", string.format("drawer=%s shown=%d triggers=%d", tostring(args.type), #abilities, #triggers))
             element:SetClass("hidden", false)
 
             --This drawer is opening, so its corner marker has done its job.
@@ -8335,6 +8798,10 @@ ActionMenu = function()
                 }
                 m_commonSignatureWrapper.children = { m_abilitiesSubmenu, m_spacer, m_signatureSubmenu }
             end
+            --All three are created together with m_commonSignatureWrapper above.
+            ---@cast m_abilitiesSubmenu -nil
+            ---@cast m_signatureSubmenu -nil
+            ---@cast m_spacer -nil
             m_abilitiesSubmenu:FireEventTree("abilities", abilitiesByGrouping["Abilities"], "Abilities")
             m_signatureSubmenu:FireEventTree("abilities", abilitiesByGrouping["Signature Abilities"], "Signature Abilities")
             m_spacer:SetClass("collapsed", abilitiesByGrouping["Signature Abilities"] == nil)
@@ -8554,21 +9021,18 @@ local function EffectiveArrowRange(sourceToken, targetToken, range, ability)
     return effective
 end
 
--- originToken is where the ability actually reaches from -- the caster, or a
--- casting-origin relay standing in for it. Everything geometric (line of sight,
--- line of effect, range) measures from there; the modifier list still comes off
--- sourceToken, since edges and banes belong to the caster either way.
-local function AddModifierLabelsToMarker(markers, sourceToken, targetToken, ability, range, originToken)
-    if markers == nil or ability == nil or sourceToken == nil or targetToken == nil then
-        return
-    end
-
+-- Why targetToken is outside line of effect, or nil when the ability can reach
+-- it. originToken is where the ability reaches from (the caster, or a
+-- casting-origin relay); sourceToken is the caster. The arrow label and the
+-- strict-targeting click block both read this, so a target whose arrow says
+-- "No Line of Effect" is exactly one a player can't pick. A table field rather
+-- than a local: this file's main chunk is at Lua's 200-local limit.
+function DrawSteelActionBar.LineOfEffectFailReason(sourceToken, targetToken, originToken)
     originToken = originToken or sourceToken
 
     local pierceWalls = originToken.properties:GetPierceWalls()
     if originToken:GetLineOfSight(targetToken, pierceWalls) == 0 then
-        markers:AddLabel("No Line of Effect", "forbidden")
-        return
+        return "No Line of Effect"
     end
 
     -- Per-creature line-of-effect cap (e.g. the Dazzled condition's "line of
@@ -8585,9 +9049,28 @@ local function AddModifierLabelsToMarker(markers, sourceToken, targetToken, abil
         local distSquares = originToken:Distance(targetToken) / dmhub.unitsPerSquare
         if (sourceLoeLimit > 0 and distSquares > sourceLoeLimit) or
            (targetLoeLimit > 0 and distSquares > targetLoeLimit) then
-            markers:AddLabel("Beyond Line of Effect", "forbidden")
-            return
+            return "Beyond Line of Effect"
         end
+    end
+
+    return nil
+end
+
+-- originToken is where the ability actually reaches from -- the caster, or a
+-- casting-origin relay standing in for it. Everything geometric (line of sight,
+-- line of effect, range) measures from there; the modifier list still comes off
+-- sourceToken, since edges and banes belong to the caster either way.
+local function AddModifierLabelsToMarker(markers, sourceToken, targetToken, ability, range, originToken)
+    if markers == nil or ability == nil or sourceToken == nil or targetToken == nil then
+        return
+    end
+
+    originToken = originToken or sourceToken
+
+    local loeFailReason = DrawSteelActionBar.LineOfEffectFailReason(sourceToken, targetToken, originToken)
+    if loeFailReason ~= nil then
+        markers:AddLabel(loeFailReason, "forbidden")
+        return
     end
 
     -- Match the validity check in CalculateSpellTargetFocusing: failReason
@@ -8637,13 +9120,13 @@ local function SetTargetLineOfSightRayForKey(key, ray)
     m_targetLineOfSightRays[key] = ray
 end
 
----@param rays table<{a: Token, b: Token}>[]
+---@param rays {a: CharacterToken, b: CharacterToken, locked: nil|boolean}[]
 ---@param ability ActivatedAbility|nil
 ---@param range number|nil
 local function ReplaceTargetLineOfSightRays(rays, ability, range)
     local t = {}
     for i, ray in ipairs(rays) do
-        local key = string.format("%s-%s", ray.a.id, ray.b.id)
+        local key = string.format("%s-%s", ray.a.charid, ray.b.charid)
         --One minion can hold two slots on the same creature (gang-up), so rays
         --can repeat a pair. Without this guard the second pass overwrites t[key]
         --and the first marker leaks -- nothing can ever destroy it again.
@@ -8701,7 +9184,10 @@ local function AdoptLineOfSightMark()
     if m_markLineOfSight == nil then
         return
     end
-    SetTargetLineOfSightRayForKey(string.format("%s-%s", m_markLineOfSightSourceToken.id, m_markLineOfSightToken.id),
+    --Both tokens are assigned together with m_markLineOfSight.
+    ---@cast m_markLineOfSightSourceToken -nil
+    ---@cast m_markLineOfSightToken -nil
+    SetTargetLineOfSightRayForKey(string.format("%s-%s", m_markLineOfSightSourceToken.charid, m_markLineOfSightToken.charid),
         m_markLineOfSight)
     m_markLineOfSight = nil
     m_markLineOfSightToken = nil
@@ -8712,6 +9198,8 @@ local function ClearLineOfSightMark()
     --Before the early return: the diagram can outlive the arrow (a path that nils the
     --mark by hand leaves nothing for this to destroy, but the tooltip is still up).
     CrossSection.ClearAttack()
+    --Same for a chain preview: a cast can end with the cursor still on its target.
+    g_filterSightlines.ClearChainHover()
     if m_markLineOfSight == nil then
         return
     end
@@ -8723,6 +9211,8 @@ local function ClearLineOfSightMark()
 end
 
 -- Casting Triggers.
+--Assigned together with a non-empty m_castingTriggers, the only state it is read in.
+--- @type table<string, boolean>
 local m_castingTriggersCache = nil
 local m_castingTriggers = nil
 local m_castingTriggersOwnerPanel = nil
@@ -8851,6 +9341,9 @@ local function CreateTargetInfo(spell)
         guid = dmhub.GenerateGuid(),
         action = spell,
         execute = function(targetToken, info) --info has {targetEffect = {list of effect panels}}
+            --Target reticules only exist while a cast is being targeted.
+            ---@cast g_token -nil
+            ---@cast g_currentAbility -nil
             -- Squad coordinated strike: clicking a squad minion arms a lock for
             -- that minion (click again to disarm); the next enemy click locks
             -- the pair, making that minion the creature's main attacker.
@@ -8858,7 +9351,7 @@ local function CreateTargetInfo(spell)
             -- targeting (falls through below).
             if SquadStrikeActive() then
                 if SquadIsActiveMinionToken(targetToken) then
-                    if g_squadPendingLockMinion ~= nil and g_squadPendingLockMinion.id == targetToken.id then
+                    if g_squadPendingLockMinion ~= nil and g_squadPendingLockMinion.charid == targetToken.charid then
                         g_squadPendingLockMinion = nil
                     else
                         g_squadPendingLockMinion = targetToken
@@ -8928,7 +9421,7 @@ local function CreateTargetInfo(spell)
                                 local targetable = voxels[i]:GetComponent("Targetable")
                                 if targetable ~= nil and targetable.properties ~= nil then
                                     local voxelToken = dmhub.LookupToken(targetable.properties)
-                                    if voxelToken ~= nil and voxelToken.valid and not list_contains(g_targetsChosen, voxelToken.id) then
+                                    if voxelToken ~= nil and voxelToken.valid and not list_contains(g_targetsChosen, voxelToken.charid) then
                                         targetToken = voxelToken
                                         break
                                     end
@@ -8949,7 +9442,7 @@ local function CreateTargetInfo(spell)
                     if m_markLineOfSight ~= nil and m_markLineOfSightToken == targetToken then
                         m_markLineOfSight:FlashLabels()
                     else
-                        local key = string.format("%s-%s", g_token.id, targetToken.id)
+                        local key = string.format("%s-%s", g_token.charid, targetToken.charid)
                         local ray = m_targetLineOfSightRays[key]
                         if ray ~= nil then
                             ray:FlashLabels()
@@ -9071,6 +9564,8 @@ local AddRadiusMarker = function(locOverride, radius, color, filterFunction)
         return
     end
 
+    --Only called while targeting a cast, when g_token is the caster.
+    ---@cast g_token -nil
     local tokenCasting = g_token
     if g_currentAbility ~= nil then
         tokenCasting = g_currentAbility:GetRangeSource(g_token)
@@ -9166,6 +9661,8 @@ end
 --token occupies, so size > 1 tokens measure from their nearest edge). Used to
 --slice tiered targeting rings into annuli.
 local function DistanceFromCasterInTiles(loc)
+    --Only called while targeting a cast, when g_token is the caster.
+    ---@cast g_token -nil
     local tokenCasting = g_token
     if g_currentAbility ~= nil then
         tokenCasting = g_currentAbility:GetRangeSource(g_token)
@@ -9312,6 +9809,8 @@ local m_altitudeController
 local m_shiftController
 
 local g_ammoChoicePanel = nil
+--Set in CreateAbilityController, before any cast can read it.
+--- @type Panel
 local g_synthesizedSpellsPanel = nil
 local g_castChargesInput = nil
 
@@ -9358,7 +9857,17 @@ local function CreateShiftController()
             if g_token ~= nil and (g_token.properties:CalculateNamedCustomAttribute("Shift Disabled") or 0) > 0 then
                 g_currentSymbols.shiftingOverride = false
                 element.value = false
-                m_label.text = "<color=#ff0000><b>You cannot shift.</b></color> You may move normally instead."
+
+                --name what is stopping the shift (e.g. Slowed), same as the movement HUD.
+                local reason = nil
+                for _,modification in ipairs(g_token.properties:DescribeModificationsToNamedCustomAttribute("Shift Disabled")) do
+                    reason = modification.key
+                end
+                if reason ~= nil then
+                    m_label.text = string.format("<color=#ff0000><b>You cannot shift.</b> (%s)</color> You may move normally instead.", reason)
+                else
+                    m_label.text = "<color=#ff0000><b>You cannot shift.</b></color> You may move normally instead."
+                end
                 return
             end
 
@@ -9778,7 +10287,7 @@ local function SetAltitudeMode(mode, defaultTargetOverride)
     end
 end
 
----@return table<{loc: table, token: Token}>[]
+---@return {loc: Loc, token: CharacterToken}[]
 local function BuildTargetsList()
     --accumulate our target list based on what is selected.
     local targets = {}
@@ -9991,7 +10500,7 @@ local function CreateTokenSelectionContainer()
             ClearLocate()
         end,
         --- @param tokens nil|CharacterToken[] The candidates to show; nil empties the strip.
-        --- @param options nil|{choose: nil|fun(token: CharacterToken):boolean, reasons: nil|table<string,string>}
+        --- @param options nil|{choose: nil|(fun(token: CharacterToken):boolean), reasons: nil|table<string,string>}
         --- choose is the prompt's pick handler, returning false if it refuses the
         --- candidate; reasons[charid] explains a candidate the prompt would refuse.
         settokens = function(element, tokens, options)
@@ -10479,6 +10988,8 @@ CreateAbilityController = function()
                 element:SetClass("collapsed", true)
                 return
             end
+            --A cast is in progress, so g_token is its caster.
+            ---@cast g_token -nil
 
             local changeMode = false
             local children = {}
@@ -10486,9 +10997,9 @@ CreateAbilityController = function()
             for i, mode in ipairs(g_currentAbility.modeList) do
                 local available = true
                 if mode.condition ~= nil and mode.condition ~= "" then
-                    available = ExecuteGoblinScript(mode.condition, g_token.properties:LookupSymbol(), 1,
+                    local result = ExecuteGoblinScript(mode.condition, g_token.properties:LookupSymbol(), 1,
                         "Mode condition")
-                    available = type(available) == "number" and available > 0
+                    available = type(result) == "number" and result > 0
                 end
 
                 if available then
@@ -10754,7 +11265,6 @@ CreateAbilityController = function()
                 textAlignment = "center",
                 borderWidth = 1,
                 bgimage = "panels/square.png",
-                borderWidth = 1,
                 borderColor = "#ffffff55",
                 bgcolor = "#ffffff22",
             },
@@ -11076,6 +11586,19 @@ CreateAbilityController = function()
                 end
             end
 
+            --An ability an object grants to the creatures next to it (a Field
+            --Ballista's Move or Deactivate) can only target that object, so it
+            --starts with it targeted and goes ahead without a click on it. One
+            --that targets a square (throwing a Candelabra) picks its square as
+            --usual.
+            local grantingid = ability:try_get("grantingObjectTokenId")
+            if grantingid ~= nil and #g_targetsChosen == 0 and ability.targetType == "target" then
+                g_targetsChosen[1] = grantingid
+                ability = ability:MakeTemporaryClone()
+                ability.castImmediately = true
+                g_currentAbility = ability
+            end
+
             if g_targetsChosen ~= nil then
                 g_firstTarget = g_targetsChosen[1]
             end
@@ -11270,15 +11793,19 @@ CreateAbilityController = function()
                 return
             end
 
-            for i = 1, #m_castingTriggers do
-                local triggerToken = dmhub.GetTokenById(m_castingTriggers[i].charid)
-                if triggerToken ~= nil and triggerToken.valid then
+            --build a new list rather than removing in place: table.remove inside a
+            --numeric for skips the next entry and indexes past the end. Forward order
+            --is kept so the last newly-triggered targetcount still wins.
+            local keptTriggers = {}
+            for _, castingTrigger in ipairs(m_castingTriggers) do
+                local triggerToken = dmhub.GetTokenById(castingTrigger.charid)
+                if triggerToken == nil or not triggerToken.valid then
+                    keptTriggers[#keptTriggers + 1] = castingTrigger
+                else
                     local availableTriggers = triggerToken.properties:GetAvailableTriggers() or {}
-                    local availableTrigger = availableTriggers[m_castingTriggers[i].id]
-                    if availableTrigger == nil then
-                        table.remove(m_castingTriggers, i)
-                    else
-                        m_castingTriggers[i] = availableTrigger
+                    local availableTrigger = availableTriggers[castingTrigger.id]
+                    if availableTrigger ~= nil then
+                        keptTriggers[#keptTriggers + 1] = availableTrigger
 
                         if availableTrigger.triggered and (not m_castingTriggersCache[availableTrigger.id]) then
                             m_castingTriggersCache[availableTrigger.id] = true
@@ -11292,6 +11819,7 @@ CreateAbilityController = function()
                     end
                 end
             end
+            m_castingTriggers = keptTriggers
         end,
         clearCastingTriggers = function(element)
             element.monitorGame = nil
@@ -11430,11 +11958,10 @@ CreateAbilityController = function()
                 end
             end
 
-            -- _tmp_aicontrol is a counter (incremented while AI is in control),
-            -- so the falsy/truthy check must be against `> 0` -- a plain truthy
-            -- check matches `0` and silently auto-picks every prompt target,
-            -- defeating the "Prompt When Resolving" option on PowerRollBehavior.
-            if options.sourceToken ~= nil and options.sourceToken.properties._tmp_aicontrol > 0 then
+            -- Only while the Monster AI controls the source: auto-picking for
+            -- anyone else would defeat the "Prompt When Resolving" option on
+            -- PowerRollBehavior.
+            if options.sourceToken ~= nil and creature.IsTokenAIControlled(options.sourceToken.charid) then
                 --auto-pick the first target that isn't filtered out with a reason.
                 local pick = options.targets[1]
                 for _,t in ipairs(options.targets or {}) do
@@ -11578,6 +12105,8 @@ CreateAbilityController = function()
 
             g_castMessage.data.promptText = promptText
             g_castMessage:FireEvent("refresh")
+            --This handler is part of the ability controller, so it exists.
+            ---@cast g_abilityController -nil
             g_abilityController:SetClass("collapsed", false)
             g_castButton:FireEvent("setVisible", false)
 
@@ -11634,7 +12163,7 @@ CreateAbilityController = function()
             DrawSteelActionBar._openPrompt = targetChooser
         end,
 
-        --- @param invokerInfo nil|{oncast=nil|function, oncancel=nil|function}
+        --- @param invokerInfo nil|{oncast: nil|function, oncancel: nil|function}
         invokeAbility = function(element, casterToken, ability, symbols, invokerInfo, options)
             options = options or {}
             gui.SetFocus(nil)
@@ -11695,7 +12224,7 @@ CreateAbilityController = function()
         end,
 
         highlightTargetToken = function(element, targetToken)
-            if g_token == nil or not g_token.valid then
+            if g_token == nil or not g_token.valid or g_currentAbility == nil then
                 return
             end
             element:FireEvent("unhighlightTargetToken")
@@ -11728,14 +12257,17 @@ CreateAbilityController = function()
             local range = g_currentAbility:GetRange(g_token.properties, g_currentSymbols)
             g_currentSymbols.range = range
             local rays = g_currentAbility:GetTargetingRays(g_token, range, g_currentSymbols, targets)
+            --GetTargetingRays declares its @return as table<{a, b}>[], which LuaLS reads as a
+            --map keyed by the record; the elements are these (MCDMActivatedAbility.lua).
+            ---@cast rays nil|{a: CharacterToken, b: CharacterToken, locked: nil|boolean}[]
             local rayCoversTarget = false
             if rays ~= nil then
                 --the ability specifies the rays, we try to fish out the
                 --new one to highlight and maintain any existing ones.
                 for _, ray in ipairs(rays) do
-                    if ray.b.id == targetToken.id then
+                    if ray.b.charid == targetToken.charid then
                         rayCoversTarget = true
-                        if m_targetLineOfSightRays[string.format("%s-%s", ray.a.id, ray.b.id)] == nil then
+                        if m_targetLineOfSightRays[string.format("%s-%s", ray.a.charid, ray.b.charid)] == nil then
                             m_markLineOfSight = dmhub.MarkLineOfSight(ray.a, ray.b, ray.a.properties:GetPierceWalls(), GetArrowColor(g_currentAbility, ray.a, ray.b), EffectiveArrowRange(ray.a, ray.b, range, g_currentAbility))
                             AddModifierLabelsToMarker(m_markLineOfSight, ray.a, ray.b, g_currentAbility, range)
                             m_markLineOfSightToken = targetToken
@@ -11762,9 +12294,33 @@ CreateAbilityController = function()
             if m_markLineOfSightToken == targetToken and m_markLineOfSightSourceToken ~= nil then
                 CrossSection.ShowAttack(m_markLineOfSightSourceToken, targetToken)
             end
+            --Chain abilities (Shadow's Chain Reaction): preview every creature the chain would
+            --reach with red links, so the player can pick the best first target.
+            if g_currentAbility ~= nil and ActivatedAbilityChainReachBehavior ~= nil then
+                for _, behavior in ipairs(g_currentAbility.behaviors or {}) do
+                    if behavior.typeName == "ActivatedAbilityChainReachBehavior" then
+                        local _, links = ActivatedAbilityChainReachBehavior.ComputeChain(g_token, targetToken,
+                            tonumber(behavior:try_get("chainRange", 3)) or 3, nil, g_currentAbility)
+                        g_filterSightlines.ClearChainHover()
+                        g_filterSightlines.chainHover = {}
+                        for _, link in ipairs(links) do
+                            --a link to a creature this player cannot see would give its position away.
+                            local ray = nil
+                            if dmhub.isDM or (link.from.canSee and link.to.canSee) then
+                                ray = dmhub.HighlightLine{ color = "red", a = link.from.pos, b = link.to.pos }
+                            end
+                            if ray ~= nil then
+                                g_filterSightlines.chainHover[#g_filterSightlines.chainHover+1] = ray
+                            end
+                        end
+                        break
+                    end
+                end
+            end
         end,
 
         unhighlightTargetToken = function(element, targetToken)
+            g_filterSightlines.ClearChainHover()
             if targetToken == nil or targetToken == m_markLineOfSightToken then
                 CrossSection.ClearAttack()
             end
@@ -11779,7 +12335,7 @@ CreateAbilityController = function()
         --map events that we get when in point targeting mode.
         --- @param element Panel
         --- @param loc Loc
-        --- @param point table
+        --- @param point nil|Vector3|'all' The hovered point; 'all' (with a nil loc) for the 'all' target type
         maphover = function(element, loc, point)
             element.data.lastHoverLoc = loc
             element.data.lastHoverPoint = point
@@ -11847,12 +12403,16 @@ CreateAbilityController = function()
                 local radius = g_currentAbility:GetRadius(g_token.properties, g_currentSymbols)
                 local shape = g_currentAbility.targetType
                 local requireEmpty = false
+                --set for teleport targeting: the landing altitude occupancy is checked at
+                local teleportAltitude = nil
 
                 local locOverride = g_currentAbility:try_get("casterLocOverride")
 
                 local targetingType = g_currentAbility:try_get("targeting", "direct")
 
                 if (shape == 'emptyspace' or shape == 'anyspace') and (targetingType == "pathfind" or targetingType == "vacated" or targetingType == "straightline" or targetingType == "straightpath" or targetingType == "straightpathignorecreatures") then
+                    --only the 'all' target type hovers with a nil loc (point == 'all'); a space target has a real one.
+                    ---@cast loc -nil
                     if g_token.creatureDimensions.x > 1 and g_token.creatureDimensions.x % 2 == 1 then
                         for i = 3, g_token.creatureDimensions.x, 2 do
                             loc = loc.west.south
@@ -11861,6 +12421,8 @@ CreateAbilityController = function()
                 end
 
                 if shape == "line" and #m_positionTargetsChosen == 0 then
+                    --shape is the ability's targetType here, so the hover is a real point, not 'all'.
+                    ---@cast point Vector3
                     local lineDistance = g_currentAbility:GetLineDistance(g_token.properties, g_currentSymbols)
                     --still choosing the starting point of the line.
                     g_pointTargeting.shape = dmhub.CalculateShape {
@@ -11885,12 +12447,14 @@ CreateAbilityController = function()
                     local movementType = g_currentAbility:GetMovementType(g_token, g_currentSymbols)
                     local shifting = (movementType == "shift")
 
+                    --this branch is a space target, which hovers with a real loc (only 'all' has none).
+                    ---@cast loc -nil
                     local movementInfo = g_token:MarkMovementArrow(loc, { shifting = shifting, waypoints = waypoints })
                     if movementInfo ~= nil then
                         local targets = g_currentAbility:FindTargetsInMovementVicinity(g_token, movementInfo.path) or
                             filteredTargets
                         for _, target in ipairs(targets) do
-                            filteredTargets[target.id] = target
+                            filteredTargets[target.charid] = target
                         end
 
                         --Mirror the drag flow's movementplan broadcast so OA warning
@@ -11911,6 +12475,8 @@ CreateAbilityController = function()
                         ShowMovementDiagram(g_token, movementInfo.path, cond(shifting, tr("Shift"), tr("Movement")))
                     end
                 elseif shape == "emptyspace" and targetingType == "direct" then
+                    --as above: a space target always hovers with a real loc.
+                    ---@cast loc -nil
                     --Only draw the teleport arrow when the target is on the caster's floor.
                     --For cross-floor teleport the arrow would render on the caster's floor pointing
                     --at the wrong place; leave clearMovementArrow=true so any prior arrow is removed
@@ -12074,7 +12640,7 @@ CreateAbilityController = function()
                                     diagramLabel = placementName
                                     diagramTextOverride = string.format(tr("%s appears here"), placementName)
                                     if movementInfo.path.numSteps ~= nil then
-                                        local placementDist = movementInfo.path.numSteps * dmhub.FeetPerTile
+                                        local placementDist = movementInfo.path.numSteps * dmhub.unitsPerSquare
                                         diagramTextOverride = string.format(tr("%s appears here (%s %s away)"), placementName, MeasurementSystem.NativeToDisplayString(placementDist), string.lower(MeasurementSystem.UnitName()))
                                     end
                                 end
@@ -12083,6 +12649,8 @@ CreateAbilityController = function()
                         end
                     end
                 elseif (shape == 'emptyspace' or shape == 'anyspace') and (targetingType == "straightline" or targetingType == "straightpath" or targetingType == "straightpathignorecreatures") then
+                    --as above: a space target always hovers with a real loc.
+                    ---@cast loc -nil
                     local waypoints = {}
                     for _, pos in ipairs(m_positionTargetsChosen) do
                         waypoints[#waypoints + 1] = pos.loc
@@ -12138,6 +12706,9 @@ CreateAbilityController = function()
                             end
                         end
                         movementInfo = g_token:MarkMovementArrow(loc, markOptions)
+                        --MarkMovementArrow's declared return omits the charge-jump fields the engine
+                        --adds when charge options are passed (CharacterToken.cs MarkMovementArrow).
+                        ---@cast movementInfo nil|{path: LuaPath, collideWith: nil|CharacterToken[], bounceCollisions: nil|{speed: number, collideWith: CharacterToken[], destination: Loc}[], validCharge: nil|boolean, requiresRoll: nil|boolean, requiredTier: nil|integer, guaranteedTier: nil|integer, jumpLabelLoc: nil|Loc, tierOutcomes: nil|table<integer, table>}
                         if chargeOptions ~= nil and (movementInfo == nil or movementInfo.validCharge ~= true) then
                             g_pointTargeting.chargeJumpUnreachable = true
                             movementInfo = nil
@@ -12147,7 +12718,7 @@ CreateAbilityController = function()
                             --The map arrow renders the actual jump segment for this charge.
                             ClearMovementDiagram()
                             destroyChargeJumpLabel = false
-                            local labelLoc = movementInfo.jumpLabelLoc
+                            local labelLoc = movementInfo.jumpLabelLoc --[[@as Loc]] --checked ~= nil above
                             g_pointTargeting.chargeJumpRequiresRoll = movementInfo.requiresRoll == true
                             local labelText = tr("Jump")
                             if g_pointTargeting.chargeJumpRequiresRoll then
@@ -12198,7 +12769,7 @@ CreateAbilityController = function()
                         local targets = g_currentAbility:FindTargetsInMovementVicinity(g_token, movementInfo.path) or
                             filteredTargets
                         for _, target in ipairs(targets) do
-                            filteredTargets[target.id] = target
+                            filteredTargets[target.charid] = target
                         end
 
                         --Broadcast OA warning arrows for straightpath movement (e.g. Charge),
@@ -12417,6 +12988,8 @@ CreateAbilityController = function()
                             local needRedraw = prevPathEnd == nil or #prevPathEnd ~= #newPathEndShapes or
                                 prevOvershoot ~= g_pointTargeting.pathEndOvershoot
                             if not needRedraw then
+                                --needRedraw is false only when prevPathEnd is non-nil.
+                                ---@cast prevPathEnd -nil
                                 for i, prevShape in ipairs(prevPathEnd) do
                                     if not prevShape:Equal(newPathEndShapes[i]) then
                                         needRedraw = true
@@ -12466,8 +13039,8 @@ CreateAbilityController = function()
                             for _, step in ipairs(path.steps) do
                                 local tokensAtLoc = game.GetTokensAtLoc(step)
                                 for _, tok in ipairs(tokensAtLoc or {}) do
-                                    if tok.id ~= g_token.id and hitIds[tok.id] == nil then
-                                        hitIds[tok.id] = true
+                                    if tok.charid ~= g_token.charid and hitIds[tok.charid] == nil then
+                                        hitIds[tok.charid] = true
                                         throughShapes[#throughShapes + 1] = dmhub.CalculateShape {
                                             shape = cond(tok.creatureDimensions.x % 2 == 1, "radius", "radiusfromintersection"),
                                             token = tok,
@@ -12596,6 +13169,8 @@ CreateAbilityController = function()
                     point = nil
                     shape = "RadiusFromCreature"
                 end
+                --'all' was just replaced by nil.
+                ---@cast point nil|Vector3
                 if shape == 'emptyspace' or shape == 'emptyspacefriend' or shape == 'anyspace' then
                     radius = dmhub.unitsPerSquare * 0.5
                     requireEmpty = (shape == 'emptyspace')
@@ -12603,6 +13178,14 @@ CreateAbilityController = function()
                     --Forced movement (straightline targeting): a square occupied by
                     --another creature is a legal destination click
                     if requireEmpty and targetingType == "straightline" then
+                        requireEmpty = false
+                    end
+
+                    --Teleport with the altitude controller: the space may be above
+                    --another creature, so check occupancy at the chosen altitude
+                    --after the shape is built instead of the engine's per-column test.
+                    if requireEmpty and targetingType == "direct" and m_allowedAltitudeCalculator ~= nil and loc ~= nil then
+                        teleportAltitude = loc.altitude
                         requireEmpty = false
                     end
 
@@ -12615,6 +13198,8 @@ CreateAbilityController = function()
                             --we offset the target point to match creature movement behavior.
                             shape = "cylinder"
                             local offset = (g_token.creatureDimensions.x - 1) * 0.5
+                            --point is only cleared above for the 'all' type; a space shape keeps the hovered point.
+                            ---@cast point -nil
                             point = core.Vector3(point.x + offset, point.y + offset, point.z)
                         end
                     else
@@ -12630,6 +13215,8 @@ CreateAbilityController = function()
                 g_currentSymbols.range = range
                 if shape == "line" and g_currentAbility.canChooseLowerRange then
                     local pos = g_token:PosAtLoc(g_token.loc)
+                    --point is only cleared above for the 'all' type, never a line.
+                    ---@cast point -nil
                     local dist = math.ceil(math.max(math.abs(point.x - pos.x), math.abs(point.y - pos.y)))
                     range = math.min(range, dist)
                 end
@@ -12638,6 +13225,8 @@ CreateAbilityController = function()
                 if g_currentAbility ~= nil then
                     numTargets = g_currentAbility:GetNumTargets(g_token, g_currentSymbols)
                 end
+                --maphover returned at its top when no ability is being cast.
+                ---@cast g_currentAbility -nil
 
                 if numTargets > 1 or targetingType == "pathfind" or (g_pointTargeting.shapeConfirmedLoc ~= nil and g_pointTargeting.shapeConfirmedLoc.str == startingLoc.str) then
                     g_pointTargeting.shapeRequiresConfirm = false
@@ -12650,7 +13239,8 @@ CreateAbilityController = function()
                     shape = "radius"
                     radius = 0
                 elseif shape == "line" then
-                    locOverride = m_positionTargetsChosen[1]
+                    --a line ability's entry 1 is its start square, a bare Loc.
+                    locOverride = m_positionTargetsChosen[1] --[[@as Loc]]
                 end
 
                 local locations = nil
@@ -12686,6 +13276,7 @@ CreateAbilityController = function()
                             tostring(g_token and g_token.floorIndex or "nil")))
                     end
                 end
+                ---@cast g_currentAbility -nil
 
                 --For cube targeting, anchor the cube's bottom at the altitude the
                 --altitude controller has resolved on the hovered loc (ground by default,
@@ -12717,6 +13308,12 @@ CreateAbilityController = function()
                     targetFloorIndex = targetFloorIndex,
                     altitude = shapeAltitude,
                 }
+
+                --a nil shape is how an unusable space reads to the click handler.
+                if teleportAltitude ~= nil and g_pointTargeting.shape ~= nil
+                    and DrawSteelActionBar.TeleportSpaceBlocked(g_token, g_pointTargeting.shape.locations, teleportAltitude) then
+                    g_pointTargeting.shape = nil
+                end
 
                 -- Partner burst: if the ability declares partnerBurst (a GoblinScript
                 -- condition formula that evaluates true) and we're doing a
@@ -12864,7 +13461,7 @@ CreateAbilityController = function()
             SetTargetsInRadius(filteredTargets)
 
             if g_pointTargeting.radius ~= nil then
-                if g_pointTargeting.shape ~= nil and g_pointTargeting.shape:Equal(prevShape) then
+                if g_pointTargeting.shape ~= nil and prevShape ~= nil and g_pointTargeting.shape:Equal(prevShape) then
                     --shape unchanged.
                     --return
                 end
@@ -13106,6 +13703,7 @@ CreateAbilityController = function()
 
             --set the starting point of the line.
             if shape == "line" and #m_positionTargetsChosen == 0 then
+                --a line ability's start square is stored as a bare Loc (see the declaration).
                 m_positionTargetsChosen[#m_positionTargetsChosen + 1] = loc
                 return
             end
@@ -13429,8 +14027,10 @@ CreateAbilityController = function()
                 --so the attack cross-section goes with it.
                 CrossSection.ClearAttack()
                 if m_markLineOfSight ~= nil then
+                    ---@cast m_markLineOfSightSourceToken -nil
+                    ---@cast m_markLineOfSightToken -nil
                     SetTargetLineOfSightRayForKey(
-                        string.format("%s-%s", m_markLineOfSightSourceToken.id, m_markLineOfSightToken.id),
+                        string.format("%s-%s", m_markLineOfSightSourceToken.charid, m_markLineOfSightToken.charid),
                         m_markLineOfSight)
                     m_markLineOfSight = nil
                     m_markLineOfSightToken = nil
@@ -13469,6 +14069,9 @@ CreateAbilityController = function()
                 --every ordinary cast). Same hook as the CalculateSpellTargeting
                 --commit below.
                 OverviewClaimBeforeCast(g_token)
+
+                --An object caster turned to face its target keeps that facing.
+                DrawSteelActionBar._aim.Commit(g_token, targets)
 
                 RecordPartnerBurstRetargets(targets)
 
@@ -13526,6 +14129,9 @@ local function CalculateSpellTargetFocusing(symbols)
 
     local potentialTargetTokens = {}
     if g_currentAbility == nil then return potentialTargetTokens end
+    --A cast is in progress, so g_token (and its g_creature) is the caster.
+    ---@cast g_token -nil
+    ---@cast g_creature -nil
     local spell = g_currentAbility
     --DIAG: slider position, hoisted for the trace at the end of the function.
     --A stuck "Objects" is what explains an armed=0 pass. nil = never resolved.
@@ -13718,6 +14324,17 @@ local function CalculateSpellTargetFocusing(symbols)
                         end
                     end
 
+                    --Line of effect: a single-target ability can't reach a creature
+                    --behind a wall, so under strict targeting a player can't pick it.
+                    --Area abilities already drop such targets in TargetPassesFilter.
+                    --Squad strikes draw from each minion (any one may reach), and an
+                    --aura's casterLocOverride cast has no caster token to measure from.
+                    if failReason == nil and spell.targetType == "target" and casterLocOverride == nil
+                        and targetToken.charid ~= g_token.charid and not SquadStrikeActive() then
+                        failReason = DrawSteelActionBar.LineOfEffectFailReason(g_token, targetToken,
+                            ResolveArrowOrigin(g_currentAbility, g_token, targetToken))
+                    end
+
                     local valid = failReason == nil
 
                     if targetToken.valid and targetToken.sheet ~= nil then
@@ -13746,9 +14363,10 @@ local function CalculateSpellTargetFocusing(symbols)
                         --record validity so click handlers can reject invalid
                         --targets when strict-targeting is enforced for players.
                         targetToken.sheet.data.targetValid = valid
-                        --out-of-range is shown as an arrow label instead of a token tooltip.
+                        --out-of-range and line of effect are shown as arrow labels instead of a token tooltip.
                         local tooltipReason = failReason
-                        if tooltipReason ~= nil and string.starts_with(tooltipReason, "Out of range") then
+                        if tooltipReason ~= nil and (string.starts_with(tooltipReason, "Out of range")
+                            or string.find(tooltipReason, "Line of Effect", 1, true) ~= nil) then
                             tooltipReason = nil
                         end
                         targetToken.sheet:FireEvent('target', { valid = valid, classes = classes, reason = tooltipReason })
@@ -13824,13 +14442,16 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
 
         --if this spell dictates specific targeting rays to use.
         local rays = g_currentAbility:GetTargetingRays(g_token, range, g_currentSymbols, targets)
+        --GetTargetingRays declares its @return as table<{a, b}>[], which LuaLS reads as a
+        --map keyed by the record; the elements are these (MCDMActivatedAbility.lua).
+        ---@cast rays nil|{a: CharacterToken, b: CharacterToken, locked: nil|boolean}[]
         if rays ~= nil then
             ReplaceTargetLineOfSightRays(rays, g_currentAbility, range)
 
             --record the targeting as symbols.
             local targetPairs = {}
             for i, ray in ipairs(rays) do
-                targetPairs[#targetPairs + 1] = { a = ray.a.id, b = ray.b.id }
+                targetPairs[#targetPairs + 1] = { a = ray.a.charid, b = ray.b.charid }
             end
 
             g_currentSymbols.targetPairs = targetPairs
@@ -13922,6 +14543,9 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
             --Director overview (slice (e)): implicit claim at target confirm,
             --only when legal; see g_overviewCastPending. No-op otherwise.
             OverviewClaimBeforeCast(g_token)
+
+            --An object caster turned to face its target keeps that facing.
+            DrawSteelActionBar._aim.Commit(g_token, targets)
 
             g_currentAbility:Cast(g_token, targets, {
                 attachedTriggers = attachedTriggers,
@@ -14222,7 +14846,7 @@ Search.RevealActionBarAbility = function(tokenid, abilityName)
         if mod.unloaded then
             return
         end
-        if g_actionBar == nil or not g_actionBar.valid or g_token == nil or g_token.id ~= tokenid then
+        if g_actionBar == nil or not g_actionBar.valid or g_token == nil or g_token.charid ~= tokenid then
             openAttempts = openAttempts + 1
             if openAttempts < 30 then dmhub.Schedule(0.1, openDrawer) end
             return

@@ -2,6 +2,7 @@ local mod = dmhub.GetModLoading()
 
 --- @class Hud: GameType
 --- @field new fun(o?: table): Hud
+--- @field dialog SheetContainer The engine's sheet container; every Hud is a GameHud built by dmhub.CreateGameHud.
 --- @field dialogWorldPanel Panel Host for world-space dialogs; set by Hud.MainDialogPanel.
 --- @field mainDialogPanel Panel Main dialog layer; set by Hud.MainDialogPanel.
 --- @field modalPanel Panel Modal dialog layer; set by Hud.ModalDialogPanel.
@@ -247,7 +248,7 @@ local function PromoteModalToChildWindow(hud, layer, modal)
 	if root == nil or (not root.valid) then
 		return
 	end
-	if GameHud.instance == nil or GameHud.instance.documentsPanel == nil or
+	if not GameHud.instance or GameHud.instance.documentsPanel == nil or
 		(not GameHud.instance.documentsPanel.valid) then
 		return
 	end
@@ -422,7 +423,7 @@ end
 
 --- Close the topmost modal in the given layer (the global modalPanel or a
 --- popout window's own layer).
---- @param layer Panel
+--- @param layer Panel|nil nil (or a destroyed layer) is ignored.
 function Hud.CloseModalInLayer(self, layer)
 	if layer == nil or (not layer.valid) then
 		return
@@ -480,11 +481,11 @@ function Hud.GetModal(self, owner)
 end
 
 --- @class ModalMessageArgs
---- @param title nil|string @message shown at the top
---- @param message string @message taking up the bulk of the dialog.
---- @param panel nil|Panel An arbitrary panel to display in the center.
---- @param options nil|{text: string, execute: function} a list of buttons that will be displayed at the bottom.
---- @param owner nil|Panel The element this message concerns. If it lives in a native popout window, the message appears in THAT window instead of the main one.
+--- @field title nil|string message shown at the top
+--- @field message nil|string message taking up the bulk of the dialog.
+--- @field panel nil|Panel An arbitrary panel to display in the center.
+--- @field options nil|{text: string, execute?: function}[] a list of buttons that will be displayed at the bottom.
+--- @field owner nil|Panel The element this message concerns. If it lives in a native popout window, the message appears in THAT window instead of the main one.
 
 --- Display a modal message dialog.
 --- @param args ModalMessageArgs
@@ -802,9 +803,12 @@ end
 --- @field initiativeCarousel Panel
 --- @field choiceInitiativeBar Panel
 --- @field respiteBar Panel
---- @field combatSettingsButton Panel
 --- @field castingSpell boolean
 --- @field currentInitiativeId? string
+--- @field interactionQueue fun()[] Pending popup interactions, run one per Think when the player is free; set by the hud constructors.
+--- @field openInventoryDialogs Panel[] Inventory dialogs currently open; set by the hud constructors.
+--- @field CreateRollResultPanel fun(self: GameHud): Panel Defined in the engine TextAsset roll-display.txt.
+--- @field shopPanel Panel|false Fullscreen shop host; false on the lobby hud (see the default below).
 GameHud = RegisterGameType("GameHud", "Hud")
 
 -- Fullscreen host panel for the shop/inventory screen. Set by
@@ -894,6 +898,27 @@ end
 --      characterPanelAccess = function(token) end,
 --                                       --override CharacterPanel access:
 --                                       --"edit"|"view"|"none"|nil=normal
+--      openSheet = function(token, tabid) end,
+--                                       --a character sheet is opening for
+--                                       --token: return true to show your
+--                                       --own view instead (the full sheet
+--                                       --then closes itself); nil/false
+--                                       --opens the normal sheet
+--      ownsSheet = function(token) end, --true when openSheet will show your
+--                                       --own view for token, so the full
+--                                       --sheet skips refreshing itself
+--                                       --first. No side effects: asked
+--                                       --before openSheet on every open
+--      playersPopout = function() end,  --content for the popout under the
+--                                       --title bar's players row (replaces
+--                                       --the Heroes panel there); nil=normal
+--      confirmExit = function(kind, proceed) end,
+--                                       --the user is leaving the game
+--                                       --(kind "leave") or quitting the app
+--                                       --("quit"): return true to put up
+--                                       --your own confirmation, which calls
+--                                       --proceed() to really go; false or
+--                                       --nil lets the exit happen as normal
 --  }
 --
 --Everything but id/active is optional. The FIRST registered provider whose
@@ -1027,6 +1052,71 @@ GameHud.CustomInterfaceCharacterPanelAccess = function(token)
 	local ok, access = pcall(provider.characterPanelAccess, token)
 	if ok and (access == "edit" or access == "view" or access == "none") then
 		return access
+	end
+	return nil
+end
+
+--Offer the active interface the character sheet a token is about to open.
+--True when it showed its own view instead (the caller must then not open
+--the full sheet); false for the normal sheet (no interface, no hook, or the
+--hook declined or failed).
+GameHud.CustomInterfaceOpenSheet = function(token, tabid)
+	local provider = GameHud.CustomInterface()
+	if provider == nil or type(provider.openSheet) ~= "function" then
+		return false
+	end
+	local ok, handled = pcall(provider.openSheet, token, tabid)
+	if not ok then
+		dmhub.Error(string.format("custom interface openSheet failed: %s", tostring(handled)))
+		return false
+	end
+	return handled == true
+end
+
+--Whether the active interface will show its own view of this token's sheet
+--(see openSheet). Asked before the full sheet refreshes, so that work can be
+--skipped; false when there is no interface, no hook, or the hook fails.
+GameHud.CustomInterfaceOwnsSheet = function(token)
+	local provider = GameHud.CustomInterface()
+	if provider == nil or type(provider.ownsSheet) ~= "function" then
+		return false
+	end
+	local ok, owns = pcall(provider.ownsSheet, token)
+	if not ok then
+		dmhub.Error(string.format("custom interface ownsSheet failed: %s", tostring(owns)))
+		return false
+	end
+	return owns == true
+end
+
+--Offer the active interface a say in the user leaving the game ("leave")
+--or quitting the app ("quit"). True when it has put up its own
+--confirmation, which will call proceed() if the user goes ahead; the
+--caller must then do nothing more. False when the exit should go ahead as
+--normal (no interface, no hook, or the hook declined or failed).
+GameHud.CustomInterfaceConfirmExit = function(kind, proceed)
+	local provider = GameHud.CustomInterface()
+	if provider == nil or type(provider.confirmExit) ~= "function" then
+		return false
+	end
+	local ok, handled = pcall(provider.confirmExit, kind, proceed)
+	if not ok then
+		dmhub.Error(string.format("custom interface exit confirmation failed: %s", tostring(handled)))
+		return false
+	end
+	return handled == true
+end
+
+--The panel the interface wants in the players-row popout, or nil for the
+--normal Heroes panel.
+GameHud.CustomInterfacePlayersPopout = function()
+	local provider = GameHud.CustomInterface()
+	if provider == nil or type(provider.playersPopout) ~= "function" then
+		return nil
+	end
+	local ok, panel = pcall(provider.playersPopout)
+	if ok and panel ~= nil then
+		return panel
 	end
 	return nil
 end

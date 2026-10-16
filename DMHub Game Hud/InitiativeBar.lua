@@ -40,6 +40,7 @@ function GameHud.CreateMainInitiativePanel(self, info)
 
 		events = {
 			drag = function(element)
+				---@cast element LuaSheetCarousel
 				if dmhub.isDM then
 					element.targetPosition = round(element.currentPosition)
 				end
@@ -64,6 +65,7 @@ function GameHud.CreateMainInitiativePanel(self, info)
 			end,
 
 			refresh = function(element)
+				---@cast element LuaSheetCarousel
 
 
 

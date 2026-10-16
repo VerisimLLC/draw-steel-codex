@@ -11,6 +11,9 @@ local mod = dmhub.GetModLoading()
 --               the chosen square of a square-targeting ability).
 --  "adjacent" - those squares plus every square 8-adjacent to them. A
 --               self-targeted "deactivate the trap next to you" uses this.
+--  "area"     - every square of the ability's area (options.targetArea, e.g.
+--               a cube), whether or not anyone stands there. A non-area
+--               ability has no area, so it matches nothing.
 --
 --When nothing matches, the rest of the ability is skipped (abortIfNone), so a
 --"transform, then damage the creature" ability never deals its damage twice
@@ -20,7 +23,7 @@ local mod = dmhub.GetModLoading()
 --- @field new fun(o?: table): ActivatedAbilityTransformZoneBehavior
 --- @field fromKeyword string Id (environmentalKeywords key) of the keyword whose zones are transformed. Empty = the behavior does nothing.
 --- @field toKeyword string Id of the keyword the zones become, or "none" to remove the zones.
---- @field location "targets"|"adjacent" Which squares pick the zones: the targets' own squares, or those plus every adjacent square.
+--- @field location "targets"|"adjacent"|"area" Which squares pick the zones: the targets' own squares, those plus every adjacent square, or every square of the ability's area.
 --- @field reveal boolean When true, a transformed zone becomes visible to players.
 --- @field abortIfNone boolean When true, the rest of the ability is skipped if no zone was transformed.
 ActivatedAbilityTransformZoneBehavior = RegisterGameType("ActivatedAbilityTransformZoneBehavior", "ActivatedAbilityBehavior")
@@ -98,6 +101,31 @@ local function TargetSquares(targets, includeAdjacent)
     return result
 end
 
+--The squares of the cast's area (or areas: one cast can cover several, see
+--targetAreaList), as engine Locs. Empty for an ability with no area. The
+--engine builds the shape on the caster's floor, so an object caster works too.
+--- @param options table
+--- @return Loc[]
+local function AreaSquares(options)
+    local areas = options.targetAreaList
+    if areas == nil and options.targetArea ~= nil then
+        areas = {options.targetArea}
+    end
+
+    local result = {}
+    local seen = {}
+    for _,area in ipairs(areas or {}) do
+        for _,loc in ipairs(area.locations or {}) do
+            local key = string.format("%d,%d,%d", loc.x, loc.y, loc.floor or 0)
+            if seen[key] == nil then
+                seen[key] = true
+                result[#result+1] = loc
+            end
+        end
+    end
+    return result
+end
+
 --The floor object storing the given zone record, or nil.
 local function FindZoneFloor(zoneid)
     local map = game.currentMap
@@ -143,7 +171,22 @@ function ActivatedAbilityTransformZoneBehavior:TransformZonesAt(squares)
         return 0
     end
 
-    local toKeyword = self.toKeyword
+    return ActivatedAbilityTransformZoneBehavior.RewriteZoneRecords(orderedZoneids, fromKeyword, self.toKeyword, self.reveal)
+end
+
+--- Rewrites the given zone records (ids into the current map's
+--- floor.markupZones) from fromKeyword into toKeyword, or removes them when
+--- toKeyword is "none". A record whose stored keyword is no longer fromKeyword
+--- is skipped, so a second request for an already-converted zone does nothing.
+--- Shared by the Transform Zone behavior and the end-of-round zone spread
+--- (EnvironmentalKeyword.SpreadZonesAtEndOfRound). Returns the number of
+--- records changed.
+--- @param zoneids string[]
+--- @param fromKeyword string
+--- @param toKeyword string
+--- @param reveal boolean When true, a rewritten zone becomes visible to players.
+--- @return number
+function ActivatedAbilityTransformZoneBehavior.RewriteZoneRecords(zoneids, fromKeyword, toKeyword, reveal)
     local newKeyword = nil
     if toKeyword ~= "none" then
         newKeyword = (dmhub.GetTable(EnvironmentalKeyword.tableName) or {})[toKeyword]
@@ -159,7 +202,7 @@ function ActivatedAbilityTransformZoneBehavior:TransformZonesAt(squares)
     --otherwise hold the right to rewrite them.
     ElevateToHostPermissions()
     local ok, err = pcall(function()
-        for _,zoneid in ipairs(orderedZoneids) do
+        for _,zoneid in ipairs(zoneids) do
             local floor = FindZoneFloor(zoneid)
             if floor ~= nil then
                 local stored = floor.markupZones[zoneid]
@@ -177,7 +220,7 @@ function ActivatedAbilityTransformZoneBehavior:TransformZonesAt(squares)
                         end
                         record.pattern = record.pattern or {}
                         record.pattern.color = MapMarkupImpl.KeywordColor(toKeyword, newKeyword)
-                        if self.reveal then
+                        if reveal then
                             record.playerVisible = true
                         end
                         if newKeyword:try_get("appearanceDefaultOff", false) == true then
@@ -202,7 +245,12 @@ function ActivatedAbilityTransformZoneBehavior:TransformZonesAt(squares)
 end
 
 function ActivatedAbilityTransformZoneBehavior:Cast(ability, casterToken, targets, options)
-    local squares = TargetSquares(targets, self.location == "adjacent")
+    local squares
+    if self.location == "area" then
+        squares = AreaSquares(options)
+    else
+        squares = TargetSquares(targets, self.location == "adjacent")
+    end
     local count = self:TransformZonesAt(squares)
 
     if count == 0 then
@@ -274,6 +322,7 @@ function ActivatedAbilityTransformZoneBehavior:EditorItems(parentPanel)
             options = {
                 { id = "targets", text = "Targets' squares" },
                 { id = "adjacent", text = "Targets' squares and adjacent" },
+                { id = "area", text = "Ability Area" },
             },
             idChosen = self.location,
             change = function(element)

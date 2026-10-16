@@ -218,7 +218,7 @@ function CharSheet.FollowersInnerPanel()
 
                     change = function(element)
                         ---@cast element Dropdown
-                        newFollowerType = element.idChosen
+                        newFollowerType = element.idChosen --[[@as string]] -- option ids are strings
                         follower.manual = (element.idChosen == "existing")
                         resultPanel:FireEventTree("refreshAll")
                     end,
@@ -654,6 +654,8 @@ function CharSheet.FollowersInnerPanel()
         end,
         click = function(element)
             local followerDiag = element:Get("followerSelectionDialog")
+            --The dialog is this button's sibling in topPanel, so it is always found.
+            ---@cast followerDiag -nil
             followerDiag:FireEvent("newFollower")
             followerDiag:SetClass("collapsed", false)
         end,

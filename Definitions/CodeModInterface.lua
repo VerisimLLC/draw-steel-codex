@@ -16,8 +16,8 @@ CodeModInterface = {}
 --- @return any
 function CodeModInterface:GetMod() end
 
---- RegisterDocumentForCheckpointBackups
---- @param id? string
+--- Includes one of this mod's shared documents in combat checkpoints, so Revert Turn rolls it back with the rest of the board. Register only state the current turn can change and that should be undone with it (resources, combat logs). Ordinary game saves include every document whether registered or not.
+--- @param id string The document id within this mod.
 function CodeModInterface:RegisterDocumentForCheckpointBackups(id) end
 
 --- GetDocumentPath

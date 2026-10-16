@@ -112,6 +112,7 @@ function FootprintStyle.GetStyle(id)
         return g_defaultStyle
     end
 
+    ---@type string?
     local imageid = style.imageid
     if imageid == "" then
         imageid = nil

@@ -1,7 +1,7 @@
 --- FSCIImporter handles importing a Forge Steel character into the Codex.
 --- @class FSCIImporter: GameType
---- @field new fun(o?: table): FSCIImporter
---- @field fsJson string The raw Forge Steel JSON string
+--- @field new fun(self: FSCIImporter, jsonText: string|table): FSCIImporter|nil
+--- @field fsJson string|table The raw Forge Steel JSON string, or the parsed table when new was given one
 --- @field fsData table The parsed Forge Steel data structure
 --- @field token table The Codex token representing the new character
 --- @field character table The Codex character object - alias for token.character
@@ -39,6 +39,14 @@ function FSCIImporter.ImportCharacter(executeOnNewCharacter)
             local obj = dmhub.ParseJsonFile(path)
             if obj == nil then
                 writeLog("!!!! Failed to parse Forge Steel JSON file: " .. path, STATUS.WARN)
+                gui.ModalMessage{ title = "Import Failed", message = "The file is not valid JSON." }
+                return
+            end
+
+            --A Codex export (character sheet Export -> Codex JSON) has its own importer.
+            if obj.codexHero == true then
+                writeLog("!!!! Not a Forge Steel file, it is a Codex character export: " .. path, STATUS.WARN)
+                gui.ModalMessage{ title = "Import Failed", message = "This is a Codex character export, not a Forge Steel file. Import it with the Codex JSON button on the home page, or /importcodexhero in a game." }
                 return
             end
 
@@ -53,6 +61,11 @@ function FSCIImporter.ImportCharacter(executeOnNewCharacter)
             import:ClearState()
 
             local importer = FSCIImporter:new(obj)
+            if importer == nil then
+                --new has already logged why (e.g. JSON that is not a Forge Steel character).
+                gui.ModalMessage{ title = "Import Failed", message = "This file is not a valid Forge Steel character file." }
+                return
+            end
             importer:Import()
 
             local imports = import:GetImports()

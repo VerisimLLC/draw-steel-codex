@@ -104,7 +104,7 @@ function ActivatedAbilityCreateItemBehavior:EditorItems(parentPanel)
             options = options,
             change = function(element)
                 ---@cast element Dropdown
-                self.itemid = element.idChosen
+                self.itemid = element.idChosen --[[@as string]]
             end,
         }
     }

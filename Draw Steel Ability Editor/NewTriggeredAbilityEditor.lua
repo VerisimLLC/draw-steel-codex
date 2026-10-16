@@ -306,8 +306,8 @@ local TRIGGER_METADATA = {
         group = "abilities",
     },
     targetwithability = {
-        label = "Targeted by an Ability",
-        description = "Fires when the creature is targeted by another creature's ability.",
+        label = "Target With Ability",
+        description = "Fires when the creature uses an ability, once for each creature it targets.",
         tags = {"targeted", "target", "ability", "by"},
         group = "abilities",
     },
@@ -685,6 +685,7 @@ local function openTriggerEventPicker(currentId, onChosen)
 
         updateResults = function(element)
             local rawQuery = searchInput.text or ""
+            ---@type string|nil
             local query = rawQuery
             if query == "" then query = nil end
 
@@ -1868,8 +1869,9 @@ end
 -- ctx is the customTriggerContext when editing a modifier-fired custom
 -- trigger; the derived trigger prose becomes the context note since the
 -- stored event id is never consulted for those.
-local function buildTriggerPreviewCard(ability, ctx)
-    local CARD_WIDTH = LAYOUT.PREVIEW_WIDTH - 2 * LAYOUT.COL_HPAD - LAYOUT.SCROLL_GUTTER
+-- width is optional; the editor leaves it nil to fit its preview column.
+local function buildTriggerPreviewCard(ability, ctx, width)
+    local CARD_WIDTH = width or (LAYOUT.PREVIEW_WIDTH - 2 * LAYOUT.COL_HPAD - LAYOUT.SCROLL_GUTTER)
 
     -- Card Type: explicit override only (no derivation; the dropdown picks
     -- one of three values, default "trigger" for new abilities).
@@ -2147,6 +2149,21 @@ local function buildTriggerPreviewCard(ability, ctx)
             fullRow("Trigger:", triggerProse, true),
             fullRow("Effect:", effectText, false),
         },
+    }
+end
+
+--- Draws the Trigger Preview card outside the editor, e.g. in an importer's
+--- review.
+--- @param ability TriggeredAbility
+--- @param width? number Card width in pixels; defaults to the editor's.
+--- @return Panel
+function TriggeredAbility.RenderPreviewCard(ability, width)
+    --Without the theme styles the card's text is far too big outside the editor.
+    return gui.Panel{
+        width = "auto",
+        height = "auto",
+        styles = ThemeEngine.GetStyles(),
+        buildTriggerPreviewCard(ability, nil, width),
     }
 end
 
@@ -3161,7 +3178,7 @@ local function openTokenPicker(title, preferred, secondary, currentId, onSelect)
             bgcolor = "@bgAlt",
             priority = 4,
         },
-    })) do
+    }) --[[@as table[] ]]) do
         stylesList[#stylesList+1] = rule
     end
 
@@ -5200,6 +5217,7 @@ local function buildTestTriggerCard(ability, opts)
         -- no explicit width/height; the widget self-sizes from its text.
         -- Setting width = "100%" stretches the check box graphic to fill
         -- the row, which is how the original revision blew the panel up.
+        ---@type Panel[]
         local children = { statusRow }
         if gate.kind == "fail-auto" or gate.kind == "pass-override" then
             local toggle = gui.Check{
@@ -5285,6 +5303,7 @@ local function buildTestTriggerCard(ability, opts)
                 return string.lower(a.value) < string.lower(b.value)
             end)
             local heading = string.format("Pretend %s has:", headLabels[head])
+            ---@type Panel[]
             local checks = {
                 gui.Label{
                 	classes = {"fgStrong", "sizeS", "bold"},
@@ -5349,6 +5368,7 @@ local function buildTestTriggerCard(ability, opts)
             end
             table.sort(sorted, function(a, b) return string.lower(a) < string.lower(b) end)
             local heading = string.format("Pretend %s is:", headLabels[head])
+            ---@type Panel[]
             local checks = {
                 gui.Label{
                 	classes = {"fgStrong", "sizeS", "bold"},
@@ -5405,6 +5425,7 @@ local function buildTestTriggerCard(ability, opts)
             end
             table.sort(sorted, function(a, b) return string.lower(a) < string.lower(b) end)
             local heading = string.format("Pretend %s stats:", headLabels[head])
+            ---@type Panel[]
             local rows = {
                 gui.Label{
                 	classes = {"fgStrong", "sizeS", "bold"},
@@ -5493,6 +5514,7 @@ local function buildTestTriggerCard(ability, opts)
             end
             table.sort(sorted, function(a, b) return string.lower(a) < string.lower(b) end)
             local heading = string.format("Pretend %s resources:", headLabels[head])
+            ---@type Panel[]
             local rows = {
                 gui.Label{
                 	classes = {"fgStrong", "sizeS", "bold"},
@@ -5670,7 +5692,7 @@ local function buildTestTriggerCard(ability, opts)
                     break
                 end
             end
-            if hasMatch and matchedId ~= current then
+            if hasMatch and matchedId ~= nil and matchedId ~= current then
                 -- Sync stored raw to the canonical id so subsequent reads
                 -- compare cleanly; preserves the user's eventual choice.
                 v.raw = matchedId
@@ -5816,7 +5838,7 @@ local function buildTestTriggerCard(ability, opts)
                             ---@cast element Dropdown
                             if element.idChosen and element.idChosen ~= "none" then
                                 local cur = parseChosen(v.raw)
-                                cur[string.lower(element.idChosen)] = true
+                                cur[string.lower(element.idChosen --[[@as string]])] = true
                                 v.raw = joinChosen(cur)
                                 rebuild()
                                 refreshTest()
@@ -6550,6 +6572,7 @@ local function makePreviewColumn(ability, schedulePreviewRefresh, editorOptions)
     -- rebuild -- the explicit FireEvent("refreshPreview") at editor
     -- construction time (generateSectionedEditor) seeds this via the
     -- refreshPreview handler.
+    ---@type string|nil
     local lastFingerprint = ""
     local function fingerprintAbility()
         local ok, json = pcall(dmhub.ToJson, ability)
@@ -6557,7 +6580,7 @@ local function makePreviewColumn(ability, schedulePreviewRefresh, editorOptions)
         -- Fail-open: on any serialisation error, return a sentinel that
         -- forces a rebuild. We'd rather waste one rebuild than freeze the
         -- preview on a malformed ability.
-        return "__fingerprint_error__" .. tostring(dmhub.GetTime and dmhub.GetTime() or 0)
+        return "__fingerprint_error__" .. tostring(dmhub.Time())
     end
 
     local previewSlot
@@ -7049,7 +7072,7 @@ function TriggeredAbility:GenerateEmbeddedEditor()
                 options = self.DespawnBehaviors,
                 change = function(element)
                     ---@cast element Dropdown
-                    self.despawnBehavior = element.idChosen
+                    self.despawnBehavior = element.idChosen --[[@as string]]
                 end,
             },
         }
@@ -7078,7 +7101,7 @@ function TriggeredAbility:GenerateEmbeddedEditor()
                 options = TriggeredAbility.mandatoryTriggerSettings,
                 change = function(element)
                     ---@cast element Dropdown
-                    self.mandatory = element.idChosen
+                    self.mandatory = element.idChosen --[[@as boolean|string]]
                     RefreshPromptVisibility()
                 end,
             },

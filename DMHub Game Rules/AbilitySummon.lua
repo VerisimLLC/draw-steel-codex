@@ -27,6 +27,10 @@ ActivatedAbilitySummonBehavior.casterControls = true
 ActivatedAbilitySummonBehavior.casterChoosesCreatures = true
 ActivatedAbilitySummonBehavior.changeCreatureWhileCasting = false
 ActivatedAbilitySummonBehavior.groupInitiativeWithCaster = true
+--when not grouped with the caster: put each cast's summons on a fresh
+--initiative entry of their own. Without either, a summon gets no entry and
+--is left out of an ongoing combat.
+ActivatedAbilitySummonBehavior.newInitiativeGroup = false
 ActivatedAbilitySummonBehavior.shareSurgesWithSummoner = false
 ActivatedAbilitySummonBehavior.shareHeroicResourceWithSummoner = false
 --Prompt for an existing same-type minion squad or a fresh squad even when
@@ -91,7 +95,8 @@ ActivatedAbilitySummonBehavior.duplicateTargetOrigin = "duplicate"
 --fall back to their bestiary id). In each entry, nil means "not customized":
 --the summon keeps its bestiary value, except portraitFrame where nil means
 --"copy the caster's frame" and "" means "no frame".
---- @field creature.summonAppearances table Map of look key -> { portrait, portraitFrame, portraitFrameHueShift, tokenScale, portraitZoom, portraitOffset }
+--Map of look key -> { portrait, portraitFrame, portraitFrameHueShift, tokenScale, portraitZoom, portraitOffset }
+---@type table<string, table>
 creature.summonAppearances = {}
 
 --- Returns the caster's custom look for this look key, or nil.
@@ -106,7 +111,8 @@ function creature:GetSummonAppearance(lookKey)
 end
 
 --Every creature type this caster has ever summoned. The Summons tab lists these.
---- @field creature.summonHistory table Map of look key -> true.
+--Map of look key -> true.
+---@type table<string, boolean>
 creature.summonHistory = {}
 
 --- Records a summoned creature type. Call from inside ModifyProperties.
@@ -367,7 +373,7 @@ function ActivatedAbilitySummonBehavior:SummonedCreatureName(casterToken, symbol
         return monster.properties:try_get("monster_type")
     end
 
-    local key = string.format("%s|%s|%s", tostring(self.monsterType), tostring(self.bestiaryFilter), tostring(casterToken.id))
+    local key = string.format("%s|%s|%s", tostring(self.monsterType), tostring(self.bestiaryFilter), tostring(casterToken.charid))
     local cached = g_summonNameCache[key]
     if cached ~= nil then
         return cached.name
@@ -465,15 +471,6 @@ local function GetEncounterMinionSquads(monsterType)
     return squadsByType, allSquads, liveEntries
 end
 
---- Displays the squad-selection dialog for a summoning caster.
---- Returns nil if cancelled, otherwise a result table with the chosen squad and warning flags.
---- @param casterToken CharacterToken
---- @param monsterType string The canonical monster_type of the creature being summoned.
---- @param numSummons number How many creatures will be summoned into this squad.
---- @param maxMinions number MaximumMinions attribute (0 means unlimited).
---- @param maxSquads number MaxMinionSquads attribute (0 means unlimited).
---- @param useEncounterSquads boolean|nil Use all live same-type minion squads instead of the caster's Summoner roster.
---- @return table|nil result { squadName, isNew, exceededMinions, exceededSquads } or nil if cancelled.
 --- Next free square adjacent to a token's whole footprint, nearest ring first.
 --- usedLocs tracks squares already handed out this cast. Occupancy comes from
 --- token footprints: GetLocsWithinRadius locs carry no floor, so GetTokensAtLoc misses them.
@@ -520,6 +517,15 @@ function ActivatedAbilitySummonBehavior.NextAdjacentSpawnLoc(aroundToken, usedLo
     return nil
 end
 
+--- Displays the squad-selection dialog for a summoning caster.
+--- Returns nil if cancelled, otherwise a result table with the chosen squad and warning flags.
+--- @param casterToken CharacterToken
+--- @param monsterType string The canonical monster_type of the creature being summoned.
+--- @param numSummons number How many creatures will be summoned into this squad.
+--- @param maxMinions number MaximumMinions attribute (0 means unlimited).
+--- @param maxSquads number MaxMinionSquads attribute (0 means unlimited).
+--- @param useEncounterSquads boolean|nil Use all live same-type minion squads instead of the caster's Summoner roster.
+--- @return table|nil result { squadName, isNew, exceededMinions, exceededSquads } or nil if cancelled.
 function ActivatedAbilitySummonBehavior.ShowSquadChoiceDialog(casterToken, monsterType, numSummons, maxMinions, maxSquads, useEncounterSquads)
     local SQUAD_CAP = 8
 
@@ -1474,7 +1480,7 @@ end
 --- @param isMinion boolean true if the creature being placed is a minion.
 --- @param squadCtx table|nil persistent squad-selection state (see Cast()).
 --- @param creatureCtx table|nil persistent creature-selection state with .choices and .selectedCreature.
---- @return Loc|nil pickedLoc, table|nil squadResult, table|nil pickedCreature.
+--- @return Loc|nil pickedLoc, table|nil squadResult, table|nil pickedCreature, nil|"cancelled"|"abandoned" failReason Why no loc was picked.
 function ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTiles, index, total, isMinion, squadCtx, creatureCtx, ability, promptPrefix)
     --optional context text shown before "Place minion N of M", e.g.
     --"Lingering Hunger Trait:". Normalized here so every prompt variant
@@ -1497,6 +1503,7 @@ function ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTil
     local pickedCreature = nil
     local cancelled = false
 
+    ---@type LuaMultiObjectReference?
     local rangeMarker = dmhub.MarkLocs{
         locs = validLocs,
         color = "#22cc66",
@@ -1522,6 +1529,7 @@ function ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTil
         return false
     end
 
+    ---@type Panel
     local pickerContent
     local commitWithSquadSelection
 
@@ -1832,6 +1840,7 @@ function ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTil
             children = initialOptionPanels,
         }
 
+        ---@type Panel[]
         local pickerChildren = { headerLabel, statusLabel }
         if creatureBarPanel ~= nil then
             pickerChildren[#pickerChildren+1] = creatureBarPanel
@@ -1972,7 +1981,7 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
     -- Register a post-cast handler that force-dismisses the tooltip card.
     args.OnFinishCastHandlers = args.OnFinishCastHandlers or {}
     args.OnFinishCastHandlers[#args.OnFinishCastHandlers+1] = function()
-        if GameHud == nil or GameHud.instance == nil then return end
+        if GameHud == nil or not GameHud.instance then return end
         if rawget(GameHud.instance, "abilityDisplay") == nil then return end
         local panel = GameHud.instance.abilityDisplay
         if panel ~= nil and panel.valid then
@@ -2074,7 +2083,7 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
         gamehud.rollDialog.data.ShowDialog{
             title = 'Roll for Number of Summons',
             description = string.format("%s Summons", ability.name),
-            roll = dmhub.EvalGoblinScript(self.numSummons, GenerateSymbols(casterToken.properties, args.symbols), 0, string.format("Summons number of creatures for %s", ability.name)),
+            roll = dmhub.EvalGoblinScript(self.numSummons, GenerateSymbols(casterToken.properties, args.symbols), string.format("Summons number of creatures for %s", ability.name)),
             creature = casterToken.properties,
             skipDeterministic = true,
             type = 'numSummons',
@@ -2101,7 +2110,8 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
         local manualPlacement = self.choosePlacement and (not self.replaceCaster)
         local rangeTiles = 0
         if manualPlacement then
-            rangeTiles = dmhub.EvalGoblinScript(self.summonRange, GenerateSymbols(casterToken.properties, args.symbols), 0, string.format("Summon placement range for %s", ability.name)) or 0
+            --EvalGoblinScript returns a string; a formula that does not reduce to a number falls back to 0.
+            rangeTiles = tonumber(dmhub.EvalGoblinScript(self.summonRange, GenerateSymbols(casterToken.properties, args.symbols), string.format("Summon placement range for %s", ability.name))) or 0
             rangeTiles = math.max(0, math.floor(rangeTiles))
             if rangeTiles <= 0 then
                 manualPlacement = false
@@ -2112,7 +2122,7 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
         local tweakRadius = 1
         local tweakStartLocs = nil
         if tweakPlacement then
-            tweakRadius = dmhub.EvalGoblinScript(self.tweakRadius, GenerateSymbols(casterToken.properties, args.symbols), 1, string.format("Tweak placement radius for %s", ability.name)) or 1
+            tweakRadius = tonumber(dmhub.EvalGoblinScript(self.tweakRadius, GenerateSymbols(casterToken.properties, args.symbols), string.format("Tweak placement radius for %s", ability.name))) or 1
             tweakRadius = math.max(0, math.floor(tweakRadius))
 
             if self.tweakAnchor == "casterstart" then
@@ -2165,6 +2175,8 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
         local initiativeGrouping = nil
         if self.groupInitiativeWithCaster then
             initiativeGrouping = InitiativeQueue.GetInitiativeId(casterToken)
+        elseif self.newInitiativeGroup then
+            initiativeGrouping = dmhub.GenerateGuid()
         end
 
         for j=1,numSummons do
@@ -2302,6 +2314,8 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                     args.symbols.summon = GenerateSymbols(chosenOption.properties)
                 end
                 if squadResult ~= nil then
+                    --PromptPlacementLoc only returns a squad result when given squadCtxArg, which is placementSquadCtx.
+                    ---@cast placementSquadCtx -nil
                     squadNameForSpawn = squadResult.squadName
                     if squadResult.exceededMinions then warningExceededMinions = true end
                     if squadResult.exceededSquads then warningExceededSquads = true end
@@ -2348,12 +2362,23 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                             loc = ringLoc
                         end
                     end
+                    --token-only targets (applyto caster, caster_mount, ...) carry no loc; with no
+                    --free adjacent square, spawn at the token and let fitLocation find a space.
+                    if loc == nil and target.token ~= nil and target.token.valid then
+                        loc = target.token.loc
+                    end
                 end
+            end
+
+            if loc == nil then
+                break
             end
 
             local token = game.SpawnTokenFromBestiaryLocally(chosenOption.id, loc.withGroundAltitude, {
                 fitLocation = not self.replaceCaster,
             })
+            --chosenOption comes from assets.monsters, the collection the spawn looks the id up in.
+            ---@cast token -nil
 
             if tweakPlacement then
                 --spawn hidden from players; the tweak mode reveals on Continue.
@@ -2419,8 +2444,8 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
             --set (before the upload below), so no damage triggers fire.
             local initialDamageFormula = trim(self:try_get("initialDamageTaken", "0"))
             if initialDamageFormula ~= "" and initialDamageFormula ~= "0" then
-                local initialDamage = dmhub.EvalGoblinScript(initialDamageFormula, GenerateSymbols(casterToken.properties, args.symbols), 0, string.format("Initial damage taken for %s summons", ability.name))
-                initialDamage = math.floor(tonumber(initialDamage) or 0)
+                local initialDamageText = dmhub.EvalGoblinScript(initialDamageFormula, GenerateSymbols(casterToken.properties, args.symbols), string.format("Initial damage taken for %s summons", ability.name))
+                local initialDamage = math.floor(tonumber(initialDamageText) or 0)
                 if initialDamage > 0 then
                     --never spawn the summon already dead.
                     local maxhp = token.properties:MaxHitpoints()
@@ -2498,6 +2523,17 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                     end
                 end
             end
+        end
+
+        --give the fresh group its entry, on the caster's side (hero or
+        --director), mirroring the add_to_initiative ability mode.
+        local q = dmhub.initiativeQueue
+        if self.newInitiativeGroup and (not self.groupInitiativeWithCaster) and #summonedTokens > 0 and q ~= nil and (not q.hidden) then
+            local entry = q:SetInitiative(initiativeGrouping, 0, 0)
+            if casterToken.valid and casterToken.properties ~= nil then
+                entry.player = q:IsEntryPlayer(InitiativeQueue.GetInitiativeId(casterToken))
+            end
+            dmhub:UploadInitiativeQueue()
         end
 
         --remember every token summoned for this outer target so we can inject them
@@ -3223,6 +3259,15 @@ function ActivatedAbilityBehavior:SummonEditor(parentPanel, list, options)
             value = self.groupInitiativeWithCaster,
             change = function(element)
                 self.groupInitiativeWithCaster = element.value
+            end,
+        }
+
+        list[#list+1] = gui.Check{
+            text = "New initiative group (if not grouped)",
+            minWidth = 300,
+            value = self.newInitiativeGroup,
+            change = function(element)
+                self.newInitiativeGroup = element.value
             end,
         }
 

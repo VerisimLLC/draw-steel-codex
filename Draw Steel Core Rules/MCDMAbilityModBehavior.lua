@@ -51,7 +51,7 @@ function ActivatedAbilityModifyPowerRollBehavior:EditorItems(parentPanel)
         gui.Input{
             classes = {"formInput"},
             text = self.modifier.name,
-            placeholderText = 18,
+            placeholderText = "Enter modifier name...",
             change = function(element)
                 self.modifier.name = element.text
             end,

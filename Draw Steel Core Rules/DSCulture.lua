@@ -10,6 +10,7 @@ local mod = dmhub.GetModLoading()
 --- @field languageid string Language id associated with this culture.
 --- @field init boolean Whether this culture has been initialized (false for the default template).
 --- @field aspects table<string, string> Map from aspect category id to chosen CultureAspect id.
+--- @field aggregate? string On a hero's culture: id of the aggregate Culture chosen in the builder ("" if none); read with try_get.
 Culture = RegisterGameType("Culture")
 
 Culture.tableName = "cultures"
@@ -218,7 +219,7 @@ local SetCulture = function(tableName, culturePanel, cultureid)
                 idChosen = culture.languageid ~= "" and culture.languageid or "none",
                 change = function(element)
                     ---@cast element Dropdown
-                    local choice = element.idChosen
+                    local choice = element.idChosen --[[@as string]]
                     if choice == "none" then
                         culture.languageid = ""
                     else
@@ -260,7 +261,7 @@ local SetCulture = function(tableName, culturePanel, cultureid)
                 idChosen = aspectId ~= "" and aspectId or "none",
                 change = function(element)
                     ---@cast element Dropdown
-                    local choice = element.idChosen
+                    local choice = element.idChosen --[[@as string]]
                     if choice == "none" then
                         culture.aspects[cat.id] = ""
                     else
@@ -324,7 +325,8 @@ local ShowCulturesPanel = function(contentPanel)
                     newHeadings[group] = sectionHeadings[group] or gui.Label{
                         classes = {"sizeL", "bold"},
                         data = {
-                            ord = group,
+                            group = group,
+                            isHeading = true,
                         },
                         text = group,
                         width = "auto",
@@ -345,14 +347,13 @@ local ShowCulturesPanel = function(contentPanel)
                     end,
                 }
             
-                newDataItems[k].data.ord = group .. "-" .. culture.name
+                newDataItems[k].data.group = group
+                newDataItems[k].data.sortName = culture.name
                 newDataItems[k].text = culture.name
                 children[#children+1] = newDataItems[k]
             end
 
-            table.sort(children, function(a, b)
-                return a.data.ord < b.data.ord
-            end)
+            table.sort(children, Compendium.SortGroupedList)
 
             sectionHeadings = newHeadings
             dataItems = newDataItems
@@ -370,7 +371,7 @@ local ShowCulturesPanel = function(contentPanel)
         itemListPanel,
         Compendium.AddButton{
             click = function()
-                dmhub.SetAndUploadTableItem(Culture.tableName, Culture.CreateNew{})
+                dmhub.SetAndUploadTableItem(Culture.tableName, Culture.CreateNew())
             end,
         }
     }

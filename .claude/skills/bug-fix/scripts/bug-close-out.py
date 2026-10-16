@@ -131,7 +131,6 @@ def main():
     if report is None:
         raise SystemExit("Report %s not found in /BugReports or /BugReportsArchive." % rid)
     uid = report.get("userid")
-<<<<<<< HEAD
     issue = data.get("issue")
     # The Discord calls take the issue KEY and the dashboard resolves its thread.
     # The key is not itself a thread id (see lib.issue_thread), so look the thread
@@ -160,23 +159,6 @@ def main():
         print("  thread  : resolved by the dashboard from --thread %s" % o["thread"])
     else:
         print("  thread  : %s" % (thread_id or "(none -- %s)" % no_thread))
-=======
-    # Since 2026-09-17 triage opens no thread per bug: the issue key is then the
-    # opening report's id, and `threadId` is set only once a human opens one. The
-    # key still resolves to the thread on the Worker when one exists.
-    issue_node = data.get("issue") or {}
-    has_thread = bool(issue_node.get("threadId")) or not issue_node
-    thread_id = o["thread"] or ((report.get("triage") or {}).get("issueId") if has_thread else None)
-    # Which forum the thread lives in, so the reply uses that channel's webhook.
-    # Absent for pre-split threads and for a --thread override; both fall back
-    # to the default channel.
-    channel_key = (data.get("issue") or {}).get("channelKey")
-
-    print("Report %s (%s)" % (rid, source))
-    print("  user    : %s" % (uid or "(none)"))
-    print("  thread  : %s" % (thread_id or ("(none -- the issue has no Discord thread)" if issue_node
-                                          else "(none -- report not triaged yet)")))
->>>>>>> adac56ee375e55bfb7c896884bc8d26d041693b5
 
     steps = []   # (label, ok, detail)
 
@@ -211,9 +193,6 @@ def main():
     # posting into an archived thread un-archives it, so the reply goes first.
     if not o["discord"]:
         steps.append(("discord", None, "skipped (--no-discord)"))
-    elif not thread_id and issue_node:
-        # Most issues have no thread now; that is not a failed closeout.
-        steps.append(("discord", None, "issue has no Discord thread; nothing to reply to"))
     elif not thread_id:
         # Ordinary since threads became optional: nothing to reply into or archive.
         steps.append(("discord", None, "skipped -- %s" % no_thread))

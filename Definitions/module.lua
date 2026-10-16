@@ -102,8 +102,8 @@ function module.GetModulesPublishedFromThisGame() end
 --- @param options table Options table with 'moduleid' (string), 'success' (function(ModuleLua)), and 'failure' (function(string)) fields.
 function module.DownloadModuleInfo(options) end
 
---- Downloads a published module's content snapshot WITHOUT installing it into the current game. Calls options.success with {moduleid, version, characters} where characters maps the module's character ids to character tokens (browse their name/properties/appearance; they are not in any game). The snapshot is cached permanently on disk, so repeat calls are local. Calls options.failure with an error message on failure.
---- @param options table Options table with 'moduleid' (string), 'success' (function(table)), and 'failure' (function(string)) fields.
+--- Downloads a published module's content snapshot WITHOUT installing it into the current game. Calls options.success with {moduleid, version, characters} where characters maps the module's character ids to character tokens (browse their name/properties/appearance; they are not in any game). Takes the newest version this engine can run, or the one whose version label is options.version (e.g. a module's installedVersion), failing if there is no such version. The snapshot is cached permanently on disk, so repeat calls are local. Calls options.failure with an error message on failure.
+--- @param options table Options table with 'moduleid' (string), optional 'version' (string), 'success' (function(table)), and 'failure' (function(string)) fields.
 function module.DownloadModuleSnapshot(options) end
 
 --- Downloads the PDF documents a published module ships WITHOUT installing it. Calls options.success with a table of PDFDocumentAssetLua keyed by document id; they open in the PDF viewer and render thumbnails even outside games that install the module. A premium module fails unless the user owns it (purchase or Patreon). The module's contents are cached on disk, so repeat calls are local. Calls options.failure with an error message on failure.

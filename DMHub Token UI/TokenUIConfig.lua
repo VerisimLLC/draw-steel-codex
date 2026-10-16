@@ -76,6 +76,22 @@ TokenUI.RegisterIcon{
 		local movetype = creature:CurrentMoveTypeInfo()
 		if movetype == nil then return nil end
 
+        --clinging upside down to the ceiling replaces the climb icon.
+        if creature:IsClingingToCeiling() then
+            return {
+                id = "ceilingcling",
+                icon = "phosphor/align-top-fill.png",
+                hasAltitude = true,
+                hoverText = function(c)
+                    local tok = dmhub.LookupToken(c)
+                    if tok == nil then
+                        return "Clinging to the ceiling"
+                    end
+                    return string.format("Clinging to the ceiling at altitude %d", tok.floorAltitude)
+                end,
+            }
+        end
+
         if creature:CurrentMoveType() == "walk" then
             --'walk' is the regular way a creature moves, so don't display an icon.
 		    return { id = movetype.id, icon = "ui-icons/token-elevation-icon.png", yadjust = -1.5, hasAltitude = true, hideAtZeroAltitude = true }

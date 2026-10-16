@@ -50,6 +50,43 @@ local _getHero = CharacterBuilder._getHero
 local _getCreature = CharacterBuilder._getCreature
 local _getState = CharacterBuilder._getState
 local _mergeKeyedTables = CharacterBuilder._mergeKeyedTables
+local _safeGet = CharacterBuilder._safeGet
+
+--- Points-pool purchases, each tagged with its group and the EV it adds past
+--- the template's builderFreePoints (builderEVPerPoint per extra point).
+--- @param creature creature|nil
+--- @param pointsName string
+--- @param featureGuid string Choice in the pool; locates the template when nothing is bought.
+--- @return table ledger { items, spent, totalEV, freePoints, evPerPoint }
+local function _pointsLedger(creature, pointsName, featureGuid)
+    local items = creature and creature.PointsSpentBreakdown(creature, pointsName) or {}
+    local parent = items[1] and items[1].parent
+    if parent == nil and creature ~= nil then
+        for _,entry in ipairs(creature:GetBuilderChoiceFeatures()) do
+            if entry.feature ~= nil and entry.feature.guid == featureGuid then
+                parent = entry.feat or entry.monsterGroup
+            end
+        end
+    end
+    local ledger = {
+        items = items,
+        spent = 0,
+        totalEV = 0,
+        freePoints = parent and tonumber(_safeGet(parent, "builderFreePoints", nil)),
+        evPerPoint = parent and tonumber(_safeGet(parent, "builderEVPerPoint", nil)),
+    }
+    for _,item in ipairs(items) do
+        item.category = string.match(item.choiceName, "^Choice of (.-) Traits?$") or item.choiceName
+        item.ev = 0
+        if ledger.freePoints ~= nil and ledger.evPerPoint ~= nil then
+            local over = math.max(0, ledger.spent + item.cost - ledger.freePoints) - math.max(0, ledger.spent - ledger.freePoints)
+            item.ev = over * ledger.evPerPoint
+        end
+        ledger.spent = ledger.spent + item.cost
+        ledger.totalEV = ledger.totalEV + item.ev
+    end
+    return ledger
+end
 
 --- Build a selector panel with customizable components
 --- @param overrides table Optional overrides for panel components
@@ -98,7 +135,7 @@ function CBFeatureSelector.BuildSelectorPanel(overrides)
             end,
         },
         gui.Label{
-            classes = {"builder-base", "label", "feature-header", "desc"},
+            classes = {"builder-base", "label", "feature-header", "desc", header.descriptionStyle},
             text = header.description,
             markdown = true,
             updateHeaderDesc = function(element, text)
@@ -195,6 +232,8 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
     local header = {
         name = feature:GetName(),
         description = feature:GetDescription(),
+        -- "rules" sets a long description as left-aligned body text (see Styles.lua).
+        descriptionStyle = _safeGet(feature:GetFeature(), "builderDescriptionStyle", nil),
     }
 
     local targetPanel = function(featureId, itemIndex)
@@ -250,6 +289,18 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                 local name = option and option:GetName() or EMPTY_SLOT_TEXT
                 if cachedFeature and option then
                     name = cachedFeature:GetOptionDisplayName(option)
+                    -- Points-pool slot: "Fearsome (Defensive) 2 Points" (+EV past the free points).
+                    if cachedFeature:IsUnbounded() and cachedFeature:CostsPoints() then
+                        local ledger = _pointsLedger(_getCreature(), cachedFeature:GetPointsName(), element.data.featureId)
+                        for _,item in ipairs(ledger.items) do
+                            if item.optionGuid == option:GetGuid() and item.choiceGuid == element.data.featureId then
+                                name = string.format("%s (%s) %d %s", item.name, item.category, item.cost, item.cost == 1 and "Point" or "Points")
+                                if item.ev > 0 then
+                                    name = ThemeEngine.ResolveTokens(string.format("%s <color=@danger>+%d EV</color>", name, item.ev))
+                                end
+                            end
+                        end
+                    end
                 end
                 element:FireEventTree("updateName", name)
                 element:FireEventTree("updateDesc", option and option:GetDescription() or "")
@@ -273,7 +324,6 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                 local canDrag = option ~= nil
                 element.draggable = canDrag
                 element.dragTarget = true  -- Always a drag target (empty or filled)
-                element.hoverCursor = canDrag and "hand" or nil
             end,
             removeItem = function(element)
                 if element.data.option then
@@ -385,13 +435,15 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
         }
     end
 
-    -- When a feature offers an unbounded number of point-costed choices, show
-    -- a running total of points spent of that type on the creature.
+    -- Points total and budget for open-ended point-costed choices.
     local pointsHeader = gui.Label{
         classes = {"builder-base", "label", "collapsed"},
+        width = "100%",
+        height = "auto",
         halign = "left",
+        textAlignment = "left",
         valign = "top",
-        bold = true,
+        bold = false,
         fontSize = 16,
         color = CBStyles.COLORS.GOLD,
         bmargin = 4,
@@ -404,7 +456,17 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                 local pointsName = cachedFeature:GetPointsName()
                 local creature = _getCreature()
                 local spent = creature and creature:GetPointsSpentByName(pointsName) or 0
-                element.text = string.format("%d %s spent", spent, pointsName)
+                -- Slots show per-trait points; this is the total, EV and budget rule.
+                local ledger = _pointsLedger(creature, pointsName, feature:GetGuid())
+                local text = string.format("<b>%d Total Points Spent</b>", spent)
+                if ledger.spent == spent and ledger.totalEV > 0 then
+                    text = string.format("%s  <color=@danger><b>+%d EV</b></color>", text, ledger.totalEV)
+                end
+                if ledger.freePoints ~= nil and ledger.evPerPoint ~= nil then
+                    text = string.format("%s\nYou can spend up to %d points on traits to add to a stat block without increasing the encounter value. Each point you spend after %d increases the stat block's EV by %d.",
+                        text, ledger.freePoints, ledger.freePoints, ledger.evPerPoint)
+                end
+                element.text = ThemeEngine.ResolveTokens(text)
                 visible = true
             end
             element:SetClass("collapsed", not visible)
@@ -561,7 +623,6 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                 end
                 element.draggable = canDrag
                 element.dragTarget = true
-                element.hoverCursor = canDrag and "hand" or nil
             end,
             selectItem = function(element)
                 local option = element.data.option
@@ -750,22 +811,124 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
         }
     end
 
+    -- An option's builderGroup (e.g. "Class Abilities"), or nil when ungrouped.
+    local function _optionGroup(option)
+        local raw = option and option:GetOption()
+        local group = raw and _safeGet(raw, "builderGroup", nil)
+        return type(group) == "string" and group or nil
+    end
+
+    -- A row plus a collapsible group header, shown only above the first row
+    -- of each group. Clicking the header hides or shows the whole group.
+    local groupedOptionPanel = function(featureId)
+        local row = optionPanel(featureId)
+        return gui.Panel{
+            classes = {"builder-base", "panel-base"},
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            valign = "top",
+            assignGroup = function(element, info)
+                row:SetClass("group-collapsed", info.collapsed == true)
+            end,
+            gui.Panel{
+                classes = {"builder-base", "panel-base", "feature-group-header", "collapsed"},
+                data = { group = nil },
+                press = function(element)
+                    if element.data.group ~= nil then
+                        element:FireEventOnParents("toggleOptionGroup", element.data.group)
+                    end
+                end,
+                assignGroup = function(element, info)
+                    element.data.group = info.name
+                    element:SetClass("collapsed", not info.first)
+                end,
+                -- Section-header grammar (STYLE_GUIDE.md): caret, label, count, underline.
+                gui.Panel{
+                    classes = {"builder-base", "panel-base", "feature-group-row"},
+                    interactable = false,
+                    gui.Panel{
+                        classes = {"builder-base", "panel-base", "feature-group-caret"},
+                        bgimage = "phosphor/caret-down-fill.png",
+                        assignGroup = function(element, info)
+                            element.bgimage = info.collapsed and "phosphor/caret-right-fill.png" or "phosphor/caret-down-fill.png"
+                        end,
+                    },
+                    gui.Label{
+                        classes = {"builder-base", "label", "feature-group-title"},
+                        assignGroup = function(element, info)
+                            element.text = info.name or ""
+                        end,
+                    },
+                    gui.Label{
+                        classes = {"builder-base", "label", "feature-group-count"},
+                        assignGroup = function(element, info)
+                            element.text = tostring(info.count or 0)
+                        end,
+                    },
+                },
+                gui.Panel{
+                    classes = {"builder-base", "panel-base", "feature-group-underline"},
+                    interactable = false,
+                },
+            },
+            row,
+        }
+    end
+
     local optionsContainer = {
         data = {
             featureId = feature:GetGuid(),
+            collapsedGroups = {},
         },
+        toggleOptionGroup = function(element, group)
+            element.data.collapsedGroups[group] = not element.data.collapsedGroups[group]
+            local state = _getState()
+            if state ~= nil then
+                element:FireEvent("refreshBuilderState", state)
+            end
+        end,
         refreshBuilderState = function(element, state)
             local cachedFeature = getCachedFeature(state, element.data.featureId)
             if cachedFeature == nil then return end
             local options = cachedFeature:GetChoices()
             if options == nil or #options == 0 then return end
 
+            local grouped = _optionGroup(options[1]) ~= nil
             for _ = #element.children + 1, #options do
-                element:AddChild(optionPanel(element.data.featureId))
+                element:AddChild(grouped and groupedOptionPanel(element.data.featureId) or optionPanel(element.data.featureId))
             end
 
             for i, child in ipairs(element.children) do
                 child:FireEventTree("assignItem", options[i])
+            end
+
+            if grouped then
+                local counts = {}
+                for _,option in ipairs(options) do
+                    -- Same rule the rows use: a picked unique option is hidden.
+                    if option:GetUnique() == false or option:GetSelected() == false then
+                        local group = _optionGroup(option) or ""
+                        counts[group] = (counts[group] or 0) + 1
+                    end
+                end
+                -- The header rides on the first visible row of each group, so a
+                -- group whose only option is already picked shows no header.
+                local previous = nil
+                for i, child in ipairs(element.children) do
+                    local option = options[i]
+                    local group = option and (_optionGroup(option) or "")
+                    local shown = option ~= nil and (option:GetUnique() == false or option:GetSelected() == false)
+                    child:FireEventTree("assignGroup", {
+                        name = group,
+                        first = shown and group ~= previous,
+                        count = group and counts[group] or 0,
+                        collapsed = group ~= nil and element.data.collapsedGroups[group] == true,
+                    })
+                    if shown then
+                        previous = group
+                    end
+                end
             end
         end,
     }
@@ -851,50 +1014,54 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
     if feature:HasRoll() then
         local rollTable = feature:GetRollTable()
         local rollInfo = rollTable:CalculateRollInfo()
-        local faces = CharacterBuilder._validateRollFaces(rollInfo.rollFaces)
-        roller = gui.UserDice{
-            floating = true,
-            width = CBStyles.SIZES.SELECT_BUTTON_HEIGHT,
-            height = CBStyles.SIZES.SELECT_BUTTON_HEIGHT,
-            halign = "left",
-            valign = "top",
-            hmargin = 8,
-            tmargin = 6,
-            faces = faces,
-            data= {
-                featureId = feature:GetGuid(),
-            },
-            press = function(element)
-                local state = _getState()
-                if state == nil then return end
-                local creature = _getCreature()
-                if creature == nil then return end
-                local cachedFeature = getCachedFeature(state, element.data.featureId)
-                if cachedFeature == nil then return end
-                local controller = getFeatureSelController(element)
-                if controller == nil then return end
-                element:SetClass("collapsed-anim", true)
-                dmhub.Roll{
-                    roll = rollInfo.roll,
-                    description = string.format(feature:GetName()),
-                    tokenid = dmhub.LookupTokenId(creature),
-                    complete = function(rollResult)
-                        local rowIndex = rollTable:RowIndexFromDiceResult(rollResult.total)
-                        if rowIndex == nil then return end
+        -- nil when the table's row weights sum below 1 (e.g. no rows yet): nothing to roll, so no roller.
+        if rollInfo ~= nil then
+            local faces = CharacterBuilder._validateRollFaces(rollInfo.rollFaces)
+            roller = gui.UserDice{
+                floating = true,
+                width = CBStyles.SIZES.SELECT_BUTTON_HEIGHT,
+                height = CBStyles.SIZES.SELECT_BUTTON_HEIGHT,
+                halign = "left",
+                valign = "top",
+                hmargin = 8,
+                tmargin = 6,
+                faces = faces,
+                data= {
+                    featureId = feature:GetGuid(),
+                },
+                press = function(element)
+                    local state = _getState()
+                    if state == nil then return end
+                    local creature = _getCreature()
+                    if creature == nil then return end
+                    local cachedFeature = getCachedFeature(state, element.data.featureId)
+                    if cachedFeature == nil then return end
+                    local controller = getFeatureSelController(element)
+                    if controller == nil then return end
+                    element:SetClass("collapsed-anim", true)
+                    dmhub.Roll{
+                        roll = rollInfo.roll,
+                        --GetName (via _safeFeatureName) always returns a string, "" at worst.
+                        description = string.format(feature:GetName() --[[@as string]]),
+                        tokenid = dmhub.LookupTokenId(creature),
+                        complete = function(rollResult)
+                            local rowIndex = rollTable:RowIndexFromDiceResult(rollResult.total)
+                            if rowIndex == nil then return end
 
-                        local row = rollTable.rows[rowIndex]
-                        local option = cachedFeature:GetOption(row.id)
-                        controller:FireEvent("applyItem", option)
+                            local row = rollTable.rows[rowIndex]
+                            local option = cachedFeature:GetOption(row.id)
+                            controller:FireEvent("applyItem", option)
 
-                        element:SetClass("collapsed-anim", false)
-                    end,
-                }
-            end,
-            refreshBuilderState = function(element, state)
-                local visible = state:Get(selector .. ".blockFeatureSelection") ~= true
-                element:SetClass("collapsed", not visible)
-            end,
-        }
+                            element:SetClass("collapsed-anim", false)
+                        end,
+                    }
+                end,
+                refreshBuilderState = function(element, state)
+                    local visible = state:Get(selector .. ".blockFeatureSelection") ~= true
+                    element:SetClass("collapsed", not visible)
+                end,
+            }
+        end
     end
 
     local injections = feature:UIInjections() or {}

@@ -1,6 +1,7 @@
 local mod = dmhub.GetModLoading()
 
 local currentOperationsTable = nil
+---@type NetworkOperationStatus
 local currentOperation = nil
 
 --function called by dmhub whenever a 'blocking' network operation is going on.

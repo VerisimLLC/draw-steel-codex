@@ -496,7 +496,8 @@ function RichVideo.CreateDisplay(self)
         elseif m_image then
             m_guid = dmhub.GenerateGuid()
             m_started = false
-            local src = BuildVideoSource(m_image, m_guid)
+            --m_image is truthy here, so BuildVideoSource returns a string.
+            local src = BuildVideoSource(m_image, m_guid) --[[@as string]]
             m_currentSrc = src
             m_videoPanel.bgimageStreamed = src
         end
@@ -594,7 +595,8 @@ function RichVideo.CreateEditor(self)
                         },
                         change = function(element)
                             ---@cast element Dropdown
-                            self.halign = element.idChosen
+                            --the three option ids above are strings.
+                            self.halign = element.idChosen --[[@as string]]
                         end,
                     },
 

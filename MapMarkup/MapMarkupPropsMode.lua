@@ -967,7 +967,9 @@ function MM.BuildPropsMode()
             if mod.unloaded then
                 return
             end
+            --the ScheduleWhen condition above waits until this node exists.
             local node = assets:GetObjectNode(guid)
+            ---@cast node -nil
             local kw = srcKeywords
             local hasMarkup = false
             for _,part in ipairs(string.split(string.lower(kw), ",")) do
@@ -1131,7 +1133,8 @@ function MM.BuildPropsMode()
                 valign = "center",
                 borderWidth = 1,
                 borderColor = "@border",
-                value = ReadLightProperty("color") or "#ffffff",
+                --the "color" field always holds a color.
+                value = ReadLightProperty("color") --[[@as string|Color|nil]] or "#ffffff",
                 data = {
                     refreshing = false,
                 },
@@ -1422,7 +1425,8 @@ function MM.BuildPropsMode()
                 valign = "center",
                 borderWidth = 1,
                 borderColor = "@border",
-                value = ReadTextProperty("color") or "#ffffff",
+                --the "color" field always holds a color.
+                value = ReadTextProperty("color") --[[@as string|Color|nil]] or "#ffffff",
                 data = {
                     refreshing = false,
                 },

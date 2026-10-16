@@ -45,11 +45,12 @@ end
 --Encounter of the Week games show no welcome documents: the player has no
 --character at EnterGame (their heroes are pasted during arrival setup, after
 --this fires), so the "New Player Welcome" gate below would otherwise open it
---over the encounter. Three signals, any suffices, because the EotW codemod
+--over the encounter. Several signals, any suffices, because the EotW codemod
 --may not have loaded yet when we check: its own IsEotwGame; the account's
 --EotW slot (lobby.eotwGameid, set by the titlescreen's create/join flows);
---and the arrival args the titlescreen parks before entering
---(_G.EotwPendingArrival, keyed by gameid). All pcall-guarded.
+--the arrival args the titlescreen parks before entering
+--(_G.EotwPendingArrival, keyed by gameid); and an authoring test, parked or
+--on the record. All pcall-guarded.
 local function IsEotwGame()
     local eotw = false
     pcall(function() eotw = EncounterOfTheWeekGame.IsEotwGame() end)
@@ -63,6 +64,23 @@ local function IsEotwGame()
     pcall(function()
         local pending = rawget(_G, "EotwPendingArrival")
         eotw = (type(pending) == "table" and pending.gameid ~= nil and pending.gameid == dmhub.gameid)
+    end)
+    if eotw then
+        return true
+    end
+    --an EotW authoring test: the Director's refresh into player-host mode
+    --re-enters the game as a player with no character yet. The request is
+    --still parked (_G.EotwPendingTest) when this runs; a test already on
+    --the record covers a resume.
+    pcall(function()
+        local pending = rawget(_G, "EotwPendingTest")
+        eotw = (type(pending) == "table" and pending.gameid ~= nil and pending.gameid == dmhub.gameid)
+    end)
+    if eotw then
+        return true
+    end
+    pcall(function()
+        eotw = dmhub.playerHostMode == true and EncounterOfTheWeekGame.GetTest() ~= nil
     end)
     return eotw
 end

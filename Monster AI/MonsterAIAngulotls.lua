@@ -1,0 +1,1409 @@
+local mod = dmhub.GetModLoading()
+
+--Monster AI for the Angulotls band: Clawfish, Angulotl Cleaver, Pollywog, Dart,
+--Needler, Slink, Wave and Daybringer, plus the band's start-of-turn Malice
+--features. Minion signature strikes are coordinated by the shared squad logic;
+--this file answers the jumps and shifts those strikes ask for, and adds the
+--non-minion moves, triggers and villain actions.
+
+local movementPause = 0.6
+local stationaryPause = 0.35
+local abilityPause = 0.9
+
+local angulotlGroup = {"Angulotls"}
+
+local angulotlMonsters = {
+    "Clawfish",
+    "Angulotl Cleaver",
+    "Angulotl Pollywog",
+    "Angulotl Dart",
+    "Angulotl Needler",
+    "Angulotl Slink",
+    "Angulotl Wave",
+    "Angulotl Daybringer",
+}
+
+local angulotlNonMinions = {
+    "Angulotl Needler",
+    "Angulotl Slink",
+    "Angulotl Wave",
+    "Angulotl Daybringer",
+}
+
+local angulotlMonsterSet = {}
+for _,monsterType in ipairs(angulotlMonsters) do
+    angulotlMonsterSet[monsterType] = true
+end
+
+local wetEffectId = "b936df43-5c0e-4046-9221-ce360fa5131b"
+local sunLampEffectId = "814f6bd8-0f0c-4712-acd9-7f1fdc636c1f"
+local illuminatedEffectId = "f905e96c-6b89-4d88-9688-71fabc39c9c2"
+
+--Spoken lines, kept together so they are easy to revise after playtesting.
+local speech = {
+    newDawn = {"Rise, little ones!", "The clutch hatches!", "Swarm them, my tadpoles!"},
+    plagueOfFrogs = {"Leap, my kin!", "Fall upon them like rain!", "Hop to it!"},
+    itIsDay = {"It is day!", "Behold the dawn!", "The sun rises on you!"},
+    rainfall = {"Let the skies weep!", "Rain, come to us!"},
+    resonatingCroak = {"CROOOAK!", "Sing, my kin!"},
+    leapfrog = {"Over and onward!", "Leapfrog!"},
+    sunLamp = {"Bask in my light!", "Warmth for the clutch!"},
+    quickSnack = {"Mm, crunchy.", "Sorry, little one."},
+}
+
+--------------------------------------------------------------------------------
+-- Shared helpers.
+--------------------------------------------------------------------------------
+
+local function LiveCreature(token)
+    return token ~= nil and token.valid and not token.isObject
+        and token.properties ~= nil and not token.properties:IsDead()
+end
+
+local function MonsterType(token)
+    if token == nil or token.properties == nil then
+        return ""
+    end
+    return token.properties:try_get("monster_type", "")
+end
+
+--Matches by stat block and by keyword, so angulotls from other content count too.
+local function IsAngulotl(token)
+    if not LiveCreature(token) then
+        return false
+    end
+    if angulotlMonsterSet[MonsterType(token)] then
+        return true
+    end
+    local keywords = token.properties:try_get("keywords")
+    return type(keywords) == "table" and keywords.Angulotl == true
+end
+
+local function IsMinion(token)
+    return token.properties:try_get("minion", false) == true
+end
+
+local function FindTokenByCharid(charid)
+    if type(charid) ~= "string" or charid == "" then
+        return nil
+    end
+    return dmhub.GetTokenById(charid)
+end
+
+local function HasOngoingEffect(token, effectid)
+    if not LiveCreature(token) then
+        return false
+    end
+    for _,effect in ipairs(token.properties:ActiveOngoingEffects()) do
+        if effect.ongoingEffectid == effectid then
+            return true
+        end
+    end
+    return false
+end
+
+local function IsWet(token)
+    return HasOngoingEffect(token, wetEffectId)
+end
+
+--Wet grants angulotls this attribute. Read the attribute rather than the
+--effect so the AI follows whatever the rules actually applied.
+local function DoesNotProvoke(token)
+    return (token.properties:CalculateNamedCustomAttribute("Immunity from Opportunity Attack") or 0) > 0
+end
+
+--Clamped: temporary Stamina can push current Stamina above the maximum.
+local function StaminaFraction(token)
+    local fraction = token.properties:CurrentHitpoints() / math.max(1, token.properties.max_hitpoints)
+    return math.max(0, math.min(1, fraction))
+end
+
+local function MissingStamina(token)
+    return math.max(0, token.properties.max_hitpoints - token.properties:CurrentHitpoints())
+end
+
+local function RemainingMovement(token)
+    return math.max(0, token.properties:CurrentMovementSpeed()
+        - token.properties:DistanceMovedThisTurn())
+end
+
+local function LocKey(loc)
+    return loc.xyfloorOnly.str
+end
+
+local function FindAbility(token, name)
+    for _,ability in ipairs(token.properties:GetActivatedAbilities()) do
+        if ability.name == name then
+            return ability
+        end
+    end
+end
+
+--The token's main strike, used to judge how close it wants to stand to enemies.
+local function SignatureStrikeRange(token)
+    for _,ability in ipairs(token.properties:GetActivatedAbilities()) do
+        if ability.categorization == "Signature Ability" and ability:HasKeyword("Strike") then
+            return ability:GetRange(token.properties)
+        end
+    end
+    return 1
+end
+
+local function MoveCinematically(ai, token, loc)
+    local moving = loc ~= nil and not ai:MovementTokenIsAtLoc(token, loc)
+    if moving then
+        ai:MoveToken(token, loc, {maxCost = 10000, ignoreFalling = false})
+    end
+    ai.Sleep(moving and movementPause or stationaryPause)
+end
+
+local function LiveEnemies(ai)
+    local result = {}
+    for _,enemy in ipairs(ai.enemyTokens or {}) do
+        if LiveCreature(enemy) then
+            result[#result+1] = enemy
+        end
+    end
+    return result
+end
+
+--Live friendly creatures, read from the map so it also works out of turn.
+local function FriendlyAngulotls(token)
+    local result = {}
+    for _,other in ipairs(dmhub.allTokens) do
+        if IsAngulotl(other) and other:IsFriend(token) then
+            result[#result+1] = other
+        end
+    end
+    return result
+end
+
+local function HostileCreatures(token)
+    local result = {}
+    for _,other in ipairs(dmhub.allTokens) do
+        if LiveCreature(other) and not other:IsFriend(token) then
+            result[#result+1] = other
+        end
+    end
+    return result
+end
+
+local function AdjacentAngulotlsAt(token, loc)
+    local result = 0
+    for _,other in ipairs(dmhub.allTokens) do
+        if other.charid ~= token.charid and IsAngulotl(other) and other:IsFriend(token)
+            and other:Distance(loc) <= 1 then
+            result = result + 1
+        end
+    end
+    return result
+end
+
+local function TokensInArea(casterToken, ability, area, symbols)
+    local result = {}
+    symbols = symbols or {}
+    symbols.targetArea = area
+    for _,target in pairs(dmhub.tokenInfo.TokensInShape(area)) do
+        if target.valid and ability:TargetPassesFilter(casterToken, target, symbols) then
+            result[#result+1] = {token = target}
+        end
+    end
+    return result
+end
+
+--Every live creature on the map that passes the ability's own target filter.
+local function MapTargets(casterToken, ability)
+    local area = dmhub.CalculateShape{
+        shape = "map",
+        token = casterToken,
+    }
+    local targets = {}
+    for _,targetInfo in ipairs(TokensInArea(casterToken, ability, area, {})) do
+        if LiveCreature(targetInfo.token) then
+            targets[#targets+1] = targetInfo
+        end
+    end
+    return area, targets
+end
+
+local function ExecuteMapAbility(ai, token, ability)
+    local area, targets = MapTargets(token, ability)
+    ai:ExecuteAbility(token, DeepCopy(ability), targets, {
+        sleep = abilityPause,
+        symbols = {targetArea = area},
+        targetArea = area,
+        telegraphArea = false,
+    })
+end
+
+local function StrikeTargetScore(target, edges)
+    if target.isObject then
+        return 0.1 + (edges or 0)*0.1
+    end
+    return 1 + (edges or 0)*0.1 + MonsterAI.TargetStaminaBias(target)
+end
+
+--Slippery angulotl captains harass low-Stamina heroes in the backline.
+local function HarassTargetScore(target, edges)
+    if target.isObject then
+        return 0.1 + (edges or 0)*0.1
+    end
+    return 1 + (edges or 0)*0.1 + (1 - StaminaFraction(target))*0.35
+end
+
+local function SortedStrikeTargets(ai, token, ability, loc, scorefn)
+    local targets = ai:FindValidTargetsOfStrike(token, ability, loc)
+    table.sort(targets, function(a, b)
+        return scorefn(a.token, a.edges) > scorefn(b.token, b.edges)
+    end)
+    table.resize_array(targets, ability:GetNumTargets(token))
+    return targets
+end
+
+local function StrikeScore(baseScore, scorefn)
+    return function(self, ai, token, ability)
+        local loc, targetScore = ai:FindBestMoveToUseStrike(token, ability, scorefn)
+        if loc ~= nil and targetScore ~= nil and targetScore > 0 then
+            return {
+                score = baseScore + math.min(0.2, math.max(0, targetScore - 1)*0.1),
+                loc = loc,
+            }
+        end
+    end
+end
+
+local function StrikeExecute(scorefn)
+    return function(self, ai, token, scoringInfo, ability)
+        MoveCinematically(ai, token, scoringInfo.loc)
+        local targets = SortedStrikeTargets(ai, token, ability, scoringInfo.loc, scorefn)
+        ai:ExecuteAbility(token, ability, targets, {sleep = abilityPause})
+    end
+end
+
+--------------------------------------------------------------------------------
+-- Choosing where to land after a jump, shift, or summon.
+--------------------------------------------------------------------------------
+
+local function LocIsConcealed(loc)
+    local concealed = false
+    pcall(function()
+        local lookup = GenerateSymbols(Loc.Create(loc)) --[[@as fun(symbol: string): any]]
+        concealed = lookup("concealment") == true
+    end)
+    return concealed
+end
+
+--True when no enemy has a clear view of the square, so Hide can succeed there.
+local function CanHideAt(ai, token, loc, enemies)
+    if LocIsConcealed(loc) then
+        return true
+    end
+    local seen = false
+    local covered = false
+    ai:ExecuteWithTheoreticalMovementLoc(token, loc, function()
+        for _,enemy in ipairs(enemies) do
+            local los = enemy:GetLineOfSight(token, enemy.properties:GetPierceWalls())
+            if los >= 1 then
+                seen = true
+                break
+            elseif los > 0 then
+                covered = true
+            end
+        end
+    end)
+    return covered and not seen
+end
+
+local function LandingIsFree(token, loc, reserved)
+    if loc == nil or not loc.valid then
+        return false
+    end
+    for _,occupied in ipairs(token:LocsOccupyingWhenAt(loc)) do
+        if reserved ~= nil and reserved[LocKey(occupied)] then
+            return false
+        end
+        for _,other in ipairs(dmhub.GetTokensAtLoc(occupied) or {}) do
+            if other.valid and other.charid ~= token.charid and not other.isObject then
+                return false
+            end
+        end
+    end
+    return true
+end
+
+local function ReserveLanding(token, loc, reserved)
+    for _,occupied in ipairs(token:LocsOccupyingWhenAt(loc)) do
+        reserved[LocKey(occupied)] = true
+    end
+end
+
+--Free squares a token can land on within range of a starting square.
+local function LandingCandidates(token, range, reserved, originToken)
+    local result = {}
+    if range == nil or range < 1 then
+        return result
+    end
+    local shape = dmhub.CalculateShape{
+        shape = "RadiusFromCreature",
+        token = originToken or token,
+        radius = range,
+        checklos = true,
+    }
+    for _,loc in ipairs(shape.locations or {}) do
+        if LocKey(loc) ~= LocKey(token.loc) and LandingIsFree(token, loc, reserved) then
+            result[#result+1] = loc
+        end
+    end
+    return result
+end
+
+local function EnemyContact(enemies, loc)
+    local nearest = 999
+    local adjacent = 0
+    for _,enemy in ipairs(enemies) do
+        local distance = enemy:Distance(loc)
+        nearest = math.min(nearest, distance)
+        if distance <= 1 then
+            adjacent = adjacent + 1
+        end
+    end
+    return nearest, adjacent
+end
+
+--A square to fight from: melee angulotls want an enemy next to them, ranged
+--ones want a target inside their reach without being adjacent. All of them
+--prefer staying close to the clutch.
+local function EngageScore(token, loc, enemies, reach)
+    local nearest, adjacent = EnemyContact(enemies, loc)
+    local score
+    if reach <= 1 then
+        score = -nearest + cond(nearest <= 1, 3, 0) - math.max(0, adjacent - 2)*0.5
+    elseif nearest <= 1 then
+        score = -2 - adjacent*0.5
+    elseif nearest <= reach then
+        score = 3 - nearest*0.05
+    else
+        score = -(nearest - reach)
+    end
+    return score + math.min(2, AdjacentAngulotlsAt(token, loc))*0.3
+end
+
+--Hit-and-run: out of reach of a counterattack, but close enough to strike
+--again next turn, ideally hidden or beside an ally.
+local function SkirmishScore(token, loc, enemies)
+    local nearest, adjacent = EnemyContact(enemies, loc)
+    local score = -adjacent*2.5
+    if nearest >= 2 and nearest <= 4 then
+        score = score + 2
+    elseif nearest > 4 then
+        score = score + 2 - (nearest - 4)*0.5
+    end
+    score = score + cond(LocIsConcealed(loc), 1, 0)
+    return score + math.min(2, AdjacentAngulotlsAt(token, loc))*0.3
+end
+
+--A jump that leaves an adjacent enemy's reach provokes an opportunity attack,
+--which kills a minion outright. Wet angulotls are immune to them.
+local function ProvokePenalty(token, loc, adjacentNow)
+    if #adjacentNow == 0 or DoesNotProvoke(token) then
+        return 0
+    end
+    local left = 0
+    for _,enemy in ipairs(adjacentNow) do
+        if enemy:Distance(loc) > 1 then
+            left = left + 1
+        end
+    end
+    return left*cond(IsMinion(token), 10, 3)
+end
+
+local function EnemiesAdjacentTo(token, enemies)
+    local result = {}
+    for _,enemy in ipairs(enemies) do
+        if MonsterAI.TargetDistance(token, enemy) <= 1 then
+            result[#result+1] = enemy
+        end
+    end
+    return result
+end
+
+--Best landing for a purpose ("engage" or "skirmish"). Returns loc and score.
+local function FindBestLanding(token, range, purpose, enemies, reserved)
+    local reach = SignatureStrikeRange(token)
+    local adjacentNow = EnemiesAdjacentTo(token, enemies)
+    local best = nil
+    local bestScore = nil
+    for _,loc in ipairs(LandingCandidates(token, range, reserved)) do
+        local score
+        if purpose == "skirmish" then
+            score = SkirmishScore(token, loc, enemies)
+        else
+            score = EngageScore(token, loc, enemies, reach)
+        end
+        score = score - ProvokePenalty(token, loc, adjacentNow)
+            - token.loc:DistanceInTiles(loc)*0.01
+        if bestScore == nil or score > bestScore then
+            best = loc
+            bestScore = score
+        end
+    end
+    return best, bestScore
+end
+
+local function CurrentLandingScore(token, purpose, enemies)
+    if purpose == "skirmish" then
+        return SkirmishScore(token, token.loc, enemies)
+    end
+    return EngageScore(token, token.loc, enemies, SignatureStrikeRange(token))
+end
+
+--Planned jump destinations for prompts that arrive one creature at a time
+--(Plague of Frogs), keyed by the jumping creature's charid.
+local function TakeJumpPlan(ai, charid)
+    local plans = ai:try_get("_tmp_angulotlJumpPlans")
+    if plans == nil then
+        return nil
+    end
+    local loc = plans[charid]
+    plans[charid] = nil
+    return loc
+end
+
+local function ShowJump(token, loc)
+    token:MarkMovementArrow(loc, {straightline = true, ignorecreatures = true})
+    MonsterAI.Sleep(movementPause)
+    token:ClearMovementArrow()
+end
+
+--Answers a jump prompt: a planned square when there is one, otherwise the
+--best square for the given purpose. An empty answer skips the jump.
+local function AnswerJumpPrompt(ai, casterToken, abilityClone, purpose)
+    local range = abilityClone:GetRange(casterToken.properties)
+    local planned = TakeJumpPlan(ai, casterToken.charid)
+    if planned ~= nil and casterToken.loc:DistanceInTiles(planned) <= range
+        and LandingIsFree(casterToken, planned) then
+        ShowJump(casterToken, planned)
+        return {targets = {{loc = planned}}}
+    end
+
+    local enemies = HostileCreatures(casterToken)
+    local loc, score = FindBestLanding(casterToken, range, purpose, enemies)
+    if loc ~= nil and score ~= nil and score > CurrentLandingScore(casterToken, purpose, enemies) then
+        ShowJump(casterToken, loc)
+        return {targets = {{loc = loc}}}
+    end
+    return {targets = {}}
+end
+
+--------------------------------------------------------------------------------
+-- Passive formation preference.
+--------------------------------------------------------------------------------
+
+MonsterAI:RegisterTactic{
+    id = "Angulotl: Clutch Formation",
+    monsters = angulotlMonsters,
+    description = "Prefer strike positions next to another angulotl; the band fights in close, coherent groups.",
+    score = function(self, token, tokenLoc, enemy, ability)
+        if AdjacentAngulotlsAt(token, tokenLoc) > 0 then
+            return 0.3
+        end
+    end,
+}
+
+--------------------------------------------------------------------------------
+-- Minion follow-ups: Hop and Chop's jump, Nip's shift.
+--------------------------------------------------------------------------------
+
+MonsterAI:RegisterPrompt{
+    prompts = {"Angulotl Cleaver:Hop (Jump up to 4)"},
+    handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
+        return AnswerJumpPrompt(ai, casterToken, abilityClone, "skirmish")
+    end,
+}
+
+--After Nip, a pollywog edges toward a wounded angulotl who can eat it, or
+--otherwise to a square that keeps it in the fight without being swarmed.
+local function PollywogShiftScore(token, loc, enemies)
+    local nearest, adjacent = EnemyContact(enemies, loc)
+    local score = cond(nearest <= 1, 1, -nearest*0.3) - math.max(0, adjacent - 1)*0.8
+    for _,ally in ipairs(FriendlyAngulotls(token)) do
+        if ally.charid ~= token.charid and not IsMinion(ally)
+            and MissingStamina(ally) >= 4 and ally:Distance(loc) <= 1 then
+            score = score + 1.5
+            break
+        end
+    end
+    return score + math.random()*0.05
+end
+
+MonsterAI:RegisterPrompt{
+    prompts = {"Angulotl Pollywog:Shift"},
+    handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
+        local range = abilityClone:GetRange(casterToken.properties)
+        local enemies = HostileCreatures(casterToken)
+        local best = nil
+        local bestScore = PollywogShiftScore(casterToken, casterToken.loc, enemies)
+        for _,info in pairs(casterToken:CalculatePathfindingArea(range*10, {"shift"})) do
+            if LandingIsFree(casterToken, info.loc) then
+                local score = PollywogShiftScore(casterToken, info.loc, enemies)
+                if score > bestScore then
+                    best = info.loc
+                    bestScore = score
+                end
+            end
+        end
+        if best == nil then
+            return {targets = {}}
+        end
+        casterToken:MarkMovementArrow(best, {straightline = true, ignorecreatures = false})
+        MonsterAI.Sleep(movementPause)
+        casterToken:ClearMovementArrow()
+        return {targets = {{loc = best}}}
+    end,
+}
+
+--------------------------------------------------------------------------------
+-- Needler, Wave and Slink strikes.
+--------------------------------------------------------------------------------
+
+MonsterAI:RegisterMove{
+    id = "Angulotl Needler: Blowgun",
+    category = "Main Actions",
+    monsters = {"Angulotl Needler"},
+    abilities = {"Blowgun"},
+    description = "Snipe from long range, focusing the lowest-Stamina enemy in reach.",
+    score = StrikeScore(1.05, HarassTargetScore),
+    execute = StrikeExecute(HarassTargetScore),
+}
+
+--Illuminated creatures give every strike against them an edge, so spread the
+--beams to creatures that are not lit up yet.
+local function RefulgentBeamsTargetScore(target, edges)
+    if target.isObject then
+        return 0.1 + (edges or 0)*0.1
+    end
+    return StrikeTargetScore(target, edges) + cond(HasOngoingEffect(target, illuminatedEffectId), 0, 0.2)
+end
+
+MonsterAI:RegisterMove{
+    id = "Angulotl Wave: Refulgent Beams",
+    category = "Main Actions",
+    monsters = {"Angulotl Wave"},
+    abilities = {"Refulgent Beams"},
+    description = "Strike two enemies with holy light, preferring ones that are not already illuminated.",
+    score = StrikeScore(1.05, RefulgentBeamsTargetScore),
+    execute = StrikeExecute(RefulgentBeamsTargetScore),
+}
+
+MonsterAI:RegisterMove{
+    id = "Angulotl Slink: Tonguelash",
+    category = "Main Actions",
+    monsters = {"Angulotl Slink"},
+    abilities = {"Tonguelash"},
+    description = "Lash a low-Stamina enemy from up to 6 squares away and pull them in.",
+    score = StrikeScore(1.1, HarassTargetScore),
+    execute = StrikeExecute(HarassTargetScore),
+}
+
+--Tonguelash's pull uses the shared pull handler. When the target is boxed in
+--and cannot move, skip the pull rather than stall the turn on a Director prompt.
+MonsterAI:RegisterPrompt{
+    prompts = {"Angulotl Slink:Pull!"},
+    handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
+        local generic = MonsterAI.prompts["Pull!"]
+        local result = nil
+        if generic ~= nil then
+            result = generic.handler(ai, invokerToken, casterToken, abilityClone, symbols, options)
+        end
+        return result or {targets = {}}
+    end,
+}
+
+local function FindHopToItPlan(ai, token)
+    local range = math.min(3, RemainingMovement(token))
+    if range < 1 then
+        return nil, "no movement remains for the jump"
+    end
+    local enemies = LiveEnemies(ai)
+    if #enemies == 0 then
+        return nil, "no enemies"
+    end
+    local reach = SignatureStrikeRange(token)
+    local adjacentNow = EnemiesAdjacentTo(token, enemies)
+    local best = nil
+    for _,loc in ipairs(LandingCandidates(token, range)) do
+        local nearest, adjacent = EnemyContact(enemies, loc)
+        if adjacent == 0 and nearest <= reach and ProvokePenalty(token, loc, adjacentNow) == 0
+            and CanHideAt(ai, token, loc, enemies) then
+            local score = SkirmishScore(token, loc, enemies) - token.loc:DistanceInTiles(loc)*0.01
+            if best == nil or score > best.value then
+                best = {loc = loc, value = score}
+            end
+        end
+    end
+    if best == nil then
+        return nil, "no square within the jump allows hiding while staying in Tonguelash reach"
+    end
+    return best
+end
+
+MonsterAI:RegisterMove{
+    id = "Angulotl Slink: Hop To It",
+    category = "Maneuvers",
+    monsters = {"Angulotl Slink"},
+    abilities = {"Hop to It"},
+    description = "After lashing, spend 2 Malice to jump up to 3 squares into cover or concealment and hide.",
+    score = function(self, ai, token, ability)
+        if token.properties:HasNamedCondition("Hidden") then
+            return nil, "already hidden"
+        end
+        local tonguelash = FindAbility(token, "Tonguelash")
+        if tonguelash ~= nil and tonguelash:CanAfford(token) then
+            return nil, "Tonguelash is still available this turn"
+        end
+        local plan, reason = FindHopToItPlan(ai, token)
+        if plan == nil then
+            return nil, reason
+        end
+        return {score = 0.62, loc = plan.loc}
+    end,
+    execute = function(self, ai, token, scoringInfo, ability)
+        ai:SetTargetsForExpectedPrompt{
+            casterid = token.charid,
+            targets = {{loc = scoringInfo.loc}},
+            sleep = movementPause,
+        }
+        ai:ExecuteAbility(token, ability, nil, {sleep = abilityPause})
+        ai._tmp_expectedPromptTarget = nil
+    end,
+}
+
+--------------------------------------------------------------------------------
+-- Quick Snack: a non-minion angulotl eats an adjacent pollywog to heal.
+--------------------------------------------------------------------------------
+
+local function FindQuickSnackPlan(ai, token, ability)
+    local range = ability:GetRange(token.properties)
+    local pollywogs = {}
+    for _,ally in ipairs(ai.allyTokens or {}) do
+        if LiveCreature(ally) and ally.charid ~= token.charid
+            and ability:TargetPassesFilter(token, ally, {}) then
+            pollywogs[#pollywogs+1] = ally
+        end
+    end
+    if #pollywogs == 0 then
+        return nil
+    end
+
+    local best = nil
+    for _,info in pairs(ai.paths or {}) do
+        for _,pollywog in ipairs(pollywogs) do
+            if pollywog:Distance(info.loc) <= range
+                and (best == nil or (info.cost or 0) < best.cost) then
+                best = {loc = info.loc, target = pollywog, cost = info.cost or 0}
+            end
+        end
+    end
+    return best
+end
+
+MonsterAI:RegisterMove{
+    id = "Angulotl: Quick Snack",
+    category = "Maneuvers",
+    monsters = angulotlNonMinions,
+    abilities = {"Quick Snack"},
+    description = "Eat a nearby pollywog to regain 4 Stamina and become wet, when wounded enough to need it.",
+    score = function(self, ai, token, ability)
+        local missing = MissingStamina(token)
+        if missing < 4 then
+            return nil, "missing less than 4 Stamina"
+        end
+        local plan = FindQuickSnackPlan(ai, token, ability)
+        if plan == nil then
+            return nil, "no pollywog within reach this turn"
+        end
+        local urgency = math.min(1, missing / math.max(1, token.properties.max_hitpoints) * 2)
+        plan.score = 0.55 + urgency*0.3
+        return plan
+    end,
+    execute = function(self, ai, token, scoringInfo, ability)
+        MoveCinematically(ai, token, scoringInfo.loc)
+        if not LiveCreature(scoringInfo.target) then
+            return
+        end
+        ai:Speech(token, speech.quickSnack)
+        ai.Sleep(stationaryPause)
+        ai:ExecuteAbility(token, ability, {{token = scoringInfo.target}}, {sleep = abilityPause})
+    end,
+}
+
+--------------------------------------------------------------------------------
+-- Angulotl Daybringer.
+--------------------------------------------------------------------------------
+
+--Acid Grasp's "1 Malice: Jump Before" mode: move, jump up to 3, then grasp up
+--to two creatures next to the landing. Looks only at squares next to enemies.
+local function FindAcidGraspJumpPlan(ai, token, ability)
+    local jumpRange = 3
+    local numTargets = ability:GetNumTargets(token)
+    local enemies = LiveEnemies(ai)
+    local checked = {}
+    local candidates = {}
+
+    for _,enemy in ipairs(enemies) do
+        local ring = dmhub.CalculateShape{
+            shape = "RadiusFromCreature",
+            token = enemy,
+            radius = 1,
+            checklos = false,
+        }
+        for _,landing in ipairs(ring.locations or {}) do
+            local key = LocKey(landing)
+            if not checked[key] then
+                checked[key] = true
+                if LandingIsFree(token, landing) then
+                    local targets = {}
+                    for _,other in ipairs(enemies) do
+                        if other:Distance(landing) <= 1 then
+                            targets[#targets+1] = other
+                        end
+                    end
+                    table.sort(targets, function(a, b)
+                        return StrikeTargetScore(a, 0) > StrikeTargetScore(b, 0)
+                    end)
+                    table.resize_array(targets, numTargets)
+
+                    local value = 0
+                    for _,target in ipairs(targets) do
+                        value = value + StrikeTargetScore(target, 0)
+                    end
+
+                    local bestFrom = nil
+                    for _,info in pairs(ai.paths or {}) do
+                        local cost = info.cost or 0
+                        if info.loc:DistanceInTiles(landing) <= jumpRange
+                            and (bestFrom == nil or cost < bestFrom.cost) then
+                            bestFrom = {loc = info.loc, cost = cost}
+                        end
+                    end
+
+                    if bestFrom ~= nil and #targets > 0 then
+                        candidates[#candidates+1] = {
+                            loc = bestFrom.loc,
+                            landing = landing,
+                            targets = targets,
+                            value = value - bestFrom.cost*0.001,
+                        }
+                    end
+                end
+            end
+        end
+    end
+
+    table.sort(candidates, function(a, b) return a.value > b.value end)
+
+    --Confirm line of sight from the landing for the strongest few.
+    for i=1,math.min(6, #candidates) do
+        local candidate = candidates[i]
+        local visible = true
+        ai:ExecuteWithTheoreticalMovementLoc(token, candidate.landing, function()
+            for _,target in ipairs(candidate.targets) do
+                if token:GetLineOfSight(target, token.properties:GetPierceWalls()) <= 0 then
+                    visible = false
+                end
+            end
+        end)
+        if visible then
+            return candidate
+        end
+    end
+end
+
+MonsterAI:RegisterMove{
+    id = "Angulotl Daybringer: Acid Grasp",
+    category = "Main Actions",
+    monsters = {"Angulotl Daybringer"},
+    abilities = {"Acid Grasp"},
+    description = "Grasp two enemies; spend 1 Malice to jump in first when that reaches an extra target, or to jump clear afterwards when wet, badly hurt and surrounded.",
+    score = function(self, ai, token, ability)
+        local loc, value = ai:FindBestMoveToUseStrike(token, ability, StrikeTargetScore)
+        if loc ~= nil and (value == nil or value <= 0) then
+            loc = nil
+        end
+
+        local jumpPlan = nil
+        if ability:CanAfford(token, {mode = 2}) then
+            jumpPlan = FindAcidGraspJumpPlan(ai, token, ability)
+            if jumpPlan ~= nil and loc ~= nil and jumpPlan.value < value + 0.8 then
+                jumpPlan = nil
+            end
+        end
+
+        if jumpPlan ~= nil then
+            return {
+                score = 1.3,
+                mode = 2,
+                loc = jumpPlan.loc,
+                landing = jumpPlan.landing,
+                targets = jumpPlan.targets,
+            }
+        end
+
+        if loc == nil then
+            return nil, "no enemy can be grasped this turn"
+        end
+
+        --Jumping away provokes opportunity attacks unless the daybringer is immune (wet).
+        local mode = 1
+        if StaminaFraction(token) < 0.5 and DoesNotProvoke(token) and ability:CanAfford(token, {mode = 3}) then
+            local _, adjacent = EnemyContact(LiveEnemies(ai), loc)
+            if adjacent >= 2 then
+                mode = 3
+            end
+        end
+        return {
+            score = 1.1 + math.min(0.2, math.max(0, value - 1)*0.2),
+            mode = mode,
+            loc = loc,
+        }
+    end,
+    execute = function(self, ai, token, scoringInfo, ability)
+        MoveCinematically(ai, token, scoringInfo.loc)
+
+        if scoringInfo.mode == 2 then
+            local targets = {}
+            for _,target in ipairs(scoringInfo.targets or {}) do
+                if LiveCreature(target) then
+                    targets[#targets+1] = {token = target}
+                end
+            end
+            ai:SetTargetsForExpectedPrompt{
+                casterid = token.charid,
+                targets = targets,
+                sleep = stationaryPause,
+            }
+            ShowJump(token, scoringInfo.landing)
+            ai:ExecuteAbility(token, ability:SwitchModes(2), {{loc = scoringInfo.landing}}, {
+                sleep = abilityPause,
+                symbols = {mode = 2},
+            })
+            ai._tmp_expectedPromptTarget = nil
+            return
+        end
+
+        local targets = SortedStrikeTargets(ai, token, ability, scoringInfo.loc, StrikeTargetScore)
+        ai:ExecuteAbility(token, ability:SwitchModes(scoringInfo.mode), targets, {
+            sleep = abilityPause,
+            symbols = {mode = scoringInfo.mode},
+        })
+    end,
+}
+
+--Fallback for Jump Before's strike when the planned targets were not used.
+MonsterAI:RegisterPrompt{
+    prompts = {"Angulotl Daybringer:Acid Grasp - Copy"},
+    handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
+        local range = abilityClone:GetRange(casterToken.properties)
+        local targets = {}
+        for _,enemy in ipairs(HostileCreatures(casterToken)) do
+            if MonsterAI.TargetDistance(casterToken, enemy) <= range
+                and abilityClone:TargetPassesFilter(casterToken, enemy, symbols) then
+                targets[#targets+1] = {token = enemy}
+            end
+        end
+        table.sort(targets, function(a, b)
+            return StrikeTargetScore(a.token, 0) > StrikeTargetScore(b.token, 0)
+        end)
+        table.resize_array(targets, abilityClone:GetNumTargets(casterToken))
+        return {targets = targets}
+    end,
+}
+
+--The daybringer's own jumps (Acid Grasp's Jump After) clear away from the
+--fight; allies jumping through Plague of Frogs use the plan made for them.
+MonsterAI:RegisterPrompt{
+    prompts = {"Angulotl Daybringer:Jump"},
+    handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
+        --Plague of Frogs is resolving while plans exist; its free strike follows.
+        local purpose = "engage"
+        if casterToken.charid == invokerToken.charid
+            and ai:try_get("_tmp_angulotlJumpPlans") == nil then
+            purpose = "skirmish"
+        end
+        return AnswerJumpPrompt(ai, casterToken, abilityClone, purpose)
+    end,
+}
+
+--Any other angulotl's jump with no plan: get into a fighting position.
+local otherJumpPrompts = {}
+for _,monsterType in ipairs(angulotlMonsters) do
+    if monsterType ~= "Angulotl Daybringer" then
+        otherJumpPrompts[#otherJumpPrompts+1] = monsterType .. ":Jump"
+    end
+end
+
+MonsterAI:RegisterPrompt{
+    prompts = otherJumpPrompts,
+    handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
+        return AnswerJumpPrompt(ai, casterToken, abilityClone, "engage")
+    end,
+}
+
+local function SunLampBeneficiaries(token)
+    local count = 0
+    local value = 0
+    for _,ally in ipairs(FriendlyAngulotls(token)) do
+        if token:Distance(ally) <= 10 then
+            count = count + 1
+            local heal = math.min(5, MissingStamina(ally)) / 5
+            value = value + cond(IsMinion(ally), 0.4, 1) + cond(IsMinion(ally), 0, heal*0.6)
+        end
+    end
+    return count, value
+end
+
+MonsterAI:RegisterMove{
+    id = "Angulotl Daybringer: Sun Lamp",
+    category = "Maneuvers",
+    monsters = {"Angulotl Daybringer"},
+    abilities = {"Sun Lamp"},
+    description = "Shine when at least two angulotls (counting the daybringer) are within 10 squares to heal and speed them.",
+    score = function(self, ai, token, ability)
+        if HasOngoingEffect(token, sunLampEffectId) then
+            return nil, "Sun Lamp is already shining"
+        end
+        local count, value = SunLampBeneficiaries(token)
+        if count < 2 then
+            return nil, "fewer than two angulotls within 10 squares"
+        end
+        return {score = 0.7 + math.min(0.2, value*0.02), beneficiaries = count}
+    end,
+    execute = function(self, ai, token, scoringInfo, ability)
+        ai:Speech(token, speech.sunLamp)
+        ai.Sleep(stationaryPause)
+        ai:ExecuteAbility(token, ability, nil, {sleep = abilityPause})
+    end,
+}
+
+local function TriggerTargets(triggerInfo)
+    local result = {}
+    for _,charid in ipairs(triggerInfo.targets or {}) do
+        local target = FindTokenByCharid(charid)
+        if LiveCreature(target) then
+            result[#result+1] = target
+        end
+    end
+    return result
+end
+
+MonsterAI:RegisterTrigger{
+    id = "Angulotl Daybringer: Tongue Slap",
+    monsters = {"Angulotl Daybringer"},
+    abilities = {"Tongue Slap"},
+    triggers = {"Tongue Slap"},
+    description = "Reduce a strike's tier when it targets the daybringer or a non-minion ally; let strikes on minions through.",
+    handler = function(ai, token, triggerInfo)
+        local friends = 0
+        local protectsNonMinion = false
+        for _,target in ipairs(TriggerTargets(triggerInfo)) do
+            if target:IsFriend(token) then
+                friends = friends + 1
+                if target.charid == token.charid or not IsMinion(target) then
+                    protectsNonMinion = true
+                end
+            end
+        end
+        if friends > 0 and not protectsNonMinion then
+            return {dismiss = true}
+        end
+        return {activate = true}
+    end,
+}
+
+MonsterAI:RegisterTrigger{
+    id = "Angulotl Daybringer: Moisturizing End Effect",
+    monsters = {"Angulotl Daybringer"},
+    abilities = {"End Effect"},
+    description = "Take 5 damage to end a save-ends effect unless that would leave the daybringer at 5 Stamina or less.",
+    handler = function(ai, token, triggerInfo)
+        if token.properties:CurrentHitpoints() > 10 then
+            return {activate = true}
+        end
+        return {dismiss = true}
+    end,
+}
+
+--------------------------------------------------------------------------------
+-- Daybringer villain actions.
+--------------------------------------------------------------------------------
+
+local function NewDawnSquareScore(token, loc, enemies, wounded)
+    local nearest, adjacent = EnemyContact(enemies, loc)
+    local score = cond(adjacent > 0, 2, 0) - nearest*0.3 - math.max(0, adjacent - 2)*0.5
+    for _,ally in ipairs(wounded) do
+        if ally:Distance(loc) <= 1 then
+            score = score + 1
+            break
+        end
+    end
+    return score
+end
+
+local function FindNewDawnSquares(ai, token, ability)
+    local count = ability:GetNumTargets(token)
+    local range = ability:GetRange(token.properties)
+    local enemies = LiveEnemies(ai)
+    local wounded = {}
+    for _,ally in ipairs(FriendlyAngulotls(token)) do
+        if not IsMinion(ally) and MissingStamina(ally) >= 4 then
+            wounded[#wounded+1] = ally
+        end
+    end
+
+    local scored = {}
+    for _,loc in ipairs(LandingCandidates(token, range)) do
+        scored[#scored+1] = {loc = loc, score = NewDawnSquareScore(token, loc, enemies, wounded)}
+    end
+    table.sort(scored, function(a, b) return a.score > b.score end)
+
+    --Pollywogs are size 1S, so one square each; skip squares already chosen.
+    local chosen = {}
+    local reserved = {}
+    for _,entry in ipairs(scored) do
+        if #chosen >= count then
+            break
+        end
+        local key = LocKey(entry.loc)
+        if not reserved[key] then
+            reserved[key] = true
+            chosen[#chosen+1] = {loc = entry.loc}
+        end
+    end
+    return chosen
+end
+
+MonsterAI:RegisterVillainAction{
+    id = "Angulotl Daybringer: New Dawn",
+    monsters = {"Angulotl Daybringer"},
+    abilities = {"New Dawn"},
+    description = "Hatch four pollywogs beside enemies and wounded angulotls who can eat them.",
+    score = function(self, ai, token, ability, context)
+        local squares = FindNewDawnSquares(ai, token, ability)
+        if #squares == 0 then
+            return nil, "no unoccupied squares within distance"
+        end
+        return {score = math.min(1, 0.6 + #squares*0.08), squares = #squares}
+    end,
+    execute = function(self, ai, token, scoringInfo, ability, context)
+        local squares = FindNewDawnSquares(ai, token, ability)
+        if #squares == 0 then
+            return
+        end
+        ai:Speech(token, speech.newDawn)
+        ai.Sleep(abilityPause)
+        ai:ExecuteAbility(token, ability, squares, {sleep = abilityPause})
+    end,
+}
+
+--Plans each creature's jump for Plague of Frogs: non-minions land where they
+--can free strike, minions where they threaten an enemy for their next turn.
+local function PlanPlagueOfFrogs(ai, token, ability)
+    local range = ability:GetRange(token.properties)
+    local enemies = LiveEnemies(ai)
+    local reserved = {}
+    local plans = {}
+    local strikers = 0
+
+    local jumpers = {}
+    for _,ally in ipairs(ai.allyTokens or {}) do
+        if LiveCreature(ally) and token:Distance(ally) <= range
+            and ability:TargetPassesFilter(token, ally, {}) then
+            jumpers[#jumpers+1] = ally
+        end
+    end
+    --Non-minions pick first: their landing also earns a free strike.
+    table.sort(jumpers, function(a, b)
+        return cond(IsMinion(a), 1, 0) < cond(IsMinion(b), 1, 0)
+    end)
+
+    for _,ally in ipairs(jumpers) do
+        local loc, score = FindBestLanding(ally, 4, "engage", enemies, reserved)
+        if loc ~= nil and score ~= nil and score > CurrentLandingScore(ally, "engage", enemies) then
+            plans[ally.charid] = loc
+            ReserveLanding(ally, loc, reserved)
+            local nearest = EnemyContact(enemies, loc)
+            if not IsMinion(ally) and nearest <= SignatureStrikeRange(ally) then
+                strikers = strikers + 1
+            end
+        else
+            ReserveLanding(ally, ally.loc, reserved)
+            local nearest = EnemyContact(enemies, ally.loc)
+            if not IsMinion(ally) and nearest <= 1 then
+                strikers = strikers + 1
+            end
+        end
+    end
+    return plans, #jumpers, strikers
+end
+
+--Plague of Frogs' free strike arrives as the standard "Make Free Strike"
+--wrapper. Reuse the shared free strike chooser; skip when nothing is in reach.
+MonsterAI:RegisterPrompt{
+    prompts = {"Angulotl Daybringer:Make Free Strike"},
+    handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
+        local generic = MonsterAI.prompts["Free Strike"]
+        local result = nil
+        if generic ~= nil then
+            result = generic.handler(ai, invokerToken, casterToken, abilityClone, symbols, options)
+        end
+        return result or {targets = {}}
+    end,
+}
+
+MonsterAI:RegisterVillainAction{
+    id = "Angulotl Daybringer: Plague of Frogs",
+    monsters = {"Angulotl Daybringer"},
+    abilities = {"Plague of Frogs"},
+    description = "Every angulotl within 8 squares jumps into the fight; non-minions free strike on landing.",
+    score = function(self, ai, token, ability, context)
+        local plans, jumpers, strikers = PlanPlagueOfFrogs(ai, token, ability)
+        local moving = #table.keys(plans)
+        if moving == 0 and strikers == 0 then
+            return nil, "no ally gains anything from jumping"
+        end
+        return {
+            score = math.min(1, 0.5 + strikers*0.12 + moving*0.04),
+            jumpers = jumpers,
+            strikers = strikers,
+        }
+    end,
+    execute = function(self, ai, token, scoringInfo, ability, context)
+        local plans = PlanPlagueOfFrogs(ai, token, ability)
+        ai._tmp_angulotlJumpPlans = plans
+
+        --The jumps and free strikes are prompted on each ally, so the AI must
+        --answer for every creature in the burst while the action resolves.
+        local controls = {}
+        for _,ally in ipairs(ai.allyTokens or {}) do
+            if LiveCreature(ally) and ally.charid ~= token.charid
+                and token:Distance(ally) <= ability:GetRange(token.properties) then
+                controls[#controls+1] = {token = ally, info = ai:BeginTokenControl(ally)}
+            end
+        end
+
+        ai:Speech(token, speech.plagueOfFrogs)
+        ai.Sleep(abilityPause)
+        local ok, err = ai:RunYieldingFunction(function()
+            ai:ExecuteAbility(token, ability, nil, {sleep = abilityPause})
+        end)
+
+        for _,control in ipairs(controls) do
+            pcall(function()
+                ai:EndTokenControl(control.token, control.info)
+            end)
+        end
+        ai._tmp_angulotlJumpPlans = nil
+        if not ok then
+            error(err)
+        end
+    end,
+}
+
+MonsterAI:RegisterVillainAction{
+    id = "Angulotl Daybringer: It Is Day",
+    monsters = {"Angulotl Daybringer"},
+    abilities = {"It Is Day"},
+    description = "Dry the map: burn every wet enemy for 6 acid, illuminate enemies, and give every angulotl a double edge.",
+    score = function(self, ai, token, ability, context)
+        local enemies = LiveEnemies(ai)
+        if #enemies == 0 then
+            return nil, "no enemies"
+        end
+        local wet = 0
+        for _,enemy in ipairs(enemies) do
+            if IsWet(enemy) then
+                wet = wet + 1
+            end
+        end
+        local angulotls = #FriendlyAngulotls(token)
+        return {
+            score = math.min(1, 0.45 + wet*0.12 + math.min(6, angulotls)*0.03),
+            wetEnemies = wet,
+        }
+    end,
+    execute = function(self, ai, token, scoringInfo, ability, context)
+        ai:Speech(token, speech.itIsDay)
+        ai.Sleep(abilityPause)
+        ExecuteMapAbility(ai, token, ability)
+    end,
+}
+
+--------------------------------------------------------------------------------
+-- Leapfrog trigger: an inactive angulotl jumps 3 when another moves through it.
+--------------------------------------------------------------------------------
+
+MonsterAI:RegisterTrigger{
+    id = "Angulotl: Leapfrog",
+    monsters = angulotlMonsters,
+    abilities = {"Leapfrog"},
+    description = "Jump up to 3 squares toward a better fighting position when a friend hops through.",
+    handler = function(ai, token, triggerInfo)
+        local enemies = HostileCreatures(token)
+        if #enemies == 0 then
+            return {dismiss = true}
+        end
+        local range = math.min(3, token.properties:CurrentMovementSpeed())
+        local loc, score = FindBestLanding(token, range, "engage", enemies)
+        if loc == nil or score == nil
+            or score < CurrentLandingScore(token, "engage", enemies) + 0.5 then
+            return {dismiss = true}
+        end
+        return {
+            activate = true,
+            expectedPrompt = {
+                targets = {{loc = loc}},
+                sleep = movementPause,
+            },
+        }
+    end,
+}
+
+--------------------------------------------------------------------------------
+-- Start-of-turn Angulotl Malice features.
+--------------------------------------------------------------------------------
+
+MonsterAI:RegisterMaliceAbility{
+    id = "Angulotl Malice: Leapfrog",
+    monsterGroups = angulotlGroup,
+    abilities = {"Leapfrog"},
+    description = "Spend 3 Malice while a large clutch is still closing in, so inactive angulotls can leap forward as others pass through them.",
+    score = function(self, ai, token, ability, context)
+        local enemies = context.enemyTokens or {}
+        if #enemies == 0 then
+            return nil
+        end
+        local acting = {}
+        for _,actor in ipairs(context.actingTokens or {}) do
+            acting[actor.charid] = true
+        end
+
+        --Spend nothing when the feature's own filter would reach no angulotl.
+        local affected = 0
+        for _,ally in ipairs(FriendlyAngulotls(token)) do
+            if ability:TargetPassesFilter(token, ally, {}) then
+                affected = affected + 1
+            end
+        end
+        if affected < 2 then
+            return nil, "the Leapfrog effect's target filter matches fewer than two angulotls"
+        end
+
+        local movers = 0
+        local inactive = 0
+        for _,ally in ipairs(FriendlyAngulotls(token)) do
+            local nearest = EnemyContact(enemies, ally.loc)
+            if acting[ally.charid] then
+                if nearest > 1 then
+                    movers = movers + 1
+                end
+            elseif nearest > 2 then
+                inactive = inactive + 1
+            end
+        end
+        if movers < 2 or inactive < 3 then
+            return nil, "too few angulotls still closing on the enemy"
+        end
+        return {
+            score = math.min(0.75, 0.5 + math.min(6, inactive)*0.025 + math.min(4, movers)*0.025),
+            movers = movers,
+            inactive = inactive,
+        }
+    end,
+    execute = function(self, ai, token, scoringInfo, ability, context)
+        ai:Speech(token, speech.leapfrog)
+        ai.Sleep(stationaryPause)
+        ExecuteMapAbility(ai, token, ability)
+    end,
+}
+
+MonsterAI:RegisterMaliceAbility{
+    id = "Angulotl Malice: Resonating Croak",
+    monsterGroups = angulotlGroup,
+    abilities = {"Resonating Croak"},
+    description = "Spend 5 Malice when at least two enemies are next to an angulotl and no non-angulotl ally would be caught.",
+    score = function(self, ai, token, ability, context)
+        local enemies, allies = 0, 0
+        for _,target in ipairs(dmhub.allTokens) do
+            if LiveCreature(target) and ability:TargetPassesFilter(token, target, {}) then
+                if target:IsFriend(token) then
+                    allies = allies + 1
+                else
+                    enemies = enemies + 1
+                end
+            end
+        end
+        if enemies < 2 then
+            return nil, "fewer than two enemies are next to an angulotl"
+        end
+        return {
+            score = math.min(0.95, 0.62 + enemies*0.07 - allies*0.15),
+            enemies = enemies,
+            allies = allies,
+        }
+    end,
+    execute = function(self, ai, token, scoringInfo, ability, context)
+        ai:Speech(token, speech.resonatingCroak)
+        ai.Sleep(stationaryPause)
+        ExecuteMapAbility(ai, token, ability)
+    end,
+}
+
+local function DaybringerCanStillUseItIsDay(token)
+    for _,ally in ipairs(FriendlyAngulotls(token)) do
+        if MonsterType(ally) == "Angulotl Daybringer" then
+            local itIsDay = FindAbility(ally, "It Is Day")
+            local slot = itIsDay ~= nil and itIsDay:try_get("villainAction") or nil
+            if itIsDay ~= nil and (slot == nil or not VillainActionState.HasUsed(ally.charid, slot)) then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+MonsterAI:RegisterMaliceAbility{
+    id = "Angulotl Malice: Rainfall",
+    monsterGroups = angulotlGroup,
+    abilities = {"Rainfall"},
+    description = "Spend 7 Malice to soak the encounter when several enemies are dry, especially alongside clawfish or a daybringer saving It Is Day.",
+    score = function(self, ai, token, ability, context)
+        local dryEnemies = 0
+        for _,enemy in ipairs(context.enemyTokens or {}) do
+            if LiveCreature(enemy) and not IsWet(enemy) then
+                dryEnemies = dryEnemies + 1
+            end
+        end
+        if dryEnemies < 3 then
+            return nil, "fewer than three enemies are still dry"
+        end
+
+        local clawfish = 0
+        for _,ally in ipairs(FriendlyAngulotls(token)) do
+            if MonsterType(ally) == "Clawfish" then
+                clawfish = clawfish + 1
+            end
+        end
+        local itIsDay = DaybringerCanStillUseItIsDay(token)
+        return {
+            score = math.min(0.95, 0.56 + dryEnemies*0.04 + math.min(4, clawfish)*0.04
+                + cond(itIsDay, 0.12, 0)),
+            dryEnemies = dryEnemies,
+            clawfish = clawfish,
+        }
+    end,
+    execute = function(self, ai, token, scoringInfo, ability, context)
+        ai:Speech(token, speech.rainfall)
+        ai.Sleep(stationaryPause)
+        ExecuteMapAbility(ai, token, ability)
+    end,
+}

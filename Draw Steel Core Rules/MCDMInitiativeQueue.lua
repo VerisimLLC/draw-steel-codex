@@ -27,10 +27,14 @@ end
 
 --- @class InitiativeQueue: GameType
 --- @field new fun(o?: table): InitiativeQueue
+--- @field priorityids? table<string, boolean> Initiative ids that must act before anyone else this round; cleared each round.
+--- @field _tmp_prestartInitiativeId? string Initiative id whose prestartturn trigger is firing; set only for that window.
 InitiativeQueue = RegisterGameType("InitiativeQueue")
 
 --- @class InitiativeQueueEntry: GameType
 --- @field new fun(o?: table): InitiativeQueueEntry
+--- @field player? boolean True for a hero entry, false for a monster entry.
+--- @field startTurnTimestamp? number|string When this entry's turn began: the ServerTimestamp() sentinel until the server resolves it to a number.
 InitiativeQueueEntry = RegisterGameType("InitiativeQueueEntry")
 
 function InitiativeQueue:GameModeInfo()
@@ -317,6 +321,11 @@ function InitiativeQueue:SelectTurn(initiativeid)
 		return
 	end
 
+	--Revert Turn's snapshot (and Turn Rewind's first entry) must be of the board
+	--before this turn starts.
+	TurnCheckpoint.BeforeSelectTurn(self)
+	TurnRewind.BeforeSelectTurn(self, initiativeid)
+
 	entry.turn = self.turn
 	self.turn = self.turn + 1
 	entry.startTurnTimestamp = ServerTimestamp()
@@ -575,10 +584,11 @@ end
 function InitiativeQueue:DescribeEntry(initiativeid)
 	local entry = self.entries[initiativeid]
 	if entry == nil or entry:has_key("description") == false then
-		if string.startswith(entry.initiativeid, 'MONSTER-') then
-			return string.sub(entry.initiativeid, 9)
+		--use the key, not entry.initiativeid: entry is nil on the first branch.
+		if string.startswith(initiativeid, 'MONSTER-') then
+			return string.sub(initiativeid, 9)
 		else
-			local token = dmhub.GetCharacterById(entry.initiativeid)
+			local token = dmhub.GetCharacterById(initiativeid)
 			if token ~= nil then
 				return token.description
 			end
@@ -601,7 +611,7 @@ function InitiativeQueue.SetInitiative(self, initiativeid, value, dexterity)
 			dexterity = dexterity or 0,
 		}
 
-		if GameHud.instance ~= nil and GameHud.instance:has_key("initiativeInterface") then
+		if GameHud.instance and GameHud.instance:has_key("initiativeInterface") then
 			local tokens = self.GetTokensForInitiativeId(initiativeid)
 			if tokens ~= nil and #tokens > 0 then
 				entry.description = tokens[1].description
@@ -712,9 +722,22 @@ function InitiativeQueue.ClaimTurn(initiativeid, options)
 	end
 
 	local q = dmhub.initiativeQueue
+	--CanClaimTurn above returned false for a nil queue.
+	---@cast q -nil
 	q:SelectTurn(initiativeid)
 	dmhub:UploadInitiativeQueue()
 
+	InitiativeQueue.BeginTurnForEntry(initiativeid)
+
+	return true
+end
+
+--BeginTurnForEntry(initiativeid): the start-of-turn half of a claim. Runs
+--BeginTurn (start-of-turn triggers, heroic resource gains, aura/effect expiry)
+--for every token in the entry and posts the start-of-turn chat card. Call it
+--right after SelectTurn + UploadInitiativeQueue; any path that selects a turn
+--without it silently skips everything that happens at the start of a turn.
+function InitiativeQueue.BeginTurnForEntry(initiativeid)
 	--Every token sharing this initiative id begins its turn (a minion squad or
 	--monster group claims as one). Use the initiative id itself rather than any
 	--per-entry initiativeid field: group entries do not populate the latter.
@@ -732,8 +755,6 @@ function InitiativeQueue.ClaimTurn(initiativeid, options)
 			tokenids = tokenIds,
 		})
 	end
-
-	return true
 end
 
 function InitiativeQueue:CurrentInitiativeId()

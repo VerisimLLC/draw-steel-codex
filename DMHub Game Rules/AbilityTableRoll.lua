@@ -7,6 +7,8 @@ local mod = dmhub.GetModLoading()
 --- @field tableid string Id of the table to roll on.
 --- @field resourceAction string Action resource id consumed when rolling, or "none".
 --- @field interpretResultAsGameRule boolean If true, the table result text is parsed as a game rule.
+--- @field customTable RollTable The behavior's own table, used when tableType is "custom".
+--- @field ExecuteCommand fun(self: ActivatedAbilityTableRollBehavior, ability: ActivatedAbility, casterToken: CharacterToken, targetToken: CharacterToken, options: table, rule: string) Borrowed from ActivatedAbilityDrawSteelCommandBehavior (MCDMAbilityBehavior.lua).
 ActivatedAbilityTableRollBehavior = RegisterGameType("ActivatedAbilityTableRollBehavior", "ActivatedAbilityBehavior")
 
 
@@ -150,6 +152,8 @@ function ActivatedAbilityTableRollBehavior:Cast(ability, casterToken, targets, o
                                             loc = options.targetArea.origin
                                         end
                                         local token = game.SpawnTokenFromBestiaryLocally(entry.key, loc)
+                                        -- Nil only for an unknown bestiary id; monsterInfo was checked above.
+                                        ---@cast token -nil
                                         token.ownerId = target.token.ownerId
                                         token.summonerid = target.token.charid
 
@@ -205,7 +209,7 @@ function ActivatedAbilityTableRollBehavior:EditorItems(parentPanel)
             idChosen = self.tableType,
             change = function(element)
                 ---@cast element Dropdown
-                self.tableType = element.idChosen
+                self.tableType = element.idChosen --[[@as string]]
                 tableParent:FireEvent("refreshTableType")
                 parentPanel:FireEventTree("refreshTable")
             end,
@@ -255,7 +259,7 @@ function ActivatedAbilityTableRollBehavior:EditorItems(parentPanel)
                         idChosen = self.tableid,
                         change = function(element)
                             ---@cast element Dropdown
-                            self.tableid = element.idChosen
+                            self.tableid = element.idChosen --[[@as string]]
                             parentPanel:FireEventTree("refreshTable")
                         end,
                     },
@@ -296,7 +300,7 @@ function ActivatedAbilityTableRollBehavior:EditorItems(parentPanel)
             idChosen = self.resourceAction,
             change = function(element)
                 ---@cast element Dropdown
-                self.resourceAction = element.idChosen
+                self.resourceAction = element.idChosen --[[@as string]]
             end,
         },
     }

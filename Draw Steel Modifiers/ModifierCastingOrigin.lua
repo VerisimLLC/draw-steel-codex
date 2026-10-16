@@ -31,6 +31,7 @@ CharacterModifier.TypeInfo.castingorigin = {
 				hasSearch = true,
 				idChosen = "none",
 				create = function(el)
+					---@cast el Dropdown
 					local options = {}
 					for keyword, _ in pairs(GameSystem.abilityKeywords) do
 						if not modifier.keywordFilter[keyword] then

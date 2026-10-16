@@ -138,11 +138,11 @@ All in `Draw Steel UI/DSInitiativeRoll.lua`:
        info.initiativeQueue.liveEncounter = LiveEncounter.Create(g_selectedEncounterOpenInitiative)
    else
        --Custom combat: build a basic live encounter and seed onsetMonsterCount
-       --from the actual non-minion monster tokens entering combat (the empty
+       --from the actual monster tokens entering combat, one per minion squad (the empty
        --encounter has no authored monsters, and without a nonzero onset count
        --CheckVictory short-circuits: "no monsters -> nothing to win").
        local live = LiveEncounter.Create(Encounter.new())
-       live.onsetMonsterCount = <count of non-minion monsters entering combat>
+       live.onsetMonsterCount = <monsters entering combat; each minion squad counts as one>
        info.initiativeQueue.liveEncounter = live
    end
    info.initiativeQueue.liveEncounter:RecordOnsetHeroes(g_playerTokensOpenInitiative)

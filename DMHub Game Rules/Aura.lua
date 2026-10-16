@@ -26,6 +26,12 @@ local mod = dmhub.GetModLoading()
 --- @field includeAdjacent boolean If true, the engine extends the aura's area one tile outward (8-way) and marks the extension tiles as adjacent-only. Creatures on those tiles count as touching the aura for enter/start-of-turn trigger contact (the simple power roll fires for them at the start of their turn, with a bane), but the tiles do not take the aura's terrain rules, move damage, or modifiers.
 --- @field damaging boolean Explicitly marks the aura as damaging terrain for movement advisories (the red "moving into damaging terrain" line on the drag tooltip). Only needed for auras whose damage comes from custom triggers: an entry power roll or per-tile move damage already implies it (see Aura:IsDamaging).
 --- @field environmentalKeywordId string|nil Id in the environmentalKeywords table of the Environmental Keyword this aura is marked with. Set on map-markup zone auras (see MapMarkup BuildZoneAuraInstance) and settable on any hand-authored aura definition. When an aura is created, EnvironmentalKeyword.ApplyToAura folds the keyword's effects (terrain flags, modifiers, move damage, entry power roll) into the definition; the id is also read by the creature and Loc "Environment" GoblinScript symbols and by creature:HasConcealmentIgnoringDarkness.
+--- @field difficultTerrainKeywords? table<string, boolean> Keywords describing where this aura's difficult terrain came from (keyword -> true), e.g. {Magic = true}. Stamped from the creating ability's keywords in ActivatedAbilityAuraBehavior:CastOnArea and from the Environmental Keyword's terrainKeywords. A creature with an Ignore Difficult Terrain modifier naming any of them ignores this aura's difficult terrain (engine: AuraInstance:GetDifficultTerrainKeywords). Read with try_get.
+--- @field water? boolean Tiles in the area count as water (engine tile rule via AuraInstance:GetWater); read with try_get.
+--- @field climbable? boolean Tiles in the area can be climbed like a climbable wall (AuraInstance:GetClimbable); read with try_get.
+--- @field climbersOnly? boolean With climbable, restricts climbing to natural climbers; read with try_get.
+--- @field stepped? boolean Stepped Terrain: a 1-square height change whose higher tile is in the area is a sharp step for forced movement, not a slope (AuraInstance:GetStepped); read with try_get.
+--- @field entryEffectRule? string Flat effect rule text applied to creatures entering or starting a turn in the area (Aura:GetSimpleEntryEffectTrigger); read with try_get.
 Aura = RegisterGameType("Aura", "CharacterFeature")
 
 Aura.TriggerConditions = {
@@ -185,6 +191,12 @@ end
 --- @field durationRound number|nil Initiative round at which the aura expires.
 --- @field time table|nil Time-stamp object used to compute rounds elapsed.
 --- @field object table|nil Reference to the placed object {floorid, objid}.
+--- @field hiddenFromPlayers boolean|nil True for a Map Markup zone not marked player-visible: only the Director sees it on the map, and the movement cross-section hides it from everyone else too. Set only by MapMarkupZoneRuntime; read with try_get.
+--- @field hideFromAuraLists boolean|nil True for an aura that is pure map plumbing (Map Markup footstep regions): it still applies, but aura-listing UI (character panel chips, action bar, Companion) skips it. Set only by MapMarkupZoneRuntime; read via IsHiddenFromAuraLists.
+--- @field tokenAttached? boolean True for an aura attached to (and following) its caster token, e.g. one granted by a modifier.
+--- @field casterPartyId? string Party id of the caster token when cast ("" if none).
+--- @field spellcastingFeature? SpellcastingFeature Spellcasting feature of the ability that cast it, copied onto triggered abilities.
+--- @field persistenceId? string Guid of the caster's persistent ability this aura's lifetime follows; read with try_get.
 AuraInstance = RegisterGameType("AuraInstance")
 
 Aura.Flags = {
@@ -254,8 +266,12 @@ function Aura:GetSimplePowerRollTrigger(options)
 
     local shiftedEntry = options ~= nil and options.enteredViaShift == true
     local shiftEntryMode = self:try_get("powerRollShiftEntryMode", "normal")
-    if shiftedEntry and shiftEntryMode == "ignore" and not options.adjacentOnly then
-        return nil
+    if shiftedEntry and shiftEntryMode == "ignore" then
+        --shiftedEntry is only true when options ~= nil.
+        ---@cast options -nil
+        if not options.adjacentOnly then
+            return nil
+        end
     end
 
     local rollBehaviorType = rawget(_G, "ActivatedAbilityPowerRollBehavior")
@@ -675,7 +691,9 @@ function Aura:GenerateEditor(options)
     }
 
     local objectAuraFolder = assets:GetObjectNode("auras");
-    for i, auraObject in ipairs(objectAuraFolder.children) do
+    --the core "auras" object folder can be deleted from a game; offer no objects then.
+    local auraObjects = objectAuraFolder ~= nil and objectAuraFolder.children or {}
+    for i, auraObject in ipairs(auraObjects) do
         if not auraObject.isfolder then
             objectChoices[#objectChoices + 1] = {
                 id = auraObject.id,
@@ -914,7 +932,7 @@ function Aura:GenerateEditor(options)
                     idChosen = self.objectid,
                     change = function(element)
                         ---@cast element Dropdown
-                        self.objectid = element.idChosen
+                        self.objectid = element.idChosen --[[@as string]]
                     end,
                 },
             },
@@ -932,7 +950,7 @@ function Aura:GenerateEditor(options)
                     idChosen = self.applyto,
                     change = function(element)
                         ---@cast element Dropdown
-                        self.applyto = element.idChosen
+                        self.applyto = element.idChosen --[[@as string]]
                     end,
                 },
             },
@@ -1170,7 +1188,7 @@ function Aura:GenerateEditor(options)
                     idChosen = self.relocateResource,
                     change = function(element)
                         ---@cast element Dropdown
-                        self.relocateResource = element.idChosen
+                        self.relocateResource = element.idChosen --[[@as string]]
                     end,
                 },
             },
@@ -1215,6 +1233,7 @@ function Aura:ShowEditDialog(options)
     local dialogWidth = 1200
     local dialogHeight = 980
 
+    ---@type Panel
     local resultPanel = nil
 
     local mainFormPanel = gui.Panel {
@@ -1483,8 +1502,9 @@ function Aura.FireForcedMovementTriggersForPath(c, token, path)
 
     --Mirrors the caster-token fallback in creature:EnterAura: a non-uploadable token
     --cannot own the triggered cast, so fall back to the creature's own token.
+    ---@type CharacterToken|nil
     local auraCasterToken = token
-    if auraCasterToken.valid == false or (not auraCasterToken.uploadable) then
+    if token.valid == false or (not token.uploadable) then
         auraCasterToken = dmhub.LookupToken(c)
     end
 
@@ -1639,6 +1659,36 @@ function AuraInstance:GetDifficultTerrain()
     return self.aura:try_get("difficult_terrain", false)
 end
 
+--Keywords describing where this aura's difficult terrain came from, as a set of
+--keyword -> true, or nil. Read once by the engine when it builds the C# Aura
+--(Aura.cs); a creature whose Ignore Difficult Terrain keywords match any of them
+--ignores this aura's difficult terrain (CharacterToken.IgnoresDifficultTerrainFrom).
+--- @return table<string, boolean>|nil
+function AuraInstance:GetDifficultTerrainKeywords()
+    return self.aura:try_get("difficultTerrainKeywords")
+end
+
+--- Adds keywords to an aura definition's difficult-terrain keywords. Builds a
+--- fresh table so a definition never writes into a table it shares with another.
+--- @param auraDef Aura
+--- @param keywords table<string, boolean>|nil Set of keyword -> true; nil is a no-op.
+function Aura.AddDifficultTerrainKeywords(auraDef, keywords)
+    if auraDef == nil or keywords == nil or next(keywords) == nil then
+        return
+    end
+
+    local result = {}
+    for k, v in pairs(auraDef:try_get("difficultTerrainKeywords", {})) do
+        result[k] = v
+    end
+    for k, v in pairs(keywords) do
+        if v == true then
+            result[k] = true
+        end
+    end
+    auraDef.difficultTerrainKeywords = result
+end
+
 function AuraInstance:GetConcealment()
     return self.aura:try_get("concealment", false)
 end
@@ -1689,6 +1739,11 @@ function AuraInstance:GetWater()
     return self.aura:try_get("water", false)
 end
 
+--Whether aura-listing UI should skip this aura (see hideFromAuraLists).
+function AuraInstance:IsHiddenFromAuraLists()
+    return self:try_get("hideFromAuraLists", false) == true
+end
+
 --The footstep sound family (AudioSurfaceTypes index) tiles in this aura use,
 --or nil for no override.
 function AuraInstance:GetSurfaceType()
@@ -1705,6 +1760,14 @@ function AuraInstance:GetClimbable()
         return nil
     end
     return { climbersOnly = self.aura:try_get("climbersOnly", false) == true }
+end
+
+--Whether the aura's tiles are Stepped Terrain: a 1-square change in ground
+--height whose higher tile is in the area is a sharp step, not a slope, so
+--forced movement collides with it going up and goes out over it going down.
+--Read by the engine (Aura.stepped -> TileGameRules.stepped).
+function AuraInstance:GetStepped()
+    return self.aura:try_get("stepped", false) == true
 end
 
 --Whether the aura's tiles are a HOLE in the map, like the excavate hole
@@ -1814,6 +1877,8 @@ end
 function AuraInstance:FillActivatedAbilities(creature, resultAbilities)
     if self.aura.canrelocate and self:GetArea() ~= nil then
         local area = self:GetArea()
+        --GetArea only reads the stored area, which the condition above found non-nil.
+        ---@cast area -nil
 
         --A relocated aura's stored area is an explicit-locations shape (see
         --ActivatedAbilityMoveAuraBehavior.SetCasterAuraArea), whose shape
@@ -1866,6 +1931,7 @@ end
 
 --- @class ChildAuraInstance:AuraInstance
 --- @field new fun(o?: table): ChildAuraInstance
+--- @field _tmp_parent AuraInstance The parent instance this child view derives its area, height and caster from.
 --- A transient view over a parent AuraInstance for one entry in aura.subauras. Child views are
 --- built on demand by AuraInstance:GetChildInstances and are NEVER stored or serialized: they do
 --- not live in creature.auras or in the aura object's component properties. The engine registers
@@ -2089,7 +2155,7 @@ function ActivatedAbilityAuraBehavior:RemovePreviousAuras(ability, casterToken)
     --Collect first, mutate second: RemoveAura mutates the list we are walking.
     local doomed = {}
     for _,auraInstance in ipairs(casterToken.properties:try_get("auras", {})) do
-        if auraInstance:try_get("sourceAbilityId") == abilityid and auraInstance:try_get("casterid") == casterToken.id then
+        if auraInstance:try_get("sourceAbilityId") == abilityid and auraInstance:try_get("casterid") == casterToken.charid then
             doomed[#doomed+1] = auraInstance.guid
         end
     end
@@ -2191,6 +2257,14 @@ function ActivatedAbilityAuraBehavior:CastOnArea(ability, casterToken, targets, 
             environmentalKeywordType.ApplyToAuraTree(auraDef)
         end
 
+        --Carry the ability's keywords (Magic, Psionic, ...) on any difficult terrain
+        --it creates, so e.g. a Human's Can't Take Hold can ignore magic terrain only.
+        local abilityKeywords = ability:try_get("keywords")
+        Aura.AddDifficultTerrainKeywords(auraDef, abilityKeywords)
+        for _,childDef in ipairs(auraDef:try_get("subauras", {})) do
+            Aura.AddDifficultTerrainKeywords(childDef, abilityKeywords)
+        end
+
         local auraInstance = AuraInstance.new {
             guid = guid,
             spellcastingFeature = ability:try_get("spellcastingFeature"),
@@ -2198,7 +2272,7 @@ function ActivatedAbilityAuraBehavior:CastOnArea(ability, casterToken, targets, 
             --find and remove this instance (see RemovePreviousAuras). Only read
             --when the behavior opts in via replacePrevious.
             sourceAbilityId = ability:try_get("guid"),
-            casterid = casterToken.id,
+            casterid = casterToken.charid,
             --snapshot the caster's party allegiance so an aura that persists past the
             --caster's death (aliveafterdeath) can still tell friend from foe after the
             --caster token/record is gone. Empty string means no party, which the engine
@@ -2265,7 +2339,7 @@ function ActivatedAbilityAuraBehavior:CastOnArea(ability, casterToken, targets, 
                     ["@class"] = "ObjectComponentAura",
                     auraHeight = auraHeight,
                     properties = AuraComponent.new {
-                        casterid = casterToken.id,
+                        casterid = casterToken.charid,
                         auraid = guid,
                         aura = auraInstance,
                     },
@@ -2285,6 +2359,8 @@ function ActivatedAbilityAuraBehavior:CastOnArea(ability, casterToken, targets, 
             execute = function()
                 if ability:RequiresConcentration() and casterToken.properties:HasConcentration() and obj ~= nil then
                     local concentration = casterToken.properties:MostRecentConcentration()
+                    --HasConcentration() in the condition above guarantees a most recent entry.
+                    ---@cast concentration -nil
                     local objects = concentration:get_or_add("objects", {})
                     objects[#objects + 1] = {
                         floorid = obj.floorid,
@@ -3180,10 +3256,10 @@ end
 --- @param dist number
 --- @param state table The lane's watcher state entry.
 local function SlideLaneToken(tok, dir, dist, state)
-    g_slidingTokens[tok.id] = true
-    local history = g_slideHistory[tok.id] or {}
+    g_slidingTokens[tok.charid] = true
+    local history = g_slideHistory[tok.charid] or {}
     history[#history+1] = dmhub.Time()
-    g_slideHistory[tok.id] = history
+    g_slideHistory[tok.charid] = history
 
     dmhub.Coroutine(function()
         local ok, err = pcall(function()
@@ -3241,7 +3317,9 @@ local function SlideLaneToken(tok, dir, dist, state)
             local path = tok:Move(destLoc, {
                 straightline = true,
                 maxCost = 30000,
-                movementType = "move",
+                --This was "move", which is not a MovementType: the engine ignored it and
+                --used its straight-line default, Pushed. Named explicitly, nothing changes.
+                movementType = "Pushed",
                 forcedMovementDistance = dist,
                 rebound = forcedPushOptions.rebound,
                 maxBounces = forcedPushOptions.maxBounces,
@@ -3312,13 +3390,13 @@ local function SlideLaneToken(tok, dir, dist, state)
             printf("LANE:: error sliding token: %s", tostring(err))
         end
 
-        g_slidingTokens[tok.id] = nil
+        g_slidingTokens[tok.charid] = nil
 
         --Mark the token as inside so the landing position does not read as a
         --fresh entry on the next tick. The tick after that recomputes true
         --membership from live positions.
         if tok.valid then
-            state.insideTokens[tok.id] = true
+            state.insideTokens[tok.charid] = true
         end
     end)
 end
@@ -3396,7 +3474,7 @@ local function ProcessLaneObject(obj, comp, turnStartInitiativeId)
     for _,loc in ipairs(locs) do
         for _,tok in ipairs(game.GetTokensAtLoc(loc) or {}) do
             if tok.valid and (not tok.isObject) then
-                inside[tok.id] = tok
+                inside[tok.charid] = tok
             end
         end
     end

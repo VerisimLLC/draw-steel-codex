@@ -94,18 +94,18 @@ function MapFloorLua:CreateLocalObjectFromBlueprint(options) end
 function MapFloorLua:SpawnEphemeralLevelObject(options) end
 
 --- Leaves a fading footprint on this floor. x/y are in token position space; angle is the direction the print faces in degrees counterclockwise from +x (default 90). image is an image asset id or a built-in image path such as 'footprints/boots.png', drawn toe-up (the top of the image points the way the creature walks); omit it for the generated boot print. length is the print's length in tiles (default 0.3) and width its width (default: follow the image's proportions); scale multiplies both (default 1). mirror flips it to the other foot; color tints it (default black at 40% opacity, a faint darkening of the ground); lifetime is the seconds it takes to fade away (default 60). Client-local: not saved or synced, so every client adds its own prints from the same token movement. Does nothing if the floor is not currently shown.
---- @param options {x: number, y: number, angle: number|nil, image: string|nil, length: number|nil, width: number|nil, scale: number|nil, mirror: boolean|nil, color: Color|string|nil, lifetime: number|nil}
+--- @param options {x: number, y: number, angle: number|nil, image: string|nil, length: number|nil, width: number|nil, scale: number|nil, mirror: boolean|nil, color: ColorArg|string|nil, lifetime: number|nil}
 function MapFloorLua:AddFootprint(options) end
 
 --- Removes every footprint on this floor immediately, on this client only.
 function MapFloorLua:ClearFootprints() end
 
 --- Throws a spatter of blood onto this floor. It leaves (fromx, fromy) as a droplet, flies for 'flight' seconds (default 0.3; 0 = it just appears) to land at (x, y), splats out into its image and then fades away over 'lifetime' seconds (default 60). Positions are in token position space; fromx/fromy default to x/y. image is an image asset id or a built-in image path such as 'blood/splatter-1.png' (required). angle rotates the image in degrees counterclockwise (default 0); size is its longer side in tiles (default 1); mirror flips it; color multiplies it (default white: the image's own colors). recolor repaints the image in that color while keeping its light and dark shading, e.g. green ichor from the red blood art (default: the image's own colors). delay holds the throw back that many seconds (default 0). remain is the opacity the spatter keeps once its lifetime is up (default 0: it fades away and is removed; above 0 it fades down to that and stays until cleared). tag names a group the spatter belongs to, so ClearBloodSpatter(tag) can remove the group together (default: none). Client-local: not saved or synced, so every client throws its own blood from the same synced event, seeded the same way. Does nothing if the floor is not currently shown.
---- @param options {x: number, y: number, image: string, fromx: number|nil, fromy: number|nil, angle: number|nil, size: number|nil, mirror: boolean|nil, color: Color|string|nil, recolor: Color|string|nil, delay: number|nil, flight: number|nil, lifetime: number|nil, remain: number|nil, tag: string|nil}
+--- @param options {x: number, y: number, image: string, fromx: number|nil, fromy: number|nil, angle: number|nil, size: number|nil, mirror: boolean|nil, color: ColorArg|string|nil, recolor: ColorArg|string|nil, delay: number|nil, flight: number|nil, lifetime: number|nil}
 function MapFloorLua:AddBloodSpatter(options) end
 
 --- Removes blood spatter on this floor immediately, on this client only: every spatter added with the given tag, or all of it when tag is nil.
---- @param tag string|nil
+--- @param tag? any
 function MapFloorLua:ClearBloodSpatter(tag) end
 
 --- GetNumberOfProjectiles
@@ -119,7 +119,7 @@ function MapFloorLua:GetNumberOfProjectiles(tokenid) end
 function MapFloorLua:GetProjectiles(tokenid) end
 
 --- ChangeElevation
---- @param options {type: 'rectangle'|'ellipse'|'polygon', center: nil|Vector2Arg, radius: nil|number|Vector2Arg, p1: nil|Vector2Arg, p2: nil|Vector2Arg, points: nil|(Vector2Arg[]), opacity: number, blend: nil|number, add: nil|boolean, height: number, recalculateTokenElevation: nil|boolean}
+--- @param options {type: 'rectangle'|'ellipse'|'polygon', center: nil|Vector2Arg, radius: nil|number|Vector2Arg, p1: nil|Vector2Arg, p2: nil|Vector2Arg, points: nil|(Vector2Arg[]), opacity: number, blend: nil|number, add: nil|boolean, height: number|string, recalculateTokenElevation: nil|boolean}
 function MapFloorLua:ChangeElevation(options) end
 
 --- ScaleMapElevations
@@ -193,6 +193,11 @@ function MapFloorLua:BreakWallSegment(segLocVal, segDirVal, rubbleKeywordVal) en
 --- @param locVal? any
 --- @return any
 function MapFloorLua:GetWallVoxelsAt(locVal) end
+
+--- The altitude (tiles above floor zero) of the ground the wall-voxel column on the given tile stands on. A column rises from the ground under it, so its cubes span [base, base + count) and its top is at base + count.
+--- @param locVal? any
+--- @return number
+function MapFloorLua:GetWallVoxelColumnBase(locVal) end
 
 --- Reconcile the wall-voxel column on the given tile with its solid building operation. Call after spawning wall-voxel objects locally (SpawnObjectLocal) and BEFORE uploading them: this assigns stack ordering to new voxels, snaps them to the tile center, and rewrites the column's map operation. Also safe to call any time to repair a desynced column.
 --- @param locVal? any

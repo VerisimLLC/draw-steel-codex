@@ -177,7 +177,6 @@ local function CreateChatImageAttachment(attachment)
 		halign = "left",
 		autosizeimage = true,
 		bgimageStreamed = source,
-		hoverCursor = "hand",
 		press = function(element)
 			dmhub.ViewSign(source)
 		end,
@@ -201,7 +200,6 @@ local function CreateChatAudioAttachment(attachment)
 		flow = "horizontal",
 		borderBox = true,
 		hpad = 8,
-		hoverCursor = "hand",
 		press = function(element)
 			if playingEvent ~= nil and playingEvent.playing then
 				playingEvent:Stop()
@@ -305,7 +303,6 @@ local function CreateChatVideoAttachment(attachment, options)
 		autosizeimage = true,
 		clip = true,
 		swallowPress = options.swallowPress,
-		hoverCursor = "hand",
 		bgimageStreamed = "md5:" .. attachment.chatAttachmentBlobId .. "###LOOPAUDIO" .. dmhub.GenerateGuid(),
 		press = function(element)
 			if finished then
@@ -721,8 +718,10 @@ CreateChatPanel = function()
 
 	local children = {}
 	local messagePanels = {}
+	--- @type fun(path: string)
 	local UploadChatImage = nil
 	local fileDragOverlay = nil
+	--- @type Label
 	local fileDragLabel = nil
 	local imageDropExtensions = {
 		".png", ".jpg", ".jpeg", ".webp",
@@ -1019,6 +1018,7 @@ CreateChatPanel = function()
 
 	local completionChildren = {}
 	local completionIsArgMode = false
+	--- @type fun()
 	local EscapeCompletions = nil
 	local completionsPanel = gui.Panel{
 		dragAndDropExtensions = imageDropExtensions,
@@ -1054,6 +1054,7 @@ CreateChatPanel = function()
 
 	local previewPanel = nil
     local speakerPanel = nil
+	--- @type Input
 	local inputPanel = nil
 
 	local maxCompletions = 8
@@ -1266,12 +1267,15 @@ CreateChatPanel = function()
 		return count
 	end
 
+	--- @type fun(txt?: string)
 	local UpdateCompletions = nil
 
 	-- Build a press handler for argument completion rows that replaces just the current arg
 	local function ArgCompletionPress(element)
 		local macroName, args, partial, argIndex = Commands.GetCurrentArg(inputPanel.text)
 		if macroName == nil then return end
+		--GetCurrentArg returns args whenever it returns a macroName.
+		---@cast args -nil
 		local completionValue = element.data.commandText
 		-- Rebuild: /command <previous args> <completionValue>
 		local commandPrefix = string.match(inputPanel.text, "^(/%S+)") or inputPanel.text
@@ -1308,6 +1312,8 @@ CreateChatPanel = function()
 					if macroInfo.completions ~= nil then
 						local _, typedArgs, partial, ai = Commands.GetCurrentArg(text)
 						if typedArgs ~= nil then
+							--GetCurrentArg returns args and partial together, so partial is set here.
+							---@cast partial -nil
 							local ok, suggestions = pcall(macroInfo.completions, typedArgs, ai)
 							if ok and suggestions ~= nil then
 								-- Filter by partial prefix (case-insensitive)
@@ -1503,7 +1509,7 @@ CreateChatPanel = function()
 			SetImageDropPreview(nil)
 		end,
 		dropfiles = DropChatImages,
-		width = 330,
+		width = "100%",
 		text = "preview text",
 		italics = true,
 		monitorGame = mod:GetDocumentSnapshot("chatEvents").path,
@@ -1565,6 +1571,7 @@ CreateChatPanel = function()
 		end,
 	}
 
+    --- @type creature
     local m_speakingCreature = nil
     local m_languagesKnown = nil
     local m_languagesKnownUpdate = nil
@@ -1599,8 +1606,11 @@ CreateChatPanel = function()
             },
         },
         flow = "horizontal",
-        width = 330,
-        height = 20,
+        --In a narrow chat window the language picker moves to a second line.
+        --It used to stick out past the edge of the window.
+        wrap = true,
+        width = "100%",
+        height = "auto",
         create = function(element)
             element:FireEventTree("refreshSelectedTokens")
         end,
@@ -1688,6 +1698,13 @@ CreateChatPanel = function()
             sort = true,
             monitorAssets = "ObjectTables",
             refreshAssets = function(element)
+                --a hard refresh (view-as-player, an EotW test's switch into or
+                --out of player-host mode) reloads the codemods while this old
+                --panel still lives; its Language global has been reset and
+                --has no tableName until DMHub Game Rules reloads.
+                if mod.unloaded then
+                    return
+                end
                 local options = {}
                 for key,language in unhidden_pairs(dmhub.GetTable(Language.tableName) or {}) do
                     local text = language.name
@@ -1793,6 +1810,7 @@ CreateChatPanel = function()
 				end
 			end,
 			uparrow = function(element)
+				---@cast element Input
 				if CompletionsArrow("up") then
 					return
 				end
@@ -1825,6 +1843,7 @@ CreateChatPanel = function()
 				UpdateCompletions()
 			end,
 			downarrow = function(element)
+				---@cast element Input
 				if CompletionsArrow("down") then
 					return
 				end
@@ -1880,12 +1899,16 @@ CreateChatPanel = function()
 				end
 			end,
 			submit = function(element)
+				---@cast element Input
 
 				local completionText = GetAndClearCompletionSelected()
 				if completionText ~= nil then
 					if completionIsArgMode then
 						-- Replace just the current arg, preserving previous args
 						local macroName, args, partial, argIndex = Commands.GetCurrentArg(element.text)
+						--Arg mode is only set by UpdateCompletions after GetCurrentArg parsed this same
+						--text (every edit re-runs it), so args is present.
+						---@cast args -nil
 						local commandPrefix = string.match(element.text, "^(/%S+)") or element.text
 						local parts = {commandPrefix}
 						for i = 1, #args do
@@ -1931,6 +1954,7 @@ CreateChatPanel = function()
 				--Does not include executing a command.
 			end,
 			slash = function(element)
+				---@cast element Input
 				element.hasFocus = true
 				element.text = "/"
 				element.caretPosition = 1

@@ -299,6 +299,11 @@ local BEHAVIOR_METADATA = {
         tags = {"journal", "document", "show", "read", "note"},
         group = "narrative",
     },
+    open_sheet = {
+        description = "Open the caster's character sheet on a chosen tab (e.g. Builder).",
+        tags = {"character sheet", "builder", "open", "show", "tab"},
+        group = "narrative",
+    },
 
     -- Scripting & Advanced
     Macro = {
@@ -591,6 +596,7 @@ function AbilityEditor.OpenBehaviorPicker(ability, onAdd)
             -- Note: `(x == "") and nil or x` returns "" not nil when x is "",
             -- because Lua's `A and B or C` collapses to C when B is falsy.
             -- Use an explicit branch so empty search correctly yields nil.
+            ---@type string|nil
             local query = rawQuery
             if query == "" then query = nil end
 

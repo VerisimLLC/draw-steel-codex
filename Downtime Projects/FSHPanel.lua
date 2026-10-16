@@ -164,7 +164,7 @@ function FSHPanel.ShowStartFishingDialog(heroes, args)
     --already built by here, so it runs straight through instead.
     RefreshForHero()
 
-    gui.ShowModal(dlg:Root())
+    gui.ShowModal(dlg:Root() --[[@as Panel]]) -- DialogShell.new always builds root
 end
 
 --- Declared ahead of the Trip dialog, which closes over it, and defined further
@@ -1629,7 +1629,7 @@ local function PaintRespiteFields()
             classes = { "input", "form" },
             text = FSHWater.GetName(),
             placeholderText = "Optional...",
-            lineType = "Single",
+            lineType = "SingleLine",
             respiteChanged = function(element)
                 element.text = FSHWater.GetName()
             end,
@@ -1647,7 +1647,7 @@ local function PaintRespiteFields()
             end,
             change = function(element)
                 ---@cast element Dropdown
-                FSHWater.SetWaterType(element.idChosen)
+                FSHWater.SetWaterType(element.idChosen --[[@as string]]) -- option ids are WATER_TYPE keys
             end,
         }),
 
@@ -1840,7 +1840,7 @@ function FSHPanel.PaintRespitePlayer(args)
             FSHWater.GetSessionID(),
             tostring(FSHWater.IsOpen()),
             tostring(FSHTrip.IsLive(charid)),
-            shown and (trip.status or "") or "none",
+            shown and trip ~= nil and (trip.status or "") or "none",
             tostring(FSHTrip.RollsAvailable(charid, rollHolderId)),
             tostring(#FinishedTrips()),
         }

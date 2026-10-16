@@ -13,17 +13,45 @@ local mod = dmhub.GetModLoading()
 --- @field costInGold number Base cost in gold pieces.
 --- @field description string Rules text/description.
 --- @field consumableChargesConsumed number Number of charges spent so far.
+--- @field name string Display name of the item.
+--- @field type string Item kind shown in the editor: "Gear", "Weapon", "Armor", "Shield" (importers also write "Item").
+--- @field equipmentCategory? string Id of the item's EquipmentCategory row; absent on a few rows.
+--- @field hidden? boolean Soft-delete flag; set when the item is deleted from the compendium.
+--- @field features? CharacterFeature[] Features (modifier bundles) the item grants.
+--- @field modifiers? CharacterModifier[] Legacy imported modifiers; OnDeserialize folds them into `features` and clears this.
+--- @field emitLight? Light Light the item casts when wielded (torches, lanterns).
+--- @field consumableCharges? number Charges a consumable holds; absent means 1.
+--- @field packItems? {itemid: string, quantity: number}[] Items a pack unpacks into.
+--- @field baseid? string For unique/imbued copies: id of the item this one was copied from.
+--- @field massQuantity? number How many are traded as one unit (e.g. 20 arrows) for quantity categories.
+--- @field destroyChance? number Percent (0-100) chance ammo is destroyed on use.
+--- @field ammoAugmentation? CharacterModifier modifyability modifier applied to attacks using this item as ammo.
+--- @field accessory? string Loop emote id shown on the token while the item is equipped.
+--- @field level5? string Treasure text for the 5th-level tier.
+--- @field level9? string Treasure text for the 9th-level tier.
+--- @field imbuements? table Imbuements applied to this item: `byLevel` (level -> imbue item id) plus imbue item id -> true.
+--- @field itemPrerequisite? string Crafting project: the item prerequisite text.
+--- @field projectSource? string Crafting project: the source text (languages are parsed from it).
+--- @field projectGoal? string Crafting project: goal text, starting with the number of project points.
+--- @field projectRollCharacteristic? table<string, boolean> Crafting project: set of characteristic ids that may be rolled.
 
 --- @class weapon:equipment
 --- @field hands string How many hands required: "One-handed", "Two-handed", or "Versatile".
 --- @field category string Weapon category: "Simple" or "Martial".
 --- @field damage number Base damage die value.
 --- @field damageType string Damage type (e.g. "slashing", "piercing", "bludgeoning").
+--- @field hitbonus? number Bonus to hit.
+--- @field range? string Range text for ranged weapons (e.g. "60/120").
+--- @field ammunitionType? string EquipmentCategory id of the ammo this weapon uses.
+--- @field weaponBehavior? CharacterModifier modifyability modifier applied to attacks made with this weapon.
+--- @field versatileDamage? string|number Damage when a versatile weapon is wielded two-handed (typed in the item editor).
 
 --- @class armor:equipment
 --- @field category string Armor category: "Light", "Medium", or "Heavy".
 --- @field armorClass number Base armor class provided.
 --- @field stealth string Stealth penalty: "None" or "Disadvantage".
+--- @field strength? number Strength score required to wear the armor.
+--- @field dexterityLimit? number Maximum Dexterity modifier added to armor class.
 
 --- @class shield:equipment
 --- @field armorClassModifier number Armor class bonus from equipping this shield.
@@ -318,7 +346,8 @@ function equipment.OnDeserialize(self)
 			local i,j = string.find(self.weight, "%d+")
 			if i ~= nil then
 				local str = string.sub(self.weight, i, j)
-				self.weight = tonumber(str)
+				--str is the "%d+" match, so it always parses.
+				self.weight = tonumber(str) --[[@as number]]
 			else
 				self.weight = nil
 			end
@@ -420,8 +449,10 @@ function equipment:AmmoModifyAbility(creature, ability)
 end
 
 function equipment:WeaponModifyAbility(creature, ability)
-	if self:has_key("weaponBehavior") then
-		CharacterModifier.TypeInfo.modifyability.modifyAbility(self.weaponBehavior, creature, ability)
+	--Set by the item editor on weapons; can linger on an item retyped away from Weapon.
+	local weaponBehavior = self:try_get("weaponBehavior") --[[@as CharacterModifier?]]
+	if weaponBehavior ~= nil then
+		CharacterModifier.TypeInfo.modifyability.modifyAbility(weaponBehavior, creature, ability)
 	end
 
 	--see if any of the weapon's properties have modifiers on them.
@@ -843,14 +874,15 @@ function equipment:RenderToMarkdown(options)
             characteristics = {"-"}
         end
 
+        local characteristicsText
         if #characteristics <= 2 then
-            characteristics = table.concat(characteristics, " or ")
+            characteristicsText = table.concat(characteristics, " or ")
         else
             characteristics[#characteristics] = "or " .. characteristics[#characteristics]
-            characteristics = table.concat(characteristics, ", ")
+            characteristicsText = table.concat(characteristics, ", ")
         end
 
-        tokens[#tokens+1] = string.format("**Project Roll Characteristic:** %s\n", characteristics)
+        tokens[#tokens+1] = string.format("**Project Roll Characteristic:** %s\n", characteristicsText)
         tokens[#tokens+1] = string.format("**Project Goal:** %s\n", self:try_get("projectGoal", "-"))
 
         if EquipmentCategory.IsLeveledTreasure(self) then
@@ -924,7 +956,9 @@ function equipment:RenderOld(options, token)
 		itemType = cat.name
 	end
 
+	--isWeapon/isArmor/isShield are prototype flags, true only on those subtypes.
 	if item.isWeapon then
+		---@cast item weapon
 
 		if item:try_get('hitbonus') then
 			infoItems[#infoItems+1] = gui.Label{
@@ -979,7 +1013,7 @@ function equipment:RenderOld(options, token)
 					keywords = keywords .. ', '
 				end
 
-				keywords = keywords .. property.name
+				keywords = keywords .. propertyInfo.name
 			end
 		end
 
@@ -990,6 +1024,7 @@ function equipment:RenderOld(options, token)
 		end
 
 	elseif item.isArmor then
+		---@cast item armor
 
 		infoItems[#infoItems+1] = gui.Label{
 			text = string.format("%d Armor Class", math.tointeger(item.armorClass)),
@@ -1013,6 +1048,7 @@ function equipment:RenderOld(options, token)
 			}
 		end
 	elseif item.isShield then
+		---@cast item shield
 		infoItems[#infoItems+1] = gui.Label{
 			text = string.format("+%d Armor Class", math.tointeger(item.armorClassModifier)),
 		}
@@ -1170,6 +1206,7 @@ function equipment:RenderOld(options, token)
 
 	local ammoInfoPanel = nil
 	if token ~= nil and token.properties ~= nil and item.isWeapon and item:HasProperty("ammo") and item:has_key("ammunitionType") then
+		---@cast item weapon
 		local ammunitionQuantity = 0
 		local gearTable = dmhub.GetTable('tbl_Gear')
 		local ammoName = nil

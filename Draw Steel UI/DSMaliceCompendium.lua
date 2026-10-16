@@ -219,7 +219,8 @@ CreateEditorPanel = function(key, monsterGroup)
                                 end)(),
                                 change = function(element)
                                     ---@cast element Dropdown
-                                    ability.minLevel = tonumber(element.idChosen)
+                                    --the option ids are "1".."10", so this always parses to an integer.
+                                    ability.minLevel = tonumber(element.idChosen) --[[@as integer]]
                                     dmhub.SetAndUploadTableItem(MonsterGroup.tableName, monsterGroup)
                                 end,
                             },

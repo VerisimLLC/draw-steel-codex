@@ -565,6 +565,7 @@ function CharSheet.BackgroundCharacteristicPanel(options)
 
                     local currentRows = {}
 
+                    ---@type BackgroundCharacteristic
                     local m_characteristic = nil
 
                     local characteristicsContent
@@ -611,6 +612,7 @@ function CharSheet.BackgroundCharacteristicPanel(options)
                                 if #rollTable.rows ~= #currentRows then
                                     local newRows = {}
                                     for i,row in ipairs(rollTable.rows) do
+                                        ---@type RollTableRow
                                         local m_currentRow = nil
                                         local rowPanel = currentRows[i] or gui.TableRow{
                                             gui.Label{
@@ -702,7 +704,9 @@ function CharSheet.BackgroundCharacteristicPanel(options)
                                                         text = "Customize Text...",
                                                         click = function()
                                                             element.popup = nil
-                                                            element.children[2]:BeginEditing()
+                                                            --the row's second child is the outcome gui.Label.
+                                                            local outcomeLabel = element.children[2] --[[@as Label]]
+                                                            outcomeLabel:BeginEditing()
                                                         end,
                                                     }
                                                 end
@@ -1442,6 +1446,7 @@ function CharSheet.BackgroundCharacteristicPanel(options)
 
                     local currentRows = {}
 
+                    ---@type BackgroundCharacteristic
                     local m_characteristic = nil
 
                     local characteristicsContent
@@ -1488,6 +1493,7 @@ function CharSheet.BackgroundCharacteristicPanel(options)
                                 if #rollTable.rows ~= #currentRows then
                                     local newRows = {}
                                     for i,row in ipairs(rollTable.rows) do
+                                        ---@type RollTableRow
                                         local m_currentRow = nil
                                         local rowPanel = currentRows[i] or gui.TableRow{
                                             gui.Label{
@@ -1579,7 +1585,9 @@ function CharSheet.BackgroundCharacteristicPanel(options)
                                                         text = "Customize Text...",
                                                         click = function()
                                                             element.popup = nil
-                                                            element.children[2]:BeginEditing()
+                                                            --the row's second child is the outcome gui.Label.
+                                                            local outcomeLabel = element.children[2] --[[@as Label]]
+                                                            outcomeLabel:BeginEditing()
                                                         end,
                                                     }
                                                 end

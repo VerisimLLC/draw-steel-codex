@@ -12,8 +12,11 @@ local mod = dmhub.GetModLoading()
 --user owns the module (store purchase or Patreon).
 --------------------------------------------------------------------------------
 
---Each book names the module that ships it. A premium entry has no docid: it
---shows every visible PDF the module ships, once the user owns it.
+--Each book names the module that ships it. An entry with no docid shows every
+--visible PDF the module ships; a premium one only once the user owns it.
+--
+--A "Hero Modules" section follows these, built each time the Library opens
+--from the hero modules in the user's inventory (see HeroModules.lua).
 local g_librarySections = {
     {
         title = "Draw Steel",
@@ -131,11 +134,12 @@ end
 
 --Resolves a section to its list of PDFDocumentAssetLua records. Books still
 --being fetched are left out; onchange runs when a fetch lands so the caller
---can resolve again. Returns the docs plus whether anything is still loading.
+--can resolve again. Returns the docs plus whether anything is still loading
+--(section.pending marks a section whose book list is still being worked out).
 local function ResolveSection(section, owned, onchange)
     local result = {}
     local seen = {}
-    local loading = false
+    local loading = section.pending == true
     local localDocs = assets.pdfDocumentsTable
 
     local function add(doc, id)
@@ -146,8 +150,8 @@ local function ResolveSection(section, owned, onchange)
     end
 
     for _,book in ipairs(section.books) do
-        if book.premium then
-            if owned[book.moduleid] then
+        if book.docid == nil then
+            if not book.premium or owned[book.moduleid] then
                 local docs = GetModuleDocs(book.moduleid, onchange)
                 if docs == nil then
                     loading = loading or IsModuleLoading(book.moduleid)
@@ -243,7 +247,8 @@ local function CreateBookCard(doc)
 
         gui.Label {
             classes = { "libraryBookTitle" },
-            text = doc.description,
+            --module PDFs are often named after their file ("Book.pdf").
+            text = (string.gsub(doc.description or "", "%.[pP][dD][fF]$", "")),
             width = COVER_WIDTH,
             height = "auto",
             tmargin = 14,
@@ -507,6 +512,26 @@ function CreateLibraryScreen(args)
     for _,section in ipairs(g_librarySections) do
         sections[#sections + 1] = CreateSection(section, owned)
     end
+
+    --PDFs shipped by the hero modules in the user's inventory: free ones they
+    --added and premium ones they own (switched off for heroes or not, since
+    --the book is still theirs). The list arrives async, so the section shows
+    --"Loading" until it does and stays hidden if no module ships a PDF.
+    local heroSection = { title = "Hero Modules", books = {}, pending = true }
+    local heroPanel = CreateSection(heroSection, owned)
+    sections[#sections + 1] = heroPanel
+    local gameid = dmhub.gameid
+    HeroModules.CollectInventory(function(items)
+        heroSection.pending = false
+        for _,item in ipairs(items) do
+            heroSection.books[#heroSection.books + 1] = { moduleid = item.module.fullid }
+        end
+        --a panel from a game we have since left errors even on .valid.
+        if mod.unloaded or dmhub.gameid ~= gameid or not heroPanel.valid then
+            return
+        end
+        heroPanel:FireEvent("refreshShelf")
+    end)
 
     local screen
     screen = gui.Panel {

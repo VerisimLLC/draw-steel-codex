@@ -287,7 +287,9 @@ local function ExecuteDamage(behavior, ability, casterToken, targetToken, option
             --damage tier fires from a caster with no patron set. options.symbols.cast
             --is the per-cast ActivatedAbilityCast; using a transient flag lets us
             --gate the warning per-cast without polluting persisted state.
-            local cast = options ~= nil and options.symbols ~= nil and options.symbols.cast
+            --`or nil`: without it a missing options/symbols leaves cast == false, which passes
+            --the nil test below and then fails to index.
+            local cast = options ~= nil and options.symbols ~= nil and options.symbols.cast or nil
             if cast == nil or not cast:try_get("_tmp_patronDamageWarned", false) then
                 if cast ~= nil then cast._tmp_patronDamageWarned = true end
                 print(string.format(
@@ -433,6 +435,8 @@ local g_tablesLookup = {}
 local function GetTableNameRegex(tableName, key, nameKey)
     nameKey = nameKey or "name"
     local table = dmhub.GetTable(tableName) or {}
+    --rows of whichever table was named; only their name fields are read.
+    ---@cast table table<string, table>
     g_tablesLookup[tableName] = {}
     local pattern = ""
     for k,v in pairs(table) do
@@ -682,6 +686,8 @@ local g_rulePatterns = {
 
             local description = string.format("You may %s the target %d square%s", match.movement, range, range > 1 and "s" or "")
 
+            --ability fields to overwrite on the standard ability's clone.
+            ---@type table<string, any>
             local abilityAttr = {
                 name = string.gsub(match.movement, "^%l", string.upper) .. "!",
                 range = range,
@@ -710,7 +716,29 @@ local g_rulePatterns = {
                 abilityAttr.promptOverride = abilityAttr.promptOverride .. " (" .. table.concat(adjustments, ", ") .. ")"
             end
 
-            if executeOnRemote and casterToken.activeControllerId then
+            if match.straightup then
+                --"straight up N" has exactly one destination, so there is nothing to choose:
+                --resolve it here, even when the push was handed to another creature's
+                --controller. It still runs the standard forced-movement ability, so the
+                --forced-move events, collisions and falling all apply as for any push.
+                local abilityClone = DeepCopy(MCDMUtils.GetStandardAbility(abilityName))
+                MCDMUtils.DeepReplace(abilityClone, "<<range>>", string.format("%d", range))
+                for k,v in pairs(abilityAttr) do
+                    --with no prompt text the invoke casts at targetArgs instead of asking.
+                    if k ~= "promptOverride" then
+                        abilityClone[k] = v
+                    end
+                end
+                abilityClone.forcedMovementStraightUp = true
+
+                options.targetArgs = {
+                    {
+                        loc = targetToken.loc:WithAltitude(targetToken.loc.altitude + range),
+                    }
+                }
+                InvokeAbility(ability, abilityClone, targetToken, casterToken, options)
+                options.targetArgs = nil
+            elseif executeOnRemote and casterToken.activeControllerId then
                 ability:CommitToPaying(casterToken, options)
                 InvokeAbilityRemote(abilityName, targetToken, casterToken, abilityAttr, options)
             else
@@ -720,14 +748,6 @@ local g_rulePatterns = {
                     abilityClone[k] = v
                 end
 
-                if match.straightup then
-                    options.targetArgs = {
-                        {
-                            loc = targetToken.loc:WithAltitude(targetToken.loc.altitude + range),
-                        }
-                    }
-                end
-                
                 InvokeAbility(ability, abilityClone, targetToken, casterToken, options)
                 options.targetArgs = nil
             end
@@ -820,7 +840,10 @@ local g_rulePatterns = {
             end
 
             local movementAllowed = casterToken.properties:CurrentMovementSpeed() - movedThisTurn
-            abilityClone.range = math.min(tonumber(match.distance), movementAllowed)
+            --the pattern only captures digits, so this always parses.
+            local jumpDistance = tonumber(match.distance)
+            ---@cast jumpDistance -nil
+            abilityClone.range = math.min(jumpDistance, movementAllowed)
 
             local startingMovement = options.symbols.cast.spacesMoved
             InvokeAbility(ability, abilityClone, casterToken, casterToken, options)
@@ -2023,6 +2046,7 @@ function ActivatedAbilityDrawSteelCommandBehavior:ExecuteCommandInternal(ability
                     return
                 end
 
+                ---@type boolean?
                 local result = false
                 if options.powerRollPass == nil or options.powerRollPass == (entry.pass or "target") then
                     result = entry.execute(self, ability, casterToken, targetToken, options, match)
@@ -2429,7 +2453,7 @@ end
 
 --- Parse "or" choice groups out of power table rule text.
 --- @param text string
---- @return nil|{alts: {s: number, e: number}[], suffixS: number, suffixE: number}[]
+--- @return nil|{alts: {s: number, e: number, useSuffix: boolean}[], suffixS: number, suffixE: number}[]
 function ActivatedAbilityDrawSteelCommandBehavior.ParseOrGroups(text)
     if type(text) ~= "string" or text == "" then
         return nil
@@ -2643,7 +2667,7 @@ end
 
 --- @param caster creature
 --- @param rule string
---- @param notes {string}|nil
+--- @param notes? string[] Explanations of the substitutions made are appended here.
 --- @return string
 function ActivatedAbilityDrawSteelCommandBehavior.NormalizeDamageRuleTextForCreature(caster, rule, notes)
     local original = rule
@@ -2693,11 +2717,12 @@ end
 
 --- @param caster creature
 --- @param rule string
---- @param notes {string}|nil
+--- @param notes? string[] Explanations of the substitutions made are appended here.
 --- @return string
 function ActivatedAbilityDrawSteelCommandBehavior.NormalizeRuleTextForCreature(caster, rule, notes)
     local result = ActivatedAbilityDrawSteelCommandBehavior.NormalizeDamageRuleTextForCreature(caster, rule, notes)
-    result = StringInterpolateGoblinScript(result, caster)
+    --non-nil: result is a string.
+    result = StringInterpolateGoblinScript(result, caster) --[[@as string]]
     return result
 end
 
@@ -2846,8 +2871,8 @@ local g_diagnosticStopwords = {
     -- positives during the Silver+ compendium sweep. Most are
     -- modals, pronouns, or quantifiers that share short edit
     -- distance with mechanical vocab (e.g. "can" -> "cant",
-    -- "other" -> "another", "whose" -> "choose").
-    ["can"] = true, ["cant"] = true,
+    -- "other" -> "another", "whose" -> "choose"). ("can" is listed above.)
+    ["cant"] = true,
     ["other"] = true, ["others"] = true,
     ["whose"] = true, ["whom"] = true, ["who"] = true,
     ["which"] = true, ["whether"] = true,
@@ -3451,7 +3476,9 @@ local function DiagnoseUnparsedSegment(segment, vocab, compendiumKeywords, known
     -- knownWordsLookup is the union of every vocab bucket so we
     -- don't suggest typo corrections for words that legitimately
     -- live in vocab (e.g. rider-name components like "tail").
+    ---@type string?
     local kind1Word = nil
+    ---@type string?
     local kind1Suggestion = nil
     local conditionAlreadyFlagged = nil
     if #findings > 0 and findings[1].kind == "duration_missing" then
@@ -3469,6 +3496,8 @@ local function DiagnoseUnparsedSegment(segment, vocab, compendiumKeywords, known
     end
 
     if kind1Word ~= nil then
+        --set together with kind1Word.
+        ---@cast kind1Suggestion -nil
         findings[#findings+1] = {
             kind = "near_miss",
             severity = "warning",

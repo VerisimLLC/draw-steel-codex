@@ -19,6 +19,10 @@ local mod = dmhub.GetModLoading()
 --- @field options nil|table[] Optional list of sub-options for multi-option features.
 --- @field costsPoints nil|boolean If true, selecting this feature costs character build points.
 --- @field tags nil|table<string,boolean> Set of tags from GameSystem.featureTags (e.g. "Combat", "Hidden"). Absent/empty = untagged.
+--- @field id? string Set on features that are, or are copied from, a data-table row (e.g. a deity domain's feature).
+--- @field importMatch? string Importer tables only: pattern that recognizes this trait in imported monster text.
+--- @field imported? string Import guid stamped by the rules importer on the class features it creates.
+--- @field _tmp_echelon? integer Echelon a kit's generated stats feature was built for.
 CharacterFeature = RegisterGameType("CharacterFeature")
 
 CharacterFeature.canHavePrerequisites = false
@@ -50,9 +54,11 @@ function CharacterFeature.Create(options)
 end
 
 function CharacterFeature.OnDeserialize(self)
-	if type(self.modifiers) == "table" and self.modifiers.typeName ~= nil then
+	--Corrupt data can store a single modifier here instead of a list.
+	local mods = self.modifiers --[[@as CharacterModifier[]|CharacterModifier|nil]]
+	if type(mods) == "table" and mods.typeName ~= nil then
 		--apparently an error can happen where modifiers refers to a single modifier. Correct this if it happens.
-		self.modifiers = {self.modifiers}
+		self.modifiers = {mods --[[@as CharacterModifier]]}
 	end
 
 	--try to make sure this feature's mods are correctly attributing us as the source.
@@ -143,6 +149,9 @@ end
 
 CharacterFeature._tmp_ensured_domain = false
 
+--- Stamps this feature's own domain onto it and its modifiers, once. equipment shares
+--- this function and SetDomain (Equipment.lua).
+--- @param self CharacterFeature|equipment
 function CharacterFeature.EnsureDomains(self)
 	if self._tmp_ensured_domain then
 		return
@@ -153,6 +162,7 @@ function CharacterFeature.EnsureDomains(self)
 end
 
 --- Adds a domain string to this feature and propagates it to all its modifiers.
+--- @param self CharacterFeature|equipment
 --- @param domainid string
 function CharacterFeature.SetDomain(self, domainid)
 	local domains = self:get_or_add("domains", {})
@@ -388,6 +398,7 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 
 	local modifiersPanel
 	local contentPanel
+	---@type Panel?
 	local prerequisitesPanel = nil
 
 	local optionsCollapseDescription = nil
@@ -706,6 +717,7 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 			idChosen = "none",
 			options = CharacterPrerequisite.options, 
 			change = function(element)
+				---@cast element Dropdown
 				if element.idChosen ~= 'none' then
 					self:get_or_add("prerequisites", {})
 					self.prerequisites[#self.prerequisites+1] = CharacterPrerequisite.Create{
@@ -714,6 +726,8 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 					contentPanel:FireEvent('modifierRefreshed')
 
 					element.idChosen = 'none'
+					--Assigned just below, before the user can pick anything.
+					---@cast prerequisitesPanel -nil
 					prerequisitesPanel:FireEvent("create")
 				end
 			end,
@@ -738,6 +752,8 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 						delete = function(element)
 							table.remove(self.prerequisites, i)
 							contentPanel:FireEvent('modifierRefreshed')
+							--Built by prerequisitesPanel's own create handler, so it is set.
+							---@cast prerequisitesPanel -nil
 							prerequisitesPanel:FireEvent('create')
 						end
 					}

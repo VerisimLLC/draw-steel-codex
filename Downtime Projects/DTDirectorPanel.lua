@@ -16,6 +16,7 @@ end
 --- @class DTDirectorPanel: GameType
 --- @field new fun(o?: table): DTDirectorPanel
 --- @field downtimeSettings DTSettings The downtime settings for shared data management
+--- @field panelElement? Panel The most recently built main panel (set when the dockable panel's content is created).
 DTDirectorPanel = RegisterGameType("DTDirectorPanel")
 
 --- Registers the dockable panel with the Codex UI system

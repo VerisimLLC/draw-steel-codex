@@ -8,6 +8,8 @@
 ]]
 --- @class CharacterKitChoice: CharacterChoice
 --- @field new fun(o?: table): CharacterKitChoice
+--- @field options {guid: string, name: string, description: string, unique: boolean}[] Builder options, sorted by name; set by CreateNew.
+--- @field choices {id: string, text: string, description: string, unique: boolean}[] Dropdown choices, sorted by text; set by CreateNew.
 CharacterKitChoice = RegisterGameType("CharacterKitChoice", "CharacterChoice")
 
 --- Construct from a hero
@@ -120,7 +122,7 @@ end
 --- @return boolean haltSavePropagation
 function CharacterKitChoice:SaveSelection(hero, option)
     local optionId = option.id
-    local numChoices = self:NumChoices(hero)
+    local numChoices = self:NumChoices()
     if numChoices == 1 then
         hero.kitid = optionId
     else

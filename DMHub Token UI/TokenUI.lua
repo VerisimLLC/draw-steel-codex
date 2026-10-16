@@ -192,6 +192,15 @@ TokenUI.ClearAllStatusBars = function()
 	g_statusBarRegistry = {}
 end
 
+--Handlers that get first refusal on a click on a token (after targeting clicks).
+--fn(token, isselected) returns true to consume the click. Registered by id so a
+--reload replaces rather than duplicates.
+local g_clickHandlers = {}
+
+TokenUI.RegisterClickHandler = function(id, fn)
+	g_clickHandlers[id] = fn
+end
+
 local function BoolOrFunction(val)
 	if type(val) == "function" then
 		return val()
@@ -945,6 +954,8 @@ TokenHud.RegisterPanel{
                                             element.text = barInfo.text or barInfo.base.text
                                         else
 											local showAs = (token.canControl or token.isFriendOfPlayer) and "val" or barInfo.showAs or "bar"
+											--"bar" mode shows no number; clear it so text from an earlier mode does not linger.
+											element.text = ""
 											if (barInfo.temp or 0) > 0 then
 												if showAs == "pct" then
 													if barInfo.max and barInfo.max ~= 0 then
@@ -1114,10 +1125,14 @@ TokenHud.RegisterPanel{
 
 						element.data.hoverText = icon.hoverText
 
-                        if icon.casterid ~= nil then
+                        --a caster set (casterTracking "set") lists every caster, so it wins over
+                        --casterid, which is only the most recent one.
+                        if icon.casterSet ~= nil then
+                            iconPanel.data.casteridSet = icon.casterSet
+                        elseif icon.casterid ~= nil then
 						    iconPanel.data.casteridSet = {[icon.casterid] = true}
                         else
-                            iconPanel.data.casteridSet = icon.casterSet
+                            iconPanel.data.casteridSet = nil
                         end
 
                         iconPanel.data.bondid = icon.bondid
@@ -1399,6 +1414,12 @@ function CreateTokenHud(token)
 		end
 	end
 
+	--the effect panels showing this token is targeted; interactive=false for a display-only target.
+	---@class TokenTargetEffectList
+	---@field [integer] Panel
+	---@field interactive? boolean
+
+	---@type TokenTargetEffectList|nil
 	local targetEffect = nil
 	local loopingEmotes = {}
 
@@ -1689,6 +1710,7 @@ function CreateTokenHud(token)
                                     audio.FireSoundEvent(resourceInfo:SoundEventName() .. cond(anim.animType == "refreshResource", "_Gain", "_Spend"), {
                                         sequence = i,
                                         total = quantity,
+                                        tokenid = token.charid,
                                     })
 								end,
 								disappear = function(element)
@@ -2147,7 +2169,8 @@ function CreateTokenHud(token)
                         eventName = string.format("%s_%s", eventName, entry.damage_type)
                     end
 
-					audio.FireSoundEvent(eventName, { tokenid = token.charid, volume = volume })
+					--attackerid lets the sound play its "controlled" variant for the hitter too.
+					audio.FireSoundEvent(eventName, { tokenid = token.charid, attackerid = entry.attackerid, volume = volume })
 
                     --every client gets here once per entry, so this is how the blood networks.
                     BloodSpatter.Emit(token, entry)
@@ -2169,7 +2192,7 @@ function CreateTokenHud(token)
                 local fontFace = nil
                 print("Language: Speaking in", entry.langid, "known locally =", creature.g_languagesKnownLocally)
                 if (not dmhub.isDM) and (not token.canControl) and entry.langid ~= nil and (not creature.g_languagesKnownLocally[entry.langid]) then
-                    fontFace = "Tengwar"
+                    fontFace = Language.UnreadableFontForId(entry.langid)
                 end
 
                 local text = entry.text
@@ -2370,7 +2393,7 @@ function CreateTokenHud(token)
 
 			targetnoninteractive = function(element, options)
 				if targetEffect == nil then
-					targetEffect = { interactive = false }
+					targetEffect = { interactive = false } --[[@as TokenTargetEffectList]]
 					for i,effect in ipairs(element.data.PlayEffect('targetglow', true, options)) do
 						targetEffect[#targetEffect+1] = effect
 					end
@@ -2604,6 +2627,13 @@ function CreateTokenHud(token)
 					--mark this click as consumed so the token doesn't get selected etc.
 					token:ConsumeClick()
 					return
+				end
+
+				for _, handler in pairs(g_clickHandlers) do
+					if handler(token, isselected) then
+						token:ConsumeClick()
+						return
+					end
 				end
 
                 if token.canControl and not isselected then

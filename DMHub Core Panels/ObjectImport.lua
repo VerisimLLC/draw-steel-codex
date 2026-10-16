@@ -23,6 +23,7 @@ local function ObjectFoldersPanel()
 
 		refreshAssetsEcho = function(element)
 			if g_addingObject ~= nil then
+				--- @type {element: Panel?}
 				local output = { element = nil }
 				element:FireEventTree("findnode", g_addingObject, output)
 				g_addingObject = nil
@@ -502,7 +503,7 @@ local function ImportObjectsWizard()
 		end,
 
 		output = function(element, info)
-			dmhub.Debug(string.format("OPEN FILES: update = %s; sheets = %s", json(info), json(importer.sheets)))
+			dmhub.Debug(string.format("OPEN FILES: update = %s", json(info)))
 
 			element:FireEventTree("refresh")
 		end,
@@ -757,6 +758,8 @@ local function SplitPlacedObject(original)
         --object images render at 128 source pixels per tile; a piece's world
         --offset is its region center relative to the image center (objects
         --pivot at their center), scaled and rotated with the object.
+        --regions was read from sheet and checked above, so sheet is set.
+        ---@cast sheet -nil
         local srcW = sheet.width
         local srcH = sheet.height
         local worldPerPixel = objScale / 128

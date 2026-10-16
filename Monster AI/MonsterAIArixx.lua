@@ -180,9 +180,6 @@ local function FindBestCubePlan(token, ability, enemies)
                     value = value,
                 }
             end
-            if type(area.Destroy) == "function" then
-                area:Destroy()
-            end
         end
     end
     return best

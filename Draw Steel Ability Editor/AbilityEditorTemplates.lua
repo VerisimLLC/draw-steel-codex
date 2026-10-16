@@ -28,6 +28,7 @@ local TEMPLATE_CATEGORIES = {
 --- @class AbilityTemplate: GameType
 --- @field new fun(o?: table): AbilityTemplate
 --- @field id string Key of this row in its data table; SetAndUploadTableItem sets it.
+--- @field ability ActivatedAbility The template ability, created by CreateNew.
 AbilityTemplate = RegisterGameType("AbilityTemplate")
 AbilityTemplate.tableName = "abilityTemplates"
 AbilityTemplate.name = "New Template"
@@ -895,6 +896,7 @@ local function _buildDuplicateListView(ability, rootPanel, onComplete, rebuildEd
     -- was being uiscale-shrunk under heavy item counts; matching the
     -- modifier picker's flat pattern keeps cards readable regardless of
     -- list length.
+    ---@type Panel
     local contentPanel = nil
 
     local function setContent(children)
@@ -1301,7 +1303,9 @@ function AbilityEditor.ShowEntryModal(ability, rootPanel, rebuildEditor)
 
     -- The content panel whose children get swapped between the main view
     -- and the template/duplicate sub-views.
+    ---@type Panel
     local contentPanel = nil
+    ---@type Panel
     local innerPanel = nil
 
     local function showMainView()

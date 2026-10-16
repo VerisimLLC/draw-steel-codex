@@ -586,6 +586,11 @@ local function PickHeroImage(item, cfg, callback)
     end
 end
 
+--Shared with the titlescreen's "new items" dialog, which shows the same key
+--art cover-cropped the same way (CreatePromoGrantDialog in CodexTitlescreen.lua).
+AdventurePage.CoverWindow = CoverWindow
+AdventurePage.PickHeroImage = PickHeroImage
+
 --The rule under the hero title, after the dividers on the book covers: a thin
 --line with a diamond at its left end.
 local g_ruleWidth = 520
@@ -635,6 +640,8 @@ local function MakeTitleRule()
         },
     }
 end
+
+AdventurePage.MakeTitleRule = MakeTitleRule
 
 --------------------------------------------------------------------------------
 --Hero: full-bleed key art (still), a left-hand scrim, and the
@@ -1204,9 +1211,11 @@ local function MakeMapsSlide(width, stageH)
             video = map.video
         end
         --how long this map shows before the next: at least one whole loop.
+        ---@type number
         local hold = g_mapHoldTime
-        if video ~= nil and (tonumber(map.duration) or 0) > hold then
-            hold = tonumber(map.duration)
+        local duration = tonumber(map.duration) or 0
+        if video ~= nil and duration > hold then
+            hold = duration
         end
         local state = {dims = nil, time = 0, pins = {}, video = video, hold = hold, active = false}
 
@@ -1292,7 +1301,8 @@ local function MakeMapsSlide(width, stageH)
                 local playing = state.active and not m_still
                 videoPanel:SetClass("collapsed", not playing)
                 if playing and videoPanel.bgimage ~= video then
-                    videoPanel.bgimage = video
+                    --videoPanel exists only when video is non-nil (see MakeLayer).
+                    videoPanel.bgimage = video --[[@as string]]
                 end
             elseif not m_still then
                 --cosine ease: slows to a stop at each end of the sweep.

@@ -22,9 +22,58 @@ monster.ev = 1
 
 monster.keywords = {}
 
+--The stat block's own keywords plus any added by Grant Keyword modifiers
+--(e.g. a rival's ancestry). Edit self.keywords, not this result.
 function monster:Keywords()
-    return self.keywords
+    local granted = nil
+    for _,entry in ipairs(self:GetActiveModifiers()) do
+        if entry.mod.behavior == "grantkeyword" then
+            local keyword = entry.mod:try_get("keyword", "")
+            if keyword ~= "" and not self.keywords[keyword] then
+                granted = granted or {}
+                granted[keyword] = true
+            end
+        end
+    end
+
+    if granted == nil then
+        return self.keywords
+    end
+
+    for keyword,value in pairs(self.keywords) do
+        granted[keyword] = value
+    end
+    return granted
 end
+
+--Adds a keyword to the creature while the modifier is active, e.g. an
+--ancestry keyword chosen for a rival in the builder.
+CharacterModifier.RegisterType("grantkeyword", "Grant Keyword")
+
+CharacterModifier.TypeInfo.grantkeyword = {
+    init = function(modifier)
+        modifier.keyword = ""
+    end,
+
+    createEditor = function(modifier, element)
+        element.children = {
+            gui.Panel{
+                classes = {"formPanel"},
+                gui.Label{
+                    classes = {"formLabel"},
+                    text = "Keyword:",
+                },
+                gui.Input{
+                    classes = {"formInput"},
+                    text = modifier:try_get("keyword", ""),
+                    change = function(input)
+                        modifier.keyword = input.text
+                    end,
+                },
+            },
+        }
+    end,
+}
 
 function creature:PowerRollBonus()
     return 0
@@ -141,9 +190,16 @@ function monster:FillFreeStrikes(options, result)
         local rangedSignature = signature
         if signature:HasKeyword("Melee") and signature:HasKeyword("Ranged") then
             local splitSignature = signature:BifurcateIntoMeleeAndRanged(self)
-            meleeSignature = splitSignature.meleeVariation
-            rangedSignature = splitSignature.rangedVariation
+            --with disableSplitIntoMeleeAndRanged the ability comes back unsplit and has no
+            --variations; it then serves as both, as the action bar uses it.
+            if splitSignature.meleeAndRanged then
+                meleeSignature = splitSignature.meleeVariation
+                rangedSignature = splitSignature.rangedVariation
+            end
         end
+        --a split (meleeAndRanged) ability always carries both variations.
+        ---@cast meleeSignature -nil
+        ---@cast rangedSignature -nil
 
         if signature:HasKeyword("Melee") then
             signatureRanges.Melee = meleeSignature:GetRange(self)

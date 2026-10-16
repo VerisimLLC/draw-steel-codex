@@ -8,6 +8,9 @@ local mod = dmhub.GetModLoading()
 ]]
 --- @class CharacterTitleChoice: CharacterChoice
 --- @field new fun(o?: table): CharacterTitleChoice
+--- @field options table[] Builder options, sorted by name; set by CreateNew.
+--- @field choices table[] Dropdown choices {id, text, ...}, sorted by text; set by CreateNew.
+--- @field numSelected number How many titles the hero has; set by CreateNew.
 CharacterTitleChoice = RegisterGameType("CharacterTitleChoice", "CharacterChoice")
 
 CharacterTitleChoice.description = "Title Choice"

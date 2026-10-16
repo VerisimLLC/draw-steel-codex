@@ -122,7 +122,9 @@ function CharacterFeat:FillClassFeatures(choices, result, creature)
 		elseif feature.typeName == 'CharacterFeature' then
 			result[#result+1] = feature
 		elseif feature.typeName == 'CharacterFeatureList' then
-			for _,child in ipairs(feature.features) do
+			--ClassLevel.features does not list CharacterFeatureList, though levels do hold them.
+			local featureList = feature --[[@as CharacterFeatureList]]
+			for _,child in ipairs(featureList.features) do
 				if not PrerequisitesMet(child, creature) then
 					--skip.
 				elseif child.typeName == 'CharacterFeature' then
@@ -560,6 +562,7 @@ end
 --- @field new fun(o?: table): CharacterSingleFeat
 --- @field featid string Id of the specific feat granted (or "none").
 --- @field name string Display name ("Single Feat").
+--- @field guid string Unique id, set by CreateNew.
 --- A CharacterFeature-like wrapper that grants exactly one specific feat.
 --a single feat granted in a class editor.
 CharacterSingleFeat = RegisterGameType("CharacterSingleFeat")
@@ -601,6 +604,16 @@ function CharacterSingleFeat:GetDescription()
 	end
 
 	return feat.description
+end
+
+--A single feat can be an option of a feature choice (the class editor's "Single Feat"),
+--whose dropdown asks every option for these.
+function CharacterSingleFeat:HasCustomDropdownPanel()
+	return false
+end
+
+function CharacterSingleFeat:CreateDropdownPanel()
+	return nil
 end
 
 function CharacterSingleFeat:SetDomain(domainid)

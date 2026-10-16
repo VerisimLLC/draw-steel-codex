@@ -38,7 +38,8 @@ function RichImage.CreateDisplay(self)
         if img ~= m_lastImage or not m_applied then
             m_lastImage = img
             m_applied = true
-            imagePanel.bgimage = img
+            --false clears the image exactly as nil does (checked live).
+            imagePanel.bgimage = img or false
         end
         imagePanel.selfStyle.uiscale = self.uiscale
         --The wrapper fills its container's width in BOTH modes now (see below),
@@ -244,7 +245,8 @@ function RichImage.CreateEditor(self)
 
                         change = function(element)
                             ---@cast element Dropdown
-                            self.halign = element.idChosen
+                            --the three option ids above are strings.
+                            self.halign = element.idChosen --[[@as string]]
                         end,
                     },
                 }

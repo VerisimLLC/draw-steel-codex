@@ -95,7 +95,8 @@ function ActivatedAbilityConferConditionsBehavior:Cast(ability, casterToken, tar
         end
         local obj = dmhub.EvalGoblinScriptToObject(self.conditionSource, casterToken.properties:LookupSymbol(options.symbols), "Determine condition source")
         if obj ~= nil and type(obj) == "table" and (obj.typeName == "creature" or obj.typeName == "character" or obj.typeName == "monster" or obj.typeName == "follower") then
-            local resolved = dmhub.GetCharacterById(dmhub.LookupTokenId(obj))
+            local tokenid = dmhub.LookupTokenId(obj)
+            local resolved = tokenid ~= nil and dmhub.GetCharacterById(tokenid) or nil
             if resolved ~= nil then
                 sourceToken = resolved
             end
@@ -669,7 +670,7 @@ function ActivatedAbilityConferConditionsBehavior:EditorItems(parentPanel)
                 change = function(element)
                     ---@cast element Dropdown
                     if element.idChosen ~= "none" then
-                        self.conditions[#self.conditions+1] = element.idChosen
+                        self.conditions[#self.conditions+1] = element.idChosen --[[@as string]] -- option ids are condition ids
                     end
                     parentPanel:FireEventTree("refreshConfer")
                 end,

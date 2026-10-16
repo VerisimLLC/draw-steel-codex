@@ -2,7 +2,7 @@
 --- into the Codex character system. Encapsulates all class-related import logic
 --- including kits, class features, subclasses, and deity selections.
 --- @class FSCIClassImporter: GameType
---- @field new fun(o?: table): FSCIClassImporter
+--- @field new fun(self: FSCIClassImporter, fsClass: table, character: table): FSCIClassImporter
 --- @field fsClass table The Forge Steel class data to import
 --- @field character table The Codex character being built
 FSCIClassImporter = RegisterGameType("FSCIClassImporter")
@@ -127,6 +127,8 @@ function FSCIClassImporter:_processDomainAsSubclass(classFillImporter, classLeve
                                 writeLog(string.format("!!!! Domain [%s] not found in Codex.", domainInfo.name), STATUS.WARN)
                                 break
                             end
+                            --the lookup returns the row alongside any id it finds.
+                            ---@cast domainItem -nil
                             
                             domainCount = domainCount + 1
                             if domainCount > 2 then
@@ -258,6 +260,8 @@ function FSCIClassImporter:_processSubclass(classFillImporter, classLevel)
 
     writeDebug("FSCICLASSIMPORTER:: SUBCLASS:: %s", subclassName)
     if subclassName and #subclassName then
+        --a selected Forge Steel subclass always carries featuresByLevel.
+        ---@cast subclassFeaturesByLevel -nil
         local findSubclass = { type = "Subclass", name = subclassName}
         local leveledChoices = classFillImporter:ProcessFeature(findSubclass)
         FSCIUtils.MergeTables(self.character:GetLevelChoices(), leveledChoices)
@@ -319,7 +323,7 @@ function FSCIClassImporter:_extractKits(featuresByLevel)
 end
 
 --- Extracts selected domains plus features by level for each
---- @param featuresByLEvel table Array of level objects containing features
+--- @param featuresByLevel table Array of level objects containing features
 --- @return table domains Array of domains with leveled features
 --- @private
 function FSCIClassImporter:_extractDomains(featuresByLevel)

@@ -427,7 +427,7 @@ Commands.RegisterMacro{
         end
 
         DramaticBanner.Show{
-            tokenid = tokens[1].id,
+            tokenid = tokens[1].charid,
             text = string.trim(title),
             subtitle = subtitle,
         }
@@ -706,7 +706,7 @@ Commands.RegisterMacro{
     command = function(str)
         local n = tonumber(str) or 2000
         local gh = GameHud.instance
-        if gh == nil then print("No GameHud.instance") return end
+        if not gh then print("No GameHud.instance") return end
 
         --Snapshot live state so the timed ops behave identically regardless
         --of any tip currently showing.
@@ -1189,6 +1189,11 @@ Commands.RegisterMacro{
         local y2 = tonumber(args[4])
         local height = tonumber(args[5])
 
+        if x1 == nil or y1 == nil or x2 == nil or y2 == nil or height == nil then
+            dmhub.Log("Usage: /elevation <x1> <y1> <x2> <y2> <height>")
+            return
+        end
+
         game.currentFloor:ChangeElevation {
             type = "rectangle",
             p1 = { x = x1, y = y1 },
@@ -1213,6 +1218,11 @@ Commands.RegisterMacro{
         local radius = tonumber(args[3])
         local height = tonumber(args[4])
 
+        if x1 == nil or y1 == nil or radius == nil or height == nil then
+            dmhub.Log("Usage: /elevationcircle <x> <y> <radius> <height>")
+            return
+        end
+
         game.currentFloor:ChangeElevation {
             type = "ellipse",
             center = { x = x1, y = y1 },
@@ -1231,6 +1241,7 @@ Commands.RegisterMacro{
     doc = "Usage: /move <token name> <x> <y>\nMoves token(s) to given location.",
     completions = function(args, argIndex)
         if argIndex ~= 1 then return {} end
+        ---@type (string|{text: string, summary: string})[]
         local result = {{text = "all", summary = "all tokens"}, {text = "heroes", summary = "hero tokens"}, {text = "monsters", summary = "monster tokens"}}
         local seen = {}
         for _, token in ipairs(dmhub.allTokens) do
@@ -1246,6 +1257,11 @@ Commands.RegisterMacro{
         local args = Commands.SplitArgs(str)
         local x = tonumber(args[2])
         local y = tonumber(args[3])
+
+        if x == nil or y == nil then
+            dmhub.Log("Usage: /move <token name> <x> <y>")
+            return
+        end
 
         local matchedTokens = tokenSearch(args[1])
 
@@ -1274,6 +1290,7 @@ end
 
 local function tokenSearchCompletions(args, argIndex)
     if argIndex ~= 1 then return {} end
+    ---@type (string|{text: string, summary: string})[]
     local result = {{text = "all", summary = "all tokens"}, {text = "heroes", summary = "hero tokens"}, {text = "monsters", summary = "monster tokens"}}
     local seen = {}
     for _, token in ipairs(dmhub.allTokens) do
@@ -1416,6 +1433,7 @@ Commands.RegisterMacro{
     doc = "Usage: /emote <token name> <emote name>\nSets emote active on given token(s). If only one arg, uses selected tokens.",
     completions = function(args, argIndex)
         if argIndex == 1 then
+            ---@type (string|{text: string, summary: string})[]
             local result = {{text = "all", summary = "all tokens"}, {text = "heroes", summary = "hero tokens"}, {text = "monsters", summary = "monster tokens"}}
             local seen = {}
             for _, token in ipairs(dmhub.allTokens) do
@@ -1596,7 +1614,7 @@ Commands.RegisterMacro{
             local locs = token.locsOccupying
             for i,loc in ipairs(locs) do
                 if loc.x == x1 and loc.y == y1 then
-                    token:ChangeLocation(core.Loc { x = x2, y = y2, floorIndex = loc.floorIndex }:WithGroundLevelAltitude())
+                    token:ChangeLocation(core.Loc { x = x2, y = y2, floorIndex = loc.floor }:WithGroundLevelAltitude())
                 end
             end
         end
@@ -2236,7 +2254,7 @@ do
                         pool[#pool + 1] = o
                     end
                 end
-                local need = kitChoice:NumChoices(hero) - #selected
+                local need = kitChoice:NumChoices() - #selected
                 while need > 0 and #pool > 0 do
                     local o = table.remove(pool, math.random(1, #pool))
                     kitChoice:SaveSelection(hero, { id = o.guid })
@@ -2272,10 +2290,12 @@ do
 
             -- Pull out an explicit level ("level N" / "lvl N"); default to 1.
             local lower = string.lower(str)
+            ---@type number
             local level = 1
             local lvl = string.match(lower, "level%s+(%d+)") or string.match(lower, "lvl%s+(%d+)")
             if lvl then
-                level = tonumber(lvl)
+                --a %d+ capture, so tonumber cannot fail.
+                level = tonumber(lvl) --[[@as number]]
             end
             local cleaned = string.gsub(lower, "level%s+%d+", " ")
             cleaned = string.gsub(cleaned, "lvl%s+%d+", " ")
@@ -2319,6 +2339,8 @@ do
             -- candidates for subsequent rounds.
             local subCands = {}
             if classObj then
+                -- classObj is only set when classMatch matched.
+                ---@cast classMatch -nil
                 subCands = BuildChar_Candidates(subs,
                     function(v) return v.primaryClassId == classMatch.cand.id end)
             end
@@ -2377,6 +2399,7 @@ do
                     "\". Start with a class name, e.g. /buildchar Shadow Black Ash.")
                 return
             end
+            ---@cast classMatch -nil
 
             local subclassChoiceGuid = nil
             if subMatch then
@@ -2971,7 +2994,9 @@ Commands.RegisterMacro{
                     end,
                 }
 
-                local classInfo = token.properties:IsHero() and token.properties:GetClass() or nil
+                --inside the IsHero() check, and only a character answers IsHero() true.
+                local hero = token.properties --[[@as character]]
+                local classInfo = hero:GetClass()
                 track("hero_token_change", {
                     change = points,
                     source = "manual",
@@ -4183,14 +4208,14 @@ Commands.RegisterMacro{
 
         local orgid = string.lower(args[1])
         if orgid == "clear" and #args == 1 then
-            dmhub.ClearPatreonOrgOverride(nil)
+            dmhub:ClearPatreonOrgOverride(nil)
             dmhub.Log("Patreon overrides cleared")
             return
         end
 
         local value = args[2] and string.lower(args[2]) or nil
         if value == "clear" then
-            dmhub.ClearPatreonOrgOverride(orgid)
+            dmhub:ClearPatreonOrgOverride(orgid)
             dmhub.Log(string.format("Patreon override for %s cleared", orgid))
             return
         end
@@ -4201,7 +4226,7 @@ Commands.RegisterMacro{
             return
         end
 
-        dmhub.SetPatreonOrgOverride(orgid, cents)
+        dmhub:SetPatreonOrgOverride(orgid, cents)
         dmhub.Log(string.format("Patreon override: %s -> %d cents for this session", orgid, cents))
     end,
 }

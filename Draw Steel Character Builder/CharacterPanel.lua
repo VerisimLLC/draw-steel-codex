@@ -864,14 +864,17 @@ function CBCharPanel._headerPanel()
         end,
 
         refreshAppearance = function(element, info)
-            local token = _getToken(element)
+            local token = _getToken()
+            --nil when no character sheet is open (CharacterSheet.instance is false).
+            if token == nil then return end
             element.SetValue(element, token.portrait, false)
             element:FireEvent("imageLoaded")
             element:FireEvent("updatePopout", token.popoutPortrait)
         end,
 
         change = function(element)
-            local token = _getToken(element)
+            local token = _getToken()
+            if token == nil then return end
             token.portrait = element.value
             token:UploadAppearance()
         end,
@@ -882,7 +885,7 @@ function CBCharPanel._headerPanel()
         placeholderText = "Character Name",
         editlag = 0.5,
         change = function(element)
-            local token = _getToken(element)
+            local token = _getToken()
             if token and token.name ~= element.text then
                 token.name = element.text
                 token:UploadAppearance()
@@ -961,7 +964,7 @@ function CBCharPanel._headerPanel()
                     end
                 else
                     extra.encounter = nil
-                    hero.levelOverride = element.idChosen
+                    hero.levelOverride = element.idChosen --[[@as integer]]
                 end
                 hero.extraLevelInfo = extra
 

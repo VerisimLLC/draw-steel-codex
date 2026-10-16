@@ -77,6 +77,8 @@ function ActivatedAbilityRemoveCreatureBehavior:DropLoot(token, newObj)
 
 
 	local floor = game.GetFloor(token.floorid)
+	-- The token being removed is on the current map, so its floor exists.
+	---@cast floor -nil
 
     if newObj == nil then
         newObj = floor:CreateLocalObjectFromBlueprint{
@@ -198,11 +200,11 @@ function ActivatedAbilityRemoveCreatureBehavior:LeaveCorpse(token, newObj)
             if type(attacker) == "function" then
                 attacker = attacker("self")
             end
-            attacker = dmhub.LookupToken(attacker)
-            print("ATTACKER:: LOOKUP =", attacker ~= nil, attacker ~= nil and attacker.valid)
-            if attacker ~= nil and attacker.valid then
-                print("ATTACKER:: NAME =", attacker.name)
-                attackerName = attacker.name
+            local attackerToken = dmhub.LookupToken(attacker)
+            print("ATTACKER:: LOOKUP =", attackerToken ~= nil, attackerToken ~= nil and attackerToken.valid)
+            if attackerToken ~= nil and attackerToken.valid then
+                print("ATTACKER:: NAME =", attackerToken.name)
+                attackerName = attackerToken.name
             end
         end
 
@@ -228,6 +230,23 @@ end
 function ActivatedAbilityRemoveCreatureBehavior:Cast(ability, casterToken, targets, options)
     local charids = {}
     local removedInitiativeIds = {}
+
+    --Re-evaluates filterTarget against the target's current state. The waits
+    --below can last many seconds, and the target may stop matching during them
+    --(e.g. a hero spends hero tokens on Recovery on Death and is no longer dead).
+    local function stillPassesFilter(target, i)
+        local filterTarget = trim(self.filterTarget)
+        if filterTarget == "" then
+            return true
+        end
+        local symbols = table.shallow_copy(options.symbols or {})
+        symbols.target = target.token.properties
+        symbols.caster = casterToken.properties
+        symbols.targetnumber = i
+        symbols.numberoftargets = #targets
+        return GoblinScriptTrue(ExecuteGoblinScript(filterTarget, target.token.properties:LookupSymbol(symbols), 1, "Filter remove creature"))
+    end
+
     for i,target in ipairs(targets) do
 
         --A target can be destroyed/despawned before we get here (e.g. by an earlier
@@ -250,6 +269,11 @@ function ActivatedAbilityRemoveCreatureBehavior:Cast(ability, casterToken, targe
             --so the remaining pushes are silently dropped. Same 120s backstop as
             --the general wait below so a stuck cast can't park the corpse forever.
             local minion = target.token.properties.minion
+            --- Only `activity` is used here: CountActiveCasts skips casts marked "reaping".
+            ---@class AbilityRemoveCreatureCastInfo
+            ---@field activity string|nil
+
+            ---@type AbilityRemoveCreatureCastInfo
             local castInfo = ActivatedAbility.CurrentCastInfo() or {}
             castInfo.activity = "reaping"
 
@@ -281,16 +305,7 @@ function ActivatedAbilityRemoveCreatureBehavior:Cast(ability, casterToken, targe
 
             --make sure we still pass the filter.
             if targetPasses then
-                local filterTarget = trim(self.filterTarget)
-                if filterTarget ~= "" then
-                    local symbols = table.shallow_copy(options.symbols or {})
-                    symbols.target = target.token.properties
-                    symbols.caster = casterToken.properties
-                    symbols.targetnumber = i
-                    symbols.numberoftargets = #targets
-
-                    targetPasses = GoblinScriptTrue(ExecuteGoblinScript(filterTarget, target.token.properties:LookupSymbol(symbols), 1, "Filter remove creature"))
-                end
+                targetPasses = stillPassesFilter(target, i)
             end
         end
 
@@ -305,6 +320,19 @@ function ActivatedAbilityRemoveCreatureBehavior:Cast(ability, casterToken, targe
             local waitStart = dmhub.Time()
             local waitDeadline = waitStart + 45
             local idleSince = nil
+
+            --An accepted trigger (Recovery on Death) does not start its cast until
+            --every running cast finishes -- and this cast is one of them. Mark this
+            --cast as only waiting, so those triggers start now, and release any that
+            --were queued behind it before the wait began.
+            --- @type {activity: string|nil}|nil
+            local castInfo = ActivatedAbility.CurrentCastInfo()
+            local priorActivity = castInfo ~= nil and castInfo.activity or nil
+            if castInfo ~= nil then
+                castInfo.activity = ActivatedAbility.AWAITING_TRIGGERS_ACTIVITY
+                ActivatedAbility.FlushCastCompleteActionsSoon()
+            end
+
             while dmhub.Time() < waitDeadline do
                 if not target.token.valid or target.token.properties == nil then
                     break
@@ -319,7 +347,9 @@ function ActivatedAbilityRemoveCreatureBehavior:Cast(ability, casterToken, targe
                         break
                     end
                 end
+                --An accepted trigger still queued to start counts as a cast in flight.
                 local hasCast = ActivatedAbility.TokenHasOtherActiveCasts(target.token)
+                    or ActivatedAbility.HasDeferredCastFor(target.token)
                 if (not hasPrompt) and (not hasCast) then
                     idleSince = idleSince or dmhub.Time()
                     if dmhub.Time() - idleSince >= idleRequired then
@@ -331,9 +361,17 @@ function ActivatedAbilityRemoveCreatureBehavior:Cast(ability, casterToken, targe
                 coroutine.yield(0.1)
             end
 
-            --re-validate after the wait.
+            if castInfo ~= nil then
+                castInfo.activity = priorActivity
+            end
+
+            --re-validate after the wait. The prompts waited on here can undo
+            --the death itself (Recovery on Death, report BGGJ7TH2), so the
+            --filter must be checked again, not just the token.
             if not target.token.valid or target.token.properties == nil then
                 targetPasses = false
+            else
+                targetPasses = stillPassesFilter(target, i)
             end
         end
 
@@ -432,6 +470,47 @@ function ActivatedAbilityRemoveCreatureBehavior.EndTurnIfEntryEmptied(removedIni
             dmhub:UploadInitiativeQueue()
         end)
     end)
+end
+
+--Deleting a creature by hand (the Director's Delete key or the token context
+--menu) goes through the engine's DeleteCharacters, which calls OnDelete -- or
+--OnDespawn, for a player's hero -- on the deleting client just before the
+--token leaves. Route those through the check above so deleting the creature
+--whose turn it is ends that turn instead of stranding the initiative queue.
+--One delete can remove several creatures in a row, so their ids are batched
+--into a single check.
+local g_pendingRemovedInitiativeIds = nil
+
+local function NoteCreatureLeavingMap(creatureProps)
+    local initiativeid = InitiativeQueue.GetInitiativeId(dmhub.LookupToken(creatureProps))
+    if initiativeid == nil then
+        return
+    end
+
+    local ids = g_pendingRemovedInitiativeIds
+    if ids == nil then
+        ids = {}
+        g_pendingRemovedInitiativeIds = ids
+        dmhub.Schedule(0.01, function()
+            g_pendingRemovedInitiativeIds = nil
+            if mod.unloaded then
+                return
+            end
+            ActivatedAbilityRemoveCreatureBehavior.EndTurnIfEntryEmptied(ids)
+        end)
+    end
+    ids[initiativeid] = true
+end
+
+--Aura.lua (loaded earlier in this mod) defines OnDelete; chain onto it.
+local g_baseOnDelete = creature.OnDelete
+function creature:OnDelete()
+    g_baseOnDelete(self)
+    NoteCreatureLeavingMap(self)
+end
+
+function creature:OnDespawn()
+    NoteCreatureLeavingMap(self)
 end
 
 
@@ -587,7 +666,7 @@ function CorpseComponent:Respawn(obj)
             if token.loc.x ~= x or token.loc.y ~= y then
                 print(string.format("[CORPSE_REVIVE] ChangeLocation -> %d,%d floor %d (was %s,%s,%s)",
                     x, y, obj.floorIndex,
-                    tostring(token.loc.x), tostring(token.loc.y), tostring(token.loc.floorIndex)))
+                    tostring(token.loc.x), tostring(token.loc.y), tostring(token.loc.floor)))
                 token:ChangeLocation(core.Loc{x = x, y = y, floorIndex = obj.floorIndex}:WithGroundLevelAltitude())
             else
                 print("[CORPSE_REVIVE] ChangeLocation skipped (same x,y)")

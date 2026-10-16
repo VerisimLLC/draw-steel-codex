@@ -285,6 +285,7 @@ local SlotStyles = {
 }
 
 function GameHud.CreateActionBar(self, dialog, tokenInfo)
+	---@type Panel
 	local actionBarResultPanel = nil
 
 	local actionBar
@@ -298,10 +299,13 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 
 	--objects to mark line of sight.
 	local m_markLineOfSight = nil
+    ---@type CharacterToken?
     local m_markLineOfSightSourceToken = nil
+	---@type CharacterToken?
 	local m_markLineOfSightToken = nil
 
 	--the panel that shows the current spell being cast.
+	---@type Panel
 	local m_currentSpellPanel = nil
 
 	--the button used to cast spells and label used to show cast info.
@@ -322,7 +326,37 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 	local ammoChoicePanel
 	local synthesizedSpellsPanel
 
+	---@class DSActionBarCostPaymentOption
+	---@field resourceid string
+	---@field quantity number
+	---@field upcast? number
+	---@field level? number
+
+	---@class DSActionBarCostDetail
+	---@field cost string
+	---@field quantity? number
+	---@field upcast? number
+	---@field level? number
+	---@field canAfford boolean
+	---@field paymentOptions DSActionBarCostPaymentOption[]
+	---@field expendedOptions DSActionBarCostPaymentOption[]
+	---@field refreshType? string
+	---@field description? string
+	---@field maxCharges? integer
+	---@field availableCharges? integer
+	---@field payerTokenId? string
+
+	--- What ActivatedAbility:GetCost / Spell.GetCost return (see the comment above ActivatedAbility:GetCost).
+	---@class DSActionBarCostProposal
+	---@field canAfford boolean
+	---@field details DSActionBarCostDetail[]
+	---@field moveCost? number
+	---@field cannotMove? boolean
+	---@field consumables? table<string, number>
+	---@field outOfAmmo? boolean
+
 	--cost of the ability currently being used.
+	---@type DSActionBarCostProposal?
 	local currentCostProposal = nil
 
     local m_targetLineOfSightRays = {}
@@ -343,11 +377,11 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
         m_targetLineOfSightRays[key] = ray
     end
 
-    ---@param rays table<{a: Token, b: Token}>[]
+    ---@param rays {a: CharacterToken, b: CharacterToken}[]
     local function ReplaceTargetLineOfSightRays(rays)
         local t = {}
         for i,ray in ipairs(rays) do
-            local key = string.format("%s-%s", ray.a.id, ray.b.id)
+            local key = string.format("%s-%s", ray.a.charid, ray.b.charid)
                                             print("MARK:: BBB")
             t[key] = m_targetLineOfSightRays[key] or dmhub.MarkLineOfSight(ray.a, ray.b, ray.a.properties:GetPierceWalls())
             m_targetLineOfSightRays[key] = nil
@@ -372,14 +406,18 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
     end
 
 	--the spell we are currently casting, if any.
+	---@type ActivatedAbility?
 	local currentSpell = nil
 
+    ---@type nil|function
     local m_allowedAltitudeCalculator = nil
 
 	--symbols for the ability being used. Includes upcasting and things.
 	local currentSymbols = { mode = 1, charges = 1 }
 
+    ---@type table<string, boolean>|nil
     local m_castingTriggersCache = nil
+    ---@type table[]|nil
     local m_castingTriggers = nil
     local m_castingTriggersOwnerPanel = nil
 
@@ -413,8 +451,11 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 
 	local resourcePanels
 
+	--set while an ability is being targeted (spell panel focus), nil otherwise.
+	---@type nil|fun(forceCast?: boolean)
 	local CurrentCalculateSpellTargeting = nil
 	local CalculateSpellTargetFocusing = nil
+	---@type nil|number
 	local spellRange = nil
 
 	--{string spell category -> {spell panels}}
@@ -455,6 +496,8 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 					height = 24,
 
 					press = function(element)
+						--the loadout panel is only built and shown while a token is selected.
+						---@cast token -nil
 						token:ModifyProperties{
 							description = "Change loadout",
 							execute = function()
@@ -513,6 +556,8 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 				},
 
 				refreshLoadout = function(element)
+					--only fired by GetLoadoutPanel, which recalculate calls after its token check.
+					---@cast token -nil
 					local equipment = token.properties:Equipment()
 					local gearTable = dmhub.GetTable("tbl_Gear")
 					local highestSlotUsed = 0
@@ -586,6 +631,9 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
     end
 
 	local AddRadiusMarker = function(locOverride, radius, color, filterFunction)
+        if token == nil then
+            return
+        end
         local tokenCasting = token
         if currentSpell ~= nil then
 		    tokenCasting = currentSpell:GetRangeSource(token)
@@ -665,6 +713,7 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 		--tokens we are force targeting based on them being in a radius. A mapping of tokenid -> token
 		local pointForceTargets = {}
 
+		---@type Panel
 		local spellPanel = nil
 		if spellIndex ~= nil then
 			m_spellPanels[spellCategory] = m_spellPanels[spellCategory] or {}
@@ -672,6 +721,8 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 		end
 
 		if spellPanel == nil then
+			--assigned below before any closure built in this branch can run.
+			---@cast spellPanel Panel
 
 			local SetTargetsInRadius = function(tokens)
 
@@ -694,7 +745,7 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 			local m_targetsChosen = {} --list of strings for targets. Can contain duplicates if duplicate targeting is enabled.
             local m_positionTargetsChosen = {} --list of Locs for targets. Used on emptyspace targeting.
 
-            ---@return table<{loc: table, token: Token}>[]
+            ---@return {loc: Loc, token: CharacterToken}[]
             local function BuildTargetsList()
 				--accumulate our target list based on what is selected.
 				local targets = {}
@@ -736,7 +787,7 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                         --record the targeting as symbols.
                         local targetPairs = {}
                         for i,ray in ipairs(rays) do
-                            targetPairs[#targetPairs+1] = {a = ray.a.id, b = ray.b.id}
+                            targetPairs[#targetPairs+1] = {a = ray.a.charid, b = ray.b.charid}
                         end
 
                         currentSymbols.targetPairs = targetPairs
@@ -769,7 +820,10 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                         targets = currentSpell:PrepareTargets(token, currentSymbols, targets)
 
                         if m_markLineOfSight ~= nil then
-                            SetTargetLineOfSightRayForKey(string.format("%s-%s", m_markLineOfSightSourceToken.id, m_markLineOfSightToken.id), m_markLineOfSight)
+                            --highlightTargetToken sets these two whenever it sets m_markLineOfSight.
+                            ---@cast m_markLineOfSightSourceToken -nil
+                            ---@cast m_markLineOfSightToken -nil
+                            SetTargetLineOfSightRayForKey(string.format("%s-%s", m_markLineOfSightSourceToken.charid, m_markLineOfSightToken.charid), m_markLineOfSight)
                             m_markLineOfSight = nil
                             m_markLineOfSightToken = nil
                             m_markLineOfSightSourceToken = nil
@@ -1173,6 +1227,8 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 				end,
 
 				clearreactions = function(element)
+					--only fired from focus, which needs a selected token.
+					---@cast token -nil
 					if token.properties:has_key("activeReactions") then
 						for _,reaction in ipairs(token.properties.activeReactions) do
 							if TimestampAgeInSeconds(reaction.timestamp) < 30 and reaction.ability == spell.name then
@@ -1197,6 +1253,8 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 				end,
 
 				refreshSpell = function(element, newSpell)
+					--spell panels are only built (and refreshed) for a selected token.
+					---@cast token -nil
 					spell = newSpell
 
                     local isManeuver = spell:IsManeuver()
@@ -1251,9 +1309,11 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 									firstTarget = targetToken.id
 								end
 
-                                if m_markLineOfSight ~= nil and m_markLineOfSightToken ~= nil and m_markLineOfSightToken.id == targetToken.id then
+                                if m_markLineOfSight ~= nil and m_markLineOfSightToken ~= nil and m_markLineOfSightToken.charid == targetToken.id then
+                                    --set together with m_markLineOfSight in highlightTargetToken.
+                                    ---@cast m_markLineOfSightSourceToken -nil
 
-                                    SetTargetLineOfSightRayForKey(string.format("%s-%s", m_markLineOfSightSourceToken.id, targetToken.id), m_markLineOfSight)
+                                    SetTargetLineOfSightRayForKey(string.format("%s-%s", m_markLineOfSightSourceToken.charid, targetToken.id), m_markLineOfSight)
 
                                     m_markLineOfSight = nil
                                     m_markLineOfSightToken = nil
@@ -1314,6 +1374,8 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 						return
 					end
 
+					--the action bar is hidden whenever no token is selected, so it cannot be hovered then.
+					---@cast token -nil
 					for _,reaction in ipairs(token.properties:try_get("activeReactions", {})) do
 						local tmp_reactionsCleared = token.properties:try_get("_tmp_reactionsCleared", {})
 						if TimestampAgeInSeconds(reaction.timestamp) < 30 and reaction.ability == spell.name and (not tmp_reactionsCleared[reaction.guid]) then
@@ -1392,6 +1454,10 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 					if spell == nil then
 						return
 					end
+
+					--a spell panel is only focused from the visible action bar (or invokeAbility,
+					--which selects the caster first), so a token is selected.
+					---@cast token -nil
 
                     pointTargetShapeRequiresConfirm = false
                     pointTargetShapeConfirmedLoc = nil
@@ -1652,15 +1718,24 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                         return
                     end
 
-                    for i=1,#m_castingTriggers do
-                        local triggerToken = dmhub.GetTokenById(m_castingTriggers[i].charid)
-                        if triggerToken ~= nil and triggerToken.valid then
+                    --this panel only monitors characters while it is focused with casting triggers;
+                    --ClearCastingTriggers stops the monitor when it clears them.
+                    ---@cast m_castingTriggers -nil
+                    ---@cast m_castingTriggersCache -nil
+                    ---@cast CurrentCalculateSpellTargeting -nil
+                    --build a new list rather than removing in place: table.remove inside a
+                    --numeric for skips the next entry and indexes past the end. Forward order
+                    --is kept so the last newly-triggered targetcount still wins.
+                    local keptTriggers = {}
+                    for _,castingTrigger in ipairs(m_castingTriggers) do
+                        local triggerToken = dmhub.GetTokenById(castingTrigger.charid)
+                        if triggerToken == nil or not triggerToken.valid then
+                            keptTriggers[#keptTriggers+1] = castingTrigger
+                        else
                             local availableTriggers = triggerToken.properties:GetAvailableTriggers() or {}
-                            local availableTrigger = availableTriggers[m_castingTriggers[i].id]
-                            if availableTrigger == nil then
-                                table.remove(m_castingTriggers, i)
-                            else
-                                m_castingTriggers[i] = availableTrigger
+                            local availableTrigger = availableTriggers[castingTrigger.id]
+                            if availableTrigger ~= nil then
+                                keptTriggers[#keptTriggers+1] = availableTrigger
 
                                 if availableTrigger.triggered and (not m_castingTriggersCache[availableTrigger.id]) then
                                     m_castingTriggersCache[availableTrigger.id] = true
@@ -1674,6 +1749,7 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                             end
                         end
                     end
+                    m_castingTriggers = keptTriggers
                 end,
                 clearCastingTriggers = function(element)
                     element.monitorGame = nil
@@ -1819,6 +1895,8 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                     if token == nil or not token.valid then
                         return
                     end
+                    --fired on the focused spell panel; focus sets currentSpell and defocus clears it.
+                    ---@cast currentSpell -nil
                     print("MARK:: UNHIGHLIGHT")
 					element:FireEvent("unhighlightTargetToken")
 
@@ -1835,7 +1913,7 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                         --the ability specifies the rays, we try to fish out the
                         --new one to highlight and maintain any existing ones.
                         for _,ray in ipairs(rays) do
-                            if ray.b.id == targetToken.id and m_targetLineOfSightRays[string.format("%s-%s", ray.a.id, ray.b.id)] == nil then
+                            if ray.b.charid == targetToken.id and m_targetLineOfSightRays[string.format("%s-%s", ray.a.charid, ray.b.charid)] == nil then
                                 print("MARK:: CCC")
                                 m_markLineOfSight = dmhub.MarkLineOfSight(ray.a, ray.b, ray.a.properties:GetPierceWalls())
                                 m_markLineOfSightToken = targetToken
@@ -1874,6 +1952,8 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 				end,
 
 				rightClick = function(element)
+					--the action bar is hidden whenever no token is selected, so it cannot be clicked then.
+					---@cast token -nil
 
 					local entries = {}
 					entries[#entries+1] = {
@@ -1959,7 +2039,9 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 					end
 
 
-					local concentration = token.properties:HasConcentration() and token.properties.concentration:try_get("auraid") == spell:try_get("auraid")
+					--creatures keep a concentrationList; there is no creature.concentration field to read.
+					local mostRecentConcentration = token.properties:MostRecentConcentration()
+					local concentration = mostRecentConcentration ~= nil and spell:try_get("auraid") ~= nil and mostRecentConcentration:try_get("auraid") == spell:try_get("auraid")
 					if concentration then
 						entries[#entries+1] = {
 							text = "Cancel Concentration",
@@ -2036,12 +2118,16 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 				--map events that we get when in point targeting mode.
                 --- @param element Panel
                 --- @param loc Loc
-                --- @param point table
+                --- @param point nil|Vector3|"all" nil while the mouse is over UI; "all" when refreshing an 'all' ability (loc is nil then too).
 				maphover = function(element, loc, point)
 					if token == nil or (not token.valid) then
 						spellPanel:FireEvent('cancel')
                         return
 					end
+
+                    --map events only reach the focused (mapfocus) spell panel, and focus sets
+                    --currentSpell; the altitude controller re-fires this only while it is shown.
+                    ---@cast currentSpell -nil
 
                     local _ = g_profileMapHover.Begin
 
@@ -2080,6 +2166,8 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                         local targetingType = currentSpell:try_get("targeting", "direct")
 
                         if (shape == 'emptyspace' or shape == 'anyspace') and (targetingType == "pathfind" or targetingType == "vacated" or targetingType == "straightline" or targetingType == "straightpath" or targetingType == "straightpathignorecreatures") then
+                            --only the 'all' target type hovers with a nil loc (point == 'all'); a space target has a real one.
+                            ---@cast loc -nil
 							if token.creatureDimensions.x > 1 and token.creatureDimensions.x%2 == 1 then
                                 for i=3,token.creatureDimensions.x,2 do
                                     loc = loc.west.south
@@ -2095,16 +2183,20 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                                 waypoints[#waypoints+1] = pos.loc
                             end
 
+                            --as above: a space target hovers with a real loc.
+                            ---@cast loc -nil
 							local movementInfo = token:MarkMovementArrow(loc, {waypoints = waypoints})
                             if movementInfo ~= nil then
                                 local targets = currentSpell:FindTargetsInMovementVicinity(token, movementInfo.path) or filteredTargets
                                 for _,target in ipairs(targets) do
-                                    filteredTargets[target.id] = target
+                                    filteredTargets[target.charid] = target
                                 end
                             end
 							showingMovementArrow = true
 							clearMovementArrow = false
 						elseif (shape == 'emptyspace' or shape == 'anyspace') and (targetingType == "straightline" or targetingType == "straightpath" or targetingType == "straightpathignorecreatures") then
+                            --as above: a space target always hovers with a real loc.
+                            ---@cast loc -nil
 							local throughCreatures = currentSpell:try_get("forcedMovementThroughCreatures", false)
 							local reboundOptions = token.properties:GetForcedPushOptions()
 							local isVerticalSlidePreview = (currentSymbols.forcedmovement or currentSpell:try_get("forcedMovement")) == "vertical_slide"
@@ -2178,6 +2270,8 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 
 									local needRedraw = prevPathEnd == nil or #prevPathEnd ~= #pointTargetShapePathEnd or prevOvershoot ~= pointTargetPathEndOvershoot
 									if not needRedraw then
+										--needRedraw is false only when prevPathEnd was non-nil.
+										---@cast prevPathEnd -nil
 										for i,loc in ipairs(prevPathEnd) do
 											if not loc.str == pointTargetShapePathEnd[i].str then
 												needRedraw = true
@@ -2310,8 +2404,8 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 									for _, step in ipairs(path.steps) do
 										local tokensAtLoc = game.GetTokensAtLoc(step)
 										for _, tok in ipairs(tokensAtLoc or {}) do
-											if tok.id ~= token.id and hitIds[tok.id] == nil then
-												hitIds[tok.id] = true
+											if tok.charid ~= token.charid and hitIds[tok.charid] == nil then
+												hitIds[tok.charid] = true
 												throughShapes[#throughShapes + 1] = dmhub.CalculateShape {
 													shape = cond(tok.creatureDimensions.x % 2 == 1, "radius", "radiusfromintersection"),
 													token = tok,
@@ -2383,6 +2477,8 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 							point = nil
 							shape = "RadiusFromCreature"
 						end
+						--the block above replaced "all" with nil.
+						---@cast point nil|Vector3
 						if shape == 'emptyspace' or shape == 'emptyspacefriend' or shape == 'anyspace' then
 							radius = dmhub.unitsPerSquare*0.5
 							requireEmpty = (shape == 'emptyspace')
@@ -2397,6 +2493,8 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 									--we offset the target point to match creature movement behavior.
 									shape = "cylinder"
 									local offset = (token.creatureDimensions.x-1)*0.5
+									--point is only cleared above for the 'all' type; a space shape keeps the hovered point.
+									---@cast point -nil
 									point = core.Vector3(point.x+offset, point.y+offset, point.z)
 								end
 							else
@@ -2408,6 +2506,8 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                         currentSymbols.range = range
                         if shape == "line" and spell.canChooseLowerRange then
                             local pos = token:PosAtLoc(token.loc)
+                            --point is only cleared above for the 'all' type, never a line.
+                            ---@cast point -nil
                             local dist = math.ceil(math.max(math.abs(point.x - pos.x), math.abs(point.y - pos.y)))
                             range = math.min(range, dist)
                         end
@@ -2443,6 +2543,8 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 						pointTargetShape = nil
 					end
 
+					--the "if currentSpell ~= nil" above re-widens the type; see the cast at the top.
+					---@cast currentSpell -nil
 					local selfTarget = currentSpell:try_get("selfTarget", false)
 					local targetTokens = self.tokenInfo.TokensInShape(pointTargetShape)
                     if not pathfinding then
@@ -2564,7 +2666,8 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 					end
 
 					if destroyLabelsBeforeReturning then
-
+						--the flag starts as "labels exist", and every site above that clears the labels also clears it.
+						---@cast pointTargetLabelsAtPathEnd -nil
 						for _,marker in ipairs(pointTargetLabelsAtPathEnd) do
 							marker:Destroy()
 						end
@@ -2595,6 +2698,13 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                         m_altitudeController:FireEventTree("loc", info)
                         loc = info.loc
                     end
+
+                    --the selection can be cleared mid-cast (maphover handles the same case above).
+                    if token == nil then
+                        return
+                    end
+                    --map events only reach the focused (mapfocus) spell panel, and focus sets currentSpell.
+                    ---@cast currentSpell -nil
 
                     local shape = spell.targetType
 
@@ -2656,6 +2766,9 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 
                             if #waypoints < 2 or waypoints[#waypoints].x ~= waypoints[#waypoints-1].x or waypoints[#waypoints].y ~= waypoints[#waypoints-1].y then
                                 print("MARK:: AREA")
+                                --an emptyspace/anyspace spell still taking targets: the last
+                                --CalculateSpellTargeting found more to select, which sets spellRange.
+                                ---@cast spellRange -nil
                                 local radiusMarker = token:MarkMovementRadius(spellRange, {waypoints = waypoints})
                                 
                                 if radiusMarker ~= nil then
@@ -2672,7 +2785,10 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                         targets = currentSpell:PrepareTargets(token, currentSymbols, targets)
 
                         if m_markLineOfSight ~= nil then
-                            SetTargetLineOfSightRayForKey(string.format("%s-%s", m_markLineOfSightSourceToken.id, m_markLineOfSightToken.id), m_markLineOfSight)
+                            --highlightTargetToken sets these two whenever it sets m_markLineOfSight.
+                            ---@cast m_markLineOfSightSourceToken -nil
+                            ---@cast m_markLineOfSightToken -nil
+                            SetTargetLineOfSightRayForKey(string.format("%s-%s", m_markLineOfSightSourceToken.charid, m_markLineOfSightToken.charid), m_markLineOfSight)
                             m_markLineOfSight = nil
                             m_markLineOfSightToken = nil
                             m_markLineOfSightSourceToken = nil
@@ -2781,7 +2897,7 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                         alt = alt-1
                     end
 
-                    if element.data.currentLocInfo.loc ~= nil then
+                    if element.data.currentLocInfo.loc ~= nil and m_allowedAltitudeCalculator ~= nil then
                         local minAltitude, maxAltitude = m_allowedAltitudeCalculator(element.data.currentLocInfo.loc)
                         alt = math.clamp(alt, minAltitude, maxAltitude)
                     end
@@ -2829,6 +2945,8 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                 if info.loc == nil then
                     return
                 end
+                --the "loc" event is only fired after checking the calculator is set.
+                ---@cast m_allowedAltitudeCalculator -nil
                 local minAltitude, maxAltitude = m_allowedAltitudeCalculator(info.loc)
                 local target = m_altitudeController.data.target
                 local alt = info.loc.altitude
@@ -3043,7 +3161,6 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 				fontSize = 14,
 				color = Styles.textColor,
 				textAlignment = "center",
-				borderWidth = 1,
 				bgimage = "panels/square.png",
 				borderWidth = 1,
 				borderColor = "#ffffff55",
@@ -3089,6 +3206,9 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 		end,
 
 		select = function(element, level)
+			--level buttons are only shown while an ability is being cast; focus sets both of these.
+			---@cast currentCostProposal -nil
+			---@cast CurrentCalculateSpellTargeting -nil
 
 			for i,info in ipairs(currentCostProposal.details) do
 				if #info.paymentOptions > 0 and info.paymentOptions[1].level ~= nil then
@@ -3151,6 +3271,8 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 				return
 			end
 
+			--focusspell is fired after focus (or a cost change) has set the cost proposal.
+			---@cast currentCostProposal -nil
 			local castingLevel = currentSpell.level + (currentSymbols.upcast or 0)
 			local availableLevels = {}
 			local validLevels = {}
@@ -3236,7 +3358,6 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 				fontSize = 14,
 				color = Styles.textColor,
 				textAlignment = "center",
-				borderWidth = 1,
 				bgimage = "panels/square.png",
 				borderWidth = 1,
 				borderColor = "#ffffff55",
@@ -3272,6 +3393,8 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 				return
 			end
 
+			--focusspell only runs while an ability is being cast, which needs a selected token.
+			---@cast token -nil
 			local resources = token.properties:GetResources()[resource.id] or 0
 			local resourcesAvailable = resources - token.properties:GetResourceUsage(resource.id, resource.usageLimit)
 			local baseCost = 0
@@ -3287,7 +3410,8 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 			end
 
 
-			channeledResourceTitle.text = StringInterpolateGoblinScript(currentSpell.channelDescription, token.properties)
+			--nil only for a nil string; channelDescription defaults to "".
+			channeledResourceTitle.text = StringInterpolateGoblinScript(currentSpell.channelDescription, token.properties) --[[@as string]]
 			local channelIncrement = currentSpell:ChannelIncrement()
 			local maxChannel = currentSpell:MaxChannel(token.properties, currentSymbols)
 
@@ -3332,6 +3456,10 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 		end,
 
 		select = function(element, charges)
+			--channel buttons are only shown while an ability is being cast; focus sets all of these.
+			---@cast currentSpell -nil
+			---@cast token -nil
+			---@cast CurrentCalculateSpellTargeting -nil
 
 			--recalculate with the new cost proposal.
 			currentCostProposal = currentSpell:GetCost(token, {charges = charges, mode = currentSymbols.mode})
@@ -3364,6 +3492,9 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 		edit = function(element)
 			local charges = tonumber(element.text)
 			if charges ~= nil then
+				--the input is only shown while an ability is being cast (defocus collapses it and
+				--clears its text, which leaves charges nil).
+				---@cast currentSpell -nil
 				currentCostProposal = currentSpell:GetCost(token, {charges = charges*currentSpell:ChannelIncrement(), mode = currentSymbols.mode})
 				currentSymbols.charges = charges
 				currentSymbols.upcast = Spell.CalculateUpcast(currentCostProposal).upcast
@@ -3414,6 +3545,8 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 			element.data.baseSpell = currentSpell
 
 			local attack = currentSpell.attackOverride
+			--checked non-nil with try_get("attackOverride") at the top of this handler.
+			---@cast attack -nil
 			local ammoType = attack.ammoType
 
 			local consumeAmmo = attack:try_get("consumeAmmo", {})
@@ -3472,6 +3605,8 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 
 							resourcesBar:FireEventTree("cost", currentCostProposal)
 
+							--ammo choices are only offered while an ability is being cast.
+							---@cast CurrentCalculateSpellTargeting -nil
 							CurrentCalculateSpellTargeting()
 						end,
 
@@ -3571,11 +3706,13 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 			local changeMode = false
 			local children = {}
 
+			--refreshModes only runs while an ability is being cast, which needs a selected token.
+			---@cast token -nil
 			for i,mode in ipairs(currentSpell.modeList) do
 				local available = true
 				if mode.condition ~= nil and mode.condition ~= "" then
-					available = ExecuteGoblinScript(mode.condition, token.properties:LookupSymbol(), 1, "Mode condition")
-					available = type(available) == "number" and available > 0
+					local conditionResult = ExecuteGoblinScript(mode.condition, token.properties:LookupSymbol(), 1, "Mode condition")
+					available = type(conditionResult) == "number" and conditionResult > 0
 				end
 
 				if available then
@@ -3591,6 +3728,11 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 
 						press = function(element)
 							currentSymbols.mode = i
+							--refreshModes can schedule this press 0.05s ahead; the cast may have
+							--finished (defocus) by the time it fires.
+							if currentSpell == nil or CurrentCalculateSpellTargeting == nil then
+								return
+							end
 							currentCostProposal = currentSpell:GetCost(token, { mode = currentSymbols.mode })
 							CurrentCalculateSpellTargeting()
 							resourcesBar:FireEventTree("cost", currentCostProposal)
@@ -3677,6 +3819,8 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                         g_preferredForcedMovementType:Set(moveType)
                         currentSymbols.forcedmovement = moveType
 
+                        --these buttons are only shown while an ability is being cast.
+                        ---@cast CurrentCalculateSpellTargeting -nil
                         CurrentCalculateSpellTargeting()
 
                         castMessage:FireEvent("refresh")
@@ -3738,6 +3882,7 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 	}
 
 	local CreateResourcesBar = function(resourceGroupings, options)
+		---@type CharacterToken
 		local m_token = nil
 
 		options = options or {}
@@ -3787,6 +3932,9 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 
 					element.data.resourceBar:FireEvent('recalculate', m_token, m_token.properties)
 				else
+					--a cost proposal only exists while an ability is being cast, and focus sets
+					--CurrentCalculateSpellTargeting alongside it.
+					---@cast CurrentCalculateSpellTargeting -nil
 
 					for i,info in ipairs(currentCostProposal.details) do
 						local index = nil
@@ -3828,6 +3976,8 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 					local isoption = false
 					local isselected = false
 					local illegal = false
+					--focusspell is fired after focus (or a cost change) has set the cost proposal.
+					---@cast currentCostProposal -nil
 					for i,info in ipairs(currentCostProposal.details) do
 						for j,option in ipairs(info.paymentOptions) do
 							if option.resourceid == element.data.resourceid then
@@ -4061,7 +4211,6 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 									classes = {'resourceQuantityLabel'},
 									editable = true,
                                     numeric = true,
-									characterLimit = 2,
 
 									--a floating label which shows up to show how much will be deducted.
 									gui.Label{
@@ -4421,6 +4570,7 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 			}
 		}
 
+        ---@type Panel
         local drawerButton = nil
 
         if bar.drawer then
@@ -4797,6 +4947,7 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                                         RuleUtils.RemoveRetargetStrikeTargets(targets, trigger, trigger.targets[1])
                                         local allowOriginal = RuleUtils.RetargetAllowsOriginal(trigger)
 
+                                        ---@type CharacterToken|nil
                                         local sourceToken = token
                                         local range = tonumber(ExecuteGoblinScript(trigger.powerRollModifier.range, token.properties:LookupSymbol(symbols), 10))
                                         local rangeType = trigger.powerRollModifier.powerRollModifier:try_get("changeTargetRange", "none")
@@ -4999,6 +5150,7 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                                             RuleUtils.RemoveRetargetStrikeTargets(targets, trigger, trigger.targets[1])
                                             local allowOriginal = RuleUtils.RetargetAllowsOriginal(trigger)
 
+                                            ---@type CharacterToken|nil
                                             local sourceToken = token
                                             local range = tonumber(ExecuteGoblinScript(trigger.powerRollModifier.range, token.properties:LookupSymbol(symbols), 10))
                                             local rangeType = trigger.powerRollModifier.powerRollModifier:try_get("changeTargetRange", "none")
@@ -6139,7 +6291,9 @@ function GameHud:CreateReactionBar(dialog, tokenInfo)
 
 			auras = {}
 			for _,aura in ipairs(aurasTouching) do
-				auras[#auras+1] = aura.auraInstance
+				if not aura.auraInstance:IsHiddenFromAuraLists() then
+					auras[#auras+1] = aura.auraInstance
+				end
 			end
 
 			for i,_ in ipairs(auras) do
@@ -6459,20 +6613,23 @@ function GameHud:ShowActionBarEditDialog(creature, actionBar, pagingPanels)
 					children[targetIndex] = element
 
 					local token = dmhub.LookupToken(creature)
-					token:ModifyProperties{
-						description = "Reorder action bar",
-						execute = function()
-							creature.actionbar = creature:try_get("actionbar", {})
+					--nil if the token left the map while this dialog was open; nothing to save to.
+					if token ~= nil then
+						token:ModifyProperties{
+							description = "Reorder action bar",
+							execute = function()
+								creature.actionbar = creature:try_get("actionbar", {})
 
-							creature.actionbar[tab] = creature.actionbar[tab] or {}
+								creature.actionbar[tab] = creature.actionbar[tab] or {}
 
-							for i,child in ipairs(children) do
-								if child:HasClass("empty") == false and child.data.id ~= nil then
-									creature.actionbar[tab][child.data.id] = i
+								for i,child in ipairs(children) do
+									if child:HasClass("empty") == false and child.data.id ~= nil then
+										creature.actionbar[tab][child.data.id] = i
+									end
 								end
-							end
-						end,
-					}
+							end,
+						}
+					end
 
 
 

@@ -54,7 +54,7 @@ GameSystem.CalculateAttributeModifier = function(attributeInfo, attributeValue)
 		n = n-1
 	end
 
-	return math.tointeger((n/2) - 5)
+	return math.floor(n/2) - 5
 end
 
 --how initiative is controlled!

@@ -135,7 +135,8 @@ function Hud:CreateDeathPanel(token)
 							dmhub.Debug(string.format("DEATH:: INSPECT %s vs %s", message.key, element.data.rollGuid))
 							if message.key == element.data.rollGuid then
 								dmhub.Debug("DEATH:: FOUND")
-								local info = message.resultInfo
+								--rollGuid is the key of the death-save roll, so this message is a dice roll.
+								local info = (message --[[@as ChatMessageDiceRollInfoLua]]).resultInfo
 								for catid,catInfo in pairs(info) do
 									for j,roll in ipairs(catInfo.rolls) do
 										local diceEvents = chat.DiceEvents(roll.guid)
@@ -304,7 +305,7 @@ function Hud:CreateDeathPanel(token)
 								classes = {"leaf", "~create"},
 								y = 800,
 								transitionTime = math.random(5, 8)*cond(bursting,0.2,1),
-								easing = "easeInsine",
+								easing = "EaseInSine",
 							},
 						
 						

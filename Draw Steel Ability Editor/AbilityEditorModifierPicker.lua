@@ -491,6 +491,7 @@ function AbilityEditor.OpenModifierPicker(feature, onAdd)
             -- Note: `(x == "") and nil or x` returns "" not nil when x is "",
             -- because Lua's `A and B or C` collapses to C when B is falsy.
             -- Use an explicit branch so empty search correctly yields nil.
+            ---@type string|nil
             local query = rawQuery
             if query == "" then query = nil end
 

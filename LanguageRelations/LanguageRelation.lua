@@ -3,6 +3,7 @@ local mod = dmhub.GetModLoading()
 --- @class LanguageRelation: GameType
 --- @field new fun(o?: table): LanguageRelation
 --- @field id string Key of this row in its data table; SetAndUploadTableItem sets it.
+--- @field related table<string, boolean> Set of language ids related to this one (the relationship is kept 2-way).
 LanguageRelation = RegisterGameType("LanguageRelation")
 LanguageRelation.__index = LanguageRelation
 
@@ -214,6 +215,9 @@ local function createListItem(options)
 								local item = table[options.key]
 								local newItem = DeepCopy(item)
 								newItem.id = dmhub.GenerateGuid()
+								--Unreachable: XrightClick is a disabled handler. generateDuplicateName is
+								--local to Compendium.lua, so this would need its own copy if re-enabled.
+								---@diagnostic disable-next-line: undefined-global
 								newItem.name = generateDuplicateName(newItem.name)
 								dmhub.SetAndUploadTableItem(options.tableName, newItem)
 
@@ -470,6 +474,7 @@ end
 function LanguageRelation.ShowPanel(parentPanel)
 
     local editPanel = LanguageRelation.CreateEditor()
+    ---@type Panel
     local listPanel = nil
     local languageItems = {}
 

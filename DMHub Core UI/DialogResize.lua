@@ -300,6 +300,7 @@ function gui.WindowResizePanel(doc, dialogWidth, dialogHeight, options)
     return parentPanel
 end
 
+--- @param self table Holder whose _tmp_location records the dialog's placement (a document, or a scratch table).
 function gui.DialogResizePanel(self, dialogWidth, dialogHeight)
 
     local parentPanel

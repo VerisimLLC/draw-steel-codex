@@ -75,6 +75,52 @@ are DeepCopies of one parent and share a guid.
 Styling lives in `NOVEL_MARKER_RULES`, merged into the action bar root's style cascade
 alongside `SEARCH_REVEAL_RULE` so it resolves on ability headings inside an open menu.
 
+**Operating objects (dynamic terrain):**
+
+A Field Ballista's abilities are "Main action (Adjacent creature)": a creature next to the
+object uses them. The ability editor's "Used By" dropdown sets one of two flags:
+
+- `operatedByAdjacentCreature` ("Adjacent Creature, Object Acts"): the object is the caster
+  and the adjacent creature pays (Release Bolt, Reload, Spot).
+- `grantedToAdjacentCreatures` ("Adjacent Creature, as Its Own"): every adjacent creature
+  gets the ability in its own drawers via `creature:GetActivatedAbilities`. It is the
+  caster and pays, and `grantingObjectTokenId` limits targeting to that object
+  (Deactivate, Move).
+
+The rules helpers are in `Draw Steel Core Rules/MCDMActivatedAbility.lua` ("Adjacent-creature
+abilities"): `ActivatedAbility.CanOperate`, `GetOperableTokens`, `GetOperatedAbilities`,
+`GetGrantedAbilitiesFrom`, `GetGrantedAbilities`. In operate mode the bar lists both kinds.
+A granted chip's caster is the creature it was granted to (`grantedToTokenId`, see
+`CasterToken` in `AbilityHeading`), so pressing it pushes the operator as caster for that cast.
+
+- `DrawSteelActionBar.BeginOperating(operator, object)` binds the bar to the object:
+  `g_token` is the object (so it is the caster: range, rolls and usage limits are its
+  own), the object's abilities are cloned with `operatorTokenId` stamped on them, and the
+  object is pushed as the engine's selected-token override so the character panel
+  shows it. Only the Main Action and Maneuver drawers stay up.
+- Cost: `ActivatedAbility:GetCost` takes the action-resource entry from the operator
+  (`GetOperatorToken`) and tags it `payerTokenId`; `ConsumeResources` charges that entry
+  to the operator. Drawer counts and "Not your turn" read the operator
+  (`_operate.ResourceToken()`, `ability:GetOperatorToken()`).
+- Starting: hover an operable object with an adjacent creature selected. The engine
+  (`ObjectComponentTargetable.GenerateOperateCommand`) asks
+  `TargetableObject:GetOperateCommand` for the hover text and cursor, and a click runs
+  `TargetableObject:Operate`, which calls `BeginOperating`.
+- Stopping: the "Operating X [Stop]" cast prompt (kept up by `_operate.Upkeep`, polled by
+  the bar's container), Escape, clicking the operator (a `TokenUI.RegisterClickHandler`
+  handler), selecting another token, or the operator no longer being adjacent.
+- Operate state and its helpers live on `DrawSteelActionBar._operate`, not in locals:
+  this file's main chunk is at Lua's 200-local limit.
+- Turn to Face Target (`aimCasterAtTarget` on the ability): while an object caster aims
+  it, `DrawSteelActionBar._aim.Update` (polled with the operate upkeep) calls the
+  object's `objectComponent:AimAt(x, y)` toward the first chosen target, else the hovered
+  token or mouse point. `_aim.Commit` at both Cast sites saves the facing (`CommitAim`),
+  and abandoning the cast calls `ClearAim`. The engine eases the drawn rotation at the
+  Targetable component's Turn Speed (`LevelObject.turnSpeed` / `aimRotation`), using its
+  Facing to know which way the art points. The engine streams the live aim to other
+  players (`PeerUserObjectAimMessage`: best-effort UDP updates, reliable stop), and the
+  saved facing is a normal object patch.
+
 **Settings:**
 
 - `newactionbar` (bool, default true) -- "Use New Action Bar" preference toggle.

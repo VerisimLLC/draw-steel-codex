@@ -42,7 +42,8 @@ LaunchablePanel.Register{
                     options = fontOptions,
                     change = function(element)
                         ---@cast element Dropdown
-                        m_font = element.idChosen
+                        --option ids are the font names from gui.availableFonts.
+                        m_font = element.idChosen --[[@as string]]
                         resultPanel:FireEventTree("refreshFont")
                     end,
                 },
@@ -92,7 +93,7 @@ LaunchablePanel.Register{
                                     fontSize = 24,
                                     width = 120,
                                     height = "auto",
-                                    text = i,
+                                    text = tostring(i),
                                 },
 
                                 gui.Label{

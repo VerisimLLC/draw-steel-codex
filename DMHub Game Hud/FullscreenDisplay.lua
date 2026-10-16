@@ -54,12 +54,35 @@ function FullscreenDisplay.Create(options)
         end,
     }
 
+    --The art credit (CreatorCredit badge) for the scene on show: the
+    --creator its [[scene]] names under "Art by", or one tagged on the image.
+    --A sibling of displayPanel, which overflows the screen when it crops.
+    local creditHolder = gui.Panel{
+        floating = true,
+        width = "100%",
+        height = "100%",
+        flow = "none",
+        data = { creator = nil },
+    }
+    local function SetCredit(creator)
+        if creator == creditHolder.data.creator then
+            return
+        end
+        creditHolder.data.creator = creator
+        local badge = nil
+        if creator ~= nil then
+            badge = CreatorCredit.Badge{ creator = creator }
+        end
+        creditHolder.children = { badge }
+    end
+
     return gui.Panel{
         width = "100%",
         height = "100%",
         halign = "center",
         valign = "center",
         displayPanel,
+        creditHolder,
 
         data = {
             presentationInfo = nil,
@@ -72,6 +95,18 @@ function FullscreenDisplay.Create(options)
             displayPanel.bgimage = doc.data and doc.data.coverart
             local hide = doc.data == nil or (doc.data.belowui or false) ~= belowui or (not doc.data.show) or (doc.data.show ~= "all" and dmhub.isDM)
             displayPanel:SetClass("hidden", hide)
+
+            local creator = nil
+            if not hide then
+                local credit = doc.data.coverartCredit
+                if type(credit) == "string" and CreatorCredit.Get(credit) ~= nil then
+                    creator = credit
+                else
+                    local info = CreatorCredit.ForArt(doc.data.coverart)
+                    creator = info ~= nil and info.id or nil
+                end
+            end
+            SetCredit(creator)
 
             if not hide then
                 displayPanel:FireEvent("imageLoaded")
@@ -185,7 +220,7 @@ DramaticBanner.maliceAccent = "#DE1E47"
 DramaticBanner.defaultType = "heroic"
 DramaticBanner.types = {
     { id = "heroic", text = "Heroic", sound = DramaticBanner.defaultSound },
-    { id = "malice", text = "Malice", sound = "MaliceUsed" },
+    { id = "malice", text = "Malice", sound = "Notify.Malice_Use" },
 }
 
 --- The entry in DramaticBanner.types for a type id, falling back to the
@@ -688,6 +723,8 @@ function DramaticBanner.Create()
                 -- frame without stretching. Spine portraits frame themselves
                 -- (inspectPortrait returns a live '#spineinspect:' render), so
                 -- they are shown un-cropped.
+                --hasPortrait is token ~= nil.
+                ---@cast token -nil
                 local portrait = token.inspectPortrait
                 portraitPanel.bgimage = portrait
                 local rect = nil

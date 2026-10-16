@@ -37,7 +37,7 @@ CharacterModifier.TypeInfo.aura = {
 
 		local auraInstance = AuraInstance.new{
 			guid = modifier:try_get("seq", "--"),
-			casterid = token.id,
+			casterid = token.charid,
 			name = modifier.aura.name,
 			tokenAttached = true, --tell DMHub this is attached to its caster token.
 

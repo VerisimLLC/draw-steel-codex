@@ -327,7 +327,7 @@ local function SetActivity(editorPanel, activityId)
             textDefault = "(None)",
             change = function(element)
                 ---@cast element Dropdown
-                activity:SetEventTableId(element.idChosen)
+                activity:SetEventTableId(element.idChosen --[[@as string]]) -- option ids are table ids or ""
                 Upload()
             end,
         },

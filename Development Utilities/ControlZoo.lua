@@ -848,7 +848,6 @@ LaunchablePanel.Register {
                         textAlignment = "topleft",
 
                         width = 180,
-                        height = 20,
                         fontSize = 16,
                         multiline = true,
                         height = "auto",

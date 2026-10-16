@@ -51,6 +51,9 @@ local function SendCompanionAuraSnapshot(session)
     local auras = {}
     for i, info in ipairs(token.properties:GetAurasAffecting(token) or {}) do
         local auraInstance = info.auraInstance
+        if auraInstance:IsHiddenFromAuraLists() then
+            goto continue
+        end
 
         -- Name the caster so the Companion can show "(from X)".
         local source
@@ -67,6 +70,8 @@ local function SendCompanionAuraSnapshot(session)
             description = auraInstance.aura:GetDescription(),
             source = source,
         }
+
+        ::continue::
     end
 
     session:SendEvent("creature.auras", {

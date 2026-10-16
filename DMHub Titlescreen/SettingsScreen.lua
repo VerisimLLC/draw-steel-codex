@@ -176,6 +176,8 @@ CreateLanguageEditor = function()
 
 	for _,id in ipairs(i18n.translations) do
 		local t = i18n.GetTranslation(id)
+		--id was just read from i18n.translations, the same dictionary GetTranslation looks up.
+		---@cast t -nil
 		options[#options+1] = {
 			id = t.identifier,
 			text = t.name,
@@ -398,11 +400,13 @@ local function CreateImageEditorChooser()
 		multimonitor = {"imageeditor", "imageeditor:usedefault"},
 		events = {
 			monitor = function(element)
+				---@cast element Dropdown
 				element.options = BuildOptions()
 				element.idChosen = CurrentChoice()
 			end,
 
 			change = function(element)
+				---@cast element Dropdown
 				local id = element.idChosen
 				if id == "__browse__" then
 					element.idChosen = CurrentChoice()
@@ -1682,7 +1686,7 @@ local function CreateLocalAssetsSection()
 			flow = "horizontal",
 			width = "100%",
 			height = "auto",
-			searchInput,
+			searchInput --[[@as Panel]],
 		}
 		if changesOnlyCheck ~= nil then
 			toolbarArgs[#toolbarArgs+1] = changesOnlyCheck
@@ -1781,6 +1785,15 @@ local function CreateLocalAssetsSection()
 		--assembled programmatically: GitPathRow() is nil on engine builds
 		--without the git bridges, and a nil hole in the positional children
 		--would truncate everything after it.
+		---@type Panel
+		local browseTitle = gui.Label{
+			width = "100%",
+			height = "auto",
+			fontSize = 16,
+			bold = true,
+			vmargin = 4,
+			text = "Browse Files",
+		}
 		local rootArgs = {
 			flow = "vertical",
 			width = "90%",
@@ -1789,14 +1802,7 @@ local function CreateLocalAssetsSection()
 			vmargin = 6,
 			styles = browserStyles,
 
-			gui.Label{
-				width = "100%",
-				height = "auto",
-				fontSize = 16,
-				bold = true,
-				vmargin = 4,
-				text = "Browse Files",
-			},
+			browseTitle,
 		}
 		local gitRow = GitPathRow()
 		if gitRow ~= nil then
@@ -2588,7 +2594,9 @@ local function CreateCreatorOrganizationsSection()
 		return {}
 	end
 
+	---@type Panel?
 	local contentPanel = nil
+	---@type fun()
 	local BuildContent = nil
 
 	local function Refresh()
@@ -2628,6 +2636,7 @@ local function CreateCreatorOrganizationsSection()
 			return
 		end
 
+		---@type Panel
 		local overlay = nil
 
 		local buttons = {}
@@ -2909,6 +2918,7 @@ local function CreateCreatorOrganizationsSection()
 				connectedText = string.format("%s   (connected %s)", connectedText, os.date("%d %b %Y", math.floor(data.connectedAt / 1000)))
 			end
 
+			---@type Panel[]
 			local children = { Heading() }
 
 			children[#children+1] = gui.Label{
@@ -3231,6 +3241,7 @@ local function CreateCreatorOrganizationsSection()
 				return
 			end
 
+			---@type Panel[]
 			local children = { Heading() }
 
 			children[#children+1] = gui.Label{
@@ -3301,6 +3312,7 @@ local function CreateCreatorOrganizationsSection()
 		ShowChooseCampaign = function(campaigns)
 			m_pollGeneration = m_pollGeneration + 1
 
+			---@type Panel[]
 			local children = { Heading() }
 
 			children[#children+1] = gui.Label{
@@ -3567,6 +3579,7 @@ local function CreateCreatorOrganizationsSection()
 			logoPlaceholder:SetClass("hidden", image ~= nil)
 		end
 
+		---@type Panel
 		local removeLogoButton = nil
 
 		local function LoadLogoFile(path)
@@ -4313,6 +4326,7 @@ local function CreateCreatorOrganizationsSection()
 		local m_keys = nil
 
 		local card = nil
+		---@type Panel
 		local generateButton = nil
 
 		local statusLabel = gui.Label{
@@ -4352,6 +4366,7 @@ local function CreateCreatorOrganizationsSection()
 			text = "",
 		}
 
+		---@type Panel
 		local listingThumb = nil
 		local ChooseListingImage = nil
 
@@ -4958,6 +4973,7 @@ end
 --"emailConfirmation" C# interface (registered in ScriptEngine) and listens to
 --/users/{uid} for the confirmed state. No polling: it uses the cloud realtime listener.
 local CreateEmailConfirmationPanel = function()
+	---@type {email: nil|string, emailConfirmed: boolean, allowEmails: boolean}?
 	local m_state = nil        --latest {email, emailConfirmed, allowEmails} from the cloud.
 	local m_waiting = false     --true once we've sent a mail and are waiting on the user to click the link.
 	local m_pendingEmail = nil  --the address we last submitted.
@@ -5017,6 +5033,8 @@ local CreateEmailConfirmationPanel = function()
 		removeRow:SetClass("collapsed", removing == false)
 
 		if removing then
+			--removing requires HasStoredAddress(), so m_state is set.
+			---@cast m_state table
 			removeLabel.text = string.format("Remove %s? We'll delete the address from your account and stop sending you email. You can add one again at any time. Your sign-in account is not affected.", m_state.email)
 		end
 
@@ -5564,6 +5582,21 @@ function PatreonAccount.BeginLink(options)
 					if Expired() then
 						return
 					end
+					--linkConflict: the Patreon account is linked to another Codex
+					--account, and the browser is asking whether to move it here.
+					--Checked before linked, which may still describe an older link.
+					if type(data) == "table" and data.ok and data.linkConflict == "cancelled" then
+						Failed("Linking cancelled. Your Patreon account is still linked to your other Codex account.")
+						return
+					end
+					if type(data) == "table" and data.ok and data.linkConflict == "pending" then
+						Progress("This Patreon account is linked to another Codex account. Confirm or cancel in your browser.")
+						--The server holds the request for 15 minutes; give the user
+						--time to read the page rather than timing out under them.
+						deadline = math.max(deadline, dmhub.Time() + 60)
+						dmhub.Schedule(4, Tick)
+						return
+					end
 					if type(data) == "table" and data.ok and data.linked then
 						m_finished = true
 						if options.linked ~= nil then
@@ -5990,6 +6023,7 @@ local CreatePatreonAccountPanel = function()
 	--CreateCreatorOrganizationsSection and are not in scope here, so this
 	--follows the MCDM Shop section's two-step button instead of a modal.
 	ShowConfirmDisconnect = function(data)
+		---@type Panel[]
 		local children = {
 			Heading(),
 			gui.Label{
@@ -6196,6 +6230,7 @@ function CreateSettingsScreen(dialog, args)
 	--assign to the C# dialog container, but in-game it is hosted inside the
 	--game hud instead (see the end of this function), so tree-wide events
 	--must be fired on this rather than on dialog.sheet.
+	---@type Panel?
 	local m_screenRoot = nil
 
 	local SettingGroup = function(options)
@@ -6251,11 +6286,18 @@ function CreateSettingsScreen(dialog, args)
 	local Setting = function(settingid)
 		local createfn = function()
 			local result = CreateSettingsEditor(settingid)
+			--nil for an unregistered setting id (logged by CreateSettingsEditor) or one with no editor.
+			if result == nil then
+				return nil
+			end
 			result.data.settingid = settingid
 			return result
 		end
 
 		local editor = createfn()
+		if editor == nil then
+			return nil
+		end
 
 		editor.events.search = function(element, text, results)
 			results[#results+1] = {
@@ -6320,6 +6362,8 @@ function CreateSettingsScreen(dialog, args)
 				end
 
 				m_selectedTab = args.text
+				--assigned at the end of construction, before any input can arrive.
+				---@cast m_screenRoot -nil
 				m_screenRoot:FireEventTree("refreshTab")
 			end,
 		}
@@ -6960,6 +7004,9 @@ function CreateSettingsScreen(dialog, args)
 						end
 					end,
 					edit = function(element)
+						--assigned at the end of construction; create (which can fire
+						--edit) runs from Start(), a frame later.
+						---@cast m_screenRoot -nil
 						if element.text ~= "" then
 							m_screenRoot:FireEventTree("forceBuild")
 						end

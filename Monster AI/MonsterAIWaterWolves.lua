@@ -150,9 +150,7 @@ local function StrikeTargetScore(target, edges)
     if target.isObject then
         return 0.1 + (edges or 0)*0.1
     end
-    local stamina = target.properties:CurrentHitpoints()
-        / math.max(1, target.properties.max_hitpoints)
-    return 1 + (edges or 0)*0.1 + (1 - stamina)*0.08
+    return 1 + (edges or 0)*0.1 + MonsterAI.TargetStaminaBias(target)
 end
 
 local function NearestEnemyDistance(ai, actor, loc)
@@ -440,6 +438,7 @@ end
 
 local function FindChangeCourseSlide(ai, invokerToken, casterToken, abilityClone, symbols)
     local range = abilityClone:GetRange(casterToken.properties, symbols)
+    ---@type fun(loc: Loc): boolean
     local predicate = abilityClone:TargetLocPassesFilterPredicate(casterToken, symbols)
         or function() return true end
     local arrowOptions = {
@@ -478,9 +477,6 @@ local function FindChangeCourseSlide(ai, invokerToken, casterToken, abilityClone
     end
 
     casterToken:ClearMovementArrow()
-    if type(shape.Destroy) == "function" then
-        shape:Destroy()
-    end
 
     if best ~= nil then
         casterToken:MarkMovementArrow(best.loc, arrowOptions)
@@ -631,7 +627,7 @@ MonsterAI:RegisterPrompt{
         end
         local target = dmhub.GetTokenById(plan.targetid)
         ai._tmp_waterWolfLeapPlan = nil
-        if LiveCreature(target) and not target:IsFriend(casterToken)
+        if target ~= nil and LiveCreature(target) and not target:IsFriend(casterToken)
             and MonsterAI.TargetDistance(casterToken, target) <= abilityClone:GetRange(casterToken.properties)
             and abilityClone:TargetPassesFilter(casterToken, target, symbols) then
             return {targets = {{token = target}}}

@@ -113,6 +113,7 @@ function FSHShop.Buy(charid, rewardId)
     end
 
     local reward = FSHShop.Reward(rewardId)
+    ---@cast reward -nil
     local token = dmhub.GetCharacterById(charid)
     if token == nil or not token.valid then
         return false, "That hero is not available."

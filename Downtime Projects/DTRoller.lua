@@ -5,13 +5,13 @@
 --- @field characteristics table The list of characteristics for the roller as attrId = value
 --- @field languages table Flag list of language id's known
 --- @field skills table List of skills the roller knows in id,text pairs
---- @field object character|follower|DTRoll The source object
+--- @field object creature The source object: a hero (character) or a follower
 --- @field mentorId string|nil The id of the object's mentor if a follower
 --- @field _adjustRolls fun(self: DTRoller, amount: number) Adjusts available rolls (private)
 DTRoller = RegisterGameType("DTRoller")
 
 --- Creates a new downtime roller instance
---- @param object character|follower|DTRoll The entity to abstract for the roll
+--- @param object creature|DTRoll The entity to abstract for the roll (anything else returns nil)
 --- @param mentorId? string The id of the object's mentor
 --- @return DTRoller|nil instance The new downtime roller instance
 function DTRoller.CreateNew(object, mentorId)
@@ -24,7 +24,8 @@ function DTRoller.CreateNew(object, mentorId)
     local languages = DTBusinessRules.GetGlobalLanguages()
 
     local token = DTHelpers.GetTokenFromCreature(_object)
-    instance.name = (token.name and #token.name > 0 and token.name) or "(unnamed character)"
+    --nil when the creature is neither on this map nor matched among the game's characters.
+    instance.name = (token ~= nil and token.name and #token.name > 0 and token.name) or "(unnamed character)"
     instance.characteristics = DTRoller._charAttrsToList(_object)
     instance.languages = DTHelpers.MergeFlagLists(languages, _object:LanguagesKnown(), true)
     instance.skills = DTRoller._charSkillsToList(_object)
@@ -100,7 +101,7 @@ end
 function DTRoller:GetTokenID()
     if self.object then
         local token = DTHelpers.GetTokenFromCreature(self.object)
-        if token then return token.id end
+        if token then return token.charid end
     end
     return nil
 end
@@ -112,21 +113,25 @@ end
 function DTRoller:GetFollowerID()
     if self.object and DTRoller._isFollowerType(self.object) then
         local token = DTHelpers.GetTokenFromCreature(self.object)
-        if token then return token.id end
+        if token then return token.charid end
     end
     return nil
 end
 
 --- Validates the constructor and returns an appropriate objec type therefrom
---- @param object character|DTFollower|DTRoll The entity to abstract for the roll
---- @return character|DTFollower|nil validatedObject The validated object
+--- @param object creature|DTRoll The entity to abstract for the roll
+--- @return creature|nil validatedObject The validated object: a hero or a follower
 --- @return string|nil mentorId
 function DTRoller._validateConstructor(object)
     if DTRoller._isCharacterType(object) or DTRoller._isFollowerType(object) then
-        return object            
+        --Both checks only pass on a creature's typeName ("character", "follower", "monster").
+        ---@cast object creature
+        return object
     end
 
     if DTRoller._isRollType(object) then
+        --typeName "dtroll" is only ever a DTRoll.
+        ---@cast object DTRoll
         local tokenId = object:GetRolledByID()
         if tokenId and #tokenId then
             local token = dmhub.GetCharacterById(tokenId)
@@ -135,7 +140,7 @@ function DTRoller._validateConstructor(object)
                 local followerId = object:GetRolledByFollowerID()
                 if followerId and #followerId then
                     local follower = dmhub.GetCharacterById(followerId)
-                    if follower then return follower.properties, token.id end
+                    if follower then return follower.properties, token.charid end
                 end
 
                 return token.properties
@@ -147,7 +152,7 @@ function DTRoller._validateConstructor(object)
 end
 
 --- Calcualte the list of attributes given a character
---- @param c character The character
+--- @param c creature The character
 --- @return table attributes List of attributes as attrId = value pairs
 function DTRoller._charAttrsToList(c)
     local attrList = {}
@@ -158,7 +163,7 @@ function DTRoller._charAttrsToList(c)
 end
 
 --- Determine the list of skills given a character
---- @param c character The character
+--- @param c creature The character
 --- @return table skills List of skills the character knows in id,text pairs
 function DTRoller._charSkillsToList(c)
     local skillList = {}
@@ -171,7 +176,7 @@ function DTRoller._charSkillsToList(c)
 end
 
 --- Determine the list of skills given a follower
---- @param f DTFollower The follower
+--- @param f follower The follower
 --- @return table skills List of skills the follower knows in id,text pairs
 function DTRoller._followerSkillsToList(f)
     local skillList = {}
@@ -183,7 +188,7 @@ function DTRoller._followerSkillsToList(f)
 end
 
 --- Determines whether the object represents a character type
---- @param object character|DTFollower|DTFollowerArtisan|DTFollowerSage|DTRoll the object to evaluate
+--- @param object creature|DTRoll the object to evaluate
 --- @return boolean isCharacterType
 function DTRoller._isCharacterType(object)
     local objType = string.lower(object.typeName or "")
@@ -191,7 +196,7 @@ function DTRoller._isCharacterType(object)
 end
 
 --- Determines whether the object represents a follower type
---- @param object character|DTFollower|DTFollowerArtisan|DTFollowerSage|DTRoll the object to evaluate
+--- @param object creature|DTRoll the object to evaluate
 --- @return boolean isFollowerType 
 function DTRoller._isFollowerType(object)
     local objType = string.lower(object.typeName or "")
@@ -201,7 +206,7 @@ function DTRoller._isFollowerType(object)
 end
 
 --- Determine whether the object represents a roll type
---- @param object character|DTFollower|DTFollowerArtisan|DTFollowerSage|DTRoll the object to evaluate
+--- @param object creature|DTRoll the object to evaluate
 --- @return boolean isRollType
 function DTRoller._isRollType(object)
     local objType = string.lower(object.typeName or "")

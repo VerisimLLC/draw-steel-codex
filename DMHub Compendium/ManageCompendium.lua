@@ -95,6 +95,7 @@ local function CreateBestiaryTableView(options)
 		headingCountText,
 	}
 
+	--- @type table<string, Panel>
 	local childPanels = {}
 
 	bodyPanel = gui.Panel{
@@ -171,6 +172,7 @@ local function CreateBestiaryTableView(options)
                                         end
 										table.remove(history, index)
 										--panel:FireEventTree("regenhistory")
+										---@cast panel Panel
 										panel:SetClass("collapsed", true)
 										element:DestroySelf()
 									end,
@@ -190,6 +192,7 @@ local function CreateBestiaryTableView(options)
 							click = function(element)
 								entry.hidden = false
                                 entry:Upload()
+								---@cast panel Panel
 								panel:FireEventTree("regenhistory")
 								element:DestroySelf()
 								undeleteButton = nil
@@ -343,6 +346,7 @@ local function CreateObjectTableView(tableName)
 		headingCountText,
 	}
 
+	--- @type table<string, Panel>
 	local childPanels = {}
 
 	bodyPanel = gui.Panel{
@@ -416,6 +420,7 @@ local function CreateObjectTableView(tableName)
 										dmhub.ObliterateTableItem(tableName, k)
 										table.remove(history, index)
 										--panel:FireEventTree("regenhistory")
+										---@cast panel Panel
 										panel:SetClass("collapsed", true)
 										element:DestroySelf()
 									end,
@@ -435,6 +440,7 @@ local function CreateObjectTableView(tableName)
 							click = function(element)
 								entry.hidden = nil
 								dmhub.SetAndUploadTableItem(tableName, entry)
+								---@cast panel Panel
 								panel:FireEventTree("regenhistory")
 								element:DestroySelf()
 								undeleteButton = nil
@@ -674,16 +680,20 @@ local function GetDataSources(dependenciesList)
 			end
 		end
 
-		dataSources[#dataSources+1] = {
-			moduleid = m.fullid,
-			name = m.name,
-			version = m.loadedVersion,
-			latest = m.latestVersion or "?",
-			ismodule = true,
-			deprecated = m.deprecated,
-			deprecationMessage = m.deprecationMessage,
-			indent = indent,
-		}
+		--a dependency whose module record failed to download stays in the
+		--traced list, but GetModule returns nil for it; skip it.
+		if m ~= nil then
+			dataSources[#dataSources+1] = {
+				moduleid = m.fullid,
+				name = m.name,
+				version = m.loadedVersion,
+				latest = m.latestVersion or "?",
+				ismodule = true,
+				deprecated = m.deprecated,
+				deprecationMessage = m.deprecationMessage,
+				indent = indent,
+			}
+		end
 	end
 
 	dataSources[#dataSources+1] = {
@@ -875,7 +885,6 @@ local CreateModManager = function()
 	end
 
 	objectsTree = gui.Panel{
-		vscroll = true,
 		width = "100%-352",
 		height = "100%",
 		valign = "top",

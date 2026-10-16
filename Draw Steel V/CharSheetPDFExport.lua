@@ -639,7 +639,9 @@ local function DoImportCodexHero(parsed)
 end
 
 --Opens a file dialog to import a Codex character JSON and opens the new hero's sheet.
-function CharSheetPDFExport.ImportCharacterFromFile()
+--onCreated (optional) is called with the new hero instead of the default
+--assign-owner / place-on-map / open-sheet steps. The lobby uses it.
+function CharSheetPDFExport.ImportCharacterFromFile(onCreated)
     dmhub.OpenFileDialog{
         id = "ImportCodexCharacter",
         extensions = {"json"},
@@ -676,6 +678,10 @@ function CharSheetPDFExport.ImportCharacterFromFile()
                         coroutine.yield()
                         for _,token in ipairs(table.values(game.GetGameGlobalCharacters())) do
                             if not knownCharacters[token.charid] then
+                                if onCreated ~= nil then
+                                    onCreated(token)
+                                    return
+                                end
                                 if not dmhub.isDM then
                                     token.ownerId = dmhub.userid
                                 end

@@ -106,11 +106,12 @@ function DTConstants.GetDisplayText(enumTable, key)
     -- Fallback: convert key to title case
     if key and type(key) == "string" then
         -- Handle both underscores and spaces, convert to title case
-        return key:gsub("[_%s]+", " ")  -- Replace underscores and multiple spaces with single space
+        -- Parenthesised so the replacement count from the last gsub is not returned too.
+        return (key:gsub("[_%s]+", " ")  -- Replace underscores and multiple spaces with single space
                   :gsub("(%a)([%w]*)", function(first, rest)  -- Title case each word
                       return first:upper() .. rest:lower()
                   end)
-                  :gsub("^%s+", ""):gsub("%s+$", "")  -- Trim leading/trailing spaces
+                  :gsub("^%s+", ""):gsub("%s+$", ""))  -- Trim leading/trailing spaces
     end
 
     return key or ""

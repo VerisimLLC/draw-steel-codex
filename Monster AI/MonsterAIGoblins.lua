@@ -340,3 +340,314 @@ MonsterAI:RegisterMaliceAbility{
         ExecuteMapAbility(ai, token, ability, scoringInfo.targets)
     end,
 }
+
+--------------------------------------------------------------------------------
+-- Goblin Stinker: Swamp Gas.
+--
+-- The haze is difficult terrain for non-goblins and deals 2 poison per square
+-- moved inside it, forced movement included. The stinker places it to trap
+-- as many enemies as it can and to sit across the routes they would take to
+-- reach the stinker. It scores above Toxic Winds, so it goes first and the
+-- winds can then slide enemies through the haze.
+--------------------------------------------------------------------------------
+
+local swampGasCaughtValue = 4      -- per enemy standing in the haze
+-- Closeness bonus: proximityValue per square the cube's centre is inside
+-- proximityRange of the nearest free enemy (up to +3 at distance 0).
+local swampGasProximityValue = 0.5
+local swampGasProximityRange = 6
+local swampGasPathSquareValue = 1  -- per haze square between an enemy and the stinker
+local swampGasAllyPenalty = 2      -- per non-goblin ally caught in it
+local swampGasOverlapPenalty = 1   -- per square already under another stinker's haze
+local swampGasPause = 0.6
+-- Candidates are first ranked on a cheap square-grid estimate; only this many
+-- of the best are checked against the real cube shape and line of effect.
+local swampGasCandidatesToVerify = 8
+
+local goblinStinkerSpeech = {
+    "Breathe deep, tall-folk!",
+    "Smells like home!",
+    "Mind your step. Heh.",
+}
+
+local function SquareKey(x, y)
+    return string.format("%d,%d", x, y)
+end
+
+-- Draw Steel counts diagonal steps as 1, so distance is the larger axis gap.
+local function GridDistance(ax, ay, bx, by)
+    return math.max(math.abs(ax - bx), math.abs(ay - by))
+end
+
+local function OffsetLoc(loc, dx, dy)
+    local result = loc
+    for _=1,math.abs(dx) do
+        if dx > 0 then
+            result = result.east
+        else
+            result = result.west
+        end
+    end
+    for _=1,math.abs(dy) do
+        if dy > 0 then
+            result = result.north
+        else
+            result = result.south
+        end
+    end
+    return result
+end
+
+-- The haze only affects creatures without the Goblin keyword.
+local function CreaturesTheHazeAffects(tokens)
+    local result = {}
+    for _,other in ipairs(tokens or {}) do
+        if LiveCreature(other) and not HasGoblinKeyword(other) then
+            result[#result+1] = other
+        end
+    end
+    return result
+end
+
+-- Every square on some shortest route from an enemy to the stinker, not
+-- counting the squares the enemy or the stinker stand on: the squares the
+-- enemy could cross on its way to the stinker.
+local function SquaresBetweenEnemiesAndStinker(token, enemies)
+    local result = {}
+    local stinkerSquares = {}
+    for _,loc in ipairs(token.locsOccupying) do
+        stinkerSquares[SquareKey(loc.x, loc.y)] = true
+    end
+
+    local tx, ty = token.loc.x, token.loc.y
+    for _,enemy in ipairs(enemies) do
+        local ownSquares = {}
+        for _,loc in ipairs(enemy.locsOccupying) do
+            ownSquares[SquareKey(loc.x, loc.y)] = true
+        end
+
+        local ex, ey = enemy.loc.x, enemy.loc.y
+        local distance = GridDistance(ex, ey, tx, ty)
+        for x=math.min(ex, tx),math.max(ex, tx) do
+            for y=math.min(ey, ty),math.max(ey, ty) do
+                local key = SquareKey(x, y)
+                if not ownSquares[key] and not stinkerSquares[key]
+                    and GridDistance(ex, ey, x, y) + GridDistance(x, y, tx, ty) == distance then
+                    result[key] = true
+                end
+            end
+        end
+    end
+    return result
+end
+
+-- Value of a haze over the given squares (a list of {x, y}). The square maps
+-- go from SquareKey to the charid of the creature standing there; covered
+-- holds squares already under another stinker's haze. A covered square earns
+-- no route credit and costs the overlap penalty, so clouds spread out.
+local function ScoreSwampGasSquares(squares, betweenSquares, enemySquares, allySquares, covered)
+    local pathSquares = 0
+    local overlap = 0
+    local caught = {}
+    local allies = {}
+    for _,square in ipairs(squares) do
+        local key = SquareKey(square.x, square.y)
+        if covered[key] then
+            overlap = overlap + 1
+        elseif betweenSquares[key] then
+            pathSquares = pathSquares + 1
+        end
+        if enemySquares[key] ~= nil then
+            caught[enemySquares[key]] = true
+        end
+        if allySquares[key] ~= nil then
+            allies[allySquares[key]] = true
+        end
+    end
+
+    local numCaught = 0
+    for _ in pairs(caught) do
+        numCaught = numCaught + 1
+    end
+    local numAllies = 0
+    for _ in pairs(allies) do
+        numAllies = numAllies + 1
+    end
+
+    return {
+        score = numCaught*swampGasCaughtValue + pathSquares*swampGasPathSquareValue
+            - numAllies*swampGasAllyPenalty - overlap*swampGasOverlapPenalty,
+        caught = numCaught,
+        pathSquares = pathSquares,
+        allies = numAllies,
+        overlap = overlap,
+    }
+end
+
+local function BuildSwampGasArea(token, ability, center)
+    return dmhub.CalculateShape{
+        shape = "cube",
+        targetPoint = token:PosAtLoc(center),
+        token = token,
+        range = ability:GetRange(token.properties),
+        radius = ability:GetRadius(token.properties),
+        checklos = false,
+        altitude = center.withGroundAltitude.altitude * dmhub.unitsPerSquare,
+    }
+end
+
+local function SquaresOf(tokens)
+    local result = {}
+    for _,other in ipairs(tokens) do
+        for _,loc in ipairs(other.locsOccupying) do
+            result[SquareKey(loc.x, loc.y)] = other.charid
+        end
+    end
+    return result
+end
+
+-- Squares already under another stinker's haze. A placed haze is stored in its
+-- caster's auras list with the cube it covers. The stinker's own earlier haze
+-- is ignored: by the rules it has expired at the start of this turn.
+local function SquaresUnderOtherSwampGas(token, ability)
+    local result = {}
+    for _,other in ipairs(dmhub.allTokens) do
+        if other.valid and other.properties ~= nil and other.charid ~= token.charid then
+            for _,aura in ipairs(other.properties:try_get("auras", {})) do
+                if aura:try_get("name") == ability.name
+                    or aura:try_get("sourceAbilityId") == ability:try_get("guid") then
+                    local area = aura:GetArea()
+                    for _,loc in ipairs(area ~= nil and area.locations or {}) do
+                        result[SquareKey(loc.x, loc.y)] = true
+                    end
+                end
+            end
+        end
+    end
+    return result
+end
+
+local function SwampGasProximityBonus(cx, cy, enemies)
+    local nearest = nil
+    for _,enemy in ipairs(enemies) do
+        local d = GridDistance(cx, cy, enemy.loc.x, enemy.loc.y)
+        if nearest == nil or d < nearest then
+            nearest = d
+        end
+    end
+    if nearest == nil then
+        return 0
+    end
+    return math.max(0, swampGasProximityRange - nearest)*swampGasProximityValue
+end
+
+local function FindSwampGasPlan(ai, token, ability)
+    local covered = SquaresUnderOtherSwampGas(token, ability)
+
+    -- Enemies already in another stinker's haze are trapped; they are not
+    -- worth a second cloud.
+    local enemies = {}
+    for _,enemy in ipairs(CreaturesTheHazeAffects(ai.enemyTokens)) do
+        local inHaze = false
+        for _,loc in ipairs(enemy.locsOccupying) do
+            if covered[SquareKey(loc.x, loc.y)] then
+                inHaze = true
+            end
+        end
+        if not inHaze then
+            enemies[#enemies+1] = enemy
+        end
+    end
+    if #enemies == 0 then
+        return nil, "no non-goblin enemies outside existing Swamp Gas"
+    end
+    local enemySquares = SquaresOf(enemies)
+    local allySquares = SquaresOf(CreaturesTheHazeAffects(ai.allyTokens))
+    local betweenSquares = SquaresBetweenEnemiesAndStinker(token, enemies)
+
+    -- Estimate every cube centre in range on the square grid. A 3 cube
+    -- reaches one square out from its centre.
+    local range = ability:GetRange(token.properties)
+    local reach = math.floor(ability:GetRadius(token.properties)/2)
+    local ox, oy = token.loc.x, token.loc.y
+    local candidates = {}
+    for dx=-range,range do
+        for dy=-range,range do
+            local squares = {}
+            for sx=-reach,reach do
+                for sy=-reach,reach do
+                    squares[#squares+1] = {x = ox + dx + sx, y = oy + dy + sy}
+                end
+            end
+            local estimate = ScoreSwampGasSquares(squares, betweenSquares, enemySquares, allySquares, covered)
+            estimate.proximity = SwampGasProximityBonus(ox + dx, oy + dy, enemies)
+            estimate.score = estimate.score + estimate.proximity
+            if estimate.score > 0 then
+                estimate.dx = dx
+                estimate.dy = dy
+                candidates[#candidates+1] = estimate
+            end
+        end
+    end
+    if #candidates == 0 then
+        return nil, "no placement traps an enemy or covers a route to the stinker enough to outweigh overlap"
+    end
+    table.sort(candidates, function(a, b)
+        return a.score > b.score
+    end)
+
+    -- Re-score the best estimates on the real shape, which also checks the
+    -- centre is on the map, in range and in line of effect.
+    local pierceWalls = token.properties:GetPierceWalls()
+    local best = nil
+    local verified = 0
+    for _,candidate in ipairs(candidates) do
+        if verified >= swampGasCandidatesToVerify then
+            break
+        end
+        local center = OffsetLoc(token.loc, candidate.dx, candidate.dy)
+        if center.valid and center.isOnMap and token:Distance(center) <= range
+            and token:GetLineOfSight(center, pierceWalls) > 0 then
+            verified = verified + 1
+            local area = BuildSwampGasArea(token, ability, center)
+            local squares = {}
+            for _,loc in ipairs(area.locations or {}) do
+                squares[#squares+1] = {x = loc.x, y = loc.y}
+            end
+            local actual = ScoreSwampGasSquares(squares, betweenSquares, enemySquares, allySquares, covered)
+            actual.proximity = candidate.proximity
+            actual.score = actual.score + actual.proximity
+            if actual.score > 0 and (best == nil or actual.score > best.score) then
+                actual.center = center
+                best = actual
+            end
+        end
+    end
+
+    if best == nil then
+        return nil, "no worthwhile placement is in range and line of effect"
+    end
+    return best
+end
+
+MonsterAI:RegisterMove{
+    id = "Goblin Stinker: Swamp Gas",
+    category = "Maneuvers",
+    monsters = {"Goblin Stinker"},
+    abilities = {"Swamp Gas"},
+    description = "Maneuver: place the haze to catch enemies (+4 each), close to enemies (up to +3), and over squares between enemies and the stinker (+1 each). Scores above Toxic Winds so the winds can slide enemies through it.",
+    score = function(self, ai, token, ability)
+        return FindSwampGasPlan(ai, token, ability)
+    end,
+    execute = function(self, ai, token, scoringInfo, ability)
+        ai:Speech(token, goblinStinkerSpeech)
+        ai.Sleep(speechPause)
+
+        local area = BuildSwampGasArea(token, ability, scoringInfo.center)
+        ai:ExecuteAbility(token, DeepCopy(ability), {}, {
+            sleep = swampGasPause,
+            symbols = {targetArea = area},
+            targetArea = area,
+        })
+    end,
+}

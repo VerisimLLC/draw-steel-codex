@@ -32,6 +32,6 @@ function LuaShape:ContainsToken(token) end
 function LuaShape:Mark(args) end
 
 --- Returns true if this shape contains exactly the same locations as the other shape.
---- @param other LuaShape
+--- @param other nil|LuaShape
 --- @return boolean
 function LuaShape:Equal(other) end

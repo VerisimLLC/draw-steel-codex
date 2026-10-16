@@ -273,9 +273,9 @@ CharacterModifier.TypeInfo.powertabletrigger = {
         }
 
         if selfClone.powerRollModifier:try_get("resourceCostType") == "cost" then
-            entry.heroicResourceCost = tonumber(selfClone.powerRollModifier:try_get("resourceCostAmount", 1))
+            entry.heroicResourceCost = selfClone.powerRollModifier:ResolveResourceCostAmount(token.properties, symbols)
         elseif selfClone.powerRollModifier:try_get("resourceCostType") == "epic" then
-            entry.epicResourceCost = tonumber(selfClone.powerRollModifier:try_get("resourceCostAmount", 1))
+            entry.epicResourceCost = selfClone.powerRollModifier:ResolveResourceCostAmount(token.properties, symbols)
         end
 
         if self:try_get("abilityTargets", "") ~= "" then
@@ -290,7 +290,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
     --- @param casterToken CharacterToken The token casting the ability
     --- @param targetToken CharacterToken The target of the ability
     --- @param ability ActivatedAbility
-    --- @param rollProperties RollProperties
+    --- @param rollProperties RollPropertiesPowerTable
     --- @param castOptions table A table of options that go to an ability cast.
     applyTriggerToPowerRoll = function(self, token, casterToken, targetToken, ability, rollProperties, castOptions)
         local triggerInfo = g_idToTriggerChoice[self.trigger]
@@ -323,11 +323,11 @@ CharacterModifier.TypeInfo.powertabletrigger = {
         end
 
         if self.powerRollModifier:try_get("resourceCostType") == "cost" then
-            if (tonumber(token.properties:GetHeroicOrMaliceResourcesAvailableToSpend()) or 0) < (tonumber(self.powerRollModifier:try_get("resourceCostAmount", 1)) or 0) then
+            if (tonumber(token.properties:GetHeroicOrMaliceResourcesAvailableToSpend()) or 0) < self.powerRollModifier:ResolveResourceCostAmount(token.properties, symbols) then
                 return false
             end
         elseif self.powerRollModifier:try_get("resourceCostType") == "epic" then
-            if (tonumber(token.properties:GetEpicResources()) or 0) < (tonumber(self.powerRollModifier:try_get("resourceCostAmount", 1)) or 0) then
+            if (tonumber(token.properties:GetEpicResources()) or 0) < self.powerRollModifier:ResolveResourceCostAmount(token.properties, symbols) then
                 return false
             end
         end
@@ -508,7 +508,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
                     idChosen = modifier.type,
                     change = function(element)
                         ---@cast element Dropdown
-                        modifier.type = element.idChosen
+                        modifier.type = element.idChosen --[[@as string]]
                         Refresh()
                     end,
                 },
@@ -526,7 +526,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
                     idChosen = modifier.targetType,
                     change = function(element)
                         ---@cast element Dropdown
-                        modifier.targetType = element.idChosen
+                        modifier.targetType = element.idChosen --[[@as string]]
                         Refresh()
                     end,
                 },
@@ -553,7 +553,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
                     idChosen = modifier:try_get("multitarget", "one"),
                     change = function(element)
                         ---@cast element Dropdown
-                        modifier.multitarget = element.idChosen
+                        modifier.multitarget = element.idChosen --[[@as string]]
                         Refresh()
                     end,
                 }
@@ -571,7 +571,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
                     idChosen = modifier.trigger,
                     change = function(element)
                         ---@cast element Dropdown
-                        modifier.trigger = element.idChosen
+                        modifier.trigger = element.idChosen --[[@as string]]
                         Refresh()
                     end,
                 },
@@ -605,7 +605,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
                         idChosen = modifier:try_get("damageType", "all"),
                         change = function(element)
                             ---@cast element Dropdown
-                            modifier.damageType = element.idChosen
+                            modifier.damageType = element.idChosen --[[@as string]]
                             Refresh()
                         end,
                     }
@@ -1057,7 +1057,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
 --- @param casterToken CharacterToken
 --- @param targetToken CharacterToken
 --- @param ability ActivatedAbility
---- @param rollProperties RollProperties
+--- @param rollProperties RollPropertiesPowerTable
 --- @param output table
 function CharacterModifier:TriggerModsPowerRoll(modContext, token, casterToken, targetToken, ability, rollProperties, output, castOptions)
 	local typeInfo = CharacterModifier.TypeInfo[self.behavior] or {}
@@ -1183,6 +1183,7 @@ end
 --- @return false|string chosenTargetId
 --- @return false|string ping
 function ActiveTrigger.PowerRollRowsState(record, multitargets)
+    ---@type boolean|number
     local triggered = false
     local chosenTargetId = false
     local ping = false
@@ -1269,7 +1270,7 @@ end
 
 --- After a roll dialog activates one row of a shared prompt, clears the
 --- prompt's other rows: a target-choosing triggered action applies to one target.
---- @param multitargets table The roll dialog's per-target entries.
+--- @param multitargets table|nil The roll dialog's per-target entries.
 --- @param row table The row just changed.
 function ActiveTrigger.ClearOtherSharedPowerRollRows(multitargets, row)
     if (not row.triggered) or (not CharacterModifier.PowerRollTriggerChoosesTarget(row.modifier)) then

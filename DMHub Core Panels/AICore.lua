@@ -8,6 +8,7 @@ ai = {
 
     --function(args : { messages = {{role: string, content: string}}, temperature = (number?), success = function(string) : nil, error = function(string) : nil}) : nil
     Chat = function(args)
+        ---@type fun(message: string)
         local errorfn = args.error or (function() end)
         net.Post{
             url = "https://us-central1-dmtool-cad62.cloudfunctions.net/gpt",
@@ -32,6 +33,7 @@ ai = {
 
     --function(args: { prompt = string, size = string?, removeBackground = string?, imageLibrary = string?, success = function(string) : nil, error = function(string) : nil})
     Image = function(args)
+        ---@type fun(message: string)
         local errorfn = args.error or (function() end)
         net.Post{
             url = "https://us-central1-dmtool-cad62.cloudfunctions.net/gpt",

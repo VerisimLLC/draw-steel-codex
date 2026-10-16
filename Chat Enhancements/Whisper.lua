@@ -427,8 +427,11 @@ Commands.RegisterMacro{
     completions = function(args, argIndex)
         if argIndex ~= 1 then return {} end
         local result = {{text = "dm", summary = "the Director"}, {text = "gm", summary = "the Director"}, {text = "director", summary = "the Director"}}
-        for _, player in ipairs(dmhub.players) do
-            result[#result+1] = {text = player.nick, summary = "player"}
+        for _, userId in ipairs(dmhub.users) do
+            local si = dmhub.GetSessionInfo(userId)
+            if si ~= nil and si.displayName ~= nil and si.displayName ~= "" then
+                result[#result+1] = {text = si.displayName, summary = "player"}
+            end
         end
         return result
     end,
@@ -444,8 +447,11 @@ Commands.RegisterMacro{
     completions = function(args, argIndex)
         if argIndex ~= 1 then return {} end
         local result = {{text = "dm", summary = "the Director"}, {text = "gm", summary = "the Director"}, {text = "director", summary = "the Director"}}
-        for _, player in ipairs(dmhub.players) do
-            result[#result+1] = {text = player.nick, summary = "player"}
+        for _, userId in ipairs(dmhub.users) do
+            local si = dmhub.GetSessionInfo(userId)
+            if si ~= nil and si.displayName ~= nil and si.displayName ~= "" then
+                result[#result+1] = {text = si.displayName, summary = "player"}
+            end
         end
         return result
     end,

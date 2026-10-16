@@ -2479,36 +2479,53 @@ CreateJournalPanel = function(options)
 
                     local entries = {}
 
-                    --Only plain markdown creation is offered here for now. The other
-                    --registered document types (montage, negotiation, heroic test, and
-                    --the rest of the docType palette) are deliberately not exposed yet;
-                    --they stay registered so existing documents of those types still
-                    --load and render, we just do not hand out a way to make new ones.
+                    --Straight to the new document, for EVERY type. This used
+                    --to call doc:ShowCreateDialog(), which is only a direct
+                    --create for the functional subtypes (montage/negotiation/
+                    --heroic test) -- MarkdownDocument overrides it with a
+                    --template picker, so the six plain types (Note, Narration,
+                    --Exploration, Combat, Location, NPC) detoured through a
+                    --second dialog. Same path the tab bar's + takes
+                    --(DocumentSystem.lua, onNewDocument).
+                    local function OpenNewDocument(doc)
+                        element.popup = nil
+                        doc.id = dmhub.GenerateGuid()
+                        if not dmhub.isDM then
+                            doc.ownerid = dmhub.loginUserid
+                        end
+                        doc.parentFolder = newDocumentParentFolder
+                        doc:Upload()
+                        doc:ShowDocument{edit = true}
+                    end
+
+                    --Blank creation stays one click. Without dev:documentclasses
+                    --it is the only creation offered: the other registered types
+                    --stay registered so their documents load and render, we just
+                    --do not hand out a way to make new ones.
                     local markdownType = CustomDocument.documentTypes["markdown"]
                     if markdownType ~= nil then
                         entries[#entries + 1] = {
                             text = "New Document",
                             click = function()
-                                element.popup = nil
-                                local doc = markdownType.create()
-                                doc.id = dmhub.GenerateGuid()
-                                if not dmhub.isDM then
-                                    doc.ownerid = dmhub.loginUserid
-                                end
-                                doc.parentFolder = newDocumentParentFolder
-                                --Straight to the new document, for EVERY type.
-                                --This used to call doc:ShowCreateDialog(), which
-                                --is only a direct create for the functional
-                                --subtypes (montage/negotiation/heroic test) --
-                                --MarkdownDocument overrides it with a template
-                                --picker, so the six plain types (Note, Narration,
-                                --Exploration, Combat, Location, NPC) detoured
-                                --through a second dialog. Same path the tab bar's
-                                --+ takes (DocumentSystem.lua, onNewDocument).
-                                doc:Upload()
-                                doc:ShowDocument{edit = true}
+                                OpenNewDocument(markdownType.create())
                             end,
                         }
+                    end
+
+                    if g_documentClassesSetting:Get() then
+                        local typeEntries = {}
+                        for _, docType in ipairs(CustomDocument.NewDocumentTypes()) do
+                            typeEntries[#typeEntries + 1] = {
+                                text = docType.name,
+                                click = function()
+                                    OpenNewDocument(docType.create())
+                                end,
+                            }
+                        end
+                        --one list: the Director's templates are folded into it.
+                        if #typeEntries > 0 then
+                            entries[#entries + 1] = { text = "New by Type", submenu = typeEntries }
+                        end
                     end
 
                     entries[#entries + 1] = {

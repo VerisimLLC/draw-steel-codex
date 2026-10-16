@@ -56,6 +56,7 @@ RollDefinition = {}
 --- @field typeName string The registered type name.
 --- @field baseTypeName nil|string The registered base type name, if any.
 --- @field mt table The metatable RegisterGameType sets on instances of this type.
+--- @field __typeName? string The serialized type key; set on an instance to change the type it loads back as.
 GameType = {}
 
 --- Creates an instance of this type: o (or a new table) with the type's metatable set.
@@ -96,13 +97,50 @@ function GameType.IsDerivedFrom(typeName) end
 function GameType.AddAlias(a, b) end
 
 --- Engine globals set outside the stub generator's view: by core Lua TextAssets
---- (commands.txt, game-hud-menu.txt, input.txt) or by C# LuaNative.SetGlobal, which the
---- generator does not learn names from. Declared here so a stub regen keeps them.
+--- (commands.txt, game-hud-menu.txt, input.txt, settings.txt, ...) or by C#
+--- (LuaNative.SetGlobal, LuaNative.cs DoString), which the generator does not learn
+--- names from. Declared here so a stub regen keeps them.
 
---- Slash commands and command-line actions: `/name args` calls Commands.name(args).
---- Defined in commands.txt; the codex adds entries (`Commands.foo = function(str) ... end`).
---- @type table<string, function>
+--- One entry of Commands._macros: the help and completion info for a slash command.
+--- @class CommandMacroInfo
+--- @field doc? string Full usage text.
+--- @field summary? string One-line summary shown by the chat input.
+--- @field completions? fun(args: string[], argIndex: integer): table Argument suggestions for the chat input.
+--- @field commandInfo? table How the no-code command builder surfaces this command.
+
+--- Slash commands and command-line actions: `/name args` calls Commands.name(args), with
+--- the text after the name as args (CommandController.ExecuteCommand). commands.txt fills
+--- it with the engine's commands and game-hud-menu.txt adds the menu-command registry
+--- below; the codex adds entries (`Commands.foo = function(str)`) and, in DMHub
+--- Utils/Utils.lua, the macro registry: `_macros` below and the RegisterMacro /
+--- GetMacroInfo / GetAllMacros / GetCurrentArg / RegisterBuiltinDoc functions, whose
+--- declarations LuaLS picks up from the codex.
+--- @class CommandsTable
+--- @field _macros table<string, CommandMacroInfo> Help and completions by command name. Created by the codex's DMHub Utils/Utils.lua.
+--- @field [string] fun(str?: string): any A command; str is the text after the command name.
 Commands = {}
+
+--- Registers a menu command (name, icon, menu, group, command or execute, setting,
+--- folder, dmonly, devonly, ...), from game-hud-menu.txt. Ignored when dmonly or devonly
+--- rules it out for this user.
+--- @param args table
+function Commands.Register(args) end
+
+--- The launchable-panel menu item whose name is str, or nil.
+--- @param str string
+--- @return table|nil
+function Commands.GetCommandInfo(str) end
+
+--- Every registered menu command, keyed by identifier.
+--- @return table<string, table>
+function Commands.GetRegisteredCommands() end
+
+--- Appends the registered menu commands' menu items to result, filed into subfolders by
+--- folder when subfolders is given.
+--- @param result table[]
+--- @param subfolders? table
+--- @param includeFiltered? boolean
+function Commands.AccumulateMenuItems(result, subfolders, includeFiltered) end
 
 --- The Dice Studio API. Set by ScriptEngine.cs only for admin accounts (and in the editor);
 --- nil for everyone else, so code outside the admin-only Dice Studio must check it.
@@ -176,6 +214,135 @@ function LaunchablePanel.AccumulateMenuItems(result, subfolders, includeFiltered
 --- @return table[]
 function LaunchablePanel.GetMenuItems(includeFiltered) end
 
+--- Engine additions to the coroutine library: GetCurrentId and IsCoroutineWithIdStillRunning
+--- from lua-coroutine.txt, atexit from LuaNative.cs. They concern the coroutines the engine
+--- itself runs (dmhub.Coroutine and friends), not ones made with coroutine.create.
+
+--- The id of the engine coroutine currently running, or nil outside one.
+--- @return nil|integer
+function coroutine.GetCurrentId() end
+
+--- True while the engine coroutine with this id has not finished.
+--- @param id nil|integer
+--- @return boolean
+function coroutine.IsCoroutineWithIdStillRunning(id) end
+
+--- Queues fn to run when the current engine coroutine finishes. Does nothing outside one,
+--- or when fn is nil.
+--- @param fn nil|function
+function coroutine.atexit(fn) end
+
+--- Every engine coroutine still running (dmhub.Coroutine and friends), in start order.
+--- Created by LuaNative.cs and replaced wholesale when coroutines are reset, so read the
+--- global each time rather than keeping the table.
+--- @type {coroutine: thread, id: integer, hostElevation: nil|integer}[]
+builtin_coroutines = {}
+
+--- The developer game recorder. Set by ScriptEngine.OnLogin only for admin accounts (and
+--- in the editor), like dicestudio; nil for everyone else.
+--- @type GameRecorderLua
+recorder = nil
+
+--- A registered setting: the table passed to setting{} (settings.txt), after setting{} adds
+--- ord and enumKeys. Registrations may carry further keys of their own.
+--- @class SettingInfo
+--- @field id string
+--- @field description? string
+--- @field help? string
+--- @field storage? SettingStorage
+--- @field default any
+--- @field editor? string
+--- @field section? string
+--- @field enum? {value: any, icon: nil|string, text: nil|string, help: nil|string}[]
+--- @field enumKeys? table<any, integer> Set by setting{} when enum is: each enum value's index in enum.
+--- @field ord integer Registration order, set by setting{}.
+--- @field format? string
+--- @field min? number
+--- @field max? number
+--- @field resetCount? integer
+--- @field [string] any
+
+--- Every registered setting by id, from settings.txt.
+--- @type table<string, SettingInfo>
+Settings = {}
+
+--- Every registered setting in registration order, from settings.txt. A re-registered id
+--- keeps its place.
+--- @type SettingInfo[]
+SettingsOrdered = {}
+
+--- The setting's current value as display text: the matching enum entry's text for an
+--- enum setting, otherwise tostring of the value. From settings.txt.
+--- @param var SettingInfo
+--- @return string
+function GetSettingPrettyValue(var) end
+
+--- The engine's Theme game type (RegisterGameType in lua-core.txt). The codex adds the
+--- theme editor functions to it (DMHub Core Panels/Theme.lua).
+--- @class Theme: GameType
+--- @field new fun(o?: table): Theme
+Theme = {}
+
+--- The title screen game type, registered by titlescreen.txt; the engine and the codex add
+--- its screens as methods.
+--- @class Titlescreen: GameType
+--- @field new fun(o?: table): Titlescreen
+--- @field dialog SheetContainer The title screen's container, which LuaTitlescreen.cs passes to CreateTitlescreen.
+Titlescreen = {}
+
+--- A shuffle bag of the integers 1..n, from jukebox.txt: Next draws them in random order
+--- and refills the bag once every one has been drawn.
+--- @class Jukebox: GameType
+--- @field new fun(o?: table): Jukebox
+--- @field deck integer[] Integers still to be drawn.
+--- @field discard integer[] Integers already drawn.
+Jukebox = {}
+
+--- A new bag of the integers 1..elements.
+--- @param elements? integer Defaults to 1.
+--- @return Jukebox
+function Jukebox.Create(elements) end
+
+--- Moves every drawn integer back into the bag, in random order.
+function Jukebox:Shuffle() end
+
+--- Resizes the bag to the integers 1..n.
+--- @param n integer
+function Jukebox:CheckSize(n) end
+
+--- Draws the next integer, refilling the bag first if it is empty.
+--- @return integer
+function Jukebox:Next() end
+
+--- One animated item-icon effect, from item-effects.txt.
+--- @class ItemEffectInfo
+--- @field text string Display name.
+--- @field video string The effect video, used as the icon overlay's bgimage.
+--- @field opacity number
+--- @field mask boolean Mask the video to the item icon's shape.
+
+--- The item-icon effects by id (an item's iconEffect), from item-effects.txt.
+--- @type table<string, ItemEffectInfo>
+ItemEffects = {}
+
+--- The artist editor, from artists.txt.
+--- @class ArtistEditor
+Artist = {}
+
+--- A form panel that edits an artist; fire its `artist` event with the artist to edit.
+--- @return Panel
+function Artist.CreateEditorPanel() end
+
+--- The subscription management screen, from subs-screen.txt.
+--- @param arguments {dialog: Panel} The dialog it is shown in; sizes it.
+--- @return Panel
+function CreateSubscriptionScreen(arguments) end
+
+--- The terms of use shown on the title screen, as markdown; set by the patch-notes
+--- TextAssets.
+--- @type string
+termsAndOngoingEffectsText = ""
+
 --- BEGIN generated by tools/lua-typing/gen_table_overloads.py -- do not edit by hand
 --- Typed overloads for the data-table getters: each registered game type that declares
 --- `X.tableName = "name"` makes GetTable("name") return its rows as X. Merged by LuaLS
@@ -202,6 +369,7 @@ function LaunchablePanel.GetMenuItems(includeFiltered) end
 ---@overload fun(tableName: "damageTypes"): table<string, DamageType>
 ---@overload fun(tableName: "Deities"): table<string, Deity>
 ---@overload fun(tableName: "DeityDomains"): table<string, DeityDomain>
+---@overload fun(tableName: "documentClasses"): table<string, DocumentClass>
 ---@overload fun(tableName: "documents"): table<string, CustomDocument>
 ---@overload fun(tableName: "downtimeActivities"): table<string, DowntimeActivity>
 ---@overload fun(tableName: "encounterfolders"): table<string, EncounterFolder>
@@ -264,6 +432,7 @@ function dmhub.GetTable(tableName) end
 ---@overload fun(tableName: "damageTypes"): table<string, DamageType>
 ---@overload fun(tableName: "Deities"): table<string, Deity>
 ---@overload fun(tableName: "DeityDomains"): table<string, DeityDomain>
+---@overload fun(tableName: "documentClasses"): table<string, DocumentClass>
 ---@overload fun(tableName: "documents"): table<string, CustomDocument>
 ---@overload fun(tableName: "downtimeActivities"): table<string, DowntimeActivity>
 ---@overload fun(tableName: "encounterfolders"): table<string, EncounterFolder>

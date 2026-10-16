@@ -42,7 +42,6 @@ local function CreateWeatherEffectAsset()
 						text = 'Uploading Asset...',
 						style = {
 							valign = 'center',
-							height = 'center',
 							width = 'auto',
 							height = 'auto',
 							pad = 100,

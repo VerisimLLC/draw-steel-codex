@@ -8,6 +8,7 @@
 --- @field imageId any
 --- @field thumbnailId any
 --- @field scale any
+--- @field fromMapPack boolean True when this node belongs only to an overlay -- the current map's "Objects for this map" set (see mappacks.currentMapObjects) or a props pack (see propspacks) -- and has no copy in the game yet. Such a folder comes and goes with its overlay, so it should not be renamed, deleted, or have objects moved into it. (Read-only)
 --- @field components any
 --- @field hue number
 --- @field brightness number

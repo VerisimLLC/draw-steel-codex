@@ -11,36 +11,39 @@ local function track(eventType, fields)
     analytics.Event(fields)
 end
 
---- @field creature.minion boolean
-creature.minion = false
-
---- @field creature.minionDead boolean
-creature.minionDead = false
-
---- @field creature.initiativeGrouping false|string
-creature.initiativeGrouping = false
-
---- @field creature.skipTurnInitiativeId string The initiative id for which this creature's turn was skipped.
-creature.skipTurnInitiativeId = ""
-
---- @field creature.skipTurnRoundId string The round ID in which this creature's turn was skipped.
-creature.skipTurnRoundId = ""
-
---- @field creature.skipTurnTurnsTaken number The turnsTaken value for the entry at the time of the skip.
-creature.skipTurnTurnsTaken = 0
+--Draw Steel fields this file adds to creature (the class itself is declared in
+--Creature.lua). The defaults are set on the prototype below.
+--- @class creature
+--- @field minion boolean
+--- @field minionDead boolean
+--- @field initiativeGrouping? false|string Initiative group id; writing nil clears it back to the false default.
+--- @field skipTurnInitiativeId string The initiative id for which this creature's turn was skipped.
+--- @field skipTurnRoundId string The round ID in which this creature's turn was skipped.
+--- @field skipTurnTurnsTaken number The turnsTaken value for the entry at the time of the skip.
+--- @field _tmp_minionSquad SquadInfo
+--- @field summonedMinions table List of { charid, squad, monsterType } entries tracking this creature's active summons.
+--- @field sharesSurgesWithSummoner boolean If true, surges granted to this summoned creature are redirected to its summoner.
+--- @field sharesHeroicResourceWithSummoner boolean If true, heroic resource consumed/granted on this summoned creature is redirected to its summoner.
+--- @field minionDamageTime number|string Server time this minion was last damaged; a ServerTimestamp() placeholder string until the server fills it in.
 
 --- @alias SquadInfo table
 
+creature.minion = false
 
---- @field creature._tmp_minionSquad SquadInfo
+creature.minionDead = false
 
---- @field creature.summonedMinions table List of { charid, squad, monsterType } entries tracking this creature's active summons.
+creature.initiativeGrouping = false
+
+creature.skipTurnInitiativeId = ""
+
+creature.skipTurnRoundId = ""
+
+creature.skipTurnTurnsTaken = 0
+
 creature.summonedMinions = {}
 
---- @field creature.sharesSurgesWithSummoner boolean If true, surges granted to this summoned creature are redirected to its summoner.
 creature.sharesSurgesWithSummoner = false
 
---- @field creature.sharesHeroicResourceWithSummoner boolean If true, heroic resource consumed/granted on this summoned creature is redirected to its summoner.
 creature.sharesHeroicResourceWithSummoner = false
 
 function creature:MinionSquad()
@@ -637,9 +640,9 @@ function character:Retainers()
     local retainers = {}
     local followers = self:GetFollowers()
 
-    for id, _ in ipairs(followers) do
+    for id, _ in pairs(followers) do
         local follower = dmhub.GetCharacterById(id)
-        if follower and follower:IsRetainer() then
+        if follower and follower.properties and follower.properties:IsRetainer() then
             retainers[#retainers + 1] = follower
         end
     end
@@ -696,21 +699,24 @@ function monster:GetMentor()
 end
 
 function creature:HeroicResourceHighWaterMarkForTurn()
-    local quantity = 0
-
     local resources = self:try_get("resources")
-    if resources ~= nil then
-        local heroicResource = resources[CharacterResource.heroicResourceId]
-        if heroicResource ~= nil then
-            quantity = heroicResource.unbounded or 0
-        end
+    if resources == nil then
+        return 0
     end
 
-    if self:has_key("_tmp_heroicResourceTurnId") then
-        local q = dmhub.initiativeQueue
-        if q ~= nil and (not q.hidden) and q:GetTurnId() == self._tmp_heroicResourceTurnId then
-            local currentHeroicResource = self:try_get("_tmp_heroicResourceForTurn") or 0
-            return math.max(currentHeroicResource, quantity)
+    local heroicResource = resources[CharacterResource.heroicResourceId]
+    if heroicResource == nil then
+        return 0
+    end
+
+    local quantity = heroicResource.unbounded or 0
+
+    --Count the most held this turn, not just what is left after spending.
+    local q = dmhub.initiativeQueue
+    if q ~= nil and (not q.hidden) then
+        local turnid = q:GetTurnId()
+        if turnid ~= nil and heroicResource:try_get("turnPeakId") == turnid then
+            return math.max(heroicResource.turnPeak, quantity)
         end
     end
 
@@ -883,34 +889,6 @@ function creature:RefreshToken(token)
 
     g_baseRefreshToken(self, token)
 
-    if self:IsHero() then
-        --find this character's heroic resources high water mark for the turn.
-        local resources = self:try_get("resources")
-        if resources ~= nil then
-            local heroicResource = resources[CharacterResource.heroicResourceId]
-            if heroicResource ~= nil then
-                local quantity = heroicResource.unbounded
-                if quantity ~= nil then
-                    local turnid = nil
-                    local q = dmhub.initiativeQueue
-                    if q ~= nil and not q.hidden then
-                        local turnid = q:GetTurnId()
-                        local currentTurnId = self:try_get("_tmp_heroicResourceTurnId")
-                        if currentTurnId ~= turnid then
-                            self._tmp_heroicResourceForTurn = 0
-                            self._tmp_heroicResourceTurnId = turnid
-                        end
-
-                        local currentHeroicResource = self:try_get("_tmp_heroicResourceForTurn") or 0
-                        if quantity > currentHeroicResource then
-                            self._tmp_heroicResourceForTurn = quantity
-                        end
-                    end
-                end
-            end
-        end
-    end
-
     if not mod.unloaded then
         self:RefreshInitiativeInfo(token)
 
@@ -923,8 +901,8 @@ function creature:RefreshToken(token)
 end
 
 function creature:MarkTurnSkipped(initiativeid)
-    if dmhub.initiativeQueue == nil then return end
     local q = dmhub.initiativeQueue
+    if q == nil then return end
     self.skipTurnInitiativeId = initiativeid or ""
     self.skipTurnRoundId = q:GetRoundId() or ""
     local entry = q.entries[initiativeid]
@@ -932,8 +910,8 @@ function creature:MarkTurnSkipped(initiativeid)
 end
 
 function creature:IsTurnSkipped(token)
-    if dmhub.initiativeQueue == nil then return false end
     local q = dmhub.initiativeQueue
+    if q == nil then return false end
     if self:try_get("skipTurnRoundId", "") ~= (q:GetRoundId() or "") then return false end
     local myInitiativeId = InitiativeQueue.GetInitiativeId(token)
     if self:try_get("skipTurnInitiativeId", "") ~= myInitiativeId then return false end
@@ -1008,7 +986,9 @@ function monster.OnCreateFromBestiary(self, token, groupid)
     --get the encounter this is being spawned from (if any).
     local assignToSquad = self.minion
     local numSquads = 1
-    local encounter = dmhub.GetSelectedEncounter()
+    --The codex's GetSelectedEncounter (EncounterPanel.lua) returns an Encounter clone;
+    --the engine stub types it as a bare {groups} table.
+    local encounter = dmhub.GetSelectedEncounter() --[[@as Encounter?]]
     if encounter ~= nil and (encounter.groups or {})[g_groupIndex] ~= nil then
         local group = encounter.groups[g_groupIndex]
         if group.minHeroes then
@@ -1189,6 +1169,8 @@ function creature:RefreshSquadInfo(token)
 
     --create a shared table for our minion squad.
     local squad = self:MinionSquad()
+    --MinionSquad only returns nil for non-minions, which returned above.
+    ---@cast squad -nil
     if self:has_key("_tmp_minionSquad") == false or self._tmp_minionSquad.name ~= squad then
         local minionSquad = g_minionSquadTables[squad]
 
@@ -1208,6 +1190,8 @@ function creature:RefreshSquadInfo(token)
         self._tmp_minionSquad.captain = nil
 
         local squad = self:MinionSquad()
+        --MinionSquad only returns nil for non-minions, which returned at the top.
+        ---@cast squad -nil
         local tokens = dmhub.GetTokens {
             haveProperties = true,
         }
@@ -1309,11 +1293,12 @@ function creature:RefreshSquadInfo(token)
                         damage_taken_minion_count = tok.properties:try_get("damage_taken_minion_count")
                     end
 
-                    if damage_time_pending or type(tok.properties.minionDamageTime) ~= "number" then
+                    local minionDamageTime = tok.properties.minionDamageTime
+                    if damage_time_pending or type(minionDamageTime) ~= "number" then
                         damage_time_pending = true
-                    elseif tok.properties.minionDamageTime >= damage_time then
-                        damage_time = tok.properties.minionDamageTime
-                        if tok.properties.minionDamageTime > damage_time then
+                    elseif minionDamageTime >= damage_time then
+                        damage_time = minionDamageTime
+                        if minionDamageTime > damage_time then
                             num_recently_damaged = 0
                         end
                         num_recently_damaged = num_recently_damaged + 1
@@ -1439,6 +1424,19 @@ function creature:TryClaimTurn()
         if q:HasInitiative(initiativeid) and (not q:HasHadTurn(initiativeid)) and q:ChoosingTurn() and q:IsPlayersTurn() == q:IsEntryPlayer(initiativeid) then
             q:SelectTurn(initiativeid)
             dmhub:UploadInitiativeQueue()
+
+            --Run the start of turn too (heroic resource gain, start-of-turn triggers),
+            --which selecting the turn alone skipped (PQ2BXBNN). Deferred because we are
+            --inside the ability's ModifyProperties and BeginTurn opens its own.
+            dmhub.Schedule(0.01, function()
+                if mod.unloaded then
+                    return
+                end
+                local liveQueue = dmhub.initiativeQueue
+                if liveQueue ~= nil and (not liveQueue.hidden) and liveQueue.currentTurn == initiativeid then
+                    InitiativeQueue.BeginTurnForEntry(initiativeid)
+                end
+            end)
         end
     end
 end
@@ -1564,6 +1562,26 @@ creature.RegisterSymbol {
         type = "boolean",
         desc = "True if this creature is winded (current Stamina at or below half their maximum).",
         seealso = {"Stamina", "Maximum Stamina", "Dying", "Dead"},
+    },
+}
+
+--True only on the very first turn of combat, for the creature taking it.
+--The Troubadour's introduction used to be offered on every turn of round 1.
+creature.RegisterSymbol {
+    symbol = "firstturnofencounter",
+    lookup = function(c)
+        local q = dmhub.initiativeQueue
+        if q == nil or q.hidden or q.round ~= 1 then
+            return false
+        end
+        local entry = q:GetFirstInitiativeEntry()
+        return entry ~= nil and entry.turn == 1 and c:IsOurTurn()
+    end,
+    help = {
+        name = "First Turn Of Encounter",
+        type = "boolean",
+        desc = "True if it is this creature's turn and it is the first turn of the combat encounter.",
+        seealso = {"Combat Round"},
     },
 }
 
@@ -2462,8 +2480,8 @@ function creature:GetFlankingTokens(tokensOverride)
     bottomRight = bottomRight:dir(1, 1)
 
     GetFlankingCreaturesFromOpposingSides(token, allowedTokenIds, { topLeft }, { bottomRight }, result)
-    GetFlankingCreaturesFromOpposingSides(token, allowedTokenIds, { topLeft:dir(bottomRight.x - topLeft.x) },
-        { bottomRight:dir(topLeft.x - bottomRight.x) }, result)
+    GetFlankingCreaturesFromOpposingSides(token, allowedTokenIds, { topLeft:dir(bottomRight.x - topLeft.x, 0) },
+        { bottomRight:dir(topLeft.x - bottomRight.x, 0) }, result)
 
     local topLocs = {}
     local botLocs = {}
@@ -2504,6 +2522,8 @@ function creature:FlankedBy(otherToken)
     local token = dmhub.LookupToken(self)
     local flanking = self:GetFlankingTokens()
     for _, tok in ipairs(flanking) do
+        --GetFlankingTokens returns {} when LookupToken(self) is nil, so this loop only runs with a token.
+        ---@cast token -nil
         if tok.properties:try_get("_tmp_grantsFlanking", "") ~= token.charid and tok.charid == otherToken.charid then
             return true
         end
@@ -2659,7 +2679,7 @@ end
 
 --- @return number
 function creature:Stability()
-    return math.tointeger(math.max(0, self:CalculateAttribute("forcedmoveresistance", self:BaseForcedMoveResistance())))
+    return math.floor(math.max(0, self:CalculateAttribute("forcedmoveresistance", self:BaseForcedMoveResistance())))
 end
 
 --- If the creature can teleport.
@@ -3202,6 +3222,34 @@ function character:IsHero()
     return true
 end
 
+--Heroes can never have a characteristic above 5. Capping the final value means the
+--order level-up modifiers apply in can't push a score past it. A Director override still wins.
+creature.heroCharacteristicMax = 5
+
+local g_baseGetAttribute = creature.GetAttribute
+
+--- @param attrid string
+--- @return CharacterAttribute
+function creature:GetAttribute(attrid)
+    local result = g_baseGetAttribute(self, attrid)
+    if self:HeroCharacteristicIsCapped(attrid, result.baseValue) then
+        result.baseValue = creature.heroCharacteristicMax
+    end
+    return result
+end
+
+--- True if this hero's characteristic is over the cap and will be clamped to it.
+--- @param attrid string
+--- @param value number The value before capping
+--- @return boolean
+function creature:HeroCharacteristicIsCapped(attrid, value)
+    if value <= creature.heroCharacteristicMax or not self:IsHero() or creature.attributesInfo[attrid] == nil then
+        return false
+    end
+    local attrOverride = self:try_get("attributesOverride")
+    return attrOverride == nil or attrOverride[attrid] == nil
+end
+
 function creature:IsStrained()
     return self:CalculateNamedCustomAttribute("Strained") > 0
 end
@@ -3239,6 +3287,7 @@ function creature:GetActivatedAbilities(options)
 
     local result = {}
 
+    ---@type creature|nil
     local boundCaster = self
     if not options.bindCaster then
         boundCaster = nil
@@ -3329,6 +3378,15 @@ function creature:GetActivatedAbilities(options)
         for _, obj in ipairs(objects) do
             for _, entry in ipairs(obj.attachedRulesObjects) do
                 entry:FillActivatedAbilities(self, result)
+            end
+        end
+
+        --Abilities granted by dynamic terrain objects we are adjacent to (a
+        --Field Ballista's Deactivate). Not on the character sheet, which lists
+        --the creature's own abilities.
+        if not options.characterSheet then
+            for _, ability in ipairs(ActivatedAbility.GetGrantedAbilities(dmhub.GetTokenById(charid))) do
+                result[#result + 1] = ability
             end
         end
     end
@@ -3520,6 +3578,8 @@ function creature:RollOngoingEffectSave(id, abilityOptions)
     if index == nil then
         return
     end
+    --instance is set together with index.
+    ---@cast instance -nil
 
     if SuppressSaveAgainstOtherEffects(self) then
         return
@@ -3537,6 +3597,10 @@ function creature:RollOngoingEffectSave(id, abilityOptions)
     end
 
     local abilityTemplate = MCDMUtils.GetStandardAbility("Save vs Ongoing Effect")
+    if abilityTemplate == nil then
+        printf("RollOngoingEffectSave: unknown standard ability: Save vs Ongoing Effect")
+        return
+    end
     local ability = abilityTemplate:MakeTemporaryClone()
     MCDMUtils.DeepReplace(ability, "<<condition>>", ongoingEffectEntry.name)
     for _, behavior in ipairs(ability.behaviors) do
@@ -3644,6 +3708,10 @@ function creature:RollConditionSave(condid, abilityOptions)
     local conditionTable = dmhub.GetTable(CharacterCondition.tableName)
     local conditionInfo = conditionTable[condid]
     local abilityTemplate = MCDMUtils.GetStandardAbility("Save")
+    if abilityTemplate == nil then
+        printf("RollConditionSave: unknown standard ability: Save")
+        return
+    end
     local ability = abilityTemplate:MakeTemporaryClone()
     MCDMUtils.DeepReplace(ability, "<<condition>>", conditionInfo.name)
 
@@ -3774,6 +3842,8 @@ function creature:GetRelevantEnemyTokens()
                 and (not token:IsFriend(tok)) then
             local include = true
             if combatActive then
+                --combatActive is only true when q is non-nil.
+                ---@cast q -nil
                 local initiativeid = InitiativeQueue.GetInitiativeId(tok)
                 include = initiativeid ~= nil and q.entries[initiativeid] ~= nil
             end
@@ -3971,10 +4041,11 @@ creature.RegisterSymbol {
             return false
         end
 
-        -- Check all occupied tiles for difficult terrain (tile rules + auras).
+        -- Check all occupied tiles for difficult terrain (tile rules + auras). Passing
+        -- the token skips terrain it ignores by keyword (e.g. Can't Take Hold vs Magic).
         local locs = token.locsOccupying
         for _, loc in ipairs(locs) do
-            if dmhub.IsLocDifficultTerrain(loc) then
+            if dmhub.IsLocDifficultTerrain(loc, token) then
                 return true
             end
         end
@@ -4155,6 +4226,8 @@ local g_conditionImmunitySpeech = {
     ["dazed"] = "You can't daze me!",
     ["frightened"] = "Nothing frightens me!",
     ["grabbed"] = "You can't grab me!",
+    --a list picks one line at random each time.
+    ["hidden"] = {"I can't hide right now", "I cannot hide currently"},
     ["prone"] = "I'll never be knocked down",
     ["restrained"] = "You can't tie me down!",
     ["slowed"] = "I won't be Slowed",
@@ -4191,8 +4264,12 @@ function creature:InflictCondition(conditionid, args)
                     --the creature can speak: use its custom immunity line, a
                     --flavorful per-condition variation, or a generic first-person
                     --fallback, rendered as an in-character speech bubble.
+                    local variation = g_conditionImmunitySpeech[string.lower(conditionInfo.name)]
+                    if type(variation) == "table" then
+                        variation = variation[math.random(#variation)]
+                    end
                     local text = self:GetConditionImmunityMessage(conditionid)
-                        or g_conditionImmunitySpeech[string.lower(conditionInfo.name)]
+                        or variation
                         or string.format("I can't be %s!", conditionInfo.name)
                     self:CharacterSpeech{
                         text = text,
@@ -4269,6 +4346,19 @@ function creature:InflictCondition(conditionid, args)
             args.cast:RecordInflictedCondition(conditionid, dmhub.LookupTokenId(self))
         end
 
+        --A creature clinging to the ceiling that is knocked prone lets go and falls. Deferred
+        --so this change has been committed before the engine re-runs its fall check.
+        if conditionid == "da6867b1-01e3-4570-8d1b-1b94ea1ea343" --[[Prone]] and self:try_get("ceilingCling") then
+            local clingToken = dmhub.LookupToken(self)
+            if clingToken ~= nil then
+                dmhub.Schedule(0.1, function()
+                    if clingToken.valid then
+                        clingToken:TryFall()
+                    end
+                end)
+            end
+        end
+
         local attacker = nil
         if args.casterInfo ~= nil then
             local attackerToken = dmhub.GetTokenById(args.casterInfo.tokenid)
@@ -4304,7 +4394,10 @@ function creature:InflictCondition(conditionid, args)
             end
         end
 
-        audio.DispatchSoundEvent(conditionInfo:SoundEvent())
+        audio.DispatchSoundEvent(conditionInfo:SoundEvent(), {
+            tokenid = dmhub.LookupTokenId(self),
+            attackerid = args.casterInfo ~= nil and args.casterInfo.tokenid or nil,
+        })
     else
         --the condition gets purged if we are purging it.
         local entry = inflictedConditions[conditionid]
@@ -4329,7 +4422,7 @@ function creature:InflictCondition(conditionid, args)
             end
         end
         if inflictedConditions[conditionid] ~= nil then
-            audio.DispatchSoundEvent(conditionInfo:SoundEvent() .. "_End")
+            audio.DispatchSoundEvent(conditionInfo:SoundEvent() .. "_End", { tokenid = dmhub.LookupTokenId(self) })
         end
         inflictedConditions[conditionid] = nil
     end
@@ -4422,10 +4515,10 @@ end
 
 --- @param conditionid string
 --- @param maxInstances number
---- @param newTokenid string
+--- @param newTokenid string|nil Token of the creature just given the condition; nil when it has no token.
 function creature:CheckConditionInstances(conditionid, maxInstances, newTokenid)
     --Not redundant with RefreshToken, which records targets too late for a multi-target cast to count its own.
-    local newToken = dmhub.GetTokenById(newTokenid)
+    local newToken = newTokenid and dmhub.GetTokenById(newTokenid)
     if newToken ~= nil then
         self:NotifyConditionCaster(newToken, conditionid)
     end
@@ -5138,9 +5231,9 @@ function creature.SetCurrentHitpoints(self, amount, note)
     g_creatureSetCurrentHitpoints(self, amount, note)
 end
 
---- @field creature.temporary_hitpoints_source nil|string Tokenid of whoever granted the
---- current temporary stamina, so damage it absorbs can be credited to them as
---- damagePrevention. A creature has at most one temp-stamina source at a time.
+--creature.temporary_hitpoints_source (declared in Creature.lua) is the tokenid of whoever
+--granted the current temporary stamina, so damage it absorbs can be credited to them as
+--damagePrevention. A creature has at most one temp-stamina source at a time.
 local g_creatureSetTemporaryHitpoints = creature.SetTemporaryHitpoints
 function creature.SetTemporaryHitpoints(self, amount, note, options)
     options = options or {}
@@ -5952,6 +6045,28 @@ function creature:MinionDeath()
     g_baseMinionDeath(self)
 end
 
+--Running total of damage this creature has taken during the current combat turn
+--(anyone's turn), counting what temporary Stamina absorbed. Take Damage triggers
+--see it as Damage This Turn, e.g. the Elementalist's "5 x Reason in one turn" rule.
+creature.damageTakenThisTurn = 0
+creature.damageTakenThisTurnId = ""
+
+--Adds amount to the per-turn total and returns the new total. Outside combat
+--there is no turn to accumulate over, so it just returns amount.
+local function AccumulateDamageThisTurn(self, amount)
+    local q = dmhub.initiativeQueue
+    local turnid = q ~= nil and q:GetTurnId() or nil
+    if turnid == nil then
+        return amount
+    end
+    if self.damageTakenThisTurnId ~= turnid then
+        self.damageTakenThisTurnId = turnid
+        self.damageTakenThisTurn = 0
+    end
+    self.damageTakenThisTurn = self.damageTakenThisTurn + amount
+    return self.damageTakenThisTurn
+end
+
 function creature.TakeDamage(self, amount, note, info)
     info = info or {}
     if type(amount) == 'string' then
@@ -5981,7 +6096,9 @@ function creature.TakeDamage(self, amount, note, info)
         print("ATTACKER:: pusher:", info.pusher)
         local pusher = info.pusher or
         (info.ability ~= nil and info.ability.name == "Fall Damage" and rawget(self, "_tmp_lastpusher"))
-        if pusher ~= nil then
+        --Truthy test, not ~= nil: the fallback expression above yields false (not nil)
+        --when there is no pusher, which used to label all self-inflicted damage "push".
+        if pusher then
             if type(pusher) == "function" then
                 pusher = pusher("self")
             end
@@ -6107,7 +6224,12 @@ function creature.TakeDamage(self, amount, note, info)
             eventArg.attacker = nil
         end
         eventArg.damage = amount
-        eventArg.rawdamage = info.rawdamage
+        --the minion path never draws on temporary Stamina, so the two are equal.
+        eventArg.fulldamage = amount
+        eventArg.damagethisturn = AccumulateDamageThisTurn(self, math.max(0, amount))
+        --rawdamage is only set by InflictDamageInstance; a direct TakeDamage had no
+        --immunity applied, so its raw damage is just the amount.
+        eventArg.rawdamage = info.rawdamage or amount
         eventArg.damageimmunity = info.damageImmunity and info.damageImmunity.dr ~= nil
         eventArg.damagetype = eventArg.damagetype or "none"
         eventArg.damagedice = eventArg.damagedice or StringSet.new{}
@@ -6143,6 +6265,8 @@ function creature.TakeDamage(self, amount, note, info)
             local args = {
                 target = self,
                 damage = amount,
+                fulldamage = amount,
+                rawdamage = eventArg.rawdamage,
                 damagetype = eventArg.damagetype,
                 keywords = eventArg.keywords,
                 surges = eventArg.surges,
@@ -6182,6 +6306,12 @@ function creature.TakeDamage(self, amount, note, info)
             local minionsAfter = math.max(0, math.ceil((minionKillHpBefore - amount) / minionKillHealthSingle))
             local minionsKilled = minionsBefore - minionsAfter
             if minionsKilled > 0 then
+                --Cast.Kills / Cast.Killed: credit the cast now, so behaviors
+                --later in the same ability see the kill.
+                if info.cast ~= nil then
+                    info.cast:RecordKill(self, minionsKilled)
+                end
+
                 if eventArg.attacker ~= nil then
                     local killerToken = dmhub.LookupToken(eventArg.attacker)
                     if killerToken ~= nil then
@@ -6256,7 +6386,8 @@ function creature.TakeDamage(self, amount, note, info)
             attackerClassInfo = info.attacker:IsHero() and info.attacker:GetClass() or nil
             attackerLabel = attackerClassInfo and attackerClassInfo.name or info.attacker:try_get("monster_type", "monster")
         end
-        local targetClassInfo = self:IsHero() and self:GetClass() or nil
+        --IsHero is true only for character, which is where GetClass lives.
+        local targetClassInfo = self:IsHero() and (self --[[@as character]]):GetClass() or nil
         local abilityName = nil
         if info.ability ~= nil then
             abilityName = info.ability.name
@@ -6283,7 +6414,13 @@ function creature.TakeDamage(self, amount, note, info)
         eventArg.attacker = nil
     end
     eventArg.damage = amount
-    eventArg.rawdamage = info.rawdamage
+    --damage is the Stamina actually lost; fulldamage also counts what temporary
+    --Stamina absorbed (the damage the creature took, by the rules).
+    eventArg.fulldamage = original_amount
+    eventArg.damagethisturn = AccumulateDamageThisTurn(self, math.max(0, original_amount))
+    --rawdamage is only set by InflictDamageInstance; a direct TakeDamage had no
+    --immunity applied, so its raw damage is just the amount.
+    eventArg.rawdamage = info.rawdamage or original_amount
     eventArg.damageimmunity = info.damageImmunity and info.damageImmunity.dr ~= nil
     eventArg.damagetype = eventArg.damagetype or "untyped"
     eventArg.damagedice = eventArg.damagedice or StringSet.new{}
@@ -6307,6 +6444,12 @@ function creature.TakeDamage(self, amount, note, info)
 
     --handle firing audio events.
     local isWindedNow = self:IsWinded()
+    --the token the sound is about plus who caused it, so sound events can play
+    --their "controlled" variant for the victim's or the attacker's controller.
+    local soundArgs = {
+        tokenid = dmhub.LookupTokenId(self),
+        attackerid = eventArg.attacker ~= nil and dmhub.LookupTokenId(eventArg.attacker) or nil,
+    }
     local isBelowZeroNow = self:CurrentHitpoints() <= 0
     local isDeadNow = self:IsDead()
 
@@ -6344,9 +6487,10 @@ function creature.TakeDamage(self, amount, note, info)
     if isDeadNow then
         if not isDeadAtStart then
             if self:IsHero() then
-                audio.DispatchSoundEvent("Notify.Status_Dead_Hero", {})
+                audio.DispatchSoundEvent("Notify.Status_Dead_Hero", soundArgs)
 
-                local heroClass = self:GetClass()
+                --IsHero is true only for character, which is where GetClass lives.
+                local heroClass = (self --[[@as character]]):GetClass()
                 local attackerLabel = nil
                 if eventArg.attacker ~= nil then
                     local aClassInfo = eventArg.attacker:IsHero() and eventArg.attacker:GetClass() or nil
@@ -6373,15 +6517,16 @@ function creature.TakeDamage(self, amount, note, info)
                     dailyLimit = 20,
                 })
             else
-                audio.DispatchSoundEvent("Notify.Status_Dead_Enemy", {})
+                audio.DispatchSoundEvent("Notify.Status_Dead_Enemy", soundArgs)
             end
         end
     elseif isBelowZeroNow then
         if not isBelowZeroAtStart then
-            audio.DispatchSoundEvent("Notify.Status_Dying_Hero", {})
+            audio.DispatchSoundEvent("Notify.Status_Dying_Hero", soundArgs)
 
             if self:IsHero() then
-                local heroClass = self:GetClass()
+                --IsHero is true only for character, which is where GetClass lives.
+                local heroClass = (self --[[@as character]]):GetClass()
                 local attackerLabel = nil
                 if eventArg.attacker ~= nil then
                     local aClassInfo = eventArg.attacker:IsHero() and eventArg.attacker:GetClass() or nil
@@ -6426,7 +6571,7 @@ function creature.TakeDamage(self, amount, note, info)
         end
     elseif isWindedNow and not isWindedAtStart then
         self:DispatchEvent("winded", eventArg)
-        audio.DispatchSoundEvent("Condition.Winded", {})
+        audio.DispatchSoundEvent("Condition.Winded", soundArgs)
         print("DYING:: WINDED")
     end
 
@@ -6443,6 +6588,8 @@ function creature.TakeDamage(self, amount, note, info)
         local args = {
             target = self,
             damage = amount,
+            fulldamage = original_amount,
+            rawdamage = eventArg.rawdamage,
             damagetype = eventArg.damagetype,
             keywords = eventArg.keywords,
             surges = eventArg.surges,
@@ -6469,6 +6616,12 @@ function creature.TakeDamage(self, amount, note, info)
 
     --if this caused us to start dying we should set dying status.
     if (not isDeadAtStart) and self:IsDead() then
+        --Cast.Kills / Cast.Killed: the same alive -> dead transition that fires
+        --the "kill" event below (a hero going dying does not reach here).
+        if info.cast ~= nil then
+            info.cast:RecordKill(self, 1)
+        end
+
         if self:IsDead() then
             self:RemoveAurasOnDeath()
 
@@ -6585,6 +6738,29 @@ function creature.TakeDamage(self, amount, note, info)
     }
 end
 
+--Aura bonuses to Recovery Value (e.g. Blessing of Life) are folded into the heal silently,
+--so post a record-only log card for each one, showing the aura's caster.
+function creature:LogRecoveryBonuses()
+    local token = dmhub.LookupToken(self)
+    if token == nil then
+        return
+    end
+    local mods = self:DescribeModifications("recoveryvalue", math.floor(self:MaxHitpoints() / 3))
+    for _, entry in ipairs(mods) do
+        local bonus = (entry.current or 0) - (entry.previous or 0)
+        if bonus > 0 and entry.modifier.source == "Aura" then
+            local sourceToken = token
+            for _, info in ipairs(token.properties:GetAurasAffecting(token) or {}) do
+                if info.auraInstance.aura.name == entry.modifier.name and info.auraInstance.casterid then
+                    sourceToken = dmhub.GetTokenById(info.auraInstance.casterid) or token
+                    break
+                end
+            end
+            ActionLogNoteChatMessage.Post(sourceToken, entry.modifier.name, string.format("+%d Stamina Recovered", bonus))
+        end
+    end
+end
+
 function creature.Heal(self, amount, note)
     local canHeal = (self:CalculateNamedCustomAttribute("Cannot Regain Stamina") == 0)
     if not canHeal then
@@ -6606,6 +6782,9 @@ function creature.Heal(self, amount, note)
 
     if self.minion then
         self:SetCurrentHitpoints(math.min(self:MaxHitpoints(), self:CurrentHitpoints() + amount), note)
+        if note == "Use Recovery" then
+            self:LogRecoveryBonuses()
+        end
         return
     end
 
@@ -6630,6 +6809,10 @@ function creature.Heal(self, amount, note)
 
 
     self:DispatchEvent("regainhitpoints", {healed = amount})
+
+    if note == "Use Recovery" then
+        self:LogRecoveryBonuses()
+    end
 end
 
 function creature.SetStaminaDirect(self, amount, note)
@@ -6645,11 +6828,11 @@ function creature.SetStaminaDirect(self, amount, note)
 
     if isWindedNow and not isWindedAtStart then
         self:DispatchEvent("winded", {})
-        audio.DispatchSoundEvent("Condition.Winded", {})
+        audio.DispatchSoundEvent("Condition.Winded", { tokenid = dmhub.LookupTokenId(self) })
     end
 
     if isBelowZeroNow and not isBelowZeroAtStart then
-        audio.DispatchSoundEvent("Notify.Status_Dying_Hero", {})
+        audio.DispatchSoundEvent("Notify.Status_Dying_Hero", { tokenid = dmhub.LookupTokenId(self) })
         self:DispatchEvent("dying", {})
     end
 
@@ -6740,7 +6923,14 @@ function creature:CanMoveThroughWalls()
     return result
 end
 
+--True if this creature ignores ALL difficult terrain: the Ignore Difficult Terrain
+--attribute, or an Ignore Difficult Terrain modifier with no keywords. Keyword-limited
+--ignores (creature:DifficultTerrainIgnoreKeywords) are applied per area by the engine.
 function creature:IgnoreDifficultTerrain()
+    if self:HasBlanketDifficultTerrainIgnore() then
+        return true
+    end
+
     local customAttr = CustomAttribute.attributeInfoByLookupSymbol["ignoredifficultterrain"]
     if customAttr == nil then
         return false
@@ -6784,6 +6974,8 @@ function creature:DispatchEventAndWait(eventName, info)
         self:DispatchEvent(eventName, info)
         return
     end
+    --charid is nil whenever token is.
+    ---@cast token -nil
 
     local waitid = dmhub.GenerateGuid()
     info = info or {}
@@ -6941,7 +7133,7 @@ function creature:PersistentAbilities()
                     local targetToken = dmhub.GetTokenById(targetid)
                     local usable = targetToken ~= nil and targetToken.valid and targetToken.properties ~= nil
                         and (not targetToken.properties:IsDead())
-                    if usable and persistence.inrange == true and selfToken ~= nil then
+                    if usable and targetToken ~= nil and persistence.inrange == true and selfToken ~= nil then
                         local range = ability:GetRange(self)
                         if type(range) == "number" and selfToken:Distance(targetToken) > range then
                             usable = false
@@ -6970,6 +7162,10 @@ function creature:PersistentAbilities()
                     return
                 end
                 local m_token = dmhub.LookupToken(self)
+                if m_token == nil then
+                    --the token was removed during the cast, or a synced write replaced self.
+                    return
+                end
                 local persistentAbilities = self:try_get("persistentAbilities", {})
                 for _, entry in ipairs(persistentAbilities) do
                     if entry.name == ability.name then
@@ -7544,7 +7740,7 @@ creature.RegisterSymbol {
         local count = 0
         for _, charid in ipairs(charids) do
             local ch = dmhub.GetCharacterById(charid)
-            if ch ~= nil and ch.followerType == nil then
+            if ch ~= nil and not (ch.properties ~= nil and ch.properties:IsFollower()) then
                 count = count + 1
             end
         end
@@ -7809,6 +8005,8 @@ local function GroupingHud(groupid)
                 local selectedTokens = dmhub.selectedOrPrimaryTokens
 
                 local floor = game.GetFloor(floorid)
+                --at least two valid tokens are on floorid (count > 1 above), so the floor exists.
+                ---@cast floor -nil
 
                 local center = { x = 0, y = 0 }
                 local count = 0

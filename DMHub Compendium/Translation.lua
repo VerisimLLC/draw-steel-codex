@@ -4,6 +4,7 @@ Translation = {}
 
 function Translation.CreateEditor()
 	local translationid = nil
+	---@type TranslationInfo?
 	local currentTranslation = nil
 	local resultPanel
 	local dirty = false
@@ -37,6 +38,7 @@ function Translation.CreateEditor()
 
 
 			click = function(element)
+				---@type Panel?
 				local popup = CreateTooltipPanel("Copied to clipboard")
 				element.popup = popup
 
@@ -60,6 +62,8 @@ function Translation.CreateEditor()
 			halign = "left",
 			valign = "top",
 			change = function(element)
+				--the editor is hidden (so this input is unreachable) while currentTranslation is nil.
+				---@cast currentTranslation -nil
 				currentTranslation:SetString(currentString, element.text)
 				SetDirty()
 			end,
@@ -85,6 +89,8 @@ function Translation.CreateEditor()
 				element:SetClass("collapsed", false)
 				label.text = str
 
+				--"page" fires only from the editor's own controls, which are hidden while currentTranslation is nil.
+				---@cast currentTranslation -nil
 				local translated = currentTranslation:GetString(str)
 				if translated == nil then
 					translated = ""
@@ -118,6 +124,8 @@ function Translation.CreateEditor()
 		else
 			search = string.lower(search)
 			strings = {}
+			--called only from the search/filter controls, which are hidden while currentTranslation is nil.
+			---@cast currentTranslation -nil
 			for _,s in ipairs(allStrings) do
 
 				local fail = false
@@ -164,10 +172,6 @@ function Translation.CreateEditor()
 			Styles.Form,
 		},
 
-		destroy = function(element)
-			UploadIfDirty()
-		end,
-
 		setid = function(element, id)
 			UploadIfDirty()
 
@@ -203,6 +207,8 @@ function Translation.CreateEditor()
 					classes = {"formInput"},
 					text = "",
 					translation = function(element)
+						--"translation" fires only from setid, after its nil check.
+						---@cast currentTranslation -nil
 						element.text = currentTranslation.name
 					end,
 					change = function(element)
@@ -221,6 +227,8 @@ function Translation.CreateEditor()
 					classes = {"formInput"},
 					text = "",
 					translation = function(element)
+						--"translation" fires only from setid, after its nil check.
+						---@cast currentTranslation -nil
 						element.text = currentTranslation.identifier
 					end,
 					change = function(element)
@@ -250,7 +258,11 @@ function Translation.CreateEditor()
 
 			gui.Dropdown{
 				classes = {"formDropdown"},
-				options = {"Show All Strings", "Show Untranslated Strings", "Show Translated Strings"},
+				options = {
+					{id = "Show All Strings", text = "Show All Strings"},
+					{id = "Show Untranslated Strings", text = "Show Untranslated Strings"},
+					{id = "Show Translated Strings", text = "Show Translated Strings"},
+				},
 				optionChosen = "Show All Strings",
 
 				translation = function(element)
@@ -327,6 +339,7 @@ local customStringsTable = "langstring"
 
 --- @class langstring: GameType
 --- @field new fun(o?: table): langstring
+--- @field text string The source string to be translated (set by langstring.Create).
 langstring = RegisterGameType("langstring")
 
 langstring.name = "Translation"

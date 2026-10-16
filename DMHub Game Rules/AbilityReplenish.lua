@@ -4,6 +4,7 @@ local mod = dmhub.GetModLoading()
 --- @field new fun(o?: table): ActivatedAbilityReplenishBehavior
 --- @field resourceid string Id of the CharacterResource to replenish.
 --- @field quantity nil|number|string|table Amount to restore; nil means restore to full.
+--- @field resourceOptions? string[] Resource ids the replenished amount can be split between (editor list); read with try_get.
 --- Behavior that replenishes a resource (such as hit points, spell slots, or action points) on the target.
 ActivatedAbilityReplenishBehavior = RegisterGameType("ActivatedAbilityReplenishBehavior", "ActivatedAbilityBehavior")
 
@@ -179,6 +180,67 @@ function HealChatMessage.Render(selfInput, message)
     local card = CreateActionLogCard{
         token = token,
         content = {detailLabel, reasonLabel},
+    }
+
+    return gui.Panel{
+        classes = {"chat-message-panel"},
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+        refreshMessage = function(element, message)
+        end,
+        card,
+    }
+end
+
+--- Record-only action-log card: a title and a detail line, shown with a token image.
+--- Use it to tell players about a bonus that is already folded into another roll or heal.
+--- @class ActionLogNoteChatMessage: GameType
+--- @field new fun(o?: table): ActionLogNoteChatMessage
+--- @field tokenid string
+--- @field title string
+--- @field detail string
+ActionLogNoteChatMessage = RegisterGameType("ActionLogNoteChatMessage")
+
+ActionLogNoteChatMessage.tokenid = ""
+ActionLogNoteChatMessage.title = ""
+ActionLogNoteChatMessage.detail = ""
+
+--- Posts a note card to the action log. Does nothing for a missing token.
+--- @param token nil|CharacterToken the token whose image is shown (usually the source of the bonus)
+--- @param title string
+--- @param detail string
+function ActionLogNoteChatMessage.Post(token, title, detail)
+    if token == nil or (not token.valid) then
+        return
+    end
+    chat.SendCustom(ActionLogNoteChatMessage.new{
+        tokenid = token.charid,
+        title = title,
+        detail = detail,
+    })
+end
+
+function ActionLogNoteChatMessage.Render(selfInput, message)
+    local token = dmhub.GetCharacterById(selfInput.tokenid)
+    if token == nil or (not token.valid) then
+        return gui.Panel{
+            width = 0, height = 0,
+        }
+    end
+
+    local card = CreateActionLogCard{
+        token = token,
+        content = {
+            gui.Label{
+                classes = {"action-log-detail", "sizeXs", "fg"},
+                text = selfInput.title,
+            },
+            gui.Label{
+                classes = {"action-log-subtext", "sizeXxs", "fgMuted"},
+                text = selfInput.detail,
+            },
+        },
     }
 
     return gui.Panel{
@@ -729,7 +791,7 @@ function ActivatedAbilityReplenishBehavior:EditorItems(parentPanel)
                 textOverride = "Choose...",
                 change = function(element)
                     ---@cast element Dropdown
-                    self.resourceid = element.idChosen
+                    self.resourceid = element.idChosen --[[@as string]]
                     local options = self:get_or_add("resourceOptions", {})
                     options[#options+1] = element.idChosen
                     parentPanel:FireEvent("refreshBehavior")
@@ -749,7 +811,7 @@ function ActivatedAbilityReplenishBehavior:EditorItems(parentPanel)
                 options = options,
                 change = function(element)
                     ---@cast element Dropdown
-                    self.resourceid = element.idChosen
+                    self.resourceid = element.idChosen --[[@as string]]
                     parentPanel:FireEvent("refreshBehavior")
                 end,
 

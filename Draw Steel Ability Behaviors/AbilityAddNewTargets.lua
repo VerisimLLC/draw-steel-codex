@@ -2,6 +2,7 @@ local mod = dmhub.GetModLoading()
 
 --- @class ActivatedAbilityAddNewTargetsBehavior:ActivatedAbilityBehavior
 --- @field new fun(o?: table): ActivatedAbilityAddNewTargetsBehavior
+--- @field targetingAbility ActivatedAbility Ability whose targeting picks the additional targets (created with the behavior).
 ActivatedAbilityAddNewTargetsBehavior = RegisterGameType("ActivatedAbilityAddNewTargetsBehavior", "ActivatedAbilityBehavior")
 
 ActivatedAbilityAddNewTargetsBehavior.summary = 'Manipulate Targets'

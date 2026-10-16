@@ -121,7 +121,7 @@ function follower:GrantRolls(rolls)
 end
 
 --Create Follower table if it does not exist
----@return table[] table of followers as charid is true
+---@return table<string, true|table> followers follower charid -> true (legacy entries are tables, migrated on validation)
 function character:EnsureFollowers()
     local followers = self:try_get("followers")
     if not followers then
@@ -133,6 +133,8 @@ end
 ---@param followerid string
 function character:AddFollowerToMentor(followerid)
     local token = dmhub.LookupToken(self)
+    --callers pass a mentor token's properties; LookupToken resolves those on any map.
+    ---@cast token -nil
     token:ModifyProperties{
         description = "Assign Follower",
         execute = function()
@@ -142,11 +144,14 @@ function character:AddFollowerToMentor(followerid)
     }
 end
 
----@param mentorToken Token[]
 ---@param followerid string
 function character:RemoveFollowerFromMentor(followerid)
     local token = dmhub.LookupToken(self)
+    --callers pass a mentor token's properties; LookupToken resolves those on any map.
+    ---@cast token -nil
     local dti = self:GetDowntimeInfo()
+    --GetDowntimeInfo only returns nil for a creature with no token, and token is used below.
+    ---@cast dti -nil
     token:ModifyProperties{
         description = "Remove Follower",
         execute = function()
@@ -157,9 +162,27 @@ function character:RemoveFollowerFromMentor(followerid)
     }
 end
 
----@param follower Token[]
----@param followerInfo table[]
----@param mentorToken Token[]
+--A follower description as stored in a journal follower annotation (RichFollower._fresh)
+--or a legacy creature.followers entry; the input to CreateFollowerMonster.
+---@class FollowerInfo
+---@field name string
+---@field type string "artisan", "sage" or "retainer".
+---@field ancestry string Race id.
+---@field characteristic string Attribute id an artisan gets +1 in.
+---@field portrait? string
+---@field skills? table<string, boolean> Skill id -> true.
+---@field languages? table<string, boolean> Language id -> true.
+---@field retainerType? string Bestiary id of a premade retainer.
+
+--Options for CreateFollowerMonster.
+---@class CreateFollowerOptions
+---@field pregenid? string Bestiary id for a premade retainer.
+---@field open? boolean Whether the new follower's sheet opens.
+---@field followerToken? string Charid of an existing follower (followerType "existing").
+
+---@param follower CharacterToken
+---@param followerInfo FollowerInfo
+---@param mentorToken CharacterToken
 local SetFollowerPartyInfo = function(follower, followerInfo, mentorToken)
     follower.name = followerInfo.name
     --Assign partyId before ownerId: the partyId setter forces ownerId to "PARTY",
@@ -168,17 +191,18 @@ local SetFollowerPartyInfo = function(follower, followerInfo, mentorToken)
     follower.ownerId = mentorToken.ownerId
 end
 
----@param followerInfo table[]
+---@param followerInfo FollowerInfo
 ---@param followerType string artisan, sage, premaderetainer, existing
----@param mentorToken Token[]
----@param pregenid string|nil optional data for creating a pre-made retainer
----@param open boolean will charactersheet open after creation
+---@param mentorToken CharacterToken
+---@param options CreateFollowerOptions
 CreateFollowerMonster = function(followerInfo, followerType, mentorToken, options)
     local pregenid = options and options.pregenid or nil
     local open = options and options.open or true
 
     if followerType == "existing" and options.followerToken then
-        mentorToken.properties:AddFollowerToMentor(options.followerToken)
+        --Only heroes mentor followers (AddFollowerToMentor is a character method).
+        local mentor = mentorToken.properties --[[@as character]]
+        mentor:AddFollowerToMentor(options.followerToken)
         return
     end
 
@@ -287,7 +311,9 @@ CreateFollowerMonster = function(followerInfo, followerType, mentorToken, option
             return
         end
 
-        mentorToken.properties:AddFollowerToMentor(newFollower.id)
+        --Read properties now, not before the wait above: they may have been replaced since.
+        local mentor = mentorToken.properties --[[@as character]]
+        mentor:AddFollowerToMentor(newFollower.charid)
         
         if open ~= false then
             newFollower:ShowSheet()
@@ -793,7 +819,7 @@ function CreateFollowerEditorDialog(follower, options)
                 idChosen = follower.retainerType or "none",
                 change = function(element)
                     ---@cast element Dropdown
-                    follower.retainerType = element.idChosen
+                    follower.retainerType = element.idChosen --[[@as string]]
                     editorPanel:FireEventTree("refreshAll")
                 end,
             }
@@ -884,8 +910,8 @@ function CreateFollowerEditorDialog(follower, options)
                     gui.Button {
                         classes = {"saveButton"},
                         text = "Save",
-                        halign = "Center",
-                        valign = "Bottom",
+                        halign = "center",
+                        valign = "bottom",
                         press = function(element)
                             if options.save and type(options.save) == "function" then
                                 options.save()

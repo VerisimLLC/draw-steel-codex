@@ -198,7 +198,7 @@ function ActivatedAbilitySkillCheckBehavior:DCEditor(parentPanel, list)
                     return
                 end
 
-                self.rollType = element.idChosen
+                self.rollType = element.idChosen --[[@as string]]
 
                 if self.rollType == "flat" then
                     self.dc = "flat"

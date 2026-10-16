@@ -1920,7 +1920,6 @@ setting{
 setting{
 	id = "measure:linewidth",
 	description = "Line Width",
-	default = 4,
 	editor = "slider",
 	format = "F0",
 	default = 1,
@@ -2531,7 +2530,6 @@ setting{
 setting{
 	id = "graphics:gamma",
 	description = "Gamma Correction",
-	default = 0.5,
 	storage = "preference",
 	
 	editor = "slider",

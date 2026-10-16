@@ -963,6 +963,7 @@ local function CreateMonsterEntry(nodeid, startHidden)
     local matchesSearch = true
     local parentCollapsed = startHidden or false
 
+    ---@type Panel
     local resultPanel = nil
 
     --novel-content pip: lit while this monster is recorded as novel
@@ -1101,6 +1102,8 @@ local function CreateMonsterEntry(nodeid, startHidden)
                 end
 
                 local dock = element:FindParentWithClass("dock")
+                --bestiary rows only live inside a DockablePanel, whose container is always a dock.
+                ---@cast dock -nil
 
                 local monsterEntry = assets.monsters[nodeid]
                 if monsterEntry == nil then
@@ -1147,6 +1150,8 @@ local function CreateMonsterEntry(nodeid, startHidden)
                 end
 
                 local dock = element:FindParentWithClass("dock")
+                --bestiary rows only live inside a DockablePanel, whose container is always a dock.
+                ---@cast dock -nil
                 local monsterEntry = assets.monsters[nodeid]
                 if monsterEntry == nil then
                     return
@@ -1236,6 +1241,7 @@ local function CreateMonsterEntry(nodeid, startHidden)
                         text = 'Edit Monster',
                         click = function(element)
                             local monster = node.monster
+                            ---@cast monster -nil
 
                             local token = monster:GetLocalGameBestiaryToken()
                             if token == nil then
@@ -1275,6 +1281,7 @@ local function CreateMonsterEntry(nodeid, startHidden)
 
                     if devmode() then
                         local monster = node.monster
+                        ---@cast monster -nil
                         if monster.properties:has_key("import") then
                             menuItems[#menuItems + 1] = {
                                 text = cond(monster.properties.import.override, 'Revert Override', 'Override Import'),
@@ -1547,6 +1554,7 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
 
     local node = assets:GetMonsterNode(nodeid)
 
+    ---@type Panel
     local folderPane = nil
 
     --novel-content pip on the folder row: lit while any monster anywhere
@@ -1580,6 +1588,7 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
     --below it clears the search through it. The clear x is built into
     --gui.SearchInput now, so there is no separate clear button any more.
     local searchInput = nil
+    ---@type Label
     local searchLimitLabel = nil
     local rootPanel = nil
     if nodeid == '' then
@@ -1782,6 +1791,7 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
         return n
     end
 
+    ---@type Panel
     local triangle = nil
     triangle = gui.ExpandoArrow({
         --Phosphor mask: the default triangle bitmap reads fuzzy at header
@@ -1866,6 +1876,7 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
             --does the toggle. A handler here too made one label click toggle
             --twice (expand + immediately collapse).
             editname = function(element)
+                ---@cast element Label
                 element:BeginEditing()
             end,
         },
@@ -2343,12 +2354,18 @@ end
 --similar to a bestiary entry but is an entry for a live character.
 CharacterPanel.CreateCharacterEntry = function(charid, party)
     local token = dmhub.GetCharacterById(charid)
+    --nil for a party id with no character record: RefreshParty keeps those ids.
+    if token == nil then
+        return
+    end
     local creature = token.properties
 
     if creature == nil then
         return
     end
 
+    --assigned below during construction, before any handler that reads it can run.
+    ---@type Panel
     local resultPanel = nil
 
     local novelContentAlert = nil
@@ -2389,7 +2406,8 @@ CharacterPanel.CreateCharacterEntry = function(charid, party)
             parts[#parts + 1] = ancestry
         end
 
-        local classInfo = props:IsHero() and props:GetClass() or nil
+        --IsHero() is true only on the character subtype, which defines GetClass.
+        local classInfo = props:IsHero() and (props --[[@as character]]):GetClass() or nil
         if classInfo ~= nil then
             parts[#parts + 1] = classInfo.name
         end
@@ -2487,6 +2505,8 @@ CharacterPanel.CreateCharacterEntry = function(charid, party)
             --on a row, so scroll-past costs nothing.
             linger = function(element)
                 local dock = element:FindParentWithClass("dock")
+                --character rows only live inside a DockablePanel, whose container is always a dock.
+                ---@cast dock -nil
 
                 local panel = token:Render {}
                 if panel ~= nil then
@@ -2648,7 +2668,10 @@ CharacterPanel.CreateCharacterEntry = function(charid, party)
                         local invisible = not token.invisibleToPlayers
 
                         --make this operate on all selected characters.
-                        for _, charid in ipairs(dmhub.GetSelectedCharacters()) do
+                        local selected = dmhub.GetSelectedCharacters()
+                        --this file's dmhub.GetSelectedCharacters (above) always returns a table.
+                        ---@cast selected -nil
+                        for _, charid in ipairs(selected) do
                             local tok = dmhub.GetCharacterById(charid)
                             if tok ~= nil then
                                 tok.invisibleToPlayers = invisible
@@ -2725,7 +2748,7 @@ CharacterPanel.CreateCharacterEntry = function(charid, party)
                                         for _, cid in ipairs(charids) do
                                             local tok = dmhub.GetCharacterById(cid)
                                             if tok ~= nil then
-                                                local classInfo = tok.properties:IsHero() and tok.properties:GetClass() or nil
+                                                local classInfo = tok.properties:IsHero() and (tok.properties --[[@as character]]):GetClass() or nil
                                                 track("character_delete", {
                                                     class = classInfo and classInfo.name or "",
                                                     ancestry = tok.properties:RaceOrMonsterType() or "",
@@ -2939,9 +2962,12 @@ CharacterPanel.PopulatePartyMembers = function(element, party, partyMembers, mem
 
     for _, charid in ipairs(partyMembers) do
         local child = memberPanes[charid] or CharacterPanel.CreateCharacterEntry(charid, party)
-        newMemberPanes[charid] = child
-        child:FireEventTree("prepareRefresh")
-        children[#children + 1] = child
+        --nil when the id has no loaded character (see CreateCharacterEntry): leave it out.
+        if child ~= nil then
+            newMemberPanes[charid] = child
+            child:FireEventTree("prepareRefresh")
+            children[#children + 1] = child
+        end
     end
 
     table.sort(children, function(a, b)
@@ -3024,6 +3050,7 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
 
     local folderPane
     local selectAllPanel = nil
+    ---@type Panel
     local triangle = nil
 
     --Toggle the folder open/closed. Shared by the caret AND a press
@@ -3209,7 +3236,7 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
                                     corpse.objectInstance:Destroy()
                                 end
 
-                                local classInfo = tok.properties:IsHero() and tok.properties:GetClass() or nil
+                                local classInfo = tok.properties:IsHero() and (tok.properties --[[@as character]]):GetClass() or nil
                                 track("character_delete", {
                                     class = classInfo and classInfo.name or "",
                                     ancestry = tok.properties:RaceOrMonsterType() or "",
@@ -4006,7 +4033,8 @@ local CreateBestiaryAndPartyPanel = function(noBestiary)
                                     handler = nil
                                     local c = trackToken
                                     if c ~= nil and c.valid then
-                                        local classInfo = c.properties:GetClass()
+                                        --created above by game.CreateCharacter("character", ...).
+                                        local classInfo = (c.properties --[[@as character]]):GetClass()
                                         local kitTable = dmhub.GetTable("kits")
                                         local kitId = c.properties:try_get("kitid")
                                         track("character_create", {
@@ -4291,6 +4319,8 @@ CharacterPanel.CreatePinnedCharacterPanel = function(charid, options)
                 element.children = { summaryPanel, detailsPanel }
                 createdDetailsPanel = true
             end
+            --built together with summaryPanel just above.
+            ---@cast detailsPanel -nil
 
             summaryPanel:SetClass("collapsed", false)
             detailsPanel:SetClass("collapsed", false)

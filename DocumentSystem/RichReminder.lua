@@ -20,7 +20,8 @@ function RichReminder.CreateDisplay(self)
         valign = "center",
         refreshTag = function(element, tag, match, token)
             local text = token.text
-            local match = regex.MatchGroups(text, "^reminder:(?<domain>.*)$")
+            --no indexes option, so every group is a plain string.
+            local match = regex.MatchGroups(text, "^reminder:(?<domain>.*)$") --[[@as table<string, string>?]]
             if match then
                 local domain = string.lower(match.domain)
                 if domain ~= m_domain then

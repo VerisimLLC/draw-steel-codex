@@ -28,6 +28,11 @@ function MapManifestLua:Upload(description) end
 --- Delete
 function MapManifestLua:Delete() end
 
+--- Sizes this map's dimensions to the grid cells its map images cover -- every object with a Map component, on every floor and layer. A cell is covered when its center lies on an image; this works for square and hex grids and is exact however the image was calibrated. With expandOnly the dimensions only grow to include those cells; otherwise they are set to exactly those cells. Does not upload: call Upload afterwards. Returns "fitted" when the dimensions were set, "pending" while an image is still loading or has not yet been placed with its current calibration and position (poll again next frame), "none" when the map has no map images, or "notcurrent" when this is not the current map (only the current map's images are loaded).
+--- @param expandOnly? boolean
+--- @return string
+function MapManifestLua:FitDimensionsToMapImages(expandOnly) end
+
 --- Counts the building operations across all of this map's floors (every terrain layer) that draw with the given wall asset id. Erase operations do not count. The Map Markup panel uses this to tell whether removing a wall type from its palette orphans the asset. Probe inside pcall: older engine builds lack this method.
 --- @param wallid string
 --- @return number
@@ -64,3 +69,6 @@ function MapManifestLua:DestroyPreviewFloor(floorInfo) end
 
 --- Travel
 function MapManifestLua:Travel() end
+
+--- Start syncing this map in the background so a later Travel() to it skips the loading screen. Cheap to call repeatedly (e.g. on hover). Does nothing in Firebase-backed games or the lobby.
+function MapManifestLua:Prefetch() end

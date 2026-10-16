@@ -1,7 +1,7 @@
 --- FSCIChoiceImporter handles importing choices made in a Forge Steel character
 --- into the complex Codex choices
 --- @class FSCIChoiceImporter: GameType
---- @field new fun(o?: table): FSCIChoiceImporter
+--- @field new fun(self: FSCIChoiceImporter, availableFeatures: table, filter?: table): FSCIChoiceImporter|nil
 --- @field availableFeatures table The features available in the Codex
 --- @field levelChoices table The calculated list of selected features formatted for the character
 --- @field featureData table The full feature objects keyed by GUID
@@ -303,6 +303,9 @@ function FSCIChoiceImporter:_processTableLookupChoice(tableName, choiceType, ite
     local processed = false
 
     local function onMatch(matchedFeature)
+        --only used below when the lookup found the item, which returns both.
+        ---@cast itemId -nil
+        ---@cast item -nil
         local individualSkills = matchedFeature:try_get("individualSkills")
         local categories = matchedFeature:try_get("categories")
         local itemCategory = item:try_get("category") or ""

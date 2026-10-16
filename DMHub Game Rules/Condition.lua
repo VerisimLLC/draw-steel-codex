@@ -16,6 +16,13 @@ local mod = dmhub.GetModLoading()
 --- @field indefiniteDuration nil|boolean If true, the condition persists until manually removed. Often absent (defaults to false).
 --- @field showInMenus nil|boolean If true, this condition appears in UI menus. Often absent (defaults to true).
 --- @field sustainFormula nil|string|number|table GoblinScript formula evaluated each turn to sustain the condition. Often absent (defaults to "").
+--- @field iconid string Icon asset id.
+--- @field display table Icon display settings {bgcolor, hueshift, saturation, brightness, blend?}; bgcolor is a string or Color.
+--- @field maxInstancesFormula? string GoblinScript: max instances one caster can apply.
+--- @field casterCanClick? boolean If true (with trackCaster), the caster can click the condition to run casterClickAbility.
+--- @field casterClickAbility? ActivatedAbility Ability the caster runs by clicking the condition.
+--- @field casterCanDrag? boolean If true (with trackCaster), the caster can drag the condition.
+--- @field underlying? table<string, boolean> Set of condition ids that also apply while this one does.
 CharacterCondition = RegisterGameType("CharacterCondition", "CharacterFeature")
 
 CharacterCondition.name = "New Condition"
@@ -263,7 +270,7 @@ local SetData = function(tableName, conditionPanel, condid)
 			idChosen = condition.emoji,
 			change = function(element)
 				---@cast element Dropdown
-				condition.emoji = element.idChosen
+				condition.emoji = element.idChosen --[[@as string]]
 				UploadCondition()
 			end,
 		},
@@ -314,7 +321,7 @@ local SetData = function(tableName, conditionPanel, condid)
 			idChosen = condition.buffType,
 			change = function(element)
 				---@cast element Dropdown
-				condition.buffType = element.idChosen
+				condition.buffType = element.idChosen --[[@as string]]
 				UploadCondition()
 			end,
 		},

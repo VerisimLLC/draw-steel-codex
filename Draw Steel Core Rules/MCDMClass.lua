@@ -252,7 +252,7 @@ function Class:HeroicResourceEditor(UploadFn)
                             idChosen = entry.mode or "encounter",
                             change = function(e)
                                 ---@cast e Dropdown
-                                entry.mode = e.idChosen
+                                entry.mode = e.idChosen --[[@as 'encounter'|'round'|'recurring']]
                                 UploadFn()
                             end,
                         },
@@ -496,7 +496,7 @@ function Class:CustomEditor(UploadFn, children)
                 numeric = true,
                 placeholderText = "--",
                 textAlignment = "center",
-                text = self.baseCharacteristics[attrid] or "",
+                text = tostring(self.baseCharacteristics[attrid] or ""),
                 change = function(element)
                     self.baseCharacteristics = DeepCopy(self.baseCharacteristics)
                     self.baseCharacteristics[attrid] = tonumber(element.text)
@@ -514,7 +514,7 @@ function Class:CustomEditor(UploadFn, children)
                         self.baseCharacteristics.arrays = g_classArrays2
                     end
 
-                    element.text = self.baseCharacteristics[attrid] or ""
+                    element.text = tostring(self.baseCharacteristics[attrid] or "")
                     UploadFn()
                 end,
             },

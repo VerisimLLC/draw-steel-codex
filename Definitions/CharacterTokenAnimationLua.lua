@@ -4,6 +4,11 @@
 --- @class CharacterTokenAnimationLua
 CharacterTokenAnimationLua = {}
 
+--- ResolveRotation
+--- @param args? any
+--- @return any
+function CharacterTokenAnimationLua.ResolveRotation(args) end
+
 --- Spawn a circle-light burst at the token (default) or at args.pos. Args: color (Color), radius (number), innerRadius (number), duration (number), fadein (number, optional), fadeout (number, optional), pos (Loc, optional), delay (number, optional).
 --- @param args table
 --- @return LightHandleLua
@@ -19,10 +24,15 @@ function CharacterTokenAnimationLua:Billboard(args) end
 --- @return EffectHandleLua
 function CharacterTokenAnimationLua:PlayEffect(args) end
 
+--- ConfigureSpawnedParticles
+--- @param inst? any
+--- @param args? any
+function CharacterTokenAnimationLua.ConfigureSpawnedParticles(inst, args) end
+
 --- Tween the token's visual transform (purely cosmetic -- the logical position is unaffected). Args: translate (Loc, optional destination), duration (number, seconds; 0 = snap), easing (string, optional: 'linear'|'easeIn'|'easeOut'|'easeInOut'). Fire-and-forget; use sleep(duration) to wait it out. Starting a new Tween supersedes any active one.
 --- @param args table
 function CharacterTokenAnimationLua:Tween(args) end
 
---- Hide or show every Renderer and Canvas on the token (sprite, frame, spine, shadow, HUD). Records which were enabled so SetVisible(true) only re-enables those (a token already hidden by fog stays hidden). Engine guarantees the token is restored visible when the animation finishes; SetVisible(true) is only needed if the script wants visibility back partway through.
+--- Hide or show every Renderer and Canvas on the token (sprite, frame, spine, shadow, HUD). Records which were enabled so SetVisible(true) only re-enables those (a token already hidden by fog stays hidden). Inside a token animation the engine guarantees the token is restored visible when the animation finishes; SetVisible(true) is only needed if the script wants visibility back partway through. Outside an animation it is client-local and lasts until SetVisible(true) or the token is removed from the map, e.g. hiding a token the instant before it is despawned so its despawn fade is never seen.
 --- @param visible? boolean
 function CharacterTokenAnimationLua:SetVisible(visible) end

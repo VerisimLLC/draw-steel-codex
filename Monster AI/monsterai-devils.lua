@@ -787,6 +787,7 @@ local function FindBestWritChargePlan(ai, token, ability)
     -- the struck creature's occupied space, so enumerate legal endpoints.
     local chargeAbility = ability:SwitchModes(2)
     local symbols = {mode = 2}
+    ---@type fun(loc: Loc): boolean
     local filterTargetPredicate =
         chargeAbility:TargetLocPassesFilterPredicate(token, symbols)
             or function() return true end
@@ -812,6 +813,7 @@ local function FindBestWritChargePlan(ai, token, ability)
                 ignorecreatures = true,
                 moveThroughFriends = true,
             })
+            ---@type LuaPath?
             local path = movementInfo ~= nil and movementInfo.path or nil
             local chargeDistance = path ~= nil
                 and path.destination:DistanceInTiles(path.origin) or nil
@@ -819,6 +821,8 @@ local function FindBestWritChargePlan(ai, token, ability)
                 and path.destination:DistanceInTiles(chargeLoc) == 0
                 and chargeDistance > 0 and chargeDistance <= remainingMovement
             if legal then
+                --legal is only true when path was found.
+                ---@cast path -nil
                 local originAltitude = game.currentFloor:GetAltitudeAtLoc(path.origin)
                 for _,step in ipairs(path.steps) do
                     local fallDistance = originAltitude
@@ -831,6 +835,7 @@ local function FindBestWritChargePlan(ai, token, ability)
             end
 
             if legal then
+                ---@cast path -nil
                 local targets = ai:FindValidTargetsOfStrike(
                     token, strikeScoringAbility, chargeLoc, strikeRange)
                 table.resize_array(targets, numTargets)

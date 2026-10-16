@@ -21,6 +21,9 @@ local mod = dmhub.GetModLoading()
 --- @field kitManeuver false|ActivatedAbility The kit's maneuver ability (false if none).
 --- @field damageBonuses table<string, number[]> Map from damage bonus type id to tier values.
 --- @field weapons table Equipment items associated with this kit.
+--- @field signatureAbilities? ActivatedAbility[] Signature abilities of a combined (two-kit) kit; plain kits use signatureAbility.
+--- @field additionalSignatureAbilities? ActivatedAbility[] Extra signature abilities returned by Kit:SignatureAbilities after signatureAbility.
+--- @field imported? string Import guid stamped by the rules importer.
 Kit = RegisterGameType("Kit")
 
 local ApplyBonusesFromKit
@@ -107,9 +110,10 @@ function Kit:SignatureAbilities()
 	end
 
 	local result = {}
-	if self.signatureAbility ~= false then
-        self.signatureAbility._tmp_fromKit = true
-		result[#result+1] = self.signatureAbility
+	local signatureAbility = self.signatureAbility
+	if signatureAbility ~= false then
+        signatureAbility._tmp_fromKit = true
+		result[#result+1] = signatureAbility
 	end
 
 	if self:has_key("additionalSignatureAbilities") then
@@ -548,6 +552,7 @@ function Kit:FillClassFeatures(creature, choices, result)
 	for i,feature in ipairs(self:GetClassLevel().features) do
 
 		if feature.typeName == 'CharacterFeature' then
+			---@cast feature CharacterFeature
 			result[#result+1] = feature
 		else
 			feature:FillChoice(choices, result)
@@ -819,8 +824,9 @@ function Kit:Render(args, params)
 	end
 
 	local maneuverPanel = nil
-	if self.kitManeuver ~= false then
-		maneuverPanel = self.kitManeuverAbility:Render({
+	--kitManeuver holds the maneuver ability; some kit data stores a bare `true` with no ability.
+	if type(self.kitManeuver) == "table" then
+		maneuverPanel = self.kitManeuver:Render({
 			pad = 12,
 			width = "100%",
 		}, {

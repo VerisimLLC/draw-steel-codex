@@ -144,6 +144,7 @@ claude = {
         end
 
         local model = dmhub.GetSettingValue("claude_model")
+        ---@type fun(message: string)
         local errorfn = args.error or function() end
 
         local systemPrompt = args.system or (agent and agent.system) or nil
@@ -524,6 +525,7 @@ CreateClaudePanel = function()
         characterLimit = 8192,
         events = {
             uparrow = function(element)
+                ---@cast element Input
                 if #history == 0 then
                     return
                 end
@@ -543,6 +545,7 @@ CreateClaudePanel = function()
             end,
 
             downarrow = function(element)
+                ---@cast element Input
                 if #history == 0 or historyCursor == nil then
                     return
                 end
@@ -653,6 +656,7 @@ CreateClaudePanel = function()
         valign = "center",
 
         create = function(element)
+            ---@cast element Dropdown
             local agents = GetAgents()
             local options = {}
             for id, agent in pairs(agents) do

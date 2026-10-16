@@ -420,6 +420,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
     local m_importer = false
     local m_importerPanel = SmartImporterPanel(doc)
 
+    ---@type Vector2?
     local m_dragAnchor = nil
 
     local CreateDragPanel
@@ -490,6 +491,8 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                 height = 100,
             },
             update = function(element, parentElement)
+                --only fired after beginDrag has set m_dragAnchor.
+                ---@cast m_dragAnchor -nil
                 local mousePoint = parentElement.mousePoint
                 local imageWidth = parentElement.renderedWidth
                 local imageHeight = parentElement.renderedHeight
@@ -509,6 +512,8 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                 element.selfStyle.height = (y2 - y1) * imageHeight
             end,
             finish = function(element, parentElement)
+                --the drag handler checks m_dragAnchor before firing this.
+                ---@cast m_dragAnchor -nil
                 local mousePoint = parentElement.mousePoint
                 local imageWidth = parentElement.renderedWidth
                 local imageHeight = parentElement.renderedHeight
@@ -1779,14 +1784,19 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
         return dmhub.GetSettingValue("pdfcontinuous") and true or false
     end
 
-    --side-by-side spread view: pages are laid out two per row, with the
-    --first page alone on the right like a book cover, so facing pages sit
-    --next to each other the way the printed book reads. All the scroll and
-    --pooling math works in ROWS; in single-page view every row holds
-    --exactly one page and these helpers reduce to identity.
+    --side-by-side spread view: pages are laid out two per row so facing
+    --pages sit next to each other the way the printed book reads. All the
+    --scroll and pooling math works in ROWS; in single-page view every row
+    --holds exactly one page and these helpers reduce to identity.
     local IsTwoPage = function()
         return m_twoPage
     end
+
+    --how the spreads pair up. false (the MCDM books): the cover is on the
+    --left of the first spread, beside the inside-cover page. true: the
+    --cover sits alone on the right and the inside cover starts the next
+    --spread; use it for a PDF whose pages fall on the opposite sides.
+    local coverAlone = false
 
     local PagesPerRow = function()
         return m_twoPage and 2 or 1
@@ -1796,19 +1806,27 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
         if not m_twoPage then
             return npage
         end
-        return math.floor((npage + 1) / 2)
+        if coverAlone then
+            return math.floor((npage + 1) / 2)
+        end
+        return math.floor(npage / 2)
     end
 
-    --first and last page index of a row (equal for the lone cover row and
+    --first and last page index of a row (equal for a lone cover row and
     --a lone final page).
     local RowPages = function(row)
         if not m_twoPage then
             return row, row
         end
-        if row <= 0 then
-            return 0, 0
+        local first
+        if coverAlone then
+            if row <= 0 then
+                return 0, 0
+            end
+            first = row * 2 - 1
+        else
+            first = row * 2
         end
-        local first = row * 2 - 1
         return first, math.min(first + 1, npages - 1)
     end
 
@@ -1816,16 +1834,18 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
         return RowOfPage(npages - 1) + 1
     end
 
-    --the column a page occupies in its row: 0 = left, 1 = right. The cover
-    --sits alone on the right, like the first page of an open book.
+    --the column a page occupies in its row: 0 = left, 1 = right.
     local ColOfPage = function(npage)
         if not m_twoPage then
             return 0
         end
-        if npage == 0 then
-            return 1
+        if coverAlone then
+            if npage == 0 then
+                return 1
+            end
+            return (npage % 2 == 1) and 0 or 1
         end
-        return (npage % 2 == 1) and 0 or 1
+        return npage % 2
     end
 
     --height of the full content stack as a fraction of its width. Page
@@ -2727,6 +2747,8 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
 
             local pressCharacter = element.data.FindMouseoverChar(element)
             if pressCharacter ~= nil then
+                --cleared to nil by a triple click so the next press starts a fresh click count.
+                ---@type number|nil
                 local t = dmhub.Time()
 
                 if dmhub.DeepEqual(element.data.lastPressCharacter, pressCharacter) and (t - (element.data.lastPressCharacterTime or 0)) < 1 then
@@ -2754,31 +2776,35 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                         local a = CharacterIndexToLocation(layout, index1)
                         local b = CharacterIndexToLocation(layout, index2)
 
-                        local rects = {}
+                        --Pressing the right half of a page's last character gives a charIndex one
+                        --past the text, which no rect covers; select nothing rather than crash.
+                        if a ~= nil and b ~= nil then
+                            local rects = {}
 
-                        for i = a.rectIndex, b.rectIndex do
-                            local r = DeepCopy(element.data.textLayout.mergedRects[i].rect)
-                            if i == a.rectIndex then
-                                local breakIndex = a.breakIndex
-                                if breakIndex < 1 then
-                                    breakIndex = 1
+                            for i = a.rectIndex, b.rectIndex do
+                                local r = DeepCopy(element.data.textLayout.mergedRects[i].rect)
+                                if i == a.rectIndex then
+                                    local breakIndex = a.breakIndex
+                                    if breakIndex < 1 then
+                                        breakIndex = 1
+                                    end
+                                    r.x1 = element.data.textLayout.mergedRects[i].breaks[breakIndex]
                                 end
-                                r.x1 = element.data.textLayout.mergedRects[i].breaks[breakIndex]
+
+                                if i == b.rectIndex then
+                                    local breakIndex = b.breakIndex + 2
+                                    if breakIndex > #element.data.textLayout.mergedRects[i].breaks then
+                                        breakIndex = #element.data.textLayout.mergedRects[i].breaks
+                                    end
+                                    r.x2 = element.data.textLayout.mergedRects[i].breaks[breakIndex]
+                                end
+
+                                rects[#rects + 1] = r
                             end
 
-                            if i == b.rectIndex then
-                                local breakIndex = b.breakIndex + 2
-                                if breakIndex > #element.data.textLayout.mergedRects[i].breaks then
-                                    breakIndex = #element.data.textLayout.mergedRects[i].breaks
-                                end
-                                r.x2 = element.data.textLayout.mergedRects[i].breaks[breakIndex]
-                            end
-
-                            rects[#rects + 1] = r
+                            element:FireEvent("highlight", rects,
+                                element.data.textLayout.text:Substring(a.charIndex, b.charIndex))
                         end
-
-                        element:FireEvent("highlight", rects,
-                            element.data.textLayout.text:Substring(a.charIndex, b.charIndex))
                     end
                 else
                     element.data.doubleClickCharacter = false
@@ -3337,15 +3363,15 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                 npage = trim(string.lower(npage))
             end
 
-            m_npage = nil
+            local labelPage = nil
             for i, label in ipairs(document.summary.pageLabels) do
                 if npage == string.lower(label) then
-                    m_npage = i - 1
+                    labelPage = i - 1
                     break
                 end
             end
 
-            m_npage = m_npage or tonumber(npage) or 1
+            m_npage = labelPage or tonumber(npage) or 1
 
             m_searchResults = nil
             m_searchText = nil
@@ -3623,7 +3649,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                     classes = {"sizeXs"},
                     width = "auto",
                     height = "auto",
-                    hmargin = "4",
+                    hmargin = 4,
                     text = "/ " .. (document.summary.pageLabels[#document.summary.pageLabels] or string.format("%d", document.summary.npages)),
                 },
                 gui.Button {
@@ -3664,15 +3690,15 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
 
                         change = function(element)
                             m_zoom = clamp((tonumber(element.text) / 100) or m_zoom, 0.05, 8)
-                            element.text = string.format("%d", round(m_zoom * 100)),
-                                RefreshPage()
+                            element.text = string.format("%d", round(m_zoom * 100))
+                            RefreshPage()
                         end,
 
                         command = function(element, cmd)
                             if cmd == "zoomin" or cmd == "zoomout" then
                                 m_zoom = clamp(m_zoom + cond(cmd == "zoomout", -0.2, 0.2), 0.05, 8)
-                                element.text = string.format("%d", round(m_zoom * 100)),
-                                    RefreshPage()
+                                element.text = string.format("%d", round(m_zoom * 100))
+                                RefreshPage()
                             end
                         end,
                     },
@@ -4197,53 +4223,58 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page, options)
         styles = {
             ThemeEngine.GetStyles(),
 
-            {
-                selectors = { "framedPanel" },
-                width = "100%",
-                height = "100%",
-            },
-            {
-                selectors = { "framedPanel", "pdfPopoutCustomChrome" },
-                borderWidth = 0,
-                cornerRadius = 0,
-            },
-            {
-                selectors = { "pdfViewerContent", "pdfPopoutCustomChrome" },
-                --32px title row plus the viewer's existing 30px inset.
-                height = "100%-62",
-            },
-            {
-                selectors = { "pdfPopoutTitleBar" },
-                bgcolor = "@bg",
-            },
-            {
-                selectors = { "pdfPopoutWindowControl" },
-                bgcolor = "clear",
-            },
-            {
-                selectors = { "pdfPopoutWindowControl", "hover" },
-                bgcolor = "#ffffff1f",
-            },
-            {
-                selectors = { "pdfPopoutWindowControl", "press" },
-                bgcolor = "#ffffff33",
-            },
-            {
-                selectors = { "pdfPopoutWindowControlDanger", "hover" },
-                bgcolor = "#c42b1c",
-            },
-            {
-                selectors = { "pdfPopoutWindowControlDanger", "press" },
-                bgcolor = "#b3271a",
-            },
-            {
-                selectors = { "pdfPopoutWindowControlIcon" },
-                bgcolor = "@fg",
-            },
-            {
-                selectors = { "pdfPopoutWindowControlIconDanger", "parent:hover" },
-                bgcolor = "#ffffff",
-            },
+            --MergeTokens turns @fg / @bg into real colors. Popped out, this
+            --panel is its window's root with no themed ancestor, so a raw
+            --@fg here fell back to black (invisible caption glyphs).
+            ThemeEngine.MergeTokens({
+                {
+                    selectors = { "framedPanel" },
+                    width = "100%",
+                    height = "100%",
+                },
+                {
+                    selectors = { "framedPanel", "pdfPopoutCustomChrome" },
+                    borderWidth = 0,
+                    cornerRadius = 0,
+                },
+                {
+                    selectors = { "pdfViewerContent", "pdfPopoutCustomChrome" },
+                    --32px title row plus the viewer's existing 30px inset.
+                    height = "100%-62",
+                },
+                {
+                    selectors = { "pdfPopoutTitleBar" },
+                    bgcolor = "@bg",
+                },
+                {
+                    selectors = { "pdfPopoutWindowControl" },
+                    bgcolor = "clear",
+                },
+                {
+                    selectors = { "pdfPopoutWindowControl", "hover" },
+                    bgcolor = "#ffffff1f",
+                },
+                {
+                    selectors = { "pdfPopoutWindowControl", "press" },
+                    bgcolor = "#ffffff33",
+                },
+                {
+                    selectors = { "pdfPopoutWindowControlDanger", "hover" },
+                    bgcolor = "#c42b1c",
+                },
+                {
+                    selectors = { "pdfPopoutWindowControlDanger", "press" },
+                    bgcolor = "#b3271a",
+                },
+                {
+                    selectors = { "pdfPopoutWindowControlIcon" },
+                    bgcolor = "@fg",
+                },
+                {
+                    selectors = { "pdfPopoutWindowControlIconDanger", "parent:hover" },
+                    bgcolor = "#ffffff",
+                },
+            }),
         },
 
         resize = function(element, width, height)
@@ -4716,6 +4747,8 @@ end
 
 --- @class ImageDocument: GameType
 --- @field new fun(o?: table): ImageDocument
+--- @field width number Image width in pixels.
+--- @field height number Image height in pixels.
 ImageDocument = RegisterGameType("ImageDocument")
 
 ImageDocument.type = "image"
@@ -4743,7 +4776,6 @@ function ImageDocument:Render(options)
             width = panelWidth,
             height = string.format("%f%% width", 100 * self.height / self.width),
             bgcolor = "white",
-            hoverCursor = cond(summary, "hand"),
             bgimage = self.imageid,
             click = function(element)
                 if summary then
@@ -4790,7 +4822,6 @@ function PDFWrapper:Render(options)
             width = panelWidth,
             height = string.format("%f%% width", 100 * self.height / self.width),
             bgcolor = "white",
-            hoverCursor = cond(summary, "hand"),
             bgimage = string.format("#PDF:%s|0", self.docid),
             click = function(element)
                 if summary then
@@ -4810,6 +4841,7 @@ end
 --- @class PDFFragment: GameType
 --- @field new fun(o?: table): PDFFragment
 --- @field id string Key of this row in its data table; SetAndUploadTableItem sets it.
+--- @field description string Alias of name (PDFFragment.AddAlias).
 PDFFragment = RegisterGameType("PDFFragment")
 
 PDFFragment.tableName = "pdfReferences"
@@ -4917,7 +4949,6 @@ function PDFFragment:Render(options)
             width = panelWidth,
             height = string.format("%f%% width", 100 * self.height / self.width),
             bgcolor = "white",
-            hoverCursor = cond(summary, "hand"),
             bgimage = string.format("#PDF-Fragment:%s|%d,%f,%f,%f,%f", self.refid, self.page, self.area[1], self.area[2], self.area[3], self.area[4]),
             click = function(element)
                 if summary then

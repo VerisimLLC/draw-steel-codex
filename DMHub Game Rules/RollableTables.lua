@@ -6,6 +6,7 @@ local mod = dmhub.GetModLoading()
 ---@field tableName string the name of the table this references, or "none" if it's an anonymous table.
 ---@field key string the key in the table this references, or "none" if it's an anonymous table.
 ---@field docid string
+---@field table? RollTable An anonymous (inline) roll table, when this is not a reference by table/key or document.
 RollTableReference = RegisterGameType("RollTableReference")
 
 RollTableReference.tableName = "none"
@@ -45,6 +46,7 @@ function RollTableReference.CreateAnonymous()
 	}
 end
 
+--- @return RollTable|nil
 function RollTableReference:GetTable()
 
     --a reference to a markdown document.
@@ -52,6 +54,7 @@ function RollTableReference:GetTable()
         local t = dmhub.GetTable(CustomDocument.tableName)
         local doc = t[self.docid]
         if doc ~= nil then
+            ---@cast doc MarkdownDocument
             local result = doc:GetRollableTable(self.tableid)
             return result
         end
@@ -62,8 +65,9 @@ function RollTableReference:GetTable()
 		return self.table
 	end
 
+	--tableName is a Compendium "Tables" content type, whose rows are RollTables.
 	local dataTable = dmhub.GetTable(self.tableName) or {}
-	local table = dataTable[self.key]
+	local table = dataTable[self.key] --[[@as RollTable|nil]]
 	if table ~= nil then
 		return table
 	end
@@ -80,6 +84,7 @@ end
 --- @field rollModifier string Optional GoblinScript (creature context) added to the roll when rolling on this table.
 --- @field visibility string Visibility setting: "visible" or "hidden".
 --- @field rows RollTableRow[] Ordered list of rows in this table.
+--- @field id? string Key of this row in its data table; embedded tables (e.g. a behavior's custom table) have none.
 RollTable = RegisterGameType("RollTable")
 
 --- @class RollTableRow: GameType
@@ -87,6 +92,8 @@ RollTable = RegisterGameType("RollTable")
 --- @field weight number Relative weight for weighted random selection.
 --- @field revealed boolean If true, this row's result has been revealed to players.
 --- @field value VariantCollection The reward/outcome for this row.
+--- @field id string Guid of this row; set by RollTableRow.Create.
+--- @field choiceName? string Row label shown when the table's rollType is "namedChoice".
 --- @field rollRange string Optional author-defined value range (e.g. "1-12", "13+", "5") used instead of the auto-computed range when the table has a Modifier.
 RollTableRow = RegisterGameType("RollTableRow")
 
@@ -1153,6 +1160,10 @@ end
 
 function RollTable:RowIndexFromDiceResult(rollNum)
 	local rollInfo = self:CalculateRollInfo()
+	--nil when the rows' weights sum below 1: no row can match.
+	if rollInfo == nil then
+		return nil
+	end
 
 	--Clamp to the table's valid range so an added Modifier that pushes the total
 	--past either end still maps to the nearest edge row instead of falling off
@@ -1212,7 +1223,10 @@ function RollTable:Roll(choiceIndex, collection, depth)
 					for i=1,quantity do
 						local dataTable = dmhub.GetTable(item.dataTable) or {}
 						local subtable = dataTable[item.key]
-						subtable:Roll(item:try_get("choiceIndex"), collection, depth+1)
+						--the row can point at a table that has since been deleted; it then adds nothing.
+						if subtable ~= nil then
+							subtable:Roll(item:try_get("choiceIndex"), collection, depth+1)
+						end
 					end
 				end
 			else

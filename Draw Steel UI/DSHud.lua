@@ -6,7 +6,7 @@ function GameHud.TokenMoving(self, token, path)
 	local diagonals = dmhub.GetSettingValue("truediagonals") and math.floor(path.numDiagonals/2) or 0
 
 	local distance = path.numSteps + diagonals
-	distance = distance * dmhub.FeetPerTile
+	distance = distance * dmhub.unitsPerSquare
 
     local forcedText = ""
 
@@ -74,13 +74,13 @@ function GameHud.TokenMoving(self, token, path)
 		local moveType = token.properties:CurrentMoveType()
 		if moveType == "walk" or moveType == "swim" then
 
-			local waterSteps = math.floor(path.waterSteps) * dmhub.FeetPerTile
+			local waterSteps = math.floor(path.waterSteps) * dmhub.unitsPerSquare
 			if waterSteps > 0 and waterSteps < distance then
 				text = string.format(tr("%s; swim %s %s"), text, MeasurementSystem.NativeToDisplayString(waterSteps), string.lower(MeasurementSystem.UnitName()))
 				walkAndSwim = true
 			end
 
-			local difficultDistance = math.floor(path.difficultSteps) * dmhub.FeetPerTile
+			local difficultDistance = math.floor(path.difficultSteps) * dmhub.unitsPerSquare
 			if difficultDistance == distance and distance > 0 then
 				text = string.format(tr("%s; all in difficult terrain"), text)
 			elseif difficultDistance > 0 then
@@ -105,7 +105,7 @@ function GameHud.TokenMoving(self, token, path)
                 end
             end
 
-			local squeezeDistance = math.floor(path.squeezeSteps) * dmhub.FeetPerTile
+			local squeezeDistance = math.floor(path.squeezeSteps) * dmhub.unitsPerSquare
 			if squeezeDistance == distance and distance > 0 then
 				text = string.format(tr("%s; squeezing through a tight space"), text)
 			elseif squeezeDistance > 0 then
@@ -201,7 +201,7 @@ function GameHud.TokenMoving(self, token, path)
 				usedTiles = usedTiles + 1
 			end
 
-			text = string.format(tr("%s\nUses %s of %s's %s %s allowed by Advance Move Action"), text, MeasurementSystem.NativeToDisplayString(usedTiles*dmhub.FeetPerTile), creature.GetTokenDescription(token), MeasurementSystem.NativeToDisplayString(creature:GetEffectiveSpeed(creature:CurrentMoveType())), string.lower(MeasurementSystem.UnitName()))
+			text = string.format(tr("%s\nUses %s of %s's %s %s allowed by Advance Move Action"), text, MeasurementSystem.NativeToDisplayString(usedTiles*dmhub.unitsPerSquare), creature.GetTokenDescription(token), MeasurementSystem.NativeToDisplayString(creature:GetEffectiveSpeed(creature:CurrentMoveType())), string.lower(MeasurementSystem.UnitName()))
 		end
 
 		if walkAndSwim then
@@ -215,7 +215,7 @@ function GameHud.TokenMoving(self, token, path)
 
 		local distMoved = creature:DistanceMovedThisTurn()
 		if distMoved > 0 then
-			text = string.format(tr("%s\nAlready moved %s %s this turn."), text, MeasurementSystem.NativeToDisplayString(distMoved*dmhub.FeetPerTile), string.lower(MeasurementSystem.UnitName()))
+			text = string.format(tr("%s\nAlready moved %s %s this turn."), text, MeasurementSystem.NativeToDisplayString(distMoved*dmhub.unitsPerSquare), string.lower(MeasurementSystem.UnitName()))
 		end
 
 		if creature:CanTeleport() then

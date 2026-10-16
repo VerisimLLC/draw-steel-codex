@@ -710,25 +710,41 @@ local function DamageTypeModeText(damageType)
 	return string.upper(string.sub(damageType, 1, 1)) .. string.sub(damageType, 2) .. " Damage"
 end
 
---Free strikes carry a single damage behavior, so the first one's type stands for the ability.
+--Matches a power roll tier's first damage clause. Same pattern as the cast-time retype in
+--MCDMAbilityRollBehavior.lua.
+local g_tierDamagePattern = "^(?<prefix>.*?)(?<damage>\\d+)\\s+((?<type>[a-zA-Z]+)\\s+)?damage(?<suffix>.*)$"
+
+--The ability's base damage type: a direct damage behavior's type (free strikes), else the
+--first damage clause in a power roll's tiers.
 --- @param ability ActivatedAbility
 --- @return string|nil
-local function FirstDirectDamageType(ability)
+local function FirstDamageType(ability)
 	for _,behavior in ipairs(ability.behaviors) do
 		if behavior.typeName == "ActivatedAbilityDamageBehavior" then
 			return string.lower(behavior.damageType)
+		elseif behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+			--"7 fire damage" is fire, "7 damage" is untyped.
+			for _,tier in ipairs(behavior:try_get("tiers", {})) do
+				local m = regex.MatchGroups(tier, g_tierDamagePattern)
+				if m ~= nil then
+					if m.type == nil or m.type == "" then
+						return "untyped"
+					end
+					return string.lower(m.type)
+				end
+			end
 		end
 	end
 	return nil
 end
 
 --"Add" offers the new type as a cast-time mode instead of retyping the damage. The mode
---only records `damageType`; ActivatedAbilityDamageBehavior:EffectiveDamageType applies it
---when cast, so power-roll tiers are not affected.
+--only records `damageType`; ActivatedAbilityDamageBehavior:EffectiveDamageType and the
+--power roll's cast apply it.
 --- @param ability ActivatedAbility
 --- @param value string
 local function AddDamageTypeMode(ability, value)
-	local baseType = FirstDirectDamageType(ability)
+	local baseType = FirstDamageType(ability)
 	if baseType == nil or baseType == value then
 		--nothing to choose between, so don't make the player pick.
 		return
@@ -754,6 +770,22 @@ local function AddDamageTypeMode(ability, value)
 	end
 
 	modeList[#modeList+1] = { text = DamageTypeModeText(value), rules = "", damageType = value }
+end
+
+--"Add" keeps a set of types in attr.damageTypes; attr.value is the single type entries
+--saved before that existed. Sorted so the mode order is stable.
+--- @param attr table
+--- @return string[]
+local function DamageTypesToAdd(attr)
+	local result = {}
+	for damageType,_ in pairs(attr.damageTypes or {}) do
+		result[#result+1] = damageType
+	end
+	if attr.value ~= nil and attr.value ~= "" and not table.contains(result, attr.value) then
+		result[#result+1] = attr.value
+	end
+	table.sort(result)
+	return result
 end
 
 CharacterModifier.RegisterAbilityModifier
@@ -790,7 +822,7 @@ CharacterModifier.RegisterAbilityModifier
 					local tiers = behavior:try_get("tiers")
 					if tiers ~= nil then
 						for i=1,#tiers do
-							local m = regex.MatchGroups(tiers[i], "^(?<prefix>.*?)(?<damage>\\d+)\\s+([a-zA-Z]+\\s+)?damage(?<suffix>.*)$")
+							local m = regex.MatchGroups(tiers[i], g_tierDamagePattern)
 							if m ~= nil then
 								tiers[i] = m.prefix .. m.damage .. " " .. value .. " damage" .. m.suffix
 							end
@@ -879,6 +911,10 @@ CharacterModifier.TypeInfo.modifyability = {
 			if info ~= nil then
 				if attr.id == "targettype" or attr.id == "modkeywords" or attr.id == "reasonfilter" or attr.id == "modproperties" or attr.id == "linedimensions" then
 					info.set(modifier, creature, ability, attr)
+				elseif attr.id == "damagetype" and attr.operation == "Add" then
+					for _,damageType in ipairs(DamageTypesToAdd(attr)) do
+						info.set(modifier, creature, ability, attr.operation, damageType, attr.condition)
+					end
 				else
 					info.set(modifier, creature, ability, attr.operation, attr.value, attr.condition)
 				end
@@ -1410,6 +1446,32 @@ CharacterModifier.TypeInfo.modifyability = {
 									options = ActivatedAbility.registeredProperties,
 									change = function(element, value)
 										attr.properties = value
+										Refresh()
+									end,
+								},
+							}
+						elseif attr.id == "damagetype" and attr.operation == "Add" then
+							local damageTypeOptions = {}
+							for _,damageType in ipairs(rules.damageTypesAvailable) do
+								damageTypeOptions[#damageTypeOptions+1] = { id = damageType, text = DamageTypeModeText(damageType) }
+							end
+							local chosen = {}
+							for _,damageType in ipairs(DamageTypesToAdd(attr)) do
+								chosen[damageType] = true
+							end
+
+							children[#children+1] = gui.Panel{
+								classes = {"formPanel"},
+								height = "auto",
+								gui.Multiselect{
+									styles = ThemeEngine.GetStyles(),
+									value = chosen,
+									addItemText = "Add Damage Type...",
+									options = damageTypeOptions,
+									change = function(element, value)
+										attr.damageTypes = value
+										--the set now holds any legacy single type too.
+										attr.value = nil
 										Refresh()
 									end,
 								},

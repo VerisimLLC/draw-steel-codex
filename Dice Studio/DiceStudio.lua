@@ -373,7 +373,7 @@ local g_materialFields = {
 
 		{
 			name = "_Matcap1NormalMapScale",
-			requires = "_Matcap1CustomNormal",
+			--requires = "_Matcap1CustomNormal", (was a duplicate key; the later "_Matcap2Enable" always won)
 			requires = "_Matcap2Enable",
 			type = "Range",
 			description = "Normal Scale",
@@ -2448,7 +2448,8 @@ local CreateMaterialPropertiesPanel = function(opts)
 		if numFaces ~= nil then
 			return dicestudio:GetMaterialPropertiesForType(numFaces)
 		end
-		return dicestudio:GetMaterialProperties(matid)
+		--Callers only pass "builtin" or "material", which the engine always resolves.
+		return dicestudio:GetMaterialProperties(matid) --[[@as DiceMaterialStudioProperties]]
 	end
 
 	-- The DiceMaterialLua backing this panel (used for shader-property discovery
@@ -2974,7 +2975,8 @@ CreateDiceStudioPanel = function()
 			end
 		end,
 		change = function(element)
-			local chosen = element.idChosen
+			--Every option id is a dice-set file name (GetLocalFiles).
+			local chosen = element.idChosen --[[@as string]]
 
 			local DoLoad = function()
 				studio:Load(chosen)
@@ -4210,7 +4212,8 @@ CreateDiceStudioPanel = function()
 			end,
 			change = function(element)
 				---@cast element Dropdown
-				local id = element.idChosen
+				--Every option id is a sound name or "none" (BuildSoundOptions).
+				local id = element.idChosen --[[@as string]]
 				studio:SetEventSound(eventName, id == "none" and "" or id)
 				volumeRow:SetClass("collapsed", id == "none")
 				RefreshDice()
@@ -4331,7 +4334,7 @@ CreateDiceStudioPanel = function()
 			end,
 			change = function(element)
 				---@cast element Dropdown
-				studio:SetImpactFamily(element.idChosen)
+				studio:SetImpactFamily(element.idChosen --[[@as string]])
 				RefreshDice()
 			end,
 		}
@@ -6826,7 +6829,7 @@ end
 				end,
 				change = function(element)
 					---@cast element Dropdown
-					studio.font = element.optionChosen
+					studio.font = element.optionChosen --[[@as string]]
 				end,
 			},
 		},
@@ -6849,7 +6852,7 @@ end
 				end,
 				change = function(element)
 					---@cast element Dropdown
-					studio.border = element.optionChosen
+					studio.border = element.optionChosen --[[@as string]]
 				end,
 			},
 		},
@@ -6881,7 +6884,7 @@ end
 					end,
 					change = function(element)
 						---@cast element Dropdown
-						studio.specialMovement = element.idChosen
+						studio.specialMovement = element.idChosen --[[@as "none"|"portal"|"teleport"]]
 						RefreshDice()
 						element.root:FireEventTree("refreshDice")
 					end,
@@ -7259,7 +7262,7 @@ end
                             if element.idChosen == "none" then
                                 studio.numbersMaterialName = nil
                             else
-                                studio.numbersMaterialName = element.idChosen
+                                studio.numbersMaterialName = element.idChosen --[[@as string]]
                             end
                             RefreshDice()
                         end,

@@ -879,6 +879,12 @@ every feature you author -- untagged means "normal visible feature row".
   qualifying class and the list is deliberately held at exactly 3 (Tactician Mark,
   Censor Judgment, Talent Clarity). Propose it if a new class's base mechanic seems to
   qualify; do not set it yourself.
+- **`Kit Equivalent`** -- HERO class content only: marks what a class that cannot use
+  kits has in their place (Conduit Prayers and Ward, Elementalist Enchantment and Ward,
+  Talent / Null Psionic Augmentation and Ward, the Summoner's Kit and Wards). Tag the
+  choice itself (the CharacterFeatureChoice) or a plain feature; the EotW hero sheet's
+  Kit card shows the pick. Not a filter chip. A new kit-less class needs it, or the
+  sheet says "No kit".
 
 Note: feature `tags:` are unrelated to the ability `categorization:` field
 (`Hidden`/`Trait`/etc. on ActivatedAbility) -- set both where applicable.

@@ -57,6 +57,7 @@ function ActivatedAbilityPlaySoundBehavior:Cast(ability, casterToken, targets, o
     audio.DispatchSoundEvent(self.soundEvent, {
         volume = self.volume,
         delay = self.delay,
+        tokenid = casterToken ~= nil and casterToken.charid or nil,
     })
 end
 
@@ -116,7 +117,7 @@ function ActivatedAbilityPlaySoundBehavior:EditorItems(parentPanel)
             options = soundOptions,
             change = function(element)
                 ---@cast element Dropdown
-                self.soundEvent = element.idChosen
+                self.soundEvent = element.idChosen --[[@as string]] -- option ids are audio.soundEvents names
             end,
         }
     }

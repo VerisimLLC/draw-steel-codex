@@ -61,8 +61,7 @@ function ActivatedAbilityTrackStatBehavior:Cast(ability, casterToken, targets, o
 			-- leak `target` back into the shared casting symbols.
 			local symbols = DeepCopy(options.symbols or {})
 			symbols.target = token.properties
-			local amount = dmhub.EvalGoblinScript(self:try_get("quantity", "1"), casterToken.properties:LookupSymbol(symbols), string.format("Stat quantity for %s", ability.name))
-			amount = tonumber(amount) or 0
+			local amount = tonumber(dmhub.EvalGoblinScript(self:try_get("quantity", "1"), casterToken.properties:LookupSymbol(symbols), string.format("Stat quantity for %s", ability.name))) or 0
 			if amount ~= 0 then
 				LiveEncounter.TrackHeroStats(token.charid, statid, amount)
 			end

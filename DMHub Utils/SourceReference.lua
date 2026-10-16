@@ -175,17 +175,17 @@ function SourceReference:Editor(options)
             },
             gui.Input {
                 classes = "formInput",
-                text = self.page,
+                text = tostring(self.page),
                 characterLimit = 4,
                 refreshSource = function(element)
-                    element.text = self.page
+                    element.text = tostring(self.page)
                 end,
                 change = function(element)
                     local num = tonumber(element.text)
                     if num ~= nil then
                         self.page = num
                     else
-                        element.text = self.page
+                        element.text = tostring(self.page)
                     end
                     resultPanel:FireEvent("change")
                 end,

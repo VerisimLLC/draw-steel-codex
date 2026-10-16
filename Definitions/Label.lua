@@ -21,7 +21,7 @@ Label = {}
 function Label:BeginEditing() end
 
 --- RefreshText
---- @deprecated
+--- (Undocumented: engine-internal, not part of the modding API.)
 function Label:RefreshText() end
 
 --- CalculatePreferredSize

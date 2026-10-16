@@ -1,5 +1,5 @@
 --- Load all the visible skills from the skill table
---- @param token LuaCharacterToken The token for which we're adding skills
+--- @param token CharacterToken The token for which we're adding skills
 --- @return table skillList All the skills
 local function loadSkills(token)
     local skillsList = {}
@@ -529,7 +529,8 @@ end
 --- @param skills table The skills data from loadSkills()
 --- @return table panel The GUI panel
 local function makeSkillPanel(item, skills)
-    local skillItems = makeSkillDisplay(item, skills)
+    --nil when the item has no skills (e.g. a skill modifier with an empty skills set).
+    local skillItems = makeSkillDisplay(item, skills) or {}
     local children = {
         gui.Label {
             classes = {"sizeXs", "skilldlg-choicedescr"},

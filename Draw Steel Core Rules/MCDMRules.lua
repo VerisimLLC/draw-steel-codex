@@ -331,6 +331,52 @@ GameSystem.RegisterApplyToTargets{
 	end,
 }
 
+--The trigger subject, like "Trigger Subject". But if the subject is a minion
+--whose token is already gone (its death confirmed and the token removed), it
+--resolves to a living member of the same squad instead. Minions share one
+--Stamina pool, so damage to any member lands in it -- e.g. Mark's extra
+--damage after the marked minion died still hurts the squad.
+GameSystem.RegisterApplyToTargets{
+	id = "subject_or_squad",
+	text = "Trigger Subject (or its Squad)",
+	resolve = function(ability, casterToken, targets, options)
+		local result = {}
+		local subject = options.symbols ~= nil and options.symbols.subject or nil
+		if type(subject) == "function" then
+			subject = subject("self")
+		end
+		if subject == nil then
+			return result
+		end
+
+		local subjectToken = dmhub.LookupToken(subject)
+		if subjectToken ~= nil and subjectToken.valid then
+			result[#result+1] = { token = subjectToken }
+			return result
+		end
+
+		local squad = nil
+		pcall(function()
+			if subject.minion then
+				squad = subject:MinionSquad()
+			end
+		end)
+		if squad == nil then
+			return result
+		end
+
+		for _,tok in ipairs(dmhub.GetTokens{ haveProperties = true }) do
+			if tok.valid and tok.properties.minion and tok.properties:MinionSquad() == squad
+				and (not tok.properties.minionDead) and (not tok.properties:IsDead()) then
+				result[#result+1] = { token = tok }
+				return result
+			end
+		end
+
+		return result
+	end,
+}
+
 --when casting a spell, this is our set of 'target lists' who have different outcomes to what has happened in the spell so far.
 --it might include lists of creatures who have been hit, made a save, failed a save, been critically hit, etc.
 GameSystem.RegisterApplyToTargets{
@@ -628,6 +674,98 @@ GameSystem.RegisterGoblinScriptField{
 			end
 
             return false
+        end
+    end,
+}
+
+--Shortest 3D distance in squares between two tokens: the horizontal distance, or the
+--vertical gap between their altitude ranges (touching vertically counts as adjacent).
+local function TokenDistance3D(a, b)
+    local horizontal = a:Distance(b)
+    local aTop = (a.floorAltitude or 0) + (a.tileSize or 1)
+    local bTop = (b.floorAltitude or 0) + (b.tileSize or 1)
+    local vertical = 0
+    if aTop <= (b.floorAltitude or 0) then
+        vertical = (b.floorAltitude or 0) - aTop + 1
+    elseif bTop <= (a.floorAltitude or 0) then
+        vertical = (a.floorAltitude or 0) - bTop + 1
+    end
+    return math.max(horizontal, vertical)
+end
+
+GameSystem.RegisterGoblinScriptField{
+    name = "Has Line Of Effect To",
+
+	type = "function",
+	desc = "Given another creature, true if this creature has line of effect to it: not cut off by total cover, by a creature that blocks its enemies' line of effect, or by an effect such as Dazzled. Unlike Line of Sight this ignores partial cover.",
+	examples = {"Self.HasLineOfEffectTo(Caster)"},
+
+    calculate = function(creatureSelf)
+        return function(other)
+            local tokenA = dmhub.LookupToken(creatureSelf)
+            local tokenB = dmhub.LookupToken(other)
+            if tokenA == nil or tokenB == nil or (not tokenA.valid) or (not tokenB.valid) then
+                return true
+            end
+            --the same test targeting uses for retargets and opportunity attacks.
+            return RuleUtils.HasLineOfEffect(tokenA, tokenB)
+        end
+    end,
+}
+
+GameSystem.RegisterGoblinScriptField{
+    name = "Count Friends Of Within",
+
+	type = "function",
+	desc = "Given a distance in squares and a creature, counts the living creatures within that distance of this creature (including vertically) who are allies of the given creature, not counting the given creature or this creature. Unlike Count Nearby Enemies, allegiance is judged from the given creature's side.",
+	examples = {"Target.CountFriendsOfWithin(1, Caster) > 0"},
+
+    calculate = function(targetCreature)
+        return function(distance, us)
+            local targetToken = dmhub.LookupToken(targetCreature)
+            local ourToken = dmhub.LookupToken(us)
+            if targetToken == nil or ourToken == nil then
+                return 0
+            end
+
+            local count = 0
+            for _,tok in ipairs(dmhub.allTokens) do
+                if tok.charid ~= ourToken.charid and tok.charid ~= targetToken.charid and tok.floorid == targetToken.floorid
+                   and tok:IsFriend(ourToken) and (not tok.properties:IsDead())
+                   and TokenDistance3D(targetToken, tok) <= (tonumber(distance) or 1) then
+                    count = count + 1
+                end
+            end
+            return count
+        end
+    end,
+}
+
+GameSystem.RegisterGoblinScriptField{
+    name = "Flanking Partner Count",
+
+	type = "function",
+	desc = "Given a creature, counts the allies of that creature who are flanking this creature together with it. Zero if this creature is not flanked by the given creature.",
+	examples = {"Target.FlankingPartnerCount(Caster) > 1"},
+
+    calculate = function(targetCreature)
+        return function(us)
+            local targetToken = dmhub.LookupToken(targetCreature)
+            local ourToken = dmhub.LookupToken(us)
+            if targetToken == nil or ourToken == nil then
+                return 0
+            end
+
+            local count = 0
+            for _,tok in ipairs(dmhub.allTokens) do
+                if tok.charid ~= ourToken.charid and tok.charid ~= targetToken.charid and tok.floorid == targetToken.floorid
+                   and tok:IsFriend(ourToken) and (not tok.properties:IsDead())
+                   and targetCreature:FlankedBy(ourToken) and targetCreature:FlankedBy(tok)
+                   and #targetCreature:GetFlankingTokens({ ourToken, tok }) >= 2 then
+                    count = count + 1
+                end
+            end
+            return count
         end
     end,
 }
@@ -936,6 +1074,9 @@ GameSystem.RegisterFeatureTag{ name = "Hidden", defaultExcluded = true }
 GameSystem.RegisterFeatureTag{ name = "Ability", filterable = false }
 GameSystem.RegisterFeatureTag{ name = "Trigger", filterable = false }
 GameSystem.RegisterFeatureTag{ name = "Core Feature" }
+--Marks a kit-less class's kit stand-in choices (Prayer, Ward, Enchantment,
+--Augmentation, Summoner's Kit): the EotW hero sheet shows the pick in its Kit card.
+GameSystem.RegisterFeatureTag{ name = "Kit Equivalent", filterable = false }
 GameSystem.RegisterFeatureMode("Combat")
 GameSystem.RegisterFeatureMode("Exploration")
 GameSystem.RegisterFeatureMode("Montage")
@@ -1134,7 +1275,12 @@ local g_abilitySymbols = {
         name = "Cast",
         type = "spellcast",
         desc = "Casting information for the ability",
-    }
+    },
+    {
+        name = "Part Of Another Ability",
+        type = "boolean",
+        desc = "True when the ability was used as part of another ability of the same creature, such as the free strike a Riposte or a Charge makes. Use 'not Part Of Another Ability' for effects that happen once per action, like Bleeding.",
+    },
 }
 
 TriggeredAbility.RegisterTrigger{
@@ -1538,7 +1684,17 @@ TriggeredAbility.RegisterTrigger{
         damage = {
             name = "Damage",
             type = "number",
-            desc = "The amount of damage taken when triggering this event.",
+            desc = "The Stamina actually lost to this damage, after any temporary Stamina absorbed part of it. Use this to check Stamina thresholds, e.g. Stamina + Damage is the Stamina before the hit.",
+        },
+        fulldamage = {
+            name = "Full Damage",
+            type = "number",
+            desc = "The amount of damage taken, after immunities and weaknesses, including any part absorbed by temporary Stamina. Use this for effects based on 'the triggering damage'.",
+        },
+        damagethisturn = {
+            name = "Damage This Turn",
+            type = "number",
+            desc = "The total damage taken so far this combat turn (anyone's turn), including this damage and any absorbed by temporary Stamina. Outside combat, the same as Full Damage.",
         },
         rawdamage = {
             name = "Raw Damage",
@@ -1637,7 +1793,17 @@ TriggeredAbility.RegisterTrigger{
         {
             name = "Damage",
             type = "number",
-            desc = "The amount of damage dealt.",
+            desc = "The Stamina the target actually lost, after any temporary Stamina absorbed part of the damage. Use this to check Stamina thresholds, e.g. Target.Stamina + Damage is the Stamina before the hit.",
+        },
+        {
+            name = "Full Damage",
+            type = "number",
+            desc = "The amount of damage dealt, after immunities and weaknesses, including any part absorbed by the target's temporary Stamina.",
+        },
+        {
+            name = "Raw Damage",
+            type = "number",
+            desc = "The amount of damage dealt before the target's immunities and weaknesses were applied.",
         },
         {
             name = "Damage Type",

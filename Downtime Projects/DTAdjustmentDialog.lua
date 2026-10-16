@@ -152,7 +152,8 @@ function DTAdjustmentDialog._createPanel(adjustment, onConfirm, onCancel)
         end,
     }
 
-    return dlg:Root()
+    -- DialogShell.new always builds root; Root() is Panel|nil only because it reads via try_get.
+    return dlg:Root() --[[@as Panel]]
 end
 
 --- Creates a progress adjustment edit dialog for AddChild usage

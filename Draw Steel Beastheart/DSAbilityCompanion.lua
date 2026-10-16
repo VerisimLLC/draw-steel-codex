@@ -156,6 +156,8 @@ function ActivatedAbilitySummonCompanionBehavior:Cast(ability, casterToken, targ
     local token = game.SpawnTokenFromBestiaryLocally(chosenOption.id, loc, {
         fitLocation = true,
     })
+    --nil only for an unknown bestiary id; chosenOption came from assets.monsters.
+    ---@cast token -nil
 
     token.ownerId = casterToken.ownerId
     token.summonerid = casterToken.charid

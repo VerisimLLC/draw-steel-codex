@@ -450,7 +450,7 @@ function CharacterDeityChoice:CreateEditor(classOrRace, params)
             },
             gui.Input{
                 width = 180,
-                text = tonumber(self:try_get("numDomains", 1)),
+                text = tostring(self:try_get("numDomains", 1)),
                 characterLimit = 2,
 
                 change = function(element)
@@ -698,7 +698,7 @@ function CharacterDomainChoice:CreateEditor(classOrRace, params)
             },
             gui.Input{
                 width = 180,
-                text = tonumber(self:try_get("numChoices", 1)),
+                text = tostring(self:try_get("numChoices", 1)),
                 characterLimit = 2,
 
                 change = function(element)

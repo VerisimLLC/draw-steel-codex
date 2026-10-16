@@ -4,6 +4,7 @@ local mod = dmhub.GetModLoading()
 --- @field new fun(o?: table): ActivatedAbilityAugmentedAbilityBehavior
 --- @field hasCast boolean Internal flag set to true once this behavior has synthesized its augmented cast.
 --- @field modifier CharacterModifier The modifier that defines how abilities are augmented.
+--- @field filterAbilityTargets? string GoblinScript target filter for the augmented abilities ("" for none); read with try_get.
 --- Synthesizes modified copies of the caster's abilities with the augment applied, then presents them for casting.
 ActivatedAbilityAugmentedAbilityBehavior = RegisterGameType("ActivatedAbilityAugmentedAbilityBehavior", "ActivatedAbilityBehavior")
 
@@ -116,6 +117,12 @@ function ActivatedAbilityAugmentedAbilityBehavior:SynthesizeAbilities(ability, c
             --cast so the slider opens on "Creatures" instead; see
             --ActivatedAbility:TargetModeOptions. Report 2P99A7MU.
             synth._tmp_aimedByOpposingCreature = AimedByOpposingCreature(ability, creature)
+
+            --If the invoke overrode targeting, apply it to the ability built here,
+            --since that is the one actually cast (e.g. Subvert's signature ability).
+            if ability:try_get("_tmp_targetingOverride") ~= nil then
+                synth:OverrideTargeting(ability._tmp_targetingOverride)
+            end
 
             if not self.modifier:try_get("mustPayResourceCost", false) then
                 --mustPayResourceCost off: the routed ability does not pay its own cost; it

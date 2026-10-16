@@ -4,6 +4,21 @@ local mod = dmhub.GetModLoading()
 local MM = MapMarkupImpl
 local K, m, gs = MM.K, MM.m, MM.gs
 
+--The live "New Patch" row (rebuilt with the tab), so MM.SetZoneNewPatch can
+--repaint it when Escape or a finished stroke clears the flag.
+local g_newPatchRow = nil
+
+--Arms or clears the Zones tab's "New Patch" modifier. While armed, the next
+--paint stroke creates a separate zone record even where it touches existing
+--zones of the same type (see zonepaint). Cleared by that stroke, by pressing
+--the button again, and by Escape (MapMarkupPanel panelEscape / Hooks).
+function MM.SetZoneNewPatch(on)
+    m.zoneNewPatch = on == true
+    if g_newPatchRow ~= nil and g_newPatchRow.valid then
+        g_newPatchRow:FireEvent("refreshzones")
+    end
+end
+
 --========================================================================
 --Zones mode UI: zone-type palette (Environmental Keywords), paint tools,
 --and the list of zones on the current floor.
@@ -373,6 +388,8 @@ function MM.BuildZonesMode()
         local visualsOn = true
         if hasVisuals then
             pcall(function()
+                --hasVisuals is false for a nil keyword.
+                ---@cast kw -nil
                 visualsOn = kw:try_get("appearanceDefaultOff", false) ~= true
             end)
         end
@@ -799,9 +816,18 @@ function MM.BuildZonesMode()
     --Callers that also want the paint tool armed call TakeMarkupFocus()
     --afterwards; the "New Zone Type..." path deliberately does not, because it
     --opens a modal editor for the new keyword immediately.
+    --The new entry goes BEFORE the built-in Hole entry RebuildZonePalette keeps
+    --last: Hole is never stored, so after the rebuild re-parses the palette the
+    --new type sits where Hole was, and selecting the end of the list would
+    --leave Hole selected instead of the new type.
     local AppendZoneTypeAndSelect = function(entry)
-        m.zonePaletteEntries[#m.zonePaletteEntries+1] = entry
-        m.zoneSelectedType = #m.zonePaletteEntries
+        local index = #m.zonePaletteEntries + 1
+        local last = m.zonePaletteEntries[#m.zonePaletteEntries]
+        if last ~= nil and last.kind == "hole" then
+            index = #m.zonePaletteEntries
+        end
+        table.insert(m.zonePaletteEntries, index, entry)
+        m.zoneSelectedType = index
         --a fresh type selection paints into that type's existing zone (or a
         --new one), not whatever zone was last targeted.
         m.zoneTargetId = nil
@@ -1025,7 +1051,7 @@ function MM.BuildZonesMode()
                     },
                     change = function(element)
                         ---@cast element Dropdown
-                        heightMode = element.idChosen
+                        heightMode = element.idChosen --[[@as string]]
                         heightAmountPanel:SetClass("collapsed", heightMode ~= "amount")
                     end,
                 },
@@ -1746,17 +1772,48 @@ function MM.BuildZonesMode()
                     end
                 end
 
+                --"New Patch" armed: this stroke is its own zone even where it
+                --touches same-type zones. It gets only the tiles no same-type
+                --zone already holds (same-type records never overlap), then
+                --drops into the touching-nothing branch below as a new zone.
+                local newPatch = m.zoneNewPatch == true
+                if newPatch then
+                    local occupied = {}
+                    for _,entry in ipairs(MM.ZonesOnFloor(floor.floorid)) do
+                        if entry.keywordid == keywordid then
+                            for _,l in ipairs(entry.locs) do
+                                occupied[MM.ZoneLocKey(l.x, l.y)] = true
+                            end
+                        end
+                    end
+                    local fresh = {}
+                    for _,l in ipairs(locs) do
+                        if occupied[MM.ZoneLocKey(l.x, l.y)] == nil then
+                            fresh[#fresh+1] = l
+                        end
+                    end
+                    if #fresh == 0 then
+                        --nothing painted, so the one-shot stays armed for a
+                        --stroke that actually reaches open ground.
+                        dmhub.Debug("MARKUP:: New Patch stroke lies entirely inside zones of this type; nothing painted")
+                        return
+                    end
+                    locs = fresh
+                end
+
                 local touched = {}
-                for _,entry in ipairs(MM.ZonesOnFloor(floor.floorid)) do
-                    if entry.keywordid == keywordid then
-                        for _,l in ipairs(entry.locs) do
-                            if strokeSet[MM.ZoneLocKey(l.x, l.y)]
-                                or strokeSet[MM.ZoneLocKey(l.x + 1, l.y)]
-                                or strokeSet[MM.ZoneLocKey(l.x - 1, l.y)]
-                                or strokeSet[MM.ZoneLocKey(l.x, l.y + 1)]
-                                or strokeSet[MM.ZoneLocKey(l.x, l.y - 1)] then
-                                touched[#touched+1] = entry
-                                break
+                if not newPatch then
+                    for _,entry in ipairs(MM.ZonesOnFloor(floor.floorid)) do
+                        if entry.keywordid == keywordid then
+                            for _,l in ipairs(entry.locs) do
+                                if strokeSet[MM.ZoneLocKey(l.x, l.y)]
+                                    or strokeSet[MM.ZoneLocKey(l.x + 1, l.y)]
+                                    or strokeSet[MM.ZoneLocKey(l.x - 1, l.y)]
+                                    or strokeSet[MM.ZoneLocKey(l.x, l.y + 1)]
+                                    or strokeSet[MM.ZoneLocKey(l.x, l.y - 1)] then
+                                    touched[#touched+1] = entry
+                                    break
+                                end
                             end
                         end
                     end
@@ -1793,16 +1850,56 @@ function MM.BuildZonesMode()
                         end
                     end
 
+                    --Seams. Records normally stay one island each, so two
+                    --same-type records sharing an edge only exist because the
+                    --Director split them on purpose ("New Patch"). A touched
+                    --zone therefore merges into the primary only if it shares
+                    --no edge (before this stroke) with any other touched
+                    --zone; seamed patches keep their identity AND their tiles,
+                    --which come out of the stroke. Bridging separate islands
+                    --still unifies them.
+                    local owner = {}
+                    for i,entry in ipairs(touched) do
+                        for _,l in ipairs(entry.locs) do
+                            owner[MM.ZoneLocKey(l.x, l.y)] = i
+                        end
+                    end
+                    local SharesEdgeWithOther = function(i)
+                        for _,l in ipairs(touched[i].locs) do
+                            local n1 = owner[MM.ZoneLocKey(l.x + 1, l.y)]
+                            local n2 = owner[MM.ZoneLocKey(l.x - 1, l.y)]
+                            local n3 = owner[MM.ZoneLocKey(l.x, l.y + 1)]
+                            local n4 = owner[MM.ZoneLocKey(l.x, l.y - 1)]
+                            if (n1 ~= nil and n1 ~= i) or (n2 ~= nil and n2 ~= i)
+                                or (n3 ~= nil and n3 ~= i) or (n4 ~= nil and n4 ~= i) then
+                                return true
+                            end
+                        end
+                        return false
+                    end
+
+                    local merged = {}
+                    local blocked = {}
+                    for i,entry in ipairs(touched) do
+                        if entry.zoneid == primary.zoneid or not SharesEdgeWithOther(i) then
+                            merged[#merged+1] = entry
+                        else
+                            for _,l in ipairs(entry.locs) do
+                                blocked[MM.ZoneLocKey(l.x, l.y)] = true
+                            end
+                        end
+                    end
+
                     local seen = {}
                     local newLocs = {}
                     local AddLoc = function(x, y)
                         local key = MM.ZoneLocKey(x, y)
-                        if not seen[key] then
+                        if not seen[key] and not blocked[key] then
                             seen[key] = true
                             newLocs[#newLocs+1] = { x = x, y = y }
                         end
                     end
-                    for _,entry in ipairs(touched) do
+                    for _,entry in ipairs(merged) do
                         for _,l in ipairs(entry.locs) do
                             AddLoc(l.x, l.y)
                         end
@@ -1811,20 +1908,36 @@ function MM.BuildZonesMode()
                         AddLoc(l.x, l.y)
                     end
 
+                    --the whole stroke fell on seamed patches: nothing to write
+                    --(skips an empty undo step).
+                    if #merged == 1 and #newLocs == #primary.locs and #dispelEdits == 0 then
+                        m.zoneTargetId = primary.zoneid
+                        RefreshZoneUI()
+                        return
+                    end
+
                     dmhub.BeginTransaction()
                     for _,edit in ipairs(dispelEdits) do
                         --deletes emptied zones, splits bisected ones.
                         MM.WriteZoneLocsSplitting(floor, edit.entry, edit.kept)
                     end
-                    for _,entry in ipairs(touched) do
+                    for _,entry in ipairs(merged) do
                         if entry.zoneid ~= primary.zoneid then
                             floor:RemoveMarkupZone(entry.zoneid)
                         end
                     end
+                    --may be non-contiguous once seamed tiles are subtracted;
+                    --the writer splits it into one record per island.
                     MM.WriteZoneLocsSplitting(floor, primary, newLocs)
                     dmhub.EndTransaction()
 
                     m.zoneTargetId = primary.zoneid
+                end
+
+                if newPatch then
+                    --one-shot: later strokes grow the new patch (it is now
+                    --m.zoneTargetId) under the normal rules.
+                    MM.SetZoneNewPatch(false)
                 end
 
                 RefreshZoneUI()
@@ -1962,6 +2075,77 @@ function MM.BuildZonesMode()
         children = BuildZoneToolButtons(),
     }
 
+    --"New Patch": a one-shot toggle under the tool strip. Armed, the next
+    --paint stroke starts a separate zone record even where it touches a zone
+    --of the same type (adjacent trap patches that trigger separately). Same
+    --lit-pill look as the palette chips' Entire Map toggle. Hidden while the
+    --built-in Hole type is selected: holes have no patches.
+    local newPatchPill
+    local newPatchHint
+    newPatchPill = gui.Panel{
+        classes = {"markupEntireMap", cond(m.zoneNewPatch, "lit")},
+        width = 84,
+        height = 20,
+        valign = "center",
+        bgimage = "panels/square.png",
+        hover = MM.SideTooltip("The next zone you paint starts a separate patch, even where it touches an existing zone of this type. Useful for traps where adjacent patches trigger separately. Press again or Escape to cancel."),
+
+        click = function(element)
+            MM.SetZoneNewPatch(not m.zoneNewPatch)
+            if m.zoneNewPatch then
+                --the patch is made by a paint stroke, so leave the eraser.
+                local toolInfo = MM.ZoneToolById(m.zoneToolId)
+                if toolInfo == nil or toolInfo.erase then
+                    m.zoneToolId = "zonerect"
+                    zoneToolsPanel:FireEvent("refreshzonetools")
+                end
+                --arm the map tool so the very next click paints.
+                MM.TakeMarkupFocus()
+            end
+        end,
+
+        gui.Label{
+            classes = {"markupEntireMapLabel", "sizeXs"},
+            text = "New Patch",
+            fontSize = 11,
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            valign = "center",
+        },
+    }
+
+    newPatchHint = gui.Label{
+        classes = {"fgMuted", "sizeXs", cond(not m.zoneNewPatch, "collapsed")},
+        text = "Next stroke starts a separate zone.",
+        width = "100%-92",
+        height = "auto",
+        valign = "center",
+        lmargin = 8,
+    }
+
+    local selectedEntry = m.zonePaletteEntries[m.zoneSelectedType]
+    g_newPatchRow = gui.Panel{
+        classes = {cond(selectedEntry ~= nil and selectedEntry.kind == "hole", "collapsed")},
+        width = "96%",
+        height = 24,
+        halign = "center",
+        flow = "horizontal",
+        vmargin = 2,
+
+        --RefreshZoneUI (type chip presses, strokes) and MM.SetZoneNewPatch
+        --both land here.
+        refreshzones = function(element)
+            local entry = m.zonePaletteEntries[m.zoneSelectedType]
+            element:SetClass("collapsed", entry ~= nil and entry.kind == "hole")
+            newPatchPill:SetClass("lit", m.zoneNewPatch)
+            newPatchHint:SetClass("collapsed", not m.zoneNewPatch)
+        end,
+
+        newPatchPill,
+        newPatchHint,
+    }
+
     zoneListPanel = gui.Panel{
         width = "96%",
         height = "auto",
@@ -2063,6 +2247,8 @@ function MM.BuildZonesMode()
         MM.SectionHeader("Tool"),
 
         zoneToolsPanel,
+
+        g_newPatchRow,
 
         MM.SectionHeader("Zone Types"),
 

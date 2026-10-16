@@ -447,7 +447,8 @@ CreateThemeSettingsDialog = function()
                             showCreator(nil)
                             return
                         end
-                        selectedSchemeId = element.idChosen
+                        --every choosable option id here is a scheme id string.
+                        selectedSchemeId = element.idChosen --[[@as string]]
                         refreshPreview()
                         refreshCustomButtons()
                         audio.FireSoundEvent("Notify.PalleteChange_Preview")
@@ -478,7 +479,7 @@ CreateThemeSettingsDialog = function()
                             audio.FireSoundEvent("Notify.PalleteChange_Apply")
 
                             local hud = GameHud.instance
-                            if hud ~= nil then
+                            if hud then
                                 if rawget(hud, "leftDock") then
                                     hud.leftDock:UpdateStyle()
                                 end

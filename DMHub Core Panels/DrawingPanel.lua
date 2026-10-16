@@ -322,6 +322,8 @@ CreateWhiteboardPanel = function()
             if not gui.ChildHasFocus(element) then
                 --press the first tool button rather than just focusing the
                 --panel: that selects the free draw tool and takes focus in one go.
+                --"whiteboardtool" is registered at the top of this file with an editor, so toolPanel is a panel.
+                ---@cast toolPanel -nil
                 toolPanel:FireEventTree("pressfirst")
             end
 

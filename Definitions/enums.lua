@@ -302,6 +302,18 @@
 --- | "Black"
 --- | "black"
 
+--- The line mode of a gui.Input, parsed case-insensitively.
+--- @alias InputLineType
+--- | "SingleLine"
+--- | "singleline"
+--- | "singleLine"
+--- | "MultiLineSubmit"
+--- | "multilinesubmit"
+--- | "multiLineSubmit"
+--- | "MultiLineNewline"
+--- | "multilinenewline"
+--- | "multiLineNewline"
+
 --- @alias SpellShapes
 --- | "Line"
 --- | "line"

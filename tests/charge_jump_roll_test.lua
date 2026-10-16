@@ -135,6 +135,7 @@ local function execute()
 end
 reset()
 local options = charge:GetChargeJumpOptions(tok)
+assert(options ~= nil, "charge jump options")
 check(options.chargeJumpDistance == 4 and options.chargeJumpTierDistances[3] == 5, "tier limits")
 check(behavior:GetTierDistances(jump, tok)[2] == 0, "charge independent of exhausted move action")
 props._tmp_prone = true
@@ -196,11 +197,13 @@ check(not ActivatedAbilityRelocateCreatureBehavior:HasChargeAttackTarget(tok), "
 attack.GetCost = savedCost
 local purges = 0
 charge.targetType = "emptyspace"
-charge.behaviors = {{
+--A test double standing in for a purge behavior: only the members the cast path calls.
+local purgeDouble = {
     typeName = "ActivatedAbilityPurgeEffectsBehavior",
     ApplyToTargets = function(_, _, _, targets) return targets end,
     Cast = function() purges = purges + 1 end,
-}}
+}
+charge.behaviors = {purgeDouble --[[@as ActivatedAbilityBehavior]]}
 local relocation = ActivatedAbilityRelocateCreatureBehavior.new{movementType = "move"}
 local function cast()
     local result = {symbols = {cast = {spacesMoved = 0, opportunityAttacksTriggered = 0}}}

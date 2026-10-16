@@ -214,12 +214,13 @@ end
 -- Re-evaluate every Malice detail as one total so a base cost plus a channeled
 -- increment cannot cross the floor by passing independently.
 local g_baseGetAbilityCost = ActivatedAbility.GetCost
+--- @return table
 function ActivatedAbility:GetCost(casterToken, options)
     local result = g_baseGetAbilityCost(self, casterToken, options)
     if mod.unloaded or not MonsterVersusMonster.IsActive()
         or casterToken == nil or casterToken.properties == nil
         or casterToken.properties:GetHeroicOrMaliceId() ~= CharacterResource.maliceResourceId
-        or result == nil or result.details == nil then
+        or result.details == nil then
         return result
     end
 

@@ -84,7 +84,8 @@ local SetRace = function(tableName, racePanel, raceid)
 				idChosen = race:try_get("parentRace", "none"),
 				change = function(element)
 					---@cast element Dropdown
-					local val = element.idChosen
+					--option ids are race ids or "none".
+					local val = element.idChosen --[[@as string?]]
 					if val == "none" then
 						val = nil
 					end
@@ -183,7 +184,7 @@ local SetRace = function(tableName, racePanel, raceid)
 				options = nameGeneratorOptions,
 				change = function(element)
 					---@cast element Dropdown
-					race.nameGenerator = element.idChosen
+					race.nameGenerator = element.idChosen --[[@as string]]
 					UploadRace()
 				end,
 			},
@@ -203,7 +204,7 @@ local SetRace = function(tableName, racePanel, raceid)
 				options = sizeOptions,
 				change = function(element)
 					---@cast element Dropdown
-					race.size = element.idChosen
+					race.size = element.idChosen --[[@as string]]
 					UploadRace()
 				end,
 			},
@@ -294,7 +295,8 @@ local SetRace = function(tableName, racePanel, raceid)
 				options = FootprintStyle.GetOptions(),
 				change = function(element)
 					---@cast element Dropdown
-					local chosen = element.idChosen
+					--option ids are footprint style id strings.
+					local chosen = element.idChosen --[[@as string?]]
 					if chosen == FootprintStyle.defaultId then
 						chosen = nil
 					end
@@ -316,7 +318,8 @@ local SetRace = function(tableName, racePanel, raceid)
 				options = BloodSpatter.GetColorOptions(),
 				change = function(element)
 					---@cast element Dropdown
-					local chosen = element.idChosen
+					--option ids are blood color id strings.
+					local chosen = element.idChosen --[[@as string?]]
 					if chosen == BloodSpatter.defaultColor then
 						chosen = nil
 					end

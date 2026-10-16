@@ -214,5 +214,6 @@ function RSPShell.Create(args)
         end
     end
 
-    return dlg:Root()
+    --DialogShell.CreateNew always sets root, and nothing clears it.
+    return dlg:Root() --[[@as Panel]]
 end

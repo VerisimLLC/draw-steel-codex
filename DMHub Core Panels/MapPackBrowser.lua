@@ -21,6 +21,11 @@ local PAN_SPEED = 20
 local PAN_MIN_PERIOD = 6
 local PAN_RETURN_RATE = 2
 
+--the props hover preview (MapPackObjectsPreview): a grid of thumbnails
+local PROPS_PREVIEW_CELL = 64
+local PROPS_PREVIEW_COLUMNS = 6
+local PROPS_PREVIEW_MAX = 24
+
 --exported so the Create Map details pane's zoom windows share the same pan
 --feel as the grid tiles.
 mod.shared.MapPackPanTuning = {
@@ -141,6 +146,24 @@ mod.shared.MapPackTileStyles = function()
 			rmargin = 4,
 			bgimage = "ui-icons/codex-logo.png",
 			bgcolor = "white",
+		},
+		{
+			selectors = {"mapPackTilePropsIcon"},
+			width = 12,
+			height = 12,
+			valign = "center",
+			rmargin = 4,
+			bgimage = "phosphor/armchair-fill.png",
+			bgcolor = "white",
+		},
+		{
+			selectors = {"mapPackObjectsPreviewCell"},
+			width = PROPS_PREVIEW_CELL,
+			height = PROPS_PREVIEW_CELL,
+			margin = 2,
+			bgimage = "panels/square.png",
+			bgcolor = "#ffffff10",
+			cornerRadius = 4,
 		},
 		{
 			selectors = {"mapPackTileEnhancementsText"},
@@ -636,6 +659,179 @@ mod.shared.CodexEnhancementsBadge = function(args)
 	return gui.Panel(result)
 end
 
+--a "Props Included" badge: the map ships an "Objects for this map" set
+--(MAP_PACK_OBJECTS_PLAN.md). Same look as the Codex Enhancements badge.
+mod.shared.PropsIncludedBadge = function(args)
+	local result = {
+		classes = {"mapPackTileEnhancements"},
+		interactable = false,
+		gui.Panel{
+			classes = {"mapPackTilePropsIcon"},
+			interactable = false,
+		},
+		gui.Label{
+			classes = {"mapPackTileEnhancementsText"},
+			text = "Props Included",
+			interactable = false,
+		},
+	}
+	for k, v in pairs(args or {}) do
+		result[k] = v
+	end
+	return gui.Panel(result)
+end
+
+--"321 props included"
+mod.shared.MapPackPropsText = function(entry)
+	local n = tonumber(entry.objectCount) or 0
+	return cond(n == 1, "1 prop included", string.format("%d props included", n))
+end
+
+--each map's object list, fetched once a session (mappacks.GetMapObjects).
+local g_mapObjects = {}
+
+--A hover preview of the props a map ships with: a heading, the Patreon
+--line when the set is gated, and a grid of up to PROPS_PREVIEW_MAX
+--thumbnails sampled evenly across the set. Images of a set the account has
+--not unlocked load as transient images (memory only, never on disk) and are
+--released when the preview closes. Built for gui.TooltipFrame.
+--- @param entry MapPackIndexEntry
+--- @return Panel
+mod.shared.MapPackObjectsPreview = function(entry)
+	local transientKeys = {}
+	local grid = gui.Panel{
+		width = PROPS_PREVIEW_COLUMNS * (PROPS_PREVIEW_CELL + 4),
+		height = "auto",
+		flow = "horizontal",
+		wrap = true,
+		tmargin = 6,
+	}
+	local status = gui.Label{
+		text = "Loading props...",
+		fontSize = 12,
+		italics = true,
+		color = "#bbbbbb",
+		width = "auto",
+		height = "auto",
+		tmargin = 4,
+	}
+	local footer = gui.Label{
+		classes = {"hidden"},
+		fontSize = 11,
+		color = "#999999",
+		width = "auto",
+		height = "auto",
+		tmargin = 4,
+	}
+
+	---@type Panel[]
+	local children = {
+		gui.Label{
+			text = mod.shared.MapPackPropsText(entry),
+			fontSize = 15,
+			bold = true,
+			color = "white",
+			width = "auto",
+			height = "auto",
+		},
+	}
+	if not entry.objectsOwned and (tonumber(entry.objectsTier) or 0) > 0 then
+		children[#children + 1] = gui.Label{
+			text = mod.shared.MapPackPatreonText({tier = entry.objectsTier, tierName = entry.objectsTierName, owned = false}),
+			fontSize = 12,
+			color = "#e8c46a",
+			width = "auto",
+			maxWidth = PROPS_PREVIEW_COLUMNS * (PROPS_PREVIEW_CELL + 4),
+			height = "auto",
+			textWrap = true,
+			tmargin = 2,
+		}
+	end
+	children[#children + 1] = status
+	children[#children + 1] = grid
+	children[#children + 1] = footer
+
+	local panel = gui.Panel{
+		width = "auto",
+		height = "auto",
+		flow = "vertical",
+		styles = mod.shared.MapPackTileStyles(),
+		destroy = function(element)
+			for _, key in ipairs(transientKeys) do
+				dmhub.ReleaseTransientImage(key)
+			end
+			transientKeys = {}
+		end,
+		children = children,
+	}
+
+	local function Show(objects)
+		if not panel.valid then
+			return
+		end
+		if #objects == 0 then
+			status.text = "No props found."
+			return
+		end
+		status:SetClass("collapsed", true)
+		--an even sample across the set, so every folder tends to show
+		local picked = {}
+		local n = math.min(#objects, PROPS_PREVIEW_MAX)
+		for i = 1, n do
+			picked[#picked + 1] = objects[math.floor((i - 1) * #objects / n) + 1]
+		end
+		local cells = {}
+		for _, obj in ipairs(picked) do
+			local image
+			if entry.objectsOwned then
+				image = "md5:" .. obj.image
+			else
+				image = dmhub.LoadTransientImage(obj.image)
+				transientKeys[#transientKeys + 1] = image
+			end
+			--fit the prop inside the cell, keeping its proportions
+			local w, h = math.max(1, obj.width), math.max(1, obj.height)
+			local fit = (PROPS_PREVIEW_CELL - 6) / math.max(w, h)
+			cells[#cells + 1] = gui.Panel{
+				classes = {"mapPackObjectsPreviewCell"},
+				gui.Panel{
+					width = math.max(4, math.floor(w * fit)),
+					height = math.max(4, math.floor(h * fit)),
+					halign = "center",
+					valign = "center",
+					bgimage = image,
+					bgcolor = "white",
+				},
+			}
+		end
+		grid.children = cells
+		if #objects > n then
+			footer.text = string.format("Showing %d of %d", n, #objects)
+			footer:SetClass("hidden", false)
+		end
+	end
+
+	local key = (entry.pack or "") .. "/" .. (entry.id or "")
+	if g_mapObjects[key] ~= nil then
+		Show(g_mapObjects[key])
+	else
+		mappacks.GetMapObjects{
+			pack = entry.pack,
+			mapid = entry.id,
+			success = function(objects)
+				g_mapObjects[key] = objects
+				Show(objects)
+			end,
+			error = function(message)
+				if status.valid then
+					status.text = "Could not load the props: " .. tostring(message)
+				end
+			end,
+		}
+	end
+	return panel
+end
+
 --one grid tile for an index entry (a map appearance variant). onPress is
 --called with the entry when the tile is clicked. The creator's logo sits in
 --the top-right corner once its record has loaded, with the Patreon glyph
@@ -726,6 +922,9 @@ mod.shared.CreateMapPackTile = function(entry, onPress)
 	end
 
 	local enhancementsBadge = mod.shared.CodexEnhancementsBadge{ classes = {"mapPackTileEnhancements", "hidden"} }
+	local propsBadge = mod.shared.PropsIncludedBadge{
+		classes = {"mapPackTileEnhancements", cond((tonumber(entry.objectCount) or 0) <= 0, "hidden")},
+	}
 
 	local tile = gui.Panel{
 		classes = {"mapPackTile"},
@@ -766,7 +965,8 @@ mod.shared.CreateMapPackTile = function(entry, onPress)
 		end,
 		viewport,
 		--the name bar, with the Codex Enhancements badge stacked above it
-		--once the pack's shared-markup listing says this map has one.
+		--once the pack's shared-markup listing says this map has one, and
+		--the Props Included badge when the map ships objects.
 		gui.Panel{
 			width = "100%",
 			height = "auto",
@@ -774,6 +974,7 @@ mod.shared.CreateMapPackTile = function(entry, onPress)
 			flow = "vertical",
 			interactable = false,
 			enhancementsBadge,
+			propsBadge,
 			gui.Panel{
 				classes = {"mapPackTileLabelBand"},
 				interactable = false,
@@ -810,4 +1011,419 @@ mod.shared.CreateMapPackTile = function(entry, onPress)
 	end)
 
 	return tile
+end
+
+--the full-size map viewer: an almost-fullscreen modal showing the selected
+--appearance's full map image, zoomed with the wheel (about the cursor) and
+--panned by dragging. The image is downloaded on the spot. A free appearance,
+--or one the account can use, goes through the normal md5: path and is cached
+--like any map image (adding it later is then instant). A locked appearance
+--is held in memory only (dmhub.LoadTransientImage), never written to disk,
+--and freed when the viewer closes.
+--
+--focus is an optional {x1, y1, x2, y2} fraction of the map (y down) to open
+--zoomed in on, e.g. the zoom window that was clicked.
+--- @param entry MapPackIndexEntry
+--- @param focus? {x1: number, y1: number, x2: number, y2: number}
+mod.shared.ShowMapPackFullPreview = function(entry, focus)
+	if entry.image == nil or entry.image == "" then
+		return
+	end
+
+	local locked = mod.shared.MapPackPatreonState(entry) == "locked"
+	local transientKey = nil
+	local fullImage
+	if locked then
+		transientKey = dmhub.LoadTransientImage(entry.image)
+		fullImage = transientKey
+	else
+		fullImage = "md5:" .. entry.image
+	end
+
+	--image size in pixels. Until the full image arrives the index's tile
+	--size stands in for the aspect ratio, so the thumbnail placeholder sits
+	--exactly where the full image will.
+	local tilesW = math.max(1, tonumber(entry.tilesW) or 1)
+	local tilesH = math.max(1, tonumber(entry.tilesH) or 1)
+	local imgW = tilesW * 100
+	local imgH = tilesH * 100
+	local haveFullSize = false
+
+	--the view: scale in UI units per image pixel, and the image point (as
+	--0..1 fractions, y down) at the viewport's center. scale is nil until
+	--the viewport's first layout gives it a size.
+	local scale = nil
+	local centerX = 0.5
+	local centerY = 0.5
+	local vw = 0
+	local vh = 0
+
+	--UI units per screen pixel: the UI is laid out 1080 units tall.
+	local function UnitsPerScreenPixel()
+		local dim = dmhub.screenDimensions
+		if dim == nil or dim.y <= 0 then
+			return 1
+		end
+		return 1080 / dim.y
+	end
+
+	local function FitScale()
+		return math.min(vw / imgW, vh / imgH)
+	end
+
+	--zoom range: from the whole map fitted, in to 4 screen pixels per image
+	--pixel (always at least 2x the fit, for a small image on a big screen).
+	local function MaxScale()
+		return math.max(FitScale() * 2, 4 * UnitsPerScreenPixel())
+	end
+
+	--keeps the image covering the viewport along any axis it overflows, and
+	--centered along any axis it does not fill.
+	local function ClampView()
+		scale = math.max(FitScale(), math.min(MaxScale(), scale))
+		local dispW = imgW * scale
+		local dispH = imgH * scale
+		if dispW <= vw then
+			centerX = 0.5
+		else
+			local half = vw / (2 * dispW)
+			centerX = math.max(half, math.min(1 - half, centerX))
+		end
+		if dispH <= vh then
+			centerY = 0.5
+		else
+			local half = vh / (2 * dispH)
+			centerY = math.max(half, math.min(1 - half, centerY))
+		end
+	end
+
+	--the thumbnail shows at once; the full image covers it when it lands.
+	local thumbPanel = gui.Panel{
+		halign = "left",
+		valign = "top",
+		bgimage = mod.shared.MapPackThumbImage(entry),
+		bgcolor = "white",
+		interactable = false,
+	}
+	local fullPanel = gui.Panel{
+		halign = "left",
+		valign = "top",
+		bgimage = fullImage,
+		bgcolor = "white",
+		interactable = false,
+	}
+
+	local function ApplyView()
+		if scale == nil then
+			return
+		end
+		ClampView()
+		local dispW = imgW * scale
+		local dispH = imgH * scale
+		local x = vw / 2 - centerX * dispW
+		local y = vh / 2 - centerY * dispH
+		for _, p in ipairs({thumbPanel, fullPanel}) do
+			p.x = x
+			p.y = y
+			p.selfStyle.width = dispW
+			p.selfStyle.height = dispH
+		end
+	end
+
+	--zoom by factor keeping the image point under (mx, my) -- viewport
+	--units, y down -- fixed on screen.
+	local function ZoomAbout(factor, mx, my)
+		if scale == nil then
+			return
+		end
+		local u = centerX + (mx - vw / 2) / (imgW * scale)
+		local v = centerY + (my - vh / 2) / (imgH * scale)
+		scale = math.max(FitScale(), math.min(MaxScale(), scale * factor))
+		centerX = u - (mx - vw / 2) / (imgW * scale)
+		centerY = v - (my - vh / 2) / (imgH * scale)
+		ApplyView()
+	end
+
+	local statusLabel = gui.Label{
+		classes = {"mapPackViewerStatus"},
+		floating = true,
+		halign = "center",
+		valign = "bottom",
+		text = "Loading full-size map...",
+		interactable = false,
+	}
+
+	local layer = nil
+	local function Close()
+		gui.CloseModalInLayer(layer)
+	end
+
+	--pan state: the mouse position (viewport units) on the previous think
+	--while the left button is held; nil when not dragging.
+	local panPrevX = nil
+	local panPrevY = nil
+	local lastPressTime = nil
+
+	--the mouse in viewport units (y down), or nil when outside it.
+	local function MouseInViewport(element)
+		local mp = element.mousePoint
+		if mp == nil then
+			return nil, nil
+		end
+		return mp.x * vw, (1 - mp.y) * vh
+	end
+
+	local viewport = gui.Panel{
+		classes = {"mapPackViewerViewport"},
+		clip = true,
+		flow = "none",
+		thumbPanel,
+		fullPanel,
+		statusLabel,
+
+		wheel = function(element, delta)
+			local mx, my = MouseInViewport(element)
+			if mx == nil or my == nil then
+				mx, my = vw / 2, vh / 2
+			end
+			delta = math.max(-3, math.min(3, delta))
+			ZoomAbout(1.2 ^ delta, mx, my)
+			return true
+		end,
+
+		--double-click toggles between the fitted map and 1:1 pixels.
+		press = function(element)
+			local now = dmhub.Time()
+			if lastPressTime ~= nil and now - lastPressTime < 0.35 then
+				lastPressTime = nil
+				local mx, my = MouseInViewport(element)
+				if mx == nil or my == nil or scale == nil then
+					return
+				end
+				if scale > FitScale() * 1.01 then
+					ZoomAbout(FitScale() / scale, mx, my)
+				else
+					local oneToOne = math.max(FitScale() * 2, UnitsPerScreenPixel())
+					ZoomAbout(oneToOne / scale, mx, my)
+				end
+				return
+			end
+			lastPressTime = now
+		end,
+
+		thinkTime = 0.01,
+		think = function(element)
+			local w = element.renderedWidth or 0
+			local h = element.renderedHeight or 0
+			if w > 0 and h > 0 and (w ~= vw or h ~= vh) then
+				vw = w
+				vh = h
+				if scale == nil then
+					scale = FitScale()
+					if focus ~= nil then
+						--open on the focused region, as large as fits.
+						local fw = math.max(0.01, focus.x2 - focus.x1)
+						local fh = math.max(0.01, focus.y2 - focus.y1)
+						scale = math.min(vw / (imgW * fw), vh / (imgH * fh))
+						centerX = (focus.x1 + focus.x2) / 2
+						centerY = (focus.y1 + focus.y2) / 2
+					end
+				end
+				ApplyView()
+			end
+
+			--the full image's real pixel size, once known. The view keeps
+			--its on-screen size and position across the switch.
+			if not haveFullSize then
+				local fw, fh = nil, nil
+				if transientKey ~= nil then
+					local status = dmhub.GetTransientImageStatus(transientKey)
+					if status == nil or status.status == "failed" then
+						local text = "Could not load the full-size map."
+						if status ~= nil and status.error ~= nil then
+							text = text .. " " .. status.error
+						end
+						statusLabel.text = text
+						haveFullSize = true
+					elseif status.status == "downloading" then
+						statusLabel.text = string.format("Downloading full-size map... %d%%", math.floor(status.progress * 100))
+					elseif status.status == "decoding" then
+						statusLabel.text = "Preparing full-size map..."
+					elseif status.width > 0 then
+						fw, fh = status.width, status.height
+					end
+				elseif (fullPanel.bgimageWidth or -1) > 0 then
+					fw, fh = fullPanel.bgimageWidth, fullPanel.bgimageHeight
+				end
+				if fw ~= nil and fh ~= nil and fw > 0 and fh > 0 then
+					haveFullSize = true
+					if scale ~= nil then
+						scale = scale * imgW / fw
+					end
+					imgW = fw
+					imgH = fh
+					statusLabel:SetClass("hidden", true)
+					thumbPanel:SetClass("hidden", true)
+					ApplyView()
+				end
+			end
+
+			--left-drag pans; polled so the image follows the mouse smoothly.
+			local mx, my = MouseInViewport(element)
+			if mx ~= nil and my ~= nil and element:GetMouseButton(0) then
+				if panPrevX ~= nil and panPrevY ~= nil and scale ~= nil then
+					local dx = mx - panPrevX
+					local dy = my - panPrevY
+					if dx ~= 0 or dy ~= 0 then
+						centerX = centerX - dx / (imgW * scale)
+						centerY = centerY - dy / (imgH * scale)
+						ApplyView()
+					end
+				end
+				panPrevX = mx
+				panPrevY = my
+			else
+				panPrevX = nil
+				panPrevY = nil
+			end
+		end,
+	}
+
+	--a left group and a right group, so leftover width cannot spread the
+	--items apart (same layout as the Create Map header).
+	local header = gui.Panel{
+		classes = {"mapPackViewerHeader"},
+		gui.Panel{
+			width = "auto",
+			height = "100%",
+			halign = "left",
+			flow = "horizontal",
+			gui.Label{
+				classes = {"mapPackViewerTitle"},
+				text = entry.name,
+			},
+			gui.Label{
+				classes = {"mapPackViewerHint"},
+				text = "Scroll to zoom  -  drag to pan  -  double-click to zoom in or fit",
+			},
+		},
+		gui.Panel{
+			classes = {"mapPackViewerClose"},
+			halign = "right",
+			bgimage = "phosphor/x-bold.png",
+			press = function(element)
+				Close()
+			end,
+		},
+	}
+
+	local root = gui.Panel{
+		classes = {"mapPackViewerBackdrop"},
+		styles = ThemeEngine.MergeTokens({
+			{
+				selectors = {"mapPackViewerBackdrop"},
+				width = "100%",
+				height = "100%",
+				bgimage = "panels/square.png",
+				bgcolor = "#000000e0",
+			},
+			{
+				selectors = {"mapPackViewerFrame"},
+				width = "96%",
+				height = "94%",
+				halign = "center",
+				valign = "center",
+				flow = "vertical",
+				bgimage = "panels/square.png",
+				bgcolor = "@bg",
+				cornerRadius = 8,
+			},
+			{
+				selectors = {"mapPackViewerHeader"},
+				width = "100%",
+				height = 44,
+				flow = "horizontal",
+				hpad = 12,
+				borderBox = true,
+			},
+			{
+				selectors = {"mapPackViewerTitle"},
+				width = "auto",
+				height = "auto",
+				valign = "center",
+				fontSize = 18,
+				bold = true,
+				color = "@fg",
+			},
+			{
+				selectors = {"mapPackViewerHint"},
+				width = "auto",
+				height = "auto",
+				valign = "center",
+				lmargin = 16,
+				fontSize = 13,
+				color = "@fgMuted",
+			},
+			{
+				selectors = {"mapPackViewerClose"},
+				width = 16,
+				height = 16,
+				valign = "center",
+				bgcolor = "@fgMuted",
+			},
+			{
+				selectors = {"mapPackViewerClose", "hover"},
+				bgcolor = "@fgStrong",
+			},
+			{
+				selectors = {"mapPackViewerViewport"},
+				width = "100%",
+				height = "100%-44",
+				bgimage = "panels/square.png",
+				bgcolor = "#0b0b0bff",
+				cornerRadius = {x1 = 8, y1 = 8, x2 = 0, y2 = 0},
+			},
+			{
+				selectors = {"mapPackViewerStatus"},
+				width = "auto",
+				height = "auto",
+				bmargin = 16,
+				hpad = 12,
+				vpad = 6,
+				borderBox = true,
+				bgimage = "panels/square.png",
+				bgcolor = "#000000cc",
+				cornerRadius = 6,
+				fontSize = 14,
+				color = "white",
+			},
+		}),
+		--a click on the backdrop around the frame closes the viewer.
+		press = function(element)
+			Close()
+		end,
+		--same priority as the Create Map dialog's Escape; the newer
+		--listener wins the tie, so Escape closes only the viewer.
+		captureEscape = true,
+		escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+		escape = function(element)
+			Close()
+		end,
+		destroy = function(element)
+			if transientKey ~= nil then
+				dmhub.ReleaseTransientImage(transientKey)
+				transientKey = nil
+			end
+		end,
+		gui.Panel{
+			classes = {"mapPackViewerFrame"},
+			--press bubbles to ancestors unless swallowed: stop it here so
+			--only a click on the backdrop itself closes the viewer.
+			swallowPress = true,
+			header,
+			viewport,
+		},
+	}
+
+	layer = gui.ShowModal(root)
 end

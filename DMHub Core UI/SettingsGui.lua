@@ -607,6 +607,7 @@ local SettingsEditors = {
 				monitor = var.id,
 				events = {
 					monitor = function(element)
+						---@cast element Dropdown
 						value = dmhub.GetSettingValue(var.id)
 						element.idChosen = value
 					end,
@@ -618,6 +619,7 @@ local SettingsEditors = {
 						end
 					end,
 					refreshAssets = function(element)
+						---@cast element Dropdown
 						if var.getOptions ~= nil then
 							element.options = var.getOptions()
 						end

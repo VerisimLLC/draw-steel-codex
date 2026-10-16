@@ -2,6 +2,8 @@ local mod = dmhub.GetModLoading()
 
 ---@class RichParty: RichTag
 --- @field new fun(o?: table): RichParty
+--- @field tokensAdded table<string, boolean> Charids added to the party list by hand.
+--- @field tokensRemoved table<string, boolean> Charids removed from the party list by hand.
 RichParty = RegisterGameType("RichParty", "RichTag")
 RichParty.tag = "party"
 RichParty.hasEdit = "hidden"
@@ -341,6 +343,8 @@ function RichParty.CreateDisplay(self)
                         end
                     end
 
+                    --this child is unclaimed, so at most #children-1 of the #children spots are taken.
+                    ---@cast bestSpot -nil
                     ordClaimed[bestSpot] = child
                     child.data.claimed = true
                 end

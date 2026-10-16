@@ -3005,7 +3005,6 @@ function TacPanel.Portrait()
             outlineButton(gui.Panel{
                 id = "char-panel-light-btn",
                 classes = {"toggle-btn", "light-btn", "editOnly"},
-                hoverCursor = "pressbutton",
                 width = visionBtnSize,
                 height = visionBtnSize,
                 bgimage = "drawsteel/light-off.png",
@@ -3041,7 +3040,6 @@ function TacPanel.Portrait()
             }),
             outlineButton(gui.Panel{
                 classes = {"toggle-btn", "character-sheet-btn", "editOnly"},
-                hoverCursor = "pressbutton",
                 width = visionBtnSize,
                 height = visionBtnSize,
                 data = { token = nil },
@@ -3070,7 +3068,6 @@ function TacPanel.Portrait()
             --summoner (for monsters placed outside a summon ability).
             outlineButton(gui.Panel{
                 classes = {"toggle-btn", "summoner-btn", "collapsed"},
-                hoverCursor = "pressbutton",
                 width = visionBtnSize,
                 height = visionBtnSize,
                 data = { token = nil },
@@ -3156,7 +3153,6 @@ function TacPanel.Portrait()
 
             outlineButton(gui.Panel{
                 classes = {"toggle-btn", "light-btn", "collapsed"},
-                hoverCursor = "pressbutton",
                 bgimage = "ui-icons/eye.png",
                 width = visionBtnSize,
                 height = visionBtnSize,
@@ -3256,14 +3252,21 @@ function TacPanel.Portrait()
     }
 end
 
---- Count heroes from the three sources the hero-token refresh button consults:
---- (a) the encounter builder's numheroes setting, (b) hero tokens deployed on
---- the current map, and (c) hero tokens in the default player party.
+--- The party size the hero-token refresh button resets to: the game-wide
+--- numheroes setting, so every client resets to the same number.
+--- @return integer
+local function HeroTokenRefreshCount()
+    return tonumber(dmhub.GetSettingValue("numheroes")) or 4
+end
+
+--- Count heroes from the three sources the Director's refresh button consults:
+--- (a) the game-wide numheroes setting, (b) hero tokens deployed on the
+--- current map, and (c) heroes in the default player party, on any map.
 --- @return integer encounterCount
 --- @return integer mapCount
 --- @return integer partyCount
 local function HeroTokenRefreshCounts()
-    local encounterCount = dmhub.GetSettingValue("numheroes")
+    local encounterCount = HeroTokenRefreshCount()
 
     local mapCount = 0
     for _, tok in ipairs(dmhub.allTokens) do
@@ -3276,7 +3279,7 @@ local function HeroTokenRefreshCounts()
     local partyCount = 0
     local partyMembers = dmhub.GetCharacterIdsInParty(GetDefaultPartyID()) or {}
     for _, charid in ipairs(partyMembers) do
-        local tok = dmhub.GetTokenById(charid)
+        local tok = dmhub.GetCharacterById(charid)
         if tok ~= nil and tok.properties ~= nil and tok.properties:IsHero() then
             partyCount = partyCount + 1
         end
@@ -3298,7 +3301,8 @@ local function RefreshHeroTokensTo(token, n)
         end,
     }
     if n ~= prev then
-        local classInfo = token.properties:IsHero() and token.properties:GetClass() or nil
+        --IsHero() guarantees a character, which is where GetClass lives.
+        local classInfo = token.properties:IsHero() and (token.properties --[[@as character]]):GetClass() or nil
         track("hero_token_change", {
             change = n - prev,
             source = "session_reset",
@@ -3430,16 +3434,23 @@ function TacPanel.HeroTokenBox()
                 local token = element.parent.data.token
                 if token == nil then return end
 
+                -- Players always reset to the game-wide setting, so every
+                -- player resets to the same number.
+                if not IsDMOrPlayerHost() then
+                    RefreshHeroTokensTo(token, HeroTokenRefreshCount())
+                    return
+                end
+
                 local encounterCount, mapCount, partyCount = HeroTokenRefreshCounts()
 
-                -- All three sources agree: refresh directly, as before.
+                -- All three sources agree: refresh directly.
                 if encounterCount == mapCount and mapCount == partyCount then
                     RefreshHeroTokensTo(token, encounterCount)
                     return
                 end
 
-                -- Sources disagree: let the user pick which count to refresh to,
-                -- one entry per unique value.
+                -- Sources disagree: let the Director pick which count to
+                -- refresh to, one entry per unique value.
                 local seen = {}
                 local entries = {}
                 for _, n in ipairs({encounterCount, mapCount, partyCount}) do
@@ -3460,6 +3471,10 @@ function TacPanel.HeroTokenBox()
                 }
             end,
             linger = function(element)
+                if not IsDMOrPlayerHost() then
+                    gui.Tooltip(string.format("Reset Hero Tokens For Session (%d heroes)", HeroTokenRefreshCount()))(element)
+                    return
+                end
                 local encounterCount, mapCount, partyCount = HeroTokenRefreshCounts()
                 if encounterCount == mapCount and mapCount == partyCount then
                     gui.Tooltip(string.format("Reset Hero Tokens For Session (%d heroes)", encounterCount))(element)
@@ -4517,7 +4532,6 @@ function TacPanel.RecoveriesBox()
 
     return gui.Panel{
         classes = {"stamina-box", "recoveries"},
-        hoverCursor = "pressbutton",
         data = { token = nil },
         refreshCharacter = function(element, token)
             element.data.token = token
@@ -4939,7 +4953,6 @@ function TacPanel.BarAdjustControls(labelPanel)
     local function AdjustButton(mode, text, extraClass)
         return gui.Panel{
             classes = {"bar-adjust-btn", extraClass},
-            hoverCursor = "pressbutton",
             --A panel with no background image is not a hit target at all, so
             --clicks fell straight through it to the bar behind. bgimage is a
             --panel property; a style rule that sets it is ignored.
@@ -5249,7 +5262,6 @@ function TacPanel.HealthBar()
         --be a hit target at all, kept clear so nothing changes visually.
         bgimage = true,
         bgcolor = "clear",
-        hoverCursor = "pressbutton",
         press = function(element)
             if TacPanel.IsReadOnly(element) then return end
             --Classic: monsters only, since heroes still have the STAMINA box
@@ -5623,6 +5635,14 @@ function TacPanel.Stamina()
     }
 end
 
+--- The normal speed, shown crossed out when the creature moves slower, such as while climbing.
+--- It includes bonuses like a kit's, so a speed 7 hero shows 7 crossed out, not 5 (D9WASF6V).
+--- @param token CharacterToken
+--- @return number
+local function SpeedBoxNormalSpeed(token)
+    return math.max(token.properties:GetBaseSpeed(), token.properties:WalkingSpeed())
+end
+
 --- Display the Speed box
 --- @return Panel
 function TacPanel.SpeedBox()
@@ -5670,7 +5690,7 @@ function TacPanel.SpeedBox()
                 text = "0",
                 refreshCharacter = function(element, token)
                     if token == nil or not token.valid or token.properties == nil then return end
-                    local baseMove = token.properties:GetBaseSpeed()
+                    local baseMove = SpeedBoxNormalSpeed(token)
                     local curMove = token.properties:CurrentMovementSpeed()
                     element.text = tostring(curMove >= baseMove and curMove or baseMove)
                     element:SetClass("restricted", curMove < baseMove)
@@ -5687,7 +5707,7 @@ function TacPanel.SpeedBox()
                 text = "0",
                 refreshCharacter = function(element, token)
                     if token == nil or not token.valid or token.properties == nil then return end
-                    local baseMove = token.properties:GetBaseSpeed()
+                    local baseMove = SpeedBoxNormalSpeed(token)
                     local curMove = token.properties:CurrentMovementSpeed()
                     element.text = tostring(curMove)
                     element:SetClass("collapsed", curMove >= baseMove)
@@ -5832,7 +5852,8 @@ function TacPanel.AltitudeBox()
             local canFly = token.properties:CanFly()
             local canClimb = token.canCurrentlyClimb
             local canBurrow = token.properties:CanBurrow()
-            local visible = canFly or canClimb or canBurrow
+            --a ceiling clinger away from any wall can't "currently climb", but needs - to let go.
+            local visible = canFly or canClimb or canBurrow or token.properties:IsClingingToCeiling()
             element:SetClass("collapsed", not visible)
         end,
         refreshToken = function(element, token)
@@ -5852,7 +5873,7 @@ function TacPanel.AltitudeBox()
                 elseif moveType == "burrow" then
                     element.text = "Burrowing"
                 elseif moveType == "climb" then
-                    element.text = "Climbing"
+                    element.text = cond(token.properties:IsClingingToCeiling(), "Clinging", "Climbing")
                 else
                     element.text = "On Ground"
                 end
@@ -5887,7 +5908,6 @@ function TacPanel.AltitudeBox()
                 gui.Label{
                     classes = {"altitude-btn", "editOnly"},
                     text = "+",
-                    hoverCursor = "pressbutton",
                     data = { token = nil },
                     press = function(element)
                         if TacPanel.IsReadOnly(element) then return end
@@ -5920,7 +5940,6 @@ function TacPanel.AltitudeBox()
                 gui.Label{
                     classes = {"altitude-btn", "editOnly"},
                     text = "-",
-                    hoverCursor = "pressbutton",
                     data = { token = nil },
                     press = function(element)
                         if TacPanel.IsReadOnly(element) then return end
@@ -6070,7 +6089,6 @@ function TacPanel.CharacteristicBox(attrInfo)
 
     return gui.Panel{
         classes = {"characteristic-box"},
-        hoverCursor = "pressbutton",
         data = { token = nil, valueOnTop = false },
         --Fired by TacPanel.SetCompactBoxes. Reassigns only on an actual flip:
         --that runs on every refreshCharacter, and rebuilding the child list each
@@ -7117,23 +7135,6 @@ local function MonsterSheetAbilities(props)
     return abilities, triggers, villainActions
 end
 
---- A hero's traits: every feature carrying real description text, from every
---- source the builder assigned -- ancestry, culture, career, class, kit.
----
---- Three kinds of entry are dropped. Those with no body text, which are a
---- heading over nothing. The CHOICE SLOTS -- "Purchased Dwarf Traits",
---- "Warden Language", "Censor Order" -- which are where a pick was made rather
---- than what was picked; typeName tells them apart, since everything resolved
---- to actual content comes back as a plain CharacterFeature. And the
---- boilerplate IsTraitBoilerplate rejects -- kit stat dumps, skill grants, and
---- the handful of fixed names below.
---- Names repeat across sources, so identical name+text pairs are shown once.
----
---- This overlaps the FEATURES section on purpose: that one groups by source and
---- filters, which is what makes 47 entries usable, while this one prints the
---- rules text the way the monster sheet does.
---- @param props any
---- @return table[] List of {name=, text=, live=}
 --- Entries that survive the typeName test but say nothing worth a card: either
 --- pure scaffolding, or a duplicate of something the panel already shows.
 --- Keyed by exact name; the kit stats are matched by suffix because the name is
@@ -7222,6 +7223,23 @@ local function TraitRendersElsewhere(feature)
     return kind ~= "normal"
 end
 
+--- A hero's traits: every feature carrying real description text, from every
+--- source the builder assigned -- ancestry, culture, career, class, kit.
+---
+--- Three kinds of entry are dropped. Those with no body text, which are a
+--- heading over nothing. The CHOICE SLOTS -- "Purchased Dwarf Traits",
+--- "Warden Language", "Censor Order" -- which are where a pick was made rather
+--- than what was picked; typeName tells them apart, since everything resolved
+--- to actual content comes back as a plain CharacterFeature. And the
+--- boilerplate IsTraitBoilerplate rejects -- kit stat dumps, skill grants, and
+--- the handful of fixed names below.
+--- Names repeat across sources, so identical name+text pairs are shown once.
+---
+--- This overlaps the FEATURES section on purpose: that one groups by source and
+--- filters, which is what makes 47 entries usable, while this one prints the
+--- rules text the way the monster sheet does.
+--- @param props any
+--- @return table[] List of {name=, text=, live=}
 local function HeroSheetTraits(props)
     local out = {}
     local seen = {}
@@ -7341,11 +7359,6 @@ local function MonsterSheetAbilityCard(ability, token)
 end
 
 --- Build one trait / trigger card: bold name over its rules text.
---- @param name string
---- @param text string
---- @param props any
---- @param live? boolean Mark the card as currently in effect
---- @return Panel
 --- One name-and-prose card in the monster-sheet grammar.
 ---
 --- Heroes get an "Open on sheet" link in the corner: these cards replaced the
@@ -7372,7 +7385,7 @@ local function MonsterSheetTextCard(name, text, props, live, token)
         pcall(function() isHero = props:IsHero() end)
     end
     if isHero and token ~= nil and token.valid then
-        local capturedId = token.id
+        local capturedId = token.charid
         sheetLink = gui.Label{
             classes = {"ms-sheet-link", "editOnly"},
             text = "Open on sheet",
@@ -8721,6 +8734,7 @@ end
 --- @return Panel
 function TacPanel.MultiEdit()
     local m_tokens = {}
+    ---@type string|false|nil
     local m_selectedSquadId = nil
 
     -- Squad name input
@@ -8761,7 +8775,9 @@ function TacPanel.MultiEdit()
                 tok:ModifyProperties{
                     description = "Set Color",
                     execute = function()
-                        DrawSteelMinion.SetSquadColor(m_selectedSquadId, color)
+                        --The picker is only visible while the squad row is, and the row is
+                        --only uncollapsed by the tokens handler that sets this to the shared squad name.
+                        DrawSteelMinion.SetSquadColor(m_selectedSquadId --[[@as string]], color)
                     end,
                 }
             end
@@ -8773,7 +8789,7 @@ function TacPanel.MultiEdit()
             local squadTokens = {}
             for _,tok in ipairs(monsterTokens) do
                 if tok.properties.minion and tok.properties:MinionSquad() == m_selectedSquadId then
-                    squadTokens[#squadTokens+1] = tok.id
+                    squadTokens[#squadTokens+1] = tok.charid
                 end
             end
 
@@ -9209,7 +9225,8 @@ function TacPanel.ConditionChipText(condid, cond, creature)
     local info = conditionsTable[condid]
     if info == nil then return "???" end
 
-    local text = info.name
+    --Never nil: CharacterCondition.name has a class default.
+    local text = info.name --[[@as string]]
 
     -- Append rider names
     local riderids = creature:GetConditionRiders(condid)
@@ -9424,7 +9441,8 @@ end
 --- @param info CharacterOngoingEffect definition
 --- @return string chip label text
 function TacPanel.StatusEffectChipText(entry, info)
-    local text = info.name
+    --Never nil: a game-typed instance raises on an unset field rather than returning nil.
+    local text = info.name --[[@as string]]
     if entry.stacks ~= nil and entry.stacks > 1 then
         text = string.format("%s x%d", text, entry.stacks)
     end
@@ -9708,7 +9726,9 @@ local function FillAurasEmittingPanels(token, chips)
                 width = 20,
                 height = 20,
                 hasAlpha = true,
-                value = token.properties:GetAuraDisplaySetting(capturedAuraName).bgcolor
+                --bgcolor is the optional override the change handler below writes;
+                --creature:GetAuraDisplaySetting's @return does not list it yet.
+                value = (token.properties:GetAuraDisplaySetting(capturedAuraName) --[[@as {bgcolor: string|nil}]]).bgcolor
                     or (token.playerControlled and token.playerColor.tostring or "#AA0000"),
                 change = function(element)
                     if TacPanel.IsReadOnly(element) then return end
@@ -10179,7 +10199,7 @@ function TacPanel.AddConditionMenu(args)
                 }
                 local auraInstance = AuraInstance.new{
                     guid = dmhub.GenerateGuid(),
-                    casterid = primaryToken.id,
+                    casterid = primaryToken.charid,
                     name = "Custom Aura",
                     iconid = auraDef.iconid,
                     display = {hueshift = 0, saturation = 1, brightness = 1, bgcolor = defaultBgcolor},
@@ -10528,7 +10548,6 @@ function TacPanel.ConditionsRow()
         return gui.Label{
             classes = {"cond-add", "editOnly"},
             text = "+",
-            hoverCursor = "pressbutton",
             press = function(element)
                 if TacPanel.IsReadOnly(element) then return end
                 TacPanel.AddConditionMenu{
@@ -10588,6 +10607,7 @@ function TacPanel.ConditionsRow()
             element:SetClass("collapsed", false)
 
             local creature = token.properties
+            ---@type Panel[]
             local children = {MakeLabel(), MakeAddButton()}
 
             for condid, cond in pairs(creature:try_get("inflictedConditions", {})) do
@@ -10608,7 +10628,7 @@ function TacPanel.ConditionsRow()
 
             for _, auraInfo in ipairs(creature:GetAurasAffecting(token) or {}) do
                 --our own auras come back here too, because we emit them.
-                if rawget(auraInfo.auraInstance, "casterid") ~= token.charid then
+                if rawget(auraInfo.auraInstance, "casterid") ~= token.charid and not auraInfo.auraInstance:IsHiddenFromAuraLists() then
                     children[#children + 1] = TacPanel.AuraChip(auraInfo.auraInstance, token)
                 end
             end
@@ -11881,8 +11901,6 @@ function TacPanel.StaminaClassic()
     }
 end
 
---- Display the Features panel
---- @return Panel
 --Best-effort description for a curated index entry. Mirrors the sheet's
 --FeatureEntryDescription: each probe is pcall-isolated because reading a
 --missing method on a game type errors rather than returning nil. Falls back to
@@ -11943,9 +11961,9 @@ end
 --A single feature chip: name only. Click opens a small popup with the
 --description and an "Open on sheet" link (the ch5 filterFeatures deep-link).
 --View + link only -- choice-changing stays on the sheet.
---- @param token CharacterToken
+--- @param token CharacterToken|nil nil until the update event retargets it (click is a no-op)
 --- @param name string display name
---- @param descFn function () -> string|nil resolved on click (lazy)
+--- @param descFn function|nil () -> string|nil resolved on click (lazy); nil shows "No description"
 --- @param onOpen function|nil called when the popup opens (lets the owning
 ---        section lock its filter so a later title-bar search change does not
 ---        rebuild the list and tear this popup down)
@@ -12041,6 +12059,7 @@ end
 --- sheet. Heroes gain a section they never had; monsters keep their traits.
 --- @return Panel
 function TacPanel.Features()
+    ---@type CharacterToken|nil
     local m_token = nil
     local m_filter = ""       -- the active filter (the Filter box text)
     local m_filterFromGlobal = false  -- true when the title-bar search set the filter
@@ -12786,7 +12805,7 @@ function TacPanel.Conditions()
             -- Aura chips (DISABLED FOR DIAGNOSTIC)
             local aurasTouching = creature:GetAurasAffecting(token) or {}
             for _, auraInfo in ipairs(aurasTouching) do
-                if rawget(auraInfo.auraInstance, "casterid") ~= token.charid then --we'll see our own auras because we emit them.
+                if rawget(auraInfo.auraInstance, "casterid") ~= token.charid and not auraInfo.auraInstance:IsHiddenFromAuraLists() then --we'll see our own auras because we emit them.
                     children[#children + 1] = TacPanel.AuraChip(auraInfo.auraInstance, token)
                 end
             end
@@ -13990,11 +14009,13 @@ CharacterPanel.PopulatePartyMembers = function(element, party, partyMembers, mem
 	for _,charid in ipairs(partyMembers) do
 
 		local token = dmhub.GetCharacterById(charid)
-		local creature = token.properties
+		--nil for a party id with no character record: RefreshParty keeps those ids.
+		local creature = token and token.properties
 
 		if creature ~= nil then
 			local key = charid
 
+			--- @type Panel?
 			local folder = nil
 			local squadid = creature:MinionSquad()
 
@@ -14037,6 +14058,7 @@ CharacterPanel.PopulatePartyMembers = function(element, party, partyMembers, mem
 							clickHeader = function(element)
 								element:FireEventOnParents("ClearCharacterPanelSelection")
 								local setFocus = false
+								---@cast folder Panel
 								for _,p in ipairs(folder.data.children) do
 									if not setFocus then
 										gui.SetFocus(p)
@@ -14059,6 +14081,7 @@ CharacterPanel.PopulatePartyMembers = function(element, party, partyMembers, mem
 						--running it later would clobber the label's styles.
 						local headers = folder:GetChildrenWithClassRecursive("folder")
 						for _,header in ipairs(headers) do
+							--A non-empty rule list in, so MergeTokens returns a list, never nil.
 							header.styles = ThemeEngine.MergeTokens{
 								{
 									borderWidth = 0,
@@ -14069,7 +14092,7 @@ CharacterPanel.PopulatePartyMembers = function(element, party, partyMembers, mem
 									bgcolor = "@bgAlt",
 									transitionTime = 0.1,
 								},
-							}
+							} --[[@as StyleArgs[] ]]
 						end
 
 						local labels = folder:GetChildrenWithClassRecursive("folderLabel")
@@ -14092,6 +14115,7 @@ CharacterPanel.PopulatePartyMembers = function(element, party, partyMembers, mem
 						local triangles = folder:GetChildrenWithClassRecursive("triangle")
 						for _,tri in ipairs(triangles) do
 							tri.bgimage = "phosphor/caret-down-fill.png"
+							--A non-empty rule list in, so MergeTokens returns a list, never nil.
 							tri.styles = ThemeEngine.MergeTokens{
 								{
 									selectors = {"triangle"},
@@ -14113,7 +14137,7 @@ CharacterPanel.PopulatePartyMembers = function(element, party, partyMembers, mem
 									rotate = 0,
 									transitionTime = 0.2,
 								},
-							}
+							} --[[@as StyleArgs[] ]]
 						end
 
 						folder.data.contentPanel = contentPanel

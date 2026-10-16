@@ -29,6 +29,8 @@ local function decode(v)
 end
 --The same suite can run in an isolated engine environment with its actual JSON
 --codec. All tokens, transport, and UI remain test doubles in either environment.
+--AIReactionTestJSON is injected only by the isolated engine harness; absent under plain lua.exe.
+---@diagnostic disable-next-line: undefined-global
 if AIReactionTestJSON then encode=AIReactionTestJSON.encode; decode=AIReactionTestJSON.decode end
 local serial = 0
 dmhub = {userid = "host", ToJson = encode, FromJson = decode, Time = function() return now end,
@@ -59,6 +61,8 @@ creature = {}
 function creature:try_get(k, default) local v=rawget(self,k); if v == nil then return default end; return v end
 function creature:get_or_add(k, default) local v=rawget(self,k); if v == nil then self[k]=default; return default end; return v end
 local function source(path, first, last)
+    --AIReactionTestSources is injected only by the isolated engine harness, like AIReactionTestJSON.
+    ---@diagnostic disable-next-line: undefined-global
     local s=AIReactionTestSources and AIReactionTestSources[path]
     if s == nil then local f=assert(io.open(path)); s=f:read("*a"); f:close() end
     local start=assert(s:find(first,1,true)); local finish=assert(s:find(last,start+#first,true))
@@ -134,7 +138,21 @@ reset()
 player.triggeredEvents={{info={path={}}}, {userid="other",eventName="move",timestamp=0},
     {userid="player",eventName="move",timestamp=0,info={}}}
 dmhub.userid="player"; player:PumpTriggeredEvents()
-check(calls==1 and #player.triggeredEvents==1 and player.triggeredEvents[1].userid=="other","legacy queue processed per recipient and record")
+check(calls==1 and player.triggeredEvents[1]==nil and player.triggeredEvents[3]==nil
+    and player.triggeredEvents[2].userid=="other","legacy queue processed per recipient and record")
+--A queue missing its first event is still read.
+reset()
+player.triggeredEvents={[2]={userid="player",eventName="move",timestamp=0,info={}}}
+dmhub.userid="player"; player:PumpTriggeredEvents()
+check(calls==1 and player.triggeredEvents[2]==nil,"sparse legacy queue drained")
+--Only the handled event is deleted. Other players' events and the version key stay.
+reset()
+local guidQueue={version=2, a={userid="player",eventName="move",timestamp=0,info={}},
+    b={userid="other",eventName="move",timestamp=0}}
+player.triggeredEvents=guidQueue
+dmhub.userid="player"; player:PumpTriggeredEvents()
+check(calls==1 and player.triggeredEvents==guidQueue and guidQueue.version==2 and guidQueue.a==nil and guidQueue.b~=nil,
+    "guid queue: handled key deleted, others and version kept")
 --A damaged new envelope is restored on retry; evaluation exceptions are terminal.
 reset(); id=queue(); host.aiReactionRequests[id]="broken"
 deliver(); check(calls==0,"malformed envelope not executed")
@@ -209,6 +227,9 @@ MonsterAI.SetWaiting=function() end
 MonsterAI.ClearWaiting=function() end
 dmhub.allTokens={host.token}
 local aiSource="draw-steel-codex/Monster AI/MonsterAI.lua"
+--The AI profiler's file locals are no-ops here.
+local function profNoop() end
+ProfBegin, ProfEnd, ProfCount, ProfPhaseBegin, ProfPhaseEnd, ProfRequestReport = profNoop, profNoop, profNoop, profNoop, profNoop, profNoop
 assert(load(source(aiSource,"function MonsterAI:CountPendingActivityReactions", "--Count squad deaths")))()
 assert(load("local mod={}\n" .. source(aiSource,"function MonsterAI:WaitForMovementActivity", "function MonsterAI:MoveToken")))()
 local ai=setmetatable({}, {__index=MonsterAI})
@@ -220,9 +241,9 @@ assert(load(source(aiSource,"function MonsterAI:MoveToken", "function MonsterAI:
 function MonsterAI:GetMovementToken(t) return t end
 function MonsterAI:MovementLocOverlapsCreature() return false end
 MonsterAI.LocLogName=tostring; MonsterAI.TokenLogName=function(t) return t.name end
-local mover={valid=true,name="Trapper",loc="origin",properties=setmetatable({}, {__index=creature})}
+local mover={valid=true,name="Trapper",charid="trapper",loc="origin",properties=setmetatable({}, {__index=creature})}
 function mover:Move()
-    host.pendingAIActivityReactions={orphan={activityId=self.properties._tmp_aiActivityId,timestamp=0}}
+    host.pendingAIActivityReactions={orphan={activityId=creature.GetTokenAIActivity(self.charid),timestamp=0}}
     return {}
 end
 MonsterAI.active=true
@@ -231,6 +252,7 @@ check(not ok and ai._tmp_abortTurn~=nil,"movement failure sets turn abort before
 --Exercise the outer turn boundary as well: cleanup runs, but initiative cannot
 --advance when movement was interrupted by an unconfirmed player reaction.
 assert(load("local OrderMountedRidersFirst=function(t) return t end\nlocal RunYieldingFunction=pcall\n" ..
+    source(aiSource,"local g_abortTurnTaken", "function MonsterAI:PlayTurnCoroutine") ..
     source(aiSource,"function MonsterAI:PlayTurnCoroutine", "local function FindAbilityByName")))()
 assert(load("local RunYieldingFunction=pcall\n" ..
     source(aiSource,"function MonsterAI:PlayTurnSafely", "function MonsterAI:PlayTurnCoroutine")))()

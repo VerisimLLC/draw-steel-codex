@@ -30,6 +30,7 @@ dmhub.RegisterEventHandler("refreshTables", function()
 end)
 
 function DamageFlag.CreateEditor()
+    ---@type DamageFlag
     local currentItem = nil
 
     local resultPanel
@@ -52,6 +53,7 @@ function DamageFlag.CreateEditor()
                     return
                 end
 
+                ---@cast item DamageFlag
                 currentItem = item
 
                 resultPanel:SetClass("collapsed", false)

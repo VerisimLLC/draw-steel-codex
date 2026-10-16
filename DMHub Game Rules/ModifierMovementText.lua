@@ -486,3 +486,163 @@ function gui.ReminderTextPanel(options)
     resultPanel:FireEvent("settokens", tokens)
     return resultPanel
 end
+
+--- Editor for a set of ability keywords (keyword -> true): one row per chosen
+--- keyword with a delete button, then an "Add Keyword..." dropdown. The set is
+--- always replaced (never mutated in place) and an empty set is reported as nil.
+--- @param args {get: (fun(): table<string, boolean>|nil), set: fun(keywords: table<string, boolean>|nil), textDefault?: string}
+--- @return Panel
+function CharacterModifier.CreateKeywordSetEditor(args)
+    local panel
+
+    local function CopySet(exclude)
+        local result = {}
+        for k, v in pairs(args.get() or {}) do
+            if v == true and k ~= exclude then
+                result[k] = true
+            end
+        end
+        return result
+    end
+
+    local Rebuild
+    Rebuild = function()
+        local current = args.get() or {}
+        local children = {}
+
+        for keyword, val in sorted_pairs(current) do
+            if val == true then
+                children[#children+1] = gui.Panel{
+                    classes = {"formPanel", "formPanel-inline"},
+                    width = 200,
+                    height = 14,
+                    minHeight = 14,
+                    gui.Label{
+                        text = ActivatedAbility.CanonicalKeyword(keyword),
+                        width = "auto",
+                        height = 14,
+                        fontSize = 14,
+                        color = Styles.textColor,
+                    },
+                    gui.Button{
+                        classes = {"deleteButton", "sizeXs"},
+                        halign = "right",
+                        click = function()
+                            local newSet = CopySet(keyword)
+                            args.set(cond(next(newSet) == nil, nil, newSet))
+                            Rebuild()
+                        end,
+                    },
+                }
+            end
+        end
+
+        local options = {}
+        for _, option in ipairs(GameSystem.KeywordsSetToDropdownList()) do
+            if current[option.id] ~= true then
+                options[#options+1] = option
+            end
+        end
+
+        children[#children+1] = gui.Dropdown{
+            styles = ThemeEngine.GetStyles(),
+            selfStyle = {
+                height = 30,
+                width = 240,
+                fontSize = 16,
+                halign = "left",
+            },
+            sort = true,
+            options = options,
+            textDefault = args.textDefault or "Add Keyword...",
+            change = function(element)
+                ---@cast element Dropdown
+                if element.idChosen ~= nil then
+                    local newSet = CopySet(nil)
+                    newSet[element.idChosen] = true
+                    args.set(newSet)
+                end
+                Rebuild()
+            end,
+        }
+
+        panel.children = children
+    end
+
+    panel = gui.Panel{
+        flow = "vertical",
+        width = "auto",
+        height = "auto",
+    }
+
+    Rebuild()
+    return panel
+end
+
+--Ignore Difficult Terrain. With no keywords the creature ignores all difficult
+--terrain (the same as the Ignore Difficult Terrain attribute). With keywords it
+--ignores only difficult terrain carrying any of them -- e.g. Magic and Psionic
+--for a Human's Can't Take Hold. Terrain gets its keywords from the ability that
+--created it, or from its zone type (Aura difficultTerrainKeywords).
+CharacterModifier.RegisterType('ignoredifficultterrain', "Ignore Difficult Terrain")
+
+CharacterModifier.TypeInfo.ignoredifficultterrain = {
+    init = function(modifier)
+    end,
+
+    createEditor = function(modifier, element)
+        element.children = {
+            gui.Label{
+                classes = {"formLabel"},
+                width = "auto",
+                height = "auto",
+                text = "Only difficult terrain with any of these keywords (none = all difficult terrain):",
+            },
+            CharacterModifier.CreateKeywordSetEditor{
+                get = function()
+                    return modifier:try_get("keywords")
+                end,
+                set = function(keywords)
+                    modifier.keywords = keywords
+                    element:FireEvent("refreshModifier")
+                end,
+            },
+        }
+    end,
+}
+
+--- True if an Ignore Difficult Terrain modifier with no keywords applies, i.e.
+--- the creature ignores all difficult terrain. Read by creature:IgnoreDifficultTerrain.
+--- @return boolean
+function creature:HasBlanketDifficultTerrainIgnore()
+    for _, entry in ipairs(self:GetActiveModifiers()) do
+        if entry.mod.behavior == "ignoredifficultterrain" then
+            local keywords = entry.mod:try_get("keywords")
+            if keywords == nil or next(keywords) == nil then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+--- Keywords of difficult terrain this creature ignores, merged from its
+--- keyword-limited Ignore Difficult Terrain modifiers, as a set of keyword -> true;
+--- nil if none. The engine reads this once per game update
+--- (CharacterToken.difficultTerrainIgnoreKeywords) and skips difficult terrain
+--- whose keywords match. A blanket ignore is reported by IgnoreDifficultTerrain instead.
+--- @return table<string, boolean>|nil
+function creature:DifficultTerrainIgnoreKeywords()
+    local result = nil
+    for _, entry in ipairs(self:GetActiveModifiers()) do
+        if entry.mod.behavior == "ignoredifficultterrain" then
+            for keyword, val in pairs(entry.mod:try_get("keywords", {})) do
+                if val == true then
+                    result = result or {}
+                    result[keyword] = true
+                end
+            end
+        end
+    end
+    return result
+end

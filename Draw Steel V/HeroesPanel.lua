@@ -457,6 +457,7 @@ local CreateDirectorPanel = function(userid)
             local playerInfo = dmhub.GetPlayerInfo(userid)
             local partyid = playerInfo.partyid
 
+            ---@type Party|nil
             local playerParty = Party.PlayerParty()
 
             local partySubmenu = {}
@@ -852,6 +853,7 @@ local CreatePlayerPanel = function(userid)
             local playerInfo = dmhub.GetPlayerInfo(userid)
             local partyid = playerInfo.partyid
 
+            ---@type Party|nil
             local playerParty = Party.PlayerParty()
 
             local partySubmenu = {}
@@ -1278,6 +1280,9 @@ CreateHeroesPanel = function()
 
     local m_currentRichStatus = nil
     local m_richStatusId = nil
+    --what the engine actually stored for our status: it truncates long ones, so this
+    --can differ from m_currentRichStatus.
+    local m_pushedRichStatus = nil
 
     --online games show the invite code inline at the bottom; local
     --(offline) games keep the button that runs the promote-to-online
@@ -1313,9 +1318,11 @@ CreateHeroesPanel = function()
             
             if richStatus ~= m_currentRichStatus then
                 local existing = dmhub.currentUserStatusMessage
-                if existing == nil or existing == m_currentRichStatus then
+                --only replace our own status: leave one another panel pushed on top alone.
+                if existing == nil or existing == m_pushedRichStatus then
                     m_richStatusId = dmhub.PushUserRichStatus(richStatus, m_richStatusId)
                     m_currentRichStatus = richStatus
+                    m_pushedRichStatus = dmhub.currentUserStatusMessage
                 end
             end
         end,
@@ -1510,7 +1517,6 @@ end
 SafetyTools = {}
 
 SafetyTools.docId = "safetyTools"
-mod:RegisterDocumentForCheckpointBackups(SafetyTools.docId)
 
 SafetyTools.journalTitle = "Director's Journal"
 
@@ -2045,6 +2051,7 @@ function SafetyTools.ShowContentWarningDialog()
     if gamehud == nil or gamehud == false then
         return
     end
+    ---@cast gamehud GameHud
 
     local text = SafetyTools.ContentWarningText()
     if text == "" then
@@ -2379,6 +2386,7 @@ local function CreateLinesVeilsSection()
                     local chips = {}
                     for _,topic in ipairs(list) do
                         local topicid = topic.topicid
+                        ---@type Panel[]
                         local chipChildren = {
                             gui.Label{
                                 classes = { "multiselectChipText", group.chipClass },
@@ -2476,7 +2484,7 @@ local function CreateLinesVeilsSection()
             idChosen = "line",
             change = function(element)
                 ---@cast element Dropdown
-                kindChosen = element.idChosen
+                kindChosen = element.idChosen --[[@as string]]
             end,
         },
         gui.Button{
@@ -2551,6 +2559,7 @@ local function CreateChecklistItemRow(item)
             text = markDef.text,
             linger = gui.Tooltip(markDef.tooltip),
             click = function(element)
+                ---@type string|nil
                 local newMark = markid
                 if CurrentMark() == markid then
                     newMark = nil
@@ -2904,6 +2913,7 @@ local function CreateToolsConfigSection()
         { id = "starswishes", text = "Stars & Wishes" },
     }
 
+    ---@type Panel[]
     local children = {
         SafetySectionHeader("Tools in Play"),
         SafetyCaption("Choose which safety tools are active for this campaign. Safety tools work best when the whole table opts in during session zero."),

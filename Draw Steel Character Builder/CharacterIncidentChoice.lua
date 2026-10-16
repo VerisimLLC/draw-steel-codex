@@ -6,9 +6,16 @@
 ]]
 --- @class CharacterIncidentChoice: CharacterChoice
 --- @field new fun(o?: table): CharacterIncidentChoice
+--- @field options CharacterIncidentOption[] One option per row of the characteristic's roll table.
 CharacterIncidentChoice = RegisterGameType("CharacterIncidentChoice", "CharacterChoice")
 --- @class CharacterIncidentOption: GameType
 --- @field new fun(o?: table): CharacterIncidentOption
+--- @field guid string Id of the roll table row this option represents.
+--- @field name string "<range>: <name>" label parsed from the row.
+--- @field description string Rest of the row text after the name.
+--- @field row RollTableRow The roll table row itself.
+--- @field rollRange? {min: number, max: number} Dice range that selects this row.
+--- @field unique boolean Always true.
 CharacterIncidentOption = RegisterGameType("CharacterIncidentOption")
 
 CharacterIncidentChoice.name = "Incident"
@@ -39,8 +46,8 @@ function CharacterIncidentChoice.CreateNew(c)
 end
 
 --- Construct from data - a roll table entry
---- @param row
---- @param rollRange
+--- @param row RollTableRow
+--- @param rollRange? {min: number, max: number}
 --- @return CharacterIncidentOption
 function CharacterIncidentOption.CreateNew(row, rollRange)
 
@@ -121,8 +128,9 @@ end
 
 function CharacterIncidentChoice:VisitRecursive(fn)
     fn(self)
+    --options are leaf rows with no VisitRecursive of their own (reading it raises).
     for _,o in ipairs(self.options) do
-        o:VisitRecursive(fn)
+        fn(o)
     end
 end
 

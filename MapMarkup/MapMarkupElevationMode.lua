@@ -80,10 +80,7 @@ function MM.BuildElevationMode()
         children = (function()
             local result = {}
             local settingInfo = Settings["heightmaptool"]
-            local enum = {}
-            if settingInfo ~= nil and settingInfo.enum ~= nil then
-                enum = settingInfo.enum
-            end
+            local enum = (settingInfo ~= nil and settingInfo.enum) or {}
             local current = dmhub.GetSettingValue("heightmaptool")
             for _,option in ipairs(enum) do
                 local chipClasses = {"markupToolChip"}

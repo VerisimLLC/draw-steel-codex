@@ -815,8 +815,6 @@ local CreateObjectTableView = function(tableName, knownAssetsInCore)
 						op = "modify"
 					end
 
-                    print("ENTRY::", entry.name, type(entry.name), json(entry))
-
 					local panel = gui.Check{styles = g_CheckboxStyles,
 						classes = {"row", op}, --cond(hidden, "silent")},
 						text = string.format("%s (%s -- %s)", entry.name, op, k),
@@ -1167,7 +1165,9 @@ local function CreateCodeModView(modid, modInfo)
 		data = {
 			assetid = modid,
 			displayName = modInfo.name or "(unknown mod)",
-			addressable = false,
+			--addressable so the dependency search sees it: a code mod depends on the
+			--image assets its source names by guid, which must ship alongside it.
+			addressable = true,
 			type = "code",
 		}
 	}
@@ -1282,6 +1282,7 @@ local CreateAssetsHierarchy = function(moduleInstance)
 
 	local knownAssetsInCore = {}
 
+	--- @type table<string, ImageLibraryAssetLua>
 	local coreImageLibraries = nil
 
 	local populateCore = function()
@@ -1691,6 +1692,118 @@ local CreateAssetsHierarchy = function(moduleInstance)
 	return resultPanel
 end
 
+--The checks behind the "eotw" module type below. An Encounter of the Week
+--module is a set of encounter maps (named "Encounter" or "Encounter: <title>",
+--the rule in Codex Titlescreen/EncounterOfTheWeek.lua), each played from the
+--script filed in its journal folder. Parsing a script needs the EotW codemod,
+--which a game has when the code-only authoring module codex-eotwauthor (or the
+--official mcdm-encounteroftheweek module) is installed -- the same game an
+--author playtests in.
+--Returns { errors, warnings, encounters }: encounters is what the town reads
+--from the module record as publishingProperties.eotwEncounters, {<map name>
+--= {townGate = text}} from each script's "# Town Gate" section. Also ticks
+--every document a script is built from (ctx.include), since nothing else
+--ties a map to the documents in its journal folder.
+local CheckEncounterModule = function(ctx)
+	local result = { errors = {}, warnings = {}, encounters = {} }
+	local errors, warnings = result.errors, result.warnings
+
+	local eotw = rawget(_G, "EncounterOfTheWeek")
+	local montage = rawget(_G, "EncounterMontage")
+	if eotw == nil or montage == nil or montage.ScriptForMap == nil then
+		errors[#errors+1] = "Encounter scripts can only be checked in a game that has the Encounter of the Week authoring module (codex-eotwauthor) installed. Install it in this game, restart, then publish."
+		return result
+	end
+
+	local maps = {}
+	local seenNames = {}
+	for guid,_ in pairs(ctx.includedAssets) do
+		local info = ctx.assetInfo[guid]
+		if info ~= nil then
+			if info.type == "code" then
+				errors[#errors+1] = string.format("An Encounter of the Week module cannot include code (%s): its encounters run on the official module's code.", info.displayName)
+			elseif info.type == "map" and eotw.IsEncounterMapName(info.displayName) then
+				if seenNames[info.displayName] then
+					errors[#errors+1] = string.format("Two maps are named \"%s\". A game finds its encounter map by name, so each must be unique.", info.displayName)
+				end
+				seenNames[info.displayName] = true
+				maps[#maps+1] = { id = guid, name = info.displayName }
+			end
+		end
+	end
+	table.sort(maps, function(a, b) return a.name < b.name end)
+
+	if #maps == 0 then
+		errors[#errors+1] = "An Encounter of the Week module must include at least one map named \"Encounter\" or \"Encounter: <title>\"."
+	end
+
+	for _,m in ipairs(maps) do
+		--the name is a Firebase key in the module record and part of the
+		--encounter key ("<moduleid>|<map name>") a party record carries.
+		if string.find(m.name, "[%.%$#%[%]/|]") ~= nil then
+			errors[#errors+1] = string.format("The map name \"%s\" cannot contain any of . $ # [ ] / |", m.name)
+		elseif #m.name > 80 then
+			errors[#errors+1] = string.format("The map name \"%s\" is too long (80 characters at most).", m.name)
+		end
+
+		local found = nil
+		local ok, err = pcall(function() found = montage.ScriptForMap(m.id) end)
+		if not ok or found == nil then
+			errors[#errors+1] = string.format("%s: its script could not be read: %s", m.name, tostring(err))
+		else
+			for docid,_ in pairs(found.documents) do
+				ctx.include(docid)
+			end
+
+			local script = found.script
+			if script == nil then
+				errors[#errors+1] = string.format("%s: no script. File a journal document with # Narrative, # Montage and # Encounter beats in this map's journal folder.", m.name)
+			else
+				local hasEncounter = false
+				for _,beat in ipairs(script.parse.beats or {}) do
+					if beat.kind == "encounter" then
+						hasEncounter = true
+					end
+				end
+				if not hasEncounter then
+					errors[#errors+1] = string.format("%s: the script has no # Encounter beat, so the fight never starts.", m.name)
+				end
+
+				local scriptWarnings = script.parse.warnings or {}
+				for i=1,math.min(#scriptWarnings, 3) do
+					warnings[#warnings+1] = string.format("%s: %s", m.name, tostring(scriptWarnings[i]))
+				end
+				if #scriptWarnings > 3 then
+					warnings[#warnings+1] = string.format("%s: %d more script warnings (/eotwscript on the map lists them all).", m.name, #scriptWarnings - 3)
+				end
+
+				local towngate = script.parse.story ~= nil and script.parse.story.towngate or nil
+				if towngate ~= nil and type(towngate.text) == "string" and towngate.text ~= "" then
+					result.encounters[m.name] = { townGate = towngate.text }
+				else
+					warnings[#warnings+1] = string.format("%s: no # Town Gate section, so the town shows no backstory for it.", m.name)
+				end
+			end
+		end
+	end
+
+	return result
+end
+
+--Hero options a Hero module must include at least one of, by table name.
+local g_heroOptionTables = {
+	classes = true,
+	subclasses = true,
+	races = true,
+	subraces = true,
+	careers = true,
+	kits = true,
+	cultures = true,
+	cultureAspects = true,
+	complications = true,
+	titles = true,
+}
+
 --Module types. Each entry is an option in the Module Type dropdown at the top
 --of the publish dialog; the chosen id is stored on the module record as
 --moduleInstance.moduleType so the rest of the app can tell packs apart.
@@ -1702,7 +1815,15 @@ end
 --  dependencyAssets = {guid -> {guids that need it}} from the dependency
 --                     searcher, covering the checked entries and everything
 --                     they pull in,
---  assetInfo       = {guid -> {type, displayName}} for every entry shown }.
+--  assetInfo       = {guid -> {type, displayName}} for every entry shown,
+--  include         = function(guid) ticks that entry, if the dialog lists it }.
+--
+--available (optional) returns false to leave the type out of the dropdown
+--(a module that already has the type still shows it).
+--
+--publishingProperties (optional) is called with the same ctx when the module
+--is published and returns {key -> value} to store in the module record's
+--publishingProperties.
 local g_moduleTypes = {
 	{
 		id = "general",
@@ -1775,7 +1896,143 @@ local g_moduleTypes = {
 			return errors, warnings
 		end,
 	},
+	{
+		--Encounter of the Week (dev-gated game mode). Published Public, the
+		--module's encounters join the pool the town's Form a Party dialog
+		--offers (Codex Titlescreen/EncounterOfTheWeek.lua); a game for one is
+		--created from the official module and installs this one on top.
+		id = "eotw",
+		text = "Encounter of the Week",
+		description = "Encounters for the Encounter of the Week game mode. Each map named \"Encounter\" or \"Encounter: <title>\" is an encounter, played from the script in its journal folder; those documents are included automatically. Publish it as Public or Unlisted to add its encounters to the pool players choose from at the Town Gate.",
+		available = function()
+			local enabled = false
+			pcall(function() enabled = dmhub.GetSettingValue("dev:encounteroftheweek") == true end)
+			return enabled
+		end,
+		validate = function(ctx)
+			local check = CheckEncounterModule(ctx)
+			local warnings = check.warnings
+			if g_dialogState ~= nil and not g_dialogState.moduleInstance.published then
+				warnings[#warnings+1] = "Only a Public or Unlisted module's encounters join the pool. Set Listing Status on the next page (Unlisted keeps the module out of the module browser)."
+			end
+			return check.errors, warnings
+		end,
+		publishingProperties = function(ctx)
+			return { eotwEncounters = CheckEncounterModule(ctx).encounters }
+		end,
+	},
+	{
+		--Hero options players add to their inventory on the titlescreen; the
+		--module follows their heroes into games. Code is allowed, but a version
+		--with code is only usable as a Hero module once an admin approves it
+		--(see HeroModuleReviewAfterPublish below).
+		id = "hero",
+		text = "Hero Module",
+		description = "Options for building heroes, such as classes, ancestries and kits. Players add a Hero module to their inventory from the titlescreen, and it is added automatically to any game a hero using it enters. Heroes included in it become pregens: they are added to games unclaimed, and offered wherever pregens are, such as Encounter of the Week. A Hero module can't contain maps. If it contains code, an admin must approve each version before players can add it to their inventory; Directors can still install it into a game like any module.",
+		validate = function(ctx)
+			local errors = {}
+			local warnings = {}
+			local nheroOptions = 0
+			local hasCode = false
+			local maps = {}
+			local nonHeroes = {}
+			local Consider = function(guid)
+				local info = ctx.assetInfo[guid]
+				if info == nil then
+					return
+				end
+				local tableName = string.match(info.type or "", "^object:(.+)$")
+				if tableName ~= nil and g_heroOptionTables[tableName] then
+					nheroOptions = nheroOptions + 1
+				elseif info.type == "map" then
+					maps[#maps+1] = info.displayName
+				elseif info.type == "character" then
+					--heroes ship as pregens; anything else would land in
+					--every game as an unclaimed party member.
+					local isHero = false
+					pcall(function()
+						local token = dmhub.GetCharacterById(guid)
+						isHero = token ~= nil and token.properties:IsHero() == true
+					end)
+					if not isHero then
+						nonHeroes[#nonHeroes+1] = info.displayName
+					end
+				elseif info.type == "code" then
+					hasCode = true
+				end
+			end
+			for guid,_ in pairs(ctx.includedAssets) do
+				Consider(guid)
+			end
+			for guid,_ in pairs(ctx.dependencyAssets) do
+				if not ctx.includedAssets[guid] then
+					Consider(guid)
+				end
+			end
+
+			if nheroOptions == 0 then
+				errors[#errors+1] = "A Hero module must contain at least one hero option: a class, subclass, ancestry, career, kit, culture, complication or title."
+			end
+			if #maps > 0 then
+				table.sort(maps)
+				errors[#errors+1] = string.format("A Hero module can't contain maps: %s", table.concat(maps, ", "))
+			end
+			if #nonHeroes > 0 then
+				table.sort(nonHeroes)
+				errors[#errors+1] = string.format("A Hero module's characters must be heroes, which become pregens: %s", table.concat(nonHeroes, ", "))
+			end
+			if hasCode and not dmhub.isAdminAccount then
+				warnings[#warnings+1] = "This module contains code. Each version with code is sent to an admin for review, and players can only add it to their inventory once it is approved. Directors can install it into a game straight away."
+			end
+			return errors, warnings
+		end,
+	},
 }
+
+--After a Hero module version is uploaded: a version carrying code needs an
+--admin's approval before it can be used as a Hero module. An admin's own
+--version is approved on the spot; anyone else's is sent for review, which
+--emails the admins (heroModuleReviewRequest cloud function). Calls
+--report(message) with a sentence for the publish dialog; does nothing when the
+--version has no code.
+local HeroModuleReviewAfterPublish = function(moduleInstance, versionid, codeModNames, report)
+	if #codeModNames == 0 then
+		return
+	end
+
+	if dmhub.isAdminAccount then
+		moduleInstance:SetHeroReview{
+			versionid = versionid,
+			status = "approved",
+			success = function()
+				report("Its code is approved for use as a Hero module.")
+			end,
+			error = function(msg)
+				report(string.format("Approving its code failed: %s", msg))
+			end,
+		}
+		return
+	end
+
+	net.Post{
+		url = dmhub.cloudFunctionsBaseUrl .. "/heroModuleReviewRequest",
+		data = {
+			moduleid = moduleInstance.fullid,
+			dataid = versionid,
+			codemods = codeModNames,
+		},
+		success = function(data)
+			if type(data) ~= "table" or data.error then
+				report(string.format("Sending it for review failed: %s", type(data) == "table" and data.error or "invalid response"))
+				return
+			end
+			report("Its code has been sent to an admin for review. Players can add it to their inventory once it is approved; Directors can install it now.")
+		end,
+		error = function(msg)
+			report(string.format("Sending it for review failed: %s", msg))
+		end,
+	}
+end
 
 --Looks up a module type by id, falling back to the first (General Content)
 --for nil or an id this build does not know.
@@ -1817,11 +2074,77 @@ local showShareModuleDialog = function(options)
 	--Proceed button stays hidden on the content page.
 	local m_moduleTypeErrors = {}
 
+	--the ctx a module type's validate / publishingProperties receive (see
+	--g_moduleTypes). include ticks an entry the way the author would, so the
+	--dependency pass then runs over it; entries the dialog does not list
+	--(content another module owns) are skipped.
+	local ModuleTypeContext = function()
+		return {
+			includedAssets = includedAssets,
+			dependencyAssets = m_dependencyAssets,
+			assetInfo = assetInfo,
+			include = function(guid)
+				if includedAssets[guid] or m_dependencyAssets[guid] then
+					return
+				end
+				local entry = allAssets[guid]
+				if entry == nil or entry.check == nil or not entry.check.valid then
+					return
+				end
+				entry.check.value = true
+				entry.check:FireEvent("change")
+			end,
+		}
+	end
+
 	local moduleInstance = options.moduleInfo or module.CreateModule()
 
 	--resolve the type through the known list so a brand new module records
 	--"general" explicitly and an unknown id from a newer build falls back.
 	moduleInstance.moduleType = GetModuleType(moduleInstance.moduleType).id
+
+	--The Listing Status choices. "Unlisted" exists only for an Encounter of the
+	--Week module: it joins the encounter pool like a Public one, but the module
+	--browser does not list it (publishingProperties.eotwUnlisted).
+	local ListingOptions = function()
+		return {
+			{
+				id = "unlisted",
+				text  = "Private",
+			},
+			{
+				id = "eotwunlisted",
+				text = "Unlisted",
+				hidden = moduleInstance.moduleType ~= "eotw",
+			},
+			{
+				id = "public",
+				text = "Public"
+			},
+			{
+				id = "premium",
+				text = "Premium",
+			},
+			{
+				--Deleting is only an option for an existing module, not a new one.
+				id = "deleted",
+				text = "Deleted",
+				hidden = isNewModule,
+			},
+		}
+	end
+
+	local ListingIdFor = function(instance)
+		if instance.deleted then
+			return "deleted"
+		end
+		if instance.published then
+			local unlisted = false
+			pcall(function() unlisted = instance.publishingProperties.eotwUnlisted == true end)
+			return cond(unlisted and instance.moduleType == "eotw", "eotwunlisted", "public")
+		end
+		return "unlisted"
+	end
 
 	if moduleInstance.publishingProperties.includedAssets ~= nil then
 		includedAssets = DeepCopy(moduleInstance.publishingProperties.includedAssets)
@@ -2014,6 +2337,15 @@ local showShareModuleDialog = function(options)
 
 					moduleInstance.contentSummary = contentSummary
 
+					--properties the module type derives from the content
+					--(an Encounter of the Week module's Town Gate texts).
+					local typeInfo = GetModuleType(moduleInstance.moduleType)
+					if typeInfo.publishingProperties ~= nil then
+						for k,v in pairs(typeInfo.publishingProperties(ModuleTypeContext())) do
+							moduleInstance.publishingProperties[k] = v
+						end
+					end
+
 					moduleInstance:UploadModuleVersion{
 						includedAssets = assetsIncludingDependencies,
 
@@ -2027,6 +2359,25 @@ local showShareModuleDialog = function(options)
 							moduleInstance:Upload{
 								success = function()
 									statusLabel.text = "Your module has been uploaded"
+									if moduleInstance.moduleType == "eotw" then
+										statusLabel.text = statusLabel.text .. cond(moduleInstance.published,
+											". Its encounters are now in the Encounter of the Week pool.",
+											". It is not Public, so its encounters are not in the Encounter of the Week pool.")
+									end
+									if moduleInstance.moduleType == "hero" then
+										local codeModNames = {}
+										for assetid,_ in pairs(assetsIncludingDependencies) do
+											local info = assetInfo[assetid]
+											if info ~= nil and info.type == "code" then
+												codeModNames[#codeModNames+1] = info.displayName
+											end
+										end
+										table.sort(codeModNames)
+										local uploadedText = statusLabel.text
+										HeroModuleReviewAfterPublish(moduleInstance, guid, codeModNames, function(message)
+											statusLabel.text = string.format("%s. %s", uploadedText, message)
+										end)
+									end
 									moduleCodePanel:FireEventTree("moduleUploaded")
 
 									moduleInstance:UploadModulePublishProperties{
@@ -2090,7 +2441,6 @@ local showShareModuleDialog = function(options)
 		classes = {'status-label', 'hidden'},
 		halign = "center",
 		valign = "center",
-		floating = true,
 		text = "Uploading...",
 	}
 
@@ -2102,7 +2452,7 @@ local showShareModuleDialog = function(options)
 			flow = "horizontal",
 			width = "auto",
 			height = "auto",
-			y = 30,
+			tmargin = 10,
 			moduleUploaded = function(element)
 				element:SetClass("collapsed", false)
 			end,
@@ -2439,7 +2789,7 @@ local showShareModuleDialog = function(options)
                     if element.idChosen == "self" then
                         moduleInstance.authorid = module.savedAuthorid or dmhub.GetDisplayName(dmhub.userid)
                     else
-                        moduleInstance.authorid = element.idChosen
+                        moduleInstance.authorid = element.idChosen --[[@as string]]
                     end
                     m_publishAsOrg = element.idChosen ~= "self"
                     dialogPanel:FireEventTree("refreshModule")
@@ -2732,7 +3082,7 @@ local showShareModuleDialog = function(options)
                 sort = true,
                 change = function(element)
                     ---@cast element Dropdown
-                    moduleInstance.coverDocumentId = element.idChosen ~= "none" and element.idChosen or nil
+                    moduleInstance.coverDocumentId = element.idChosen ~= "none" and element.idChosen --[[@as string]] or nil
                 end,
             },
         },
@@ -2747,35 +3097,31 @@ local showShareModuleDialog = function(options)
 			},
 
 			gui.Dropdown{
-				options = {
-					{
-						id = "unlisted",
-						text  = "Private",
-					},
-					{
-						id = "public",
-						text = "Public"
-					},
-					{
-						id = "premium",
-						text = "Premium",
-					},
-					{
-						--Deleting is only an option for an existing module, not a new one.
-						id = "deleted",
-						text = "Deleted",
-						hidden = isNewModule,
-					},
-				},
-				idChosen = cond(moduleInstance.deleted, "deleted", cond(moduleInstance.published, "public", "unlisted")),
+				options = ListingOptions(),
+				idChosen = ListingIdFor(moduleInstance),
 				events = {
 					change = function(element)
 						---@cast element Dropdown
-						moduleInstance.published = element.idChosen == "public"
+						--"eotwunlisted" (Encounter of the Week only) is published --
+						--in the module index, so the encounter pool sees it -- but
+						--flagged so the module browser leaves it out.
+						moduleInstance.published = element.idChosen == "public" or element.idChosen == "eotwunlisted"
 						moduleInstance.premium = element.idChosen == "premium"
 						moduleInstance.deleted = element.idChosen == "deleted"
+						moduleInstance.publishingProperties.eotwUnlisted = cond(element.idChosen == "eotwunlisted", true, nil)
 						dialogPanel:FireEventTree("refreshModule")
-					end
+					end,
+					--the module type changed (page 1): offer Unlisted only for
+					--Encounter of the Week, and drop it if the type moved away.
+					refreshListing = function(element)
+						---@cast element Dropdown
+						element.options = ListingOptions()
+						if moduleInstance.moduleType ~= "eotw" and element.idChosen == "eotwunlisted" then
+							moduleInstance.publishingProperties.eotwUnlisted = nil
+							moduleInstance.published = false
+							element.idChosen = "unlisted"
+						end
+					end,
 				}
 			}
 		},
@@ -2791,6 +3137,8 @@ local showShareModuleDialog = function(options)
 					element.text = string.format("DEPRECATED: %s\n\nThis module cannot be updated or published while it is deprecated.", moduleInstance.deprecationMessage)
 				elseif moduleInstance.deleted then
 					element.text = "This module will be deleted. Users who already installed it into their games will be able to continue to use its contents"
+				elseif moduleInstance.published and ListingIdFor(moduleInstance) == "eotwunlisted" then
+					element.text = "Your module's encounters join the Encounter of the Week pool, but the module is not listed in the module browser: only those you share its ID with can install it directly."
 				elseif moduleInstance.published then
 					element.text = "Others will be able to search for and install your module."
 				elseif moduleInstance.premium then
@@ -2835,7 +3183,7 @@ local showShareModuleDialog = function(options)
 				moduleInstance.dmhubCanUse = element.value
 			end,
 			refreshModule = function(element)
-				element:SetClass("collapsed", not moduleInstance.published)
+				element:SetClass("collapsed", not moduleInstance.published or ListingIdFor(moduleInstance) == "eotwunlisted")
 			end,
 		},
 	}
@@ -3050,11 +3398,7 @@ local showShareModuleDialog = function(options)
 
 		local errors, warnings = {}, {}
 		if typeInfo.validate ~= nil then
-			errors, warnings = typeInfo.validate{
-				includedAssets = includedAssets,
-				dependencyAssets = m_dependencyAssets,
-				assetInfo = assetInfo,
-			}
+			errors, warnings = typeInfo.validate(ModuleTypeContext())
 		end
 		m_moduleTypeErrors = errors
 
@@ -3074,12 +3418,17 @@ local showShareModuleDialog = function(options)
 		moduleTypeMessages.children = children
 		moduleTypeMessages:SetClass("collapsed", #children == 0)
 
+		if dialogPanel ~= nil and dialogPanel.valid then
+			dialogPanel:FireEventTree("refreshListing")
+		end
 		shareButton:FireEvent("refreshModule")
 	end
 
 	local moduleTypeOptions = {}
-	for i,info in ipairs(g_moduleTypes) do
-		moduleTypeOptions[i] = { id = info.id, text = info.text }
+	for _,info in ipairs(g_moduleTypes) do
+		if info.available == nil or info.available() or info.id == moduleInstance.moduleType then
+			moduleTypeOptions[#moduleTypeOptions+1] = { id = info.id, text = info.text }
+		end
 	end
 
 	local moduleTypePanel = gui.Panel{
@@ -3103,7 +3452,7 @@ local showShareModuleDialog = function(options)
 				width = 260,
 				change = function(element)
 					---@cast element Dropdown
-					moduleInstance.moduleType = element.idChosen
+					moduleInstance.moduleType = element.idChosen --[[@as string]]
 					RefreshModuleType()
 				end,
 			},
@@ -3400,8 +3749,18 @@ local showShareModuleDialog = function(options)
 			sharePanel,
 		},
 
-		statusLabel,
-		moduleCodePanel,
+		--One centered column, so a status that wraps (the Encounter of the
+		--Week pool sentence) pushes the Module ID row down instead of under it.
+		gui.Panel{
+			floating = true,
+			halign = "center",
+			valign = "center",
+			width = "auto",
+			height = "auto",
+			flow = "vertical",
+			statusLabel,
+			moduleCodePanel,
+		},
 
 		gui.Button{
             classes = {"closeButton"},
@@ -3432,7 +3791,7 @@ local showShareModuleDialog = function(options)
 			dialogPanel.styles = ThemeEngine.MergeStyles(dialogCustomStyles)
 		end
 		if assetsPanel ~= nil and assetsPanel.valid then
-			assetsPanel.styles = ThemeEngine.MergeTokens(assetsCustomStyles)
+			assetsPanel.styles = ThemeEngine.MergeTokens(assetsCustomStyles) --[[@as StyleArgs[] ]]
 		end
 	end)
 end
@@ -4447,7 +4806,6 @@ mod.shared.ShowDownloadShareDialog = function(options)
 		end
 
 		m_latestSearch = search
-			index = m_tabSelected,
 
 		m_moduleIndex:Search{
 			text = search,
@@ -4458,8 +4816,23 @@ mod.shared.ShowDownloadShareDialog = function(options)
 				end
 
 				local items = {}
-				
+
+				--an Unlisted Encounter of the Week module is in the index only so
+				--the encounter pool can find it; the browsing tabs leave it out
+				--unless the search is exactly its module ID (how it is shared).
+				local browsing = m_tabSelected == "hot" or m_tabSelected == "new" or m_tabSelected == "best"
+				local searchId = string.lower(string.match(search or "", "^%s*(.-)%s*$") or "")
+
 				for _,item in ipairs(result.items) do
+					local unlisted = false
+					if browsing then
+						pcall(function()
+							unlisted = item.publishingProperties.eotwUnlisted == true and string.lower(item.fullid or "") ~= searchId
+						end)
+					end
+					if unlisted then
+						goto continue
+					end
 					local versions = item.versions
 					local stats = item.cachedStats
 					if stats == nil then
@@ -4485,6 +4858,7 @@ mod.shared.ShowDownloadShareDialog = function(options)
 						update = latestVersionAge,
 						score = score
 					}
+					::continue::
 				end
 
 				table.sort(items, function(a,b)
@@ -5191,6 +5565,15 @@ mod.shared.ShowDownloadShareDialog = function(options)
 					return
 				end
 
+				--on the titlescreen a Hero module goes into the player's
+				--inventory (the panel above), which installs it here itself.
+				if dmhub.isLobbyGame and mod.isHeroModule then
+					installButton:SetClass("collapsed", true)
+					uninstallButton:SetClass("collapsed", true)
+					element.text = ""
+					return
+				end
+
 				if mod.premium and (not mod.owned) then
 					installButton:SetClass("collapsed", true)
 					uninstallButton:SetClass("collapsed", true)
@@ -5235,6 +5618,192 @@ mod.shared.ShowDownloadShareDialog = function(options)
 			end,
 		}
 
+	--Admin only: approve or reject the code in the displayed Hero module's
+	--newest version (see HeroModuleReviewAfterPublish). Players can add a Hero
+	--module version with code to their inventory only once it is approved.
+	local heroReviewStatus
+	local heroReviewPanel
+	local m_heroReviewVersionId = nil
+
+	local SetHeroReview = function(status)
+		local mod = moduleDetailedDisplay.data.moduleInfo
+		local versionid = m_heroReviewVersionId
+		if mod == nil or versionid == nil then
+			return
+		end
+		heroReviewStatus.text = "Saving..."
+		mod:SetHeroReview{
+			versionid = versionid,
+			status = status,
+			success = function()
+				if heroReviewPanel.valid then
+					heroReviewPanel:FireEvent("newModule")
+				end
+			end,
+			error = function(msg)
+				if heroReviewStatus.valid then
+					heroReviewStatus.text = string.format("Saving the review failed: %s", msg)
+				end
+			end,
+		}
+	end
+
+	heroReviewStatus = gui.Label{
+		text = "",
+		fontSize = 16,
+		halign = "right",
+	}
+
+	heroReviewPanel = gui.Panel{
+		classes = {"collapsed"},
+		width = "auto",
+		height = "auto",
+		flow = "vertical",
+		halign = "right",
+		vmargin = 4,
+		newModule = function(element)
+			local mod = moduleDetailedDisplay.data.moduleInfo
+			m_heroReviewVersionId = nil
+			local versions = mod ~= nil and mod.versions or {}
+			local latest = versions[#versions]
+			local show = dmhub.isAdminAccount and mod ~= nil and mod.isHeroModule and latest ~= nil
+			element:SetClass("collapsed", not show)
+			if not show then
+				return
+			end
+
+			local fullid = mod.fullid
+			m_heroReviewVersionId = latest.dataid
+			heroReviewStatus.text = "Checking the Hero module review..."
+			mod:QueryHeroReviews{
+				success = function(reviews)
+					local shown = moduleDetailedDisplay.data.moduleInfo
+					if not element.valid or shown == nil or shown.fullid ~= fullid then
+						return
+					end
+					local review = reviews[latest.dataid]
+					if review == nil then
+						heroReviewStatus.text = string.format("Hero review of v%s: none (no code, or never sent for review)", latest.version)
+					else
+						heroReviewStatus.text = string.format("Hero review of v%s: %s", latest.version, review.status)
+					end
+				end,
+			}
+		end,
+
+		heroReviewStatus,
+		gui.Panel{
+			width = "auto",
+			height = "auto",
+			flow = "horizontal",
+			halign = "right",
+			gui.Button{
+				text = "Approve Code",
+				width = 140,
+				height = 32,
+				fontSize = 16,
+				hmargin = 4,
+				click = function(element)
+					SetHeroReview("approved")
+				end,
+			},
+			gui.Button{
+				text = "Reject Code",
+				width = 140,
+				height = 32,
+				fontSize = 16,
+				click = function(element)
+					SetHeroReview("rejected")
+				end,
+			},
+		},
+	}
+
+	--Hero modules: add to / remove from the player's inventory (HeroModules.lua),
+	--which makes the module's classes and ancestries available to their heroes
+	--on the titlescreen and in every game those heroes enter.
+	local heroInventoryLabel = gui.Label{
+		text = "",
+		fontSize = 16,
+		width = "auto",
+		height = "auto",
+		halign = "right",
+		valign = "center",
+		hmargin = 8,
+	}
+
+	local heroInventoryButton = gui.Button{
+		classes = {"sizeXxl"},
+		text = "Add to my Inventory",
+		width = 240,
+		height = 52,
+		halign = "right",
+		click = function(element)
+			local mod = moduleDetailedDisplay.data.moduleInfo
+			if mod == nil then
+				return
+			end
+			if HeroModules.IsAdded(mod.fullid) then
+				HeroModules.Remove(mod.fullid)
+			else
+				HeroModules.Add(mod.fullid)
+			end
+			element:FireEventOnParents("refreshHeroInventory")
+		end,
+	}
+
+	local heroInventoryPanel = gui.Panel{
+		classes = {"collapsed"},
+		width = "auto",
+		height = "auto",
+		flow = "horizontal",
+		halign = "right",
+		vmargin = 4,
+		create = function(element)
+			HeroModules.Listen(element)
+		end,
+		heroModulesChanged = function(element)
+			element:FireEvent("refreshHeroInventory")
+		end,
+		newModule = function(element)
+			element:FireEvent("refreshHeroInventory")
+		end,
+		refreshHeroInventory = function(element)
+			local mod = moduleDetailedDisplay.data.moduleInfo
+			local show = mod ~= nil and mod.isHeroModule
+				and not (mod.deprecated and not mod.deprecationOverridden)
+			element:SetClass("collapsed", not show)
+			if not show then
+				return
+			end
+
+			--an owned premium Hero module is always in the inventory.
+			if mod.premium then
+				heroInventoryButton:SetClass("collapsed", true)
+				heroInventoryLabel.text = cond(mod.owned, "In your Inventory", "")
+				return
+			end
+
+			heroInventoryButton:SetClass("collapsed", false)
+			if HeroModules.IsAdded(mod.fullid) then
+				heroInventoryButton.text = "Remove from Inventory"
+				local err = HeroModules.GetError(mod.fullid)
+				if err ~= nil then
+					heroInventoryLabel.text = string.format("<color=#ff8888>%s</color>", err)
+				elseif HeroModules.IsEnabled(mod.fullid) then
+					heroInventoryLabel.text = "In your Inventory"
+				else
+					heroInventoryLabel.text = "In your Inventory (switched off)"
+				end
+			else
+				heroInventoryButton.text = "Add to my Inventory"
+				heroInventoryLabel.text = ""
+			end
+		end,
+		heroInventoryLabel,
+		heroInventoryButton,
+	}
+
 	local installPanel = gui.Panel{
 		height = "auto",
 		width = "auto",
@@ -5243,6 +5812,8 @@ mod.shared.ShowDownloadShareDialog = function(options)
 		halign = "right",
 		valign = "bottom",
 		margin = 8,
+		heroReviewPanel,
+		heroInventoryPanel,
 		patreonOfferPanel,
 		gui.Panel{
 			width = "auto",
@@ -5837,7 +6408,7 @@ mod.shared.ShowDownloadShareDialog = function(options)
 			dialogPanel.styles = ThemeEngine.MergeStyles(dialogCustomStyles)
 		end
 		if moduleDisplayPanel ~= nil and moduleDisplayPanel.valid then
-			moduleDisplayPanel.styles = ThemeEngine.MergeTokens(moduleDisplayCustomStyles)
+			moduleDisplayPanel.styles = ThemeEngine.MergeTokens(moduleDisplayCustomStyles) --[[@as StyleArgs[] ]]
 		end
 	end)
 
@@ -5950,10 +6521,11 @@ mod.shared.ShowExportDialog = function()
 			hmargin = 8,
 			text = tostring(tourWidth),
 			change = function(element)
-				if tonumber(element.text) == nil then
+				local n = tonumber(element.text)
+				if n == nil then
 					element.text = tostring(tourWidth)
 				else
-					tourWidth = math.floor(tonumber(element.text))
+					tourWidth = math.floor(n)
 				end
 
 				tourSettingsPanel:FireEvent("refreshTour")
@@ -5968,10 +6540,11 @@ mod.shared.ShowExportDialog = function()
 			hmargin = 8,
 			text = tostring(tourHeight),
 			change = function(element)
-				if tonumber(element.text) == nil then
+				local n = tonumber(element.text)
+				if n == nil then
 					element.text = tostring(tourHeight)
 				else
-					tourHeight = math.floor(tonumber(element.text))
+					tourHeight = math.floor(n)
 				end
 
 				tourSettingsPanel:FireEvent("refreshTour")
@@ -6005,7 +6578,7 @@ mod.shared.ShowExportDialog = function()
 			},
 			change = function(element)
 				---@cast element Dropdown
-				hz = element.idChosen
+				hz = element.idChosen --[[@as string]]
 			end,
 
 		},
@@ -6094,7 +6667,7 @@ mod.shared.ShowExportDialog = function()
 			},
 			change = function(element)
 				---@cast element Dropdown
-				exportType = element.idChosen
+				exportType = element.idChosen --[[@as string]]
 				if exportType == "tour" then
 					tourSettingsPanel:FireEvent("refreshTour")
 				else

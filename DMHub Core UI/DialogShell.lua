@@ -20,7 +20,7 @@ local mod = dmhub.GetModLoading()
 --- @field footerButtons table[] {button, cell, enabled} per tracked button
 --- @field closeMode string|function
 --- @field onClose function|boolean
---- @field customStyles table[]|boolean
+--- @field customStyles table[]|false
 --- @field themeSub table|boolean
 DialogShell = RegisterGameType("DialogShell")
 
@@ -633,6 +633,7 @@ Commands.RegisterMacro{
             end,
         }
 
-        gui.ShowModal(dlg:Root())
+        --CreateNew always sets root; Root() is nil only for a shell never built.
+        gui.ShowModal(dlg:Root() --[[@as Panel]])
     end,
 }

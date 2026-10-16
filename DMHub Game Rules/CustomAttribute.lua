@@ -105,8 +105,8 @@ function CreatureSet:Clear()
     self.creatures = {}
 end
 
---- Adds a creature (by token id) to the set. Returns true if added, false if already present.
---- @param creature creature|string
+--- Adds a creature (stored by its token id) to the set. Returns true if added, false if already present or not on a token.
+--- @param creature creature
 --- @return boolean
 function CreatureSet:Add(creature)
     local id = dmhub.LookupTokenId(creature)
@@ -132,7 +132,7 @@ function CreatureSet:GoblinScriptSequence()
 end
 
 --- Returns true if the creature (or token id) is in this set.
---- @param creature creature|string|fun(): string
+--- @param creature creature|string|fun(symbol: string): (creature|string) A GoblinScript lookup function is resolved with "self".
 --- @return boolean
 function CreatureSet:Has(creature)
     if type(creature) == "function" then
@@ -480,7 +480,8 @@ function CustomAttribute:CalculateBaseValue(creature)
 	if typeInfo == nil then
 		return 0
 	end
-	if type(self.baseValue) == "string" and trim(self.baseValue) == "" then
+	local baseValue = self.baseValue
+	if type(baseValue) == "string" and trim(baseValue) == "" then
 		return typeInfo:DefaultValue()
 	end
 
@@ -564,7 +565,7 @@ function CustomAttribute:GenerateEditor(options)
 			idChosen = self.attributeType,
 			change = function(element)
 				---@cast element Dropdown
-				self.attributeType = element.idChosen
+				self.attributeType = element.idChosen --[[@as string]]
 				resultPanel:FireEvent("change")
 				resultPanel:FireEventTree("refreshType")
 			end,
@@ -603,7 +604,7 @@ function CustomAttribute:GenerateEditor(options)
 			idChosen = self.classid,
 			change = function(element)
 				---@cast element Dropdown
-				self.classid = element.idChosen
+				self.classid = element.idChosen --[[@as string]]
 				resultPanel:FireEvent("change")
 			end,
 		},

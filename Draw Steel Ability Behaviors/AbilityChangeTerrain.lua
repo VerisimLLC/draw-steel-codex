@@ -2,6 +2,7 @@ local mod = dmhub.GetModLoading()
 
 --- @class ActivatedAbilityChangeTerrainBehavior: ActivatedAbilityBehavior
 --- @field new fun(o?: table): ActivatedAbilityChangeTerrainBehavior
+--- @field tileid string Tilesheet key painted by the operation, or "none".
 ActivatedAbilityChangeTerrainBehavior = RegisterGameType("ActivatedAbilityChangeTerrainBehavior", "ActivatedAbilityBehavior")
 
 ActivatedAbility.RegisterType
@@ -174,7 +175,7 @@ function ActivatedAbilityChangeTerrainBehavior:EditorItems(parentPanel)
             options = terrainOptions,
             change = function(element)
                 ---@cast element Dropdown
-                self.tileid = element.idChosen
+                self.tileid = element.idChosen --[[@as string]] -- option ids are tilesheet keys
             end,
         }
     }

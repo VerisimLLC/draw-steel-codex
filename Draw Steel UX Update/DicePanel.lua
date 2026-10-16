@@ -90,7 +90,6 @@ CreateDicePanel = function()
 		local selectedNum = nil
 		local selectedFaces = nil
 		local selectedString = nil
-		local textColor = nil
 		-- Which 3D die geometry this tile renders when use3D (d3 uses the d6 model; the d20
 		-- "Power Roll" renders as the two-d10 pair). nil = fall back to the whitelabel default.
 		local selectedGeo = nil
@@ -181,6 +180,8 @@ CreateDicePanel = function()
 				data = { reseedPending = false, rolling = false },
 
 				create = function(element)
+					--the cage (see the cast after its constructor).
+					---@cast element DicePreview
 					pcall(function() element:SetAsDicePreviewPanel(true) end)
 					-- Resting dice render "virtually" (an off-screen texture shown as a regular
 					-- image inside the panel) so dialogs opened over the dock cover them; they
@@ -262,6 +263,9 @@ CreateDicePanel = function()
 					element:ScheduleEvent("seedDie", 0.6)
 				end,
 			}
+			--a gui.DicePreview cage; only a pre-DicePreview binary builds a plain Panel, and every
+			--DicePreview call on it is pcall-guarded.
+			---@cast cage DicePreview
 
 			-- The mouse-facing side of the cage: hover wobble + click/drag-to-roll,
 			-- scoped to the cage's dice. The engine preview calls are made ON the
@@ -434,17 +438,6 @@ CreateDicePanel = function()
 
 			--hover = gui.Tooltip(string.format("D%d", faces)),
 
-			checklighting = function(element)
-				local lightbg = TokenHud.UseLightBackgroundColor(core.Color(textColor))
-				if lightbg then
-					bglabel.selfStyle.color = textColor
-					element.selfStyle.color = "white"
-				else
-					bglabel.selfStyle.color = "black"
-					element.selfStyle.color = textColor
-				end
-			end,
-
 			-- Drop Shadow for the Die Face Number
 			gui.Label{
 				width = "100%",
@@ -522,13 +515,17 @@ CreateDicePanel = function()
 
 		multimonitor = {"privaterolls"},
 		monitor = function(element)
-			element:SetClassTree("gmonly", dmhub.GetSettingValue("privaterolls") == "dm")
+			element:SetClassTree("gmonly", GetRollVisibility() == "dm")
 			-- Re-seed the 3D cages so a director-visibility toggle takes effect on the very next
 			-- roll (each resting die captured its dmonly at seed time).
 			element:FireEventTree("requestReseed")
 		end,
 
 		rightClick = function(element)
+			--its only entry is the Director-only toggle, which a directorless game does not offer.
+			if not RollPrivacyAllowed() then
+				return
+			end
 			element.popup = gui.ContextMenu{
 				entries = {
 					{
@@ -599,7 +596,7 @@ CreateDicePanel = function()
                             --CreateDice(100, {rotate = 180}),
                         },
 					}
-			        resultPanel:SetClassTree("gmonly", dmhub.GetSettingValue("privaterolls") == "dm")
+			        resultPanel:SetClassTree("gmonly", GetRollVisibility() == "dm")
 
 						-- The screen-bounds/spacing/rest-scale tuning is set PER-CAGE in each
 						-- tile's cage create handler (dicePreviewScreenBounds / Spacing /
@@ -611,7 +608,7 @@ CreateDicePanel = function()
 			},
 	}
 
-	resultPanel:SetClassTree("gmonly", dmhub.GetSettingValue("privaterolls") == "dm")
+	resultPanel:SetClassTree("gmonly", GetRollVisibility() == "dm")
 
 	return resultPanel
 

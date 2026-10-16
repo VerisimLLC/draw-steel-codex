@@ -240,7 +240,7 @@ TokenHud.RegisterPanel{
                 end
 
                 if m_haveTrigger == false and notrigger == false and token.canControl and token.activeControllerId == nil then
-                    audio.FireSoundEvent("Notify.Trigger")
+                    audio.FireSoundEvent("Notify.Trigger", { tokenid = token.charid })
                 end
                 
                 m_haveTrigger = not notrigger
@@ -722,6 +722,7 @@ end
 
 TokenHud.RegisterPanel{
 	id = "nameLabel",
+	---@param token CharacterToken
 	create = function(token, sharedInfo)
         if token.isObject then
             return nil
@@ -782,6 +783,7 @@ TokenHud.RegisterPanel{
 							    textColor = token.playerColor
                             end
 
+                            --nil for an unnamed token; the labels then show blank.
                             local text = token:GetNameMaxLength(30)
 
                             if text ~= nil then
@@ -792,11 +794,11 @@ TokenHud.RegisterPanel{
 
 							element.selfStyle.italics = token.namePrivate
 							element.selfStyle.brightness = cond(token.namePrivate, 0.8, 1)
-							element.text = text
+							element.text = text or ""
 
 							bglabel.selfStyle.italics = token.namePrivate
 							bglabel.selfStyle.brightness = cond(token.namePrivate, 0.8, 1)
-							bglabel.text = text
+							bglabel.text = text or ""
 
                             local lightbg = TokenHud.UseLightBackgroundColor(core.Color(textColor))
                             if lightbg then
@@ -926,7 +928,7 @@ TokenHud.RegisterPanel{
                 local m_local = islocal
 
                 if element.data.currentlyDisplayed == nil then
-                    audio.FireSoundEvent("Notify.OpportunityAttackWarn")
+                    audio.FireSoundEvent("Notify.OpportunityAttackWarn", { tokenid = token.charid })
                 end
 
                 element.data.currentlyDisplayed = DeepCopy(info)
@@ -1459,7 +1461,8 @@ Commands.RegisterMacro{
             return
         end
 
-        local loc = core.Loc{ x = tonumber(x), y = tonumber(y), floorIndex = tonumber(floor) }:WithGroundLevelAltitude()
+        --the pattern above only captures integers, so tonumber cannot fail.
+        local loc = core.Loc{ x = tonumber(x) --[[@as number]], y = tonumber(y) --[[@as number]], floorIndex = tonumber(floor) --[[@as number]] }:WithGroundLevelAltitude()
         token:Move(loc, { maxCost = 10000, findVacantSpace = true })
     end,
 }

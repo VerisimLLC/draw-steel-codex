@@ -82,6 +82,9 @@ local function FloorAbove(floor)
     return nil
 end
 
+--Defined under Records below; declared here so StairsArrivingOn binds to it.
+local StairsOnFloor
+
 --The staircases that arrive on the given floor record: each floor's stairs lead to
 --their upFloor when it names a floor of this map, else to the floor above.
 local function StairsArrivingOn(floor)
@@ -129,7 +132,7 @@ end
 --Foundry importer) is the floor id the stairs lead to when it is not the next floor up.
 --holeLength (optional, set by the importer on tight spirals) is how far back from the
 --top, along the centerline, the hole reaches; the engine's default is the width.
-local function StairsOnFloor(floor)
+function StairsOnFloor(floor)
     local result = {}
     if floor == nil then
         return result

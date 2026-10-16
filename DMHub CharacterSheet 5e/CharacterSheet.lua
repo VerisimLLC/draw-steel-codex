@@ -770,6 +770,7 @@ function CharSheet.CharacterHitpointsPanel()
 							end,
 
 							refreshToken = function(element, info)
+								---@cast element Label
 								local creature = info.token.properties
 								element.editable = creature:IsMonster()
 								local newValue = creature:MaxHitpoints()
@@ -1189,6 +1190,8 @@ function CharSheet.CharacterSheetSkillsPanel()
 											text = option.text,
 											press = function(element)
 												if option.id == "custom" then
+													--only monsters get the "custom" option, and they always build customInput.
+													---@cast customInput -nil
 													customInput:SetClass("collapsed", false)
 													for _,p in ipairs(panels) do
 														p:SetClass("selected", p == element)
@@ -1390,7 +1393,7 @@ function CharSheet.CharacterSheetSavingThrowPanel()
 										--info.token.properties:ToggleSavingThrowProficiency(saveid)
 										--CharacterSheet.instance:FireEvent('refreshAll')
 
-										printf("SAVE:: %s: %s has: %s; has default: %s", saveid, json(info.token.properties.savingThrowRatings[saveid]), json(info.token.properties:HasSavingThrowProficiency(saveid), "selected"), json(info.token.properties:HasDefaultSavingThrowProficiency(saveid)))
+										printf("SAVE:: %s: %s has: %s; has default: %s", saveid, json(info.token.properties.savingThrowRatings[saveid]), json(info.token.properties:HasSavingThrowProficiency(saveid)), json(info.token.properties:HasDefaultSavingThrowProficiency(saveid)))
 										local panels = {}
 
 										panels[#panels+1] = gui.Label{
@@ -1969,6 +1972,7 @@ function CharSheet.CharacterSheetProficiencesAndLanguagesPanel()
 				local equipmentTable = dmhub.GetTable("tbl_Gear")
 				for k,prof in pairs(proficiencies) do
 					local catInfo = dataTable[k]
+					---@type EquipmentCategory|equipment
 					local itemInfo = catInfo
 					
 					if catInfo == nil then
@@ -2126,6 +2130,7 @@ local EditResistanceEntry = function(creature, resistanceEntry, params)
 					end,
 
 					refresh = function(element)
+						---@cast element Dropdown
 						element.optionChosen = resistanceEntry.apply
 					end,
 				},
@@ -2200,6 +2205,7 @@ local EditResistanceEntry = function(creature, resistanceEntry, params)
 					end,
 
 					refresh = function(element)
+						---@cast element Dropdown
 						if resistanceEntry:try_get('nonmagic', false) then
 							element.optionChosen = 'nonmagic'
 						else
@@ -2598,7 +2604,7 @@ function CharSheet.CharacterSheetEditPassiveSensesPopup(element, info)
 				change = function(element)
 					local val = tonumber(element.text)
 					creature:SetBasePassiveModOverride(skillInfo, val)
-					element.text = val or "--"
+					element.text = val ~= nil and tostring(val) or "--"
 					CharacterSheet.instance:FireEvent('refreshAll')
 				end,
 			},
@@ -3555,6 +3561,7 @@ function CharSheet.CharacterSheetAvatarPanel()
 				local parentElement = element
 				local info = CharacterSheet.instance.data.info
 
+				---@type Panel
 				local popupPanel = nil
 
 				local index = 1
@@ -4347,6 +4354,7 @@ function CharSheet.AttrPanel(attrid)
 								text = tostring(baseValue),
 								events = {
 									create = function(element)
+										---@cast element Label
 										element:BeginEditing()
 									end,
 									change = function(element)
@@ -4752,8 +4760,11 @@ function CharSheet.ActionsPanel()
 
 							linger = function(element)
 								local tooltip = CreateAbilityTooltip(otherAbilities[i], {token = CharacterSheet.instance.data.info.token})
-								tooltip.selfStyle.halign = "center"
-								tooltip.selfStyle.valign = "top"
+								--nil for an ability marked notooltip.
+								if tooltip ~= nil then
+									tooltip.selfStyle.halign = "center"
+									tooltip.selfStyle.valign = "top"
+								end
 								element.tooltip = tooltip
 							end,
 
@@ -5039,8 +5050,11 @@ function CharSheet.ActionsPanel()
 
 								linger = function(element)
 									local tooltip = CreateAbilityTooltip(attackAbilities[i], {token = CharacterSheet.instance.data.info.token})
-									tooltip.selfStyle.halign = "center"
-									tooltip.selfStyle.valign = "top"
+									--nil for an ability marked notooltip.
+									if tooltip ~= nil then
+										tooltip.selfStyle.halign = "center"
+										tooltip.selfStyle.valign = "top"
+									end
 									element.tooltip = tooltip
 								end,
 
@@ -5257,8 +5271,11 @@ function CharSheet.ActionsPanel()
 
 								linger = function(element)
 									local tooltip = CreateAbilityTooltip(spellAbilities[i], {token = CharacterSheet.instance.data.info.token})
-									tooltip.selfStyle.halign = "center"
-									tooltip.selfStyle.valign = "top"
+									--nil for an ability marked notooltip.
+									if tooltip ~= nil then
+										tooltip.selfStyle.halign = "center"
+										tooltip.selfStyle.valign = "top"
+									end
 									element.tooltip = tooltip
 								end,
 
@@ -5369,9 +5386,12 @@ function CharSheet.CharacterFeaturesPanel()
 
 				local key = string.format("%d-%s-%s", i, featureInfo.feature.guid, levelStr)
 
+				---@type Panel
 				local featurePanel = featurePanels[key]
 
 				if featurePanel == nil then
+					--the closures below only run once featurePanel is assigned at the end of this branch.
+					---@cast featurePanel Panel
 
 					local tri = gui.ExpandoArrow{}
 
@@ -6206,6 +6226,7 @@ function CharSheet.MainSheet()
 				end
 
 				local rootPanel = CharacterSheet.instance
+				---@cast rootPanel Panel
 
 				local creature = CharacterSheet.instance.data.info.token.properties
 

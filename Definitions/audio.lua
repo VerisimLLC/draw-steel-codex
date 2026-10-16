@@ -88,7 +88,7 @@ function audio.SetGroupShared(id, value) end
 --- @param id string The mix group id to release.
 function audio.ReleaseDuck(id) end
 
---- Clears all mix-group duck and shared-broadcast state. Normally happens automatically on game load/switch; exposed here as a manual escape hatch for recovering from a leaked duck or testing.
+--- Clears all mix-group duck state and reloads the shared broadcast levels from the game's registered mix document (see mod:RegisterBroadcastMixDocument). Normally happens automatically on game load/switch; exposed here as a manual escape hatch for recovering from a leaked duck or testing.
 function audio.ResetMixState() end
 
 --- Dispatches a sound event by name to all connected clients and plays it locally.
@@ -102,6 +102,6 @@ function audio.DispatchSoundEvent(name, args) end
 --- @return nil|table
 function audio.FireSoundEvent(name, args) end
 
---- Registers a new sound event from a table definition. The args table must contain name, mixgroup, and sounds.
---- @param args table The sound event definition with keys: name, mixgroup, sounds, volume, delay, pitch, loop, etc.
+--- Registers a new sound event from a table definition. The args table must contain name, mixgroup, and sounds. Optional per-player variants: localVolume / localSound apply when this client fired the event (not a replay of another client's DispatchSoundEvent); controlledVolume / controlledSound apply when the fire args' tokenid or attackerid is a token the local user controls. A *Volume multiplies the event's volume (the higher wins when both apply); a *Sound names another sound event to play instead (controlledSound wins when both apply), played with its own settings and its own *Volume multipliers.
+--- @param args table The sound event definition with keys: name, mixgroup, sounds, volume, delay, pitch, loop, localVolume, controlledVolume, localSound, controlledSound, etc.
 function audio.SoundEvent(args) end

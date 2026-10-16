@@ -1168,9 +1168,6 @@ local ChangeLabelValue = function(info, label, newtext)
 
 	label.text = newtext
 	label.data.charid = info.charid
-
-	previousCharId = info.charid
-	
 end
 
 local PopupStyles = {
@@ -1449,7 +1446,6 @@ function SkillDisplayParser(skillInput)
                     element:SetClass("skill_trained", true)
                     print("dj Character is trained in", skillInfo.name, "and the id is", skillInfo.id)
                     print("dj the proficiency value is", proficient)
-                    skillColor = '#8cdecf'
                 else
                     element:SetClass("skill_untrained", true)
                     print("dj Character is untrained in", skillInfo.name, "and the id is", skillInfo.id)

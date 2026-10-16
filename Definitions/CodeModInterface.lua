@@ -20,6 +20,10 @@ function CodeModInterface:GetMod() end
 --- @param id string The document id within this mod.
 function CodeModInterface:RegisterDocumentForCheckpointBackups(id) end
 
+--- Names this mod's document that holds the DM's broadcast mix levels (a 'broadcast' table of mix-group id -> level 0..1). On every game load the engine applies those levels before the game's sounds start, rather than playing at full volume until Lua pushes them. One document at a time; a later call replaces it.
+--- @param id? string
+function CodeModInterface:RegisterBroadcastMixDocument(id) end
+
 --- GetDocumentPath
 --- @param id? string
 --- @return any

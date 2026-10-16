@@ -50,6 +50,18 @@ function ModuleLua:IsModuleIdValid(id) end
 --- @return boolean
 function ModuleLua:IsAuthorIdValid(id) end
 
+--- Installs this Hero module into the current game as a hero module: the newest version whose code an admin has approved, or that has no code. Versions awaiting review are skipped for an older usable one. Fails (calling options.error with a message) if the user does not own a premium module, the module is deprecated, or no version is usable yet. Use Install to install a module into a game normally, which needs no review.
+--- @param options {success: nil|fun(), error: nil|fun(message: string)}
+function ModuleLua:InstallAsHeroModule(options) end
+
+--- Downloads the admin code reviews of this Hero module's versions. Calls options.success with a table keyed by version dataid of {status, version, name, requestedBy, reviewedBy}, where status is "pending", "approved" or "rejected". A version with no entry carries no code, or was never sent for review.
+--- @param options {success: fun(reviews: table<string, {status: string, version: string, name: string, requestedBy: string|nil, reviewedBy: string|nil}>)}
+function ModuleLua:QueryHeroReviews(options) end
+
+--- Admin only: approves or rejects the code in one version of this Hero module. options.versionid is the version's dataid and options.status is "approved" or "rejected". An admin publishing a Hero module with code calls this for the new version, so their own modules need no separate review.
+--- @param options {versionid: string, status: string, success: nil|fun(), error: nil|fun(message: string)}
+function ModuleLua:SetHeroReview(options) end
+
 --- Upload
 --- @param options? any
 function ModuleLua:Upload(options) end
@@ -85,17 +97,6 @@ function ModuleLua:Install(options) end
 --- Uninstall
 --- @param options? any
 function ModuleLua:Uninstall(options) end
---- Installs this Hero module into the current game as a hero module: the newest version whose code an admin has approved, or that has no code. Versions awaiting review are skipped for an older usable one. Fails (calling options.error with a message) if the user does not own a premium module, the module is deprecated, or no version is usable yet. Use Install to install a module into a game normally, which needs no review.
---- @param options {success: nil|fun(), error: nil|fun(message: string)}
-function ModuleLua:InstallAsHeroModule(options) end
-
---- Downloads the admin code reviews of this Hero module's versions. Calls options.success with a table keyed by version dataid of {status, version, name, requestedBy, reviewedBy}, where status is "pending", "approved" or "rejected". A version with no entry carries no code, or was never sent for review.
---- @param options {success: fun(reviews: table<string, {status: string, version: string, name: string, requestedBy: string|nil, reviewedBy: string|nil}>)}
-function ModuleLua:QueryHeroReviews(options) end
-
---- Admin only: approves or rejects the code in one version of this Hero module. options.versionid is the version's dataid and options.status is "approved" or "rejected". An admin publishing a Hero module with code calls this for the new version, so their own modules need no separate review.
---- @param options {versionid: string, status: string, success: nil|fun(), error: nil|fun(message: string)}
-function ModuleLua:SetHeroReview(options) end
 
 --- SetDisabled
 --- @param disabled? boolean

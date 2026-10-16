@@ -128,6 +128,7 @@ end
 ---@return K[]
 function table.keys(t)
 	if type(t) ~= "table" then
+		---@diagnostic disable-next-line: return-type-mismatch
 		return nil
 	end
 
@@ -221,6 +222,14 @@ end
 
 local g_registerGameTypes = {}
 
+--Every game type's metatable from every code load. Kept in a global so a refresh (F5),
+--which re-runs this file, does not wipe it. Old entries drop out once nothing uses them.
+local g_gameTypeMetatables = rawget(_G, "__gameTypeMetatables") or setmetatable({}, { __mode = "k" })
+__gameTypeMetatables = g_gameTypeMetatables
+
+--True when a refresh rebuilt a type that already existed, so old data needs moving over.
+local g_typesReplacedThisLoad = false
+
 --Game types the engine registered as placeholders while deserializing data whose type
 --had not been registered yet (see ScriptSerialize.ObjToLua in C#). An entry is cleared
 --when the type is registered for real; anything still here after all code mods have
@@ -277,6 +286,13 @@ function RegisterGameType(typeName, baseTypeName)
 		end
 		
 		existingType = _G[typeName]
+	else
+		--A refresh rebuilds this type as a new table. Data loaded before the refresh
+		--still uses the old one until it is moved over.
+		local previousType = rawget(_G, typeName)
+		if type(previousType) == "table" and g_gameTypeMetatables[rawget(previousType, "mt") or false] then
+			g_typesReplacedThisLoad = true
+		end
 	end
 
 	local m_aliases = {}
@@ -429,11 +445,85 @@ function RegisterGameType(typeName, baseTypeName)
 		typeName = typeName,
 		baseTypeName = baseTypeName
 	}
+	g_gameTypeMetatables[newType.mt] = true
 
 	_G[typeName] = newType
 
 	g_registerGameTypes[typeName] = { base = baseTypeName, GetAliases = function() return m_aliases end }
 	return _G[typeName]
+end
+
+--- After a refresh (F5), data loaded before it still uses the old types and runs the old
+--- code. This moves every such object onto the current type. Does nothing on a normal load.
+--- @return number rebound how many objects were moved to the current type
+--- @return number walked how many tables were visited
+function RebindStaleGameTypes()
+	if not g_typesReplacedThisLoad then
+		return 0, 0
+	end
+	g_typesReplacedThisLoad = false
+
+	local getupvalue = debug.getupvalue
+	local visited = {}
+	---@type (table|function)[]
+	local stack = { debug.getregistry(), _G }
+	local count = #stack
+	for _,v in ipairs(stack) do
+		visited[v] = true
+	end
+
+	local rebound = 0
+	local walked = 0
+
+	local function push(v)
+		local t = type(v)
+		if (t == "table" or t == "function") and not visited[v] then
+			visited[v] = true
+			count = count + 1
+			stack[count] = v
+		end
+	end
+
+	while count > 0 do
+		local v = stack[count]
+		stack[count] = nil
+		count = count - 1
+
+		if type(v) == "table" then
+			walked = walked + 1
+
+			local mt = getmetatable(v)
+			if mt ~= nil and g_gameTypeMetatables[mt] then
+				local currentType = rawget(_G, rawget(mt, "typeName"))
+				local currentMt = type(currentType) == "table" and rawget(currentType, "mt") or nil
+				if currentMt ~= nil and currentMt ~= mt then
+					setmetatable(v, currentMt)
+					rebound = rebound + 1
+				end
+			end
+
+			--Raw iteration, so the walk never runs any of the object's own code.
+			for k, val in next, v do
+				push(k)
+				push(val)
+			end
+		else
+			--push only stacks tables and functions, so anything not a table is a function.
+			---@cast v function
+			local i = 1
+			while true do
+				local name, up = getupvalue(v, i)
+				if name == nil then
+					break
+				end
+				push(up)
+				i = i + 1
+			end
+		end
+	end
+
+	print(string.format("REBINDTYPES:: rebound %d stale objects to current game types (walked %d tables)", rebound, walked))
+	return rebound, walked
 end
 
 function GetRegisteredTypeDocumentation(typeName)

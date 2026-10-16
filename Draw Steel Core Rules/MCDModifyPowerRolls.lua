@@ -1,5 +1,10 @@
 local mod = dmhub.GetModLoading()
 
+--Regex for the optional damage type between a tier's amount and "damage":
+--one type ("5 fire damage") or a choice of types ("23 cold, fire, or sonic
+--damage", an "or" choice group; see ParseOrGroups). One capture group.
+local g_tierDamageTypes = "([a-zA-Z]+(?:(?:,\\s*[a-zA-Z]+)*,?\\s+or\\s+[a-zA-Z]+)?\\s+)?"
+
 CharacterModifier.DeregisterType("d20")
 
 CharacterModifier.displayCondition = ""
@@ -932,7 +937,7 @@ CharacterModifier.TypeInfo.power = {
                 for i,tier in ipairs(rollProperties.tiers) do
                     if damageModifierType == "none" then
                         --add to existing damage
-                        local match = regex.MatchGroups(tier, "(?<damage>\\d+)\\s+([a-zA-Z]+\\s+)?damage", {indexes = true})
+                        local match = regex.MatchGroups(tier, "(?<damage>\\d+)\\s+" .. g_tierDamageTypes .. "damage", {indexes = true})
                         if match ~= nil then
                             local index = match.damage.index
                             local length = match.damage.length
@@ -955,7 +960,7 @@ CharacterModifier.TypeInfo.power = {
                         local extraDamage = string.format("%s %s damage", damage, damageModifierType)
 
                         --try to find existing damage and place after it if possible.
-                        local match = regex.MatchGroups(tier, "^(?<prefix>.*?)(?<damage>\\d+\\s+([a-zA-Z]+\\s+)?damage)(?<suffix>.*)$")
+                        local match = regex.MatchGroups(tier, "^(?<prefix>.*?)(?<damage>\\d+\\s+" .. g_tierDamageTypes .. "damage)(?<suffix>.*)$")
                         if match ~= nil then
                             tier = string.format("%s%s; %s %s", match.prefix, match.damage, extraDamage, match.suffix)
                         else
@@ -972,7 +977,7 @@ CharacterModifier.TypeInfo.power = {
         local damageMultiplier = self:try_get("damageMultiplier", "full")
         if damageMultiplier ~= "full" then
             for i,tier in ipairs(rollProperties.tiers) do
-                local match = regex.MatchGroups(tier, "(?<damage>\\d+\\s+([a-zA-Z]+\\s+)?damage)", {indexes = true})
+                local match = regex.MatchGroups(tier, "(?<damage>\\d+\\s+" .. g_tierDamageTypes .. "damage)", {indexes = true})
                 if match ~= nil then
                     local index = match.damage.index
                     local length = match.damage.length
@@ -995,7 +1000,7 @@ CharacterModifier.TypeInfo.power = {
             reduction = tonumber(reduction) or 0
             if reduction > 0 then
                 for i,tier in ipairs(rollProperties.tiers) do
-                    local match = regex.MatchGroups(tier, "(?<damage>\\d+)\\s+(\\+\\s*\\d+d\\d+\\s+)?([a-zA-Z]+\\s+)?damage", {indexes = true})
+                    local match = regex.MatchGroups(tier, "(?<damage>\\d+)\\s+(\\+\\s*\\d+d\\d+\\s+)?" .. g_tierDamageTypes .. "damage", {indexes = true})
                     if match ~= nil then
                         local index = match.damage.index
                         local length = match.damage.length

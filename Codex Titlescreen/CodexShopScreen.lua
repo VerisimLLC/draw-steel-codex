@@ -3467,18 +3467,17 @@ local ShowItemDetailsInternal = function(args)
 		baseHeight = cond(args.gift, nil, g_bannerDisplayHeight),
 	}
 
-	--Scrim behind the banner's text: near-solid along the bottom edge behind
-	--the copy, fading to nothing at the top so the art reads through. Same
-	--trick as detailsBackingGradient below -- bgcolor supplies the hue, the
-	--gradient supplies the alpha. Note position 0 is the BOTTOM of the panel,
-	--not the top, so the dark stop comes first.
+	--Fade strip that sits ON TOP of the banner's solid text band, melting the
+	--band into the art. Same trick as detailsBackingGradient below -- bgcolor
+	--supplies the hue, the gradient the alpha. Position 0 is the BOTTOM of the
+	--panel, so the dark stop comes first; it matches the text band's #000000eb so
+	--the strip and the band meet without a seam.
 	local heroTextScrim = gui.Gradient{
 		point_a = {x = 0.5, y = 0},
 		point_b = {x = 0.5, y = 1},
 		stops = {
-			{position = 0,    color = core.Color{r = 1, g = 1, b = 1, a = 0.9}},
-			{position = 0.55, color = core.Color{r = 1, g = 1, b = 1, a = 0.68}},
-			{position = 1,    color = core.Color{r = 1, g = 1, b = 1, a = 0}},
+			{position = 0, color = core.Color{r = 1, g = 1, b = 1, a = 0.92}},
+			{position = 1, color = core.Color{r = 1, g = 1, b = 1, a = 0}},
 		},
 	}
 
@@ -3510,46 +3509,72 @@ local ShowItemDetailsInternal = function(args)
 				valign = "bottom",
 				width = g_bannerDisplayWidth,
 				height = "auto",
-				borderBox = true,
 				--Explicit zero margins: the band has to sit flush on the art's
 				--bottom edge, and an inherited margin floats it clear of it.
 				hmargin = 0,
 				vmargin = 0,
-				hpad = 28,
-				vpad = 18,
-				bgimage = "panels/square.png",
-				bgcolor = "#000000ff",
-				gradient = heroTextScrim,
 				interactable = false,
 
-				gui.Label{
-					classes = {"shopTitle"},
-					width = "auto",
-					height = "auto",
-					halign = "left",
-					textAlignment = "left",
-					refreshItem = function(element, item)
-						element.text = item.name
-					end,
+				--The fade is a fixed-height strip ABOVE the text rather than a
+				--gradient over the whole band: the band's height follows the
+				--description, so a band-wide gradient let the fade reach the
+				--title, and art with its own lettering along the bottom (e.g.
+				--Scions of Blood and Shadows) showed through the copy.
+				gui.Panel{
+					width = g_bannerDisplayWidth,
+					height = 56,
+					hmargin = 0,
+					vmargin = 0,
+					bgimage = "panels/square.png",
+					bgcolor = "#000000ff",
+					gradient = heroTextScrim,
+					interactable = false,
 				},
 
-				gui.Label{
-					classes = {"shopDescription"},
-					width = 760,
+				gui.Panel{
+					flow = "vertical",
+					width = g_bannerDisplayWidth,
 					height = "auto",
-					halign = "left",
-					textAlignment = "left",
-					tmargin = 6,
-					maxHeight = 110,
-					textOverflow = "ellipsis",
-					refreshItem = function(element, item)
-						local text = item.details
-						if text == nil then
-							text = ""
-						end
-						element.text = text
-						element:SetClass("collapsed", text == "")
-					end,
+					borderBox = true,
+					hmargin = 0,
+					vmargin = 0,
+					hpad = 28,
+					tpad = 2,
+					bpad = 18,
+					bgimage = "panels/square.png",
+					--0.92 alpha (0xeb), matching the fade strip's bottom stop.
+					bgcolor = "#000000eb",
+					interactable = false,
+
+					gui.Label{
+						classes = {"shopTitle"},
+						width = "auto",
+						height = "auto",
+						halign = "left",
+						textAlignment = "left",
+						refreshItem = function(element, item)
+							element.text = item.name
+						end,
+					},
+
+					gui.Label{
+						classes = {"shopDescription"},
+						width = 760,
+						height = "auto",
+						halign = "left",
+						textAlignment = "left",
+						tmargin = 6,
+						maxHeight = 110,
+						textOverflow = "ellipsis",
+						refreshItem = function(element, item)
+							local text = item.details
+							if text == nil then
+								text = ""
+							end
+							element.text = text
+							element:SetClass("collapsed", text == "")
+						end,
+					},
 				},
 			},
 		}

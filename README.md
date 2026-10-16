@@ -112,6 +112,10 @@ and check that the editor shows **Managed by Git**. You can also search the play
   (`dmhub`, `gui`, `game`, `chat`, and friends), so an editor running the Lua language
   server (e.g. VS Code with the Lua extension) gets completions and type checking against
   the engine surface.
+- **Type checking: zero problems.** The whole codex type-checks clean, CI checks every
+  push and pull request, and a change must keep it at zero. Read [TYPING.md](TYPING.md)
+  before your first change: how to see problems, the usual fixes, and the one-line
+  suppression rule.
 
 ## How This Implements Draw Steel
 

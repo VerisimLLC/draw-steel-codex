@@ -3409,7 +3409,7 @@ function creature:GetActivatedAbilities(options)
             end
         end
         if consumableAbility ~= nil then
-            ability = consumableAbility:MakeTemporaryClone()
+            local ability = consumableAbility:MakeTemporaryClone()
             ability._tmp_boundCaster = self
             result[#result + 1] = ability
         end

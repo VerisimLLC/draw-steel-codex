@@ -6,151 +6,403 @@ FullscreenDisplay = RegisterGameType("FullscreenDisplay")
 
 FullscreenDisplay.docid = "fullscreen_display"
 
-function FullscreenDisplay.Create(options)
-    local belowui = options.belowui or false
-	local doc = mod:GetDocumentSnapshot(FullscreenDisplay.docid)
-    local displayPanel = gui.Panel{
-        classes = {"hidden", cond(belowui, "belowui", "aboveui")},
+--What is on show: the "fullscreen_display" document.
+--  show            false, true (the players) or "all" (the Director too)
+--  belowui         drawn under the game's UI rather than over it
+--  coverart        the picture: an image asset id (a still or a video)
+--  coverartCredit  the "Art by" creator id, or false
+--  caption, subtitle   text drawn over the picture, or false
+--  sceneid         the Scenes library scene on show (ScenesPanel.lua), or false
+--Game Controls, [[scene]] journal tags and maximized tabletop scene windows
+--all write it; GameHud mounts one display under the UI and one over it.
+
+--Is this image asset a video? Videos are streamed through their own looping
+--player; a still is a plain bgimage.
+function FullscreenDisplay.IsVideo(imageid)
+    local video = false
+    pcall(function()
+        local asset = assets.imagesTable[imageid]
+        video = asset ~= nil and asset.isVideo == true
+    end)
+    return video
+end
+
+--- Whether this client sees the display now: the Director only for "all".
+--- belowui (optional) also requires that layer.
+--- @param belowui nil|boolean
+--- @return boolean
+function FullscreenDisplay.IsShowingHere(belowui)
+    local data = mod:GetDocumentSnapshot(FullscreenDisplay.docid).data
+    if data == nil or not data.show then
+        return false
+    end
+    if data.show ~= "all" and dmhub.isDM then
+        return false
+    end
+    if belowui ~= nil and (data.belowui == true) ~= belowui then
+        return false
+    end
+    --a library scene the Director shares with only some players.
+    if type(data.sceneid) == "string" and Tabletop.SceneShareExcludesMe(data.sceneid) then
+        return false
+    end
+    return true
+end
+
+----------------------------------------------------------------------
+--Drawing a scene: FullscreenDisplay.CreateSceneView is the picture with its caption and
+--art credit, used by the tabletop's scene windows and the fullscreen
+--display. Send it the "showScene" event with {image, caption, subtitle,
+--credit} (any may be nil), and "setFit" with "cover" (fill, cropping the
+--overflow) or "contain" (all of it, letterboxed).
+
+local g_captionGradient = gui.Gradient{
+    point_a = {x = 0.5, y = 0},
+    point_b = {x = 0.5, y = 1},
+    stops = {
+        {position = 0, color = "#000000d0"},
+        {position = 0.55, color = "#00000088"},
+        {position = 1, color = "#00000000"},
+    },
+}
+
+--Sizes an art panel inside its parent: cover fills and crops, contain fits
+--and letterboxes. aspect is the art's height / width.
+local function FitArt(element, aspect, fit)
+    local parent = element.parent
+    if parent == nil or aspect == nil or aspect <= 0 then
+        return
+    end
+    local w = parent.renderedWidth
+    local h = parent.renderedHeight
+    if w <= 0 or h <= 0 then
+        return
+    end
+    local tall = (h / w) > aspect
+    if (fit == "cover") == tall then
+        element.selfStyle.height = "100%"
+        element.selfStyle.width = string.format("%f%% height", 100 / aspect)
+    else
+        element.selfStyle.width = "100%"
+        element.selfStyle.height = string.format("%f%% width", 100 * aspect)
+    end
+end
+
+local function CaptionText(value)
+    if type(value) ~= "string" or value == "" then
+        return nil
+    end
+    return value
+end
+
+--- @param options nil|{fit: nil|string, textScale: nil|number, credit: nil|boolean, interactable: nil|boolean}
+--- @return Panel
+function FullscreenDisplay.CreateSceneView(options)
+    options = options or {}
+    local textScale = options.textScale or 1
+    local m_fit = options.fit or "cover"
+    local m_image = nil
+    local m_aspect = nil
+
+    local artHolder = gui.Panel{
+        floating = true,
         width = "100%",
         height = "100%",
-        bgimage = doc.data.coverart,
-        bgcolor = "white",
-        halign = "center",
-        valign = "center",
-        floating = true,
-
-        styles = {
-            {
-                selectors = {"~dm", "closebutton"},
-                hidden = 1,
-            }
-        },
-
-        screenResized = function(element)
-            element:ScheduleEvent("imageLoaded", 0.5)
-        end,
-
-        imageLoaded = function(element)
-            if element.bgsprite == nil then
-                return
-            end
-
-            local w = element.parent.renderedWidth
-            local h = element.parent.renderedHeight
-            local aspect = h / w
-
-            local imageAspect = element.bgsprite.dimensions.y/element.bgsprite.dimensions.x
-
-            if aspect == imageAspect then
-                element.selfStyle.width = "100%"
-                element.selfStyle.height = "100%"
-            elseif aspect > imageAspect then
-                element.selfStyle.height = "100%"
-                element.selfStyle.width = string.format("%f%% height", 100/imageAspect)
-            else
-                element.selfStyle.width = "100%"
-                element.selfStyle.height = string.format("%f%% width", 100*imageAspect)
-            end
-        end,
+        flow = "none",
+        interactable = false,
     }
 
-    --The art credit (CreatorCredit badge) for the scene on show: the
-    --creator its [[scene]] names under "Art by", or one tagged on the image.
-    --A sibling of displayPanel, which overflows the screen when it crops.
+    local function Refit()
+        for _, art in ipairs(artHolder.children) do
+            FitArt(art, m_aspect, m_fit)
+        end
+    end
+
+    --a new art panel per picture: a video has to be streamed (its own looping
+    --player) and a still is a plain bgimage, and one panel cannot switch back.
+    local function SetArt(image)
+        if image == m_image then
+            return
+        end
+        m_image = image
+        m_aspect = nil
+        if image == nil then
+            artHolder.children = {}
+            return
+        end
+        local video = FullscreenDisplay.IsVideo(image)
+        local art = gui.Panel{
+            halign = "center",
+            valign = "center",
+            width = "100%",
+            height = "100%",
+            bgcolor = "white",
+            bgimage = cond(video, nil, image),
+            interactable = false,
+            create = function(element)
+                if video then
+                    element.bgimageStreamed = image .. "###LOOP" .. dmhub.GenerateGuid()
+                end
+                --a streamed video fires no imageLoaded, and a cached still may
+                --not either.
+                element:ScheduleEvent("imageLoaded", 0.1)
+                element:ScheduleEvent("imageLoaded", 0.6)
+            end,
+            imageLoaded = function(element)
+                if element.bgsprite ~= nil then
+                    m_aspect = element.bgsprite.dimensions.y / element.bgsprite.dimensions.x
+                    FitArt(element, m_aspect, m_fit)
+                    return
+                end
+                pcall(function()
+                    gui.GetImageDimensionsCallback(image, function(dims)
+                        if mod.unloaded or not element.valid or m_image ~= image then
+                            return
+                        end
+                        if dims ~= nil and (dims.width or 0) > 0 and (dims.height or 0) > 0 then
+                            m_aspect = dims.height / dims.width
+                            FitArt(element, m_aspect, m_fit)
+                        end
+                    end)
+                end)
+            end,
+        }
+        artHolder.children = {art}
+    end
+
+    local captionLabel = gui.Label{
+        width = "90%",
+        height = "auto",
+        halign = "center",
+        textAlignment = "center",
+        fontSize = math.floor(44 * textScale),
+        bold = true,
+        color = "#f4efe4",
+        text = "",
+        interactable = false,
+    }
+    local subtitleLabel = gui.Label{
+        width = "90%",
+        height = "auto",
+        halign = "center",
+        textAlignment = "center",
+        fontSize = math.floor(22 * textScale),
+        italics = true,
+        color = "#d8d0c2",
+        tmargin = math.floor(4 * textScale),
+        text = "",
+        interactable = false,
+    }
+    local captionBand = gui.Panel{
+        classes = {"collapsed"},
+        floating = true,
+        width = "100%",
+        height = "auto",
+        valign = "bottom",
+        flow = "vertical",
+        bgimage = "panels/square.png",
+        bgcolor = "white",
+        gradient = g_captionGradient,
+        tpad = math.floor(48 * textScale),
+        bpad = math.floor(36 * textScale),
+        borderBox = true,
+        interactable = false,
+        captionLabel,
+        subtitleLabel,
+    }
+
+    --the "Art by" creator's badge (CreatorCredit.lua).
     local creditHolder = gui.Panel{
         floating = true,
         width = "100%",
         height = "100%",
         flow = "none",
-        data = { creator = nil },
+        interactable = false,
+        data = {creator = nil},
     }
     local function SetCredit(creator)
-        if creator == creditHolder.data.creator then
+        if options.credit == false or creator == creditHolder.data.creator then
             return
         end
         creditHolder.data.creator = creator
         local badge = nil
         if creator ~= nil then
-            badge = CreatorCredit.Badge{ creator = creator }
+            badge = CreatorCredit.Badge{creator = creator}
         end
-        creditHolder.children = { badge }
+        creditHolder.children = {badge}
     end
 
     return gui.Panel{
         width = "100%",
         height = "100%",
-        halign = "center",
-        valign = "center",
-        displayPanel,
+        flow = "none",
+        --clip needs an image and a colour that is not fully clear.
+        bgimage = "panels/square.png",
+        bgcolor = "#0b0907ff",
+        clip = true,
+        interactable = options.interactable == true,
+        data = {w = 0, h = 0},
+        artHolder,
+        captionBand,
         creditHolder,
 
-        data = {
-            presentationInfo = nil,
-        },
+        showScene = function(element, info)
+            info = info or {}
+            SetArt(CaptionText(info.image))
+            local caption = CaptionText(info.caption)
+            local subtitle = CaptionText(info.subtitle)
+            captionLabel.text = caption or ""
+            subtitleLabel.text = subtitle or ""
+            captionLabel:SetClass("collapsed", caption == nil)
+            subtitleLabel:SetClass("collapsed", subtitle == nil)
+            captionBand:SetClass("collapsed", caption == nil and subtitle == nil)
+
+            local creator = nil
+            if type(info.credit) == "string" and CreatorCredit.Get(info.credit) ~= nil then
+                creator = info.credit
+            elseif m_image ~= nil then
+                local credited = CreatorCredit.ForArt(m_image)
+                creator = credited ~= nil and credited.id or nil
+            end
+            SetCredit(creator)
+        end,
+
+        setFit = function(element, fit)
+            if fit ~= m_fit then
+                m_fit = fit
+                Refit()
+            end
+        end,
+
+        --windows resize: refit when the view's size changes.
+        thinkTime = 0.2,
+        think = function(element)
+            local w, h = element.renderedWidth, element.renderedHeight
+            if w ~= element.data.w or h ~= element.data.h then
+                element.data.w = w
+                element.data.h = h
+                Refit()
+            end
+        end,
+    }
+end
+
+--The title bar's presentation control (UpdatePresentationBar below) and what
+--it last showed, so it is only rebuilt when that changes.
+local PRESENTATION_ID = "fullscreen_display"
+local g_presentationSignature = nil
+
+function FullscreenDisplay.Create(options)
+    local belowui = options.belowui or false
+    --a new hud: the title bar's control is put back on the next refresh.
+    g_presentationSignature = nil
+    local doc = mod:GetDocumentSnapshot(FullscreenDisplay.docid)
+    --interactable: while shown it takes the clicks, as the full-screen art always has.
+    local view = FullscreenDisplay.CreateSceneView{fit = "cover", interactable = true}
+
+    --the table's shares decide which players see a library scene, so a
+    --change to them refreshes the display too.
+    local shareMonitor = gui.Panel{
+        floating = true,
+        width = 0,
+        height = 0,
+        interactable = false,
+        monitorGame = Tabletop.ShareDocPath(),
+        refreshGame = function(element)
+            if element.parent ~= nil then
+                element.parent:FireEvent("refreshGame")
+            end
+        end,
+    }
+
+    return gui.Panel{
+        classes = {"hidden", cond(belowui, "belowui", "aboveui")},
+        width = "100%",
+        height = "100%",
+        halign = "center",
+        valign = "center",
+        view,
+        shareMonitor,
 
         monitorGame = doc.path,
 
         refreshGame = function(element)
-	        local doc = mod:GetDocumentSnapshot(FullscreenDisplay.docid)
-            displayPanel.bgimage = doc.data and doc.data.coverart
-            local hide = doc.data == nil or (doc.data.belowui or false) ~= belowui or (not doc.data.show) or (doc.data.show ~= "all" and dmhub.isDM)
-            displayPanel:SetClass("hidden", hide)
-
-            local creator = nil
+            local data = mod:GetDocumentSnapshot(FullscreenDisplay.docid).data or {}
+            local hide = not FullscreenDisplay.IsShowingHere(belowui)
+            element:SetClass("hidden", hide)
             if not hide then
-                local credit = doc.data.coverartCredit
-                if type(credit) == "string" and CreatorCredit.Get(credit) ~= nil then
-                    creator = credit
-                else
-                    local info = CreatorCredit.ForArt(doc.data.coverart)
-                    creator = info ~= nil and info.id or nil
-                end
+                view:FireEvent("showScene", {
+                    image = data.coverart,
+                    caption = data.caption,
+                    subtitle = data.subtitle,
+                    credit = data.coverartCredit,
+                })
             end
-            SetCredit(creator)
+            FullscreenDisplay.UpdatePresentationBar()
+        end,
+    }
+end
 
-            if not hide then
-                displayPanel:FireEvent("imageLoaded")
-            end
+--The Director's control in the title bar: Hide / Players / All and Below UI,
+--for whatever is on show. A maximized tabletop scene window has its own
+--(Players / All) in its strip under the title bar (Tabletop.lua), so while
+--there is one the bar shows none.
+local function WriteDisplay(description, fn)
+    local doc = mod:GetDocumentSnapshot(FullscreenDisplay.docid)
+    doc:BeginChange()
+    fn(doc.data)
+    doc:CompleteChange(description)
+end
 
-            if doc.data == nil or (not doc.data.show) or not dmhub.isDM then
-                if element.data.presentationInfo ~= nil then
-                    TopBar.ClearPresentationInfo(element.data.presentationInfo.id)
-                    element.data.presentationInfo = nil
-                end
-            else
-                local info = element.data.presentationInfo or {}
-                info.id = info.id or dmhub.GenerateGuid()
-                info.text = "Show Scene"
-                info.onchange = info.onchange or function(value)
-                    local doc = FullscreenDisplay.GetDocumentSnapshot()
-                    doc:BeginChange()
-                    doc.data.show = value
-                    doc:CompleteChange("Show Fullscreen Display")
-                end
-                info.options = info.options or {
-                    {
-                        id = false,
-                        text = "Hide",
-                        execute = function()
-                        end,
-                    },
-                    {
-                        id = true,
-                        text = "Players",
-                        execute = function()
-                        end,
-                    },
-                    {
-                        id = "all",
-                        text = "All",
-                        execute = function()
-                        end,
-                    }
-                }
-                info.value = doc.data.show
-                TopBar.SetPresentationInfo(info)
-                element.data.presentationInfo = info
+function FullscreenDisplay.UpdatePresentationBar()
+    local data = mod:GetDocumentSnapshot(FullscreenDisplay.docid).data or {}
+    local scenes = rawget(_G, "Scenes")
+
+    local value = nil
+    if dmhub.isDM and data.show and Tabletop.MaximizedSceneId() == nil then
+        value = data.show
+    end
+
+    local belowui = data.belowui == true
+    local signature = nil
+    if value ~= nil then
+        signature = string.format("%s|%s", tostring(value), tostring(belowui))
+    end
+    if signature == g_presentationSignature then
+        return
+    end
+    g_presentationSignature = signature
+
+    if signature == nil then
+        TopBar.ClearPresentationInfo(PRESENTATION_ID)
+        return
+    end
+
+    TopBar.SetPresentationInfo{
+        id = PRESENTATION_ID,
+        text = "Show Scene",
+        value = value,
+        options = {
+            {id = false, text = "Hide"},
+            {id = true, text = "Players"},
+            {id = "all", text = "All"},
+        },
+        onchange = function(newValue)
+            local current = mod:GetDocumentSnapshot(FullscreenDisplay.docid).data
+            if scenes ~= nil and type(current.sceneid) == "string" then
+                --a library scene: its sound cue follows it.
+                scenes.Present(current.sceneid, newValue)
+                return
             end
+            WriteDisplay("Show Fullscreen Display", function(d)
+                d.show = newValue
+            end)
+        end,
+        belowui = belowui,
+        onbelowui = function(newValue)
+            WriteDisplay("Show Below UI", function(d)
+                d.belowui = newValue == true
+            end)
         end,
     }
 end

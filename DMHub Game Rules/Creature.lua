@@ -193,7 +193,7 @@ end
 --- @field attributeIds string[] Ordered list of registered attribute ids.
 --- @field attributeDropdownOptions {id: string, text: string}[] Attribute options for use in dropdowns.
 --- @field attributeDropdownOptionsWithNone {id: string, text: string}[] Attribute options including a leading "None" entry.
---- @field savingThrowInfo table<string, {id: string, attrid?: string, description: string, order: number}> Registered saving throw metadata keyed by id.
+--- @field savingThrowInfo table<string, SavingThrowInfo> Registered saving throw metadata keyed by id.
 --- @field savingThrowIds string[] Ordered list of registered saving throw ids.
 --- @field savingThrowDropdownOptions {id: string, text: string, order: number}[] Saving throw options for use in dropdowns.
 --- @field SavingThrowMod fun(self: creature, saveid: string): number Total saving throw modifier. Implemented by character and monster (not TargetableObject).
@@ -224,6 +224,7 @@ end
 --- @field encounterSpawnMonster? string Encounter builder: bestiary id spawned into this slot.
 --- @field encounterStaged? boolean Encounter builder: true while the token is a staged (not yet started) placement.
 --- @field encounterStagedBy? string Encounter builder: userid of the Director who staged it.
+--- @field encounterSourceId? string Encounter prep: id of the saved encounter whose play spawned this token.
 --- @field encounterWaveId? string Encounter waves: id of the wave that spawned this token.
 --- @field encounterGroupIndex? integer Encounter waves: index of the group within the authored encounter.
 --- @field isDuplicate? boolean Set on tokens created by the Duplicate summon behavior.
@@ -406,8 +407,9 @@ end
 --- @return string[]
 function creature:GetMonsterCategoryList(base_only)
 	local cat = self:try_get("monster_category")
+	local result
 	if cat == nil or (type(cat) == "table" and #cat == 0) then
-		local result = {"monster"}
+		result = {"monster"}
 	elseif type(cat) == "string" then
 		result = {cat}
 	else
@@ -1088,8 +1090,17 @@ creature.savingThrowInfo = {}
 creature.savingThrowIds = {}
 creature.savingThrowDropdownOptions = {}
 
+--- One registered saving throw. A named class rather than an inline table type: with
+--- the inline shape LuaLS sometimes compared registrations against a caller's literal
+--- (attrid required) instead, depending on which file it diagnosed first.
+--- @class SavingThrowInfo
+--- @field id string
+--- @field attrid? string Characteristic the save rolls with, when it has one.
+--- @field description string
+--- @field order number
+
 --- Register a saving throw.
---- @param info {id: string, attrid?: string, description: string, order: number}
+--- @param info SavingThrowInfo
 function creature.RegisterSavingThrow(info)
 	local index = #creature.savingThrowIds+1
 	for i,existing in ipairs(creature.savingThrowIds) do
@@ -1753,7 +1764,7 @@ end
 
 
 function creature.GetEquipmentAttackActions(self, options)
-	result = {}
+	local result = {}
 	local gearTable = GetTableCached('tbl_Gear')
 
 	for k,itemid in pairs(self:Equipment()) do
@@ -2466,6 +2477,8 @@ function creature:ConsumeResourcesForD20Roll(rollid, options)
 	if resourceConsumed then
 		local ourToken = dmhub.LookupToken(self)
 		if ourToken ~= nil then
+			--D&D 5e d20 resource use, outside any ModifyProperties; kept until 5e's future is decided.
+			---@diagnostic disable-next-line: deprecated
 			ourToken:Upload("used resource")
 		end
 	end
@@ -2925,6 +2938,8 @@ function creature:RollDeathSavingThrow(args)
 
 		local token = dmhub.LookupToken(thisCreature)
 		if token ~= nil then
+			--D&D 5e death saves, outside any ModifyProperties; kept until 5e's future is decided.
+			---@diagnostic disable-next-line: deprecated
 			token:Upload('Death saving throw result')
 		end
 
@@ -3372,6 +3387,8 @@ function creature.RollAttackHit(self, attack, target, options)
 	if attackRanged and target ~= nil then
 		--only ActivatedAbility passes a target, and it calls this on a live caster token's properties.
 		---@cast selfToken -nil
+		--D&D 5e long-range check in feet: Distance counts a diagonal as 7 under 5e's 5 units per square.
+		---@diagnostic disable-next-line: deprecated
 		local range = selfToken:DistanceInFeet(target) - 2.5
 
 		if range > attack:RangeNormal() then
@@ -3894,11 +3911,11 @@ function creature:CalculateSpellcastingFeatures()
 
 	local modifiers = self:GetActiveModifiers()
 	for _,mod in ipairs(modifiers) do
-		proficiencyBonus = mod.mod:AccumulateSpellcastingFeatures(self, result)
+		mod.mod:AccumulateSpellcastingFeatures(self, result)
 	end
 
 	for _,mod in ipairs(modifiers) do
-		proficiencyBonus = mod.mod:ModifySpellcastingFeatures(self, result)
+		mod.mod:ModifySpellcastingFeatures(self, result)
 	end
 
 	self._tmp_spellcastingFeaturesCache = {
@@ -13133,7 +13150,6 @@ function creature:EventPaste()
 			}
 		end,
 		upload = function(imageid)
-			uploadComplete = true
 			dmhub.AddAndUploadImageToLibrary("Avatar", imageid)
 
 			token.portrait = imageid

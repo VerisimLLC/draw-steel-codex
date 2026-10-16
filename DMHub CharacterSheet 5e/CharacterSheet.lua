@@ -12,9 +12,6 @@ local ChangeLabelValue = function(info, label, newtext)
 
 	label.text = newtext
 	label.data.charid = info.charid
-
-	previousCharId = info.charid
-	
 end
 
 

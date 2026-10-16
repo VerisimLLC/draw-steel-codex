@@ -4961,6 +4961,9 @@ local function RenderMarkdownTokens(ctx, tokens)
                 if string.starts_with(text, "\n") then
                     text = text:sub(2)
                 end
+                --the text's lines before skinning, for placing drops between
+                --them (DisplayPanel LabelDropLine).
+                textPanel.data.dropText = text
 
                 --make it so that leading or trailing spaces are non-breaking
                 if string.starts_with(text, " ") then
@@ -5076,6 +5079,8 @@ local function RenderMarkdownTokens(ctx, tokens)
                     local label = m_textPanels[#newTextPanels + 1] or MakeTextLabel()
                     label.selfStyle.halign = token.justification or "left"
                     label.selfStyle.textAlignment = "topleft" --pooled: see fast path.
+                    --a segment is not the whole token, so drops stay by block.
+                    label.data.dropText = nil
                     if m_textPanels[#newTextPanels + 1] ~= nil then
                         label:Unparent()
                     end
@@ -5326,8 +5331,15 @@ local function RenderMarkdownTokens(ctx, tokens)
 
         -- Stamp the source line onto whatever top-level children this token
         -- appended (overwrite, so reused/cached panels refresh each render).
+        --srcLineEnd is the token's last source line (nil when it has no
+        --line of its own); view-mode drops map label lines back with it.
+        local stampLineEnd = nil
+        if token.srcLine ~= nil then
+            stampLineEnd = token.srcLineEnd or token.srcLine
+        end
         for k = stampFrom, #stampChildren do
             stampChildren[k].data.srcLine = stampLine
+            stampChildren[k].data.srcLineEnd = stampLineEnd
         end
     end
 
@@ -6110,6 +6122,134 @@ function MarkdownDocument.DisplayPanel(self, args)
         }
     end
 
+    --Dropping items on the page (DocumentSystem.lua): while a drag is over it,
+    --a bar shows where the drop goes. Drops go between the rendered blocks,
+    --or between the lines of a multi-line paragraph (LabelDropLine). The host
+    --floats at the top of the scrolled content, like the toast host above.
+    local m_dropHost = nil
+    local m_dropBar = nil
+
+    local function GetDropHost()
+        if m_dropHost ~= nil and m_dropHost.valid then
+            return m_dropHost
+        end
+        m_dropBar = gui.Panel{
+            classes = {"itemLinkDropBar", "collapsed"},
+            styles = ThemeEngine.MergeTokens{
+                { selectors = {"itemLinkDropBar"}, bgcolor = "@accent" },
+            },
+            floating = true,
+            interactable = false,
+            width = "100%",
+            height = 3,
+            halign = "center",
+            valign = "top",
+            bgimage = "panels/square.png",
+        }
+        m_dropHost = gui.Panel{
+            floating = true,
+            interactable = false,
+            width = "100%",
+            height = "100%",
+            halign = "center",
+            valign = "top",
+            m_dropBar,
+        }
+        return m_dropHost
+    end
+
+    --A panel's top and bottom in screen pixels from the top of the screen
+    --(where dmhub.mouseScreenPosition is measured). distancesToScreenEdge is
+    --measured against the area below the title bar, in screen-height units.
+    local function ScreenTopBottom(panel)
+        local d = panel.distancesToScreenEdge
+        local screen = dmhub.screenDimensions
+        local below = dmhub.screenDimensionsBelowTitlebar
+        local scale, offset = 1, 0
+        if below.y > 0 then
+            scale = below.y / screen.y
+            offset = screen.y - below.y
+        end
+        return offset + d.w * scale, screen.y - d.y * scale
+    end
+
+    --A drop inside a multi-line text label (screen top..bottom) goes between
+    --its lines: returns the source line it goes in front of and the screen y
+    --of that spot, or nil to place it by the whole block. Only when the
+    --label's lines are the source lines srcLine..srcLineEnd one for one,
+    --checked against the text it was given (data.dropText) and the lines it
+    --laid out.
+    local function LabelDropLine(child, top, bottom, mouseY)
+        local data = child.data
+        local text, first, last = data.dropText, data.srcLine, data.srcLineEnd
+        if text == nil or first == nil or last == nil or last <= first then
+            return nil
+        end
+        local _, breaks = text:gsub("\n", "")
+        local count = breaks + 1
+        local textLines = cond(text:sub(-1) == "\n", count - 1, count)
+        if textLines ~= last - first + 1 then
+            return nil
+        end
+        local label = child --[[@as Label]]
+        local hit = label:GetLineAtMouse()
+        local height = child.renderedHeight or 0
+        if hit == nil or hit.lineCount ~= count or height <= 0 then
+            return nil
+        end
+        local scale = (bottom - top) / height
+        local lineTop = top + hit.top * scale
+        local lineBottom = top + hit.bottom * scale
+        if hit.line > textLines then
+            --the empty line a trailing newline leaves: after the label.
+            return last + 1, lineTop
+        end
+        if mouseY < (lineTop + lineBottom) / 2 then
+            return first + hit.line - 1, lineTop
+        end
+        return first + hit.line, lineBottom
+    end
+
+    --Where a drop at the mouse goes: the source line it goes in front of (nil
+    --for the end of the document), and the screen y of that spot.
+    local function DropPlacement(element)
+        local mouseY = dmhub.mouseScreenPosition.y
+        local lastBottom = nil
+        for _, child in ipairs(element.children) do
+            local line = child.data ~= nil and child.data.srcLine or nil
+            if line ~= nil and not child.floating and not child:HasClass("collapsed") and (child.renderedHeight or 0) > 0 then
+                local top, bottom = ScreenTopBottom(child)
+                if mouseY >= top and mouseY < bottom then
+                    local labelLine, labelY = LabelDropLine(child, top, bottom, mouseY)
+                    if labelLine ~= nil then
+                        return labelLine, labelY
+                    end
+                end
+                if mouseY < (top + bottom) / 2 then
+                    return line, top
+                end
+                lastBottom = bottom
+            end
+        end
+        return nil, lastBottom
+    end
+
+    local function ShowDropBar(screenY)
+        local host = GetDropHost()
+        if m_dropBar == nil or not m_dropBar.valid then
+            return
+        end
+        local y = 0
+        if screenY ~= nil then
+            local top, bottom = ScreenTopBottom(host)
+            if bottom > top then
+                y = (screenY - top) * (host.renderedHeight / (bottom - top))
+            end
+        end
+        m_dropBar.y = math.max(0, y - 2)
+        m_dropBar:SetClass("collapsed", false)
+    end
+
     local ctx = CreateMarkdownRenderContext(self, embedDepth)
 
     local params = {
@@ -6256,6 +6396,7 @@ function MarkdownDocument.DisplayPanel(self, args)
                 end
             end
             if embedDepth == 0 and not m_noninteractive then
+                children[#children + 1] = GetDropHost()
                 children[#children + 1] = GetGlossaryToastHost()
             end
             element.children = children
@@ -6319,6 +6460,29 @@ function MarkdownDocument.DisplayPanel(self, args)
             m_glossaryCards.ClosePin()
             GlossaryClearHoverCard()
             element:FireEvent("refreshDocument")
+        end,
+
+        --Dropping items (DocumentSystem.lua). itemLinkDropFind is fired down
+        --the document to find the page drops go on: the top-level page
+        --answers, not pages embedded in it. itemLinkDropPlace is then fired at
+        --that page every frame of the drag: it shows the drop bar at the
+        --mouse and reports the source line the drop goes in front of
+        --(result.line; nil for the end).
+        itemLinkDropFind = function(element, result)
+            if embedDepth > 0 or m_noninteractive or result.page ~= nil then
+                return
+            end
+            result.page = element
+        end,
+        itemLinkDropPlace = function(element, result)
+            local line, y = DropPlacement(element)
+            result.line = line
+            ShowDropBar(y)
+        end,
+        itemLinkDropEnd = function(element)
+            if m_dropBar ~= nil and m_dropBar.valid then
+                m_dropBar:SetClass("collapsed", true)
+            end
         end,
 
         --Find-in-page driver. args = {term=string|nil, index=number,
@@ -11778,6 +11942,103 @@ function MarkdownDocument:SeamlessEditPanel(args)
         --into raw mode.
     }
 
+    --Dropping items while editing ("Dropping items" in DocumentSystem.lua):
+    --the drop goes in at the mouse, and a caret over the text shows where.
+    local m_dropCaret = nil
+    --the islands of the text being dropped on, worked out once per drag:
+    --{text = string, ranges = {{from, to}}} (1-based inclusive bytes).
+    local m_dropIslands = nil
+
+    local function DropIslandRanges(text)
+        if m_rawMode then
+            --raw mode shows no islands, so nothing is atomic.
+            return {}
+        end
+        if m_dropIslands ~= nil and m_dropIslands.text == text then
+            return m_dropIslands.ranges
+        end
+        local ranges = {}
+        local ok, decs = pcall(Seamless.CompileDecorations, m_doc, text)
+        if ok and type(decs) == "table" then
+            for _, d in ipairs(decs) do
+                if d.kind == "island" then
+                    ranges[#ranges + 1] = { from = d.from, to = d.to }
+                end
+            end
+        end
+        m_dropIslands = { text = text, ranges = ranges }
+        return ranges
+    end
+
+    --The byte offset (caretPosition space) a drop at the mouse goes in at,
+    --or nil when the editor has no layout. Tags render as islands, which
+    --are whole lines, so they snap to the nearer end of the source line;
+    --nothing may land inside an island (a table or power roll), so a spot
+    --inside one moves to its nearer edge.
+    local function DropPosition(text, inline)
+        local pos = editInput:SourcePositionAtMouse()
+        if pos == nil then
+            return nil
+        end
+        pos = math.max(0, math.min(pos, #text))
+        if not inline then
+            local lineStart = pos
+            while lineStart > 0 and text:sub(lineStart, lineStart) ~= "\n" do
+                lineStart = lineStart - 1
+            end
+            local newline = text:find("\n", pos + 1, true)
+            local lineEnd = newline ~= nil and newline - 1 or #text
+            pos = cond(pos - lineStart <= lineEnd - pos, lineStart, lineEnd)
+        end
+        for _, r in ipairs(DropIslandRanges(text)) do
+            if pos > r.from - 1 and pos < r.to then
+                pos = cond(pos - (r.from - 1) <= r.to - pos, r.from - 1, r.to)
+            end
+        end
+        return pos
+    end
+
+    local function ShowDropCaret(pos)
+        if pos == nil then
+            if m_dropCaret ~= nil and m_dropCaret.valid then
+                m_dropCaret:SetClass("collapsed", true)
+            end
+            return
+        end
+        if m_dropCaret == nil or not m_dropCaret.valid then
+            m_dropCaret = gui.Panel{
+                classes = {"itemLinkDropCaret", "collapsed"},
+                styles = ThemeEngine.MergeTokens{
+                    { selectors = {"itemLinkDropCaret"}, bgcolor = "@accent" },
+                },
+                floating = true,
+                interactable = false,
+                halign = "left",
+                valign = "top",
+                width = 3,
+                height = 16,
+                bgimage = "panels/square.png",
+            }
+            islandLayer:AddChild(m_dropCaret)
+        end
+        local at = editInput:GetCaretPanelPosition(pos)
+        if at == nil then
+            m_dropCaret:SetClass("collapsed", true)
+            return
+        end
+        --at is measured from the editor's own rect, which its prefab makes a
+        --little larger than islandLayer's; the mouse's local point in each
+        --gives the offset between them (mousePoint: fractions from the left
+        --and from the bottom).
+        local mt, ml = editInput.mousePoint, islandLayer.mousePoint
+        local dx = mt.x * editInput.renderedWidth - ml.x * islandLayer.renderedWidth
+        local dy = (1 - mt.y) * editInput.renderedHeight - (1 - ml.y) * islandLayer.renderedHeight
+        m_dropCaret.selfStyle.x = at.x - dx - 1
+        m_dropCaret.selfStyle.y = at.y - dy
+        m_dropCaret.selfStyle.height = math.max(4, at.height)
+        m_dropCaret:SetClass("collapsed", false)
+    end
+
     resultPanel = gui.Panel{
         classes = { "collapsed" },
         styles = ThemeEngine.GetStyles(),
@@ -11793,18 +12054,98 @@ function MarkdownDocument:SeamlessEditPanel(args)
             end
         end,
 
-        --A tag dropped on the document while it is being edited: insert it at
-        --the cursor on its own line. Firing "edit" lets autosave pick it up.
-        insertRichTag = function(element, richTag, name)
-            local key = m_doc:AddRichTagAnnotation(richTag, name)
-            local text = editInput.text or ""
-            local caret = math.min(editInput.caretPosition or #text, #text)
-            local before = text:sub(1, caret)
-            local markup = string.format("[[%s]]\n", key)
-            if before ~= "" and before:sub(-1) ~= "\n" then
-                markup = "\n" .. markup
+        --Dropping items: itemLinkDropFindEditor is fired down the document
+        --shell to find this editor; itemLinkDropPlace is then fired at it
+        --every frame of the drag with {items = the dragged items}. It shows
+        --the drop caret and reports where the drop goes (result.pos, a byte
+        --offset, nil when the editor has no layout).
+        itemLinkDropFindEditor = function(element, result)
+            result.editor = element
+        end,
+        itemLinkDropPlace = function(element, result)
+            if editInput == nil or not editInput.valid then
+                return
             end
-            editInput:SetTextAndCaret(caret + #markup, before .. markup .. text:sub(caret + 1))
+            local text = editInput.text or ""
+            result.pos = DropPosition(text, RichItemLink.DropIsInline(result.items))
+            ShowDropCaret(result.pos)
+        end,
+        itemLinkDropEnd = function(element)
+            ShowDropCaret(nil)
+            m_dropIslands = nil
+        end,
+
+        --Items dropped on the document while it is being edited go in at pos
+        --(a byte offset from itemLinkDropPlace), or at the cursor without
+        --one: journal entry links inline, tags on lines of their own. Firing
+        --"edit" lets autosave pick it up.
+        insertItemLinks = function(element, items, pos)
+            local markup = RichItemLink.MarkupForDrop(m_doc, items)
+            if #markup == 0 then
+                return
+            end
+            local parts = {}
+            local allInline = true
+            for _, entry in ipairs(markup) do
+                parts[#parts + 1] = entry.text
+                allInline = allInline and entry.inline
+            end
+
+            local text = editInput.text or ""
+            local caret = math.max(0, math.min(pos or editInput.caretPosition or #text, #text))
+            local before = text:sub(1, caret)
+            local after = text:sub(caret + 1)
+            local insert
+            if allInline then
+                insert = table.concat(parts, " ")
+            else
+                insert = table.concat(parts, "\n")
+                if before ~= "" and before:sub(-1) ~= "\n" then
+                    insert = "\n" .. insert
+                end
+                if after:sub(1, 1) ~= "\n" then
+                    insert = insert .. "\n"
+                end
+            end
+            local newCaret = caret + #insert
+            if not allInline and after:sub(1, 1) == "\n" then
+                --past the tags' line, so it shows as cards rather than
+                --revealed source (the caret's line always shows raw).
+                newCaret = newCaret + 1
+            end
+            editInput:SetTextAndCaret(newCaret, before .. insert .. after)
+            editInput:FireEvent("edit")
+        end,
+
+        --A card dragged within this document (RichItemLink.lua) moves its
+        --line to pos, a byte offset from itemLinkDropPlace. Tags snap to a
+        --line's start or end there, so pos names the line it goes in front of.
+        moveItemLink = function(element, move, pos)
+            if pos == nil or editInput == nil or not editInput.valid then
+                return
+            end
+            local text = editInput.text or ""
+            pos = math.max(0, math.min(pos, #text))
+            local _, newlines = text:sub(1, pos):gsub("\n", "")
+            local at = newlines + 1
+            if pos > 0 and text:sub(pos, pos) ~= "\n" then
+                --at the end of a line: in front of the next one.
+                at = at + 1
+            end
+
+            local lines = string.split_allow_duplicates(text, "\n")
+            local movedAt = RichItemLink.MoveTagLine(m_doc, lines, move, at)
+            if movedAt == nil then
+                return
+            end
+            local newText = table.concat(lines, "\n")
+            --the caret goes to the line after the card, so the card shows as
+            --a card rather than revealed source (the caret's line shows raw).
+            local caret = 0
+            for i = 1, movedAt do
+                caret = caret + #lines[i] + 1
+            end
+            editInput:SetTextAndCaret(math.min(caret, #newText), newText)
             editInput:FireEvent("edit")
         end,
 

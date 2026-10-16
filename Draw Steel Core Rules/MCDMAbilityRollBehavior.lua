@@ -67,6 +67,12 @@ ActivatedAbilityModifyCastBehavior.RegisterParam{
 --- @field ExecuteCommand fun(self: ActivatedAbilityPowerRollBehavior, ability: ActivatedAbility, casterToken: CharacterToken|nil, targetToken: CharacterToken|nil, options: table, rule: string) Borrowed from ActivatedAbilityDrawSteelCommandBehavior (assigned below).
 ActivatedAbilityPowerRollBehavior = RegisterGameType("ActivatedAbilityPowerRollBehavior", "ActivatedAbilityBehavior")
 
+--Regex for the optional damage type between a tier's amount and "damage":
+--one type ("5 fire damage") or a choice of types ("23 cold, fire, or sonic
+--damage", an "or" choice group; see ParseOrGroups). One capture group,
+--including its trailing whitespace.
+local g_tierDamageTypes = "([a-zA-Z]+(?:(?:,\\s*[a-zA-Z]+)*,?\\s+or\\s+[a-zA-Z]+)?\\s+)?"
+
 ActivatedAbilityPowerRollBehavior.summary = 'Roll on Power Table'
 ActivatedAbilityPowerRollBehavior.rule = ''
 
@@ -128,13 +134,43 @@ local function FormatTierText(text, skipValidation)
     return text
 end
 
+--- The "or" choices that apply to one target of a power roll, as a table of
+--- "tier:group" keys to 1-based alternative indexes (nil when none were made).
+--- rollProperties.orChoices holds choices for every target;
+--- rollProperties.orChoicesByTarget[charid] holds one target's own picks
+--- (multi-target rolls), which win key by key. targetid nil reads the shared
+--- choices only.
+--- @param rollProperties nil|table
+--- @param targetid nil|string
+--- @return nil|table<string, number>
+function ActivatedAbilityPowerRollBehavior.GetOrChoicesForTarget(rollProperties, targetid)
+    if rollProperties == nil then
+        return nil
+    end
+    local shared = rollProperties:try_get("orChoices")
+    local byTarget = rollProperties:try_get("orChoicesByTarget")
+    local own = (targetid ~= nil and byTarget ~= nil) and byTarget[targetid] or nil
+    if own == nil then
+        return shared
+    end
+    local result = {}
+    for k,v in pairs(shared or {}) do
+        result[k] = v
+    end
+    for k,v in pairs(own) do
+        result[k] = v
+    end
+    return result
+end
+
 --Render tier text that may contain "or" choice groups (see ParseOrGroups
 --in MCDMAbilityBehavior.lua). Alternatives are wrapped in
 --<link=or:tier:group:alt> regions: the chosen alternative is underlined,
 --unchosen ones are dimmed. A label showing this text with links = true
 --can read element.linkHovered in its press handler to react to clicks.
 --Text without choice groups renders exactly as FormatTierText would.
-local function FormatTierTextWithOrChoices(rawText, caster, skipValidation, tierIndex, rollProperties)
+--targetid picks whose choices to show (see GetOrChoicesForTarget).
+local function FormatTierTextWithOrChoices(rawText, caster, skipValidation, tierIndex, rollProperties, targetid)
     local groups = ActivatedAbilityDrawSteelCommandBehavior.ParseOrGroups(rawText)
     if groups == nil then
         local tierText = rawText
@@ -144,10 +180,7 @@ local function FormatTierTextWithOrChoices(rawText, caster, skipValidation, tier
         return FormatTierText(tierText, skipValidation)
     end
 
-    local choices = nil
-    if rollProperties ~= nil then
-        choices = rollProperties:try_get("orChoices")
-    end
+    local choices = ActivatedAbilityPowerRollBehavior.GetOrChoicesForTarget(rollProperties, targetid)
 
     --Run the display pipeline piece by piece so byte spans from the raw
     --text stay aligned with what we emit. Alternatives skip the
@@ -174,7 +207,14 @@ local function FormatTierTextWithOrChoices(rawText, caster, skipValidation, tier
             chosen = choices[key]
         end
 
-        out[#out+1] = Transform(string.sub(rawText, pos, g.alts[1].s - 1), skipValidation)
+        if g.headS ~= nil and g.headS >= pos then
+            --a damage-type group: the amount ahead of the list ("23 ") is
+            --only half a clause, so it must not be dimmed as unparseable.
+            out[#out+1] = Transform(string.sub(rawText, pos, g.headS - 1), skipValidation)
+            out[#out+1] = Transform(string.sub(rawText, g.headS, g.alts[1].s - 1), true)
+        else
+            out[#out+1] = Transform(string.sub(rawText, pos, g.alts[1].s - 1), skipValidation)
+        end
 
         for ai,alt in ipairs(g.alts) do
             if ai > 1 then
@@ -219,40 +259,58 @@ end
 --(save ends)" vs "(EoT)"), and the user cannot know which tier will land
 --before rolling, so a click also selects the matching alternative in the
 --other tiers' groups (matched on duration-stripped alternative text).
-local function SetOrChoice(rollProperties, tierIndex, groupIndex, altIndex)
-    local orChoices = rollProperties:get_or_add("orChoices", {})
-    orChoices[string.format("%d:%d", tierIndex, groupIndex)] = altIndex
+--targetid nil records the choice for every target (and drops any
+--per-target picks for those groups); a charid records it for that target
+--only, in rollProperties.orChoicesByTarget.
+local function SetOrChoice(rollProperties, tierIndex, groupIndex, altIndex, targetid)
+    local keys = {string.format("%d:%d", tierIndex, groupIndex)}
 
     local sourceText = rollProperties.tiers[tierIndex]
-    if type(sourceText) ~= "string" then
-        return
-    end
-    local sourceGroups = ActivatedAbilityDrawSteelCommandBehavior.ParseOrGroups(sourceText)
+    local sourceGroups = type(sourceText) == "string" and ActivatedAbilityDrawSteelCommandBehavior.ParseOrGroups(sourceText) or nil
     local sourceGroup = sourceGroups ~= nil and sourceGroups[groupIndex] or nil
-    if sourceGroup == nil then
-        return
-    end
+    if sourceGroup ~= nil then
+        local sourceKeys = {}
+        for ai,alt in ipairs(sourceGroup.alts) do
+            sourceKeys[ai] = ActivatedAbilityDrawSteelCommandBehavior.OrAltComparisonKey(string.sub(sourceText, alt.s, alt.e))
+        end
 
-    local sourceKeys = {}
-    for ai,alt in ipairs(sourceGroup.alts) do
-        sourceKeys[ai] = ActivatedAbilityDrawSteelCommandBehavior.OrAltComparisonKey(string.sub(sourceText, alt.s, alt.e))
-    end
-
-    for ti,tierText in ipairs(rollProperties.tiers) do
-        if ti ~= tierIndex and type(tierText) == "string" then
-            for gi,g in ipairs(ActivatedAbilityDrawSteelCommandBehavior.ParseOrGroups(tierText) or {}) do
-                if #g.alts == #sourceKeys then
-                    local same = true
-                    for ai,alt in ipairs(g.alts) do
-                        if ActivatedAbilityDrawSteelCommandBehavior.OrAltComparisonKey(string.sub(tierText, alt.s, alt.e)) ~= sourceKeys[ai] then
-                            same = false
-                            break
+        for ti,tierText in ipairs(rollProperties.tiers) do
+            if ti ~= tierIndex and type(tierText) == "string" then
+                for gi,g in ipairs(ActivatedAbilityDrawSteelCommandBehavior.ParseOrGroups(tierText) or {}) do
+                    if #g.alts == #sourceKeys then
+                        local same = true
+                        for ai,alt in ipairs(g.alts) do
+                            if ActivatedAbilityDrawSteelCommandBehavior.OrAltComparisonKey(string.sub(tierText, alt.s, alt.e)) ~= sourceKeys[ai] then
+                                same = false
+                                break
+                            end
+                        end
+                        if same then
+                            keys[#keys+1] = string.format("%d:%d", ti, gi)
                         end
                     end
-                    if same then
-                        orChoices[string.format("%d:%d", ti, gi)] = altIndex
-                    end
                 end
+            end
+        end
+    end
+
+    if targetid ~= nil then
+        local byTarget = rollProperties:get_or_add("orChoicesByTarget", {})
+        local own = byTarget[targetid]
+        if own == nil then
+            own = {}
+            byTarget[targetid] = own
+        end
+        for _,key in ipairs(keys) do
+            own[key] = altIndex
+        end
+    else
+        local orChoices = rollProperties:get_or_add("orChoices", {})
+        local byTarget = rollProperties:try_get("orChoicesByTarget")
+        for _,key in ipairs(keys) do
+            orChoices[key] = altIndex
+            for _,own in pairs(byTarget or {}) do
+                own[key] = nil
             end
         end
     end
@@ -379,24 +437,117 @@ end
 -- Local alias so existing call sites in this file keep working.
 local DiceResultToTier = RollUtils.DiceResultToTier
 
---Resolve the "or" choice groups in a tier command to the alternatives the
---user picked in the roll dialog. Choices live in rollProperties.orChoices
---(keys "tier:group", values 1-based alternative indexes; written by the
---power table's tier labels, synced across clients via UploadProperties).
---Multitarget rollProperties clones never saw the dialog, so fall back to
---the primary rollProperties' choices. Unrecorded groups resolve to their
---first alternative.
-local function ResolveTierOrChoices(rollProperties, fallbackProperties, tier, command)
+--- Pick an alternative of an "or" choice group for an AI-driven cast that
+--- nobody chose by hand. Monster AI code may replace this function (keep a
+--- reference to the old one and call it for groups it does not care about).
+--- The default: for damage types, the type the target resists least
+--- (immunity lowest, weakness highest); for anything else, the first
+--- alternative naming a condition the target neither has nor is immune to.
+--- Ties and anything unrecognized go to the first alternative.
+--- @param args {caster: creature, target: CharacterToken, ability: ActivatedAbility|nil, tier: number, tierText: string, groupIndex: number, group: table, alternatives: string[]}
+--- @return number altIndex
+function ActivatedAbilityPowerRollBehavior.ChooseOrAlternativeForAI(args)
+    local target = args.target
+    if target == nil or not target.valid or target.properties == nil then
+        return 1
+    end
+    local targetCreature = target.properties
+
+    if args.group.damageTypes then
+        local bestIndex = 1
+        local bestDr = nil
+        local keywords = args.ability ~= nil and args.ability.keywords or nil
+        for ai,alt in ipairs(args.alternatives) do
+            local resistance = targetCreature:DamageResistance(string.lower(trim(alt)), keywords)
+            local dr = (resistance ~= nil and resistance.dr) or 0
+            if bestDr == nil or dr < bestDr then
+                bestIndex = ai
+                bestDr = dr
+            end
+        end
+        return bestIndex
+    end
+
+    local immunities = targetCreature:GetConditionImmunities() or {}
+    for ai,alt in ipairs(args.alternatives) do
+        local word = string.match(string.lower(regex.ReplaceAll(alt, "<[^<>]*?>", "")), "(%a+)")
+        local condition = word ~= nil and CharacterCondition.conditionsByName[word] or nil
+        if condition ~= nil and (not targetCreature:HasCondition(condition.id)) and not immunities[condition.id] then
+            return ai
+        end
+    end
+    return 1
+end
+
+--Resolve the "or" choice groups in a tier command to the alternatives
+--picked in the roll dialog for this target (see GetOrChoicesForTarget;
+--written by the power table's tier labels, synced across clients via
+--UploadProperties). Choices are read from the PRIMARY rollProperties, the
+--one the dialog writes: a per-target clone is a snapshot taken whenever the
+--dialog last recalculated, so a click after that left it with a stale pick.
+--A clone is only consulted when the primary has no choices at all. For an
+--AI-driven caster, groups nobody chose go to ChooseOrAlternativeForAI and the
+--pick is recorded for this target; otherwise they resolve to option 1.
+local function ResolveTierOrChoices(primaryProperties, targetProperties, tier, command, targetToken, casterToken, ability)
     if type(command) ~= "string" then
         return command
     end
-    local choices = nil
-    if rollProperties ~= nil then
-        choices = rollProperties:try_get("orChoices")
+    local targetid = targetToken ~= nil and targetToken.charid or nil
+
+    local source = primaryProperties
+    if source == nil or (source:try_get("orChoices") == nil and source:try_get("orChoicesByTarget") == nil) then
+        source = targetProperties or primaryProperties
     end
-    if choices == nil and fallbackProperties ~= nil then
-        choices = fallbackProperties:try_get("orChoices")
+    local choices = ActivatedAbilityPowerRollBehavior.GetOrChoicesForTarget(source, targetid)
+
+    local groups = ActivatedAbilityDrawSteelCommandBehavior.ParseOrGroups(command)
+    if groups ~= nil and targetid ~= nil and primaryProperties ~= nil and casterToken ~= nil
+            and creature.IsTokenAIControlled(casterToken.charid) then
+        local picks = nil
+        for gi,g in ipairs(groups) do
+            local key = string.format("%d:%d", tier, gi)
+            if choices == nil or choices[key] == nil then
+                local alternatives = {}
+                for ai,alt in ipairs(g.alts) do
+                    alternatives[ai] = string.sub(command, alt.s, alt.e)
+                end
+                local ok, pick = pcall(ActivatedAbilityPowerRollBehavior.ChooseOrAlternativeForAI, {
+                    caster = casterToken.properties,
+                    target = targetToken,
+                    ability = ability,
+                    tier = tier,
+                    tierText = command,
+                    groupIndex = gi,
+                    group = g,
+                    alternatives = alternatives,
+                })
+                if not ok then
+                    print("OrChoice:: AI choice failed:", pick)
+                    pick = 1
+                end
+                if type(pick) == "number" and pick >= 1 and pick <= #g.alts then
+                    picks = picks or {}
+                    picks[key] = math.floor(pick)
+                end
+            end
+        end
+        if picks ~= nil then
+            --record them so later readers (trigger symbols) see the same pick.
+            local byTarget = primaryProperties:get_or_add("orChoicesByTarget", {})
+            local own = byTarget[targetid] or {}
+            byTarget[targetid] = own
+            local merged = {}
+            for k,v in pairs(choices or {}) do
+                merged[k] = v
+            end
+            for k,v in pairs(picks) do
+                own[k] = v
+                merged[k] = v
+            end
+            choices = merged
+        end
     end
+
     return ActivatedAbilityDrawSteelCommandBehavior.ResolveOrGroupsForTier(command, choices, tier)
 end
 
@@ -559,6 +710,11 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
         local m_finished = false
         local m_tierFinished = nil
         local m_multitargetResults = nil
+        --The roll dialog's selected target (charid), and whether the roll has
+        --more than one target. With several targets an "or" click is recorded
+        --for the selected target only; see the tier label's press handler.
+        local m_orTargetId = nil
+        local m_orMultiTarget = false
         local tbl = gui.Table{
             width = "100%",
             height = "auto",
@@ -582,25 +738,19 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                     color = "#000000",
                 },
                 {
-                    --Hovered rows fill with the light @accentHover gold, so the
-                    --tier text must flip to the dark inverse color to stay legible
-                    --(mirrors the {label, highlight} rule above for the accent fill).
-                    --Gated on "selectable" to match the row fill rule below: before the
-                    --roll finishes the row isn't pressable and gets no gold fill, so
-                    --recoloring the text there would just look like a broken hover.
-                    selectors = {"label", "selectable", "hover"},
-                    color = "#000000",
-                },
-                {
                     selectors = {"row", "flash"},
                     brightness = 3,
                     transitionTime = 1,
                 },
                 {
-                    selectors = {"row", "selectable", "hover"},
-                    bgcolor = "@accentHover",
-                    brightness = 2,
-                    transitionTime = 0.1,
+                    --A pressable row (after the roll, to override the tier) shows
+                    --hover with an accent outline only. A fill or brightness change
+                    --washes out the tier text, and the Director hovers these rows
+                    --constantly to pick "or" options. The selected row cannot be
+                    --pressed, so it gets no hover at all.
+                    selectors = {"row", "selectable", "hover", "~highlight"},
+                    borderWidth = 1,
+                    borderColor = "@accent",
                 }
             },
             think = function(element)
@@ -862,7 +1012,7 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                     valign = "center",
                     hpad = 0,
                     gui.Label{
-                        text = FormatTierTextWithOrChoices(rollProperties.tiers[i] or "", caster, m_fullyImplemented, i, rollProperties),
+                        text = FormatTierTextWithOrChoices(rollProperties.tiers[i] or "", caster, m_fullyImplemented, i, rollProperties, m_orTargetId),
                         fontSize = 15,
                         width = 280,
                         height = "auto",
@@ -877,12 +1027,38 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                         --on the label behaves like a click on the row (tier
                         --override), which the label's own press would otherwise
                         --swallow.
+                        --The roll dialog fires prepare with its options before
+                        --each refreshMods; its targetCreature is the target the
+                        --tier rows currently show (the selected one, last).
+                        prepare = function(element, dialogOptions)
+                            if type(dialogOptions) ~= "table" then
+                                return
+                            end
+                            local targetCreature = dialogOptions.targetCreature
+                            m_orTargetId = targetCreature ~= nil and dmhub.LookupTokenId(targetCreature) or nil
+                            local ids = {}
+                            local count = 0
+                            for _,target in ipairs(dialogOptions.multitargets or {}) do
+                                local id = target.token ~= nil and target.token.charid or nil
+                                if id ~= nil and not ids[id] then
+                                    ids[id] = true
+                                    count = count + 1
+                                end
+                            end
+                            m_orMultiTarget = count > 1
+                        end,
                         press = function(element)
                             local link = element.linkHovered
                             if link ~= nil then
                                 local t, g, a = string.match(link, "^or:(%d+):(%d+):(%d+)$")
                                 if t ~= nil then
-                                    SetOrChoice(rollProperties, tonumber(t), tonumber(g), tonumber(a))
+                                    --several targets: the click picks for the
+                                    --selected target; shift+click for all of them.
+                                    local targetid = nil
+                                    if m_orMultiTarget and m_orTargetId ~= nil and not dmhub.modKeys["shift"] then
+                                        targetid = m_orTargetId
+                                    end
+                                    SetOrChoice(rollProperties, tonumber(t), tonumber(g), tonumber(a), targetid)
                                     parentPanel:FireEventTree("refreshMods")
                                     if m_rollInfo ~= nil then
                                         m_rollInfo:UploadProperties(rollProperties)
@@ -897,14 +1073,19 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                         end,
                         hoverLink = function(element, link)
                             if string.starts_with(link, "or:") then
-                                gui.Tooltip("Click to choose this option")(element)
+                                local targetToken = (m_orMultiTarget and m_orTargetId ~= nil) and dmhub.GetTokenById(m_orTargetId) or nil
+                                if targetToken ~= nil then
+                                    gui.Tooltip(string.format("Click to choose this option for %s.\nShift+click to choose it for every target.", creature.GetTokenDescription(targetToken)))(element)
+                                else
+                                    gui.Tooltip("Click to choose this option")(element)
+                                end
                             end
                         end,
                         dehoverLink = function(element, link)
                             element.tooltip = nil
                         end,
                         refreshMods = function(element)
-                            element.text = FormatTierTextWithOrChoices(rollProperties.tiers[i] or "", caster, m_fullyImplemented, i, rollProperties)
+                            element.text = FormatTierTextWithOrChoices(rollProperties.tiers[i] or "", caster, m_fullyImplemented, i, rollProperties, m_orTargetId)
                         end,
                         finishRoll = function(element, tierNumber)
                             if i >= tierNumber then
@@ -2013,7 +2194,7 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
                     end
                 end
 
-                local command = ResolveTierOrChoices(targetRollProperties, rollProperties, tier, targetRollProperties.tiers[tier])
+                local command = ResolveTierOrChoices(rollProperties, targetRollProperties, tier, targetRollProperties.tiers[tier], targetToken, casterToken, ability)
 
                 local surges = 0
                 local potencyApplied = 0
@@ -2761,7 +2942,7 @@ function RollPropertiesPowerTable:GetSymbols(rollInfo, targetCreature)
         if entry.token.charid == token.charid then
             --resolve "or" choice groups so trigger symbols (push/pull/slide
             --amounts etc.) read the alternative that was actually chosen.
-            local tier = ActivatedAbilityDrawSteelCommandBehavior.ResolveOrGroupsForTier(self.tiers[entry.tier], self:try_get("orChoices"), entry.tier)
+            local tier = ActivatedAbilityDrawSteelCommandBehavior.ResolveOrGroupsForTier(self.tiers[entry.tier], ActivatedAbilityPowerRollBehavior.GetOrChoicesForTarget(self, token.charid), entry.tier)
             return GenerateSymbols(TierSymbols.new{tier = tier})
         end
     end
@@ -2769,7 +2950,7 @@ end
 
 function RollPropertiesPowerTable:HasDamage()
     for i,tier in ipairs(self.tiers) do
-        local match = regex.MatchGroups(tier, "(?<damage>\\d+)\\s+([a-zA-Z]+\\s+)?damage", {indexes = true})
+        local match = regex.MatchGroups(tier, "(?<damage>\\d+)\\s+" .. g_tierDamageTypes .. "damage", {indexes = true})
         if match ~= nil then
             return true
         end
@@ -2785,18 +2966,19 @@ function RollPropertiesPowerTable:GetDamageTypes()
         --("8 damage; 4 corruption damage") and MatchGroups only ever sees the first.
         --Each row is the capture groups by position, so row[3] is the type group --
         --an empty string, not nil, when the tier's damage is untyped.
-        local matches = regex.MatchAll(tier, "(\\d+)\\s+([a-zA-Z]+\\s+)?damage")
+        local matches = regex.MatchAll(tier, "(\\d+)\\s+" .. g_tierDamageTypes .. "damage")
         for _,match in ipairs(matches) do
             local typeName = match[3]
             if typeName == nil or typeName == "" then
                 typeName = "untyped"
             end
 
-            --The type capture includes its trailing whitespace ("fire "); trim it
-            --so results compare cleanly against damage-type names.
-            local t = string.gsub(string.lower(typeName), "%s+$", "")
-            if not table.contains(result, t) then
-                result[#result+1] = t
+            --A choice of types ("cold, fire, or sonic ") counts every type it
+            --offers; each word is trimmed of the list's commas and spaces.
+            for word in string.gmatch(string.lower(typeName), "%a+") do
+                if word ~= "or" and not table.contains(result, word) then
+                    result[#result+1] = word
+                end
             end
         end
     end
@@ -2870,7 +3052,7 @@ function RollPropertiesPowerTable:ModifyDamage(damage)
 
     for i,tier in ipairs(self.tiers) do
         --account for damage dice possibility as well as damage type.
-        local match = regex.MatchGroups(tier, "(?<damage>\\d+)\\s+(\\+\\s*\\d+d\\d+\\s+)?([a-zA-Z]+\\s+)?damage", {indexes = true})
+        local match = regex.MatchGroups(tier, "(?<damage>\\d+)\\s+(\\+\\s*\\d+d\\d+\\s+)?" .. g_tierDamageTypes .. "damage", {indexes = true})
         if match ~= nil then
             local index = match.damage.index
             local length = match.damage.length
@@ -2920,7 +3102,7 @@ function RollPropertiesPowerTable:ModifyDamageWithType(damage, damageType)
             extraDamage = trim(extraDamage)
             
             -- Try to find any existing damage and place after it
-            local anyDamageMatch = regex.MatchGroups(tier, "^(?<prefix>.*?)(?<damage>\\d+\\s+([a-zA-Z]+\\s+)?damage)(?<suffix>.*)$")
+            local anyDamageMatch = regex.MatchGroups(tier, "^(?<prefix>.*?)(?<damage>\\d+\\s+" .. g_tierDamageTypes .. "damage)(?<suffix>.*)$")
             if anyDamageMatch ~= nil then
                 self.tiers[i] = string.format("%s%s; %s%s", anyDamageMatch.prefix, anyDamageMatch.damage, extraDamage, anyDamageMatch.suffix)
             else
@@ -2935,7 +3117,7 @@ end
 --regex rewrite in ModifyDamage but for one tier (so per-tier deltas can differ).
 --Returns the tier unchanged if it contains no damage number.
 local function AddDamageToTierText(tier, amount)
-    local match = regex.MatchGroups(tier, "(?<damage>\\d+)\\s+(\\+\\s*\\d+d\\d+\\s+)?([a-zA-Z]+\\s+)?damage", {indexes = true})
+    local match = regex.MatchGroups(tier, "(?<damage>\\d+)\\s+(\\+\\s*\\d+d\\d+\\s+)?" .. g_tierDamageTypes .. "damage", {indexes = true})
     if match == nil then
         return tier
     end

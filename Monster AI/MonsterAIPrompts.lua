@@ -643,3 +643,205 @@ MonsterAI:RegisterPrompt{
         }
     end,
 }
+
+--------------------------------------------------------------------------------
+-- Ending effects: End Effect and other "choose an effect to end" purges.
+--------------------------------------------------------------------------------
+
+--How much a condition hurts the creature carrying it, from 0 (harmless) to 5,
+--by lower-case condition name. A harmful condition missing from this table
+--counts as defaultHarmSeverity.
+MonsterAI.conditionSeverity = {
+    dazed = 5,
+    restrained = 5,
+    stoned = 5,
+    frightened = 4,
+    weakened = 4,
+    ["on fire"] = 4,
+    slowed = 3,
+    bleeding = 3,
+    taunted = 3,
+    grabbed = 3,
+    dazzled = 3,
+    prone = 1,
+}
+MonsterAI.defaultHarmSeverity = 2
+--End Effect is only worth its Stamina for a condition at least this bad...
+MonsterAI.endEffectMinimumSeverity = 3
+--...and only while the creature keeps this share of its Stamina (and at
+--least the cost again) after paying.
+MonsterAI.endEffectStaminaReserve = 0.15
+
+local function ConditionHarm(conditionid)
+    local condition = (dmhub.GetTable(CharacterCondition.tableName) or {})[conditionid]
+    if condition == nil then
+        return MonsterAI.defaultHarmSeverity
+    end
+    if condition:try_get("buffType", "debuff") == "buff" then
+        return 0
+    end
+    return MonsterAI.conditionSeverity[string.lower(condition.name or "")] or MonsterAI.defaultHarmSeverity
+end
+
+--How much ending this purge item helps the side choosing it: the harm taken
+--off a friend, or the benefit stripped from an enemy. Items come from
+--ActivatedAbilityPurgeEffectsBehavior:CollectPurgeItems.
+--- @param item table
+--- @param targetToken CharacterToken
+--- @param casterToken CharacterToken
+--- @return number
+function MonsterAI.PurgeItemValue(item, targetToken, casterToken)
+    local harm
+    if item.type == "condition" or item.type == "conditionOnly" then
+        harm = ConditionHarm(item.conditionId)
+    else
+        local effectInfo = (dmhub.GetTable("characterOngoingEffects") or {})[item.effectId]
+        if effectInfo == nil then
+            harm = MonsterAI.defaultHarmSeverity
+        elseif effectInfo:try_get("condition", "none") ~= "none" then
+            harm = ConditionHarm(effectInfo.condition)
+        elseif effectInfo:try_get("buffType", "debuff") == "buff" then
+            harm = -MonsterAI.defaultHarmSeverity
+        else
+            harm = MonsterAI.defaultHarmSeverity
+        end
+    end
+    if targetToken.charid == casterToken.charid or targetToken:IsFriend(casterToken) then
+        return harm
+    end
+    return -harm
+end
+
+--True when the AI makes this creature's choices right now: it is driving
+--the token, or it plays the creature while the AI runs.
+local function AIChoosesFor(token)
+    if token == nil or not token.valid or token.properties == nil then
+        return false
+    end
+    return creature.IsTokenAIControlled(token.charid) or MonsterAI.RollsForCreature(token.properties)
+end
+
+--Answers the purge selection dialog for an AI-driven caster: the worst
+--effects on friends (the best on enemies), one per creature for a "one"
+--purge, never more than the purge allows, and nothing of no value. With
+--nothing worth ending it passes, which also skips any Stamina cost.
+ActivatedAbilityPurgeEffectsBehavior.aiChooser = function(behavior, targetDataList, ability, casterToken, maxSelections)
+    if not AIChoosesFor(casterToken) then
+        return nil
+    end
+    local candidates = {}
+    for _,data in ipairs(targetDataList) do
+        local perTarget = {}
+        for _,item in ipairs(data.items or {}) do
+            local value = MonsterAI.PurgeItemValue(item, data.token, casterToken)
+            if value > 0 then
+                perTarget[#perTarget+1] = {data = data, item = item, value = value}
+            end
+        end
+        table.sort(perTarget, function(a, b) return a.value > b.value end)
+        if behavior.purgeType == "one" then
+            table.resize_array(perTarget, 1)
+        end
+        for _,entry in ipairs(perTarget) do
+            candidates[#candidates+1] = entry
+        end
+    end
+    table.sort(candidates, function(a, b) return a.value > b.value end)
+    if maxSelections ~= nil then
+        table.resize_array(candidates, math.max(0, maxSelections))
+    end
+
+    local selections = {}
+    local chosen = {}
+    for _,data in ipairs(targetDataList) do
+        selections[data.token.id] = {}
+    end
+    for _,entry in ipairs(candidates) do
+        local list = selections[entry.data.token.id]
+        list[#list+1] = entry.item
+        chosen[#chosen+1] = string.format("%s (%s)", tostring(entry.item.displayName), MonsterAI.TokenLogName(entry.data.token))
+    end
+
+    print(string.format("AI:: PURGE CHOSEN | ability=%q | caster=%q | chosen=%q",
+        tostring(ability ~= nil and ability.name or "?"), MonsterAI.TokenLogName(casterToken),
+        #chosen > 0 and table.concat(chosen, ", ") or "nothing worth ending"))
+    if #chosen == 0 then
+        return false
+    end
+    return true, selections
+end
+
+--The purge behind an End Effect trigger and its Stamina cost, or nil when the
+--trigger is not shaped like one.
+local function EndEffectPurge(token, triggerInfo)
+    local fallback = nil
+    for _,entry in ipairs(token.properties:GetTriggeredAbilities() or {}) do
+        local triggered = entry.ability
+        if triggered ~= nil then
+            local matches = triggered:try_get("guid") == triggerInfo.abilityGuid
+            if matches or (fallback == nil and triggered.name == triggerInfo.abilityName) then
+                for _,behavior in ipairs(triggered:try_get("behaviors", {})) do
+                    if behavior.typeName == "ActivatedAbilityPurgeEffectsBehavior" then
+                        local found = {
+                            behavior = behavior,
+                            cost = tonumber(behavior:EvalDamageToSelf(token.properties)) or 0,
+                        }
+                        if matches then
+                            return found
+                        end
+                        fallback = found
+                    end
+                end
+            end
+        end
+    end
+    return fallback
+end
+
+--Whether a monster should take its End Effect: only to end something nasty
+--(endEffectMinimumSeverity or worse), and only when it can afford the
+--Stamina with endEffectStaminaReserve to spare. Accepting it lets the purge
+--chooser above pick the worst effect.
+--- @param token CharacterToken
+--- @param triggerInfo ActiveTrigger
+--- @return nil|table decision {activate = true}, {dismiss = true}, or nil for the Director
+--- @return string reason
+function MonsterAI.EndEffectDecision(token, triggerInfo)
+    local purge = EndEffectPurge(token, triggerInfo)
+    if purge == nil then
+        return nil, "no purge behind this End Effect; left to the Director"
+    end
+    local data = purge.behavior:CollectPurgeItems(token, nil)
+    local worst = 0
+    for _,item in ipairs(data ~= nil and data.items or {}) do
+        worst = math.max(worst, MonsterAI.PurgeItemValue(item, token, token))
+    end
+    if worst < MonsterAI.endEffectMinimumSeverity then
+        return {dismiss = true}, string.format("worst effect is only severity %d", worst)
+    end
+    local stamina = token.properties:CurrentHitpoints()
+    local reserve = math.max(purge.cost, token.properties:MaxHitpoints()*MonsterAI.endEffectStaminaReserve)
+    if stamina - purge.cost < reserve then
+        return {dismiss = true}, string.format("%d Stamina cannot spare %d", stamina, purge.cost)
+    end
+    return {activate = true}, string.format("ending severity %d for %d Stamina", worst, purge.cost)
+end
+
+MonsterAI:RegisterTrigger{
+    id = "End Effect",
+    abilities = {"End Effect"},
+    description = "Take End Effect's Stamina cost to end the nastiest save-ends effect, when it is bad enough and the monster can afford it.",
+    handler = function(ai, token, triggerInfo)
+        local decision, reason = MonsterAI.EndEffectDecision(token, triggerInfo)
+        local result = "Director decision"
+        if decision ~= nil then
+            result = cond(decision.activate, "activate", "dismiss")
+        end
+        ai:LogDecision("END EFFECT", {
+            ability = triggerInfo.abilityName,
+            result = result,
+            reason = reason,
+        })
+        return decision
+    end,
+}

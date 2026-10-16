@@ -602,6 +602,69 @@ local function GroupStagedOnOtherMap(group)
     return mapid ~= nil and mapid ~= game.currentMapId
 end
 
+--True when the encounter names a map and the group's saved positions were
+--banked on a different one. Such positions do not count as staging at all.
+local function GroupStagedOffEncounterMap(encounter, group)
+    local stagemapid = group.stagemapid
+    local mapid = encounter.mapid
+    return stagemapid ~= nil and mapid ~= nil and mapid ~= "" and stagemapid ~= mapid
+end
+
+--True when the group has saved positions that can be used on the map on
+--screen: banked on this map, and on the encounter's own map.
+local function GroupHasUsableStaging(encounter, group)
+    return group.spawnlocs ~= nil and #group.spawnlocs > 0
+        and not GroupStagedOnOtherMap(group)
+        and not GroupStagedOffEncounterMap(encounter, group)
+end
+
+--Forget a group's saved staging: positions, appearances, visibility, mounts.
+local function ClearGroupStaging(group)
+    group.spawnlocs = nil
+    group.appearances = nil
+    group.invisibleToPlayers = nil
+    group.spawnmonsters = nil
+    group.mounts = nil
+    group.stagemapid = nil
+end
+
+--Make the encounter's map and its groups' saved staging agree:
+--  * no map chosen, but groups were staged on one: that map becomes the
+--    encounter's map (the one most groups were staged on, if they differ).
+--  * a map chosen: groups staged on any other map lose that staging.
+--Returns true if it changed the encounter.
+local function ReconcileStagingWithMap(encounter)
+    local changed = false
+
+    if encounter.mapid == nil or encounter.mapid == "" then
+        local counts = {}
+        local best, bestCount = nil, 0
+        for _, group in ipairs(encounter.groups) do
+            local stagemapid = group.stagemapid
+            if stagemapid ~= nil and group.spawnlocs ~= nil and #group.spawnlocs > 0 then
+                counts[stagemapid] = (counts[stagemapid] or 0) + 1
+                local map = game.GetMap(stagemapid)
+                if counts[stagemapid] > bestCount and map ~= nil and map.valid then
+                    best, bestCount = stagemapid, counts[stagemapid]
+                end
+            end
+        end
+        if best ~= nil then
+            encounter.mapid = best
+            changed = true
+        end
+    end
+
+    for _, group in ipairs(encounter.groups) do
+        if GroupStagedOffEncounterMap(encounter, group) then
+            ClearGroupStaging(group)
+            changed = true
+        end
+    end
+
+    return changed
+end
+
 --Spawn a group's monsters at its saved staging positions (group.spawnlocs),
 --restoring saved appearances and player-visibility, and tag them with the
 --group's placement id so the builder recognises them as staged. A monster with
@@ -825,6 +888,93 @@ local function BuilderStyles()
         {
             selectors = { "encounterEntryRow", "gatedOff" },
             opacity = 0.55,
+        },
+        --a map token dragged over the builder: the engine puts
+        --token-drop-hover on the group card (or the body) a release would join.
+        {
+            selectors = { "encounterGroupCard", "token-drop-hover" },
+            borderColor = "@accent",
+            borderWidth = 2,
+        },
+        {
+            selectors = { "encounterTokenDrop", "token-drop-hover" },
+            borderColor = "@accent",
+            borderWidth = 2,
+            cornerRadius = 4,
+        },
+        --the map card in the header (CreateEncounterMapCard) and its picker.
+        {
+            selectors = { "encounterMapCard" },
+            bgimage = true,
+            bgcolor = "@bgAlt",
+            borderWidth = 1,
+            borderColor = "@border",
+            cornerRadius = 4,
+        },
+        {
+            selectors = { "encounterMapCard", "hover" },
+            borderColor = "@accent",
+        },
+        {
+            selectors = { "encounterMapCard", "drag-target-hover" },
+            borderColor = "@accent",
+            borderWidth = 2,
+        },
+        --the region and start zone badges under the map card.
+        {
+            selectors = { "encounterAreaBadge", "hover" },
+            priority = 6,
+            borderColor = "@accent",
+        },
+        {
+            selectors = { "encounterAreaBadge", "drawing" },
+            priority = 6,
+            color = "@accent",
+            borderColor = "@accent",
+        },
+        --the party bar's outcome group once it has wrapped below the party
+        --group: clears the Balance button hanging under the Heroes stepper.
+        {
+            selectors = { "partyGroupOutcome", "partyWrapped" },
+            tmargin = 30,
+        },
+        {
+            selectors = { "encounterMapName" },
+            width = "100%",
+            height = "auto",
+            valign = "bottom",
+            hpad = 6,
+            vpad = 2,
+            borderBox = true,
+            bgimage = true,
+            bgcolor = "#000000b0",
+            color = "white",
+            fontSize = 12,
+            textAlignment = "left",
+            textWrap = false,
+        },
+        {
+            selectors = { "encounterMapOption" },
+            width = "100%",
+            height = "auto",
+            hpad = 6,
+            vpad = 3,
+            borderBox = true,
+            bgimage = true,
+            bgcolor = "clear",
+            color = "@fg",
+            fontSize = 13,
+            textAlignment = "left",
+        },
+        {
+            selectors = { "encounterMapOption", "hover" },
+            bgcolor = "@bgInverse",
+            color = "@fgInverse",
+        },
+        {
+            selectors = { "encounterMapOption", "selected" },
+            color = "@accent",
+            bold = true,
         },
     })
 end
@@ -1530,260 +1680,162 @@ local function CreatePartyBar(encounter, party, refresh, rebuild, budgetDial)
     --an encounter-script parameter row beneath it that only appears when an
     --attached script declares parameters.
     local partyBar
+    --wraps onto a second line when the builder window is resized narrower
+    --than the two column groups' natural width.
     local partyColumnsRow = gui.Panel {
         width = "100%",
         height = "auto",
         flow = "horizontal",
+        wrap = true,
 
-        partyColumn("Heroes", CreateStepper {
-            value = party.numHeroes,
-            min = 3,
-            max = 7,
-            sync = function() return party.numHeroes end,
-            change = function(v)
-                party.numHeroes = v
-                overrideParty()
-            end,
-        }, balanceButton),
+        --once the two groups no longer fit side by side the outcome group
+        --wraps below; it then needs clearance for the Balance button that
+        --hangs (floating) under the Heroes stepper.
+        rendered = function(element, width, height)
+            local groups = element.children
+            if #groups < 2 then
+                return
+            end
+            --the groups carry no margins of their own, so the row wraps exactly
+            --when their widths add up to more than its own.
+            local wrapped = groups[1].renderedWidth + groups[2].renderedWidth > element.renderedWidth + 0.5
+            groups[2]:SetClass("partyWrapped", wrapped)
+        end,
 
+        --party: who the encounter is balanced for.
         gui.Panel {
+            classes = { "partyGroup" },
             flow = "horizontal",
             width = "auto",
             height = "auto",
             valign = "center",
 
-            partyColumn("Level", CreateStepper {
-                value = party.level,
-                min = 1,
-                max = 10,
-                sync = function() return party.level end,
+            partyColumn("Heroes", CreateStepper {
+                value = party.numHeroes,
+                min = 3,
+                max = 7,
+                sync = function() return party.numHeroes end,
                 change = function(v)
-                    party.level = v
+                    party.numHeroes = v
                     overrideParty()
                 end,
-            }),
+            }, balanceButton),
 
-            partyColumn("Victories", CreateStepper {
-                value = party.victories,
-                min = 0,
-                max = 15,
-                sync = function() return party.victories end,
-                change = function(v)
-                    party.victories = v
-                    overrideParty()
-                end,
-            }),
-
-            autoSourceLabel,
-            autoButton,
-        },
-
-        gui.Panel {
-            flow = "vertical",
-            width = "auto",
-            height = "auto",
-            valign = "center",
-            rmargin = 18,
-
-            FieldCaption("Party Encounter Strength"),
-
-            --Fixed width, or every stepper press shifts the columns to the
-            --right as the readout changes length.
             gui.Panel {
                 flow = "horizontal",
-                width = 170,
+                width = "auto",
                 height = "auto",
-                esValueLabel,
-                esBreakdownLabel,
-            },
-        },
+                valign = "center",
 
-        gui.Panel {
-            flow = "vertical",
-            width = "auto",
-            height = "auto",
-            valign = "center",
-            rmargin = 18,
+                partyColumn("Level", CreateStepper {
+                    value = party.level,
+                    min = 1,
+                    max = 10,
+                    sync = function() return party.level end,
+                    change = function(v)
+                        party.level = v
+                        overrideParty()
+                    end,
+                }),
 
-            FieldCaption("Victory condition"),
+                partyColumn("Victories", CreateStepper {
+                    value = party.victories,
+                    min = 0,
+                    max = 15,
+                    sync = function() return party.victories end,
+                    change = function(v)
+                        party.victories = v
+                        overrideParty()
+                    end,
+                }),
 
-            gui.Dropdown {
-                classes = { "form" },
-                width = 260,
-                height = 28,
-                fontSize = 12,
-                options = Encounter.GetVictoryConditions(encounter),
-                idChosen = encounter:try_get("victoryCondition", "all_defeated"),
-
-                --The "Leader Defeated" option only exists while the encounter contains a
-                --Leader monster, and the roster is edited live in the group cards, so poll
-                --for that presence flipping and rebuild the option list (re-asserting the
-                --current selection) when it changes. Cheap: only reassigns on a change.
-                data = { hasLeader = nil },
-                thinkTime = 0.5,
-                think = function(element)
-                    ---@cast element Dropdown
-                    local hasLeader = Encounter.HasMonsterWithOrganization(encounter, "leader")
-                    if hasLeader ~= element.data.hasLeader then
-                        element.data.hasLeader = hasLeader
-                        element.options = Encounter.GetVictoryConditions(encounter)
-                        element.idChosen = encounter:try_get("victoryCondition", "all_defeated")
-                    end
-                end,
-
-                change = function(element)
-                    ---@cast element Dropdown
-                    encounter.victoryCondition = element.idChosen
-                    partyBar:FireEventTree("refreshDestroy")
-                end,
-
-                --Collapsed in favor of the script-victory label when an
-                --attached encounter script declares a victory condition.
-                refreshBuilder = function(element)
-                    element:SetClass("collapsed", encounter:ScriptVictoryText() ~= nil)
-                end,
-                create = function(element)
-                    element:FireEvent("refreshBuilder")
-                end,
+                autoSourceLabel,
+                autoButton,
             },
 
-            --Shown INSTEAD of the dropdown when an attached encounter script
-            --declares a victory condition. The stored victoryCondition field is
-            --left untouched underneath, so detaching the script restores the
-            --previously-chosen dropdown value.
-            gui.Label {
-                classes = { "fgStrong" },
-                width = 260,
-                height = "auto",
-                fontSize = 12,
-                textWrap = true,
-                text = "",
-                data = { tip = nil },
-
-                refreshBuilder = function(element)
-                    local text, scriptInstance = encounter:ScriptVictoryText()
-                    element:SetClass("collapsed", text == nil)
-                    if text ~= nil then
-                        element.text = string.format("%s (set by script)", text)
-                        local scriptName = "Encounter Script"
-                        if scriptInstance ~= nil then
-                            scriptName = scriptInstance:try_get("name", scriptName)
-                        end
-                        element.data.tip = string.format("Victory condition set by the encounter script \"%s\".", scriptName)
-                    end
-                end,
-                create = function(element)
-                    element:FireEvent("refreshBuilder")
-                end,
-                hover = function(element)
-                    if element.data.tip ~= nil then
-                        gui.Tooltip(element.data.tip)(element)
-                    end
-                end,
-            },
-
-            --Shown only when the "Destroy the Thing!" victory condition is selected. Lets the
-            --DM pick which Targetable object keyword identifies the "thing" to destroy, or
-            --explains how to add one if the map has no Targetable objects with keywords.
-            gui.Panel {
-                width = 260,
-                height = "auto",
-                flow = "vertical",
-                data = { scriptVictory = nil },
-
-                create = function(element)
-                    element:FireEvent("refreshDestroy")
-                end,
-
-                --rebuild when script-victory presence flips (attach/detach), so
-                --the keyword picker hides along with the dropdown.
-                refreshBuilder = function(element)
-                    local hasScriptVictory = encounter:ScriptVictoryText() ~= nil
-                    if hasScriptVictory ~= element.data.scriptVictory then
-                        element.data.scriptVictory = hasScriptVictory
-                        element:FireEvent("refreshDestroy")
-                    end
-                end,
-
-                refreshDestroy = function(element)
-                    local isDestroy = encounter:try_get("victoryCondition", "all_defeated") == "destroy_thing"
-                    if encounter:ScriptVictoryText() ~= nil then
-                        isDestroy = false
-                    end
-                    element:SetClass("collapsed", not isDestroy)
-                    if not isDestroy then
-                        element.children = {}
-                        return
-                    end
-
-                    local keywords = Encounter.GetTargetableObjectKeywords()
-
-                    if #keywords == 0 then
-                        element.children = {
-                            gui.Label {
-                                classes = { "fgStrong" },
-                                width = "100%",
-                                height = "auto",
-                                halign = "left",
-                                valign = "top",
-                                tmargin = 6,
-                                fontSize = 12,
-                                textWrap = true,
-                                text = "To select a thing to destroy add an object to the map with the Targetable property and a keyword",
-                            },
-                        }
-                        return
-                    end
-
-                    local keywordOptions = {}
-                    for _, keyword in ipairs(keywords) do
-                        keywordOptions[#keywordOptions + 1] = { id = keyword, text = keyword }
-                    end
-
-                    local chosen = encounter:try_get("victoryDestroyKeyword")
-                    if chosen == nil or not table.contains(keywords, chosen) then
-                        chosen = keywords[1]
-                        encounter.victoryDestroyKeyword = chosen
-                    end
-
-                    element.children = {
-                        gui.Dropdown {
-                            classes = { "form" },
-                            width = "100%",
-                            height = 26,
-                            halign = "left",
-                            valign = "center",
-                            tmargin = 6,
-                            fontSize = 12,
-                            options = keywordOptions,
-                            idChosen = chosen,
-                            change = function(dropdown)
-                                ---@cast dropdown Dropdown
-                                encounter.victoryDestroyKeyword = dropdown.idChosen
-                            end,
-                        },
-                    }
-                end,
-            },
-
-            --Shown when an attached encounter script declares a defeat
-            --condition. Defeat conditions only come from scripts, so unlike
-            --victory there is no dropdown underneath to swap out.
             gui.Panel {
                 flow = "vertical",
                 width = "auto",
                 height = "auto",
-                tmargin = 8,
+                valign = "center",
+                rmargin = 18,
 
-                create = function(element)
-                    element:FireEvent("refreshBuilder")
-                end,
-                refreshBuilder = function(element)
-                    element:SetClass("collapsed", encounter:ScriptDefeatText() == nil)
-                end,
+                FieldCaption("Party Encounter Strength"),
 
-                FieldCaption("Defeat condition"),
+                --Fixed width, or every stepper press shifts the columns to the
+                --right as the readout changes length.
+                gui.Panel {
+                    flow = "horizontal",
+                    width = 170,
+                    height = "auto",
+                    esValueLabel,
+                    esBreakdownLabel,
+                },
+            },
+        },
 
+        --the encounter: how it is won, what it awards, its budget. On its own
+        --line when the bar wraps.
+        gui.Panel {
+            classes = { "partyGroup", "partyGroupOutcome" },
+            flow = "horizontal",
+            width = "auto",
+            height = "auto",
+            valign = "center",
+
+            gui.Panel {
+                flow = "vertical",
+                width = "auto",
+                height = "auto",
+                valign = "center",
+                rmargin = 18,
+
+                FieldCaption("Victory condition"),
+
+                gui.Dropdown {
+                    classes = { "form" },
+                    width = 260,
+                    height = 28,
+                    fontSize = 12,
+                    options = Encounter.GetVictoryConditions(encounter),
+                    idChosen = encounter:try_get("victoryCondition", "all_defeated"),
+
+                    --The "Leader Defeated" option only exists while the encounter contains a
+                    --Leader monster, and the roster is edited live in the group cards, so poll
+                    --for that presence flipping and rebuild the option list (re-asserting the
+                    --current selection) when it changes. Cheap: only reassigns on a change.
+                    data = { hasLeader = nil },
+                    thinkTime = 0.5,
+                    think = function(element)
+                        ---@cast element Dropdown
+                        local hasLeader = Encounter.HasMonsterWithOrganization(encounter, "leader")
+                        if hasLeader ~= element.data.hasLeader then
+                            element.data.hasLeader = hasLeader
+                            element.options = Encounter.GetVictoryConditions(encounter)
+                            element.idChosen = encounter:try_get("victoryCondition", "all_defeated")
+                        end
+                    end,
+
+                    change = function(element)
+                        ---@cast element Dropdown
+                        encounter.victoryCondition = element.idChosen
+                        partyBar:FireEventTree("refreshDestroy")
+                    end,
+
+                    --Collapsed in favor of the script-victory label when an
+                    --attached encounter script declares a victory condition.
+                    refreshBuilder = function(element)
+                        element:SetClass("collapsed", encounter:ScriptVictoryText() ~= nil)
+                    end,
+                    create = function(element)
+                        element:FireEvent("refreshBuilder")
+                    end,
+                },
+
+                --Shown INSTEAD of the dropdown when an attached encounter script
+                --declares a victory condition. The stored victoryCondition field is
+                --left untouched underneath, so detaching the script restores the
+                --previously-chosen dropdown value.
                 gui.Label {
                     classes = { "fgStrong" },
                     width = 260,
@@ -1794,14 +1846,15 @@ local function CreatePartyBar(encounter, party, refresh, rebuild, budgetDial)
                     data = { tip = nil },
 
                     refreshBuilder = function(element)
-                        local text, scriptInstance = encounter:ScriptDefeatText()
+                        local text, scriptInstance = encounter:ScriptVictoryText()
+                        element:SetClass("collapsed", text == nil)
                         if text ~= nil then
                             element.text = string.format("%s (set by script)", text)
                             local scriptName = "Encounter Script"
                             if scriptInstance ~= nil then
                                 scriptName = scriptInstance:try_get("name", scriptName)
                             end
-                            element.data.tip = string.format("Defeat condition set by the encounter script \"%s\".", scriptName)
+                            element.data.tip = string.format("Victory condition set by the encounter script \"%s\".", scriptName)
                         end
                     end,
                     create = function(element)
@@ -1813,42 +1866,175 @@ local function CreatePartyBar(encounter, party, refresh, rebuild, budgetDial)
                         end
                     end,
                 },
+
+                --Shown only when the "Destroy the Thing!" victory condition is selected. Lets the
+                --DM pick which Targetable object keyword identifies the "thing" to destroy, or
+                --explains how to add one if the map has no Targetable objects with keywords.
+                gui.Panel {
+                    width = 260,
+                    height = "auto",
+                    flow = "vertical",
+                    data = { scriptVictory = nil },
+
+                    create = function(element)
+                        element:FireEvent("refreshDestroy")
+                    end,
+
+                    --rebuild when script-victory presence flips (attach/detach), so
+                    --the keyword picker hides along with the dropdown.
+                    refreshBuilder = function(element)
+                        local hasScriptVictory = encounter:ScriptVictoryText() ~= nil
+                        if hasScriptVictory ~= element.data.scriptVictory then
+                            element.data.scriptVictory = hasScriptVictory
+                            element:FireEvent("refreshDestroy")
+                        end
+                    end,
+
+                    refreshDestroy = function(element)
+                        local isDestroy = encounter:try_get("victoryCondition", "all_defeated") == "destroy_thing"
+                        if encounter:ScriptVictoryText() ~= nil then
+                            isDestroy = false
+                        end
+                        element:SetClass("collapsed", not isDestroy)
+                        if not isDestroy then
+                            element.children = {}
+                            return
+                        end
+
+                        local keywords = Encounter.GetTargetableObjectKeywords()
+
+                        if #keywords == 0 then
+                            element.children = {
+                                gui.Label {
+                                    classes = { "fgStrong" },
+                                    width = "100%",
+                                    height = "auto",
+                                    halign = "left",
+                                    valign = "top",
+                                    tmargin = 6,
+                                    fontSize = 12,
+                                    textWrap = true,
+                                    text = "To select a thing to destroy add an object to the map with the Targetable property and a keyword",
+                                },
+                            }
+                            return
+                        end
+
+                        local keywordOptions = {}
+                        for _, keyword in ipairs(keywords) do
+                            keywordOptions[#keywordOptions + 1] = { id = keyword, text = keyword }
+                        end
+
+                        local chosen = encounter:try_get("victoryDestroyKeyword")
+                        if chosen == nil or not table.contains(keywords, chosen) then
+                            chosen = keywords[1]
+                            encounter.victoryDestroyKeyword = chosen
+                        end
+
+                        element.children = {
+                            gui.Dropdown {
+                                classes = { "form" },
+                                width = "100%",
+                                height = 26,
+                                halign = "left",
+                                valign = "center",
+                                tmargin = 6,
+                                fontSize = 12,
+                                options = keywordOptions,
+                                idChosen = chosen,
+                                change = function(dropdown)
+                                    ---@cast dropdown Dropdown
+                                    encounter.victoryDestroyKeyword = dropdown.idChosen
+                                end,
+                            },
+                        }
+                    end,
+                },
+
+                --Shown when an attached encounter script declares a defeat
+                --condition. Defeat conditions only come from scripts, so unlike
+                --victory there is no dropdown underneath to swap out.
+                gui.Panel {
+                    flow = "vertical",
+                    width = "auto",
+                    height = "auto",
+                    tmargin = 8,
+
+                    create = function(element)
+                        element:FireEvent("refreshBuilder")
+                    end,
+                    refreshBuilder = function(element)
+                        element:SetClass("collapsed", encounter:ScriptDefeatText() == nil)
+                    end,
+
+                    FieldCaption("Defeat condition"),
+
+                    gui.Label {
+                        classes = { "fgStrong" },
+                        width = 260,
+                        height = "auto",
+                        fontSize = 12,
+                        textWrap = true,
+                        text = "",
+                        data = { tip = nil },
+
+                        refreshBuilder = function(element)
+                            local text, scriptInstance = encounter:ScriptDefeatText()
+                            if text ~= nil then
+                                element.text = string.format("%s (set by script)", text)
+                                local scriptName = "Encounter Script"
+                                if scriptInstance ~= nil then
+                                    scriptName = scriptInstance:try_get("name", scriptName)
+                                end
+                                element.data.tip = string.format("Defeat condition set by the encounter script \"%s\".", scriptName)
+                            end
+                        end,
+                        create = function(element)
+                            element:FireEvent("refreshBuilder")
+                        end,
+                        hover = function(element)
+                            if element.data.tip ~= nil then
+                                gui.Tooltip(element.data.tip)(element)
+                            end
+                        end,
+                    },
+                },
             },
-        },
 
-        gui.Panel {
-            flow = "vertical",
-            width = "auto",
-            height = "auto",
-            valign = "center",
+            gui.Panel {
+                flow = "vertical",
+                width = "auto",
+                height = "auto",
+                valign = "center",
 
-            FieldCaption("Victories awarded"),
+                FieldCaption("Victories awarded"),
 
-            gui.Input {
-                classes = { "form" },
-                width = 60,
-                height = 26,
-                fontSize = 12,
-                numeric = true,
-                characterLimit = 3,
-                text = tostring(encounter:try_get("victories", 1)),
-                change = function(element)
-                    --validate as a non-negative integer; revert to the stored value on
-                    --bad input.
-                    local n = tonumber(element.text)
-                    if n == nil then
-                        element.text = tostring(encounter:try_get("victories", 1))
-                        return
-                    end
-                    n = math.floor(n)
-                    if n < 0 then n = 0 end
-                    encounter.victories = n
-                    element.text = tostring(n)
-                end,
+                gui.Input {
+                    classes = { "form" },
+                    width = 60,
+                    height = 26,
+                    fontSize = 12,
+                    numeric = true,
+                    characterLimit = 3,
+                    text = tostring(encounter:try_get("victories", 1)),
+                    change = function(element)
+                        --validate as a non-negative integer; revert to the stored value on
+                        --bad input.
+                        local n = tonumber(element.text)
+                        if n == nil then
+                            element.text = tostring(encounter:try_get("victories", 1))
+                            return
+                        end
+                        n = math.floor(n)
+                        if n < 0 then n = 0 end
+                        encounter.victories = n
+                        element.text = tostring(n)
+                    end,
+                },
             },
-        },
 
-        budgetDial,
+            budgetDial,
+        },
     }
 
     partyBar = gui.Panel {
@@ -2793,6 +2979,10 @@ local function CreateGroupCard(args)
         end,
     }
 
+    --true while Stage on Map waits to arrive on the encounter's map, so a
+    --second click does not queue a second staging.
+    local travellingToStage = false
+
     local placeLink = gui.Label {
         classes = { "link", "sizeXs" },
         width = "auto",
@@ -2807,12 +2997,19 @@ local function CreateGroupCard(args)
         refreshBuilder = function(element)
             element.text = cond(#PlacedTokensForGroup(group) > 0, "Save Positions & Remove", "Stage on Map")
         end,
-        press = function(element)
+        --on click (release), not press: staging hides the builder, and on press
+        --the release then fell through to the window underneath, which raised
+        --itself over the placement banner.
+        click = function(element)
             --already on the map: bank the arrangement, then collect the
             --tokens. Discarding instead lives on the card's right-click menu.
             local placed = PlacedTokensForGroup(group)
             if #placed > 0 then
                 BankGroupPositions(group, encounter.saveAppearances)
+                --no map chosen yet: the map it was staged on becomes it.
+                if encounter.mapid == "" then
+                    ReconcileStagingWithMap(encounter)
+                end
                 --while the tokens are still on the map: who was riding whom.
                 BankStagedMounts(encounter)
                 local charids = {}
@@ -2839,12 +3036,77 @@ local function CreateGroupCard(args)
                 return
             end
 
+            --set on a Map Library map the game lacks (or holds as a second
+            --copy): add it, or move onto the copy, then stage as usual.
+            local mapRef = encounter:GetMapRef()
+            if mapRef ~= nil then
+                local libraryMap = Encounter.FindLibraryMap(mapRef)
+                if libraryMap == nil or libraryMap.id ~= encounter.mapid then
+                    Encounter.ResolveMapRef(encounter, { inPlace = true }, function()
+                        if mod.unloaded or not element.valid then return end
+                        refresh()
+                        element:FireEvent("click")
+                    end)
+                    return
+                end
+            end
+
+            --the encounter's staging belongs on its own map: go there first,
+            --then stage once it is the current map (staging banked anywhere
+            --else would be dropped as not on the encounter's map).
+            if encounter.mapid ~= "" and encounter.mapid ~= game.currentMapId then
+                local map = game.GetMap(encounter.mapid)
+                if map ~= nil and map.valid then
+                    if travellingToStage then
+                        return
+                    end
+                    travellingToStage = true
+                    if Tabletop.IsActive() then
+                        Tabletop.OpenMap(encounter.mapid)
+                    else
+                        map:Travel()
+                    end
+                    --same generous window EotW gives an animated map switch.
+                    local deadline = dmhub.Time() + 60
+                    local function StageOnArrival()
+                        if mod.unloaded or not element.valid then
+                            travellingToStage = false
+                            return
+                        end
+                        if game.currentMapId == encounter.mapid then
+                            --let the new map's tokens and floors settle first.
+                            dmhub.Schedule(0.5, function()
+                                travellingToStage = false
+                                if mod.unloaded or not element.valid then return end
+                                element:FireEvent("click")
+                            end)
+                            return
+                        end
+                        if dmhub.Time() < deadline then
+                            dmhub.Schedule(0.1, StageOnArrival)
+                        else
+                            travellingToStage = false
+                        end
+                    end
+                    dmhub.Schedule(0.1, StageOnArrival)
+                    return
+                end
+            end
+
             if group.placementid == nil then
                 group.placementid = dmhub.GenerateGuid()
             end
             local placementid = group.placementid
 
-            local editorPanel = element:FindParentWithClass("editorPanel")
+            --staging happens on the current map, so make sure a window shows
+            --it: this restores a minimized window or opens a new one, without
+            --taking over a window that holds a frozen snapshot of another map.
+            if Tabletop.IsActive() then
+                Tabletop.OpenMap(game.currentMapId, { newWindow = true })
+            end
+
+            --the link lives on a group card inside the builder, so this is never nil.
+            local editorPanel = element:FindParentWithClass("editorPanel") --[[@as Panel]]
 
             local function ShowArrangeBanner()
                 ShowStagingBanner(
@@ -2853,6 +3115,9 @@ local function CreateGroupCard(args)
                         onClosed = function()
                             if editorPanel ~= nil and editorPanel.valid then
                                 editorPanel:SetClass("hidden", false)
+                                --map windows clicked while arranging were
+                                --raised over the hidden builder; come back on top.
+                                editorPanel:SetAsLastSibling()
                                 refresh()
                             end
                         end,
@@ -2863,7 +3128,7 @@ local function CreateGroupCard(args)
             --their saved positions and bring them into view for arranging.
             --Positions banked on another map are coordinates that mean nothing
             --here, so fall through to click-to-stage instead.
-            if group.spawnlocs ~= nil and #group.spawnlocs > 0 and not GroupStagedOnOtherMap(group) then
+            if GroupHasUsableStaging(encounter, group) then
                 local tokens = StageGroupAtSavedLocations(encounter, groupIndex, group, party.numHeroes, placementid)
                 if #tokens > 0 then
                     editorPanel:SetClass("hidden", true)
@@ -2894,7 +3159,7 @@ local function CreateGroupCard(args)
             editorPanel:SetClass("hidden", true)
 
             local stageMessage = string.format("Click on the map to stage %s", GroupName(encounter, group, groupIndex))
-            if GroupStagedOnOtherMap(group) then
+            if GroupStagedOnOtherMap(group) and not GroupStagedOffEncounterMap(encounter, group) then
                 stageMessage = string.format("Positions were saved on another map - click to stage %s here", GroupName(encounter, group, groupIndex))
             end
 
@@ -2949,6 +3214,9 @@ local function CreateGroupCard(args)
                     end
                     if editorPanel ~= nil and editorPanel.valid then
                         editorPanel:SetClass("hidden", false)
+                        --a map window opened for staging sits over the
+                        --hidden builder; come back on top.
+                        editorPanel:SetAsLastSibling()
                         refresh()
                     end
                 end,
@@ -2967,6 +3235,7 @@ local function CreateGroupCard(args)
         refreshBuilder = function(element)
             local live = #PlacedTokensForGroup(group)
             local saved = group.spawnlocs ~= nil and #group.spawnlocs > 0
+                and not GroupStagedOffEncounterMap(encounter, group)
             element:SetClass("hidden", not (live > 0 or saved))
             element:SetClass("success", live > 0)
             if live > 0 then
@@ -3004,6 +3273,19 @@ local function CreateGroupCard(args)
             local step = cond(info.minion, 4, 1)
             group.monsters[info.monsterid] = (group.monsters[info.monsterid] or 0) + step
             rebuild()
+        end,
+
+        --monsters dragged off the map and dropped on the card join THIS
+        --group, staged where they stand (Encounter.Editor's AdoptDroppedTokens).
+        tokenDropTarget = args.adoptTokens ~= nil,
+        dropTokens = function(element, info)
+            args.adoptTokens(info.charids, group)
+        end,
+        tokenDragEnter = function(element, info)
+            args.previewTokens(info.charids, group)
+        end,
+        tokenDragLeave = function(element)
+            args.hideTokenPreview()
         end,
 
         rightClick = function(element)
@@ -3053,12 +3335,7 @@ local function CreateGroupCard(args)
                     text = "Clear Saved Staging",
                     click = function()
                         element.popup = nil
-                        group.spawnlocs = nil
-                        group.appearances = nil
-                        group.invisibleToPlayers = nil
-                        group.spawnmonsters = nil
-                        group.mounts = nil
-                        group.stagemapid = nil
+                        ClearGroupStaging(group)
                         refresh()
                     end,
                 }
@@ -3281,6 +3558,9 @@ local function CreateWaveSections(args)
                             groupIndex = groupIndex,
                             refresh = refresh,
                             rebuild = rebuild,
+                            adoptTokens = args.adoptTokens,
+                            previewTokens = args.previewTokens,
+                            hideTokenPreview = args.hideTokenPreview,
                         }
                     end
                 end
@@ -3644,6 +3924,20 @@ end
 -- Footer actions: Place on Map
 -- ===========================================================================
 
+--Mount a mode banner (placement, staging) in the hud's banner layer, which sits
+--over the map and journal windows: a window raised by a click must not hide
+--the banner telling the user what mode they are in. The lobby hud has no
+--banner layer, so fall back to the documents layer there.
+local function MountModeBanner(banner)
+    local hud = GameHud.instance --[[@as GameHud]]
+    local layer = hud.bannerLayer
+    if layer ~= nil and layer.valid then
+        layer:AddChild(banner)
+    else
+        hud.documentsPanel:AddChild(banner)
+    end
+end
+
 --"Place on Map" from the builder uses the engine's click-to-place path: a
 --focused panel exposing data.encounter is consulted by the engine (via
 --dmhub.GetSelectedEncounter) when the DM clicks the map, which spawns the
@@ -3780,13 +4074,14 @@ ShowPlacementBanner = function(encounter, opts)
             valign = "center",
             text = "Cancel",
             swallowPress = true,
-            press = function(element)
+            --on click (release), not press: see Back to Builder below.
+            click = function(element)
                 banner:DestroySelf()
             end,
         },
     }
 
-    GameHud.instance.documentsPanel:AddChild(banner)
+    MountModeBanner(banner)
 end
 
 --A small focused banner shown while a staged group's tokens are on the map
@@ -3833,13 +4128,704 @@ ShowStagingBanner = function(message, opts)
             halign = "right",
             valign = "center",
             text = "Back to Builder",
-            press = function(element)
+            --on click (release), not press: closing on press let the release
+            --fall through to the window under the banner, which raised itself
+            --over the builder we just brought back.
+            click = function(element)
                 banner:DestroySelf()
             end,
         },
     }
 
-    GameHud.instance.documentsPanel:AddChild(banner)
+    MountModeBanner(banner)
+end
+
+-- ===========================================================================
+-- Encounter map: which map the encounter takes place on
+-- ===========================================================================
+
+local MAP_CARD_WIDTH = 176
+local MAP_CARD_HEIGHT = 99
+
+--The encounter's map, or nil when none is chosen or it has been deleted.
+local function EncounterMap(encounter)
+    local mapid = encounter.mapid
+    if mapid == nil or mapid == "" then
+        return nil
+    end
+    local map = game.GetMap(mapid)
+    if map == nil or not map.valid then
+        return nil
+    end
+    return map
+end
+
+--The picker the map card opens: Create New Map, a searchable list of this
+--game's maps, and No Map. choose(mapid, create) gets "" for No Map and
+--create = true for Create New Map.
+local function CreateMapPickerPopup(encounter, choose)
+    local list = gui.Panel {
+        width = "100%",
+        height = "auto",
+        maxHeight = 320,
+        flow = "vertical",
+        vscroll = true,
+    }
+
+    local function Populate(search)
+        search = string.lower(search or "")
+        local maps = {}
+        for _, map in ipairs(game.maps) do
+            if search == "" or string.find(string.lower(map.description), search, 1, true) ~= nil then
+                maps[#maps + 1] = map
+            end
+        end
+        table.sort(maps, function(a, b)
+            return string.lower(a.description) < string.lower(b.description)
+        end)
+
+        local children = {}
+        for _, map in ipairs(maps) do
+            local mapid = map.id
+            children[#children + 1] = gui.Label {
+                classes = { "encounterMapOption", cond(mapid == encounter.mapid, "selected") },
+                text = map.description,
+                press = function(element)
+                    choose(mapid)
+                end,
+            }
+        end
+        if #children == 0 then
+            children[1] = gui.Label {
+                classes = { "fgMuted", "sizeXs" },
+                width = "100%",
+                height = "auto",
+                vmargin = 6,
+                textAlignment = "center",
+                text = "No maps match.",
+            }
+        end
+        list.children = children
+    end
+
+    Populate("")
+
+    return gui.Panel {
+        classes = { "bordered", "bg" },
+        width = 300,
+        height = "auto",
+        flow = "vertical",
+        hpad = 10,
+        vpad = 10,
+        borderBox = true,
+
+        gui.Button {
+            classes = { "sizeS" },
+            width = "100%",
+            text = "Create New Map...",
+            press = function(element)
+                choose(nil, true)
+            end,
+        },
+
+        gui.Input {
+            classes = { "form" },
+            width = "100%",
+            height = 26,
+            vmargin = 8,
+            placeholderText = "Search maps...",
+            editlag = 0.1,
+            edit = function(element)
+                Populate(element.text)
+            end,
+        },
+
+        list,
+
+        gui.Label {
+            classes = { "encounterMapOption", cond(encounter.mapid == "", "selected") },
+            tmargin = 6,
+            italics = true,
+            text = "No Map",
+            press = function(element)
+                choose("")
+            end,
+        },
+    }
+end
+
+--The map card in the builder's header: a picture of the encounter's map.
+--Click it to choose or create the map, drop a map on it from the Maps panel,
+--and drag it onto the table to open that map in a window.
+local function CreateEncounterMapCard(encounter, refresh)
+    local card
+
+    --the map's picture (MapThumbnails.lua), cover-fit to the card.
+    --floating: the picture, the name strip and the empty-state text overlap.
+    local image = MapThumbnail.Panel {
+        floating = true,
+        mapid = encounter.mapid,
+        width = MAP_CARD_WIDTH,
+        height = MAP_CARD_HEIGHT,
+    }
+
+    local nameLabel = gui.Label {
+        classes = { "encounterMapName" },
+        floating = true,
+        text = "",
+    }
+
+    local emptyLabel = gui.Label {
+        classes = { "fgMuted", "sizeXs" },
+        width = "100%",
+        height = "auto",
+        halign = "center",
+        valign = "center",
+        textAlignment = "center",
+        text = "",
+    }
+
+    local function Refresh()
+        local map = EncounterMap(encounter)
+
+        card:SetClass("hasMap", map ~= nil)
+        card.draggable = map ~= nil
+
+        image:FireEvent("setMap", map ~= nil and map.id or nil)
+
+        --a map with no picture keeps just its name strip along the bottom.
+        nameLabel:SetClass("hidden", map == nil)
+        if map ~= nil then
+            nameLabel.text = map.description
+        end
+
+        emptyLabel:SetClass("hidden", map ~= nil)
+        local mapRef = encounter:GetMapRef()
+        if map == nil and mapRef ~= nil then
+            emptyLabel.text = string.format("%s\nMap Library map\nClick to add it", mapRef.name)
+        elseif map == nil and encounter.mapid ~= "" then
+            emptyLabel.text = "Map deleted\nClick to choose"
+        else
+            emptyLabel.text = "No map\nClick to choose"
+        end
+    end
+
+    local function SetMap(mapid)
+        if not card.valid then
+            return
+        end
+        encounter.mapid = mapid
+        --another map than the library map it was set on: the reference goes.
+        local mapRef = encounter:GetMapRef()
+        if mapRef ~= nil then
+            local libraryMap = Encounter.FindLibraryMap(mapRef)
+            if libraryMap == nil or libraryMap.id ~= mapid then
+                encounter.mapRef = ""
+            end
+        end
+        if mapid == "" then
+            --staging without a map would just be re-inferred as the map, so
+            --No Map takes the saved staging with it.
+            for _, group in ipairs(encounter.groups) do
+                if group.stagemapid ~= nil then
+                    ClearGroupStaging(group)
+                end
+            end
+        else
+            ReconcileStagingWithMap(encounter)
+        end
+        Refresh()
+        refresh()
+    end
+
+    card = gui.Panel {
+        classes = { "encounterMapCard", "mapDropTarget" },
+        width = MAP_CARD_WIDTH,
+        height = MAP_CARD_HEIGHT,
+        halign = "right",
+        valign = "top",
+        dragTarget = true,
+
+        image,
+        emptyLabel,
+        nameLabel,
+
+        create = function(element)
+            Refresh()
+        end,
+
+        --maps renamed, deleted or added elsewhere.
+        monitorGame = "/mapManifests",
+        refreshGame = function(element)
+            Refresh()
+        end,
+
+        hover = function(element)
+            local text
+            if EncounterMap(encounter) == nil and encounter:GetMapRef() ~= nil then
+                text = "This encounter takes place on a free Map Library map that is not in this game yet. Click to add it."
+            elseif EncounterMap(encounter) == nil then
+                text = "The map this encounter takes place on. Click to choose or create one, or drag a map here from the Maps panel."
+            else
+                text = "Click to change the map, or drag it onto the table to open it in a window."
+            end
+            gui.Tooltip(text)(element)
+        end,
+
+        click = function(element)
+            --a library map not added yet: add it. Once it is here, a click
+            --opens the picker as usual.
+            if EncounterMap(encounter) == nil and encounter:GetMapRef() ~= nil then
+                Encounter.ResolveMapRef(encounter, { inPlace = true }, function()
+                    if not card.valid then return end
+                    Refresh()
+                    refresh()
+                end)
+                return
+            end
+            element.popupsInheritStyles = true
+            element.popup = CreateMapPickerPopup(encounter, function(mapid, create)
+                element.popup = nil
+                if create then
+                    ShowCreateMapDialog {
+                        created = function(newid)
+                            SetMap(newid)
+                        end,
+                    }
+                    return
+                end
+                SetMap(mapid)
+            end)
+        end,
+
+        --a map row dropped here from the Maps panel (MapsPanel.lua).
+        dropMap = function(element, mapid)
+            SetMap(mapid)
+        end,
+
+        --dragged out of the builder: only the bare table takes it (as a
+        --window on the map), so nothing in the builder is a target.
+        canDragOnto = function(element, target)
+            return false
+        end,
+        dragging = function(element, target)
+            local map = EncounterMap(encounter)
+            if map ~= nil then
+                Tabletop.MapRowDragging(element, map.id)
+            end
+        end,
+        drag = function(element, target)
+            Tabletop.MapRowDragEnded(element)
+            local map = EncounterMap(encounter)
+            if map ~= nil then
+                Tabletop.MapRowDropped(map.id)
+            end
+        end,
+    }
+
+    return card
+end
+
+--The MapTools id the builder's rectangle tool claims (DMHub Core UI/MapToolArbiter.lua).
+local AREA_TOOL_ID = "encounterarea"
+local START_ZONE_EDIT_COLOR = "#79d2a0"
+
+--The tiles a closed rectangle stroke covers: those whose centers it contains
+--(tile (x, y) is centred on world (x, y)). A click-sized stroke gives the tile
+--under it. Returns x1, y1, x2, y2 with the corners inclusive.
+local function StrokeTileRect(path)
+    local ok, points = pcall(function()
+        return path.points
+    end)
+    if not ok or points == nil or #points < 6 then
+        return nil
+    end
+
+    local minX, minY = points[1], points[2]
+    local maxX, maxY = minX, minY
+    for i = 1, #points - 1, 2 do
+        minX = math.min(minX, points[i])
+        maxX = math.max(maxX, points[i])
+        minY = math.min(minY, points[i + 1])
+        maxY = math.max(maxY, points[i + 1])
+    end
+
+    local x1, x2 = math.ceil(minX), math.floor(maxX)
+    local y1, y2 = math.ceil(minY), math.floor(maxY)
+    if x2 < x1 then
+        x1 = math.floor((minX + maxX) / 2 + 0.5)
+        x2 = x1
+    end
+    if y2 < y1 then
+        y1 = math.floor((minY + maxY) / 2 + 0.5)
+        y2 = y1
+    end
+    return x1, y1, x2, y2
+end
+
+--Under the map card: the encounter's region ("Entire Map" until one is
+--drawn) and its hero start zone. Clicking a badge draws on the encounter's
+--map with a rectangle tool, opening the map first if it is not the one on
+--screen. While the builder is open on that map, everything outside the region
+--is desaturated (dmhub.SetMapFocusRegion) and the start tiles are outlined.
+--The region shrinks the map's bounds during combat, and the start zone confines
+--the heroes until combat starts: see "Encounter region and hero start zone" in
+--MCDMEncounter.lua.
+local function CreateEncounterAreaBadges(encounter, refresh)
+    local column
+
+    --nil, "region" (one rectangle, then done) or "start" (rectangles add
+    --tiles until the badge is pressed again).
+    local drawing = nil
+
+    local startMarker = nil
+    local startMarkerKey = nil
+    --bumped by every start zone edit, so the outline is rebuilt.
+    local startVersion = 0
+
+    local function OnEncounterMap()
+        return encounter.mapid ~= "" and encounter.mapid == game.currentMapId
+    end
+
+    local function StopDrawing()
+        if drawing ~= nil then
+            drawing = nil
+            MapTools.Release(AREA_TOOL_ID)
+        end
+    end
+
+    local function StartDrawing(mode)
+        if encounter.mapid == "" then
+            --no map chosen yet: the region is drawn on the map on screen.
+            if game.currentMap == nil then
+                return
+            end
+            encounter.mapid = game.currentMapId
+        elseif encounter.mapid ~= game.currentMapId then
+            if game.GetMap(encounter.mapid) == nil then
+                return
+            end
+            --drawing starts once the map is current (think).
+            Tabletop.OpenMap(encounter.mapid)
+        end
+
+        drawing = mode
+        MapTools.Claim(AREA_TOOL_ID)
+        refresh()
+    end
+
+    local function ClearStartMarker()
+        if startMarker ~= nil then
+            pcall(function() startMarker:Destroy() end)
+            startMarker = nil
+        end
+        startMarkerKey = nil
+    end
+
+    --the desaturated surround and the start zone outline, kept matching the
+    --encounter and whatever map is on screen.
+    local function UpdateMapVisuals()
+        local region = encounter:GetRegion()
+        if region ~= nil and encounter.mapid ~= "" then
+            dmhub.SetMapFocusRegion {
+                x1 = region.x1,
+                y1 = region.y1,
+                x2 = region.x2 + 1,
+                y2 = region.y2 + 1,
+                mapid = encounter.mapid,
+            }
+        else
+            dmhub.SetMapFocusRegion(nil)
+        end
+
+        local startLocs = encounter:GetHeroStartLocs()
+        local floorCount = 0
+        pcall(function() floorCount = #game.currentMap.floors end)
+        local key = nil
+        if OnEncounterMap() and #startLocs > 0 then
+            key = string.format("%s|%d|%d", encounter.mapid, startVersion, floorCount)
+        end
+        if key == startMarkerKey then
+            return
+        end
+
+        ClearStartMarker()
+        if key == nil then
+            return
+        end
+        startMarkerKey = key
+
+        local locs = Encounter.StartLocsOnCurrentMap(startLocs)
+        if #locs > 0 then
+            startMarker = dmhub.MarkLocs {
+                locs = locs,
+                color = START_ZONE_EDIT_COLOR,
+            }
+        end
+    end
+
+    local function DrawRegion(x1, y1, x2, y2)
+        local map = game.currentMap
+        if map == nil then
+            return
+        end
+
+        --kept inside the map: the region is the part of it the fight uses.
+        local dim = map.dimensions
+        local mx1, my1, mx2, my2 = dim.x1, dim.y1, dim.x2 - 1, dim.y2 - 1
+        x1, y1 = math.max(x1, mx1), math.max(y1, my1)
+        x2, y2 = math.min(x2, mx2), math.min(y2, my2)
+        if x2 < x1 or y2 < y1 then
+            return
+        end
+
+        if x1 == mx1 and y1 == my1 and x2 == mx2 and y2 == my2 then
+            encounter:SetRegion(nil)
+        else
+            encounter:SetRegion { x1 = x1, y1 = y1, x2 = x2, y2 = y2 }
+        end
+        StopDrawing()
+        refresh()
+    end
+
+    local function DrawStartTiles(x1, y1, x2, y2)
+        local floor = game.currentFloor
+        if floor == nil then
+            return
+        end
+        local floorid = floor.floorid
+
+        local locs = {}
+        local seen = {}
+        for _, l in ipairs(encounter:GetHeroStartLocs()) do
+            local k = string.format("%s:%d:%d", l.floor, l.x, l.y)
+            if not seen[k] then
+                seen[k] = true
+                locs[#locs + 1] = l
+            end
+        end
+        for y = y1, y2 do
+            for x = x1, x2 do
+                local k = string.format("%s:%d:%d", floorid, x, y)
+                if not seen[k] then
+                    seen[k] = true
+                    locs[#locs + 1] = { x = x, y = y, floor = floorid }
+                end
+            end
+        end
+
+        encounter:SetHeroStartLocs(locs)
+        startVersion = startVersion + 1
+        refresh()
+    end
+
+    local regionBadge = gui.Label {
+        classes = { "encounterBadge", "encounterAreaBadge" },
+        width = "100%-22",
+        height = "auto",
+        textAlignment = "center",
+        text = "",
+
+        refreshBuilder = function(element)
+            local region = encounter:GetRegion()
+            element:SetClass("drawing", drawing == "region")
+            if drawing == "region" then
+                element.text = "Drag a rectangle..."
+            elseif region == nil then
+                element.text = "Entire Map"
+            else
+                element.text = string.format("Region %dx%d", region.x2 - region.x1 + 1, region.y2 - region.y1 + 1)
+            end
+        end,
+
+        hover = function(element)
+            local text
+            if drawing == "region" then
+                text = "Drag a rectangle on the map to mark where the encounter takes place. Click to cancel."
+            elseif encounter:GetRegion() == nil then
+                text = "The encounter uses the entire map. Click, then drag a rectangle on the map to limit it to one region: during combat the map's bounds shrink to it."
+            else
+                text = "The region of the map the encounter takes place in. During combat the map's bounds shrink to it. Click to draw it again."
+            end
+            gui.Tooltip(text)(element)
+        end,
+
+        press = function(element)
+            if drawing == "region" then
+                StopDrawing()
+                refresh()
+            else
+                StartDrawing("region")
+            end
+        end,
+    }
+
+    local regionClear = gui.DeleteItemButton {
+        width = 16,
+        height = 16,
+        valign = "center",
+        lmargin = 6,
+        hover = gui.Tooltip("Use the entire map."),
+        refreshBuilder = function(element)
+            element:SetClass("hidden", encounter:GetRegion() == nil)
+        end,
+        click = function(element)
+            encounter:SetRegion(nil)
+            if drawing == "region" then
+                StopDrawing()
+            end
+            refresh()
+        end,
+    }
+
+    local startBadge = gui.Label {
+        classes = { "encounterBadge", "encounterAreaBadge" },
+        width = "100%-22",
+        height = "auto",
+        textAlignment = "center",
+        text = "",
+
+        refreshBuilder = function(element)
+            local count = #encounter:GetHeroStartLocs()
+            element:SetClass("drawing", drawing == "start")
+            if drawing == "start" then
+                element.text = "Done Drawing"
+            elseif count == 0 then
+                element.text = "No Starting Zone"
+            else
+                element.text = string.format("Starting Zone: %d %s", count, cond(count == 1, "tile", "tiles"))
+            end
+        end,
+
+        hover = function(element)
+            local text
+            if drawing == "start" then
+                text = "Drag rectangles on the map to add the tiles heroes can start on. Click when you are done."
+            elseif #encounter:GetHeroStartLocs() == 0 then
+                text = "Click, then drag rectangles on the map to mark the tiles heroes can start on. Once the encounter is placed, players can only move their heroes inside it until combat starts."
+            else
+                text = "The tiles heroes can start on. Once the encounter is placed, players can only move their heroes inside it until combat starts. Click to add more tiles."
+            end
+            gui.Tooltip(text)(element)
+        end,
+
+        press = function(element)
+            if drawing == "start" then
+                StopDrawing()
+                refresh()
+            else
+                StartDrawing("start")
+            end
+        end,
+    }
+
+    local startClear = gui.DeleteItemButton {
+        width = 16,
+        height = 16,
+        valign = "center",
+        lmargin = 6,
+        hover = gui.Tooltip("Clear the starting zone."),
+        refreshBuilder = function(element)
+            element:SetClass("hidden", #encounter:GetHeroStartLocs() == 0)
+        end,
+        click = function(element)
+            encounter:SetHeroStartLocs(nil)
+            startVersion = startVersion + 1
+            --a zone already showing for this encounter goes too.
+            local encounterid = encounter:try_get("id")
+            if encounterid ~= nil and encounter.mapid ~= "" then
+                Encounter.ClearStartZone(encounter.mapid, encounterid)
+            end
+            refresh()
+        end,
+    }
+
+    column = gui.Panel {
+        width = MAP_CARD_WIDTH,
+        height = "auto",
+        flow = "vertical",
+        halign = "right",
+        valign = "top",
+        lmargin = 12,
+
+        --keeps the rectangle tool alive (the engine expires a custom map tool
+        --after ~1s, and each registration returns a fresh event source to
+        --listen to) and the map visuals current.
+        thinkTime = 0.2,
+
+        create = function(element)
+            --another map tool armed: put this one down.
+            MapTools.Register(AREA_TOOL_ID, function()
+                if drawing ~= nil and column ~= nil and column.valid then
+                    drawing = nil
+                    refresh()
+                end
+            end)
+            UpdateMapVisuals()
+        end,
+
+        destroy = function(element)
+            StopDrawing()
+            MapTools.Unregister(AREA_TOOL_ID)
+            ClearStartMarker()
+            dmhub.SetMapFocusRegion(nil)
+        end,
+
+        think = function(element)
+            UpdateMapVisuals()
+
+            if drawing ~= nil and OnEncounterMap() then
+                local eventSource = editor:SetMapTool {
+                    tool = "rectangle",
+                    closed = true,
+                    expires = 1,
+                    stabilization = 0,
+                    snapToGrid = true,
+                    editorCursor = true,
+                }
+                if eventSource ~= nil then
+                    eventSource:Listen(element)
+                end
+            end
+        end,
+
+        tool = function(element, path)
+            if drawing == nil or path == nil or not OnEncounterMap() then
+                return
+            end
+            local x1, y1, x2, y2 = StrokeTileRect(path)
+            if x1 == nil then
+                return
+            end
+            if drawing == "region" then
+                DrawRegion(x1, y1, x2, y2)
+            else
+                DrawStartTiles(x1, y1, x2, y2)
+            end
+        end,
+
+        CreateEncounterMapCard(encounter, refresh),
+
+        gui.Panel {
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            tmargin = 6,
+            regionBadge,
+            regionClear,
+        },
+
+        gui.Panel {
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            tmargin = 4,
+            startBadge,
+            startClear,
+        },
+    }
+
+    return column
 end
 
 -- ===========================================================================
@@ -3928,6 +4914,9 @@ function Encounter.SpawnGroupForReal(group, numHeroes, fallbackAnchor)
                     token.properties.encounterSpawnMonster = monsterid
                     token.properties.encounterStaged = false
                 end
+                if group.sourceEncounterId ~= nil then
+                    token.properties.encounterSourceId = group.sourceEncounterId
+                end
 
                 local appearanceInfo = entry ~= nil and entry.appearance or nil
                 if type(appearanceInfo) == "string" then
@@ -3974,6 +4963,269 @@ end
 
 local SpawnGroupForReal = Encounter.SpawnGroupForReal
 
+--The nearest unoccupied tile to anchor on the current floor, searching
+--outward ring by ring; anchor itself when everything nearby is taken.
+local function FreeTileNear(anchor, taken)
+    local floorIndex = game.currentFloorIndex
+    local ax = round(anchor.x)
+    local ay = round(anchor.y)
+    for r = 0, 12 do
+        for dy = -r, r do
+            for dx = -r, r do
+                if math.max(math.abs(dx), math.abs(dy)) == r then
+                    local loc = core.Loc { x = ax + dx, y = ay + dy, floorIndex = floorIndex }
+                    local key = string.format("%d,%d", loc.x, loc.y)
+                    if not taken[key] and #(game.GetTokensAtLoc(loc) or {}) == 0 then
+                        taken[key] = true
+                        return loc
+                    end
+                end
+            end
+        end
+    end
+    return core.Loc { x = ax, y = ay, floorIndex = floorIndex }
+end
+
+--Adds count more of monsterid to a group that is already on the map for
+--encounter prep (the balancer, as the hero count rises). The newcomers join
+--the group's initiative and minion squad, take the group's next saved
+--positions for that monster when they are free (useBanked), and otherwise
+--stand on free tiles beside the group. existing: the group's tokens now on
+--the map. Returns the spawned charids.
+--- @param group table
+--- @param monsterid string
+--- @param count number
+--- @param numHeroes number
+--- @param existing CharacterToken[]
+--- @param useBanked boolean
+--- @param fallbackAnchor table any {x, y}
+--- @return string[]
+function Encounter.SpawnPrepMonsters(group, monsterid, count, numHeroes, existing, useBanked, fallbackAnchor)
+    local groupid = nil
+    local nextSlot = 1
+    local ofType = 0
+    local squads = {}
+    local anchor = nil
+    for _, tok in ipairs(existing) do
+        local props = tok.properties
+        groupid = groupid or props:try_get("initiativeGrouping")
+        nextSlot = math.max(nextSlot, props:try_get("encounterSpawnSlot", 0) + 1)
+        if props:try_get("encounterSpawnMonster") == monsterid then
+            ofType = ofType + 1
+            anchor = anchor or tok.loc
+            local squad = props:try_get("minionSquad")
+            if squad ~= nil then
+                squads[squad] = (squads[squad] or 0) + 1
+            end
+        end
+        anchor = anchor or tok.loc
+    end
+    groupid = groupid or dmhub.GenerateGuid()
+    anchor = anchor or (useBanked and (group.spawnlocs or {})[1]) or fallbackAnchor
+
+    --join the smallest squad of this minion type, if it has any.
+    local squadName = nil
+    local squadSize = nil
+    for name, n in pairs(squads) do
+        if squadSize == nil or n < squadSize then
+            squadName, squadSize = name, n
+        end
+    end
+    local monsterAsset = assets.monsters[monsterid]
+    if squadName == nil and monsterAsset ~= nil and monsterAsset.properties.minion then
+        squadName = monster.FindFreshSquadName(monsterAsset.properties.monster_type)
+    end
+
+    --the saved positions this monster type has not used yet.
+    local banked = {}
+    if useBanked then
+        local queues, legacy = BankedPositionQueues(group)
+        for i = 1, ofType + count do
+            local entry = TakeBankedPosition(queues, legacy, monsterid)
+            if entry == nil then
+                break
+            end
+            if i > ofType then
+                banked[#banked + 1] = entry
+            end
+        end
+    end
+
+    local taken = {}
+    local charids = {}
+    for i = 1, count do
+        local entry = banked[i]
+        local loc = nil
+        local onGround = false
+        if entry ~= nil and #(game.GetTokensAtLoc(entry.loc.withCurrentFloor) or {}) == 0 then
+            loc = entry.loc
+            if not loc.isValidFloor then
+                loc = loc.withCurrentFloor
+            end
+        else
+            entry = nil
+            loc = FreeTileNear(anchor, taken)
+            onGround = true
+        end
+
+        local token = game.SpawnTokenFromBestiaryLocally(monsterid, loc, { fitLocation = true, onGround = onGround })
+        if token ~= nil then
+            token.properties.initiativeGrouping = groupid
+            token.properties:OnCreateFromBestiary(token, groupid)
+            token.properties.minHeroes = (group.monsterMinHeroes or {})[monsterid] or group.minHeroes
+            token.properties.encounterPlacementId = group.placementid
+            token.properties.encounterSpawnSlot = nextSlot
+            token.properties.encounterSpawnMonster = monsterid
+            token.properties.encounterStaged = false
+            if group.sourceEncounterId ~= nil then
+                token.properties.encounterSourceId = group.sourceEncounterId
+            end
+            nextSlot = nextSlot + 1
+
+            if entry ~= nil and type(entry.appearance) == "string" then
+                token:SerializeAppearanceFromString(entry.appearance)
+            end
+            if entry ~= nil and entry.invisible then
+                token.invisibleToPlayers = true
+            end
+            local info = (group.balancing or {})[numHeroes]
+            if info ~= nil and type(info.stamina) == "number" then
+                token.properties.max_hitpoints = info.stamina
+            end
+            if squadName ~= nil then
+                token.properties.minionSquad = squadName
+            end
+
+            token:UploadToken()
+            game.UpdateCharacterTokens()
+            charids[#charids + 1] = token.charid
+        end
+    end
+    return charids
+end
+
+--Whether a group's saved positions may be used on the current map (they
+--were banked here, and the plan's map is this one or unset).
+--- @param encounter Encounter
+--- @param group table
+--- @return boolean
+function Encounter.GroupHasUsableStaging(encounter, group)
+    return GroupHasUsableStaging(encounter, group)
+end
+
+--Whether a token fights for the heroes: player-controlled, or in the party or
+--an allied party (the test the combat setup uses).
+local function IsPlayerSideToken(tok)
+    if tok.playerControlled then
+        return true
+    end
+    local partyid = tok.partyId
+    if partyid == nil then
+        return false
+    end
+    local playerPartyId = GetDefaultPartyID()
+    if partyid == playerPartyId then
+        return true
+    end
+    local party = GetParty(playerPartyId)
+    return party ~= nil and party:GetAllyParties()[partyid] ~= nil
+end
+
+--Whether an untagged token looks like a stock bestiary copy of one of the
+--plan's monsters: same bestiary entry and an unchanged name ("Goblin Assassin"
+--or "Goblin Assassin 3"). A renamed token is someone's NPC.
+--names: bestiaryId -> list of the names that monster spawns under.
+local function LooksLikeBestiaryCopy(tok, names)
+    local bases = names[tok.bestiaryId or ""]
+    if bases == nil then
+        return false
+    end
+    local name = tok.name or ""
+    for _, base in ipairs(bases) do
+        if name == base or string.match(name, "^" .. string.gsub(base, "(%W)", "%%%1") .. " %d+$") ~= nil then
+            return true
+        end
+    end
+    return false
+end
+
+--The monsters on the current map that belong to this plan, so starting it can
+--replace them with fresh ones:
+--  * tagged with one of the plan's group placement ids (staged or placed);
+--  * spawned by an earlier prep of this plan (encounterSourceId);
+--  * stock bestiary copies of the plan's monsters tagged with a placement id
+--    no saved plan owns (an earlier prep from before encounterSourceId);
+--  * untagged stock copies of the plan's monsters standing in its region --
+--    e.g. placed by click-to-place.
+--Never heroes or their allies, summons, monsters tagged to another plan, or
+--renamed creatures (NPCs).
+--- @param encounter Encounter the saved plan
+--- @return CharacterToken[]
+function Encounter.FindEncounterMonstersOnMap(encounter)
+    local myId = encounter:try_get("id")
+    local ownPids = {}
+    local names = {}
+    for _, group in ipairs(encounter.groups) do
+        if group.placementid ~= nil then
+            ownPids[group.placementid] = true
+        end
+        for monsterid, _ in pairs(group.monsters or {}) do
+            local asset = assets.monsters[monsterid]
+            if asset ~= nil and names[monsterid] == nil then
+                local bases = { asset.name }
+                local monsterType = nil
+                pcall(function() monsterType = asset.properties:try_get("monster_type") end)
+                if type(monsterType) == "string" and monsterType ~= asset.name then
+                    bases[#bases + 1] = monsterType
+                end
+                names[monsterid] = bases
+            end
+        end
+    end
+
+    local otherPids = {}
+    for id, other in unhidden_pairs(dmhub.GetTable("encounters") or {}) do
+        if id ~= myId then
+            for _, group in ipairs(other:try_get("groups", {})) do
+                if group.placementid ~= nil then
+                    otherPids[group.placementid] = true
+                end
+            end
+        end
+    end
+
+    local region = encounter:GetRegion()
+    local result = {}
+    for _, tok in ipairs(dmhub.allTokens) do
+        local props = tok.properties
+        local monsterish = false
+        pcall(function() monsterish = props ~= nil and props:IsMonster() == true end)
+        if monsterish and not IsPlayerSideToken(tok) and (tok.summonerid == nil or tok.summonerid == "") then
+            local pid = props:try_get("encounterPlacementId")
+            local source = props:try_get("encounterSourceId")
+            local mine = false
+            if pid ~= nil and ownPids[pid] then
+                mine = true
+            elseif source ~= nil then
+                mine = myId ~= nil and source == myId
+            elseif pid ~= nil and not otherPids[pid] then
+                --spawned by a play of some encounter whose plan no longer
+                --names that id (an earlier prep): ours if it is our monster.
+                mine = LooksLikeBestiaryCopy(tok, names)
+            elseif pid == nil then
+                --never tagged at all: only within the encounter's region.
+                local loc = tok.loc
+                local inRegion = region == nil or (loc.x >= region.x1 and loc.x <= region.x2 and loc.y >= region.y1 and loc.y <= region.y2)
+                mine = inRegion and LooksLikeBestiaryCopy(tok, names)
+            end
+            if mine then
+                result[#result + 1] = tok
+            end
+        end
+    end
+    return result
+end
+
 --Place the encounter on the map for play. Staged tokens are collected first
 --(positions banked, tokens removed) so the freshest arrangement wins and
 --nothing double-spawns. Groups with saved positions on THIS map spawn there
@@ -3982,7 +5234,13 @@ local SpawnGroupForReal = Encounter.SpawnGroupForReal
 --(LiveEncounter:DeployWave), which reads the same banked positions.
 --
 --opts:
---  start      -- open combat setup (Draw Steel!) once everything is placed
+--  start      -- start the encounter once everything is placed: outside
+--                combat this puts it into prep (Encounter.BeginPrep), where
+--                every group spawns straight away -- unstaged groups beside
+--                opts.anchor -- and the Director presses Draw Steel from the
+--                prep bar.
+--  anchor     -- {x, y} where unstaged groups go when starting (the drop
+--                point of a drag); default the region's centre or the camera.
 --  persist    -- called if collecting staged tokens mutated the encounter
 --  onComplete -- placement finished (start flows may already be underway)
 --  onCancel   -- the click-to-place step was cancelled; everything this call
@@ -3999,10 +5257,14 @@ local function PlaceEncounterForReal(encounter, party, opts)
         --staged tokens, and the loop below deletes them group by group.
         BankStagedMounts(encounter)
         local mutated = false
+        --groups whose live arrangement was just banked: it is on this map by
+        --construction, so it places directly even if the plan names another map.
+        local justBanked = {}
         for _, group in ipairs(encounter.groups) do
             local staged = PlacedTokensForGroup(group)
             if #staged > 0 then
                 BankGroupPositions(group, encounter.saveAppearances)
+                justBanked[group] = true
                 local charids = {}
                 for _, token in ipairs(staged) do
                     charids[#charids + 1] = token.charid
@@ -4011,13 +5273,43 @@ local function PlaceEncounterForReal(encounter, party, opts)
                 mutated = true
             end
         end
+        if mutated and encounter.mapid == "" then
+            ReconcileStagingWithMap(encounter)
+        end
         if mutated and opts.persist ~= nil then
             opts.persist()
         end
 
+        --starting into prep replaces the plan's monsters already on the map
+        --(an earlier placement or prep of it) with fresh ones. The deletes
+        --land before the fresh spawn so new monsters can take the same tiles;
+        --this re-enters with oldReplaced set, and persist already ran.
+        if opts.start and not queueActive and not opts.oldReplaced then
+            local old = Encounter.FindEncounterMonstersOnMap(encounter)
+            if #old > 0 then
+                local charids = {}
+                for _, tok in ipairs(old) do
+                    charids[#charids + 1] = tok.charid
+                end
+                game.DeleteCharacters(charids)
+                local again = {}
+                for k, v in pairs(opts) do
+                    again[k] = v
+                end
+                again.oldReplaced = true
+                again.persist = nil
+                dmhub.Schedule(0.3, function()
+                    if mod.unloaded then return end
+                    game.UpdateCharacterTokens()
+                    PlaceEncounterForReal(encounter, party, again)
+                end)
+                return
+            end
+        end
+
         --tokens from a previous real placement of this plan are still on the
         --map (encounterStaged == false): pressing Start twice should not
-        --silently double the encounter.
+        --silently double the encounter. Starting into prep replaced them above.
         local alreadyPlaced = 0
         local placementids = {}
         for _, group in ipairs(encounter.groups) do
@@ -4036,7 +5328,7 @@ local function PlaceEncounterForReal(encounter, party, opts)
                 end
             end
         end
-        if alreadyPlaced > 0 and not opts.placeAgainConfirmed then
+        if alreadyPlaced > 0 and not opts.placeAgainConfirmed and not (opts.start and not queueActive) then
             gui.ModalMessage {
                 title = "Already on the Map",
                 message = string.format("%d of this encounter's monsters are already placed on this map. Place another copy anyway?", alreadyPlaced),
@@ -4069,13 +5361,77 @@ local function PlaceEncounterForReal(encounter, party, opts)
 
         local numHeroes = party.numHeroes
 
+        --starting outside combat goes into prep, which plays a copy of the
+        --plan. Every group gets a NEW placement id for this play: the prep
+        --treats tokens carrying its ids as its own (counting, re-balancing,
+        --deleting), so it must never share an id with monsters an earlier
+        --placement of the same plan left on the map.
+        local prepping = opts.start and not queueActive
+        local savedEncounter = encounter
+        local prepAnchor = nil
+        if prepping then
+            encounter = DeepCopy(encounter)
+            --spawns are stamped with the plan's id (encounterSourceId), so the
+            --next start of this plan knows them for its own and replaces them.
+            local sourceId = savedEncounter:try_get("id")
+            for groupIndex, group in ipairs(encounter.groups) do
+                if group.wave == nil then
+                    group.placementid = dmhub.GenerateGuid()
+                    group.sourceEncounterId = sourceId
+                end
+            end
+            prepAnchor = opts.anchor
+            local region = encounter:GetRegion()
+            if prepAnchor == nil and region ~= nil then
+                prepAnchor = { x = (region.x1 + region.x2) / 2, y = (region.y1 + region.y2) / 2 }
+            end
+            prepAnchor = prepAnchor or dmhub.cameraPosition
+        end
+
+        --unstaged groups in prep sit in a grid of cells around the anchor,
+        --each cell one group's 5-wide spawn block, kept inside the region.
+        local unstaged = {}
+        if prepping then
+            for groupIndex, group in ipairs(encounter.groups) do
+                if group.wave == nil and AdjustedGroupCount(group, numHeroes) > 0
+                    and not (justBanked[savedEncounter.groups[groupIndex]] or GroupHasUsableStaging(encounter, group)) then
+                    unstaged[#unstaged + 1] = group
+                end
+            end
+        end
+        local cellAnchors = {}
+        if prepAnchor ~= nil and #unstaged > 0 then
+            local CELL_W, CELL_H = 6, 3
+            local region = encounter:GetRegion()
+            local cols = 3
+            if region ~= nil then
+                cols = math.max(1, math.floor((region.x2 - region.x1 + 1) / CELL_W))
+            end
+            cols = math.min(cols, #unstaged)
+            local rows = math.ceil(#unstaged / cols)
+            local left = prepAnchor.x - (cols * CELL_W) / 2
+            local top = prepAnchor.y - (rows * CELL_H) / 2
+            if region ~= nil then
+                left = math.max(region.x1, math.min(left, region.x2 + 1 - cols * CELL_W))
+                top = math.max(region.y1, math.min(top, region.y2 + 1 - rows * CELL_H))
+            end
+            for i, group in ipairs(unstaged) do
+                local col = (i - 1) % cols
+                local row = math.floor((i - 1) / cols)
+                cellAnchors[group] = { x = left + col * CELL_W, y = top + row * CELL_H }
+            end
+        end
+
         --split placeable groups: saved positions on this map spawn
-        --directly; everything else goes through click-to-place.
+        --directly; everything else goes through click-to-place (or, in prep,
+        --to its cell beside the anchor).
         local directGroups = {}
         local clickGroups = {}
         for groupIndex, group in ipairs(encounter.groups) do
             if group.wave == nil and AdjustedGroupCount(group, numHeroes) > 0 then
-                if group.spawnlocs ~= nil and #group.spawnlocs > 0 and not GroupStagedOnOtherMap(group) then
+                if cellAnchors[group] ~= nil then
+                    directGroups[#directGroups + 1] = { group = group, index = groupIndex, anchor = cellAnchors[group] }
+                elseif justBanked[savedEncounter.groups[groupIndex]] or GroupHasUsableStaging(encounter, group) then
                     --carry the group's index: saved mounts name (group, slot) pairs.
                     directGroups[#directGroups + 1] = { group = group, index = groupIndex }
                 else
@@ -4092,7 +5448,7 @@ local function PlaceEncounterForReal(encounter, party, opts)
 
         for _, direct in ipairs(directGroups) do
             local group = direct.group
-            local anchor = group.spawnlocs[1] or dmhub.cameraPosition
+            local anchor = direct.anchor or group.spawnlocs[1] or dmhub.cameraPosition
             local groupid, charids, entries = SpawnGroupForReal(group, numHeroes, anchor)
             spawnedGroupids[#spawnedGroupids + 1] = groupid
             for _, cid in ipairs(charids) do
@@ -4130,6 +5486,12 @@ local function PlaceEncounterForReal(encounter, party, opts)
                 game.UpdateCharacterTokens()
                 Encounter.SetReadiedEncounter(encounter)
 
+                --the heroes' start zone shows (and confines players) until
+                --combat starts; not for monsters joining a running fight.
+                if not queueActive then
+                    Encounter.ShowStartZone(encounter)
+                end
+
                 --we have just placed this encounter ourselves, so the engine's
                 --click-to-place must not stay armed behind us: the encounter
                 --card still holds GUI focus from being selected, which leaves a
@@ -4145,8 +5507,9 @@ local function PlaceEncounterForReal(encounter, party, opts)
                         queue:SetInitiative(groupid, 0, 0)
                     end
                     dmhub:UploadInitiativeQueue()
-                elseif opts.start then
-                    Encounter.DrawSteelWithEncounter(encounter, spawnedCharids)
+                elseif prepping then
+                    --the pre-combat phase: Draw Steel is pressed from its bar.
+                    Encounter.BeginPrep(encounter, { numHeroes = numHeroes, savedEncounter = savedEncounter })
                 end
 
                 if opts.onComplete ~= nil then
@@ -4196,6 +5559,19 @@ local function PlaceEncounterForReal(encounter, party, opts)
         })
     end
 
+    --one encounter in prep per map: the prep bar drives it.
+    local prep = Encounter.GetPrep(game.currentMapId)
+    if opts.start and not queueActive and prep ~= nil then
+        gui.ModalMessage {
+            title = "Already Preparing an Encounter",
+            message = string.format("%s is being prepared on this map. Press Draw Steel or Cancel on the bar at the top of the map first.", prep.name or "An encounter"),
+        }
+        if opts.onCancel ~= nil then
+            opts.onCancel()
+        end
+        return
+    end
+
     --starting on top of a running combat must not clobber the live queue
     --(round counter, hero stats, deployed waves all live there). Skipped on
     --the place-again re-entry, which already confirmed once.
@@ -4228,6 +5604,540 @@ local function PlaceEncounterForReal(encounter, party, opts)
     Proceed()
 end
 
+--True once a map's floors can be read. For a few seconds after
+--mappacks.AddMapToGame its MapFloorLua getters throw, and code that walks the
+--floors (the tabletop windows, placement) fails, so wait for this.
+local function MapFloorsReady(mapid)
+    local map = game.GetMap(mapid)
+    if map == nil then
+        return false
+    end
+    --a loaded map has at least one top floor (no parent); reading
+    --parentFloor is also what throws while it is still loading.
+    local topFloors = 0
+    local ok = pcall(function()
+        for _, floor in ipairs(map.floors) do
+            if floor.description ~= nil and floor.parentFloor == nil then
+                topFloors = topFloors + 1
+            end
+        end
+    end)
+    return ok and topFloors > 0
+end
+
+--Moves an encounter onto the game map that holds its library map, when that
+--map has another id than the pack's (a second copy): its own map, its groups'
+--staging, and start tiles on a floor the map lacks go to its top floor.
+--- @param encounter Encounter
+--- @param ref EncounterMapRef
+--- @param map MapManifestLua
+local function MoveEncounterOntoMap(encounter, ref, map)
+    local oldid = encounter.mapid
+    encounter.mapid = map.id
+    for _, group in ipairs(encounter.groups) do
+        local stagemapid = group.stagemapid
+        if stagemapid ~= nil and (stagemapid == ref.mapid or stagemapid == oldid) then
+            group.stagemapid = map.id
+        end
+    end
+
+    local startLocs = encounter:GetHeroStartLocs()
+    if #startLocs > 0 then
+        local floorids = {}
+        local topFloor = nil
+        pcall(function()
+            for _, floor in ipairs(map.floors) do
+                floorids[floor.floorid] = true
+                if topFloor == nil and floor.parentFloor == nil then
+                    topFloor = floor.floorid
+                end
+            end
+        end)
+        if topFloor ~= nil then
+            local moved = {}
+            for i, loc in ipairs(startLocs) do
+                moved[i] = { x = loc.x, y = loc.y, floor = cond(floorids[loc.floor], loc.floor, topFloor) }
+            end
+            encounter:SetHeroStartLocs(moved)
+        end
+    end
+end
+
+--Gets an encounter set on a Map Library map (Encounter.mapRef) ready for its
+--map: finds the map in this game, or offers to add it and waits for it to
+--load, then calls done(encounter) with the encounter to use. If the Director
+--declines or the add fails, opts.onCancel is called instead. An encounter
+--with no map ref, or already on its map, goes straight to done.
+--opts.inPlace: change the encounter itself when it must move onto another
+--copy of the map (an editor's working copy); otherwise a copy moves, so a
+--shipped or saved row is never changed by running it.
+--- @param encounter Encounter
+--- @param opts nil|{inPlace: nil|boolean, onCancel: nil|fun()}
+--- @param done fun(encounter: Encounter)
+function Encounter.ResolveMapRef(encounter, opts, done)
+    opts = opts or {}
+    local ref = encounter:GetMapRef()
+    if ref == nil then
+        done(encounter)
+        return
+    end
+
+    local function Use(map)
+        if map.id == encounter.mapid then
+            done(encounter)
+            return
+        end
+        local target = encounter
+        if not opts.inPlace then
+            target = DeepCopy(encounter)
+        end
+        MoveEncounterOntoMap(target, ref, map)
+        done(target)
+    end
+
+    local map = Encounter.FindLibraryMap(ref)
+    if map ~= nil then
+        Use(map)
+        return
+    end
+    if rawget(_G, "mappacks") == nil then
+        done(encounter)
+        return
+    end
+
+    local function Cancelled()
+        if opts.onCancel ~= nil then
+            opts.onCancel()
+        end
+    end
+
+    local function Failed(message)
+        gui.ModalMessage {
+            title = "Could Not Add the Map",
+            message = string.format("%s could not be added to this game: %s", ref.name, message or "unknown error"),
+        }
+        Cancelled()
+    end
+
+    local function Add()
+        mappacks.AddMapToGame {
+            pack = ref.pack,
+            mapid = ref.mapid,
+            name = ref.name,
+            success = function(newid)
+                local deadline = dmhub.Time() + 30
+                local function WhenLoaded()
+                    if mod.unloaded then
+                        return
+                    end
+                    if MapFloorsReady(newid) then
+                        local added = game.GetMap(newid)
+                        if added ~= nil then
+                            Use(added)
+                        end
+                    elseif dmhub.Time() < deadline then
+                        dmhub.Schedule(0.2, WhenLoaded)
+                    else
+                        Failed("it did not finish loading")
+                    end
+                end
+                WhenLoaded()
+            end,
+            error = Failed,
+        }
+    end
+
+    gui.ModalMessage {
+        title = "Add the Map?",
+        message = string.format("This encounter takes place on %s, a free map from the Map Library that is not in this game yet. Add it?", ref.name),
+        options = {
+            {
+                text = "Cancel",
+                execute = function()
+                    gui.CloseModal()
+                    Cancelled()
+                end,
+            },
+            {
+                text = "Add Map",
+                execute = function()
+                    gui.CloseModal()
+                    Add()
+                end,
+            },
+        },
+    }
+end
+
+--Shows the encounter's map in a window on the table (opening one if none
+--does, travelling there if it is not the current map). Returns true when
+--the map is already the current one.
+function Encounter.ShowEncounterMap(encounter)
+    local mapid = encounter.mapid
+    if mapid == nil or mapid == "" then
+        mapid = game.currentMapId
+    end
+    local map = game.GetMap(mapid)
+    if map == nil or not map.valid then
+        mapid = game.currentMapId
+    end
+    if Tabletop.IsActive() then
+        Tabletop.OpenMap(mapid, { newWindow = true })
+    elseif mapid ~= game.currentMapId and map ~= nil then
+        map:Travel()
+    end
+    return mapid == game.currentMapId
+end
+
+--Start Encounter, from anywhere (the list card, the builder, a drag onto the
+--board): go to the encounter's map first, then place it and put it into
+--prep. opts as PlaceEncounterForReal; opts.anchor is only used when no
+--travel was needed (it is a point on the map that was current).
+function Encounter.StartEncounterOnItsMap(encounter, party, opts)
+    opts = opts or {}
+
+    --set on a Map Library map: add it first if the game lacks it. When the
+    --encounter had to move onto a second copy of the map, persist saves the
+    --moved encounter (opts.mapRefInPlace: the caller's own working copy moved).
+    if not opts.mapRefResolved and encounter:GetMapRef() ~= nil then
+        Encounter.ResolveMapRef(encounter, { inPlace = opts.mapRefInPlace, onCancel = opts.onCancel }, function(resolved)
+            local again = {}
+            for k, v in pairs(opts) do
+                again[k] = v
+            end
+            again.mapRefResolved = true
+            if resolved ~= encounter and opts.persist ~= nil then
+                again.persist = function()
+                    dmhub.SetAndUploadTableItem("encounters", resolved)
+                end
+            end
+            Encounter.StartEncounterOnItsMap(resolved, party, again)
+        end)
+        return
+    end
+
+    local mapid = encounter.mapid
+    local map = (mapid ~= nil and mapid ~= "") and game.GetMap(mapid) or nil
+    local alreadyThere = Encounter.ShowEncounterMap(encounter)
+    if alreadyThere or map == nil or not map.valid then
+        PlaceEncounterForReal(encounter, party, opts)
+        return
+    end
+
+    local placeOpts = {}
+    for k, v in pairs(opts) do
+        placeOpts[k] = v
+    end
+    placeOpts.anchor = nil
+
+    --same generous window Stage on Map gives an animated map switch.
+    local deadline = dmhub.Time() + 60
+    local function PlaceOnArrival()
+        if mod.unloaded then
+            return
+        end
+        if game.currentMapId == mapid then
+            --let the new map's tokens and floors settle first.
+            dmhub.Schedule(0.5, function()
+                if mod.unloaded then return end
+                PlaceEncounterForReal(encounter, party, placeOpts)
+            end)
+            return
+        end
+        if dmhub.Time() < deadline then
+            dmhub.Schedule(0.1, PlaceOnArrival)
+        elseif opts.onCancel ~= nil then
+            opts.onCancel()
+        end
+    end
+    dmhub.Schedule(0.1, PlaceOnArrival)
+end
+
+-- ===========================================================================
+-- Map token drops: the drag preview, and encounters made from map tokens
+-- ===========================================================================
+
+--The dragged tokens that can join an encounter -- Bestiary monsters, as
+--{token, monsterid} in drag order -- and how many others there were (heroes,
+--creatures made on the map): those have no Bestiary entry to add.
+local function DroppableMonsters(charids)
+    local monsters = {}
+    local others = 0
+    for _, charid in ipairs(charids or {}) do
+        local token = dmhub.GetTokenById(charid)
+        if token ~= nil and token.properties ~= nil then
+            local monsterid = token.bestiaryId
+            if monsterid ~= nil and assets.monsters[monsterid] ~= nil then
+                monsters[#monsters + 1] = { token = token, monsterid = monsterid }
+            else
+                others = others + 1
+            end
+        end
+    end
+    return monsters, others
+end
+
+--"Goblin Warrior x2, Goblin Sniper": the monsters by type, in drag order.
+local function DescribeMonsters(monsters)
+    local order = {}
+    local counts = {}
+    for _, entry in ipairs(monsters) do
+        if counts[entry.monsterid] == nil then
+            order[#order + 1] = entry.monsterid
+            counts[entry.monsterid] = 0
+        end
+        counts[entry.monsterid] = counts[entry.monsterid] + 1
+    end
+    local parts = {}
+    for _, monsterid in ipairs(order) do
+        local name = creature.GetTokenDescription(assets.monsters[monsterid])
+        if counts[monsterid] > 1 then
+            name = string.format("%s x%d", name, counts[monsterid])
+        end
+        parts[#parts + 1] = name
+    end
+    return table.concat(parts, ", ")
+end
+
+--The card following the mouse while map tokens are dragged over a drop target
+--(tokenDragEnter/tokenDragLeave): the dragged monsters and what a release does.
+local g_dropPreview = nil
+
+local DROP_PREVIEW_MAX_IMAGES = 6
+
+local function HideTokenDropPreview()
+    if g_dropPreview ~= nil and g_dropPreview.valid then
+        g_dropPreview:DestroySelf()
+    end
+    g_dropPreview = nil
+end
+
+--Screen pixels from the top-left to the layer's own units (the hud layers sit
+--below the title bar and may be scaled).
+local function ScreenToLayer(layer, px, py)
+    local screen = dmhub.screenDimensions
+    local below = dmhub.screenDimensionsBelowTitlebar
+    if below.y <= 0 then
+        return px, py
+    end
+    local scale = layer.renderedHeight / below.y
+    return px * scale, (py - (screen.y - below.y)) * scale
+end
+
+--Show the preview for a drag of charids. describe(list) turns the dragged
+--monsters ("Goblin Warrior x2, Goblin Sniper") into the line saying what a drop
+--does; a drag with no Bestiary monsters says why nothing will happen instead.
+local function ShowTokenDropPreview(charids, describe)
+    HideTokenDropPreview()
+
+    local hud = GameHud.instance --[[@as GameHud]]
+    if hud == nil then
+        return
+    end
+    --the banner layer sits above every window, the builder included.
+    local layer = hud.bannerLayer
+    if layer == nil or not layer.valid then
+        layer = hud.documentsPanel
+    end
+    if layer == nil or not layer.valid then
+        return
+    end
+
+    local monsters, others = DroppableMonsters(charids)
+
+    local images = {}
+    for i, entry in ipairs(monsters) do
+        if i > DROP_PREVIEW_MAX_IMAGES then
+            images[#images + 1] = gui.Label {
+                classes = { "fgMuted", "sizeS" },
+                interactable = false,
+                width = "auto",
+                height = "auto",
+                valign = "center",
+                lmargin = 4,
+                text = string.format("+%d", #monsters - DROP_PREVIEW_MAX_IMAGES),
+            }
+            break
+        end
+        images[#images + 1] = gui.CreateTokenImage(entry.token, {
+            interactable = false,
+            width = 36,
+            height = 36,
+            valign = "center",
+            rmargin = 4,
+        })
+    end
+
+    --the token row, then the text lines.
+    local lines = {
+        gui.Panel {
+            interactable = false,
+            width = "auto",
+            height = "auto",
+            flow = "horizontal",
+            children = images,
+        },
+    }
+    if #monsters > 0 then
+        lines[#lines + 1] = gui.Label {
+            classes = { "sizeS" },
+            interactable = false,
+            width = "auto",
+            maxWidth = 340,
+            height = "auto",
+            tmargin = 6,
+            text = describe(DescribeMonsters(monsters)),
+        }
+    end
+    if others > 0 then
+        local text
+        if #monsters == 0 then
+            text = "Only Bestiary creatures can join an encounter."
+        elseif others == 1 then
+            text = "1 creature has no Bestiary entry and is left out."
+        else
+            text = string.format("%d creatures have no Bestiary entry and are left out.", others)
+        end
+        lines[#lines + 1] = gui.Label {
+            classes = { "warning", "sizeXs" },
+            interactable = false,
+            width = "auto",
+            maxWidth = 340,
+            height = "auto",
+            tmargin = 4,
+            text = text,
+        }
+    end
+
+    local styles = ThemeEngine.MergeStyles({
+        {
+            selectors = { "encounterDropPreview" },
+            borderColor = "@accent",
+            borderWidth = 2,
+            cornerRadius = 6,
+        },
+    })
+
+    --where the card sits: below and right of the pointer, clear of the hit
+    --test that finds the drop target under the mouse.
+    local function Follow(element)
+        local mouse = dmhub.mouseScreenPosition
+        element.x, element.y = ScreenToLayer(layer, mouse.x + 18, mouse.y + 22)
+    end
+
+    local preview = gui.Panel {
+        classes = { "encounterDropPreview", "bordered", "bg" },
+        styles = styles,
+        interactable = false,
+        halign = "left",
+        valign = "top",
+        width = "auto",
+        height = "auto",
+        flow = "vertical",
+        hpad = 10,
+        vpad = 8,
+        borderBox = true,
+        bgimage = true,
+
+        thinkTime = 0.01,
+        think = function(element)
+            --a drag that ended without a leave (cancelled, say) takes the card with it.
+            if mod.unloaded or dmhub.tokenDropTargetUnderMouse == nil then
+                HideTokenDropPreview()
+                return
+            end
+            Follow(element)
+        end,
+
+        children = lines,
+    }
+
+    layer:AddChild(preview)
+    preview:SetAsLastSibling()
+    Follow(preview)
+    g_dropPreview = preview
+end
+
+--Tag a token as one of a plan group's staged monsters, exactly as staging tags
+--the tokens it spawns, so the builder banks, collects and places it.
+local function StampStagedToken(token, group, slot, monsterid)
+    token:ModifyProperties {
+        description = "Add to encounter",
+        undoable = false,
+        combine = true,
+        execute = function()
+            token.properties.encounterPlacementId = group.placementid
+            token.properties.encounterSpawnSlot = slot
+            token.properties.encounterSpawnMonster = monsterid
+            token.properties.encounterStaged = true
+            token.properties.encounterStagedBy = dmhub.userid
+        end,
+    }
+end
+
+--Make and save a new encounter from monsters on the map (map tokens dropped on
+--the Encounters panel), then open it in the builder. Monsters sharing an
+--initiative (an initiative grouping or a minion squad) become one group; the
+--monsters with an initiative of their own go into one group together. The
+--tokens stay where they are as the plan's staged monsters, with their
+--positions already saved. Returns the saved encounter, or nil.
+function Encounter.CreateFromTokens(charids)
+    local monsters, others = DroppableMonsters(charids)
+    if #monsters == 0 then
+        if others > 0 then
+            gui.ModalMessage {
+                title = "Not a Bestiary Monster",
+                message = "Only creatures from the Bestiary can join an encounter. Heroes and creatures made on the map have no Bestiary entry to add.",
+            }
+        end
+        return nil
+    end
+
+    local encounter = Encounter.new()
+    encounter.groups = {}
+    encounter.mapid = game.currentMapId
+
+    --the monster list names the encounter while it fits the builder's name field.
+    local name = DescribeMonsters(monsters)
+    if #name <= 40 then
+        encounter.name = name
+    end
+
+    local groupsByKey = {}
+    local slots = {}
+    for _, entry in ipairs(monsters) do
+        local token = entry.token
+        local initiativeid = InitiativeQueue.GetInitiativeId(token)
+        local key = initiativeid or ""
+        if key == token.id then
+            key = ""
+        end
+        local group = groupsByKey[key]
+        if group == nil then
+            group = { monsters = {}, placementid = dmhub.GenerateGuid() }
+            groupsByKey[key] = group
+            encounter.groups[#encounter.groups + 1] = group
+            slots[group] = 0
+        end
+        group.monsters[entry.monsterid] = (group.monsters[entry.monsterid] or 0) + 1
+        slots[group] = slots[group] + 1
+        StampStagedToken(token, group, slots[group], entry.monsterid)
+    end
+
+    for _, group in ipairs(encounter.groups) do
+        BankGroupPositions(group, encounter.saveAppearances)
+    end
+    BankStagedMounts(encounter)
+
+    local id = dmhub.SetAndUploadTableItem("encounters", encounter)
+
+    --the builder edits a copy, as the list's own edit button does.
+    local copy = DeepCopy(encounter)
+    copy.id = id
+    Encounter.CreateEditorDialog(copy, { mode = "Save" })
+    return encounter
+end
+
 -- ===========================================================================
 -- The encounter builder editor
 -- ===========================================================================
@@ -4245,6 +6155,11 @@ function Encounter.Editor(self, options)
     if #self.groups == 0 then
         self:AddGroup()
     end
+
+    --plans saved before the map and the staging were kept in step: infer a
+    --missing map from the staging, drop staging banked on another map. Leaves
+    --the plan dirty (m_savedSnapshot below) so Save keeps the repair.
+    local reconciledOnOpen = ReconcileStagingWithMap(self)
 
     --Refresh each attached encounter script's cached name/victory text so
     --library edits made since this encounter was last opened are reflected.
@@ -4393,6 +6308,10 @@ function Encounter.Editor(self, options)
         end
         --who was riding whom, banked while every group's tokens are still up.
         BankStagedMounts(self)
+        --no map chosen yet: the map the plan was staged on becomes it.
+        if self.mapid == "" then
+            ReconcileStagingWithMap(self)
+        end
         if #toDelete > 0 then
             game.DeleteCharacters(toDelete)
         end
@@ -4424,7 +6343,10 @@ function Encounter.Editor(self, options)
         return snapshot
     end
 
-    local m_savedSnapshot = SnapshotPlan()
+    local m_savedSnapshot = nil
+    if not reconciledOnOpen then
+        m_savedSnapshot = SnapshotPlan()
+    end
 
     local function PlanIsDirty()
         if m_savedSnapshot == nil then
@@ -4440,6 +6362,142 @@ function Encounter.Editor(self, options)
         BankPlacedGroups(false)
         PersistPlan()
         m_savedSnapshot = SnapshotPlan()
+    end
+
+    --Monsters dragged off the map and dropped on the builder (the panels are
+    --tokenDropTarget, so the engine fires dropTokens): staging in reverse. Each
+    --monster joins targetGroup and is tagged exactly as staging tags the tokens
+    --it spawns, so it banks, collects and places with the plan from then on.
+    --A drop beside the cards (targetGroup nil) fills the active group while it
+    --is still empty, else starts a new group. A monster already in another of
+    --this plan's groups moves over; one already in targetGroup is left alone.
+    local function AdoptDroppedTokens(charids, targetGroup)
+        local tokens, skipped = DroppableMonsters(charids)
+
+        if #tokens == 0 then
+            if skipped > 0 then
+                gui.ModalMessage {
+                    title = "Not a Bestiary Monster",
+                    message = "Only creatures from the Bestiary can join an encounter. Heroes and creatures made on the map have no Bestiary entry to add.",
+                }
+            end
+            return
+        end
+
+        local group = targetGroup
+        if group == nil then
+            group = state.activeGroup
+            if group == nil or next(group.monsters) ~= nil then
+                --AddGroup deep-copies the groups array, so take the new group
+                --from the copy.
+                self:AddGroup()
+                group = self.groups[#self.groups]
+            end
+        end
+
+        local groupIndex = nil
+        for i, g in ipairs(self.groups) do
+            if g == group then
+                groupIndex = i
+            end
+        end
+        if groupIndex == nil then
+            return
+        end
+
+        if group.placementid == nil then
+            group.placementid = dmhub.GenerateGuid()
+        end
+
+        --A group whose positions are saved but not on the map would bank only
+        --the newcomers on the next save, losing everyone else's tile. Bring its
+        --saved arrangement back first so the whole group is staged together.
+        local live = PlacedTokensForGroup(group)
+        if #live == 0 and GroupHasUsableStaging(self, group) then
+            for _, token in ipairs(StageGroupAtSavedLocations(self, groupIndex, group, party.numHeroes, group.placementid)) do
+                live[#live + 1] = token
+            end
+        end
+
+        local nextSlot = 1
+        for _, token in ipairs(live) do
+            nextSlot = math.max(nextSlot, token.properties:try_get("encounterSpawnSlot", 0) + 1)
+        end
+
+        local emptiedGroups = {}
+        for _, entry in ipairs(tokens) do
+            local token = entry.token
+            local monsterid = entry.monsterid
+            local placementid = token.properties:try_get("encounterPlacementId")
+
+            local oldGroup = nil
+            if placementid ~= nil then
+                for _, g in ipairs(self.groups) do
+                    if g.placementid == placementid then
+                        oldGroup = g
+                    end
+                end
+            end
+
+            if oldGroup ~= group or token.properties:try_get("encounterStaged") == false then
+                --already counted in this plan's roster: move the count over
+                --rather than adding a second copy.
+                if oldGroup == nil then
+                    group.monsters[monsterid] = (group.monsters[monsterid] or 0) + 1
+                elseif oldGroup ~= group then
+                    local oldMonster = token.properties:try_get("encounterSpawnMonster") or monsterid
+                    local count = (oldGroup.monsters[oldMonster] or 0) - 1
+                    oldGroup.monsters[oldMonster] = cond(count > 0, count, nil)
+                    if next(oldGroup.monsters) == nil then
+                        emptiedGroups[#emptiedGroups + 1] = oldGroup
+                    end
+                    group.monsters[monsterid] = (group.monsters[monsterid] or 0) + 1
+                end
+
+                StampStagedToken(token, group, nextSlot, monsterid)
+                nextSlot = nextSlot + 1
+            end
+        end
+
+        --a group the drop took its last monster from goes, as removing the
+        --last monster by hand does (RemoveMonsterFromGroup in the card).
+        for _, emptied in ipairs(emptiedGroups) do
+            for i = #self.groups, 1, -1 do
+                if self.groups[i] == emptied and next(emptied.monsters) == nil then
+                    table.remove(self.groups, i)
+                    self:RepairMountsAfterGroupRemoved(i)
+                end
+            end
+        end
+
+        state.activeGroup = group
+        rebuild()
+    end
+
+    --The drag preview's line for a drop on targetGroup's card, or (nil) beside
+    --the cards: the group AdoptDroppedTokens would put the monsters in.
+    local function PreviewDroppedTokens(charids, targetGroup)
+        local group = targetGroup
+        if group == nil then
+            group = state.activeGroup
+            if group ~= nil and next(group.monsters) ~= nil then
+                group = nil
+            end
+        end
+
+        local groupName = nil
+        for i, g in ipairs(self.groups) do
+            if g == group then
+                groupName = GroupName(self, g, i)
+            end
+        end
+
+        ShowTokenDropPreview(charids, function(list)
+            if groupName == nil then
+                return string.format("Start a new group with %s", list)
+            end
+            return string.format("Add %s to %s", list, groupName)
+        end)
     end
 
     local function StagedGroupNames()
@@ -4504,34 +6562,61 @@ function Encounter.Editor(self, options)
             },
         },
 
-        --optional description, saved with the plan alongside the name.
-        gui.Input {
-            classes = { "form" },
+        --optional description, saved with the plan alongside the name, and
+        --the map the encounter takes place on beside it.
+        gui.Panel {
             width = "100%",
             height = "auto",
-            minHeight = 30,
-            borderBox = true,
-            fontSize = 13,
-            multiline = true,
-            textAlignment = "topleft",
-            characterLimit = 2000,
+            flow = "horizontal",
             bmargin = 6,
-            placeholderText = "Add a description...",
-            text = self.description,
-            change = function(element)
-                self.description = element.text
-                refresh()
-            end,
+
+            gui.Input {
+                classes = { "form" },
+                width = string.format("100%%-%d", MAP_CARD_WIDTH + 12),
+                height = "auto",
+                minHeight = MAP_CARD_HEIGHT,
+                valign = "top",
+                borderBox = true,
+                fontSize = 13,
+                multiline = true,
+                textAlignment = "topleft",
+                characterLimit = 2000,
+                placeholderText = "Add a description...",
+                text = self.description,
+                change = function(element)
+                    self.description = element.text
+                    refresh()
+                end,
+            },
+
+            CreateEncounterAreaBadges(self, refresh),
         },
 
         CreatePartyBar(self, party, refresh, rebuild, CreateBudgetDial(self, party)),
 
-        --the two-pane body: bestiary browser left, composition right.
+        --the two-pane body: bestiary browser left, composition right. Monsters
+        --dragged off the map and dropped here join the plan as if staged
+        --(AdoptDroppedTokens); a group card takes the drops over it. The clear
+        --bgimage makes the gaps between the panes catch the drop too.
         gui.Panel {
+            classes = { "encounterTokenDrop" },
             width = "100%",
             height = "100% available",
             flow = "horizontal",
             tmargin = 6,
+            bgimage = true,
+            bgcolor = "clear",
+
+            tokenDropTarget = true,
+            dropTokens = function(element, info)
+                AdoptDroppedTokens(info.charids, nil)
+            end,
+            tokenDragEnter = function(element, info)
+                PreviewDroppedTokens(info.charids, nil)
+            end,
+            tokenDragLeave = function(element)
+                HideTokenDropPreview()
+            end,
 
             CreateBestiaryPane(party, addMonster),
 
@@ -4548,6 +6633,9 @@ function Encounter.Editor(self, options)
                     state = state,
                     refresh = refresh,
                     rebuild = rebuild,
+                    adoptTokens = AdoptDroppedTokens,
+                    previewTokens = PreviewDroppedTokens,
+                    hideTokenPreview = HideTokenDropPreview,
                 },
             },
         },
@@ -4704,7 +6792,7 @@ function Encounter.Editor(self, options)
                     halign = "right",
                     lmargin = 8,
                     text = "Start Encounter",
-                    hover = gui.Tooltip("Save the plan, place monsters at their saved positions, and open combat setup."),
+                    hover = gui.Tooltip("Save the plan, place monsters at their saved positions, and get it ready on its map to Draw Steel."),
                     press = function(button)
                         local count = 0
                         for _, group in ipairs(self.groups) do
@@ -4722,9 +6810,10 @@ function Encounter.Editor(self, options)
                         SavePlan()
                         local editorPanel = button:FindParentWithClass("editorPanel")
                         editorPanel:SetClass("hidden", true)
-                        PlaceEncounterForReal(self, party, {
+                        Encounter.StartEncounterOnItsMap(self, party, {
                             start = true,
                             persist = PersistPlan,
+                            mapRefInPlace = true,
                             onComplete = function()
                                 if editorPanel ~= nil and editorPanel.valid then
                                     editorPanel:DestroySelf()
@@ -4766,20 +6855,85 @@ function Encounter.Editor(self, options)
     return resultPanel
 end
 
+--Builder window size: the default it opens at, and the smallest it can be
+--resized to (below this the bestiary column and group cards stop fitting).
+local EDITOR_DEFAULT_WIDTH = 1240
+local EDITOR_DEFAULT_HEIGHT = 920
+local EDITOR_MIN_WIDTH = 860
+local EDITOR_MIN_HEIGHT = 640
+
+--Where the user last left the builder window this session. gui.WindowResizePanel
+--reads and writes _tmp_location through try_get, so this table quacks like a
+--document (same trick as CommandBuilder's dialog).
+local g_editorLocation = {
+    try_get = function(self, key)
+        return rawget(self, key)
+    end,
+}
+
 function Encounter.CreateEditorDialog(encounter, options)
     local editorPanel
 
     local editorContent = Encounter.Editor(encounter, options)
+
+    --open at the remembered size and place, else the default size centred;
+    --clamped so the window fits a screen that may have shrunk since.
+    local screen = dmhub.screenDimensionsBelowTitlebar
+    local maxWidth = math.max(EDITOR_MIN_WIDTH, screen.x)
+    local maxHeight = math.max(EDITOR_MIN_HEIGHT, screen.y)
+    local loc = g_editorLocation:try_get("_tmp_location")
+    local width = math.min(EDITOR_DEFAULT_WIDTH, maxWidth)
+    local height = math.min(EDITOR_DEFAULT_HEIGHT, maxHeight)
+    if loc ~= nil then
+        width = math.max(EDITOR_MIN_WIDTH, math.min(loc.width or width, maxWidth))
+        height = math.max(EDITOR_MIN_HEIGHT, math.min(loc.height or height, maxHeight))
+    end
+    local x = math.floor((screen.x - width) / 2)
+    local y = math.floor((screen.y - height) / 2)
+    if loc ~= nil and loc.x ~= nil and loc.y ~= nil then
+        x = math.max(0, math.min(loc.x, screen.x - width))
+        y = math.max(0, math.min(loc.y, screen.y - height))
+    end
 
     editorPanel = gui.Panel {
 
         classes = { "editorPanel" },
         styles = BuilderStyles(),
 
-        halign = "center",
-        valign = "center",
-        width = 1240,
-        height = 920,
+        --gui.WindowResizePanel's contract: anchored top-left with numeric x/y
+        --and a numeric selfStyle width/height it can rewrite while dragging.
+        --The content inside is percent-sized, so it follows the window.
+        style = {
+            width = width,
+            height = height,
+            halign = "left",
+            valign = "top",
+        },
+        x = x,
+        y = y,
+
+        --a window like the journal and table windows, in the same layer
+        --(GameHud.documentsPanel): a press anywhere brings it to the front,
+        --presses stay inside it, and dragging empty space moves it.
+        bgimage = true,
+        bgcolor = "clear",
+        raiseOnPress = true,
+        swallowPress = true,
+        draggable = true,
+        drag = function(element)
+            element.x = element.xdrag
+            element.y = element.ydrag
+            element:SetAsLastSibling()
+            g_editorLocation._tmp_location = {
+                x = element.x,
+                y = element.y,
+                width = element.selfStyle.width,
+                height = element.selfStyle.height,
+                moved = true,
+                screenx = dmhub.screenDimensionsBelowTitlebar.x,
+                screeny = dmhub.screenDimensionsBelowTitlebar.y,
+            }
+        end,
 
         gui.Panel {
 
@@ -4853,7 +7007,16 @@ function Encounter.CreateEditorDialog(encounter, options)
                 end,
             },
 
-        }
+        },
+
+        --resize handles on every edge and corner; must stay the last child so
+        --they sit above the content (sibling order is z-order).
+        gui.WindowResizePanel(g_editorLocation, width, height, {
+            minWidth = EDITOR_MIN_WIDTH,
+            minHeight = EDITOR_MIN_HEIGHT,
+            maxWidth = maxWidth,
+            maxHeight = maxHeight,
+        }),
 
     }
 
@@ -4871,16 +7034,41 @@ CreateEncounterPanel = function()
 
     local inspectorPanel
 
+    --the Delves section's tree nodes by key, and which were open when the
+    --list was last rebuilt.
+    --- @type table<string, Panel>
+    local delveNodes = {}
+    --- @type table<string, boolean>
+    local openDelveNodes = {}
+
+    --monsters dragged off the map and dropped on the list become a new
+    --encounter (Encounter.CreateFromTokens); minHeight keeps a drop zone when
+    --the list is short or empty.
+    local function ListStyles()
+        return ThemeEngine.MergeStyles({
+            {
+                selectors = { "encounterListDrop", "token-drop-hover" },
+                borderColor = "@accent",
+                borderWidth = 2,
+                cornerRadius = 4,
+            },
+        })
+    end
+
     inspectorPanel = gui.Panel {
         id = "inspector-panel",
-        styles = ThemeEngine.GetStyles(),
+        classes = { "encounterListDrop" },
+        styles = ListStyles(),
         hpad = 6,
         width = "100%",
         height = "auto",
+        minHeight = 160,
         flow = "vertical",
         monitorAssets = true,
         bgimage = true,
         bgcolor = "clear",
+
+        tokenDropTarget = true,
 
         xrightClick = function(panel)
             panel.popup = gui.ContextMenu {
@@ -4901,6 +7089,21 @@ CreateEncounterPanel = function()
         events = {
             create = function(panel)
                 panel:FireEvent("update")
+            end,
+
+            tokenDragEnter = function(panel, info)
+                ShowTokenDropPreview(info.charids, function(list)
+                    return string.format("Create a new encounter from %s", list)
+                end)
+            end,
+
+            tokenDragLeave = function(panel)
+                HideTokenDropPreview()
+            end,
+
+            dropTokens = function(panel, info)
+                HideTokenDropPreview()
+                Encounter.CreateFromTokens(info.charids)
             end,
 
             refreshAssets = function(panel)
@@ -4941,6 +7144,18 @@ CreateEncounterPanel = function()
                     index = index + 1
                 end
 
+                --shipped book encounters (Encounter:GetBookInfo) go under a
+                --Delves section, grouped by delve, instead of the flat list.
+                --Which tree nodes are open survives the rebuild.
+                for key, node in pairs(delveNodes) do
+                    if node.valid then
+                        openDelveNodes[key] = not node.data.isCollapsed()
+                    end
+                end
+                delveNodes = {}
+                local delves = {}
+                local delveList = {}
+
                 for key, encounter in unhidden_pairs(encounters) do
                     local monstertable = encounter.monsters
 
@@ -4972,7 +7187,7 @@ CreateEncounterPanel = function()
 
                     --boss/headmonster code over
 
-                    children[index] = gui.Panel {
+                    local card = gui.Panel {
 
                         classes = { "featureCard" },
                         width = "90%",
@@ -4983,15 +7198,70 @@ CreateEncounterPanel = function()
                         vmargin = 8,
                         draggable = true,
 
-                        --"documentPanel" is an open journal document you can edit.
+                        --The engine finds drag targets by rectangle overlap, so a
+                        --folder BEHIND a map window would catch a drop on the map:
+                        --over the board (panelDropSurface set) nothing else counts.
                         canDragOnto = function(self, target)
-                            return target ~= nil and (target:HasClass("folder") or target:HasClass("documentPanel"))
+                            if dmhub.panelDropSurface ~= nil then
+                                return false
+                            end
+                            return target ~= nil and target:HasClass("folder")
                         end,
 
-                        --dropping on a document adds a copy of this encounter to it.
+                        --over the bare table the card turns into the encounter's
+                        --map window, following the mouse (the Maps panel's row
+                        --drag: the card steps aside while the preview shows).
+                        dragging = function(self, target)
+                            --over the chat it is a link to the encounter's map
+                            --(the encounter itself stays the Director's); over a
+                            --journal document you can edit it adds a copy of the
+                            --encounter where it is dropped.
+                            ChatItemLinks.Dragging(function()
+                                local map = EncounterMap(encounter)
+                                return {ChatItemLinks.MapItem(map ~= nil and map.id or nil)}
+                            end, {
+                                dropItems = function()
+                                    ---@type ItemLinkDrop
+                                    local item = {kind = "richtag", richTag = RichEncounter.FromEncounter(encounter), name = encounter.name}
+                                    return {item}
+                                end,
+                            })
+                            if target == nil then
+                                local map = EncounterMap(encounter)
+                                Tabletop.MapRowDragging(self, map ~= nil and map.id or game.currentMapId)
+                            else
+                                Tabletop.MapRowDragEnded(self)
+                            end
+                        end,
+
+                        --dropping on a document adds a copy of this encounter to it
+                        --(through ChatItemLinks.Dropped); dropping on the board
+                        --starts it there (into prep). On the table, the map's
+                        --window goes where it was dropped first.
                         drag = function(self, target)
-                            if target ~= nil and target.valid and target:HasClass("documentPanel") then
-                                target:FireEvent("insertRichTag", RichEncounter.FromEncounter(encounter), encounter.name)
+                            Tabletop.MapRowDragEnded(self)
+                            if ChatItemLinks.Dropped() then
+                                return
+                            end
+                            local surface = dmhub.panelDropSurface
+                            if surface == "table" then
+                                local map = EncounterMap(encounter)
+                                Tabletop.MapRowDropped(map ~= nil and map.id or game.currentMapId)
+                            end
+                            if surface == "map" or surface == "table" then
+                                --a drop on the map that is already the encounter's
+                                --is where its unstaged groups go.
+                                local anchor = nil
+                                if surface == "map" and (encounter.mapid == "" or encounter.mapid == game.currentMapId) then
+                                    anchor = dmhub.GetMouseWorldPoint()
+                                end
+                                Encounter.StartEncounterOnItsMap(encounter, DefaultParty(), {
+                                    start = true,
+                                    anchor = anchor,
+                                    persist = function()
+                                        dmhub.SetAndUploadTableItem("encounters", encounter)
+                                    end,
+                                })
                             end
                         end,
 
@@ -5148,7 +7418,7 @@ CreateEncounterPanel = function()
                         },
 
                         --start the saved plan without reopening the editor:
-                        --place at saved positions and open combat setup.
+                        --place at saved positions and get it ready to fight.
                         --Named in full: a bare "Start" reads as "start the
                         --builder", which is the opposite of what it does.
                         gui.Button {
@@ -5160,10 +7430,10 @@ CreateEncounterPanel = function()
                             rmargin = 6,
                             bmargin = 4,
                             text = "Start Encounter",
-                            hover = gui.Tooltip("Place monsters at their saved positions and open combat setup."),
+                            hover = gui.Tooltip("Place monsters at their saved positions on the encounter's map, ready to Draw Steel."),
                             swallowPress = true,
                             press = function(element)
-                                PlaceEncounterForReal(encounter, DefaultParty(), {
+                                Encounter.StartEncounterOnItsMap(encounter, DefaultParty(), {
                                     start = true,
                                     persist = function()
                                         dmhub.SetAndUploadTableItem("encounters", encounter)
@@ -5174,6 +7444,73 @@ CreateEncounterPanel = function()
 
                     }
 
+                    local book = encounter:GetBookInfo()
+                    if book ~= nil then
+                        local delve = delves[book.delve]
+                        if delve == nil then
+                            delve = { name = book.delve, level = tonumber(book.level) or 0, cards = {} }
+                            delves[book.delve] = delve
+                            delveList[#delveList + 1] = delve
+                        end
+                        delve.cards[#delve.cards + 1] = { area = tostring(book.area or ""), name = encounter.name, card = card }
+                    else
+                        children[index] = card
+                        index = index + 1
+                    end
+                end
+
+                if #delveList > 0 then
+                    table.sort(delveList, function(a, b)
+                        if a.level ~= b.level then
+                            return a.level < b.level
+                        end
+                        return a.name < b.name
+                    end)
+
+                    local delvePanels = {}
+                    for _, delve in ipairs(delveList) do
+                        table.sort(delve.cards, function(a, b)
+                            if a.area ~= b.area then
+                                return a.area < b.area
+                            end
+                            return a.name < b.name
+                        end)
+                        local cards = {}
+                        for i, entry in ipairs(delve.cards) do
+                            cards[i] = entry.card
+                        end
+                        local key = "delve:" .. delve.name
+                        local node = gui.TreeNode {
+                            text = cond(delve.level > 0, string.format("Level %d: %s", delve.level, delve.name), delve.name),
+                            width = "100%",
+                            expanded = openDelveNodes[key] == true,
+                            contentPanel = gui.Panel {
+                                width = "100%",
+                                height = "auto",
+                                flow = "vertical",
+                                lmargin = 12,
+                                children = cards,
+                            },
+                        }
+                        delveNodes[key] = node
+                        delvePanels[#delvePanels + 1] = node
+                    end
+
+                    local sectionKey = "delves"
+                    local section = gui.TreeNode {
+                        text = "Delves (Draw Steel: Encounters)",
+                        width = "100%",
+                        expanded = openDelveNodes[sectionKey] == true,
+                        contentPanel = gui.Panel {
+                            width = "100%",
+                            height = "auto",
+                            flow = "vertical",
+                            lmargin = 8,
+                            children = delvePanels,
+                        },
+                    }
+                    delveNodes[sectionKey] = section
+                    children[index] = section
                     index = index + 1
                 end
 
@@ -5205,7 +7542,7 @@ CreateEncounterPanel = function()
 
     ThemeEngine.OnThemeChanged(mod, function()
         if inspectorPanel ~= nil and inspectorPanel.valid then
-            inspectorPanel.styles = ThemeEngine.GetStyles()
+            inspectorPanel.styles = ListStyles()
         end
     end)
 

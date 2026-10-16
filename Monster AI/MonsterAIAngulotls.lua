@@ -1020,19 +1020,6 @@ MonsterAI:RegisterTrigger{
     end,
 }
 
-MonsterAI:RegisterTrigger{
-    id = "Angulotl Daybringer: Moisturizing End Effect",
-    monsters = {"Angulotl Daybringer"},
-    abilities = {"End Effect"},
-    description = "Take 5 damage to end a save-ends effect unless that would leave the daybringer at 5 Stamina or less.",
-    handler = function(ai, token, triggerInfo)
-        if token.properties:CurrentHitpoints() > 10 then
-            return {activate = true}
-        end
-        return {dismiss = true}
-    end,
-}
-
 --------------------------------------------------------------------------------
 -- Daybringer villain actions.
 --------------------------------------------------------------------------------

@@ -187,6 +187,17 @@ callback, `ExecuteInvoke` (`DMHub Game Rules/AbilityInvokeAbility.lua`) asks
 `HandlePrompt` whenever `RollsForCreature` holds. A prompt with no registered
 handler still falls through to the Director.
 
+### "AI is running" status for every client
+
+The AI runs only on the hosting machine. So other clients can tell, `MonsterAI.lua`
+publishes `{running, busy, userid}` to the `monsterAIStatus` document whenever it
+changes (polled every 0.2 s): `running` while the AI process runs, `busy` while it
+plays a monster's turn or has an AI activity in progress. Ask
+`MonsterAI.IsAIRunningAnywhere()` / `MonsterAI.IsAIBusyAnywhere()` (or
+`MonsterAI.BusyHere()` for this client only). A status published by a user who has gone
+offline is ignored, and a client clears its own stale status once its AI stops. Turn
+Rewind uses it to lock rewinding while the AI plays (`TURN_REWIND_REFERENCE.md`).
+
 ### Token control
 
 `MonsterAI:BeginTokenControl` / `EndTokenControl` (wrapped by
@@ -337,6 +348,20 @@ MonsterAI:RegisterTrigger{
     end,
 }
 ```
+
+#### End Effect (shared, do not re-register per band)
+
+`MonsterAIPrompts.lua` registers one generic `End Effect` trigger handler for
+every monster. `MonsterAI.EndEffectDecision` reads the purge behind the trigger
+and its Stamina cost from the data, takes it only to end something at least
+`endEffectMinimumSeverity` bad (`MonsterAI.conditionSeverity` rates conditions
+0-5), and only when the monster keeps the cost again and
+`endEffectStaminaReserve` of its Stamina after paying. The choice of effect is
+made by `ActivatedAbilityPurgeEffectsBehavior.aiChooser`, a hook the purge
+behavior consults before opening its selection dialog for an AI-driven caster:
+the worst harm on friends, the best buff on enemies, within the purge's limits.
+A band-specific `End Effect` registration would override all of this. Run
+`../dependencies/lua/bin/lua.exe tests/ai_end_effect_test.lua` from the codex root.
 
 #### 6. Villain actions (`MonsterAI:RegisterVillainAction{}`)
 

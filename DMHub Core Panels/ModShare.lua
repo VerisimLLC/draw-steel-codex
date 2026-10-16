@@ -3897,6 +3897,7 @@ mod.shared.ShowShareDialog = function()
 	end
 
 
+	local moduleSelectionDropdown
 	moduleSelectionDropdown = gui.Dropdown{
 		classes = {"form"},
 		width = 400,

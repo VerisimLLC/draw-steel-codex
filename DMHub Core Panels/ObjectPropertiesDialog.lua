@@ -259,6 +259,8 @@ local function startExternalEditorPoll()
 end
 
 local CreateEditorPanel = function(fieldInfo, displayInfo, options, valueIndex, resultOptions)
+    --set by whichever branch below matches fieldInfo.type.
+    local editorPanel
 
     print("EDITOR::", fieldInfo.type)
     if fieldInfo.type == "externaltexteditor" then

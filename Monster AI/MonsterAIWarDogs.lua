@@ -1605,22 +1605,6 @@ MonsterAI:RegisterMove{
     end,
 }
 
-MonsterAI:RegisterTrigger{
-    id = "War Dog Ground Commander: End Effect",
-    monsters = {"War Dog Ground Commander"},
-    abilityGuids = {groundCommanderEndEffectGuid},
-    abilities = {"End Effect"},
-    description = "Leave End Effect to the Director while worth paying for; dismiss it when the 5 damage would leave the commander at 10 Stamina or less.",
-    handler = function(ai, token, triggerInfo)
-        if token.properties:CurrentHitpoints() <= 15 then
-            return {dismiss = true}
-        end
-        --Its purge opens a choose-the-effect dialog with no AI path, so an AI
-        --accept stalls the cast until it is abandoned. nil = the Director's call.
-        return nil
-    end,
-}
-
 --Final Orders: the ally then dies, so the commander only gives the order to
 --one who is dying anyway. Its movement and free strike are prompted on that
 --ally, so the AI holds its control until the order has resolved.

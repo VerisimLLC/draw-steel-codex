@@ -373,6 +373,10 @@ local g_dockControlsSelected = nil
 --the forward-declared upvalue is populated.
 local CreateSoundboardButton
 
+--Uploads an audio file dragged in from the operating system (see the definition, by
+--the Studio's own upload flow). Forward-declared for the soundboard's drop wells.
+local UploadDroppedAudio
+
 local FormatTime = function(value, maxValue)
 	if maxValue >= 60 then
 		local hours = math.floor(value / (60*60))
@@ -481,6 +485,92 @@ local g_variantPoolLoopStatePath = function() return nil end
 local g_variantPoolIsLooping = function(poolid) return false end
 local g_variantPoolLoopBoardSet = function() return {} end
 
+--Audio files dragged from the operating system onto a soundboard (FileDrops.lua).
+--Released on a pad, the first file takes that pad and the rest fill the board's next
+--empty pads; released between pads, they all fill empty pads. Files with no pad left
+--still go into the library. Each upload returns its asset id at once, so the slot is
+--assigned straight away and the pad fills in when the asset arrives (refreshAssets).
+local g_soundboardDropGhost = nil
+
+local function ClearSoundboardDropGhost()
+	if g_soundboardDropGhost ~= nil and g_soundboardDropGhost.valid then
+		g_soundboardDropGhost:DestroySelf()
+	end
+	g_soundboardDropGhost = nil
+end
+
+local function ShowSoundboardDropGhost(text)
+	ClearSoundboardDropGhost()
+	local ghost
+	ghost = FileDrops.ShowGhost(text, function()
+		return g_soundboardDropGhost == ghost
+	end)
+	g_soundboardDropGhost = ghost
+end
+
+--Assigns dropped files to board pads. slot: the pad the files were released on, or
+--nil for "empty pads only".
+local function DropAudioOnBoard(board, slot, paths)
+	ClearSoundboardDropGhost()
+	local order = {}
+	if slot ~= nil then
+		order[1] = slot
+		for i = 1, STUDIO_SLOTS - 1 do
+			order[#order+1] = ((slot - 1 + i) % STUDIO_SLOTS) + 1
+		end
+	else
+		for i = 1, STUDIO_SLOTS do
+			order[i] = i
+		end
+	end
+	local nextIndex = 1
+	for fileIndex, path in ipairs(paths) do
+		local target = nil
+		while nextIndex <= #order and target == nil do
+			local s = order[nextIndex]
+			nextIndex = nextIndex + 1
+			local data = mod:GetDocumentSnapshot(string.format("audiogrid-%d-%d", board, s)).data
+			--the pad it was released on is replaced; the others must be empty.
+			if (fileIndex == 1 and s == slot) or (data.assetid == nil and data.poolid == nil) then
+				target = s
+			end
+		end
+		local assetid = UploadDroppedAudio(path)
+		if assetid ~= nil and target ~= nil then
+			local doc = mod:GetDocumentSnapshot(string.format("audiogrid-%d-%d", board, target))
+			doc:BeginChange()
+			doc.data.assetid = assetid
+			doc.data.poolid = nil
+			doc:CompleteChange("Assign soundboard button")
+		end
+	end
+end
+
+--Adds the drop-well fields to a soundboard panel's constructor args: a pad (slot set)
+--or the grid behind the pads (slot nil).
+local function AddSoundboardFileDrop(args, getBoard, slot)
+	args.dragAndDropExtensions = FileDrops.AUDIO_EXTENSIONS
+	args.dragfilesenter = function(element, paths)
+		if slot ~= nil then
+			element:SetClass("fileDropTarget", true)
+		end
+		local what = FileDrops.Describe(paths)
+		if slot ~= nil then
+			ShowSoundboardDropGhost(string.format("Put %s on this button", what))
+		else
+			ShowSoundboardDropGhost(string.format("Put %s on the soundboard", what))
+		end
+	end
+	args.dragfilesleave = function(element)
+		element:SetClass("fileDropTarget", false)
+		ClearSoundboardDropGhost()
+	end
+	args.dropfiles = function(element, paths)
+		element:SetClass("fileDropTarget", false)
+		DropAudioOnBoard(getBoard(), slot, paths)
+	end
+end
+
 local CreatePlayerGrid = function()
 	local resultPanel
 	local gridNumber = 1
@@ -501,12 +591,15 @@ local CreatePlayerGrid = function()
 		resultPanel.children = children
 	end
 
-	resultPanel = gui.Panel{
+	local gridArgs = {
 		flow = "horizontal",
 		wrap = true,
 		width = AUDIO_SB_GRID_WIDTH,
 		height = AUDIO_SB_GRID_HEIGHT,
 		halign = "center",
+		--catches the drop between pads (bgimage so the gaps hit-test).
+		bgimage = "panels/square.png",
+		bgcolor = "clear",
 		--M3: single board-level audio monitor (see RefreshSoundboardGridAssets).
 		monitorAssets = "audio",
 		refreshAssets = RefreshSoundboardGridAssets,
@@ -531,6 +624,8 @@ local CreatePlayerGrid = function()
 			end,
 		},
 	}
+	AddSoundboardFileDrop(gridArgs, GetBoard, nil)
+	resultPanel = gui.Panel(gridArgs)
 
 	BuildSlots()
 
@@ -2281,6 +2376,10 @@ local function PlayBroadcastClip(asset, opts)
 	if asset.category == "ambience" and not m_audioLogSuppressBroadcast then g_drawSteelAudioLog.Ambience(DisplayNameForAsset(asset)) end
 end
 
+--Plays a clip for everyone the way the soundboard does (music replaces the
+--music playing). Scenes use it for their sound cues (ScenesPanel.lua).
+AudioPlayBroadcastClip = PlayBroadcastClip
+
 --=====================================================================================
 --Variant pool core (chunk K1.5-core): the pool table + the fire path. No UI (later
 --sub-chunks). A "variant pool" is a FIRST-CLASS entity living directly in the
@@ -3368,6 +3467,8 @@ local GLYPH_PRESS_SOUND = { selectors = {"press"}, soundEvent = "Mouse.Click" }
 local AudioSoundboardButtonStyles = {
 	{ selectors = {"audioSbButton"}, transitionTime = 0.15 },
 	{ selectors = {"audioSbButton", "playing"}, borderColor = "@accent", border = 2 },
+	--audio files from the operating system are over this pad (AddSoundboardFileDrop).
+	{ selectors = {"audioSbButton", "fileDropTarget"}, borderColor = "@accent", border = 2, brightness = 1.4 },
 	{ selectors = {"audioSbProgress"}, bgcolor = "@accent" },
 	{ selectors = {"audioSbName"}, fontSize = 11, color = "@fg" },
 	{ selectors = {"audioSbName", "parent:playing"}, color = "#FFFFFF" },
@@ -3379,8 +3480,16 @@ local AudioSoundboardButtonStyles = {
 	--hmargin=20 nudge is gone with it -- the label is not shown at all now.
 	{ selectors = {"audioSbDuration", "parent:editMode"}, hidden = 1 },
 	{ selectors = {"audioSbVolumeRow", "parent:editMode"}, hidden = 1 },
-	{ selectors = {"audioSbLoop", "parent:editMode"}, hidden = 1 },
-	--Loop glyph: dim when off, accent-tinted when on. Always visible on filled buttons.
+	{ selectors = {"audioSbLoopChip", "parent:editMode"}, hidden = 1 },
+	--Pad loop toggle: on = dark glyph on a solid @accent chip, off = a faint bare
+	--glyph that brightens on hover. A tint/opacity change alone read the same both
+	--ways on the coloured pads, since @accent is near-white.
+	{ selectors = {"audioSbLoopChip"}, bgcolor = "clear" },
+	{ selectors = {"audioSbLoopChip", "active"}, bgcolor = "@accent" },
+	{ selectors = {"audioSbLoopIcon"}, bgcolor = "white", opacity = 0.25 },
+	{ selectors = {"audioSbLoopIcon", "parent:hover"}, opacity = 0.7 },
+	{ selectors = {"audioSbLoopIcon", "parent:active"}, bgcolor = "black", opacity = 1 },
+	--Standalone loop glyph (the dock's running-ambience badge).
 	{ selectors = {"audioSbLoop"}, bgcolor = "white", opacity = 0.4 },
 	{ selectors = {"audioSbLoop", "active"}, bgcolor = "@accent", opacity = 1 },
 	--K2: a pool pad actively looping as ambience gets a persistent ring so it reads
@@ -3431,10 +3540,17 @@ local AUDIO_SB_BUTTON_HEIGHT = 62
 --to rebuild the 12 buttons on a surface -- it just calls refreshGrid (below), which
 --recomputes docid and re-fires refreshGame. This is what lets SetGridNumber (dock)
 --and the Studio board selector avoid a full grid rebuild.
+--
+--opts.source (the table's audio widget): function returning assetid, poolid. The
+--button then plays that clip or pool and has no slot document, so it never takes
+--part in board swaps or file drops. opts.passPress lets a press through to a
+--draggable host around the button.
 CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 	opts = opts or {}
 	local surface = opts.surface or "dock"
 	local isStudio = surface == "studio"
+	local source = opts.source
+	local onBoard = source == nil
 
 	local function IsEditMode()
 		return isStudio and opts.isEditMode ~= nil and opts.isEditMode()
@@ -3449,6 +3565,9 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 	end
 
 	local function CurrentDocId()
+		if not onBoard then
+			return nil
+		end
 		return string.format("audiogrid-%d-%d", getBoard(), slot)
 	end
 
@@ -3480,16 +3599,27 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 		valign = "center",
 	}
 
-	--Loop glyph: top-left corner, always visible on filled buttons (both surfaces).
-	--bgimage set directly (not via a class rule) so it renders under any cascade.
+	--Loop toggle: top-left corner, always visible on filled buttons (both surfaces).
+	--A chip holding the glyph so "on" can fill behind it. bgimages set directly (not
+	--via a class rule) so they render under any cascade.
 	local loopGlyph = gui.Panel{
-		classes = {"audioSbLoop", "collapsed"},
-		bgimage = "game-icons/infinity.png",
-		width = 13,
+		classes = {"audioSbLoopChip", "collapsed"},
+		bgimage = "panels/square.png",
+		cornerRadius = 3,
+		width = 19,
 		height = 13,
 		halign = "left",
 		valign = "top",
 		swallowPress = true,
+		gui.Panel{
+			classes = {"audioSbLoopIcon"},
+			bgimage = "game-icons/infinity.png",
+			width = 13,
+			height = 13,
+			halign = "center",
+			valign = "center",
+			interactable = false,
+		},
 		press = function(element)
 			--Pool pads: the glyph is a passive loop-ambience indicator (start/stop
 			--lives on the pad's own click handler), so no-op here.
@@ -3553,6 +3683,7 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 			valign = "center",
 			hmargin = 4,
 			click = function()
+				if docid == nil then return end
 				local doc = mod:GetDocumentSnapshot(docid)
 				doc:BeginChange()
 				doc.data.assetid = nil
@@ -3802,33 +3933,75 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 		return base .. "4D" --~30% alpha
 	end
 
+	--What a drag onto the table puts there (Tabletop.itemKinds.audio, below): the
+	--clip's id, or "pool:<id>" for a variant pool. nil for an empty pad.
+	local function TableKey()
+		if poolid ~= nil then
+			return "pool:" .. poolid
+		end
+		return assetid
+	end
+
+	--Dock pads drag whenever they hold something (perform surface: a press that
+	--does not move still plays); Studio pads only in edit mode, as before. Kept
+	--current on every refreshGame/refreshGrid (chunk F, P3) -- edit-mode toggling
+	--no longer rebuilds the grid, so a construction-time-only flag would go stale.
+	local function CanDrag()
+		if not onBoard then
+			return false
+		end
+		if isStudio then
+			return IsEditMode()
+		end
+		return assetid ~= nil or poolid ~= nil
+	end
+
 	local button
-	button = gui.Panel{
+	local buttonArgs = {
 		classes = {"bordered", "hoverable", "audioSbButton"},
 		flow = "none",
 		width = AUDIO_SB_BUTTON_WIDTH,
 		height = AUDIO_SB_BUTTON_HEIGHT,
-		margin = 2,
+		margin = opts.margin or 2,
 		pad = 4,
 		borderBox = true,
 		bgimage = "panels/square.png",
 		popupPositioning = "panel",
+		swallowPress = cond(opts.passPress, false, nil),
 		--M3: the shared audio-table monitor moved up to the grid
 		--(RefreshSoundboardGridAssets); this pad keeps ONLY its own slot-doc monitor.
-		monitorGame = mod:GetDocumentSnapshot(docid).path,
+		monitorGame = docid ~= nil and mod:GetDocumentPath(docid) or nil,
 
-		--Studio only: draggable for slot-to-slot swap. Set at build time AND kept
-		--current on every refreshGame/refreshGrid (chunk F, P3) -- edit-mode toggling
-		--no longer rebuilds the grid, so a construction-time-only flag would go stale
-		--the moment the mode flipped.
-		draggable = isStudio and IsEditMode(),
-		dragTarget = isStudio,
-		canDragOnto = isStudio and function(element, target)
-			return target ~= nil and target:HasClass("audioSbButton")
-		end or nil,
-		drag = isStudio and function(element, target)
-			if target == nil or not target:HasClass("audioSbButton") then return end
-			if target == element then return end
+		--Dragged onto another pad (dock or Studio) the two swap; dragged onto the
+		--bare table it becomes an audio widget there (Tabletop.OpenItem) and the
+		--pad keeps its clip.
+		draggable = CanDrag(),
+		dragTarget = onBoard,
+		canDragOnto = function(element, target)
+			--off the panels (over the table or the map) a released pad must not
+			--land on a pad it still overlaps: the engine picks drag targets by
+			--rectangle overlap, not by what is under the mouse.
+			return target ~= nil and target:HasClass("audioSbButton") and target.data.docid ~= nil
+				and dmhub.panelDropSurface == nil
+		end,
+		dragging = function(element, target)
+			local key = TableKey()
+			if key ~= nil and rawget(Tabletop, "ItemRowDragging") ~= nil then
+				Tabletop.ItemRowDragging(element, "audio", key)
+			end
+		end,
+		drag = function(element, target)
+			if rawget(Tabletop, "ItemRowDragEnded") ~= nil then
+				Tabletop.ItemRowDragEnded(element)
+			end
+			if target == nil or not target.valid or not target:HasClass("audioSbButton") or target.data.docid == nil then
+				local key = TableKey()
+				if key ~= nil and dmhub.panelDropSurface == "table" then
+					Tabletop.OpenItem("audio", key, {screen = dmhub.mouseScreenPosition})
+				end
+				return
+			end
+			if target == element or docid == nil then return end
 			local srcDoc = mod:GetDocumentSnapshot(docid)
 			local dstDoc = mod:GetDocumentSnapshot(target.data.docid)
 			local srcId = srcDoc.data.assetid
@@ -3846,7 +4019,7 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 			dstDoc.data.assetid = srcId
 			dstDoc.data.poolid = srcPool
 			dstDoc:CompleteChange("Swap soundboard buttons")
-		end or nil,
+		end,
 
 		data = { docid = docid },
 
@@ -3861,16 +4034,24 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 		--SetGridNumber (dock) and the Studio board selector -- this restores the OLD
 		--dock pattern (no full 12-button rebuild on every board switch).
 		refreshGrid = function(element)
-			docid = CurrentDocId()
+			local newDocId = CurrentDocId()
+			if newDocId == nil then return end
+			docid = newDocId
 			element.data.docid = docid
-			element.monitorGame = mod:GetDocumentSnapshot(docid).path
+			element.monitorGame = mod:GetDocumentSnapshot(newDocId).path
 			element:FireEvent("refreshGame")
 		end,
 
 		refreshGame = function(element)
-			local doc = mod:GetDocumentSnapshot(docid)
-			assetid = doc.data.assetid
-			poolid = doc.data.poolid
+			if source ~= nil or docid == nil then
+				if source ~= nil then
+					assetid, poolid = source()
+				end
+			else
+				local doc = mod:GetDocumentSnapshot(docid)
+				assetid = doc.data.assetid
+				poolid = doc.data.poolid
+			end
 			local asset = (assetid ~= nil) and assets.audioTable[assetid] or nil
 			if asset ~= nil then
 				EnsurePerformControls()
@@ -3933,7 +4114,7 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 			--Dynamic draggable (chunk F, P3): edit-mode toggling no longer rebuilds the
 			--grid, so this flag must be re-applied on every refresh instead of only at
 			--construction time.
-			element.draggable = (isStudio and IsEditMode()) or false
+			element.draggable = CanDrag()
 			element:FireEvent("refreshPlayingAudio")
 		end,
 
@@ -4001,7 +4182,8 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 			end
 		end,
 
-		rightClick = function(element)
+		--(on the table the widget's own menu takes the right-click.)
+		rightClick = cond(onBoard, function(element)
 			if IsEditMode() or poolid == nil then return end
 			element.popup = gui.ContextMenu{
 				width = 120,
@@ -4017,7 +4199,7 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 					},
 				},
 			}
-		end,
+		end, nil),
 
 		loopGlyph,
 		nameLabel,
@@ -4027,9 +4209,94 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 		progressBar,
 		editRow,
 	}
+	if onBoard then
+		AddSoundboardFileDrop(buttonArgs, getBoard, slot)
+	end
+	button = gui.Panel(buttonArgs)
 
 	return button
 end
+
+--Audio widgets on the table: a soundboard pad dragged onto the bare table, or an
+--audio file dropped there from the operating system, becomes a pad of its own on
+--the table that plays the clip (or fires the variant pool) for everyone, exactly as
+--the soundboard does. Tabletop.lua does the moving, sizing, saving and closing;
+--this is what the widget is. Keys are a clip's asset id or "pool:<poolid>".
+--Only people who can control audio (the Director and DJs) have them, and they are
+--per user like the rest of the table (David, 2026-10-15).
+local function SplitTableAudioKey(key)
+	local poolid = string.match(key, "^pool:(.+)$")
+	if poolid ~= nil then
+		return nil, poolid
+	end
+	return key, nil
+end
+
+if rawget(_G, "Tabletop") == nil then
+	Tabletop = {}
+end
+Tabletop.itemKinds = Tabletop.itemKinds or {}
+Tabletop.itemKinds.audio = {
+	available = function()
+		return CanControlAudio()
+	end,
+	exists = function(key)
+		local assetid, poolid = SplitTableAudioKey(key)
+		if poolid ~= nil then
+			return VariantPools.IsPool(poolid)
+		end
+		local asset = assets.audioTable[assetid]
+		return asset ~= nil and not asset.hidden
+	end,
+	name = function(key)
+		local assetid, poolid = SplitTableAudioKey(key)
+		if poolid ~= nil then
+			return VariantPools.Name(poolid) or "Variant pool"
+		end
+		return DisplayNameForAsset(assets.audioTable[assetid])
+	end,
+	size = function(key)
+		return AUDIO_SB_BUTTON_WIDTH, AUDIO_SB_BUTTON_HEIGHT
+	end,
+	--a pad at the soundboard's own size is small on the table.
+	defaultScale = 1.6,
+	face = function(key)
+		local pad = CreateSoundboardButton(nil, 0, {
+			surface = "table",
+			source = function()
+				return SplitTableAudioKey(key)
+			end,
+			--the press reaches the table item around it, which is what drags; a
+			--click still plays.
+			passPress = true,
+			margin = 0,
+		})
+		--the GameHud cascade carries no theme, so the face brings it along with the
+		--pad's own rules; the monitors stand in for the soundboard grid's.
+		local root = gui.Panel{
+			styles = ThemeEngine.MergeStyles(AudioSoundboardButtonStyles),
+			width = AUDIO_SB_BUTTON_WIDTH,
+			height = AUDIO_SB_BUTTON_HEIGHT,
+			halign = "left",
+			valign = "top",
+			flow = "none",
+			monitorAssets = "audio",
+			refreshAssets = function(element)
+				pad:FireEvent("refreshGame")
+			end,
+			monitorGame = VariantPools.LoopStatePath(),
+			refreshGame = function(element)
+				pad:FireEvent("refreshPlayingAudio")
+			end,
+			refreshAudio = function(element)
+				pad:FireEvent("refreshPlayingAudio")
+			end,
+			pad,
+		}
+		audio.events:Listen(root)
+		return root
+	end,
+}
 
 --Name-only extra-track row for the player panel (chunk I). Unlike the DM's
 --CreateExtraTrackRow, players get no per-track stop control -- they are not
@@ -7302,6 +7569,90 @@ local function DoAudioStudioUpload(category)
 	end)
 end
 
+--Audio files dragged in from the operating system (the soundboards and the table):
+--there is no category menu, so the category is guessed from the clip's length (David,
+--2026-10-15): up to DROPPED_EFFECT_MAX_SECONDS is an effect, anything longer is
+--ambience; music is never guessed. Once the asset arrives it gets that category and
+--moves into the category's folder, as a Studio upload would land.
+--Returns the asset id at once (nil if the file can't be read); onReady(assetid) runs
+--once the asset is in assets.audioTable.
+local DROPPED_EFFECT_MAX_SECONDS = 30
+
+UploadDroppedAudio = function(path, onReady)
+	local operation
+	local filename = string.match(path, "[^/\\]+$") or path
+	local assetid = assets:UploadAudioAsset{
+		path = path,
+		description = FileDrops.BaseName(path),
+		error = function(text)
+			gui.ModalMessage{ title = "Could not add " .. filename, message = text }
+		end,
+		upload = function(id)
+			if operation ~= nil then operation.progress = 1; operation:Update() end
+		end,
+		progress = function(percent)
+			if operation ~= nil then operation.progress = percent; operation:Update() end
+		end,
+	}
+	if assetid == nil then
+		return nil
+	end
+	operation = dmhub.CreateNetworkOperation()
+	operation.description = "Uploading Audio..."
+	operation.status = "Uploading..."
+	operation.progress = 0.0
+	operation:Update()
+	m_pendingUploadEchoes[assetid] = { name = filename, at = dmhub.Time() }
+
+	--the asset shows up in audioTable only after its cloud echo (see
+	--StampUploadedAudioAsset); a large file can take a while to upload.
+	local attemptsLeft = 240
+	local function poll()
+		if mod.unloaded then return end
+		local asset = assets.audioTable[assetid]
+		if asset == nil then
+			attemptsLeft = attemptsLeft - 1
+			if attemptsLeft > 0 then
+				dmhub.Schedule(0.5, poll)
+			end
+			return
+		end
+		local category = "effects"
+		if (tonumber(asset.duration) or 0) > DROPPED_EFFECT_MAX_SECONDS then
+			category = "ambience"
+		end
+		asset.category = category
+		asset:Upload()
+		EnsureCategoryFolder(category, function(folderid)
+			local a = assets.audioTable[assetid]
+			if folderid ~= nil and a ~= nil and (a.parentFolder == nil or a.parentFolder == "") then
+				a.parentFolder = folderid
+				a:Upload()
+				g_pendingRevealFolder = folderid
+			end
+		end)
+		if onReady ~= nil then
+			onReady(assetid)
+		end
+	end
+	dmhub.Schedule(0.5, poll)
+	return assetid
+end
+
+--Opens audio files dragged from the operating system onto the bare table as audio
+--widgets there (Tabletop.lua's table drop). Each file's widget appears once its
+--upload arrives, at its own spot around the drop point (screen pixels).
+AudioDroppedOnTable = function(paths, screenx, screeny)
+	for i, path in ipairs(paths) do
+		local offset = (i - 1) * 40
+		UploadDroppedAudio(path, function(assetid)
+			if rawget(Tabletop, "OpenItem") ~= nil then
+				Tabletop.OpenItem("audio", assetid, {screen = {x = screenx + offset, y = screeny + offset}})
+			end
+		end)
+	end
+end
+
 --Upload action for the Studio toolbar "+ Add audio" (C7, reshaped per James's
 --field feedback): a menu of the three categories going straight to the native file
 --dialog. One explicit choice per upload -- no popup to parse, no stale "last used"
@@ -8613,13 +8964,16 @@ local CreateStudioSoundboard = function()
 	--surfaces present the same deterministic 3x4 shape. Replaces the old
 	--width=350/height="auto" wrap, which cost more to lay out and, being
 	--auto-height, is also why the width could drift from the dock's true 342.
-	gridPanel = gui.Panel{
+	local gridArgs = {
 		flow = "horizontal",
 		wrap = true,
 		width = AUDIO_SB_GRID_WIDTH,
 		height = AUDIO_SB_GRID_HEIGHT,
 		halign = "center",
 		vmargin = 4,
+		--catches a file drop between pads (bgimage so the gaps hit-test).
+		bgimage = "panels/square.png",
+		bgcolor = "clear",
 		--M3: single board-level audio monitor (see RefreshSoundboardGridAssets).
 		monitorAssets = "audio",
 		refreshAssets = RefreshSoundboardGridAssets,
@@ -8633,6 +8987,8 @@ local CreateStudioSoundboard = function()
 			end
 		end,
 	}
+	AddSoundboardFileDrop(gridArgs, GetBoard, nil)
+	gridPanel = gui.Panel(gridArgs)
 
 	--Board selector: "Board" label + five segmented buttons. The active board carries
 	--{selected} (themed fill). Switching no longer rebuilds the grid (chunk F, P2) --

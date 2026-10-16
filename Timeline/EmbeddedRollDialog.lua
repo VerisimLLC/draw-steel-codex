@@ -1448,13 +1448,16 @@ function GameHud.CreateEmbeddedRollDialog()
         -- Get the power table text from this target's rollProperties.
         local tierText = targetRollProps and targetRollProps.tiers and targetRollProps.tiers[tier]
         if tierText ~= nil then
-            --Show only the chosen alternative of any "or" choice groups
-            --("slowed (eot) or dazed (save ends)" -> "slowed (eot)").
-            --Choices live on the shared rollProperties; per-target
-            --rollProperties clones fall back to it, mirroring execution.
-            local orChoices = (targetRollProps ~= nil and targetRollProps:try_get("orChoices"))
-                or (rollProperties ~= nil and rollProperties:try_get("orChoices"))
-                or nil
+            --Show only this target's chosen alternative of any "or" choice
+            --groups ("slowed (eot) or dazed (save ends)" -> "slowed (eot)").
+            --Choices are read from the shared rollProperties the power table
+            --writes, never a per-target clone (a snapshot that can predate the
+            --latest click), mirroring execution.
+            local orChoices = nil
+            if ActivatedAbilityPowerRollBehavior ~= nil and ActivatedAbilityPowerRollBehavior.GetOrChoicesForTarget ~= nil then
+                orChoices = ActivatedAbilityPowerRollBehavior.GetOrChoicesForTarget(rollProperties, target.token.charid)
+                    or ActivatedAbilityPowerRollBehavior.GetOrChoicesForTarget(targetRollProps, target.token.charid)
+            end
             tierText = ActivatedAbilityDrawSteelCommandBehavior.ResolveOrGroupsForTier(tierText, orChoices, tier)
         end
         markers:AddLabel(ExtractTierLabel(tierText, tier), "result")

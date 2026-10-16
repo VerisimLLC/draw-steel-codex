@@ -157,7 +157,6 @@ import.Register{
                     if string.find(string.lower(v.name), string.lower(subclassNameMatch.subclass)) ~= nil then
                         subclassid = key
                         print("CLASS:: Match subclass for heroic abilities", v.name, subclassNameMatch.subclass)
-                        found = true
                         break
                     end
                 end

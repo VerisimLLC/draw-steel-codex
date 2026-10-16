@@ -2007,6 +2007,7 @@ function ActivatedAbility:Render(options, params)
                         end
                         if aura:try_get("duration") ~= "none" then
                             local duration = aura.duration
+                            local expiresText = nil
                             if type(duration) == "string" then
                                 if duration == "eoe" then
                                     expiresText = "End of Encounter"
@@ -2015,18 +2016,20 @@ function ActivatedAbility:Render(options, params)
                                 end
                             else
                                 local remainingRounds = aura.duration - roundsSince
-                                local expiresText = "this round"
+                                expiresText = "this round"
                                 if remainingRounds == 1 then
                                     expiresText = "next round"
                                 elseif remainingRounds > 1 then
                                     expiresText = string.format("in %d rounds", remainingRounds)
                                 end
+                            end
 
+                            if expiresText ~= nil then
                                 element.text = string.format("Effect cast %s, expires %s%s", castTimeText, expiresText,
                                     concentrationText)
                             end
                         else
-                            element.text = string.format("Effect cast %s, lasts indefinitely", castTimeText,
+                            element.text = string.format("Effect cast %s, lasts indefinitely%s", castTimeText,
                                 concentrationText)
                         end
                     end,

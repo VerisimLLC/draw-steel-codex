@@ -657,6 +657,13 @@ function CustomDocument.ResolveLink(link)
         return nil
     end
 
+    --"journal:<id>": any journal entry (document, PDF, image or PDF bookmark)
+    --by id, as written by dropping an entry into a document. The id is read
+    --from the original text because PDF and image ids are case-sensitive.
+    if string.starts_with(link, "journal:") then
+        return CustomDocument.FindJournalEntry(string.sub(original_link, 9))
+    end
+
     if string.starts_with(link, "document:") then
         local docid = string.sub(link, 10)
         local customDocs = dmhub.GetTable(CustomDocument.tableName) or {}
@@ -814,6 +821,360 @@ function CustomDocument.OpenContent(node)
     else
         GameHud.instance:ViewCompendiumEntryModal(node)
     end
+end
+
+--- Finds a journal entry by id, whatever kind it is. Documents, PDFs, images
+--- and PDF bookmarks each live in their own table, but their ids are guids,
+--- so one id names one entry. Pass the result to CustomDocument.OpenContent
+--- to open it; its nodeType says which kind it is ("custom", "negotiation",
+--- "pdf", "image" or "pdffragment").
+--- @param id string
+--- @return any|nil entry nil when there is no such entry, or it was deleted.
+function CustomDocument.FindJournalEntry(id)
+    if type(id) ~= "string" or id == "" then
+        return nil
+    end
+    local doc = (dmhub.GetTable(CustomDocument.tableName) or {})[id]
+    if doc ~= nil then
+        if doc.hidden then
+            return nil
+        end
+        return doc
+    end
+    local pdf = (assets.pdfDocumentsTable or {})[id]
+    if pdf ~= nil then
+        if pdf.hidden then
+            return nil
+        end
+        return pdf
+    end
+    local image = ((assets.imagesByTypeTable or {}).Document or {})[id]
+    if image ~= nil then
+        if image.hidden then
+            return nil
+        end
+        return image
+    end
+    local fragment = (dmhub.GetTable(PDFFragment.tableName) or {})[id]
+    if fragment ~= nil and not fragment.hidden then
+        return fragment
+    end
+    return nil
+end
+
+local g_journalKindNames = {
+    custom = "Journal Document",
+    negotiation = "Negotiation",
+    pdf = "PDF",
+    image = "Image",
+    pdffragment = "PDF Bookmark",
+}
+
+--- What kind of journal entry this is, for people ("PDF", "Image", ...).
+--- @param entry any a CustomDocument.FindJournalEntry result
+--- @return string
+function CustomDocument.JournalEntryKindName(entry)
+    return g_journalKindNames[entry.nodeType] or "Journal Entry"
+end
+
+--- The glyph the journal shows beside the entry.
+--- @param entry any a CustomDocument.FindJournalEntry result
+--- @return string
+function CustomDocument.JournalEntryIcon(entry)
+    local nodeType = entry.nodeType
+    if nodeType == "pdf" then
+        return "phosphor/file-pdf.png"
+    elseif nodeType == "image" then
+        return "phosphor/image.png"
+    elseif nodeType == "pdffragment" then
+        return "phosphor/bookmark-simple.png"
+    end
+    local icon = nil
+    pcall(function() icon = CustomDocument.DocTypeIcon(entry) end)
+    return icon or "phosphor/file-text.png"
+end
+
+--- The picture that stands for an entry, and its height over width: a PDF's
+--- cover, an image, or a bookmark's page area. nil for a document.
+--- @param entry any a CustomDocument.FindJournalEntry result
+--- @return string|nil image
+--- @return number|nil aspect
+function CustomDocument.JournalEntryPicture(entry)
+    local nodeType = entry.nodeType
+    if nodeType == "pdf" then
+        local aspect = 11 / 8.5
+        local summary = entry.doc.summary
+        if summary ~= nil and tonumber(summary.pageWidth) ~= nil and tonumber(summary.pageHeight) ~= nil and summary.pageWidth > 0 then
+            aspect = summary.pageHeight / summary.pageWidth
+        end
+        return entry.doc:GetPageThumbnailId(0), aspect
+    elseif nodeType == "image" then
+        local w = tonumber(entry.width) or 1
+        local h = tonumber(entry.height) or 1
+        return entry.id, h / math.max(1, w)
+    elseif nodeType == "pdffragment" then
+        local area = entry.area
+        local image = string.format("#PDF-Fragment:%s|%d,%f,%f,%f,%f", entry.refid, entry.page, area[1], area[2], area[3], area[4])
+        return image, entry.height / math.max(1, entry.width)
+    end
+    return nil, nil
+end
+
+--- The icon rail key for a shortcut to a journal entry. A document uses the
+--- journal's own "doc:<id>" shortcut (the one a journal row drag makes), so
+--- the two gestures never put the same document on the rail twice; PDFs,
+--- images and bookmarks use the "journal:<id>" entry type registered below.
+--- @param entryid string
+--- @return string
+function CustomDocument.JournalRailKey(entryid)
+    if (dmhub.GetTable(CustomDocument.tableName) or {})[entryid] ~= nil then
+        return "doc:" .. entryid
+    end
+    return "journal:" .. entryid
+end
+
+local PREVIEW_WIDTH = 380
+local PREVIEW_MAX_HEIGHT = 320
+
+--- Shows a hover preview of a journal entry as element's tooltip: its name
+--- and kind over a glimpse of it -- the top of a document as it reads, or a
+--- PDF's cover, an image, a bookmark's page area. Call from a hover handler.
+--- options (all optional): halign, valign -- where the tooltip opens
+--- (gui.TooltipFrame's defaults: centred, below); hint -- the footer line.
+--- @param element Panel
+--- @param entryid string
+--- @param options nil|{halign: string?, valign: string?, hint: string?}
+function CustomDocument.ShowJournalPreview(element, entryid, options)
+    options = options or {}
+    local entry = CustomDocument.FindJournalEntry(entryid)
+    if entry == nil then
+        return
+    end
+
+    local body = nil
+    --a tall picture narrows the whole card, so no dead space beside it.
+    local width = PREVIEW_WIDTH
+    local picture, aspect = CustomDocument.JournalEntryPicture(entry)
+    if picture ~= nil then
+        aspect = math.max(0.3, math.min(2, aspect or 1))
+        local w = PREVIEW_WIDTH
+        local h = math.floor(w * aspect)
+        if h > PREVIEW_MAX_HEIGHT then
+            w = math.floor(PREVIEW_MAX_HEIGHT / aspect)
+            h = PREVIEW_MAX_HEIGHT
+        end
+        width = math.max(220, w)
+        body = gui.Panel{
+            bgimage = picture,
+            bgcolor = "white",
+            width = w,
+            height = h,
+            halign = "left",
+            cornerRadius = 4,
+        }
+    else
+        --the document as it reads, cut off at the preview's height. pcall:
+        --a document type's read panel is its own code, and a preview that
+        --fails should just not show its body.
+        local readPanel = nil
+        pcall(function()
+            readPanel = entry:DisplayPanel{
+                width = "100%",
+                height = "auto",
+                vscroll = false,
+            }
+        end)
+        if readPanel ~= nil then
+            --clip masks with the bgimage (clipHidden: not drawn), and only
+            --a fixed height clips, so the box starts at the cap and shrinks
+            --to a short document once it has been laid out.
+            local page = readPanel --[[@as Panel]]
+            body = gui.Panel{
+                width = PREVIEW_WIDTH,
+                height = PREVIEW_MAX_HEIGHT,
+                valign = "top",
+                bgimage = "panels/square.png",
+                clip = true,
+                clipHidden = true,
+                flow = "vertical",
+                page,
+                thinkTime = 0.05,
+                think = function(element)
+                    local h = page.renderedHeight
+                    if page.valid and h ~= nil and h > 0 then
+                        element.selfStyle.height = math.min(PREVIEW_MAX_HEIGHT, h)
+                    end
+                end,
+            }
+        end
+    end
+
+    --- @type Panel[]
+    local children = {
+        gui.Label{
+            text = entry.description or "",
+            bold = true,
+            fontSize = 16,
+            color = "#f2ede1",
+            width = "100%",
+            height = "auto",
+            textWrap = false,
+            textOverflow = "ellipsis",
+        },
+        gui.Label{
+            text = CustomDocument.JournalEntryKindName(entry),
+            fontSize = 12,
+            color = "#bdb3a4",
+            width = "100%",
+            height = "auto",
+            bmargin = 6,
+        },
+    }
+    if body ~= nil then
+        children[#children+1] = body
+    end
+    children[#children+1] = gui.Label{
+        text = options.hint or "Click to open",
+        fontSize = 12,
+        color = "#bdb3a4",
+        width = "100%",
+        height = "auto",
+        tmargin = 6,
+    }
+    local content = gui.Panel{
+        flow = "vertical",
+        width = width,
+        height = "auto",
+        children = children,
+    }
+    local tooltip = gui.TooltipFrame(content, {
+        interactable = false,
+        halign = options.halign,
+        valign = options.valign,
+    })
+    element.tooltip = tooltip
+    tooltip:MakeNonInteractiveRecursive()
+end
+
+--Icon rail shortcuts to journal entries the "doc:<id>" shortcut cannot
+--hold: PDFs, images and PDF bookmarks, which live outside the
+--CustomDocument table ("journal:<entryid>"; see RailEntryTypes in
+--DocumentSystem.lua). Made by dragging a tabletop item onto a rail.
+RailEntryTypes = rawget(_G, "RailEntryTypes") or {}
+RailEntryTypes.journal = {
+    available = function(id)
+        return CustomDocument.FindJournalEntry(id) ~= nil
+    end,
+    name = function(id)
+        local entry = CustomDocument.FindJournalEntry(id)
+        return (entry ~= nil and entry.description) or "Journal Entry"
+    end,
+    icon = function(id)
+        local entry = CustomDocument.FindJournalEntry(id)
+        if entry == nil then
+            return "phosphor/file-text.png"
+        end
+        return CustomDocument.JournalEntryIcon(entry)
+    end,
+    --a picture taller than it is wide (a PDF's cover) gets two slots, so
+    --the button can show it at its own shape.
+    span = function(id)
+        local entry = CustomDocument.FindJournalEntry(id)
+        if entry == nil then
+            return 1
+        end
+        local picture, aspect = CustomDocument.JournalEntryPicture(entry)
+        if picture ~= nil and (aspect or 1) > 1.1 then
+            return 2
+        end
+        return 1
+    end,
+    --a cover gets a little more width than the rail, enough to fill the
+    --two-slot height at its page shape (the rail caps how wide).
+    width = function(id, h)
+        local entry = CustomDocument.FindJournalEntry(id)
+        if entry == nil then
+            return nil
+        end
+        local picture, aspect = CustomDocument.JournalEntryPicture(entry)
+        if picture == nil or (aspect or 1) <= 1.1 then
+            return nil
+        end
+        local inset = 2
+        return (h - inset * 2) / aspect + inset * 2
+    end,
+    --the picture itself, as large as the button allows with its shape kept.
+    face = function(id, w, h)
+        local entry = CustomDocument.FindJournalEntry(id)
+        if entry == nil then
+            return nil
+        end
+        local picture, aspect = CustomDocument.JournalEntryPicture(entry)
+        if picture == nil then
+            return nil
+        end
+        aspect = aspect or 1
+        local inset = 2
+        local pw = w - inset * 2
+        local ph = pw * aspect
+        if ph > h - inset * 2 then
+            ph = h - inset * 2
+            pw = ph / aspect
+        end
+        return gui.Panel{
+            bgimage = picture,
+            bgcolor = "white",
+            width = math.floor(pw),
+            height = math.floor(ph),
+            halign = "center",
+            valign = "center",
+            cornerRadius = 3,
+            interactable = false,
+        }
+    end,
+    activate = function(id, element)
+        CustomDocument.OpenContent(CustomDocument.FindJournalEntry(id))
+    end,
+    hover = function(id, element)
+        CustomDocument.ShowJournalPreview(element, id, CustomDocument.RailPreviewPlacement(element))
+    end,
+    menu = function(id, element)
+        local entries = {
+            {
+                text = "Open",
+                click = function()
+                    element.popup = nil
+                    CustomDocument.OpenContent(CustomDocument.FindJournalEntry(id))
+                end,
+            },
+        }
+        --back off the rail, as the table item it was docked from.
+        if rawget(_G, "Tabletop") ~= nil and Tabletop.CanUndockDocItem ~= nil and Tabletop.CanUndockDocItem(id) then
+            entries[#entries+1] = {
+                text = "Move to the table",
+                click = function()
+                    element.popup = nil
+                    Tabletop.UndockDocItem(id, "journal:" .. id, element)
+                end,
+            }
+        end
+        return entries
+    end,
+    onRemove = function(id)
+    end,
+}
+
+--- Where a rail button's preview opens: beside the button, on the map side
+--- of whichever rail it is on.
+--- @param element Panel the rail button
+--- @return {halign: string?, valign: string?, hint: string?}
+function CustomDocument.RailPreviewPlacement(element)
+    local rail = element:FindParentWithClass("iconRail")
+    local side = nil
+    if rail ~= nil then
+        pcall(function() side = rail.data.side end)
+    end
+    return {halign = cond(side == "right", "left", "right"), valign = "center"}
 end
 
 --- @class CustomDocumentRef: GameType

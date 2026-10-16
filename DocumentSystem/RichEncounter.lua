@@ -762,6 +762,10 @@ function RichEncounter.CreateDisplay(self)
             if initiativeQueue ~= nil and initiativeQueue.hidden then
                 initiativeQueue = nil
             end
+            --the heroes' start zone shows until combat starts.
+            if initiativeQueue == nil then
+                Encounter.ShowStartZone(self.encounter)
+            end
             self.spawns = {}
 
             --CloneForNumberOfHeroes drops groups gated off at this party size, so

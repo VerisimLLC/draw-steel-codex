@@ -33,20 +33,6 @@ function Hud.SetFocus(self, newFocus)
 	gui.SetFocus(newFocus)
 end
 
-function Hud.CreateShapesLayer(self)
-	if dmhub.isDM then
-		return gui.Panel{
-			interactable = false,
-			bgcolor = "white",
-			bgimage = "#Shapes",
-			width = "100%",
-			height = "100%",
-		}
-	else
-		return nil
-	end
-end
-
 local g_screenArea = core.Vector4(0,0,0,0)
 
 --function called by dmhub to see what area of the screen is occupied by the hud.
@@ -794,6 +780,7 @@ end
 --- @field tokenInfo SheetHud The engine's token/selection interface, passed to dmhub.CreateGameHud.
 --- @field parentPanel Panel Root panel of the hud (dialog.sheet); set by dmhub.CreateGameHud.
 --- @field actionBarPanel Panel Set by the action bar when it is created.
+--- @field bannerLayer? Panel Layer over the floating windows for mode banners; set by GameHud:CreateBannerLayer (nil on the lobby hud).
 --- @field rollDialog Panel Set by dmhub.CreateGameHud (GameHud:CreateRollDialog).
 --- @field inventoryDialog Panel
 --- @field basicInventoryDialog Panel

@@ -11,6 +11,7 @@ local mod = dmhub.GetModLoading()
 --- @field id string Guid set by creature:BeginConcentration.
 --- @field summonid? string[] Charids of creatures summoned under this concentration (AbilitySummon).
 --- @field objects? {floorid: string, objid: string}[] Map objects created under this concentration (Aura.lua).
+--- @field auraid? string Aura tied to this concentration. Nothing sets it now; read only for concentrations saved by older code.
 --- Tracks an active concentration effect on a creature. Stored in `creature.concentration`.
 Concentration = RegisterGameType("Concentration")
 function Concentration:HasExpired()

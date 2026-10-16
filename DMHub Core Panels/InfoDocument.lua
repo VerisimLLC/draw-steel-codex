@@ -3,6 +3,7 @@ local mod = dmhub.GetModLoading()
 ---@class InfoDocument: GameType
 --- @field new fun(o?: table): InfoDocument
 ---@field docid string|false a reference to a markdown document in the journal.
+---@field linkid string|false a PDF, image or PDF bookmark in the journal (see CreateInfoDocument).
 InfoDocument = RegisterGameType("InfoDocument")
 --- @class InfoDocumentSection: GameType
 --- @field new fun(o?: table): InfoDocumentSection
@@ -10,6 +11,9 @@ InfoDocumentSection = RegisterGameType("InfoDocumentSection")
 
 --a reference to a markdown document in the journal.
 InfoDocument.docid = false
+--a journal entry that is not in the documents table: a PDF, an image or a PDF
+--bookmark. A bubble made by dragging one onto the map opens it.
+InfoDocument.linkid = false
 InfoDocument.sections = {}
 
 function InfoDocument:GetMarkdownDocument()
@@ -33,13 +37,33 @@ function IsValidInfoDocument(doc)
     return doc ~= nil and doc.typeName == "InfoDocument"
 end
 
---called by DMHub to create an info document.
-function CreateInfoDocument(description)
+--called by DMHub to create an info document. link is the id of an existing
+--journal entry (dmhub.CreateInfoBubble's options.link, e.g. a document dragged
+--onto the map): the bubble opens that entry and no new document is made.
+function CreateInfoDocument(description, link)
     local maxOrd = 1
     for k, p in pairs(dmhub.infoBubbles) do
         if p.document ~= nil and p.document.ord ~= nil and p.document.ord > maxOrd then
             maxOrd = p.document.ord
         end
+    end
+
+    if link ~= nil then
+        local entry = CustomDocument.FindJournalEntry(link)
+        if entry == nil then
+            --nil aborts the bubble, as for a document that could not be saved.
+            return nil
+        end
+        if (dmhub.GetTable(CustomDocument.tableName) or {})[link] ~= nil then
+            return InfoDocument.new {
+                ord = maxOrd + 1,
+                docid = link,
+            }
+        end
+        return InfoDocument.new {
+            ord = maxOrd + 1,
+            linkid = link,
+        }
     end
 
     local docid = dmhub.GenerateGuid()
@@ -76,6 +100,30 @@ function CreateInfoDocument(description)
         ord = maxOrd + 1,
         docid = docid,
     }
+end
+
+--Puts an info bubble at the mouse (the square under it, on the floor being
+--viewed) that opens an existing journal entry: a document, PDF, image or PDF
+--bookmark dragged out of the journal onto the map. Director only. Returns
+--the new bubble's id, or nil.
+function InfoDocument.PlaceLinkedBubble(entryid)
+    if not dmhub.isDM then
+        return nil
+    end
+    local entry = CustomDocument.FindJournalEntry(entryid)
+    local pt = dmhub.GetMouseWorldPoint()
+    if entry == nil or pt == nil then
+        return nil
+    end
+    local loc = core.Loc{
+        x = math.floor(pt.x + 0.5),
+        y = math.floor(pt.y + 0.5),
+        floorIndex = game.currentFloorIndex,
+    }
+    return dmhub:CreateInfoBubble(loc, {
+        link = entryid,
+        description = entry.description,
+    })
 end
 
 function GameHud:CreateDocumentsPanel()
@@ -912,6 +960,19 @@ function GameHud:DisplayDocument(info)
         if clickedDoc ~= nil then
             clickedDoc:ShowDocument({bubbleIcon = info.icon})
         end
+    elseif info.document.linkid then
+        --a PDF, image or PDF bookmark from the journal.
+        local entry = CustomDocument.FindJournalEntry(info.document.linkid)
+        if entry == nil then
+            --unlike a missing document there is nothing to recreate: the
+            --PDF or image itself is gone.
+            gui.ModalMessage {
+                title = "Journal Entry Missing",
+                message = string.format("This info bubble opens a journal entry (a PDF, image or PDF bookmark) that has been deleted from this game.\n\nEntry id: %s", tostring(info.document.linkid)),
+            }
+            return
+        end
+        CustomDocument.OpenContent(entry)
     else
         -- Sections-based bubbles use the existing dialog
         local documentDialog = self:try_get('documentDialog')
@@ -952,6 +1013,34 @@ function GameHud:ShowInfoBubbleTip(info)
             gui.Label{
                 fontSize = 18,
                 text = string.format("<b><size=140%%>%s</size></b>\n<i>Journal Document</i>\nClick to Open", markdownDoc.name),
+                markdown = true,
+                width = "auto",
+                height = "auto",
+            },
+            {
+                width = "auto",
+                interactable = false,
+            }
+        )
+
+        gamehud.popupPanel.popup:MakeNonInteractiveRecursive()
+
+        return
+    end
+
+    if info.document.linkid then
+        local entry = CustomDocument.FindJournalEntry(info.document.linkid)
+        local kinds = {pdf = "PDF", image = "Image", pdffragment = "PDF Bookmark"}
+        local text
+        if entry ~= nil then
+            text = string.format("<b><size=140%%>%s</size></b>\n<i>%s</i>\nClick to Open", entry.description or info.description or "Info Bubble", kinds[entry.nodeType] or "Journal Entry")
+        else
+            text = string.format("<b><size=140%%>%s</size></b>\n<i>Journal Entry Missing</i>\nClick for Details", info.description or "Info Bubble")
+        end
+        gamehud.popupPanel.popup = gui.TooltipFrame(
+            gui.Label{
+                fontSize = 18,
+                text = text,
                 markdown = true,
                 width = "auto",
                 height = "auto",

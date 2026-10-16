@@ -281,10 +281,12 @@ function CharacterToken:TryFall() end
 
 --- Move
 --- @param loc Loc The location to move to.
---- @param options {maxCost: nil|number, straightline: nil|boolean, ignorecreatures: nil|boolean, moveThroughFriends: nil|boolean, ignoreFalling: nil|boolean, movementType: nil|MovementType, jumpHeight: nil|number, freeMovement: nil|boolean, playerMovement: nil|boolean, chargeDistance: nil|number, chargeJumpLanding: nil|boolean, chargeJumpOutcome: nil|boolean, chargeJumpDistance: nil|number}
+--- @param options {maxCost: nil|number, straightline: nil|boolean, ignorecreatures: nil|boolean, moveThroughFriends: nil|boolean, ignoreFalling: nil|boolean, movementType: nil|MovementType, jumpHeight: nil|number, freeMovement: nil|boolean, playerMovement: nil|boolean, chargeDistance: nil|number, chargeJumpLanding: nil|boolean, chargeJumpOutcome: nil|boolean, chargeJumpDistance: nil|number, objectSpeed: nil|number, objectEase: nil|'linear'|'in'|'out'|'inout'}
 --- jumpHeight (only meaningful with movementType='jump'): the jump distance in tiles; the mover clears height-limited walls up to this many tiles tall.
 --- freeMovement: this move is not the creature's move action, so it is exempt from the strict:movement remaining-budget clamp. Set it for ability-granted shifts and moves.
 --- playerMovement: the move was initiated directly by the user (e.g. the arrow keys). It is subject to the same gates as a mouse drag: the user must control the token, the game must not be frozen (unless the user is the Director), and under Strictly Enforce Movement Rules it must be this token's turn in combat. Returns nil when blocked.
+--- objectSpeed (map object tokens only): how fast the object slides to the destination, in tiles per second (default 20). Every client animates the same slide; the returned path's objectSlideDuration says how number it lasts.
+--- objectEase (map object tokens only): the slide's easing -- 'linear' (default), 'in' (starts at rest, fastest on arrival), 'out' (leaves at full speed, comes to rest) or 'inout'. Sine curves, so 'out' then 'in' legs make a pendulum swing.
 --- @return nil|LuaPath
 function CharacterToken:Move(loc, options) end
 

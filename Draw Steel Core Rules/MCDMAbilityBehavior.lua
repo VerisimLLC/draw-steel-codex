@@ -2308,6 +2308,78 @@ local function ScanOrStructure(lowerText)
     return segments, orSpans, commaPositions
 end
 
+--A damage clause offering a choice of type: "23 cold, fire, or sonic damage",
+--"6 + I fire or lightning damage". The list must follow an amount (a number,
+--optionally "+ characteristic") and end in "damage".
+local g_orDamageTypeListPattern = "[0-9](\\s*\\+\\s*[marip](?![a-z]))?\\s+(?<list>[a-z]+(?:,\\s*[a-z]+)*,?\\s+or\\s+[a-z]+)\\s+damage(?![a-z])"
+
+--Try to read one segment as a damage clause with a damage-type list. Returns
+--a group whose alternatives are the type words themselves, or nil. The text
+--around the list stays shared: "23 " before it, and the rest of the clause
+--(" damage", "(half)", ...) as a suffix every alternative takes, so resolving
+--option 2 yields "23 fire damage". headS marks where the clause starts, so the
+--display can show "23 " at full strength instead of dimming it as an
+--unparseable fragment.
+local function BuildDamageTypeOrGroup(text, lowerText, seg, Validates)
+    local lowerSeg = string.sub(lowerText, seg.s, seg.e)
+    local match = regex.MatchGroups(lowerSeg, g_orDamageTypeListPattern, {indexes = true})
+    if match == nil or match.list == nil then
+        return nil
+    end
+
+    local listS = seg.s + match.list.index - 1
+    local listE = listS + match.list.length - 1
+    local listText = string.sub(lowerText, listS, listE)
+
+    local alts = {}
+    for wordStart, word, wordEnd in string.gmatch(listText, "()(%a+)()") do
+        if word ~= "or" then
+            --only real damage types: keeps prose like "3 more or less damage" out.
+            if rules == nil or rules.damageTypesToInfo == nil or rules.damageTypesToInfo[word] == nil then
+                return nil
+            end
+            alts[#alts+1] = {s = listS + wordStart - 1, e = listS + wordEnd - 2, useSuffix = true}
+        end
+    end
+    if #alts < 2 then
+        return nil
+    end
+
+    local clauseS = seg.s
+    while clauseS < listS and string.sub(text, clauseS, clauseS) == " " do
+        clauseS = clauseS + 1
+    end
+
+    --every alternative must resolve to a clause the executor understands.
+    local head = string.sub(text, seg.s, listS - 1)
+    local tail = string.sub(text, listE + 1, seg.e)
+    for _,alt in ipairs(alts) do
+        if not Validates(head .. string.sub(text, alt.s, alt.e) .. tail) then
+            return nil
+        end
+    end
+
+    return {
+        alts = alts,
+        suffixS = alts[#alts].e + 1,
+        suffixE = seg.e,
+        headS = clauseS,
+        damageTypes = true,
+    }
+end
+
+--Mirror ExecuteCommandInternal's normalization before validating a candidate
+--alternative. The trim matters: a mid-text segment's gate prefix carries the
+--leading space from after the ";", and the rule patterns are ^-anchored (the
+--executor sheds that space when it strips the "; " separator, so trimming
+--matches it).
+local function OrCandidateValidates(candidate)
+    candidate = regex.ReplaceAll(candidate, "<[^<>]*?>", "")
+    candidate = candidate:gsub("'", "")
+    candidate = trim(candidate)
+    return candidate ~= "" and ActivatedAbilityDrawSteelCommandBehavior.ValidateRule(candidate) == true
+end
+
 local function BuildOrGroups(text)
     local lowerText = string.lower(text)
     local segments, orSpans, commaPositions = ScanOrStructure(lowerText)
@@ -2319,7 +2391,13 @@ local function BuildOrGroups(text)
                 segOrs[#segOrs+1] = sp
             end
         end
+        local damageGroup = nil
         if #segOrs > 0 and seg.e >= seg.s then
+            damageGroup = BuildDamageTypeOrGroup(text, lowerText, seg, OrCandidateValidates)
+        end
+        if damageGroup ~= nil then
+            groups[#groups+1] = damageGroup
+        elseif #segOrs > 0 and seg.e >= seg.s then
             local lowerSeg = string.sub(lowerText, seg.s, seg.e)
 
             --a potency gate prefix distributes to every alternative.
@@ -2405,17 +2483,7 @@ local function BuildOrGroups(text)
                 end
 
                 --every alternative must validate as an executable rule.
-                --mirror ExecuteCommandInternal's normalization. The trim
-                --matters: a mid-text segment's gate prefix carries the
-                --leading space from after the ";", and the rule patterns
-                --are ^-anchored (the executor sheds that space when it
-                --strips the "; " separator, so trimming matches it).
-                local Validates = function(candidate)
-                    candidate = regex.ReplaceAll(candidate, "<[^<>]*?>", "")
-                    candidate = candidate:gsub("'", "")
-                    candidate = trim(candidate)
-                    return candidate ~= "" and ActivatedAbilityDrawSteelCommandBehavior.ValidateRule(candidate) == true
-                end
+                local Validates = OrCandidateValidates
 
                 --an alternative takes the distributed suffix only when it
                 --needs it to validate: "M<2 prone or bleeding (eot)" must
@@ -2452,8 +2520,10 @@ local function BuildOrGroups(text)
 end
 
 --- Parse "or" choice groups out of power table rule text.
+--- Damage-type groups ("23 cold, fire, or sonic damage") set damageTypes =
+--- true; their alternatives are the type words and headS is the clause start.
 --- @param text string
---- @return nil|{alts: {s: number, e: number, useSuffix: boolean}[], suffixS: number, suffixE: number}[]
+--- @return nil|{alts: {s: number, e: number, useSuffix: boolean}[], suffixS: number, suffixE: number, headS: number|nil, damageTypes: boolean|nil}[]
 function ActivatedAbilityDrawSteelCommandBehavior.ParseOrGroups(text)
     if type(text) ~= "string" or text == "" then
         return nil

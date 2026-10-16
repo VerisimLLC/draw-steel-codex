@@ -441,6 +441,9 @@ TurnRewind = {
 	--network, and the board only matches the entry once it has arrived.
 	restoreFromSeq = -1,
 	restoreTime = 0,
+	--True when this client's last restore rolled the board forward (a redo), so the
+	--restoreFromBackup handler shows "FORWARD" instead of "REWIND". Cleared once shown.
+	restoreForward = false,
 	--Set when a restore cancelled abilities that were still resolving. A cancelled cast
 	--keeps running until its next step and writes as it unwinds (refunds, costs, the end
 	--of a half-applied effect), all after the restore. Once those casts are gone, the
@@ -465,6 +468,9 @@ TurnRewind = {
 	undoListener = nil,
 	--True while HandleUndoKey is sending a key on to the ordinary undo.
 	passingKeyOn = false,
+	--True if the last poll found this client playing the current turn, so the next
+	--poll can tell when that turn ends.
+	wasTracking = false,
 	seenSeq = -1,
 	seenTime = 0,
 }
@@ -489,14 +495,49 @@ local function RewindTurnKey(q, turn)
 	return string.format("%s:%s:%s", tostring(q.guid), tostring(q.round), tostring(turn or q.turn))
 end
 
+--Shown, and returned by GoTo, while the Monster AI is playing a turn on this client.
+local g_rewindAIBusyMessage = "Must wait for monster AI to finish"
+
+--The Monster AI module, or nil if it is not loaded. It loads after this file, hence
+--rawget at call time.
+local function MonsterAIModule()
+	return rawget(_G, "MonsterAI")
+end
+
+--True if the Monster AI, on any client, plays initiativeid's turns (it plays every turn
+--that is not the players'). The AI runs on the hosting machine and publishes that it is
+--running, so every client knows (MonsterAI.IsAIRunningAnywhere).
+--- @param q InitiativeQueue
+--- @param initiativeid any
+--- @return boolean
+local function AIPlaysInitiative(q, initiativeid)
+	local ai = MonsterAIModule()
+	return type(initiativeid) == "string" and ai ~= nil and ai.IsAIRunningAnywhere() == true and q:IsEntryPlayer(initiativeid) == false
+end
+
+--True while the Monster AI, on any client, is playing a monster's turn or is in the
+--middle of something (a monster's triggered ability during another turn). Rewinding
+--then would pull the board out from under it, so Turn History refuses until it is done.
+--- @param q InitiativeQueue|nil
+--- @return boolean
+function TurnRewind.MonsterAIBusy(q)
+	local ai = MonsterAIModule()
+	return q ~= nil and not q.hidden and ai ~= nil and ai.IsAIBusyAnywhere() == true
+end
+
 --True if this client plays initiativeid's turn. The Director can control every token,
 --but a hero a player owns is that player's to play: the Director only keeps a history
 --for it when the Director started the turn (playing for a player who is not there).
+--A turn the Monster AI plays gets no history: it cannot be rewound.
 --- @param initiativeid any
 --- @param selectedHere boolean|nil
 --- @return boolean
 local function ClientPlaysInitiative(initiativeid, selectedHere)
 	if type(initiativeid) ~= "string" or not GameHud.instance then
+		return false
+	end
+	local q = dmhub.initiativeQueue
+	if q ~= nil and AIPlaysInitiative(q, initiativeid) then
 		return false
 	end
 	for _,tok in ipairs(GameHud.instance:GetTokensForInitiativeId(GameHud.instance.initiativeInterface, initiativeid)) do
@@ -520,6 +561,27 @@ end
 
 local function NothingResolving()
 	return ActivatedAbility.CountActiveCasts() == 0 and not ActivatedAbility.IsCasting()
+end
+
+--True while the queue is between turns and the turn this history covers is still the
+--last one: it has ended (or was rewound to before it started) and no other turn has
+--started since. The player can still go back into it then; once another turn starts,
+--they cannot.
+--- @param q InitiativeQueue
+--- @return boolean
+local function RewindTurnIsLatest(q)
+	local key = TurnRewind.turnKey
+	if key == nil or not q:ChoosingTurn() then
+		return false
+	end
+	--Ended (SelectTurn moved q.turn on; ending it does not), or rewound to before it began.
+	if key == RewindTurnKey(q) or key == RewindTurnKey(q, q.turn + 1) then
+		return true
+	end
+	--It was the last turn of its round: the round has advanced and nothing has started in
+	--the new one yet (the next SelectTurn makes q.turn 2).
+	local prevRound = type(q.round) == "number" and q.round - 1 or nil
+	return prevRound ~= nil and q.turn == 1 and string.starts_with(key, string.format("%s:%s:", tostring(q.guid), tostring(prevRound)))
 end
 
 --- @param turnKey string|nil
@@ -726,6 +788,8 @@ function TurnRewind.Poll()
 	--A restore landed: from now on the entry restored to is the board's state. Wait for
 	--the restore's own update to arrive (5s at most) before trusting the quiet.
 	if TurnRewind.restoring then
+		--A restore can hand the turn back or end it again; neither is the turn ending.
+		TurnRewind.wasTracking = false
 		local arrived = seq ~= TurnRewind.restoreFromSeq or now - TurnRewind.restoreTime > 5
 
 		--The restore cancelled abilities that were resolving. Once they have unwound (or
@@ -765,12 +829,38 @@ function TurnRewind.Poll()
 		return
 	end
 
-	if not RewindTracking(q) then
-		return
-	end
+	local tracking = RewindTracking(q)
+	local wasTracking = TurnRewind.wasTracking
+	TurnRewind.wasTracking = tracking
 
-	--A turn of ours began without SelectTurn running here (e.g. the Director picked it).
-	if RewindTurnKey(q) ~= TurnRewind.turnKey then
+	if not tracking then
+		if TurnRewind.turnKey == nil then
+			return
+		end
+		if q:ChoosingTurn() then
+			if not RewindTurnIsLatest(q) then
+				--Another turn has come and gone: this history's turn can no longer be rewound.
+				TurnRewind.Reset(nil)
+				return
+			end
+			if wasTracking then
+				--Our turn just ended. Until another turn starts, the player can still go
+				--back into it, so the end gets a checkpoint of its own to redo to.
+				RewindNoteAction("Turn ended")
+				TurnRewind.pendingAfter = "After the turn ended"
+				TurnRewind.seenTime = now
+			end
+		elseif RewindTurnKey(q) ~= TurnRewind.turnKey then
+			--Another turn has started (a monster's, another hero's): the turn this
+			--history covers, and everything before it, can no longer be rewound.
+			TurnRewind.Reset(nil)
+			return
+		else
+			--Still our turn, but this client cannot play it right now.
+			return
+		end
+	elseif RewindTurnKey(q) ~= TurnRewind.turnKey then
+		--A turn of ours began without SelectTurn running here (e.g. the Director picked it).
 		TurnRewind.Reset(RewindTurnKey(q))
 		RewindNoteAction("Turn started")
 		TurnRewind.pendingAfter = "Start of turn"
@@ -815,6 +905,10 @@ function TurnRewind.GoTo(index)
 		return nil
 	end
 
+	if TurnRewind.MonsterAIBusy(dmhub.initiativeQueue) then
+		return g_rewindAIBusyMessage
+	end
+
 	--If the board has moved on from the current entry, keep it as a new entry so the
 	--player can come back to it. Forward entries are no longer valid in that case.
 	local diverged = TurnRewind.BoardMovedOn()
@@ -838,11 +932,13 @@ function TurnRewind.GoTo(index)
 		TurnRewind.pendingAfter = nil
 	end
 
+	local forward = index > TurnRewind.position
 	local restoreFromSeq = dmhub.checkpointContentSeq
 	local err = entry.checkpoint:Restore()
 	if err ~= nil then
 		return err
 	end
+	TurnRewind.restoreForward = forward
 	TurnRewind.position = index
 	TurnRewind.pendingAfter = nil
 	TurnRewind.pendingActions = {}
@@ -861,12 +957,13 @@ end
 --slide back over 0.6s (CharacterToken.RewindSlideSeconds), inside this.
 local g_rewindEffectSeconds = 1.1
 
---The on-screen "<< REWIND" label shown with the effect, while it is up.
+--The on-screen "<< REWIND" / ">> FORWARD" label shown with the effect, while it is up.
 --- @type Panel|nil
 local g_rewindOsd = nil
 
 --A VCR-style on-screen display in the top-left corner for the length of the effect.
-local function ShowRewindOsd()
+--- @param forward boolean true for a redo (rolling the board forward)
+local function ShowRewindOsd(forward)
 	if g_rewindOsd ~= nil and g_rewindOsd.valid then
 		g_rewindOsd:DestroySelf()
 	end
@@ -885,7 +982,7 @@ local function ShowRewindOsd()
 		bold = true,
 		color = "white",
 		textAlignment = "left",
-		text = "<< REWIND",
+		text = cond(forward, ">> FORWARD", "<< REWIND"),
 		create = function(element)
 			element:ScheduleEvent("expire", g_rewindEffectSeconds)
 		end,
@@ -909,8 +1006,12 @@ dmhub.RegisterEventHandler("restoreFromBackup", function(info)
 	if mod.unloaded or (type(info) == "table" and info.quiet) then
 		return
 	end
+	--Only the client that restored knows the direction; a stale flag (its own restore
+	--never arrived) is ignored after a few seconds.
+	local forward = TurnRewind.restoreForward and dmhub.Time() - TurnRewind.restoreTime < 5
+	TurnRewind.restoreForward = false
 	dmhub.PlayScreenEffect("vcrRewind", g_rewindEffectSeconds)
-	local ok, err = pcall(ShowRewindOsd)
+	local ok, err = pcall(ShowRewindOsd, forward)
 	if not ok then
 		print("TurnRewind:: rewind label failed:", err)
 	end
@@ -967,6 +1068,8 @@ function TurnRewind.ShowDialog()
 		--Rewinding now would cancel the abilities underway, so even an unchanged board's
 		--checkpoint is worth a button. Not while a restore is already cancelling them.
 		local canCancel = #underway > 0 and not TurnRewind.restoring
+		--While the Monster AI is playing, every button is disabled.
+		local aiBusy = TurnRewind.MonsterAIBusy(dmhub.initiativeQueue)
 
 		--- @param action TurnRewindAction
 		--- @param undone boolean
@@ -1004,7 +1107,8 @@ function TurnRewind.ShowDialog()
 		local function CheckpointButton(index)
 			local forward = index > position
 			rows[#rows+1] = gui.Button{
-				classes = {"sizeS"},
+				classes = cond(aiBusy, {"sizeS", "disabled"}, {"sizeS"}),
+				interactable = not aiBusy,
 				width = "100%",
 				height = 26,
 				vmargin = 3,
@@ -1026,9 +1130,13 @@ function TurnRewind.ShowDialog()
 		if not g_rewindSetting:Get() then
 			rows[#rows+1] = gui.Label{classes = {"label", "sizeS"}, width = "100%", height = "auto",
 				text = "Turn Rewind is off. Turn it on with /toggle dev:rewind."}
-		elseif #entries == 0 then
+		elseif aiBusy then
+			rows[#rows+1] = gui.Label{classes = {"label", "sizeS", "bold", "warning"}, width = "100%", height = "auto",
+				bmargin = 6, text = g_rewindAIBusyMessage}
+		end
+		if g_rewindSetting:Get() and #entries == 0 and not aiBusy then
 			rows[#rows+1] = gui.Label{classes = {"label", "sizeS"}, width = "100%", height = "auto",
-				text = "No checkpoints yet. They are taken during turns you play."}
+				text = "No checkpoints yet. They are taken during turns you play, and last until another turn starts."}
 		end
 
 		for i,entry in ipairs(entries) do
@@ -1093,10 +1201,11 @@ function TurnRewind.ShowDialog()
 	--What the list shows depends on these; the list rebuilds when one changes.
 	local function Signature()
 		local last = TurnRewind.entries[#TurnRewind.entries]
-		return string.format("%s|%d|%d|%d|%s|%s|%s|%s|%s", tostring(TurnRewind.turnKey), #TurnRewind.entries,
+		return string.format("%s|%d|%d|%d|%s|%s|%s|%s|%s|%s", tostring(TurnRewind.turnKey), #TurnRewind.entries,
 			TurnRewind.position, #TurnRewind.pendingActions, tostring(TurnRewind.BoardMovedOn()),
 			tostring(last ~= nil and last.seq), tostring(g_rewindSetting:Get()),
-			tostring(TurnRewind.restoring), table.concat(TurnRewind.CastsUnderway(), ";"))
+			tostring(TurnRewind.restoring), table.concat(TurnRewind.CastsUnderway(), ";"),
+			tostring(TurnRewind.MonsterAIBusy(dmhub.initiativeQueue)))
 	end
 
 	listPanel = gui.Panel{
@@ -1175,17 +1284,24 @@ function TurnRewind.ShowDialog()
 	gui.ShowDialogOverMap(mod, dialog)
 end
 
---True while Ctrl+Z should open Turn History: during a turn this client plays, or while
---rewound to "Before the turn started" of this client's history (the turn is then
---unclaimed, but the player can still roll forward).
+--True while Ctrl+Z should open Turn History: during a turn this client plays, or after
+--that turn ended (or was rewound to before it started) while no other turn has started.
+--Also while the Monster AI here is playing, so Ctrl+Z shows why nothing can be rewound
+--instead of undoing an edit out from under the AI.
 --- @param q InitiativeQueue|nil
 --- @return boolean
 function TurnRewind.UndoAvailable(q)
-	if not g_rewindSetting:Get() or q == nil or q.hidden or #TurnRewind.entries == 0 then
+	if not g_rewindSetting:Get() or q == nil or q.hidden then
+		return false
+	end
+	if TurnRewind.MonsterAIBusy(q) then
+		return true
+	end
+	if #TurnRewind.entries == 0 then
 		return false
 	end
 	if q:ChoosingTurn() then
-		return TurnRewind.position == 1 and TurnRewind.turnKey == RewindTurnKey(q, q.turn + 1)
+		return RewindTurnIsLatest(q)
 	end
 	return RewindTracking(q)
 end
@@ -7011,7 +7127,7 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
 
 	local playerColor = "black"
 	if token ~= nil then
-		playercolor = token.playerColor.tostring
+		playerColor = token.playerColor.tostring
 	end
 
 	local m_bossTurnsPanel = nil

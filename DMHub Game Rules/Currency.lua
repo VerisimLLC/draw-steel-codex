@@ -365,11 +365,12 @@ end
 
 --- Returns a spend table {currencyid -> quantity} for the given amount in the given standard.
 --- If creature is provided, prefers low-value denominations the creature has; otherwise uses high-value.
+--- Pricing with no creature (nothing to draw from) uses Currency.CalculatePayment, which always returns a table.
 --- @param creature nil|creature
 --- @param amount number
 --- @param standard nil|string
 --- @param noWholeUnit nil|boolean
---- @return table<string, number>
+--- @return table<string, number>|nil spend nil when creature cannot afford amount.
 --returns a spend table in the format {currencyid -> quantity}
 function Currency.CalculateSpend(creature, amount, standard, noWholeUnit)
 	if standard == nil then
@@ -487,6 +488,18 @@ function Currency.CalculateSpend(creature, amount, standard, noWholeUnit)
 	end
 
 	return result
+end
+
+--- The denominations that make up amount when nobody is paying it: prices, costs and
+--- shop displays. CalculateSpend with no creature, which has unlimited currency to draw
+--- on and so only leaves an amount unpaid when the currency table is misconfigured (a
+--- standard currency whose value is below 1); that gives an empty table here, not nil.
+--- @param amount number
+--- @param standard nil|string
+--- @param noWholeUnit nil|boolean
+--- @return table<string, number>
+function Currency.CalculatePayment(amount, standard, noWholeUnit)
+	return Currency.CalculateSpend(nil, amount, standard, noWholeUnit) or {}
 end
 
 --parse currency in a format like "4g 8sp 5copper"

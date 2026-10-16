@@ -417,6 +417,9 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
 
     local m_zoom = tonumber(m_settings.zoom) or 1
     local m_twoPage = m_settings.twopage and true or false
+    --the left sidebar (thumbnails, contents, search results) folds away to
+    --give the pages the room, e.g. in a small window. Remembered per PDF.
+    local m_sidebarCollapsed = m_settings.sidebarCollapsed == true
     local m_importer = false
     local m_importerPanel = SmartImporterPanel(doc)
 
@@ -894,7 +897,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
             },
 
             page = function(element)
-                element:SetClass("collapsed", m_searchResults == nil)
+                element:SetClass("collapsed", m_searchResults == nil or m_sidebarCollapsed)
             end,
 
             executeSearch = function(element, results)
@@ -1241,7 +1244,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
             flow = "vertical",
 
             page = function(element)
-                element:SetClass("collapsed", m_searchResults ~= nil)
+                element:SetClass("collapsed", m_searchResults ~= nil or m_sidebarCollapsed)
             end,
 
             m_importerPanel,
@@ -3264,7 +3267,9 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
     --view panel.
     pdfScrollViewPanel = gui.Panel {
         id = "pdfScrollView",
-        width = "100%-260",
+        --takes whatever the sidebar leaves, so it fills the window when the
+        --sidebar is collapsed.
+        width = "100% available",
         height = "100%",
         vscroll = true,
         data = {
@@ -3329,6 +3334,11 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
         RefreshPage { noscroll = true }
         dialogPanel:FireEventTree("synczoom")
     end
+
+    --the toolbar's centred row (see the header's think), and the room kept
+    --clear for the sidebar and settings buttons on either side of it.
+    local toolbarRow = nil
+    local TOOLBAR_SIDE_ROOM = 40
 
     dialogPanel = gui.Panel {
         width = "100%",
@@ -3422,11 +3432,161 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
             height = 30,
             bmargin = 4,
 
+            --A narrow window drops toolbar pieces, least needed first, until
+            --the centred row fits between the sidebar and settings buttons:
+            --  tier 1: the two view checkboxes (also in PDF Settings);
+            --  tier 2: the Page and Zoom captions and the zoom box, and a
+            --      narrower search box;
+            --  tier 3: the search box.
+            --Self-measuring: the row's width at each tier is recorded, and a
+            --tier comes back once the width it needed is available again.
+            data = {
+                tier = 0,
+                rowWidths = {},
+            },
+            thinkTime = 0.1,
+            think = function(element)
+                if toolbarRow == nil or not toolbarRow.valid then
+                    return
+                end
+                --the row is centred, so it must clear the corner buttons on
+                --both sides.
+                local room = element.renderedWidth - 2 * TOOLBAR_SIDE_ROOM
+                local tier = element.data.tier
+                local rowWidth = toolbarRow.renderedWidth
+                element.data.rowWidths[tier] = rowWidth
+                if rowWidth > room and tier < 3 then
+                    tier = tier + 1
+                elseif tier > 0 then
+                    local wider = element.data.rowWidths[tier - 1]
+                    if wider ~= nil and wider <= room then
+                        tier = tier - 1
+                    end
+                end
+                if tier ~= element.data.tier then
+                    element.data.tier = tier
+                    element:FireEventTree("pdfToolbarTier", tier)
+                end
+            end,
+
+            --fold the left sidebar away, or bring it back.
+            gui.Button {
+                classes = {"sizeXs", cond(m_sidebarCollapsed, nil, "selected")},
+                icon = "phosphor/sidebar-simple.png",
+                borderWidth = 0,
+                floating = true,
+                halign = "left",
+                valign = "center",
+                lmargin = 4,
+                linger = function(element)
+                    gui.Tooltip(cond(m_sidebarCollapsed, "Show sidebar", "Hide sidebar"))(element)
+                end,
+                click = function(element)
+                    m_sidebarCollapsed = not m_sidebarCollapsed
+                    m_settings.sidebarCollapsed = m_sidebarCollapsed
+                    WriteSettings()
+                    element:SetClass("selected", not m_sidebarCollapsed)
+                    RefreshPage({noscroll = true})
+                end,
+            },
+
+            gui.Button {
+                classes = {"settingsButton", "sizeS"},
+                halign = "right",
+                valign = "center",
+                floating = true,
+                rmargin = 4,
+
+                data = {},
+
+                press = function(element)
+                    if element.data.settingsDialog ~= nil and element.data.settingsDialog.valid then
+                        element.data.settingsDialog:DestroySelf()
+                        element.data.settingsDialog = nil
+                        return
+                    end
+
+                    local dialog
+                    dialog = gui.Panel {
+                        width = 600,
+                        height = 290,
+                        classes = { "framedPanel" },
+                        styles = ThemeEngine.GetStyles(),
+                        halign = "center",
+                        valign = "center",
+                        flow = "vertical",
+
+                        destroy = function()
+                            if element ~= nil and element.valid and element.data.settingsDialog == dialog then
+                                element.data.settingsDialog = nil
+                            end
+                        end,
+
+                        gui.Button {
+                            classes = {"closeButton"},
+                            floating = true,
+                            halign = "right",
+                            valign = "top",
+                            click = function(element)
+                                dialog:DestroySelf()
+                            end,
+                        },
+
+                        gui.Label {
+                            classes = { "dialogTitle" },
+                            width = "auto",
+                            height = "auto",
+                            text = "PDF Settings",
+                            halign = "center",
+                            valign = "top",
+                        },
+
+                        gui.Panel {
+                            tmargin = 60,
+                            floating = true,
+                            valign = "top",
+                            halign = "center",
+                            width = "80%",
+                            height = "auto",
+                            flow = "vertical",
+
+                            CreateSettingsEditor("pdfdark"),
+                            CreateSettingsEditor("pdfbrightness"),
+                            --the toolbar's view checkboxes, here too: a
+                            --narrow window drops them from the toolbar.
+                            CreateSettingsEditor("pdfcontinuous"),
+                            gui.Check {
+                                text = "Two Pages",
+                                value = m_twoPage,
+                                tooltip = "Show two pages side by side, like an open book.",
+                                fontSize = 14,
+                                width = "auto",
+                                height = 20,
+                                halign = "left",
+                                tmargin = 6,
+                                change = function(element)
+                                    SetTwoPageView(element.value)
+                                    --the toolbar's own checkbox follows.
+                                    dialogPanel:FireEventTree("syncTwoPage")
+                                end,
+                            },
+                        },
+                    }
+
+                    element.data.settingsDialog = dialog
+
+                    gui.ShowModal(dialog)
+                end,
+            },
+
             gui.Panel {
                 width = "auto",
                 height = "100%",
                 flow = "horizontal",
                 halign = "center",
+                create = function(element)
+                    toolbarRow = element
+                end,
 
                 --                gui.Panel{
                 --                    width = 200,
@@ -3440,9 +3600,17 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                     height = "100%",
                     flow = "horizontal",
                     hpad = 80,
+                    pdfToolbarTier = function(element, tier)
+                        element:SetClass("collapsed", tier >= 3)
+                        element.selfStyle.width = cond(tier >= 2, 260, 300)
+                        element.selfStyle.hpad = cond(tier >= 2, 8, 80)
+                    end,
                     gui.SearchInput {
                         placeholderText = "Search...",
                         width = 180,
+                        pdfToolbarTier = function(element, tier)
+                            element.selfStyle.width = cond(tier >= 2, 150, 180)
+                        end,
                         data = {
                             searchid = 0,
                         },
@@ -3619,6 +3787,9 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                     width = "auto",
                     height = "auto",
                     text = "Page",
+                    pdfToolbarTier = function(element, tier)
+                        element:SetClass("collapsed", tier >= 2)
+                    end,
                 },
                 gui.Input {
                     classes = {"sizeXs"},
@@ -3668,11 +3839,17 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                     height = "auto",
                     width = "auto",
                     hmargin = 32,
+                    pdfToolbarTier = function(element, tier)
+                        element.selfStyle.hmargin = cond(tier >= 2, 8, 32)
+                    end,
                     gui.Label {
                         classes = {"sizeXs"},
                         width = "auto",
                         height = "auto",
                         text = "Zoom:",
+                        pdfToolbarTier = function(element, tier)
+                            element:SetClass("collapsed", tier >= 2)
+                        end,
                     },
 
                     gui.Input {
@@ -3681,6 +3858,10 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                         hmargin = 4,
                         valign = "center",
                         text = string.format("%d", round(m_zoom * 100)),
+                        pdfToolbarTier = function(element, tier)
+                            element:SetClass("collapsed", tier >= 2)
+                            element.text = string.format("%d", round(m_zoom * 100))
+                        end,
 
                         --the zoom was changed programmatically (the two page
                         --view toggle picks its own zoom).
@@ -3708,6 +3889,9 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                         width = "auto",
                         height = "auto",
                         text = "%",
+                        pdfToolbarTier = function(element, tier)
+                            element:SetClass("collapsed", tier >= 2)
+                        end,
                     },
 
                     gui.Button {
@@ -3717,7 +3901,10 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                         lmargin = 16,
                         halign = "right",
                         press = function(element)
-                            element.parent:FireEventTree("command", "zoomout")
+                            --directly, not through the zoom box: a narrow toolbar hides it.
+                            m_zoom = clamp(m_zoom - 0.2, 0.05, 8)
+                            dialogPanel:FireEventTree("synczoom")
+                            RefreshPage()
                         end,
                         styles = {
                             {
@@ -3732,7 +3919,10 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                         icon = "icons/icon_tool/icon_tool_40.png",
                         halign = "right",
                         press = function(element)
-                            element.parent:FireEventTree("command", "zoomin")
+                            --directly, not through the zoom box: a narrow toolbar hides it.
+                            m_zoom = clamp(m_zoom + 0.2, 0.05, 8)
+                            dialogPanel:FireEventTree("synczoom")
+                            RefreshPage()
                         end,
                         styles = {
                             {
@@ -3761,6 +3951,9 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                     monitor = function(element)
                         element:SetValue(dmhub.GetSettingValue("pdfcontinuous") and true or false, false)
                     end,
+                    pdfToolbarTier = function(element, tier)
+                        element:SetClass("collapsed", tier >= 1)
+                    end,
                 },
 
                 gui.Check {
@@ -3775,78 +3968,15 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                     change = function(element)
                         SetTwoPageView(element.value)
                     end,
-                },
-
-                gui.Button {
-                    classes = {"settingsButton", "sizeS"},
-                    halign = "right",
-                    valign = "center",
-                    floating = true,
-                    hmargin = -32,
-
-                    data = {},
-
-                    press = function(element)
-                        if element.data.settingsDialog ~= nil and element.data.settingsDialog.valid then
-                            element.data.settingsDialog:DestroySelf()
-                            element.data.settingsDialog = nil
-                            return
-                        end
-
-                        local dialog
-                        dialog = gui.Panel {
-                            width = 600,
-                            height = 200,
-                            classes = { "framedPanel" },
-                            styles = ThemeEngine.GetStyles(),
-                            halign = "center",
-                            valign = "center",
-                            flow = "vertical",
-
-                            destroy = function()
-                                if element ~= nil and element.valid and element.data.settingsDialog == dialog then
-                                    element.data.settingsDialog = nil
-                                end
-                            end,
-
-                            gui.Button {
-                                classes = {"closeButton"},
-                                floating = true,
-                                halign = "right",
-                                valign = "top",
-                                click = function(element)
-                                    dialog:DestroySelf()
-                                end,
-                            },
-
-                            gui.Label {
-                                classes = { "dialogTitle" },
-                                width = "auto",
-                                height = "auto",
-                                text = "PDF Settings",
-                                halign = "center",
-                                valign = "top",
-                            },
-
-                            gui.Panel {
-                                tmargin = 60,
-                                floating = true,
-                                valign = "top",
-                                halign = "center",
-                                width = "80%",
-                                height = "auto",
-                                flow = "vertical",
-
-                                CreateSettingsEditor("pdfdark"),
-                                CreateSettingsEditor("pdfbrightness"),
-                            },
-                        }
-
-                        element.data.settingsDialog = dialog
-
-                        gui.ShowModal(dialog)
+                    --changed from PDF Settings.
+                    syncTwoPage = function(element)
+                        element:SetValue(m_twoPage, false)
+                    end,
+                    pdfToolbarTier = function(element, tier)
+                        element:SetClass("collapsed", tier >= 1)
                     end,
                 },
+
             },
         },
 
@@ -4092,17 +4222,34 @@ local function CreatePDFPopoutWindowControl(args)
     }
 end
 
+--Where the restored (windowed) PDF viewer was last left this session, in
+--documents-layer units, with the layer size it was measured against:
+--{x, y, w, h, lw, lh}. Shared by every PDF.
+local g_pdfWindowGeometry = nil
+
 --options.host (optional): a panel to parent the viewer on instead of the
 --gamehud modal stack. The titlescreen needs this -- the gamehud modal layer
 --renders UNDERNEATH the titlescreen, so a normal modal there is invisible.
 mod.shared.ShowPDFViewerDialog = function(doc, starting_page, options)
     if g_pdfViewerDialog ~= nil and g_pdfViewerDialog.valid then
         if g_pdfViewerDialog.data.doc == doc then
+            --opening a minimized viewer brings it back rather than closing it.
+            if g_pdfViewerDialog.data.minimized and g_pdfViewerDialog.data.restoreViewer ~= nil then
+                g_pdfViewerDialog.data.restoreViewer()
+                if starting_page ~= nil then
+                    g_pdfViewerDialog:FireEventTree("gotopage", starting_page)
+                end
+                return
+            end
             if starting_page == nil then
                 --opening the document that is already open with no page specified toggles it.
                 g_pdfViewerDialog.data.closeViewer()
             else
                 g_pdfViewerDialog:FireEventTree("gotopage", starting_page)
+                --a window on the table comes forward to show the page.
+                if not g_pdfViewerDialog.data.maximized and not g_pdfViewerDialog.data.poppedOut then
+                    g_pdfViewerDialog:SetAsLastSibling()
+                end
             end
             return
         end
@@ -4120,14 +4267,328 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page, options)
     --viewer lives in the gamehud modal stack.
     local host = options ~= nil and options.host or nil
     local hostFrame = nil
+
+    --Window modes, in a game (the titlescreen host keeps the plain viewer):
+    --  maximized: in the gamehud modal stack, covering the game, as the
+    --      viewer always was. It opens this way.
+    --  restored: a movable, resizable window on the documents layer, with
+    --      the game still playable around it. Its arrow keys turn pages
+    --      only while it has the GUI focus (a press inside it gives it).
+    --  minimized: collapsed on the documents layer, shown as a Tabletop
+    --      button (on the table, or docked on the icon rail) that brings it
+    --      back as it was, maximized or not.
+    --Switching moves this one panel between the two layers (Unparent +
+    --re-add), so the page, zoom and search survive.
+    local resizeOverlay = nil
+    ---@type table|nil
+    local tableRec = nil
+
+    local function ModalLayer()
+        local hud = GameHud.instance
+        if not hud then
+            return nil
+        end
+        local layer = hud.modalPanel
+        if layer == nil or not layer.valid then
+            return nil
+        end
+        return layer
+    end
+
+    local function DocumentsLayer()
+        local hud = GameHud.instance
+        if not hud then
+            return nil
+        end
+        local layer = hud.documentsPanel
+        if layer == nil or not layer.valid then
+            return nil
+        end
+        return layer
+    end
+
+    local function InModal()
+        local layer = ModalLayer()
+        return layer ~= nil and dialogPanel ~= nil and dialogPanel.valid and dialogPanel.parent == layer
+    end
+
+    --Once the viewer leaves the modal layer the layer must hide if nothing
+    --else is on it (Hud.CloseModalInLayer's rule): showing, it blocks the
+    --whole game. The viewer also made it non-interactable while it was up.
+    local function ReleaseModalLayer()
+        local layer = ModalLayer()
+        if layer == nil then
+            return
+        end
+        layer.interactable = true
+        if #layer.children == 0 then
+            layer:AddClass("hidden")
+        end
+    end
+
+    local function CanRestore()
+        return host == nil and DocumentsLayer() ~= nil
+    end
+
+    local function CanMinimize()
+        return CanRestore() and Tabletop.CanMinimizeExternal()
+    end
+
+    --The restored window's spot and size: where a PDF window was last left
+    --this session, else a large window in the middle of the table.
+    local function RestoredGeometry()
+        local layer = DocumentsLayer() --[[@as Panel]]
+        local lw, lh = layer.renderedWidth, layer.renderedHeight
+        local g = g_pdfWindowGeometry
+        if g ~= nil and g.lw == lw and g.lh == lh then
+            return g.x, g.y, g.w, g.h
+        end
+        local w = math.max(480, math.min(1100, lw - 200))
+        local h = math.max(360, math.min(900, lh - 80))
+        return math.floor((lw - w) / 2), math.floor((lh - h) / 2), w, h
+    end
+
+    local function RememberGeometry()
+        local layer = DocumentsLayer()
+        if layer == nil or dialogPanel == nil or not dialogPanel.valid then
+            return
+        end
+        local w = dialogPanel.selfStyle.width
+        local h = dialogPanel.selfStyle.height
+        if type(w) ~= "number" or type(h) ~= "number" then
+            return
+        end
+        g_pdfWindowGeometry = {
+            x = dialogPanel.x,
+            y = dialogPanel.y,
+            w = w,
+            h = h,
+            lw = layer.renderedWidth,
+            lh = layer.renderedHeight,
+        }
+    end
+
+    --The resize handles are built for one size and track it by events, so a
+    --fresh overlay is made each time the window is restored at a new size.
+    local function RemoveResizeOverlay()
+        if resizeOverlay ~= nil and resizeOverlay.valid then
+            resizeOverlay:DestroySelf()
+        end
+        resizeOverlay = nil
+    end
+
+    --Puts the panel where its mode says, sized for it.
+    local function PlaceViewer()
+        local data = dialogPanel.data
+        if data.maximized and not data.minimized then
+            RemoveResizeOverlay()
+            if not InModal() then
+                dialogPanel:Unparent()
+                gui.ShowModal(dialogPanel, {nofade = true})
+            end
+            local layer = ModalLayer()
+            if layer ~= nil then
+                layer.interactable = false
+            end
+            dialogPanel.selfStyle.halign = "center"
+            dialogPanel.selfStyle.valign = "center"
+            dialogPanel.x = 0
+            dialogPanel.y = 0
+            dialogPanel.selfStyle.width = "100%"
+            dialogPanel.selfStyle.height = "100%"
+            dialogPanel.dragMove = false
+            dialogPanel:SetClass("collapsed", false)
+        else
+            local docsLayer = DocumentsLayer() --[[@as Panel]]
+            if dialogPanel.parent ~= docsLayer then
+                local wasModal = InModal()
+                dialogPanel:Unparent()
+                docsLayer:AddChild(dialogPanel)
+                if wasModal then
+                    ReleaseModalLayer()
+                end
+            end
+            local x, y, w, h = RestoredGeometry()
+            dialogPanel.selfStyle.halign = "left"
+            dialogPanel.selfStyle.valign = "top"
+            dialogPanel.x = x
+            dialogPanel.y = y
+            dialogPanel.selfStyle.width = w
+            dialogPanel.selfStyle.height = h
+            dialogPanel.dragMove = true
+            RemoveResizeOverlay()
+            resizeOverlay = gui.WindowResizePanel({
+                try_get = function(self, key)
+                    return rawget(self, key)
+                end,
+            }, w, h, {
+                minWidth = 480,
+                minHeight = 360,
+                onResized = function()
+                    RememberGeometry()
+                end,
+            })
+            --last child: the handles must sit over the content at the border.
+            dialogPanel:AddChild(resizeOverlay)
+            dialogPanel:SetClass("collapsed", data.minimized == true)
+            if not data.minimized then
+                dialogPanel:SetAsLastSibling()
+            end
+        end
+        dialogPanel:FireEventTree("pdfWindowMode", data.maximized == true)
+    end
+
+    --The PDF paging keys: always while maximized (the viewer covers the
+    --game), never while minimized, and while restored only when the viewer
+    --holds the GUI focus -- otherwise the arrows stay with the map. Popped
+    --out, the popout path owns the context instead.
+    local function SyncCommandContext()
+        if dialogPanel == nil or not dialogPanel.valid then
+            return
+        end
+        local data = dialogPanel.data
+        if data.poppedOut or host ~= nil then
+            return
+        end
+        local want
+        if data.minimized then
+            want = false
+        elseif data.maximized then
+            want = true
+        else
+            want = gui.ChildHasFocus(dialogPanel)
+        end
+        if want ~= (data.pdfContextActive == true) then
+            data.pdfContextActive = want
+            if want then
+                dmhub.PushCommandContext(PDF_COMMAND_CONTEXT)
+            else
+                dmhub.PopCommandContext(PDF_COMMAND_CONTEXT)
+            end
+        end
+    end
+
+    local function FocusViewer()
+        if dialogPanel ~= nil and dialogPanel.valid and not gui.ChildHasFocus(dialogPanel) then
+            gui.SetFocus(dialogPanel)
+        end
+        SyncCommandContext()
+    end
+
+    local function SetMaximized(maximized)
+        local data = dialogPanel.data
+        if data.minimized or data.poppedOut or not CanRestore() then
+            return
+        end
+        data.maximized = maximized
+        if maximized and gui.GetFocus() == dialogPanel then
+            --maximized, commands go to the modal tree, but to a focused
+            --panel only when one has focus: let the modal tree have them.
+            gui.SetFocus(nil)
+        end
+        PlaceViewer()
+        if not maximized then
+            FocusViewer()
+        end
+        SyncCommandContext()
+    end
+
+    --The current page's thumbnail: what the collapse animation shows.
+    local function CurrentPageImage()
+        local settings = dmhub.GetPref(string.format("pdf-browse-%s", doc.id)) or {}
+        return string.format("#PDF:thumb:%s|%d", doc.id, tonumber(settings.page) or 0), false
+    end
+
+    local function MinimizeViewer()
+        local data = dialogPanel.data
+        if tableRec == nil or data.minimized or data.poppedOut or not CanMinimize() then
+            return
+        end
+        local from = Tabletop.PanelRect(dialogPanel)
+        data.minimized = true
+        if gui.ChildHasFocus(dialogPanel) then
+            gui.SetFocus(nil)
+        end
+        PlaceViewer()
+        SyncCommandContext()
+        --docked on the rail it collapses onto its rail button; otherwise it
+        --becomes the PDF's item on the table, which a click opens (and so
+        --restores, see ShowPDFViewerDialog). Taking that off the table closes it.
+        if from ~= nil and not Tabletop.IsExternalDocked(tableRec) and Tabletop.MinimizeToDocItem(doc.id, from, {
+            token = dialogPanel,
+            still = function()
+                return dialogPanel ~= nil and dialogPanel.valid and data.minimized == true
+            end,
+            onTakenOff = function()
+                if dialogPanel ~= nil and dialogPanel.valid and data.minimized and data.closeViewer ~= nil then
+                    data.closeViewer()
+                end
+            end,
+        }) then
+            data.minimizedOnTable = true
+            return
+        end
+        Tabletop.MinimizeExternal(tableRec, from)
+    end
+
+    local function RestoreViewer()
+        local data = dialogPanel.data
+        if tableRec == nil or not data.minimized then
+            return
+        end
+        if not data.minimizedOnTable and tableRec.minimized == false then
+            return
+        end
+        local to
+        if data.maximized then
+            to = Tabletop.LayerRect()
+        else
+            local x, y, w, h = RestoredGeometry()
+            to = {x = x, y = y, w = w, h = h}
+        end
+        local function Shown()
+            if dialogPanel == nil or not dialogPanel.valid or not data.minimized then
+                return
+            end
+            data.minimized = false
+            PlaceViewer()
+            if not data.maximized then
+                FocusViewer()
+            end
+            SyncCommandContext()
+        end
+        if data.minimizedOnTable then
+            --minimized onto the table: grows back out of its item there.
+            data.minimizedOnTable = false
+            Tabletop.RestoreFromDocItems(dialogPanel, to, Shown, doc.id)
+        else
+            Tabletop.RestoreExternal(tableRec, to, Shown)
+        end
+    end
+
     local function CloseViewer()
         if hostFrame ~= nil then
             if hostFrame.valid then
                 hostFrame:DestroySelf()
             end
-        else
-            gui.CloseModal()
+            return
         end
+        if InModal() then
+            --take just this panel off the layer (another modal may sit
+            --over it); the layer hides if it was the only one.
+            local layer = ModalLayer() --[[@as Panel]]
+            local kept = {}
+            for _, child in ipairs(layer.children) do
+                if child ~= dialogPanel then
+                    kept[#kept + 1] = child
+                end
+            end
+            layer.children = kept
+        elseif dialogPanel ~= nil and dialogPanel.valid and dialogPanel.parent ~= nil and not dialogPanel.data.poppedOut then
+            dialogPanel:DestroySelf()
+        end
+        --popped out maximized, the panel has already left the layer.
+        ReleaseModalLayer()
     end
 
     local popoutTitleBar = gui.Panel {
@@ -4212,6 +4673,9 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page, options)
 
     dialogPanel = gui.Panel {
         classes = { "framedPanel", },
+        --full size until restored (PlaceViewer sets the window size).
+        width = "100%",
+        height = "100%",
         pad = 8,
         flow = "vertical",
         data = {
@@ -4219,8 +4683,76 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page, options)
             poppedOut = false,
             chromeVisible = false,
             closeViewer = CloseViewer,
+            --see the window modes above; it opens maximized.
+            maximized = true,
+            minimized = false,
+            restoreViewer = function()
+                RestoreViewer()
+            end,
         },
+
+        --Restored, the window drags by any part that does not take the drag
+        --itself (the page view does, for text selection). dragMove is off
+        --while maximized (PlaceViewer).
+        draggable = true,
+        dragMove = false,
+        raiseOnPress = true,
+        drag = function(element)
+            if element.data.maximized or element.data.minimized or element.data.poppedOut then
+                return
+            end
+            local layer = DocumentsLayer()
+            if layer == nil then
+                return
+            end
+            --keep enough of it on the table to grab again.
+            local w = element.renderedWidth
+            element.x = math.max(120 - w, math.min(element.xdrag, layer.renderedWidth - 120))
+            element.y = math.max(0, math.min(element.ydrag, layer.renderedHeight - 40))
+            RememberGeometry()
+        end,
+
+        --a press anywhere in the restored window gives it the focus, which
+        --is what hands it the arrow keys (SyncCommandContext).
+        press = function(element)
+            if element.data.maximized or element.data.minimized or element.data.poppedOut then
+                return
+            end
+            FocusViewer()
+        end,
+
+        --Restored and focused, the paging keys arrive as these commands (the
+        --game's input path, not the modal one, since nothing modal is up);
+        --hand them to the viewer's own command handler.
+        commands = {"pdfprevpage", "pdfnextpage", "pdfscrollup", "pdfscrolldown"},
+        pdfprevpage = function(element)
+            element:FireEventTree("command", "pdfprevpage")
+        end,
+        pdfnextpage = function(element)
+            element:FireEventTree("command", "pdfnextpage")
+        end,
+        pdfscrollup = function(element)
+            element:FireEventTree("command", "pdfscrollup")
+        end,
+        pdfscrolldown = function(element)
+            element:FireEventTree("command", "pdfscrolldown")
+        end,
         styles = {
+            --Restored, the viewer sits in the documents layer, whose
+            --selector-less rule sizes every panel under it 100% x 100%. The
+            --viewer was built under the modal layer, whose rule does not, so
+            --put the engine defaults (100 x 100) back first, as Tabletop's
+            --g_overlayStyles does, and it lays out the same in both layers.
+            {
+                {
+                    valign = "center",
+                    halign = "center",
+                    bgcolor = "clear",
+                    width = 100,
+                    height = 100,
+                },
+            },
+
             ThemeEngine.GetStyles(),
 
             --MergeTokens turns @fg / @bg into real colors. Popped out, this
@@ -4313,6 +4845,9 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page, options)
                         "window-chrome/chrome-maximize.png"))
                 end
             end
+
+            --restored, the paging keys follow the focus as it comes and goes.
+            SyncCommandContext()
         end,
 
         --scheduled by the popout button: binds the PDF paging keys to the
@@ -4340,6 +4875,11 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page, options)
                 dmhub.PopCommandContext(PDF_COMMAND_CONTEXT)
             end
 
+            --a minimized viewer's button (and its rail entry) goes with it.
+            if tableRec ~= nil then
+                Tabletop.CloseExternal(tableRec)
+            end
+
             if g_pdfViewerDialog == element then
                 g_pdfViewerDialog = nil
                 Search.UnregisterContextProvider("pdf-viewer")
@@ -4353,6 +4893,45 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page, options)
         end,
 
         popoutTitleBar,
+
+        --The restored window's hold on the focus ends with a press anywhere
+        --else (the map, another window): the engine clears GUI focus only on
+        --a right-click, so without this the arrows would keep paging after
+        --the user went back to the map. Checked every frame, since a click
+        --can be over within a few frames. A popup the viewer opened (its
+        --context menus) does not count as elsewhere.
+        gui.Panel {
+            floating = true,
+            interactable = false,
+            width = 1,
+            height = 1,
+            thinkTime = 0.01,
+            think = function(element)
+                local data = dialogPanel.data
+                if data.maximized or data.minimized or data.poppedOut or host ~= nil then
+                    return
+                end
+                if not gui.ChildHasFocus(dialogPanel) then
+                    return
+                end
+                if not (element:GetMouseButton(0) or element:GetMouseButton(1) or element:GetMouseButton(2)) then
+                    return
+                end
+                if gui.SubtreeHasPopup(dialogPanel) then
+                    return
+                end
+                --a margin for the resize handles, which overhang the border.
+                local mp = dialogPanel.mousePoint
+                local w = math.max(1, dialogPanel.renderedWidth)
+                local h = math.max(1, dialogPanel.renderedHeight)
+                local mx, my = 16 / w, 16 / h
+                if mp ~= nil and mp.x >= -mx and mp.x <= 1 + mx and mp.y >= -my and mp.y <= 1 + my then
+                    return
+                end
+                gui.SetFocus(nil)
+                SyncCommandContext()
+            end,
+        },
 
         gui.Panel {
             classes = { "pdfViewerContent" },
@@ -4399,6 +4978,16 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page, options)
                     gui.Tooltip("Pop out window")(element)
                 end,
                 click = function(element)
+                    --a restored window pops out at full size: the OS window
+                    --sizes it from here on, and owns moving and resizing.
+                    if not dialogPanel.data.maximized then
+                        RemoveResizeOverlay()
+                        dialogPanel.dragMove = false
+                        dialogPanel.selfStyle.halign = "center"
+                        dialogPanel.selfStyle.valign = "center"
+                        dialogPanel.x = 0
+                        dialogPanel.y = 0
+                    end
                     dialogPanel:FireEvent("destroy")
                     dialogPanel:FireEventTree("popout")
                     --owner-routed modals: anything shown with an owner
@@ -4438,10 +5027,49 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page, options)
                 end,
             },
 
+            --Minimize: the viewer shrinks into a button on the table (like a
+            --minimized map window); the button brings it back.
+            gui.Button {
+                classes = { "sizeXs", cond(CanMinimize(), nil, "collapsed") },
+                icon = "window-chrome/chrome-minimize.png",
+                borderWidth = 0,
+                valign = "center",
+                rmargin = 6,
+                linger = function(element)
+                    gui.Tooltip("Minimize")(element)
+                end,
+                click = function(element)
+                    MinimizeViewer()
+                end,
+            },
+
+            --Maximize / restore: covering the game, or a window on the table.
+            gui.Button {
+                classes = { "sizeXs", cond(CanRestore(), nil, "collapsed") },
+                icon = "window-chrome/chrome-restore.png",
+                borderWidth = 0,
+                valign = "center",
+                rmargin = 6,
+                linger = function(element)
+                    gui.Tooltip(cond(dialogPanel.data.maximized, "Restore down", "Maximize"))(element)
+                end,
+                pdfWindowMode = function(element, maximized)
+                    element:FireEvent("setIcon", cond(maximized, "window-chrome/chrome-restore.png", "window-chrome/chrome-maximize.png"))
+                end,
+                click = function(element)
+                    SetMaximized(not dialogPanel.data.maximized)
+                end,
+            },
+
             gui.Button{
                 classes = {"closeButton", "sizeXs"},
                 valign = "center",
                 escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+                --Escape closes the viewer only while it covers the game; as
+                --a window on the table, Escape belongs to the game.
+                pdfWindowMode = function(element, maximized)
+                    element.captureEscape = maximized
+                end,
                 press = function(element)
                     CloseViewer()
                 end,
@@ -4496,6 +5124,41 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page, options)
     dialogPanel.data.pdfContextActive = true
     dmhub.PushCommandContext(PDF_COMMAND_CONTEXT)
 
+    --What the minimized viewer's button shows and does (Tabletop draws it,
+    --on the table or docked on the rail as "pdfwindow:<doc id>").
+    if CanRestore() then
+        tableRec = {
+            id = doc.id,
+            railKey = "pdfwindow:" .. doc.id,
+            buttonOps = {
+                icon = CustomDocument.JournalEntryIcon(doc),
+                image = function(rec)
+                    return CurrentPageImage()
+                end,
+                restore = function(rec)
+                    RestoreViewer()
+                end,
+                close = function(rec)
+                    CloseViewer()
+                end,
+                closeText = "Close PDF",
+                hover = function(rec, element)
+                    CustomDocument.ShowJournalPreview(element, doc.id, {hint = "Click to restore"})
+                end,
+                chatItems = function(rec)
+                    return {ChatItemLinks.DocItem(doc.id)}
+                end,
+                --nothing to flag on a PDF.
+                badge = {icon = "phosphor/file-pdf.png", color = "clear"},
+                badgeShown = function(rec)
+                    return false
+                end,
+            },
+        }
+        dialogPanel.data.tableRec = tableRec
+        dialogPanel.data.minimizeViewer = MinimizeViewer
+    end
+
     if host ~= nil then
         --size to the host's visible area (its data.dialog, the contract the
         --Shop and Library screens use too), not 100% of the host: the
@@ -4516,6 +5179,104 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page, options)
         GameHud.instance.modalPanel.interactable = false
     end
 end
+
+--The open PDF viewer when it is showing the PDF with this id, else nil.
+local function PdfViewerFor(docid)
+    local viewer = g_pdfViewerDialog
+    if viewer == nil or not viewer.valid or viewer.data.tableRec == nil then
+        return nil
+    end
+    if viewer.data.doc == nil or viewer.data.doc.id ~= docid then
+        return nil
+    end
+    return viewer
+end
+
+--A minimized PDF viewer docked on the icon rail ("pdfwindow:<doc id>" in
+--the rail layout; see RailEntryTypes in DocumentSystem.lua), as minimized
+--map windows are. It draws like the journal's PDF shortcut (the cover), is
+--lit while the viewer is open, and leaves the rail when the viewer closes.
+RailEntryTypes = rawget(_G, "RailEntryTypes") or {}
+RailEntryTypes.pdfwindow = {
+    available = function(id)
+        return PdfViewerFor(id) ~= nil
+    end,
+    name = function(id)
+        local entry = CustomDocument.FindJournalEntry(id)
+        return (entry ~= nil and entry.description) or "PDF"
+    end,
+    icon = function(id)
+        return RailEntryTypes.journal.icon(id)
+    end,
+    span = function(id)
+        return RailEntryTypes.journal.span(id)
+    end,
+    width = function(id, h)
+        return RailEntryTypes.journal.width(id, h)
+    end,
+    face = function(id, w, h)
+        return RailEntryTypes.journal.face(id, w, h)
+    end,
+    isActive = function(id)
+        local viewer = PdfViewerFor(id)
+        return viewer ~= nil and not viewer.data.minimized
+    end,
+    --brings a minimized viewer back; an open one collapses onto the rail.
+    activate = function(id, element)
+        local viewer = PdfViewerFor(id)
+        if viewer == nil then
+            return
+        end
+        if viewer.data.minimized then
+            viewer.data.restoreViewer()
+        else
+            viewer.data.minimizeViewer()
+        end
+    end,
+    hover = function(id, element)
+        local viewer = PdfViewerFor(id)
+        local placement = CustomDocument.RailPreviewPlacement(element)
+        placement.hint = cond(viewer ~= nil and not viewer.data.minimized, "Click to minimize", "Click to restore")
+        CustomDocument.ShowJournalPreview(element, id, placement)
+    end,
+    menu = function(id, element)
+        local viewer = PdfViewerFor(id)
+        if viewer == nil then
+            return {}
+        end
+        return {
+            {
+                text = cond(viewer.data.minimized, "Restore", "Minimize"),
+                click = function()
+                    element.popup = nil
+                    if viewer.valid then
+                        if viewer.data.minimized then
+                            viewer.data.restoreViewer()
+                        else
+                            viewer.data.minimizeViewer()
+                        end
+                    end
+                end,
+            },
+            {
+                text = "Close PDF",
+                click = function()
+                    element.popup = nil
+                    if viewer.valid then
+                        viewer.data.closeViewer()
+                    end
+                end,
+            },
+        }
+    end,
+    --taken off the rail: a minimized viewer's button goes back on the table.
+    onRemove = function(id)
+        local viewer = PdfViewerFor(id)
+        if viewer ~= nil then
+            Tabletop.UndockExternal(viewer.data.tableRec)
+        end
+    end,
+}
 
 local function ParseDocumentURL(url)
     local i = string.find(url, ":")
@@ -4777,6 +5538,13 @@ function ImageDocument:Render(options)
             height = string.format("%f%% width", 100 * self.height / self.width),
             bgcolor = "white",
             bgimage = self.imageid,
+            create = function(element)
+                --a video entry (a video file dropped on the journal, say)
+                --plays through its own looping player, as scenes do.
+                if FullscreenDisplay.IsVideo(self.imageid) then
+                    element.bgimageStreamed = self.imageid .. "###LOOP" .. dmhub.GenerateGuid()
+                end
+            end,
             click = function(element)
                 if summary then
                     GameHud.instance:ViewCompendiumEntryModal(self)

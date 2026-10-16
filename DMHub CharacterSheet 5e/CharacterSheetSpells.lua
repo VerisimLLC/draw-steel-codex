@@ -831,9 +831,11 @@ function GameHud.ShowAddSpellDialog(self, options)
 		vscroll = true,
 	}
 
+	--set by data.show before the dialog is visible, so the buttons never see nil.
+	---@type Spell
 	local newItem = nil
 
-	local confirmCancelPanel = 
+	local confirmCancelPanel =
 		gui.Panel{
 			style = {
 				valign = 'bottom',
@@ -939,8 +941,6 @@ function GameHud.ShowAddSpellDialog(self, options)
 
 		data = {
 			show = function(editItem)
-				newItem = nil
-
 				if editItem then
 					newItem = editItem
 					confirmCancelPanel:SetClass('collapsed', true)

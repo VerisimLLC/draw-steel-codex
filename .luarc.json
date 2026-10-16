@@ -6,5 +6,8 @@
   "workspace.maxPreload": 5000,
   "workspace.preloadFileSize": 2000,
   "type.checkTableShape": false,
-  "diagnostics.disable": ["duplicate-set-field"]
+  "diagnostics.disable": ["duplicate-set-field"],
+  "diagnostics.severity": { "lowercase-global": "Warning" },
+  "diagnostics.globalsRegex": ["^g_"],
+  "diagnostics.globals": ["creature", "ai", "claude", "rules", "scriptButtonElement", "scriptButtonEvent", "sleep", "pretty", "map", "filter", "sorted_pairs", "unhidden_pairs", "debug_and_return", "safe_toint", "buildRetainerList", "showDrawSteelBanner", "showDrawSteelRerollBanner"]
 }

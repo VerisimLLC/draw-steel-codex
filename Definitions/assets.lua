@@ -217,7 +217,12 @@ function assets:RefreshAssets(cat) end
 --- @return nil|LocalImageOrVideoFileLua
 function assets:LoadImageOrVideoFileLocally(path) end
 
---- Loads an image file (png or jpeg) into the local cache without uploading, downscaling it if needed so its longer edge is at most maxDimension pixels. Pass 'CLIPBOARD' to load from the system clipboard. Returns nil if the file could not be read as an image. Intended for small branding images such as creator organization logos; call Upload on the result to commit it.
+--- Reads an image file's size from its header (PNG, JPEG or WebP) without decoding it, so it is instant even for a huge map. Returns {width, height, bytes}: the size in pixels and the file's length, or nil if the file is missing or not one of those formats.
+--- @param path string A local file path.
+--- @return nil|{width: number, height: number, bytes: number}
+function assets:ReadImageFileInfo(path) end
+
+--- Loads an image file (png, jpeg or webp) into the local cache without uploading, downscaling it if needed so its longer edge is at most maxDimension pixels. Pass 'CLIPBOARD' to load from the system clipboard. Returns nil if the file could not be read as an image. Used for small branding images such as creator organization logos (call Upload on the result to commit it) and for previews of dropped files. Decodes on the main thread, so a large file takes a moment.
 --- @param path string The file path or 'CLIPBOARD'.
 --- @param maxDimension number The maximum size in pixels of the image's longer edge.
 --- @return nil|LocalImageOrVideoFileLua
@@ -230,6 +235,6 @@ function assets:LoadImageFileLocallyResized(path, maxDimension) end
 --- @return nil|{data: LuaByteArray, width: number, height: number, bytes: number, format: 'jpeg'|'png'}
 function assets:ResizeCachedImage(imageid, width, height) end
 
---- Plays a local MP4 or WebM file silently and captures its first frame as an opaque PNG, ready for assets:UploadImageAsset{data = result.data} -- a poster image for the video. Nothing is uploaded. Pass maxWidth/maxHeight to scale the frame down to fit inside them (never up; scaled sizes are rounded to multiples of 4). done(result) is called with result = {data, width, height, videoWidth, videoHeight, duration}, width/height being the PNG's size and duration the video's length in seconds (0 if unknown); error(message) is called instead if the file cannot be played. The file is converted first if needed, as an upload would be, so this can take a few seconds.
---- @param options {path: string, maxWidth: nil|number, maxHeight: nil|number, done: fun(result: {data: LuaByteArray, width: number, height: number, videoWidth: number, videoHeight: number, duration: number}), error: nil|fun(message: string)}
+--- Plays a local MP4 or WebM file silently and captures its first frame as an opaque PNG, ready for assets:UploadImageAsset{data = result.data} -- a poster image for the video. Nothing is uploaded. Pass maxWidth/maxHeight to scale the frame down to fit inside them (never up; scaled sizes are rounded to multiples of 4). done(result) is called with result = {data, imageid, width, height, videoWidth, videoHeight, duration}, imageid being the PNG stored in the local cache (showable at once, not uploaded), width/height being the PNG's size and duration the video's length in seconds (0 if unknown); error(message) is called instead if the file cannot be played. The file is converted first if needed, as an upload would be, so this can take a few seconds.
+--- @param options {path: string, maxWidth: nil|number, maxHeight: nil|number, done: fun(result: {data: LuaByteArray, imageid: string, width: number, height: number, videoWidth: number, videoHeight: number, duration: number}), error: nil|fun(message: string)}
 function assets:ExtractVideoFrame(options) end

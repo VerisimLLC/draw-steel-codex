@@ -6,6 +6,7 @@
 --- @field collisionForce number
 --- @field wallBreaks nil|table[]
 --- @field movementType string
+--- @field objectSlideDuration number For a map object's move: how long, in seconds, the object takes to slide to its destination (distance / objectSpeed, whatever the easing). Zero for creature moves.
 --- @field jumpHeight number For a jump, the jump distance in tiles -- the mover clears height-limited walls up to this tall. Zero for every other movement type.
 --- @field shifting boolean
 --- @field forced boolean

@@ -175,18 +175,6 @@ function DTRoller._charSkillsToList(c)
     return skillList
 end
 
---- Determine the list of skills given a follower
---- @param f follower The follower
---- @return table skills List of skills the follower knows in id,text pairs
-function DTRoller._followerSkillsToList(f)
-    local skillList = {}
-    local skillTable = dmhub.GetTable(Skill.tableName)
-    for id,_ in pairs(f:GetSkills()) do
-        skillList[#skillList + 1] = { id = id, text = skillTable[id].name}
-    end
-    return skillList
-end
-
 --- Determines whether the object represents a character type
 --- @param object creature|DTRoll the object to evaluate
 --- @return boolean isCharacterType

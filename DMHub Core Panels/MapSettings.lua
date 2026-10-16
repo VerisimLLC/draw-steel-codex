@@ -51,7 +51,7 @@ setting{
 setting{
 	id = "map:playerviewable",
 	description = "Player Viewable",
-	help = "If enabled, all players can see this map: they get full vision (no fog of war) on it, and it always appears in their Maps list even if they have no tokens on it.",
+	help = "If enabled, all players can see this map: they get full vision (no fog of war) on it, and it always appears in their Maps list even if they have no tokens on it. Right-click the share button on the map's window to turn it on for chosen players only.",
 	storage = "map",
 	editor = "check",
 	default = false,

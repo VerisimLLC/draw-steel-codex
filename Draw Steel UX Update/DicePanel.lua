@@ -93,6 +93,8 @@ CreateDicePanel = function()
 		-- Which 3D die geometry this tile renders when use3D (d3 uses the d6 model; the d20
 		-- "Power Roll" renders as the two-d10 pair). nil = fall back to the whitelabel default.
 		local selectedGeo = nil
+		local selectedFontSize = nil
+		local selectedYAdjust = nil
 
 		if imageFaces == 3 then
 			selectedDie = "ui-icons/dsdice/djordice-d6.png"

@@ -902,8 +902,19 @@ end
 
 --The hero card's stamina row: the recoveries circle on the left, the
 --stamina bar filling the rest. The bar keeps firing staminaLost /
---staminaGained up through this row to the card.
-local function CreateStaminaRow(charid)
+--staminaGained up through this row to the card. noRecoveries drops the
+--circle (a monster or NPC card: they have no recoveries).
+local function CreateStaminaRow(charid, noRecoveries)
+    if noRecoveries then
+        return gui.Panel{
+            width = "100%",
+            height = 16,
+            halign = "center",
+            valign = "center",
+            interactable = false,
+            CreateStaminaBar(charid),
+        }
+    end
     return gui.Panel{
         width = "100%",
         height = 16,
@@ -1360,6 +1371,13 @@ end
 --              true). The town has no use for it outside an encounter.
 --  showDowntime   the hammer chip with the hero's unspent Downtime
 --              Activities (the town's cards; see CreateDowntimeBadge)
+--  noRecoveries   no recoveries circle beside the stamina bar (a monster or
+--              NPC card on the tabletop view's table, Tabletop.lua)
+--  displayName    function(tok) -> the name on the card (default: the
+--              hero's name, "Unnamed Hero" when it has none)
+--  passPress   the card does not swallow presses, so a draggable panel
+--              around it can be dragged by the card (the tabletop view's
+--              NPC cards); the host must swallow them instead
 local function CreateHeroCard(entry, opts)
     opts = opts or {}
     local showSkills = opts.showSkills
@@ -1462,7 +1480,7 @@ local function CreateHeroCard(entry, opts)
     if showSkills then
         overlayChildren[#overlayChildren+1] = CreateSkillsLine(charid)
     end
-    overlayChildren[#overlayChildren+1] = CreateStaminaRow(charid)
+    overlayChildren[#overlayChildren+1] = CreateStaminaRow(charid, opts.noRecoveries)
     if showResources then
         overlayChildren[#overlayChildren+1] = CreateResourceRow(charid)
     end
@@ -1557,7 +1575,8 @@ local function CreateHeroCard(entry, opts)
         halign = opts.halign or "right",
         cornerRadius = 8,
         bgimage = "panels/square.png",
-        swallowPress = true,
+        --passPress lets the press through to a draggable host around the card.
+        swallowPress = opts.passPress ~= true,
 
         data = { charid = charid, mine = entry.mine },
 
@@ -1567,7 +1586,11 @@ local function CreateHeroCard(entry, opts)
                 return
             end
             element:SetClass("dead", IsCardHeroDead(tok))
-            nameLabel.text = HeroDisplayName(tok)
+            if opts.displayName ~= nil then
+                nameLabel.text = opts.displayName(tok) or ""
+            else
+                nameLabel.text = HeroDisplayName(tok)
+            end
             if opts.subtitle ~= nil then
                 playerLabel.text = opts.subtitle(tok) or ""
             else

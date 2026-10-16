@@ -69,6 +69,10 @@
 --- @field packs MapPackInfo[] The synced packs: one record per /MapPackIndex pointer, with the module fullid as id. org is the creator organization whose Patreon unlocks tiered appearances; premium says the pack module is premium; prelaunch marks a hidden pre-launch pack, which only admin accounts receive. (Read-only)
 mappacks = {}
 
+--- Reads the "Objects for this map" set of one map-pack map for display, e.g. a preview in the map pack browser: options.success gets its objects in the set's order. Nothing is added to the asset tree. The set is downloaded once and cached; any account may read it, whether or not it has unlocked the set (see the entry's objectsOwned), so show locked images through dmhub.LoadTransientImage. options.error fires with a message when the map has no set or it could not be read.
+--- @param options {pack: string, mapid: string, success: nil|fun(objects: MapPackObjectPreview[]), error: nil|fun(message: string)}
+function mappacks.GetMapObjects(options) end
+
 --- Reads /MapPackIndex, downloads any pack index blob that changed since the local cache was written, and rebuilds the in-memory index. Calls options.success when done, or options.error with a message if the pointer node could not be read or some pack failed to load (the packs that did load are still searchable).
 --- @param options {success: nil|fun(), error: nil|fun(message: string)}
 function mappacks.Sync(options) end
@@ -77,10 +81,6 @@ function mappacks.Sync(options) end
 --- @param options {text: nil|string, pack: nil|string, maxResults: nil|integer}
 --- @return MapPackIndexEntry[]
 function mappacks.Search(options) end
-
---- Reads the "Objects for this map" set of one map-pack map for display, e.g. a preview in the map pack browser: options.success gets its objects in the set's order. Nothing is added to the asset tree. The set is downloaded once and cached; any account may read it, whether or not it has unlocked the set (see the entry's objectsOwned), so show locked images through dmhub.LoadTransientImage. options.error fires with a message when the map has no set or it could not be read.
---- @param options {pack: string, mapid: string, success: nil|fun(objects: MapPackObjectPreview[]), error: nil|fun(message: string)}
-function mappacks.GetMapObjects(options) end
 
 --- How this account stands with a pack's Patreon gating: org is the creator organization the pack's tiers are measured against; cents the account's current monthly pledge to it (0 if none or lapsed); linked whether a Patreon account is attached at all; entitled whether the org grants this account anything; full whether the whole pack is unlocked regardless of tiers (bought in the store, or included with the org's membership). Evaluated live, so poll it to notice a pledge landing.
 --- @param pack string The pack's module fullid.

@@ -144,7 +144,7 @@ function CharSheet.FollowersInnerPanel()
                 change = function(element)
                     ---@cast element Dropdown
                     follower.followerToken = element.idChosen
-                    resultPanel:FireEventTree("refreshAll")
+                    resultsPanel:FireEventTree("refreshAll")
                 end,
             },
         }

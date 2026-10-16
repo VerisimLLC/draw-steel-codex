@@ -213,6 +213,120 @@ Tip.notices["monster-ai-waiting"] = {
         return text, WaitingNoticeControls(doc)
     end,
 }
+
+--"Is the AI running / busy" flag ------------------------------------------
+--
+--The AI runs only on the machine hosting the game, so no other client can see
+--it. The host publishes a small status to this shared document, on change only,
+--so every client can ask MonsterAI.IsAIRunningAnywhere / IsAIBusyAnywhere.
+--Turn Rewind uses it to refuse rewinding while the AI plays. Not registered for
+--checkpoints: a rewind must never roll it back.
+--  running: the AI process is running on the publisher's machine
+--  busy:    it is playing a monster's turn or is in the middle of an action
+--  userid:  who published it (a status from a user who has gone offline, or
+--           from this user's own crashed session, is ignored)
+local STATUS_DOC = "monsterAIStatus"
+
+--Seconds since a publisher's last contact before its status is treated as stale.
+--Same recipe as the online roster (OnlineUsers.lua).
+local STATUS_ONLINE_SECONDS = 140
+
+--- @return boolean
+local function AIRunningHere()
+    return MonsterAI.active == true and MonsterAI.IsAIRunning ~= nil and MonsterAI.IsAIRunning() == true
+end
+
+--True while the current turn belongs to a non-player entry, which the AI plays
+--whenever it is running.
+--- @param q InitiativeQueue|nil
+--- @return boolean
+local function MonsterTurnUnderway(q)
+    return q ~= nil and not q.hidden and not q:ChoosingTurn() and q:IsEntryPlayer(q.currentTurn) == false
+end
+
+--- True while the AI running on THIS client is playing a monster's turn or is in
+--- the middle of an action (e.g. a monster's triggered free strike on a hero's turn).
+--- @return boolean
+function MonsterAI.BusyHere()
+    if not AIRunningHere() then
+        return false
+    end
+    if creature.GetAIActivityInProgress() ~= nil then
+        return true
+    end
+    return MonsterTurnUnderway(dmhub.initiativeQueue)
+end
+
+--The status another client published, or nil if none is live. This client's own
+--state is read directly, never from the document.
+--- @return table|nil
+local function RemoteStatus()
+    local data = mod:GetDocumentSnapshot(STATUS_DOC).data
+    local userid = data.userid
+    if data.running ~= true or type(userid) ~= "string" or userid == dmhub.userid then
+        return nil
+    end
+    local info = dmhub.GetSessionInfo(userid)
+    if info == nil or info.loggedOut or (info.timeSinceLastContact or 0) >= STATUS_ONLINE_SECONDS then
+        return nil
+    end
+    return data
+end
+
+--- True if the Monster AI is running on any client in the game.
+--- @return boolean
+function MonsterAI.IsAIRunningAnywhere()
+    return AIRunningHere() or RemoteStatus() ~= nil
+end
+
+--- True while the Monster AI, on any client, is playing a monster's turn or is in
+--- the middle of an action.
+--- @return boolean
+function MonsterAI.IsAIBusyAnywhere()
+    if MonsterAI.BusyHere() then
+        return true
+    end
+    local status = RemoteStatus()
+    if status == nil then
+        return false
+    end
+    --A monster turn can start a moment before the host's busy flag arrives.
+    return status.busy == true or MonsterTurnUnderway(dmhub.initiativeQueue)
+end
+
+--Host side: publish the status whenever it changes. Any client whose own status is
+--still in the document after its AI stopped (or after a crash and reload) clears it.
+local function PublishStatus()
+    local doc = mod:GetDocumentSnapshot(STATUS_DOC)
+    local data = doc.data
+    local running = AIRunningHere()
+    if running then
+        local busy = MonsterAI.BusyHere()
+        if data.running == true and data.userid == dmhub.userid and (data.busy == true) == busy then
+            return
+        end
+        doc:BeginChange()
+        doc.data.running = true
+        doc.data.busy = busy
+        doc.data.userid = dmhub.userid
+        doc:CompleteChange(cond(busy, "Monster AI busy", "Monster AI running"), {undoable = false})
+    elseif data.running == true and data.userid == dmhub.userid then
+        doc:BeginChange()
+        doc.data.running = false
+        doc.data.busy = false
+        doc:CompleteChange("Monster AI stopped", {undoable = false})
+    end
+end
+
+dmhub.Coroutine(function()
+    while not mod.unloaded do
+        local ok, err = pcall(PublishStatus)
+        if not ok then
+            print("MonsterAI:: status publish failed:", err)
+        end
+        coroutine.yield(0.2)
+    end
+end)
 MonsterAI.maliceAbilityMinimumScore = 0.65
 MonsterAI.maliceAbilityRepeatPenalty = 0.20
 MonsterAI.areaTelegraphBlinks = 3
@@ -3930,15 +4044,21 @@ function MonsterAI:ExecuteSquadStrike(ability)
     return executed or advanced
 end
 
+--- @param token CharacterToken
+--- @param ability ActivatedAbility
+--- @param scorefn? fun(targetToken: CharacterToken, edges: number|nil): number Value of striking targetToken with this many edges.
 function MonsterAI:FindBestMoveToUseStrike(token, ability, scorefn)
     if scorefn ~= nil then
+        --Memoise per target AND edge count: a target's edges change with the
+        --square the monster strikes from, so the score can too.
         local scoreCache = {}
         local scoreInternal = scorefn
-        scorefn = function(tok)
-            local score = scoreCache[tok.charid]
+        scorefn = function(tok, edges)
+            local key = tok.charid .. ":" .. tostring(edges)
+            local score = scoreCache[key]
             if score == nil then
-                score = scoreInternal(tok)
-                scoreCache[tok.charid] = score
+                score = scoreInternal(tok, edges)
+                scoreCache[key] = score
             end
             return score
         end

@@ -583,6 +583,12 @@ dmhub.GetSelectedCharacters = function()
     local result = {}
     result[#result + 1] = gui.GetFocus().data.charid
 
+    --a tabletop card being dragged onto a map places just its own character,
+    --not the rows selected in this panel (Tabletop.lua).
+    if gui.GetFocus().data.tabletopCard then
+        return result
+    end
+
     for _, p in ipairs(characterPanelsSelected) do
         if p.valid and p.data.charid then
             result[#result + 1] = p.data.charid
@@ -857,6 +863,7 @@ local function CharacterDetailsPanel(token)
 
     local m_characterPanel = CharacterPanel.CreateCharacterDetailsPanel(token)
 
+    local resultPanel
     resultPanel = gui.Panel {
         width = "100%",
         height = "auto",
@@ -965,6 +972,10 @@ local function CreateMonsterEntry(nodeid, startHidden)
 
     ---@type Panel
     local resultPanel = nil
+
+    --a drop on a bestiary folder moves this entry into it.
+    local dropOnFolder = mod.shared.CreateDragTargetFunction(node, function(nodeid) return assets:GetMonsterNode(nodeid) end,
+        "Monsters")
 
     --novel-content pip: lit while this monster is recorded as novel
     --(added or updated by a module install). Viewing the monster --
@@ -1193,12 +1204,32 @@ local function CreateMonsterEntry(nodeid, startHidden)
             beginDrag = function(element)
                 --element:FireEvent('click')
             end,
-            drag = mod.shared.CreateDragTargetFunction(node, function(nodeid) return assets:GetMonsterNode(nodeid) end,
-                "Monsters"),
+            drag = function(element, target)
+                Tabletop.BestiaryRowDragEnded(element)
+                --dropped on the chat: a link to the bestiary entry.
+                if ChatItemLinks.Dropped() then
+                    return
+                end
+                dropOnFolder(element, target)
+            end,
 
             dragging = function(element, target)
+                ChatItemLinks.Dragging(function()
+                    local selected = dmhub.GetSelectedMonster()
+                    if type(selected) == "table" then
+                        selected = selected.monsterid
+                    end
+                    return {ChatItemLinks.MonsterItem(selected)}
+                end)
                 if target == nil then
                     dmhub.SetDraggingMonster()
+                end
+                --tabletop view: over the table the row turns into the cards a
+                --drop makes; over the map only the placement ghost shows. The
+                --engine places what GetSelectedMonster reports.
+                local selected = dmhub.GetSelectedMonster()
+                if selected ~= nil then
+                    Tabletop.BestiaryRowDragging(element, selected.monsterid, selected.quantity)
                 end
             end,
 
@@ -2465,12 +2496,27 @@ CharacterPanel.CreateCharacterEntry = function(charid, party)
         events = {
 
             dragging = function(element, target)
+                ChatItemLinks.Dragging(function()
+                    local items = {}
+                    for _, charid in ipairs(dmhub.GetSelectedCharacters() or {}) do
+                        items[#items+1] = ChatItemLinks.CharacterItem(charid)
+                    end
+                    return items
+                end)
                 if target == nil then
                     dmhub.SetDraggingMonster()
                 end
+                --tabletop view: over the table the row turns into the card a
+                --drop makes; over the map only the placement ghost shows.
+                Tabletop.CharacterRowDragging(element, dmhub.GetSelectedCharacters() or {})
             end,
 
             drag = function(element, target)
+                Tabletop.CharacterRowDragEnded(element)
+                --dropped on the chat: links to the dragged characters.
+                if ChatItemLinks.Dropped() then
+                    return
+                end
                 if target ~= nil and target:HasClass("partyPanel") then
                     target = target.data.header
                 end

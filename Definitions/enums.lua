@@ -64,6 +64,8 @@
 --- | "enter"
 --- | "find"
 --- | "save"
+--- | "switchwindow"
+--- | "switchwindowback"
 
 --- @alias Easing
 --- | "EaseInQuad"
@@ -794,4 +796,7 @@
 --- | "DrawSteelPotencies"
 --- | "Courier"
 --- | "LiberationSans"
+--- | "DwarvishRunes"
+--- | "GoblinScratch"
+--- | "InfernalScript"
 

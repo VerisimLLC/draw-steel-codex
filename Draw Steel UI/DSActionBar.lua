@@ -696,6 +696,9 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 		--before it reaches the full distance of the target.
 		local pointTargetShapePathEnd = nil
 		local pointTargetLabelsAtPathEnd = nil
+		--labels marking creatures a point-target path passes through.
+		---@type nil|table[]
+		local pointTargetLabelsAtThroughCreatures = nil
 		local pointTargetPathEndOvershoot = nil
 
 		local m_pointTargetFallingShape = nil
@@ -1646,7 +1649,9 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 
 					CalculateSpellTargeting()
 
-					if (spell.targetType == "emptyspace" or spell.targetType == "anyspace") and spell.targeting == "pathfind" or spell.targeting == "vacated" then
+					--spellRange stays nil when CalculateSpellTargeting cast at once (nothing
+					--left to target), and the engine's MarkMovementRadius needs a number.
+					if spellRange ~= nil and ((spell.targetType == "emptyspace" or spell.targetType == "anyspace") and spell.targeting == "pathfind" or spell.targeting == "vacated") then
                         local mask = nil
                         if spell.targeting == "vacated" and currentSymbols ~= nil and currentSymbols.cast ~= nil then
                             mask = currentSymbols.cast:GetVacatedSpaces()
@@ -2273,7 +2278,8 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 										--needRedraw is false only when prevPathEnd was non-nil.
 										---@cast prevPathEnd -nil
 										for i,loc in ipairs(prevPathEnd) do
-											if not loc.str == pointTargetShapePathEnd[i].str then
+											--these are LuaShapes: compare their squares (a LuaShape has no .str).
+											if not loc:Equal(pointTargetShapePathEnd[i]) then
 												needRedraw = true
 												break
 											end
@@ -3400,8 +3406,10 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 			local baseCost = 0
 			if currentSpell.resourceCost == currentSpell.channeledResource then
 				--what we are channeling is also the base cost of the spell, so factor that in.
-				resourcesAvailable = resourcesAvailable - currentSpell.resourceNumber
-				baseCost = currentSpell.resourceNumber
+				--resourceNumber may be a GoblinScript formula; evaluate it as paying the cost does.
+				local resourceNumber = ExecuteGoblinScript(currentSpell.resourceNumber, token.properties:LookupSymbol(currentSymbols or {}), 0, "Channeled base cost for " .. currentSpell.name)
+				resourcesAvailable = resourcesAvailable - resourceNumber
+				baseCost = resourceNumber
 			end
 
 			if resourcesAvailable <= 0 then

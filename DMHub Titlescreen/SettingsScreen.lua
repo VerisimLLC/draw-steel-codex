@@ -7111,6 +7111,7 @@ function CreateSettingsScreen(dialog, args)
 							halign = "right",
 							hmargin = 20,
 						},
+						Setting('tabletop:surface'),
 
 						--Setting('dice:gravity'),
 						--Setting('dice:velocity'),

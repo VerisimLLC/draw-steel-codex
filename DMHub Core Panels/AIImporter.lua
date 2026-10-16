@@ -1223,7 +1223,11 @@ Importers = {
                 c.max_hitpoints = tonumber(hp_base) --[[@as number]]
                 c.max_hitpoints_roll = hp_roll
             else
-                c.max_hitpoints = tonumber(hp)
+                --a non-numeric hp string leaves max_hitpoints at its default.
+                local hpNumber = tonumber(hp)
+                if hpNumber ~= nil then
+                    c.max_hitpoints = hpNumber
+                end
                 c.max_hitpoints_roll = tostring(doc.hit_dice)
             end
         else

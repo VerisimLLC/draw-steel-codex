@@ -1801,7 +1801,7 @@ mod.shared.CreateTriggerPanel = function()
                 gui.Label{
                     classes = {"abilityCostLabel"},
                     rotate = -135,
-                    text = optionCost,
+                    text = tostring(math.tointeger(optionCost) or optionCost),
 
                     ability = function(element, ability)
 --[[

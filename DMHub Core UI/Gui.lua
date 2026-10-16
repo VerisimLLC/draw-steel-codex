@@ -5560,7 +5560,7 @@ function gui.CurrencyEditor(options)
 
 			press = function(element)
 				ReadInputs()
-				local spend = Currency.CalculateSpend(nil, Currency.CalculatePriceInStandard(currentValue, standard), standard, true)
+				local spend = Currency.CalculatePayment(Currency.CalculatePriceInStandard(currentValue, standard), standard, true)
 				if spend == nil then
 					printf("Could not calculate spend")
 					return

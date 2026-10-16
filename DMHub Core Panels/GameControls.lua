@@ -105,6 +105,10 @@ CreateGameControls = function()
                 --a picked image has no scene "Art by" credit (an image tagged
                 --in CreatorCredit is still badged).
                 doc.data.coverartCredit = false
+                --nor a library scene's caption (ScenesPanel.lua).
+                doc.data.sceneid = false
+                doc.data.caption = false
+                doc.data.subtitle = false
                 doc:CompleteChange("Show Fullscreen Display")
 			end,
 

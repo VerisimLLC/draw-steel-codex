@@ -1723,7 +1723,7 @@ CharacterModifier.TypeInfo.rollsattacking = {
 
 			local children = {}
 
-			documentation = {
+			local documentation = {
 				domains = modifier:Domains(),
 				help = string.format("This GoblinScript is used to determine whether or not this modifier will be used. If this GoblinScript produces a False result, this modifier will not even appear as an option in dialogs in which this modifier might be used."),
 				output = "boolean",

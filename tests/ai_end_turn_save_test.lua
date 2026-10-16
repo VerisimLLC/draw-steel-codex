@@ -129,6 +129,8 @@ check(findPending(queue) == nil, "dismissed legacy card must not block")
 
 --Drive the real background loop: a remote save holds an already selected
 --monster turn, resumes after completion, and remains stoppable while waiting.
+--The loop under test reads the module handle as a global here.
+---@diagnostic disable-next-line: lowercase-global
 mod = {}
 ElevateToHostPermissions = noop
 creature = {SetAIActivityInProgress = noop, ClearAIControl = noop}

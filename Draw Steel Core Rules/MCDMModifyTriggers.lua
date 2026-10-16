@@ -1233,6 +1233,13 @@ end
 -- Hook TriggeredAbility:Trigger to apply behavior replacements from
 -- active modifytrigger modifiers before the trigger executes.
 local g_baseTriggerAbilityTrigger = TriggeredAbility.Trigger
+--- @param characterModifier CharacterModifier
+--- @param creature Creature
+--- @param symbols table
+--- @param auraControllerToken nil|CharacterToken
+--- @param modContext table
+--- @param argOptions TriggeredAbilityTriggerOptions
+--- @return nil
 function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraControllerToken, modContext, argOptions)
     local triggerSelf = self
     if creature ~= nil then
@@ -1321,6 +1328,9 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
         end
     end
 
+    --The nil guard above is defensive; creature is passed to the base unchanged, so it
+    --shares the base's contract (Creature) whether or not nil can really arrive here.
+    ---@cast creature -nil
     return g_baseTriggerAbilityTrigger(triggerSelf, characterModifier, creature, symbols, auraControllerToken, modContext, argOptions)
 end
 

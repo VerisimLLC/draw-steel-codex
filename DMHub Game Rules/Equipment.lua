@@ -153,7 +153,7 @@ function equipment:GetCurrencyCost()
 		return self.costInCurrency
 	end
 
-	return Currency.CalculateSpend(nil, self.costInGold)
+	return Currency.CalculatePayment(self.costInGold)
 end
 
 --- @param costmap table<string, number>

@@ -648,6 +648,33 @@ local function DirectDamageRollValueIsFlag(value)
 	return false
 end
 
+--A monster free strike shows its damage as a fixed description ("2 damage")
+--written before modifiers run (monster:FillFreeStrikes). Add the bonus to it
+--so the tooltip matches what the strike deals.
+local function AddToFreeStrikeDescription(modifier, creature, ability, behavior, value)
+	local shown = behavior:try_get("freeStrikeDamageText")
+	if shown == nil then
+		return
+	end
+
+	local symbols = creature:LookupSymbol(modifier:try_get("_tmp_symbols", {}))
+	local added = dmhub.NormalizeRoll(dmhub.EvalGoblinScript(value, symbols, string.format("Free strike damage for %s", ability.name)))
+
+	if tonumber(shown) ~= nil and tonumber(added) ~= nil then
+		shown = tostring(tonumber(shown) + tonumber(added))
+	else
+		--a dice bonus such as 1d6 can't be added up, so show it as "2 + 1d6".
+		shown = string.format("%s + %s", shown, added)
+	end
+	behavior.freeStrikeDamageText = shown
+
+	if string.lower(behavior.damageType) == "untyped" then
+		ability.description = string.format("%s damage", shown)
+	else
+		ability.description = string.format("%s %s damage", shown, behavior.damageType)
+	end
+end
+
 CharacterModifier.RegisterAbilityModifier
 	{
 		id = "directdamageroll",
@@ -662,6 +689,7 @@ CharacterModifier.RegisterAbilityModifier
 						behavior.roll = string.format("%s %s", behavior.roll, value)
 					else
 						behavior.roll = string.format("%s+(%s)", behavior.roll, value)
+						AddToFreeStrikeDescription(modifier, creature, ability, behavior, value)
 					end
 				end
 			end

@@ -5976,6 +5976,7 @@ function ActivatedAbilityContestedAttackBehavior:CreateCheck(ability, casterToke
 		explanation = string.format("Contested roll against's %s's %s.", casterToken.description, ability.name)
 	end
 
+	local check
 	if creature.attributesInfo[attrid] then
 		check = RollCheck.new{
 			type = "attribute",

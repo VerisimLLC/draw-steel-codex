@@ -55,6 +55,8 @@ local JournalStyles = {
 }
 
 function GameHud:JournalPanel()
+	---@type Panel
+	local resultPanel
 	local result = nil
 	local createItemButton = gui.Button{
 		classes = {"addButton"},

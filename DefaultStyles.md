@@ -43,6 +43,8 @@ These four are kept consistent across schemes by convention so callers get relia
 - **`warning`** — winded / caution / not-yet-broken. Use for "things are getting bad but not critical."
 - **`danger`** — destructive / dying / bad. The right answer for delete buttons on hover, the multiselect-chip remove indicator, drag-deleting state.
 
+- **`share`** — "the Director has shared this with players." The tabletop's share icon lights in it, and a shared table item (map window, NPC card, journal item, scene) wears a frame in it. Reach for it on any indicator that something is visible to players. Defined only in the default scheme (others fall back to it) and left out of the user theme editor, like the status colors, so it means the same thing in every scheme.
+
 The status tokens have ready-made classes — `{success}`, `{bgInfo}`, `{borderDanger}`, etc. — covered in section 4. Reach for those before authoring a one-off rule.
 
 ### Disabled

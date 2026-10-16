@@ -1307,20 +1307,6 @@ MonsterAI:RegisterTrigger{
     end,
 }
 
-MonsterAI:RegisterTrigger{
-    id = "Dwarf Marauder Lord: End Effect",
-    monsters = {"Dwarf Marauder Lord"},
-    abilityGuids = {"fc4a5c00-3e82-43d1-9492-0f5583fa4f58"},
-    abilities = {"End Effect"},
-    description = "Take 5 damage to end a save-ends effect unless it would reduce the marauder lord to 0 Stamina.",
-    handler = function(ai, token, triggerInfo)
-        if token.properties:CurrentHitpoints() > 5 then
-            return {activate = true}
-        end
-        return {dismiss = true}
-    end,
-}
-
 --------------------------------------------------------------------------------
 -- Secondary prompts.
 --------------------------------------------------------------------------------

@@ -53,6 +53,11 @@ ThemeEngine.RegisterColorScheme{
         warning       = "#E8A030", -- Also winded, etc.
         danger        = "#C94040", -- Also dying, bad, etc.
 
+        -- Visible to players: the Director has shared this (tabletop share
+        -- icons and the frame around shared table items). Cool on purpose,
+        -- so it never reads as the warm gold of focus or highlight.
+        share         = "#4FB6E8",
+
         -- Disabled
         disabled      = "#343434",
 

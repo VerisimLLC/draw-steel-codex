@@ -8,9 +8,48 @@ RichScene.image = false
 --"Art by": the id of the creator whose art this is (DMHub Core UI/
 --CreatorCredit.lua), or false. Showing the scene puts their logo badge on it.
 RichScene.credit = false
+--A scene from the Scenes library (ScenesPanel.lua) by id, or false. A linked
+--tag shows that scene -- its picture, caption, credit and sound cue -- and
+--keeps up with edits to it; otherwise the tag's own image is shown.
+RichScene.scene = false
 
 function RichScene.Create()
     return RichScene.new{}
+end
+
+--- The linked library scene's id, if the tag has one and it still exists.
+--- @return nil|string
+function RichScene:GetLibraryScene()
+    local id = self.scene
+    local scenes = rawget(_G, "Scenes")
+    if type(id) ~= "string" or scenes == nil or scenes.Get(id) == nil then
+        return nil
+    end
+    return id
+end
+
+--- The picture the tag shows: the linked scene's, or its own.
+--- @return nil|string
+function RichScene:GetImage()
+    local id = self:GetLibraryScene()
+    if id ~= nil then
+        return Scenes.Get(id).image
+    end
+    return self.image or nil
+end
+
+--- What this tag's Hide / Players / All control shows.
+--- @return boolean|string
+function RichScene:GetShowState()
+    local id = self:GetLibraryScene()
+    if id ~= nil then
+        return Scenes.ShowState(id)
+    end
+    local data = FullscreenDisplay.GetDocumentSnapshot().data
+    if data.show and data.coverart == self.image and type(data.sceneid) ~= "string" then
+        return data.show
+    end
+    return false
 end
 
 --- The creator id credited for this scene's art, or nil.
@@ -59,6 +98,7 @@ function RichScene.CreateDisplay(self)
 	local doc = FullscreenDisplay.GetDocumentSnapshot()
     local m_image = nil
     local m_credit = nil
+    local m_tag = self
     return gui.Panel{
         width = 1920*0.15,
         height = "auto",
@@ -87,6 +127,15 @@ function RichScene.CreateDisplay(self)
             width = 1920*0.15,
             text = "Scene",
             textAlignment = "center",
+            --a linked tag is titled with the library scene's name.
+            refreshTag = function(element, tag, match, token)
+                local id = (tag or self):GetLibraryScene()
+                if id ~= nil then
+                    element.text = Scenes.Name(id)
+                else
+                    element.text = "Scene"
+                end
+            end,
         },
     
         gui.Panel{
@@ -96,9 +145,10 @@ function RichScene.CreateDisplay(self)
             autosizeimage = true,
             refreshTag = function(element, tag, match, token)
                 tag = tag or self
-                m_image = tag.image or nil
+                m_tag = tag
+                m_image = tag:GetImage()
                 m_credit = tag:GetCredit()
-                element.bgimage = tag.image or nil
+                element.bgimage = m_image
             end,
         },
         gui.EnumeratedSliderControl{
@@ -108,22 +158,31 @@ function RichScene.CreateDisplay(self)
                 {id = "all", text = "All"},
             },
             width = 1920*0.15,
-            value = doc.data.coverart == m_image and doc.data.show,
+            value = self:GetShowState(),
 
             change = function(element)
+                --a linked library scene is shown through the library, so its
+                --caption and sound cue come with it.
+                local sceneid = m_tag:GetLibraryScene()
+                if sceneid ~= nil then
+                    Scenes.Present(sceneid, element.value)
+                    return
+                end
                 local doc = FullscreenDisplay.GetDocumentSnapshot()
                 doc:BeginChange()
                 doc.data.show = element.value
                 doc.data.coverart = m_image
                 --the full-screen display shows this creator's badge.
                 doc.data.coverartCredit = m_credit or false
+                doc.data.sceneid = false
+                doc.data.caption = false
+                doc.data.subtitle = false
                 doc:CompleteChange("Show Fullscreen Display")
             end,
 
             monitorGame = doc.path,
             refreshGame = function(element)
-                local doc = FullscreenDisplay.GetDocumentSnapshot()
-                element.SetValue(element, doc.data.show, false)
+                element.SetValue(element, m_tag:GetShowState(), false)
             end,
         },
         gui.Check{
@@ -142,6 +201,22 @@ function RichScene.CreateDisplay(self)
             end,
         }
     }
+end
+
+--The Scenes library as dropdown options, by name, after "None".
+local function LibrarySceneOptions()
+    local result = {}
+    local scenes = rawget(_G, "Scenes")
+    if scenes ~= nil then
+        for id, scene in pairs(scenes.All()) do
+            if type(scene) == "table" then
+                result[#result+1] = {id = id, text = scenes.Name(id)}
+            end
+        end
+    end
+    table.sort(result, function(a, b) return a.text < b.text end)
+    table.insert(result, 1, {id = "none", text = "None"})
+    return result
 end
 
 function RichScene.CreateEditor(self)
@@ -188,6 +263,25 @@ function RichScene.CreateEditor(self)
                             self.credit = cond(type(id) == "string" and id ~= "none", id, false)
                         end,
                     },
+
+                    gui.Label{
+                        classes = {"sizeXs"},
+                        width = "auto",
+                        height = "auto",
+                        tmargin = 8,
+                        text = "Library scene:",
+                    },
+                    gui.Dropdown{
+                        width = 200,
+                        options = LibrarySceneOptions(),
+                        idChosen = self:GetLibraryScene() or "none",
+                        change = function(element)
+                            ---@cast element Dropdown
+                            local id = element.idChosen
+                            self.scene = cond(type(id) == "string" and id ~= "none", id, false)
+                            resultPanel:FireEventTree("refreshEditor", self)
+                        end,
+                    },
                 }
             end,
         },
@@ -197,9 +291,14 @@ function RichScene.CreateEditor(self)
             halign = "center",
             valign = "center",
             library = "coverart",
-            value = self.image or nil,
+            value = self:GetImage(),
+            refreshEditor = function(element, richTag)
+                element.SetValue(element, (richTag or self):GetImage(), false)
+            end,
+            --picking a picture of its own unlinks the tag from the library.
             change = function(element)
                 self.image = element.value
+                self.scene = false
             end,
         },
     }

@@ -134,6 +134,7 @@ local function CollectConditions(c)
                 icon = info.iconid,
                 display = info.display or {},
                 name = info.name or "Condition",
+                condid = condid,
             }
         end
     end
@@ -155,6 +156,7 @@ local function CollectConditions(c)
                     icon = icon,
                     display = display or {},
                     name = info.name or "Effect",
+                    effectid = entry.ongoingEffectid,
                 }
             end
         end
@@ -1437,6 +1439,9 @@ local function CreateHeroCard(entry, opts)
             local icons = {}
             for _, cond in ipairs(entries) do
                 local condName = cond.name
+                local condid = cond.condid
+                local effectid = cond.effectid
+                local menuText = string.format("End '%s' %s", condName, cond.condid ~= nil and "Condition" or "Ongoing Effect")
                 --halign right on every chip is what right-packs the row:
                 --the flow layout places the trailing run of halign="right"
                 --children against the right edge, in order.
@@ -1453,6 +1458,36 @@ local function CreateHeroCard(entry, opts)
                     borderColor = "#cc2222ff",
                     linger = function(iconElement)
                         gui.Tooltip(condName)(iconElement)
+                    end,
+                    --Right-click ends the condition/effect (director or the token's controller only).
+                    rightClick = function(iconElement)
+                        local tok = dmhub.GetCharacterById(charid)
+                        if tok == nil or not tok.valid or tok.properties == nil then
+                            return
+                        end
+                        if not (dmhub.isDM or tok.canControl) then
+                            return
+                        end
+                        iconElement.popup = gui.ContextMenu{
+                            entries = {
+                                {
+                                    text = menuText,
+                                    click = function()
+                                        iconElement.popup = nil
+                                        tok:ModifyProperties{
+                                            description = "Remove Condition",
+                                            execute = function()
+                                                if condid ~= nil then
+                                                    tok.properties:InflictCondition(condid, {purge = true})
+                                                else
+                                                    tok.properties:RemoveOngoingEffect(effectid)
+                                                end
+                                            end,
+                                        }
+                                    end,
+                                },
+                            },
+                        }
                     end,
                     gui.Panel{
                         width = CONDITION_ICON_SIZE,

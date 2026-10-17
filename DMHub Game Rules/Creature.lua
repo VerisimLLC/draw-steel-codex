@@ -8554,6 +8554,13 @@ creature.helpSymbols = {
 		examples = {},
 	},
 
+	itemcount = {
+		name = "ItemCount",
+		type = "function",
+		desc = "Given the name of an item, provides how many of it the creature carries, counting equipped copies.",
+		examples = {'ItemCount("Bluepowder Barrel") < Might'},
+	},
+
     casterset = {
         name = "CasterSet",
         type = "function",
@@ -9335,6 +9342,34 @@ creature.lookupSymbols = {
 			end	
 
 			return 0
+		end
+	end,
+
+	--Matches items by name so content can cap carried things without knowing item ids,
+	--e.g. a Pick Up ability filtered on ItemCount("Bluepowder Barrel") < Might.
+	itemcount = function(c)
+		return function(name)
+			name = string.lower(name)
+			local gearTable = GetTableCached(equipment.tableName)
+
+			local itemids = {}
+			for itemid,_ in pairs(c:try_get("inventory", {})) do
+				itemids[itemid] = true
+			end
+			for _,equipid in pairs(c:Equipment()) do
+				if type(equipid) == "string" then
+					itemids[equipid] = true
+				end
+			end
+
+			local total = 0
+			for itemid,_ in pairs(itemids) do
+				local item = gearTable[itemid]
+				if item ~= nil and string.lower(item.name) == name then
+					total = total + c:GetItemQuantityIncludingEquipment(itemid)
+				end
+			end
+			return total
 		end
 	end,
 

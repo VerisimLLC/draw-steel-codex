@@ -4692,6 +4692,11 @@ function ActivatedAbility:PromptText(casterToken, targets, symbols, synthesizedS
         return string.format("Choose Target %d/%d", symbols.targetnumber, symbols.targetcount)
     end
 
+    local label = self:try_get("targetPromptLabel")
+    if label ~= nil then
+        return string.format("%s %d/%d", label, #targets + 1, numTargets)
+    end
+
     return string.format("Choose Target %d/%d", #targets + 1, numTargets)
 end
 

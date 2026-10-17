@@ -1703,6 +1703,19 @@ TacPanelStyles.HeroicResources = ThemeEngine.MergeTokens{
         color = "@fgPending",
     },
     {
+        selectors = {"panel", "growing-resources-container"},
+        width = "100%",
+        height = "auto",
+        halign = "center",
+        valign = "top",
+        flow = "vertical",
+    },
+    -- Gap only on stacked sections, so single-table classes keep their spacing.
+    {
+        selectors = {"panel", "growing-resources", "gr-stacked"},
+        tmargin = 4,
+    },
+    {
         selectors = {"panel", "growing-resources"},
         width = "100%-8",
         height = "auto",
@@ -1764,7 +1777,7 @@ TacPanelStyles.HeroicResources = ThemeEngine.MergeTokens{
     -- "expiring": benefit was active earlier this turn but the resource has since
     -- been spent below its threshold. It still applies until end of turn, shown
     -- muted (no brightness boost; child labels fade their accent). See
-    -- GrowingHRTable's high-water-mark logic.
+    -- GrowingHRSection's high-water-mark logic.
     {
         selectors = {"panel", "gr-row", "expiring"},
         bgcolor = "@bgAlt",
@@ -6344,8 +6357,8 @@ function TacPanel.GrowingHRRow(entry, creature)
         gui.Label{
             classes = {"label", "gr-text"},
             text = StringInterpolateGoblinScript(entry.description, creature),
-            update = function(element, newEntry)
-                local text = StringInterpolateGoblinScript(newEntry.description, creature)
+            update = function(element, newEntry, newCreature)
+                local text = StringInterpolateGoblinScript(newEntry.description, newCreature or creature)
                 element.text = text
                 element.selfStyle.fontSize = _fitFontSize(TacPanelSizes.Fonts.grText, 50, #text)
             end,
@@ -6353,27 +6366,69 @@ function TacPanel.GrowingHRRow(entry, creature)
     }
 end
 
---- Display the growing heroic resource table
+--- Display every growing heroic resource table the creature has, one
+--- collapsible section per table. Sections are cached by modifier guid so each
+--- keeps its own collapsed state and row panels across refreshes.
 --- @return Panel
 function TacPanel.GrowingHRTable()
     return gui.Panel{
-        classes = {"growing-resources", "collapsed"},
-        data = { token = nil, rows = {}, collapsed = false },
+        classes = {"growing-resources-container", "collapsed"},
+        data = { sections = {} },
         refreshCharacter = function(element, token)
-            element.data.token = token
             local creature = token.properties
             if (not creature:IsHero()) and (not creature:IsCompanion()) then
                 element:SetClass("collapsed", true)
                 return
             end
 
-            local growingResources = creature:GetGrowingResourcesTable()
-            if growingResources == nil then
+            local tables = creature:GetGrowingResourcesTables()
+            if #tables == 0 then
                 element:SetClass("collapsed", true)
                 return
             end
 
             element:SetClass("collapsed", false)
+
+            local sections = element.data.sections
+            local newSections = {}
+            local children = {}
+            for i, growingResources in ipairs(tables) do
+                local key = growingResources:try_get("guid") or string.format("index-%d", i)
+                -- A copied modifier can keep its source's guid; give it its own section.
+                if newSections[key] ~= nil then
+                    key = string.format("%s-%d", key, i)
+                end
+                local section = sections[key]
+                if section == nil or not section.valid then
+                    section = TacPanel.GrowingHRSection()
+                end
+                newSections[key] = section
+                section:SetClass("gr-stacked", #children > 0)
+                section:FireEvent("refreshSection", creature, growingResources)
+                children[#children + 1] = section
+            end
+
+            element.data.sections = newSections
+            element.children = children
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+    }
+end
+
+--- One growing heroic resource table: a title bar that collapses it and a row
+--- per progression entry the creature's level allows. Driven by its parent
+--- container through the refreshSection event.
+--- @return Panel
+function TacPanel.GrowingHRSection()
+    return gui.Panel{
+        classes = {"growing-resources"},
+        data = { rows = {}, collapsed = false },
+        refreshSection = function(element, creature, growingResources)
             element:FireEventTree("setTitle", growingResources.name:upper())
 
             local characterLevel = creature:CharacterLevel()
@@ -6398,7 +6453,7 @@ function TacPanel.GrowingHRTable()
                     rows[index] = row
                     index = index + 1
 
-                    row:FireEventTree("update", entry)
+                    row:FireEventTree("update", entry, creature)
                     local available = entry.resources <= characterResources
                     row:SetClass("available", available)
                     row:SetClass("expiring", (not available) and entry.resources <= resourcesHigh)
@@ -6414,12 +6469,6 @@ function TacPanel.GrowingHRTable()
 
             element.data.rows = rows
             element:FireEventTree("setContent", rowChildren)
-        end,
-        refreshToken = function(element, token)
-            element:FireEvent("refreshCharacter", token)
-        end,
-        setToken = function(element, token)
-            element:FireEvent("refreshCharacter", token)
         end,
         gui.Panel{
             classes = {"panel", "gr-title"},

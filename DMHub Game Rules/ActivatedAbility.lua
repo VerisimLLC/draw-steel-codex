@@ -1686,7 +1686,26 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
 	end
 
     if self.targetType == "all" and casterToken.floorIndex == targetToken.floorIndex and casterToken:GetLineOfSight(targetToken, casterToken.properties:GetPierceWalls()) <= 0 then
-        return false
+        --A sight-blocking object (a wall, a boulder) hides its own square, so it is
+        --reached if any square beside it is in sight.
+        local seen = false
+        if targetToken.isObject then
+            local pierce = casterToken.properties:GetPierceWalls()
+            for _,loc in ipairs(targetToken.locsOccupying) do
+                for _,side in ipairs({loc.north, loc.south, loc.east, loc.west}) do
+                    if casterToken:GetLineOfSight(side, pierce) > 0 then
+                        seen = true
+                        break
+                    end
+                end
+                if seen then
+                    break
+                end
+            end
+        end
+        if not seen then
+            return false
+        end
     elseif self.targetType ~= "map" and symbols.targetArea ~= nil and targetToken:GetLineOfSight(symbols.targetArea.origin, targetToken.properties:GetPierceWalls()) <= 0 then
         return false
     end

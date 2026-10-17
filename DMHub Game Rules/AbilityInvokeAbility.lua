@@ -307,6 +307,12 @@ local function ChooseNearestMovementConstraintAnchor(behavior, casterToken, move
         end
     end
 
+    --Opt-in (set in the data file): every candidate in range is offered and the table decides which
+    --counts as nearest, since measuring around objects and big creatures is easy to dispute.
+    if behavior:try_get("movementConstraintPickAnyInRange", false) and #candidates > 1 then
+        nearest = candidates
+    end
+
     if #nearest <= 1 then
         return nearest[1]
     end
@@ -1254,6 +1260,11 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
 
                             abilityClone.range = adjustedRange * dmhub.unitsPerSquare
                             local description = string.format("You may %s the target %d square%s", baseMoveType, adjustedRange, adjustedRange > 1 and "s" or "")
+                            --A constrained pull ("toward the nearest enemy...") keeps its authored text, since the generic line cannot name the anchor.
+                            local constraintMode = self:try_get("movementConstraint", "none")
+                            if self.promptText ~= "" and constraintMode ~= "none" and constraintMode ~= "" then
+                                description = StringInterpolateGoblinScript(self.promptText, casterToken.properties:LookupSymbol{}) or description
+                            end
                             if #adjustments > 0 then
                                 description = description .. " (" .. table.concat(adjustments, ", ") .. ")"
                             end

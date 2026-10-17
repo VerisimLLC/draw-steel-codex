@@ -713,6 +713,37 @@ GameSystem.RegisterGoblinScriptField{
     end,
 }
 
+--Counterpart of Count Friends Of Within. Plain Count Nearby Enemies judges "enemy" from this creature's
+--side, which means nothing for an object, so an object filter needs the acting creature passed in.
+GameSystem.RegisterGoblinScriptField{
+    name = "Count Enemies Of Within",
+
+	type = "function",
+	desc = "Given a distance in squares and a creature, counts the living creatures within that distance of this creature (including vertically) who are enemies of the given creature, not counting the given creature or this creature.",
+	examples = {"CountEnemiesOfWithin(3, Caster) > 0"},
+
+    calculate = function(targetCreature)
+        return function(distance, us)
+            local targetToken = dmhub.LookupToken(targetCreature)
+            local ourToken = dmhub.LookupToken(us)
+            if targetToken == nil or ourToken == nil then
+                return 0
+            end
+
+            local count = 0
+            for _,tok in ipairs(dmhub.allTokens) do
+                --same enemy test the nearest-enemy movement anchor uses (tri-state: neutral is not an enemy).
+                if tok.charid ~= ourToken.charid and tok.charid ~= targetToken.charid and tok.floorid == targetToken.floorid
+                   and IsFriendForTargeting(ourToken, tok) == false and (not tok.properties:IsDead())
+                   and TokenDistance3D(targetToken, tok) <= (tonumber(distance) or 1) then
+                    count = count + 1
+                end
+            end
+            return count
+        end
+    end,
+}
+
 GameSystem.RegisterGoblinScriptField{
     name = "Count Friends Of Within",
 

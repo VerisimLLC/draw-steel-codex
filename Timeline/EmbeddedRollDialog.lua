@@ -3721,6 +3721,168 @@ function GameHud.CreateEmbeddedRollDialog()
         },
     }
 
+    --Width for a badge dropdown: as wide as its longest option label (so the box does not
+    --resize when the pick changes), roughly 7px per character at font size 11 plus padding and arrow room.
+    local function DropdownWidthForOptions(options)
+        local longest = 0
+        for _,o in ipairs(options) do
+            longest = math.max(longest, #tostring(o.text))
+        end
+        return math.min(240, math.max(72, longest * 7 + 38))
+    end
+
+    --Builds the inline dropdown(s) shown inside a modifier badge: a damage-type
+    --mapping picker and/or an addTextChoices picker. Returns nil when the modifier
+    --has none (or is not checked). Shared by the pre-roll and after-roll badges.
+    local function BuildModifierChoiceContent(mod, ischecked)
+        --If this modifier maps a damage type to multiple possible
+        --destination types, embed a small dropdown in the badge so
+        --the user can choose which type this use converts to.
+        local mappingContent = nil
+        local damageTypeMappings = mod.modifier:try_get("damageTypeMappings")
+        if ischecked and damageTypeMappings ~= nil then
+            local dropdowns = {}
+            local multiSources = 0
+            for _,value in pairs(damageTypeMappings) do
+                if #CharacterModifier.DamageMappingDestinations(value) > 1 then
+                    multiSources = multiSources + 1
+                end
+            end
+            for source,value in sorted_pairs(damageTypeMappings) do
+                local dests = CharacterModifier.DamageMappingDestinations(value)
+                if #dests > 1 then
+                    local destOptions = {}
+                    for _,d in ipairs(dests) do
+                        destOptions[#destOptions+1] = { id = d, text = d }
+                    end
+
+                    --Only label the source type when more than one
+                    --source has a choice; the common case is a single
+                    --dropdown, which reads fine on its own.
+                    if multiSources > 1 then
+                        dropdowns[#dropdowns+1] = gui.Label{
+                            classes = {"sizeXxs", "fgMuted"},
+                            text = source .. ":",
+                            width = "auto",
+                            height = "auto",
+                            valign = "center",
+                            rmargin = 2,
+                        }
+                    end
+
+                    dropdowns[#dropdowns+1] = gui.Dropdown{
+                        width = DropdownWidthForOptions(destOptions),
+                        height = 14,
+                        fontSize = 11,
+                        valign = "center",
+                        idChosen = mod.modifier:ResolveDamageMappingDestination(source, value),
+                        options = destOptions,
+                        change = function(element)
+                            ---@cast element Dropdown
+                            local chosen = element.idChosen
+                            local guid = mod.modifier:try_get("guid")
+                            local function SetChoice(m)
+                                local choices = m:get_or_add("_tmp_damageTypeChoices", {})
+                                choices[source] = chosen
+                            end
+
+                            SetChoice(mod.modifier)
+
+                            --Multi-target rolls keep a separate copy of the
+                            --modifier for each target; propagate the choice to
+                            --all copies so one selection covers the whole use.
+                            --damageTypeChoicePerTarget keeps each target's pick separate.
+                            local perTarget = mod.modifier:try_get("damageTypeChoicePerTarget", false)
+                            if m_multitargets ~= nil and guid ~= nil and not perTarget then
+                                for _,target in ipairs(m_multitargets) do
+                                    for _,entry in ipairs(target.modifiers or {}) do
+                                        if entry.modifier ~= nil and entry.modifier ~= mod.modifier and entry.modifier:try_get("guid") == guid then
+                                            SetChoice(entry.modifier)
+                                        end
+                                    end
+                                end
+                            end
+
+                            resultPanel:FireEventTree('prepare', m_options)
+                            CalculateRollText()
+                            RecalculateMultiTargets()
+                        end,
+                    }
+                end
+            end
+
+            if #dropdowns > 0 then
+                mappingContent = gui.Panel{
+                    flow = "horizontal",
+                    width = "auto",
+                    --Span the badge's full height so valign="center" on the
+                    --dropdown centers it against the label text.
+                    height = "100%",
+                    valign = "center",
+                    rmargin = 2,
+                    --Clicks on the dropdown must not bubble up to the
+                    --badge, which would toggle the modifier.
+                    swallowPress = true,
+                    children = dropdowns,
+                }
+            end
+        end
+
+        --A modifier with addTextChoices gets a dropdown (like damage
+        --type mappings) to pick which choice's text is added to the table.
+        local addTextChoices = mod.modifier:try_get("addTextChoices")
+        if ischecked and mappingContent == nil and addTextChoices ~= nil and #addTextChoices > 1 then
+            --addTextChoiceLabels (optional, same order) gives short dropdown labels;
+            --the full choice text still goes into the power table.
+            local choiceLabels = mod.modifier:try_get("addTextChoiceLabels", {})
+            local choiceOptions = {}
+            for i,c in ipairs(addTextChoices) do
+                choiceOptions[#choiceOptions+1] = { id = c, text = choiceLabels[i] or c }
+            end
+
+            mappingContent = gui.Panel{
+                flow = "horizontal",
+                width = "auto",
+                height = "100%",
+                valign = "center",
+                rmargin = 2,
+                --Clicks on the dropdown must not toggle the modifier.
+                swallowPress = true,
+                gui.Dropdown{
+                    width = DropdownWidthForOptions(choiceOptions),
+                    height = 14,
+                    fontSize = 11,
+                    valign = "center",
+                    idChosen = CharacterModifier.ResolveAddTextChoice(mod.modifier),
+                    options = choiceOptions,
+                    change = function(element)
+                        ---@cast element Dropdown
+                        local chosen = element.idChosen --[[@as string]]
+                        local guid = mod.modifier:try_get("guid")
+                        mod.modifier:SetAddTextChoice(chosen)
+
+                        --Multi-target rolls keep a copy of the modifier per
+                        --target; keep every copy on the same pick.
+                        if m_multitargets ~= nil and guid ~= nil then
+                            for _,target in ipairs(m_multitargets) do
+                                for _,entry in ipairs(target.modifiers or {}) do
+                                    if entry.modifier ~= nil and entry.modifier ~= mod.modifier and entry.modifier:try_get("guid") == guid then
+                                        entry.modifier:SetAddTextChoice(chosen)
+                                    end
+                                end
+                            end
+                        end
+
+                        resultPanel:FireEventTree('prepare', m_options)
+                        CalculateRollText()
+                        RecalculateMultiTargets()
+                    end,
+                },
+            }
+        end
+        return mappingContent
+    end
+
     local modifiersPanel = gui.Panel {
         classes = { "hideWhenMinimized", "modifiers-panel" },
         width = "100%", --take up no space so the multi-target panel can be centered.
@@ -3889,98 +4051,7 @@ function GameHud.CreateEmbeddedRollDialog()
                             classes = { "collapsed-anim" }
                         end
 
-                        --If this modifier maps a damage type to multiple possible
-                        --destination types, embed a small dropdown in the badge so
-                        --the user can choose which type this use converts to.
-                        local mappingContent = nil
-                        local damageTypeMappings = mod.modifier:try_get("damageTypeMappings")
-                        if ischecked and damageTypeMappings ~= nil then
-                            local dropdowns = {}
-                            local multiSources = 0
-                            for _,value in pairs(damageTypeMappings) do
-                                if #CharacterModifier.DamageMappingDestinations(value) > 1 then
-                                    multiSources = multiSources + 1
-                                end
-                            end
-                            for source,value in sorted_pairs(damageTypeMappings) do
-                                local dests = CharacterModifier.DamageMappingDestinations(value)
-                                if #dests > 1 then
-                                    local destOptions = {}
-                                    for _,d in ipairs(dests) do
-                                        destOptions[#destOptions+1] = { id = d, text = d }
-                                    end
-
-                                    --Only label the source type when more than one
-                                    --source has a choice; the common case is a single
-                                    --dropdown, which reads fine on its own.
-                                    if multiSources > 1 then
-                                        dropdowns[#dropdowns+1] = gui.Label{
-                                            classes = {"sizeXxs", "fgMuted"},
-                                            text = source .. ":",
-                                            width = "auto",
-                                            height = "auto",
-                                            valign = "center",
-                                            rmargin = 2,
-                                        }
-                                    end
-
-                                    dropdowns[#dropdowns+1] = gui.Dropdown{
-                                        width = 92,
-                                        height = 14,
-                                        fontSize = 11,
-                                        valign = "center",
-                                        idChosen = mod.modifier:ResolveDamageMappingDestination(source, value),
-                                        options = destOptions,
-                                        change = function(element)
-                                            ---@cast element Dropdown
-                                            local chosen = element.idChosen
-                                            local guid = mod.modifier:try_get("guid")
-                                            local function SetChoice(m)
-                                                local choices = m:get_or_add("_tmp_damageTypeChoices", {})
-                                                choices[source] = chosen
-                                            end
-
-                                            SetChoice(mod.modifier)
-
-                                            --Multi-target rolls keep a separate copy of the
-                                            --modifier for each target; propagate the choice to
-                                            --all copies so one selection covers the whole use.
-                                            --damageTypeChoicePerTarget keeps each target's pick separate.
-                                            local perTarget = mod.modifier:try_get("damageTypeChoicePerTarget", false)
-                                            if m_multitargets ~= nil and guid ~= nil and not perTarget then
-                                                for _,target in ipairs(m_multitargets) do
-                                                    for _,entry in ipairs(target.modifiers or {}) do
-                                                        if entry.modifier ~= nil and entry.modifier ~= mod.modifier and entry.modifier:try_get("guid") == guid then
-                                                            SetChoice(entry.modifier)
-                                                        end
-                                                    end
-                                                end
-                                            end
-
-                                            resultPanel:FireEventTree('prepare', m_options)
-                                            CalculateRollText()
-                                            RecalculateMultiTargets()
-                                        end,
-                                    }
-                                end
-                            end
-
-                            if #dropdowns > 0 then
-                                mappingContent = gui.Panel{
-                                    flow = "horizontal",
-                                    width = "auto",
-                                    --Span the badge's full height so valign="center" on the
-                                    --dropdown centers it against the label text.
-                                    height = "100%",
-                                    valign = "center",
-                                    rmargin = 2,
-                                    --Clicks on the dropdown must not bubble up to the
-                                    --badge, which would toggle the modifier.
-                                    swallowPress = true,
-                                    children = dropdowns,
-                                }
-                            end
-                        end
+                        local mappingContent = BuildModifierChoiceContent(mod, ischecked)
 
                         check = ModifierPanel{
                             classes = classes,
@@ -4269,12 +4340,25 @@ function GameHud.CreateEmbeddedRollDialog()
                             hmargin = 2,
                             mod = mod,
                             eye = spoilerEye,
+                            content = BuildModifierChoiceContent(mod, ischecked),
                             data = {
                                 mod = mod,
                                 modifierIndex = modifierIndex,
                             },
                             change = function(element)
                                 mod.override = element.value
+
+                                -- A named after-roll group is a single choice: enabling
+                                -- one member clears every peer.
+                                local group = mod.modifier:try_get("afterRollExclusiveGroup", "")
+                                if element.value and group ~= "" then
+                                    for _, peer in ipairs(m_options.modifiers or {}) do
+                                        if peer ~= mod and peer.isAfterRoll and peer.modifier ~= nil
+                                                and peer.modifier:try_get("afterRollExclusiveGroup", "") == group then
+                                            peer.override = false
+                                        end
+                                    end
+                                end
 
                                 resultPanel:FireEventTree('prepare', m_options)
                                 CalculateRollText()

@@ -2842,6 +2842,50 @@ creature.RegisterSymbol {
 }
 
 creature.RegisterSymbol {
+    symbol = "aurasquares",
+    lookup = function(c)
+        return function(auraname)
+            auraname = string.lower(auraname)
+            local token = dmhub.LookupToken(c)
+            if token == nil or not token.valid then
+                return 0
+            end
+
+            --Collect every square covered by an aura of this name that touches the
+            --creature, then count how many of the creature's own squares are in it.
+            --A set, so overlapping auras of the same name never count a square twice.
+            local covered = {}
+            for _, info in ipairs(token.properties:GetAurasAffecting(token) or {}) do
+                local instance = info.auraInstance
+                if string.lower(instance.aura.name) == auraname then
+                    local area = instance:GetArea()
+                    if area ~= nil then
+                        for _, loc in ipairs(area.locations or {}) do
+                            covered[string.format("%d,%d", loc.x, loc.y)] = true
+                        end
+                    end
+                end
+            end
+
+            local count = 0
+            for _, loc in ipairs(token.locsOccupying) do
+                if covered[string.format("%d,%d", loc.x, loc.y)] then
+                    count = count + 1
+                end
+            end
+            return count
+        end
+    end,
+    help = {
+        name = "AuraSquares",
+        type = "function",
+        desc = "Given the name of an aura, returns how many of this creature's squares are inside that aura (for per-square aura damage). Overlapping auras of the same name are counted once per square.",
+        seealso = {"AurasCaster"},
+        examples = {"Target.AuraSquares(\"Wall of Fire\")"},
+    }
+}
+
+creature.RegisterSymbol {
     symbol = "environment",
     lookup = function(c)
         local result = {}
@@ -7085,7 +7129,7 @@ function creature:PersistentAbilities()
             local persistenceMode = persistence.mode
 
             if persistenceMode == "none" then
-                break
+                goto continue
             end
 
             if persistenceMode == "recast_new" and a.ability:try_get("recastNewAbility") then
@@ -7204,6 +7248,8 @@ function creature:PersistentAbilities()
             local customPrompt = persistence.promptText
             if type(customPrompt) == "string" and trim(customPrompt) ~= "" then
                 promptText = string.format("%s: %s; %s", tr("Persistence"), ability.name, customPrompt)
+                --The "!" trigger card shows triggerPrompt as its rules text.
+                newAbility.triggerPrompt = customPrompt
             else
                 promptText = string.format(tr("Persistence: Recast %s"), ability.name)
             end
@@ -7239,6 +7285,7 @@ function creature:PersistentAbilities()
                 result[#result + 1] = mod
             end
         end
+        ::continue::
     end
 
     return result
@@ -7298,7 +7345,9 @@ function creature:EndPersistentAbilityById(guid)
         end
     end
 
+    local entryObjectIds = {}
     for _, objref in ipairs(persistentAbilities[persistentIndex]:try_get("objects") or {}) do
+        entryObjectIds[objref.objid] = true
         local obj = game.LookupObject(objref.floorid, objref.objid)
         if obj ~= nil then
             obj:Destroy()
@@ -7309,7 +7358,10 @@ function creature:EndPersistentAbilityById(guid)
     --Persisting"). RemoveAura destroys the aura and drops it from self.auras.
     local linkedAuras = {}
     for _, aura in ipairs(self:try_get("auras", {})) do
-        if aura:try_get("persistenceId") == guid then
+        --Also match by object: an aura whose object this entry destroyed above would
+        --otherwise linger as an invisible, still-damaging aura if it was never stamped.
+        local auraObject = aura:try_get("object")
+        if aura:try_get("persistenceId") == guid or (auraObject ~= nil and entryObjectIds[auraObject.objid]) then
             linkedAuras[#linkedAuras + 1] = aura.guid
         end
     end

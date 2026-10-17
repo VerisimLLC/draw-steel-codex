@@ -2387,6 +2387,25 @@ function ActivatedAbilityAuraBehavior:CastOnArea(ability, casterToken, targets, 
                     end
                 end
 
+                --A persistence recast that adds to an existing aura (e.g. Wall of Fire's extra
+                --squares) is cast with persistence stripped, so it opts in with
+                --joinsPersistence and adopts the entry of the ability it extends.
+                if (persistence == nil or not persistence.enabled) and ability:try_get("joinsPersistence") == true then
+                    for _, entry in ipairs(casterToken.properties:try_get("persistentAbilities", {})) do
+                        if entry:try_get("abilityName") == ability.name then
+                            auraInstance.persistenceId = entry.guid
+                            if obj ~= nil then
+                                local objects = entry:get_or_add("objects", {})
+                                objects[#objects + 1] = {
+                                    floorid = obj.floorid,
+                                    objid = obj.objid,
+                                }
+                            end
+                            break
+                        end
+                    end
+                end
+
                 casterToken.properties:AddAura(auraInstance)
             end,
         }

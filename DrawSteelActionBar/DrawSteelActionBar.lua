@@ -8976,6 +8976,19 @@ local function ResolveArrowOrigin(ability, casterToken, targetToken)
     return origin
 end
 
+-- The token range and line of effect are measured from. An invoked ability can
+-- reach from another creature, such as its parent's target, while its arrow is
+-- still drawn from the caster. A table field because this file has no locals left.
+function DrawSteelActionBar.RangeMeasureOrigin(ability, casterToken, targetToken)
+    if ability ~= nil and casterToken ~= nil then
+        local rangeSource = ability:GetRangeSource(casterToken)
+        if rangeSource ~= casterToken then
+            return rangeSource
+        end
+    end
+    return ResolveArrowOrigin(ability, casterToken, targetToken)
+end
+
 -- For arrow greying: returns the smaller of the ability range and any active
 -- per-creature line-of-effect cap on either token (e.g. Dazzled). LoE limits
 -- are stored as a square count, so they're scaled to dmhub units to match
@@ -8995,6 +9008,19 @@ local function EffectiveArrowRange(sourceToken, targetToken, range, ability)
         return limit * dmhub.unitsPerSquare
     end
     local effective = range
+
+    -- When range is measured from another creature, the arrow from the caster
+    -- can't show where the range ends, so it is either clear or fully grey.
+    if range ~= nil and ability ~= nil and sourceToken ~= nil and targetToken ~= nil then
+        local measureToken = ability:GetRangeSource(sourceToken)
+        if measureToken ~= sourceToken then
+            local altDiffUnits = math.abs(measureToken.altitude - targetToken.altitude) * dmhub.unitsPerSquare
+            if math.max(targetToken:Distance(measureToken), altDiffUnits) >= range + dmhub.unitsPerSquare then
+                return 0
+            end
+            return nil
+        end
+    end
 
     -- Measured from a relay instead of the caster, the target is in range, so
     -- the arrow must not grey. Line-of-effect caps below still apply.
@@ -9066,6 +9092,12 @@ local function AddModifierLabelsToMarker(markers, sourceToken, targetToken, abil
     end
 
     originToken = originToken or sourceToken
+    -- Measure from the creature the ability reaches from. A creature next to the
+    -- target used to be labelled Out of Range when the caster was far away.
+    local rangeSource = ability:GetRangeSource(sourceToken)
+    if rangeSource ~= sourceToken then
+        originToken = rangeSource
+    end
 
     local loeFailReason = DrawSteelActionBar.LineOfEffectFailReason(sourceToken, targetToken, originToken)
     if loeFailReason ~= nil then
@@ -14332,7 +14364,7 @@ local function CalculateSpellTargetFocusing(symbols)
                     if failReason == nil and spell.targetType == "target" and casterLocOverride == nil
                         and targetToken.charid ~= g_token.charid and not SquadStrikeActive() then
                         failReason = DrawSteelActionBar.LineOfEffectFailReason(g_token, targetToken,
-                            ResolveArrowOrigin(g_currentAbility, g_token, targetToken))
+                            DrawSteelActionBar.RangeMeasureOrigin(g_currentAbility, g_token, targetToken))
                     end
 
                     local valid = failReason == nil

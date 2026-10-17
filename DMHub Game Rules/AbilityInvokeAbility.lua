@@ -2033,6 +2033,30 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
 		end,
 	}
 
+	--Lets an invoked ability reach from another creature, as in "an enemy adjacent to the target".
+	--The caster doesn't change, so "enemy" and the cost still mean the caster's.
+	result[#result+1] = gui.Panel{
+		classes = {"formPanel"},
+		gui.Label{
+			classes = {"formLabel"},
+			text = "Range Origin:",
+		},
+		gui.Dropdown{
+			classes = {"formDropdown"},
+			hover = gui.Tooltip("Measure the invoked ability's range from this creature instead of its caster."),
+			options = {
+				{ text = "Caster", id = "" },
+				{ text = "Parent's Primary Target", id = "parent_primary_target" },
+				{ text = "Parent's Current Target", id = "parent_current_target" },
+			},
+			idChosen = self:try_get("rangeOrigin", ""),
+			change = function(element)
+				---@cast element Dropdown
+				self.rangeOrigin = element.idChosen
+			end,
+		},
+	}
+
 	result[#result+1] = gui.Check{
 		classes = {cond(self.abilityType == "custom", "collapsed-anim")},
 		text = "Target Player Casts",

@@ -42,8 +42,8 @@ DirectorScreen = {}
 --- @field stow fun(stowed: boolean) hides it (the screen is closed) or shows it
 
 --Sizes in documents-layer units (the table is ~1048 high).
-local TAB_WIDTH = 28
-local TAB_HEIGHT = 172
+local TAB_WIDTH = 14
+local TAB_HEIGHT = 64
 --between the tab and the bottom of the table.
 local TAB_BOTTOM = 18
 local GRIP_WIDTH = 12
@@ -56,6 +56,54 @@ local DEFAULT_FRACTION = 0.22
 local GRACE_SECONDS = 2.5
 --a click that moved the tab less than this is a click, not a resize.
 local CLICK_SLOP = 4
+
+--Covers: art shown on the screen, under its items. The art fills the screen's
+--height and is cropped to its width (never stretched). It sticks to the
+--screen's moving edge: `left` is the spot on the art (0..1) that the edge
+--always shows, so the art travels with the edge and a wider screen shows more
+--of it to the right. `veil` is the grey laid over the art to mix it into the
+--band (the engine ignores alpha on image art, so it is veiled, not faded).
+--Tune the veil's alpha by eye: this layer's blending is steep, e0 barely
+--shows and f8 nearly hides the art. `tint` colors the art. A cover with no
+--image is the plain band.
+--More covers just add rows; choosing between them is still to come
+--(2026-10-16, a test).
+--- @class DirectorScreenCover
+--- @field id string
+--- @field image nil|string the bgimage id
+--- @field width nil|number the image's size in pixels
+--- @field height nil|number
+--- @field left nil|number
+--- @field tint nil|string
+--- @field veil nil|string
+local COVERS = {
+    {id = "plain"},
+    {id = "vasloria", image = "md5:dscovervasloria", width = 2000, height = 633, left = 0, tint = "#ffffffff", veil = "#16171bf2"},
+}
+local COVER_ID = "vasloria"
+
+--- @return DirectorScreenCover
+local function CurrentCover()
+    for _, cover in ipairs(COVERS) do
+        if cover.id == COVER_ID then
+            return cover
+        end
+    end
+    return COVERS[1]
+end
+
+--The part of the cover's art a w x h screen shows: full height, cropped to the
+--screen's shape, with its left edge at cover.left (pulled back once a wide
+--screen would run off the art's right end).
+--- @param cover DirectorScreenCover
+--- @param w number
+--- @param h number
+--- @return {x1: number, y1: number, x2: number, y2: number}
+local function CoverRect(cover, w, h)
+    local frac = math.min(1, (w / h) / (cover.width / cover.height))
+    local x1 = math.min(1 - frac, math.max(0, cover.left or 0))
+    return {x1 = x1, y1 = 0, x2 = x1 + frac, y2 = 1}
+end
 
 --fraction: of the table's width; 0 while closed.
 --lastFraction: the size it opens to from the tab.
@@ -76,8 +124,11 @@ local g = {
     nextLook = 0,
     layer = nil,
     band = nil,
+    cover = nil,
+    coverVeil = nil,
     tabLayer = nil,
     tab = nil,
+    tabFace = nil,
     hint = nil,
     hintLabel = nil,
     signature = nil,
@@ -160,11 +211,11 @@ local g_styles = {
     },
     {
         selectors = {"directorScreenEdge"},
-        bgcolor = "#ffffff30",
+        bgcolor = "@bg",
     },
     {
-        selectors = {"directorScreenEdge", "hover"},
-        bgcolor = "#ffffff80",
+        selectors = {"directorScreenEdge", "lit"},
+        bgcolor = "@bgRaised",
     },
     {
         selectors = {"directorScreenEdge", "dropTarget"},
@@ -185,27 +236,15 @@ local g_styles = {
     },
     {
         selectors = {"directorScreenTab"},
-        bgcolor = "#1b1c20e0",
-        borderColor = "#ffffff38",
+        bgcolor = "clear",
     },
     {
-        selectors = {"directorScreenTab", "hover"},
-        bgcolor = "#2b2c32f0",
-        borderColor = "#ffffff70",
+        selectors = {"directorScreenTabFace"},
+        bgcolor = "@bg",
     },
     {
-        selectors = {"directorScreenTab", "dropTarget"},
-        borderColor = "#ffffffa0",
-    },
-    {
-        selectors = {"directorScreenTabLabel"},
-        color = "#ffffffb0",
-        fontSize = 13,
-        bold = true,
-    },
-    {
-        selectors = {"directorScreenTabLabel", "parent:hover"},
-        color = "#ffffff",
+        selectors = {"directorScreenTabFace", "lit"},
+        bgcolor = "@bgRaised",
     },
     {
         selectors = {"directorScreenHint"},
@@ -230,7 +269,8 @@ local g_styles = {
 local function Layout(force)
     local band = g.band
     local tab = g.tab
-    if band == nil or not band.valid or tab == nil or not tab.valid then
+    local face = g.tabFace
+    if band == nil or not band.valid or tab == nil or not tab.valid or face == nil or not face.valid then
         return
     end
     local active = Active()
@@ -245,16 +285,34 @@ local function Layout(force)
 
     band:SetClass("collapsed", not active or not IsOpen())
     tab:SetClass("collapsed", not active)
+    face:SetClass("collapsed", not active)
     if not active then
         return
     end
     band.x = edge
     band.selfStyle.width = math.max(1, w - edge)
 
+    local cover = g.cover
+    if cover ~= nil and cover.valid then
+        local art = CurrentCover()
+        cover:SetClass("collapsed", art.image == nil)
+        local veil = g.coverVeil
+        if veil ~= nil and veil.valid then
+            veil.selfStyle.bgcolor = art.veil or "clear"
+        end
+        if art.image ~= nil and w - edge >= 1 and h >= 1 then
+            cover.bgimage = art.image
+            cover.selfStyle.bgcolor = art.tint or "#ffffffff"
+            cover.selfStyle.imageRect = CoverRect(art, w - edge, h)
+        end
+    end
+
     --the tab hangs off the screen's edge, and never under the right rail.
     local right = math.min(edge, w - reserve)
     tab.x = math.max(0, right - TAB_WIDTH)
     tab.y = math.max(0, h - TAB_BOTTOM - TAB_HEIGHT)
+    face.x = tab.x
+    face.y = tab.y
 end
 
 local function SetFraction(fraction)
@@ -342,11 +400,51 @@ local function ResizeEvents(args)
     return args
 end
 
+--The divider and the tab are one handle: hovering either lights both.
+--- @param lit boolean
+local function SetLit(lit)
+    local band = g.band
+    if band ~= nil and band.valid then
+        for _, child in ipairs(band.children) do
+            if child:HasClass("directorScreenEdge") then
+                child:SetClass("lit", lit)
+            end
+        end
+    end
+    local face = g.tabFace
+    if face ~= nil and face.valid then
+        face:SetClass("lit", lit)
+    end
+end
+
 --- The band under the windows: GameHud puts it straight before the
 --- documents layer. Only its edge takes the mouse.
 --- @return Panel
 function DirectorScreen.CreateLayer()
     g.signature = nil
+    --the band's grey over the art, so the art only partly shows through. It is
+    --the art's child: a sibling drawn after it still ends up under the image.
+    g.coverVeil = gui.Panel{
+        floating = true,
+        halign = "left",
+        valign = "top",
+        width = "100%",
+        height = "100%",
+        bgimage = "panels/square.png",
+        interactable = false,
+    }
+    --the cover's art, under everything else on the band (Layout crops it).
+    g.cover = gui.Panel{
+        classes = {"collapsed"},
+        floating = true,
+        halign = "left",
+        valign = "top",
+        width = "100%",
+        height = "100%",
+        bgimage = "panels/square.png",
+        interactable = false,
+        children = {g.coverVeil},
+    }
     g.band = gui.Panel{
         classes = {"directorScreenBand", "collapsed"},
         halign = "left",
@@ -357,6 +455,7 @@ function DirectorScreen.CreateLayer()
         interactable = false,
         flow = "none",
         children = {
+            g.cover,
             --the edge: a thin line, with a wider grip over it.
             gui.Panel{
                 classes = {"directorScreenEdge"},
@@ -381,25 +480,10 @@ function DirectorScreen.CreateLayer()
                 swallowPress = true,
                 hoverCursor = "horizontal-expand",
                 hover = function(element)
-                    local band = g.band
-                    if band ~= nil and band.valid then
-                        for _, child in ipairs(band.children) do
-                            if child:HasClass("directorScreenEdge") then
-                                child:SetClass("hover", true)
-                            end
-                        end
-                    end
-                    gui.Tooltip("Drag to resize the Director's Screen.")(element)
+                    SetLit(true)
                 end,
                 dehover = function(element)
-                    local band = g.band
-                    if band ~= nil and band.valid then
-                        for _, child in ipairs(band.children) do
-                            if child:HasClass("directorScreenEdge") then
-                                child:SetClass("hover", false)
-                            end
-                        end
-                    end
+                    SetLit(false)
                 end,
             }),
             gui.Panel{
@@ -452,6 +536,22 @@ end
 --- @return Panel
 function DirectorScreen.CreateTabLayer()
     g.signature = nil
+    --The tab is two panels. The engine never moves the panel being dragged
+    --(SheetPanel skips its position while it is _draggingPanel), so a tab
+    --grabbed and dragged would stay behind until released. The grab area
+    --(g.tab) is invisible; what is seen is g.tabFace, which takes no mouse,
+    --is never dragged, and so follows the edge as Layout moves it.
+    g.tabFace = gui.Panel{
+        classes = {"directorScreenTabFace", "collapsed"},
+        halign = "left",
+        valign = "top",
+        width = TAB_WIDTH,
+        height = TAB_HEIGHT,
+        bgimage = "panels/square.png",
+        --rounded on the left only: its right side runs into the divider.
+        cornerRadius = {x1 = 6, y1 = 0, x2 = 0, y2 = 6},
+        interactable = false,
+    }
     g.tab = gui.Panel(ResizeEvents{
         classes = {"directorScreenTab", "collapsed"},
         halign = "left",
@@ -459,17 +559,14 @@ function DirectorScreen.CreateTabLayer()
         width = TAB_WIDTH,
         height = TAB_HEIGHT,
         bgimage = "panels/square.png",
-        borderWidth = 1,
-        cornerRadius = 6,
         swallowPress = true,
         hoverCursor = "horizontal-expand",
         flow = "none",
         hover = function(element)
-            if IsOpen() then
-                gui.Tooltip("Click to close the Director's Screen; drag to resize it.")(element)
-            else
-                gui.Tooltip("The Director's Screen: what is on it is hidden from the players. Click or drag it out to open it.")(element)
-            end
+            SetLit(true)
+        end,
+        dehover = function(element)
+            SetLit(false)
         end,
         click = function(element)
             if IsOpen() then
@@ -478,33 +575,6 @@ function DirectorScreen.CreateTabLayer()
                 Open()
             end
         end,
-        children = {
-            gui.Panel{
-                bgimage = "phosphor/eye-slash.png",
-                bgcolor = "#ffffffb0",
-                floating = true,
-                halign = "center",
-                valign = "top",
-                y = 9,
-                width = 14,
-                height = 14,
-                interactable = false,
-            },
-            --written up the tab: a label laid out across, then turned.
-            gui.Label{
-                classes = {"directorScreenTabLabel"},
-                text = "Director's Screen",
-                floating = true,
-                halign = "center",
-                valign = "center",
-                y = 9,
-                width = TAB_HEIGHT - 30,
-                height = TAB_WIDTH,
-                textAlignment = "center",
-                rotate = 90,
-                interactable = false,
-            },
-        },
     })
     g.hintLabel = gui.Label{
         classes = {"directorScreenHintLabel"},
@@ -545,7 +615,7 @@ function DirectorScreen.CreateTabLayer()
         height = "100%",
         flow = "none",
         interactable = false,
-        children = {g.tab, g.hint},
+        children = {g.tabFace, g.tab, g.hint},
         create = function(element)
             Layout(true)
         end,

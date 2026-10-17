@@ -26379,7 +26379,8 @@ function PanelDocument.CreateMapRails()
 end
 
 --Create or destroy the rails to match the setting; restore pinned windows
---when they come up. Safe to call any time.
+--when they come up. Safe to call any time. Returns true when the normal
+--rails were already up, so nothing was restored.
 function EnsureIconRail()
     --The rail (and everything riding it -- Views, doc shortcuts, dock
     --handoff) follows the "New Experimental UI" setting in Settings >
@@ -26495,7 +26496,7 @@ function EnsureIconRail()
                 RebuildIconRails()
             end
         end
-        return
+        return true
     end
 
     local layer = DocumentsLayer()
@@ -26553,6 +26554,12 @@ function EnsureIconRail()
     --stale squeeze left from before the rail owned this.
     dmhub.UpdateScreenHudArea(1)
 
+    PanelDocument.RestoreRailWindows()
+end
+
+--Reopen the recorded popouts and rail windows. A field rather than a local
+--for the main chunk's 200-local ceiling.
+PanelDocument.RestoreRailWindows = function()
     --restore popped-out panels first: a panel living in its own OS
     --window must not also restore an in-app rail window below. Only
     --records stamped by THIS app run reopen -- that is what brings
@@ -26657,7 +26664,11 @@ dmhub.RegisterEventHandler("EnterGame", function()
             return
         end
 
-        EnsureIconRail()
+        --rails built before this game's settings arrived restored an empty
+        --record, so restore now that they are here.
+        if EnsureIconRail() then
+            PanelDocument.RestoreRailWindows()
+        end
         --the map-button bar rides the same hud lifecycle: scripts that
         --registered buttons before the layer was up get their bar now.
         MapButtons.Refresh()

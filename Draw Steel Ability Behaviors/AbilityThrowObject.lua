@@ -79,7 +79,7 @@ function ActivatedAbilityThrowObjectBehavior:Cast(ability, casterToken, targets,
     --thrown as well as pushed (exploding barrels). Wait for the object to
     --land first: its location only updates once the slide finishes, and a
     --trigger that destroys it should go off where it landed.
-    if coroutine.running() ~= nil then
+    if coroutine.isyieldable() then
         local landBy = dmhub.Time() + 3
         while objectToken.valid and objectToken.loc.str ~= path.destination.str and dmhub.Time() < landBy do
             coroutine.yield(0.05)
@@ -96,6 +96,10 @@ function ActivatedAbilityThrowObjectBehavior:Cast(ability, casterToken, targets,
         thrower = casterToken
     end
 
+    --Squares thrown in a straight line, not the path's step count: the path
+    --may route around walls the object flies straight past.
+    local distance = path.origin:DistanceInTiles(path.destination)
+
     objectToken.properties:DispatchEvent("forcemove", {
         attacker = thrower ~= nil and thrower.properties or nil,
         hasattacker = thrower ~= nil,
@@ -103,7 +107,7 @@ function ActivatedAbilityThrowObjectBehavior:Cast(ability, casterToken, targets,
         vertical = false,
         collision = 0,
         collidewithobject = false,
-        distance = math.floor(path.numSteps or 0),
+        distance = math.floor(distance),
         melee = false,
     })
 end

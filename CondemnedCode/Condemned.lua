@@ -1968,6 +1968,8 @@ CondemnedExplosives = {
         if floor == nil then
             return
         end
+        --pos is the token's on-screen centre; the marks centre on it like a hero's (BlowUp).
+        local pos = token.pos
         local info = {
             kind = "blast",
             objid = token.charid,
@@ -1975,8 +1977,8 @@ CondemnedExplosives = {
             y = loc.y,
             floor = loc.floor,
             floorid = floor.floorid,
-            px = loc.x,
-            py = loc.y,
+            px = pos.x,
+            py = pos.y,
             mapid = game.currentMapId,
         }
         dmhub.BroadcastRemoteEvent(EXPLOSIVE_EVENT, dmhub.GenerateGuid(), info, true)

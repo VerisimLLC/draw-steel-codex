@@ -5810,6 +5810,12 @@ function MonsterAI:ExecuteAbility(casterToken, ability, targets, options)
     --(ExecuteAdvanceFallback) keeps its id; its own later wait is then a no-op.
     local previousActivityId = creature.GetTokenAIActivity(casterToken.charid)
     local activityId = previousActivityId or dmhub.GenerateGuid()
+    --Casts nest (Dread March runs each marching undead's speech as its own
+    --cast), so restore the outer cast's activity afterwards rather than
+    --clearing it: cleared, the outer cast's later damage carried no activity
+    --and the AI stopped waiting on the heroes' triggers (Ward of Nature's
+    --Affection, 2026-10-18 playtest).
+    local previousInProgress = creature.GetAIActivityInProgress()
     creature.SetTokenAIActivity(casterToken.charid, activityId)
     creature.SetAIActivityInProgress(activityId)
 
@@ -5821,7 +5827,7 @@ function MonsterAI:ExecuteAbility(casterToken, ability, targets, options)
         end
     end)
 
-    creature.SetAIActivityInProgress(nil)
+    creature.SetAIActivityInProgress(previousInProgress)
     creature.SetTokenAIActivity(casterToken.charid, previousActivityId)
     if not castOk then
         error(castErr)
@@ -6509,8 +6515,14 @@ Commands.RegisterMacro{
             return
         end
 
-        local tokens = dmhub.selectedTokens
-        if tokens == nil or #tokens == 0 then
+        --the AI plans on the board: a creature selected off it does not count.
+        local tokens = {}
+        for _, tok in ipairs(dmhub.selectedTokens) do
+            if tok.onBoard then
+                tokens[#tokens+1] = tok
+            end
+        end
+        if #tokens == 0 then
             TestAIMessage("select a token first.")
             return
         end

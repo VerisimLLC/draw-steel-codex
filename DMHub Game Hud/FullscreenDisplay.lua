@@ -104,6 +104,12 @@ function FullscreenDisplay.CreateSceneView(options)
     local m_fit = options.fit or "cover"
     local m_image = nil
     local m_aspect = nil
+    --the library scene shown, whose cards (SceneElements.lua) are drawn
+    --over the picture, and their layer.
+    local m_sceneid = nil
+    local m_layer = nil
+    local m_background = false
+    local root
 
     local artHolder = gui.Panel{
         floating = true,
@@ -113,10 +119,68 @@ function FullscreenDisplay.CreateSceneView(options)
         interactable = false,
     }
 
-    local function Refit()
-        for _, art in ipairs(artHolder.children) do
-            FitArt(art, m_aspect, m_fit)
+    --holds the cards' layer, sized to the picture (Refit).
+    local layerHolder = gui.Panel{
+        floating = true,
+        width = "100%",
+        height = "100%",
+        flow = "none",
+    }
+
+    --A scene holding cards always shows its whole picture, so everyone sees
+    --every card whatever the shape of their screen (David, 2026-10-17).
+    local function EffectiveFit()
+        if m_layer ~= nil and m_layer.valid and (m_layer.data.count or 0) > 0 then
+            return "contain"
         end
+        return m_fit
+    end
+
+    --w, h: the view's size when the layout pass that changed it says so
+    --("rendered"); otherwise its last rendered size.
+    local function Refit(w, h)
+        local fit = EffectiveFit()
+        for _, art in ipairs(artHolder.children) do
+            FitArt(art, m_aspect, fit)
+        end
+        --the cards' layer covers the picture exactly, as FitArt sizes it.
+        if m_layer ~= nil and m_layer.valid and root ~= nil and root.valid then
+            if w == nil or h == nil then
+                w, h = root.renderedWidth, root.renderedHeight
+            end
+            if w > 0 and h > 0 then
+                local aspect = m_aspect or SceneElements.NO_ART_ASPECT
+                local tall = (h / w) > aspect
+                if (fit == "cover") == tall then
+                    m_layer:FireEvent("setStage", h / aspect, h)
+                else
+                    m_layer:FireEvent("setStage", w, w * aspect)
+                end
+            end
+        end
+    end
+
+    local function SetScene(sceneid)
+        if sceneid == m_sceneid then
+            return
+        end
+        m_sceneid = sceneid
+        if m_layer ~= nil and m_layer.valid then
+            m_layer:DestroySelf()
+        end
+        m_layer = nil
+        if sceneid ~= nil then
+            m_layer = SceneElements.CreateLayer(sceneid, {
+                onCount = function(count)
+                    Refit()
+                end,
+            })
+            m_layer:FireEvent("setBackground", m_background)
+            layerHolder.children = {m_layer}
+        else
+            layerHolder.children = {}
+        end
+        Refit()
     end
 
     --a new art panel per picture: a video has to be streamed (its own looping
@@ -152,7 +216,7 @@ function FullscreenDisplay.CreateSceneView(options)
             imageLoaded = function(element)
                 if element.bgsprite ~= nil then
                     m_aspect = element.bgsprite.dimensions.y / element.bgsprite.dimensions.x
-                    FitArt(element, m_aspect, m_fit)
+                    Refit()
                     return
                 end
                 pcall(function()
@@ -162,7 +226,7 @@ function FullscreenDisplay.CreateSceneView(options)
                         end
                         if dims ~= nil and (dims.width or 0) > 0 and (dims.height or 0) > 0 then
                             m_aspect = dims.height / dims.width
-                            FitArt(element, m_aspect, m_fit)
+                            Refit()
                         end
                     end)
                 end)
@@ -233,7 +297,7 @@ function FullscreenDisplay.CreateSceneView(options)
         creditHolder.children = {badge}
     end
 
-    return gui.Panel{
+    root = gui.Panel{
         width = "100%",
         height = "100%",
         flow = "none",
@@ -246,10 +310,17 @@ function FullscreenDisplay.CreateSceneView(options)
         artHolder,
         captionBand,
         creditHolder,
+        layerHolder,
 
+        --info.sceneid: a library scene, whose cards are drawn over it.
         showScene = function(element, info)
             info = info or {}
             SetArt(CaptionText(info.image))
+            local sceneid = info.sceneid
+            if type(sceneid) ~= "string" or sceneid == "" then
+                sceneid = nil
+            end
+            SetScene(sceneid)
             local caption = CaptionText(info.caption)
             local subtitle = CaptionText(info.subtitle)
             captionLabel.text = caption or ""
@@ -275,7 +346,29 @@ function FullscreenDisplay.CreateSceneView(options)
             end
         end,
 
-        --windows resize: refit when the view's size changes.
+        --the view is the table's background (a maximized scene under the
+        --UI): its cards' layer lets the mouse through (SceneElements.lua).
+        setBackground = function(element, background)
+            background = background == true
+            if background ~= m_background then
+                m_background = background
+                if m_layer ~= nil and m_layer.valid then
+                    m_layer:FireEvent("setBackground", background)
+                end
+            end
+        end,
+
+        --windows resize: refit in the layout pass that resized the view, so
+        --the cards resize with the picture rather than a frame behind it.
+        rendered = function(element, width, height)
+            if width ~= element.data.w or height ~= element.data.h then
+                element.data.w = width
+                element.data.h = height
+                Refit(width, height)
+            end
+        end,
+
+        --(a fallback for a size change that fires no "rendered".)
         thinkTime = 0.2,
         think = function(element)
             local w, h = element.renderedWidth, element.renderedHeight
@@ -286,6 +379,7 @@ function FullscreenDisplay.CreateSceneView(options)
             end
         end,
     }
+    return root
 end
 
 --The title bar's presentation control (UpdatePresentationBar below) and what
@@ -335,6 +429,8 @@ function FullscreenDisplay.Create(options)
             --mouse goes through to the table layer behind it, so things
             --dropped on it land on the table (Tabletop.CreateLayer).
             view.interactable = not (belowui and Tabletop.IsActive())
+            --its cards stay live; drops on it come through the table.
+            view:FireEvent("setBackground", not hide and belowui and Tabletop.IsActive())
             if not hide then
                 local fit = "cover"
                 if type(data.fit) == "table" and data.fit.image == data.coverart and data.fit.mode == "contain" then
@@ -346,6 +442,7 @@ function FullscreenDisplay.Create(options)
                     caption = data.caption,
                     subtitle = data.subtitle,
                     credit = data.coverartCredit,
+                    sceneid = data.sceneid,
                 })
             end
             FullscreenDisplay.UpdatePresentationBar()

@@ -3477,7 +3477,9 @@ function ActivatedAbility:Render(options, params)
     return result
 end
 
-function ActivatedAbility:DescribeRange(castingCreature)
+--- @param castingCreature nil|creature
+--- @param sys nil|MeasurementSystem Units to show distances in. Defaults to the viewer's chosen units.
+function ActivatedAbility:DescribeRange(castingCreature, sys)
     if self:try_get("rangeTextOverride", "") ~= "" then
         if castingCreature == nil then
             return self.rangeTextOverride
@@ -3493,18 +3495,18 @@ function ActivatedAbility:DescribeRange(castingCreature)
     local radius = self:GetRadius(castingCreature)
 
     if self.targetType == "cube" then
-        return string.format("%s cube within %s", MeasurementSystem.NativeToDisplayString(radius),
-            MeasurementSystem.NativeToDisplayStringWithUnits(range))
+        return string.format("%s cube within %s", MeasurementSystem.NativeToDisplayString(radius, sys),
+            MeasurementSystem.NativeToDisplayStringWithUnits(range, sys))
     elseif self.targetType == "line" then
         local distance = self:GetLineDistance(castingCreature)
-        return string.format("%s x %s line within %d square%s", MeasurementSystem.NativeToDisplayString(range),
-            MeasurementSystem.NativeToDisplayString(radius), MeasurementSystem.NativeToDisplayString(distance),
+        return string.format("%s x %s line within %d square%s", MeasurementSystem.NativeToDisplayString(range, sys),
+            MeasurementSystem.NativeToDisplayString(radius, sys), MeasurementSystem.NativeToDisplayString(distance, sys),
             cond(distance ~= 1, "s", ""))
     elseif self.targetType == "all" then
-        return string.format("%s burst", MeasurementSystem.NativeToDisplayString(range))
+        return string.format("%s burst", MeasurementSystem.NativeToDisplayString(range, sys))
     end
 
-    local result = MeasurementSystem.NativeToDisplayString(range)
+    local result = MeasurementSystem.NativeToDisplayString(range, sys)
 
     if self:HasKeyword("Melee") and self:HasKeyword("Ranged") then
         local melee = self:try_get("meleeRange", 1)
@@ -4767,6 +4769,59 @@ GameSystem.RegisterGoblinScriptField {
         end
 
         return tonumber(c.resourceNumber) or 0
+    end,
+}
+
+--Burst size and line length are stored in range; cube size and line width in radius.
+local g_areaTypeNames = { cube = "Cube", line = "Line", all = "Burst" }
+
+GameSystem.RegisterGoblinScriptField {
+    target = ActivatedAbility,
+    name = "Area Type",
+    type = "text",
+    desc = "The shape of this ability's area: Cube, Line or Burst. Other for an area ability with a different shape. Empty if it is not an area ability.",
+    seealso = {"Area Size", "Distance"},
+    examples = {'Ability.Area Type is "Cube"'},
+    calculate = function(c)
+        local name = g_areaTypeNames[c.targetType]
+        if name ~= nil then
+            return name
+        end
+        if c.targetType == "map" or c:HasKeyword("Area") then
+            return "Other"
+        end
+        return ""
+    end,
+}
+
+GameSystem.RegisterGoblinScriptField {
+    target = ActivatedAbility,
+    name = "Area Size",
+    type = "number",
+    desc = "The size of this ability's area in squares: the cube size, the burst size or the line length. 0 for other shapes and for abilities that are not area abilities. Bonuses chosen while casting are not included.",
+    seealso = {"Area Type", "Range"},
+    examples = {"Ability.Area Size >= 3"},
+    calculate = function(c)
+        local caster = c:try_get("_tmp_boundCaster")
+        if c.targetType == "cube" then
+            return c:GetRadius(caster)
+        elseif c.targetType == "line" or c.targetType == "all" then
+            return c:GetRange(caster)
+        end
+        return 0
+    end,
+}
+
+GameSystem.RegisterGoblinScriptField {
+    target = ActivatedAbility,
+    name = "Distance",
+    type = "text",
+    desc = "The ability's distance as shown on its card, such as \"Melee 1\", \"Ranged 10\" or \"3 cube within 10 squares\". Always in squares, whatever units the viewer has chosen.",
+    seealso = {"Range", "Area Size"},
+    examples = {'Ability.Distance is "Melee 1"'},
+    calculate = function(c)
+        --Use the game's own units so every player gets the same text.
+        return c:DescribeRange(c:try_get("_tmp_boundCaster"), MeasurementSystem.NativeSystem())
     end,
 }
 

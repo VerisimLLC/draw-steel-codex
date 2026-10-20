@@ -100,6 +100,7 @@
 --- @field ObjectPanelOpen fun(): boolean A function that returns whether the Objects panel is currently open and on screen, regardless of whether it holds UI focus. This drives the object wiring overlay (the trigger/action plug icons drawn on the map); ObjectEditingEnabled, which is focus-derived, still governs object editing mode itself.
 --- @field GetAuraLabelTooltip fun(aura: AuraInstance, token: CharacterToken|nil): string|nil A function that can be set to supply the tooltip shown when the mouse hovers an aura's in-world name label on the map. Receives the AuraInstance the label belongs to and, for token-emitted auras, the emitting token (nil for object-emitted auras). Return the tooltip text (rich text allowed), or nil for no tooltip.
 --- @field FileDragGameTarget fun(info: nil|{paths: string[], target: "token"|"map", token: nil|CharacterToken}): nil Called while files dragged from the operating system move over the map with no UI panel taking them, so Lua can preview the drop. target "token": releasing sets the files' image as the token's avatar (token is that token). target "map": releasing places the files on the map as objects (Director only). Called again with nil when that ends: the drag leaves, moves to a panel or another target, or drops. Called on changes only, not every frame; dmhub.mouseScreenPosition follows the drag meanwhile.
+--- @field DeleteSelectionPressed fun(): boolean Called when the Director presses Delete with no text input focused and something selected (dmhub.selectedTokens is not empty). Return true to say Lua handled it -- the tabletop removes the selected creature cards when the selection was made from them -- and the engine then does not delete the selected map tokens.
 --- @field supportsObjectEditingFilter boolean True when this engine build honors the dmhub.GetObjectEditingFilter callback (markup-prop keyword filtering of object visibility, selection and dragging). Callers must gate on this: on older builds the callback is accepted but never polled, so filtered props would be placed but stay invisible and unselectable.
 --- @field supportsMarkupHoles boolean True when this engine build supports markup Hole zones: map auras whose AuraInstance reports GetHole() cut a real hole in the map (tile rules, fall-through map geometry, and the excavation visual). Callers must gate hole painting on this; on older builds the aura registers but no hole appears.
 --- @field tokensLoggedInAs nil|string[] If the GM is forcibly logged in as a token or set of tokens so they can view through their eyes, this returns a list of the token ids that the GM is logged in as.
@@ -180,9 +181,10 @@
 --- @field allTokens CharacterToken[] (Read-only) A list of all tokens active and deployed on the map.
 --- @field allTokensIncludingObjects CharacterToken[] (Read-only) A list of all tokens active and deployed on the map, including object tokens.
 --- @field allObjectTokens CharacterToken[] (Read-only) A list of all object tokens active and deployed on the map.
---- @field selectedTokens CharacterToken[] The list of currently selected tokens. Can be set to change the selection.
---- @field currentToken nil|CharacterToken (Read-only) the token the player is assumed to be currently controlling -- the token they have control of and is selected, or their primary character. May return nil, though it won't if the player has a PC assigned to them.
---- @field selectedOrPrimaryTokens CharacterToken[] (Read-only) a list consisting of the tokens selected, or the 'primary' token of the player if there is one. This can be used to get the token the player is presumably acting as if they perform an action. May return an empty list but does not return nil.
+--- @field selectedTokens CharacterToken[] The list of currently selected tokens. Can be set to change the selection. Besides tokens on the live map it can hold characters with no token there (a tabletop card's creature that is off every map, or on a map in another window): those come last, are the wrappers dmhub.GetCharacterById returns (no board presence; check dmhub.GetTokenById(tok.charid) when it matters), and move to the board selection when the creature arrives on the live map.
+--- @field selectedTokensSeq integer (Read-only) A number that changes whenever the selection (dmhub.selectedTokens) changes, so a poller can tell cheaply when to re-read it.
+--- @field currentToken nil|CharacterToken (Read-only) the token the player is assumed to be currently controlling -- the token they have control of and is selected, or their primary character. May return nil, though it won't if the player has a PC assigned to them. When the current token is a selected character with no token on the live map (see dmhub.selectedTokens), this is its off-board wrapper.
+--- @field selectedOrPrimaryTokens CharacterToken[] (Read-only) a list consisting of the tokens selected, or the 'primary' token of the player if there is one. This can be used to get the token the player is presumably acting as if they perform an action. May return an empty list but does not return nil. Includes selected characters with no token on the live map (see dmhub.selectedTokens).
 --- @field primaryCharacter CharacterToken|nil (Read-only) the primary character for the current player. This can be an off-map token.
 --- @field tokenHovered nil|CharacterToken (Read-only) Gets the currently hovered token, or nil if there is none.
 --- @field modMergeInfo nil|{numFiles: number, conflicts: nil|string[]} (Undocumented: engine-internal, not part of the modding API.)
@@ -452,6 +454,11 @@ function dmhub.OpenTextFileInConnectedEditor(contents, callback) end
 --- @return string|nil
 function dmhub.ReadTextFile(path, errorCallback) end
 
+--- Unpacks a .zip archive into a fresh engine-owned temporary folder on a worker thread, then calls back. Folder entries, macOS resource forks (__MACOSX) and entries that would land outside the folder are skipped. Archives with more than 5000 files or over 2 GB unpacked are refused. Unpacked folders are deleted a day later.
+--- @param path string The .zip file.
+--- @param callback fun(files: nil|{path: string, name: string}[], error: nil|string) Called on the main thread once the archive is unpacked: files lists every extracted file (path is where it now is on disk, name is its path inside the archive with / separators), or error says why the archive could not be read.
+function dmhub.ExtractZip(path, callback) end
+
 --- Writes a text file to the user data directory. Only .txt and .json files are allowed. Returns the full path of the written file, or nil if the write failed.
 --- @param directory? string
 --- @param filename? string
@@ -491,8 +498,8 @@ function dmhub.IsLocDifficultTerrain(loc, token) end
 --- @return boolean
 function dmhub.IsLocInVision(loc) end
 
---- Scans the current map's visible floors for built-in terrain rules granted by the terrain tiles themselves - EXCLUDING additive aura contributions such as markup zones - and returns which of the four rule types are present anywhere. Non-DM viewers only scan tiles currently inside their vision. Used by the map overlay menu to list built-in terrain types distinct from the defined zone types.
---- @return {water: boolean, difficultTerrain: boolean, concealment: boolean, climbable: boolean}
+--- Scans the current map's visible floors for built-in terrain rules granted by the terrain tiles themselves - EXCLUDING additive aura contributions such as markup zones - and returns which of the four rule types are present anywhere. shallowWater: the map water level makes some tile shallow water (difficult terrain for creatures without a swim speed); its deep water counts as water. Non-DM viewers only scan tiles currently inside their vision. Used by the map overlay menu to list built-in terrain types distinct from the defined zone types.
+--- @return {water: boolean, difficultTerrain: boolean, concealment: boolean, climbable: boolean, shallowWater: boolean}
 function dmhub.GetBuiltinTerrainTypesOnMap() end
 
 --- The tiles on the given floor that climbable WALLS make climbable: CalculateClimbableFromWalls stamps both tiles adjacent to every wall segment whose asset is climbable (and a climbable Solid object component stamps its outline the same way), and creatures standing on them may climb. These tiles are derived from the walls rather than painted, and do not show in GetTileRulesAtLoc. Grouped by the wall's climbable mode; each list may be empty. Returns nil when the floor is not currently visible (the logical map only covers visible floors). Changes whenever dmhub.tileRulesSeq changes.
@@ -1289,12 +1296,13 @@ function dmhub.UploadPlayerInfo(userid) end
 --- @param callback function
 function dmhub.RegisterRemoteEvent(eventid, callback) end
 
---- This broadcasts an event to connected computers using the peer-to-peer mechanism. By default delivery is best-effort UDP -- good for transient information like mouse positions or highlights where a dropped packet doesn't matter. If multiple messages using the same sessionid arrive out of order, the old messages will be discarded and not processed. Pass reliable = true to route via the game server's WebSocket when the event drives a state change that must not be lost.
+--- This broadcasts an event to connected computers using the peer-to-peer mechanism. By default delivery is best-effort UDP -- good for transient information like mouse positions or highlights where a dropped packet doesn't matter. If multiple messages using the same sessionid arrive out of order, the old messages will be discarded and not processed. Pass reliable = true to route via the game server's WebSocket when the event drives a state change that must not be lost. Only computers on the sender's current map receive the event unless allMaps is true.
 --- @param eventid string A unique eventid identifying the event.
 --- @param sessionid string A unique id identifying a 'session' which can receive multiple messages. If you want to broadcast multiple events concerning the same topic, use the same sessionid.
 --- @param args any
 --- @param reliable nil|boolean Optional. If true, route the message through the game server (TCP) so it can't be dropped by UDP. Requires a Durable Objects or Local game; silently ignored on Firebase-backed games (falls back to UDP). Defaults to false.
-function dmhub.BroadcastRemoteEvent(eventid, sessionid, args, reliable) end
+--- @param allMaps nil|boolean Optional. If true, the event reaches every connected computer whatever map it is on. By default it only reaches computers on the sender's current map.
+function dmhub.BroadcastRemoteEvent(eventid, sessionid, args, reliable, allMaps) end
 
 --- Registers a named priority for escape listening. The named key is associated with the given priority level.
 --- @param key? string
@@ -1667,17 +1675,21 @@ function dmhub.CenterOnToken(tokenid, args) end
 --- @return boolean
 function dmhub.CenterOnLoc(args) end
 
---- Zooms and centres the current map's view so a rectangle of the map fills it -- the live tabletop map window, or the screen without one -- on this machine only. x1/y1/x2/y2 are tile coordinates with x2/y2 exclusive (the convention of a map's dimensions); without them, the whole map. margin (default 1.04) is how much bigger than the rectangle the view is. A player can't zoom out past the game's player zoom limit.
---- @param args nil|{x1: nil|number, y1: nil|number, x2: nil|number, y2: nil|number, margin: nil|number}
+--- Zooms and centres the current map's view so a rectangle of the map fills it -- the live tabletop map window, or the screen without one -- on this machine only. x1/y1/x2/y2 are tile coordinates with x2/y2 exclusive (the convention of a map's dimensions); without them, the whole map. world is instead a rectangle in world units, the shape dmhub.cameraUsableBounds returns, so a view read before a window resize can be put back exactly. margin (default 1.04, or 1 with world) is how much bigger than the rectangle the view is. A player can't zoom out past the game's player zoom limit.
+--- @param args nil|{x1: nil|number, y1: nil|number, x2: nil|number, y2: nil|number, world: nil|{x1: number, y1: number, x2: number, y2: number}, margin: nil|number}
 function dmhub.FrameMapArea(args) end
 
---- Select the token with the given id, clearing selection of other tokens. The token is only selected if the user controls it in their own right (see CharacterToken.canControlAsUser); the selection is cleared regardless.
+--- Select the token with the given id, clearing selection of other tokens. The token is only selected if the user controls it in their own right (see CharacterToken.canControlAsUser); the selection is cleared regardless. A character with no token on the live map is selected off the board (see dmhub.selectedTokens).
 --- @param charid? string
 function dmhub.SelectToken(charid) end
 
---- Add the token with the given id to the selection. Does nothing unless the user controls the token in their own right (see CharacterToken.canControlAsUser).
+--- Add the token with the given id to the selection. Does nothing unless the user controls the token in their own right (see CharacterToken.canControlAsUser). A character with no token on the live map is selected off the board (see dmhub.selectedTokens).
 --- @param tokenid? string
 function dmhub.AddTokenToSelection(tokenid) end
+
+--- Removes the token or character with the given id from the selection, if it is selected.
+--- @param tokenid? string
+function dmhub.RemoveTokenFromSelection(tokenid) end
 
 --- Momentarily highlights the token with the given id.
 --- @param tokenid? string

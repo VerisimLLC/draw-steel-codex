@@ -101,6 +101,8 @@ local SCENE_TITLE_HEIGHT = 34
 --the dialog box.
 local SCENE_PORTRAIT_WIDTH = 230
 local SCENE_PORTRAIT_HEIGHT = 300
+--how much the figure who is speaking grows.
+local SCENE_SPEAKING_SCALE = 1.06
 --the portrait fades out at its top and sides (style edgeFade). edgeFade
 --measures from the edges of the whole IMAGE, not the panel, so the bottom
 --is kept crisp by cropping the image's bottom band away: the crop's bottom
@@ -125,19 +127,6 @@ local SCENE_EMOTE_HOLD = 1.6
 local SCENE_EMOTE_FADE = 0.3
 local SCENE_SHAKE_TIME = 1.4
 local SCENE_SHAKE_PX = 7
---Companions on the scene stage (CreateSceneStage's hero group). While the
---party gathers they stand in a row beside the hero, as do the ones stepping
---forward to assist; the row shrinks to fit, never past the minimum scale.
-local SCENE_ROW_SCALE = 0.6
-local SCENE_ROW_MIN_SCALE = 0.4
-local SCENE_GROUP_GAP = 10
---gap between the "Accompany them" box and the text dialog below it.
-local SCENE_ACCOMPANY_MARGIN = 12
---Afterwards they stack behind the hero: each a little smaller and higher,
---peeking out to the right.
-local SCENE_STACK_SCALE = 0.8
-local SCENE_STACK_PEEK = 100
-local SCENE_STACK_RAISE = 12
 --a figure's laid-out width: the portrait plus the actor's margins.
 local SCENE_FIGURE_WIDTH = SCENE_PORTRAIT_WIDTH + 8
 
@@ -238,8 +227,7 @@ local function Broadcast(eventName, ...)
 end
 
 --what a pick-up or a click is offering to do with the selected hero:
---"approach" (take a beat) or "accompany" (go along with the hero who has
---just approached).
+--"approach" (take a beat) or "narrative" (choose in a narrative section).
 local m_selectMode = "approach"
 
 --the entry whose hero slot is previewing the hero being dragged (the one
@@ -258,49 +246,6 @@ local function SelectHero(charid, mode)
     m_selectedHero = charid
     m_selectMode = mode or "approach"
     Broadcast("selectHero", charid, m_selectMode)
-end
-
---The companions who could assist the test in flight, keyed by charid,
---memoized for the life of one turn state so seven hero columns refreshing
---at 0.5s do not each walk the party's skill lists.
-local m_assistCache = { key = nil, set = {}, list = {} }
-
-local function AssistCache(m)
-    local t = (m ~= nil and m.turn) or {}
-    local key = table.concat({ tostring(t.seq), tostring(t.status), tostring(t.optionIndex),
-        tostring(#(t.assists or {})), tostring((t.assist or {}).rollSeq), tostring(#(t.companions or {})) }, "|")
-    if m_assistCache.key ~= key then
-        local set = {}
-        local list = {}
-        if t.status == "assist" or t.status == "assisting" then
-            local ok, candidates = pcall(function()
-                --CurrentBeat returns (beat, script); bind it or the trailing
-                --call expands BOTH into the argument list and the script
-                --arrives as the "heroes" parameter, which ipairs walks as
-                --empty -- every hero silently ineligible.
-                local beat = EncounterMontage.CurrentBeat()
-                return EncounterMontage.EligibleAssistants(m, beat)
-            end)
-            if ok and candidates ~= nil then
-                list = candidates
-                for _, candidate in ipairs(candidates) do
-                    set[candidate.charid] = candidate
-                end
-            end
-        end
-        m_assistCache = { key = key, set = set, list = list }
-    end
-    return m_assistCache
-end
-
---Keyed by charid, for the hero cards' "!" badge.
-local function AssistCandidates(m)
-    return AssistCache(m).set
-end
-
---In the order they joined, each with the skills still open to them.
-local function AssistCandidatesList(m)
-    return AssistCache(m).list
 end
 
 local function Hud()
@@ -930,126 +875,6 @@ local function StageRules()
             textAlignment = "center",
             vmargin = 2,
         },
-        --the "Accompany them" box beside a hero who has just approached:
-        --any player drops a hero here to send them along.
-        {
-            selectors = {"eotwAccompanySlot"},
-            bgcolor = "#0b0f15b0",
-            border = 2,
-            borderStyle = "dashed",
-            borderColor = "#ffffff60",
-            cornerRadius = 10,
-            transitionTime = 0.15,
-        },
-        {
-            selectors = {"eotwAccompanySlot", "hover"},
-            borderColor = "#ffffffa0",
-        },
-        {
-            selectors = {"eotwAccompanySlot", "droppable"},
-            bgcolor = "#1b2740e0",
-            borderColor = "#9cc4ffff",
-            border = 3,
-        },
-        --while a hero is dragged the engine adds "drag-target" (and
-        --"drag-target-hover" under the cursor), which the theme fills light;
-        --its text fix only reaches direct children, and these labels sit in
-        --a wrapper, so keep the box dark here instead (priority beats the
-        --theme's 5).
-        {
-            selectors = {"eotwAccompanySlot", "drag-target"},
-            bgcolor = "#1b2740e0",
-            borderColor = "#9cc4ffff",
-            border = 3,
-            priority = 6,
-        },
-        {
-            selectors = {"eotwAccompanySlot", "drag-target-hover"},
-            bgcolor = "#2a3d63f0",
-            borderColor = "#ffffffff",
-            border = 3,
-            priority = 6,
-        },
-        {
-            selectors = {"eotwAccompanyPlus"},
-            fontSize = 44,
-            bold = true,
-            color = "#ffffff70",
-            width = "100%",
-            height = "auto",
-            textAlignment = "center",
-        },
-        --"droppable" is set on the whole slot tree (SetClassTree), since the
-        --labels are not direct children of the slot.
-        {
-            selectors = {"eotwAccompanyPlus", "droppable"},
-            color = "#9cc4ffff",
-        },
-        {
-            selectors = {"eotwAccompanyText"},
-            fontSize = 15,
-            bold = true,
-            color = "#d8d8d8",
-            width = "100%",
-            height = "auto",
-            textAlignment = "center",
-        },
-        --a companion standing behind the hero at the entry.
-        {
-            selectors = {"eotwScenePortrait", "behind"},
-            brightness = 0.55,
-            saturation = 0.7,
-        },
-        {
-            selectors = {"eotwSceneActorName", "behind"},
-            color = "#b0b0b0",
-        },
-        {
-            selectors = {"eotwSceneActorName", "shadow", "behind"},
-            color = "#000000c0",
-        },
-        --the little x that sends a companion back before the party sets off.
-        {
-            selectors = {"eotwStayBehind"},
-            bgcolor = "#000000c0",
-            border = 1,
-            borderColor = "#ffffff70",
-            cornerRadius = 11,
-        },
-        {
-            selectors = {"eotwStayBehind", "hover"},
-            bgcolor = "#5a1a1ae0",
-            borderColor = "#ffffffd0",
-        },
-        {
-            selectors = {"eotwStayBehindText"},
-            fontSize = 14,
-            bold = true,
-            color = "#ffffff",
-            width = "100%",
-            height = "100%",
-            textAlignment = "center",
-        },
-        --one finished assist, in the box: green when it helped, red when it
-        --put a bane on the test.
-        {
-            selectors = {"eotwAssistLine"},
-            fontSize = 15,
-            bold = true,
-            color = "#8ee08e",
-            width = "100%",
-            height = "auto",
-            textAlignment = "left",
-            bmargin = 2,
-        },
-        {
-            selectors = {"eotwAssistLine", "hurt"},
-            color = "#ff8a80",
-        },
-        {
-            selectors = {"eotwAssistLine", "none"},
-            color = "#b8b8b8",
-        },
         --the scene stage (CreateSceneStage): portraits, the dialog box along
         --the bottom (narration and speech) and its blinking page prompt.
         {
@@ -1067,7 +892,7 @@ local function StageRules()
         },
         {
             selectors = {"eotwSceneActor", "speaking"},
-            scale = 1.06,
+            scale = SCENE_SPEAKING_SCALE,
             transitionTime = 0.25,
         },
         --who has the floor: at rest (the narrator talking) the figures are
@@ -1341,16 +1166,17 @@ local function StageRules()
             borderColor = "#7dffb0ff",
             border = 2,
         },
-        --the "!" a hero wears while they could assist the test in flight.
+        --the pulsing "?" over a hero card in a narrative section who has
+        --still to choose.
         {
-            selectors = {"eotwAssistBadge"},
+            selectors = {"eotwHeroBadge"},
             bgcolor = "#1b2740ff",
             borderColor = "#9cc4ffff",
             border = 2,
             cornerRadius = 11,
         },
         {
-            selectors = {"eotwAssistBadgeText"},
+            selectors = {"eotwHeroBadgeText"},
             fontSize = 16,
             bold = true,
             color = "#9cc4ff",
@@ -1365,18 +1191,6 @@ local function StageRules()
             saturation = 0.15,
             brightness = 0.45,
         },
-        --approached this round, but can still go along with someone.
-        {
-            selectors = {"eotwHeroCard", "approached"},
-            saturation = 0.6,
-            brightness = 0.75,
-        },
-        --standing at the entry with the hero whose turn it is.
-        {
-            selectors = {"eotwHeroCard", "companion"},
-            border = 3,
-            borderColor = "#c9a74fc0",
-        },
         {
             selectors = {"eotwHeroCard", "dragging"},
             brightness = 1.2,
@@ -1386,6 +1200,16 @@ local function StageRules()
             borderColor = "#ffd66bff",
             border = 3,
             brightness = 1.15,
+        },
+        --a hero the local user can act with right now (take a beat): a green
+        --ring just outside the card that pulses (CreateHeroColumn drives the opacity), so a
+        --player can see at a glance who is waiting on them.
+        {
+            selectors = {"eotwCanActRing"},
+            bgcolor = "clear",
+            border = 3,
+            borderColor = "#7cf29aff",
+            cornerRadius = 11,
         },
         --the narrative stage: the section's prose, the option cards as drop
         --targets, the chips saying who chose what, and the flash that
@@ -2092,32 +1916,6 @@ local function EntryHeroRecord(m, entry)
     return nil, false
 end
 
---"Mira and Tor" for the companions of a live turn ({ heroName }) or a log
---line (names), or nil when the hero went alone.
-local function CompanionNameList(rec)
-    local names = {}
-    for _, c in ipairs(rec.companions or {}) do
-        if type(c) == "table" then
-            names[#names + 1] = c.heroName or "a companion"
-        else
-            names[#names + 1] = tostring(c)
-        end
-    end
-    if #names == 0 then
-        return nil
-    elseif #names == 1 then
-        return names[1]
-    end
-    return string.format("%s and %s", table.concat(names, ", ", 1, #names - 1), names[#names])
-end
-
---One finished assist in words: "Mira assisted with Persuade: an edge".
-local ASSIST_OUTCOME_TEXT = { bane = "a bane", edge = "an edge", doubleedge = "a double edge", none = "no bane (Put Your Back Into It!)" }
-local function AssistLineText(a)
-    return string.format("%s assisted with %s: %s", a.heroName or "A companion", a.skillName or "a skill",
-        ASSIST_OUTCOME_TEXT[a.outcome or "none"] or "no change")
-end
-
 --What the slot says across the top of a finished hero's portrait.
 local function EntryHeroResultText(rec)
     if rec.passed then
@@ -2135,10 +1933,6 @@ end
 local function EntryHeroTooltip(rec, finished)
     local name = rec.heroName or "A hero"
     if not finished then
-        local together = CompanionNameList(rec)
-        if together ~= nil then
-            return string.format("<b>%s</b> is dealing with this now, with %s.", name, together)
-        end
         return string.format("<b>%s</b> is dealing with this now.", name)
     end
     local lines = {}
@@ -2165,15 +1959,8 @@ local function EntryHeroTooltip(rec, finished)
             lines[#lines + 1] = string.format("<i>%s</i>", rec.tierText)
         end
     end
-    local with = CompanionNameList(rec)
-    if with ~= nil then
-        lines[#lines + 1] = string.format("With %s", with)
-    end
     if rec.knack ~= nil then
         lines[#lines + 1] = string.format("Knack: %s", rec.knack)
-    end
-    for _, a in ipairs(rec.assists or {}) do
-        lines[#lines + 1] = AssistLineText(a)
     end
     for _, line in ipairs(rec.applied or {}) do
         lines[#lines + 1] = string.format("- %s", line)
@@ -2319,9 +2106,7 @@ local function CreateEntryHeroSlot(entry, top)
             --their own artwork.
             ShowPortrait(rec.heroid)
             art:SetClass("finished", finished)
-            --"+2": the companions who went along.
-            local nCompanions = #(rec.companions or {})
-            nameLabel.text = cond(nCompanions > 0, string.format("%s +%d", rec.heroName or "", nCompanions), rec.heroName or "")
+            nameLabel.text = rec.heroName or ""
             tierLabel:SetClass("hidden", not finished)
             if finished then
                 tierLabel.text = EntryHeroResultText(rec)
@@ -2487,9 +2272,8 @@ local function CreateEntryCard(entry, appearIn)
             EncounterMontage.SendRequest("approach", { heroid = heroid, entryId = entry.id })
         end,
 
-        --highlight while a hero is being dragged or has been clicked. A
-        --hero picked up to ASSIST is not going anywhere near an entry, so
-        --those drags leave the columns alone.
+        --highlight while a hero is being dragged or has been clicked to
+        --approach (an item or a narrative pick leaves the columns alone).
         dragTargets = function(element, on, mode)
             element:SetClass("droppable", on == true and (mode or "approach") == "approach" and element.data.available)
         end,
@@ -2665,19 +2449,17 @@ local function OptionCard(entry, option, index, m)
         landed = m.turn.baseTier
     end
     --the version of the option the hero at the entry takes: once chosen,
-    --the one the host fixed; before that, the first knack anyone in the
-    --group meets.
+    --the one the host fixed; before that, the first knack they meet.
     local heroid = m.turn ~= nil and m.turn.heroid or nil
-    local group = EncounterMontage.TurnGroup(m.turn)
     local version = option
     local knackReason = nil
     if chosen then
         version = EncounterScript.OptionVersion(option, m.turn.knackIndex)
         knackReason = m.turn.knackReason
     elseif heroid ~= nil then
-        version = EncounterMontage.OptionForHero(heroid, option, group)
+        version = EncounterMontage.OptionForHero(heroid, option)
         if version.knack ~= nil then
-            knackReason = EncounterMontage.KnackReason(heroid, option, version.knackIndex, group)
+            knackReason = EncounterMontage.KnackReason(heroid, option, version.knackIndex)
         end
     end
     ---@type Panel[]
@@ -2692,7 +2474,7 @@ local function OptionCard(entry, option, index, m)
     --a met Allow marks it special and says why.
     local verdict = nil
     if heroid ~= nil then
-        verdict = EncounterMontage.RiderVerdict(heroid, option, version, group)
+        verdict = EncounterMontage.RiderVerdict(heroid, option, version)
     end
     local locked = verdict ~= nil and not verdict.allowed
     local unlocked = (verdict ~= nil and verdict.gated and verdict.allowed) or version.knack ~= nil
@@ -2717,18 +2499,6 @@ local function OptionCard(entry, option, index, m)
                 text = string.format("Double Edge: blessed by %s (Ritualist)", m.turn.blessing.heroName or "a Ritualist"),
                 interactable = false,
             }
-        end
-        --each assist so far, as the edge or bane it puts on the roll.
-        if chosen then
-            for _, a in ipairs(m.turn.assists or {}) do
-                if a.outcome ~= "none" then
-                    children[#children + 1] = gui.Label{
-                        classes = {"eotwRider", cond(a.outcome == "bane", "hurt", "met")},
-                        text = string.format("%s: %s assisted (%s)", EncounterScript.RiderLabel(a.outcome), a.heroName or "A companion", a.skillName or "a skill"),
-                        interactable = false,
-                    }
-                end
-            end
         end
         local rows
         if chosen and (m.turn.status == "rolling" or m.turn.status == "pardon") then
@@ -2830,9 +2600,8 @@ local function PerkButton(label, tooltip, onPress)
     }
 end
 
---While a hero chooses: a Ritualist at the entry -- the hero, or one of
---their companions -- may bless the test they are about to take, once a
---round (the ritual needs a touch).
+--While a hero chooses: a Ritualist at the entry may bless the test they
+--are about to take, once a round (the ritual needs a touch).
 PerkActionChildren = function(m, t)
     local children = {}
     if t == nil or t.delve ~= nil then
@@ -2845,23 +2614,14 @@ PerkActionChildren = function(m, t)
         }
         return children
     end
-    for _, hero in ipairs(EncounterMontage.Heroes()) do
-        local key = string.format("ritual:%d:%s", m.round or 1, hero.charid)
-        local present = hero.charid == t.heroid or EncounterMontage.IsCompanion(t, hero.charid)
-        if present and LocalControls(hero.charid) and not (m.perkUsed or {})[key] and EncounterMontage.HeroHasPerk(hero.charid, "Ritualist") then
-            local label
-            if hero.charid == t.heroid then
-                label = "Bless your own test (Ritualist)"
-            else
-                label = string.format("%s: bless %s's test (Ritualist)", hero.name or "Your hero", t.heroName or "the hero")
-            end
-            children[#children + 1] = PerkButton(label,
-                "Ritualist: a minute's blessing gives a double edge on this test. Once a round.",
-                function(element)
-                    EncounterMontage.SendRequest("bless", { heroid = hero.charid })
-                    element:SetClass("hidden", true)
-                end)
-        end
+    local key = string.format("ritual:%d:%s", m.round or 1, t.heroid)
+    if LocalControls(t.heroid) and not (m.perkUsed or {})[key] and EncounterMontage.HeroHasPerk(t.heroid, "Ritualist") then
+        children[#children + 1] = PerkButton("Bless your own test (Ritualist)",
+            "Ritualist: a minute's blessing gives a double edge on this test. Once a round.",
+            function(element)
+                EncounterMontage.SendRequest("bless", { heroid = t.heroid })
+                element:SetClass("hidden", true)
+            end)
     end
     return children
 end
@@ -2908,206 +2668,14 @@ PerkOfferChildren = function(m, t)
     return children
 end
 
---A plain action in the dialog box (Continue, Make the test, an assist):
---hides itself on press so a slow host reply cannot be clicked twice.
-local function BoxButton(label, tooltip, onPress)
-    return gui.Panel{
-        classes = {"eotwSceneOption", "actionable"},
-        width = "auto",
-        height = "auto",
-        halign = "left",
-        hpad = 14,
-        vpad = 5,
-        borderBox = true,
-        vmargin = 2,
-        bgimage = "panels/square.png",
-        gui.Label{ classes = {"eotwSceneOptionName"}, text = label, interactable = false },
-        linger = function(element)
-            if tooltip ~= nil then
-                gui.Tooltip(tooltip)(element)
-            end
-        end,
-        press = function(element)
-            audio.FireSoundEvent("Mouse.Click")
-            element:SetClass("hidden", true)
-            onPress(element)
-        end,
-    }
-end
-
---Right after an approach: who may still come along, and Continue for the
---approaching player. The "Accompany them" box itself stands on the stage
---beside the hero (CreateSceneStage's hero group).
-local function GatheringChildren(m, t)
-    local children = {}
-    local mine = IsMyTurn(m)
-    local myHeroes = {}
-    for _, hero in ipairs(EncounterMontage.Heroes()) do
-        if EncounterMontage.LocalUserCanAccompany(hero.charid) then
-            myHeroes[#myHeroes + 1] = hero.name
-        end
-    end
-    local text
-    if mine then
-        text = "Anyone may send a hero along with you: drag them into the empty box. Continue when your party is ready."
-    else
-        text = string.format("%s is gathering companions.", t.heroName or "The hero")
-        if #myHeroes > 0 then
-            text = string.format("%s Drag %s into the empty box to go along.", text, table.concat(myHeroes, " or "))
-        end
-    end
-    children[#children + 1] = gui.Label{ classes = {"eotwSceneHint"}, text = text }
-    local together = CompanionNameList(t)
-    if together ~= nil then
-        children[#children + 1] = gui.Label{ classes = {"eotwSceneHint"}, text = string.format("Going along: %s.", together) }
-    end
-    if mine then
-        children[#children + 1] = BoxButton(cond(together ~= nil, "Continue", "Continue alone"),
-            "Set off for the entry with the party you have. A hero goes along once a round.",
-            function()
-                EncounterMontage.SendRequest("setOff", {})
-            end)
-    end
-    return children
-end
-
---How assisting works, for the line above the assist buttons.
-local function AssistRulesText(t)
-    local attrName = "the test's characteristic"
-    pcall(function()
-        local info = creature.attributesInfo[t.testAttrid]
-        if info ~= nil then
-            attrName = info.description
-        end
-    end)
-    return string.format("Companions may assist, each with a skill nobody has used on this test: %s + skill, 11 or lower puts a bane on the test, 12-16 an edge, 17+ a double edge.", attrName)
-end
-
---Before the roll: the companions who can assist step forward, each player
---picking the skill their hero assists with; the hero making the test rolls
---when satisfied, or as soon as nobody else can assist.
-local function AssistChildren(m, t)
-    local children = {}
-    local function Add(child)
-        children[#children + 1] = child
-    end
-    for _, a in ipairs(t.assists or {}) do
-        Add(gui.Label{ classes = Classes("eotwAssistLine", a.outcome == "bane" and "hurt", a.outcome == "none" and "none"), text = AssistLineText(a) })
-    end
-    if t.status == "assisting" then
-        local a = t.assist or {}
-        Add(gui.Label{
-            classes = {"eotwSceneHint"},
-            text = string.format("%s is assisting with %s...", a.heroName or "A companion", a.skillName or "their skill"),
-        })
-        for _, row in ipairs(LiveTierRows({ tiers = EncounterMontage.ASSIST_TIERS })) do
-            Add(row)
-        end
-        return children
-    end
-    local candidates = AssistCandidatesList(m)
-    if #candidates == 0 then
-        Add(gui.Label{ classes = {"eotwSceneHint"}, text = "The dice come out..." })
-        return children
-    end
-    Add(gui.Label{ classes = {"eotwSceneHint"}, text = AssistRulesText(t) })
-    --players who do not control a companion get its assist buttons as dotted
-    --ghosts: a click pings that button for the whole table ("please help
-    --me!"), and every copy -- the companion's real one included -- pulses in
-    --the pinger's colour. Same roll button pings as the option ghosts
-    --(OptionButtons), keyed to this test's assist step.
-    local canPing = CharacterPanel ~= nil and CharacterPanel.SendRollButtonPing ~= nil
-    local pingKey = string.format("assist:%s:%s", tostring(t.entryId), tostring(t.seq))
-    local pingSince = dmhub.serverTime
-    local pingSeen = {}
-    local assistPanels = {}
-    local assistButtons = {}
-    local pingDocPath = nil
-    if canPing then
-        pingDocPath = CharacterPanel.RollButtonPingDocPath()
-    end
-    for _, candidate in ipairs(candidates) do
-        if LocalControls(candidate.charid) then
-            for _, skill in ipairs(candidate.skills) do
-                local button = BoxButton(string.format("%s: assist with %s", candidate.name or "Your hero", skill.skillName or "a skill"),
-                    string.format("Roll to assist %s's test with %s. Each companion assists one test here.", t.heroName or "the hero", skill.skillName or "this skill"),
-                    function()
-                        EncounterMontage.SendRequest("assist", { heroid = candidate.charid, skillid = skill.skillid })
-                    end)
-                assistPanels[string.format("%s|%s", tostring(candidate.charid), tostring(skill.skillid))] = button
-                assistButtons[#assistButtons + 1] = button
-            end
-        elseif canPing then
-            for _, skill in ipairs(candidate.skills) do
-                local pingButton = string.format("%s|%s", tostring(candidate.charid), tostring(skill.skillid))
-                local ghost = gui.Panel{
-                    classes = {"eotwSceneOption", "pingGhost"},
-                    width = "auto",
-                    height = "auto",
-                    halign = "left",
-                    hpad = 14,
-                    vpad = 5,
-                    borderBox = true,
-                    vmargin = 2,
-                    bgimage = "panels/square.png",
-                    gui.Label{ classes = {"eotwSceneOptionName"}, text = string.format("%s: assist with %s", candidate.name or "A companion", skill.skillName or "a skill"), interactable = false },
-                    linger = function(element)
-                        gui.Tooltip(string.format("Ping this for everyone: ask %s to assist with %s.", candidate.name or "this companion", skill.skillName or "this skill"))(element)
-                    end,
-                    press = function(element)
-                        audio.FireSoundEvent("Mouse.Click")
-                        CharacterPanel.SendRollButtonPing(pingKey, pingButton)
-                    end,
-                }
-                assistPanels[pingButton] = ghost
-                assistButtons[#assistButtons + 1] = ghost
-            end
-        else
-            local names = {}
-            for _, skill in ipairs(candidate.skills) do
-                names[#names + 1] = skill.skillName
-            end
-            assistButtons[#assistButtons + 1] = gui.Label{
-                classes = {"eotwSceneHint"},
-                text = string.format("%s may assist (%s)...", candidate.name or "A companion", table.concat(names, ", ")),
-            }
-        end
-    end
-    Add(gui.Panel{
-        width = "100%",
-        height = "auto",
-        flow = "vertical",
-        children = assistButtons,
-        monitorGame = pingDocPath,
-        refreshGame = function(element)
-            if not canPing then
-                return
-            end
-            for _, ping in ipairs(CharacterPanel.TakeRollButtonPings(pingKey, pingSince, pingSeen)) do
-                CharacterPanel.PulseRollButton(assistPanels[ping.button], ping.userid)
-            end
-        end,
-    })
-    if IsMyTurn(m) then
-        Add(BoxButton(cond(#(t.assists or {}) > 0, "Make the test", "Make the test without help"),
-            "Roll the test now. Companions who have not assisted will not.",
-            function()
-                EncounterMontage.SendRequest("proceedTest", {})
-            end))
-    else
-        Add(gui.Label{ classes = {"eotwSceneHint"}, text = string.format("%s rolls when ready.", t.heroName or "The hero") })
-    end
-    return children
-end
-
---Pardon My Friend: a companion is making the failed test in the hero's place.
+--Pardon My Friend: another hero is making the failed test in the hero's place.
 local function PardonChildren(m, t)
     local p = t.pardon or {}
     return {
         gui.Label{
             classes = {"eotwSceneHint"},
             text = string.format("%s rolled tier %d. %s steps in to make the test instead, with a bane (Pardon My Friend)...",
-                t.heroName or "The hero", t.baseTier or t.tier or 1, p.heroName or "A companion"),
+                t.heroName or "The hero", t.baseTier or t.tier or 1, p.heroName or "Another hero"),
         },
     }
 end
@@ -3148,22 +2716,141 @@ local function TeamLeaderChildren(m)
     return children
 end
 
+local function DiceLanded(d)
+    local n = 0
+    for _, r in ipairs((d or {}).rolls or {}) do
+        if r.total ~= nil then
+            n = n + 1
+        end
+    end
+    return n
+end
+
 local function TurnSignature(m)
     local t = m.turn or {}
-    local a = t.assist or {}
     local d = t.delve or {}
     return table.concat({
         tostring(d.obstacleId), tostring(d.depth), tostring(d.chests),
         tostring(m.phase), tostring(m.round), tostring(t.seq), tostring(t.status), tostring(t.optionIndex),
         tostring(t.rollSeq), tostring(t.tier), tostring(m.consequenceIndex), tostring(#(m.log or {})),
         tostring(dmhub.loginUserid == t.userid),
-        tostring(a.rollSeq), tostring(#(t.assists or {})), tostring(#(t.companions or {})),
         tostring((t.pardon or {}).rollSeq),
         tostring(t.knackIndex), tostring(#(t.offers or {})), tostring(t.blessing ~= nil and t.blessing.heroid or nil),
         tostring(m.teamLeader ~= nil), tostring(m.perkSeq),
         --an item used here can reveal an option or open a knack.
         tostring(m.consumeSeq),
+        tostring((m.dice or {}).seq), tostring(DiceLanded(m.dice)),
     }, "|")
+end
+
+--The montage dice that are out (m.dice: a table roll, a recovery loss),
+--one line per roll with its result once it lands, and for a table roll the
+--table itself with the rows the dice landed on lit.
+local function DiceCard(m, beat)
+    local d = m.dice or {}
+    ---@type Panel[]
+    local children = {
+        gui.Label{ classes = {"eotwOptionName"}, text = d.entryName or "Dice", interactable = false },
+    }
+    local tableKey = nil
+    for _, r in ipairs(d.rolls or {}) do
+        local result = "rolling..."
+        if r.total ~= nil then
+            result = tostring(r.total)
+        elseif r.userid == dmhub.loginUserid then
+            result = "your roll"
+        end
+        children[#children + 1] = gui.Label{
+            classes = {"eotwOptionRoll"},
+            text = string.format("%s: %s (%s) -- %s", r.heroName or "A hero", r.label or "Roll", r.dice or "?", result),
+            interactable = false,
+        }
+        if r.kind == "table" then
+            tableKey = r.tableKey
+        end
+    end
+    local entry = tableKey ~= nil and EncounterScript.FindEntry(beat, d.entryId) or nil
+    local tableRoll = entry ~= nil and (entry.tables or {})[tableKey] or nil
+    if tableRoll ~= nil then
+        local lit = {}
+        local any = false
+        for _, r in ipairs(d.rolls or {}) do
+            if r.kind == "table" and r.total ~= nil then
+                local row = EncounterScript.ChestRow(tableRoll, r.total)
+                if row ~= nil then
+                    lit[row] = true
+                    any = true
+                end
+            end
+        end
+        for _, row in ipairs(tableRoll.rows or {}) do
+            local range = cond(row.lo == row.hi, tostring(row.lo), string.format("%d-%d", row.lo, row.hi))
+            local landed = lit[row] == true
+            local dim = any and not landed
+            children[#children + 1] = gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+                vmargin = 1,
+                interactable = false,
+                gui.Label{ classes = Classes("eotwTierRange", landed and "landed", dim and "dim"), text = range, interactable = false },
+                gui.Label{ classes = Classes("eotwTierText", landed and "landed", dim and "dim"), text = EncounterScript.VisibleText(row.text), interactable = false },
+            }
+        end
+    end
+    return gui.Panel{
+        classes = {"eotwOptionCard"},
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        pad = 10,
+        borderBox = true,
+        vmargin = 5,
+        bgimage = "panels/square.png",
+        children = children,
+    }
+end
+
+--"Roll your dice." or who the table is waiting on.
+local function DiceHint(m)
+    local waiting = {}
+    for _, r in ipairs((m.dice or {}).rolls or {}) do
+        if r.total == nil then
+            if r.userid == dmhub.loginUserid then
+                return "Roll your dice."
+            end
+            waiting[#waiting + 1] = r.heroName or "a hero"
+        end
+    end
+    if #waiting == 0 then
+        return "The dice are in."
+    end
+    return string.format("Waiting on the dice for %s...", table.concat(waiting, ", "))
+end
+
+--The Roll button for this user's montage dice, or nil when they have none
+--waiting (or have already clicked it).
+local function DiceRollButton(halign)
+    if not EncounterMontage.MyDiceWaiting() then
+        return nil
+    end
+    return gui.Panel{
+        classes = {"eotwSceneOption", "actionable"},
+        width = "auto",
+        height = "auto",
+        halign = halign or "left",
+        hpad = 14,
+        vpad = 5,
+        borderBox = true,
+        vmargin = 2,
+        bgimage = "panels/square.png",
+        gui.Label{ classes = {"eotwSceneOptionName"}, text = "Roll", interactable = false },
+        press = function(element)
+            audio.FireSoundEvent("Mouse.Click")
+            element:SetClass("hidden", true)
+            EncounterMontage.RollMyDice()
+        end,
+    }
 end
 
 --- the scene stage -------------------------------------------------------------------
@@ -3403,301 +3090,44 @@ local function CreateSceneStage()
     local titleLabel = gui.Label{ classes = {"eotwSceneTitle"}, text = "" }
     --the figures stand on the dialog box: hero at the left, cast at the right.
     local castRow = gui.Panel{ floating = true, width = "auto", height = "auto", halign = "right", valign = "bottom", flow = "horizontal" }
+    --the cast's own size (smaller when two or more share the stage), and how
+    --much every figure shrinks so it fits under the title on a short stage
+    --(stageArea's think). The cast's uiscale is the product of the two.
+    local m_castScale = 1
+    local m_fit = 1
 
-    --The hero group, at the left: the hero at the entry in front, their
-    --companions, and -- while the party gathers -- the "Accompany them" box.
-    --Laid out by hand (flow none): each figure is placed with x/y and shrunk
-    --with a transform scale from its bottom-left corner, so a stack can
-    --overlap and a change of layout glides (heroSlot's think).
-    local heroSlot
-    local m_mainFigure = nil
-    --companion figures by charid.
-    local m_figures = {}
-    local m_accompanySlot = nil
-    local m_groupKey = nil
-
-    heroSlot = gui.Panel{
+    --The hero at the entry, at the left. stageArea's fit shrinks it with a
+    --transform scale from its feet, so its layout stays in unscaled units.
+    local heroSlot = gui.Panel{
         floating = true,
         width = "100%",
         height = SCENE_PORTRAIT_HEIGHT,
         halign = "left",
         valign = "bottom",
         flow = "none",
-        think = function(element)
-            local moving = false
-            for _, fig in ipairs(element.children) do
-                local d = fig.data
-                if d ~= nil and d.tx ~= nil then
-                    d.x = d.x + (d.tx - d.x) * 0.3
-                    d.y = d.y + (d.ty - d.y) * 0.3
-                    d.s = d.s + (d.ts - d.s) * 0.3
-                    if math.abs(d.tx - d.x) < 0.5 and math.abs(d.ty - d.y) < 0.5 and math.abs(d.ts - d.s) < 0.005 then
-                        d.x, d.y, d.s = d.tx, d.ty, d.ts
-                    else
-                        moving = true
-                    end
-                    fig.selfStyle.x = d.x
-                    fig.selfStyle.y = d.y
-                    fig.selfStyle.scale = d.s
-                end
-            end
-            if not moving then
-                element.thinkTime = nil
-            end
-        end,
+        pivot = { x = 0, y = 0 },
     }
+    local m_mainFigure = nil
 
-    --Send a figure to (x, y) at scale s: at once, or gliding there.
-    local function PlaceFigure(fig, x, y, scale, instant)
-        local d = fig.data
-        d.tx, d.ty, d.ts = x, y, scale
-        if instant then
-            d.x, d.y, d.s = x, y, scale
-            fig.selfStyle.x = x
-            fig.selfStyle.y = y
-            fig.selfStyle.scale = scale
-        else
-            heroSlot.thinkTime = 0.02
-        end
-    end
-
-    --One hero on the stage. A companion's carries the little x that sends
-    --them back while the party is still gathering.
-    local function CreateFigure(charid, name, companion)
+    --One hero on the stage.
+    local function CreateFigure(charid, name)
         local actor = SceneActor{ name = name, charid = charid }
-        local stay = nil
-        if companion then
-            stay = gui.Panel{
-                classes = {"eotwStayBehind", "collapsed"},
-                halign = "right",
-                valign = "top",
-                width = 34,
-                height = 34,
-                y = 10,
-                bgimage = "panels/square.png",
-                gui.Label{ classes = {"eotwStayBehindText"}, fontSize = 20, text = "x", interactable = false },
-                linger = function(element)
-                    gui.Tooltip(string.format("%s stays behind", name or "This hero"))(element)
-                end,
-                press = function(element)
-                    audio.FireSoundEvent("Mouse.Click")
-                    element:SetClass("collapsed", true)
-                    EncounterMontage.SendRequest("stayBehind", { heroid = charid })
-                end,
-            }
-        end
         return gui.Panel{
             width = SCENE_FIGURE_WIDTH,
             height = SCENE_PORTRAIT_HEIGHT,
             halign = "left",
             valign = "bottom",
             flow = "none",
-            pivot = { x = 0, y = 0 },
-            data = { charid = charid, actor = actor, stay = stay, x = 0, y = 0, s = 1 },
-            children = Classes(actor, stay),
+            data = { charid = charid, actor = actor },
+            actor,
         }
     end
 
-    --The empty box any player drops a hero into to send them along.
-    local function CreateAccompanySlot()
-        return gui.Panel{
-            classes = {"eotwAccompanySlot"},
-            halign = "left",
-            valign = "bottom",
-            width = SCENE_FIGURE_WIDTH * SCENE_ROW_SCALE,
-            height = SCENE_PORTRAIT_HEIGHT * SCENE_ROW_SCALE - SCENE_ACCOMPANY_MARGIN,
-            y = -SCENE_ACCOMPANY_MARGIN,
-            bgimage = "panels/square.png",
-            flow = "none",
-            dragTarget = true,
-            dragTargetPriority = 20,
-            data = {},
-            gui.Panel{
-                width = "100%",
-                height = "auto",
-                valign = "center",
-                flow = "vertical",
-                interactable = false,
-                gui.Label{ classes = {"eotwAccompanyPlus"}, text = "+", interactable = false },
-                gui.Label{ classes = {"eotwAccompanyText"}, text = "Accompany them", interactable = false },
-            },
-            linger = function(element)
-                gui.Tooltip("Drag one of your heroes here to go along. Each hero goes along once a round, on top of their own approach.")(element)
-            end,
-            --the click alternative to dragging: click a hero card, then here.
-            press = function(element)
-                local heroid = m_selectedHero
-                if heroid == nil or m_selectMode ~= "accompany" or not EncounterMontage.LocalUserCanAccompany(heroid) then
-                    return
-                end
-                audio.FireSoundEvent("Mouse.Click")
-                SelectHero(nil)
-                EncounterMontage.SendRequest("accompany", { heroid = heroid })
-            end,
-            dragTargets = function(element, on, mode)
-                element:SetClassTree("droppable", on == true and mode == "accompany")
-            end,
-            selectHero = function(element, heroid, mode)
-                element:SetClassTree("droppable", heroid ~= nil and mode == "accompany")
-            end,
-        }
-    end
-
-    --How the group stands: "gather" (a row, with the box), "assist" (the
-    --companions who can assist step forward into a row, the rest stay
-    --stacked) or "stack".
-    local function GroupMode(t)
-        if t.status == "gathering" then
-            return "gather"
-        elseif t.status == "assist" or t.status == "assisting" then
-            return "assist"
-        end
-        return "stack"
-    end
-
-    --Who steps forward to assist: those who still can, the one rolling, and
-    --those who already have (their result stays beside them).
-    local function ForwardSet(m, t)
-        local forward = {}
-        for _, candidate in ipairs(AssistCandidatesList(m)) do
-            forward[candidate.charid] = true
-        end
-        if t.assist ~= nil then
-            forward[t.assist.heroid] = true
-        end
-        for _, a in ipairs(t.assists or {}) do
-            forward[a.heroid] = true
-        end
-        return forward
-    end
-
-    local function GroupSignature(m, t)
-        local mode = GroupMode(t)
-        local forward = cond(mode == "assist", ForwardSet(m, t), {})
-        local parts = { tostring(t.heroid), mode, tostring(IsMyTurn(m)) }
-        for _, c in ipairs(t.companions or {}) do
-            parts[#parts + 1] = cond(forward[c.heroid], "f:", "") .. c.heroid
-        end
-        if mode == "gather" then
-            parts[#parts + 1] = tostring(#EncounterMontage.EligibleCompanions(m))
-        end
-        return table.concat(parts, "|")
-    end
-
-    --Bring the hero group in line with the turn.
-    local function SyncHeroGroup(m, t, instant)
+    --Put the turn's hero on the stage (a new hero replaces the last).
+    local function SyncHero(t)
         if m_mainFigure == nil or not m_mainFigure.valid or m_mainFigure.data.charid ~= t.heroid then
-            heroSlot.children = {}
-            m_figures = {}
-            m_accompanySlot = nil
-            m_mainFigure = CreateFigure(t.heroid, t.heroName, false)
-            instant = true
-        end
-        local wanted = {}
-        for _, c in ipairs(t.companions or {}) do
-            wanted[c.heroid] = true
-        end
-        for charid, fig in pairs(m_figures) do
-            if not wanted[charid] then
-                m_figures[charid] = nil
-                if fig.valid then
-                    fig:DestroySelf()
-                end
-            end
-        end
-        local fresh = {}
-        for _, c in ipairs(t.companions or {}) do
-            if m_figures[c.heroid] == nil then
-                m_figures[c.heroid] = CreateFigure(c.heroid, c.heroName, true)
-                fresh[c.heroid] = true
-            end
-        end
-
-        local mode = GroupMode(t)
-        local forward = cond(mode == "assist", ForwardSet(m, t), {})
-        local showSlot = mode == "gather" and #EncounterMontage.EligibleCompanions(m) > 0
-        local stacked, row = {}, {}
-        for _, c in ipairs(t.companions or {}) do
-            local fig = m_figures[c.heroid]
-            if mode == "gather" or forward[c.heroid] then
-                row[#row + 1] = fig
-            else
-                stacked[#stacked + 1] = fig
-            end
-        end
-
-        --draw order: the stack farthest first, then the hero, then the row.
-        local children = {}
-        for i = #stacked, 1, -1 do
-            children[#children + 1] = stacked[i]
-        end
-        children[#children + 1] = m_mainFigure
-        for _, fig in ipairs(row) do
-            children[#children + 1] = fig
-        end
-        if showSlot then
-            if m_accompanySlot == nil or not m_accompanySlot.valid then
-                m_accompanySlot = CreateAccompanySlot()
-            end
-            children[#children + 1] = m_accompanySlot
-        else
-            m_accompanySlot = nil
-        end
-        heroSlot.children = children
-
-        local W = SCENE_FIGURE_WIDTH
-        PlaceFigure(m_mainFigure, 0, 0, 1, instant)
-        local extent = W
-        for i, fig in ipairs(stacked) do
-            PlaceFigure(fig, W - W * SCENE_STACK_SCALE + i * SCENE_STACK_PEEK, -i * SCENE_STACK_RAISE, SCENE_STACK_SCALE,
-                instant or fresh[fig.data.charid])
-            extent = W + i * SCENE_STACK_PEEK
-            fig.data.actor:SetClassTree("behind", true)
-        end
-        --the row shrinks so the whole group fits beside the cast.
-        local slots = #row + cond(showSlot, 1, 0)
-        local available = heroSlot.renderedWidth
-        if available == nil or available <= 0 then
-            available = 860
-        end
-        local scale = SCENE_ROW_SCALE
-        if slots > 0 then
-            local fit = (available - extent - SCENE_GROUP_GAP * (slots + 1)) / (slots * W)
-            scale = math.max(SCENE_ROW_MIN_SCALE, math.min(SCENE_ROW_SCALE, fit))
-        end
-        local x = extent + SCENE_GROUP_GAP
-        for _, fig in ipairs(row) do
-            PlaceFigure(fig, x, 0, scale, instant or fresh[fig.data.charid])
-            x = x + W * scale + SCENE_GROUP_GAP
-            fig.data.actor:SetClassTree("behind", false)
-        end
-        if showSlot and m_accompanySlot ~= nil then
-            m_accompanySlot.selfStyle.x = x
-            m_accompanySlot.selfStyle.width = W * scale
-            m_accompanySlot.selfStyle.height = SCENE_PORTRAIT_HEIGHT * scale - SCENE_ACCOMPANY_MARGIN
-        end
-
-        --the x on a companion: their own player, or the approaching one,
-        --while the party is still gathering.
-        for _, c in ipairs(t.companions or {}) do
-            local fig = m_figures[c.heroid]
-            if fig.data.stay ~= nil then
-                fig.data.stay:SetClass("collapsed", not (mode == "gather" and (IsMyTurn(m) or LocalControls(c.heroid))))
-            end
-        end
-
-        --a newcomer fades in where they stand.
-        for charid in pairs(fresh) do
-            local actor = m_figures[charid].data.actor
-            if not instant then
-                actor:SetClassTreeImmediate("eotwSceneOffstage", true)
-                dmhub.Schedule(0.05, function()
-                    if mod.unloaded or not actor.valid then
-                        return
-                    end
-                    actor:SetClassTree("eotwSceneOffstage", false)
-                end)
-            end
+            m_mainFigure = CreateFigure(t.heroid, t.heroName)
+            heroSlot.children = { m_mainFigure }
         end
     end
 
@@ -3763,7 +3193,7 @@ local function CreateSceneStage()
         thinkTime = 0.5,
         think = function(element)
             local shown = m_garbledShown
-            if shown ~= nil and shown.key == m_textKey and EncounterMontage.GroupSpeaks(shown.t, shown.lang) then
+            if shown ~= nil and shown.key == m_textKey and EncounterMontage.HeroSpeaks(shown.t, shown.lang) then
                 TransposeLine()
             end
         end,
@@ -3846,6 +3276,25 @@ local function CreateSceneStage()
     local stageArea = gui.Panel{
         width = "100%",
         height = string.format("100%%-%d", SCENE_BOX_HEIGHT + SCENE_TITLE_HEIGHT),
+        --A figure is a fixed SCENE_PORTRAIT_HEIGHT tall, so on a short stage
+        --(the montage's turn panel on a small screen) it would reach up over
+        --the title. Shrink the hero and the cast to the room there is. The
+        --hero uses a transform scale from its bottom-left corner, so its
+        --layout stays in unscaled units.
+        thinkTime = 0.25,
+        think = function(element)
+            local h = element.renderedHeight
+            if h == nil or h <= 0 then
+                return
+            end
+            local fit = math.min(1, h / (SCENE_PORTRAIT_HEIGHT * SCENE_SPEAKING_SCALE))
+            if math.abs(fit - m_fit) < 0.01 then
+                return
+            end
+            m_fit = fit
+            heroSlot.selfStyle.scale = fit
+            castRow.selfStyle.uiscale = m_castScale * fit
+        end,
         heroSlot,
         castRow,
         detail,
@@ -3857,14 +3306,6 @@ local function CreateSceneStage()
         if m_mainFigure ~= nil and m_mainFigure.valid then
             m_mainFigure.data.actor:SetClassTree("speaking", side == "left")
             m_mainFigure.data.actor:SetClassTree("quiet", side == "right")
-        end
-        --"PC" is the hero in front: companions never speak, and sink back
-        --while anyone does.
-        for _, fig in pairs(m_figures) do
-            if fig.valid then
-                fig.data.actor:SetClassTree("speaking", false)
-                fig.data.actor:SetClassTree("quiet", side ~= nil)
-            end
         end
         for key, panel in pairs(m_actors) do
             local speaking = side == "right" and key == string.lower(speaker or "")
@@ -3926,7 +3367,8 @@ local function CreateSceneStage()
             end
         end
         --two or more characters share the right-hand side at a smaller size.
-        castRow.selfStyle.uiscale = cond(#(cast or {}) > 1, 0.8, 1)
+        m_castScale = cond(#(cast or {}) > 1, 0.8, 1)
+        castRow.selfStyle.uiscale = m_castScale * m_fit
     end
 
     --The option names along the bottom while the hero chooses. Hovering one
@@ -3953,12 +3395,11 @@ local function CreateSceneStage()
         for i, option in ipairs(entry.options) do
             --a secret option the hero at the entry does not qualify for is
             --not drawn at all -- for them, or for anyone watching them.
-            local group = EncounterMontage.TurnGroup(t)
-            if not EncounterMontage.OptionVisible(t.heroid, option, group) then
+            if not EncounterMontage.OptionVisible(t.heroid, option) then
                 goto nextOption
             end
-            local version = EncounterMontage.OptionForHero(t.heroid, option, group)
-            local verdict = EncounterMontage.RiderVerdict(t.heroid, option, version, group)
+            local version = EncounterMontage.OptionForHero(t.heroid, option)
+            local verdict = EncounterMontage.RiderVerdict(t.heroid, option, version)
             local locked = verdict ~= nil and not verdict.allowed
             local unlocked = (verdict ~= nil and verdict.gated and verdict.allowed) or version.knack ~= nil
             local takeable = version.roll ~= nil or version.free ~= nil or (option.delve ~= nil and t.delve == nil)
@@ -4316,17 +3757,11 @@ local function CreateSceneStage()
             titleLabel.text = string.format("%s in %s: %s", t.heroName or "A hero", entry.name, here.name)
         elseif t.delve ~= nil then
             titleLabel.text = string.format("%s in %s", t.heroName or "A hero", entry.name)
-        elseif t.status == "gathering" then
-            titleLabel.text = string.format("%s approaches %s...", t.heroName or "A hero", entry.name)
         else
             titleLabel.text = string.format("%s approaches %s", t.heroName or "A hero", entry.name)
         end
         m_heroid = t.heroid
-        local groupKey = GroupSignature(m, t)
-        if groupKey ~= m_groupKey then
-            m_groupKey = groupKey
-            SyncHeroGroup(m, t, instant)
-        end
+        SyncHero(t)
 
         local scene = t.scene or {}
         local steps = scene.steps or {}
@@ -4362,9 +3797,9 @@ local function CreateSceneStage()
                 --speaker's name, and the speaker lights up on stage.
                 local side = cond(step.side == "left", "left", "right")
                 --a line garbled when the scene was built reads as written
-                --once the group speaks its language (an item used since).
+                --once the hero speaks its language (an item used since).
                 local garbled = step.garbled == true
-                if garbled and step.plain ~= nil and EncounterMontage.GroupSpeaks(t, step.lang) then
+                if garbled and step.plain ~= nil and EncounterMontage.HeroSpeaks(t, step.lang) then
                     garbled = false
                     text = step.plain
                 end
@@ -4394,7 +3829,7 @@ local function CreateSceneStage()
             return
         end
 
-        --between lines: the choice, the roll, the assist, the result.
+        --between lines: the choice, the roll, the result.
         m_textKey = nil
         m_typing = nil
         m_prompt = nil
@@ -4411,9 +3846,7 @@ local function CreateSceneStage()
         m_boxKey = boxKey
         local option = here.options[t.optionIndex or 0]
         m_detailDefault = {}
-        if t.status == "gathering" then
-            boxExtra.children = GatheringChildren(m, t)
-        elseif t.status == "choosing" then
+        if t.status == "choosing" then
             local buttons = OptionButtons(m, here)
             for _, child in ipairs(PerkActionChildren(m, t)) do
                 buttons[#buttons + 1] = child
@@ -4464,6 +3897,12 @@ local function CreateSceneStage()
         elseif t.status == "delvechoice" then
             m_detailDefault = { HaulCard(t) }
             boxExtra.children = DelveChoiceButtons(m, t)
+        elseif t.status == "dice" then
+            m_detailDefault = { DiceCard(m, beat) }
+            boxExtra.children = {
+                gui.Label{ classes = {"eotwSceneHint"}, text = DiceHint(m) },
+                DiceRollButton(),
+            }
         else
             if option ~= nil then
                 m_detailDefault = { OptionCard(here, option, t.optionIndex, m) }
@@ -4475,8 +3914,6 @@ local function CreateSceneStage()
                         text = cond(IsMyTurn(m), "Make your roll.", string.format("%s is rolling...", t.heroName or "The hero")),
                     },
                 }
-            elseif t.status == "assist" or t.status == "assisting" then
-                boxExtra.children = AssistChildren(m, t)
             elseif t.status == "perk" then
                 boxExtra.children = PerkOfferChildren(m, t)
             elseif t.status == "pardon" then
@@ -4531,9 +3968,6 @@ local function CreateSceneStage()
             SyncCast({}, true)
             heroSlot.children = {}
             m_mainFigure = nil
-            m_figures = {}
-            m_accompanySlot = nil
-            m_groupKey = nil
         end,
     }
     return root
@@ -4595,6 +4029,15 @@ local function BuildTurnChildren(m, beat)
             Add(gui.Label{ classes = {"eotwTurnText"}, text = "Consequence: " .. EncounterScript.VisibleText(entry.consequence.text), bold = true })
         else
             Add(gui.Label{ classes = {"eotwTurnHint"}, text = "No consequence is written for this threat." })
+        end
+        if m.dice ~= nil then
+            Add(DiceCard(m, beat))
+            Add(gui.Label{ classes = {"eotwTurnHint"}, text = DiceHint(m) })
+            local rollButton = DiceRollButton("center")
+            if rollButton ~= nil then
+                Add(rollButton)
+            end
+            return children
         end
         Add(gui.Button{
             text = "Continue",
@@ -4660,15 +4103,8 @@ local function BuildTurnChildren(m, beat)
             else
                 Add(gui.Label{ classes = {"eotwTurnText"}, text = string.format("%s: %s (%s, %s)", last.heroName or "", last.entryName or "", last.optionName or "", TierName(last.tier or 0)) })
             end
-            local together = CompanionNameList(last)
-            if together ~= nil then
-                Add(gui.Label{ classes = {"eotwTurnHint"}, text = string.format("With %s", together) })
-            end
             if last.knack ~= nil then
                 Add(gui.Label{ classes = {"eotwAppliedLine"}, text = string.format("Knack: %s", last.knack) })
-            end
-            for _, a in ipairs(last.assists or {}) do
-                Add(gui.Label{ classes = {"eotwTurnHint"}, text = AssistLineText(a) })
             end
             for _, line in ipairs(last.applied or {}) do
                 Add(gui.Label{ classes = {"eotwAppliedLine"}, text = line })
@@ -5117,15 +4553,11 @@ end
 
 --- the hero column -------------------------------------------------------------------
 
---A hero may be picked up to take a beat, or -- while another hero gathers
---companions -- to go along with them. Returns the mode, or nil when this
+--A hero may be picked up to take a beat. Returns the mode, or nil when this
 --card must not move at all.
 local function DragMode(charid)
     if EncounterMontage.LocalUserCanAct(charid) then
         return "approach"
-    end
-    if EncounterMontage.LocalUserCanAccompany(charid) then
-        return "accompany"
     end
     return nil
 end
@@ -5133,23 +4565,14 @@ end
 --The characteristic and skill this hero is rolling the test in flight
 --with (attrid, skillid; either nil), or nothing when they are not rolling:
 --after the roll it is what the acting hero reported (turn.attrid,
---turn.skillid); a companion assisting rolls the test's characteristic
---(turn.testAttrid) with the skill they picked; while the roll dialog is
---still up it is the best of the option's listed characteristics for this
---hero and the first listed skill they are trained in that no assist used,
---the same picks LaunchRoll and ApplySkilledModifier make.
+--turn.skillid); while the roll dialog is still up it is the best of the
+--option's listed characteristics for this hero and the first listed skill
+--they are trained in, the same picks LaunchRoll and ApplySkilledModifier
+--make.
 local function ActiveCharacteristic(m, charid)
     local t = m.turn
-    if t == nil or t.status == "resolved" then
+    if t == nil or t.status == "resolved" or t.heroid ~= charid then
         return nil, nil
-    end
-    local acting = t.heroid == charid
-    local assisting = t.assist ~= nil and t.assist.heroid == charid
-    if not acting and not assisting then
-        return nil, nil
-    end
-    if assisting then
-        return t.testAttrid, t.assist.skillid
     end
     if t.attrid ~= nil then
         return t.attrid, t.skillid
@@ -5176,9 +4599,6 @@ local function ActiveCharacteristic(m, charid)
             best, bestModifier = attrid, modifier
         end
     end
-    if t.testAttrid ~= nil and characteristics[t.testAttrid] then
-        best = t.testAttrid
-    end
     local skillid = nil
     pcall(function() skillid = EncounterMontage.MainTestSkill(t, option) end)
     return best, skillid
@@ -5188,33 +4608,32 @@ local function CreateHeroColumn(hero)
     local hud = Hud()
     local charid = hero.charid
     local card = nil
-    --the "!" over a companion who could assist the test in flight, or a "+"
-    --over a hero who could go along with the one gathering companions.
-    --Top-CENTER of the card: the trigger corner owns the top left and the
-    --condition chips the top right.
-    local badgeText = gui.Label{ classes = {"eotwAssistBadgeText"}, text = "!", interactable = false }
-    local assistBadge = gui.Panel{
-        classes = {"eotwAssistBadge", "collapsed"},
+    --the "you can act" ring: shown while DragMode says the local user can
+    --take a beat with this hero; 5px outside the card on each
+    --side so it frames the card's own border instead of covering it.
+    local canActRing = gui.Panel{
+        classes = {"eotwCanActRing", "collapsed"},
         floating = true,
         halign = "center",
-        valign = "top",
-        y = 3,
-        width = 22,
-        height = 22,
+        valign = "center",
+        width = "100%+10",
+        height = "100%+10",
         bgimage = "panels/square.png",
         interactable = false,
         thinkTime = 0.05,
         think = function(element)
-            local r = (math.sin(dmhub.Time() * 2 * math.pi / 1.2) + 1) / 2
-            element.selfStyle.scale = 0.9 + 0.2 * r
+            if element:HasClass("collapsed") then
+                return
+            end
+            local r = (math.sin(dmhub.Time() * 2 * math.pi / 1.4) + 1) / 2
+            element.selfStyle.opacity = 0.4 + 0.6 * r
         end,
-        badgeText,
     }
     if hud ~= nil and hud.CreateHeroCard ~= nil then
         card = hud.CreateHeroCard({ charid = charid, mine = false, name = hero.name }, {
             halign = "center",
             --only a hero the local user controls, and only while that hero
-            --can still take a beat (or assist the one in flight): a card
+            --can still take a beat: a card
             --nobody here can act with must not even pick up (the drop gates
             --below reject it anyway, but a player dragging someone else's
             --hero around reads as allowed).
@@ -5261,9 +4680,6 @@ local function CreateHeroColumn(hero)
                 PreviewHero(charid, entryId)
             end,
             canDragOnto = function(element, target)
-                if target:HasClass("eotwAccompanySlot") then
-                    return EncounterMontage.LocalUserCanAccompany(charid)
-                end
                 if not target:HasClass("eotwEntryCard") then
                     return false
                 end
@@ -5286,16 +4702,13 @@ local function CreateHeroColumn(hero)
                 if target == nil then
                     return
                 end
-                if target:HasClass("eotwAccompanySlot") and EncounterMontage.LocalUserCanAccompany(charid) then
-                    audio.FireSoundEvent("Mouse.Click")
-                    EncounterMontage.SendRequest("accompany", { heroid = charid })
-                elseif target:HasClass("eotwEntryCard") and EncounterMontage.LocalUserCanAct(charid) then
+                if target:HasClass("eotwEntryCard") and EncounterMontage.LocalUserCanAct(charid) then
                     audio.FireSoundEvent("Mouse.Click")
                     EncounterMontage.SendRequest("approach", { heroid = charid, entryId = target.data.entryId })
                 end
             end,
         })
-        card:AddChild(assistBadge)
+        card:AddChild(canActRing)
     else
         card = gui.Label{ width = 132, height = 176, text = hero.name, bgimage = "panels/square.png", bgcolor = "#333333" }
     end
@@ -5347,32 +4760,21 @@ local function CreateHeroColumn(hero)
         data = { charid = charid },
         cardRow,
         refreshMontage = function(element, m)
-            --approached this round: half dimmed while they can still go
-            --along with someone, fully once that is spent too.
-            local approached = (m.acted or {})[charid] == true
-            local canGoAlong = ((m.accompanied or {})[charid] or 0) < EncounterMontage.AccompanyLimit(m, charid)
-            local done = m.phase ~= "rounds" or (approached and not canGoAlong)
+            --dimmed once they have taken their beat this round.
+            local done = m.phase ~= "rounds" or (m.acted or {})[charid] == true
             card:SetClass("acted", done)
-            card:SetClass("approached", approached and not done)
             local mode = DragMode(charid)
             card.draggable = mode ~= nil
-            --every hero who COULD assist (or go along) wears the badge, not
-            --just the local user's: the party decides together.
-            local canAssist = AssistCandidates(m)[charid] ~= nil
-            local canJoin = EncounterMontage.CanAccompany(m, charid)
-            badgeText.text = cond(canAssist, "!", "+")
-            assistBadge:SetClass("collapsed", not canAssist and not canJoin)
-            card:SetClass("companion", m.turn ~= nil and m.turn.status ~= "resolved" and EncounterMontage.IsCompanion(m.turn, charid))
+            canActRing:SetClass("collapsed", mode == nil)
             if m_selectedHero == charid and mode == nil then
                 SelectHero(nil)
             end
             card:SetClass("selected", m_selectedHero == charid)
-            --the hero taking (or assisting) the test in flight, and the
+            --the hero taking (or stepping in on) the test in flight, and the
             --characteristic they are rolling it with.
             local activeAttr, activeSkill = ActiveCharacteristic(m, charid)
             local active = m.turn ~= nil and m.turn.status ~= "resolved"
-                and (m.turn.heroid == charid or (m.turn.assist ~= nil and m.turn.assist.heroid == charid)
-                    or (m.turn.pardon ~= nil and m.turn.pardon.heroid == charid))
+                and (m.turn.heroid == charid or (m.turn.pardon ~= nil and m.turn.pardon.heroid == charid))
             card:SetClass("active", active)
             card:FireEventTree("highlightCharacteristic", activeAttr)
             card:FireEventTree("highlightSkill", activeSkill)
@@ -6177,7 +5579,7 @@ local function CreateNarrativeHeroColumn(hero, section)
     local individual = section ~= nil and section.mode == "individual"
 
     local waitingBadge = gui.Panel{
-        classes = {"eotwAssistBadge", "collapsed"},
+        classes = {"eotwHeroBadge", "collapsed"},
         floating = true,
         halign = "center",
         valign = "top",
@@ -6191,7 +5593,7 @@ local function CreateNarrativeHeroColumn(hero, section)
             local r = (math.sin(dmhub.Time() * 2 * math.pi / 1.2) + 1) / 2
             element.selfStyle.scale = 0.9 + 0.2 * r
         end,
-        gui.Label{ classes = {"eotwAssistBadgeText"}, text = "?", interactable = false },
+        gui.Label{ classes = {"eotwHeroBadgeText"}, text = "?", interactable = false },
     }
 
     if hud ~= nil and hud.CreateHeroCard ~= nil then

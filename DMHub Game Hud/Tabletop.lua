@@ -85,7 +85,6 @@ local g_surfaceSetting = setting{
     description = "Table Background",
     help = "What the table behind the map windows looks like.",
     storage = "preference",
-    section = "General",
     editor = "dropdown",
     default = "leather",
     enumCalc = function()
@@ -653,20 +652,14 @@ local function BringToFront(rec)
     end
 end
 
---Briefly lights a window's border: the engine moved us to a map that was
---already open in it (a token travelled there, a journal link...).
+--The engine moved us to a map that was already open in a window (a token
+--travelled there, a journal link...): bring it out from behind the screen.
 local function Highlight(rec)
     local panel = rec.panel
     if panel == nil or not panel.valid then
         return
     end
     DirectorScreen.Reveal(g_sharing.ScreenKey(rec))
-    panel:SetClass("tabletopHighlight", true)
-    dmhub.Schedule(1.2, function()
-        if panel.valid then
-            panel:SetClass("tabletopHighlight", false)
-        end
-    end)
 end
 
 --A panel's styles reach every panel below it, so the window's styles are
@@ -693,15 +686,6 @@ local g_windowStyles = {
         borderWidth = 2,
         borderColor = "#00000099",
         boxShadow = TABLE_SHADOWS.rest,
-    },
-    {
-        selectors = {"tabletopWindow", "focused"},
-        borderColor = "#b8925acc",
-    },
-    {
-        selectors = {"tabletopWindow", "tabletopHighlight"},
-        borderColor = "#ffd27aff",
-        transitionTime = 0.25,
     },
     --"dragging" is set by the engine while the window is dragged.
     {
@@ -1407,7 +1391,7 @@ function g_chrome.Release(rec)
 end
 
 --The map rail inside a window (MapRail in DocumentSystem.lua): map panels
---down the left edge, the map's own buttons down the right. Only on the
+--down the left edge, Map Settings and the map's own buttons down the right. Only on the
 --live window, and not while it is maximized -- the buttons then join the
 --screen rails. Rebuilt whenever MapRail.Signature changes. No bgimage, so
 --between the columns it takes no mouse and the map gets it.
@@ -2397,7 +2381,7 @@ local function AnimateGhost(rec, from, to, done)
         bgimage = image,
         bgcolor = cond(placeholder, "#1b1814ff", "white"),
         borderWidth = 2,
-        borderColor = "#b8925acc",
+        borderColor = "#00000099",
         cornerRadius = 6,
         thinkTime = 0.01,
         think = function(element)
@@ -3410,8 +3394,15 @@ CloseWindow = function(rec)
     Refresh()
     if wasLive and g_liveId == nil then
         --no window shows the loaded map any more, so its tokens cannot stay
-        --selected (the action bar and sheets would still act on them).
-        dmhub.selectedTokens = {}
+        --selected (the action bar and sheets would still act on them). A
+        --card's creature selected off the board stays selected.
+        local keep = {}
+        for _, tok in ipairs(dmhub.selectedTokens) do
+            if not tok.onBoard then
+                keep[#keep+1] = tok
+            end
+        end
+        dmhub.selectedTokens = keep
     end
     SaveSoon()
 end
@@ -3428,6 +3419,7 @@ ToggleMaximize = function(rec)
     if IsForcedHere(rec) then
         return
     end
+    local view = Tabletop.CaptureView(rec)
     rec.maximized = not rec.maximized
     if rec.maximized then
         --one maximized window at a time
@@ -3441,6 +3433,7 @@ ToggleMaximize = function(rec)
         end
     end
     PlaceWindow(rec)
+    Tabletop.KeepView(rec, view)
     --the Director's maximize is forced on the tables of the map's players.
     Tabletop.SetForced(rec.mapid, rec.maximized == true)
     Focus(rec)
@@ -4544,22 +4537,53 @@ local function OpenSharedMap(mapid)
     Refresh()
 end
 
+--The maps a game mode forces on this client right now: mapid -> true. The
+--active custom interface's forcedMap (GameHud.RegisterCustomInterface) is
+--held the way a Director's maximized, shared map is held on a player's
+--table, but for a Director too, and with no share or token needed.
+g_sharing.LocalForcedMaps = function()
+    local result = {}
+    local mapid = nil
+    pcall(function()
+        mapid = GameHud.CustomInterfaceForcedMap()
+    end)
+    if mapid ~= nil then
+        result[mapid] = true
+    end
+    return result
+end
+
+--What the interface forced when last applied, so a change (a test starting
+--or ending, the map loading) applies on the frame it happens rather than at
+--the next once-a-second recheck.
+g_sharing.localForcedSignature = ""
+
 --Forces (or releases) the Director's maximized maps on this player's
 --table: a map shared with them (Player Viewable) with one of their tokens
 --on it is opened, maximized and focused, and cannot be restored, minimized
 --or closed while forced. Maximizing never shares a map (David, 2026-10-16):
 --an unshared one is not forced, until the Director shares it.
+--A game mode's custom interface can also force a map on this client,
+--Director or not (GameHud forcedMap; Encounter of the Week does).
 local function ApplyForced(forced)
-    if dmhub.isDM then
-        return
-    end
-    if type(forced) ~= "table" then
+    if type(forced) ~= "table" or dmhub.isDM then
         forced = {}
     end
+    local localForced = g_sharing.LocalForcedMaps()
     local function Forces(mapid)
+        if localForced[mapid] == true then
+            return MapExists(mapid)
+        end
         return forced[mapid] == true and MapExists(mapid) and LocalPlayerHasTokenOn(mapid) and IsShared(mapid)
     end
+    local candidates = {}
     for mapid, _ in pairs(forced) do
+        candidates[mapid] = true
+    end
+    for mapid, _ in pairs(localForced) do
+        candidates[mapid] = true
+    end
+    for mapid, _ in pairs(candidates) do
         if Forces(mapid) then
             local rec = WindowForMap(mapid)
             if rec == nil then
@@ -4568,6 +4592,9 @@ local function ApplyForced(forced)
                 EnsureBuilt(rec)
             end
             if not rec.forced then
+                --the map fills the screen as it filled the window; a window
+                --that was not showing its map live shows the whole map.
+                local view = Tabletop.CaptureView(rec)
                 rec.forced = true
                 rec.prevMaximized = rec.maximized == true
                 rec.minimized = false
@@ -4580,16 +4607,22 @@ local function ApplyForced(forced)
                 end
                 rec.maximized = true
                 PlaceWindow(rec)
+                Tabletop.KeepView(rec, view)
                 Focus(rec)
+                if view == nil then
+                    Tabletop.FrameWhenLive(rec, mapid, {})
+                end
             end
         end
     end
     for _, rec in ipairs(g_windows) do
         if rec.forced and not Forces(rec.mapid) then
+            local view = Tabletop.CaptureView(rec)
             rec.forced = false
             rec.maximized = rec.prevMaximized == true
             rec.prevMaximized = nil
             PlaceWindow(rec)
+            Tabletop.KeepView(rec, view)
             Refresh()
         end
     end
@@ -4749,8 +4782,22 @@ end
 --The forced state also depends on where this player's tokens are, which
 --changes without the document changing; re-checked once a second.
 local function RecheckForced()
-    if not dmhub.isDM then
-        ApplyForced(ShareDoc().data.forced)
+    ApplyForced(ShareDoc().data.forced)
+end
+
+--Every frame: re-applies when what the interface forces has changed.
+g_sharing.SyncLocalForced = function()
+    local ids = {}
+    for mapid, _ in pairs(g_sharing.LocalForcedMaps()) do
+        if MapExists(mapid) then
+            ids[#ids+1] = mapid
+        end
+    end
+    table.sort(ids)
+    local signature = table.concat(ids, ",")
+    if signature ~= g_sharing.localForcedSignature then
+        g_sharing.localForcedSignature = signature
+        RecheckForced()
     end
 end
 
@@ -4871,6 +4918,38 @@ local function CardStyles()
     for _, rule in ipairs(ThemeEngine.MergeTokens(EotwHeroCard.rules) or {}) do
         styles[#styles+1] = rule
     end
+    --a selected card's ring (CardSelectRing), and the button that opens the
+    --character's sheet (CardSheetButton), shown while the card is hovered.
+    local cardRules = ThemeEngine.MergeTokens{
+        {
+            selectors = {"tabletopCardSelectRing"},
+            bgcolor = "clear",
+            borderColor = "@accent",
+            border = 3,
+        },
+        {
+            selectors = {"tabletopCardSheet"},
+            bgcolor = "#1d1915d0",
+            opacity = 0,
+            transitionTime = 0.15,
+        },
+        {
+            selectors = {"tabletopCardSheet", "shown"},
+            opacity = 1,
+            transitionTime = 0.1,
+        },
+        {
+            selectors = {"tabletopCardSheet", "hover"},
+            bgcolor = "@accent",
+        },
+        {
+            selectors = {"tabletopCardSheetIcon"},
+            bgcolor = "white",
+        },
+    }
+    for _, rule in ipairs(cardRules or {}) do
+        styles[#styles+1] = rule
+    end
     return styles
 end
 
@@ -4903,9 +4982,12 @@ local function CardFace(charid, tok)
         showResources = false,
         noRecoveries = not IsHeroToken(tok),
         --the press reaches the card's frame, which is what drags (and
-        --swallows the press for the map); a click still opens the sheet.
+        --swallows the press for the map); a click selects the creature. Its
+        --sheet opens from the card's sheet button (CardSheetButton).
         passPress = true,
-        useClick = true,
+        click = function(element)
+            Tabletop.CardClicked(charid)
+        end,
         --a monster from the bestiary has no name of its own.
         displayName = function(t)
             return creature.GetTokenDescription(t)
@@ -4921,7 +5003,399 @@ local function CardFace(charid, tok)
     })
 end
 
+--Scene cards (SceneElements.lua) are the table's cards: the same face, at
+--the same size, with the same styles.
+Tabletop.CardFace = CardFace
+Tabletop.CardSize = CardSize
+Tabletop.CardStyles = CardStyles
+
 local CloseCard
+
+----------------------------------------------------------------------
+--Selecting creature cards (table cards here, scene cards in
+--SceneElements.lua). A card's selection IS its creature's selection in the
+--engine (dmhub.selectedTokens): the token on the live map when it has one,
+--the character off the board otherwise. So a card and its token are
+--selected together, chat speaks as it, and Lua sees it as the selected token.
+
+--Card selection state and helpers, in one table: Tabletop.lua is at Lua's
+--200-locals ceiling.
+--  seq/set    charid -> true for what is selected, re-read when the engine's
+--             selection sequence moves (Tabletop.SelectedCharids)
+--  made       what the last card click or rectangle selected (see below)
+--  marquee    the selection rectangle being dragged
+--  ringSeq    the sequence the table cards' rings last showed
+--  group      the selected table cards following a dragged one
+--- @class TabletopCardSelectionState
+--- @field seq nil|integer
+--- @field set table<string, boolean>
+--- @field made nil|table<string, boolean>
+--- @field marquee nil|TabletopCardMarquee
+--- @field ringSeq nil|integer
+--- @field group nil|{card: table, members: {card: table, x: number, y: number}[]}
+local g_cs = {set = {}}
+
+--- @class TabletopCardMarquee
+--- @field x0 number screen pixels where the drag started
+--- @field y0 number
+--- @field x1 number screen pixels where the mouse is
+--- @field y1 number
+--- @field panel Panel the rectangle drawn on the documents layer
+--- @field targets fun(): {charid: string, panel: Panel}[] the cards it can select
+--- @field additive boolean Shift or Ctrl was down: the selection is added to
+
+--What the last card click or rectangle selected. While the selection is
+--still exactly that, Delete removes those cards rather than deleting the
+--creatures' tokens (dmhub.DeleteSelectionPressed below).
+
+--- The selected creatures, as a set of charids (do not modify it).
+--- @return table<string, boolean>
+function Tabletop.SelectedCharids()
+    local seq = dmhub.selectedTokensSeq
+    if seq ~= g_cs.seq then
+        g_cs.seq = seq
+        local set = {}
+        for _, tok in ipairs(dmhub.selectedTokens or {}) do
+            if tok.charid ~= nil then
+                set[tok.charid] = true
+            end
+        end
+        g_cs.set = set
+    end
+    return g_cs.set
+end
+
+--- The creatures with a card on this user's table, by charid (Request Rolls
+--- offers the heroes among them). Cards in scenes are SceneElements'.
+--- @return string[]
+function Tabletop.TableCardCharids()
+    local result = {}
+    for _, card in ipairs(g_cards) do
+        result[#result+1] = card.charid
+    end
+    return result
+end
+
+--- Whether this user may select a card's creature: the Director, or whoever
+--- controls it (the engine applies the same rule).
+--- @param charid string
+--- @return boolean
+function Tabletop.CanSelectCard(charid)
+    local tok = dmhub.GetCharacterById(charid)
+    return tok ~= nil and tok.canControlAsUser == true
+end
+
+function g_cs.NoteCardSelection()
+    local made = {}
+    for charid in pairs(Tabletop.SelectedCharids()) do
+        made[charid] = true
+    end
+    g_cs.made = made
+end
+
+function g_cs.SameSet(a, b)
+    for k in pairs(a) do
+        if not b[k] then
+            return false
+        end
+    end
+    for k in pairs(b) do
+        if not a[k] then
+            return false
+        end
+    end
+    return true
+end
+
+function g_cs.AddingToSelection()
+    local mods = dmhub.modKeys
+    return mods.shift == true or mods.ctrl == true
+end
+
+--- A card was clicked: its creature becomes the selection. Shift or Ctrl
+--- adds it to the selection, or takes it out if it is already in.
+--- @param charid string
+function Tabletop.CardClicked(charid)
+    if not Tabletop.CanSelectCard(charid) then
+        return
+    end
+    if g_cs.AddingToSelection() then
+        if Tabletop.SelectedCharids()[charid] then
+            dmhub.RemoveTokenFromSelection(charid)
+        else
+            dmhub.AddTokenToSelection(charid)
+        end
+    else
+        dmhub.SelectToken(charid)
+    end
+    g_cs.NoteCardSelection()
+end
+
+--- Selects the creatures of the cards a selection rectangle touched; with
+--- additive the current selection stays too.
+--- @param charids string[]
+--- @param additive boolean
+function Tabletop.SelectCards(charids, additive)
+    if not additive then
+        dmhub.selectedTokens = {}
+    end
+    for _, charid in ipairs(charids) do
+        if Tabletop.CanSelectCard(charid) then
+            dmhub.AddTokenToSelection(charid)
+        end
+    end
+    g_cs.NoteCardSelection()
+end
+
+--- Clears the selection (a click on the bare table or an empty part of a scene).
+function Tabletop.ClearCardSelection()
+    if next(Tabletop.SelectedCharids()) ~= nil then
+        dmhub.selectedTokens = {}
+    end
+    g_cs.made = nil
+end
+
+--- The ring a selected card wears. Put it on the card's frame and call
+--- Tabletop.ShowCardSelected(ring, on) as the selection changes.
+--- @param cornerRadius number
+--- @return Panel
+function Tabletop.CardSelectRing(cornerRadius)
+    return gui.Panel{
+        classes = {"tabletopCardSelectRing", "collapsed"},
+        floating = true,
+        halign = "center",
+        valign = "center",
+        width = "100%+6",
+        height = "100%+6",
+        cornerRadius = cornerRadius + 3,
+        bgimage = "panels/square.png",
+        interactable = false,
+    }
+end
+
+--- @param ring Panel
+--- @param on boolean
+function Tabletop.ShowCardSelected(ring, on)
+    if ring ~= nil and ring.valid and ring:HasClass("collapsed") == on then
+        ring:SetClass("collapsed", not on)
+    end
+end
+
+--- The button on a card that opens its character's sheet beside the card.
+--- It fades in while the card is hovered: set its "shown" class tree from the
+--- card's hover (Tabletop.ShowCardSheetButton).
+--- @param charid string
+--- @param args nil|{x: nil|number, y: nil|number}
+--- @return Panel
+function Tabletop.CardSheetButton(charid, args)
+    args = args or {}
+    return gui.Panel{
+        classes = {"tabletopCardSheet"},
+        floating = true,
+        halign = "right",
+        valign = "top",
+        x = args.x or -6,
+        y = args.y or 6,
+        width = 22,
+        height = 22,
+        cornerRadius = 11,
+        bgimage = "panels/square.png",
+        --the press reaches the card, so hovering here keeps it hovered and a
+        --drag from here still moves the card.
+        swallowPress = false,
+        hover = gui.Tooltip("Open the character sheet"),
+        click = function(element)
+            audio.FireSoundEvent("Mouse.Click")
+            local toggle = rawget(_G, "ToggleCharacterPanelDocument")
+            if toggle ~= nil then
+                --opens beside the card.
+                toggle(charid, nil, element)
+            end
+        end,
+        gui.Panel{
+            classes = {"tabletopCardSheet", "tabletopCardSheetIcon"},
+            width = 14,
+            height = 14,
+            halign = "center",
+            valign = "center",
+            bgimage = "phosphor/user-fill.png",
+            interactable = false,
+        },
+    }
+end
+
+--- @param button Panel
+--- @param on boolean
+function Tabletop.ShowCardSheetButton(button, on)
+    if button ~= nil and button.valid then
+        button:SetClassTree("shown", on)
+    end
+end
+
+--Delete (Director): when the selection is the one cards made, the selected
+--creatures' cards leave the table and the open scenes, the creatures stay
+--where they are, and the engine deletes no tokens. Otherwise the engine
+--deletes the selected map tokens as before.
+dmhub.DeleteSelectionPressed = function()
+    local selected = Tabletop.SelectedCharids()
+    if g_cs.made == nil or next(selected) == nil or not g_cs.SameSet(selected, g_cs.made) then
+        return false
+    end
+    local charids = {}
+    for charid in pairs(selected) do
+        charids[#charids+1] = charid
+    end
+    for _, charid in ipairs(charids) do
+        local card = CardById(charid)
+        if card ~= nil then
+            CloseCard(card)
+        end
+    end
+    SceneElements.RemoveCreatureCards(selected)
+    dmhub.selectedTokens = {}
+    g_cs.made = nil
+    return true
+end
+
+----------------------------------------------------------------------
+--The selection rectangle: dragged out over the bare table or an empty part
+--of a scene, it selects every card it touches (Shift or Ctrl adds them to
+--the selection). It is drawn on the documents layer, over the table items.
+
+
+--A panel's rectangle in screen pixels from the top-left (the measure of
+--dmhub.mouseScreenPosition). distancesToScreenEdge is (left, bottom, right,
+--top), the vertical ones in units of the area below the title bar.
+function g_cs.ScreenRect(panel)
+    local d = panel.distancesToScreenEdge
+    local screen = dmhub.screenDimensions
+    local below = dmhub.screenDimensionsBelowTitlebar
+    local scale, offset = 1, 0
+    if below.y > 0 then
+        scale = below.y / screen.y
+        offset = screen.y - below.y
+    end
+    return d.x, offset + d.w * scale, screen.x - d.z, screen.y - d.y * scale
+end
+
+function g_cs.PlaceMarquee(m)
+    local ax, ay = ScreenToLayer(math.min(m.x0, m.x1), math.min(m.y0, m.y1))
+    local bx, by = ScreenToLayer(math.max(m.x0, m.x1), math.max(m.y0, m.y1))
+    m.panel.x = ax
+    m.panel.y = ay
+    m.panel.selfStyle.width = math.max(1, bx - ax)
+    m.panel.selfStyle.height = math.max(1, by - ay)
+end
+
+function g_cs.EndMarqueePanel()
+    if g_cs.marquee ~= nil and g_cs.marquee.panel.valid then
+        g_cs.marquee.panel:DestroySelf()
+    end
+    g_cs.marquee = nil
+end
+
+--- Starts a selection rectangle at the mouse. targets lists the cards it
+--- can select: {charid, panel} for each card on the surface it was started on.
+--- @param targets fun(): {charid: string, panel: Panel}[]
+function Tabletop.BeginCardMarquee(targets)
+    g_cs.EndMarqueePanel()
+    local layer = DocumentsLayer()
+    if layer == nil then
+        return
+    end
+    local mouse = dmhub.mouseScreenPosition
+    local panel = gui.Panel{
+        styles = ThemeEngine.MergeTokens{
+            --the fill's alpha is tiny on purpose: a translucent fill shows far
+            --stronger than its alpha here (0x24 already read as a grey slab).
+            {
+                selectors = {"tabletopMarquee"},
+                bgcolor = "#ffffff0a",
+                borderColor = "@accent",
+                border = 1,
+            },
+        },
+        classes = {"tabletopMarquee"},
+        halign = "left",
+        valign = "top",
+        width = 1,
+        height = 1,
+        bgimage = "panels/square.png",
+        interactable = false,
+    }
+    layer:AddChild(panel)
+    panel:SetAsLastSibling()
+    g_cs.marquee = {
+        x0 = mouse.x,
+        y0 = mouse.y,
+        x1 = mouse.x,
+        y1 = mouse.y,
+        panel = panel,
+        targets = targets,
+        additive = g_cs.AddingToSelection(),
+    }
+    g_cs.PlaceMarquee(g_cs.marquee)
+end
+
+--- Follows the mouse while the selection rectangle is dragged.
+function Tabletop.DragCardMarquee()
+    local m = g_cs.marquee
+    if m == nil or not m.panel.valid then
+        return
+    end
+    local mouse = dmhub.mouseScreenPosition
+    m.x1 = mouse.x
+    m.y1 = mouse.y
+    g_cs.PlaceMarquee(m)
+end
+
+--- Releases the selection rectangle: what it touches becomes the selection.
+function Tabletop.EndCardMarquee()
+    local m = g_cs.marquee
+    if m == nil then
+        return
+    end
+    Tabletop.DragCardMarquee()
+    g_cs.EndMarqueePanel()
+    local rx1, rx2 = math.min(m.x0, m.x1), math.max(m.x0, m.x1)
+    local ry1, ry2 = math.min(m.y0, m.y1), math.max(m.y0, m.y1)
+    local hits = {}
+    local seen = {}
+    for _, target in ipairs(m.targets()) do
+        if target.panel.valid and not seen[target.charid] then
+            local x1, y1, x2, y2 = g_cs.ScreenRect(target.panel)
+            if x1 < rx2 and x2 > rx1 and y1 < ry2 and y2 > ry1 then
+                seen[target.charid] = true
+                hits[#hits+1] = target.charid
+            end
+        end
+    end
+    Tabletop.SelectCards(hits, m.additive)
+end
+
+--Every table card, as the selection rectangle's targets.
+function g_cs.TableCardTargets()
+    local out = {}
+    for _, card in ipairs(g_cards) do
+        if card.panel ~= nil and card.panel.valid then
+            out[#out+1] = {charid = card.charid, panel = card.panel}
+        end
+    end
+    return out
+end
+
+--Shows each table card's ring when the selection changes.
+function g_cs.UpdateCardSelection()
+    local seq = dmhub.selectedTokensSeq
+    if seq == g_cs.ringSeq then
+        return
+    end
+    g_cs.ringSeq = seq
+    local selected = Tabletop.SelectedCharids()
+    for _, card in ipairs(g_cards) do
+        Tabletop.ShowCardSelected(card.selectRing, selected[card.charid] == true)
+    end
+end
 
 --Puts a card's resize grip on its edge or corner of the card's current size,
 --and stretches an edge grip along the edge between the corner grips. The
@@ -4996,6 +5470,9 @@ local function ApplyCardScale(card, except)
     panel.selfStyle.height = math.floor(h * s)
     --the frame draws nothing itself; its corners shape the face's shadow.
     panel.selfStyle.cornerRadius = (card.shadowRadius or 0) * s
+    if card.selectRing ~= nil and card.selectRing.valid then
+        card.selectRing.selfStyle.cornerRadius = (card.shadowRadius or 0) * s + 3
+    end
     card.scaler.selfStyle.scale = s
     --the titlebar is at least as wide as the card (see BuildCard).
     if card.titlebar ~= nil and card.titlebar.valid then
@@ -5227,6 +5704,81 @@ local function EndCardDrag(drag, panel)
     end)
 end
 
+--Dragging a selected table card takes the other selected table cards with
+--it. BeginCardGroup notes where they started; MoveCardGroup moves them by
+--the dragged card's offset (home again while it is over a map); the drop
+--either lands them (LandCardGroup) or, for a drop that is not a move on the
+--table, puts them back (TakeCardGroup returns them home first).
+
+function g_cs.BeginCardGroup(card)
+    g_cs.group = nil
+    local selected = Tabletop.SelectedCharids()
+    if not selected[card.charid] then
+        return
+    end
+    local members = {}
+    for _, other in ipairs(g_cards) do
+        if other ~= card and selected[other.charid] and other.panel ~= nil and other.panel.valid then
+            members[#members+1] = {card = other, x = other.x, y = other.y}
+        end
+    end
+    if #members > 0 then
+        g_cs.group = {card = card, members = members}
+    end
+end
+
+function g_cs.MoveCardGroup(card, dx, dy, follow)
+    local group = g_cs.group
+    if group == nil or group.card ~= card then
+        return
+    end
+    if not follow then
+        dx, dy = 0, 0
+    end
+    for _, m in ipairs(group.members) do
+        local panel = m.card.panel
+        if panel ~= nil and panel.valid then
+            panel.x = m.x + dx
+            panel.y = m.y + dy
+        end
+    end
+end
+
+--Ends the group drag, returning its cards home (a drop that lands them
+--moves them on again with LandCardGroup).
+function g_cs.TakeCardGroup(card)
+    local group = g_cs.group
+    g_cs.group = nil
+    if group == nil or group.card ~= card then
+        return nil
+    end
+    g_cs.MoveCardGroup(card, 0, 0, false)
+    g_cs.group = nil
+    return group
+end
+
+function g_cs.LandCardGroup(group, dx, dy)
+    if group == nil then
+        return
+    end
+    local lw, lh = LayerSize()
+    for _, m in ipairs(group.members) do
+        local other = m.card
+        other.x = math.max(0, math.min(m.x + dx, lw - 60))
+        other.y = math.max(CARD_TITLE_HEIGHT, math.min(m.y + dy, lh - 60))
+        if other.panel ~= nil and other.panel.valid then
+            other.panel.x = other.x
+            other.panel.y = other.y
+            other.panel:SetAsLastSibling()
+        end
+        g_sharing.TookControl(other.layoutKey)
+    end
+    --the dragged card stays on top.
+    if group.card.panel ~= nil and group.card.panel.valid then
+        group.card.panel:SetAsLastSibling()
+    end
+end
+
 local function BuildCard(card)
     local layer = DocumentsLayer()
     local tok = dmhub.GetCharacterById(card.charid)
@@ -5321,7 +5873,12 @@ local function BuildCard(card)
     card.titlebar = titlebar
     card.grips = CardGrips(card)
 
-    local children = {card.scaler, titlebar}
+    --over the face: the ring a selected card wears, and the sheet button.
+    card.selectRing = Tabletop.CardSelectRing(card.shadowRadius * card.scale)
+    Tabletop.ShowCardSelected(card.selectRing, Tabletop.SelectedCharids()[card.charid] == true)
+    card.sheetButton = Tabletop.CardSheetButton(card.charid)
+
+    local children = {card.scaler, card.selectRing, card.sheetButton, titlebar}
     if share ~= nil then
         children[#children+1] = share.frame
     end
@@ -5451,10 +6008,12 @@ local function BuildCard(card)
         hover = function(element)
             card.cardHovered = true
             titlebar:SetClassTree("shown", true)
+            Tabletop.ShowCardSheetButton(card.sheetButton, true)
         end,
         dehover = function(element)
             card.cardHovered = false
             titlebar:SetClassTree("shown", card.gripHovered == true)
+            Tabletop.ShowCardSheetButton(card.sheetButton, false)
         end,
         rightClick = function(element)
             if dmhub.isDM then
@@ -5462,6 +6021,7 @@ local function BuildCard(card)
             end
         end,
         beginDrag = function(element)
+            g_cs.BeginCardGroup(card)
             if dmhub.isDM then
                 g_cardDrag = {card = card, overMap = false}
                 gui.SetFocus(element)
@@ -5469,6 +6029,9 @@ local function BuildCard(card)
         end,
         dragging = function(element)
             ChatItemLinks.Dragging(function() return {ChatItemLinks.CharacterItem(card.charid)} end)
+            --the other selected cards follow it while it is over the table.
+            local overTable = dmhub.tabletopDragSurface ~= "map"
+            g_cs.MoveCardGroup(card, element.xdrag - card.x, element.ydrag - card.y, overTable)
             if g_cardDrag == nil or g_cardDrag.card ~= card then
                 return
             end
@@ -5490,7 +6053,20 @@ local function BuildCard(card)
         drag = function(element)
             --dropped on the chat: a link to the character; the card stays.
             local toChat = ChatItemLinks.Dropped()
+            local group = g_cs.TakeCardGroup(card)
             local drag = g_cardDrag
+            --dropped on a scene, or on the bare table while a scene is its
+            --background: the card moves into the scene (SceneElements.lua).
+            local intoScene = (toChat and SceneElements.TookCharacter(card.charid))
+                or (not toChat and dmhub.panelDropSurface == "table" and SceneElements.DropOnBackground({card.charid}))
+            if intoScene then
+                if drag ~= nil and drag.card == card then
+                    element:SetClass("tabletopCardOverMap", false)
+                    EndCardDrag(drag, element)
+                end
+                CloseCard(card)
+                return
+            end
             if drag ~= nil and drag.card == card then
                 element:SetClass("tabletopCardOverMap", false)
                 EndCardDrag(drag, element)
@@ -5510,11 +6086,13 @@ local function BuildCard(card)
                 return
             end
             local lw, lh = LayerSize()
+            local dx, dy = element.xdrag - card.x, element.ydrag - card.y
             card.x = math.max(0, math.min(element.xdrag, lw - 60))
             card.y = math.max(CARD_TITLE_HEIGHT, math.min(element.ydrag, lh - 60))
             element.x = card.x
             element.y = card.y
             element:SetAsLastSibling()
+            g_cs.LandCardGroup(group, dx, dy)
             SaveSoon()
             g_sharing.TookControl(card.layoutKey)
             --onto the Director's Screen it is the Director's alone; off it,
@@ -5549,7 +6127,7 @@ end
 --forward). options.x/y place the card (documents-layer units), moving it if
 --it is already on the table;
 --options.shared marks a card that arrived from the Director's share;
---options.placed marks a drop, which shares the card unless it lands on the
+--options.placed marks a drop, which unshares the card if it lands on the
 --Director's Screen (DirectorScreen.ItemPlaced).
 function Tabletop.OpenCard(charid, options)
     options = options or {}
@@ -5766,6 +6344,16 @@ local function DropPlacement(screenx, screeny, i)
     return math.floor(x - w / 2) + (i - 1) * CARD_GAP, math.floor(y - h / 2) + (i - 1) * CARD_GAP
 end
 
+--- Where the i-th card of a drop at a screen point goes (documents-layer
+--- units): a scene card dragged out onto the table (SceneElements.lua).
+--- @param screenx number
+--- @param screeny number
+--- @param i integer
+--- @return number, number
+function Tabletop.CardDropPlacement(screenx, screeny, i)
+    return DropPlacement(screenx, screeny, i)
+end
+
 ----------------------------------------------------------------------
 --A character or bestiary row dragged out of its panel (CharacterPanel.lua
 --calls these from the row's drag events). Over the bare table it shows as
@@ -5808,6 +6396,15 @@ local function BuildPreviewCard(charid, options)
     --engine's table-drop test) or take the drop.
     panel:MakeNonInteractiveRecursive()
     return panel
+end
+
+--- The card a character dropped on the table would make, on the table and
+--- taking no input, for a drag to move about (Tabletop.CardDropPlacement)
+--- and destroy. A scene card dragged out of its scene shows it.
+--- @param charid string
+--- @return nil|Panel
+function Tabletop.BuildCardPreview(charid)
+    return BuildPreviewCard(charid)
 end
 
 function Tabletop.CharacterRowDragEnded(row)
@@ -5867,6 +6464,7 @@ local function BestiaryCardFace(tok)
     EotwHeroCard.ApplyPortrait(face, tok, w / h)
     return face
 end
+Tabletop.BestiaryCardFace = BestiaryCardFace
 
 local function BuildBestiaryPreviewCard(monsterid)
     local layer = DocumentsLayer()
@@ -6094,7 +6692,7 @@ local function BuildMapDropPreview(mapid, width, height, options)
         bgimage = "panels/square.png",
         bgcolor = "#100d0bff",
         borderWidth = 2,
-        borderColor = "#b8925acc",
+        borderColor = "#00000099",
         --a loading stand-in rests on the table; a drag preview is lifted.
         boxShadow = cond(options.loading, TABLE_SHADOWS.rest, TABLE_SHADOWS.lifted),
         gui.Panel{
@@ -6290,8 +6888,8 @@ function Tabletop.MapRowDropped(mapid, options)
             frame = {}
         end
     end
-    --dropped on the Director's Screen it stays private; anywhere else on the
-    --table it is shared with the players (DirectorScreen.lua).
+    --dropped on the Director's Screen it stays private; anywhere else its
+    --share is left as it is (DirectorScreen.lua).
     DirectorScreen.ItemPlaced(g_sharing.ScreenKey(rec))
 
     if frame ~= nil then
@@ -6375,6 +6973,41 @@ function Tabletop.FrameWhenLive(rec, mapid, area)
     end)
 end
 
+--- What a window shows of its map (world units), read before the window is
+--- resized so Tabletop.KeepView can show the same area once it has its new
+--- size. nil when the window is not showing its map live.
+--- @param rec table the window record
+--- @return nil|{mapid: string, x1: number, y1: number, x2: number, y2: number}
+function Tabletop.CaptureView(rec)
+    if rec.minimized or Tabletop.LiveWindowId() ~= rec.id then
+        return nil
+    end
+    local b = dmhub.cameraUsableBounds
+    if b == nil then
+        return nil
+    end
+    return {mapid = game.currentMapId, x1 = b.x1, y1 = b.y1, x2 = b.x2, y2 = b.y2}
+end
+
+--- Zooms a resized window to the area Tabletop.CaptureView read, so the map
+--- fills it as much as it did before (David, 2026-10-17): maximizing a window
+--- framed on the whole map shows the whole map full screen, with bars only
+--- where the shapes differ.
+--- @param rec table the window record
+--- @param view nil|{mapid: string, x1: number, y1: number, x2: number, y2: number}
+function Tabletop.KeepView(rec, view)
+    if view == nil then
+        return
+    end
+    --a frame for the window's new size to reach the camera.
+    dmhub.Schedule(0.1, function()
+        if mod.unloaded or Tabletop.LiveWindowId() ~= rec.id or game.currentMapId ~= view.mapid then
+            return
+        end
+        dmhub.FrameMapArea({world = {x1 = view.x1, y1 = view.y1, x2 = view.x2, y2 = view.y2}})
+    end)
+end
+
 --- A stand-in window on the table saying "Loading map..." while a map is
 --- added to the game (an encounter's Map Library map). Pass the handle to
 --- Tabletop.MapRowDropped as options.at to open the real window in its place,
@@ -6440,6 +7073,27 @@ dmhub.RegisterEventHandler("tabletopCreatureDropped", function(info)
     end
     local screenx = tonumber(info.screenx) or 0
     local screeny = tonumber(info.screeny) or 0
+    local monsterids = info.monsterids
+    if type(monsterids) ~= "table" then
+        monsterids = {info.monsterid}
+    end
+    --on a scene that is the table's background: into the scene.
+    local intoScene = false
+    if type(info.charids) == "table" then
+        local charids = {}
+        for _, charid in ipairs(info.charids) do
+            if g_cardDrag == nil or g_cardDrag.card.charid ~= charid then
+                charids[#charids+1] = charid
+            end
+        end
+        intoScene = #charids > 0 and SceneElements.DropOnBackground(charids)
+    elseif dmhub.isDM then
+        intoScene = SceneElements.DropOnBackground(nil, monsterids)
+    end
+    if intoScene then
+        gui.SetFocus(nil)
+        return
+    end
     if type(info.charids) == "table" then
         for i, charid in ipairs(info.charids) do
             --a card the Director dragged back onto the table has moved
@@ -6450,10 +7104,6 @@ dmhub.RegisterEventHandler("tabletopCreatureDropped", function(info)
             end
         end
     elseif dmhub.isDM then
-        local monsterids = info.monsterids
-        if type(monsterids) ~= "table" then
-            monsterids = {info.monsterid}
-        end
         for i, monsterid in ipairs(monsterids) do
             local tok = game.SpawnTokenFromBestiaryLocally(monsterid, nil)
             if tok ~= nil then
@@ -6494,6 +7144,10 @@ dmhub.RegisterEventHandler("tabletopTokenDropped", function(info)
     local charids = info.charids
     if type(charids) ~= "table" then
         charids = {info.charid}
+    end
+    --on a scene that is the table's background: into the scene.
+    if SceneElements.DropOnBackground(charids) then
+        return
     end
     for i, charid in ipairs(charids) do
         local x, y = DropPlacement(screenx, screeny, i)
@@ -7403,8 +8057,17 @@ do
             end,
             drag = function(element, target)
                 IconRailDocDragging(nil)
-                --dropped on the chat: a link to the entry; the item stays.
-                if ChatItemLinks.Dropped() then
+                --dropped on the chat: a link to the entry; the item stays. A
+                --picture or video dropped on a scene moves into it, as does one
+                --dropped on the bare table while a scene is its background.
+                local dropped = ChatItemLinks.Dropped()
+                if (dropped and SceneElements.Took("doc", item.entryid))
+                        or (not dropped and dmhub.panelDropSurface == "table"
+                            and SceneElements.DropLinksOnBackground({ChatItemLinks.DocItem(item.entryid)})) then
+                    TakeOffDocItem(item)
+                    return
+                end
+                if dropped then
                     element.x = item.x
                     element.y = item.y
                     return
@@ -7452,7 +8115,7 @@ do
     --item (moving it if it is already on the table); options.at: the same in
     --the table's own units ({x, y}); options.scale: a new item's size;
     --options.shared marks an item that arrived from the Director's share;
-    --options.placed marks a drop, which shares the item unless it lands on
+    --options.placed marks a drop, which unshares the item if it lands on
     --the Director's Screen (DirectorScreen.ItemPlaced).
     function Tabletop.OpenDocItem(entryid, options)
         options = options or {}
@@ -8031,7 +8694,28 @@ local function DefineTableItems()
                     },
                 }
             end,
+            --over a scene the item would move into it (SceneElements.lua says
+            --which kinds a scene takes: sounds).
+            dragging = function(element)
+                ChatItemLinks.Dragging(function() return {} end, {
+                    source = element,
+                    targetClass = SceneElements.LAYER_CLASS,
+                    dropItems = function() return {{kind = item.kind, id = item.key}} end,
+                })
+            end,
             drag = function(element, target)
+                local link = {kind = item.kind, id = item.key}
+                local dropped = ChatItemLinks.Dropped()
+                if (dropped and SceneElements.Took(item.kind, item.key))
+                        or (not dropped and dmhub.panelDropSurface == "table" and SceneElements.DropLinksOnBackground({link})) then
+                    CloseItem(item)
+                    return
+                end
+                if dropped then
+                    element.x = item.x
+                    element.y = item.y
+                    return
+                end
                 local lw, lh = LayerSize()
                 item.x = math.max(0, math.min(element.xdrag, lw - 60))
                 item.y = math.max(CARD_TITLE_HEIGHT, math.min(element.ydrag, lh - 60))
@@ -8399,6 +9083,12 @@ local function DefineSceneWindows()
         if panel:HasClass("collapsed") ~= covered then
             panel:SetClass("collapsed", covered)
         end
+        --maximized under the UI it is the table's background: its cards'
+        --layer lets the mouse through, and the table passes it the drops
+        --(SceneElements.DropOnBackground).
+        if rec.view ~= nil and rec.view.valid then
+            rec.view:FireEvent("setBackground", rec.maximized == true and not covered and panel.parent == g_layer)
+        end
     end
 
     g_sharing.screenKinds[#g_sharing.screenKinds+1] = function(list)
@@ -8599,6 +9289,44 @@ local function DefineSceneWindows()
                 end,
             }
             controls[#controls+1] = share.button
+            --who besides the Director may change the cards in the scene
+            --(SceneElements.lua). Its icon follows the scene's document.
+            local editControl = WindowControl{
+                icon = SceneElements.EditModeInfo(rec.sceneid).icon,
+                iconSize = 14,
+                hover = function(element)
+                    gui.Tooltip("Who can change this scene: " .. SceneElements.EditModeInfo(rec.sceneid).tip)(element)
+                end,
+                click = function(element)
+                    local current = SceneElements.EditMode(rec.sceneid)
+                    local entries = {}
+                    for _, info in ipairs(SceneElements.EDIT_MODES) do
+                        local mode = info.id
+                        entries[#entries+1] = {
+                            text = info.text,
+                            check = current == mode,
+                            click = function()
+                                GuardClicks()
+                                element.popup = nil
+                                SceneElements.SetEditMode(rec.sceneid, mode)
+                            end,
+                        }
+                    end
+                    element.tooltip = nil
+                    element.popup = gui.ContextMenu{entries = entries}
+                end,
+            }
+            controls[#controls+1] = gui.Panel{
+                width = "auto",
+                height = "100%",
+                valign = "center",
+                flow = "horizontal",
+                monitorGame = SceneElements.DocPath(rec.sceneid),
+                refreshGame = function(element)
+                    editControl:FireEventTree("setIcon", SceneElements.EditModeInfo(rec.sceneid).icon)
+                end,
+                editControl,
+            }
             controls[#controls+1] = WindowControl{
                 icon = "phosphor/gear-six-fill.png",
                 iconSize = 14,
@@ -9211,7 +9939,7 @@ local function DefineSceneWindows()
             bgimage = "panels/square.png",
             bgcolor = "#100d0bff",
             borderWidth = 2,
-            borderColor = "#b8925acc",
+            borderColor = "#00000099",
             boxShadow = TABLE_SHADOWS.lifted,
             gui.Panel{
                 styles = ThemeEngine.MergeStyles(g_titleStyles),
@@ -9310,8 +10038,8 @@ local function DefineSceneWindows()
         end
         local x, y = SceneDropRect(sceneid)
         Tabletop.OpenScene(sceneid, {x = x, y = y})
-        --dropped on the Director's Screen it stays private; anywhere else on
-        --the table it is shared with the players (DirectorScreen.lua).
+        --dropped on the Director's Screen it stays private; anywhere else its
+        --share is left as it is (DirectorScreen.lua).
         local rec = SceneWindowFor(sceneid)
         if rec ~= nil then
             DirectorScreen.ItemPlaced(g_sharing.ScreenKey(rec))
@@ -9330,7 +10058,7 @@ local function DefineSceneWindows()
         local x = math.max(0, math.min(math.floor(mx - width / 2), tw - width))
         local y = math.max(0, math.min(math.floor(my - height / 2), th - height))
         Tabletop.OpenScene(sceneid, {x = x, y = y})
-        --a drop: shared unless it lands on the Director's Screen.
+        --a drop: private if it lands on the Director's Screen.
         local rec = SceneWindowFor(sceneid)
         if rec ~= nil then
             DirectorScreen.ItemPlaced(g_sharing.ScreenKey(rec))
@@ -10456,6 +11184,7 @@ local function Sync()
         g_tableItems.Teardown()
         TeardownSceneWindows()
         g_gameid = dmhub.gameid
+        g_sharing.localForcedSignature = ""
         InitForGame()
         IconRailRebuildSoon()
     end
@@ -10465,6 +11194,7 @@ local function Sync()
     end
 
     SyncShares()
+    g_sharing.SyncLocalForced()
     g_sharing.SyncViewableMaps()
     g_sharing.SyncCurrentMapAccess()
     SyncCards()
@@ -10646,7 +11376,7 @@ function Tabletop.AddFilesAsMap(paths, mx, my, options)
             EnsureBuilt(rec)
             Focus(rec)
             SaveSoon()
-            --a drop: shared unless it lands on the Director's Screen.
+            --a drop: private if it lands on the Director's Screen.
             DirectorScreen.ItemPlaced(g_sharing.ScreenKey(rec))
             if options.created ~= nil then
                 options.created(mapid)
@@ -10687,18 +11417,33 @@ local function TableFilesDropped(allPaths, screenPos)
     local mx, my = ScreenToLayer(mouse.x, mouse.y)
 
     --audio files become audio widgets there (Audio.lua) with no question;
-    --images and videos go on to the scene-or-map dialog.
+    --documents (PDF, Markdown, text, .zip) go into the journal and their
+    --main entry onto the table there (DocumentImport.lua); images and videos
+    --go on to the scene-or-map dialog.
     local paths = {}
     local sounds = {}
+    local documents = {}
     for _, path in ipairs(allPaths) do
         if FileDrops.IsAudio(path) then
             sounds[#sounds+1] = path
+        elseif FileDrops.IsDocument(path) then
+            documents[#documents+1] = path
         else
             paths[#paths+1] = path
         end
     end
     if #sounds > 0 and rawget(_G, "AudioDroppedOnTable") ~= nil then
         AudioDroppedOnTable(sounds, mouse.x, mouse.y)
+    end
+    if #documents > 0 and rawget(_G, "DocumentImport") ~= nil then
+        DocumentImport.ImportFiles(documents, {
+            ready = function(entryid, index)
+                --several files step down-right from the drop point (the
+                --documents block's DOC.cascade).
+                local step = (index - 1) * 24
+                Tabletop.OpenDocItem(entryid, {at = {x = mx + step, y = my + step}, placed = true})
+            end,
+        })
     end
     if not dmhub.isDM or #paths == 0 then
         return
@@ -10939,10 +11684,44 @@ function Tabletop.CreateLayer()
             ShowTableMenu()
         end,
 
-        --files dragged in from the desktop (see TableFilesDropped): pictures
-        --and videos for the Director, audio for whoever controls the audio.
+        --a click on the bare table clears the selection; a drag there draws
+        --the selection rectangle over the table cards (and the cards of a
+        --scene that is the table's background). Over a maximized map the
+        --map takes the mouse itself, so nothing starts there.
+        draggable = true,
+        dragMove = false,
+        click = function(element)
+            if not g_cs.AddingToSelection() then
+                Tabletop.ClearCardSelection()
+            end
+        end,
+        beginDrag = function(element)
+            if dmhub.panelDropSurface ~= "table" then
+                return
+            end
+            Tabletop.BeginCardMarquee(function()
+                local targets = g_cs.TableCardTargets()
+                for _, t in ipairs(SceneElements.CreatureCardTargets(true)) do
+                    targets[#targets+1] = t
+                end
+                return targets
+            end)
+        end,
+        dragging = function(element)
+            Tabletop.DragCardMarquee()
+        end,
+        drag = function(element)
+            Tabletop.EndCardMarquee()
+        end,
+
+        --files dragged in from the desktop (see TableFilesDropped): documents
+        --for anyone, pictures and videos for the Director, audio for whoever
+        --controls the audio.
         dragAndDropExtensions = (function()
             local exts = {}
+            for _, ext in ipairs(FileDrops.DOCUMENT_EXTENSIONS) do
+                exts[#exts+1] = ext
+            end
             if dmhub.isDM then
                 for _, ext in ipairs(FileDrops.MEDIA_EXTENSIONS) do
                     exts[#exts+1] = ext
@@ -10972,6 +11751,7 @@ function Tabletop.CreateLayer()
         thinkTime = 0.05,
         think = function(element)
             Sync()
+            g_cs.UpdateCardSelection()
         end,
         create = function(element)
             Sync()

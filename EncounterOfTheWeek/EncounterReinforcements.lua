@@ -75,11 +75,14 @@ local function ZoneLocs(zone)
     local free, taken = {}, {}
     for _, z in ipairs(EncounterZones.ZoneRecords(zone)) do
         for _, l in ipairs(z.record.locs or {}) do
-            local loc = core.Loc{ x = math.floor(l.x), y = math.floor(l.y), floorIndex = z.floorIndex }
-            if game.GetTokensAtLoc(loc) == nil then
-                free[#free + 1] = loc
-            else
-                taken[#taken + 1] = loc
+            --a series' part arrives only inside its own region.
+            if EncounterZones.InPlayRegion(l.x, l.y) then
+                local loc = core.Loc{ x = math.floor(l.x), y = math.floor(l.y), floorIndex = z.floorIndex }
+                if game.GetTokensAtLoc(loc) == nil then
+                    free[#free + 1] = loc
+                else
+                    taken[#taken + 1] = loc
+                end
             end
         end
     end

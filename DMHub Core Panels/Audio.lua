@@ -748,6 +748,14 @@ local function DisplayNameForAsset(asset)
 	return name
 end
 
+--- A clip's name as the soundboard shows it, and its swatch colour (hex):
+--- for scene sounds (SceneElements.lua).
+--- @param asset nil|AudioAssetLua
+--- @return string name, string color
+function AudioClipLook(asset)
+	return DisplayNameForAsset(asset), AudioSwatchColor(asset ~= nil and asset.color or nil)
+end
+
 --Play-start order registry. audio.currentlyPlaying keys have no stable
 --ordering, and a looping track's elapsed .time resets to 0 on every loop --
 --sorting by elapsed made the "most recent" track cycle whenever a loop
@@ -1126,6 +1134,11 @@ local function CanControlAudio()
 	local delegates = AudioDelegatesDoc().data.delegates
 	return delegates ~= nil and delegates[dmhub.userid] == true
 end
+
+--- Whether this user controls the table's audio (the Director, or a DJ the
+--- Director granted it). Scene sounds (SceneElements.lua) show only to them.
+--- @return boolean
+AudioCanControl = CanControlAudio
 
 local function IsAudioDelegate(userid)
 	local delegates = AudioDelegatesDoc().data.delegates
@@ -3989,14 +4002,30 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 			if key ~= nil and rawget(Tabletop, "ItemRowDragging") ~= nil then
 				Tabletop.ItemRowDragging(element, "audio", key)
 			end
+			--over a scene it would become one of the scene's sounds (SceneElements.lua).
+			if key ~= nil then
+				ChatItemLinks.Dragging(function() return {} end, {
+					source = element,
+					targetClass = SceneElements.LAYER_CLASS,
+					dropItems = function() return {{kind = "audio", id = key}} end,
+				})
+			end
 		end,
 		drag = function(element, target)
 			if rawget(Tabletop, "ItemRowDragEnded") ~= nil then
 				Tabletop.ItemRowDragEnded(element)
 			end
+			--dropped on a scene: it took the clip, and the pad keeps it.
+			if ChatItemLinks.Dropped() then
+				return
+			end
 			if target == nil or not target.valid or not target:HasClass("audioSbButton") or target.data.docid == nil then
 				local key = TableKey()
 				if key ~= nil and dmhub.panelDropSurface == "table" then
+					--a scene lying under the UI as the table's background takes it.
+					if SceneElements.DropLinksOnBackground({{kind = "audio", id = key}}) then
+						return
+					end
 					Tabletop.OpenItem("audio", key, {screen = dmhub.mouseScreenPosition})
 				end
 				return

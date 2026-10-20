@@ -394,11 +394,20 @@ function Aura:GetSimpleEntryEffectTrigger(options)
     }
 end
 
+--- Whether rules-engine rule text (an entry effect or power roll tier) deals
+--- damage. A rule that only applies a condition, like Deep Water's "wet (EoE)",
+--- does not make terrain damaging.
+--- @param rule string|nil
+--- @return boolean
+function Aura.RuleDealsDamage(rule)
+    return type(rule) == "string" and string.find(string.lower(rule), "damage", 1, true) ~= nil
+end
+
 --- Whether this aura is "damaging terrain" for movement advisories: it hurts
 --- creatures that enter it or move through it. True when the aura has an entry
---- power roll (Lava), a flat entry effect (Burning Oil), per-tile move damage, or
---- the explicit `damaging` flag (for hand-authored auras whose damage comes from
---- custom triggers).
+--- power roll (Lava) or flat entry effect (Burning Oil) that deals damage,
+--- per-tile move damage, or the explicit `damaging` flag (for hand-authored auras
+--- whose damage comes from custom triggers).
 --- @return boolean
 function Aura:IsDamaging()
     if self:try_get("damaging", false) == true then
@@ -409,7 +418,7 @@ function Aura:IsDamaging()
         return true
     end
 
-    if trim(self:try_get("entryEffectRule", "") or "") ~= "" then
+    if Aura.RuleDealsDamage(self:try_get("entryEffectRule")) then
         return true
     end
 
@@ -423,7 +432,7 @@ function Aura:IsDamaging()
     end
 
     for i = 1, 3 do
-        if trim(tiers[i] or "") ~= "" then
+        if Aura.RuleDealsDamage(tiers[i]) then
             return true
         end
     end
@@ -1742,6 +1751,31 @@ end
 --Whether aura-listing UI should skip this aura (see hideFromAuraLists).
 function AuraInstance:IsHiddenFromAuraLists()
     return self:try_get("hideFromAuraLists", false) == true
+end
+
+--- True when the aura's only effect is granting activated abilities to creatures in it
+--- (e.g. the Angulotl Pollywog's Quick Snack): no triggers, entry power roll, entry
+--- effect or damage, and every modifier is an "activated" grant. Terrain flags (water,
+--- difficult terrain, cover...) are not checked here -- the engine reads its own copy.
+--- The movement and targeting cross-section diagrams use it to leave such auras out.
+--- @return boolean
+function AuraInstance:GrantsOnlyAbilities()
+    local aura = self.aura
+    if #aura:try_get("triggers", {}) > 0 or aura:IsDamaging() or aura:try_get("powerRollEnabled", false)
+        or trim(aura:try_get("entryEffectRule", "") or "") ~= "" then
+        return false
+    end
+
+    local modifiers = aura:try_get("modifiers", {})
+    if #modifiers == 0 then
+        return false
+    end
+    for _, modifier in ipairs(modifiers) do
+        if modifier.behavior ~= "activated" then
+            return false
+        end
+    end
+    return true
 end
 
 --The footstep sound family (AudioSurfaceTypes index) tiles in this aura use,

@@ -13,6 +13,81 @@ MarkdownDocument.vscroll = false
 MarkdownDocument.styleSheetId = false
 MarkdownDocument.acceptsRichTagDrops = true
 
+-- Backslash escapes, CommonMark style: "\*" shows a literal *, "\[" a literal [,
+-- and so on for any ASCII punctuation (the engine's MarkdownParser drops the
+-- backslash when it renders). The Lua scanners below (spoilers, rich tags, the
+-- seamless editor's decorations) mask escaped pairs first so an escaped
+-- character never reads as markup. A mask keeps every byte offset: "\X" becomes
+-- "\15" plus a letter or digit standing for X, two bytes for two bytes. It stays
+-- plain ASCII so masked text can go through the engine's regex (C# strings) and
+-- come back intact, and \15 never occurs in real text. "\\" masks as a pair
+-- too, so "\\*" is a backslash then a real *.
+local g_escapeMaskOf = {}
+local g_escapeUnmaskOf = {}
+do
+    local punctuation = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"
+    local codes = "ABCDEFGHIJKLMNOPQRSTUVWXYZ012345"
+    for i = 1, #punctuation do
+        local c = punctuation:sub(i, i)
+        local code = codes:sub(i, i)
+        g_escapeMaskOf[c] = "\15" .. code
+        g_escapeUnmaskOf[code] = "\\" .. c
+    end
+end
+
+--- Masks every backslash escape in text (same byte length), so pattern scans
+--- skip escaped characters. Undo with MarkdownDocument.UnmaskEscapes.
+--- @param text string
+--- @return string
+function MarkdownDocument.MaskEscapes(text)
+    if string.find(text, "\\", 1, true) == nil then
+        return text
+    end
+    return (text:gsub("\\(%p)", g_escapeMaskOf))
+end
+
+--- Restores the escapes MarkdownDocument.MaskEscapes masked.
+--- @param text string
+--- @return string
+function MarkdownDocument.UnmaskEscapes(text)
+    if string.find(text, "\15", 1, true) == nil then
+        return text
+    end
+    return (text:gsub("\15([A-Z0-5])", g_escapeUnmaskOf))
+end
+
+--- Escapes text so the journal shows it exactly as written: every character
+--- that could start markup is backslash-escaped, and the line-start markers
+--- (headings, bullets, quotes, tables, rules, ???, :::, + Title, 1.) are
+--- defused. Line breaks are kept. For importing plain text.
+--- @param text string
+--- @return string
+function MarkdownDocument.EscapeText(text)
+    local lines = {}
+    for line in (text .. "\n"):gmatch("(.-)\n") do
+        --anywhere in a line: backslashes before punctuation, emphasis,
+        --links/tags/checkboxes, spoilers, code, TMP tags, and the :< :>
+        --justification markers. A lone _ or ~ is ordinary text; only doubled
+        --ones are markup.
+        line = line:gsub("\\(%p)", "\\\\%1")
+        line = line:gsub("[%*%[%]{}`<]", "\\%0")
+        --every character of a run of two or more ("___" would otherwise
+        --leave a live "__" behind).
+        line = line:gsub("__+", function(run) return (run:gsub("_", "\\_")) end)
+        line = line:gsub("~~+", function(run) return (run:gsub("~", "\\~")) end)
+        line = line:gsub(":>", "\\:>")
+        --line starts: whatever follows the leading spaces.
+        local indent, rest = line:match("^(%s*)(.*)$")
+        if rest:match("^[#>|+%-]") or rest:match("^%?%?%?") or rest:match("^:::") then
+            rest = "\\" .. rest
+        elseif rest:match("^%d+[%.%)] ") then
+            rest = rest:gsub("^(%d+)([%.%)])", "%1\\%2")
+        end
+        lines[#lines + 1] = indent .. rest
+    end
+    return table.concat(lines, "\n")
+end
+
 local g_markdownStyle = gui.MarkdownStyle {
     ["#  "] = "<size=200%><b>", ["/#  "] = "</b></size>",
     ["# "] = "<size=200%><b>", ["/# "] = "</b></size>",
@@ -1250,6 +1325,8 @@ local function ColorizeLinks(content, link)
     link = link or {}
     local color = SkinColor(link.color)
     if color == nil then return content end
+    --escaped brackets (\[) are text, not links.
+    content = MarkdownDocument.MaskEscapes(content)
     local open = string.format("<color=%s>", color)
     local close = "</color>"
     if link.underline ~= false then
@@ -1281,7 +1358,7 @@ local function ColorizeLinks(content, link)
         if styled == nil then return nil end
         return "[" .. styled .. "](" .. label .. ")"
     end)
-    return content
+    return MarkdownDocument.UnmaskEscapes(content)
 end
 
 -- Test hook.
@@ -1315,8 +1392,10 @@ end
 local function ColorizeSecrets(text, color, depth)
     depth = depth or 0
     if color == nil or type(text) ~= "string" or text == "" then return text, depth end
+    --escaped braces (\{) are text, not secrets.
+    text = MarkdownDocument.MaskEscapes(text)
     --A continuation line carries no brace of its own but still needs the colour.
-    if depth == 0 and string.find(text, "{", 1, true) == nil then return text, depth end
+    if depth == 0 and string.find(text, "{", 1, true) == nil then return MarkdownDocument.UnmaskEscapes(text), depth end
 
     local open = string.format("<color=%s>", color)
     local out = {}
@@ -1374,7 +1453,7 @@ local function ColorizeSecrets(text, color, depth)
     end
 
     if depth > 0 then out[#out + 1] = "</color>" end
-    return table.concat(out), depth
+    return MarkdownDocument.UnmaskEscapes(table.concat(out)), depth
 end
 
 MarkdownDocument.__ColorizeSecrets = ColorizeSecrets
@@ -1450,13 +1529,15 @@ MarkdownDocument.__ApplySkinToText = ApplySkinToText
 local function ApplyInlineClasses(text, classes)
     if type(text) ~= "string" or text == "" then return text end
     classes = classes or {}
-    return (text:gsub("{%.([%w_%-]+) ([^}]*)}", function(name, inner)
+    --escaped braces (\{.x }) are text, not class spans.
+    text = MarkdownDocument.MaskEscapes(text)
+    return MarkdownDocument.UnmaskEscapes((text:gsub("{%.([%w_%-]+) ([^}]*)}", function(name, inner)
         local cls = classes[name]
         if type(cls) == "table" and cls.kind == "inline" then
             return SkinClassTextMarkup(cls.text, inner)
         end
         return inner
-    end))
+    end)))
 end
 
 -- Test hook.
@@ -1720,6 +1801,8 @@ local function CloakText(s, map)
 end
 
 local function StripSpoilers(text, ink)
+    --escaped braces (\{) are text, not spoilers; restored on the way out.
+    text = MarkdownDocument.MaskEscapes(text)
     local redact = ThemeEngine.ResolveTokens("<alpha=#FF><mark=@fg><color=@fg>")
     if ink ~= nil then
         redact = string.format("<alpha=#FF><mark=%s><color=%s>", ink, ink)
@@ -1863,7 +1946,7 @@ local function StripSpoilers(text, ink)
         i = b + 1
     end
 
-    return result
+    return MarkdownDocument.UnmaskEscapes(result)
 end
 
 local g_hardwiredPowerTableList = {
@@ -2226,7 +2309,11 @@ BreakdownRichTags = function(content, result, options, extraOutput)
         if tableMatch ~= nil then
             EmitText()
 
-            local cells = string.split_with_square_brackets(tableMatch.row, "|")
+            --an escaped pipe (\|) is text inside a cell, not a cell break.
+            local cells = string.split_with_square_brackets(MarkdownDocument.MaskEscapes(tableMatch.row), "|")
+            for ci, cell in ipairs(cells) do
+                cells[ci] = MarkdownDocument.UnmaskEscapes(cell)
+            end
 
             --GitHub-style header separator (|---|:---:|), only recognized
             --directly under a table's first row (the GFM position). It is not
@@ -2343,8 +2430,18 @@ BreakdownRichTags = function(content, result, options, extraOutput)
         local justification = nil
 
         while str ~= "" do
-            local match = regex.MatchGroups(str,
+            --escaped characters (\{ \[ \:) are masked so they cannot start a
+            --spoiler, tag, embed, checkbox or justification; every group
+            --comes back unmasked (the mask keeps lengths).
+            local match = regex.MatchGroups(MarkdownDocument.MaskEscapes(str),
                 "^(?<prefix>.*?)((?<spoiler>\\{)|(?<justification>:(<>|><|<|>))|(?<embed>\\[:[^\\[\\]]+\\])|(?<tag>\\[[ xX]\\] *(?<checkname>[a-zA-Z0-9 ]*))|\\[\\[(?<tag>[^\\]]*)\\]\\])(?<suffix>.*)$")
+            if match ~= nil then
+                for k, v in pairs(match) do
+                    if type(v) == "string" then
+                        match[k] = MarkdownDocument.UnmaskEscapes(v)
+                    end
+                end
+            end
             if match == nil then
                 if textStartLine == nil and str ~= "" then textStartLine = currentLine end
                 if str ~= "" then textLastLine = currentLine end
@@ -9194,7 +9291,21 @@ function Seamless.CompileDecorations(doc, text)
             --filler, same length) so later scans cannot see consumed syntax:
             --rich [[..]] tags first (never inline-styled), then bold before
             --italic (shared asterisks), then links.
-            local scratch = line:gsub("%[%[.-%]%]", function(m) return string.rep("\1", #m) end)
+            --Backslash escapes go before all of them: the backslash hides (the
+            --renderer drops it too) and the pair is blanked, so "\*" can never
+            --open an emphasis run. "\\" is a pair as well.
+            local scratch = line
+            if string.find(line, "\\", 1, true) ~= nil then
+                local escFrom = 1
+                while true do
+                    local s = line:find("\\%p", escFrom)
+                    if s == nil then break end
+                    decs[#decs + 1] = { kind = "hide", from = A(s), to = A(s), group = G() }
+                    escFrom = s + 2
+                end
+                scratch = line:gsub("\\%p", "\1\1")
+            end
+            scratch = scratch:gsub("%[%[.-%]%]", function(m) return string.rep("\1", #m) end)
 
             --inner text ranges of each emphasis run, consumed by the glossary
             --pass below: blanking consumes them from scratch, but the display
@@ -9349,7 +9460,9 @@ function Seamless.LinkAtPosition(text, pos)
     --caret offset within the line, 0-based (bytes of the line before it).
     local rel = pos - (lineStart - 1)
 
-    local scratch = line:gsub("%[%[.-%]%]", function(m) return string.rep("\1", #m) end)
+    --escaped brackets (\[) are text, never links.
+    local scratch = line:gsub("\\%p", "\1\1")
+    scratch = scratch:gsub("%[%[.-%]%]", function(m) return string.rep("\1", #m) end)
 
     --page embeds: [:Document Name]
     local searchFrom = 1

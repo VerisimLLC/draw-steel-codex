@@ -1946,6 +1946,8 @@ local g_tileIndicator = {
         void       = { tier = 1,  name = "Open Air (no floor)", color = "#000000", stripes = false },
         damaging   = { tier = 2,  name = "Damaging Terrain",    color = "#cc3333", stripes = true },
         water      = { tier = 3,  name = "Water",               color = "#3373d9", stripes = true },
+        --the map water level's shallow water (MapWaterLevel): not a tile rule, a depth.
+        shallow    = { tier = 3,  name = "Shallow Water",       color = "#73d9f2", stripes = true },
         difficult  = { tier = 4,  name = "Difficult Terrain",   color = "#8c5926", stripes = true },
         darkness   = { tier = 5,  name = "Darkness",            color = "#4b2a6b", stripes = true },
         sunlight   = { tier = 6,  name = "Sunlight",            color = "#e2c433", stripes = true },
@@ -2112,6 +2114,15 @@ function g_tileIndicator.Classify()
     if rules.difficultTerrain then
         Consider(kinds.difficult)
     end
+    --shallow water from the map water level reads as itself rather than as
+    --plain difficult terrain (it only slows creatures without a swim speed).
+    local floor = game.currentFloor
+    if floor ~= nil then
+        local water = floor:GetWaterAtLoc(loc)
+        if water ~= nil and water.state == "shallow" then
+            Consider(kinds.shallow)
+        end
+    end
     if rules.concealment then
         Consider(kinds.concealing)
     end
@@ -2217,11 +2228,21 @@ end
 --The four built-in terrain rule types, styled to match the engine's
 --overlay stripes exactly (TileHeightOverlay ZoneWater/Difficult/
 --Concealment/Climbable colors and alternating angles).
+--rules is the hover card text: the Draw Steel rule for that terrain
+--(Heroes p. 269-270 movement, p. 276 concealment).
 g_tileIndicator.BUILTINS = {
-    { id = "water",       name = "Water",       color = "#3373d9", angle = math.pi * 0.25 },
-    { id = "difficult",   name = "Difficult",   color = "#8c5926", angle = math.pi * 0.75 },
-    { id = "concealment", name = "Concealment", color = "#333333", angle = math.pi * 0.25 },
-    { id = "climbable",   name = "Climbable",   color = "#66cc66", angle = math.pi * 0.75 },
+    { id = "water",       name = "Water",       color = "#3373d9", angle = math.pi * 0.25,
+      rules = "Creatures in water swim. A creature with a swim speed swims at full speed. A creature without one uses 2 squares of movement for each square it swims." },
+    { id = "difficult",   name = "Difficult",   color = "#8c5926", angle = math.pi * 0.75,
+      rules = "It costs 1 additional square of movement to enter a square of difficult terrain. A creature can't shift into or out of difficult terrain, and can't jump out of it." },
+    { id = "concealment", name = "Concealment", color = "#333333", angle = math.pi * 0.25,
+      rules = "A creature here has concealment: strikes made against it take a bane. Concealment doesn't block line of effect." },
+    { id = "climbable",   name = "Climbable",   color = "#66cc66", angle = math.pi * 0.75,
+      rules = "Creatures can climb here. A creature with a climb speed climbs at full speed. A creature without one uses 2 squares of movement for each square it climbs." },
+    --the map water level's shallow water (Map Settings > Water): water less
+    --than a square deep. Listed only on a map with a water level.
+    { id = "shallowwater", name = "Shallow Water", color = "#73d9f2", angle = math.pi * 0.75,
+      rules = "Water less than 1 square deep. It is difficult terrain (Shallow Water) for a creature without a swim speed; creatures here are not in water and do not swim." },
 }
 
 --The shown-built-ins preference (';'-joined ids from BUILTINS) as a set.
@@ -2267,6 +2288,8 @@ function g_tileIndicator.BuiltinTypesOnMap()
             present = flags.difficultTerrain
         elseif entry.id == "concealment" then
             present = flags.concealment
+        elseif entry.id == "shallowwater" then
+            present = flags.shallowWater == true
         else
             present = flags.climbable
         end
@@ -2309,6 +2332,148 @@ function g_tileIndicator.HoleTypeOnMap()
     return nil
 end
 
+--Short rules lines built from a zone type's mechanical flags. Only used
+--when the keyword has no authored description, so the tooltip still says
+--something true about the zone.
+---@param kw EnvironmentalKeyword
+---@return string[]
+function g_tileIndicator.ZoneRulesFromFlags(kw)
+    local lines = {}
+    if kw:try_get("difficultTerrain", false) then
+        lines[#lines+1] = "Difficult terrain."
+    end
+    if kw:try_get("water", false) then
+        lines[#lines+1] = "Water."
+    end
+    if kw:try_get("concealment", false) then
+        lines[#lines+1] = "Creatures here have concealment."
+    end
+    if kw:try_get("climbable", false) then
+        if kw:try_get("climbersOnly", false) then
+            lines[#lines+1] = "Natural climbers can climb here."
+        else
+            lines[#lines+1] = "Creatures can climb here."
+        end
+    end
+    local movedamage = kw:try_get("movedamage", "none")
+    local damage = kw:try_get("damage", 0)
+    if movedamage ~= "none" and type(damage) == "number" and damage > 0 then
+        lines[#lines+1] = string.format("%d %s damage for each square moved through.", damage, movedamage)
+    end
+    local entryRule = kw:try_get("entryEffectRule")
+    if type(entryRule) == "string" and entryRule ~= "" then
+        lines[#lines+1] = string.format("Entering or starting a turn here: %s.", entryRule)
+    end
+    return lines
+end
+
+--Builds the overlay menu's hover card: a colored title, a rules text
+--block, and an optional power roll table (bonus + three tier texts).
+---@param title string
+---@param color string|nil "#rrggbb" for the title; nil = white
+---@param rulesText string
+---@param powerRoll {bonus: number, tiers: string[]}|nil
+---@return Panel
+function g_tileIndicator.RulesTooltip(title, color, rulesText, powerRoll)
+    local textWidth = 380
+    local children = {}
+
+    children[#children+1] = gui.Label{
+        classes = {"sizeM"},
+        fontSize = 18,
+        text = title,
+        bold = true,
+        color = color or "white",
+        width = textWidth,
+        height = "auto",
+        bmargin = 6,
+    }
+
+    children[#children+1] = gui.Label{
+        classes = {"sizeS"},
+        fontSize = 14,
+        text = rulesText,
+        color = "#dddddd",
+        width = textWidth,
+        height = "auto",
+    }
+
+    if powerRoll ~= nil then
+        children[#children+1] = gui.Label{
+            classes = {"sizeS"},
+            fontSize = 14,
+            text = string.format("Power Roll + %d", powerRoll.bonus),
+            bold = true,
+            color = "white",
+            width = textWidth,
+            height = "auto",
+            tmargin = 8,
+            bmargin = 2,
+        }
+        local tierLabels = {"11 or lower", "12-16", "17+"}
+        for i,tierLabel in ipairs(tierLabels) do
+            local tierText = powerRoll.tiers[i]
+            if type(tierText) == "string" and tierText ~= "" then
+                children[#children+1] = gui.Label{
+                    classes = {"sizeS"},
+                    fontSize = 14,
+                    text = string.format("<b>%s:</b> %s", tierLabel, tierText),
+                    color = "#dddddd",
+                    width = textWidth - 8,
+                    height = "auto",
+                    lmargin = 8,
+                }
+            end
+        end
+    end
+
+    return gui.TooltipFrame(gui.Panel{
+        width = "auto",
+        height = "auto",
+        flow = "vertical",
+        children = children,
+    }, { halign = "right", valign = "center" })
+end
+
+--Hover card for a zone type row in the overlay menu: the zone's name, its
+--authored rules text (EnvironmentalKeyword.description, the player-facing
+--text), and its power roll table when the zone has one. Returns nil when
+--the keyword cannot be found.
+---@param zoneType {keywordid: string, name: string, color: string|nil, angleRadians: number|nil}
+---@return Panel|nil
+function g_tileIndicator.ZoneTooltip(zoneType)
+    local keywordsTable = dmhub.GetTable("environmentalKeywords") or {}
+    local kw = keywordsTable[zoneType.keywordid]
+    if kw == nil then
+        return nil
+    end
+
+    local description = kw:try_get("description", "")
+    local paragraphs = {}
+    if type(description) == "string" and description ~= "" then
+        paragraphs[#paragraphs+1] = description
+    else
+        for _,line in ipairs(g_tileIndicator.ZoneRulesFromFlags(kw)) do
+            paragraphs[#paragraphs+1] = line
+        end
+    end
+    if #paragraphs == 0 then
+        paragraphs[1] = "No special rules."
+    end
+
+    --The power roll the zone makes against creatures entering it or
+    --starting their turn there (Lava's Liquid Hot Magma etc.). The
+    --description names the roll; the tiers live only here.
+    local powerRoll = nil
+    local tiers = kw:try_get("powerRollTiers")
+    if kw:try_get("powerRollEnabled", false) and type(tiers) == "table" then
+        powerRoll = { bonus = kw:try_get("powerRollBonus", 0) or 0, tiers = tiers }
+    end
+
+    return g_tileIndicator.RulesTooltip(kw.name or zoneType.name, zoneType.color,
+        table.concat(paragraphs, "\n"), powerRoll)
+end
+
 --The Map object on the floor we are on. A layer's map may live on the
 --layer or on its parent floor, so the whole top-level floor family is
 --searched (GetLayersForFloor returns the floor itself plus its layers).
@@ -2335,7 +2500,10 @@ end
 --switch the map's image. No adding or renaming here; that stays in the
 --Floors panel. Returns nil when there is nothing to choose between
 --(not a Director, no Map object, or only the base image).
-function g_tileIndicator.CreateAppearanceSection()
+--options.noHeader: leave off the "Map Appearance" title (Map Settings
+--draws its own section header).
+function g_tileIndicator.CreateAppearanceSection(options)
+    options = options or {}
     if not dmhub.isDM then
         return nil
     end
@@ -2454,22 +2622,32 @@ function g_tileIndicator.CreateAppearanceSection()
 
     RefreshTiles()
 
-    return gui.Panel{
-        width = "100%",
-        height = "auto",
-        flow = "vertical",
-        bmargin = 8,
-
-        gui.Label{
+    local children = {}
+    if not options.noHeader then
+        children[#children+1] = gui.Label{
             classes = {"bold"},
             text = "Map Appearance",
             width = "100%",
             height = "auto",
             bmargin = 4,
-        },
+        }
+    end
+    children[#children+1] = tilesPanel
 
-        tilesPanel,
+    return gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        bmargin = 8,
+        children = children,
     }
+end
+
+--- The current floor's map appearance gallery, headerless, for the Map
+--- Settings panel. nil when the map has no alternate appearances.
+--- @return Panel|nil
+function CodexTitleBar.CreateMapAppearancePicker()
+    return g_tileIndicator.CreateAppearanceSection{ noHeader = true }
 end
 
 function g_tileIndicator.CreateOverlayMenu()
@@ -2512,6 +2690,14 @@ function g_tileIndicator.CreateOverlayMenu()
             bg = "white"
         end
 
+        --hovering the swatch or the name shows what the zone does.
+        local function ShowZoneTip(element)
+            local tip = g_tileIndicator.ZoneTooltip(zoneType)
+            if tip ~= nil then
+                element.tooltip = tip
+            end
+        end
+
         return gui.Panel{
             width = "100%",
             height = 24,
@@ -2526,6 +2712,7 @@ function g_tileIndicator.CreateOverlayMenu()
                 gradient = gradient,
                 borderWidth = 1,
                 borderColor = "@border",
+                hover = ShowZoneTip,
             },
 
             gui.Check{
@@ -2534,6 +2721,7 @@ function g_tileIndicator.CreateOverlayMenu()
                 halign = "left",
                 lmargin = 6,
                 style = checkStyle,
+                hover = ShowZoneTip,
                 monitor = "mapoverlay:shownzones",
                 events = {
                     monitor = function(element)
@@ -2557,6 +2745,17 @@ function g_tileIndicator.CreateOverlayMenu()
     --tiles: same swatch+check shape as a zone row, driving the type's entry
     --in mapoverlay:shownbuiltins (built-ins default hidden).
     local function BuiltinRow(builtin)
+        --hovering the swatch or the name shows the terrain's rule.
+        local function ShowBuiltinTip(element)
+            if builtin.rules ~= nil then
+                local color = builtin.color
+                if color == "#333333" then
+                    color = nil --too dark to read on the black card
+                end
+                element.tooltip = g_tileIndicator.RulesTooltip(builtin.name, color, builtin.rules)
+            end
+        end
+
         return gui.Panel{
             width = "100%",
             height = 24,
@@ -2571,6 +2770,7 @@ function g_tileIndicator.CreateOverlayMenu()
                 gradient = g_tileIndicator.StripeGradient(builtin.color, builtin.angle),
                 borderWidth = 1,
                 borderColor = "@border",
+                hover = ShowBuiltinTip,
             },
 
             gui.Check{
@@ -2579,6 +2779,7 @@ function g_tileIndicator.CreateOverlayMenu()
                 halign = "left",
                 lmargin = 6,
                 style = checkStyle,
+                hover = ShowBuiltinTip,
                 monitor = "mapoverlay:shownbuiltins",
                 events = {
                     monitor = function(element)
@@ -7740,12 +7941,14 @@ local function CreateTopBar()
                     }
                 end
 
-                items[#items+1] = {
-                    text = "Survey",
-                    click = function()
-                        CreateSurveyDialog()
-                    end,
-                }
+                --Survey is disabled for now. CreateSurveyDialog is kept for
+                --a future survey; re-add this item to bring it back:
+                --  items[#items+1] = {
+                --      text = "Survey",
+                --      click = function()
+                --          CreateSurveyDialog()
+                --      end,
+                --  }
 
                 return items
             end,

@@ -233,6 +233,49 @@ function Encounter.GetTargetableObjectsWithKeyword(keyword)
     return result
 end
 
+--- The map water level (WATER_LEVEL_REFERENCE.md), for encounter and map scripts:
+--- ground lower than the level by 1 square or more is deep water (creatures float
+--- on it and can dive), by less is shallow water (difficult terrain without a swim
+--- speed). The engine moves creatures with the water and draws it. Sets the current
+--- map's level (a multiple of 0.5; nil removes the water). options.floor picks the
+--- floor. Runs with host rights, so a directorless game's player host can use it.
+--- Returns true, or false and a reason.
+--- @param level number|nil
+--- @param options nil|{floor: nil|string}
+--- @return boolean, string|nil
+function Encounter.SetWaterLevel(level, options)
+    local map = game.currentMap
+    if map == nil then
+        return false, "no current map"
+    end
+
+    local elevate = rawget(_G, "ElevateToHostPermissions")
+    local drop = rawget(_G, "DropHostPermissions")
+    if elevate ~= nil then
+        elevate()
+    end
+    local ok, err = pcall(function()
+        map:SetWaterLevel(level, options)
+    end)
+    if drop ~= nil then
+        drop()
+    end
+    if not ok then
+        return false, tostring(err)
+    end
+    return true
+end
+
+--- The current map's water level in squares, or nil when it has none.
+--- @return number|nil
+function Encounter.GetWaterLevel()
+    local map = game.currentMap
+    if map == nil then
+        return nil
+    end
+    return map:GetWaterLevel()
+end
+
 --Returns the display name to show for a boss-bar token. Object tokens carry their renamed
 --per-instance name on the level object (token.name is just the underlying asset/blueprint
 --name, e.g. "skull3"), so prefer that; everything else uses the standard token name.
@@ -3723,15 +3766,24 @@ end
 --bounds in a shared document so they come back once the encounter is over
 --(see RestoreEndedRegionBounds). Done when prep begins and again, harmlessly,
 --when combat starts.
+--options (all optional):
+--  hold: keep the region until Encounter.RestoreRegionBounds is called,
+--        rather than restoring it once combat ends. For a caller that owns
+--        the map's whole session (Encounter of the Week bounds a game to its
+--        encounter's region from arrival on).
+--  anyMap: apply it even when the encounter names a different map (the
+--        caller knows the encounter belongs to this one).
 --- @param encounter Encounter
-function Encounter.ApplyRegion(encounter)
+--- @param options nil|{hold: boolean|nil, anyMap: boolean|nil}
+function Encounter.ApplyRegion(encounter, options)
+    options = options or {}
     local mapid = game.currentMapId
     local region = encounter:GetRegion()
     local map = game.currentMap
     if region == nil or map == nil then
         return
     end
-    if encounter.mapid ~= "" and encounter.mapid ~= mapid then
+    if not options.anyMap and encounter.mapid ~= "" and encounter.mapid ~= mapid then
         --the region was drawn on another map.
         return
     end
@@ -3746,6 +3798,9 @@ function Encounter.ApplyRegion(encounter)
         doc.data[mapid] = saved
     end
     saved.appliedAt = dmhub.serverTime
+    if options.hold then
+        saved.held = true
+    end
     doc:CompleteChange("Encounter region", { undoable = false })
 
     WriteMapBounds(map, region, "Encounter region")
@@ -3770,6 +3825,9 @@ local function RestoreEndedRegionBounds()
             local inCombat = queue ~= nil and not queue.hidden
             if inCombat then
                 m_combatSeen[mapid] = true
+            elseif saved.held then
+                --held by its caller (ApplyRegion's hold) until it calls
+                --Encounter.RestoreRegionBounds.
             elseif Encounter.GetPrep(mapid) ~= nil then
                 --still preparing the encounter: the region stays until it
                 --starts (or the prep is cancelled, which clears the record).
@@ -5035,7 +5093,55 @@ end
 --map's own journal folder -- where the encounter lives -- is not in their
 --accessible roots; setup code that must find the encounter to run it passes
 --this. Director-facing UI does not.
+
+--Does the document store any RichEncounter annotation at all? Parsing a
+--document (GetReferencedAnnotations) is expensive -- it runs every `???`
+--query line -- and only RichEncounter annotations can contribute, so a
+--document without one is skipped unparsed. Most journals hold ~100 such docs.
+local function HasEncounterAnnotation(markdownDoc)
+    local annotations = markdownDoc:try_get("annotations")
+    if annotations == nil then
+        return false
+    end
+    for _, annotation in pairs(annotations) do
+        if type(annotation) == "table" and annotation.typeName == "RichEncounter" then
+            return true
+        end
+    end
+    return false
+end
+
+--DIAG (HarvestBurst): GetEncountersOnCurrentMap walks the whole journal, so a
+--caller running it every frame or two made the map stutter during the Draw
+--Steel banner (2026-10-18 playtest, caller never identified). Logs who calls it
+--when it runs more than HARVEST_BURST_CALLS times in HARVEST_BURST_WINDOW
+--seconds, at most once per HARVEST_BURST_LOG_GAP seconds.
+local HARVEST_BURST_CALLS = 4
+local HARVEST_BURST_WINDOW = 2
+local HARVEST_BURST_LOG_GAP = 10
+local g_harvestCallTimes = {}
+local g_harvestLastBurstLog = -1000
+
+local function NoteHarvestCall(elapsedMs, parsedDocs)
+    local now = dmhub.Time()
+    local recent = {}
+    for _, t in ipairs(g_harvestCallTimes) do
+        if now - t < HARVEST_BURST_WINDOW then
+            recent[#recent + 1] = t
+        end
+    end
+    recent[#recent + 1] = now
+    g_harvestCallTimes = recent
+    if #recent > HARVEST_BURST_CALLS and now - g_harvestLastBurstLog > HARVEST_BURST_LOG_GAP then
+        g_harvestLastBurstLog = now
+        printf("PERF:: Encounter.GetEncountersOnCurrentMap called %d times in %ds (last %.1f ms, %d docs parsed); caller:\n%s",
+            #recent, HARVEST_BURST_WINDOW, elapsedMs, parsedDocs, debug.traceback("", 3))
+    end
+end
+
 function Encounter.GetEncountersOnCurrentMap(hostAccess)
+    local startTime = os.clock()
+    local parsedDocs = 0
     local result = {}
     local seenDocs = {}
 
@@ -5050,6 +5156,11 @@ function Encounter.GetEncountersOnCurrentMap(hostAccess)
             end
             seenDocs[docid] = true
         end
+
+        if not HasEncounterAnnotation(markdownDoc) then
+            return
+        end
+        parsedDocs = parsedDocs + 1
 
         for _, ref in ipairs(markdownDoc:GetReferencedAnnotations()) do
             local annotation = ref.annotation
@@ -5109,6 +5220,7 @@ function Encounter.GetEncountersOnCurrentMap(hostAccess)
         end
     end
 
+    NoteHarvestCall((os.clock() - startTime)*1000, parsedDocs)
     return result
 end
 
@@ -5139,6 +5251,7 @@ end
 --       onRound = function(ctx) end,  -- once per round (including round 1)
 --       think   = function(ctx) end,  -- every ~0.7s while combat is live
 --       onEnd   = function(ctx) end,  -- once, when combat ends
+--       onReset = function(ctx) end,  -- an authoring test reset: undo what the script changed on the map
 --   }
 --
 -- victory replaces the encounter's built-in victory-condition dropdown; defeat
@@ -5224,6 +5337,10 @@ EncounterScript.starterTemplate = [==[
 --
 -- ctx methods (call with ':'):
 --   ctx:Announce(text)      send a chat message
+--   ctx:Banner(text, subtitle)  show everyone a full-screen dramatic banner
+--   ctx:SetWaterLevel(level)    set the map water level (multiples of 0.5; nil
+--                               removes it); creatures float up/settle with it
+--   ctx:GetWaterLevel()     the map water level, or nil
 --   ctx:DeployWave(waveid)  deploy one of the encounter's reinforcement waves
 --   ctx:EnsureButton{...}   add a custom button to the Encounter Actions strip
 --   ctx:DismissButton(id)   remove a custom button
@@ -5431,7 +5548,7 @@ local function NormalizeDefinition(def)
         norm.defeat = { check = def.defeat.check, text = text }
     end
 
-    for _, handler in ipairs({ "onPrepare", "onStart", "onRound", "think", "onEnd" }) do
+    for _, handler in ipairs({ "onPrepare", "onStart", "onRound", "think", "onEnd", "onReset" }) do
         local fn = def[handler]
         if fn ~= nil and type(fn) ~= "function" then
             return nil, handler .. " must be a function"
@@ -5508,7 +5625,7 @@ function EncounterScript.DescribeDefinition(def)
         parts[#parts + 1] = "custom defeat condition"
     end
     local handlers = {}
-    for _, handler in ipairs({ "onPrepare", "onStart", "onRound", "think", "onEnd" }) do
+    for _, handler in ipairs({ "onPrepare", "onStart", "onRound", "think", "onEnd", "onReset" }) do
         if def[handler] ~= nil then
             handlers[#handlers + 1] = handler
         end
@@ -5910,6 +6027,8 @@ local function MakeReadContext(liveEncounter, instance, def)
         return false
     end
     ctx.Announce = NotAllowed
+    ctx.SetWaterLevel = NotAllowed
+    ctx.GetWaterLevel = function(_) return Encounter.GetWaterLevel() end
     ctx.DeployWave = NotAllowed
     ctx.EnsureButton = NotAllowed
     ctx.DismissButton = NotAllowed
@@ -6026,8 +6145,30 @@ local function MakeHostContext(instance)
         pcall(function() chat.Send(tostring(text)) end)
     end
 
+    --the full-screen DramaticBanner; it is a shared document, so everyone sees it.
+    ctx.Banner = function(_, text, subtitle)
+        local banner = rawget(_G, "DramaticBanner")
+        if banner ~= nil then
+            pcall(function() banner.Show{ text = tostring(text), subtitle = subtitle } end)
+        end
+    end
+
     ctx.Log = function(_, text)
         print(string.format("EncounterScript '%s': %s", instance:try_get("name", "script"), tostring(text)))
+    end
+
+    --The map water level: creatures float up with rising water and settle with
+    --falling water on their own (the engine moves them). nil removes the water.
+    ctx.SetWaterLevel = function(_, level, options)
+        local ok, err = Encounter.SetWaterLevel(level, options)
+        if not ok then
+            print(string.format("EncounterScript '%s': SetWaterLevel: %s", instance:try_get("name", "script"), tostring(err)))
+        end
+        return ok
+    end
+
+    ctx.GetWaterLevel = function(_)
+        return Encounter.GetWaterLevel()
     end
 
     --Deploy one of the encounter's authored reinforcement waves right now.
@@ -6139,6 +6280,35 @@ function EncounterScript.PrepareEncounter(encounter, runHandlers)
         result[#result + 1] = entry
     end
     return result
+end
+
+--- Runs every onReset handler of an encounter's scripts: an authoring test
+--- reset (EncounterMontage.ResetTest) asks each script to put back what it
+--- changed on the map, since the next combat's onStart may be a while off.
+--- Called outside combat, so ctx.queue is nil and ctx.state is a fresh table.
+--- @param encounter Encounter
+function EncounterScript.ResetEncounter(encounter)
+    for _, instance in ipairs(encounter:try_get("scripts", {})) do
+        local def = instance:GetDefinition()
+        if def ~= nil and def.onReset ~= nil then
+            local name = def.name or instance:try_get("name", "Encounter Script")
+            local ctx = {
+                params = instance:ResolveParams(def),
+                state = {},
+                round = 0,
+                queue = nil,
+                encounter = encounter,
+                isHost = true,
+            }
+            ctx.Log = function(_, text)
+                print(string.format("EncounterScript '%s': %s", name, tostring(text)))
+            end
+            local ok, err = pcall(def.onReset, ctx)
+            if not ok then
+                PrintScriptError(instance, tostring(err))
+            end
+        end
+    end
 end
 
 --Run one script instance for one heartbeat. Returns true when its persisted
@@ -6911,6 +7081,75 @@ return {
                     end
                 end
             end
+        end
+    end,
+}
+]==],
+}
+
+EncounterScript.RegisterBuiltin{
+    id = "builtin:rising-waters",
+    name = "Rising Waters",
+    description = "Every few turns the map's water level rises, flooding lower ground: creatures float up with it, deep water is swum, and the new shoreline becomes shallow water.",
+    code = [==[
+return {
+    name = "Rising Waters",
+    description = "Every few turns the map's water level rises. Combat starts with the water at the Starting Level; each rise lifts it by Rise Amount squares. Ground 1 square or more under the water is deep water (swimming), less is shallow water (difficult terrain for creatures without a swim speed). Creatures float up with the water. Set how the water looks in Map Settings > Water.",
+
+    params = {
+        { id = "startLevel", name = "Starting Level", type = "number", default = 0, min = -20, max = 20 },
+        { id = "riseAmount", name = "Rise Amount (squares)", type = "number", default = 1, min = 0.5, max = 5 },
+        { id = "turnsPerRise", name = "Turns Between Rises", type = "number", default = 3, min = 1, max = 20 },
+        { id = "rises", name = "Number of Rises", type = "number", default = 2, min = 1, max = 10 },
+        { id = "announce", name = "Announce in Chat", type = "boolean", default = true },
+        { id = "banner", name = "Show a Banner", type = "boolean", default = true },
+    },
+
+    --start at the starting level, so a replayed encounter does not start already flooded.
+    onStart = function(ctx)
+        ctx.state.rises = 0
+        ctx:SetWaterLevel(ctx.params.startLevel)
+    end,
+
+    --a test reset drains the water back to its starting level.
+    onReset = function(ctx)
+        ctx:SetWaterLevel(ctx.params.startLevel)
+    end,
+
+    --counts turns (not rounds) by watching the current turn's id change; the
+    --water rises as the turn after every turnsPerRise-th completed turn begins.
+    think = function(ctx)
+        local st = ctx.state
+        st.rises = st.rises or 0
+        if st.rises >= ctx.params.rises or ctx.queue == nil then
+            return
+        end
+        if ctx.queue:CurrentInitiativeId() == nil then
+            return
+        end
+        local turnid = ctx.queue:GetTurnId()
+        if turnid == nil or turnid == st.lastTurnId then
+            return
+        end
+        st.lastTurnId = turnid
+        st.turnsStarted = (st.turnsStarted or 0) + 1
+
+        local completed = st.turnsStarted - 1
+        local rises = math.min(ctx.params.rises, math.floor(completed / ctx.params.turnsPerRise))
+        if rises <= st.rises then
+            return
+        end
+        st.rises = rises
+
+        ctx:SetWaterLevel(ctx.params.startLevel + rises * ctx.params.riseAmount)
+
+        local amount = ctx.params.riseAmount
+        local squares = (amount == 1) and "1 square" or string.format("%g squares", amount)
+        if ctx.params.announce then
+            ctx:Announce(string.format("The water rises by %s! (%d of %d)", squares, rises, ctx.params.rises))
+        end
+        if ctx.params.banner then
+            ctx:Banner("Rising Waters", string.format("The waters have risen by %s!", squares))
         end
     end,
 }

@@ -244,6 +244,33 @@ GameSystem.RegisterGoblinScriptField{
     end,
 }
 
+--The creature whose ability made this object, or nil if none did.
+local function GetObjectCreator(c)
+    local creatorid = c:try_get("objectcreator") or c:try_get("wallcreator")
+    if creatorid == nil then
+        return nil
+    end
+
+    local creatorToken = dmhub.GetCharacterById(creatorid)
+    if creatorToken == nil then
+        return nil
+    end
+
+    return creatorToken.properties
+end
+
+--Lets an object's formulas use its creator's stats, such as
+--Caster.Creator.Reason for extra damage when something hits a wall.
+GameSystem.RegisterGoblinScriptField{
+    name = "Creator",
+
+    type = "creature",
+    desc = "The creature that created this object with an ability.\n\n<color=#ffaaaa><i>This field is only available for objects created by a creature's ability.</i></color>",
+    examples = {"Caster.Creator.Reason", "Target.Creator.ID = Caster.ID"},
+
+    calculate = GetObjectCreator,
+}
+
 --True for the topmost wall voxel of its tile's column. Wall abilities that
 --detach/topple "a square of wall" (e.g. the Wallmaster's Wall Slam) use this
 --to only offer the exposed top cube of a stacked column as a target.
@@ -285,7 +312,12 @@ function TargetableObject:OnCollide(collidingToken, symbols)
     end
 
     if self:has_key("custom_collision") then
-        self.custom_collision:Cast(token, { { token = collidingToken } }, symbols)
+        --Collision formulas can write Creator as a short form of Caster.Creator.
+        local castSymbols = {
+            creator = GetObjectCreator(self),
+        }
+
+        self.custom_collision:Cast(token, { { token = collidingToken } }, { symbols = castSymbols })
     end
 
     if symbols.speed and not self:try_get("no_collision_damage", false) then

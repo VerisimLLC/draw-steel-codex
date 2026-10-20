@@ -362,11 +362,8 @@ Chat commands (or `Commands.eotwmontage("state")` etc. over MCP):
 the FIRST beat of their kind; the Director plays the party-owned heroes.
 
 Driving montage turns without the UI (what the stage itself sends):
-`EncounterMontage.SendRequest("approach", {heroid, entryId})` (status
-`gathering`: `("accompany", {heroid})` sends another hero along,
-`("setOff", {})` continues), then `("choose", {optionIndex})` (status
-`assist`: `("assist", {heroid, skillid})` claims an assist,
-`("proceedTest", {})` rolls without more help), then `("rolled", {rollSeq =
+`EncounterMontage.SendRequest("approach", {heroid, entryId})`, then
+`("choose", {optionIndex})`, then `("rolled", {rollSeq =
 m.turn.rollSeq, tier, total, natural})`. Skip a
 scene with `doc.data.montageScene = { id = m.turn.scene.id, index =
 #m.turn.scene.steps + 1 }` inside a change on `EncounterMontage.GetDoc()`.

@@ -413,6 +413,8 @@ function Scenes.ViewInfo(id)
         caption = scene.caption,
         subtitle = scene.subtitle,
         credit = scene.credit,
+        --its cards (SceneElements.lua) are drawn over it.
+        sceneid = id,
     }
 end
 

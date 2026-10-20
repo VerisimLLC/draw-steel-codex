@@ -72,10 +72,36 @@ function EncounterZones.FindKeyword(name)
 end
 
 --Every markup zone record of the keyword on the current map:
+--Is the tile inside the encounter's play region (EncounterOfTheWeekGame.InPlayRegion)?
+--Always true when the encounter has no region.
+function EncounterZones.InPlayRegion(x, y)
+    local eotw = rawget(_G, "EncounterOfTheWeekGame")
+    if eotw == nil or eotw.InPlayRegion == nil then
+        return true
+    end
+    local ok, inside = pcall(eotw.InPlayRegion, math.floor(x), math.floor(y))
+    return not ok or inside == true
+end
+
+--Does a zone record have at least one tile inside the play region?
+function EncounterZones.TouchesPlayRegion(record)
+    for _, l in ipairs(record.locs or {}) do
+        if EncounterZones.InPlayRegion(l.x, l.y) then
+            return true
+        end
+    end
+    return false
+end
+
 --{ { floor, floorid, floorIndex, zoneid, record }, ... }. Matches by keyword
 --id, with the record's keywordName as a fallback (the same heal-by-name rule
 --MapMarkup and the Start-zone lookup use). Surfaces and holes carry a
 --category and are never zones.
+--
+--An encounter bounded to a region (a series' part plays in its own corner of
+--a shared map) sees only the zones with a tile inside it, and draws only
+--those tiles (EncounterZones.InPlayRegion), so one map can carry every
+--part's Trap and entry zones.
 function EncounterZones.ZoneRecords(name)
     local map = game.currentMap
     if map == nil then
@@ -95,7 +121,8 @@ function EncounterZones.ZoneRecords(name)
             for zoneid, record in pairs(zones) do
                 if type(record) == "table" and record.category == nil then
                     local kn = lower(record.keywordName)
-                    if (keywordid ~= nil and record.keyword == keywordid) or kn == name or kn == name .. "s" then
+                    if ((keywordid ~= nil and record.keyword == keywordid) or kn == name or kn == name .. "s")
+                        and EncounterZones.TouchesPlayRegion(record) then
                         result[#result + 1] = { floor = floor, floorid = floorid, floorIndex = floorIndex, zoneid = zoneid, record = record }
                     end
                 end
@@ -198,7 +225,9 @@ local function PlaceObjects(instruction, original)
     local tiles = {}
     for zi, z in ipairs(zones) do
         for li, l in ipairs(z.record.locs or {}) do
-            tiles[#tiles + 1] = { zone = zi, index = li, x = math.floor(l.x), y = math.floor(l.y) }
+            if EncounterZones.InPlayRegion(l.x, l.y) then
+                tiles[#tiles + 1] = { zone = zi, index = li, x = math.floor(l.x), y = math.floor(l.y) }
+            end
         end
     end
     if #tiles == 0 then

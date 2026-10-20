@@ -869,11 +869,68 @@ function TestRiders.DescribeUnmet(verdict)
     return table.concat(parts, "; ")
 end
 
+--The movement mode a capability tests for ("swim" for "you can swim"), or nil.
+local function CapabilityMovement(alt)
+    if alt.kind ~= "capability" then
+        return nil
+    end
+    for _, cap in ipairs(TestRiders.CAPABILITIES) do
+        if cap.key == alt.name then
+            if cap.movement ~= nil and cap.movement ~= "teleport" then
+                return cap.movement
+            end
+            return nil
+        end
+    end
+    return nil
+end
+
+--A requirement as players should read it. "You can swim" means a swim SPEED
+--(a swim movement mode, Waterborn), not the Swim skill, and a hero skilled in
+--Swim read the grey line as a mistake (2026-10-18 playtest). So a movement
+--capability is spelled "you have a swim speed"; anything else is unchanged.
+function TestRiders.DisplayRequirementText(rider)
+    local alts = ((rider or {}).requirement or {}).alternatives or {}
+    if #alts == 0 then
+        return rider.text
+    end
+    local modes, changed = {}, false
+    for _, alt in ipairs(alts) do
+        local mode = CapabilityMovement(alt)
+        modes[#modes + 1] = mode or false
+        changed = changed or mode ~= nil
+    end
+    if not changed then
+        return rider.text
+    end
+    local allMovement = true
+    for _, mode in ipairs(modes) do
+        allMovement = allMovement and mode ~= false
+    end
+    if allMovement then
+        --"you can swim or fly" -> "you have a swim or fly speed"
+        return string.format("you have a %s speed", table.concat(modes, " or "))
+    end
+    local parts = {}
+    for i, alt in ipairs(alts) do
+        local part = alt.text or ""
+        if modes[i] then
+            part = string.format("you have a %s speed", modes[i])
+        elseif (alt.kind == "capability" or alt.kind == "unknowncapability") and string.find(lower(part), "^you ") == nil then
+            --a bare list entry ("swim or speak with animals"): say whose ability it is
+            part = "you can " .. part
+        end
+        parts[#parts + 1] = part
+    end
+    return table.concat(parts, " or ")
+end
+
 --How each rider fell for a hero, for a display: one row per rider,
 --{ rider, label, text, state } where state is nil (no verdict), "locked"
 --/ "unlocked" for Allow riders, "met" (an edge applies), "hurt" (a bane
 --applies) or "unmet". A met rider's text is the clause that met it
---("you are skilled in Psionics"); otherwise the requirement as written.
+--("you are skilled in Psionics"); otherwise the requirement as players
+--should read it (TestRiders.DisplayRequirementText).
 function TestRiders.DescribeRows(riders, verdict)
     local whyByRider, unmetByRider = {}, {}
     for _, a in ipairs((verdict or {}).applied or {}) do
@@ -888,7 +945,7 @@ function TestRiders.DescribeRows(riders, verdict)
     local rows = {}
     for _, rider in ipairs(riders or {}) do
         local label = TestRiders.Label(rider.effect, rider.round)
-        local text = rider.text
+        local text = TestRiders.DisplayRequirementText(rider)
         local state = nil
         if verdict ~= nil then
             if rider.effect == "allow" then

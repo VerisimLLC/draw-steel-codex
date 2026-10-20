@@ -603,7 +603,8 @@ mod.shared.CreateTriggerPanel = function()
             dismissAllPanel,
 
 			refresh = function(element)
-                g_token = dmhub.selectedOrPrimaryTokens[1]
+                --(a creature selected off the board has no triggers to fire here.)
+                g_token = DrawSteelActionBar._operate.SelectedBoardToken()
 
                 local parentElement = element
 				if g_token == nil or not g_token.valid then

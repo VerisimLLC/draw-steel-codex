@@ -3,6 +3,20 @@ local mod = dmhub.GetModLoading()
 local g_docid = "minions"
 local g_defaultColor = "#ff0000"
 
+--The selected tokens on the board. Squads, captains and group initiative
+--are map actions: a creature selected off the board (a tabletop card's) is
+--left out, as it has no token or position here.
+--- @return CharacterToken[]
+local function BoardSelection()
+    local out = {}
+    for _, tok in ipairs(dmhub.selectedOrPrimaryTokens) do
+        if tok.onBoard then
+            out[#out+1] = tok
+        end
+    end
+    return out
+end
+
 local g_defaultColors = {
     "#ff0000",   -- Red
     "#ff7f00",   -- Orange
@@ -125,7 +139,7 @@ DrawSteelMinion.FormSquad = function(tokens)
         end
     end
 
-    for _,tok in ipairs(dmhub.selectedOrPrimaryTokens) do
+    for _,tok in ipairs(BoardSelection()) do
         if tok.valid and tok.properties.minion then
             tok:ModifyProperties{
                 description = "Form Squad",
@@ -842,7 +856,7 @@ DrawSteelMinion.NewSquadButton = function(floorid, squad)
 
     local sheetParent = dmhub.GetWorldSpacePanel(floorid, "add-minions-" .. squad.name)
     if sheetParent ~= nil and sheetParent.sheet == nil then
-        local m_selectedTokens = dmhub.selectedOrPrimaryTokens
+        local m_selectedTokens = BoardSelection()
 
         local m_BarWidth = 100
 
@@ -864,7 +878,7 @@ DrawSteelMinion.NewSquadButton = function(floorid, squad)
 
             press = function(element)
 
-                DrawSteelMinion.FormSquad(dmhub.selectedOrPrimaryTokens)
+                DrawSteelMinion.FormSquad(BoardSelection())
 
                 sheetParent:Destroy()
             end,
@@ -879,7 +893,7 @@ DrawSteelMinion.NewSquadButton = function(floorid, squad)
                 local minionCount = 0
                 local foundMinion = false
 
-                local selectedTokens = dmhub.selectedOrPrimaryTokens
+                local selectedTokens = BoardSelection()
                 if #selectedTokens ~= #m_selectedTokens then
                     sheetParent:Destroy()
                     return
@@ -1194,7 +1208,7 @@ DrawSteelMinion.SelectionActionsHud = function()
         width = 140,
 
         press = function(element)
-            DrawSteelMinion.SetSquadCaptain(dmhub.selectedOrPrimaryTokens, m_captainSquadId, m_captainMode == "Make Captain")
+            DrawSteelMinion.SetSquadCaptain(BoardSelection(), m_captainSquadId, m_captainMode == "Make Captain")
         end,
     }
 
@@ -1209,7 +1223,7 @@ DrawSteelMinion.SelectionActionsHud = function()
         width = 140,
 
         press = function(element)
-            DrawSteelMinion.GroupInitiativeForTokens(dmhub.selectedOrPrimaryTokens)
+            DrawSteelMinion.GroupInitiativeForTokens(BoardSelection())
         end,
     }
 
@@ -1229,7 +1243,7 @@ DrawSteelMinion.SelectionActionsHud = function()
                 return
             end
 
-            local selectedTokens = dmhub.selectedOrPrimaryTokens
+            local selectedTokens = BoardSelection()
 
             local captainInfo = nil
             local canGroupInitiative = false
@@ -1377,7 +1391,7 @@ DrawSteelMinion.SquadHud = function(floorid, squad)
                 --check if we have tokens from this squad selected and if so, offer
                 --to create a new squad that is split off.
                 if dmhub.isDM and squad.damage_taken < squad.health_single then
-                    local selectedTokens = dmhub.selectedOrPrimaryTokens
+                    local selectedTokens = BoardSelection()
                     ---@type false|CharacterToken
                     local foundNonMinion = false
                     local matchingMinions = 0

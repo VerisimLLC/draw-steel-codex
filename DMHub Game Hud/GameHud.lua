@@ -2556,6 +2556,8 @@ Tip.Register{
 		if q ~= nil and not q.hidden then return false end
 		local sel = dmhub.selectedTokens
 		if sel == nil or #sel ~= 1 then return false end
+		--(a creature selected off the board, a tabletop card's, has no token here.)
+		if not sel[1].onBoard then return false end
 		return true
 	end,
 	whenShown = function(state)
@@ -2607,6 +2609,7 @@ Tip.Register{
 		if dmhub.frozen then return false end
 		local sel = dmhub.selectedTokens
 		if sel == nil or #sel ~= 1 then return false end
+		if not sel[1].onBoard then return false end
 		local tok = sel[1]
 		local lightId = tok.properties:GetEquippedLightSource()
 		if lightId == nil then return false end
@@ -2681,6 +2684,7 @@ Tip.Register{
 	eligible = function()
 		local sel = dmhub.selectedTokens
 		if sel == nil or #sel ~= 1 then return false end
+		if not sel[1].onBoard then return false end
 		local tok = sel[1]
 		if tok.properties == nil then return false end
 		if tok.properties:GetCompanionType() == nil then return false end

@@ -3299,7 +3299,10 @@ Commands.RegisterMacro{
         end
 
         for _,tok in ipairs(selectedTokens) do
-            tok.sheet.data.PlayEffect(str, false)
+            --(a creature selected off the board has no token to play it on.)
+            if tok.onBoard then
+                tok.sheet.data.PlayEffect(str, false)
+            end
         end
     end,
 }

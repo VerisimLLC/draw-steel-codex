@@ -1451,29 +1451,44 @@ function character:IsHero()
     return true
 end
 
+--Where a token stands, as a cache key for the location caches below. Moving
+--(walking, forced movement, teleport) does not Invalidate the properties, so
+--these caches are keyed on the square instead: unkeyed, a pushed hero went on
+--provoking opportunity attacks from the squares around her old spot.
+--- @param token CharacterToken
+--- @return string
+local function TokenLocKey(token)
+    local loc = token.loc
+    return string.format("%d,%d,%d,%g,%d", loc.x, loc.y, loc.floor, token.floorAltitude, token.tileSize)
+end
+
+--The returned array is shared by every caller: copy it before changing it.
 --- @return Loc[]
 function creature:OccupiedLocs()
-    if rawget(self, "_tmp_occupiedLocs") == nil then
-        local token = dmhub.LookupToken(self)
-        if token ~= nil then
-            self._tmp_occupiedLocs = token.locsOccupying
-        else
-            self._tmp_occupiedLocs = {}
-        end
+    local token = dmhub.LookupToken(self)
+    if token == nil then
+        return {}
+    end
+    local key = TokenLocKey(token)
+    if rawget(self, "_tmp_occupiedLocs") == nil or rawget(self, "_tmp_occupiedLocsKey") ~= key then
+        self._tmp_occupiedLocs = token.locsOccupying
+        self._tmp_occupiedLocsKey = key
     end
 
     return self._tmp_occupiedLocs
 end
 
+--The returned array is shared by every caller: copy it before changing it.
 --- @return Loc[]
 function creature:AdjacentLocations()
-    if rawget(self, "_tmp_adjacentLocs") == nil then
-        local token = dmhub.LookupToken(self)
-        if token ~= nil then
-            self._tmp_adjacentLocs = MCDMLocUtils.GetTokenAdjacentLocsInOpposingPairs(token)
-        else
-            self._tmp_adjacentLocs = {}
-        end
+    local token = dmhub.LookupToken(self)
+    if token == nil then
+        return {}
+    end
+    local key = TokenLocKey(token)
+    if rawget(self, "_tmp_adjacentLocs") == nil or rawget(self, "_tmp_adjacentLocsKey") ~= key then
+        self._tmp_adjacentLocs = MCDMLocUtils.GetTokenAdjacentLocsInOpposingPairs(token)
+        self._tmp_adjacentLocsKey = key
     end
 
     return self._tmp_adjacentLocs
@@ -3868,10 +3883,11 @@ local g_coverFromEnemiesCacheSeconds = 0.5
 --dmhub.GetCoverInfo(enemyToken, selfToken, pierce) is non-nil (nil means no
 --cover); the observing enemy is the attacker, and pierce follows the
 --RuleUtils.HasLineOfEffect idiom of using the attacker's PierceWalls.
-function creature:CalculateCoverFromEnemies()
+--Pass fresh = true to skip the cache, e.g. right after the creature moved.
+function creature:CalculateCoverFromEnemies(fresh)
     local now = dmhub.Time()
     local cached = self:try_get("_tmp_coverFromEnemies")
-    if cached ~= nil and (now - cached.time) < g_coverFromEnemiesCacheSeconds then
+    if (not fresh) and cached ~= nil and (now - cached.time) < g_coverFromEnemiesCacheSeconds then
         return cached
     end
 
@@ -3942,6 +3958,38 @@ creature.RegisterSymbol {
         desc = "True if at least one living enemy has cover to this creature (in combat, only enemies in the initiative queue count; out of combat, all enemy tokens on the map count), or if the creature has the Has Cover custom attribute. False when there are no relevant enemies and the attribute is absent.",
         seealso = {"Cover From All Enemies", "Concealed"},
         examples = {"Concealed or Cover From Any Enemy"},
+    }
+}
+
+--Concealed and CoverFromAllEnemies are cached (per game update / for half a
+--second), so straight after a teleport they can still describe the square the
+--creature left. This answers the same question measured at its current square.
+--Not for modifier filterConditions: IsConcealed reads the modifier list.
+creature.RegisterSymbol {
+    symbol = "canhidehere",
+    lookup = function(c)
+        return c:IsConcealed() or c:CalculateCoverFromEnemies(true).all
+    end,
+    help = {
+        name = "CanHideHere",
+        type = "boolean",
+        desc = "True if the creature has concealment, or cover from every relevant enemy, at the square it stands on right now -- the cover or concealment the Hide maneuver needs. Measured fresh, so it is correct straight after the creature moves or teleports. Use it in ability filters, not in modifier conditions.",
+        seealso = {"Concealed", "Cover From All Enemies", "Automatic Rule Adjudication"},
+        examples = {"AutomaticRuleAdjudication and CanHideHere"},
+    }
+}
+
+creature.RegisterSymbol {
+    symbol = "automaticruleadjudication",
+    lookup = function(c)
+        return AutomaticRuleAdjudication()
+    end,
+    help = {
+        name = "AutomaticRuleAdjudication",
+        type = "boolean",
+        desc = "True when the game's Automatic Rule Adjudication setting is on (always on in Encounter of the Week). Content uses it to decide a rules question automatically instead of prompting the player.",
+        seealso = {"CanHideHere"},
+        examples = {"AutomaticRuleAdjudication and CanHideHere"},
     }
 }
 
@@ -4831,6 +4879,7 @@ creature.RegisterSymbol {
     },
 }
 
+--Creatures whose ability list is being built right now. Building the list runs
 --[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMMonster.lua:24
 function creature:PowerRollBonus()
     return 0
@@ -7574,6 +7623,27 @@ creature.RegisterSymbol {
         type = "boolean",
         desc = "Is this creature in water?",
         seealso = {},
+    }
+}
+
+--Below the water's surface (diving), not just in water: the map water level's
+--deep water or painted water. Submerged creatures have cover, and others have
+--cover from them (globalrulemods/cover.yaml).
+creature.RegisterSymbol {
+    symbol = "underwater",
+
+    lookup = function(c)
+        if c:CurrentMoveType() ~= "swim" then
+            return false
+        end
+        local token = dmhub.LookupToken(c)
+        return token ~= nil and token.distanceBelowGround >= 1
+    end,
+    help = {
+        name = "Underwater",
+        type = "boolean",
+        desc = "True if this creature is swimming below the water's surface (at least 1 square under it). A creature floating on the surface is In Water but not Underwater.",
+        seealso = {"InWater", "Distance Below Ground"},
     }
 }
 

@@ -353,6 +353,40 @@ function EotwRoster.DangerRoomsUnlocked()
     return m_unlocks.dangerRooms == true
 end
 
+--Has any of this account's heroes won this encounter (an encounter key; a
+--series' later part is "<key>#<n>")? Account-wide, dismissed and fallen
+--heroes included: what unlocks a series' next part at the Town Gate. From
+--list-heroes' unlocks.completed; false while the roster is not listed.
+function EotwRoster.AccountCompleted(key)
+    for _, k in ipairs(m_unlocks ~= nil and type(m_unlocks.completed) == "table" and m_unlocks.completed or {}) do
+        if k == key then
+            return true
+        end
+    end
+    return false
+end
+
+--Has this account won this encounter in the Danger Rooms? Practice wins
+--unlock a series' next part there, and only there (unlocks.practiceWins).
+function EotwRoster.PracticeWon(key)
+    for _, k in ipairs(m_unlocks ~= nil and type(m_unlocks.practiceWins) == "table" and m_unlocks.practiceWins or {}) do
+        if k == key then
+            return true
+        end
+    end
+    return false
+end
+
+--The city's answer to record-practice-win carries the account's whole list.
+function EotwRoster.SetPracticeWins(list)
+    if type(list) ~= "table" then
+        return
+    end
+    m_unlocks = m_unlocks or {}
+    m_unlocks.practiceWins = list
+    Bump()
+end
+
 --Has this account found the Arcane Market? It is not open to everyone: a
 --lead heard while carousing at the inn starts a project (Find the Arcane
 --Market), and completing it puts the market on the map (EotwLeads.lua).

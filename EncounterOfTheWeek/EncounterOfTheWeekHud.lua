@@ -938,24 +938,26 @@ local function HeroSheetFor(token)
     return sheet
 end
 
+--Is the EotW interface up on this client: a real EotW game or an authoring
+--test, unless the Director-UI escape hatch (or a --director debug window)
+--restores the whole normal interface for debugging/manual recovery.
+local function IsInterfaceActive()
+    local eotw = rawget(_G, "EncounterOfTheWeekGame")
+    if eotw == nil or not eotw.IsEotwGame() then
+        return false
+    end
+    if eotw.ShowDirectorUI ~= nil then
+        return not eotw.ShowDirectorUI()
+    end
+    return dmhub.GetSettingValue("eotw:showdirectorui") ~= true
+end
+
 --pcall: an older core codex without the hook just shows the normal hud.
 pcall(function()
     GameHud.RegisterCustomInterface{
         id = "eotw",
 
-        active = function()
-            local eotw = rawget(_G, "EncounterOfTheWeekGame")
-            if eotw == nil or not eotw.IsEotwGame() then
-                return false
-            end
-            --the Director-UI escape hatch (or a --director debug window)
-            --restores the whole normal interface for debugging/manual
-            --recovery.
-            if eotw.ShowDirectorUI ~= nil then
-                return not eotw.ShowDirectorUI()
-            end
-            return dmhub.GetSettingValue("eotw:showdirectorui") ~= true
-        end,
+        active = IsInterfaceActive,
 
         suppressRails = true,
 
@@ -1009,6 +1011,13 @@ pcall(function()
             return presence.ConfirmExit(kind, proceed)
         end,
 
+        --the encounter's map is held maximized for the whole game, test
+        --included: no restore, minimize or close, the same as a player whose
+        --Director holds a shared map maximized (Tabletop.lua).
+        forcedMap = function()
+            return game.currentMapId
+        end,
+
         suppressPanel = { ["Compendium"] = true },
 
         suppressSearchBucket = { ["compendium"] = true },
@@ -1046,3 +1055,395 @@ pcall(function()
         end,
     }
 end)
+
+--- About Encounter of the Week (Codex menu) ----------------------------------
+--Codex > About Encounter of the Week, in any EotW game (an authoring test
+--too): the mode's credits, then the encounter being played -- who wrote it
+--(its module's author) and, when its map came from a map pack, who made the
+--map (the pack's creator organization).
+
+--The banner is the Town Gate's art (GATE_ART in Codex Titlescreen/
+--EncounterOfTheWeek.lua), which that file tags as Czepeku's, so the banner
+--carries the watermark their licence asks for.
+local ABOUT_ART = "db5bcf88-00fc-4e0b-89c9-5ddb98d1a772"
+local ABOUT_WIDTH = 720
+local ABOUT_ART_HEIGHT = 240
+local ABOUT_THUMB_WIDTH = 168
+local ABOUT_THUMB_HEIGHT = 108
+
+--The mode's credits, in order. Markup is TextMeshPro rich text.
+local ABOUT_CREDITS = {
+    "<b>Draw Steel</b> by MCDM",
+    "<b>Encounter of the Week</b> concept and engineering by the Codex Development Team",
+    "<b>Cartography</b> by Czepeku",
+}
+
+local ABOUT_STYLES = {
+    {
+        selectors = {"label", "eotwAboutTitle"},
+        fontSize = 30,
+        bold = true,
+        color = "@fgStrong",
+        width = "100%-48",
+        height = "auto",
+        halign = "center",
+        textAlignment = "center",
+    },
+    {
+        selectors = {"label", "eotwAboutCredit"},
+        fontSize = 18,
+        color = "@fg",
+        width = "100%-24",
+        height = "auto",
+        halign = "center",
+        textAlignment = "center",
+        textWrap = true,
+        vmargin = 5,
+    },
+    {
+        selectors = {"label", "eotwAboutHeading"},
+        fontSize = 22,
+        bold = true,
+        color = "@fgStrong",
+        width = "100%",
+        height = "auto",
+        textWrap = true,
+    },
+    {
+        selectors = {"label", "eotwAboutLine"},
+        fontSize = 17,
+        color = "@fg",
+        width = "100%",
+        height = "auto",
+        textWrap = true,
+        tmargin = 6,
+    },
+    {
+        selectors = {"eotwAboutRule"},
+        width = "100%-64",
+        height = 1,
+        halign = "center",
+        bgimage = "panels/square.png",
+        bgcolor = "@border",
+        vmargin = 16,
+    },
+}
+
+--Creator organization id -> display name, or false when the lookup failed.
+--- @type table<string, string|false>
+local g_aboutOrgNames = {}
+
+--Calls back with an organization's display name, or nil when it has none
+--or the lookup fails. Answers at once from the cache.
+--- @param orgid nil|string
+--- @param callback fun(name: nil|string)
+local function AboutOrgName(orgid, callback)
+    if orgid == nil or orgid == "" then
+        callback(nil)
+        return
+    end
+    local cached = g_aboutOrgNames[orgid]
+    if cached ~= nil then
+        callback(cached or nil)
+        return
+    end
+    module.GetOrganizationInfo{
+        orgid = orgid,
+        success = function(info)
+            local name = type(info) == "table" and info.displayName or nil
+            if type(name) ~= "string" or name == "" then
+                name = nil
+            end
+            g_aboutOrgNames[orgid] = name or false
+            if not mod.unloaded then
+                callback(name)
+            end
+        end,
+        failure = function()
+            g_aboutOrgNames[orgid] = false
+            if not mod.unloaded then
+                callback(nil)
+            end
+        end,
+    }
+end
+
+--Calls back with the name of whoever published an encounter module: its
+--creator organization's name, else the organization its author id names
+--(author ids are often organization ids: "mcdm"), else the author id. nil
+--when the module is not known here.
+--- @param moduleid nil|string
+--- @param callback fun(name: nil|string)
+local function AboutEncounterAuthor(moduleid, callback)
+    local info = moduleid ~= nil and module.GetModule(moduleid) or nil
+    if info == nil then
+        callback(nil)
+        return
+    end
+    local org, authorid = nil, nil
+    pcall(function() org = info.org end)
+    pcall(function() authorid = info.authorid end)
+    if authorid == "" then
+        authorid = nil
+    end
+    if org == nil or org == "" then
+        org = authorid
+    end
+    AboutOrgName(org, function(name)
+        callback(name or authorid)
+    end)
+end
+
+--The map pack a map was added from (its module fullid), or nil.
+--- @param mapid string
+--- @return nil|string
+local function AboutMapPack(mapid)
+    local pack = nil
+    pcall(function()
+        local source = game.GetMap(mapid).packSource
+        if source ~= nil and type(source.pack) == "string" and source.pack ~= "" then
+            pack = source.pack
+        end
+    end)
+    return pack
+end
+
+--Calls back with the creator of a map that came from a map pack (the pack's
+--creator organization's name), or nil for any other map. A map added before
+--provenance was recorded is only recognised once the pack index has synced,
+--so an unsynced index is synced first.
+--- @param mapid string
+--- @param callback fun(name: nil|string)
+local function AboutMapCreator(mapid, callback)
+    local function FromPack(pack)
+        local org = nil
+        for _,p in ipairs(mappacks.packs or {}) do
+            if p.id == pack then
+                org = p.org
+            end
+        end
+        if org == nil or org == "" then
+            pcall(function() org = module.GetModule(pack).org end)
+        end
+        AboutOrgName(org, callback)
+    end
+
+    local pack = AboutMapPack(mapid)
+    if pack ~= nil then
+        FromPack(pack)
+        return
+    end
+    if mappacks.synced then
+        callback(nil)
+        return
+    end
+    mappacks.Sync{
+        success = function()
+            if mod.unloaded then
+                return
+            end
+            local synced = AboutMapPack(mapid)
+            if synced == nil then
+                callback(nil)
+            else
+                FromPack(synced)
+            end
+        end,
+        error = function()
+            if not mod.unloaded then
+                callback(nil)
+            end
+        end,
+    }
+end
+
+local m_aboutDialog = nil
+
+local function CloseAbout()
+    if m_aboutDialog ~= nil and m_aboutDialog.valid then
+        local hud = rawget(_G, "gamehud")
+        if hud ~= nil then
+            hud:CloseModal()
+        end
+    end
+    m_aboutDialog = nil
+end
+
+--The "About <encounter>" part of the dialog: heading, author and map
+--creator (filled in as their lookups come back), beside the map's thumbnail
+--when it has one.
+--- @param info {title: string, mapid: string, moduleid: nil|string}
+--- @return Panel
+local function AboutEncounterSection(info)
+    --hidden until its lookup comes back with a name.
+    local function PendingLine()
+        return gui.Label{
+            classes = {"eotwAboutLine", "collapsed"},
+            text = "",
+            fill = function(element, text)
+                element.text = text
+                element:SetClass("collapsed", false)
+            end,
+        }
+    end
+
+    local authorLabel = PendingLine()
+    local mapLabel = PendingLine()
+
+    local function Fill(label, prefix)
+        return function(name)
+            if name ~= nil and label.valid then
+                label:FireEvent("fill", string.format("%s <b>%s</b>", prefix, name))
+            end
+        end
+    end
+    AboutEncounterAuthor(info.moduleid, Fill(authorLabel, "Written by"))
+    AboutMapCreator(info.mapid, Fill(mapLabel, "Map by"))
+
+    local thumb = nil
+    pcall(function() thumb = game.GetMap(info.mapid).thumbnailImage end)
+    local thumbPanel = nil
+    if type(thumb) == "string" and thumb ~= "" then
+        thumbPanel = gui.Panel{
+            width = ABOUT_THUMB_WIDTH,
+            height = ABOUT_THUMB_HEIGHT,
+            valign = "top",
+            rmargin = 20,
+            flow = "none",
+            CreatorCredit.Backdrop{
+                width = ABOUT_THUMB_WIDTH,
+                height = ABOUT_THUMB_HEIGHT,
+                image = thumb,
+                badge = false,
+            },
+        }
+    end
+
+    return gui.Panel{
+        width = "100%-64",
+        height = "auto",
+        halign = "center",
+        flow = "horizontal",
+        thumbPanel,
+        gui.Panel{
+            width = cond(thumbPanel ~= nil, string.format("100%%-%d", ABOUT_THUMB_WIDTH + 20), "100%"),
+            height = "auto",
+            valign = "center",
+            flow = "vertical",
+            gui.Label{
+                classes = {"eotwAboutHeading"},
+                text = string.format("About %s", info.title),
+            },
+            authorLabel,
+            mapLabel,
+        },
+    }
+end
+
+--Opens the About Encounter of the Week dialog (or leaves it up if it is).
+function EncounterOfTheWeekHud.ShowAbout()
+    local hud = rawget(_G, "gamehud")
+    if hud == nil then
+        return
+    end
+    if m_aboutDialog ~= nil and m_aboutDialog.valid then
+        return
+    end
+
+    local info = nil
+    local eotw = rawget(_G, "EncounterOfTheWeekGame")
+    if eotw ~= nil and eotw.EncounterInfo ~= nil then
+        pcall(function() info = eotw.EncounterInfo() end)
+    end
+
+    local credits = {}
+    for _,text in ipairs(ABOUT_CREDITS) do
+        credits[#credits+1] = gui.Label{
+            classes = {"eotwAboutCredit"},
+            text = text,
+        }
+    end
+
+    local encounterChildren = {}
+    if info ~= nil then
+        encounterChildren[#encounterChildren+1] = gui.Panel{ classes = {"eotwAboutRule"} }
+        encounterChildren[#encounterChildren+1] = AboutEncounterSection(info)
+    end
+
+    m_aboutDialog = gui.Panel{
+        classes = {"framedPanel"},
+        styles = ThemeEngine.MergeStyles(ABOUT_STYLES),
+        width = ABOUT_WIDTH,
+        height = "auto",
+        flow = "vertical",
+        escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+        captureEscape = true,
+        escape = function(element)
+            CloseAbout()
+        end,
+
+        --the banner: the art, cover-fitted, with Czepeku's watermark.
+        gui.Panel{
+            width = ABOUT_WIDTH,
+            height = ABOUT_ART_HEIGHT,
+            halign = "center",
+            flow = "none",
+            CreatorCredit.Backdrop{
+                width = ABOUT_WIDTH,
+                height = ABOUT_ART_HEIGHT,
+                image = ABOUT_ART,
+                creator = "czepeku",
+                badge = { hmargin = 16, vmargin = 12 },
+            },
+        },
+
+        gui.Label{
+            classes = {"eotwAboutTitle"},
+            text = "About Encounter of the Week",
+            tmargin = 18,
+            bmargin = 12,
+        },
+
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            children = credits,
+        },
+
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            children = encounterChildren,
+        },
+
+        gui.Button{
+            classes = {"sizeL"},
+            text = "Close",
+            halign = "center",
+            tmargin = 22,
+            bmargin = 18,
+            click = function()
+                CloseAbout()
+            end,
+        },
+    }
+    hud:ShowModal(m_aboutDialog)
+end
+
+Commands.Register{
+    name = "About Encounter of the Week",
+    identifier = "eotwabout",
+    icon = "phosphor/info.png",
+    menu = "codex",
+    --its own group, so the menu sets it apart from the rows above it.
+    group = "zzeotwabout",
+    filtered = function()
+        local eotw = rawget(_G, "EncounterOfTheWeekGame")
+        return eotw == nil or not eotw.IsEotwGame()
+    end,
+    execute = function()
+        EncounterOfTheWeekHud.ShowAbout()
+    end,
+}

@@ -37,11 +37,12 @@ local function StampRecordKey(obj, key)
     end
 end
 
---Records which creature placed the object, so abilities can tell whose it is
---(a thrown remote grenade only its thrower can detonate). Read in GoblinScript
---as "Object Creator" (TargetableObject.lua). Must be set before Upload.
+--Remember which creature made the object. Formulas on the object, such as its
+--collision behavior, can then use that creature's stats ("Creator"), and filters
+--can tell whose it is ("Object Creator": only a remote grenade's thrower can
+--detonate it). Both fields are in TargetableObject.lua. Must be set before Upload.
 local function StampObjectCreator(obj, casterToken)
-    if obj == nil or casterToken == nil or not casterToken.valid then
+    if obj == nil or casterToken == nil or (not casterToken.valid) then
         return
     end
 
@@ -230,9 +231,9 @@ function ActivatedAbilityCreateObjectBehavior:Cast(ability, casterToken, targets
                 obj.x = loc.x + xdelta
                 obj.y = loc.y + ydelta
                 StampRecordKey(obj, recordKey)
-                StampObjectCreator(obj, casterToken)
                 StampAuraIdentity(obj)
                 StampAuraCaster(obj, casterToken)
+                StampObjectCreator(obj, casterToken)
                 RecordObjectInModification(obj)
                 for _,child in ipairs(spawnOptions.outChildren) do
                     if self.randomize then
@@ -397,6 +398,7 @@ function ActivatedAbilityCreateLaneObjectBehavior:Cast(ability, casterToken, tar
     obj.x = nearLoc.x
     obj.y = nearLoc.y
     obj.rotation = rotation
+    StampObjectCreator(obj, casterToken)
 
     local slideDist = Aura.laneSlideDistance
     local comp = obj:GetComponent("Aura")

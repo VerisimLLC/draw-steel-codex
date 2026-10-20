@@ -5097,7 +5097,15 @@ function creature:RefreshToken(token)
             for k,v in pairs(self.inflictedConditions) do
                 local conditionInfo = conditionsTable[k]
                 if conditionInfo ~= nil and conditionInfo.sustainFormula ~= "" then
-                    local result = ExecuteGoblinScript(conditionInfo.sustainFormula, GenerateSymbols(self), 1, "Test ongoing effect sustains")
+                    --A caster deleted from the game would make ConditionCaster() return
+                    --nil, the formula error, and the error default keep the condition
+                    --forever (a grab outliving its grabber). End it instead.
+                    local casterInfo = v.casterInfo
+                    local casterGone = casterInfo ~= nil and type(casterInfo.tokenid) == "string" and dmhub.GetCharacterById(casterInfo.tokenid) == nil
+                    local result = 0
+                    if not casterGone then
+                        result = ExecuteGoblinScript(conditionInfo.sustainFormula, GenerateSymbols(self), 1, "Test ongoing effect sustains")
+                    end
                     if not GoblinScriptTrue(result) then
                         removes = removes or {}
                         removes[#removes+1] = k
@@ -5227,6 +5235,14 @@ function creature:PumpRemoteInvokes()
 			dmhub.Coroutine(function()
 				invoke:Invoke()
 			end)
+		else
+			--Dropped as stale: release any Monster AI reaction marker waiting on
+			--it, or the AI would sit on the marker until it expired.
+			local activityId = invoke:try_get("aiActivityId")
+			local reactionId = invoke:try_get("aiReactionId")
+			if type(activityId) == "string" and type(reactionId) == "string" then
+				self:CompletePendingAIActivityReaction(activityId, reactionId)
+			end
 		end
 	end
 end
@@ -6741,11 +6757,14 @@ function creature:OnMove(path)
             occupyingLocationMap[#allTokensFiltered] = occupying
             altitudeMap[#allTokensFiltered] = otherTokenAltitude
             tileSizeMap[#allTokensFiltered] = otherTokenTileSize
+            --adj is the creature's cached array (AdjacentLocations): extend a
+            --copy, or every move check grows the cache.
+            local adjAndOccupied = table.shallow_copy(adj)
             for _,loc in ipairs(occupying) do
-                adj[#adj+1] = loc
+                adjAndOccupied[#adjAndOccupied+1] = loc
             end
 
-            adjacentLocationMap[#allTokensFiltered] = adj
+            adjacentLocationMap[#allTokensFiltered] = adjAndOccupied
         end
     end
 
@@ -9189,6 +9208,9 @@ creature.lookupSymbols = {
         end
     end,
 
+	--Casters are looked up with GetCharacterById, not GetTokenById: a dead
+	--creature is a despawned corpse, which GetTokenById cannot see, and
+	--formulas like "not Grabber.dead" need the dead caster to be found.
 	conditioncaster = function(c)
 		return function(condname)
 			condname = string.lower(condname)
@@ -9205,7 +9227,7 @@ creature.lookupSymbols = {
 					local cond = conditionsTable[ongoingEffectInfo.condition]
 					if (cond ~= nil and string.lower(cond.name) == condname) or string.lower(ongoingEffectInfo.name) == condname then
 						seqFound = effectInfo.seq
-						local casterTok = dmhub.GetTokenById(effectInfo.casterInfo.tokenid)
+						local casterTok = dmhub.GetCharacterById(effectInfo.casterInfo.tokenid)
 						if casterTok ~= nil then
 							result = GenerateSymbols(casterTok.properties)
 						end
@@ -9220,7 +9242,7 @@ creature.lookupSymbols = {
 			for key,entry in pairs(c:try_get("inflictedConditions") or {}) do
 				local cond = conditionsTable[key]
 				if cond ~= nil and string.lower(cond.name) == condname  and entry.casterInfo ~= nil then
-					local casterTok = dmhub.GetTokenById(entry.casterInfo.tokenid)
+					local casterTok = dmhub.GetCharacterById(entry.casterInfo.tokenid)
 					if casterTok ~= nil then
 						result = GenerateSymbols(casterTok.properties)
 					end
@@ -11160,7 +11182,16 @@ ActiveTrigger.expiryTimestamp = 0
 --clients without keeping the prompt card alive after the player has made a
 --choice. The activity is a monster move (opportunity attacks) or an ability
 --cast (Repulsive Ward and other prompts its damage or effects provoke).
-function creature:BeginPendingAIActivityReaction(activityId, reactionId, abilityName)
+--state defaults to "awaiting_choice", which expects a prompt card keyed by
+--reactionId in availableTriggers. Pass "resolving" for a reaction the player
+--already chose without one -- a power-roll trigger accepted on the monster's
+--roll whose effect resolves after the roll -- so the AI does not report the
+--marker as having no matching prompt.
+--- @param activityId string
+--- @param reactionId string
+--- @param abilityName string|nil
+--- @param state nil|"awaiting_choice"|"resolving"
+function creature:BeginPendingAIActivityReaction(activityId, reactionId, abilityName, state)
     if type(activityId) ~= "string" or activityId == "" or type(reactionId) ~= "string" or reactionId == "" then
         return
     end
@@ -11185,7 +11216,7 @@ function creature:BeginPendingAIActivityReaction(activityId, reactionId, ability
             pendingReactions[reactionId] = {
                 activityId = activityId,
                 timestamp = ServerTimestamp(),
-                state = "awaiting_choice",
+                state = state or "awaiting_choice",
                 ability = abilityName,
             }
         end,

@@ -31,6 +31,228 @@ local g_activeRoll = nil
 ---@type EmbeddedRollActiveArgs
 local g_activeRollArgs = nil
 
+--- landed dice faces ----------------------------------------------------------
+--Once the dice land, the roll dialog shows each die's result where the dice
+--cage was, and the read-only card other players see (AbilitySidebar's
+--CreateReadOnlyRollInfo) shows the same row from the broadcast dialog state.
+--Both go through RollDiceFaces so they look identical.
+
+--- One landed die, as plain data so it can ride in the shared ability document.
+---@class RollDiceFace
+---@field faces integer the die size (10 for a d10).
+---@field result integer the face it landed on.
+---@field dropped boolean true for a die that does not count (e.g. keep-highest).
+---@field explodes boolean true for a die that exploded.
+---@field diceset string|nil the custom dice set it was rendered with; nil for the default set.
+
+--- The roller's dice colours (LuaInterface GetDiceStyling), as hex strings.
+---@class RollDiceFaceStyle
+---@field bgcolor string|nil
+---@field trimcolor string|nil
+---@field color string|nil
+
+RollDiceFaces = {}
+
+--Die sizes we have ui-icons/d<N>.png art for; anything else borrows the d10.
+local g_diceFaceArt = { [4] = true, [6] = true, [8] = true, [10] = true, [12] = true, [20] = true }
+
+--opacity is set on every rule because it does not cascade to children, and
+--the dialog's dice cage (which hosts this row) styles all its descendants to
+--opacity 0.
+local g_diceFaceStyles = {
+    {
+        selectors = {"rollDiceFace"},
+        width = 54,
+        height = 54,
+        hmargin = 5,
+        valign = "center",
+        opacity = 1,
+    },
+    {
+        selectors = {"rollDiceFaceLabel"},
+        width = "100%",
+        height = "100%",
+        textAlignment = "center",
+        textWrap = false,
+        fontSize = 26,
+        minFontSize = 12,
+        bold = true,
+        opacity = 1,
+    },
+    --a custom set's die is its real 3D render, dimmed so the result reads
+    --clearly on top of it.
+    {
+        selectors = {"rollDiceFace", "rendered"},
+        bgcolor = "#a0a0a0",
+        saturation = 0.4,
+    },
+    {
+        selectors = {"rollDiceFaceLabel", "rendered"},
+        fontSize = 30,
+        color = "#ffffff",
+        textOutlineWidth = 0.3,
+        textOutlineColor = "#000000",
+    },
+    --entrance: dice are built "born" and shed it one after another, so they
+    --pop in left to right instead of all appearing at once.
+    {
+        selectors = {"rollDiceFace", "born"},
+        opacity = 0,
+        scale = 0.3,
+        transitionTime = 0.25,
+    },
+    {
+        selectors = {"rollDiceFaceLabel", "parent:born"},
+        opacity = 0,
+        transitionTime = 0.25,
+    },
+    --a die that does not count (keep-highest and the like) is faded back.
+    {
+        selectors = {"rollDiceFace", "dropped"},
+        opacity = 0.3,
+    },
+    {
+        selectors = {"rollDiceFaceLabel", "parent:dropped"},
+        opacity = 0.3,
+    },
+}
+
+--- The landed dice of a roll, in roll order.
+---@param rollInfo nil|ChatMessageDiceRollInfoLua
+---@return RollDiceFace[]
+function RollDiceFaces.Collect(rollInfo)
+    local result = {}
+    if rollInfo == nil then
+        return result
+    end
+    local rolls = nil
+    pcall(function() rolls = rollInfo.rolls end)
+    for _, roll in ipairs(rolls or {}) do
+        if roll.numFaces ~= nil and roll.numFaces > 0 and roll.result ~= nil then
+            result[#result+1] = {
+                faces = math.tointeger(roll.numFaces) or 10,
+                result = math.tointeger(roll.result) or 0,
+                dropped = roll.dropped == true,
+                explodes = roll.explodes == true,
+                diceset = roll.diceset,
+            }
+        end
+    end
+    return result
+end
+
+--- The roller's dice colours for a roll, or nil when the roll has none.
+---@param rollInfo nil|ChatMessageDiceRollInfoLua
+---@return RollDiceFaceStyle|nil
+function RollDiceFaces.Style(rollInfo)
+    if rollInfo == nil then
+        return nil
+    end
+    local style = nil
+    pcall(function()
+        local s = rollInfo.diceStyle
+        if s ~= nil then
+            style = { bgcolor = s.bgcolor, trimcolor = s.trimcolor, color = s.color }
+        end
+    end)
+    return style
+end
+
+--- A centred row of dice, one per landed die, each drawn in the roller's
+--- dice colours with its result on it. Returns nil when there are no dice.
+---@param dice RollDiceFace[]
+---@param style nil|RollDiceFaceStyle
+---@param args nil|table extra panel fields for the row (width, height, ...).
+---@return Panel|nil
+function RollDiceFaces.Panel(dice, style, args)
+    if dice == nil or #dice == 0 then
+        return nil
+    end
+    style = style or {}
+
+    local children = {}
+    for i, die in ipairs(dice) do
+        local faces = die.faces
+        if faces == 3 then
+            faces = 6
+        end
+        if not g_diceFaceArt[faces] then
+            faces = 10
+        end
+
+        local text = tostring(die.result)
+        if die.explodes then
+            text = text .. "!"
+        end
+
+        --A custom set skins only d3/d6/d10 (the engine omits diceset otherwise),
+        --and #DiceIcon renders the d3 on the d6 mesh, as the roll does.
+        local geo = nil
+        if die.diceset ~= nil then
+            if die.faces == 10 then
+                geo = "d10"
+            elseif die.faces == 6 or die.faces == 3 then
+                geo = "d6"
+            end
+        end
+
+        local faceArgs = {
+            classes = {"rollDiceFace", "born", cond(die.dropped, "dropped"), cond(geo ~= nil, "rendered")},
+            create = function(element)
+                element:ScheduleEvent("arrive", 0.05 + (i - 1) * 0.09)
+            end,
+            arrive = function(element)
+                element:SetClass("born", false)
+            end,
+        }
+        local labelArgs = {
+            --a size class too: some cascades paint no text without one.
+            classes = {"rollDiceFaceLabel", "sizeXl", cond(geo ~= nil, "rendered")},
+            text = text,
+        }
+
+        if geo ~= nil then
+            --the real die, rendered once and cached by the engine (DiceIconManager).
+            faceArgs.bgimage = string.format("#DiceIcon:%s:%s", die.diceset, geo)
+        else
+            faceArgs.bgimage = string.format("ui-icons/d%d-filled.png", faces)
+            faceArgs.bgcolor = style.bgcolor or "#3a3a3a"
+            labelArgs.bgimage = string.format("ui-icons/d%d.png", faces)
+            labelArgs.bgcolor = style.trimcolor or "#d9b25f"
+            labelArgs.color = style.color or "#ffffff"
+        end
+
+        faceArgs[1] = gui.Label(labelArgs)
+        children[#children+1] = gui.Panel(faceArgs)
+    end
+
+    --The row sizes to its dice and centres inside a full-width wrapper.
+    local panelArgs = {
+        styles = g_diceFaceStyles,
+        width = "100%",
+        height = "auto",
+        halign = "center",
+        valign = "center",
+        interactable = false,
+        children = {
+            gui.Panel{
+                width = "auto",
+                height = "auto",
+                halign = "center",
+                valign = "center",
+                flow = "horizontal",
+                interactable = false,
+                children = children,
+            },
+        },
+    }
+    for k, v in pairs(args or {}) do
+        panelArgs[k] = v
+    end
+
+    return gui.Panel(panelArgs)
+end
+
 --- roll button pings ----------------------------------------------------------
 --A roll shown with the ShowDialog option `pingButtons` (the Encounter of the
 --Week montage) puts ghost copies of its Accept Result / Re-roll buttons on
@@ -1131,6 +1353,16 @@ function GameHud.CreateEmbeddedRollDialog()
 
     local rollDisabledLabel
     local rollDiceButton
+    local rollAllPromptsCheck
+
+    --The roller asked for "Roll all prompts" (see rollAllPromptsCheck): tell
+    --the request listener so its remaining prompts for this request follow suit.
+    local NotifyRollAllPrompts = function()
+        if rollAllPrompts ~= nil and rollAllPromptsCheck ~= nil
+           and rollAllPromptsCheck.value and not rollAllPromptsCheck:HasClass("collapsed") then
+            rollAllPrompts()
+        end
+    end
     local proceedAfterRollButton
     local rollAgainButton
     local m_triggerProgressDice
@@ -1920,6 +2152,12 @@ function GameHud.CreateEmbeddedRollDialog()
             highlightedTier = highlightedTier,
             rollId = resultPanel.data.rollid,
         }
+
+        --each landed die, so remote viewers see the same faces the roller does.
+        if rollState == "finished" and m_rollInfo ~= nil then
+            dialogState.dice = RollDiceFaces.Collect(m_rollInfo)
+            dialogState.diceStyle = RollDiceFaces.Style(m_rollInfo)
+        end
 
         if extraFields ~= nil then
             for k, v in pairs(extraFields) do
@@ -4306,6 +4544,38 @@ function GameHud.CreateEmbeddedRollDialog()
     --CancelRollDialog clear only THIS dialog's preview dice/armed roll.
     local m_diceCagePanel = nil
 
+    --The landed dice shown in the cage once a roll settles (RollDiceFaces).
+    --The cage's children list is replaced wholesale each time: a panel's
+    --children only lay out reliably when the parent's list is reassigned.
+    local m_diceFacesKey = nil
+    local DiceFacesPlaceholder = function()
+        return gui.Panel{ floating = true, width = 1, height = 1, interactable = false }
+    end
+    local ClearDiceFaces = function()
+        m_diceFacesKey = nil
+        if m_diceCagePanel ~= nil and m_diceCagePanel.valid then
+            m_diceCagePanel.children = { DiceFacesPlaceholder() }
+        end
+    end
+    local ShowDiceFaces = function(rollInfo)
+        if m_diceCagePanel == nil or not m_diceCagePanel.valid then
+            return
+        end
+        local dice = RollDiceFaces.Collect(rollInfo)
+        --pending and complete both report the same landed dice; only a
+        --changed set rebuilds, so the pop-in plays once per throw.
+        local key = json(dice)
+        if key == m_diceFacesKey then
+            return
+        end
+        m_diceFacesKey = key
+        local row = RollDiceFaces.Panel(dice, RollDiceFaces.Style(rollInfo), {
+            floating = true,
+            height = "100%",
+        })
+        m_diceCagePanel.children = { row or DiceFacesPlaceholder() }
+    end
+
     local CancelRollDialog = function()
         --Tell intercepting mods (physical dice etc.) the roll was cancelled
         --so they can abandon any pending external roll request.
@@ -4314,6 +4584,7 @@ function GameHud.CreateEmbeddedRollDialog()
         end
         RemoveTargetHints()
         if cancelRoll ~= nil then
+            NotifyRollAllPrompts()
             cancelRoll()
         end
         resultPanel:SetClass('hidden', true)
@@ -4441,6 +4712,7 @@ function GameHud.CreateEmbeddedRollDialog()
                 begin = function(rollInfo)
                     m_rollInfo = rollInfo
                     m_rerolling = true
+                    ClearDiceFaces()
                     resultPanel:FireEventTree("beginRoll", rollInfo, guid)
 
                     -- Tell remote viewers the dice are rolling again so
@@ -4727,6 +4999,19 @@ function GameHud.CreateEmbeddedRollDialog()
         valign = "top",
     }
 
+    --One player asked to roll the same request for several creatures (a
+    --resistance roll hitting four heroes): ticked, rolling or cancelling this
+    --one does the same to the rest. Shown only when options.numPrompts > 1.
+    rollAllPromptsCheck = gui.Check {
+        classes = { "collapsedWhenRolling", "hideWhenAI", "hideWhenMinimized", "collapsed" },
+        text = "Roll all prompts",
+        value = true,
+        halign = "left",
+        valign = "top",
+        tmargin = 4,
+        bmargin = 4,
+    }
+
     --pingButtons: another player clicked a ghost copy of one of these
     --buttons, so the real one pulses in their colour.
     local pingWatcher = gui.Panel {
@@ -4894,6 +5179,9 @@ function GameHud.CreateEmbeddedRollDialog()
 
                     thinkTime = 0.01,
 
+                    --holds the landed dice once a roll settles (ShowDiceFaces).
+                    children = { DiceFacesPlaceholder() },
+
                     create = function(element)
                         --diceCageCtor is gui.DicePreview.
                         ---@cast element DicePreview
@@ -4969,6 +5257,7 @@ function GameHud.CreateEmbeddedRollDialog()
             m_rollResults,
             triggersWithTabContainer,
             rollDisabledLabel,
+            rollAllPromptsCheck,
             buttonPanel,
             intelRerollButton,
         }
@@ -6045,6 +6334,7 @@ function GameHud.CreateEmbeddedRollDialog()
         resultPanel:SetClassTree("rolling", false)
         resultPanel:SetClassTree("finishedRolling", false)
         resultPanel:SetClassTree("rollPending", false)
+        ClearDiceFaces()
 
         mainPanel:SetClass("collapsed", true)
         tableModePanel:SetClass("collapsed", false)
@@ -6291,6 +6581,7 @@ function GameHud.CreateEmbeddedRollDialog()
                 resultPanel:SetClassTree("rolling", false)
                 resultPanel:SetClassTree("finishedRolling", false)
                 resultPanel:SetClassTree("rollPending", false)
+                ClearDiceFaces()
 
                 if options.PopulateTable ~= nil then
                     m_tableContainer:SetClass("collapsed", false)
@@ -6374,6 +6665,14 @@ function GameHud.CreateEmbeddedRollDialog()
                 rollInput:SetClass("manualEdit", false)
 
                 rollAllPrompts = options.rollAllPrompts
+                if options.numPrompts ~= nil and options.numPrompts > 1 and rollAllPrompts ~= nil then
+                    rollAllPromptsCheck.value = true
+                    rollAllPromptsCheck.data.SetText(string.format("Roll all %d prompts", options.numPrompts))
+                    rollAllPromptsCheck:SetClass("collapsed", false)
+                else
+                    rollAllPromptsCheck.value = false
+                    rollAllPromptsCheck:SetClass("collapsed", true)
+                end
                 rollActive = options.rollActive
                 beginRoll = options.beginRoll
                 completeRoll = options.completeRoll
@@ -6543,6 +6842,7 @@ function GameHud.CreateEmbeddedRollDialog()
                 if showingDialog then
                     resultPanel:SetClassTree("rolling", true)
                     resultPanel:SetClassTree("finishedRolling", false)
+                    ClearDiceFaces()
                     g_holdingRollOpen = true
                     BroadcastDialogState()
 
@@ -6729,6 +7029,8 @@ function GameHud.CreateEmbeddedRollDialog()
                 local dmonly = rollVisibility == "dm"
                 local dicetower = rollVisibility == "dicetower"
                 local instant = false
+
+                NotifyRollAllPrompts()
 
                 --we must save off anything from the surrounding scope since this dialog might be reused after this.
                 local activeRollFn = rollActive
@@ -7127,6 +7429,7 @@ function GameHud.CreateEmbeddedRollDialog()
                         if showingDialog then
                             resultPanel:SetClassTree("rolling", false)
                             resultPanel:SetClassTree("finishedRolling", true)
+                            ShowDiceFaces(rollInfo)
                             UpdateArrowLabelsWithTierResults()
                             BroadcastDialogState()
                             resultPanel:SetClassTree("rollPending", true)
@@ -7265,6 +7568,9 @@ function GameHud.CreateEmbeddedRollDialog()
                         resultPanel:SetClassTree("rolling", false)
                         resultPanel:SetClassTree("rollPending", false)
                         resultPanel:SetClassTree("finishedRolling", true)
+                        if showingDialog then
+                            ShowDiceFaces(rollInfo)
+                        end
                         BroadcastDialogState()
 
                             print("AI:: IS COMPLETE, SHOWING DIALOG:", showingDialog)

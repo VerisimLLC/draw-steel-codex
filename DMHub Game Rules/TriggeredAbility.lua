@@ -2049,6 +2049,9 @@ function TriggeredAbility:ExecuteTriggerCast(args)
 	if type(argOptions.aiActivityId) == "string" and type(argOptions.aiReactionId) == "string"
 		and args.casterToken ~= nil and args.casterToken.valid then
 		args.casterToken.properties:SetAIActivityReactionResolving(argOptions.aiActivityId, argOptions.aiReactionId)
+		--From here every exit completes the marker. A caller that made the
+		--marker itself (MCDModifyPowerRolls triggerOnUse) reads this to know.
+		argOptions.aiReactionHandedOff = true
 	end
 	local casterToken = args.casterToken
 	local symbols = args.symbols

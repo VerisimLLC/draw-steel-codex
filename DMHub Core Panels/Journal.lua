@@ -894,7 +894,21 @@ end
 
 local function DropJournalFiles(element, paths, folderid)
     EndJournalFileDrag(nil)
+    --PDFs, Markdown, text and .zip files are imported as documents
+    --(DocumentImport.lua); pictures and videos become picture entries.
+    local documents = {}
+    local media = {}
     for _, path in ipairs(paths) do
+        if FileDrops.IsDocument(path) then
+            documents[#documents+1] = path
+        else
+            media[#media+1] = path
+        end
+    end
+    if #documents > 0 and rawget(_G, "DocumentImport") ~= nil then
+        DocumentImport.ImportFiles(documents, {parentFolder = JournalFileDropFolder(folderid)})
+    end
+    for _, path in ipairs(media) do
         FileDrops.UploadImage(path, {
             imageType = "document",
             parentFolder = JournalFileDropFolder(folderid),
@@ -927,7 +941,7 @@ local function CreateFolderPanel(journalPanel, folderid)
         },
 
         --files from the desktop dropped on this folder (or a row in it).
-        dragAndDropExtensions = cond(dmhub.isDM, FileDrops.MEDIA_EXTENSIONS, nil),
+        dragAndDropExtensions = cond(dmhub.isDM, FileDrops.JOURNAL_EXTENSIONS, nil),
         dragfilesenter = function(element, paths)
             BeginJournalFileDrag(journalPanel, element, paths, folderid)
         end,
@@ -2200,7 +2214,7 @@ CreateJournalPanel = function(options)
         flow = "vertical",
 
         --files from the desktop dropped anywhere else in the journal.
-        dragAndDropExtensions = FileDrops.MEDIA_EXTENSIONS,
+        dragAndDropExtensions = FileDrops.JOURNAL_EXTENSIONS,
         dragfilesenter = function(element, paths)
             BeginJournalFileDrag(element, element, paths, nil)
         end,

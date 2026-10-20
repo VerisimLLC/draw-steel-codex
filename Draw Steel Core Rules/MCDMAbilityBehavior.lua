@@ -1536,6 +1536,7 @@ local g_applyConditionIndex = nil
 local g_gainConditionWithRiderIndex = nil
 local g_gainHeroicResourceIndex = nil
 local g_gainConditionByNameWithRiderIndex = nil
+local g_applyOngoingEffectIndex = nil
 
 -- A condition rider rides along on its host condition, so its duration always
 -- matches the condition's. When a rider rule supplies an explicit
@@ -1565,7 +1566,7 @@ dmhub.RegisterEventHandler("refreshTables", function(keys)
         return
     end
 
-	if keys ~= nil and (not keys[CharacterResource.tableName]) and (not keys[Class.tableName]) and (not keys[CharacterCondition.tableName]) and (not keys[CharacterCondition.ridersTableName]) then
+	if keys ~= nil and (not keys[CharacterResource.tableName]) and (not keys[Class.tableName]) and (not keys[CharacterCondition.tableName]) and (not keys[CharacterCondition.ridersTableName]) and (not keys[CharacterOngoingEffect.tableName]) then
 		return
 	end
 
@@ -1768,6 +1769,49 @@ dmhub.RegisterEventHandler("refreshTables", function(keys)
                             break
                         end
                     end
+                end,
+            }
+        end,
+    }
+
+    -- "<ongoing effect> (eoe|eot|save ends)" applies a CharacterOngoingEffect
+    -- such as Wet, e.g. a zone type's "Effect on Enter" of "wet (EoE)". The
+    -- duration is required so an effect name never matches plain prose, and
+    -- conditions (the pattern above) win when a name is both.
+    g_applyOngoingEffectIndex = g_applyOngoingEffectIndex or #g_rulePatterns + 1
+
+    --There are ~1000 ongoing effects, so rather than inline every name (a huge
+    --regex, printed in full on each match) the pattern takes any name and
+    --validate looks it up; GetTableNameRegex fills g_tablesLookup for it.
+    GetTableNameRegex(CharacterOngoingEffect.tableName)
+    g_rulePatterns[g_applyOngoingEffectIndex] = {
+        pattern = "^(?<effect>[a-z0-9][a-z0-9 ]*?) \\((?<duration>eot|eoe|save ends)\\)",
+        validate = function(entry, match)
+            return (g_tablesLookup[CharacterOngoingEffect.tableName] or {})[match.effect] ~= nil
+        end,
+        execute = function(behavior, ability, casterToken, targetToken, options, match)
+            local effectid = (g_tablesLookup[CharacterOngoingEffect.tableName] or {})[match.effect]
+            if effectid == nil then
+                return
+            end
+            ability:CommitToPaying(casterToken, options)
+
+            local duration = "eoe"
+            local typed = string.lower(match.duration or "")
+            if typed == "eot" then
+                duration = "end_of_next_turn"
+            elseif string.starts_with(typed, "save") then
+                duration = "save_ends"
+            end
+
+            local casterInfo = nil
+            if casterToken ~= nil then
+                casterInfo = { tokenid = casterToken.charid }
+            end
+            targetToken:ModifyProperties{
+                description = "Apply Ongoing Effect",
+                execute = function()
+                    targetToken.properties:ApplyOngoingEffect(effectid, duration, casterInfo)
                 end,
             }
         end,

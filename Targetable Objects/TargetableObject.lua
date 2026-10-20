@@ -228,22 +228,6 @@ GameSystem.RegisterGoblinScriptField{
     end,
 }
 
---Objects placed by a Create Object behavior are stamped with the placing
---creature's charid in the "objectcreator" property (AbilityCreateObject.lua).
---Hashed like creature ids so filters can say "ObjectCreator = Caster.ID" (a
---remote grenade only its thrower can detonate). Anything else returns 0.
-GameSystem.RegisterGoblinScriptField{
-    name = "Object Creator",
-
-    type = "number",
-    desc = "The id of the creature whose ability placed this object, or 0 if no creature placed it. Compare against a creature's ID field.",
-    examples = {"Target.ObjectCreator = Caster.ID"},
-
-    calculate = function(c)
-        return Utils.HashGuidToNumber(c:try_get("objectcreator", ""))
-    end,
-}
-
 --The creature whose ability made this object, or nil if none did.
 local function GetObjectCreator(c)
     local creatorid = c:try_get("objectcreator") or c:try_get("wallcreator")

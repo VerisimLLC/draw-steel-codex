@@ -38,9 +38,7 @@ local function StampRecordKey(obj, key)
 end
 
 --Remember which creature made the object. Formulas on the object, such as its
---collision behavior, can then use that creature's stats ("Creator"), and filters
---can tell whose it is ("Object Creator": only a remote grenade's thrower can
---detonate it). Both fields are in TargetableObject.lua. Must be set before Upload.
+--collision behavior, can then use that creature's stats.
 local function StampObjectCreator(obj, casterToken)
     if obj == nil or casterToken == nil or (not casterToken.valid) then
         return

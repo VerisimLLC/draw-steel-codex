@@ -218,7 +218,8 @@ local function ComputeHeroRolesInternal(live)
 
     --The qualifying heroes for a stat, best first. fn returns the hero's value
     --for the role (or nil to disqualify); values must also be > 0 and >=
-    --minValue. Ties keep party order.
+    --minValue. Ties keep data order, i.e. charid order (GetBattleHeroTokens
+    --sorts), so every client breaks them the same way.
     local function RankBy(fn, minValue)
         local list = {}
         for order, d in ipairs(data) do
@@ -958,8 +959,10 @@ local function ComputeHeroRolesInternal(live)
 
     --Soft-bias tuning weights (all integers; bigger = stronger pull). Selection
     --is deterministic -- every client computes the same roles from the same
-    --stats + history -- so these just shape which qualifying role a hero lands
-    --on, never introduce randomness:
+    --stats + history, because GetBattleHeroTokens returns heroes sorted by
+    --charid and every tie below falls back to that order or to charid -- so
+    --these just shape which qualifying role a hero lands on, never introduce
+    --randomness:
     --  INTEREST: each step down the (in-play) priority list a role sits costs
     --            this much, so a more interesting role still wins all else equal.
     --  FATIGUE : each past time THIS hero earned THIS role pushes it down by

@@ -1495,6 +1495,11 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 	local m_presentDialogParentElement = nil
 	local m_presentDialogUpdateTime = nil
 
+	--A map dialog this client presented, until its echo brings the server
+	--timestamp: then it is noted shown, so the tabletop late-dialog path
+	--never replays this client's own presentation (the "Draw Steel" banner).
+	local m_ownMapPresentation = nil
+
     local m_recordedPopup = nil
 
 	local parentPanel = gui.Panel({
@@ -1530,6 +1535,10 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 				m_presentedDialogArgs = {dialog = dialog, args = args}
 
                 local args = DeepCopy(m_presentedDialogArgs)
+                m_ownMapPresentation = nil
+                if type(args.args) == "table" and args.args.mapid ~= nil then
+                    m_ownMapPresentation = DeepCopy(args)
+                end
 
                 local dialogInfo = g_presentableDialogs[dialog]
                 if dialogInfo ~= nil and not dialogInfo.keeplocal then
@@ -1574,6 +1583,13 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 				end
 
 				if data.dialog ~= nil then
+                    --the timestamp is a placeholder string until the server echo.
+                    if m_ownMapPresentation ~= nil and type(data.timestamp) == "number"
+                            and dmhub.DeepEqual(m_ownMapPresentation, data.dialog) then
+                        Tabletop.NoteMapDialogShown(data)
+                        m_ownMapPresentation = nil
+                    end
+
                     --past its ttl a dialog is dropped -- unless it is one for a map
                     --this client never showed because no window showed the map
                     --(the tabletop view): it waits for that map's window instead.

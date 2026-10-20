@@ -154,6 +154,15 @@ local ITEM_DROP_HEIGHT = ITEM_ICON_SIZE + 14
 local ITEM_DROP_TIME = 0.4
 local ITEM_DROP_STAGGER = 0.18
 
+--A threat's consequence lands as a malice moment (MaliceMoment): the malice
+--diamond slams home, the block flashes malice red with the malice sound, and
+--the consequence types on. Several landing together are staggered.
+local MALICE_RED = "#DE1E47" --DramaticBanner.maliceAccent
+local CONSEQUENCE_SLAM_TIME = 0.28
+local CONSEQUENCE_FLASH_TIME = 0.9
+local CONSEQUENCE_TYPE_DELAY = 0.3
+local CONSEQUENCE_STAGGER = 0.7
+
 --entry cards come and go with the rounds rather than sitting on the stage
 --greyed out ahead of time: an entry materializes on the round it enters,
 --and one that has been dealt with fades away when that round ends. How
@@ -693,6 +702,35 @@ local function StageRules()
             scale = 1.3,
             brightness = 1.5,
             transitionTime = 0.3,
+            easing = "easeOutCubic",
+        },
+        --a consequence landing (MaliceMoment). The diamond is BORN with
+        --"slamIn" (huge and clear) and drops it to slam home, the same
+        --born-with-a-class trick as the drop-in above.
+        {
+            selectors = {"eotwMaliceSlam", "slamIn"},
+            scale = 3.2,
+            opacity = 0,
+            transitionTime = CONSEQUENCE_SLAM_TIME,
+            easing = "easeInCubic",
+        },
+        --at impact the diamond flares and the block flashes red (PulseClass).
+        {
+            selectors = {"eotwMaliceSlam", "impact"},
+            scale = 1.25,
+            brightness = 2.2,
+            transitionTime = 0.35,
+            easing = "easeOutCubic",
+        },
+        {
+            selectors = {"eotwMaliceFlash"},
+            bgcolor = MALICE_RED .. "00",
+            cornerRadius = 8,
+        },
+        {
+            selectors = {"eotwMaliceFlash", "lit"},
+            bgcolor = MALICE_RED .. "8c",
+            transitionTime = CONSEQUENCE_FLASH_TIME,
             easing = "easeOutCubic",
         },
         {
@@ -1417,13 +1455,14 @@ end
 
 --- small builders ----------------------------------------------------------------
 
-local function MaliceIcon(size)
+local function MaliceIcon(size, classes)
     local hud = Hud()
     local diamond = nil
     if hud ~= nil and hud.CreateMaliceDiamond ~= nil then
         diamond = hud.CreateMaliceDiamond()
     end
     return gui.Panel{
+        classes = classes,
         width = size,
         height = size,
         halign = "center",
@@ -4001,7 +4040,120 @@ local function CreateSceneStage()
     return root
 end
 
-local function BuildTurnChildren(m, beat)
+--A threat's consequence: the malice icon beside `title`, then the `body`
+--panels. `startAt` (a dmhub.Time()) plays it as a malice moment -- slam,
+--flash, sound, then the `typed` labels type on in turn -- timed from then,
+--so a rebuild mid-moment picks up where it was and fires nothing twice.
+--nil shows it settled. `delay` staggers several; `sound` = false is quiet.
+local function MaliceMoment(args)
+    local now = dmhub.Time()
+    local startAt = args.startAt
+    local slamAt = (startAt or now) + (args.delay or 0) + 0.05
+    local impactAt = slamAt + CONSEQUENCE_SLAM_TIME
+    local typeAt = impactAt + CONSEQUENCE_TYPE_DELAY
+    local typed = args.typed or {}
+    local fulls = {}
+    local total = 0
+    for i, label in ipairs(typed) do
+        fulls[i] = label.text
+        total = total + VisibleLength(fulls[i])
+    end
+    local doneAt = typeAt + total / SCENE_TYPE_CPS
+    local animate = startAt ~= nil and now < doneAt
+
+    local iconClasses = {"eotwMaliceSlam"}
+    if animate and now < slamAt then
+        iconClasses[#iconClasses + 1] = "slamIn"
+    end
+    local icon = MaliceIcon(args.iconSize, iconClasses)
+    ---@type Panel[]
+    local children = {
+        gui.Panel{ width = "auto", height = "auto", flow = "horizontal", halign = "center", interactable = false, icon, args.title },
+    }
+    for _, child in ipairs(args.body or {}) do
+        children[#children + 1] = child
+    end
+
+    --the typed labels as of time `t`: each starts once the one before is done.
+    local function ShowTyping(t)
+        local n = math.max(0, math.floor((t - typeAt) * SCENE_TYPE_CPS))
+        for i, label in ipairs(typed) do
+            label.text = RevealText(fulls[i], n)
+            n = math.max(0, n - VisibleLength(fulls[i]))
+        end
+    end
+
+    --a moment rebuilt after its slam or impact must not do either again.
+    local slammed = now >= slamAt
+    local impacted = now >= impactAt
+    if animate then
+        ShowTyping(now)
+    end
+
+    --the block's own background is the flash: a floating overlay at 100%
+    --height of an auto-height panel sizes to far more than the block.
+    return gui.Panel{
+        classes = {"eotwMaliceFlash"},
+        bgimage = "panels/square.png",
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        halign = "center",
+        vpad = 6,
+        borderBox = true,
+        interactable = false,
+        children = children,
+        thinkTime = cond(animate, 0.03, nil),
+        think = function(element)
+            local t = dmhub.Time()
+            if not slammed and t >= slamAt then
+                slammed = true
+                icon:SetClass("slamIn", false)
+            end
+            if not impacted and t >= impactAt then
+                impacted = true
+                icon:PulseClass("impact")
+                element:PulseClass("lit")
+                if args.sound ~= false then
+                    audio.FireSoundEvent("Notify.Malice_Use")
+                end
+            end
+            ShowTyping(t)
+            if t >= doneAt then
+                element.thinkTime = nil
+            end
+        end,
+    }
+end
+
+--What identifies a consequence landing, for the stage's played set: the
+--consequences phase's one at `idx`, or a "(Temporary)" one at log index `i`.
+local function ConsequenceKey(m, idx)
+    return string.format("%s:c%s", tostring(m.beatIndex), tostring(idx))
+end
+local function ExpiredKey(m, i)
+    return string.format("%s:e%d", tostring(m.beatIndex), i)
+end
+
+--Every consequence landing on the board right now.
+local function CurrentConsequenceKeys(m)
+    local keys = {}
+    if m.phase == "consequences" then
+        keys[#keys + 1] = ConsequenceKey(m, m.consequenceIndex or 1)
+    end
+    for i, entryLog in ipairs(m.log or {}) do
+        if entryLog.consequence and entryLog.expired then
+            keys[#keys + 1] = ExpiredKey(m, i)
+        end
+    end
+    return keys
+end
+
+--`consequenceStart(key)` gives when that consequence started playing on this
+--stage, or nil to show it settled (CreateStage's m_consequencesPlayed).
+--- @param consequenceStart nil|fun(key: string): number|nil
+local function BuildTurnChildren(m, beat, consequenceStart)
+    consequenceStart = consequenceStart or function(key) return nil end
     local children = {}
     local function Add(child)
         children[#children + 1] = child
@@ -4042,22 +4194,26 @@ local function BuildTurnChildren(m, beat)
             return children
         end
         Add(gui.Label{ classes = {"eotwTurnHint"}, text = "An unresolved threat" })
-        Add(gui.Panel{
-            width = "auto",
-            height = "auto",
-            flow = "horizontal",
-            halign = "center",
-            MaliceIcon(44),
-            gui.Label{ classes = {"eotwTurnTitle"}, width = "auto", text = entry.name, lmargin = 12, valign = "center" },
-        })
+        ---@type Panel[]
+        local body = {}
+        local typed = {}
         if entry.description ~= "" then
-            Add(gui.Label{ classes = {"eotwTurnText"}, text = entry.description })
+            body[#body + 1] = gui.Label{ classes = {"eotwTurnText"}, text = entry.description }
         end
         if entry.consequence ~= nil then
-            Add(gui.Label{ classes = {"eotwTurnText"}, text = "Consequence: " .. EncounterScript.VisibleText(entry.consequence.text), bold = true })
+            local label = gui.Label{ classes = {"eotwTurnText"}, text = "Consequence: " .. EncounterScript.VisibleText(entry.consequence.text), bold = true }
+            body[#body + 1] = label
+            typed[1] = label
         else
-            Add(gui.Label{ classes = {"eotwTurnHint"}, text = "No consequence is written for this threat." })
+            body[#body + 1] = gui.Label{ classes = {"eotwTurnHint"}, text = "No consequence is written for this threat." }
         end
+        Add(MaliceMoment{
+            iconSize = 44,
+            title = gui.Label{ classes = {"eotwTurnTitle"}, width = "auto", text = entry.name, lmargin = 12, valign = "center" },
+            body = body,
+            typed = typed,
+            startAt = consequenceStart(ConsequenceKey(m, idx)),
+        })
         if m.dice ~= nil then
             Add(DiceCard(m, beat))
             Add(gui.Label{ classes = {"eotwTurnHint"}, text = DiceHint(m) })
@@ -4097,20 +4253,33 @@ local function BuildTurnChildren(m, beat)
         --run of them that just landed is what the new round opens with,
         --in place of the last hero's result.
         local logs = m.log or {}
-        local expiredTail = {}
-        for i = #logs, 1, -1 do
-            if logs[i].consequence and logs[i].expired then
-                table.insert(expiredTail, 1, logs[i])
-            else
-                break
-            end
+        local expiredFrom = #logs + 1
+        while expiredFrom > 1 and logs[expiredFrom - 1].consequence and logs[expiredFrom - 1].expired do
+            expiredFrom = expiredFrom - 1
         end
-        if #expiredTail > 0 then
+        if expiredFrom <= #logs then
             Add(gui.Panel{ width = "60%", height = 1, bgimage = "panels/square.png", bgcolor = "#ffffff30", halign = "center", vmargin = 10 })
-            for _, entryLog in ipairs(expiredTail) do
-                Add(gui.Label{ classes = {"eotwTurnText"}, text = string.format("%s was left unresolved.", entryLog.entryName or "A threat") })
+            --they land together: staggered, and only the first one sounds.
+            local playing = 0
+            for i = expiredFrom, #logs do
+                local entryLog = logs[i]
+                ---@type Panel[]
+                local lines = {}
                 for _, line in ipairs(entryLog.applied or {}) do
-                    Add(gui.Label{ classes = {"eotwAppliedLine"}, text = line })
+                    lines[#lines + 1] = gui.Label{ classes = {"eotwAppliedLine"}, text = line }
+                end
+                local startAt = consequenceStart(ExpiredKey(m, i))
+                Add(MaliceMoment{
+                    iconSize = 30,
+                    title = gui.Label{ classes = {"eotwTurnText"}, width = "auto", text = string.format("%s was left unresolved.", entryLog.entryName or "A threat"), lmargin = 10, valign = "center" },
+                    body = lines,
+                    typed = lines,
+                    startAt = startAt,
+                    delay = playing * CONSEQUENCE_STAGGER,
+                    sound = playing == 0,
+                })
+                if startAt ~= nil then
+                    playing = playing + 1
                 end
             end
             return children
@@ -4997,6 +5166,20 @@ local function CreateStage(args)
     local m_turnSignature = nil
     local m_heroSignature = nil
     local m_scene = nil
+    --when each consequence (ConsequenceKey/ExpiredKey) started playing here,
+    --so a rebuild never replays one. false = it was already on the board at
+    --this stage's first refresh (a join, a reload) and shows settled.
+    ---@type nil|table<string, number|false>
+    local m_consequencesPlayed = nil
+    local function ConsequenceStart(key)
+        m_consequencesPlayed = m_consequencesPlayed or {}
+        local t = m_consequencesPlayed[key]
+        if t == nil then
+            t = dmhub.Time()
+            m_consequencesPlayed[key] = t
+        end
+        return t or nil
+    end
 
     --cond() evaluates both branches, so build these only when we own them.
     local backdrop, dim = nil, nil
@@ -5301,6 +5484,12 @@ local function CreateStage(args)
         if m == nil or beat == nil then
             return
         end
+        if m_consequencesPlayed == nil then
+            m_consequencesPlayed = {}
+            for _, key in ipairs(CurrentConsequenceKeys(m)) do
+                m_consequencesPlayed[key] = false
+            end
+        end
         local rebuilt = m_builtBeat ~= m.beatIndex
         if rebuilt then
             m_builtBeat = m.beatIndex
@@ -5350,7 +5539,7 @@ local function CreateStage(args)
             local sig = TurnSignature(m)
             if sig ~= m_turnSignature then
                 m_turnSignature = sig
-                turnBody.children = BuildTurnChildren(m, beat)
+                turnBody.children = BuildTurnChildren(m, beat, ConsequenceStart)
             end
         end
 

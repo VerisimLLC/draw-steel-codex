@@ -1623,6 +1623,29 @@ local function EligiblePortraitImageIds()
     return result
 end
 
+--Town hero portraits that cannot render yet because their asset records
+--have not loaded. Town heroes are lobby characters (EotwRoster working
+--copies) whose art lives in the lobby's own asset store, so unlike module or
+--other players' art these records ARE coming: re-entering the lobby loads
+--them a few seconds after the characters. The veil waits for them; any id
+--still missing at the veil's deadline is given up on until the codemods
+--next reload (i.e. the next return from a game).
+local m_abandonedTownPortraits = {}
+local function AwaitedTownPortraitIds()
+    local result = {}
+    for _,tok in ipairs(table.values(dmhub.GetAllCharacters())) do
+        pcall(function()
+            if rawget(tok.properties, "eotwHero") == true then
+                local p = tok.offTokenPortrait
+                if IsUnresolvableAssetId(p) and m_abandonedTownPortraits[p] == nil then
+                    result[#result+1] = p
+                end
+            end
+        end)
+    end
+    return result
+end
+
 --How the warm-up is going, for the loading veil to wait on (see
 --PortraitWarmupSettled). Replaced wholesale by each new warmer; the veil
 --only ever looks at the current screen's.
@@ -1644,6 +1667,10 @@ local function CreatePortraitWarmer()
         changed = dmhub.Time(),
     }
     m_warmState = warmState
+
+    --how long the warmer keeps rescanning for town portrait records (see
+    --AwaitedTownPortraitIds): as long as the veil could possibly wait.
+    local recordDeadline = dmhub.Time() + VEIL_BUILD_DELAY_SECONDS + VEIL_SETTLE_SECONDS + VEIL_WAIT_MAX_SECONDS
 
     return gui.Panel{
         id = "eotwPortraitWarmer",
@@ -1711,6 +1738,13 @@ local function CreatePortraitWarmer()
                 return
             end
 
+            --town portrait records still loading: look again soon, without
+            --spending a pass, so their art is warmed under the veil.
+            if dmhub.Time() < recordDeadline and #AwaitedTownPortraitIds() > 0 then
+                element:ScheduleEvent("warmPortraits", VEIL_WAIT_POLL_SECONDS, passesLeft)
+                return
+            end
+
             --Done: the pregen cache has landed and this pass found nothing
             --new, so the eligible set is complete. While m_pregens is still
             --nil the snapshot (or its art registration) is in flight, so
@@ -1740,6 +1774,11 @@ end
 --(see the design doc). If nothing is arriving, the screen is as loaded as
 --it is ever going to be, so reveal it.
 local function PortraitWarmupSettled()
+    --town hero art whose records are on their way: not settled, however
+    --idle the warmer looks (the veil's deadline still bounds the wait).
+    if #AwaitedTownPortraitIds() > 0 then
+        return false
+    end
     local st = m_warmState
     if st == nil then
         --no warmer mounted: nothing to wait for.
@@ -1897,6 +1936,12 @@ local function CreateLoadingVeil(root)
             if PortraitWarmupSettled() == false and dmhub.Time() < element.data.waitDeadline then
                 element:ScheduleEvent("waitForImages", VEIL_WAIT_POLL_SECONDS)
                 return
+            end
+
+            --a town portrait record that has not come by now is not coming;
+            --never hold a later veil for it.
+            for _,id in ipairs(AwaitedTownPortraitIds()) do
+                m_abandonedTownPortraits[id] = true
             end
 
             element:FireEvent("revealScreen")

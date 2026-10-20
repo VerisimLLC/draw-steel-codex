@@ -508,6 +508,23 @@ local function MonsterAIModule()
 	return rawget(_G, "MonsterAI")
 end
 
+--A function on the Monster AI module, or nil if the module or the function is missing.
+--Monster AI ships as its own codemod and can lag behind this one (76C77DP6); MonsterAI
+--is a game type, so reading a field it lacks raises instead of returning nil.
+--- @param name string
+--- @return function|nil
+local function MonsterAIFunction(name)
+	local ai = MonsterAIModule()
+	if ai == nil then
+		return nil
+	end
+	local fn = rawget(ai, name)
+	if type(fn) ~= "function" then
+		return nil
+	end
+	return fn
+end
+
 --True if the Monster AI, on any client, plays initiativeid's turns (it plays every turn
 --that is not the players'). The AI runs on the hosting machine and publishes that it is
 --running, so every client knows (MonsterAI.IsAIRunningAnywhere).
@@ -515,8 +532,8 @@ end
 --- @param initiativeid any
 --- @return boolean
 local function AIPlaysInitiative(q, initiativeid)
-	local ai = MonsterAIModule()
-	return type(initiativeid) == "string" and ai ~= nil and ai.IsAIRunningAnywhere() == true and q:IsEntryPlayer(initiativeid) == false
+	local running = MonsterAIFunction("IsAIRunningAnywhere")
+	return type(initiativeid) == "string" and running ~= nil and running() == true and q:IsEntryPlayer(initiativeid) == false
 end
 
 --True while the Monster AI, on any client, is playing a monster's turn or is in the
@@ -525,8 +542,8 @@ end
 --- @param q InitiativeQueue|nil
 --- @return boolean
 function TurnRewind.MonsterAIBusy(q)
-	local ai = MonsterAIModule()
-	return q ~= nil and not q.hidden and ai ~= nil and ai.IsAIBusyAnywhere() == true
+	local busy = MonsterAIFunction("IsAIBusyAnywhere")
+	return q ~= nil and not q.hidden and busy ~= nil and busy() == true
 end
 
 --True if this client plays initiativeid's turn. The Director can control every token,

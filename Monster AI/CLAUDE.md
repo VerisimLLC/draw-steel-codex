@@ -83,6 +83,19 @@ does not stop monster trigger polling or cooperative AI shutdown. Run
 `../dependencies/lua/bin/lua.exe tests/ai_end_turn_save_test.lua` from the codex
 root for prompt lifecycle and process wait/resume/stop coverage.
 
+Before the monster side picks its next group, the process also waits while any
+live player combatant has a trigger prompt the player has not answered
+(`FindPendingPlayerTrigger` in `MonsterAIPanel.lua`): the Gunslinger's Begin
+Round "Showdown", Hesitation Is Weakness, any custom class's trigger. It is
+data-driven, with no ability-name list. Hostile prompts, power-roll modifiers
+and the hidden members of a merged prompt do not count. It also waits up to
+10s while a trigger event relayed to that hero's client is still being
+evaluated there, because the prompt does not exist until it has been (in the
+2026-10-19 playtest Showdown arrived while the AI was already choosing). The
+check runs again just before `SelectTurn`. The "Waiting for Fox's Showdown"
+banner offers the hero's player Select and Dismiss; dismissing the prompt, or
+its 10-minute expiry, releases the wait.
+
 The turn handoff itself also waits. A hero's mandatory end-of-turn trigger
 whose invoked ability prompts them (Revitalizing Limerick's "choose allies to
 spend a Recovery", the Tactician's and Conduit's recovery grants) fires inline
@@ -305,6 +318,16 @@ A **prompt** handles abilities that require a secondary targeting choice during 
 - `prompts` -- array of ability name strings this handler responds to. Can be plain names (`"Shift"`) or monster-qualified (`"Decrepit Skeleton:Invoked Ability"`)
 - `handler(ai, invokerToken, casterToken, abilityClone, symbols, options)` -- returns a table with `targets` array, or `nil` to fall through to manual prompting
 - `abilityOverride` -- optional ability in the returned table. Use this when the prompt chooses a concrete synthesized ability as well as its targets; the invoke framework casts the override and preserves its begin/finish callbacks
+- `resolvesInvokedAbility` -- optional registration flag. Set it when the handler carries out the whole invoked ability itself (and returns `{targets = {}}`), so the synthesizer does not reject an ability for prompts inside the invoked ability that never come up
+
+The generic `Adjacent Enemy Free Strike Me` handler uses `resolvesInvokedAbility`.
+That standard ability is the "one ally adjacent to the target can make a free
+strike against them" rider (Goblin Underboss Swordplay, Human Bandit Chief). The
+struck hero casts it, so the ally's nested Melee Free Strike prompt would belong
+to the hero and go to the host's action bar. The handler instead picks the best
+AI-run ally adjacent to the target (a full monster over a minion) and casts that
+ally's melee free strike against the target with `ExecuteAbility`, or skips
+when there is none. Swordplay then synthesizes like any other signature.
 
 The generic `Free Strike` handler uses `abilityOverride` to choose the best legal
 immediate melee or ranged free strike. It deliberately removes charge movement,

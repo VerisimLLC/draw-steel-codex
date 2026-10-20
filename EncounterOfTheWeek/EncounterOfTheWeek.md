@@ -3910,7 +3910,10 @@ The EotW provider (`EncounterOfTheWeekHud.lua`), active in an EotW game
 - No side rails, no Panels menu, no Compendium (menus, toolbar and search).
   The title bar's Codex menu stays.
 - **Bottom-left corner**: Journal, Chat and Action Log rail-style buttons
-  (unread badges, active underline). "/" still opens chat.
+  (unread badges, active underline). "/" still opens chat. Above them, behind
+  a short rule, Measuring Tool and Whiteboard buttons (playtest 2026-10-19 N4;
+  the takeover hides the map rail that normally carries them). The two share
+  one folder window, so pressing the one not on screen switches its tab.
 - **Right edge**: the **encounter pools strip** (Malice, Hero Tokens, and
   Intelligence when unlocked; read-only; hovering a cell explains the pool and
   shows its history) above the **hero roster**: one portrait card per hero

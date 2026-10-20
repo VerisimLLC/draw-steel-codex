@@ -77,7 +77,7 @@ assert(load(section(invokePath, "function AbilityInvocation.PromptStandardAbilit
 --Typed invocation instances dispatch the production Invoke method.
 AbilityInvocation.new = function(t) t = typed(t); t.Invoke = AbilityInvocation.Invoke; return t end
 local findPending = assert(load(section("Monster AI/MonsterAIPanel.lua",
-    "local function FindPendingPlayerSave(queue)", "local g_playerTurnClaimAbilities") .. "\nreturn FindPendingPlayerSave"))()
+    "local function FindPendingPlayerSave(queue)", "local g_relayedTriggerWaitSeconds") .. "\nreturn FindPendingPlayerSave"))()
 local queue = {entries = {hero = {}}}
 local function prompt()
     return AbilityInvocation.PromptStandardAbility{

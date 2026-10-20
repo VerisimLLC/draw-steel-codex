@@ -4416,9 +4416,17 @@ function MonsterAI:SynthesizedAbilityPromptsAreHandled(ability, visited)
                 end
             end
 
-            local handled, reason = self:SynthesizedAbilityPromptsAreHandled(invokedAbility, visited)
-            if not handled then
-                return false, reason
+            --A handler flagged resolvesInvokedAbility carries out the invoked
+            --ability itself, so the invoked ability's own prompts never come up.
+            local resolvedByPrompt = false
+            if targeting == "prompt" or targeting == "prompt_inherit" then
+                resolvedByPrompt = self.prompts[invokedAbility.name].resolvesInvokedAbility == true
+            end
+            if not resolvedByPrompt then
+                local handled, reason = self:SynthesizedAbilityPromptsAreHandled(invokedAbility, visited)
+                if not handled then
+                    return false, reason
+                end
             end
         end
     end

@@ -846,22 +846,46 @@ end)
 
 --- leaving the game ----------------------------------------------------------------
 
+--Ask the eotwAbandonGame cloud function to delete this game now, if no
+--other member still holds it. Fire and forget: the game's Lua unloads as
+--we leave, so the callbacks only log. The titlescreen repeats the call
+--(eotw:abandonedgame), which also catches a quit that cut this one off.
+local function RequestAbandonDelete(gameid)
+    net.Post{
+        url = dmhub.cloudFunctionsBaseUrl .. "/eotwAbandonGame",
+        data = { gameid = gameid },
+        success = function(data)
+            if type(data) == "table" and data.ok then
+                printf("EotW presence: abandoned game %s is deleted (storage released: %s)", tostring(gameid), tostring(data.released))
+            else
+                printf("EotW presence: abandoned game %s stays for the others: %s", tostring(gameid),
+                    tostring(type(data) == "table" and data.error or "invalid response"))
+            end
+        end,
+        error = function(message)
+            printf("EotW presence: could not reach eotwAbandonGame for %s: %s", tostring(gameid), tostring(message))
+        end,
+    }
+end
+
 --Abandon this game for good, then go: proceed() quits the app or leaves the
 --game, whichever the player asked for. Our heroes stay behind as free
 --agents and we get nothing from the encounter. A note in our own
---"eotwleave-" document tells the host; the titlescreen's next refresh
---abandons the game there (eotw:abandonedgame): the eotwAbandonGame cloud
---function deletes it when no other member still holds it, owner or not.
+--"eotwleave-" document tells the host. As we go we ask eotwAbandonGame to
+--delete the game (it does when no other member still holds it, owner or
+--not); the titlescreen's next refresh (eotw:abandonedgame) asks again and
+--takes us off the game's player list.
 function EncounterPresence.Abandon(proceed)
     local me = dmhub.loginUserid
+    local gameid = dmhub.gameid
 
     local doc = mod:GetDocumentSnapshot(ABANDON_DOC_PREFIX .. me)
     doc:BeginChange()
     doc.data.abandoned = dmhub.serverTime
     doc:CompleteChange("Encounter of the Week: abandoned the game", { undoable = false })
 
-    dmhub.SetSettingValue("eotw:abandonedgame", dmhub.ToJson{ gameid = dmhub.gameid })
-    printf("EotW presence: abandoning game %s", tostring(dmhub.gameid))
+    dmhub.SetSettingValue("eotw:abandonedgame", dmhub.ToJson{ gameid = gameid })
+    printf("EotW presence: abandoning game %s", tostring(gameid))
 
     --the beta survey asks what made us leave, back in town.
     local eotw = rawget(_G, "EncounterOfTheWeekGame")
@@ -873,8 +897,11 @@ function EncounterPresence.Abandon(proceed)
     end
 
     --a moment for the note to reach the server before the connection goes.
-    --Not tied to mod.unloaded: the player must get out regardless.
+    --Not tied to mod.unloaded: the player must get out regardless. The
+    --delete is sent in the same frame we leave, after the note has landed;
+    --sent first so a quit cannot skip it.
     dmhub.Schedule(0.75, function()
+        RequestAbandonDelete(gameid)
         proceed()
     end)
 end

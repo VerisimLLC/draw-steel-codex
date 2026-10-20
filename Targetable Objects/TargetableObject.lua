@@ -30,9 +30,10 @@ function TargetableObject.TokenSuppressesCollisionDamage(token)
     return token.properties:try_get("no_collision_damage", false) == true
 end
 
---Hidden traps that announce themselves with a dramatic banner when a
---creature springs them, keyed by the object's lower-cased name. Only a trap
---the players cannot see gets one: a visible trap was walked into knowingly.
+--Custom banner text for hidden traps, keyed by the object's lower-cased
+--name; any other hidden object with "trap" in its name gets "<Name>!".
+--Only a trap the players cannot see gets one: a visible trap was walked
+--into knowingly. bannerType defaults to "malice", the Director's menace.
 TargetableObject.hiddenTrapBanners = {
     ["snare trap"] = { text = "Snare Trap!", subtitle = "You have stepped into a trap!" },
 }
@@ -51,13 +52,20 @@ local function ShowHiddenTrapBanner(self, args)
     end
     local banner = TargetableObject.hiddenTrapBanners[string.lower(tostring(name or ""))]
     if banner == nil then
-        return
+        --an unlisted hidden trap still announces itself, by its own name.
+        --Objects have no trap flag, and hidden teleporters and switches are
+        --pressure plates too, so only a name with "trap" in it counts.
+        if type(name) ~= "string" or not string.find(string.lower(name), "trap", 1, true) then
+            return
+        end
+        banner = { text = name .. "!", subtitle = "You have stepped into a trap!" }
     end
     local victim = args ~= nil and args.target ~= nil and dmhub.LookupToken(args.target) or nil
     DramaticBanner.Show{
         tokenid = victim ~= nil and victim.charid or nil,
         text = banner.text,
         subtitle = banner.subtitle,
+        bannerType = banner.bannerType or "malice",
     }
 end
 

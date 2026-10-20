@@ -95,7 +95,8 @@ local function FreeStrikeTargetScore(targetInfo)
     return 1 + (targetInfo.edges or 0)*0.1 + MonsterAI.TargetStaminaBias(targetInfo.token)
 end
 
-local function FindBestImmediateFreeStrike(ai, actor, abilities)
+--onlyTarget (optional) limits the plan to strikes against that one creature.
+local function FindBestImmediateFreeStrike(ai, actor, abilities, onlyTarget)
     --Death-triggered grants resolve before the creature is removed, so the
     --caster can already report dead while still being allowed this strike.
     if not AIControlledCreature(actor) then
@@ -134,7 +135,8 @@ local function FindBestImmediateFreeStrike(ai, actor, abilities)
             for _,targetInfo in ipairs(ai:FindValidTargetsOfStrike(
                 actor, scoringAbility, actor.loc, range)) do
                 local utility = FreeStrikeTargetScore(targetInfo)
-                if best == nil or utility > best.utility then
+                if (onlyTarget == nil or targetInfo.token.charid == onlyTarget.charid)
+                    and (best == nil or utility > best.utility) then
                     local activation = DeepCopy(ability)
                     activation.disableSquadCoordination = true
                     best = {
@@ -216,6 +218,90 @@ MonsterAI:RegisterPrompt{
             return {targets = {}}
         end
         return {targets = {{token = best.token}}}
+    end,
+}
+
+--The melee free strikes a creature can make (the melee half of a melee-and-
+--ranged basic attack counts).
+local function CreatureMeleeFreeStrikeAbilities(token)
+    local result = {}
+    for _,ability in ipairs(token.properties:GetActivatedAbilities()) do
+        if ability.categorization == "Basic Attack" then
+            if ability.meleeAndRanged then
+                result[#result+1] = ability.meleeVariation
+            elseif ability.name == "Melee Free Strike" or ability:HasKeyword("Melee") then
+                result[#result+1] = ability
+            end
+        end
+    end
+    return result
+end
+
+--"One ally adjacent to the target can make a free strike against them"
+--(Swordplay, the Bandit Chief's longsword). The struck hero casts this
+--standard ability and so would also own the ally's Melee Free Strike prompt,
+--which the AI could never answer. Instead the handler picks the ally, drives
+--its free strike against the hero itself, and skips the rest of the chain.
+MonsterAI:RegisterPrompt{
+    id = "Adjacent Enemy Free Strike Me",
+    prompts = {"Adjacent Enemy Free Strike Me"},
+    resolvesInvokedAbility = true,
+    handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
+        local victim = casterToken
+        if victim == nil or not victim.valid or victim.properties == nil
+            or victim.properties:IsDead() then
+            return {targets = {}}
+        end
+
+        local range = abilityClone:GetRange(victim.properties)
+        local best = nil
+        for _,ally in ipairs(dmhub.allTokens) do
+            if LiveAIControlledCreature(ally) and IsActiveCombatant(ally)
+                and ally.charid ~= invokerToken.charid
+                and dmhub.TokensAreFriendly(invokerToken, ally)
+                and MonsterAI.TargetDistance(victim, ally) <= range
+                and abilityClone:TargetPassesFilter(victim, ally, symbols or {}) then
+                local plan = FindBestImmediateFreeStrike(ai, ally,
+                    CreatureMeleeFreeStrikeAbilities(ally), victim)
+                if plan ~= nil then
+                    --A minion's free strike hits for less, so a full monster goes first.
+                    local utility = plan.utility + cond(ally.properties.minion, 0, 0.5)
+                    if best == nil or utility > best.utility then
+                        best = {token = ally, plan = plan, utility = utility}
+                    end
+                end
+            end
+        end
+
+        if best == nil then
+            ai:LogDecision("GRANTED FREE STRIKE SKIPPED", {
+                ability = abilityClone.name,
+                reason = "no ally adjacent to the target can free strike it",
+            })
+            return {targets = {}}
+        end
+
+        --The strike is outside the ally's action economy and cannot charge.
+        local activation = best.plan.ability
+        activation.actionResourceId = "none"
+        if activation.keywords ~= nil then
+            activation.keywords.Charge = nil
+        end
+
+        --RunWithTokenControl clears the expected prompt; keep the outer move's.
+        local expected = ai:try_get("_tmp_expectedPromptTarget")
+        local ok, err = ai:RunWithTokenControl(best.token, function()
+            SpeakBeforeFreeStrike(ai, best.token)
+            ai:ExecuteAbility(best.token, activation, {{token = victim}}, {sleep = 0.5})
+        end)
+        ai._tmp_expectedPromptTarget = expected
+        if not ok then
+            ai:LogDecision("PROMPT ERROR", {
+                ability = abilityClone.name,
+                reason = "granted free strike failed: " .. tostring(err),
+            })
+        end
+        return {targets = {}}
     end,
 }
 

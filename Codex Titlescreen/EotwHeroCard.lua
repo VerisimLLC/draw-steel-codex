@@ -1322,17 +1322,73 @@ local function CreateSkillsLine(charid)
     }
 end
 
+--True when an image id is a cloud-asset GUID whose asset record has not
+--loaded. The engine draws such an id as a plain white square until the
+--record arrives -- e.g. for a few seconds after re-entering the lobby, whose
+--asset records load after its characters. Other id kinds never count.
+---@param id any
+---@return boolean
+local function IsUnregisteredAssetId(id)
+    if type(id) ~= "string" then
+        return false
+    end
+    if string.match(id, "^%x+%-%x+%-%x+%-%x+%-%x+$") == nil then
+        return false
+    end
+    local known = false
+    pcall(function() known = assets.allAssets[id] ~= nil end)
+    return not known
+end
+
+local PORTRAIT_RECORD_POLL_SECONDS = 0.25
+
+local ApplyPortrait
+
+--Re-applies a portrait that was waiting on its asset record, once the record
+--has loaded. One chain per panel: element.data.eotwPortraitWait holds the
+--latest request and is cleared by whichever ApplyPortrait call settles it.
+---@param element Panel
+local function SchedulePortraitRetry(element)
+    dmhub.Schedule(PORTRAIT_RECORD_POLL_SECONDS, function()
+        if mod.unloaded or not element.valid then
+            return
+        end
+        local wait = element.data.eotwPortraitWait
+        if wait == nil then
+            return
+        end
+        if IsUnregisteredAssetId(wait.portrait) then
+            SchedulePortraitRetry(element)
+            return
+        end
+        element.data.eotwPortraitWait = nil
+        --pcall: the token may be a detached snapshot copy, or gone by now.
+        pcall(ApplyPortrait, element, wait.tok, wait.aspect)
+    end)
+end
+
 --Paints a hero's portrait as a panel's full-bleed background, cropped to the
 --panel's shape the way the hero card crops it. `aspect` is the panel's
 --width / height. Leaves the panel alone when the hero has no art, so its own
---dark ground shows. Returns true when art was applied.
+--dark ground shows. Returns true when art was applied. Art whose asset
+--record has not loaded yet is treated as no art for now, and applied by
+--itself once the record arrives (rather than showing white meanwhile).
 ---@param element Panel
 ---@param tok CharacterToken
 ---@param aspect number
 ---@return boolean
-local function ApplyPortrait(element, tok, aspect)
+ApplyPortrait = function(element, tok, aspect)
     local portrait = nil
     pcall(function() portrait = tok.offTokenPortrait end)
+    local waiting = element.data.eotwPortraitWait
+    if IsUnregisteredAssetId(portrait) then
+        element.data.eotwPortraitWait = { tok = tok, aspect = aspect, portrait = portrait }
+        if waiting == nil then
+            SchedulePortraitRetry(element)
+        end
+        return false
+    end
+    element.data.eotwPortraitWait = nil
     if portrait == nil or portrait == "" then
         return false
     end

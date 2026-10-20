@@ -2220,10 +2220,17 @@ function LiveEncounter:GetMonsterGroups()
     end
 
     if q ~= nil then
+        --sorted: q.entries is a hash whose order differs between clients, and
+        --victory role ties are broken by group order.
+        local extraids = {}
         for initiativeid, _ in pairs(q.entries) do
             if not seenGroups[initiativeid] and q:IsEntryPlayer(initiativeid) == false then
-                AddGroup(initiativeid, nil, nil)
+                extraids[#extraids+1] = initiativeid
             end
+        end
+        table.sort(extraids)
+        for _, initiativeid in ipairs(extraids) do
+            AddGroup(initiativeid, nil, nil)
         end
     end
 
@@ -2239,7 +2246,7 @@ end
 -- anywhere in the game; their stats and role history key off charid as normal.
 -- Heroes appear as long as combat is live even when the onset snapshot was
 -- never captured (the snapshot only adds the removed ones back). Returns a
--- list of tokens.
+-- list of tokens sorted by charid, the same on every client.
 function LiveEncounter:GetBattleHeroTokens()
     local q = dmhub.initiativeQueue
     local result = {}
@@ -2271,6 +2278,9 @@ function LiveEncounter:GetBattleHeroTokens()
             end
         end
     end
+    --q.entries is a hash whose iteration order differs between clients; sort so
+    --every client sees the same order (victory role ties are broken by it).
+    table.sort(result, function(a, b) return a.charid < b.charid end)
     return result
 end
 

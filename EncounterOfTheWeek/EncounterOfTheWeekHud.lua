@@ -853,7 +853,17 @@ local function CreatePanelButton(panelName)
 
         press = function(element)
             audio.FireSoundEvent("Mouse.Click")
-            DockablePanel.LaunchPanelByName(panelName, "toggle")
+            --a folder window (Measuring Tool + Whiteboard share one) sitting
+            --on another member's tab: switch to this tab rather than closing
+            --the window, as the real rail button does.
+            local operation = "toggle"
+            pcall(function()
+                if PanelDocument.IsPanelShown(panelKey) and not PanelDocument.IsPanelActive(panelKey)
+                    and not PanelDocument.IsPoppedOut(panelKey) then
+                    operation = "show"
+                end
+            end)
+            DockablePanel.LaunchPanelByName(panelName, operation)
         end,
 
         hover = function(element)
@@ -863,8 +873,12 @@ local function CreatePanelButton(panelName)
         --lit state while the panel's window is up (the underline below
         --reveals on the "active" class, and the icon brightens).
         refreshRail = function(element)
+            --IsPanelActive, not IsPanelShown: in a folder window only the
+            --tab on screen lights, not every member filed in it.
             local shown = false
-            pcall(function() shown = PanelDocument.IsPanelShown(panelKey) end)
+            pcall(function()
+                shown = PanelDocument.IsPanelActive(panelKey) or PanelDocument.IsPoppedOut(panelKey)
+            end)
             element:SetClass("active", shown)
         end,
 
@@ -898,13 +912,30 @@ end
 --2026-08-30 for the journal) so players keep the encounter's briefing
 --documents, chat, and the roll history. Journal sits ABOVE the other two
 --(vertical flow, so first in the list is the topmost button).
+--The map tools (playtest 2026-10-19 N4) sit above those, behind a short
+--rule: the EotW takeover hides the map rail that normally carries them.
 local function CreateCornerButtonsPanel()
     local buttons = {}
+    for _, name in ipairs({"Measuring Tool", "Whiteboard"}) do
+        buttons[#buttons+1] = CreatePanelButton(name)
+    end
+    local toolCount = #buttons
     for _, name in ipairs({"Journal", "Chat", "Action Log"}) do
         buttons[#buttons+1] = CreatePanelButton(name)
     end
     if #buttons == 0 then
         return nil
+    end
+    if toolCount > 0 and #buttons > toolCount then
+        table.insert(buttons, toolCount + 1, gui.Panel{
+            classes = {"iconRailMapDivider"},
+            bgimage = true,
+            interactable = false,
+            width = RAIL_BUTTON_SIZE - 12,
+            height = 2,
+            halign = "center",
+            vmargin = 6,
+        })
     end
     return gui.Panel{
         id = "eotwCornerButtons",

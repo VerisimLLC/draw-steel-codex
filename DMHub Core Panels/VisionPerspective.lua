@@ -3,7 +3,17 @@ local mod = dmhub.GetModLoading()
 ---@type Panel?
 local visionPerspectivePanel = nil
 
+--Brings the live map window's Vision Perspective chip (Tabletop.lua) up to
+--date; true while it shows the perspective, so this dialog stays out of the
+--way. The dialog is still needed with no map window on screen (e.g. the live
+--window minimized), and outside a game.
+local function ShownInMapWindow()
+    return Tabletop ~= nil and Tabletop.IsActive() and Tabletop.RefreshVision()
+end
+
 dmhub.TokenVisionUpdated = function()
+    local inWindow = ShownInMapWindow()
+
     local tokens = dmhub.tokenVision
 
     local explanationPanel = nil
@@ -25,6 +35,7 @@ dmhub.TokenVisionUpdated = function()
     end
 
     if visionPerspectivePanel == nil or (not visionPerspectivePanel.valid) then
+        local closeButton
 
         if loggedInAsTokens then
             explanationPanel = gui.Label{
@@ -74,10 +85,13 @@ dmhub.TokenVisionUpdated = function()
 
             gui.Button{
                 classes = {"closeButton", "sizeXs"},
+                create = function(element)
+                    closeButton = element
+                end,
                 halign = "right",
                 valign = "top",
                 floating = true,
-                escapeActivates = not loggedInAsTokens,
+                escapeActivates = (not loggedInAsTokens) and not inWindow,
                 escapePriority = EscapePriority.EXIT_DIALOG,
                 click = function(element)
                     --this button lives inside visionPerspectivePanel, which is only cleared once destroyed.
@@ -129,7 +143,32 @@ dmhub.TokenVisionUpdated = function()
             explanationPanel,
         }
 
-        gamehud.dialogWorldPanel:AddChild(visionPerspectivePanel)
+        --a holder that keeps thinking while the dialog is collapsed (a
+        --collapsed panel does not think): the dialog shows only while no map
+        --window shows the chip, e.g. the live window minimized.
+        local dialog = visionPerspectivePanel
+        local holder = gui.Panel{
+            width = "auto",
+            height = "auto",
+            halign = "left",
+            valign = "top",
+            thinkTime = 0.25,
+            think = function(element)
+                if dialog.valid then
+                    local nowInWindow = ShownInMapWindow()
+                    dialog:SetClass("collapsed", nowInWindow)
+                    if closeButton ~= nil and closeButton.valid then
+                        closeButton.escapeActivates = (not loggedInAsTokens) and not nowInWindow
+                    end
+                else
+                    element:DestroySelf()
+                end
+            end,
+            dialog,
+        }
+        dialog:SetClass("collapsed", inWindow)
+
+        gamehud.dialogWorldPanel:AddChild(holder)
     end
 
     visionPerspectivePanel:FireEventTree("refreshVision")

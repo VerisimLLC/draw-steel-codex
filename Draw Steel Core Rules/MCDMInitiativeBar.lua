@@ -132,6 +132,10 @@ end
 --before this file and resolves the export at click time.
 g_drawSteelPromptEndCombat = PromptEndCombat
 
+--Exported for EncounterPanel.lua's "New Encounter" choice, which ends the
+--running combat (no Victory Screen) before starting another encounter.
+g_drawSteelEndCombat = PerformEndCombat
+
 local g_triggeredResourceId = "b9bc06dd-80f1-4f33-bc55-25c114e3300c"
 
 --DJ delegation (audio): these game-scoped audio settings are operated by the
@@ -894,6 +898,34 @@ function TurnRewind.BoardMovedOn()
 	return cur == nil or cur.seq ~= dmhub.checkpointContentSeq
 end
 
+--Shown, and returned by GoTo, when strict rules stop a rewind past a dice roll.
+local g_rewindRollBarMessage = "Strict rules: you cannot rewind to before a dice roll."
+
+--Under Strictly Enforce Action Economy and Resource Costs a player may still undo, but
+--not to before a dice roll: that would let them roll it again. Returns the earliest entry
+--this client may rewind to, or nil when nothing is barred (no roll, or not bound by it).
+--An entry's actions happened just before it, so a roll there bars every earlier entry; a
+--roll not yet followed by a checkpoint bars them all.
+--- @return integer|nil
+function TurnRewind.RollFloor()
+	if not StrictActionEconomyEnforced() then
+		return nil
+	end
+	for _,action in ipairs(TurnRewind.pendingActions) do
+		if action.roll then
+			return TurnRewind.position + 1
+		end
+	end
+	for i = math.min(TurnRewind.position, #TurnRewind.entries), 1, -1 do
+		for _,action in ipairs(TurnRewind.entries[i].actions) do
+			if action.roll then
+				return i
+			end
+		end
+	end
+	return nil
+end
+
 --Rolls the board back (or forward) to entry index. Abilities still resolving are
 --cancelled: the restore sets their abort flag on every client (the restoreFromBackup
 --handler in ActivatedAbility.lua), and a cancel pass restores again once they unwind.
@@ -907,6 +939,11 @@ function TurnRewind.GoTo(index)
 
 	if TurnRewind.MonsterAIBusy(dmhub.initiativeQueue) then
 		return g_rewindAIBusyMessage
+	end
+
+	local rollFloor = TurnRewind.RollFloor()
+	if rollFloor ~= nil and index < rollFloor then
+		return g_rewindRollBarMessage
 	end
 
 	--If the board has moved on from the current entry, keep it as a new entry so the
@@ -1070,6 +1107,8 @@ function TurnRewind.ShowDialog()
 		local canCancel = #underway > 0 and not TurnRewind.restoring
 		--While the Monster AI is playing, every button is disabled.
 		local aiBusy = TurnRewind.MonsterAIBusy(dmhub.initiativeQueue)
+		--Under strict rules, checkpoints before this one are behind a dice roll.
+		local rollFloor = TurnRewind.RollFloor()
 
 		--- @param action TurnRewindAction
 		--- @param undone boolean
@@ -1088,7 +1127,7 @@ function TurnRewind.ShowDialog()
 				vmargin = 1,
 				borderBox = true,
 				text = action.text,
-				linger = action.roll and gui.Tooltip("Rewinding to a checkpoint above this undoes the roll.") or nil,
+				linger = action.roll and gui.Tooltip(cond(rollFloor ~= nil, g_rewindRollBarMessage, "Rewinding to a checkpoint above this undoes the roll.")) or nil,
 			}
 		end
 
@@ -1106,15 +1145,17 @@ function TurnRewind.ShowDialog()
 		--- @param index integer
 		local function CheckpointButton(index)
 			local forward = index > position
+			local barred = rollFloor ~= nil and index < rollFloor
+			local disabled = aiBusy or barred
 			rows[#rows+1] = gui.Button{
-				classes = cond(aiBusy, {"sizeS", "disabled"}, {"sizeS"}),
-				interactable = not aiBusy,
+				classes = cond(disabled, {"sizeS", "disabled"}, {"sizeS"}),
+				interactable = not disabled,
 				width = "100%",
 				height = 26,
 				vmargin = 3,
 				borderBox = true,
 				text = cond(forward, "Redo to here", "Rewind to here"),
-				linger = gui.Tooltip(entries[index].label),
+				linger = gui.Tooltip(cond(barred, entries[index].label .. "\n" .. g_rewindRollBarMessage, entries[index].label)),
 				click = function(element)
 					local err = TurnRewind.GoTo(index)
 					if err ~= nil then
@@ -1133,6 +1174,9 @@ function TurnRewind.ShowDialog()
 		elseif aiBusy then
 			rows[#rows+1] = gui.Label{classes = {"label", "sizeS", "bold", "warning"}, width = "100%", height = "auto",
 				bmargin = 6, text = g_rewindAIBusyMessage}
+		elseif rollFloor ~= nil then
+			rows[#rows+1] = gui.Label{classes = {"label", "sizeS", "warning"}, width = "100%", height = "auto",
+				bmargin = 6, text = g_rewindRollBarMessage}
 		end
 		if g_rewindSetting:Get() and #entries == 0 and not aiBusy then
 			rows[#rows+1] = gui.Label{classes = {"label", "sizeS"}, width = "100%", height = "auto",
@@ -1201,11 +1245,11 @@ function TurnRewind.ShowDialog()
 	--What the list shows depends on these; the list rebuilds when one changes.
 	local function Signature()
 		local last = TurnRewind.entries[#TurnRewind.entries]
-		return string.format("%s|%d|%d|%d|%s|%s|%s|%s|%s|%s", tostring(TurnRewind.turnKey), #TurnRewind.entries,
+		return string.format("%s|%d|%d|%d|%s|%s|%s|%s|%s|%s|%s", tostring(TurnRewind.turnKey), #TurnRewind.entries,
 			TurnRewind.position, #TurnRewind.pendingActions, tostring(TurnRewind.BoardMovedOn()),
 			tostring(last ~= nil and last.seq), tostring(g_rewindSetting:Get()),
 			tostring(TurnRewind.restoring), table.concat(TurnRewind.CastsUnderway(), ";"),
-			tostring(TurnRewind.MonsterAIBusy(dmhub.initiativeQueue)))
+			tostring(TurnRewind.MonsterAIBusy(dmhub.initiativeQueue)), tostring(TurnRewind.RollFloor()))
 	end
 
 	listPanel = gui.Panel{
@@ -1617,8 +1661,9 @@ local function CreateDrawSteelBubble()
             end
 
             local canSelectToken = false
+            --onBoard: a creature selected off the board (a tabletop card) has no token or turn here.
             local token = dmhub.selectedOrPrimaryTokens[1]
-            if TokenControlledByUser(token) then
+            if token ~= nil and token.onBoard and TokenControlledByUser(token) then
                 local initiativeid = InitiativeQueue.GetInitiativeId(token)
                 if initiativeid ~= nil and dmhub.initiativeQueue:IsEntryPlayer(initiativeid) and token.topsheet ~= nil then
                     canSelectToken = true
@@ -1680,7 +1725,7 @@ local function CreateDrawSteelBubble()
             end
 
             local token = dmhub.selectedOrPrimaryTokens[1]
-            if TokenControlledByUser(token) then
+            if token ~= nil and token.onBoard and TokenControlledByUser(token) then
                 local initiativeid = InitiativeQueue.GetInitiativeId(token)
                 if initiativeid ~= nil and (dmhub.initiativeQueue:IsEntryPlayer(initiativeid) == dmhub.initiativeQueue:IsPlayersTurn()) and token.topsheet ~= nil then
                     local nameplate = token.topsheet:GetChildrenWithClassRecursive("nameplate")[1]
@@ -1914,7 +1959,7 @@ local function CreateDrawSteelBubble()
                 end
 
                 local token = dmhub.selectedOrPrimaryTokens[1]
-                if TokenControlledByUser(token) then
+                if token ~= nil and token.onBoard and TokenControlledByUser(token) then
                     local initiativeid = InitiativeQueue.GetInitiativeId(token)
                     if initiativeid ~= nil and (dmhub.initiativeQueue:IsEntryPlayer(initiativeid) == dmhub.initiativeQueue:IsPlayersTurn()) then
                         element.parent:FireEventTree("claiming", true)

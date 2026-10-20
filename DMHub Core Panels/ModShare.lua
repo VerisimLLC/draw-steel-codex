@@ -1701,7 +1701,8 @@ end
 --author playtests in.
 --Returns { errors, warnings, encounters }: encounters is what the town reads
 --from the module record as publishingProperties.eotwEncounters, {<map name>
---= {townGate = text}} from each script's "# Town Gate" section. Also ticks
+--= {townGate = text}} from each script's "# Town Gate" section; a series map
+--adds parts = { {number, title, townGate}, ... }, one per part. Also ticks
 --every document a script is built from (ctx.include), since nothing else
 --ties a map to the documents in its journal folder.
 local CheckEncounterModule = function(ctx)
@@ -1755,10 +1756,41 @@ local CheckEncounterModule = function(ctx)
 				ctx.include(docid)
 			end
 
-			local script = found.script
-			if script == nil then
+			--A series (scripts saying "# Part N") is checked part by part,
+			--each like a whole encounter; a plain map is its one script.
+			local series = found.parts ~= nil and #found.parts > 0
+			local scripts = {}
+			if series then
+				for i,script in ipairs(found.parts) do
+					local number = script.parse.part.number
+					if number ~= i then
+						if i > 1 and found.parts[i-1].parse.part.number == number then
+							errors[#errors+1] = string.format("%s: two scripts say \"# Part %d\". Each part needs its own number.", m.name, number)
+						else
+							errors[#errors+1] = string.format("%s: there is no Part %d. Number the parts 1, 2, 3... with no gaps.", m.name, i)
+						end
+						break
+					end
+					local name = string.format("Part %d", number)
+					if script.parse.part.title ~= nil then
+						name = name .. ": " .. script.parse.part.title
+					end
+					scripts[#scripts+1] = { script = script, label = string.format("%s, %s", m.name, name), number = number, title = script.parse.part.title }
+				end
+				if #found.parts == 1 then
+					warnings[#warnings+1] = string.format("%s: only one part. A series unlocks its parts one after another, so it needs at least two.", m.name)
+				end
+			elseif found.script ~= nil then
+				scripts[1] = { script = found.script, label = m.name }
+			end
+
+			if #scripts == 0 and not series then
 				errors[#errors+1] = string.format("%s: no script. File a journal document with # Narrative, # Montage and # Encounter beats in this map's journal folder.", m.name)
-			else
+			end
+
+			local parts = {}
+			for _,entry in ipairs(scripts) do
+				local script = entry.script
 				local hasEncounter = false
 				for _,beat in ipairs(script.parse.beats or {}) do
 					if beat.kind == "encounter" then
@@ -1766,23 +1798,34 @@ local CheckEncounterModule = function(ctx)
 					end
 				end
 				if not hasEncounter then
-					errors[#errors+1] = string.format("%s: the script has no # Encounter beat, so the fight never starts.", m.name)
+					errors[#errors+1] = string.format("%s: the script has no # Encounter beat, so the fight never starts.", entry.label)
 				end
 
 				local scriptWarnings = script.parse.warnings or {}
 				for i=1,math.min(#scriptWarnings, 3) do
-					warnings[#warnings+1] = string.format("%s: %s", m.name, tostring(scriptWarnings[i]))
+					warnings[#warnings+1] = string.format("%s: %s", entry.label, tostring(scriptWarnings[i]))
 				end
 				if #scriptWarnings > 3 then
-					warnings[#warnings+1] = string.format("%s: %d more script warnings (/eotwscript on the map lists them all).", m.name, #scriptWarnings - 3)
+					warnings[#warnings+1] = string.format("%s: %d more script warnings (/eotwscript on the map lists them all).", entry.label, #scriptWarnings - 3)
 				end
 
 				local towngate = script.parse.story ~= nil and script.parse.story.towngate or nil
+				local townGateText = nil
 				if towngate ~= nil and type(towngate.text) == "string" and towngate.text ~= "" then
-					result.encounters[m.name] = { townGate = towngate.text }
+					townGateText = towngate.text
 				else
-					warnings[#warnings+1] = string.format("%s: no # Town Gate section, so the town shows no backstory for it.", m.name)
+					warnings[#warnings+1] = string.format("%s: no # Town Gate section, so the town shows no backstory for it.", entry.label)
 				end
+				if series then
+					parts[#parts+1] = { number = entry.number, title = entry.title, townGate = townGateText }
+				elseif townGateText ~= nil then
+					result.encounters[m.name] = { townGate = townGateText }
+				end
+			end
+			if series and #parts > 0 then
+				--the town lists the parts and locks each behind the one before;
+				--townGate is part 1's, for a town that knows nothing of parts.
+				result.encounters[m.name] = { townGate = parts[1].townGate, parts = parts }
 			end
 		end
 	end
@@ -2050,6 +2093,17 @@ local showShareModuleDialog = function(options)
 	local moduleid = options.moduleid
 
 	local isNewModule = options.moduleInfo == nil
+
+	--options.autoPublish (Publish Encounter Update, below) runs this dialog
+	--with nobody clicking: tick the encounter content, let the dependency pass
+	--and the module type's checks settle, then publish straight through. If
+	--the checks fail it stops on the content page so the author can fix it.
+	--{ excludeAssets = {guid -> true} maps it must not tick, phase, thinks }.
+	local m_autoPublish = options.autoPublish
+	if isNewModule then
+		m_autoPublish = nil
+	end
+
 	local versionNotesInput
 	local minEngineVersionInput
 
@@ -2254,6 +2308,10 @@ local showShareModuleDialog = function(options)
 
 		events = {
 			refreshModule = function(element)
+				if m_autoPublish ~= nil then
+					shareButton:SetClass("hidden", true)
+					return
+				end
 				if npage == 2 then
 					shareButton.text = cond(moduleInstance.deleted, "Delete Module", cond(isNewModule, "Create Module", "Update Module"))
 				end
@@ -3485,6 +3543,59 @@ local showShareModuleDialog = function(options)
 
 	local m_dependencySearcher = nil
 
+	--One step of m_autoPublish, run by the think handler once the dependency
+	--pass is up to date. "select" ticks every encounter map not claimed by
+	--another of this game's Encounter of the Week modules; after that each
+	--step re-runs the type's checks (which tick the script documents) until a
+	--run changes nothing, then publishes or gives the dialog back.
+	local AutoPublishStep = function()
+		local auto = m_autoPublish
+		if auto == nil then
+			return
+		end
+		auto.thinks = (auto.thinks or 0) + 1
+		if auto.thinks < 2 then
+			--give the asset rows a frame to finish registering.
+			return
+		end
+
+		if auto.phase == nil then
+			auto.phase = "settle"
+			local eotw = rawget(_G, "EncounterOfTheWeek")
+			local exclude = auto.excludeAssets or {}
+			local ctx = ModuleTypeContext()
+			for guid,info in pairs(assetInfo) do
+				if info.type == "map" and not exclude[guid] and eotw ~= nil and eotw.IsEncounterMapName(info.displayName) then
+					ctx.include(guid)
+				end
+			end
+			return
+		end
+
+		RefreshModuleType()
+		if m_dependenciesDirty then
+			--the checks ticked something; wait for the next dependency pass.
+			return
+		end
+
+		m_autoPublish = nil
+
+		if #m_moduleTypeErrors > 0 then
+			createModuleLabel.text = "Publish stopped: fix the problems below"
+			statusLabel:SetClass("hidden", true)
+			contentPanel:SetClass("hidden", false)
+			footerPanel:SetClass("hidden", false)
+			backButton:SetClass("hidden", false)
+			shareButton:FireEvent("refreshModule")
+			return
+		end
+
+		--page 1 -> page 2 -> upload, exactly as the author's two clicks.
+		shareButton:FireEvent("click")
+		statusLabel.text = string.format("Publishing %s...", moduleInstance.fullid or moduleid or "the module")
+		shareButton:FireEvent("click")
+	end
+
 
 
 	local dialogCustomStyles = {
@@ -3692,6 +3803,10 @@ local showShareModuleDialog = function(options)
 
 				downloadSizeLabel:FireEvent("calculate")
 			end
+
+			if m_autoPublish ~= nil and not m_dependenciesDirty then
+				AutoPublishStep()
+			end
 		end,
 
 		createasset = function(element, check)
@@ -3784,6 +3899,17 @@ local showShareModuleDialog = function(options)
 
 	if not isNewModule then
 		dialogPanel:FireEventTree("includedAssets", includedAssets, m_dependencyAssets, true, true)
+	end
+
+	if m_autoPublish ~= nil then
+		--only the progress line shows while it runs; AutoPublishStep brings the
+		--content page back if the checks fail.
+		contentPanel:SetClass("hidden", true)
+		footerPanel:SetClass("hidden", true)
+		backButton:SetClass("hidden", true)
+		shareButton:SetClass("hidden", true)
+		statusLabel.text = string.format("Selecting the encounter content for %s...", moduleInstance.fullid or moduleid or "the module")
+		statusLabel:SetClass("hidden", false)
 	end
 
 	ThemeEngine.OnThemeChanged(mod, function()
@@ -6786,6 +6912,230 @@ mod.shared.ShowExportDialog = function()
 	gui.ShowModal(dialogPanel)
 end
 
+
+--- Publish Encounter Update ---------------------------------------------------
+--One-click republish for Encounter of the Week authors (Codex menu). Finds the
+--Encounter of the Week module published from this game and runs the publish
+--dialog in its autoPublish mode: every encounter map, the script documents
+--and everything they need are ticked, and a new version goes up with the
+--module's existing listing, cover and author. A module's first publish goes
+--through Create Module..., where its id and listing are chosen.
+
+--A small modal for the steps before the publish dialog takes over. Returns
+--setText(text) and setButtons({ {text, click}, ... }); valid() is false once
+--the author closed it, so a late download does not reopen anything.
+local ShowQuickPublishNotice = function()
+	local label = gui.Label{
+		classes = {"sizeM"},
+		width = "100%",
+		height = "auto",
+		textAlignment = "center",
+		textWrap = true,
+		text = "",
+	}
+
+	local buttonRow = gui.Panel{
+		width = "100%",
+		height = "auto",
+		flow = "vertical",
+		halign = "center",
+		tmargin = 16,
+	}
+
+	local panel = gui.Panel{
+		classes = {"framedPanel"},
+		styles = ThemeEngine.GetStyles(),
+		width = 560,
+		height = "auto",
+		pad = 24,
+		borderBox = true,
+		flow = "vertical",
+
+		gui.Label{
+			classes = {"sizeXl", "bold"},
+			width = "100%",
+			height = "auto",
+			textAlignment = "center",
+			bmargin = 12,
+			text = "Publish Encounter Update",
+		},
+		label,
+		buttonRow,
+
+		gui.Button{
+			classes = {"closeButton"},
+			halign = "right",
+			valign = "top",
+			floating = true,
+			escapeActivates = true,
+			escapePriority = EscapePriority.EXIT_DIALOG,
+			click = function(element)
+				gui.CloseModal()
+			end,
+		},
+	}
+
+	gui.ShowModal(panel)
+
+	return {
+		valid = function()
+			return panel.valid
+		end,
+		setText = function(text)
+			label.text = text
+		end,
+		setButtons = function(buttons)
+			local children = {}
+			for _,b in ipairs(buttons) do
+				children[#children+1] = gui.Button{
+					classes = {"sizeM"},
+					width = 320,
+					halign = "center",
+					vmargin = 4,
+					text = b.text,
+					click = b.click,
+				}
+			end
+			buttonRow.children = children
+		end,
+	}
+end
+
+mod.shared.QuickPublishEncounters = function()
+	local notice = ShowQuickPublishNotice()
+	notice.setText("Looking for this game's Encounter of the Week module...")
+
+	local ShowNoModule = function()
+		notice.setText("No Encounter of the Week module has been published from this game yet. Publish it once with Create Module... (Module Type: Encounter of the Week, Listing Status: Unlisted or Public). After that, Publish Encounter Update republishes it in one step.")
+		notice.setButtons{
+			{
+				text = "Create Module...",
+				click = function()
+					gui.CloseModal()
+					mod.shared.ShowShareDialog()
+				end,
+			},
+		}
+	end
+
+	--found: every live eotw module of this game, sorted by id.
+	local Publish = function(target, found)
+		if target.deprecated then
+			notice.setText(string.format("%s is deprecated, so it can no longer be updated.", target.fullid))
+			notice.setButtons{}
+			return
+		end
+
+		--maps another of this game's encounter modules ships stay out of this one.
+		local exclude = {}
+		for _,other in ipairs(found) do
+			if other.fullid ~= target.fullid then
+				local included = nil
+				pcall(function() included = other.publishingProperties.includedAssets end)
+				for guid,_ in pairs(included or {}) do
+					exclude[guid] = true
+				end
+			end
+		end
+
+		dmhub.SetSettingValue("module:lastpublished", target.fullid)
+		gui.CloseModal()
+		showShareModuleDialog{
+			moduleid = target.fullid,
+			moduleInfo = target,
+			autoPublish = { excludeAssets = exclude },
+		}
+	end
+
+	local ids = {}
+	for _,info in ipairs(module.GetModulesPublishedFromThisGame()) do
+		if info.id ~= nil and info.id ~= "" then
+			ids[#ids+1] = info.id
+		end
+	end
+
+	if #ids == 0 then
+		ShowNoModule()
+		return
+	end
+
+	local found = {}
+	local remaining = #ids
+	local Finish = function()
+		remaining = remaining - 1
+		if remaining > 0 or not notice.valid() then
+			return
+		end
+
+		table.sort(found, function(a, b) return a.fullid < b.fullid end)
+		if #found == 0 then
+			ShowNoModule()
+			return
+		end
+
+		if #found == 1 then
+			Publish(found[1], found)
+			return
+		end
+
+		--several: the one shipping the current map, if exactly one does.
+		local holding = {}
+		for _,info in ipairs(found) do
+			local included = nil
+			pcall(function() included = info.publishingProperties.includedAssets end)
+			if included ~= nil and included[game.currentMapId] then
+				holding[#holding+1] = info
+			end
+		end
+		if #holding == 1 then
+			Publish(holding[1], found)
+			return
+		end
+
+		notice.setText("This game has published several Encounter of the Week modules. Which one should be updated?")
+		local buttons = {}
+		for _,info in ipairs(found) do
+			buttons[#buttons+1] = {
+				text = string.format("%s (%s)", info.name or info.fullid, info.fullid),
+				click = function()
+					Publish(info, found)
+				end,
+			}
+		end
+		notice.setButtons(buttons)
+	end
+
+	for _,id in ipairs(ids) do
+		module.DownloadModuleInfo{
+			moduleid = id,
+			success = function(info)
+				if info ~= nil and info.moduleType == "eotw" and not info.deleted then
+					found[#found+1] = info
+				end
+				Finish()
+			end,
+			failure = function(msg)
+				printf("Publish Encounter Update: could not fetch module %s: %s", tostring(id), tostring(msg))
+				Finish()
+			end,
+		}
+	end
+end
+
+Commands.quickpublishencounters = mod.shared.QuickPublishEncounters
+Commands.Register{
+	name = "Publish Encounter Update",
+	group = "share",
+	command = "quickpublishencounters",
+	ord = 4,
+	dmonly = true,
+	--only in an authoring game: EotW on and its code loaded here.
+	filtered = function()
+		local enabled = false
+		pcall(function() enabled = dmhub.GetSettingValue("dev:encounteroftheweek") == true end)
+		return not (enabled and rawget(_G, "EncounterMontage") ~= nil)
+	end,
+}
 
 Commands.downloadcontent = mod.shared.ShowDownloadShareDialog
 Commands.Register{

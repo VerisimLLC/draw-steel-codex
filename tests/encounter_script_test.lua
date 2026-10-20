@@ -1588,6 +1588,16 @@ do
     e = one("each party member's stamina maximum is reduced by 3")
     check(e.kind == "maxstamina" and e.qty == 3 and e.target == "party", "party max stamina curse")
 
+    e = one("You gain poison immunity 2 until the next respite")
+    check(e.kind == "immunityboon" and e.qty == 2 and e.damageType == "poison" and e.target == "self", "poison immunity boon")
+    e = one("Each party member gains 1 fire immunity")
+    check(e.kind == "immunityboon" and e.qty == 1 and e.damageType == "fire" and e.target == "party", "party fire immunity boon")
+    e = one("You gain 2 Healing Potions")
+    check(e.kind == "item", "an item is not an immunity")
+    e = one("Each party member loses 1d3 recoveries")
+    check(e.kind == "loserecovery" and e.dice == "1d3" and e.qty == 3 and e.target == "party", "dice recovery loss")
+    check(EncounterScript.DescribeEffect(e) == "every hero loses 1d3 recoveries (rolled for each hero)", "dice recovery loss description")
+
     e = one("You lose a consumable item")
     check(e.kind == "loseconsumable" and e.qty == 1 and e.target == "self", "lose a consumable")
     e = one("Each party member loses a consumable")
@@ -1997,8 +2007,7 @@ end)()
     check(EncounterScript.ParseEffects("You gain an extra hero token")[1].kind == "herotoken", "'an extra hero token'")
 end)()
 
---assisting a test: each listed skill once, and never the last one the hero
---making the test is trained in.
+--the skill a test is made with: the first listed one the hero is trained in.
 ;(function()
     local listed = { "persuade", "lie", "flirt" }
     local function set(...)
@@ -2006,24 +2015,46 @@ end)()
         for _, v in ipairs({ ... }) do s[v] = true end
         return s
     end
-    local function ids(list) return table.concat(list, ",") end
-    local choices = EncounterScript.AssistSkillChoices
-    check(ids(choices(listed, set("persuade"), {}, set("lie"))) == "lie", "a skill the hero lacks is free")
-    check(ids(choices(listed, set("persuade"), {}, set("persuade"))) == "", "the hero's only skill is protected")
-    check(ids(choices(listed, set("persuade", "lie"), {}, set("persuade", "lie"))) == "persuade,lie",
-        "with two, either may go")
-    check(ids(choices(listed, set("persuade", "lie"), set("lie"), set("persuade"))) == "",
-        "once one is used the other is the hero's last")
-    check(ids(choices(listed, {}, {}, set("persuade", "flirt"))) == "persuade,flirt",
-        "a hero with no listed skill reserves nothing")
-    check(ids(choices({ "sneak" }, {}, {}, set("sneak"))) == "sneak", "a one-skill test the hero lacks can be assisted")
-    check(ids(choices(listed, {}, set("persuade"), set("persuade"))) == "", "a used skill is gone")
-    check(ids(choices(listed, set("flirt"), set("persuade"), set("persuade", "lie", "flirt"))) == "lie",
-        "used and protected skills are both skipped")
-    check(EncounterScript.MainTestSkill(listed, set("persuade", "lie"), set("persuade")) == "lie",
-        "the hero rolls with a skill nobody used")
-    check(EncounterScript.MainTestSkill(listed, set("persuade"), {}) == "persuade", "the hero's first skill")
-    check(EncounterScript.MainTestSkill(listed, {}, {}) == nil, "no skill, no Skilled bonus")
+    check(EncounterScript.MainTestSkill(listed, set("lie", "flirt")) == "lie", "the first listed skill the hero has")
+    check(EncounterScript.MainTestSkill(listed, set("persuade")) == "persuade", "the hero's first skill")
+    check(EncounterScript.MainTestSkill(listed, {}) == nil, "no skill, no Skilled bonus")
+end)()
+
+--series: a "# Part N: Title" heading says which part of a series a script
+--is. It is not a beat, and prose under it is not text anywhere.
+;(function()
+    local n, t = EncounterScript.ParsePartHeading("Part 2: The Ossuary")
+    check(n == 2 and t == "The Ossuary", "part heading with a title")
+    n, t = EncounterScript.ParsePartHeading("part 3")
+    check(n == 3 and t == nil, "part heading without a title")
+    n, t = EncounterScript.ParsePartHeading("Part 1 - The Gate")
+    check(n == 1 and t == "The Gate", "a dash works like a colon")
+    check(EncounterScript.ParsePartHeading("Partisans") == nil, "not a part heading")
+    check(EncounterScript.ParsePartHeading("Montage") == nil, "a beat is not a part")
+
+    local parse = EncounterScript.Parse([==[
+# Part 2: The Ossuary
+
+Notes for the author.
+
+# Town Gate
+
+The bones remember.
+
+# Encounter
+
+[[encounter]]
+]==])
+    check(parse.part ~= nil and parse.part.number == 2 and parse.part.title == "The Ossuary", "parse.part is set")
+    check(#parse.beats == 1 and parse.beats[1].kind == "encounter", "the part heading is not a beat")
+    check(parse.story.towngate ~= nil and parse.story.towngate.text == "The bones remember.", "story sections still work")
+    check(#parse.warnings == 0, "a part script has no warnings: " .. table.concat(parse.warnings, "; "))
+
+    local two = EncounterScript.Parse("# Part 1\n\n# Part 2\n\n# Encounter\n\n[[encounter]]\n")
+    check(two.part.number == 1 and #two.warnings == 1, "a second part heading warns and the first counts")
+
+    local plain = EncounterScript.Parse("# Encounter\n\n[[encounter]]\n")
+    check(plain.part == nil, "a plain script is not a part")
 end)()
 
 print(string.format("encounter_script_test: %d checks passed", passed))

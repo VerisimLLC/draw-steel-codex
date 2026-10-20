@@ -442,7 +442,10 @@ Commands.RegisterMacro{
     command = function(id)
         local tokens = dmhub.selectedOrPrimaryTokens
         for i,token in ipairs(tokens) do
-            token.sheet.data.PlayEffect(id, false)
+            --(a creature selected off the board has no token to play it on.)
+            if token.onBoard then
+                token.sheet.data.PlayEffect(id, false)
+            end
         end
     end,
 }

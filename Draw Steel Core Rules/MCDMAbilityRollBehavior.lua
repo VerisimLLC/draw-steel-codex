@@ -3862,11 +3862,16 @@ RollCheck.RegisterCustom{
         end
         return result
     end,
-	ShowDialog = function(check, dialogOptions)
+    --Fills in the power table. Split out of ShowDialog so the roll request can
+    --hand the same options to the Timeline roller instead (DSRequestRollsDialog).
+    PrepareDialog = function(check, dialogOptions)
         dialogOptions.rollProperties = RollPropertiesPowerTable.new{
             tiers = DeepCopy(check.info.tiers)
         }
         dialogOptions.PopulateCustom = ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom(dialogOptions.rollProperties, dialogOptions.creature)
+    end,
+	ShowDialog = function(check, dialogOptions)
+        RollCheck.customChecks.resistance_power_roll.PrepareDialog(check, dialogOptions)
         return GameHud.instance.rollDialog.data.ShowDialog(dialogOptions)
     end,
 }
@@ -3974,6 +3979,10 @@ function ActivatedAbilityPowerRollBehavior:CastResistance(ability, casterToken, 
         dc_options = {
             behaviorModifiers = behaviorModifiers,
             ability = testAbility,
+            --Display only: the Timeline roller puts this card up above the
+            --target's resistance roll. Kept out of `ability`, which feeds the
+            --roller's modifier filters.
+            cardAbility = cond(isTest, nil, ability),
         },
     })
 

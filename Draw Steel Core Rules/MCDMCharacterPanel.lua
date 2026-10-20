@@ -5852,8 +5852,10 @@ function TacPanel.AltitudeBox()
             local canFly = token.properties:CanFly()
             local canClimb = token.canCurrentlyClimb
             local canBurrow = token.properties:CanBurrow()
+            --anyone in the water can dive (the map water level, or painted water).
+            local inWater = token.properties:CurrentMoveType() == "swim"
             --a ceiling clinger away from any wall can't "currently climb", but needs - to let go.
-            local visible = canFly or canClimb or canBurrow or token.properties:IsClingingToCeiling()
+            local visible = canFly or canClimb or canBurrow or inWater or token.properties:IsClingingToCeiling()
             element:SetClass("collapsed", not visible)
         end,
         refreshToken = function(element, token)
@@ -5874,6 +5876,8 @@ function TacPanel.AltitudeBox()
                     element.text = "Burrowing"
                 elseif moveType == "climb" then
                     element.text = cond(token.properties:IsClingingToCeiling(), "Clinging", "Climbing")
+                elseif moveType == "swim" then
+                    element.text = cond(token.distanceBelowGround > 0, "Underwater", "Swimming")
                 else
                     element.text = "On Ground"
                 end
@@ -5913,7 +5917,11 @@ function TacPanel.AltitudeBox()
                         if TacPanel.IsReadOnly(element) then return end
                         local token = element.data.token
                         if token ~= nil then
-                            if token.properties:CanFly() then
+                            --a diver swims up toward the surface; only at the surface can it take off.
+                            local diving = token.properties:CurrentMoveType() == "swim" and token.distanceBelowGround > 0
+                            if diving then
+                                --swim up.
+                            elseif token.properties:CanFly() then
                                 token.properties:SetAndUploadCurrentMoveType("fly")
                             elseif token.canCurrentlyClimb then
                                 token.properties:SetAndUploadCurrentMoveType("climb")
@@ -5945,7 +5953,9 @@ function TacPanel.AltitudeBox()
                         if TacPanel.IsReadOnly(element) then return end
                         local token = element.data.token
                         if token ~= nil then
-                            if token.properties:CanFly() then
+                            if token.properties:CurrentMoveType() == "swim" then
+                                --in the water, down is a dive (the engine stops it at the bed).
+                            elseif token.properties:CanFly() then
                                 token.properties:SetAndUploadCurrentMoveType("fly")
                             elseif token.canCurrentlyClimb then
                                 token.properties:SetAndUploadCurrentMoveType("climb")

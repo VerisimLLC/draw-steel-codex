@@ -141,7 +141,7 @@ TriggeredAbility.TargetTypes = {
 		id = 'attacker',
 		text = 'Creature Attacking Me',
 		condition = function(ability)
-			return ability.trigger == "attacked" or ability.trigger == "hit" or ability.trigger == "losehitpoints" or ability.trigger == "inflictcondition" or ability.trigger == "winded" or ability.trigger == "dying" or ability.trigger == "forcemove"
+			return ability.trigger == "attacked" or ability.trigger == "hit" or ability.trigger == "losehitpoints" or ability.trigger == "inflictcondition" or ability.trigger == "winded" or ability.trigger == "dying" or ability.trigger == "forcemove" or ability.trigger == "objectdestroyed"
 		end,
 	},
 	{
@@ -310,6 +310,48 @@ TriggeredAbility.triggers = {
 			}
         },
 
+	},
+	{
+		--Map objects (Targetable components) only: fired by TargetableObject.TakeDamage
+		--when the object's Stamina reaches 0. Objects never reach the creature death
+		--branch (creature:IsDead is false for them), so zerohitpoints/creaturedeath
+		--never fire on an object. The object's onDeath (delete/disable/open) waits
+		--until this trigger's cast has finished.
+		id = "objectdestroyed",
+		text = "Destroyed (Objects)",
+
+		symbols = {
+			damage = {
+				name = "Damage",
+				type = "number",
+				desc = "The amount of damage taken by the hit that destroyed the object.",
+			},
+			damagetype = {
+				name = "Damage Type",
+				type = "text",
+				desc = "The type of damage that destroyed the object.",
+				valueOptionsSource = "damageTypes",
+			},
+			attacker = {
+				name = "Attacker",
+				type = "creature",
+				desc = "The creature that destroyed the object. Only valid if Has Attacker is true.",
+				prose = "the attacker",
+			},
+			hasattacker = {
+				name = "HasAttacker",
+				type = "boolean",
+				desc = "True if the damage that destroyed the object has an attacker.",
+				prose = "there is an attacker",
+			},
+		},
+
+		examples = {
+			{
+				script = "damage type is fire",
+				text = "The triggered ability only activates if the object was destroyed by fire damage.",
+			},
+		},
 	},
 	{
 		id = "kill",
@@ -2003,6 +2045,9 @@ function TriggeredAbility:ExecuteTriggerCast(args)
 	if type(argOptions.aiActivityId) == "string" and type(argOptions.aiReactionId) == "string"
 		and args.casterToken ~= nil and args.casterToken.valid then
 		args.casterToken.properties:SetAIActivityReactionResolving(argOptions.aiActivityId, argOptions.aiReactionId)
+		--From here every exit completes the marker. A caller that made the
+		--marker itself (MCDModifyPowerRolls triggerOnUse) reads this to know.
+		argOptions.aiReactionHandedOff = true
 	end
 	local casterToken = args.casterToken
 	local symbols = args.symbols

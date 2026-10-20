@@ -343,7 +343,7 @@ function EotwRoster.ActiveHeroes()
     return result
 end
 
---Has this account unlocked the Danger Rooms? The city opens them for good
+--Has this account unlocked the Proving Pits? The city opens them for good
 --once any of the account's heroes has won an Encounter of the Week (the
 --current one or a past one). nil while the roster has not been listed.
 function EotwRoster.DangerRoomsUnlocked()
@@ -351,6 +351,40 @@ function EotwRoster.DangerRoomsUnlocked()
         return nil
     end
     return m_unlocks.dangerRooms == true
+end
+
+--Has any of this account's heroes won this encounter (an encounter key; a
+--series' later part is "<key>#<n>")? Account-wide, dismissed and fallen
+--heroes included: what unlocks a series' next part at the Town Gate. From
+--list-heroes' unlocks.completed; false while the roster is not listed.
+function EotwRoster.AccountCompleted(key)
+    for _, k in ipairs(m_unlocks ~= nil and type(m_unlocks.completed) == "table" and m_unlocks.completed or {}) do
+        if k == key then
+            return true
+        end
+    end
+    return false
+end
+
+--Has this account won this encounter in the Proving Pits? Practice wins
+--unlock a series' next part there, and only there (unlocks.practiceWins).
+function EotwRoster.PracticeWon(key)
+    for _, k in ipairs(m_unlocks ~= nil and type(m_unlocks.practiceWins) == "table" and m_unlocks.practiceWins or {}) do
+        if k == key then
+            return true
+        end
+    end
+    return false
+end
+
+--The city's answer to record-practice-win carries the account's whole list.
+function EotwRoster.SetPracticeWins(list)
+    if type(list) ~= "table" then
+        return
+    end
+    m_unlocks = m_unlocks or {}
+    m_unlocks.practiceWins = list
+    Bump()
 end
 
 --Has this account found the Arcane Market? It is not open to everyone: a
@@ -412,7 +446,7 @@ end
 --- the Blue Fish Inn: hidden until heroes come home ----------------------
 
 --A new player's town has no inn. It opens once a living hero comes home from
---a Town Gate adventure (won or lost; the Danger Rooms send nothing home), and
+--a Town Gate adventure (won or lost; the Proving Pits send nothing home), and
 --the town then plays its reveal once (EncounterOfTheWeek.lua). Per account,
 --machine-local, as JSON text: { [userid] = { unlocked = bool, revealed = bool } }.
 setting{
@@ -747,6 +781,15 @@ local function ApplyOutcome(key, entry, tok)
                         local ok, err = pcall(function() props:GiveItem(t.itemid, qty) end)
                         if ok then
                             printf("EotW town: %s brings home %s", tostring(tok.name), tostring(t.name))
+                            --equippable treasure is put on while there is room
+                            --(user direction 2026-10-19), as it was in the game.
+                            for _ = 1, qty do
+                                local equipped = nil
+                                pcall(function() equipped = EotwHeroSheet.EquipInPlace(tok, t.itemid) end)
+                                if equipped == nil then
+                                    break
+                                end
+                            end
                         else
                             printf("EotW town: could not give %s to %s: %s", tostring(t.name), tostring(tok.name), tostring(err))
                         end

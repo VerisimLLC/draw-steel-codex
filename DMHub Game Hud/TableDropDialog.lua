@@ -231,7 +231,7 @@ local function PlaceWhenReady(entryid, at, scale)
         if mod.unloaded then
             return
         end
-        Tabletop.OpenDocItem(entryid, {at = at, scale = scale})
+        Tabletop.OpenDocItem(entryid, {at = at, scale = scale, placed = true})
     end)
 end
 

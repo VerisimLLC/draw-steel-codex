@@ -17,7 +17,10 @@ Commands.RegisterMacro{
         local selected = dmhub.selectedTokens
         local tokenids = {}
         for _,token in ipairs(selected) do
-            tokenids[#tokenids + 1] = token.charid
+            --(only tokens on the board have vision to show.)
+            if token.onBoard then
+                tokenids[#tokenids + 1] = token.charid
+            end
         end
 
         if dmhub.tokenVision == nil then

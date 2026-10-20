@@ -556,6 +556,7 @@ local g_casterTokenStack = {}
 ---@field fallingShape nil|LuaObjectReference
 ---@field fallDamageLabel nil|SheetContainer
 ---@field fallDamageKey nil|string
+---@field teleportLoe nil|{key: string, reason: string, obstructionDist: number} The hovered teleport destination's line-of-effect failure, keyed on the hovered loc; obstructionDist is where (0-1) along the line it is blocked.
 ---@field chargeJumpLabel nil|LuaTargetingMarkers
 ---@field chargeJumpLabelKey nil|string
 ---@field chargeJumpUnreachable nil|boolean
@@ -1363,6 +1364,19 @@ local function PushCasterToken(token)
     g_creature = g_token.properties
 end
 
+--The first of the selection with a token on the board. A creature selected
+--off the board (a tabletop card's) has no abilities to use here: casting and
+--moving need its token.
+--- @return nil|CharacterToken
+function DrawSteelActionBar._operate.SelectedBoardToken()
+    for _, tok in ipairs(dmhub.selectedOrPrimaryTokens) do
+        if tok.onBoard then
+            return tok
+        end
+    end
+    return nil
+end
+
 --The token the bar is bound to when no cast has pushed a caster: the object
 --being operated, else the selection.
 --- @return nil|CharacterToken
@@ -1370,7 +1384,7 @@ function DrawSteelActionBar._operate.BaseBarToken()
     if DrawSteelActionBar._operate.operation ~= nil then
         return DrawSteelActionBar._operate.operation.object
     end
-    return dmhub.selectedOrPrimaryTokens[1]
+    return DrawSteelActionBar._operate.SelectedBoardToken()
 end
 
 local function TryPopCasterToken()
@@ -3892,7 +3906,7 @@ local function CreateActionBar()
             if #g_casterTokenStack == 0 then
                 local selected = {}
                 for _, tok in ipairs(dmhub.selectedOrPrimaryTokens) do
-                    if tok ~= nil and tok.valid and tok.properties ~= nil then
+                    if tok ~= nil and tok.valid and tok.onBoard and tok.properties ~= nil then
                         selected[#selected + 1] = tok
                     end
                 end
@@ -9484,6 +9498,11 @@ local function CreateTargetInfo(spell)
                 end
             end
 
+            --The caster is added when the ability is cast, so clicking them does nothing.
+            if g_currentAbility.forceCasterTarget and targetToken.id == g_token.charid then
+                return
+            end
+
             local exists = list_contains(g_targetsChosen, targetToken.id)
 
             for i, effect in ipairs(info.targetEffect or {}) do
@@ -9837,6 +9856,91 @@ local m_allowedAltitudeCalculator
 --- @type nil|string
 local m_altitudeMode
 
+--- True while the cast is picking a teleport destination square: the creature
+--- being moved is g_token (a relocate always moves its own caster).
+--- @return boolean
+function DrawSteelActionBar.IsTeleportPick()
+    local ability = g_currentAbility
+    if ability == nil or g_token == nil or m_allowedAltitudeCalculator == nil then
+        return false
+    end
+    if ability.targetType ~= "emptyspace" and ability.targetType ~= "anyspace" then
+        return false
+    end
+    if ability:try_get("targeting", "direct") ~= "direct" then
+        return false
+    end
+    return ability:GetMovementType(g_token, g_currentSymbols) == "teleport"
+end
+
+--- The loc a teleport pick lands the mover on for the hovered loc. An odd-sized
+--- large creature is anchored on its south-west square (mappress shifts the
+--- same way before casting); altitude is kept.
+--- @param mover CharacterToken
+--- @param loc Loc
+--- @return Loc
+function DrawSteelActionBar.TeleportAnchorLoc(mover, loc)
+    local dims = mover.creatureDimensions.x
+    if dims > 1 and dims % 2 == 1 then
+        local altitude = loc.altitude
+        for i = 3, dims, 2 do
+            loc = loc.west.south
+        end
+        loc = loc:WithAltitude(altitude)
+    end
+    return loc
+end
+
+--- Why `mover` can't teleport to `loc` (its anchor loc, at the landing altitude),
+--- or nil when it can. A teleporting creature needs line of effect from where it
+--- stands to the space its body will fill, measured with the altitude-aware
+--- targeting, so a creature at the bottom of a pit can't reach the ground set
+--- back from the rim. The Line Of Effect Limit attribute (e.g. Dazzled) caps it.
+--- The second result is how far (0-1) along the line it stops, for the arrow.
+--- @param mover CharacterToken
+--- @param loc Loc
+--- @return nil|string reason
+--- @return number obstructionDist
+function DrawSteelActionBar.TeleportLineOfEffectFailReason(mover, loc)
+    local info = mover:GetLineOfSightToSpaceInfo(loc, mover.properties:GetPierceWalls())
+    if info.cover == 0 then
+        return "No Line of Effect", info.obstructionDist
+    end
+
+    local limit = mover.properties:CalculateNamedCustomAttribute("Line Of Effect Limit") or 0
+    if limit > 0 then
+        local distSquares = math.max(mover:Distance(loc) / dmhub.unitsPerSquare, math.abs(loc.altitude - mover.loc.altitude))
+        if distSquares > limit then
+            return "Beyond Line of Effect", limit / distSquares
+        end
+    end
+
+    return nil, 1
+end
+
+--- The default landing altitude for a teleport pick at the hovered `loc`: the
+--- lowest altitude in [minAltitude, maxAltitude] the mover has line of effect
+--- to. When the ground is out of sight but the air above it is not, the
+--- creature lands in the air and falls. nil when this is not a teleport pick or
+--- no altitude in the column can be reached.
+--- @param loc Loc The hovered loc.
+--- @param minAltitude number
+--- @param maxAltitude number
+--- @return nil|number
+function DrawSteelActionBar.TeleportLandingAltitude(loc, minAltitude, maxAltitude)
+    if not DrawSteelActionBar.IsTeleportPick() then
+        return nil
+    end
+    ---@cast g_token -nil
+    local anchor = DrawSteelActionBar.TeleportAnchorLoc(g_token, loc)
+    for alt = minAltitude, maxAltitude do
+        if DrawSteelActionBar.TeleportLineOfEffectFailReason(g_token, anchor:WithAltitude(alt)) == nil then
+            return alt
+        end
+    end
+    return nil
+end
+
 local m_altitudeController
 local m_shiftController
 
@@ -10066,7 +10170,8 @@ local function CreateAltitudeController()
                     alt = maxAltitude
                     element.text = string.format("max (%d)", alt)
                 elseif target == "min" then
-                    alt = minAltitude
+                    --a teleport lands as low as it can while keeping line of effect.
+                    alt = DrawSteelActionBar.TeleportLandingAltitude(info.loc, minAltitude, maxAltitude) or minAltitude
                     element.text = string.format("min (%d)", alt)
                 elseif type(target) == "number" then
                     alt = math.clamp(target, minAltitude, maxAltitude)
@@ -12073,7 +12178,7 @@ CreateAbilityController = function()
             if options.sourceToken ~= nil and options.sourceToken.valid then
                 local shownToken = g_token
                 if #g_casterTokenStack == 0 then
-                    shownToken = dmhub.selectedOrPrimaryTokens[1]
+                    shownToken = DrawSteelActionBar._operate.SelectedBoardToken()
                 end
                 if shownToken == nil or not shownToken.valid then
                     PushCasterToken(options.sourceToken)
@@ -12417,6 +12522,18 @@ CreateAbilityController = function()
             local filteredTargets = {}
 
             local targetColor = "white"
+            --Teleport: the creature needs line of effect to the space it lands in. Worked
+            --out here, before the arrow is drawn, so the arrow can turn red where it is
+            --blocked; the square is drawn red with the reason, and mappress refuses it
+            --under strict targeting. Keyed on the hovered loc so a press can match it.
+            g_pointTargeting.teleportLoe = nil
+            if loc ~= nil and DrawSteelActionBar.IsTeleportPick() then
+                local loeReason, loeBreak = DrawSteelActionBar.TeleportLineOfEffectFailReason(g_token,
+                    DrawSteelActionBar.TeleportAnchorLoc(g_token, loc))
+                if loeReason ~= nil then
+                    g_pointTargeting.teleportLoe = { key = startingLoc.str, reason = loeReason, obstructionDist = loeBreak }
+                end
+            end
             local clearMovementArrow = g_pointTargeting.showingMovementArrow
             local clearWarningArrows = g_pointTargeting.showingWarningArrows
             local prevShape = g_pointTargeting.shape
@@ -12626,6 +12743,9 @@ CreateAbilityController = function()
                             end
                         end
 
+                        if g_pointTargeting.teleportLoe ~= nil then
+                            markOptions.errorFrom = g_pointTargeting.teleportLoe.obstructionDist
+                        end
                         local movementInfo = g_token:MarkMovementArrow(loc, markOptions)
                         g_pointTargeting.showingMovementArrow = true
                         clearMovementArrow = false
@@ -12661,6 +12781,9 @@ CreateAbilityController = function()
                                 --a teleport so the diagram keeps the dialed landing altitude and
                                 --synthesizes the arrival fall for a non-flyer.
                                 movementInfo.path.teleport = true
+                                if g_pointTargeting.teleportLoe ~= nil then
+                                    movementInfo.path.lineOfEffectBreak = g_pointTargeting.teleportLoe.obstructionDist
+                                end
                             elseif movementType == nil then
                                 --The ability moves nobody -- it PLACES something in the hovered
                                 --square (a summon). The default "Movement: 3 squares" reads as the
@@ -13347,6 +13470,10 @@ CreateAbilityController = function()
                     g_pointTargeting.shape = nil
                 end
 
+                if g_pointTargeting.shape ~= nil and g_pointTargeting.teleportLoe ~= nil then
+                    targetColor = "red"
+                end
+
                 -- Partner burst: if the ability declares partnerBurst (a GoblinScript
                 -- condition formula that evaluates true) and we're doing a
                 -- RadiusFromCreature burst around the caster, also build a second
@@ -13523,7 +13650,8 @@ CreateAbilityController = function()
                     video = "illusionline.webm"
                 end
 
-                if g_pointTargeting.shapeRequiresConfirm then
+                --an out-of-reach teleport square stays red rather than the confirm grey.
+                if g_pointTargeting.shapeRequiresConfirm and g_pointTargeting.teleportLoe == nil then
                     targetColor = "#444444"
                 end
 
@@ -13582,6 +13710,13 @@ CreateAbilityController = function()
                         if buildWall ~= nil and buildWall.StackedToCeiling ~= nil and buildWall.StackedToCeiling(loc) then
                             clickText = tr("Walls Stacked to Ceiling")
                         end
+                    end
+
+                    --an out-of-reach teleport square gets a large red label above it instead.
+                    local loeText = nil
+                    if g_pointTargeting.teleportLoe ~= nil then
+                        loeText = tr(g_pointTargeting.teleportLoe.reason)
+                        clickText = ""
                     end
 
                     local locs = g_pointTargeting.shape.locations
@@ -13645,6 +13780,26 @@ CreateAbilityController = function()
                                 fontSize = 0.15,
                                 color = "white",
                                 text = clickText,
+                                textAlignment = "center",
+                            },
+                            gui.Label {
+                                interactable = false,
+                                floating = true,
+                                classes = { cond(loeText == nil, "collapsed") },
+                                valign = "top",
+                                halign = "center",
+                                width = "auto",
+                                height = "auto",
+                                y = -0.55,
+                                hpad = 0.08,
+                                vpad = 0.03,
+                                borderBox = true,
+                                bgimage = true,
+                                bgcolor = "#000000cc",
+                                fontSize = 0.32,
+                                bold = true,
+                                color = "#ff4a3d",
+                                text = loeText or "",
                                 textAlignment = "center",
                             },
                             gui.Label {
@@ -13737,6 +13892,14 @@ CreateAbilityController = function()
             if shape == "line" and #m_positionTargetsChosen == 0 then
                 --a line ability's start square is stored as a bare Loc (see the declaration).
                 m_positionTargetsChosen[#m_positionTargetsChosen + 1] = loc
+                return
+            end
+
+            --Strict targeting: a player can't teleport to a space the hover found
+            --out of line of effect. Directors bypass this.
+            local teleportLoe = g_pointTargeting.teleportLoe
+            if teleportLoe ~= nil and loc ~= nil and teleportLoe.key == loc.str
+                and (not dmhub.isDM) and dmhub.GetSettingValue("strict:targeting") then
                 return
             end
 
@@ -14265,7 +14428,9 @@ local function CalculateSpellTargetFocusing(symbols)
                     -- candidates even when the ability is not selfTarget (e.g. a compelled free
                     -- strike that may hit an adjacent creature OR itself). TargetPassesFilter
                     -- (called below) also waives the allegiance filter for the flagged self target.
-                    if spell.selfTarget == false and g_creature:CalculateNamedCustomAttribute("Can Target Self") <= 0 then
+                    -- Always Targets Self abilities show the caster too, so the player can see they are included.
+                    if spell.selfTarget == false and not spell.forceCasterTarget
+                        and g_creature:CalculateNamedCustomAttribute("Can Target Self") <= 0 then
                         canTarget = false
                     end
                 end
@@ -14400,6 +14565,10 @@ local function CalculateSpellTargetFocusing(symbols)
                         if tooltipReason ~= nil and (string.starts_with(tooltipReason, "Out of range")
                             or string.find(tooltipReason, "Line of Effect", 1, true) ~= nil) then
                             tooltipReason = nil
+                        end
+                        --Tell the player why the caster is marked as a target.
+                        if tooltipReason == nil and spell.forceCasterTarget and targetToken.charid == g_token.charid then
+                            tooltipReason = string.format("Automatically targeted: %s always targets its user, in addition to the targets you choose.", spell.name)
                         end
                         targetToken.sheet:FireEvent('target', { valid = valid, classes = classes, reason = tooltipReason })
 

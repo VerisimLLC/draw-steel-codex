@@ -4160,6 +4160,36 @@ local function EncounterMap(encounter)
     return map
 end
 
+--The part of its map an encounter is fought on, as an area for
+--dmhub.FrameMapArea (tiles, x2/y2 exclusive; {} = the whole map), and that
+--area's shape, width over height (nil when unknown: no region, and the map
+--is not in the game yet). A table window opened for the encounter takes
+--this shape and zooms to the area.
+--- @param encounter Encounter
+--- @return {x1: nil|number, y1: nil|number, x2: nil|number, y2: nil|number} area
+--- @return number|nil aspect
+function Encounter.FrameArea(encounter)
+    local region = encounter:GetRegion()
+    if region ~= nil then
+        --regions are inclusive tile ranges.
+        local x1, x2 = math.min(region.x1, region.x2), math.max(region.x1, region.x2)
+        local y1, y2 = math.min(region.y1, region.y2), math.max(region.y1, region.y2)
+        return { x1 = x1, y1 = y1, x2 = x2 + 1, y2 = y2 + 1 }, (x2 - x1 + 1) / (y2 - y1 + 1)
+    end
+    local map = EncounterMap(encounter)
+    local aspect = nil
+    if map ~= nil then
+        pcall(function()
+            local dim = map.dimensions
+            local w, h = dim.x2 - dim.x1, dim.y2 - dim.y1
+            if w > 0 and h > 0 then
+                aspect = w / h
+            end
+        end)
+    end
+    return {}, aspect
+end
+
 --The picker the map card opens: Create New Map, a searchable list of this
 --game's maps, and No Map. choose(mapid, create) gets "" for No Map and
 --create = true for Create New Map.
@@ -5578,7 +5608,7 @@ local function PlaceEncounterForReal(encounter, party, opts)
     if opts.start and queueActive and not opts.placeAgainConfirmed then
         gui.ModalMessage {
             title = "Combat Is Already Running",
-            message = "Starting this encounter now adds its monsters to the current combat instead of beginning a new one.",
+            message = "An encounter is already running on this map. Do you want to add to the current encounter or start a new one?",
             options = {
                 {
                     text = "Cancel",
@@ -5587,6 +5617,24 @@ local function PlaceEncounterForReal(encounter, party, opts)
                         if opts.onCancel ~= nil then
                             opts.onCancel()
                         end
+                    end,
+                },
+                {
+                    --ends the running combat (no Victory Screen), then starts
+                    --this encounter fresh: with the queue hidden it goes into prep.
+                    text = "New Encounter",
+                    execute = function()
+                        gui.CloseModal()
+                        local endCombat = rawget(_G, "g_drawSteelEndCombat")
+                        if endCombat == nil then
+                            return
+                        end
+                        endCombat()
+                        dmhub.Schedule(0.3, function()
+                            if mod.unloaded then return end
+                            game.UpdateCharacterTokens()
+                            PlaceEncounterForReal(encounter, party, opts)
+                        end)
                     end,
                 },
                 {
@@ -5604,25 +5652,18 @@ local function PlaceEncounterForReal(encounter, party, opts)
     Proceed()
 end
 
---True once a map's floors can be read. For a few seconds after
---mappacks.AddMapToGame its MapFloorLua getters throw, and code that walks the
---floors (the tabletop windows, placement) fails, so wait for this.
-local function MapFloorsReady(mapid)
+--True once a map just added with mappacks.AddMapToGame is in the game: its
+--manifest has arrived and lists its floors. Only that, not the floors'
+--details: the engine loads those only for the current map (floor.valid stays
+--false for any other), and the callers travel there before using them.
+local function MapAdded(mapid)
     local map = game.GetMap(mapid)
-    if map == nil then
+    if map == nil or not map.valid then
         return false
     end
-    --a loaded map has at least one top floor (no parent); reading
-    --parentFloor is also what throws while it is still loading.
-    local topFloors = 0
-    local ok = pcall(function()
-        for _, floor in ipairs(map.floors) do
-            if floor.description ~= nil and floor.parentFloor == nil then
-                topFloors = topFloors + 1
-            end
-        end
-    end)
-    return ok and topFloors > 0
+    local count = 0
+    pcall(function() count = #map.floors end)
+    return count > 0
 end
 
 --Moves an encounter onto the game map that holds its library map, when that
@@ -5664,15 +5705,19 @@ local function MoveEncounterOntoMap(encounter, ref, map)
 end
 
 --Gets an encounter set on a Map Library map (Encounter.mapRef) ready for its
---map: finds the map in this game, or offers to add it and waits for it to
---load, then calls done(encounter) with the encounter to use. If the Director
---declines or the add fails, opts.onCancel is called instead. An encounter
+--map: finds the map in this game, or adds it and waits for it to load, then
+--calls done(encounter) with the encounter to use. If the add fails,
+--opts.onCancel is called instead. An encounter
 --with no map ref, or already on its map, goes straight to done.
 --opts.inPlace: change the encounter itself when it must move onto another
 --copy of the map (an editor's working copy); otherwise a copy moves, so a
 --shipped or saved row is never changed by running it.
+--opts.loadingWindow: the caller's "Loading map..." stand-in
+--(Tabletop.ShowLoadingWindow). It is closed here if the add fails; on
+--success the caller closes it. Without one, an add shows its own in the
+--middle of the table until done.
 --- @param encounter Encounter
---- @param opts nil|{inPlace: nil|boolean, onCancel: nil|fun()}
+--- @param opts nil|{inPlace: nil|boolean, onCancel: nil|fun(), loadingWindow: nil|{Close: fun()}}
 --- @param done fun(encounter: Encounter)
 function Encounter.ResolveMapRef(encounter, opts, done)
     opts = opts or {}
@@ -5711,7 +5756,17 @@ function Encounter.ResolveMapRef(encounter, opts, done)
         end
     end
 
+    local loading = opts.loadingWindow
+    local ownLoading = false
+    if loading == nil then
+        loading = Tabletop.ShowLoadingWindow { name = ref.name }
+        ownLoading = loading ~= nil
+    end
+
     local function Failed(message)
+        if loading ~= nil then
+            loading.Close()
+        end
         gui.ModalMessage {
             title = "Could Not Add the Map",
             message = string.format("%s could not be added to this game: %s", ref.name, message or "unknown error"),
@@ -5730,7 +5785,10 @@ function Encounter.ResolveMapRef(encounter, opts, done)
                     if mod.unloaded then
                         return
                     end
-                    if MapFloorsReady(newid) then
+                    if MapAdded(newid) then
+                        if ownLoading and loading ~= nil then
+                            loading.Close()
+                        end
                         local added = game.GetMap(newid)
                         if added ~= nil then
                             Use(added)
@@ -5747,26 +5805,9 @@ function Encounter.ResolveMapRef(encounter, opts, done)
         }
     end
 
-    gui.ModalMessage {
-        title = "Add the Map?",
-        message = string.format("This encounter takes place on %s, a free map from the Map Library that is not in this game yet. Add it?", ref.name),
-        options = {
-            {
-                text = "Cancel",
-                execute = function()
-                    gui.CloseModal()
-                    Cancelled()
-                end,
-            },
-            {
-                text = "Add Map",
-                execute = function()
-                    gui.CloseModal()
-                    Add()
-                end,
-            },
-        },
-    }
+    --no confirmation: the encounter cannot run without its map, and library
+    --maps are free.
+    Add()
 end
 
 --Shows the encounter's map in a window on the table (opening one if none
@@ -5799,8 +5840,18 @@ function Encounter.StartEncounterOnItsMap(encounter, party, opts)
     --set on a Map Library map: add it first if the game lacks it. When the
     --encounter had to move onto a second copy of the map, persist saves the
     --moved encounter (opts.mapRefInPlace: the caller's own working copy moved).
-    if not opts.mapRefResolved and encounter:GetMapRef() ~= nil then
-        Encounter.ResolveMapRef(encounter, { inPlace = opts.mapRefInPlace, onCancel = opts.onCancel }, function(resolved)
+    --opts.tableDrop: it was dropped on the bare table, so its map's window
+    --opens there, shaped to and zoomed on the encounter's area.
+    local ref = encounter:GetMapRef()
+    if not opts.mapRefResolved and ref ~= nil then
+        --while the map is added, a "Loading map..." window stands where the
+        --map's window will open: at the drop, else in the middle of the table.
+        local loading = nil
+        if Encounter.FindLibraryMap(ref) == nil then
+            local _, aspect = Encounter.FrameArea(encounter)
+            loading = Tabletop.ShowLoadingWindow { name = ref.name, aspect = aspect, atMouse = opts.tableDrop }
+        end
+        Encounter.ResolveMapRef(encounter, { inPlace = opts.mapRefInPlace, onCancel = opts.onCancel, loadingWindow = loading }, function(resolved)
             local again = {}
             for k, v in pairs(opts) do
                 again[k] = v
@@ -5810,6 +5861,14 @@ function Encounter.StartEncounterOnItsMap(encounter, party, opts)
                 again.persist = function()
                     dmhub.SetAndUploadTableItem("encounters", resolved)
                 end
+            end
+            local area, aspect = Encounter.FrameArea(resolved)
+            if loading ~= nil then
+                Tabletop.MapRowDropped(resolved.mapid, { at = loading, frame = area })
+                loading.Close()
+            elseif opts.tableDrop then
+                --found at once (still inside the drop): open it under the mouse.
+                Tabletop.MapRowDropped(resolved.mapid, { aspect = aspect, frame = area })
             end
             Encounter.StartEncounterOnItsMap(resolved, party, again)
         end)
@@ -7227,8 +7286,20 @@ CreateEncounterPanel = function()
                                 end,
                             })
                             if target == nil then
+                                --the preview is the encounter's own map (a
+                                --Map Library one the game lacks shows by name),
+                                --shaped like the encounter's area.
                                 local map = EncounterMap(encounter)
-                                Tabletop.MapRowDragging(self, map ~= nil and map.id or game.currentMapId)
+                                local ref = encounter:GetMapRef()
+                                local _, aspect = Encounter.FrameArea(encounter)
+                                if map ~= nil then
+                                    Tabletop.MapRowDragging(self, map.id, { aspect = aspect })
+                                elseif ref ~= nil then
+                                    local found = Encounter.FindLibraryMap(ref)
+                                    Tabletop.MapRowDragging(self, found ~= nil and found.id or nil, { aspect = aspect, name = ref.name })
+                                else
+                                    Tabletop.MapRowDragging(self, game.currentMapId)
+                                end
                             else
                                 Tabletop.MapRowDragEnded(self)
                             end
@@ -7244,9 +7315,21 @@ CreateEncounterPanel = function()
                                 return
                             end
                             local surface = dmhub.panelDropSurface
+                            --a Map Library map is found or added first; its
+                            --window then opens at the drop (tableDrop).
+                            local tableDrop = false
                             if surface == "table" then
                                 local map = EncounterMap(encounter)
-                                Tabletop.MapRowDropped(map ~= nil and map.id or game.currentMapId)
+                                if map ~= nil then
+                                    --the window takes the encounter's shape and
+                                    --zooms to it once it shows the map.
+                                    local area, aspect = Encounter.FrameArea(encounter)
+                                    Tabletop.MapRowDropped(map.id, { aspect = aspect, frame = area })
+                                elseif encounter:GetMapRef() ~= nil then
+                                    tableDrop = true
+                                else
+                                    Tabletop.MapRowDropped(game.currentMapId)
+                                end
                             end
                             if surface == "map" or surface == "table" then
                                 --a drop on the map that is already the encounter's
@@ -7257,6 +7340,7 @@ CreateEncounterPanel = function()
                                 end
                                 Encounter.StartEncounterOnItsMap(encounter, DefaultParty(), {
                                     start = true,
+                                    tableDrop = tableDrop,
                                     anchor = anchor,
                                     persist = function()
                                         dmhub.SetAndUploadTableItem("encounters", encounter)

@@ -1,6 +1,6 @@
 ---
 name: eotw
-description: Build and publish an Encounter of the Week (EotW) encounter, guiding the author step by step in the running DMHub app -- name the encounter map, paint the hero Start zone (and hidden Trap zones), build and position the monsters, write the script document (narratives, montages with tests, riders, scenes, delves, traps, Town Gate / Conclusion / Defeat story text), validate and playtest it, then publish it as an "Encounter of the Week" module so it joins the encounter pool and plays in the town's Danger Rooms (where players vote on it and nominate the next Encounter of the Week). Use whenever the user invokes /eotw or asks to author, write, script, fix, playtest or publish an Encounter of the Week encounter, montage or narrative. NOT for developing the EotW game mode's own code (that is /week, in the dmhub engine repo).
+description: Build and publish an Encounter of the Week (EotW) encounter, guiding the author step by step in the running DMHub app -- name the encounter map, paint the hero Start zone (and hidden Trap zones), build and position the monsters, write the script document (narratives, montages with tests, riders, scenes, delves, traps, Town Gate / Conclusion / Defeat story text), validate and playtest it, then publish it as an "Encounter of the Week" module so it joins the encounter pool and plays in the town's Proving Pits (where players vote on it and leave its author feedback). Use whenever the user invokes /eotw or asks to author, write, script, fix, playtest or publish an Encounter of the Week encounter, montage or narrative. NOT for developing the EotW game mode's own code (that is /week, in the dmhub engine repo).
 ---
 
 # /eotw -- authoring an Encounter of the Week encounter
@@ -9,11 +9,10 @@ You are an encounter-authoring partner. You guide the author through building on
 EotW encounter in their running DMHub app, check each step yourself through the
 DMHub MCP server (`execute_lua`), write script text with them, and finish by
 publishing it into the encounter pool. A newly published community encounter
-plays in the town's **Danger Rooms** (practice: no Victories or treasure;
-players vote, leave the author feedback and nominate next week's Encounter of
-the Week). It reaches the Town Gate only when an admin makes it the Encounter
+plays in the town's **Proving Pits** (practice: no Victories or treasure;
+players vote and leave the author feedback). It reaches the Town Gate only when an admin makes it the Encounter
 of the Week (`/eotw-rotate` in the dmhub repo). The author reads players'
-feedback in the Danger Rooms ("Feedback on Your Encounters").
+feedback in the Proving Pits ("Feedback on Your Encounters").
 
 Two companion files hold the detail. Load them when the phase needs them:
 - [`script-reference.md`](script-reference.md) -- the complete script language
@@ -204,9 +203,13 @@ Craft notes:
   `EncounterOfTheWeek/KNACKS_REFERENCE.md`: every test gets 1-2 edge riders keyed to
   hero intent (`you can teleport`, `you speak Zaliac`, `you were a Farmer`),
   every opportunity 1-2 secret options (`|Allow:`) or `#### If <requirement>`
-  knack versions, about half the threats a "trivialize" version with no roll.
-  Write intent, never a pregen's name; then check the validator's Knack
-  coverage (each pregen should meet 3 or more).
+  knack versions, and about half the threats a secret option or knack version.
+  A knack that wins something gets its OWN power roll, Better (gentler
+  tier 1, a bonus at tier 3) or Spicy (harsher tier 1, the entry's best
+  tier 3). It NEVER skips the roll to win: no-roll knacks are for flavour
+  only (no reward, no vanquish). See "Knack rolls: Better or Spicy" in
+  KNACKS_REFERENCE.md. Write intent, never a pregen's name; then check the
+  validator's Knack coverage (each pregen should meet 3 or more).
 - Scenes (`---` then cast lines) make entries come alive; cast names should be
   real bestiary monsters so the portraits resolve.
 - Scene art: a `[[scene:name]]` line plus its `RichScene` object, which you
@@ -300,12 +303,19 @@ give them to the party first):
    browser -- it is found there only by typing its exact module ID), agree to
    the terms, **Create Module**. The status line should end "Its encounters are
    now in the Encounter of the Week pool."
-5. Verify: titlescreen -> Encounter of the Week (the town) -> Danger Rooms
+5. Verify: titlescreen -> Encounter of the Week (the town) -> Proving Pits
    (unlocked once the account has won an Encounter of the Week): the
    encounter is listed under "Encounters to Try" with "<module> by <author>"
    and its backstory, and Form a Party works for it.
-6. To change the encounter later: edit, re-check, and publish again choosing the
-   same module ("Update Module"). New parties get the new version.
+6. To change the encounter later: edit, re-check, then **Codex menu -> Publish
+   Encounter Update** (`Commands.quickpublishencounters()` over MCP). It finds
+   the game's Encounter of the Week module, keeps last version's ticks, ticks
+   every encounter map plus its script documents and dependencies, and uploads
+   a new version with the same listing, cover and author -- no dialog pages. If
+   the type's checks fail it stops on page 1 with the errors shown. It does
+   NOT tick a new prose-named item or monster (step 3); for one of those,
+   publish through "Create Module..." choosing the same module instead. New
+   parties get the new version.
 
 Finish by summarizing what was built and published, and anything left open
 (e.g. untested branches, art still to set).

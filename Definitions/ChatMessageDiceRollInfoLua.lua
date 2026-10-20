@@ -10,7 +10,7 @@
 --- @field diceStyle any
 --- @field advantage boolean
 --- @field disadvantage boolean
---- @field rolls {guid: string, result: number, numFaces: number, dropped: boolean, explodes: boolean, category: string}[]
+--- @field rolls {guid: string, result: number, numFaces: number, dropped: boolean, explodes: boolean, category: string, diceset: nil|string}[]
 --- @field tiers number
 --- @field boons number
 --- @field banes number

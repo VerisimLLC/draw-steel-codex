@@ -3046,6 +3046,16 @@ setting{
     section = "GameStrictRules",
 }
 
+setting{
+    id = "strict:autoadjudicate",
+    description = "Automatic Rule Adjudication",
+    help = "When enabled, the game decides rules questions that would otherwise be left to the table, instead of prompting. For example, Black Ash Teleport hides you automatically when you arrive in concealment or with cover from every enemy. Applies to the Director as well as players.",
+    storage = "game",
+    editor = "check",
+    default = false,
+    section = "GameStrictRules",
+}
+
 --The engine registers "Strictly Enforce Movement Rules" (core settings.txt)
 --in the plain "Game" section, where it renders among the unrelated toggles
 --above the headings. It is a rules-enforcement setting like the four above,

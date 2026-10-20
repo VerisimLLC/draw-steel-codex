@@ -49,8 +49,8 @@ processes share the work; each holds the whole codex in memory (1.7-2.5 GB), so 
 on a smaller machine. A full run takes about four minutes on four workers.
 
 **DMHub developers** with the parent repository also have `tools/lua-typing/check.ps1`
-(`-Changed` for just your edited files in under a minute), git hooks that run it on
-commit and push, and the full reference, `LUA_TYPING_REFERENCE.md`.
+(`-Changed` for just your edited files in under a minute), a git hook that runs it on
+commit, and the full reference, `LUA_TYPING_REFERENCE.md`.
 
 ## Writing code that checks clean
 

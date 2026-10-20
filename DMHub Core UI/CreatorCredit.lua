@@ -19,9 +19,9 @@ local mod = dmhub.GetModLoading()
 --     art once with CreatorCredit.RegisterArt(imageid, "<id>") and let
 --     Backdrop find the credit from the image.
 --
---A creator's logo and link could later come from a creator organization's
---branding (/ModuleAuthor/{orgid} logo + url) instead of this file; Register
---is the one place that would change.
+--A creator organization's own branding (/ModuleAuthor/{orgid} logo + url)
+--can also be credited, with no entry in this file: ForOrganization builds and
+--registers the credit from it on first use.
 
 --- @class CreatorCreditInfo
 --- @field id string
@@ -104,13 +104,106 @@ function CreatorCredit.ForArt(imageid)
     return CreatorCredit.Get(CreatorCredit.art[imageid] or CreatorCredit.sceneArt[imageid])
 end
 
+--Creator organization id -> its CreatorCreditInfo once built, false when it
+--has no logo or the lookup failed, or the callbacks waiting while it loads.
+--- @type table<string, CreatorCreditInfo|false|fun(info: nil|CreatorCreditInfo)[]>
+local g_orgCredits = {}
+
+--- Calls back with a credit built from a creator organization's own
+--- branding (its /ModuleAuthor record: display name and logo), or nil when
+--- it has no logo or the lookup fails. The credit is registered as creator
+--- "org:<orgid>", so Badge can show it. Its link is the organization's
+--- Patreon campaign, else its website. The organizations seen so far
+--- (Tehox Maps, 2-Minute Tabletop, MCDM) uploaded white-on-transparent
+--- logos, so show the badge with light = true.
+--- @param orgid nil|string
+--- @param callback fun(info: nil|CreatorCreditInfo)
+function CreatorCredit.ForOrganization(orgid, callback)
+    if orgid == nil or orgid == "" then
+        callback(nil)
+        return
+    end
+    local cached = g_orgCredits[orgid]
+    if type(cached) == "table" and cached.id ~= nil then
+        callback(cached --[[@as CreatorCreditInfo]])
+        return
+    end
+    if cached == false then
+        callback(nil)
+        return
+    end
+    if type(cached) == "table" then
+        cached[#cached+1] = callback
+        return
+    end
+
+    local waiting = { callback }
+    g_orgCredits[orgid] = waiting
+    local function Finish(info)
+        g_orgCredits[orgid] = info or false
+        if mod.unloaded then
+            return
+        end
+        for _,fn in ipairs(waiting) do
+            fn(info)
+        end
+    end
+
+    module.GetOrganizationInfo{
+        orgid = orgid,
+        success = function(org)
+            local logo = type(org) == "table" and org.logo or nil
+            if type(logo) ~= "string" or logo == "" then
+                Finish(nil)
+                return
+            end
+            local name = org.displayName
+            if type(name) ~= "string" or name == "" then
+                name = orgid
+            end
+            local url = nil
+            if type(org.patreonCampaign) == "table" and type(org.patreonCampaign.url) == "string" and org.patreonCampaign.url ~= "" then
+                url = org.patreonCampaign.url
+            elseif type(org.url) == "string" and org.url ~= "" then
+                url = org.url
+            end
+            --the badge needs the logo's shape; the lookup wants the bare url.
+            local lookup = logo
+            if lookup:sub(1, 4) == "md5:" then
+                lookup = lookup:sub(5)
+            end
+            gui.GetImageDimensionsCallback(lookup, function(dims)
+                if dims == nil or (dims.width or 0) <= 0 or (dims.height or 0) <= 0 then
+                    Finish(nil)
+                    return
+                end
+                local id = "org:" .. orgid
+                CreatorCredit.Register(id, {
+                    name = name,
+                    logo = logo,
+                    logoWidth = dims.width,
+                    logoHeight = dims.height,
+                    url = url,
+                })
+                Finish(CreatorCredit.Get(id))
+            end)
+        end,
+        failure = function()
+            Finish(nil)
+        end,
+    }
+end
+
 --- Dropdown options for picking a creator: "None" (id "none") then every
 --- registered creator by name.
 --- @return {id: string, text: string}[]
 function CreatorCredit.DropdownOptions()
     local result = {}
     for id, info in pairs(CreatorCredit.creators) do
-        result[#result+1] = { id = id, text = info.name }
+        --organization credits (ForOrganization) only exist once looked up.
+        if id:sub(1, 4) ~= "org:" then
+            result[#result+1] = { id = id, text = info.name }
+        end
     end
     table.sort(result, function(a, b) return a.text < b.text end)
     table.insert(result, 1, { id = "none", text = "None" })
@@ -144,12 +237,17 @@ local BADGE_STYLES = {
 --- Returns nil for an unknown creator, so callers can add it unconditionally.
 ---
 --- A creator registered with widthFraction gets a badge that wide a share of
---- the panel it is added to (options.width is ignored), so that panel must
---- be exactly the visible art: the callers cover-fit the art to it.
+--- the panel it is added to (options.width and height are ignored), so that
+--- panel must be exactly the visible art: the callers cover-fit the art to it.
+--- Otherwise the badge is options.width wide (default 170), or, when
+--- options.height is given, that tall -- the better fit for logos of mixed
+--- shapes, a wide wordmark and a square mark coming out the same height.
 ---
 --- The logo is drawn black by default; pass light = true to show it white,
---- for a badge over dark art.
---- @param options {creator: string, width: nil|number, halign: nil|string, valign: nil|string, hmargin: nil|number, vmargin: nil|number, light: nil|boolean}
+--- for a badge over dark art. backing = true puts it on a dark translucent
+--- plate, for a badge over art of unknown brightness. label is the tooltip's
+--- lead-in before the creator's name (default "Art by").
+--- @param options {creator: string, width: nil|number, height: nil|number, halign: nil|string, valign: nil|string, hmargin: nil|number, vmargin: nil|number, light: nil|boolean, backing: nil|boolean, label: nil|string}
 --- @return nil|Panel
 function CreatorCredit.Badge(options)
     local info = CreatorCredit.Get(options.creator)
@@ -161,14 +259,25 @@ function CreatorCredit.Badge(options)
     if info.widthFraction ~= nil then
         width = string.format("%f%%", 100 * info.widthFraction)
         height = string.format("%f%% width", 100 * info.logoHeight / info.logoWidth)
+    elseif options.height ~= nil then
+        height = options.height
+        width = math.floor(height * info.logoWidth / info.logoHeight + 0.5)
     else
         width = options.width or 170
         height = math.floor(width * info.logoHeight / info.logoWidth + 0.5)
     end
 
-    local tooltip = string.format("Art by %s", info.name)
+    local tooltip = string.format("%s %s", options.label or "Art by", info.name)
     if url ~= nil then
         tooltip = string.format("%s\nClick to visit %s", tooltip, ShortUrl(url))
+    end
+
+    --the plate is padding around the logo, so the logo keeps its size.
+    local pad = 0
+    if options.backing and type(width) == "number" and type(height) == "number" then
+        pad = math.max(6, math.floor(height * 0.2 + 0.5))
+        width = width + 2 * pad
+        height = height + 2 * pad
     end
 
     return gui.Panel{
@@ -182,7 +291,10 @@ function CreatorCredit.Badge(options)
         height = height,
         --a panel with no bgimage is not hit-tested.
         bgimage = "panels/square.png",
-        bgcolor = "clear",
+        bgcolor = cond(pad > 0, "#000000a0", "clear"),
+        cornerRadius = cond(pad > 0, 6, nil),
+        pad = pad,
+        borderBox = true,
         styles = BADGE_STYLES,
         hoverCursor = cond(url ~= nil, "hand", nil),
         linger = function(element)

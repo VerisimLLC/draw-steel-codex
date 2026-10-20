@@ -906,6 +906,10 @@ end
 --                                       --your own confirmation, which calls
 --                                       --proceed() to really go; false or
 --                                       --nil lets the exit happen as normal
+--      forcedMap = function() end,      --a mapid to hold maximized on the
+--                                       --table (no restore, minimize or
+--                                       --close), like a Director-forced
+--                                       --map; nil for none (Tabletop.lua)
 --  }
 --
 --Everything but id/active is optional. The FIRST registered provider whose
@@ -1104,6 +1108,15 @@ GameHud.CustomInterfacePlayersPopout = function()
 	local ok, panel = pcall(provider.playersPopout)
 	if ok and panel ~= nil then
 		return panel
+	end
+	return nil
+end
+
+--The map the active interface holds maximized on the table, or nil.
+GameHud.CustomInterfaceForcedMap = function()
+	local mapid = CustomInterfaceField("forcedMap")
+	if type(mapid) == "string" and mapid ~= "" then
+		return mapid
 	end
 	return nil
 end

@@ -3036,6 +3036,7 @@ end
 --- @field id nil|string Id given to the item's panel.
 --- @field tooltip nil|string|LabelArgs Shown on hover, via gui.Tooltip.
 --- @field rightClickMenu nil|(ContextMenuEntry[]) Entries of a menu opened by right-clicking this entry.
+--- @field create nil|fun(element: Panel) Called with the item's panel once it is built (e.g. to animate it in).
 
 
 
@@ -3112,6 +3113,7 @@ function gui.ContextMenuItem(args, params)
 		swallowPress = true,
 
 		events = {
+			create = args.create,
 			press = function(element)
 				if args.click ~= nil and not args.disabled then
 					args.click(args)

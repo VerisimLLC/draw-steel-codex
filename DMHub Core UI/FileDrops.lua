@@ -22,6 +22,27 @@ FileDrops.MEDIA_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".mp4", ".webm"}
 --- which converts .flac and .m4a).
 FileDrops.AUDIO_EXTENSIONS = {".ogg", ".mp3", ".wav", ".flac", ".m4a"}
 
+--- Documents: PDFs, Markdown and plain text, and .zip archives of those and
+--- pictures. DocumentImport.lua puts them in the journal; the table and the
+--- journal panel take them from anyone.
+FileDrops.DOCUMENT_EXTENSIONS = {".pdf", ".md", ".markdown", ".txt", ".zip"}
+
+--- What the journal panel takes: pictures, videos and documents.
+FileDrops.JOURNAL_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".mp4", ".webm", ".pdf", ".md", ".markdown", ".txt", ".zip"}
+
+--- True for a document file (by extension; see DOCUMENT_EXTENSIONS).
+--- @param path string
+--- @return boolean
+function FileDrops.IsDocument(path)
+    local ext = FileDrops.Extension(path)
+    for _, documentExt in ipairs(FileDrops.DOCUMENT_EXTENSIONS) do
+        if ext == documentExt then
+            return true
+        end
+    end
+    return false
+end
+
 --- True for an audio file (by extension).
 --- @param path string
 --- @return boolean

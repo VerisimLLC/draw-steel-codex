@@ -831,6 +831,7 @@ local function Portrait(tok, opts)
         width = PORTRAIT + 4,
         height = PORTRAIT + 4,
         hmargin = 2,
+        vmargin = 2,
         bgimage = true,
         bgcolor = "clear",
         hover = function(element)
@@ -849,17 +850,50 @@ local function SelectToken(tok)
     pcall(function() dmhub.CenterOnToken(tok.charid) end)
 end
 
+--Portraits wrap at the width of their side of the bar.
 local function PortraitRow(children)
     return gui.Panel {
+        classes = { cond(#children == 0, "collapsed", nil) },
         flow = "horizontal",
-        width = "auto",
+        width = "100%",
         height = "auto",
-        halign = "center",
+        halign = "left",
         wrap = true,
-        maxWidth = 520,
+        tmargin = 4,
         children = children,
     }
 end
+
+--A side's heading: its name, then a muted detail on the same line.
+local function SideHeader(title, detail)
+    return gui.Panel {
+        flow = "horizontal",
+        width = "100%",
+        height = "auto",
+        gui.Label {
+            classes = { "sizeS", "bold" },
+            width = "auto",
+            height = "auto",
+            valign = "center",
+            text = title,
+        },
+        gui.Label {
+            classes = { "sizeXs", "fgMuted" },
+            width = "auto",
+            height = "auto",
+            valign = "center",
+            lmargin = 8,
+            text = detail,
+        },
+    }
+end
+
+--The bar's narrowest layout; a window narrower than this (plus margins)
+--shrinks the whole bar instead (Tabletop.MapHudSlot).
+local BAR_MIN_WIDTH = 600
+local BAR_MAX_WIDTH = 920
+--The "vs" between the two sides.
+local VS_WIDTH = 44
 
 --The bar's contents for the current prep. Rebuilt only when what it shows
 --changes (see the signature in the bar's think).
@@ -932,46 +966,44 @@ local function BuildBarContents(record)
     local heroCount = #heroes
     local heroColumn = gui.Panel {
         flow = "vertical",
-        width = "50%",
+        width = string.format("50%%-%d", VS_WIDTH // 2),
         height = "auto",
         valign = "top",
-        gui.Label {
-            classes = { "sizeS", "bold" },
-            width = "auto",
-            height = "auto",
-            halign = "center",
-            text = string.format("Heroes: %d in the fight", heroCount),
-        },
+        SideHeader("Heroes", string.format("%d in the fight", heroCount)),
         PortraitRow(heroPortraits),
+        --the party's heroes who are not on this map: click one, or add all.
         gui.Panel {
             classes = { cond(#missing == 0, "collapsed", nil) },
-            flow = "horizontal",
-            width = "auto",
+            flow = "vertical",
+            width = "100%",
             height = "auto",
-            halign = "center",
-            tmargin = 4,
-            gui.Label {
-                classes = { "sizeXs", "fgMuted" },
-                width = "auto",
+            tmargin = 8,
+            gui.Panel {
+                flow = "horizontal",
+                width = "100%",
                 height = "auto",
-                valign = "center",
-                rmargin = 4,
-                text = "Not here:",
+                gui.Label {
+                    classes = { "sizeXs", "fgMuted" },
+                    width = "auto",
+                    height = "auto",
+                    valign = "center",
+                    text = string.format("Not on this map: %d", #missing),
+                },
+                gui.Button {
+                    classes = { "sizeXs" },
+                    width = "auto",
+                    halign = "right",
+                    valign = "center",
+                    hpad = 10,
+                    borderBox = true,
+                    text = "Add All Heroes",
+                    hover = gui.Tooltip("Bring every hero in the party onto this map, into the start zone."),
+                    click = function()
+                        Encounter.SummonPrepHeroes(missingIds)
+                    end,
+                },
             },
             PortraitRow(missingPortraits),
-            gui.Button {
-                classes = { "sizeXs" },
-                width = "auto",
-                valign = "center",
-                lmargin = 6,
-                hpad = 8,
-                borderBox = true,
-                text = "Add All Heroes",
-                hover = gui.Tooltip("Bring every hero in the party onto this map, into the start zone."),
-                click = function()
-                    Encounter.SummonPrepHeroes(missingIds)
-                end,
-            },
         },
     }
 
@@ -1028,35 +1060,29 @@ local function BuildBarContents(record)
     local tier = Encounter.DifficultyTier(ev, strength)
     local monsterColumn = gui.Panel {
         flow = "vertical",
-        width = "50%",
+        width = string.format("50%%-%d", VS_WIDTH // 2),
         height = "auto",
         valign = "top",
-        gui.Label {
-            classes = { "sizeS", "bold" },
-            width = "auto",
-            height = "auto",
-            halign = "center",
-            text = string.format("Monsters: %d  -  EV %d  -  %s", #monsters, ev, cond(strength == nil, "no heroes yet", tier)),
-        },
+        SideHeader("Monsters", string.format("%d  -  EV %d  -  %s", #monsters, ev, cond(strength == nil, "no heroes yet", tier))),
         PortraitRow(monsterPortraits),
         gui.Label {
             classes = { "sizeXs", "fgMuted" },
-            width = "auto",
+            width = "100%",
             height = "auto",
-            halign = "center",
-            tmargin = 2,
+            tmargin = 6,
             text = "Delete monsters on the map, or drop more from the Bestiary: they join this fight.",
         },
     }
 
     -- Balancing ------------------------------------------------------------
-    local balanceText
+    --why it is that many, on a muted line under the count.
+    local balanceWhy
     if not auto then
-        balanceText = string.format("Balanced for %d heroes (set by hand; %d on the map)", balanceFor, onMap)
+        balanceWhy = string.format("Set by hand; %d on the map", onMap)
     elseif onMap == 0 then
-        balanceText = string.format("Balanced for %d heroes (the party size; none on the map yet)", balanceFor)
+        balanceWhy = "The party size; no heroes on the map yet"
     else
-        balanceText = string.format("Balanced for %d heroes (the heroes on the map)", balanceFor)
+        balanceWhy = "The heroes on the map"
     end
     local function SetOverride(value)
         Encounter.ModifyPrep(mapid, "Encounter prep balancing", function(rec)
@@ -1064,47 +1090,62 @@ local function BuildBarContents(record)
         end)
     end
     local balanceRow = gui.Panel {
-        flow = "horizontal",
+        flow = "vertical",
         width = "auto",
         height = "auto",
         valign = "center",
-        gui.Button {
-            classes = { "sizeXs", cond(balanceFor <= 1, "disabled", nil) },
-            width = 26,
-            text = "-",
-            hover = gui.Tooltip("Balance the monsters for one fewer hero."),
-            click = function()
-                SetOverride(math.max(1, balanceFor - 1))
-            end,
-        },
-        gui.Label {
-            classes = { "sizeXs" },
+        gui.Panel {
+            flow = "horizontal",
             width = "auto",
             height = "auto",
-            valign = "center",
-            hmargin = 6,
-            text = balanceText,
+            gui.Button {
+                classes = { "sizeXs", cond(balanceFor <= 1, "disabled", nil) },
+                width = 26,
+                valign = "center",
+                text = "-",
+                hover = gui.Tooltip("Balance the monsters for one fewer hero."),
+                click = function()
+                    SetOverride(math.max(1, balanceFor - 1))
+                end,
+            },
+            gui.Label {
+                classes = { "sizeXs", "bold" },
+                width = "auto",
+                height = "auto",
+                valign = "center",
+                hmargin = 8,
+                text = string.format("Balanced for %d heroes", balanceFor),
+            },
+            gui.Button {
+                classes = { "sizeXs", cond(balanceFor >= MAX_HEROES, "disabled", nil) },
+                width = 26,
+                valign = "center",
+                text = "+",
+                hover = gui.Tooltip("Balance the monsters for one more hero."),
+                click = function()
+                    SetOverride(math.min(MAX_HEROES, balanceFor + 1))
+                end,
+            },
+            gui.Button {
+                classes = { "sizeXs", cond(auto, "collapsed", nil) },
+                width = "auto",
+                valign = "center",
+                lmargin = 6,
+                hpad = 10,
+                borderBox = true,
+                text = "Auto",
+                hover = gui.Tooltip("Balance for the heroes on the map again."),
+                click = function()
+                    SetOverride(nil)
+                end,
+            },
         },
-        gui.Button {
-            classes = { "sizeXs", cond(balanceFor >= MAX_HEROES, "disabled", nil) },
-            width = 26,
-            text = "+",
-            hover = gui.Tooltip("Balance the monsters for one more hero."),
-            click = function()
-                SetOverride(math.min(MAX_HEROES, balanceFor + 1))
-            end,
-        },
-        gui.Button {
-            classes = { "sizeXs", cond(auto, "collapsed", nil) },
+        gui.Label {
+            classes = { "sizeXs", "fgMuted" },
             width = "auto",
-            lmargin = 6,
-            hpad = 8,
-            borderBox = true,
-            text = "Auto",
-            hover = gui.Tooltip("Balance for the heroes on the map again."),
-            click = function()
-                SetOverride(nil)
-            end,
+            height = "auto",
+            tmargin = 3,
+            text = balanceWhy,
         },
     }
 
@@ -1122,47 +1163,52 @@ local function BuildBarContents(record)
         end
         scriptLabels[#scriptLabels + 1] = gui.Label {
             classes = { "sizeXs", cond(script.error ~= nil, "danger", "fgMuted") },
-            width = "auto",
+            width = "100%",
             height = "auto",
-            maxWidth = 360,
             text = "Script - " .. text,
         }
     end
+    --a row of its own, full width, so long script text wraps instead of
+    --pushing the buttons off the bar.
     local scriptColumn = gui.Panel {
         classes = { cond(#scriptLabels == 0, "collapsed", nil) },
         flow = "vertical",
-        width = "auto",
+        width = "100%",
         height = "auto",
-        valign = "center",
-        lmargin = 16,
+        tmargin = 10,
         children = scriptLabels,
     }
 
     return {
+        --title: what is being prepared, and Cancel.
         gui.Panel {
             flow = "horizontal",
             width = "100%",
             height = "auto",
-            gui.Label {
-                classes = { "sizeXs", "fgMuted" },
+            gui.Panel {
+                flow = "vertical",
                 width = "auto",
                 height = "auto",
                 valign = "center",
-                text = "PREPARING ENCOUNTER",
-            },
-            gui.Label {
-                classes = { "sizeM", "bold" },
-                width = "auto",
-                height = "auto",
-                valign = "center",
-                lmargin = 10,
-                text = record.name or "Encounter",
+                gui.Label {
+                    classes = { "sizeXs", "fgMuted" },
+                    width = "auto",
+                    height = "auto",
+                    text = "PREPARING ENCOUNTER",
+                },
+                gui.Label {
+                    classes = { "sizeL", "bold" },
+                    width = "auto",
+                    height = "auto",
+                    text = record.name or "Encounter",
+                },
             },
             gui.Button {
                 classes = { "sizeXs" },
                 width = "auto",
                 halign = "right",
-                hpad = 8,
+                valign = "center",
+                hpad = 10,
                 borderBox = true,
                 text = "Cancel",
                 hover = gui.Tooltip("Stop preparing this encounter: its monsters and start zone are removed and the map goes back to normal."),
@@ -1172,14 +1218,21 @@ local function BuildBarContents(record)
             },
         },
         gui.Panel {
+            classes = { "encounterPrepRule" },
+            width = "100%",
+            height = 1,
+            vmargin = 8,
+            bgimage = true,
+        },
+        --the two sides.
+        gui.Panel {
             flow = "horizontal",
             width = "100%",
             height = "auto",
-            tmargin = 6,
             heroColumn,
             gui.Label {
-                classes = { "sizeL", "bold" },
-                width = 30,
+                classes = { "sizeM", "bold", "fgMuted" },
+                width = VS_WIDTH,
                 height = "auto",
                 valign = "center",
                 textAlignment = "center",
@@ -1187,13 +1240,20 @@ local function BuildBarContents(record)
             },
             monsterColumn,
         },
+        scriptColumn,
+        gui.Panel {
+            classes = { "encounterPrepRule" },
+            width = "100%",
+            height = 1,
+            vmargin = 8,
+            bgimage = true,
+        },
+        --balancing on the left, the way into combat on the right.
         gui.Panel {
             flow = "horizontal",
             width = "100%",
             height = "auto",
-            tmargin = 8,
             balanceRow,
-            scriptColumn,
             gui.Panel {
                 flow = "horizontal",
                 width = "auto",
@@ -1201,9 +1261,10 @@ local function BuildBarContents(record)
                 halign = "right",
                 valign = "center",
                 gui.Button {
-                    classes = { "sizeS" },
+                    classes = { "sizeM" },
                     width = "auto",
-                    hpad = 12,
+                    valign = "center",
+                    hpad = 14,
                     borderBox = true,
                     rmargin = 8,
                     text = "Configure Initiative",
@@ -1213,9 +1274,10 @@ local function BuildBarContents(record)
                     end,
                 },
                 gui.Button {
-                    classes = { "sizeL" },
+                    classes = { "sizeM", "bold", "encounterPrepGo" },
                     width = "auto",
-                    hpad = 18,
+                    valign = "center",
+                    hpad = 20,
                     borderBox = true,
                     text = "Draw Steel!",
                     hover = gui.Tooltip("Start combat with the heroes and monsters shown here."),
@@ -1265,6 +1327,16 @@ local function BarStyles()
             cornerRadius = 6,
         },
         {
+            selectors = { "encounterPrepRule" },
+            bgcolor = "@border",
+        },
+        --Draw Steel! is the bar's main action.
+        {
+            selectors = { "encounterPrepGo" },
+            borderColor = "@accent",
+            borderWidth = 2,
+        },
+        {
             selectors = { "encounterPrepPortrait", "hover" },
             bgcolor = "@accent",
             cornerRadius = 4,
@@ -1303,17 +1375,24 @@ function GameHud:CreateEncounterPrepBar()
     bar = gui.Panel {
         classes = { "encounterPrepBar", "collapsed" },
         styles = BarStyles(),
-        width = 1080,
+        --fills the window's width, between these limits.
+        width = "100%-24",
+        minWidth = BAR_MIN_WIDTH,
+        maxWidth = BAR_MAX_WIDTH,
         height = "auto",
         halign = "center",
         valign = "top",
         tmargin = 10,
         flow = "vertical",
-        pad = 10,
+        hpad = 14,
+        vpad = 12,
         borderBox = true,
         bgimage = true,
         data = {
             signature = nil,
+            --the window width (the bar plus its margins) it needs before
+            --the map HUD has to shrink it.
+            hudFullWidth = BAR_MIN_WIDTH + 24,
         },
 
         monitorGame = Encounter.PrepDocPath(),

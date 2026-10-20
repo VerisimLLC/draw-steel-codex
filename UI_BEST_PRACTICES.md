@@ -358,7 +358,9 @@ gui.Panel{
 
 Layout: `width`, `height`, `flow`, `halign`, `valign`, `pad`, `hpad`, `vpad`, `margin`, `hmargin`, `vmargin`, `tmargin`, `bmargin`, `lmargin`, `rmargin`, `maxWidth`, `maxHeight`, `borderBox`
 
-Visual: `bgcolor`, `bgimage`, `bgslice`, `border`, `borderColor`, `borderWidth`, `cornerRadius`, `gradient`, `opacity`, `brightness`, `boxShadow`, `hueshift`
+Visual: `bgcolor`, `bgimage`, `bgslice`, `border`, `borderColor`, `borderWidth`, `cornerRadius`, `gradient`, `opacity`, `groupOpacity`, `brightness`, `boxShadow`, `hueshift`
+
+`opacity` fades only the panel's own background and text, not its children. To fade a whole panel with everything inside it (CSS `opacity`), use `groupOpacity`.
 
 Text: `color`, `fontSize`, `fontFace`, `textAlignment`, `bold`, `italic`, `strikethrough`, `textWrap`
 

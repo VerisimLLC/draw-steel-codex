@@ -213,9 +213,9 @@ The type checker is `../tools/lua-typing/check.ps1` (run it from the repo root),
 ceiling is **zero** (since 2026-10-14): one problem anywhere exits 1, naming the file. Run
 it before you call Lua work finished: `-Changed` while editing (~45 s; only the
 git-changed files are diagnosed, with the rest of the codex loaded as a library so nothing
-shows as undefined), the plain whole-codex run (~95 s on 8 worker processes, ~20 GB of
-RAM) before committing -- only the full run catches an edit that breaks typing in a file
-you did not change. Do not use `-Target` on a subdirectory: that loses the workspace and
+shows as undefined). Only a full run catches an edit that breaks typing in a file you did
+not change: CI makes one on every push, and the plain whole-codex run (~95 s on 8 worker
+processes, ~20 GB of RAM) gives you the same answer before pushing when you want it. Do not use `-Target` on a subdirectory: that loses the workspace and
 reports everything defined elsewhere as undefined.
 
 Fix what it reports. Only where a problem is deliberate, suppress exactly that line with
@@ -227,9 +227,10 @@ annotate it.
 Three gates enforce this. A Claude Code Stop hook (`../.claude/settings.json` ->
 `tools/lua-typing/claude_hook.py`) runs the per-file check on every codex `.lua` file the
 session edited with Edit/Write when you try to finish, and blocks the stop with the
-offending lines; it does not see edits made through Bash. The codex git hooks
-(`../tools/lua-typing/git-hooks/`, wired in with its `install.sh`) block a commit whose
-staged Lua has a problem and a push whose commit does. Treat all three as failing tests.
+offending lines; it does not see edits made through Bash. The codex pre-commit hook
+(`../tools/lua-typing/git-hooks/`, wired in with its `install.sh`) blocks a commit whose
+staged Lua has a problem. CI checks the whole codex after every push to `main`. Treat all
+three as failing tests.
 
 `lowercase-global` is on: assigning a global whose name starts lower-case is reported,
 because it is usually a missing `local`. Intended ones are listed in `diagnostics.globals`

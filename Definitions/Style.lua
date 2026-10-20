@@ -65,6 +65,7 @@
 --- @field contrast number (default=1) the contrast to apply to this panel.
 --- @field inversion number (default=1) the color inversion to apply to this panel.
 --- @field opacity number (default=1) the opacity of this panel. Setting this to 1 makes the panel fully opaque, to 0 makes it fully transparent.
+--- @field groupOpacity number (default=1) the opacity of this panel and everything inside it, like CSS opacity: 0.5 fades the panel, its children, their text and images all to half. Use this to fade a whole window; @see opacity fades only the panel's own background and text, not its children. It multiplies down through nested panels that also set it, and the panel still takes the mouse while faded. Animates with transitionTime.
 --- @field alphaThreshold nil|number (default=nil) If set, when drawing this panel the alpha won't be used to fade the panel, but rather, pixels below this threshold will be fully transparent, and pixels above it will be fully opaque.
 --- @field alphaThresholdFade number (default=0) When using @see alphaThreshold, this value determines the alpha range where pixels fade from being fully opaque to fully transparent.
 --- @field textOutlineWidth number The width of the outline around text. @see textOutlineColor
@@ -171,6 +172,7 @@ Style = {}
 --- @field contrast? number (default=1) the contrast to apply to this panel.
 --- @field inversion? number (default=1) the color inversion to apply to this panel.
 --- @field opacity? number (default=1) the opacity of this panel. Setting this to 1 makes the panel fully opaque, to 0 makes it fully transparent.
+--- @field groupOpacity? number (default=1) the opacity of this panel and everything inside it, like CSS opacity: 0.5 fades the panel, its children, their text and images all to half. Use this to fade a whole window; @see opacity fades only the panel's own background and text, not its children. It multiplies down through nested panels that also set it, and the panel still takes the mouse while faded. Animates with transitionTime.
 --- @field alphaThreshold? nil|number (default=nil) If set, when drawing this panel the alpha won't be used to fade the panel, but rather, pixels below this threshold will be fully transparent, and pixels above it will be fully opaque.
 --- @field alphaThresholdFade? number (default=0) When using @see alphaThreshold, this value determines the alpha range where pixels fade from being fully opaque to fully transparent.
 --- @field textOutlineWidth? number The width of the outline around text. @see textOutlineColor

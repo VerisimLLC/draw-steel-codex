@@ -47,13 +47,54 @@ local function RememberHeroes(charids)
     dmhub.SetSettingValue("eotw:testheroes", table.concat(charids, ","))
 end
 
+--The parts of the current map a test of this mode can play. On a series map
+--each part is its own script, so a mode (e.g. Montage) may exist in Part 2
+--and not in Part 1. A plain map counts as part 1. Returns the part numbers
+--(empty when none can) and, when empty, the reason.
+--- @param modeid string
+--- @return integer[], string|nil
+local function TestableParts(modeid)
+    local parts = EncounterOfTheWeekGame.SeriesParts()
+    if #parts == 0 then
+        local ok, reason = EncounterOfTheWeekGame.CanStartTest(modeid)
+        if ok then
+            return { 1 }, nil
+        end
+        return {}, reason
+    end
+    local result = {}
+    local reason = nil
+    for _, p in ipairs(parts) do
+        local ok, why = EncounterOfTheWeekGame.CanStartTest(modeid, p.number)
+        if ok then
+            result[#result + 1] = p.number
+        elseif reason == nil then
+            reason = why
+        end
+    end
+    return result, reason
+end
+
+--The "Start at" choices for one part: the test modes whose beat its script has.
+--- @param part integer
+--- @return {id: string, text: string}[]
+local function ModeOptionsForPart(part)
+    local options = {}
+    for _, m in ipairs(EncounterOfTheWeekGame.TEST_MODES) do
+        if EncounterOfTheWeekGame.CanStartTest(m.id, part) then
+            options[#options + 1] = { id = m.id, text = m.name }
+        end
+    end
+    return options
+end
+
 --- the hero picker ---------------------------------------------------------
 
 --Open the picker for a test of this mode ("start", "montage" or "combat").
 --The mode can still be changed in the dialog.
 function EncounterTest.ShowDialog(modeid)
-    local ok, reason = EncounterOfTheWeekGame.CanStartTest(modeid)
-    if not ok then
+    local testable, reason = TestableParts(modeid)
+    if #testable == 0 then
         printf("EotW test: %s", tostring(reason))
         return
     end
@@ -76,6 +117,12 @@ function EncounterTest.ShowDialog(modeid)
     end
 
     local chosenMode = modeid
+    --a series map: which part to play (each part is its own script). Opens on
+    --the first part that has the mode asked for.
+    local seriesParts = EncounterOfTheWeekGame.SeriesParts()
+    local chosenPart = testable[1]
+    --the Start at choices for chosenPart; rebuilt when the part changes.
+    local partModes = ModeOptionsForPart(chosenPart)
     local statusLabel
     local startButton
 
@@ -95,7 +142,13 @@ function EncounterTest.ShowDialog(modeid)
         end
         local n = #ChosenList()
         local text
-        if n == 0 then
+        if #partModes == 0 then
+            --cannot happen from the menu, but a part may have no script beats.
+            local _, why = EncounterOfTheWeekGame.CanStartTest(chosenMode, chosenPart)
+            statusLabel.text = string.format("Part %d cannot be tested: %s", chosenPart, tostring(why))
+            startButton:SetClass("disabled", true)
+            return
+        elseif n == 0 then
             text = "Choose the heroes to play the encounter with."
         elseif n > MAX_TEST_HEROES then
             text = string.format("%d heroes chosen: a party is at most %d.", n, MAX_TEST_HEROES)
@@ -161,11 +214,43 @@ function EncounterTest.ShowDialog(modeid)
     end
 
     local heroesOnMap = EncounterOfTheWeekGame.HeroesOnMap()
-    local modeOptions = {}
-    for _, m in ipairs(EncounterOfTheWeekGame.TEST_MODES) do
-        if EncounterOfTheWeekGame.CanStartTest(m.id) then
-            modeOptions[#modeOptions + 1] = { id = m.id, text = m.name }
+    local partOptions = {}
+    for _, p in ipairs(seriesParts) do
+        local text = string.format("Part %d", p.number)
+        if p.title ~= nil then
+            text = text .. ": " .. p.title
         end
+        partOptions[#partOptions + 1] = { id = tostring(p.number), text = text }
+    end
+    local modeDropdown = gui.Dropdown{
+        classes = { "sizeS" },
+        width = 200,
+        height = 26,
+        valign = "center",
+        options = partModes,
+        idChosen = chosenMode,
+        change = function(element)
+            ---@cast element Dropdown
+            chosenMode = element.idChosen --[[@as string]]
+        end,
+    }
+
+    --The part changed: offer only its modes, keeping the chosen one when it
+    --has it, else its first.
+    local function PartChanged()
+        partModes = ModeOptionsForPart(chosenPart)
+        local keep = false
+        for _, o in ipairs(partModes) do
+            if o.id == chosenMode then
+                keep = true
+            end
+        end
+        if not keep and #partModes > 0 then
+            chosenMode = partModes[1].id
+        end
+        modeDropdown.options = partModes
+        modeDropdown.idChosen = chosenMode
+        Refresh()
     end
 
     statusLabel = gui.Label{
@@ -190,7 +275,7 @@ function EncounterTest.ShowDialog(modeid)
             local list = ChosenList()
             RememberHeroes(list)
             gamehud:CloseModal()
-            local started, why = EncounterOfTheWeekGame.StartTest{ mode = chosenMode, heroes = list }
+            local started, why = EncounterOfTheWeekGame.StartTest{ mode = chosenMode, heroes = list, part = chosenPart }
             if not started then
                 printf("EotW test: %s", tostring(why))
             end
@@ -255,16 +340,34 @@ function EncounterTest.ShowDialog(modeid)
                     rmargin = 8,
                     text = "Start at",
                 },
+                modeDropdown,
+            },
+            --only on a series map: the part to play.
+            gui.Panel{
+                classes = { cond(#partOptions == 0, "collapsed", nil) },
+                width = "100%",
+                height = 30,
+                flow = "horizontal",
+                tmargin = 6,
+                gui.Label{
+                    classes = { "sizeS", "bold" },
+                    width = "auto",
+                    height = "auto",
+                    valign = "center",
+                    rmargin = 8,
+                    text = "Part",
+                },
                 gui.Dropdown{
                     classes = { "sizeS" },
-                    width = 200,
+                    width = 320,
                     height = 26,
                     valign = "center",
-                    options = modeOptions,
-                    idChosen = chosenMode,
+                    options = partOptions,
+                    idChosen = tostring(chosenPart),
                     change = function(element)
                         ---@cast element Dropdown
-                        chosenMode = element.idChosen --[[@as string]]
+                        chosenPart = tonumber(element.idChosen) or 1
+                        PartChanged()
                     end,
                 },
             },
@@ -385,10 +488,10 @@ function EncounterTest.CreateTitlebarItem()
 end
 
 --- the Game menu -----------------------------------------------------------
---One row per test mode for the Director while the current map's script has
---that beat and nothing is running, and End Encounter Test while the local
---user's test is on. Not dmonly: that is decided once, when this file loads,
---and a test reloads it as a player.
+--One row per test mode for the Director while the current map's script (any
+--part's, on a series map) has that beat and nothing is running, and End
+--Encounter Test while the local user's test is on. Not dmonly: that is
+--decided once, when this file loads, and a test reloads it as a player.
 
 for _, m in ipairs(EncounterOfTheWeekGame.TEST_MODES) do
     local modeid = m.id
@@ -402,9 +505,9 @@ for _, m in ipairs(EncounterOfTheWeekGame.TEST_MODES) do
             EncounterTest.ShowDialog(modeid)
         end,
         filtered = function()
-            local ok = false
-            pcall(function() ok = EncounterOfTheWeekGame.CanStartTest(modeid) end)
-            return not ok
+            local count = 0
+            pcall(function() count = #TestableParts(modeid) end)
+            return count == 0
         end,
     }
 end

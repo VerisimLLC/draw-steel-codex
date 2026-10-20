@@ -3661,6 +3661,25 @@ local function _buildTargetingSection(ability, fireChange)
     }
 
     --------------------------------------------------------------------------
+    -- 10b. Always Targets Self: shown for abilities that pick creatures one
+    -- at a time. The caster is a target in addition to the number of targets.
+    --------------------------------------------------------------------------
+    children[#children + 1] = gui.Check{
+        classes = {"nae-toggle-check",
+                   cond(ability.targetType == "target", nil, "collapsed-anim")},
+        text = "Always Target Self",
+        value = ability.forceCasterTarget,
+        hover = gui.Tooltip("The caster is always a target, in addition to the number of targets. \"Self and three allies\" is 3 targets."),
+        change = function(element)
+            ability.forceCasterTarget = element.value
+            fireChange()
+        end,
+        refreshAbility = function(element)
+            element:SetClass("collapsed-anim", ability.targetType ~= "target")
+        end,
+    }
+
+    --------------------------------------------------------------------------
     -- 11. Cast immediately when clicked (self only)
     --------------------------------------------------------------------------
     children[#children + 1] = gui.Check{

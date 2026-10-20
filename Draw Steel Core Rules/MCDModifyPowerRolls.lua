@@ -273,6 +273,34 @@ function CharacterModifier:CheckRollRequirement(rollInfo, enabledModifiers, roll
     return true
 end
 
+--A hero's power-roll trigger accepted on a Monster AI roll (e.g. In All This
+--Confusion on a monster's strike) resolves its custom trigger only after the
+--monster's cast ends, so no event marks it as a reaction the AI must wait on.
+--This marks it at roll-confirm, while the AI's activity is still in flight on
+--this client (only the AI host has one), and returns the ids, or nil when no
+--AI is acting or the trigger's owner is not a player's hero.
+--- @param token CharacterToken|nil The trigger's owner.
+--- @param modifier CharacterModifier The power modifier carrying the custom trigger.
+--- @return string|nil activityId
+--- @return string|nil reactionId
+local function BeginRollTriggerAIReaction(token, modifier)
+    local activityId = creature.GetAIActivityInProgress()
+    if activityId == nil or token == nil or not token.valid or not token.playerControlled then
+        return nil, nil
+    end
+
+    local reactionId = dmhub.GenerateGuid()
+    local abilityName = modifier:try_get("name")
+    if type(abilityName) ~= "string" or abilityName == "" then
+        local customTrigger = modifier:try_get("customTrigger")
+        abilityName = customTrigger ~= nil and customTrigger.name or nil
+    end
+    --"resolving": the player already chose on the roll, so there is no prompt
+    --card for the AI to match the marker to.
+    token.properties:BeginPendingAIActivityReaction(activityId, reactionId, abilityName, "resolving")
+    return activityId, reactionId
+end
+
 CharacterModifier.TypeInfo.power = {
 
     init = function(modifier)
@@ -303,6 +331,7 @@ CharacterModifier.TypeInfo.power = {
             --going through the (already deferred) remoteInvokes queue. It also
             --lifts the trigger's cast out of the ModifyProperties execute
             --block this runs inside (see ConsumeResource in DSRollDialog).
+            local aiActivityId, aiReactionId = BeginRollTriggerAIReaction(token, modifier)
             ActivatedAbility.RunWhenCastsComplete(function()
                 if token == nil or not token.valid then
                     return
@@ -310,7 +339,25 @@ CharacterModifier.TypeInfo.power = {
                 --The contextual target types (abilitycaster / abilitytarget /
                 --triggerer) resolve inside Trigger's targeting from the
                 --symbols appended here; no subject resolution is needed.
-                modifier.customTrigger:Trigger(modifier, creature, modifier:AppendSymbols{}, nil, modContext)
+                local symbols = modifier:AppendSymbols{}
+                local argOptions = {}
+                if aiActivityId ~= nil then
+                    --The trigger's cast completes the marker when it finishes, and
+                    --symbols.aiActivityId hands it on to anything that resolves on
+                    --another machine (a runOnController invoke, a custom trigger).
+                    symbols.aiActivityId = aiActivityId
+                    argOptions.aiActivityId = aiActivityId
+                    argOptions.aiReactionId = aiReactionId
+                end
+                modifier.customTrigger:Trigger(modifier, creature, symbols, nil, modContext, argOptions)
+
+                --Release the marker when the trigger's cast never took it over:
+                --a gate in Trigger stopped it, or a prompted trigger replaced it
+                --with a marker of its own (the prompt card then holds the AI).
+                if aiActivityId ~= nil and (argOptions.aiReactionId ~= aiReactionId
+                        or not argOptions.aiReactionHandedOff) then
+                    token.properties:CompletePendingAIActivityReaction(aiActivityId, aiReactionId)
+                end
             end)
 		end
 

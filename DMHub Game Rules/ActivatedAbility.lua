@@ -36,6 +36,7 @@ end
 --- @field lineDistance number|string Length for line-area targeting: a number or a GoblinScript formula.
 --- @field rangeDisadvantage string|number|table GoblinScript: if truthy, ranged attacks have disadvantage.
 --- @field selfTarget boolean If true, the ability always targets the caster.
+--- @field forceCasterTarget boolean If true, the caster is always a target, in addition to the number of targets ("Self and three allies").
 --- @field castImmediately boolean If true, auto-casts when there are no targeting choices.
 --- @field environmentalSource boolean|nil If true, the ability is the environment acting (a zone, a trap, terrain) rather than the creature casting it: effects it applies are attributed to the ability by name ("Applied by <b>Burning Oil</b>") instead of to the caster, who is only whoever the effect landed on. Set on abilities synthesized by Aura:GetSimplePowerRollTrigger and Aura:GetSimpleEntryEffectTrigger; set it in data on environmental triggers.
 --- @field environmentRoll boolean|nil If true, the ability's power roll is made by the environment: the caster only executes the roll and it counts as a roll made AGAINST them (their own modifiers are excluded; their defensive "rolls against you" modifiers apply even on a self-cast). Set on abilities synthesized by Aura:GetSimplePowerRollTrigger.
@@ -217,6 +218,7 @@ ActivatedAbility.range = dmhub.unitsPerSquare
 ActivatedAbility.lineDistance = 1
 ActivatedAbility.rangeDisadvantage = ""
 ActivatedAbility.selfTarget = false
+ActivatedAbility.forceCasterTarget = false
 ActivatedAbility.castImmediately = false --auto-casts immediately if there are no targeting choices.
 ActivatedAbility.recharge = false --roll number for recharging this ability.
 
@@ -1658,7 +1660,7 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
 	local canTargetSelfOverride = false
 	if casterToken.properties == targetToken.properties then
 		canTargetSelfOverride = casterToken.properties:CalculateNamedCustomAttribute("Can Target Self") > 0
-		if (not self.selfTarget) and (not canTargetSelfOverride) then
+		if (not self.selfTarget) and (not self.forceCasterTarget) and (not canTargetSelfOverride) then
 			return false
 		end
 	end
@@ -1872,6 +1874,11 @@ function ActivatedAbility:CanCastAsIs(casterToken, targets, symbols)
 		return true
 	end
 	if self.targetType == 'self' then
+		return true
+	end
+	--The caster is always a target, so this can be cast with nobody else chosen.
+	--It used to be stuck when no ally was in range.
+	if self.forceCasterTarget and self.targetType == 'target' then
 		return true
 	end
 	local numTargets = self:GetNumTargets(casterToken, symbols)

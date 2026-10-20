@@ -397,6 +397,16 @@ mod.shared.ShowCreateMapDialog = function(options)
         return SameMap(a, b) and a.variantIndex == b.variantIndex
     end
 
+    --id of the markup set the pack makes this map's default, "" for none.
+    local DefaultMarkupOf = function(entry)
+        if entry == nil then
+            return ""
+        end
+        --engine field added with default markup; the generated stub gains it on the next regen.
+        ---@diagnostic disable-next-line: undefined-field
+        return entry.defaultMarkup or ""
+    end
+
     --"12 walls, 3 zones, 2 footstep regions, 1 prop" for a shared markup set.
     local MarkupPartsText = function(info)
         local parts = {}
@@ -467,7 +477,8 @@ mod.shared.ShowCreateMapDialog = function(options)
                 flow = "horizontal",
                 gui.Label{
                     classes = {"mapPackMarkupAuthor"},
-                    text = cond(info.author ~= "", info.author, "Anonymous"),
+                    text = cond(info.author ~= "", info.author, "Anonymous")
+                        .. cond(info.id ~= "" and info.id == DefaultMarkupOf(m_packEntry), " (Default)", ""),
                 },
                 gui.Label{
                     classes = {"mapPackMarkupParts"},
@@ -557,6 +568,14 @@ mod.shared.ShowCreateMapDialog = function(options)
                 if #list == 0 then
                     return
                 end
+                --the pack's default set for this map starts checked, so the
+                --dialog adds what an encounter or a drop would.
+                local defaultId = DefaultMarkupOf(entry)
+                for _, info in ipairs(list) do
+                    if info.id == defaultId then
+                        m_markupId = defaultId
+                    end
+                end
                 local rows = {}
                 for _, info in ipairs(list) do
                     rows[#rows + 1] = MarkupRow(info)
@@ -564,6 +583,9 @@ mod.shared.ShowCreateMapDialog = function(options)
                 markupList.children = rows
                 markupHeading:SetClass("hidden", false)
                 markupStatus:SetClass("hidden", false)
+                markupStatus.text = cond(m_markupId ~= nil,
+                    "The map's default markup is checked. Choose another set, or uncheck it for the plain map.",
+                    "Choose a set to add the map with that markup, or none for the plain map.")
                 RefreshMarkupStatus()
             end,
             error = function(msg)
@@ -1469,6 +1491,12 @@ mod.shared.ShowCreateMapDialog = function(options)
                 local entry = m_packEntry
                 local name = m_mapName
                 local markupId = m_markupId
+                --with nothing checked the user wants the plain map; when the
+                --map has a default set the engine would add that instead
+                --unless told "none".
+                if markupId == nil and DefaultMarkupOf(entry) ~= "" then
+                    markupId = "none"
+                end
                 gui.CloseModal()
                 AddPackMap(entry, name, markupId)
                 return
@@ -5160,6 +5188,51 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
     gui.ShowModal(dialogPanel)
 end
 
+--The grid this map uses. Hex maps from the import wizard are saved as Custom,
+--so their tile shape says which kind of hex they are.
+local function CurrentWizardTileType()
+    local tiletype = dmhub.GetSettingValue("maplayout:tiletype")
+    if tiletype == "custom" then
+        local stagger = dmhub.GetSettingValue("maplayout:stagger")
+        if stagger == "vertical" then
+            return "flattop"
+        elseif stagger == "horizontal" then
+            return "pointtop"
+        end
+        return "squares"
+    end
+
+    if tiletype == "flattop" or tiletype == "pointtop" then
+        return tiletype
+    end
+
+    return "squares"
+end
+
+local ReimportTileTypeNames = {
+    squares = "Squares",
+    flattop = "Flat Top Hexes",
+    pointtop = "Pointy Top Hexes",
+}
+
+--Only change settings that differ, since each change redraws the map.
+--Custom goes last so the map never shows a half-finished hex grid.
+local function ApplyMapLayoutSettings(settings)
+    local keys = {"maplayout:stagger", "maplayout:tilewidth", "maplayout:tileheight", "maplayout:hexslant"}
+    if settings["maplayout:tiletype"] == "custom" then
+        keys[#keys + 1] = "maplayout:tiletype"
+    else
+        table.insert(keys, 1, "maplayout:tiletype")
+    end
+
+    for _, key in ipairs(keys) do
+        local value = settings[key]
+        if value ~= nil and dmhub.GetSettingValue(key) ~= value then
+            dmhub.SetSettingValue(key, value)
+        end
+    end
+end
+
 -- Reimport map sizing: re-run the grid calibration on an existing map object.
 -- floor: the MapFloorLua that contains the map object
 -- mapObj: the LuaObjectInstance with a Map component
@@ -5189,7 +5262,9 @@ mod.shared.ReimportMapSizing = function(floor, mapObj)
     -- Build a reimport dialog using gui.MapImport with imageFromId.
     local resultPanel
     local importPanel
+    local gridlessChoice
     local gridlessInitApplied = false
+    local startTileType = CurrentWizardTileType()
 
     local confirmButton = gui.Button{
         classes = {"sizeL", "hidden"},
@@ -5220,6 +5295,21 @@ mod.shared.ReimportMapSizing = function(floor, mapObj)
             mapObj:Upload()
 
             printf("REIMPORT:: Applied new calibration to object %s", mapObj.id)
+
+            --Update the map's grid too. Reimporting used to fix the image but
+            --leave an old, squashed grid behind.
+            local oldTileType = CurrentWizardTileType()
+            if calibration.mapSettings ~= nil then
+                ApplyMapLayoutSettings(calibration.mapSettings)
+            end
+
+            if oldTileType ~= calibration.tileType then
+                printf("REIMPORT:: Map tiling changed from %s to %s", oldTileType, tostring(calibration.tileType))
+                gui.ModalMessage{
+                    title = "Map Tiling Changed",
+                    message = string.format("This map now uses %s. Undo won't change this back, but you can change it in Map Settings.", ReimportTileTypeNames[calibration.tileType] or "a new grid"),
+                }
+            end
 
             -- Refit the map bounds to the recalibrated image (and any other floors'
             -- images), once the engine reports the new calibration is rendered.
@@ -5270,7 +5360,24 @@ mod.shared.ReimportMapSizing = function(floor, mapObj)
         valign = "top",
     }
 
-    local gridlessChoice = gui.EnumeratedSliderControl{
+    --Changing the grid type starts the grid sizing over.
+    local tileTypeChoice = gui.EnumeratedSliderControl{
+        options = {
+            {id = "squares", text = "Squares"},
+            {id = "flattop", text = "Flat Top"},
+            {id = "pointtop", text = "Pointy Top"},
+        },
+        width = 400,
+        valign = "top",
+        value = startTileType,
+        change = function(element)
+            importPanel.tileType = element.value
+            gridlessChoice.value = true
+        end,
+        vmargin = 8,
+    }
+
+    gridlessChoice = gui.EnumeratedSliderControl{
         options = {
             {id = true, text = "Grid"},
             {id = false, text = "Gridless"},
@@ -5306,6 +5413,7 @@ mod.shared.ReimportMapSizing = function(floor, mapObj)
         flow = "vertical",
         halign = "left",
         valign = "top",
+        tileTypeChoice,
         instructionsText,
         gridlessChoice,
     }
@@ -5389,7 +5497,7 @@ mod.shared.ReimportMapSizing = function(floor, mapObj)
         halign = "right",
         valign = "top",
         y = 26,
-        tileType = "squares",
+        tileType = startTileType,
         imageFromId = imageId,
 
         thinkTime = 0.05,

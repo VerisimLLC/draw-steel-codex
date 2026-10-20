@@ -17,7 +17,11 @@
 --    warnings = { "line N: ...", ... },
 --    hasEncounterTag = bool,    -- a [[encounter]] island anywhere in the text
 --    story = { towngate = storySection, conclusion = ..., defeat = ... },
+--    part = nil | { number, title (nil if untitled), line },
 --  }
+--  part: a "# Part 2: The Ossuary" heading makes the document one part of a
+--    SERIES -- several encounters on one map, unlocked one after another.
+--    Not a beat. See "Encounter series" in EncounterOfTheWeek.md.
 --  storySection = { kind = "story", key, title, line, text, tags,
 --                   sceneTag, sceneLine }
 --    The "# Town Gate", "# Conclusion" and "# Defeat" sections. They are
@@ -118,6 +122,7 @@
 --                      effects = { effect, ... } }
 --  effect = { kind = "item"|"stamina"|"heal"|"temphp"|"surges"|"recovery"|
 --                    "loserecovery"|"herotoken"|"intelligence"|"malice"|
+--                    "immunityboon" (damageType = "poison", ...)|
 --                    "ally"|"vanquish"|
 --                    "initiative"|"nosurprise"|"fairinitiative"|
 --                    "knowstamina"|"revealzones"|"unlock"|"testmod"|
@@ -454,6 +459,14 @@ local function ParseClause(clause)
         return { kind = "maxstamina", target = staminaTarget, qty = staminaQty, text = clause }
     end
 
+    --"you gain poison immunity 2": damage immunity until the next respite.
+    --Before the item rule, which would read "you gain 2 poison immunity" as
+    --two items called "poison immunity".
+    local immunityQty, immunityType, immunityTarget = EncounterScript.ParseDamageImmunityClause(lower(clause))
+    if immunityQty ~= nil then
+        return { kind = "immunityboon", target = immunityTarget, qty = immunityQty, damageType = immunityType, text = clause }
+    end
+
     --"you lose a consumable": one consumable item, picked at random from the
     --hero's inventory. A hero with none loses a Recovery instead, quietly.
     local consumableQty, consumableTarget = EncounterScript.ParseLoseConsumableClause(lower(clause))
@@ -525,6 +538,14 @@ local function ParseClause(clause)
         word, target = MatchSelfOrParty(lc, "lose", "(%S+) " .. noun)
         if word ~= nil and EncounterScript.ParseQuantity(word) ~= nil then
             return { kind = "loserecovery", target = target, qty = EncounterScript.ParseQuantity(word), text = clause }
+        end
+        --"each party member loses 1d3 recoveries": dice, rolled for each
+        --hero separately when it applies. qty is the most it can take.
+        local dice = word ~= nil and string.match(word, "^(%d*d%d+)$") or nil
+        if dice ~= nil then
+            local count, sides = string.match(dice, "^(%d*)d(%d+)$")
+            return { kind = "loserecovery", target = target, dice = dice,
+                qty = math.max(1, tonumber(count) or 1) * math.max(1, tonumber(sides) or 1), text = clause }
         end
     end
 
@@ -942,6 +963,49 @@ function EncounterScript.ParseDamageBoonClause(lc)
         local n = SignedQuantity(string.match(lc, p))
         if n ~= nil then
             return n, "party"
+        end
+    end
+    return nil
+end
+
+--Draw Steel's damage types, the only words a "<type> immunity N" boon takes.
+EncounterScript.DAMAGE_TYPES = { "acid", "cold", "corruption", "fire", "holy", "lightning", "poison", "psychic", "sonic" }
+
+--"You gain poison immunity 2" and its spellings: damage immunity N to one
+--damage type until the next respite. Returns the amount, the damage type
+--(lower case) and "self" / "party", or nil.
+--  "you gain poison immunity 2" / "you gain 2 poison immunity"
+--  "each party member gains fire immunity 1"
+function EncounterScript.ParseDamageImmunityClause(lc)
+    lc = StripEncounterTiming(lc)
+    local function Read(rest)
+        local damageType, n = string.match(rest, "^(%a+) immunity (%S+)$")
+        if damageType == nil then
+            n, damageType = string.match(rest, "^(%S+) (%a+) immunity$")
+        end
+        n = SignedQuantity(n)
+        if n == nil or n <= 0 then
+            return nil
+        end
+        for _, known in ipairs(EncounterScript.DAMAGE_TYPES) do
+            if damageType == known then
+                return n, damageType
+            end
+        end
+        return nil
+    end
+    local rest = string.match(lc, "^you gain (.+)$")
+    if rest ~= nil then
+        local n, damageType = Read(rest)
+        if n ~= nil then
+            return n, damageType, "self"
+        end
+    end
+    rest = string.match(lc, "^each party members? gains? (.+)$")
+    if rest ~= nil then
+        local n, damageType = Read(rest)
+        if n ~= nil then
+            return n, damageType, "party"
         end
     end
     return nil
@@ -1801,43 +1865,13 @@ function EncounterScript.OptionTakeable(option)
     return option ~= nil and (option.roll ~= nil or option.free ~= nil or option.delve ~= nil)
 end
 
---- assisting a test -----------------------------------------------------------
---
---Each skill a test lists can be used once per test: by the hero making it
---(their Skilled bonus) or by one companion assisting it (user direction
---2026-10-08). A companion may never take the LAST listed skill the hero
---making the test is trained in, so that hero always keeps a skill of their
---own; a hero trained in none of them reserves nothing.
-
---The skills a companion may assist with, in the roll's order.
+--The listed skill the hero making the test rolls with: the first they are
+--trained in, or nil.
 --  listed        the roll's skill ids, in order
 --  mainTrained   { [skillid] = true } the hero making the test is trained in
---  claimed       { [skillid] = true } other companions have already used
---  helperTrained { [skillid] = true } the companion is trained in
-function EncounterScript.AssistSkillChoices(listed, mainTrained, claimed, helperTrained)
-    mainTrained = mainTrained or {}
-    claimed = claimed or {}
-    helperTrained = helperTrained or {}
-    local mainLeft = 0
+function EncounterScript.MainTestSkill(listed, mainTrained)
     for _, id in ipairs(listed or {}) do
-        if mainTrained[id] and not claimed[id] then
-            mainLeft = mainLeft + 1
-        end
-    end
-    local out = {}
-    for _, id in ipairs(listed or {}) do
-        if helperTrained[id] and not claimed[id] and (not mainTrained[id] or mainLeft >= 2) then
-            out[#out + 1] = id
-        end
-    end
-    return out
-end
-
---The listed skill the hero making the test rolls with: the first they are
---trained in that no companion has used, or nil.
-function EncounterScript.MainTestSkill(listed, mainTrained, claimed)
-    for _, id in ipairs(listed or {}) do
-        if (mainTrained or {})[id] and not (claimed or {})[id] then
+        if (mainTrained or {})[id] then
             return id
         end
     end
@@ -2791,6 +2825,22 @@ function EncounterScript.AnnotationKey(text, tagText, line)
     return tagText .. "-" .. count
 end
 
+--"Part 2: The Ossuary" (a "#" heading's text) -> 2, "The Ossuary"; "Part 3"
+---> 3, nil. nil when the heading is not a part heading. A series is one
+--encounter map played as several encounters, unlocked in order; each part
+--is its own script document in the map's journal folder.
+function EncounterScript.ParsePartHeading(title)
+    local number, rest = string.match(title or "", "^[Pp][Aa][Rr][Tt]%s+(%d+)(.*)$")
+    if number == nil then
+        return nil, nil
+    end
+    rest = trim(string.gsub(rest, "^%s*[:%-]?", "", 1))
+    if rest == "" then
+        rest = nil
+    end
+    return tonumber(number), rest
+end
+
 --The story sections ("# Town Gate", "# Conclusion", "# Defeat"): lowered
 --heading -> the key they are stored under in parse.story.
 EncounterScript.STORY_SECTIONS = {
@@ -2874,6 +2924,10 @@ function EncounterScript.Parse(text)
         if beat.kind == "story" then
             beat.text = cond(beat.text == "", text, beat.text .. "\n\n" .. text)
             AddSpan(beat, "textLines")
+            return
+        end
+        if beat.kind == "part" then
+            beat.text = cond(beat.text == "", text, beat.text .. "\n\n" .. text)
             return
         end
         if beat.kind == "narrative" then
@@ -3163,12 +3217,15 @@ function EncounterScript.Parse(text)
             local kind = lower(title)
             local delveName = string.match(title, "^[Dd]elve:%s*(.+)$")
             local storyKey = EncounterScript.STORY_SECTIONS[kind]
+            local partNumber, partTitle = EncounterScript.ParsePartHeading(title)
             if delveName ~= nil then
                 kind = "delve"
             elseif storyKey ~= nil then
                 kind = "story"
+            elseif partNumber ~= nil then
+                kind = "part"
             elseif kind ~= "montage" and kind ~= "encounter" and kind ~= "narrative" then
-                Warn(i, "unknown beat '%s' (expected Montage, Narrative, Encounter, Delve: <name>, Town Gate, Conclusion or Defeat); ignored", title)
+                Warn(i, "unknown beat '%s' (expected Montage, Narrative, Encounter, Delve: <name>, Part <n>: <title>, Town Gate, Conclusion or Defeat); ignored", title)
                 kind = "unknown"
             end
             beat = { kind = kind, title = title, line = i, tags = {} }
@@ -3202,6 +3259,17 @@ function EncounterScript.Parse(text)
                     Warn(i, "a second '# %s'; only the first is used", title)
                 else
                     result.story[storyKey] = beat
+                end
+            elseif kind == "part" then
+                --not a beat: it says which part of a series this script is.
+                --Prose under it is the author's own notes.
+                beat.number = partNumber
+                beat.name = partTitle
+                beat.text = ""
+                if result.part ~= nil then
+                    Warn(i, "a second '# %s'; a script is one part, so only '# Part %d' counts (give each part its own document)", title, result.part.number)
+                else
+                    result.part = { number = partNumber, title = partTitle, line = i }
                 end
             else
                 result.beats[#result.beats + 1] = beat
@@ -4397,6 +4465,9 @@ function EncounterScript.DescribeEffect(effect)
     elseif effect.kind == "recovery" then
         return string.format("%s recovery value is increased by %d until the next respite", cond(effect.target == "party", "every hero's", "the hero's"), effect.qty)
     elseif effect.kind == "loserecovery" then
+        if effect.dice ~= nil then
+            return string.format("%s loses %s recoveries (rolled for each hero)", cond(effect.target == "party", "every hero", "the hero"), effect.dice)
+        end
         return string.format("%s loses %s", cond(effect.target == "party", "every hero", "the hero"), EncounterScript.Plural(effect.qty, "recovery", "recoveries"))
     elseif effect.kind == "herotoken" then
         return string.format("the party gains %s", EncounterScript.Plural(effect.qty, "hero token"))
@@ -4426,6 +4497,8 @@ function EncounterScript.DescribeEffect(effect)
         return string.format("roll %s on '%s'", cond(effect.qty == 1, "once", tostring(effect.qty) .. " times"), effect.name)
     elseif effect.kind == "damageboon" then
         return string.format("%s rolled damage +%d until the next respite", cond(effect.target == "party", "every hero's", "the hero's"), effect.qty)
+    elseif effect.kind == "immunityboon" then
+        return string.format("%s %s immunity %d until the next respite", cond(effect.target == "party", "every hero gains", "the hero gains"), effect.damageType, effect.qty)
     elseif effect.kind == "maxstamina" then
         return string.format("%s maximum stamina -%d until the next respite", cond(effect.target == "party", "every hero's", "the hero's"), effect.qty)
     elseif effect.kind == "loseconsumable" then

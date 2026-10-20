@@ -717,6 +717,10 @@ local function CreateEncounterPoolsPanel()
     return strip
 end
 
+--Defined with the map creator watermark, below; the rail's think keeps it up.
+--- @type fun(hidden: boolean)
+local UpdateMapWatermark
+
 --The whole right-rail widget: the pools strip above the hero roster. Both
 --pack against the right edge; the roster's own fit-to-screen shrink
 --pivots on its top-right corner so the strip above it is untouched.
@@ -747,6 +751,12 @@ local function CreateRightRailPanel()
                 montagePresented = EncounterMontage.IsPresented()
             end)
             roster:SetClass("collapsed", montagePresented)
+            --the montage stage covers the map; its scenes credit their own art.
+            UpdateMapWatermark(montagePresented)
+        end,
+        --the interface is going away (e.g. the Director-UI hatch).
+        destroy = function(element)
+            UpdateMapWatermark(true)
         end,
     }
 end
@@ -938,24 +948,26 @@ local function HeroSheetFor(token)
     return sheet
 end
 
+--Is the EotW interface up on this client: a real EotW game or an authoring
+--test, unless the Director-UI escape hatch (or a --director debug window)
+--restores the whole normal interface for debugging/manual recovery.
+local function IsInterfaceActive()
+    local eotw = rawget(_G, "EncounterOfTheWeekGame")
+    if eotw == nil or not eotw.IsEotwGame() then
+        return false
+    end
+    if eotw.ShowDirectorUI ~= nil then
+        return not eotw.ShowDirectorUI()
+    end
+    return dmhub.GetSettingValue("eotw:showdirectorui") ~= true
+end
+
 --pcall: an older core codex without the hook just shows the normal hud.
 pcall(function()
     GameHud.RegisterCustomInterface{
         id = "eotw",
 
-        active = function()
-            local eotw = rawget(_G, "EncounterOfTheWeekGame")
-            if eotw == nil or not eotw.IsEotwGame() then
-                return false
-            end
-            --the Director-UI escape hatch (or a --director debug window)
-            --restores the whole normal interface for debugging/manual
-            --recovery.
-            if eotw.ShowDirectorUI ~= nil then
-                return not eotw.ShowDirectorUI()
-            end
-            return dmhub.GetSettingValue("eotw:showdirectorui") ~= true
-        end,
+        active = IsInterfaceActive,
 
         suppressRails = true,
 
@@ -1009,6 +1021,13 @@ pcall(function()
             return presence.ConfirmExit(kind, proceed)
         end,
 
+        --the encounter's map is held maximized for the whole game, test
+        --included: no restore, minimize or close, the same as a player whose
+        --Director holds a shared map maximized (Tabletop.lua).
+        forcedMap = function()
+            return game.currentMapId
+        end,
+
         suppressPanel = { ["Compendium"] = true },
 
         suppressSearchBucket = { ["compendium"] = true },
@@ -1046,3 +1065,553 @@ pcall(function()
         end,
     }
 end)
+
+--- About Encounter of the Week (Codex menu) ----------------------------------
+--Codex > About Encounter of the Week, in any EotW game (an authoring test
+--too): the mode's credits, then the encounter being played -- who wrote it
+--(its module's author) and, when its map came from a map pack, who made the
+--map (the pack's creator organization).
+
+--The banner is the Town Gate's art (GATE_ART in Codex Titlescreen/
+--EncounterOfTheWeek.lua), which that file tags as Czepeku's, so the banner
+--carries the watermark their licence asks for.
+local ABOUT_ART = "db5bcf88-00fc-4e0b-89c9-5ddb98d1a772"
+local ABOUT_WIDTH = 720
+local ABOUT_ART_HEIGHT = 240
+local ABOUT_THUMB_WIDTH = 168
+local ABOUT_THUMB_HEIGHT = 108
+
+--The mode's credits, in order: the text before the name (TextMeshPro rich
+--text), the name, and optionally a site the name links to.
+--- @type {lead: string, name: string, url: nil|string}[]
+local ABOUT_CREDITS = {
+    { lead = "<b>Draw Steel</b> by", name = "MCDM" },
+    { lead = "<b>Encounter of the Week</b> concept and engineering by", name = "the Codex Development Team" },
+    { lead = "<b>Cartography</b> by", name = "Czepeku", url = "https://czepeku.com" },
+}
+
+--Map packs whose maps are credited to someone other than the pack's
+--publishing organization: pack module fullid -> {name, url}.
+--- @type table<string, {name: string, url: nil|string}>
+local ABOUT_MAP_PACK_CREATORS = {
+    ["mcdm-encountermaps"] = { name = "MAD Cartographer", url = "https://themad.network/the-mad-cartographer" },
+}
+
+--A name as rich text, bold if asked, and when it has a url a link: accent
+--colored and underlined (some schemes' accent is close to the body text),
+--which an AboutLinkLabel opens on press.
+--- @param name string
+--- @param url nil|string
+--- @param bold nil|boolean
+--- @return string
+local function AboutName(name, url, bold)
+    if bold then
+        name = string.format("<b>%s</b>", name)
+    end
+    if url == nil or url == "" then
+        return name
+    end
+    return ThemeEngine.ResolveTokens(string.format("<color=@accent><u><link=%s>%s</link></u></color>", url, name))
+end
+
+--A gui.Label whose <link=url> spans open their url when pressed.
+--- @param options table
+--- @return Panel
+local function AboutLinkLabel(options)
+    options.links = true
+    options.press = function(element)
+        if element.linkHovered ~= nil then
+            dmhub.OpenURL(element.linkHovered)
+        end
+    end
+    return gui.Label(options)
+end
+
+local ABOUT_STYLES = {
+    {
+        selectors = {"label", "eotwAboutTitle"},
+        fontSize = 30,
+        bold = true,
+        color = "@fgStrong",
+        width = "100%-48",
+        height = "auto",
+        halign = "center",
+        textAlignment = "center",
+    },
+    {
+        selectors = {"label", "eotwAboutCredit"},
+        fontSize = 18,
+        color = "@fg",
+        width = "100%-24",
+        height = "auto",
+        halign = "center",
+        textAlignment = "center",
+        textWrap = true,
+        vmargin = 5,
+    },
+    {
+        selectors = {"label", "eotwAboutHeading"},
+        fontSize = 22,
+        bold = true,
+        color = "@fgStrong",
+        width = "100%",
+        height = "auto",
+        textWrap = true,
+    },
+    {
+        selectors = {"label", "eotwAboutLine"},
+        fontSize = 17,
+        color = "@fg",
+        width = "100%",
+        height = "auto",
+        textWrap = true,
+        tmargin = 6,
+    },
+    {
+        selectors = {"eotwAboutRule"},
+        width = "100%-64",
+        height = 1,
+        halign = "center",
+        bgimage = "panels/square.png",
+        bgcolor = "@border",
+        vmargin = 16,
+    },
+}
+
+--- @alias AboutCredit {name: string, url: nil|string}
+
+--Creator organization id -> {name, url}, or false when the lookup failed.
+--- @type table<string, AboutCredit|false>
+local g_aboutOrgNames = {}
+
+--Calls back with an organization's display name and website, or nil when
+--it has no name or the lookup fails. Answers at once from the cache.
+--- @param orgid nil|string
+--- @param callback fun(credit: nil|AboutCredit)
+local function AboutOrgName(orgid, callback)
+    if orgid == nil or orgid == "" then
+        callback(nil)
+        return
+    end
+    local cached = g_aboutOrgNames[orgid]
+    if cached ~= nil then
+        callback(cached or nil)
+        return
+    end
+    module.GetOrganizationInfo{
+        orgid = orgid,
+        success = function(info)
+            local credit = nil
+            local name = type(info) == "table" and info.displayName or nil
+            if type(name) == "string" and name ~= "" then
+                local url = info.url
+                credit = { name = name, url = cond(type(url) == "string" and url ~= "", url, nil) }
+            end
+            g_aboutOrgNames[orgid] = credit or false
+            if not mod.unloaded then
+                callback(credit)
+            end
+        end,
+        failure = function()
+            g_aboutOrgNames[orgid] = false
+            if not mod.unloaded then
+                callback(nil)
+            end
+        end,
+    }
+end
+
+--Calls back with the name of whoever published an encounter module: its
+--creator organization's name, else the organization its author id names
+--(author ids are often organization ids: "mcdm"), else the author id. nil
+--when the module is not known here.
+--- @param moduleid nil|string
+--- @param callback fun(credit: nil|AboutCredit)
+local function AboutEncounterAuthor(moduleid, callback)
+    local info = moduleid ~= nil and module.GetModule(moduleid) or nil
+    if info == nil then
+        callback(nil)
+        return
+    end
+    local org, authorid = nil, nil
+    pcall(function() org = info.org end)
+    pcall(function() authorid = info.authorid end)
+    if authorid == "" then
+        authorid = nil
+    end
+    if org == nil or org == "" then
+        org = authorid
+    end
+    AboutOrgName(org, function(credit)
+        if credit == nil and authorid ~= nil then
+            credit = { name = authorid }
+        end
+        callback(credit)
+    end)
+end
+
+--The map pack a map was added from (its module fullid), or nil.
+--- @param mapid string
+--- @return nil|string
+local function AboutMapPack(mapid)
+    local pack = nil
+    pcall(function()
+        local source = game.GetMap(mapid).packSource
+        if source ~= nil and type(source.pack) == "string" and source.pack ~= "" then
+            pack = source.pack
+        end
+    end)
+    return pack
+end
+
+--The creator organization that publishes a map pack, or nil.
+--- @param pack string
+--- @return nil|string
+local function MapPackOrg(pack)
+    local org = nil
+    for _,p in ipairs(mappacks.packs or {}) do
+        if p.id == pack then
+            org = p.org
+        end
+    end
+    if org == nil or org == "" then
+        pcall(function() org = module.GetModule(pack).org end)
+    end
+    if org == "" then
+        return nil
+    end
+    return org
+end
+
+--Calls back with the map pack a map came from, or nil. A map added before
+--provenance was recorded is only recognised once the pack index has synced,
+--so an unsynced index is synced first.
+--- @param mapid string
+--- @param callback fun(pack: nil|string)
+local function MapPackOf(mapid, callback)
+    local pack = AboutMapPack(mapid)
+    if pack ~= nil or mappacks.synced then
+        callback(pack)
+        return
+    end
+    mappacks.Sync{
+        success = function()
+            if not mod.unloaded then
+                callback(AboutMapPack(mapid))
+            end
+        end,
+        error = function()
+            if not mod.unloaded then
+                callback(nil)
+            end
+        end,
+    }
+end
+
+--Calls back with the creator of a map that came from a map pack (the pack's
+--entry in ABOUT_MAP_PACK_CREATORS, else its creator organization), or nil
+--for any other map.
+--- @param mapid string
+--- @param callback fun(credit: nil|AboutCredit)
+local function AboutMapCreator(mapid, callback)
+    MapPackOf(mapid, function(pack)
+        if pack == nil then
+            callback(nil)
+        elseif ABOUT_MAP_PACK_CREATORS[pack] ~= nil then
+            callback(ABOUT_MAP_PACK_CREATORS[pack])
+        else
+            AboutOrgName(MapPackOrg(pack), callback)
+        end
+    end)
+end
+
+--- Map creator watermark -----------------------------------------------------
+
+--(user direction 2026-10-19) While a map from a map pack is on screen, its
+--creator's logo sits in the bottom-right corner of the map window; clicking
+--it opens their Patreon (CreatorCredit.ForOrganization). EotW games only: the
+--whole interface, this included, is up only there (IsInterfaceActive).
+
+--Creator organizations whose maps carry no watermark: MCDM's own.
+local MAP_WATERMARK_EXEMPT_ORGS = { mcdm = true }
+
+local MAP_WATERMARK_HEIGHT = 36
+
+--mapid -> its watermark credit, false for none, or true while looking it up.
+--- @type table<string, CreatorCreditInfo|boolean>
+local g_mapWatermarkCredits = {}
+
+--The badge on screen, and the map window overlay and creator it is for.
+local m_mapWatermark = nil
+local m_mapWatermarkHost = nil
+local m_mapWatermarkCreator = nil
+
+--The watermark credit for a map: nil when it has none, or until its lookup
+--(started here on first ask) comes back.
+--- @param mapid string
+--- @return nil|CreatorCreditInfo
+local function MapWatermarkCredit(mapid)
+    local cached = g_mapWatermarkCredits[mapid]
+    if type(cached) == "table" then
+        return cached
+    end
+    if cached ~= nil then
+        return nil
+    end
+    g_mapWatermarkCredits[mapid] = true
+    MapPackOf(mapid, function(pack)
+        local org = pack ~= nil and MapPackOrg(pack) or nil
+        if org == nil or MAP_WATERMARK_EXEMPT_ORGS[org] then
+            g_mapWatermarkCredits[mapid] = false
+            return
+        end
+        CreatorCredit.ForOrganization(org, function(info)
+            g_mapWatermarkCredits[mapid] = info or false
+        end)
+    end)
+    return nil
+end
+
+local function RemoveMapWatermark()
+    if m_mapWatermark ~= nil and m_mapWatermark.valid then
+        m_mapWatermark:DestroySelf()
+    end
+    m_mapWatermark = nil
+    m_mapWatermarkHost = nil
+    m_mapWatermarkCreator = nil
+end
+
+--Keeps the watermark on the live map window: added, moved to a new window,
+--or taken down as the map, its window or the montage changes. Called from
+--the right rail's think (CreateRightRailPanel), and with hidden = true when
+--the rail goes away.
+--- @param hidden boolean
+UpdateMapWatermark = function(hidden)
+    --- @type nil|Panel
+    local host = nil
+    local credit = nil
+    if not hidden then
+        pcall(function() host = Tabletop.MapOverlayHost() end)
+        local mapid = game.currentMapId
+        if host ~= nil and mapid ~= nil then
+            credit = MapWatermarkCredit(mapid)
+        end
+    end
+    if host == nil or credit == nil then
+        RemoveMapWatermark()
+        return
+    end
+    if m_mapWatermark ~= nil and m_mapWatermark.valid and m_mapWatermarkHost == host and m_mapWatermarkCreator == credit.id then
+        return
+    end
+    RemoveMapWatermark()
+    local badge = CreatorCredit.Badge{
+        creator = credit.id,
+        height = MAP_WATERMARK_HEIGHT,
+        light = true,
+        backing = true,
+        label = "Map by",
+        hmargin = 16,
+        vmargin = 16,
+    }
+    if badge == nil then
+        return
+    end
+    host:AddChild(badge)
+    --under the map's own HUD and dialogs (the Draw Steel banner).
+    badge:SetAsFirstSibling()
+    m_mapWatermark = badge
+    m_mapWatermarkHost = host
+    m_mapWatermarkCreator = credit.id
+end
+
+local m_aboutDialog = nil
+
+local function CloseAbout()
+    if m_aboutDialog ~= nil and m_aboutDialog.valid then
+        local hud = rawget(_G, "gamehud")
+        if hud ~= nil then
+            hud:CloseModal()
+        end
+    end
+    m_aboutDialog = nil
+end
+
+--The "About <encounter>" part of the dialog: heading, author and map
+--creator (filled in as their lookups come back), beside the map's thumbnail
+--when it has one.
+--- @param info {title: string, mapid: string, moduleid: nil|string}
+--- @return Panel
+local function AboutEncounterSection(info)
+    --hidden until its lookup comes back with a name.
+    local function PendingLine()
+        return AboutLinkLabel{
+            classes = {"eotwAboutLine", "collapsed"},
+            text = "",
+            fill = function(element, text)
+                element.text = text
+                element:SetClass("collapsed", false)
+            end,
+        }
+    end
+
+    local authorLabel = PendingLine()
+    local mapLabel = PendingLine()
+
+    local function Fill(label, prefix)
+        return function(credit)
+            if credit ~= nil and label.valid then
+                label:FireEvent("fill", string.format("%s %s", prefix, AboutName(credit.name, credit.url, true)))
+            end
+        end
+    end
+    AboutEncounterAuthor(info.moduleid, Fill(authorLabel, "Written by"))
+    AboutMapCreator(info.mapid, Fill(mapLabel, "Map by"))
+
+    local thumb = nil
+    pcall(function() thumb = game.GetMap(info.mapid).thumbnailImage end)
+    local thumbPanel = nil
+    if type(thumb) == "string" and thumb ~= "" then
+        thumbPanel = gui.Panel{
+            width = ABOUT_THUMB_WIDTH,
+            height = ABOUT_THUMB_HEIGHT,
+            valign = "top",
+            rmargin = 20,
+            flow = "none",
+            CreatorCredit.Backdrop{
+                width = ABOUT_THUMB_WIDTH,
+                height = ABOUT_THUMB_HEIGHT,
+                image = thumb,
+                badge = false,
+            },
+        }
+    end
+
+    return gui.Panel{
+        width = "100%-64",
+        height = "auto",
+        halign = "center",
+        flow = "horizontal",
+        thumbPanel,
+        gui.Panel{
+            width = cond(thumbPanel ~= nil, string.format("100%%-%d", ABOUT_THUMB_WIDTH + 20), "100%"),
+            height = "auto",
+            valign = "center",
+            flow = "vertical",
+            gui.Label{
+                classes = {"eotwAboutHeading"},
+                text = string.format("About %s", info.title),
+            },
+            authorLabel,
+            mapLabel,
+        },
+    }
+end
+
+--Opens the About Encounter of the Week dialog (or leaves it up if it is).
+function EncounterOfTheWeekHud.ShowAbout()
+    local hud = rawget(_G, "gamehud")
+    if hud == nil then
+        return
+    end
+    if m_aboutDialog ~= nil and m_aboutDialog.valid then
+        return
+    end
+
+    local info = nil
+    local eotw = rawget(_G, "EncounterOfTheWeekGame")
+    if eotw ~= nil and eotw.EncounterInfo ~= nil then
+        pcall(function() info = eotw.EncounterInfo() end)
+    end
+
+    local credits = {}
+    for _,credit in ipairs(ABOUT_CREDITS) do
+        credits[#credits+1] = AboutLinkLabel{
+            classes = {"eotwAboutCredit"},
+            text = string.format("%s %s", credit.lead, AboutName(credit.name, credit.url)),
+        }
+    end
+
+    local encounterChildren = {}
+    if info ~= nil then
+        encounterChildren[#encounterChildren+1] = gui.Panel{ classes = {"eotwAboutRule"} }
+        encounterChildren[#encounterChildren+1] = AboutEncounterSection(info)
+    end
+
+    m_aboutDialog = gui.Panel{
+        classes = {"framedPanel"},
+        styles = ThemeEngine.MergeStyles(ABOUT_STYLES),
+        width = ABOUT_WIDTH,
+        height = "auto",
+        flow = "vertical",
+        escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+        captureEscape = true,
+        escape = function(element)
+            CloseAbout()
+        end,
+
+        --the banner: the art, cover-fitted, with Czepeku's watermark.
+        gui.Panel{
+            width = ABOUT_WIDTH,
+            height = ABOUT_ART_HEIGHT,
+            halign = "center",
+            flow = "none",
+            CreatorCredit.Backdrop{
+                width = ABOUT_WIDTH,
+                height = ABOUT_ART_HEIGHT,
+                image = ABOUT_ART,
+                creator = "czepeku",
+                badge = { hmargin = 16, vmargin = 12 },
+            },
+        },
+
+        gui.Label{
+            classes = {"eotwAboutTitle"},
+            text = "About Encounter of the Week",
+            tmargin = 18,
+            bmargin = 12,
+        },
+
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            children = credits,
+        },
+
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            children = encounterChildren,
+        },
+
+        gui.Button{
+            classes = {"sizeL"},
+            text = "Close",
+            halign = "center",
+            tmargin = 22,
+            bmargin = 18,
+            click = function()
+                CloseAbout()
+            end,
+        },
+    }
+    hud:ShowModal(m_aboutDialog)
+end
+
+Commands.Register{
+    name = "About Encounter of the Week",
+    identifier = "eotwabout",
+    icon = "phosphor/info.png",
+    menu = "codex",
+    --its own group, so the menu sets it apart from the rows above it.
+    group = "zzeotwabout",
+    filtered = function()
+        local eotw = rawget(_G, "EncounterOfTheWeekGame")
+        return eotw == nil or not eotw.IsEotwGame()
+    end,
+    execute = function()
+        EncounterOfTheWeekHud.ShowAbout()
+    end,
+}

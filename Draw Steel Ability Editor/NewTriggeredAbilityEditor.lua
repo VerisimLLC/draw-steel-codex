@@ -267,6 +267,12 @@ local TRIGGER_METADATA = {
         tags = {"death", "die", "dead", "kill"},
         group = "combat",
     },
+    objectdestroyed = {
+        label = "Destroyed (Objects Only)",
+        description = "Fires when a map object is reduced to zero stamina, before it is removed from the map.",
+        tags = {"destroyed", "object", "break", "dynamic terrain", "zero", "stamina"},
+        group = "combat",
+    },
     zerohitpoints = {
         label = "Drop to Zero Stamina",
         description = "Fires when the creature reaches zero stamina.",

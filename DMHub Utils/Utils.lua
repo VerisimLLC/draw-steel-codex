@@ -87,6 +87,15 @@ function StrictActionEconomyEnforced()
     return (not dmhub.isDM) and dmhub.GetSettingValue("strict:resources") == true
 end
 
+--- True when the "Automatic Rule Adjudication" game setting is on: rules calls
+--- the table would normally make by hand (e.g. "do you have cover here?") are
+--- decided by the game instead of prompting. Unlike the strict:* settings this
+--- is automation, not a restriction, so it applies to the Director too.
+--- Content reads it through the AutomaticRuleAdjudication GoblinScript symbol.
+function AutomaticRuleAdjudication()
+    return dmhub.GetSettingValue("strict:autoadjudicate") == true
+end
+
 --- True when the user may still back out of the embedded roll `dialog` -- the
 --- ability card's close (X) button and ESC. "Strictly Enforce Rolls" withdraws
 --- that the moment the cast behind the roll has committed to paying its cost:

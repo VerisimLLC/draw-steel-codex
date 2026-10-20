@@ -1272,9 +1272,6 @@ function B.CreateWindow(session, close)
                 end,
             }
             children[#children + 1] = Row(skillChildren, { fit = true })
-            if #skills < 2 then
-                children[#children + 1] = Label("List two or more skills if companions should be able to assist with this test.", { "mbSub" })
-            end
 
             --tiers.
             children[#children + 1] = Label("Outcomes: the teaser is what players see until that tier lands (optional)", { "mbFieldLabel" })

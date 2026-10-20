@@ -100,6 +100,182 @@ function CharacterResource.SpendMalice(cost, message)
     return true
 end
 
+--- Action Log card posted whenever an ability spends Malice: a monster ability with a
+--- Malice cost, a Malice feature, or a Malice-paid enhancement. Shows the Malice
+--- diamond with the amount spent; hovering the card shows the full ability card, so
+--- players can see what the Director's Malice bought.
+--- @class MaliceSpentChatMessage: GameType
+--- @field new fun(o?: table): MaliceSpentChatMessage
+--- @field tokenid string Charid of the creature that used the ability.
+--- @field cost number Malice actually deducted.
+--- @field ability ActivatedAbility
+MaliceSpentChatMessage = RegisterGameType("MaliceSpentChatMessage")
+
+MaliceSpentChatMessage.tokenid = ""
+MaliceSpentChatMessage.cost = 0
+
+--- @param token CharacterToken the creature that used the ability
+--- @param ability ActivatedAbility
+--- @param cost number
+function MaliceSpentChatMessage.Post(token, ability, cost)
+    if token == nil or (not token.valid) or cost <= 0 then
+        return
+    end
+
+    --Same shallow clone the cast card stores: the invoker chain is live game
+    --state that must not be serialized into the chat message.
+    local abilityClone = table.shallow_copy(ability)
+    setmetatable(abilityClone, getmetatable(ability))
+    abilityClone.invoker = nil
+
+    chat.SendCustom(MaliceSpentChatMessage.new{
+        tokenid = token.charid,
+        cost = cost,
+        ability = abilityClone,
+    })
+end
+
+--The action bar's red Malice cost diamond (a rotated square with a red inner
+--diamond), with the number counter-rotated so it stays upright. The outer panel
+--reserves room for the rotated square's bounding box.
+local function MaliceCostDiamond(cost)
+    return gui.Panel{
+        width = 30,
+        height = 30,
+        valign = "center",
+        rmargin = 4,
+        interactable = false,
+        gui.Panel{
+            width = 21,
+            height = 21,
+            halign = "center",
+            valign = "center",
+            rotate = 135,
+            interactable = false,
+            bgimage = true,
+            bgcolor = "white",
+            gradient = Styles.Ability.maliceDiamondGradient,
+            border = { x1 = 0, y1 = 2, x2 = 2, y2 = 0 },
+            borderColor = "grey",
+            gui.Panel{
+                width = "65%",
+                height = "65%",
+                halign = "center",
+                valign = "center",
+                interactable = false,
+                bgimage = true,
+                bgcolor = "#DE1E47",
+                borderWidth = 2,
+                borderColor = "#FF5076",
+                gui.Label{
+                    text = string.format("%d", cost),
+                    rotate = -135,
+                    width = "auto",
+                    height = "auto",
+                    halign = "center",
+                    valign = "center",
+                    textAlignment = "center",
+                    fontSize = 12,
+                    bold = true,
+                    color = "white",
+                    interactable = false,
+                },
+            },
+        },
+    }
+end
+
+function MaliceSpentChatMessage.Render(selfInput, message)
+    local token = dmhub.GetCharacterById(selfInput.tokenid)
+    local ability = selfInput:try_get("ability")
+    if token == nil or (not token.valid) or ability == nil then
+        return gui.Panel{
+            width = 0, height = 0,
+        }
+    end
+    ---@cast ability ActivatedAbility
+
+    local cost = tonumber(selfInput.cost) or 0
+
+    local card = CreateActionLogCard{
+        token = token,
+        content = {
+            gui.Panel{
+                flow = "horizontal",
+                width = "100%",
+                height = "auto",
+                MaliceCostDiamond(cost),
+                gui.Panel{
+                    flow = "vertical",
+                    width = "100%-34",
+                    height = "auto",
+                    valign = "center",
+                    gui.Label{
+                        classes = {"action-log-detail", "sizeXs", "fg"},
+                        text = ability.name,
+                    },
+                    gui.Label{
+                        classes = {"action-log-subtext", "sizeXxs", "fgMuted"},
+                        text = string.format("Spent %d Malice", cost),
+                    },
+                },
+            },
+        },
+    }
+
+    return gui.Panel{
+        classes = {"chat-message-panel"},
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+        refreshMessage = function(element, message)
+        end,
+
+        --The whole card shows the ability tooltip (everyone, players included).
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            hover = function(element)
+                local tok = dmhub.GetCharacterById(selfInput.tokenid)
+                if tok == nil or (not tok.valid) then
+                    return
+                end
+                local args = {token = tok, width = 540}
+                local dock = element:FindParentWithClass("dock")
+                if dock ~= nil then
+                    element.tooltipParent = dock
+                    args.halign = dock.data.TooltipAlignment()
+                end
+                element.tooltip = CreateAbilityTooltip(ability, args)
+            end,
+            card,
+        },
+    }
+end
+
+--Every ability's resource payment funnels through ConsumeResources, so Malice is
+--measured around it: what actually left the pool (squads, cost modifiers and the
+--Monster-vs-Monster negative balance included) is what the card reports.
+local g_baseConsumeResources = ActivatedAbility.ConsumeResources
+function ActivatedAbility:ConsumeResources(casterToken, options)
+    local maliceBefore = CharacterResource.GetMalice()
+    g_baseConsumeResources(self, casterToken, options)
+
+    if mod.unloaded then
+        return
+    end
+
+    local spent = maliceBefore - CharacterResource.GetMalice()
+    if spent > 0 then
+        --a broken log card must never break the cast that paid for it.
+        local ok, err = pcall(MaliceSpentChatMessage.Post, casterToken, self, spent)
+        if not ok then
+            print("MaliceSpentChatMessage:: post failed:", err)
+        end
+    end
+end
+
 function CharacterResource.GetVillainActions()
     return CharacterResource.GetGlobalResource(CharacterResource.villainActionId)
 end

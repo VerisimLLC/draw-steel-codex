@@ -31,6 +31,7 @@
 --- @field properties any
 --- @field valid boolean
 --- @field teleport boolean
+--- @field lineOfEffectBreak number
 LuaPath = {}
 
 --- DeepCopy

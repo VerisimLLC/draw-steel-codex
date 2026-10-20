@@ -1010,6 +1010,19 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                         invocation.abilityAttr.targeting = "straightpath"
                     end
 
+                    --A cast held open for the Monster AI (e.g. In All This Confusion's
+                    --trigger) completes its own AI marker when it finishes -- before the
+                    --player has even seen this prompt. Give the prompt a marker of its
+                    --own, made now so the AI never sees a gap; AbilityInvocation:Invoke
+                    --completes it on the player's machine.
+                    if symbols.aiActivityId ~= nil and target.token.playerControlled then
+                        local aiReactionId = dmhub.GenerateGuid()
+                        invocation.aiActivityId = symbols.aiActivityId
+                        invocation.aiReactionId = aiReactionId
+                        target.token.properties:BeginPendingAIActivityReaction(symbols.aiActivityId, aiReactionId,
+                            ability.name, "resolving")
+                    end
+
                     --Held back until the casts currently resolving on this
                     --client complete. This invoke may come from a triggered
                     --reaction activated during the triggering ability's roll
@@ -2469,7 +2482,19 @@ function AbilityInvocation:Invoke()
 	local invokerToken = dmhub.GetTokenById(self.invokerid)
 	local casterToken = dmhub.GetTokenById(self.casterid)
 
+	--The Monster AI may be held on this invoke (see the runOnController path in
+	--Cast). Release it however the invoke ends: cast, cancelled, or never started.
+	local function CompleteAIReaction()
+		local activityId = self:try_get("aiActivityId")
+		local reactionId = self:try_get("aiReactionId")
+		if type(activityId) == "string" and type(reactionId) == "string"
+				and casterToken ~= nil and casterToken.valid and casterToken.properties ~= nil then
+			casterToken.properties:CompletePendingAIActivityReaction(activityId, reactionId)
+		end
+	end
+
 	if invokerToken == nil or casterToken == nil then
+		CompleteAIReaction()
 		return false
 	end
 
@@ -2503,6 +2528,7 @@ function AbilityInvocation:Invoke()
 	end
 
 	if abilityTemplate == nil then
+		CompleteAIReaction()
 		return false
 	end
 
@@ -2609,6 +2635,9 @@ function AbilityInvocation:Invoke()
         targetingFormula = self.targetingFormula,
     }
 	ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abilityClone, casterToken, self.targeting, self.symbols, options)
+	--ExecuteInvoke returns once the cast finishes or the player cancels it; a
+	--cancel never reaches the OnFinishCast above.
+	CompleteAIReaction()
 	return true
 end
 

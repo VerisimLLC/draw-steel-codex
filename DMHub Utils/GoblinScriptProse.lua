@@ -1153,6 +1153,7 @@ GoblinScriptProse.eventProse = {
     fallenon          = "when a creature lands on {subject}",
     creaturedeath     = "when {subject} die{s}",
     zerohitpoints     = "when {subject} drop{s} to 0 stamina",
+    objectdestroyed   = "when {subject} {is} destroyed",
     gaintempstamina   = "when {subject} gain{s} temporary stamina",
     kill              = "when {subject} kill{s} a creature",
     saveagainstdamage = "when {subject} make{s} a reactive roll against damage",

@@ -863,6 +863,15 @@ function EncounterPresence.Abandon(proceed)
     dmhub.SetSettingValue("eotw:abandonedgame", dmhub.ToJson{ gameid = dmhub.gameid })
     printf("EotW presence: abandoning game %s", tostring(dmhub.gameid))
 
+    --the beta survey asks what made us leave, back in town.
+    local eotw = rawget(_G, "EncounterOfTheWeekGame")
+    if eotw ~= nil and eotw.RecordPendingSurvey ~= nil then
+        local ok, err = pcall(eotw.RecordPendingSurvey, "abandoned")
+        if not ok then
+            printf("EotW presence: could not leave the survey invitation: %s", tostring(err))
+        end
+    end
+
     --a moment for the note to reach the server before the connection goes.
     --Not tied to mod.unloaded: the player must get out regardless.
     dmhub.Schedule(0.75, function()

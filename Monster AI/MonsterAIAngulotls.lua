@@ -4,7 +4,9 @@ local mod = dmhub.GetModLoading()
 --Needler, Slink, Wave and Daybringer, plus the band's start-of-turn Malice
 --features. Minion signature strikes are coordinated by the shared squad logic;
 --this file answers the jumps and shifts those strikes ask for, and adds the
---non-minion moves, triggers and villain actions.
+--non-minion moves, triggers and villain actions. Waves lay Noxious Bubbles that
+--the others pop on the heroes; Tonguelash pulls into bubbles and hazard zones
+--(Toxic Plants).
 
 local movementPause = 0.6
 local stationaryPause = 0.35
@@ -49,6 +51,8 @@ local speech = {
     leapfrog = {"Over and onward!", "Leapfrog!"},
     sunLamp = {"Bask in my light!", "Warmth for the clutch!"},
     quickSnack = {"Mm, crunchy.", "Sorry, little one."},
+    noxiousBubble = {"A gift from the marsh!", "Breathe deep!", "Bubble, bubble!"},
+    popBubble = {"Pop!", "Breathe it in!"},
 }
 
 --------------------------------------------------------------------------------
@@ -113,13 +117,14 @@ local function DoesNotProvoke(token)
 end
 
 --Clamped: temporary Stamina can push current Stamina above the maximum.
+--MaxHitpoints(), not the max_hitpoints field: on a hero that field is a stale 10.
 local function StaminaFraction(token)
-    local fraction = token.properties:CurrentHitpoints() / math.max(1, token.properties.max_hitpoints)
+    local fraction = token.properties:CurrentHitpoints() / math.max(1, token.properties:MaxHitpoints())
     return math.max(0, math.min(1, fraction))
 end
 
 local function MissingStamina(token)
-    return math.max(0, token.properties.max_hitpoints - token.properties:CurrentHitpoints())
+    return math.max(0, token.properties:MaxHitpoints() - token.properties:CurrentHitpoints())
 end
 
 local function RemainingMovement(token)
@@ -241,14 +246,6 @@ local function StrikeTargetScore(target, edges)
         return 0.1 + (edges or 0)*0.1
     end
     return 1 + (edges or 0)*0.1 + MonsterAI.TargetStaminaBias(target)
-end
-
---Slippery angulotl captains harass low-Stamina heroes in the backline.
-local function HarassTargetScore(target, edges)
-    if target.isObject then
-        return 0.1 + (edges or 0)*0.1
-    end
-    return 1 + (edges or 0)*0.1 + (1 - StaminaFraction(target))*0.35
 end
 
 local function SortedStrikeTargets(ai, token, ability, loc, scorefn)
@@ -496,6 +493,95 @@ local function AnswerJumpPrompt(ai, casterToken, abilityClone, purpose)
 end
 
 --------------------------------------------------------------------------------
+-- Hazards: Noxious Bubbles and hazard zones such as Toxic Plants.
+--------------------------------------------------------------------------------
+
+local noxiousBubbleAuraName = "Noxious Bubble"
+
+--True when a wave's Noxious Bubble covers the square.
+local function BubbleAt(loc)
+    for _,aura in ipairs(game.GetAurasAtLoc(loc.xyfloorOnly) or {}) do
+        local instance = aura.auraInstance
+        local auraDef = instance ~= nil and instance:try_get("aura") or nil
+        if auraDef ~= nil and auraDef:try_get("name") == noxiousBubbleAuraName then
+            return true
+        end
+    end
+    return false
+end
+
+--A zone hurts whoever enters it when its Environmental Keyword makes an entry
+--power roll (Toxic Plants, Lava, Quicksand) or deals movement damage.
+local function KeywordIsHazard(keyword)
+    if keyword == nil then
+        return false
+    end
+    if keyword:try_get("powerRollEnabled", false) then
+        return true
+    end
+    return keyword:try_get("movedamage", "none") ~= "none"
+        and (tonumber(keyword:try_get("damage", 0)) or 0) > 0
+end
+
+local function HazardZoneAt(loc)
+    local environmentalKeywordType = rawget(_G, "EnvironmentalKeyword")
+    if environmentalKeywordType == nil or environmentalKeywordType.AuraInstancesCoveringSquare == nil then
+        return false
+    end
+    local keywords = dmhub.GetTable("environmentalKeywords") or {}
+    for _,instance in ipairs(environmentalKeywordType.AuraInstancesCoveringSquare(loc)) do
+        local auraDef = instance:try_get("aura")
+        local keywordid = auraDef ~= nil and auraDef:try_get("environmentalKeywordId") or nil
+        if keywordid ~= nil and KeywordIsHazard(keywords[keywordid]) then
+            return true
+        end
+    end
+    return false
+end
+
+--Per-frame caches: tactics are scored for every square and every target, and
+--the answers cannot change until the AI yields.
+local g_frameCache = {time = -1, hazards = {}, wetEnemies = {}}
+
+local function FrameCache()
+    local now = dmhub.Time()
+    if g_frameCache.time ~= now then
+        g_frameCache = {time = now, hazards = {}, wetEnemies = {}}
+    end
+    return g_frameCache
+end
+
+--1 when a square hurts whoever lands on it: a hazard zone, or a Noxious
+--Bubble (entering pops it). Used both to keep angulotls out and to pull
+--heroes in.
+local function HazardAt(loc)
+    local cache = FrameCache().hazards
+    local key = LocKey(loc)
+    local value = cache[key]
+    if value == nil then
+        value = cond(HazardZoneAt(loc) or BubbleAt(loc), 1, 0)
+        cache[key] = value
+    end
+    return value
+end
+
+--The wet creatures hostile to the token.
+local function WetEnemiesOf(token)
+    local cache = FrameCache().wetEnemies
+    local result = cache[token.charid]
+    if result == nil then
+        result = {}
+        for _,other in ipairs(HostileCreatures(token)) do
+            if IsWet(other) then
+                result[#result+1] = other
+            end
+        end
+        cache[token.charid] = result
+    end
+    return result
+end
+
+--------------------------------------------------------------------------------
 -- Passive formation preference.
 --------------------------------------------------------------------------------
 
@@ -506,6 +592,42 @@ MonsterAI:RegisterTactic{
     score = function(self, token, tokenLoc, enemy, ability)
         if AdjacentAngulotlsAt(token, tokenLoc) > 0 then
             return 0.3
+        end
+    end,
+}
+
+--Toxic Plants daze angulotls too, and stopping in a bubble pops it for nothing.
+MonsterAI:RegisterTactic{
+    id = "Angulotl: Avoid Hazards",
+    monsters = angulotlMonsters,
+    description = "Do not strike from a hazard zone (Toxic Plants) or from inside a Noxious Bubble.",
+    score = function(self, token, tokenLoc, enemy, ability)
+        if HazardAt(tokenLoc) > 0 then
+            return -2
+        end
+    end,
+}
+
+--Shocking hits each wet enemy within 2 at the start of the clawfish's turn, so
+--end the turn near wet enemies and hook the wet ones first.
+MonsterAI:RegisterTactic{
+    id = "Clawfish: Shocking",
+    monsters = {"Clawfish"},
+    description = "Prefer wet targets, and squares within 2 of wet enemies so Shocking hits them next turn.",
+    score = function(self, token, tokenLoc, enemy, ability)
+        local bonus = 0
+        local near = 0
+        for _,wet in ipairs(WetEnemiesOf(token)) do
+            if wet.charid == enemy.charid then
+                bonus = bonus + 0.3
+            end
+            if wet:Distance(tokenLoc) <= 2 then
+                near = near + 1
+            end
+        end
+        bonus = bonus + math.min(3, near)*0.25
+        if bonus > 0 then
+            return bonus
         end
     end,
 }
@@ -571,9 +693,9 @@ MonsterAI:RegisterMove{
     category = "Main Actions",
     monsters = {"Angulotl Needler"},
     abilities = {"Blowgun"},
-    description = "Snipe from long range, focusing the lowest-Stamina enemy in reach.",
-    score = StrikeScore(1.05, HarassTargetScore),
-    execute = StrikeExecute(HarassTargetScore),
+    description = "Snipe from long range, spreading damage toward healthier enemies.",
+    score = StrikeScore(1.05, StrikeTargetScore),
+    execute = StrikeExecute(StrikeTargetScore),
 }
 
 --Illuminated creatures give every strike against them an edge, so spread the
@@ -600,16 +722,76 @@ MonsterAI:RegisterMove{
     category = "Main Actions",
     monsters = {"Angulotl Slink"},
     abilities = {"Tonguelash"},
-    description = "Lash a low-Stamina enemy from up to 6 squares away and pull them in.",
-    score = StrikeScore(1.1, HarassTargetScore),
-    execute = StrikeExecute(HarassTargetScore),
+    description = "Lash an enemy from up to 6 squares away and pull them in.",
+    score = StrikeScore(1.1, StrikeTargetScore),
+    execute = StrikeExecute(StrikeTargetScore),
 }
 
---Tonguelash's pull uses the shared pull handler. When the target is boxed in
---and cannot move, skip the pull rather than stall the turn on a Director prompt.
+--Slinks drag heroes into the toxic plants (and a Noxious Bubble pops on
+--whoever is pulled into it), so a legal pull that lands an enemy on a hazard
+--beats the shared handler's choice, which only maximises distance. Returns
+--the furthest such landing, or nil. casterToken is the creature being pulled.
+local function FindHazardPullLanding(invokerToken, casterToken, abilityClone, symbols, range)
+    local movementSymbols = {}
+    for key,value in pairs(symbols or {}) do
+        movementSymbols[key] = value
+    end
+    movementSymbols.range = movementSymbols.range or range
+    movementSymbols.invoker = movementSymbols.invoker or invokerToken.properties
+    ---@type fun(loc: Loc): boolean
+    local legal = abilityClone:TargetLocPassesFilterPredicate(casterToken, movementSymbols)
+        or function() return true end
+
+    local shape = dmhub.CalculateShape{
+        shape = "RadiusFromCreature",
+        token = casterToken,
+        radius = range,
+        checklos = false,
+    }
+    local best = nil
+    local bestDistance = nil
+    for _,loc in ipairs(shape.locations or {}) do
+        if HazardAt(loc) > 0 and legal(loc) then
+            local preview = casterToken:MarkMovementArrow(loc, {
+                straightline = true,
+                ignorecreatures = false,
+                forcedMovementDistance = range,
+            })
+            local path = preview ~= nil and preview.path or nil
+            if path ~= nil and LocKey(path.destination) == LocKey(loc) then
+                local distance = path.destination:DistanceInTiles(path.origin)
+                if distance > 0 and (bestDistance == nil or distance > bestDistance) then
+                    best = loc
+                    bestDistance = distance
+                end
+            end
+        end
+    end
+    casterToken:ClearMovementArrow()
+    return best
+end
+
+--Tonguelash's pull: into a hazard when one is in reach, otherwise the shared
+--pull handler. When the target is boxed in and cannot move, skip the pull
+--rather than stall the turn on a Director prompt.
 MonsterAI:RegisterPrompt{
     prompts = {"Angulotl Slink:Pull!"},
     handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
+        if invokerToken ~= nil and not casterToken:IsFriend(invokerToken) then
+            local range = abilityClone:GetRange(casterToken.properties)
+            local landing = FindHazardPullLanding(invokerToken, casterToken, abilityClone, symbols, range)
+            if landing ~= nil then
+                casterToken:MarkMovementArrow(landing, {
+                    straightline = true,
+                    ignorecreatures = false,
+                    forcedMovementDistance = range,
+                })
+                MonsterAI.Sleep(movementPause)
+                casterToken:ClearMovementArrow()
+                return {targets = {{loc = landing}}}
+            end
+        end
+
         local generic = MonsterAI.prompts["Pull!"]
         local result = nil
         if generic ~= nil then
@@ -675,6 +857,408 @@ MonsterAI:RegisterMove{
         }
         ai:ExecuteAbility(token, ability, nil, {sleep = abilityPause})
         ai._tmp_expectedPromptTarget = nil
+    end,
+}
+
+--------------------------------------------------------------------------------
+-- Angulotl Wave: Noxious Bubble, and popping bubbles on the heroes.
+--------------------------------------------------------------------------------
+
+--The non-minion leader the waves shield with their bubbles (the daybringer).
+local function FindLeader(token)
+    for _,ally in ipairs(FriendlyAngulotls(token)) do
+        local role = string.lower(ally.properties:try_get("role", "") or "")
+        if not IsMinion(ally) and string.find(role, "leader", 1, true) ~= nil then
+            return ally
+        end
+    end
+    return nil
+end
+
+--The 2 cube a bubble fills around a square. range is passed explicitly so a
+--far square is not clamped back toward the caster while planning.
+local function BuildBubbleArea(token, ability, center, range, originLoc)
+    return dmhub.CalculateShape{
+        shape = "cube",
+        targetPoint = token:PosAtLoc(center),
+        token = token,
+        range = range,
+        radius = ability:GetRadius(token.properties),
+        locOverride = originLoc,
+        checklos = false,
+        altitude = center.altitude * dmhub.unitsPerSquare,
+    }
+end
+
+local function DestroyArea(area)
+    if area ~= nil and type(area.Destroy) == "function" then
+        area:Destroy()
+    end
+end
+
+--Every square some bubble was cast on, read from the casters' own aura lists.
+--BubbleAt asks the engine's aura index instead, which only holds bubbles that
+--are live on the map (see the objectid note in the Aixco report); this list
+--also sees any that are not, so two waves never stack bubbles on one spot.
+local function CastBubbleSquares()
+    local result = {}
+    for _,token in ipairs(dmhub.allTokens) do
+        if token.properties ~= nil and not token.isObject then
+            for _,instance in ipairs(token.properties:try_get("auras", {})) do
+                local auraDef = instance:try_get("aura")
+                local area = instance:try_get("area")
+                if auraDef ~= nil and area ~= nil and auraDef:try_get("name") == noxiousBubbleAuraName then
+                    for _,loc in ipairs(area.locations or {}) do
+                        result[LocKey(loc)] = true
+                    end
+                end
+            end
+        end
+    end
+    return result
+end
+
+--The bubble needs unoccupied space, and two bubbles may not overlap.
+local function BubbleSquaresAreFree(locs, castBubbles)
+    if #locs == 0 then
+        return false
+    end
+    for _,loc in ipairs(locs) do
+        if BubbleAt(loc) or (castBubbles ~= nil and castBubbles[LocKey(loc)]) then
+            return false
+        end
+        for _,other in ipairs(dmhub.GetTokensAtLoc(loc) or {}) do
+            if other.valid then
+                return false
+            end
+        end
+    end
+    return true
+end
+
+local function MinDistanceToSquares(token, locs)
+    local result = 999
+    for _,loc in ipairs(locs) do
+        result = math.min(result, token:Distance(loc))
+    end
+    return result
+end
+
+--How good a bubble on these squares is: enemies next to it are caught when it
+--pops, dry angulotls next to it get wet (immune to opportunity attacks), and a
+--bubble between the enemy and the leader blocks the way to him.
+local function BubbleValue(locs, enemies, allies, leader)
+    local caught = 0
+    for _,enemy in ipairs(enemies) do
+        if MinDistanceToSquares(enemy, locs) <= 1 then
+            caught = caught + 1
+        end
+    end
+
+    local soaked = 0
+    for _,ally in ipairs(allies) do
+        if not IsWet(ally) and MinDistanceToSquares(ally, locs) <= 1 then
+            soaked = soaked + 1
+        end
+    end
+
+    local guard = 0
+    if leader ~= nil and MinDistanceToSquares(leader, locs) <= 2 then
+        for _,enemy in ipairs(enemies) do
+            local toLeader = enemy:Distance(leader)
+            if toLeader <= 8 and MinDistanceToSquares(enemy, locs) < toLeader then
+                guard = guard + 0.6
+            end
+        end
+    end
+
+    return caught + math.min(2, soaked)*0.25 + math.min(1.2, guard), caught
+end
+
+--A bubble needs at least this much value: two enemies caught, or one enemy
+--caught while it also guards the leader.
+local minimumBubbleValue = 1.8
+
+local function FindNoxiousBubblePlan(ai, token, ability)
+    local range = ability:GetRange(token.properties)
+    local enemies = LiveEnemies(ai)
+    if #enemies == 0 then
+        return nil, "no enemies"
+    end
+    local allies = FriendlyAngulotls(token)
+    local leader = FindLeader(token)
+
+    --Where the wave can cast from this turn, cheapest first. Its own square
+    --comes first: the movement paths do not list it.
+    local origins = {{loc = token.loc, cost = 0}}
+    for _,info in pairs(ai.paths or {}) do
+        if LocKey(info.loc) ~= LocKey(token.loc) then
+            origins[#origins+1] = {loc = info.loc, cost = info.cost or 0}
+        end
+    end
+    table.sort(origins, function(a, b) return a.cost < b.cost end)
+    local castBubbles = CastBubbleSquares()
+    local maxReach = range + RemainingMovement(token)
+
+    --Candidate squares: around each enemy in reach, and around the leader.
+    local centers = {}
+    local seen = {}
+    local function AddCenters(loc, radius)
+        for dx=-radius,radius do
+            for dy=-radius,radius do
+                local center = loc:dir(dx, dy)
+                if center.valid and not seen[LocKey(center)] then
+                    seen[LocKey(center)] = true
+                    centers[#centers+1] = center
+                end
+            end
+        end
+    end
+    for _,enemy in ipairs(enemies) do
+        if token:Distance(enemy) <= maxReach + 2 then
+            AddCenters(enemy.loc, 2)
+        end
+    end
+    if leader ~= nil then
+        AddCenters(leader.loc, 3)
+    end
+
+    local scored = {}
+    for _,center in ipairs(centers) do
+        local area = BuildBubbleArea(token, ability, center, 999, nil)
+        local locs = area.locations or {}
+        if BubbleSquaresAreFree(locs, castBubbles) then
+            local value, caught = BubbleValue(locs, enemies, allies, leader)
+            if value >= minimumBubbleValue and caught > 0 then
+                scored[#scored+1] = {center = center, value = value, caught = caught}
+            end
+        end
+        DestroyArea(area)
+    end
+    if #scored == 0 then
+        return nil, "no free 2 cube catches two enemies or guards the leader"
+    end
+    table.sort(scored, function(a, b) return a.value > b.value end)
+
+    --The best few: find the cheapest origin in range with line of effect that
+    --does not provoke an opportunity attack on the way.
+    local pierceWalls = token.properties:GetPierceWalls()
+    local adjacentNow = EnemiesAdjacentTo(token, enemies)
+    for i=1,math.min(6, #scored) do
+        local candidate = scored[i]
+        local checks = 0
+        for _,origin in ipairs(origins) do
+            if checks >= 12 then
+                break
+            end
+            if origin.loc:DistanceInTiles(candidate.center) <= range
+                and ProvokePenalty(token, origin.loc, adjacentNow) == 0 then
+                checks = checks + 1
+                local visible = false
+                ai:ExecuteWithTheoreticalMovementLoc(token, origin.loc, function()
+                    visible = token:GetLineOfSight(candidate.center, pierceWalls) > 0
+                end)
+                if visible then
+                    candidate.loc = origin.loc
+                    candidate.cost = origin.cost
+                    return candidate
+                end
+            end
+        end
+    end
+    return nil, "no reachable square has line of effect to a good bubble"
+end
+
+MonsterAI:RegisterMove{
+    id = "Angulotl Wave: Noxious Bubble",
+    category = "Main Actions",
+    monsters = {"Angulotl Wave"},
+    abilities = {"Noxious Bubble"},
+    description = "Spend 2 Malice on a toxic bubble beside two or more enemies, or between the enemy and the daybringer, for the clutch to pop later.",
+    score = function(self, ai, token, ability)
+        local plan, reason = FindNoxiousBubblePlan(ai, token, ability)
+        if plan == nil then
+            return nil, reason
+        end
+        plan.score = 1.0 + math.min(0.4, (plan.value - minimumBubbleValue)*0.15 + 0.1)
+        return plan
+    end,
+    execute = function(self, ai, token, scoringInfo, ability)
+        MoveCinematically(ai, token, scoringInfo.loc)
+        local area = BuildBubbleArea(token, ability, scoringInfo.center,
+            ability:GetRange(token.properties), nil)
+        if not BubbleSquaresAreFree(area.locations or {}, CastBubbleSquares()) then
+            DestroyArea(area)
+            return
+        end
+        ai:Speech(token, speech.noxiousBubble)
+        ai.Sleep(stationaryPause)
+        ai:ExecuteAbility(token, ability, {}, {
+            sleep = abilityPause,
+            symbols = {targetArea = area},
+            targetArea = area,
+        })
+        DestroyArea(area)
+    end,
+}
+
+--The bubble bursts on whoever touches it, catching everything within 2 of
+--them (the data's stand-in for "adjacent to the bubble"). A non-minion steps
+--in when that catches two or more enemies, then keeps fighting wet.
+local function FindBubblePopPlan(ai, token)
+    local enemies = LiveEnemies(ai)
+    if #enemies < 2 then
+        return nil, "fewer than two enemies"
+    end
+
+    local reachable = {}
+    for _,info in pairs(ai.paths or {}) do
+        reachable[LocKey(info.loc)] = info
+    end
+
+    local adjacentNow = EnemiesAdjacentTo(token, enemies)
+    local seen = {}
+    local best = nil
+    for _,enemy in ipairs(enemies) do
+        for dx=-2,2 do
+            for dy=-2,2 do
+                local loc = enemy.loc:dir(dx, dy)
+                local key = loc.valid and LocKey(loc) or nil
+                if key ~= nil and not seen[key] then
+                    seen[key] = true
+                    local info = reachable[key]
+                    if info ~= nil and BubbleAt(loc) and ProvokePenalty(token, info.loc, adjacentNow) == 0 then
+                        local caught = 0
+                        for _,other in ipairs(enemies) do
+                            if other:Distance(info.loc) <= 2 then
+                                caught = caught + 1
+                            end
+                        end
+                        local value = caught - (info.cost or 0)*0.001
+                        if caught >= 2 and (best == nil or value > best.value) then
+                            best = {loc = info.loc, caught = caught, value = value}
+                        end
+                    end
+                end
+            end
+        end
+    end
+    if best == nil then
+        return nil, "no reachable bubble square catches two enemies"
+    end
+    return best
+end
+
+MonsterAI:RegisterMove{
+    id = "Angulotl: Pop Noxious Bubble",
+    category = "Maneuvers",
+    --Not the needlers: they hold their perches on the trees and sand banks.
+    monsters = {"Angulotl Slink", "Angulotl Wave", "Angulotl Daybringer"},
+    abilities = {},
+    description = "Hop into a wave's Noxious Bubble when bursting it catches two or more enemies; the angulotl comes out wet.",
+    score = function(self, ai, token)
+        if RemainingMovement(token) < 1 then
+            return nil, "no movement left"
+        end
+        local plan, reason = FindBubblePopPlan(ai, token)
+        if plan == nil then
+            return nil, reason
+        end
+        if ai:MovementTokenIsAtLoc(token, plan.loc) then
+            return nil, "already standing in the bubble"
+        end
+        plan.score = 1.35 + math.min(0.3, (plan.caught - 2)*0.1)
+        return plan
+    end,
+    execute = function(self, ai, token, scoringInfo)
+        ai:Speech(token, speech.popBubble)
+        MoveCinematically(ai, token, scoringInfo.loc)
+    end,
+}
+
+--------------------------------------------------------------------------------
+-- Ranged angulotls keep their distance once their action is spent.
+--------------------------------------------------------------------------------
+
+local rangedAngulotls = {"Angulotl Needler", "Angulotl Wave", "Angulotl Slink"}
+
+--The main action is spent when the signature strike can no longer be afforded.
+local function MainActionSpent(token)
+    for _,ability in ipairs(token.properties:GetActivatedAbilities()) do
+        if ability.categorization == "Signature Ability" and ability:HasKeyword("Strike") then
+            return not ability:CanAfford(token)
+        end
+    end
+    return true
+end
+
+--After shooting, a wet angulotl (immune to opportunity attacks) left next to
+--an enemy hops back out of reach, still close enough to shoot next turn.
+MonsterAI:RegisterMove{
+    id = "Angulotl: Fall Back",
+    category = "Maneuvers",
+    monsters = rangedAngulotls,
+    abilities = {},
+    description = "Once the action is spent, a wet ranged angulotl next to an enemy moves out of reach without provoking.",
+    score = function(self, ai, token)
+        if not MainActionSpent(token) then
+            return nil, "main action still available"
+        end
+        local enemies = LiveEnemies(ai)
+        local adjacentNow = EnemiesAdjacentTo(token, enemies)
+        if #adjacentNow == 0 then
+            return nil, "no enemy adjacent"
+        end
+        if not DoesNotProvoke(token) then
+            return nil, "leaving would provoke an opportunity attack"
+        end
+        local best = nil
+        local bestScore = SkirmishScore(token, token.loc, enemies)
+        for _,info in pairs(ai.paths or {}) do
+            local _, adjacent = EnemyContact(enemies, info.loc)
+            if adjacent == 0 and LandingIsFree(token, info.loc) and HazardAt(info.loc) == 0 then
+                local score = SkirmishScore(token, info.loc, enemies) - (info.cost or 0)*0.001
+                if score > bestScore then
+                    best = info.loc
+                    bestScore = score
+                end
+            end
+        end
+        if best == nil then
+            return nil, "no better square in reach"
+        end
+        return {score = 0.3, loc = best}
+    end,
+    execute = function(self, ai, token, scoringInfo)
+        MoveCinematically(ai, token, scoringInfo.loc)
+    end,
+}
+
+--Once a ranged angulotl has attacked, nothing else scores and the framework's
+--fallback would walk it toward the nearest enemy: down off a tree trunk or a
+--sand bank and into melee. Scoring just above nothing keeps it where it is.
+MonsterAI:RegisterMove{
+    id = "Angulotl: Hold Range",
+    category = "Maneuvers",
+    monsters = rangedAngulotls,
+    abilities = {},
+    maxScore = 0.01,
+    description = "A ranged angulotl with an enemy in range stays where it is instead of advancing into melee once it has nothing left to do.",
+    score = function(self, ai, token)
+        local reach = SignatureStrikeRange(token)
+        if reach <= 1 then
+            return nil, "not a ranged angulotl"
+        end
+        local pierceWalls = token.properties:GetPierceWalls()
+        for _,enemy in ipairs(LiveEnemies(ai)) do
+            if MonsterAI.TargetDistance(token, enemy) <= reach
+                and token:GetLineOfSight(enemy, pierceWalls) > 0 then
+                return {score = 0.01}
+            end
+        end
+        return nil, "no enemy in range from here; advancing is fine"
+    end,
+    execute = function(self, ai, token, scoringInfo)
     end,
 }
 
@@ -1364,14 +1948,22 @@ MonsterAI:RegisterMaliceAbility{
     abilities = {"Rainfall"},
     description = "Spend 7 Malice to soak the encounter when several enemies are dry, especially alongside clawfish or a daybringer saving It Is Day.",
     score = function(self, ai, token, ability, context)
+        --Rainfall only soaks creatures exposed to the sky (not under a ceiling
+        --or a Tree Canopy zone), so only those count.
         local dryEnemies = 0
         for _,enemy in ipairs(context.enemyTokens or {}) do
             if LiveCreature(enemy) and not IsWet(enemy) then
-                dryEnemies = dryEnemies + 1
+                local exposed = true
+                pcall(function()
+                    exposed = creature.lookupSymbols["exposedtosky"](enemy.properties) == true
+                end)
+                if exposed then
+                    dryEnemies = dryEnemies + 1
+                end
             end
         end
         if dryEnemies < 3 then
-            return nil, "fewer than three enemies are still dry"
+            return nil, "fewer than three dry enemies are exposed to the sky"
         end
 
         local clawfish = 0

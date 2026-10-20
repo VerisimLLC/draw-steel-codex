@@ -2756,7 +2756,14 @@ Commands.RegisterMacro{
     command = function(str)
     local args = string.split(str or "", " ")
 
-    local tokens = dmhub.selectedTokens
+    --only tokens on this map join its combat, not creatures selected off the
+    --board (a tabletop card's).
+    local tokens = {}
+    for _, tok in ipairs(dmhub.selectedTokens) do
+        if tok.onBoard then
+            tokens[#tokens+1] = tok
+        end
+    end
 
     print("ARGS::", #args)
     if #args == 4 then

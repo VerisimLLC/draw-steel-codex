@@ -110,11 +110,12 @@ function assets:UploadImageAtlasAsset(options) end
 
 --- Uploads a PDF document from a file path. Options include path, guid, parentFolder, description, error, progress, and upload callbacks.
 --- @param options table Upload options.
---- @return string The GUID of the uploaded document.
+--- @return string|nil The GUID of the uploaded document, or nil when the file could not be read (error is called).
 function assets.UploadPDFDocumentAsset(options) end
 
---- Creates and uploads a new document folder from the given table arguments.
+--- Creates and uploads a new document folder from the given table arguments (description, parentFolder, ord, hidden, ownerid, and optionally id to choose the folder's id up front). Returns the new folder's id.
 --- @param tableArgs table The folder properties.
+--- @return string The id of the new folder.
 function assets:UploadNewDocumentFolder(tableArgs) end
 
 --- Uploads an audio file. Automatically converts FLAC and M4A (AAC/MPEG-4) files to MP3, and any other file Unity cannot decode (e.g. Opus) to Ogg Vorbis. Options include path, guid, parentFolder, description, error, progress, and upload callbacks.

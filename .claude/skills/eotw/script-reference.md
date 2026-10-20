@@ -41,6 +41,7 @@ Not beats (can sit anywhere, including in a sub-document):
 | `# Conclusion` | story screen after a victory, before "Return to Blackbottom" |
 | `# Defeat` | story screen after a defeat |
 | `# Delve: <Name>` | a delve entered from a montage option (see Delves) |
+| `# Part <n>: <Title>` | marks the document as one part of a series (see Series) |
 
 Any other `#` heading warns and is ignored. A document with no beats but an
 `[[encounter]]` island plays as a plain fight.
@@ -68,7 +69,8 @@ dialog, log). Use it for hidden mechanics.
 | `you gain 5 temporary stamina` / `each party member gains ...` | temporary Stamina (the higher of old and new) |
 | `you gain 2 surges` / `[at the start of the next combat] each party member gains 1 surge` | surges, banked and paid when combat starts |
 | `your recovery value is increased by 2` / `+2 recovery value` / `each party member's recovery value is increased by 2` | Recovery Value boon until the next respite |
-| `you lose a recovery` / `each party member loses two recoveries` | recoveries lost (no Stamina back) |
+| `you lose a recovery` / `each party member loses two recoveries` / `each party member loses 1d3 recoveries` | recoveries lost (no Stamina back). Dice are rolled on screen by each hero's own player, separately |
+| `you gain poison immunity 2` / `each party member gains fire immunity 1` | damage immunity N to that damage type (acid, cold, corruption, fire, holy, lightning, poison, psychic, sonic) until the next respite |
 | `+1 hero token` / `you gain 2 hero tokens` / `the party gains 1 hero token` | party Hero Token pool |
 | `+2 intelligence` / `the party gains 1 intelligence` | Intelligence pool (needs `Unlock: Intelligence` somewhere; warns otherwise) |
 | `+2 malice` / `gain 2 malice` | Director's Malice pool (carries into combat) |
@@ -236,8 +238,11 @@ any of its tiers or rows:
 |6: You gain 2 Healing Potions
 ```
 
-The roll happens on the host; the party sees "Tinkerer's Wares: rolled 4"
-then what the row gave. A table header straight after a roll block ends the
+The acting hero's player rolls the dice on screen (one roll per "roll on",
+so "roll twice" is two rolls), with the table shown and the landed rows lit;
+the party then sees "Tinkerer's Wares: rolled 4" and what the row gave. A
+roll nobody makes within 45 seconds is rolled by the host. A hidden
+(`{...}`) roll clause is rolled quietly on the host instead. A table header straight after a roll block ends the
 roll block (a blank line between them is still tidier). A `roll on` that
 names no table of its entry warns.
 
@@ -253,8 +258,10 @@ rules, and the authoring STANDARD are in `EncounterOfTheWeek/KNACKS_REFERENCE.md
 - **`Allow` makes the option SECRET**: a hero who does not meet it never sees
   it (nor does anyone watching that hero). It is not shown locked.
 - **`#### If <requirement>`** under an option is a KNACK VERSION of it for a
-  hero who meets the requirement: `|` clauses with no roll (the knack makes the
-  problem moot) or its own `|Name: Characteristic` roll (a better table).
+  hero who meets the requirement, normally with its own `|Name: Characteristic`
+  roll: a Better or Spicy table (KNACKS_REFERENCE.md section 4). `|` clauses
+  with no roll are allowed, but only for flavour: a knack never skips the
+  roll to win something.
   First knack met wins. Also `#### Instead, if ...:` / `#### Knack: ...`.
 - **Requirements** are INTENT, joined by `or`: `you can teleport` (a speed OR
   an ability such as Black Ash Teleport), `you can speak with animals`,
@@ -268,14 +275,9 @@ rules, and the authoring STANDARD are in `EncounterOfTheWeek/KNACKS_REFERENCE.md
 - The validator's **Knack coverage** section checks the standard: every test
   has a knack, opportunities have secret options, each pregen meets 3+.
 
-**Companions and assists** need no authoring. When a hero approaches an
-entry, other heroes may go along (once a round each). Their knack versions,
-secret options and languages count for the turn; edge and bane riders read
-only the hero making the test, so if a companion's language should help,
-write it as a knack version or a secret option, not as `Edge: you speak X`.
-Before a test is rolled, each companion may assist with a listed skill
-nobody has used (never the hero's last), adding an edge or bane. So list two
-or more skills on a test if you want it assistable.
+**Heroes act alone.** A hero approaches an entry by themselves: there are
+no companions and no assists, so every knack, secret option, language and
+rider reads only the hero making the test.
 
 **Party-size scaling.** Lines directly under `## Round N`:
 `<range> Players: -<n> Opportunity, -<n> Threat`, where range is `4`, `4-5`
@@ -349,8 +351,7 @@ PC turns back toward the light.
 Exhausted, PC staggers out.
 ```
 
-The whole delve is that hero's one turn; their companions go in with them
-(each may assist one obstacle test in the whole delve). They meet random
+The whole delve is that hero's one turn, and they go in alone. They meet random
 obstacles (shaped exactly like opportunities); a chest comes due every 1-2
 obstacles (dice table rows are clauses; unfound rows read `???`). Then "Press
 deeper (lose 1 Recovery)" or "Turn back" (`## Leave` or `## Turn Back`); at 0
@@ -529,6 +530,42 @@ Trap: Place 4 Snare Trap objects in Trap zones and delete the other Trap zones.
     round 4). A section with no `Arrive:` or no island warns and never comes.
   - `/eotwreinforce` lists what the script will send and what has arrived;
     `/eotwreinforce arrive 1` brings section 1's next group in now.
+
+## Series: several encounters on one map
+
+A **series** is one encounter map played as several encounters, each on its
+own part of the map, unlocked one after another: a party plays Part 1; once the
+player's account has won it, Part 2 opens; and so on. Every part is a separate
+game (the map starts fresh each time).
+
+- **One script document per part**, all in the map's Map Documents folder, each
+  starting with a part heading: `# Part 1: The Antechamber`, `# Part 2: The
+  Ossuary`, `# Part 3` (the title is optional). It is not a beat. Number the
+  parts 1, 2, 3... with no gaps or repeats (publishing refuses otherwise).
+  Once any document on the map has a part heading, documents without one are
+  never the script.
+- Each part is a whole script: its own beats, its own `# Encounter` and
+  `[[encounter]]` island, and its own `# Town Gate` / `# Conclusion` /
+  `# Defeat`. Sub-documents work as usual, per part.
+- **Where each part is played: the encounter's region.** In the encounter
+  builder, draw the encounter's **region** (the rectangle of the map it takes
+  place in) and its **hero start zone**, then load that saved encounter into
+  the part's `[[encounter]]` island ("Load saved..."). The game bounds the map
+  to the region from the moment the party arrives (players cannot see or walk
+  out of it) and places the heroes on the start tiles. With no start tiles,
+  heroes start on the map's `Start` zone tiles inside the region, so a shared
+  map can carry one Start zone per part. Trap zones and reinforcement `Enter:`
+  zones only count inside the region too.
+- The validator panel says which part a document is, and flags a part whose
+  encounter has no region.
+- **Testing**: Test Encounter has a **Part** dropdown on a series map. The test
+  bounds the map like a real game and puts the bounds back at End Test.
+- **In town**: the series is one entry (it is scheduled and voted on as a
+  whole). Form a Party opens on the next part the player has to play, with
+  a chip per part: won parts are ticked, locked ones greyed. At the Town Gate a
+  part unlocks when any of the account's heroes has won the part before it;
+  in the Proving Pits, when the account has won it there. Proving Pits wins do
+  not carry over to the Gate. Each part is worth its own Victory at the Gate.
 
 ## Full worked example (master + one sub-document)
 

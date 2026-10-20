@@ -37,6 +37,19 @@ local function StampRecordKey(obj, key)
     end
 end
 
+--Remember which creature made the object. Formulas on the object, such as its
+--collision behavior, can then use that creature's stats.
+local function StampObjectCreator(obj, casterToken)
+    if obj == nil or casterToken == nil or (not casterToken.valid) then
+        return
+    end
+
+    local targetable = obj:GetComponent("Targetable")
+    if targetable ~= nil and targetable.properties ~= nil then
+        targetable.properties.objectcreator = casterToken.charid
+    end
+end
+
 --True if this aura definition carries any onenter/end-of-turn trigger, counting
 --sub-aura triggers (a split aura normally keeps its triggers on the child payload).
 local function AuraDefHasTriggers(auraDef)
@@ -218,6 +231,7 @@ function ActivatedAbilityCreateObjectBehavior:Cast(ability, casterToken, targets
                 StampRecordKey(obj, recordKey)
                 StampAuraIdentity(obj)
                 StampAuraCaster(obj, casterToken)
+                StampObjectCreator(obj, casterToken)
                 RecordObjectInModification(obj)
                 for _,child in ipairs(spawnOptions.outChildren) do
                     if self.randomize then
@@ -382,6 +396,7 @@ function ActivatedAbilityCreateLaneObjectBehavior:Cast(ability, casterToken, tar
     obj.x = nearLoc.x
     obj.y = nearLoc.y
     obj.rotation = rotation
+    StampObjectCreator(obj, casterToken)
 
     local slideDist = Aura.laneSlideDistance
     local comp = obj:GetComponent("Aura")

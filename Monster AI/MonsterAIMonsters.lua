@@ -379,6 +379,37 @@ MonsterAI:RegisterMove{
     execute = GenerateStandardStrikeExecuteFunction(),
 }
 
+--A leap then a claw looks like a charge: Razor Claws with a 3-square charge
+--engages the AI's leap probe (chargeDistanceOverride), and each target's
+--.charge is the square the ghoul jumps to.
+local function LeapAndClawPlanningStrike(razorClawsAbility)
+    local fakeAbility = DeepCopy(razorClawsAbility)
+    fakeAbility:AddKeyword("Charge")
+    fakeAbility.chargeDistanceOverride = 3
+    return fakeAbility
+end
+
+--Only leap on targets small enough for the leap to knock prone.
+local function LeapAndClawTargetScore(targetToken, edges)
+    if targetToken.tileSize > 1 then
+        return -1
+    end
+    return 2
+end
+
+--Valid targets from loc, best first by the score the plan was chosen with.
+local function LeapAndClawRankedTargets(ai, token, fakeAbility, loc)
+    local targets = ai:FindValidTargetsOfStrike(token, fakeAbility, loc)
+    table.sort(targets, function(a, b)
+        local sa, sb = LeapAndClawTargetScore(a.token, a.edges), LeapAndClawTargetScore(b.token, b.edges)
+        if sa ~= sb then
+            return sa > sb
+        end
+        return a.edges > b.edges
+    end)
+    return targets
+end
+
 MonsterAI:RegisterMove{
     id = "Leap and Claw",
     category = "Maneuvers",
@@ -386,35 +417,47 @@ MonsterAI:RegisterMove{
     abilities = {"Leap", "Razor Claws"},
     description = "Ghouls will use their Leap ability to target size 1 creatures. Then they will move adjacent to them and use Razor Claws.",
     score = function(self, ai, token, leapAbility, razorClawsAbility)
-        --synthesize an ability that looks like a charge to engage charge logic in calculations since a leap is very similar.
-        local fakeAbility = DeepCopy(razorClawsAbility)
-        fakeAbility:AddKeyword("Charge")
-        fakeAbility.chargeDistanceOverride = 3
-        local loc, score = ai:FindBestMoveToUseStrike(token, leapAbility, function(targetToken)
-            --we only want to leap on targets small enough to knock prone.
-            if targetToken.tileSize > 1 then
-                return -1
-            end
-
-            return 2
-        end)
-        if loc ~= nil and score ~= nil then
-            return {score = score, loc = loc}
+        --Plan with the same synthetic strike execute uses (Razor Claws with a
+        --3-square charge standing in for the leap), and carry the chosen target
+        --to execute. Planning with Leap itself and re-picking targets[1] in
+        --execute made the ghoul score one hero and leap on another (2026-10-18).
+        local fakeAbility = LeapAndClawPlanningStrike(razorClawsAbility)
+        local loc, score = ai:FindBestMoveToUseStrike(token, fakeAbility, LeapAndClawTargetScore)
+        if loc == nil or score == nil or score <= 0 then
+            return nil
         end
+        local target = nil
+        for _,info in ipairs(LeapAndClawRankedTargets(ai, token, fakeAbility, loc)) do
+            if info.charge ~= nil and LeapAndClawTargetScore(info.token, info.edges) > 0 then
+                target = info.token
+                break
+            end
+        end
+        if target == nil then
+            return nil, "no leap lands next to a target from the best square"
+        end
+        return {score = score, loc = loc, target = target}
     end,
     execute = function(self, ai, token, scoringInfo, leapAbility, razorClawsAbility)
-        local fakeAbility = DeepCopy(razorClawsAbility)
-        fakeAbility:AddKeyword("Charge")
-        fakeAbility.chargeDistanceOverride = 3
+        local fakeAbility = LeapAndClawPlanningStrike(razorClawsAbility)
 
         local path = ai:MoveToken(token, scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
-        local targets = ai:FindValidTargetsOfStrike(token, fakeAbility, scoringInfo.loc)
         ai.Sleep(0.5)
-        if targets == nil or #targets == 0 or targets[1].charge == nil then
+        if not MonsterAI.TokenIsLiveCombatant(scoringInfo.target) then
             return
         end
 
-        table.resize_array(targets, 1)
+        --Re-probe the jump now the ghoul has moved, but only toward the planned target.
+        local targets = {}
+        for _,info in ipairs(ai:FindValidTargetsOfStrike(token, fakeAbility, scoringInfo.loc)) do
+            if info.token.charid == scoringInfo.target.charid and info.charge ~= nil then
+                targets[1] = info
+                break
+            end
+        end
+        if #targets == 0 then
+            return
+        end
 
         local leapTargets = {
             {

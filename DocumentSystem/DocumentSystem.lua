@@ -8691,8 +8691,9 @@ end
 -- lighting, measuring) live on the MAP RAIL instead of the user's icon
 -- rails: a column down the left edge of the live map window, appended to
 -- the left rail when that window is maximized. A second column on the
--- window's right edge holds buttons a particular map or encounter
--- provides (MapButtons). The map rail is hard-wired: these panels never
+-- window's right edge holds Map Settings (MapRail.RIGHT_SIDE) above the
+-- buttons a particular map or encounter provides (MapButtons). The map
+-- rail is hard-wired: these panels never
 -- go on the user's rails, and their folders below are fixed in code
 -- rather than read from "iconrailtabs". A GLOBAL table: the main chunk
 -- sits on the 200-locals ceiling.
@@ -8707,6 +8708,12 @@ MapRail.FOLDERS = {
     { "floors & layers", "time of day/lighting", "elevation editor", "weather" },
     { "map settings" },
     { "measuring tool", "whiteboard" },
+}
+
+--Map panels that sit at the top of the RIGHT column (above the map's own
+--buttons) instead of in the left one. Keys are lower-case panel names.
+MapRail.RIGHT_SIDE = {
+    ["map settings"] = true,
 }
 
 MapRail.isMapPanel = {}
@@ -25693,6 +25700,12 @@ end
 --Tear down and rebuild both rails from the saved layout (after a button
 --drag rearranges them). Open windows are untouched.
 RebuildIconRails = function()
+    --Diagnostic: a rebuild with no rails up is building the FIRST rails
+    --for a game, ahead of EnsureIconRail. Logs who, since that ordering is
+    --what once skipped the pinned-window restore (RailRestoreOpenWindows).
+    if g_iconRails.left == nil or not g_iconRails.left.valid then
+        print("RAILGEOM:: rebuild with no rails up\n" .. debug.traceback("", 2))
+    end
     DestroyIconRails()
     --map windows' rails rebuild with these (MapRail.Signature).
     MapRail.version = (MapRail.version or 0) + 1
@@ -26141,8 +26154,8 @@ end)
 --While the rail mode is on in a game with the table up, the map rail
 --replaces the MapButtons bar:
 --  * the live map window, windowed: a fixed rail column inside each of
---    its edges -- map panels on the left, the map's own buttons
---    (MapButtons: map scripts, encounter controls) on the right. Built by
+--    its edges -- map panels on the left, Map Settings and the map's own
+--    buttons (MapButtons: map scripts, encounter controls) on the right. Built by
 --    PanelDocument.CreateMapRails; Tabletop.lua hosts and rebuilds them.
 --  * the live map window, maximized: the same buttons appended to the
 --    screen rails below a divider (MapRail.AppendMerged, from
@@ -26206,14 +26219,16 @@ RailEntryTypes.mapbutton = {
 
 --- The map panels' rail entries for this user, in rail order: folder
 --- owners and any panel no folder of theirs holds. Slots are unassigned.
+--- @param side? "left"|"right" only that column's panels (MapRail.RIGHT_SIDE); nil for both
 --- @return table[]
-function MapRail.PanelEntries()
+function MapRail.PanelEntries(side)
     local list = {}
     local owners = PanelDocument.GroupOwners()
     for _, folder in ipairs(MapRail.FOLDERS) do
         for _, key in ipairs(folder) do
             local reg = DockablePanel.GetRegistration(key)
-            if reg ~= nil and owners[key] == nil and MapRail.PanelAvailable(key) and PanelDocument.Get(key) ~= nil then
+            local onSide = side == nil or (MapRail.RIGHT_SIDE[folder[1]] == true) == (side == "right")
+            if onSide and reg ~= nil and owners[key] == nil and MapRail.PanelAvailable(key) and PanelDocument.Get(key) ~= nil then
                 list[#list + 1] = { key = key, name = reg.name, span = 1, ord = #list, mapRail = true }
             end
         end
@@ -26316,8 +26331,20 @@ function MapRail.AppendMerged(sides)
     end
     local panelSide = cond(PanelDocument.RailSideHidden("left"), "right", "left")
     local buttonSide = cond(PanelDocument.RailSideHidden("right"), "left", "right")
-    MapRail.AppendSection(sides[panelSide], MapRail.PanelEntries())
-    MapRail.AppendSection(sides[buttonSide], MapRail.ButtonEntries())
+    MapRail.AppendSection(sides[panelSide], MapRail.PanelEntries("left"))
+    MapRail.AppendSection(sides[buttonSide], MapRail.RightEntries())
+end
+
+--- The right column's entries: right-side map panels (Map Settings) on
+--- top, then the map's own buttons.
+--- @return table[]
+function MapRail.RightEntries()
+    local list = MapRail.PanelEntries("right")
+    for _, e in ipairs(MapRail.ButtonEntries()) do
+        e.ord = #list
+        list[#list + 1] = e
+    end
+    return list
 end
 
 --Polled by a screen rail's think: rebuild the rails when the merged
@@ -26337,9 +26364,10 @@ function MapRail.CheckMerged()
     end)
 end
 
---- The live map window's rail columns (left: map panels, right: the map's
---- own buttons), for Tabletop.lua to mount inside the window. Each needs
---- setRailScale fired once attached. Empty when the map rail is off.
+--- The live map window's rail columns (left: map panels, right: Map
+--- Settings and the map's own buttons), for Tabletop.lua to mount inside
+--- the window. Each needs setRailScale fired once attached. Empty when the
+--- map rail is off.
 --- @return Panel[]
 function PanelDocument.CreateMapRails()
     local result = {}
@@ -26347,8 +26375,8 @@ function PanelDocument.CreateMapRails()
         return result
     end
     local columns = {
-        { side = "left", entries = MapRail.PanelEntries() },
-        { side = "right", entries = MapRail.ButtonEntries() },
+        { side = "left", entries = MapRail.PanelEntries("left") },
+        { side = "right", entries = MapRail.RightEntries() },
     }
     for _, column in ipairs(columns) do
         if #column.entries > 0 then
@@ -26376,6 +26404,70 @@ function PanelDocument.CreateMapRails()
     --the newest build replaces the last.
     MapRail.windowRails = result
     return result
+end
+
+--Reopen this game's popped-out panels and recorded/pinned rail windows.
+--The full rail build always calls it (force); the rails-already-up path
+--calls it unforced, which only does anything the first time per game id.
+--State lives in a do-block so it costs no top-level local (this chunk is
+--at Lua's 200-local limit).
+do
+    local restoredGameId = nil
+    PanelDocument.RailRestoreOpenWindows = function(force)
+        if not force and restoredGameId == dmhub.gameid then
+            return
+        end
+        restoredGameId = dmhub.gameid
+
+        --restore popped-out panels first: a panel living in its own OS
+        --window must not also restore an in-app rail window below. Only
+        --records stamped by THIS app run reopen -- that is what brings
+        --popouts back after a Lua reload (the unload sweep destroys the
+        --hosts; the records survive it) without windows from a previous
+        --launch reappearing at startup; stale records are pruned.
+        local session = PanelDocument.PopoutSessionId()
+        local popouts = DeepCopy(dmhub.GetSettingValue("popoutwindows") or {})
+        for key, p in pairs(popouts) do
+            if p.session ~= session then
+                PanelDocument.PopoutForgetWindow(key)
+            elseif not PanelDocument.IsPoppedOut(key) then
+                OpenPanelPopout(key, {
+                    x = p.x, y = p.y, width = p.width, height = p.height,
+                    --the scale the recorded size was measured at, so the
+                    --window comes back the same number of SCREEN pixels even
+                    --if Font Size moved while it was down.
+                    scale = p.scale,
+                })
+            end
+        end
+
+        --restore the recorded windows, plus any pinned panel that is not in
+        --the record (a pinned window is always meant to be up).
+        local restore = DeepCopy(RailRestoreWindows())
+        for key in pairs(dmhub.GetSettingValue("iconrailpanelpinned") or {}) do
+            if restore[key] == nil then
+                restore[key] = {}
+            end
+        end
+        for key, p in pairs(restore) do
+            --a panel already restored into its own OS window above must not
+            --also be opened as a rail window here.
+            if PanelDocument.FindHostDialog(key) == nil and not PanelDocument.IsPoppedOut(key) then
+                --come back on the tab the window was left on. A remembered
+                --tab that has since been refiled into some OTHER folder is
+                --ignored: opening it would restore that folder's window
+                --instead of this one.
+                local open = key
+                if p.tab ~= nil and PanelDocument.WindowOwner(p.tab) == key then
+                    open = p.tab
+                end
+                print(string.format("RAILGEOM:: restore key=%s x=%s y=%s w=%s h=%s | %s",
+                    tostring(key), tostring(p.x), tostring(p.y),
+                    tostring(p.width), tostring(p.height), PanelDocument.RailGeomEnv()))
+                OpenIconRailWindow(open, { x = p.x, y = p.y, width = p.width, height = p.height })
+            end
+        end
+    end
 end
 
 --Create or destroy the rails to match the setting; restore pinned windows
@@ -26470,6 +26562,10 @@ function EnsureIconRail()
 
     local existing = g_iconRails.left
     if existing ~= nil and existing.valid then
+        --rails built by someone else first (entering a game from the title
+        --screen: the lobby game's module stays loaded and a rebuild beats
+        --EnterGame here) still owe this game its windows.
+        PanelDocument.RailRestoreOpenWindows(false)
         if mapStripped and not renamed and RebuildIconRails ~= nil then
             RebuildIconRails()
         end
@@ -26553,54 +26649,7 @@ function EnsureIconRail()
     --stale squeeze left from before the rail owned this.
     dmhub.UpdateScreenHudArea(1)
 
-    --restore popped-out panels first: a panel living in its own OS
-    --window must not also restore an in-app rail window below. Only
-    --records stamped by THIS app run reopen -- that is what brings
-    --popouts back after a Lua reload (the unload sweep destroys the
-    --hosts; the records survive it) without windows from a previous
-    --launch reappearing at startup; stale records are pruned.
-    local session = PanelDocument.PopoutSessionId()
-    local popouts = DeepCopy(dmhub.GetSettingValue("popoutwindows") or {})
-    for key, p in pairs(popouts) do
-        if p.session ~= session then
-            PanelDocument.PopoutForgetWindow(key)
-        elseif not PanelDocument.IsPoppedOut(key) then
-            OpenPanelPopout(key, {
-                x = p.x, y = p.y, width = p.width, height = p.height,
-                --the scale the recorded size was measured at, so the
-                --window comes back the same number of SCREEN pixels even
-                --if Font Size moved while it was down.
-                scale = p.scale,
-            })
-        end
-    end
-
-    --restore the recorded windows, plus any pinned panel that is not in
-    --the record (a pinned window is always meant to be up).
-    local restore = DeepCopy(RailRestoreWindows())
-    for key in pairs(dmhub.GetSettingValue("iconrailpanelpinned") or {}) do
-        if restore[key] == nil then
-            restore[key] = {}
-        end
-    end
-    for key, p in pairs(restore) do
-        --a panel already restored into its own OS window above must not
-        --also be opened as a rail window here.
-        if PanelDocument.FindHostDialog(key) == nil and not PanelDocument.IsPoppedOut(key) then
-            --come back on the tab the window was left on. A remembered
-            --tab that has since been refiled into some OTHER folder is
-            --ignored: opening it would restore that folder's window
-            --instead of this one.
-            local open = key
-            if p.tab ~= nil and PanelDocument.WindowOwner(p.tab) == key then
-                open = p.tab
-            end
-            print(string.format("RAILGEOM:: restore key=%s x=%s y=%s w=%s h=%s | %s",
-                tostring(key), tostring(p.x), tostring(p.y),
-                tostring(p.width), tostring(p.height), PanelDocument.RailGeomEnv()))
-            OpenIconRailWindow(open, { x = p.x, y = p.y, width = p.width, height = p.height })
-        end
-    end
+    PanelDocument.RailRestoreOpenWindows(true)
 end
 
 --A Lua reload starts a fresh module generation: the previous one's rails

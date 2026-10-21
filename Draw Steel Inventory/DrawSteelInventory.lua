@@ -1206,25 +1206,45 @@ local CreateInventorySlot = function(dmhud, options)
 									token.properties:GiveItem(imbueTarget.id, 1)
 									token.properties:SetItemQuantity(imbueItem.id, token.properties:GetItemQuantity(imbueItem.id) - 1, slotPanel.data.inventoryIndex)
 									token:CompleteChanges("Imbue mundane item")
+									return nil
 								end
 								return message
 							end
-							local function attemptImbueItem(imbueItem, targetItem)
-								if targetItem:try_get("unique", false) ~= true then
-									targetItem = _duplicateItem(targetItem)
-									dmhub.SetAndUploadTableItem('tbl_Gear', targetItem)
-									token:BeginChanges()
-									token.properties:SetItemQuantity(targetItem.id, 1, parentDialog.data.GetFirstFreeSlotAfter(slotPanel.data.inventoryIndex))
-									token:CompleteChanges('Imbue Item')
+							--Imbue a carried item, or an equipped one (equipSlot). An ordinary item
+							--(not unique) becomes this Hero's own copy first, as Make Unique does:
+							--one leaves the stack, or the copy takes the equipment slot. The imbue
+							--works on a copy, so a failure changes nothing. Returns the failure reason.
+							local function attemptImbueItem(imbueItem, targetItem, equipSlot)
+								local original = targetItem
+								local makeOwnCopy = original:try_get("unique", false) ~= true
+								local candidate
+								if makeOwnCopy then
+									candidate = _duplicateItem(original)
+									candidate.baseid = original.id
+									candidate.unique = true
+									candidate.hidden = true
+								else
+									candidate = DeepCopy(original)
 								end
 
-								local imbueTarget, message = DSImbuement.ImbueItem(imbueItem, targetItem)
-								if imbueTarget then
-									dmhub.SetAndUploadTableItem(equipment.tableName, imbueTarget)
-									token:BeginChanges()
-									token.properties:SetItemQuantity(imbueItem.id, token.properties:GetItemQuantity(imbueItem.id) - 1, slotPanel.data.inventoryIndex)
-									token:CompleteChanges('Imbue Item')
+								local imbueTarget, message = DSImbuement.ImbueItem(imbueItem, candidate)
+								if imbueTarget == nil then
+									return message
 								end
+
+								dmhub.SetAndUploadTableItem(equipment.tableName, imbueTarget)
+								token:BeginChanges()
+								if makeOwnCopy then
+									if equipSlot ~= nil then
+										token.properties:Equipment()[equipSlot] = imbueTarget.id
+									else
+										token.properties:SetItemQuantity(original.id, token.properties:GetItemQuantity(original.id) - 1)
+										token.properties:SetItemQuantity(imbueTarget.id, 1, parentDialog.data.GetFirstFreeSlotAfter(slotPanel.data.inventoryIndex))
+									end
+								end
+								token.properties:SetItemQuantity(imbueItem.id, token.properties:GetItemQuantity(imbueItem.id) - 1, slotPanel.data.inventoryIndex)
+								token:CompleteChanges('Imbue Item')
+								return nil
 							end
 							local submenu = {}
 							local prereq = item:try_get("imbuePrereq")
@@ -1244,21 +1264,21 @@ local CreateInventorySlot = function(dmhud, options)
 							for id,_ in pairs(creature:try_get("inventory")) do
 								local invItem = itemTable[id]
 								if DSImbuement.CanImbue(item, invItem) then
-									imbueTargets[#imbueTargets+1] = invItem
+									imbueTargets[#imbueTargets+1] = { item = invItem }
 								end
 							end 
-							for _,id in pairs(creature:try_get("equipment", {})) do
+							for slotid,id in pairs(creature:try_get("equipment", {})) do
 								local invItem = itemTable[id]
 								if DSImbuement.CanImbue(item, invItem) then
-									imbueTargets[#imbueTargets+1] = invItem
+									imbueTargets[#imbueTargets+1] = { item = invItem, equipSlot = slotid }
 								end
 							end
-							for _,invItem in ipairs(imbueTargets) do
+							for _,target in ipairs(imbueTargets) do
 								submenu[#submenu+1] = {
-									text = invItem.name,
+									text = target.item.name,
 									click = function()
 										element.popup = nil
-										attemptImbueItem(item, invItem)
+										attemptImbueItem(item, target.item, target.equipSlot)
 									end
 								}								
 							end

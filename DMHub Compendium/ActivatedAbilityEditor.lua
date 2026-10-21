@@ -3979,6 +3979,7 @@ function ActivatedAbility:ShowEditActivatedAbilityDialog(options)
 					width = 560,
 					height = 240,
 					flow = "vertical",
+					buttonsHalign = "center",
 					buttons = {
 						{
 							text = "Delete",
@@ -3994,7 +3995,9 @@ function ActivatedAbility:ShowEditActivatedAbilityDialog(options)
 					},
 					children = {
 						gui.Label{
-							width = "100%",
+							--fixed width: the body panel sizes to its content, so
+							--"100%" collapsed and wrapped every word.
+							width = 500,
 							height = "auto",
 							halign = "center",
 							valign = "center",

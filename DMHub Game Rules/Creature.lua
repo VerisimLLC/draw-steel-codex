@@ -13552,7 +13552,9 @@ function creature:Rest(restType, keepOngoingEffects)
 			local newLevel = level
 			local levelingUp = newXp >= xpNextLevel
 			if levelingUp then
-				newLevel = math.floor(newXp / xpPerLevel) + 1
+				--Stop at the top Level a Hero can reach (10 in Draw Steel); XP keeps counting.
+				--Only classes[1].level is written below, so monsters (Level = cr) are untouched.
+				newLevel = math.min(math.floor(newXp / xpPerLevel) + 1, GameSystem.numLevels)
 				if newLevel > level then
 					local classes = self:try_get("classes", {})
 					if classes and #classes > 0 then

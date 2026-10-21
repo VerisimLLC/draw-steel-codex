@@ -559,10 +559,12 @@ local CreateInventorySlot = function(dmhud, options)
 
 				if item ~= nil and item:try_get("consumable") and item:try_get("consumableCharges", 1) > 1 then
 					--an item with charges.
+					--compare as numbers: as text "10" sorts before "9", so "9/10" was refused.
 					local a,b = string.match(element.text, "(%d+)/(%d+)")
+					a, b = tonumber(a), tonumber(b)
 					if a ~= nil and b ~= nil and b >= a then
-						item.consumableCharges = tonumber(b)
-						item.consumableChargesConsumed = tonumber(b) - tonumber(a)
+						item.consumableCharges = b
+						item.consumableChargesConsumed = b - a
 					else
 						local a = string.match(element.text, "(%d+)")
 						if a ~= nil then

@@ -1651,7 +1651,7 @@ function EotwBuild.hero.PoolTable(hero, kind)
         entries[#entries+1] = {
             id = id,
             name = item.name,
-            category = item:try_get("category"),
+            category = kind == "skill" and item.category or nil,
             description = description,
             state = state,
             --for a native or fixed one: where it comes from, or nil

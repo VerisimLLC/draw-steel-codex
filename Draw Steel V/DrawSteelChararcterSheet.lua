@@ -583,6 +583,10 @@ local function CreateAbilityPanel()
                         delete = function(element)
                             CharacterSheet.instance.data.info.token.properties:RemoveInnateActivatedAbility(ability)
                         end,
+                        deleteConfirm = {
+                            title = "Delete Ability",
+                            message = string.format("Delete %s? This can't be undone.", ability.name),
+                        },
                     })
                 end,
             },

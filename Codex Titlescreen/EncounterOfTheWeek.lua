@@ -58,8 +58,11 @@ function EncounterOfTheWeek.FastLaunch()
 end
 
 --True if the Encounter of the Week mode is available to this user at all.
+--Retail (release/0.0.857): hard off. The dev gate is a preference, so a
+--user who turned it on in a beta/dev build keeps it after switching back;
+--retail must not show the mode to them.
 function EncounterOfTheWeek.Enabled()
-    return dmhub.GetSettingValue("dev:encounteroftheweek") == true
+    return false
 end
 
 --Debug "New Player Window" (the Codex menu while this screen is open, admin
@@ -80,10 +83,10 @@ end
 --One shot: true the first time it is asked in a child launched with --eotw.
 --The titlescreen calls ShowScreen for it on reaching the selection screen
 --(the arg bypasses the dev gate, so the secondary account needs no setup).
+--Retail: never (see EncounterOfTheWeek.Enabled).
 function EncounterOfTheWeek.WantsAutoOpen()
-    local result = EncounterOfTheWeek.autoOpen
     EncounterOfTheWeek.autoOpen = false
-    return result
+    return false
 end
 
 --Set by the game-side EotW codemod just before it exits a finished game

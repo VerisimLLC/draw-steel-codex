@@ -40,6 +40,61 @@ local function _duplicateItem(sourceItem)
     return itemCopy
 end
 
+--A small modal asking before a slot-menu action (Destroy). Esc cancels.
+---@param args {title: string, message: string, confirmText: string, confirm: function}
+local function ConfirmInventoryAction(args)
+    gamehud:ModalDialog{
+        title = args.title,
+        width = 560,
+        height = 240,
+        flow = "vertical",
+        buttonsHalign = "center",
+        buttons = {
+            { text = args.confirmText, click = args.confirm },
+            { text = "Cancel", escapeActivates = true },
+        },
+        children = {
+            --fixed width: the body panel sizes to its content, so "100%" would wrap every word.
+            gui.Label{
+                width = 500,
+                height = "auto",
+                halign = "center",
+                valign = "center",
+                textAlignment = "center",
+                text = args.message,
+            },
+        },
+    }
+end
+
+--Shows why an imbue failed; nil (success) shows nothing.
+---@param message string|nil the reason DSImbuement gave
+local function ShowImbueFailure(message)
+    if message == nil then
+        return
+    end
+    gamehud:ModalDialog{
+        title = "Imbuement Failed",
+        width = 560,
+        height = 240,
+        flow = "vertical",
+        buttonsHalign = "center",
+        buttons = {
+            { text = "Close", escapeActivates = true },
+        },
+        children = {
+            gui.Label{
+                width = 500,
+                height = "auto",
+                halign = "center",
+                valign = "center",
+                textAlignment = "center",
+                text = message,
+            },
+        },
+    }
+end
+
 local SlotDim = 72
 
 local g_SlotHighlightStyles = {
@@ -1187,12 +1242,26 @@ local CreateInventorySlot = function(dmhud, options)
 
 								local quantity = token.properties:QuantityInSlot(item.id, slotPanel.data.inventoryIndex)
 
-								token:BeginChanges()
-								token.properties:SetItemQuantity(item.id, token.properties:GetItemQuantity(item.id) - quantity, slotPanel.data.inventoryIndex)
-								token:CompleteChanges('Destroy Item')
+								local message = string.format("Destroy %s?", item.name)
+								if quantity > 1 then
+									message = string.format("Destroy all %d of %s?", math.tointeger(quantity) or quantity, item.name)
+								end
 
-								slotPanel.data.inventoryDialog:FireEventTree('refreshInventory')
+								ConfirmInventoryAction{
+									title = "Destroy Item",
+									message = message,
+									confirmText = "Destroy",
+									confirm = function()
+										if not token.valid then
+											return
+										end
+										token:BeginChanges()
+										token.properties:SetItemQuantity(item.id, token.properties:GetItemQuantity(item.id) - quantity, slotPanel.data.inventoryIndex)
+										token:CompleteChanges('Destroy Item')
 
+										slotPanel.data.inventoryDialog:FireEventTree('refreshInventory')
+									end,
+								}
 							end,
 						}
 
@@ -1256,7 +1325,7 @@ local CreateInventorySlot = function(dmhud, options)
 									click = function()
 										element.popup = nil
 										local imbueTarget = DSImbuement.CreateMundaneItem(targetType)
-										attemptImbueMundane(item, imbueTarget)
+										ShowImbueFailure(attemptImbueMundane(item, imbueTarget))
 									end,
 								}
 							end
@@ -1280,7 +1349,7 @@ local CreateInventorySlot = function(dmhud, options)
 									text = target.item.name,
 									click = function()
 										element.popup = nil
-										attemptImbueItem(item, target.item, target.equipSlot)
+										ShowImbueFailure(attemptImbueItem(item, target.item, target.equipSlot))
 									end
 								}								
 							end

@@ -7389,13 +7389,8 @@ local function CharacterSheetEditLanguagesPopup(element)
                 text = "Add Language...",
             })
 
-            if creature:try_get("customInnateLanguage") == nil then
-                options[#options + 1] = {
-                    id = "custom",
-                    text = "Custom Language...",
-                }
-            end
-
+            --No "Custom Language..." entry: nothing in Draw Steel names or reads
+            --customInnateLanguage (only the 5e sheet does), so it saved nothing.
             element.options = options
 
             element.idChosen = "none"
@@ -7404,11 +7399,7 @@ local function CharacterSheetEditLanguagesPopup(element)
         change = function(element)
             ---@cast element Dropdown
             if element.idChosen ~= "none" then
-                if element.idChosen == "custom" then
-                    creature.customInnateLanguage = ""
-                else
-                    creature:get_or_add("innateLanguages", {})[element.idChosen] = true
-                end
+                creature:get_or_add("innateLanguages", {})[element.idChosen] = true
                 resultPanel:FireEventTree("refreshPanel")
                 CharacterSheet.instance:FireEvent('refreshAll')
             end

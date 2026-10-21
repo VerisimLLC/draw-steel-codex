@@ -890,6 +890,16 @@ local CreateInventorySlot = function(dmhud, options)
 								click = function()
 
 									element.popup = nil
+
+									--Give from the stack that was clicked: its slot and its count, not the
+									--item's default slot and the total across every stack.
+									local slotIndex = slotPanel.data.inventoryIndex
+									local quantity = token.properties:QuantityInSlot(item.id, slotIndex)
+									if quantity <= 0 then
+										slotIndex = slotPanel.data.inventoryDialog.data.GetDefaultSlotForItem(item.id)
+										quantity = token.properties.inventory[item.id].quantity
+									end
+
 									local GiveItem = function(quantity)
 										if otherToken.valid then
 											otherToken:BeginChanges()
@@ -897,7 +907,7 @@ local CreateInventorySlot = function(dmhud, options)
 											otherToken:CompleteChanges('Receive item')
 
 											token:BeginChanges()
-											token.properties:GiveItem(item.id, -quantity, slotPanel.data.inventoryDialog.data.GetDefaultSlotForItem(item.id))
+											token.properties:GiveItem(item.id, -quantity, slotIndex)
 											token:CompleteChanges('Give item')
 
 											slotPanel.data.inventoryDialog:FireEventTree('refreshInventory')
@@ -905,7 +915,6 @@ local CreateInventorySlot = function(dmhud, options)
 									end
 
 
-									local quantity = token.properties.inventory[item.id].quantity
 									if quantity == 1 then
 										dmhub.Debug('GIVE ITEM')
 										GiveItem(1)

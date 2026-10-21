@@ -467,6 +467,9 @@ function CharacterBuilder.CreatePanel()
                     title = "Confirm Change Ancestry",
                     message = "Click Confirm to remove your Ancestry and all related selections.",
                     onConfirm = function()
+                        --Clear the step's picks first (EotW's rule; it needs the old
+                        --ancestry to find them), so "all related selections" holds.
+                        EotwBuild.hero.ClearStepChoices(hero, "ancestry")
                         hero.raceid = nil
                         hero.subraceid = nil
                         state:Set{ key = SEL.ANCESTRY .. ".blockFeatureSelection", value = true }
@@ -484,6 +487,7 @@ function CharacterBuilder.CreatePanel()
                     title = "Confirm Change Career",
                     message = "Click Confirm to remove your Career and all related selections.",
                     onConfirm = function()
+                        EotwBuild.hero.ClearStepChoices(hero, "career")
                         hero.backgroundid = nil
                         state:Set{ key = SEL.CAREER .. ".blockFeatureSelection", value = true }
                         element:FireEvent("tokenDataChanged")
@@ -500,6 +504,7 @@ function CharacterBuilder.CreatePanel()
                     title = "Confirm Change Class",
                     message = "Click Confirm to remove your Class and all related selections.",
                     onConfirm = function()
+                        EotwBuild.hero.ClearStepChoices(hero, "class")
                         hero.classes = {}
                         for _,attr in pairs(hero:try_get("attributes") or {}) do
                             attr.baseValue = 0

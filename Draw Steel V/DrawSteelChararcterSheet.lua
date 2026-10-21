@@ -8986,7 +8986,23 @@ local function FeaturesIndexPanel()
                 c.characterFeatures = items
                 element.popup = nil
                 CharacterSheet.instance:FireEvent("refreshAll")
-                local editor = feature:PopupEditor{ commit = CommitCustomFeature }
+                local editor = feature:PopupEditor{
+                    commit = CommitCustomFeature,
+                    --The row was added so the editor had something to edit;
+                    --cancelling the new feature takes it back out.
+                    cancel = function(cancelled)
+                        local creature = CharacterSheet.instance.data.info.token.properties
+                        local list = creature:try_get("characterFeatures", {})
+                        local guid = cancelled:try_get("guid")
+                        for i = #list, 1, -1 do
+                            if list[i] == cancelled or (guid ~= nil and list[i]:try_get("guid") == guid) then
+                                table.remove(list, i)
+                            end
+                        end
+                        creature.characterFeatures = list
+                        CharacterSheet.instance:FireEvent("refreshAll")
+                    end,
+                }
                 editor.data.notifyElement = resultPanel
                 CharacterSheet.instance:AddChild(editor)
             end,

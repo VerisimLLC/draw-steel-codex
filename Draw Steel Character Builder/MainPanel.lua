@@ -610,7 +610,16 @@ function CharacterBuilder.CreatePanel()
                                 levelChoice[#levelChoice+1] = note.rowid
                             end
                         end
-                        levelChoices[feature.guid] = levelChoice
+                        --This mirror runs on every refresh, including when a sheet opens, and the
+                        --harness uploads any change. Write only a real change, never an empty entry.
+                        local current = levelChoices[feature.guid]
+                        if current == nil then
+                            if #levelChoice > 0 then
+                                levelChoices[feature.guid] = levelChoice
+                            end
+                        elseif not dmhub.DeepEqual(current, levelChoice) then
+                            levelChoices[feature.guid] = levelChoice
+                        end
                     end
                 end
 

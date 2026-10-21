@@ -197,7 +197,8 @@ end
 ---@param options CreateFollowerOptions
 CreateFollowerMonster = function(followerInfo, followerType, mentorToken, options)
     local pregenid = options and options.pregenid or nil
-    local open = options and options.open or true
+    --Opens unless the caller passes open = false (`and/or` would make that true).
+    local open = not (options ~= nil and options.open == false)
 
     if followerType == "existing" and options.followerToken then
         --Only heroes mentor followers (AddFollowerToMentor is a character method).

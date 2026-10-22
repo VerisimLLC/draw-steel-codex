@@ -1281,38 +1281,18 @@ local CreateInventorySlot = function(dmhud, options)
 								end
 								return message
 							end
-							--Imbue a carried item, or an equipped one (equipSlot). An ordinary item
-							--(not unique) becomes this Hero's own copy first, as Make Unique does:
-							--one leaves the stack, or the copy takes the equipment slot. The imbue
-							--works on a copy, so a failure changes nothing. Returns the failure reason.
-							local function attemptImbueItem(imbueItem, targetItem, equipSlot)
-								local original = targetItem
-								local makeOwnCopy = original:try_get("unique", false) ~= true
-								local candidate
-								if makeOwnCopy then
-									candidate = _duplicateItem(original)
-									candidate.baseid = original.id
-									candidate.unique = true
-									candidate.hidden = true
-								else
-									candidate = DeepCopy(original)
-								end
-
-								local imbueTarget, message = DSImbuement.ImbueItem(imbueItem, candidate)
+							--Imbue a carried or equipped item. Only unique items can be imbued (the
+							--Mundane items this menu makes, then the items imbued from them), so it
+							--edits that item's own record. The imbue runs on a copy, so a failure
+							--changes nothing. Returns the failure reason.
+							local function attemptImbueItem(imbueItem, targetItem)
+								local imbueTarget, message = DSImbuement.ImbueItem(imbueItem, DeepCopy(targetItem))
 								if imbueTarget == nil then
 									return message
 								end
 
 								dmhub.SetAndUploadTableItem(equipment.tableName, imbueTarget)
 								token:BeginChanges()
-								if makeOwnCopy then
-									if equipSlot ~= nil then
-										token.properties:Equipment()[equipSlot] = imbueTarget.id
-									else
-										token.properties:SetItemQuantity(original.id, token.properties:GetItemQuantity(original.id) - 1)
-										token.properties:SetItemQuantity(imbueTarget.id, 1, parentDialog.data.GetFirstFreeSlotAfter(slotPanel.data.inventoryIndex))
-									end
-								end
 								token.properties:SetItemQuantity(imbueItem.id, token.properties:GetItemQuantity(imbueItem.id) - 1, slotPanel.data.inventoryIndex)
 								token:CompleteChanges('Imbue Item')
 								return nil
@@ -1332,24 +1312,25 @@ local CreateInventorySlot = function(dmhud, options)
 							local itemTable = dmhub.GetTable(equipment.tableName)
 							local creature = token.properties
 							local imbueTargets = {}
-							for id,_ in pairs(creature:try_get("inventory")) do
-								local invItem = itemTable[id]
-								if DSImbuement.CanImbue(item, invItem) then
-									imbueTargets[#imbueTargets+1] = { item = invItem }
-								end
-							end 
-							for slotid,id in pairs(creature:try_get("equipment", {})) do
-								local invItem = itemTable[id]
-								if DSImbuement.CanImbue(item, invItem) then
-									imbueTargets[#imbueTargets+1] = { item = invItem, equipSlot = slotid }
+							--Only unique items qualify: offering an ordinary one used to copy it
+							--and then fail, leaving the Hero a free copy.
+							local function offer(invItem)
+								if invItem ~= nil and invItem:try_get("unique", false) == true and DSImbuement.CanImbue(item, invItem) then
+									imbueTargets[#imbueTargets+1] = invItem
 								end
 							end
-							for _,target in ipairs(imbueTargets) do
+							for id,_ in pairs(creature:try_get("inventory")) do
+								offer(itemTable[id])
+							end 
+							for _,id in pairs(creature:try_get("equipment", {})) do
+								offer(itemTable[id])
+							end
+							for _,invItem in ipairs(imbueTargets) do
 								submenu[#submenu+1] = {
-									text = target.item.name,
+									text = invItem.name,
 									click = function()
 										element.popup = nil
-										ShowImbueFailure(attemptImbueItem(item, target.item, target.equipSlot))
+										ShowImbueFailure(attemptImbueItem(item, invItem))
 									end
 								}								
 							end

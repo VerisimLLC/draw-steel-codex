@@ -56,31 +56,74 @@ local function ConfirmMinionDeath(token, attacker)
     return true
 end
 
+--Whether this minion should show a red death skull: its squad's damage owes a
+--death it may take. Returns eligible, isDirectTarget, squadHasDirectTargets.
+--Shared by the token HUD (which only runs for tokens this client can see) and
+--the choose-deaths notice (which must also cover minions out of sight).
+--- @return boolean eligible
+--- @return boolean isDirectTarget
+--- @return boolean squadHasDirectTargets
+local function MinionSkullState(token)
+    local props = token.properties
+    if props == nil or not props.minion or not props:has_key("_tmp_minionSquad") then
+        return false, false, false
+    end
+    local squad = props._tmp_minionSquad
+    if squad.damage_time_pending or squad.damage_taken < squad.health_single then
+        return false, false, false
+    end
+
+    --Traits like Group Appetite: minions never die to ordinary band
+    --damage, and their real deaths (acid/fire pool-zeroing, ending
+    --their turn at 0) are fully automated by triggers - never offer
+    --the manual death-confirmation skull, it reads to players as a
+    --death being owed.
+    if (props:CalculateNamedCustomAttribute("Gated Minion Deaths") or 0) > 0 then
+        return false, false, false
+    end
+
+    local deathOverflows = squad.damage_taken >= (squad.num_recently_damaged+1) * squad.health_single
+    local isDirectTarget = props.minionDamageTime == squad.damage_time
+    if not (isDirectTarget or deathOverflows) then
+        return false, false, false
+    end
+
+    --suppress the skull while a death trigger is being offered so it does not cover the trigger icon.
+    if props:GetAvailableTriggers(true) ~= nil then
+        return false, false, false
+    end
+
+    return true, isDirectTarget, squad.num_recently_damaged > 0
+end
+
 --Minions showing a clickable (not yet confirmed) death skull on this client:
---charid -> {token, panel}. The token HUD's think keeps it current; the notice
---below reads it.
+--charid -> {token, panel}. Only used to give a skull its pending look at once
+--when "Choose for me" kills its minion; the notice finds owed deaths itself.
 local g_clickableSkulls = {}
 
---Group the clickable skulls by squad. Each entry: {squad, tokens, attacker},
---where attacker is the creature that damaged the squad (nil if unknown).
-local function ClickableSkullSquads()
+--Group every minion owing an unconfirmed death by squad, including minions
+--this client cannot see (fog of war), which show no skull to click. Each
+--entry: {squad, tokens, attacker, hidden}, where attacker is the creature that
+--damaged the squad (nil if unknown) and hidden counts tokens out of sight.
+local function OwedDeathSquads()
     local result = {}
-    for charid, entry in pairs(g_clickableSkulls) do
-        local token = entry.token
-        if not token.valid or not entry.panel.valid or entry.panel:HasClass("pending")
-            or not token.properties:has_key("_tmp_minionSquad") then
-            g_clickableSkulls[charid] = nil
-        else
-            local squad = token.properties._tmp_minionSquad
+    for _, token in ipairs(dmhub.GetTokens{haveProperties = true}) do
+        local props = token.valid and token.properties or nil
+        if props ~= nil and props.minion and not props.minionDead
+            and not MinionDeathPending(props) and MinionSkullState(token) then
+            local squad = props._tmp_minionSquad
             local group = result[squad]
             if group == nil then
-                group = {squad = squad, tokens = {}, attacker = nil}
+                group = {squad = squad, tokens = {}, attacker = nil, hidden = 0}
                 result[squad] = group
             end
             group.tokens[#group.tokens+1] = token
-            local isDirect = token.properties.minionDamageTime == squad.damage_time
+            if not token.canSee then
+                group.hidden = group.hidden + 1
+            end
+            local isDirect = props.minionDamageTime == squad.damage_time
             if group.attacker == nil or isDirect then
-                group.attacker = MinionLastAttacker(token.properties) or group.attacker
+                group.attacker = MinionLastAttacker(props) or group.attacker
             end
         end
     end
@@ -170,22 +213,35 @@ Tip.notices["choose-minion-deaths"] = {
     id = "choose-minion-deaths",
     priority = 1100,
     text = function()
-        if next(g_clickableSkulls) == nil then
-            return nil
-        end
         local function MySquads()
             local mine = {}
-            for _, group in pairs(ClickableSkullSquads()) do
+            for _, group in pairs(OwedDeathSquads()) do
                 if ShouldChooseSquadDeaths(group.attacker) then
                     mine[#mine+1] = group
                 end
             end
             return mine
         end
-        if #MySquads() == 0 then
+        local squads = MySquads()
+        if #squads == 0 then
             return nil
         end
-        return "Choose which minions should die by clicking the skulls", {
+
+        --Minions in fog of war show no skull here, so "Choose for me" is the
+        --only way to resolve them (there may be no Director to click them).
+        local total, hidden = 0, 0
+        for _, group in ipairs(squads) do
+            total = total + #group.tokens
+            hidden = hidden + group.hidden
+        end
+        local text = "Choose which minions should die by clicking the skulls"
+        if hidden == total then
+            text = "Minions you can't see must die"
+        elseif hidden > 0 then
+            text = text .. " (some are out of sight)"
+        end
+
+        return text, {
             action = {
                 text = "Choose for me",
                 press = function()
@@ -535,25 +591,9 @@ TokenHud.RegisterPanel{
                 element:FireEventTree("updateInitiative")
 
                 if token.properties.minion and token.properties:has_key("_tmp_minionSquad") then
-                    local squad = token.properties._tmp_minionSquad
-                    local death = (not squad.damage_time_pending) and squad.damage_taken >= squad.health_single
+                    local showSkull, is_direct_target, has_direct_targets = MinionSkullState(token)
 
-                    --Traits like Group Appetite: minions never die to ordinary band
-                    --damage, and their real deaths (acid/fire pool-zeroing, ending
-                    --their turn at 0) are fully automated by triggers - never offer
-                    --the manual death-confirmation skull, it reads to players as a
-                    --death being owed.
-                    if death and (token.properties:CalculateNamedCustomAttribute("Gated Minion Deaths") or 0) > 0 then
-                        death = false
-                    end
-                    local death_overflows = squad.damage_taken >= (squad.num_recently_damaged+1) * squad.health_single
-                    local is_direct_target = token.properties.minionDamageTime == squad.damage_time
-                    local has_direct_targets = squad.num_recently_damaged > 0
-
-                    --suppress the skull while a death trigger is being offered so it does not cover the trigger icon.
-                    local triggers = token.properties:GetAvailableTriggers(true)
-
-                    if death and (is_direct_target or death_overflows) and triggers == nil then
+                    if showSkull then
                         if m_minionDeathPanel == nil then
                             m_minionDeathPanel = gui.Panel{
                                 styles = g_deadMinionIconStyles,

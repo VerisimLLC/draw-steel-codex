@@ -1910,6 +1910,11 @@ function ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTil
         gui.TooltipFrame(pickerContent, { vmargin = 85 }),
 
         mappress = function(element, loc, point)
+            --Strict targeting: players can't place a summon outside the range.
+            --The red hover marker already shows why. Directors bypass this.
+            if (not dmhub.isDM) and dmhub.GetSettingValue("strict:targeting") and not isInRange(loc) then
+                return
+            end
             if commitWithSquadSelection ~= nil then
                 local r = commitWithSquadSelection()
                 if r == nil then

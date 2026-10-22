@@ -667,6 +667,11 @@ function EncounterNarrative.Begin(script, beat, beatIndex)
     }
     doc.data.stageDismissAt = nil
     ApplyUnlocks(doc, beat, beat.title or "Narrative")
+    --a series part's "When <condition>:" lines, against the story so far.
+    local whenOk, whenErr = pcall(EncounterMontage.ApplyWhenLines, doc, beat, beatIndex, nil)
+    if not whenOk then
+        printf("EotW story: When lines failed: %s", tostring(whenErr))
+    end
     doc:CompleteChange("Narrative started", { undoable = false })
     printf("EotW narrative: beat %d started (%d sections)", beatIndex, EncounterScript.SectionCount(beat))
     EncounterNarrative.Present(beatIndex)

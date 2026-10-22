@@ -2277,7 +2277,7 @@ end
 --goes out on the table (DirectorScreen grows it). One size for every card.
 --(One table, g_card, holds the card's size and helpers: this file's top
 --level is near Lua's 200-local limit.)
-local g_card = {width = 168, height = 112}
+local g_card = {width = 168, height = 112, caption = 24}
 
 --A minimized window's button size on the table, in documents-layer units.
 function g_card.Size(rec)
@@ -2414,10 +2414,11 @@ function g_card.Name(rec)
     return MapName(rec.mapid)
 end
 
---The part of an image a card shows: cropped to the card's shape from the
---middle, never stretched. aspect is the image's width over its height.
+--The part of an image a card shows: cropped to the picture's shape (the card
+--above its name strip) from the middle, never stretched. aspect is the
+--image's width over its height.
 function g_card.Crop(aspect)
-    local box = g_card.width / g_card.height
+    local box = g_card.width / (g_card.height - g_card.caption)
     local w, h = 1, 1
     if aspect > box then
         w = box / aspect
@@ -2443,8 +2444,9 @@ function g_card.Expand(rec, ops)
     ops.restore(rec)
 end
 
---A minimized window's card (see g_card.width): its picture with its name along
---the bottom. Dragged like the button; double-click, or the expand button
+--A minimized window's card (see g_card.width): its picture, with its name on
+--a strip of its own below it (Venla, 2026-10-22: nothing laid over the map,
+--which made dark maps hard to read). Dragged like the button; double-click, or the expand button
 --that shows on hover, grows it back into its window.
 function g_card.Button(rec, ops, scale)
     local image, placeholder
@@ -2502,12 +2504,12 @@ function g_card.Button(rec, ops, scale)
     local picture = gui.Panel{
         bgimage = image,
         bgcolor = cond(placeholder, "#1b1814ff", "white"),
-        cornerRadius = 5,
+        cornerRadius = 6,
         floating = true,
         halign = "center",
-        valign = "center",
-        width = g_card.width - 2,
-        height = g_card.height - 2,
+        valign = "top",
+        width = g_card.width,
+        height = g_card.height - g_card.caption,
         interactable = false,
     }
     local card
@@ -2515,9 +2517,8 @@ function g_card.Button(rec, ops, scale)
         classes = {"tabletopTableButton", "tabletopWindowCard"},
         bgimage = "panels/square.png",
         bgcolor = "#1b1814ff",
+        --no frame (Venla, 2026-10-22): the picture runs to the card's edges.
         cornerRadius = 6,
-        borderWidth = 1,
-        borderColor = "#ffffff30",
         floating = true,
         halign = "left",
         valign = "top",
@@ -2555,11 +2556,9 @@ function g_card.Button(rec, ops, scale)
             g_card.Expand(rec, ops)
         end,
         hover = function(element)
-            element.selfStyle.borderColor = "#ffffff90"
             expand:SetClass("hidden", false)
         end,
         dehover = function(element)
-            element.selfStyle.borderColor = "#ffffff30"
             expand:SetClass("hidden", true)
         end,
         rightClick = function(element)
@@ -2578,37 +2577,22 @@ function g_card.Button(rec, ops, scale)
         end,
 
         picture,
-        --its name along the bottom, with the map or scene icon.
-        gui.Panel{
-            bgimage = "panels/square.png",
-            bgcolor = "#16171bee",
+        --its name, one line, on the card below the picture.
+        gui.Label{
+            text = g_card.Name(rec),
+            --a long name shrinks to stay on the card (about 22 characters
+            --fit at 12).
+            fontSize = math.max(9, math.min(12, 12 * 22 / math.max(1, #g_card.Name(rec)))),
+            color = "#efe6dc",
             floating = true,
             halign = "left",
             valign = "bottom",
-            width = "100%",
-            height = 22,
-            flow = "horizontal",
+            x = 8,
+            width = g_card.width - 16,
+            height = g_card.caption,
+            textAlignment = "left",
+            textWrap = false,
             interactable = false,
-            gui.Panel{
-                bgimage = ops.icon,
-                bgcolor = "#ffffffc0",
-                width = 12,
-                height = 12,
-                valign = "center",
-                lmargin = 7,
-                rmargin = 5,
-                interactable = false,
-            },
-            gui.Label{
-                text = g_card.Name(rec),
-                fontSize = 11,
-                color = "#ffffffe8",
-                width = g_card.width - 34,
-                height = "auto",
-                valign = "center",
-                textWrap = false,
-                interactable = false,
-            },
         },
         expand,
     }

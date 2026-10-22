@@ -168,6 +168,249 @@ function EncounterMontage.DocPath()
     return mod:GetDocumentPath(DOC_ID)
 end
 
+--- the series' story ---------------------------------------------------------
+--What a series part keeps in the script document, so later parts can read it:
+--  data.story: earlier parts' results, each track's value, and this part's own changes.
+--  data.montageTotals: each finished montage's successes, failures and missed threats.
+--  data.whenApplied: the beats whose "When" lines have already run.
+--  data.seriesResult: this part's result, saved once when the fight is won.
+
+--A track name as a document key: "Rite's Progress" becomes "rite-s-progress".
+local function TrackSlug(key)
+    local slug = string.gsub(string.lower(key or ""), "[^%w]+", "-")
+    return slug
+end
+
+--The story as the condition evaluator reads it (EncounterScript.EvalStoryAtom):
+--{ part, parts = { [k] = {...} }, tracks = { [track key] = value }, this }.
+--`doc` defaults to the live document.
+function EncounterMontage.Story(doc)
+    local result = { part = 1, parts = {}, tracks = {} }
+    pcall(function()
+        doc = doc or EncounterMontage.GetDoc()
+        local story = doc.data.story
+        if type(story) == "table" then
+            result.part = tonumber(story.part) or 1
+            for k, v in pairs(story.parts or {}) do
+                local n = tonumber(string.match(tostring(k), "^p(%d+)$"))
+                if n ~= nil and type(v) == "table" then
+                    result.parts[n] = { outcome = v.outcome, score = tonumber(v.score), rounds = tonumber(v.rounds) }
+                end
+            end
+            for _, rec in pairs(story.tracks or {}) do
+                if type(rec) == "table" and rec.key ~= nil then
+                    result.tracks[rec.key] = tonumber(rec.value) or 0
+                end
+            end
+        end
+        local r = doc.data.seriesResult
+        if type(r) == "table" then
+            result.this = { outcome = r.outcome, score = tonumber(r.perHero), rounds = tonumber(r.rounds) }
+        end
+    end)
+    return result
+end
+
+--A track's live value (0 when nothing has set it).
+function EncounterMontage.TrackValue(key)
+    return EncounterMontage.Story().tracks[key] or 0
+end
+
+--Host, inside an open change of `doc`: add `delta` to a track, and to this
+--part's share of it. Returns the new value.
+function EncounterMontage.ChangeTrack(doc, key, delta)
+    local story = doc.data.story
+    if type(story) ~= "table" then
+        story = { part = 1, parts = {}, tracks = {}, shares = {} }
+        doc.data.story = story
+    end
+    story.tracks = story.tracks or {}
+    story.shares = story.shares or {}
+    local slug = TrackSlug(key)
+    local rec = story.tracks[slug] or { key = key, value = 0 }
+    rec.value = (tonumber(rec.value) or 0) + delta
+    story.tracks[slug] = rec
+    local share = story.shares[slug] or { key = key, value = 0 }
+    share.value = (tonumber(share.value) or 0) + delta
+    story.shares[slug] = share
+    return rec.value
+end
+
+--Host, inside an open change: start this part's story from what earlier
+--parts left. `carried` is the City's story ({ parts = { [k] = {...} |
+--"not recorded" }, tracks = { [name] = value } }, keys as strings or
+--numbers), or nil (no earlier part, or nothing came with the arrival).
+--Kept as it is when it has already been seeded for this part.
+function EncounterMontage.SeedStory(doc, part, carried)
+    local story = doc.data.story
+    if type(story) == "table" and tonumber(story.part) == part and story.seeded then
+        return false
+    end
+    story = { part = part, parts = {}, tracks = {}, shares = {}, seeded = true }
+    if type(carried) == "table" then
+        for k, v in pairs(carried.parts or {}) do
+            local n = tonumber(k) or tonumber(string.match(tostring(k), "^p(%d+)$"))
+            if n ~= nil and n < part then
+                if type(v) == "table" then
+                    story.parts["p" .. n] = { outcome = v.outcome, score = tonumber(v.score), rounds = tonumber(v.rounds) }
+                else
+                    story.parts["p" .. n] = "not recorded"
+                end
+            end
+        end
+        for name, value in pairs(carried.tracks or {}) do
+            local key = EncounterScript.MatchKey(tostring(name))
+            story.tracks[TrackSlug(key)] = { key = key, value = tonumber(value) or 0 }
+        end
+    end
+    doc.data.story = story
+    return true
+end
+
+--One montage's totals, from its log: successes (tier 3, or the critical
+--tier 4), failures (tier 1) and threats whose consequence landed. Delve
+--turns carry no tier and count for nothing; a passed turn neither.
+function EncounterMontage.TotalsFromLog(m)
+    local totals = { successes = 0, failures = 0, unvanquished = 0 }
+    for _, e in ipairs((type(m) == "table" and m.log) or {}) do
+        if e.consequence then
+            totals.unvanquished = totals.unvanquished + 1
+        elseif type(e.tier) == "number" and not e.delve then
+            if e.tier >= 3 then
+                totals.successes = totals.successes + 1
+            elseif e.tier == 1 then
+                totals.failures = totals.failures + 1
+            end
+        end
+    end
+    return totals
+end
+
+--Every montage of this part added up: { successes, failures, unvanquished,
+--score = successes - failures - unvanquished }.
+function EncounterMontage.PartTotals(doc)
+    local sum = { successes = 0, failures = 0, unvanquished = 0 }
+    pcall(function()
+        doc = doc or EncounterMontage.GetDoc()
+        for _, t in pairs(doc.data.montageTotals or {}) do
+            if type(t) == "table" then
+                sum.successes = sum.successes + (tonumber(t.successes) or 0)
+                sum.failures = sum.failures + (tonumber(t.failures) or 0)
+                sum.unvanquished = sum.unvanquished + (tonumber(t.unvanquished) or 0)
+            end
+        end
+        --a montage still running counts what it has so far.
+        local m = doc.data.montage
+        if type(m) == "table" and m.beatIndex ~= nil and (doc.data.montageTotals or {})["b" .. tostring(m.beatIndex)] == nil then
+            local t = EncounterMontage.TotalsFromLog(m)
+            sum.successes = sum.successes + t.successes
+            sum.failures = sum.failures + t.failures
+            sum.unvanquished = sum.unvanquished + t.unvanquished
+        end
+    end)
+    sum.score = sum.successes - sum.failures - sum.unvanquished
+    return sum
+end
+
+--The outcome a per-hero score earns against the bars (D6).
+function EncounterMontage.OutcomeFor(perHero, bars)
+    bars = bars or EncounterScript.DEFAULT_OUTCOME_BARS
+    if perHero >= bars.total then
+        return "total"
+    elseif perHero >= bars.partial then
+        return "partial"
+    end
+    return "failure"
+end
+
+--Host, inside an open change: the beat's "When <condition>: <clauses>"
+--lines, once per beat. A montage beat passes its fresh state as `montage`,
+--so an "unlock <entry>" lands on its board.
+function EncounterMontage.ApplyWhenLines(doc, beat, beatIndex, montage)
+    if beat == nil or beat.when == nil or #beat.when == 0 then
+        return
+    end
+    doc.data.whenApplied = doc.data.whenApplied or {}
+    local key = "b" .. tostring(beatIndex)
+    if doc.data.whenApplied[key] then
+        return
+    end
+    doc.data.whenApplied[key] = true
+    local story = EncounterMontage.Story(doc)
+    for _, line in ipairs(beat.when) do
+        if EncounterScript.EvalStoryCondition(line.cond, story) then
+            printf("EotW story: 'When %s:' holds at beat %d; applying '%s'", line.condText, beatIndex, line.text)
+            EncounterMontage.ApplyEffects(line.effects, {
+                source = "Story",
+                entryName = beat.title or "Story",
+                montage = montage,
+                doc = doc,
+            })
+        end
+    end
+end
+
+--Host, once, when the fight is won: work out this part's result (montage
+--score per hero, outcome, winning round), run "# Results", and save it.
+--A defeat saves nothing. Returns the saved result, or nil.
+function EncounterMontage.DecideSeriesResult(script, victory, heroCount, rounds)
+    if not victory or script == nil or script.parse == nil or script.parse.part == nil then
+        return nil
+    end
+    local doc = EncounterMontage.GetDoc()
+    if type(doc.data.seriesResult) == "table" then
+        return doc.data.seriesResult
+    end
+    local parse = script.parse
+    local results = parse.results
+    doc:BeginChange()
+    local totals = EncounterMontage.PartTotals(doc)
+    local heroes = math.max(1, tonumber(heroCount) or 1)
+    local perHero = totals.score / heroes
+    local bars = (results ~= nil and results.bars) or EncounterScript.DEFAULT_OUTCOME_BARS
+    local outcome = EncounterMontage.OutcomeFor(perHero, bars)
+    local stamp = {
+        part = parse.part.number,
+        outcome = outcome,
+        score = totals.score,
+        perHero = perHero,
+        heroes = heroes,
+        successes = totals.successes,
+        failures = totals.failures,
+        unvanquished = totals.unvanquished,
+        rounds = tonumber(rounds),
+        at = dmhub.serverTime,
+    }
+    --"# Results" reads this part's own result as "total success",
+    --"the fight lasted 5 or more rounds", "score 0.5 or more".
+    doc.data.seriesResult = stamp
+    if results ~= nil then
+        local ok, err = pcall(function()
+            local story = EncounterMontage.Story(doc)
+            for _, line in ipairs(results.lines or {}) do
+                if EncounterScript.EvalStoryCondition(line.cond, story) then
+                    printf("EotW story: '# Results' line '%s:' holds; applying '%s'", line.condText, line.text)
+                    EncounterMontage.ApplyEffects(line.effects, { source = "Results", entryName = "Results", doc = doc })
+                    story = EncounterMontage.Story(doc)
+                end
+            end
+        end)
+        if not ok then
+            printf("EotW story: '# Results' failed: %s", tostring(err))
+        end
+    end
+    --this part's own share of each track, Results included.
+    stamp.tracks = {}
+    for slug, share in pairs(((doc.data.story or {}).shares) or {}) do
+        stamp.tracks[slug] = { key = share.key, value = share.value }
+    end
+    doc.data.seriesResult = stamp
+    doc:CompleteChange("Encounter of the Week: series result", { undoable = false })
+    printf("EotW story: Part %d result: %s (score %d, %.2f per hero over %d heroes; %d successes, %d failures, %d threats left), won in round %s",
+        stamp.part, outcome, totals.score, perHero, heroes, totals.successes, totals.failures, totals.unvanquished, tostring(rounds))
+    return stamp
+end
+
 --The live montage state, or nil when no montage is running.
 function EncounterMontage.GetState()
     local m = nil
@@ -2514,6 +2757,19 @@ function EncounterMontage.ApplyEffects(effects, ctx)
                 local before = CharacterResource.GetMalice() or 0
                 CharacterResource.SetMalice(before + effect.qty, SourceLabel(ctx))
                 applied[#applied + 1] = string.format("+%d Malice", effect.qty)
+            elseif effect.kind == "track" then
+                --"Rite's Progress +1": a story track of the series. A clause
+                --on a hidden track is hidden (the parser marks it), so the
+                --line below is taken back off with the other hidden ones.
+                if effect.undeclared then
+                    printf("EotW story: '%s' names no declared track; nothing changes", tostring(effect.text))
+                elseif ctx.doc == nil then
+                    printf("EotW story: '%s' has no document to change; nothing changes", tostring(effect.text))
+                else
+                    local value = EncounterMontage.ChangeTrack(ctx.doc, effect.key, effect.delta or 0)
+                    applied[#applied + 1] = EncounterScript.DescribeEffect(effect)
+                    printf("EotW story: %s -> %s", EncounterScript.DescribeEffect(effect), tostring(value))
+                end
             elseif effect.kind == "ally" then
                 local monsterid, asset = EncounterMontage.FindMonster(effect.name)
                 local joined = Targets(effect)
@@ -3289,6 +3545,9 @@ local function SceneEnv(t, option, tier, actors)
                 return Met(atom.text)
             elseif atom.op == "chose" then
                 return option ~= nil and EncounterScript.MatchKey(option.name) == EncounterScript.MatchKey(atom.name)
+            elseif EncounterScript.IsStoryAtom(atom) then
+                --"if Rite's Progress is 2 or more then": the series' story.
+                return EncounterScript.EvalStoryAtom(atom, EncounterMontage.Story()) == true
             end
             return false
         end,
@@ -5659,6 +5918,11 @@ function EncounterMontage.Begin(script, beat, beatIndex)
     --scene ids restart with m.seq, so a cursor left over from an earlier
     --run could otherwise skip the new run's first scene.
     doc.data.montageScene = nil
+    --a series part's "When <condition>:" lines, against the story so far.
+    local whenOk, whenErr = pcall(EncounterMontage.ApplyWhenLines, doc, beat, beatIndex, doc.data.montage)
+    if not whenOk then
+        printf("EotW story: When lines failed: %s", tostring(whenErr))
+    end
     doc:CompleteChange("Montage started", { undoable = false })
     pcall(EncounterMontage.PrepareBoonAssets, beat)
     printf("EotW montage: beat %d started (%d rounds)", beatIndex, EncounterScript.RoundCount(beat))
@@ -5904,6 +6168,16 @@ function EncounterMontage.HostTick(script, beat, beatIndex)
     local upkeepOk, upkeepErr = pcall(MaintainMontageUses, m, doc, heroes)
     if not upkeepOk then
         printf("EotW montage: item upkeep failed: %s", tostring(upkeepErr))
+    end
+
+    --a finished montage's totals go into the part's score (a series'
+    --"# Results"), kept per beat so nothing counts them twice.
+    if m.phase == "done" and not resetRequested then
+        doc.data.montageTotals = doc.data.montageTotals or {}
+        local totalsKey = "b" .. tostring(beatIndex)
+        if doc.data.montageTotals[totalsKey] == nil then
+            doc.data.montageTotals[totalsKey] = EncounterMontage.TotalsFromLog(m)
+        end
     end
 
     if resetRequested then
@@ -6614,6 +6888,11 @@ function EncounterMontage.ResetTest()
     doc.data.intelligenceByHero = nil
     doc.data.intelligenceLog = nil
     doc.data.prep = nil
+    --a series' story: the next test seeds it afresh.
+    doc.data.story = nil
+    doc.data.montageTotals = nil
+    doc.data.whenApplied = nil
+    doc.data.seriesResult = nil
     doc:CompleteChange("Montage test reset", { undoable = false })
 
     --EotW game: the combat flags and the map script's run-once state.

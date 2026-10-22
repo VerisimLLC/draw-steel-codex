@@ -6214,8 +6214,13 @@ local function CreateNarrativeStage(args)
             m_sectionKey = key
             m_flashIndex = nil
             titleLabel.text = section.name
-            textLabel.text = section.text
-            textLabel:SetClass("collapsed", section.text == "")
+            --a series part's "If ...:" blocks read for the story so far.
+            local sectionText = section.text
+            if section.storyBlocks ~= nil then
+                sectionText = EncounterScript.ResolveStoryText(section, EncounterMontage.Story())
+            end
+            textLabel.text = sectionText
+            textLabel:SetClass("collapsed", sectionText == "")
             local intro = cond(index == 1, beat.intro or "", "")
             introLabel.text = intro
             introLabel:SetClass("collapsed", intro == "")

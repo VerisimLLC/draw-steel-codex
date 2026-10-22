@@ -2275,100 +2275,53 @@ creature.RegisterSymbol {
 }
 
 
-local function GetEnemyCreaturesAtLoc(token, allowedTokenIds, loc, result)
+local function AddTokenOnce(list, token)
+    for _, existing in ipairs(list) do
+        if existing.charid == token.charid then
+            return
+        end
+    end
+    list[#list + 1] = token
+end
+
+local function GetEnemyCreaturesAtLoc(token, loc, result)
     local tokensAtLoc = dmhub.GetTokensAtLoc(loc)
     if tokensAtLoc ~= nil then
         for _, otherTok in ipairs(tokensAtLoc) do
-            if token.charid ~= otherTok.charid and (allowedTokenIds == nil or allowedTokenIds[otherTok.charid]) and token:IsFriend(otherTok) == false and otherTok:GetLineOfSight(token, otherTok.properties:GetPierceWalls(), "basic") > 0 and (not otherTok.properties:IsDead()) then
-                local alreadyFound = false
-                for _, existing in ipairs(result) do
-                    if existing.charid == otherTok.charid then
-                        alreadyFound = true
-                        break
-                    end
-                end
-
-                if not alreadyFound then
-                    result[#result + 1] = otherTok
-                end
+            if token.charid ~= otherTok.charid and token:IsFriend(otherTok) == false and otherTok:GetLineOfSight(token, otherTok.properties:GetPierceWalls(), "basic") > 0 and (not otherTok.properties:IsDead()) then
+                AddTokenOnce(result, otherTok)
             end
         end
     end
 end
 
-local function GetFlankingCreaturesFromOpposingSides(token, allowedTokenIds, locs_a, locs_b, result)
-    local enemies_a = {}
-    local enemies_b = {}
-    for _, loc in ipairs(locs_a) do
-        GetEnemyCreaturesAtLoc(token, allowedTokenIds, loc, enemies_a)
+--Bounding rectangle of a token's space in grid coordinates, or nil if it occupies no squares.
+local function GetTokenBounds(token)
+    local locs = token.locsOccupying
+    if locs == nil or #locs == 0 then
+        return nil
     end
-
-    if #enemies_a == 0 then
-        return
+    local x1, y1, x2, y2 = locs[1].x, locs[1].y, locs[1].x + 1, locs[1].y + 1
+    for _, loc in ipairs(locs) do
+        x1 = math.min(x1, loc.x)
+        y1 = math.min(y1, loc.y)
+        x2 = math.max(x2, loc.x + 1)
+        y2 = math.max(y2, loc.y + 1)
     end
-
-    for _, loc in ipairs(locs_b) do
-        GetEnemyCreaturesAtLoc(token, allowedTokenIds, loc, enemies_b)
-    end
-
-    if #enemies_b == 0 then
-        return
-    end
-
-    if #enemies_a == 1 and #enemies_b == 1 and enemies_a[1].charid == enemies_b[1].charid then
-        return
-    end
-
-    for _, a in ipairs(enemies_a) do
-        local alreadyFound = false
-        for _, b in ipairs(result) do
-            if a.charid == b.charid then
-                alreadyFound = true
-                break
-            end
-        end
-        if not alreadyFound then
-            result[#result + 1] = a
-        end
-    end
-
-    for _, a in ipairs(enemies_b) do
-        local alreadyFound = false
-        for _, b in ipairs(result) do
-            if a.charid == b.charid then
-                alreadyFound = true
-                break
-            end
-        end
-        if not alreadyFound then
-            result[#result + 1] = a
-        end
-    end
+    return { x1 = x1, y1 = y1, x2 = x2, y2 = y2, anchor = locs[1] }
 end
 
 local function GetLocsAdjacentToToken(token)
-    local locs = token.locsOccupying
-    if locs == nil or #locs == 0 then
+    local bounds = GetTokenBounds(token)
+    if bounds == nil then
         return {}
     end
-    local topLeft = locs[1]
-    local bottomRight = locs[1]
 
-    for _, loc in ipairs(locs) do
-        if loc.x < topLeft.x or loc.y < topLeft.y then
-            topLeft = loc
-        end
+    --start one square up and left of the token's space.
+    local topLeft = bounds.anchor:dir(bounds.x1 - 1 - bounds.anchor.x, bounds.y1 - 1 - bounds.anchor.y)
 
-        if loc.x > bottomRight.x or loc.y > bottomRight.y then
-            bottomRight = loc
-        end
-    end
-
-    topLeft = topLeft:dir(-1, -1)
-    bottomRight = bottomRight:dir(1, 1)
-
-    local w = bottomRight.x - topLeft.x
-    local h = bottomRight.y - topLeft.y
+    local w = bounds.x2 - bounds.x1 + 1
+    local h = bounds.y2 - bounds.y1 + 1
 
     local result = {}
 
@@ -2402,10 +2355,56 @@ local function GetEnemiesAdjacentToToken(token)
     local locs = GetLocsAdjacentToToken(token)
     local result = {}
     for _, loc in ipairs(locs) do
-        GetEnemyCreaturesAtLoc(token, nil, loc, result)
+        GetEnemyCreaturesAtLoc(token, loc, result)
     end
 
     return result
+end
+
+--True if the line between the centers of boxes a and b crosses target from one side/corner to the opposite one.
+local function LineCrossesOppositeSides(a, b, target)
+    local eps = 1e-6
+    local px, py = (a.x1 + a.x2) / 2, (a.y1 + a.y2) / 2
+    local dx, dy = (b.x1 + b.x2) / 2 - px, (b.y1 + b.y2) / 2 - py
+
+    --Clip the segment to the target rectangle (Liang-Barsky).
+    local t0, t1 = 0, 1
+    local p = { -dx, dx, -dy, dy }
+    local q = { px - target.x1, target.x2 - px, py - target.y1, target.y2 - py }
+    for k = 1, 4 do
+        if math.abs(p[k]) < eps then
+            if q[k] < 0 then
+                return false
+            end
+        else
+            local r = q[k] / p[k]
+            if p[k] < 0 then
+                t0 = math.max(t0, r)
+            else
+                t1 = math.min(t1, r)
+            end
+        end
+    end
+    if t1 - t0 < eps then
+        return false
+    end
+
+    --Reject lines that only run along an edge.
+    local tm = (t0 + t1) / 2
+    local mx, my = px + dx * tm, py + dy * tm
+    if mx <= target.x1 + eps or mx >= target.x2 - eps or my <= target.y1 + eps or my >= target.y2 - eps then
+        return false
+    end
+
+    local function sides(t)
+        local x, y = px + dx * t, py + dy * t
+        return {
+            left = math.abs(x - target.x1) < eps, right = math.abs(x - target.x2) < eps,
+            top = math.abs(y - target.y1) < eps, bottom = math.abs(y - target.y2) < eps,
+        }
+    end
+    local s0, s1 = sides(t0), sides(t1)
+    return (s0.left and s1.right) or (s0.right and s1.left) or (s0.top and s1.bottom) or (s0.bottom and s1.top)
 end
 
 function creature:GetFlankingTokens(tokensOverride)
@@ -2418,7 +2417,8 @@ function creature:GetFlankingTokens(tokensOverride)
         return {}
     end
 
-    local adjacentEnemies = tokensOverride or GetEnemiesAdjacentToToken(token)
+    --copy the override so filtering below doesn't change the caller's table.
+    local adjacentEnemies = tokensOverride and { table.unpack(tokensOverride) } or GetEnemiesAdjacentToToken(token)
     if #adjacentEnemies <= 1 then
         return {}
     end
@@ -2470,51 +2470,22 @@ function creature:GetFlankingTokens(tokensOverride)
         end
     end
 
-    local allowedTokenIds = {}
-    for _, enemy in ipairs(adjacentEnemies) do
-        allowedTokenIds[enemy.charid] = true
-    end
-
+    --Two enemies flank if the line between their centers passes through opposite sides of our space.
     local result = {}
-
-    local locs = token.locsOccupying
-    local topLeft = locs[1]
-    local bottomRight = locs[1]
-
-    for _, loc in ipairs(locs) do
-        if loc.x < topLeft.x or loc.y < topLeft.y then
-            topLeft = loc
+    local targetBox = GetTokenBounds(token)
+    local enemyBoxes = {}
+    for i, enemy in ipairs(adjacentEnemies) do
+        enemyBoxes[i] = GetTokenBounds(enemy)
+    end
+    for i = 1, #adjacentEnemies - 1 do
+        for j = i + 1, #adjacentEnemies do
+            local a, b = enemyBoxes[i], enemyBoxes[j]
+            if targetBox ~= nil and a ~= nil and b ~= nil and LineCrossesOppositeSides(a, b, targetBox) then
+                AddTokenOnce(result, adjacentEnemies[i])
+                AddTokenOnce(result, adjacentEnemies[j])
+            end
         end
-
-        if loc.x > bottomRight.x or loc.y > bottomRight.y then
-            bottomRight = loc
-        end
     end
-
-    topLeft = topLeft:dir(-1, -1)
-    bottomRight = bottomRight:dir(1, 1)
-
-    GetFlankingCreaturesFromOpposingSides(token, allowedTokenIds, { topLeft }, { bottomRight }, result)
-    GetFlankingCreaturesFromOpposingSides(token, allowedTokenIds, { topLeft:dir(bottomRight.x - topLeft.x, 0) },
-        { bottomRight:dir(topLeft.x - bottomRight.x, 0) }, result)
-
-    local topLocs = {}
-    local botLocs = {}
-    for i = 1, bottomRight.x - topLeft.x - 1 do
-        topLocs[#topLocs + 1] = topLeft:dir(i, 0)
-        botLocs[#botLocs + 1] = bottomRight:dir(-i, 0)
-    end
-
-    GetFlankingCreaturesFromOpposingSides(token, allowedTokenIds, topLocs, botLocs, result)
-
-    local leftLocs = {}
-    local rightLocs = {}
-    for i = 1, bottomRight.y - topLeft.y - 1 do
-        leftLocs[#leftLocs + 1] = topLeft:dir(0, i)
-        rightLocs[#rightLocs + 1] = bottomRight:dir(0, -i)
-    end
-
-    GetFlankingCreaturesFromOpposingSides(token, allowedTokenIds, leftLocs, rightLocs, result)
 
     for _, enemy in ipairs(grantedFlanking) do
         local found = false

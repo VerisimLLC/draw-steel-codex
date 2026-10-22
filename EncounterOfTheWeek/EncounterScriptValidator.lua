@@ -714,8 +714,9 @@ function EncounterScriptValidator.BuildReport(docid, partyid)
             text = "no [[encounter]] island: this document spawns no combat" }
     end
 
-    --one part of a series ("# Part N"): played after the part before it, on
-    --its own part of the shared map -- its encounter's region bounds the map.
+    --one part of a series ("# Part N"): played after the part before it,
+    --either on its own map ("<series map> (Part <n>)") or on its own part of
+    --a shared map -- there its encounter's region bounds the map.
     if parse.part ~= nil then
         local title = ""
         if parse.part.title ~= nil then
@@ -725,6 +726,10 @@ function EncounterScriptValidator.BuildReport(docid, partyid)
         if parse.part.number == 1 then
             note = string.format("Part 1%s of a series: always open; winning it unlocks Part 2", title)
         end
+        if parse.part.comingSoon ~= nil then
+            note = string.format("Part %d%s of a series: marked 'Coming soon', so the town shows it locked%s", parse.part.number, title,
+                cond(parse.part.comingSoon.text ~= nil, " (\"" .. tostring(parse.part.comingSoon.text) .. "\")", ""))
+        end
         children[#children + 1] = RowLabel{ depth = 0, class = "note", text = note }
         local encounter = nil
         pcall(function()
@@ -732,9 +737,42 @@ function EncounterScriptValidator.BuildReport(docid, partyid)
             local tag = doc:try_get("annotations")["encounter"]
             encounter = tag.encounter
         end)
-        if encounter ~= nil and encounter:GetRegion() == nil then
+        --A region only matters when other parts share this document's map.
+        local partsOnMap = 0
+        pcall(function()
+            local doc = (dmhub.GetTable("documents") or {})[docid]
+            for _, map in pairs(game.maps or {}) do
+                if CustomDocument.IsDocInAccessibleRoot(doc, { [map.id] = true }) then
+                    partsOnMap = #(EncounterMontage.ScriptForMap(map.id).parts or {})
+                    break
+                end
+            end
+        end)
+        if encounter ~= nil and encounter:GetRegion() == nil and partsOnMap > 1 then
             children[#children + 1] = RowLabel{ depth = 0, class = "problem",
                 text = "this part's encounter has no region, so heroes can walk into the other parts' areas: draw one in the encounter builder, then load it into the island" }
+        end
+
+        --the story it carries forward: its tracks and its "# Results".
+        for _, decl in ipairs(parse.tracks or {}) do
+            local text = string.format("story track '%s'%s", decl.name, cond(decl.hidden, " (hidden from players)", ""))
+            if decl.description ~= nil then
+                text = text .. " -- " .. decl.description
+            end
+            children[#children + 1] = RowLabel{ depth = 0, class = "note", text = text }
+        end
+        if parse.results ~= nil then
+            local bars = parse.results.bars
+            local barsText = "the default bars"
+            if bars ~= nil then
+                barsText = string.format("total success at %g, partial at %g", bars.total, bars.partial)
+            else
+                bars = EncounterScript.DEFAULT_OUTCOME_BARS
+                barsText = string.format("the default bars (total success at %g, partial at %g)", bars.total, bars.partial)
+            end
+            children[#children + 1] = RowLabel{ depth = 0, class = "note",
+                text = string.format("# Results: score per hero against %s; %d result line%s", barsText,
+                    #(parse.results.lines or {}), cond(#(parse.results.lines or {}) == 1, "", "s")) }
         end
     end
 

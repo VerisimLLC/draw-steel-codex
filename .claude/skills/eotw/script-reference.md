@@ -51,6 +51,7 @@ Not beats (can sit anywhere, including in a sub-document):
 | `# Defeat` | story screen after a defeat |
 | `# Delve: <Name>` | a delve entered from a montage option (see Delves) |
 | `# Part <n>: <Title>` | marks the document as one part of a series (see Series) |
+| `# Results` | a series part's outcome bars and what its outcome does to the story (see "Carrying the story forward") |
 
 Any other `#` heading warns and is ignored. A document with no beats but an
 `[[encounter]]` island plays as a plain fight.
@@ -83,6 +84,7 @@ dialog, log). Use it for hidden mechanics.
 | `+1 hero token` / `you gain 2 hero tokens` / `the party gains 1 hero token` | party Hero Token pool |
 | `+2 intelligence` / `the party gains 1 intelligence` | Intelligence pool (needs `Unlock: Intelligence` somewhere; warns otherwise) |
 | `+2 malice` / `gain 2 malice` | Director's Malice pool (carries into combat) |
+| `Alarm +1` / `Alarm falls by 2` / `raise Alarm by 1` | a story track of a series part (needs `Track: Alarm`; see "Carrying the story forward") |
 | `a Wode Hag joins you` / `Wolf joins you` | allied monster (bestiary name), on a free Start tile, controlled by the acting player, fights on the heroes' side |
 | `the threat is vanquished` / `you vanquish the threat` | resolves the threat (no consequence) |
 | `you begin the encounter surprised` / `you are surprised` | monsters go first; Surprised on every hero (sticky) |
@@ -314,7 +316,9 @@ and starts a scripted scene; each non-blank line after it is one step:
   item...), `PC is skilled in X`, `PC can X` (any capability: `PC can fly`),
   `PC was a X` (career), `PC carries X`, `PC worships X`, `PC chose <option>`,
   `tier1`/`tier2`/`tier3`, `crit`, combined with `not`, `and`, `or` and
-  parentheses.
+  parentheses. In a series part, the story conditions work too
+  (`Alarm is 2 or more`, `Part 1 was a failure`; see "Carrying the
+  story forward").
 - Under an option: lines above its roll are the pre-roll scene, lines below
   are the outcome scene. **Effects apply after the outcome scene is read.**
 - Entries without a scene get an automatic intro.
@@ -543,34 +547,59 @@ Trap: Place 4 Snare Trap objects in Trap zones and delete the other Trap zones.
   - `/eotwreinforce` lists what the script will send and what has arrived;
     `/eotwreinforce arrive 1` brings section 1's next group in now.
 
-## Series: several encounters on one map
+## Series: several encounters, one after another
 
-A **series** is one encounter map played as several encounters, each on its
-own part of the map, unlocked one after another: a party plays Part 1; once the
-player's account has won it, Part 2 opens; and so on. Every part is a separate
-game (the map starts fresh each time).
+A **series** is several encounters played in order, unlocked one after
+another: a party plays Part 1; once the player's account has won it, Part 2
+opens; and so on. Every part is a separate game (the map starts fresh each
+time).
 
-- **One script document per part**, all in the map's Map Documents folder, each
-  starting with a part heading: `# Part 1: The Antechamber`, `# Part 2: The
-  Ossuary`, `# Part 3` (the title is optional). It is not a beat. Number the
+- **Each part can have its own map.** Name it after the series with
+  ` (Part <n>)` on the end: `Encounter: The Sunken Keep (Part 1)`,
+  `Encounter: The Sunken Keep (Part 2)`, and so on. The series is named
+  (and listed in town) by what comes before the suffix,
+  `Encounter: The Sunken Keep`, whether or not a map has that plain name.
+  A part map is never an encounter of its own in town; it ships and is listed
+  with its series. Its script documents go in its own Map Documents folder,
+  and every one of them says that map's part (`# Part 2`). A part with no map
+  of its own plays on the plain-named map, so several parts can still share
+  one map (see the region below).
+- **One script document per part**, in its map's Map Documents folder, each
+  starting with a part heading: `# Part 1: The Gatehouse`, `# Part 2: The
+  Flooded Hall`, `# Part 3` (the title is optional). It is not a beat. Number the
   parts 1, 2, 3... with no gaps or repeats (publishing refuses otherwise).
   Once any document on the map has a part heading, documents without one are
   never the script.
+- **A part that is not ready yet**: put a `Coming soon` line under its part
+  heading or above it (or `Coming soon: <text>` to choose the hover text). The
+  town shows the part's button locked, with that text (default: "Coming
+  soon.") on hover, so nobody can play it, even after winning the part before;
+  a game that somehow reaches it does not run it (Test Encounter still can).
+  The publisher only warns about that part's problems (a missing `# Encounter`
+  beat) and ships it apart from the playable parts, so apps older than this
+  feature do not offer it at all. A series can ship with its first parts
+  playable and the rest as placeholders. Remove the line and publish an update
+  to open it.
 - Each part is a whole script: its own beats, its own `# Encounter` and
   `[[encounter]]` island, and its own `# Town Gate` / `# Conclusion` /
   `# Defeat`. Sub-documents work as usual, per part.
-- **Where each part is played: the encounter's region.** In the encounter
+- **Parts sharing one map: the encounter's region.** In the encounter
   builder, draw the encounter's **region** (the rectangle of the map it takes
   place in) and its **hero start zone**, then load that saved encounter into
   the part's `[[encounter]]` island ("Load saved..."). The game bounds the map
-  to the region from the moment the party arrives (players cannot see or walk
-  out of it) and places the heroes on the start tiles. With no start tiles,
+  to the region from the moment the party arrives (the camera, movement, fog
+  and lighting stop at its edges) and places the heroes on the start tiles.
+  The region does NOT hide the rest of the map: players can still see art
+  outside it, and an upper floor shows every floor below. That is why a part
+  map is usually the better choice. A part alone on its map needs no region.
+  With no start tiles,
   heroes start on the map's `Start` zone tiles inside the region, so a shared
   map can carry one Start zone per part. Trap zones and reinforcement `Enter:`
   zones only count inside the region too.
 - The validator panel says which part a document is, and flags a part whose
-  encounter has no region.
-- **Testing**: Test Encounter has a **Part** dropdown on a series map. The test
+  encounter has no region when its map holds other parts too.
+- **Testing**: Test Encounter has a **Part** dropdown listing the parts on the
+  map you are on; to test Part 2 on its part map, go to that map. The test
   bounds the map like a real game and puts the bounds back at End Test.
 - **In town**: the series is one entry (it is scheduled and voted on as a
   whole). Form a Party opens on the next part the player has to play, with
@@ -578,6 +607,122 @@ game (the map starts fresh each time).
   part unlocks when any of the account's heroes has won the part before it;
   in the Proving Pits, when the account has won it there. Proving Pits wins do
   not carry over to the Gate. Each part is worth its own Victory at the Gate.
+
+### Carrying the story forward
+
+A part can leave a mark that later parts read: **story tracks** (named
+numbers such as Alarm or Renown) and its **result** (the montage outcome, its
+score and the round the fight was won in). It belongs to the host's account:
+a party plays with its host's story, and the latest win of a part replaces
+that part's result (replaying never clears later parts). Danger Room and Town
+Gate stories are separate.
+
+**Declare** each track in every part document that uses it, under the
+`# Part N` heading (or above the first heading):
+
+```
+# Part 1: The Gatehouse
+Track: Alarm (Hidden) -- how alert the keep's defenders are
+Track: Renown -- how well the town knows the party
+```
+
+A track starts at 0. A name with `and`, `or` or `not` in it cannot be read in
+a condition (the parser warns).
+
+- **Visible track** (no tag): a change shows in the result text players read
+  ("Renown +1"), and the recap after a win lists it with its description.
+- **Hidden track** (`(Hidden)`): players never see the number. Any clause that
+  changes it is stripped from what they read, as if it were in `{...}`, and the
+  recap leaves it out. Players only notice what it causes (more Malice, a
+  different paragraph, a harder fight).
+- The town shows no track values. The validator panel lists each declared
+  track (and whether it is hidden), and the app log prints every change
+  ("EotW story: Alarm +1 -> 2").
+
+**Change** a track with a clause anywhere clauses go (tiers, consequences,
+narrative options, chest rows, `# Results`): `Alarm +1`, `Alarm -2`,
+`Alarm rises by 2` / `falls by 1`, `raise Alarm by 1` / `lower Alarm by 2`. A
+name that is not declared warns and does nothing.
+
+**The outcome.** Every montage in the part adds up to one score: each
+tier-3 result (or critical) +1, each tier-1 result -1, each threat whose
+consequence landed -1. Delve tests do not count. The score is divided by the
+heroes who began the part, so the bars mean the same for 4 heroes or 6.
+`# Results` (not a beat; runs once, at victory) sets the bars and what each
+outcome does:
+
+```
+# Results
+Outcome: total success at 1, partial at 0
+Total success: nothing happens
+Partial success: Alarm +1
+Failure: Alarm +2
+The fight lasted 5 or more rounds: Alarm +1
+```
+
+Without an `Outcome:` line the bars are total success at 0.5, partial at -0.25.
+Each `<condition>: <clauses>` line whose condition holds applies, in order. A
+threat's consequence that changes a track stacks with `# Results` (and the
+threat already cost the score), so do one or the other unless you mean both.
+A defeat carries nothing forward.
+
+**Read it** with these conditions (joined with `not`, `and`, `or` and
+parentheses; comparisons are `2 or more` / `or higher` / `at least 2`,
+`2 or less` / `or fewer` / `at most 2`, or `2`; scores are per hero):
+
+- `Alarm is 2 or more`, `Renown is 1 or less`
+- `Part 1 was a total success` / `a partial success` / `a failure`
+- `Part 1 was not recorded` (the host never won it on this board, e.g. they
+  joined someone else's party for it). Every other condition about that part is
+  false and its track shares count 0. The parser nudges you to handle it.
+- `Part 1 scored 0.5 or more`, `Part 1's fight lasted 5 or more rounds`
+- `the previous part ...` works in place of `Part n ...`
+- in `# Results` only, about this part: `total success`, `partial success`,
+  `failure`, `score 0.5 or more`, `the fight lasted 5 or more rounds`
+
+Where they go:
+
+- **Scenes**: `if Alarm is 2 or more then` ... `end`.
+- **When lines**, directly under `# Montage`, `# Narrative` or `# Encounter`,
+  applied once as the beat starts: `When Alarm is 2 or more: +2 malice`;
+  `When Part 1 was a failure: unlock The Watch Doubles` (a harder `(Locked)`
+  threat). Inside an entry or section they warn and do nothing.
+- **Fight variants**: `When <condition>:` with nothing after the colon,
+  directly above an `[[encounter]]` island: the first island whose gate holds
+  (or that has none) is the fight. Give the last island no `When` line so
+  there is always a fight. Above a `## Reinforcements:` heading it decides
+  whether that section comes at all.
+- **Story text**: in `# Town Gate`, `# Conclusion`, `# Defeat` and a narrative
+  section, `If <condition>:` ... `Otherwise:` ... `End` lines (also
+  `Else if <condition>:`). With no story (the town before a party forms), each
+  block shows its `Otherwise` lines. Prose such as "If you listen closely:"
+  stays prose, because its condition does not parse.
+
+```
+# Conclusion
+
+The portcullis grinds shut behind you.
+
+If Alarm is 3 or more:
+Somewhere above, horns are sounding.
+Otherwise:
+The keep is quiet. For now.
+End
+```
+
+After a win the Conclusion screen adds a recap: "Montage: Partial success.",
+"Won in round 4." and each shown track ("Renown rose to 2."). **Test
+Encounter** on Part 2 and later has a **Story so far** box: set each earlier
+part's outcome, score and round (or Not recorded) and each track's value. The
+test applies no City rows; its result is printed in the console
+("EotW story: Part 2 result: ...").
+
+**Not built yet: the handoff between real games.** A won part saves its result
+and track values in the game, but nothing passes them to the City yet, so in a
+real game every later part starts as if the earlier parts were "not recorded"
+and every track is 0. Until that lands, only Test Encounter's Story so far
+exercises the branches; write the `Otherwise` / "not recorded" text so a part
+still reads well from a fresh start.
 
 ## Full worked example (master + one sub-document)
 

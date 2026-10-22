@@ -2078,4 +2078,334 @@ The bones remember.
     check(plain.part == nil, "a plain script is not a part")
 end)()
 
+--Carrying the story forward: tracks, "# Results", story conditions, When
+--lines, gated islands and reinforcements, story text "If" blocks.
+;(function()
+    local function has(list, pattern)
+        for _, w in ipairs(list or {}) do
+            if string.find(w, pattern, 1, true) then
+                return true
+            end
+        end
+        return false
+    end
+
+    --comparisons
+    local c = EncounterScript.ParseComparison("2 or more")
+    check(c ~= nil and c.cmp == ">=" and c.n == 2, "2 or more")
+    check(EncounterScript.ParseComparison("at least 0.5").n == 0.5, "at least 0.5")
+    check(EncounterScript.ParseComparison("-0.25 or lower").cmp == "<=", "-0.25 or lower")
+    check(EncounterScript.ParseComparison("at most 3").cmp == "<=", "at most 3")
+    check(EncounterScript.ParseComparison("3").cmp == "==", "a bare number is equality")
+    check(EncounterScript.ParseComparison("lots") == nil, "not a comparison")
+
+    --track clauses
+    local name, delta = EncounterScript.ParseTrackClause("Rite's Progress +2")
+    check(name == "Rite's Progress" and delta == 2, "Track +N")
+    name, delta = EncounterScript.ParseTrackClause("Rite's Progress -1")
+    check(name == "Rite's Progress" and delta == -1, "Track -N")
+    name, delta = EncounterScript.ParseTrackClause("Rite's Progress rises by 2")
+    check(name == "Rite's Progress" and delta == 2, "rises by")
+    name, delta = EncounterScript.ParseTrackClause("Rite's Progress falls by one")
+    check(name == "Rite's Progress" and delta == -1, "falls by")
+    name, delta = EncounterScript.ParseTrackClause("lower Rite's Progress by 2")
+    check(name == "Rite's Progress" and delta == -2, "lower ... by")
+    check(EncounterScript.ParseTrackClause("roll 1d6+2") == nil, "dice are not a track")
+    check(EncounterScript.ParseEffects("+2 malice")[1].kind == "malice", "+2 malice is still malice")
+
+    --declarations
+    local decl = assert(EncounterScript.ParseTrackDeclaration("Rite's Progress (Hidden) -- how close the cult is"))
+    check(decl.name == "Rite's Progress" and decl.hidden and decl.description == "how close the cult is", "a hidden track with a description")
+    check(not EncounterScript.ParseTrackDeclaration("Dread").hidden, "a shown track")
+
+    --the condition parser keeps "or more" together, and still splits on "or"
+    local tree, problems = EncounterScript.ParseCondition("Rite's Progress is 2 or more or Part 1 was a failure")
+    check(#problems == 0 and tree.op == "or" and tree.a.op == "track" and tree.b.op == "part", "'or more' inside an or")
+    tree = EncounterScript.ParseCondition("the previous part's fight lasted 5 or more rounds")
+    check(tree.op == "part" and tree.part == "previous" and tree.what == "rounds", "previous part's fight")
+    tree = EncounterScript.ParseCondition("Part 1 scored 0.5 or more")
+    check(tree.op == "part" and tree.what == "score" and tree.comparison.n == 0.5, "scored")
+    tree = EncounterScript.ParseCondition("Part 2 was not recorded")
+    check(tree.op == "part" and tree.what == "notrecorded", "not recorded")
+    tree = EncounterScript.ParseCondition("total success")
+    check(tree.op == "this" and tree.outcome == "total", "this part's outcome")
+
+    --evaluation
+    local story = { part = 3, parts = { [1] = { outcome = "partial", score = 0.2, rounds = 4 }, [2] = "not recorded" }, tracks = { ["rite's progress"] = 2 } }
+    local function holds(text)
+        return EncounterScript.EvalStoryCondition(EncounterScript.ParseCondition(text), story)
+    end
+    check(holds("Rite's Progress is 2 or more"), "track >= 2")
+    check(not holds("Rite's Progress is 3 or more"), "track >= 3")
+    check(holds("Part 1 was a partial success"), "part 1 partial")
+    check(not holds("Part 1 was a failure"), "part 1 not a failure")
+    check(holds("Part 2 was not recorded"), "part 2 not recorded")
+    check(not holds("Part 1 was not recorded"), "part 1 recorded")
+    check(not holds("Part 2 scored 0 or more"), "an unrecorded part's score is never true")
+    check(holds("the previous part was not recorded"), "previous part of 3 is 2")
+    check(holds("Part 1's fight lasted 4 or fewer rounds"), "rounds")
+    check(holds("not Part 1 was a failure and Rite's Progress is 2"), "not / and")
+    check(not EncounterScript.EvalStoryCondition(EncounterScript.ParseCondition("Dread is 0"), {}) == false, "an unset track is 0")
+
+    --Part 1: tracks, a hidden track clause, "# Results"
+    local p1 = EncounterScript.Parse([==[
+# Part 1: The Road Off the Moor
+
+Track: Rite's Progress (Hidden) -- how close the cult is to finishing the rite
+Track: Renown
+
+# Montage
+
+## Threat: The Bell Tolls
+
+The bell.
+
+Consequence: Rite's Progress +1. Each party member loses 2 stamina
+
+### Muffle the bell
+
+|Muffle Test: Might (Climb)
+|You fail the test. Rite's Progress +2
+|You succeed. Renown +1
+|The threat is vanquished
+
+# Encounter
+
+[[encounter]]
+
+# Results
+
+Outcome: total success at 1, partial at 0
+Total success: nothing happens
+Partial success: Rite's Progress +1
+Failure: Rite's Progress +2
+The fight lasted 5 or more rounds: Rite's Progress +1
+]==])
+    check(#p1.tracks == 2 and p1.trackKeys["rite's progress"].hidden, "two tracks, one hidden")
+    local bars = p1.results ~= nil and p1.results.bars or nil
+    ---@cast bars {total: number, partial: number}?
+    check(bars ~= nil and bars.total == 1 and bars.partial == 0, "the Outcome bars")
+    check(#p1.results.lines == 4, "four Results lines")
+    check(p1.results.lines[2].effects[1].kind == "track" and p1.results.lines[2].effects[1].delta == 1, "a Results line changes a track")
+    check(p1.results.lines[4].cond.op == "this" and p1.results.lines[4].cond.what == "rounds", "this part's rounds")
+    local threat = p1.beats[1].rounds[1].entries[1]
+    local bell = threat.consequence.effects[1]
+    check(bell.kind == "track" and bell.hidden and bell.trackName == "Rite's Progress", "a clause on a hidden track is hidden")
+    local renown = threat.options[1].roll.effects[2][2]
+    check(renown.kind == "track" and not renown.hidden, "a clause on a shown track is not hidden")
+    check(#p1.warnings == 0, "part 1 has no warnings: " .. table.concat(p1.warnings, "; "))
+    --a hidden track's clause never shows, braced or not; a shown one does.
+    check(EncounterScript.VisibleText("You fail the test. Rite's Progress +2") == "You fail the test.", "a hidden track clause is not shown: " .. EncounterScript.VisibleText("You fail the test. Rite's Progress +2"))
+    check(not string.find(EncounterScript.VisibleText("You fail. {Rite's Progress +1}, and run"), "Rite", 1, true), "a braced hidden track clause stays hidden")
+    check(EncounterScript.VisibleText("You succeed. Renown +1") == "You succeed. Renown +1", "a shown track clause shows")
+
+    --undeclared track, "this" outside Results, a later part, and no part at all
+    local bad = EncounterScript.Parse([==[
+# Part 1
+
+# Narrative
+
+## The Road
+
+Rite's Progress +1
+
+### Walk on
+
+|Dread +1
+
+# Montage
+
+## Threat: X
+
+---
+if total success then
+It worked.
+end
+if Part 2 was a failure then
+No.
+end
+
+Consequence: nothing happens
+
+### Go
+
+|Go Test: Might (Climb)
+|a
+|b
+|c
+]==])
+    check(has(bad.warnings, "'Dread' which") or has(bad.warnings, "changes 'Dread'"), "an undeclared track warns")
+    check(bad.beats[1].sections[1].options[1].effects[1].undeclared, "the undeclared clause does nothing")
+    check(has(bad.warnings, "only known in '# Results'"), "this part's outcome outside Results warns")
+    check(has(bad.warnings, "about Part 2 in Part 1"), "a later part warns")
+
+    local nopart = EncounterScript.Parse("Track: Dread\n\n# Results\n\nFailure: Dread +1\n\n# Encounter\n\n[[encounter]]\n")
+    check(has(nopart.warnings, "'# Results' only does anything in a series part"), "Results outside a part warns")
+    check(has(nopart.warnings, "only matters in a series part"), "Track outside a part warns")
+
+    --Part 2: When lines, gated islands and reinforcements, story text
+    local p2 = EncounterScript.Parse([==[
+# Part 2: The Ossuary
+
+Track: Rite's Progress (Hidden)
+
+# Town Gate
+
+The bones remember.
+
+If Part 1 was a failure:
+The bells still ring.
+Otherwise:
+The moor is quiet.
+End
+
+Go on.
+
+# Encounter
+
+When Rite's Progress is 2 or more: +2 malice
+When Part 1 was not recorded: +1 malice
+
+When Rite's Progress is 3 or more:
+
+[[encounter]]
+
+[[encounter]]
+
+When the previous part was a failure:
+
+## Reinforcements: The Choir
+
+Arrive: round 2
+Enter: the Reinforcements zone
+
+[[encounter]]
+
+# Conclusion
+
+If Rite's Progress is 2 or more:
+The rite nears completion.
+End
+]==])
+    check(#p2.warnings == 0, "part 2 has no warnings: " .. table.concat(p2.warnings, "; "))
+    local enc = p2.beats[1]
+    check(#enc.when == 2 and enc.when[1].effects[1].kind == "malice", "two When lines")
+    check(#enc.setup == 0, "When lines are not setup instructions")
+    check(#enc.islands == 2 and enc.islands[1].gate ~= nil and enc.islands[2].gate == nil, "a gated island and a fallback")
+    check(enc.encounterTag ~= nil, "encounterTag is still the first island")
+    check(enc.reinforcements[1].gate ~= nil and enc.reinforcements[1].gate.cond.part == "previous", "a gated reinforcement section")
+    local gate = p2.story.towngate
+    check(gate.storyBlocks ~= nil and gate.rawText ~= nil, "the Town Gate has story blocks")
+    check(gate.text == "The bones remember.\n\nThe moor is quiet.\n\nGo on.", "with no story the Otherwise shows: " .. gate.text)
+    local failed = { part = 2, parts = { [1] = { outcome = "failure", score = -1, rounds = 3 } }, tracks = {} }
+    check(EncounterScript.ResolveStoryText(gate, failed) == "The bones remember.\n\nThe bells still ring.\n\nGo on.", "a failed Part 1 rings the bells")
+    check(EncounterScript.ResolveStoryText(p2.story.conclusion, nil) == "", "an If with no Otherwise shows nothing with no story")
+    check(EncounterScript.ResolveStoryText(p2.story.conclusion, { part = 2, tracks = { ["rite's progress"] = 2 } }) == "The rite nears completion.", "the conclusion's branch")
+
+    --misplaced gates and When lines
+    local misplaced = EncounterScript.Parse([==[
+# Part 2
+
+# Encounter
+
+When Part 1 was a failure:
+Trap: Place 2 Snare Trap objects in Trap zones
+
+[[encounter]]
+
+[[encounter]]
+
+# Montage
+
+When Part 1 was a failure:
+
+## Threat: X
+
+When Part 1 was a failure: +1 malice
+
+Consequence: nothing happens
+
+### Go
+
+|Go Test: Might (Climb)
+|a
+|b
+|c
+]==])
+    check(has(misplaced.warnings, "is not directly above an [[encounter]] island"), "a gate separated from its island warns")
+    check(has(misplaced.warnings, "comes after one with no 'When' line"), "an island after an ungated one warns")
+    check(has(misplaced.warnings, "only in an encounter beat does that gate"), "a bare When in a montage warns")
+    check(has(misplaced.warnings, "only works directly under the '# Montage' heading"), "a When inside an entry warns")
+    local nudge = EncounterScript.Parse([==[
+# Part 2
+
+# Encounter
+
+When Part 1 was a failure: +1 malice
+
+[[encounter]]
+]==])
+    check(has(nudge.warnings, "never says what happens when an earlier part 'was not recorded'"), "the not-recorded nudge")
+    local handled = EncounterScript.Parse([==[
+# Part 2
+
+# Encounter
+
+When Part 1 was a failure: +1 malice
+When Part 1 was not recorded: +1 malice
+
+[[encounter]]
+]==])
+    check(#handled.warnings == 0, "no nudge once 'not recorded' is handled: " .. table.concat(handled.warnings, "; "))
+
+    --prose that starts with If and ends in a colon is not a block
+    local prose = EncounterScript.Parse("# Conclusion\n\nIf you listen closely:\nthe wind sings.\n")
+    check(prose.story.conclusion.storyBlocks == nil and #prose.warnings == 0, "prose 'If ...:' stays prose")
+
+    check(EncounterScript.DescribeEffect(bell) == "Rite's Progress +1", "describe a track clause")
+end)()
+
+--a part marked "Coming soon"
+;(function()
+    local plain = EncounterScript.Parse([==[
+# Part 2: The Hall
+Coming soon
+
+# Encounter
+]==])
+    check(plain.part ~= nil and plain.part.comingSoon ~= nil and plain.part.comingSoon.text == nil, "Coming soon with no text")
+    local told = EncounterScript.Parse([==[
+# Part 2
+Coming soon: The doors are still sealed.
+Track: Alarm
+
+# Encounter
+]==])
+    check(told.part ~= nil and told.part.comingSoon ~= nil and told.part.comingSoon.text == "The doors are still sealed.", "Coming soon with hover text")
+    check(#told.tracks == 1, "a Track line after Coming soon still counts")
+    local loose = EncounterScript.Parse([==[
+Coming soon
+
+# Encounter
+]==])
+    check(loose.part == nil and #loose.warnings > 0, "Coming soon outside a part warns")
+    local above = EncounterScript.Parse([==[
+Coming soon: Not yet.
+
+# Part 3: The Crypt
+
+# Encounter
+]==])
+    check(above.part ~= nil and above.part.comingSoon ~= nil and above.part.comingSoon.text == "Not yet.", "Coming soon above the part heading counts")
+    local dotted = EncounterScript.Parse("# Part 2\nComing soon.\n\n# Encounter\n")
+    check(dotted.part ~= nil and dotted.part.comingSoon ~= nil and dotted.part.comingSoon.text == nil, "Coming soon. with a full stop")
+    local prose = EncounterScript.Parse([==[
+# Part 1
+Coming soon to a theater near you
+
+# Encounter
+]==])
+    check(prose.part ~= nil and prose.part.comingSoon == nil, "other prose starting 'Coming soon' is a note")
+end)()
+
 print(string.format("encounter_script_test: %d checks passed", passed))

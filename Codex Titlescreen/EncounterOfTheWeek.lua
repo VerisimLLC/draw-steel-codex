@@ -600,6 +600,22 @@ function EncounterOfTheWeek.IsEncounterMapName(name)
     return name == ENCOUNTER_MAP_NAME or name:sub(1, #ENCOUNTER_MAP_NAME + 2) == ENCOUNTER_MAP_NAME .. ": "
 end
 
+--A series part can have its own map: "Encounter: The Crypt (Part 2)". The
+--town lists it as "Encounter: The Crypt", never as an encounter of its own.
+--The game side and both publishers have copies of these two; keep them the same.
+function EncounterOfTheWeek.PartMapName(seriesMapName, part)
+    return string.format("%s (Part %d)", seriesMapName, part)
+end
+
+--The series map's name and the part, if `name` is a part map's name.
+function EncounterOfTheWeek.SplitPartMapName(name)
+    local base, number = string.match(name or "", "^(.-) %(Part (%d+)%)$")
+    if base == nil or base == "" then
+        return nil, nil
+    end
+    return base, tonumber(number)
+end
+
 --An encounter is named by a KEY string. For the official module it is the
 --map name ("Encounter: Goblin Ambush"), which is all party records and
 --completions carried before the pool existed. For a community module it is
@@ -692,15 +708,22 @@ function EncounterOfTheWeek.EncounterDisplayName(key)
     return string.format("%s (%s)%s", title, moduleName, suffix)
 end
 
+--The hover text on a part the author marked "Coming soon" without saying more.
+local COMING_SOON_TEXT = "Coming soon."
+
 --The parts of a series map from its module record's eotwEncounters entry:
---{ {number, title, townGate}, ... } sorted by number, or nil when the map is
---not a series. Read leniently: Firebase may hand a list back keyed "0", "1".
+--{ {number, title, townGate, mapName, comingSoon}, ... } sorted by number, or
+--nil when the map is not a series. mapName is set for a part on its own part
+--map. Parts listed under comingSoonParts come back as locked placeholders
+--whose comingSoon field is the hover text.
+--Read leniently: Firebase may hand a list back keyed "0", "1".
 local function ReadSeriesParts(story)
-    if type(story) ~= "table" or type(story.parts) ~= "table" then
+    if type(story) ~= "table" then
         return nil
     end
     local parts = {}
-    for _, p in pairs(story.parts) do
+    local numbers = {}
+    for _, p in pairs(type(story.parts) == "table" and story.parts or {}) do
         if type(p) == "table" and tonumber(p.number) ~= nil then
             local title, townGate = nil, nil
             if type(p.title) == "string" and p.title ~= "" then
@@ -709,7 +732,27 @@ local function ReadSeriesParts(story)
             if type(p.townGate) == "string" and p.townGate ~= "" then
                 townGate = p.townGate
             end
-            parts[#parts+1] = { number = math.floor(tonumber(p.number) or 0), title = title, townGate = townGate }
+            local mapName = nil
+            if type(p.map) == "string" and p.map ~= "" then
+                mapName = p.map
+            end
+            local number = math.floor(tonumber(p.number) or 0)
+            numbers[number] = true
+            parts[#parts+1] = { number = number, title = title, townGate = townGate, mapName = mapName }
+        end
+    end
+    for _, p in pairs(type(story.comingSoonParts) == "table" and story.comingSoonParts or {}) do
+        local number = type(p) == "table" and tonumber(p.number) or nil
+        if number ~= nil and not numbers[math.floor(number)] then
+            local title = nil
+            if type(p.title) == "string" and p.title ~= "" then
+                title = p.title
+            end
+            local text = COMING_SOON_TEXT
+            if type(p.text) == "string" and p.text ~= "" then
+                text = p.text
+            end
+            parts[#parts+1] = { number = math.floor(number), title = title, comingSoon = text }
         end
     end
     if #parts == 0 then
@@ -754,9 +797,14 @@ end
 --part n-1 ON THE SAME BOARD: at the Town Gate any of its heroes' wins
 --(EotwRoster.AccountCompleted), in the Proving Pits its practice wins
 --(EotwRoster.PracticeWon). A Proving Pits win does not carry over to the Gate.
+--A part marked "Coming soon" stays locked for everyone.
 --Returns true, or false + the reason to show.
 function EncounterOfTheWeek.PartUnlocked(key)
     local seriesKey, part = EncounterOfTheWeek.SplitPartKey(key)
+    local entry = EncounterOfTheWeek.GetPart(key)
+    if entry ~= nil and entry.comingSoon ~= nil then
+        return false, entry.comingSoon
+    end
     if part <= 1 then
         return true
     end
@@ -798,12 +846,22 @@ function EncounterOfTheWeek.NextPartKey(key)
     return last
 end
 
+--Author previews: moduleid -> { maps, eotwEncounters }, shown in town in
+--place of what the module has published. Nothing is uploaded, and it is
+--gone when the app restarts.
+local m_stagedModules = {}
+
 --The pool entries one module record offers, default map first, then by title.
 local function ModuleEncounters(info, moduleid)
     local official = moduleid == STARTING_MODULE
     local summary, published, name, author = nil, nil, nil, nil
     pcall(function() summary = info.contentSummary end)
     pcall(function() published = info.publishingProperties.eotwEncounters end)
+    local staged = m_stagedModules[moduleid]
+    if staged ~= nil then
+        summary = { { type = "map", items = staged.maps or {} } }
+        published = staged.eotwEncounters
+    end
     pcall(function() name = info.name end)
     pcall(function() author = info.authorid end)
     --published from this account: its creator reads the Proving Pits feedback.
@@ -815,7 +873,9 @@ local function ModuleEncounters(info, moduleid)
     for _,entry in ipairs(summary or {}) do
         local kind = string.lower(tostring(entry.type or ""))
         if kind == "map" or kind == "maps" then
-            for _,item in ipairs(entry.items or {}) do
+            for _,mapItem in ipairs(entry.items or {}) do
+                --A part map is listed once, under its series' name.
+                local item = EncounterOfTheWeek.SplitPartMapName(mapItem) or mapItem
                 if EncounterOfTheWeek.IsEncounterMapName(item) and not seen[item] then
                     seen[item] = true
                     local townGate = nil
@@ -1014,6 +1074,17 @@ function EncounterOfTheWeek.CacheEncounters(force)
             Finish()
         end,
     }
+end
+
+--Developer tool: show a module in town as it would look after its next
+--publish. Pass nil to clear it. Parties still play the published version.
+function EncounterOfTheWeek.StagePoolModule(moduleid, staged)
+    if not dmhub.GetSettingValue("dev") then
+        printf("EotW: staging a module preview needs developer mode")
+        return
+    end
+    m_stagedModules[moduleid] = staged
+    EncounterOfTheWeek.RefreshPool()
 end
 
 --Re-fetch the pool now (it is otherwise fetched once per app run), then
@@ -3448,6 +3519,11 @@ CreateScreen = function(args)
         if arrival.fastLaunch and encounterMap ~= nil then
             local moduleid, mapName = EncounterOfTheWeek.ParseEncounterKey(encounterMap)
             if moduleid == STARTING_MODULE then
+                --a series part on its own map starts there.
+                local part = EncounterOfTheWeek.GetPart(encounterMap)
+                if part ~= nil and part.mapName ~= nil then
+                    mapName = part.mapName
+                end
                 enterOptions = { startMap = mapName }
             end
         end

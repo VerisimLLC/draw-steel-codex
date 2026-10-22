@@ -512,6 +512,7 @@ end
 --- @field trackerText nil|string a tracker tile: the number its medallion shows
 --- @field portrait nil|string a character tile (a standee): the portrait it shows
 --- @field thumbnail nil|string a dice-set tile: the still picture of its die
+--- @field art nil|string a dice-set tile: its store background art
 --- @field action nil|fun() a tile that does something other than place an item
 --- @field tracker nil|string a tracker tile: the medallion it shows (TableDice.TrackerToken)
 
@@ -647,6 +648,7 @@ local g_drawerStyles = {
     {selectors = {"tableItemsButton", "selected"}, bgcolor = "@bgRaised", borderColor = "@fgMuted"},
     {selectors = {"tableItemsButtonIcon"}, bgcolor = "@fg"},
     {selectors = {"tableTrackerValue"}, color = "white", bold = true},
+    {selectors = {"tableDrawerSetCard"}, bgcolor = "@bgRaised", cornerRadius = 4},
     {selectors = {"tableTrackerPlate"}, bgcolor = "@bg", borderColor = "@border", borderWidth = 1, cornerRadius = 6},
     {selectors = {"tableTrackerName"}, color = "@fgStrong", fontSize = 13, width = "auto", height = "auto"},
     {selectors = {"tableTrackerStep"}, bgcolor = "@bg", borderColor = "@border", borderWidth = 1, cornerRadius = 13},
@@ -1200,7 +1202,29 @@ local function ShownItems()
     return {}, ""
 end
 
---The dice sets this account has, as tiles: each shows a d10 in its set.
+--A dice set's store art: the background of its store tile (the shop item's
+--dicePreview, else its diceBanner), or nil when the set has none or is not
+--a store item (Default).
+--- @param assetid string
+--- @return nil|string
+local function DiceSetArt(assetid)
+    local found = nil
+    pcall(function()
+        for _, item in pairs(assets.shopItems) do
+            if item.itemType == "Dice" and item.assetid == assetid then
+                for _, cfg in ipairs({item.dicePreview, item.diceBanner}) do
+                    if found == nil and type(cfg) == "table" and type(cfg.backgroundImage) == "string" and cfg.backgroundImage ~= "" then
+                        found = cfg.backgroundImage
+                    end
+                end
+            end
+        end
+    end)
+    return found
+end
+
+--The dice sets this account has, as tiles: each shows its store art, or a
+--still d10 in its set.
 --- @return TableItemDef[]
 local function DiceSetItems()
     local result = {}
@@ -1217,11 +1241,73 @@ local function DiceSetItems()
             name = tostring(entry.text),
             icon = "phosphor/dice-five.png",
             thumbnail = string.format("#DiceIcon:%s:d10", tostring(entry.value)),
+            --the set's small store background, as its store tile shows it
+            --(Venla, 2026-10-22); sets with none keep the still die.
+            art = DiceSetArt(tostring(entry.value)),
             model = value,
             setValue = value,
         }
     end
     return result
+end
+
+--The picture on a dice-set tile: its store art, cropped to cover the space
+--without stretching (it fades in once the art's size is known), or the still
+--die when the set has no art.
+--- @param item TableItemDef
+--- @return Panel
+local function SetPicture(item)
+    local boxW, boxH = TILE_WIDTH - 12, 46
+    if item.art == nil then
+        --no store art: a plain card the same shape, with the still die on it,
+        --so every set tile reads the same way.
+        return gui.Panel{
+            classes = {"tableDrawerSetCard"},
+            bgimage = "panels/square.png",
+            width = boxW,
+            height = boxH,
+            halign = "center",
+            tmargin = 4,
+            interactable = false,
+            gui.Panel{
+                bgimage = item.thumbnail,
+                bgcolor = "white",
+                width = 38,
+                height = 38,
+                halign = "center",
+                valign = "center",
+                interactable = false,
+            },
+        }
+    end
+    return gui.Panel{
+        bgimage = item.art,
+        bgcolor = "clear",
+        width = boxW,
+        height = boxH,
+        halign = "center",
+        tmargin = 4,
+        cornerRadius = 4,
+        interactable = false,
+        create = function(element)
+            gui.GetImageDimensionsCallback(item.art, function(dims)
+                if mod.unloaded or not element.valid or dims == nil or (dims.width or 0) <= 0 or (dims.height or 0) <= 0 then
+                    return
+                end
+                --cover: the window keeps the box's aspect, centred on the art.
+                local wFrac, hFrac = 1, 1
+                if dims.width / dims.height > boxW / boxH then
+                    wFrac = (boxW / boxH) / (dims.width / dims.height)
+                else
+                    hFrac = (dims.width / dims.height) / (boxW / boxH)
+                end
+                local left = (1 - wFrac) / 2
+                local bottom = (1 - hFrac) / 2
+                element.selfStyle.imageRect = {x1 = left, x2 = left + wFrac, y1 = bottom, y2 = bottom + hFrac}
+                element.selfStyle.bgcolor = "white"
+            end)
+        end,
+    }
 end
 
 --- @param item TableItemDef a dice-set item (DiceSetItems)
@@ -1242,15 +1328,7 @@ local function BuildSetTile(item)
         click = function(element)
             SelectDiceSet(item.setValue)
         end,
-        gui.Panel{
-            bgimage = item.thumbnail,
-            bgcolor = "white",
-            width = 40,
-            height = 40,
-            halign = "center",
-            tmargin = 6,
-            interactable = false,
-        },
+        SetPicture(item),
         gui.Label{
             classes = {"tableDrawerTileName"},
             text = item.name,

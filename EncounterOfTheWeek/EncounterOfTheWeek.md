@@ -56,6 +56,15 @@ order, each bounded to its encounter's region. Built across the parser, game,
 town, both publishers and the City; nothing run, not deployed, uncommitted.
 See "Encounter series".
 
+**Carrying the story forward (designed 2026-10-18, signed off 2026-10-19):**
+story tracks and each part's montage outcome and winning round carried
+between series parts, plus part maps ("<series> (Part N)"). The Lua side
+(parser, game, town, ModShare, validator, Test Encounter's Story so far) is
+committed on the EotW-Campaign-Tracking branch (PR 410); the handoff to the
+City is NOT built (waits on David's series City source), so real games start
+every later part with an empty story. See "Encounter series" -> "Carrying
+the story forward".
+
 **Encounter Rules (2026-10-20):** an optional `Encounter Rules` journal
 document in the map's folder, shown read-only from a book button above
 Journal once combat begins. Verified live 2026-10-20 in an authoring test
@@ -1830,8 +1839,41 @@ Decisions taken with the user:
   region rectangle, see `MCDMEncounter.lua` "Encounter region and hero start
   zone"), which hard-restricts the heroes to that part of the map.
 
-Each part is a separate game: the map starts fresh, nothing that happened in
-Part 1 carries into Part 2 except through the story text.
+**Part maps (2026-10-20, user direction):** a playtest showed the region
+hides nothing -- players saw the whole map, and on an upper floor every floor
+below shows through -- so a part may have its own map, named after the series
+map plus " (Part <n>)" ("Encounter: The Crypt (Part 2)"). Rules:
+- Part n plays on its part map when one exists, else on the series map (so
+  one-map series still work). The KEY is unchanged (`<key>#<n>`); only the
+  map it resolves to changes: game side `PartMapName` / `SplitPartMapName` /
+  `FindPartMap`, used by `EnsureOnEncounterMap`, `OnRequestedEncounterMap`
+  and `EnsureEncounterModule` (which, for a later part, waits up to 3 s past
+  the series map for the part map to arrive).
+- A part map's scripts must all say its own part. On a part map with no key
+  and no test running, `ActivePart` is that map's part, so the validator and
+  script panel read the right script while authoring.
+- The town never lists a part map as an encounter (`GetEncounters` skips
+  names `SplitPartMapName` accepts). Both publishers read a series' part maps
+  with it, number-check all its parts together, and record `map = <part map
+  name>` on each part in `eotwEncounters`; `ReadSeriesParts` keeps it as
+  `mapName`, which the fast launch's `startMap` uses.
+- Test Encounter's Part dropdown lists the parts on the current map. The
+  validator's "no region" problem shows only when the map holds more than
+  one part.
+- **Part 1 too (2026-10-21, user direction):** every part may have a part
+  map, `(Part 1)` included. The series is named and keyed by the name before
+  the suffix even when no map has it: `FindPartMap` tries the part map first
+  for every part; the install wait takes the part map at once, and the
+  plain-named map at once for an ordinary encounter but only after a 3 s
+  grace for a series part; the town lists the plain name once for all its
+  part maps; both publishers make a series with no plain-named map.
+- Not run yet: a real arrival on a part map, a community install of a
+  series with part maps, and both publishers on one.
+
+Each part is a separate game: the map starts fresh. As built, nothing that
+happened in Part 1 carries into Part 2 except through the story text; the
+DESIGNED (not built) way to carry results forward is "Carrying the story
+forward" below.
 
 ## Authoring
 
@@ -1941,6 +1983,13 @@ encounter); action `record-practice-win` (write bucket; idempotent; no
 schedule check); `accountUnlocks` adds `completed` and `practiceWins`;
 `dev-reset-account` deletes practice wins. Unit-tested
 (`test/city-core.test.ts`, "encounter series unlocks"). **Not deployed.**
+**Checked 2026-10-18 and again 2026-10-19 (after pulling DMHub to
+`84a0dcfd8`): this City code is NOT in `D:\DMHub` (src, test or git
+history); `accountUnlocks` there returns only `dangerRooms` and `market`.**
+Find where it was written, or rebuild it, before deploying. The Python
+publisher's half did land later, in DMHub `84a0dcfd8` (2026-10-18,
+`documents.series_parts` / `part_heading`, per-part records in
+`publish_eotw.py`).
 
 ## Not done / known gaps
 
@@ -1976,6 +2025,427 @@ schedule check); `accountUnlocks` adds `completed` and `practiceWins`;
 6. Rotate it to the Encounter of the Week: the Gate opens on Part 1 again
    (Proving Pits wins do not count); win Part 1 at the Gate: a Victory, and
    Part 2 opens. A hero who won Part 1 shows "Already Completed" only for Part 1.
+
+## Carrying the story forward (DESIGN signed off 2026-10-19; build started)
+
+Decided with the user on 2026-10-18 through the feature-design loop and
+**signed off on 2026-10-19** ("we can start working on this"); the proposed
+script wording and player-facing strings were accepted with it and can be
+adjusted as the build meets them. Everything here is a settled decision
+unless it is listed under "Open questions". Build status is in
+"Implementation steps".
+
+### Why
+
+A series forgets everything between parts, so a choice in Part 1 can never
+matter in Part 3. The first series to need it is The Bone Cathedral, three
+parts on one stitched map. In its Director-run original, a **Rite's Progress**
+track starts at 0, Part 1 adds 0, 1 or 2 depending on the montage, and Part 3
+pays it off. Two things carry forward:
+
+1. **Story tracks**: named numbers ("Rite's Progress") that a part's clauses
+   and results raise or lower, and that later parts read.
+2. **Each part's result**: its montage **outcome** (total success / partial
+   success / failure), its montage **score**, and the **round** its fight was
+   won in.
+
+Who it serves: the **players**, who should feel that the series remembers
+them, and the **author**, who needs plain words to write it. Players never
+manage any of it.
+
+### Decision ledger (2026-10-18, with the user)
+
+| # | Decision | Why |
+|---|---|---|
+| D1 | The state belongs to an **account**, and a party plays with its **host's** story. A newcomer just joins the host's story. | It matches the unlock (per account), and the host already picks the part. |
+| D2 | When a part is won, the result is saved for **every account in the party**, not only the host's. | A member who later hosts the next part brings the run they played. |
+| D3 | **Latest win counts.** Each part keeps its own result row; a later win of that part replaces it. A defeat saves nothing. | Replays can fix a bad run. Replaying Part 1 changes only Part 1's share of the track. |
+| D4 | **Danger Room and Town Gate stories are separate**, like the unlocks. A series promoted to the Week starts with a clean story. | Consistent with "Danger Room wins do not carry over". |
+| D5 | **The montage outcome covers every montage in the part.** Score = tier-3 results (crits included) − tier-1 results − threats left unvanquished. Each event counts once, and tests on Opportunities count too. | The user's definition: successes, minus failures and complications (an unvanquished threat is a complication). |
+| D6 | Outcome = the score **per hero** (divided by the number of heroes who began the part) against two bars: **total success at or above the first, partial at or above the second, failure below**. Written `Outcome: total success at 1, partial at 0` in `# Results`, per hero. **Default: total at 0.5, partial at −0.25** (the old raw +2 / −1 at four heroes). | The user picked net score + thresholds, then per hero after the critique (2026-10-18): six heroes make about 50% more tests than four, so raw bars favoured big parties. |
+| D7 | The **round the fight was won in** is recorded (wins only) and is readable by later parts. It does not feed the outcome. | The user wants it tracked; keeping it apart keeps the outcome about the montage. |
+| D8 | Tracks are **declared**: `Track: Rite's Progress` in each part document that uses one, or `Track: Rite's Progress (Hidden)`. **No range.** Ordinary clauses change them wherever clauses go, and `{...}` hides a change as usual. | The validator can then catch typos. The user declined a range. |
+| D9 | A new **`# Results`** section (not a beat) runs once, at victory, after the outcome and round are known. It holds the `Outcome:` bars and `<condition>: <clauses>` lines. | The end-of-part result usually drives the track; written once in the part that causes it, not re-derived in every later part. |
+| D10 | Later parts read the story in **four places**: scene branches, `When <condition>:` setup lines under a beat heading, fight variants (a `When` line above an `[[encounter]]` island or a Reinforcements section), and `If <condition>:` / `Otherwise:` / `End` lines in story text (Town Gate, Narrative sections, Conclusion, Defeat; changed from `## If` headings after the critique, because `##` already means a section). | All four, the user's pick. |
+| D11 | A part with **no saved result** (for example, unlocked by a win in someone else's party before this existed) reads as **"not recorded"**. That is a condition of its own (`Part 1 was not recorded`). Every other condition about that part is false, and its track share is 0. | The user: let the author decide. |
+| D12 | The City runs **cheap sanity checks** on a reported result. It accepts a report only for that game's own part key, from a member of the run, where the snapshot host's report is final and another member's is a provisional fallback, with the outcome one of the three values, the round from 1 to 50, and each track share between −100 and 100. | Not cheat-proof, but bounded, and the same trust as wins. |
+| D13 | **Visibility is per track**: a plain `Track:` is shown, a `(Hidden)` one never appears as a number. | Hidden suits a looming threat; shown suits a scoreboard. |
+| D14 | Shown on the **victory story screen** (a recap under the Conclusion) and **in town** (a "story so far" line in Form a Party and the party view). Not on the in-game HUD, and no live change toasts. | The user's pick. |
+| D15 | A **replay** of a part shows a one-line note in Form a Party AND in the party view to **every member** whose account has a saved result for that part. There is no confirm dialog. | Latest win replaces the row for every member (D2, D3), so warn everyone it affects, without blocking (the user's pick after the critique). |
+| D16 | A track may carry a **description**: `Track: Rite's Progress -- how close the cult is to finishing the rite`, shown next to the value in town and on the recap (shown tracks only). | Players can't tell whether "rose to 2" is good without it. The user declined a score breakdown on the recap. |
+| D17 | **Delve tests do not count** toward the score; only the montage board's own tests do. | The user's pick. |
+| D18 | **Replaying an earlier part never clears later parts' results.** Replaying Part 1 after Part 2 replaces Part 1's row only; Part 2's share stays, even if Part 2 branched on the old value. | The user, 2026-10-19. |
+
+### The design
+
+**Prerequisite: the series' City half is not in this checkout.** The series
+section says `record-practice-win`, `city_practice_wins` and the `completed` /
+`practiceWins` unlocks are built and unit-tested. On 2026-10-18 none of them
+exist anywhere in `D:\DMHub\cloudflare-game-server` (src or test, working
+tree clean; rechecked 2026-10-19 after DMHub `84a0dcfd8`), but the town
+already sends `record-practice-win` (`Codex Titlescreen/EncounterOfTheWeek.lua`
+~5881). Find that work (another clone or branch?) or rebuild it before
+anything here; this design sits on top of it. The Python publisher's series
+half is no longer missing: it landed in DMHub `84a0dcfd8` (2026-10-18).
+
+**What is stored (the City).** Two new tables:
+
+- `city_series_results(userid, board, series, part, gameid, outcome, score,
+  rounds, tracks, at)`, primary key `(userid, board, series, part)`.
+  `board` is `gate` or `practice`. `series` is the bare series key, `part`
+  is the part number, and `tracks` is a JSON object `{name: share}`, the net
+  change the part made to each track. A later win replaces the row (D3).
+- `city_series_runs(gameid, series, part, board, host, members, story,
+  result, at)`: a snapshot taken at launch of every series game. It records
+  the part key, the board, the host, every account with heroes in the party,
+  the story handed out, and later the result. It exists because the lobby's
+  game record is swept about 5 minutes after launch, once heartbeats stop
+  (`lobby-core.ts` ~45, ~727), long before the result comes in.
+
+**The board, decided once, by the City.** The City's `isScheduled`
+(`city-core.ts` ~833) compares the raw key, so `Encounter: X#2` would never
+match the bare key the schedule holds and every part from 2 on would count
+as practice. The City gains its own `splitPartKey`, used by `isScheduled`
+and `applyDangerFeedback` (~938), with the Lua rule that an official-module
+key is never practice. At launch the City stamps `board` on the lobby
+record, and the arrival's `practice` flag comes from that stamp rather than
+the client's own reading of the week (titlescreen ~3051). Otherwise a client
+with a stale week plays practice while the City files the result under the
+Gate.
+
+**Handing the story to the game.** The base lobby runs `launch-game` with no
+City hook (`lobby.ts` ~525, `applyLaunchGame` `lobby-core.ts` ~621), so the
+City gains one (`prepareLaunch`, like `prepareHeroClaim`). For part n of a
+series it writes the `city_series_runs` row, and it stamps `board` and the
+story on the record. The story is built from the **host's** rows on that
+board for parts 1..n−1:
+`story = {parts = {[k] = {outcome, score, rounds, tracks} | "not recorded"},
+tracks = {name = sum of shares}}`. The story rides the arrival args the way
+`completed` does (`checkHeroClaim`), and the game host copies it into
+the script document's `data.story` during setup. The value comes from the City, never from a
+client's claim.
+
+**Resuming.** The seeded story lives in the game's own script document, so
+a resume keeps it. Only a host who crashed before seeding it needs the City:
+when a player resumes after the record has been swept, the arrival carries
+nothing, so whenever the script document's `data.story` is missing, the game
+host fetches it with a new read, `get-series-run {gameid}` (the game already
+sends lobby requests, `EncounterOfTheWeek.lua` ~1531). A part never plays as
+"not recorded" just because someone crashed.
+
+**During the part (the game).** The script document's (`eotwscript`) `data.story` holds each track's
+live value. It starts from the carried sums (0 for a declared track the story
+does not have), and the host changes it for every track clause, like any
+other effect.
+
+The montage totals live at the TOP level of the state document as
+`montageTotals[beatIndex]`, because `data.montage` is replaced at every
+montage's start (`EncounterMontage.lua` ~5843). Keying them per beat means a
+host change cannot add one twice. They are derived when each montage ends,
+from its log plus its consequence list:
+
+- **success**: tier 3 or tier 4 (the critical is its own tier, a natural
+  19-20, ~3141);
+- **failure**: tier 1;
+- **unvanquished**: a threat whose consequence actually landed, meaning not
+  vanquished, not scaled away, and unlocked (~6117);
+- delve obstacles do NOT count (D17). They resolve through
+  `DelveObstacleResolved` rather than the log anyway (~3509).
+
+**The result is decided once, by the host.** When the outcome is first
+detected (`UpdateEncounterConclusion`, ~1609; NOT the Victory award, which
+practice games skip, ~1212), the host computes everything in one
+`CompleteChange`, guarded by `data.seriesResult == nil`:
+
+1. the score, the score per hero (divided by the heroes who began the part,
+   from the arrival roster), the outcome (D6), and the round from the
+   initiative queue;
+2. `# Results`: each `<condition>: <clauses>` line whose condition holds
+   applies its clauses (track changes, mostly) in document order. These
+   conditions can read this part (`total success`, `the fight lasted 5 or
+   more rounds`, `score 0.5 or more`, a track's value) as well as earlier
+   parts;
+3. the stamp `data.seriesResult = {series, part, outcome, score,
+   rounds, tracks = this part's shares}`.
+
+A new host or a reloaded client never recomputes; it only reads the stamp,
+which is what the recap shows. The host then sends `record-series-result
+{gameid, ...}` from inside the game at once, and keeps a copy as a retry
+(machine-local, next to the pending outcomes at the Gate and on
+`eotw:pendingDebrief` in the Danger Rooms, since practice games return early
+from `RecordPendingOutcomes`, ~1465).
+
+**What the City accepts.** A report for a game in `city_series_runs` whose
+part key matches, passing the D12 checks. The **snapshot host's** report is
+final. A report from another member is accepted only as a provisional
+fallback (for a host who never reconnects), and the host's report may
+replace it once. The accepted result is written to every member account of
+the run (D2). A defeat stores nothing (D3).
+
+**Writing it (script grammar).** Proposed wording; the exact words are part
+of the sign-off. The Bone Cathedral's real rule, Part 1 adding 0, 1 or 2 by
+the montage result, is all in `# Results`:
+
+```
+# Part 1: The Road Off the Moor
+Track: Rite's Progress (Hidden) -- how close the cult is to finishing the rite
+
+# Results
+Outcome: total success at 1, partial at 0
+Total success: nothing happens
+Partial success: Rite's Progress +1
+Failure: Rite's Progress +2
+```
+
+A threat's `Consequence:` or a tier line may also change a track (`Rite's
+Progress +1`). That stacks with `# Results`, and an unvanquished threat
+already lowers the score, so the validator mentions it when one part does
+both.
+
+Track clauses are `<Track> +N` / `<Track> -N`, `<Track> rises by N` /
+`falls by N`, and `raise` / `lower <Track> by N`. They are matched only
+against the names the part declares, so they cannot collide with `+2 malice`
+and the rest. **A clause that changes a hidden track is always hidden**, as
+if it were in `{...}`, so it can never print "Rite's Progress +2" on the
+stage.
+
+**Reading it (conditions).** There is **one condition parser for every
+place**: these new atoms join `EncounterScript.ParseCondition`, so every atom
+works in scenes, `When` lines, story text and `# Results`. The validator
+names the right place when an atom cannot apply (for example, `PC ...` in
+story text). Comparisons accept `N or more` / `or higher` / `at least N`,
+`N or less` / `or lower` / `or fewer` / `at most N`, and `is N`, everywhere,
+including the existing knack requirements.
+
+- `Rite's Progress is 2 or more`
+- `Part 1 was a total success` / `a partial success` / `a failure`,
+  `Part 1 was not recorded`
+- `Part 1 scored 0.5 or more`, `Part 1's fight lasted 5 or more rounds` (a
+  part that is not recorded makes these false)
+- `the previous part ...` works as well as `Part n-1 ...`
+- in `# Results` only: `total success` / `partial success` / `failure`,
+  `score 0.5 or more`, `the fight lasted 5 or more rounds` (about this part).
+  It is "the fight", because montages have rounds of their own.
+- A score in any condition is the per-hero score (D6), the same number the
+  `Outcome:` bars use, so `Part 1 scored 0.5 or more` means the same for
+  four heroes or six.
+
+Where they go (D10):
+
+- **Scenes**: `if Rite's Progress is 2 or more then` ... `end`.
+- **Setup lines**: `When <condition>: <clauses>` directly under `# Montage`,
+  `# Narrative` or `# Encounter`, applied as that beat starts. For example,
+  `When Rite's Progress is 2 or more: +2 malice` under `# Encounter`, or
+  `When Part 1 was a failure: unlock The Bone Choir` under `# Montage` (a
+  harder `(Locked)` threat).
+- **Fight variants**: a `When <condition>:` line directly above an
+  `[[encounter]]` island or a `## Reinforcements:` heading. A gated opening
+  island is used only when its condition holds; the first opening island
+  whose gate holds (or that has no gate) is the fight. A gated
+  Reinforcements section never comes when its gate fails.
+- **Story text**: NOT headings. `##` already starts a section in a
+  Narrative, and the publishers strip `##` lines from story text
+  (`tools/eotw_publish/documents.py` `story_section`, ~301 and ~315 as of
+  `84a0dcfd8`). Instead, `If <condition>:`
+  ... `Otherwise:` ... `End` lines inside `# Town Gate`, a Narrative
+  section, `# Conclusion` and `# Defeat`. Both publishers send the Town Gate
+  as structured `{text, blocks}`, and the town resolves it: against the
+  viewer's own story while browsing, and against the host's once in a party.
+
+**What players see (D13-D15).** Proposed copy; every string needs sign-off:
+
+- Victory story screen, under the Conclusion text: "Montage: Partial
+  success." / "Won in round 4." / "Rite's Progress rose to 2." ("fell to",
+  "stays at"). Hidden tracks never appear.
+- Town, Form a Party and the party view, for a part after Part 1: "Your story
+  so far: Part 1 -- Partial success, won in round 4. Rite's Progress 2." In a
+  party, members see the host's story, labelled "(the host's story)" (D1). A
+  part that is not recorded reads "Part 1 -- not recorded". The party view
+  reads the host's rows through a new `series-story {userid, series, board}`
+  read.
+- Replay note in Form a Party, and in the party view for every member with a
+  saved result for the part (D15): "Winning this part again replaces its
+  result in your story."
+- A track's description (D16) follows its value: "Rite's Progress 2 -- how
+  close the cult is to finishing the rite."
+
+**Hidden is not secret.** The story rides the broadcast lobby record and
+the script document, so a determined client can read a hidden track's value. That is
+accepted at D12's level of trust; hidden means "not shown", not
+"protected".
+
+**Authoring and testing.**
+
+- The validator checks that:
+  - a track clause or condition names a declared track;
+  - a condition names a part before this one;
+  - the `Outcome:` bars are in order;
+  - `# Results` sits in a part document.
+- It warns when a part that a later part reads has no `Outcome:` line, and
+  when a part reads a track or outcome but has no `was not recorded` branch
+  anywhere. It lists each part's declared tracks.
+- Test Encounter gets a **Story so far** editor for Part 2 and later: each
+  earlier part's outcome, score and rounds (or "not recorded"), and each
+  track's value. Without it, a later part's branches can only be reached by
+  really winning the earlier parts. A test ends with the computed outcome,
+  score and Results in the chat log, and saves nothing.
+- The publishers (ModShare and `tools/eotw_publish`) copy each part's track
+  declarations (name and hidden flag) into `eotwEncounters[...].parts[i]`, so
+  the town can tell shown tracks from hidden ones.
+
+### Out of scope / rejected (with reasons)
+
+- **A per-hero or per-run (party-chain) story**: rejected for the host's
+  account (D1). Per hero needs an arbitrary rule for combining heroes; per run
+  needs a "continue a run" step and breaks when the group changes.
+- **First win only, or best result**: rejected for the latest win (D3).
+  First-only cannot fix a bad run, and best-result invites grinding.
+- **A shared story across both boards**: rejected (D4).
+- **Draw Steel success and failure limits that stop a montage early**:
+  rejected for net score (D6). EotW montages do not end early.
+- **Undeclared tracks**: rejected (D8), because a typo makes a second track
+  silently.
+- **Later parts computing Part 1's effect**: rejected for `# Results` (D9).
+- **A track range**: declined by the user (D8); only the City's ±100 sanity
+  bound applies.
+- **An in-game HUD readout and live change toasts**: not wanted for the
+  first version (D14). The stage still shows a clause on a shown track as
+  text, like any clause.
+- **`## If` headings for story text**: replaced by `If:` / `Otherwise:` /
+  `End` lines, which clash with neither Narrative sections nor knacks.
+- **"First report wins"**: replaced by the snapshot host's report being
+  final, so a member who left early, or a modified client, cannot lock in
+  the result.
+- **Server-side verification of a result** (the City replaying the game):
+  out of scope, the same as wins (D12).
+
+### Implementation steps (build started 2026-10-19)
+
+Status as of 2026-10-19: the Lua side of steps 1-3, 6 and 7 is BUILT,
+uncommitted, in the working clone `D:\draw-steel-codex`. It passes `luac -p`,
+the LuaLS check (0 problems in every changed file) and the parser tests
+(`tests/encounter_script_test.lua`, 1017 checks; 67 new). Nothing has run in
+the app. The City (step 4) and the town (step 5) wait on step 0.
+
+0. **The series' City half** (NOT DONE; BLOCKS 4 and 5): the series'
+   City code (`record-practice-win`, the practice-wins table, the unlock
+   lists) is deployed to the staging City (the series plays on the current
+   build, per the user) but its SOURCE is in no local repo, branch or stash
+   (checked 2026-10-19). It is presumably unpushed on David's machine.
+   **Do not deploy the City from `D:\DMHub` until that source is in**: a
+   deploy would wipe the series code off staging. Get David's source first.
+1. **Parser** (BUILT, `EncounterScript.lua`): `Track:` declarations
+   (`ParseTrackDeclaration`, `parse.tracks` / `parse.trackKeys`); track
+   clauses (`ParseTrackClause`, effect kind `track`, checked against the
+   declarations once the whole script is read; `undeclared` ones warn and
+   do nothing; a hidden track's clause gets `hidden`, and `HiddenRanges`
+   hides it in any displayed text as if braced); `# Results`
+   (`parse.results = {line, bars, lines}`); the story condition atoms
+   (`ParseStoryAtom`, ops `track` / `part` / `this`) and the comparison words
+   (`ParseComparison`; the condition tokenizer keeps "2 or more" together)
+   in the one shared `ParseCondition`; `When <condition>: <clauses>` lines
+   (`beat.when`); gates on opening islands (`beat.islands = {tag, line,
+   gate}`; `beat.encounterTag` is still the first island) and on
+   Reinforcements (`reinforcement.gate`); `If:` / `Else if:` / `Otherwise:`
+   / `End` in Town Gate, Conclusion, Defeat and narrative sections
+   (`ParseStoryBlocks` -> `holder.storyBlocks`, `holder.rawText`, and
+   `holder.text` becomes the no-story text; `ResolveStoryText`). Checks in
+   `CheckStory`: undeclared tracks, parts that are not earlier, `the
+   previous part` in Part 1, this-part atoms outside `# Results`, `# Results`
+   or `Track:` outside a part, and the "was not recorded" nudge. Evaluation:
+   `EvalStoryAtom`, `EvalStoryCondition`. `script-reference.md` has a
+   "Carrying the story forward" section.
+2. **Montage totals** (BUILT, `EncounterMontage.lua`): `TotalsFromLog`
+   (tier 3-4 success, tier 1 failure, each logged consequence an
+   unvanquished threat; delve and passed turns have no tier), stamped into
+   `data.montageTotals["b<beat>"]` by `HostTick` when a montage reaches
+   "done"; `PartTotals` sums them, plus a montage still running.
+3. **Game** (BUILT except the City calls): the live story lives in the
+   SCRIPT document (`eotwscript` `data.story`, next to the beat index and
+   the montage state, where effects already write), not in `eotwstate` as
+   the design first said. `SeedStory` (`EncounterOfTheWeek.lua`
+   `SeedSeriesStory`) runs on the host at setup from `args.story`, before the
+   region (a fight with variants picks by it) and the opening beat; a story
+   already seeded for the part is kept, so a resume keeps it without a City
+   read (`get-series-run` is then only needed for a host who crashed before
+   seeding). Track clauses (`ApplyEffects` kind `track` -> `ChangeTrack`,
+   live value plus this part's share); `ApplyWhenLines` from
+   `EncounterMontage.Begin`, `EncounterNarrative.Begin` and the encounter
+   beat in `RunScriptBeat`, once per beat (`data.whenApplied`); island
+   variants (`GatedIslandEntry` in `FindMapEncounter`, resolved like a
+   reinforcement island); gated Reinforcements (`DueArrivals`); scene
+   conditions (`SceneEnv`); `DecideSeriesResult` once, just before
+   `live.victoryAwarded` is set (Gate and practice; per-hero score over the
+   `numheroes` setting, the initiative round, `# Results`, the
+   `data.seriesResult` stamp); the Conclusion/Defeat text resolved for the
+   story and the recap appended (`OutcomeStory`, `SeriesRecap`); narrative
+   section text resolved on the stage (`EncounterMontageStage`). Test reset
+   clears `story`, `montageTotals`, `whenApplied` and `seriesResult`.
+   **NOT DONE**: sending `record-series-result` (and its retry copy next to
+   the pending outcomes / the pending debrief), and `args.story` arriving
+   from the City; both need step 4.
+4. **City** (NOT DONE; waits on step 0): `splitPartKey` in `isScheduled` and
+   `applyDangerFeedback`; a `prepareLaunch` hook that stamps the board and
+   the story and writes `city_series_runs`; the results table;
+   `record-series-result` (D12 checks, host final, member provisional, the
+   write to every member); `get-series-run` and `series-story`;
+   `dev-reset-account` clearing both tables. Unit tests in
+   `test/city-core.test.ts`.
+5. **Town** (NOT DONE; waits on step 4): the arrival's `practice` from the
+   City's board stamp; `args.story` passed through the arrival; the "story
+   so far", host-story label and replay lines; resolving `townGateSource`
+   for the viewer's / host's story. Until then the town shows `townGate`,
+   which is already the no-story text.
+6. **Publishers**: ModShare (BUILT): each part record carries `tracks =
+   {{name, hidden, description}}` and, when its Town Gate has `If` blocks,
+   `townGateSource` (the text as written) beside `townGate` (the no-story
+   text). Python publisher (BUILT, `tools/eotw_publish` in the DMHub repo,
+   uncommitted): the same records; `documents.py` gains a Python mirror of
+   the story-condition parser and `ParseStoryBlocks` / `ResolveStoryBlocks`
+   (`resolve_story_text`) and `track_declarations`, checked case by case
+   against the Lua (8 tests, kept outside the repo since the tool has no
+   test file). Like the Lua, any condition that parses opens an `If` block
+   (a hero atom too). It does not log the story-block or track warnings
+   the Lua parser gives. It reads each part's Town Gate from the part document
+   alone (`story_section([entry], ...)`), so a part's Town Gate kept in a
+   sub-document is still not found (the series' known gap).
+7. **Validator and Test Encounter** (BUILT): the validator lists each
+   part's tracks and its `# Results` bars; the parser's warnings carry the
+   checks. Test Encounter's dialog has a **Story so far** box for Part 2
+   and later (each earlier part's outcome, score per hero and round, or Not
+   recorded; each declared track's value), passed as `StartTest{story}` and
+   seeded like a real arrival. The test prints its result in the console
+   ("EotW story: Part n result: ..."), not the chat log, and the Conclusion
+   screen shows the recap.
+8. **Run it** (NOT DONE): author a two-part sample with a track, `#
+   Results`, a When line, a gated island and an `If` block in the
+   Conclusion; Test Encounter Part 1 (check the console result and the
+   recap), then Part 2 with each Story so far (check the When line, the
+   island chosen, the story text). Then author The Bone Cathedral's Rite's
+   Progress across the three parts.
+
+### Open questions
+
+- **A track's starting value** in Part 1 is 0. Is there any case for
+  `Track: X starts at N`? (Proposed: no, until a script needs it.)
+
+### Evidence (2026-10-18)
+
+- The montage has no overall result today: `EncounterMontage.lua` tracks
+  only `vanquished[entryId]`, and every unvanquished threat delivers its
+  consequence at the end (~line 6117).
+- Conditions exist only in scenes: `EncounterScript.ParseCondition` (~line
+  2306), `EvalCondition` (~2541).
+- The City already stamps party heroes at claim time (`checkHeroClaim`,
+  `city-core.ts` ~770). `record-outcome` stores an opaque outcome per (hero,
+  game), and `accountUnlocks` serves the unlock lists (as committed it
+  returns only `dangerRooms` and `market`, ~849).
+- Critique round 2026-10-18 (two independent reviewers: author/player UX and
+  systems against the code). Their mechanical findings are folded in above:
+  the board key bug, the launch hook, resume, the practice path, a one-time
+  host result, where the totals live, story-text grammar, hidden-track
+  clauses, comparison words, the Bone Cathedral example. Findings that
+  touched the user's decisions went to the user (see the ledger).
 
 ---
 
@@ -6385,6 +6855,9 @@ dropdown + validator rows; [x] S5 ModShare + Python publisher `parts`; [x] S6
 town keys, part chips, part-aware Form a Party, unlock rule, practice wins
 from the debrief; [~] S7 City `record-practice-win` + unlocks -- unit-tested,
 NOT deployed; [ ] S8 the section's "To test" (author a series first).
+[~] S9 carrying the story forward (tracks, part results, `# Results`):
+signed off 2026-10-19; Lua steps 1-3, 6, 7 built (not run); City and town
+wait on the series City source (step 0); steps in that subsection.
 
 **Launch readiness (not started).** [ ] lobby on the release worker and games on
 release DOs, [ ] non-owner module access verified, [ ] disconnected-player

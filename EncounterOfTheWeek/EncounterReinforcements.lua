@@ -218,8 +218,16 @@ end
 --The arrivals due at the start of `round` that have not come yet.
 local function DueArrivals(beat, round, arrived)
     local due = {}
+    local story = nil
     for _, section in ipairs(beat.reinforcements or {}) do
-        if section.schedule ~= nil and #(section.islands or {}) > 0 then
+        --"When <condition>:" above the heading: a series part's story
+        --decides whether these come at all.
+        local gateOpen = true
+        if section.gate ~= nil then
+            story = story or EncounterMontage.Story()
+            gateOpen = EncounterScript.EvalStoryCondition(section.gate.cond, story)
+        end
+        if gateOpen and section.schedule ~= nil and #(section.islands or {}) > 0 then
             local ordinal = EncounterScript.ScheduleOrdinal(section.schedule, round)
             if ordinal > 0 then
                 local key = string.format("%s-r%d", section.id, round)

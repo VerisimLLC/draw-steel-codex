@@ -201,7 +201,23 @@ function ActivatedAbilityPurgeEffectsBehavior:EvalDamageToSelf(creatureProps)
     return dmhub.EvalGoblinScript(raw, creatureProps:LookupSymbol{}, "Purge effects damage to self")
 end
 
+--Runs the purge, then drops any pending end-of-turn save prompt card whose effect this purge just
+--ended (e.g. End Effect ending Weakened must not leave a "Saving Throw vs Weakened" card behind).
 function ActivatedAbilityPurgeEffectsBehavior:Cast(ability, casterToken, targets, options)
+    self:CastPurge(ability, casterToken, targets, options)
+
+    local sweep = ActivatedAbilitySaveBehavior ~= nil and ActivatedAbilitySaveBehavior.SweepStaleSavePrompts or nil
+    if sweep == nil then
+        return
+    end
+    for _,target in ipairs(targets or {}) do
+        if target.token ~= nil and target.token.valid then
+            sweep(target.token)
+        end
+    end
+end
+
+function ActivatedAbilityPurgeEffectsBehavior:CastPurge(ability, casterToken, targets, options)
     if #targets == 0 then
         return
     end

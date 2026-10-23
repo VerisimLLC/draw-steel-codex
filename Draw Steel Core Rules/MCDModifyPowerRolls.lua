@@ -105,6 +105,26 @@ function CharacterModifier:ResolveDamageMappingDestination(source, value)
     return dests[1]
 end
 
+--- Stores the roll-time pick for a modifier with addTextChoices (a method so the field is declared on the class).
+--- @param chosen string
+function CharacterModifier:SetAddTextChoice(chosen)
+    self._tmp_addTextChoice = chosen
+end
+
+--- The addText option currently picked for a modifier that has addTextChoices (first choice by default).
+--- @param modifier CharacterModifier
+--- @return string
+function CharacterModifier.ResolveAddTextChoice(modifier)
+    local choices = modifier:try_get("addTextChoices", {})
+    local picked = modifier:try_get("_tmp_addTextChoice")
+    for _,c in ipairs(choices) do
+        if c == picked then
+            return c
+        end
+    end
+    return choices[1] or ""
+end
+
 local function RollTypeMatches(modifier, rollType, options)
     if modifier.rollType == "all" and rollType ~= "enemy_ability_power_roll" then
         return true
@@ -1201,8 +1221,23 @@ CharacterModifier.TypeInfo.power = {
             rollProperties.tierSuppressed = true
         end
 
-        if self:has_key("addText") and trim(self.addText) ~= "" then
-            local tieredText = BreakTextIntoTiers(StringInterpolateGoblinScript(self.addText, lookupFunction))
+        --addTextChoices (optional list of addText strings) turns "Add to Table" into a
+        --roll-time pick: the roll dialog shows a dropdown and stores the pick in
+        --_tmp_addTextChoice. With no pick yet, the first choice is used.
+        local addTextValue = self:try_get("addText", "")
+        local addTextChoices = self:try_get("addTextChoices")
+        if addTextChoices ~= nil and #addTextChoices > 0 then
+            addTextValue = CharacterModifier.ResolveAddTextChoice(self)
+        end
+
+        if trim(addTextValue) ~= "" then
+            local tieredText = BreakTextIntoTiers(StringInterpolateGoblinScript(addTextValue, lookupFunction))
+            --addTextChoiceTier: the picked choice applies to that tier only.
+            local choiceTier = self:try_get("addTextChoiceTier")
+            if addTextChoices ~= nil and choiceTier ~= nil then
+                tieredText = {"", "", ""}
+                tieredText[choiceTier] = StringInterpolateGoblinScript(addTextValue, lookupFunction)
+            end
             for i,tier in ipairs(rollProperties.tiers) do
                 rollProperties.tiers[i] = AppendTieredText(tier, tieredText[i])
             end

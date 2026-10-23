@@ -2155,7 +2155,8 @@ function ActivatedAbility:Render(options, params)
     if trim(description) ~= "" then
         descriptionLabel = gui.Label {
             markdown = true,
-            text = string.format("<b>Effect: </b> %s", description),
+            --A description that already opens with "Special:" is its own label, not an Effect.
+            text = cond(string.starts_with(string.lower(trim(description)), "special:"), description, string.format("<b>Effect: </b> %s", description)),
         }
     end
 
@@ -2421,6 +2422,9 @@ function ActivatedAbility:Render(options, params)
         descriptionString = ""
     elseif isMaliceAbility then
         --Malice abilities are all effect; the "Effect:" prefix is noise.
+        descriptionString = description
+    elseif string.starts_with(string.lower(description), "special:") then
+        --A description that already opens with "Special:" is its own label, not an Effect.
         descriptionString = description
     else
         descriptionString = "<b>Effect: </b>" .. description

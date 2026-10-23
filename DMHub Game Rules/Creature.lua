@@ -8044,6 +8044,11 @@ function creature:MatchesString(viewingToken, token, str)
         return self.minion
     end
 
+    --lets Count Nearby Creatures filter on "Endable Effects" (see MCDMCreature.lua).
+    if str == "endable effects" then
+        return creature.lookupSymbols["endableeffects"](self) and true or false
+    end
+
     local features = self:GetFeatures()
     local modifiers = self:GetActiveModifiers()
     if string.find(str, "*") then

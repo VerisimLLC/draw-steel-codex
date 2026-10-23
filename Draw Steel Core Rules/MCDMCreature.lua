@@ -2183,6 +2183,42 @@ creature.RegisterSymbol {
     }
 }
 
+--True if the creature has a save-ends or end-of-turn condition/effect that is not a buff.
+--Used to stop Reorder prompting when there is nothing worth ending.
+creature.RegisterSymbol {
+    symbol = "endableeffects",
+    lookup = function(c)
+        if c:has_key("inflictedConditions") then
+            local conditionsTable = dmhub.GetTable(CharacterCondition.tableName) or {}
+            for condid, cond in pairs(c.inflictedConditions) do
+                if cond.duration == "save" or cond.duration == "eot" then
+                    local info = conditionsTable[condid]
+                    if info == nil or info.buffType ~= "buff" then
+                        return true
+                    end
+                end
+            end
+        end
+
+        local effectsTable = dmhub.GetTable("characterOngoingEffects") or {}
+        for _, effectInstance in ipairs(c:ActiveOngoingEffects()) do
+            if effectInstance.removeOnSave or effectInstance.removeAtNextTurnEnd then
+                local info = effectsTable[effectInstance.ongoingEffectid]
+                if info == nil or info.buffType ~= "buff" then
+                    return true
+                end
+            end
+        end
+
+        return false
+    end,
+    help = {
+        name = "Endable Effects",
+        type = "boolean",
+        desc = "Does this creature have a save ends or end of turn condition or effect that is not a buff?",
+    }
+}
+
 creature.RegisterSymbol {
     symbol = "leader",
     lookup = function(c)

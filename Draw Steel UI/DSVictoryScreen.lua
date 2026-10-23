@@ -1878,6 +1878,9 @@ local function ProceedEndCombat()
             end
         end
     end
+
+    --map objects have no initiative entry, so the loop above misses them.
+    TargetableObject.DispatchToObjects("endcombat")
 end
 
 -- Exported for automation (e.g. Encounter of the Week's host runs the teardown

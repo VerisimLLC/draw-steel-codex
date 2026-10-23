@@ -10703,12 +10703,45 @@ local function CreateTokenSelectionContainer()
     --hovered portrait never strands a ring on the map.
     local m_locatedCharid = nil
 
+    --A static tint over the hovered candidate (the sprite redrawn in yellow). Objects have no locate
+    --ring, and two identical objects are otherwise impossible to tell apart.
+    local m_pulseCanvas = nil
+
     local function SetLocateRing(charid, on)
+        if m_pulseCanvas ~= nil then
+            m_pulseCanvas:Destroy()
+            m_pulseCanvas = nil
+        end
+
         local tok = charid ~= nil and dmhub.GetTokenById(charid) or nil
-        if tok == nil or not tok.valid or tok.bottomsheet == nil or not tok.bottomsheet.valid then
+        if tok == nil or not tok.valid then
             return
         end
-        tok.bottomsheet:SetClassTree("locate", on)
+
+        local instance = on and tok.isObject and tok.objectInstance or nil
+        if instance ~= nil then
+            --Redraw the object's own sprite as a flat tint on top of it, so the highlight has its exact shape.
+            local area = instance.area
+            m_pulseCanvas = dmhub.CreateCanvasOnMap{
+                point = core.Vector3((area.x1 + area.x2) / 2, (area.y1 + area.y2) / 2, 0),
+                floorIndex = tok.loc.floor,
+                sheet = gui.Panel{
+                    interactable = false,
+                    halign = "center",
+                    valign = "center",
+                    width = area.x2 - area.x1,
+                    height = area.y2 - area.y1,
+                    rotate = instance.rotation,
+                    bgimage = instance.displayImageId,
+                    bgcolor = "#ffe066",
+                    opacity = 0.6,
+                },
+            }
+        end
+
+        if tok.bottomsheet ~= nil and tok.bottomsheet.valid then
+            tok.bottomsheet:SetClassTree("locate", on)
+        end
     end
 
     local function ClearLocate()
@@ -10836,7 +10869,12 @@ local function CreateTokenSelectionContainer()
                     --ring is no use when the token is off the edge of the screen.
                     rightClick = function(element)
                         if tok.valid then
-                            dmhub.CenterOnToken(tok.charid, { smooth = true })
+                            --CenterOnToken only knows creatures; a map object is centred through its instance.
+                            if tok.isObject and tok.objectInstance ~= nil then
+                                tok.objectInstance:CenterCamera{ smooth = true }
+                            else
+                                dmhub.CenterOnToken(tok.charid, { smooth = true })
+                            end
                         end
                     end,
                     --The engine's own pulse is a brief white flash that is easy to
@@ -12408,6 +12446,13 @@ CreateAbilityController = function()
 
             local targets = options.targets or {}
             local promptText = options.prompt or "Choose a target"
+            --Clicking an unlocked object on the map opens it for editing, so point at the portraits instead.
+            for _, candidate in ipairs(targets) do
+                if candidate.valid and candidate.isObject then
+                    promptText = promptText .. " (click the portrait below)"
+                    break
+                end
+            end
             local choose = options.choose or function(target) end
             local cancel = options.cancel or function() end
 
@@ -13839,6 +13884,18 @@ CreateAbilityController = function()
 
             local selfTarget = g_currentAbility.selfTarget
             local targetTokens = dmhub.tokenInfo.TokensInShape(g_pointTargeting.shape)
+
+            --The engine's line-of-sight shape drops sight-blocking objects (they hide their own
+            --square). Re-add objects in range; TargetPassesFilter then checks the squares beside them.
+            if g_currentAbility.targetType == "all" and g_currentAbility.objectTarget == true and g_token ~= nil and g_token.valid then
+                local burstRange = g_currentAbility:GetRange(g_token.properties, g_currentSymbols)
+                for _, tok in ipairs(dmhub.allTokensIncludingObjects) do
+                    if tok.valid and tok.isObject and targetTokens[tok.charid] == nil
+                        and tok.floorIndex == g_token.floorIndex and g_token:Distance(tok) <= burstRange then
+                        targetTokens[tok.charid] = tok
+                    end
+                end
+            end
 
             -- Partner burst: union tokens from the partner shape into the target dict.
             -- Same-key entries dedupe automatically -- "An enemy in both areas is

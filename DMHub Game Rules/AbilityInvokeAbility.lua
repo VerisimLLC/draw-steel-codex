@@ -224,6 +224,42 @@ local g_movementConstraintAnchorOptions = {
     { id = "all_matching", text = "All Matching Creatures" },
 }
 
+local g_movementConstraintPhrases = {
+    toward = "toward",
+    away = "away from",
+    not_closer = "without ending closer to",
+}
+
+local g_movementConstraintAnchorNames = {
+    caster = "the invoking creature",
+    attacker = "the attacker",
+    parent_target = "the parent target",
+    nearest_creature = "the nearest creature",
+    nearest_enemy = "the nearest enemy",
+    all_matching = "the matching creatures",
+}
+
+--- Rules-style phrase for a movement constraint, like "toward the nearest enemy within 3 squares of the
+--- target", appended to the generated forced-movement prompt. nil when the behavior has no constraint.
+--- @param behavior ActivatedAbilityInvokeAbilityBehavior
+--- @return string|nil
+local function DescribeMovementConstraint(behavior)
+    local phrase = g_movementConstraintPhrases[behavior:try_get("movementConstraint", "none")]
+    if phrase == nil then
+        return nil
+    end
+
+    local anchorType = behavior:try_get("movementConstraintAnchor", "caster")
+    local text = phrase .. " " .. (g_movementConstraintAnchorNames[anchorType] or "the anchor")
+
+    local maxDistance = tonumber(behavior:try_get("movementConstraintAnchorDistance"))
+    if maxDistance ~= nil and (anchorType == "nearest_enemy" or anchorType == "nearest_creature") then
+        text = text .. string.format(" within %d square%s of the target", maxDistance, maxDistance == 1 and "" or "s")
+    end
+
+    return text
+end
+
 local function ResolveMovementConstraintToken(value)
     if type(value) == "function" then
         value = value("self")
@@ -305,6 +341,12 @@ local function ChooseNearestMovementConstraintAnchor(behavior, casterToken, move
         elseif distance == nearestDistance then
             nearest[#nearest+1] = candidate
         end
+    end
+
+    --Opt-in (set in the data file): every candidate in range is offered and the table decides which
+    --counts as nearest, since measuring around objects and big creatures is easy to dispute.
+    if behavior:try_get("movementConstraintPickAnyInRange", false) and #candidates > 1 then
+        nearest = candidates
     end
 
     if #nearest <= 1 then
@@ -1267,6 +1309,12 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
 
                             abilityClone.range = adjustedRange * dmhub.unitsPerSquare
                             local description = string.format("You may %s the target %d square%s", baseMoveType, adjustedRange, adjustedRange > 1 and "s" or "")
+                            --A constrained pull names its anchor ("toward the nearest enemy within 3 squares") and keeps the real distance.
+                            local constraintText = DescribeMovementConstraint(self)
+                            if constraintText ~= nil then
+                                local verb = cond(string.find(forcedMovementType, "^vertical_") ~= nil, "vertically ", "") .. baseMoveType
+                                description = string.format("You may %s the target up to %d square%s %s", verb, adjustedRange, adjustedRange > 1 and "s" or "", constraintText)
+                            end
                             if #adjustments > 0 then
                                 description = description .. " (" .. table.concat(adjustments, ", ") .. ")"
                             end
@@ -2434,6 +2482,18 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
         value = self:try_get("movementConstraintAsForcedMovementOrigin", false),
         change = function(element)
             self.movementConstraintAsForcedMovementOrigin = element.value
+        end,
+    }
+
+    result[#result+1] = gui.Check{
+        classes = {cond(movementConstraintOff(), "collapsed")},
+        refreshInvoke = function(element)
+            element:SetClass("collapsed", movementConstraintOff())
+        end,
+        text = "Offer Every Anchor in Range (Table Picks Nearest)",
+        value = self:try_get("movementConstraintPickAnyInRange", false),
+        change = function(element)
+            self.movementConstraintPickAnyInRange = element.value
         end,
     }
 

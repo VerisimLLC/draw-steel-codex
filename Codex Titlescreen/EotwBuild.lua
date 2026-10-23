@@ -25,19 +25,21 @@ local mod = dmhub.GetModLoading()
 --Design/plan doc: EncounterOfTheWeek/EncounterOfTheWeek.md,
 --"The hero builder and hero sheet".
 
+local T = UIText.T
+
 EotwBuild = {}
 
 --The steps in order. `base` is the label of the step's main pick.
 EotwBuild.STEPS = {
-    { id = "ancestry", title = "Ancestry", base = "Ancestry" },
-    { id = "culture", title = "Culture" },
-    { id = "career", title = "Career", base = "Career" },
-    { id = "class", title = "Class", base = "Class" },
+    { id = "ancestry", title = T("builder.steps.ancestry.title"), base = T("builder.steps.ancestry.base") },
+    { id = "culture", title = T("builder.steps.culture.title") },
+    { id = "career", title = T("builder.steps.career.title"), base = T("builder.steps.career.base") },
+    { id = "class", title = T("builder.steps.class.title"), base = T("builder.steps.class.base") },
     --every skill and language choice from the other steps, made in one
     --place (see "Skills & Languages" below)
-    { id = "skills", title = "Skills & Languages" },
-    { id = "complication", title = "Complication", base = "Complication" },
-    { id = "appearance", title = "Appearance" },
+    { id = "skills", title = T("builder.steps.skills.title") },
+    { id = "complication", title = T("builder.steps.complication.title"), base = T("builder.steps.complication.base") },
+    { id = "appearance", title = T("builder.steps.appearance.title") },
 }
 
 --stepid -> step entry.
@@ -1048,7 +1050,7 @@ function EotwBuild.hero.RowOptions(hero, stepid, rowid)
     if feature.typeName == "CharacterTreasureGrantChoice" then
         local prompt = (feature --[[@as CharacterTreasureGrantChoice]]):try_get("prompt")
         if prompt ~= nil then
-            description = prompt .. ". It goes straight into your hero's gear."
+            description = T("builder.choice.treasure_grant_prompt", { prompt = prompt })
         end
     end
     return result, {
@@ -1623,7 +1625,7 @@ local function SkillBenefits(hero)
         if ok and behavior == "power" then
             local skills = mod:try_get("skills")
             if type(skills) == "table" then
-                local name = mod:try_get("name") or "A special ability"
+                local name = mod:try_get("name") or T("builder.skills.special_fallback")
                 for k,v in pairs(skills) do
                     --an array of ids here, but tolerate a set
                     local id = cond(type(k) == "number", v, k)
@@ -1666,9 +1668,10 @@ local function GrantSources(hero)
     for _,stepid in ipairs(EotwBuild.POOL_SOURCE_STEPS) do
         local grants = EotwBuild.hero.StepGrants(hero, stepid)
         local name = ItemName(stepid)
-        local phrase = string.format("your %s", string.lower(EotwBuild.STEP_BY_ID[stepid].title))
+        local stepName = string.lower(EotwBuild.STEP_BY_ID[stepid].title)
+        local phrase = T("builder.skills.source.step", { step = stepName })
         if name ~= nil then
-            phrase = string.format("%s (%s)", phrase, name)
+            phrase = T("builder.skills.source.step_item", { step = stepName, item = name })
         end
         for id,_ in pairs(grants.fixedIds) do
             result[id] = result[id] or phrase
@@ -1788,7 +1791,7 @@ function EotwBuild.hero.PoolTable(hero, kind)
         end
         local source = nil
         if state == "native" then
-            source = "your culture"
+            source = T("builder.skills.source.culture")
         elseif state == "fixed" then
             source = sources[id]
         end
@@ -1891,7 +1894,7 @@ function EotwBuild.hero.StepGrants(hero, stepid)
             if kind ~= nil then
                 local description = nil
                 pcall(function() description = feature:GetDescription() end)
-                result.pools[#result.pools+1] = { name = feature:try_get("name") or "Choice", description = description, kind = kind }
+                result.pools[#result.pools+1] = { name = feature:try_get("name") or T("builder.grants.choice_fallback"), description = description, kind = kind }
             end
         end
     end
@@ -1908,10 +1911,10 @@ function EotwBuild.hero.StepGrants(hero, stepid)
                     for id,on in pairs(mod:try_get("skills", {})) do
                         if on then
                             if subtype == "skill" and skills[id] ~= nil then
-                                result.fixed[#result.fixed+1] = string.format("%s (skill)", skills[id].name)
+                                result.fixed[#result.fixed+1] = T("builder.grants.fixed_skill", { name = skills[id].name })
                                 result.fixedIds[id] = true
                             elseif subtype == "language" and languages[id] ~= nil then
-                                result.fixed[#result.fixed+1] = string.format("%s (language)", languages[id].name)
+                                result.fixed[#result.fixed+1] = T("builder.grants.fixed_language", { name = languages[id].name })
                                 result.fixedIds[id] = true
                             end
                         end
@@ -2222,7 +2225,7 @@ local function FillAppearance(token)
         if generated == nil then
             local race = EotwBuild.hero.Ancestry(hero)
             local classItem = hero:GetClass()
-            generated = string.format("%s %s", race and race.name or "Nameless", classItem and classItem.name or "Hero")
+            generated = T("builder.appearance.fallback_name", { ancestry = race and race.name or T("builder.appearance.fallback_ancestry"), class = classItem and classItem.name or T("builder.appearance.fallback_class") })
         end
         token.name = generated
         picks[#picks+1] = "Name -> " .. generated

@@ -26,6 +26,9 @@
 EncounterScriptEdit = rawget(_G, "EncounterScriptEdit") or {}
 local E = EncounterScriptEdit
 
+--Messages and starter text: UIText, EncounterAuthoringText.lua (loads first).
+local T = UIText.T
+
 local function trim(s)
     return (string.gsub(s or "", "^%s*(.-)%s*$", "%1"))
 end
@@ -183,13 +186,13 @@ function E.PatchExpanded(parse, first, last, lines)
     if last == first - 1 then
         local docid, a = E.Source(parse, first)
         if docid == nil then
-            return nil, "that place is not in any document"
+            return nil, T("author.script_edit.place_not_in_document")
         end
         return E.Patch(docid, a, a - 1, lines)
     end
     local docid, a, b = E.SourceRange(parse, first, last)
     if docid == nil then
-        return nil, "that text spans more than one document"
+        return nil, T("author.script_edit.spans_documents")
     end
     return E.Patch(docid, a, b, lines)
 end
@@ -200,7 +203,7 @@ end
 function E.PatchAfter(parse, after, lines)
     local docid, a = E.Source(parse, after)
     if docid == nil then
-        return nil, "that place is not in any document"
+        return nil, T("author.script_edit.place_not_in_document")
     end
     return E.Patch(docid, a + 1, a, lines)
 end
@@ -272,15 +275,15 @@ end
 function E.ProseProblem(text)
     for _, line in ipairs(E.ProseLines(text)) do
         if E.HeadingLevel(line) ~= nil then
-            return "a line starts with '#', which would start a new heading"
+            return T("author.script_edit.prose.heading")
         elseif string.match(line, "^|") then
-            return "a line starts with '|', which is a rules line"
+            return T("author.script_edit.prose.rules_line")
         elseif string.match(line, "^%-%-%-+$") then
-            return "a '---' line would start a scene"
+            return T("author.script_edit.prose.scene_line")
         elseif string.match(line, "^%[%[.+%]%]$") then
-            return "a [[tag]] line"
+            return T("author.script_edit.prose.tag_line")
         elseif string.match(string.lower(line), "^consequences?:") or string.match(string.lower(line), "^options?:") then
-            return "a line starting 'Consequence:' or 'Options:' means something else"
+            return T("author.script_edit.prose.keyword_line")
         end
     end
     return nil
@@ -426,7 +429,7 @@ end
 function E.InsertBlockAfter(parse, docTexts, after, block)
     local docid, a = E.Source(parse, after)
     if docid == nil or docTexts[docid] == nil then
-        return nil, "that place is not in any document"
+        return nil, T("author.script_edit.place_not_in_document")
     end
     local lines = E.Split(docTexts[docid]).lines
     return E.Patch(docid, a + 1, a, Padded(lines, a, block))
@@ -519,7 +522,7 @@ end
 function E.ReplaceElement(parse, docTexts, line, level, text)
     local docid, first, last = E.ElementRange(parse, docTexts, line, level)
     if docid == nil then
-        return nil, "that element is not in any document"
+        return nil, T("author.script_edit.element_not_in_document")
     end
     local block = E.Split(string.gsub(text or "", "\r", "")).lines
     while #block > 0 and trim(block[#block]) == "" do
@@ -579,7 +582,7 @@ function E.SetTier(parse, roll, t, teaser, text)
     if t == 4 and roll.tierLines[3] ~= nil then
         return One(E.PatchAfter(parse, roll.tierLines[3], { line }))
     end
-    return nil, string.format("tier %d has no line to write", t)
+    return nil, T("author.script_edit.tier_no_line", { tier = t })
 end
 
 function E.ClearCritical(parse, roll)
@@ -638,7 +641,7 @@ function E.SetRules(parse, docTexts, holder, block)
             end
         end
         if riderOutside then
-            return nil, "this option has rider lines outside its roll block; edit it as text"
+            return nil, T("author.script_edit.riders_outside_roll")
         end
         return One(E.PatchExpanded(parse, holder.roll.line, holder.roll.lastLine, block))
     end
@@ -656,7 +659,7 @@ function E.SetRules(parse, docTexts, holder, block)
     for l = first, last do
         local docid = E.Source(parse, l)
         if docid == nil then
-            return nil, "these rules are split up; edit them as text"
+            return nil, T("author.script_edit.rules_split")
         end
     end
     return One(E.PatchExpanded(parse, first, last, block))
@@ -667,7 +670,7 @@ end
 function E.InsertAfterElement(parse, docTexts, line, level, block)
     local docid, _, last = E.ElementRange(parse, docTexts, line, level)
     if docid == nil then
-        return nil, "that element is not in any document"
+        return nil, T("author.script_edit.element_not_in_document")
     end
     local lines = E.Split(docTexts[docid]).lines
     return { E.Patch(docid, last + 1, last, Padded(lines, last, block)) }
@@ -678,7 +681,7 @@ end
 function E.DeleteElement(parse, docTexts, line, level)
     local docid, first, last = E.ElementRange(parse, docTexts, line, level)
     if docid == nil then
-        return nil, "that element is not in any document"
+        return nil, T("author.script_edit.element_not_in_document")
     end
     local lines = E.Split(docTexts[docid]).lines
     while last < #lines and trim(lines[last + 1]) == "" do
@@ -1289,15 +1292,15 @@ end
 
 --Starter blocks for new beats and sections.
 function E.NarrativeBeatBlock()
-    return { "# Narrative", "", "The heroes gather before the road ahead.", "",
-        "## The Road Ahead", "", "The road forks beneath a lightning-split oak.", "",
-        "Choose together: Which way do you go?", "",
-        "### The high road", "", "The ridge path is longer but safer.", "", "|+1 hero token", "",
-        "### The low road", "", "The valley path is quick and dark." }
+    return { "# Narrative", "", T("author.script_edit.starter.narrative.intro"), "",
+        "## " .. T("author.script_edit.starter.narrative.section"), "", T("author.script_edit.starter.narrative.section_text"), "",
+        "Choose together: " .. T("author.script_edit.starter.narrative.prompt"), "",
+        "### " .. T("author.script_edit.starter.narrative.option1"), "", T("author.script_edit.starter.narrative.option1_text"), "", "|+1 hero token", "",
+        "### " .. T("author.script_edit.starter.narrative.option2"), "", T("author.script_edit.starter.narrative.option2_text") }
 end
 
 function E.MontageBeatBlock()
-    return { "# Montage", "", "The road ahead is long and dangerous.", "", "## Round 1" }
+    return { "# Montage", "", T("author.script_edit.starter.montage.intro"), "", "## Round 1" }
 end
 
 function E.EncounterBeatBlock()
@@ -1309,8 +1312,9 @@ function E.StoryBlock(title, text)
 end
 
 function E.NarrativeSectionBlock(name)
-    return { "## " .. E.LineText(name), "", "Describe what happens.", "", "Choose together: What do you do?", "",
-        "### Press on", "", "### Turn back" }
+    return { "## " .. E.LineText(name), "", T("author.script_edit.starter.section.text"), "",
+        "Choose together: " .. T("author.script_edit.starter.section.prompt"), "",
+        "### " .. T("author.script_edit.starter.section.option1"), "", "### " .. T("author.script_edit.starter.section.option2") }
 end
 
 function E.ReinforcementBlock(name)

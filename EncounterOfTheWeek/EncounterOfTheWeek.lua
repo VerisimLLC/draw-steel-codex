@@ -44,6 +44,12 @@ end
 --  data.practice      = true  (host-stamped at setup: a Proving Pits game.
 --                       Practice only -- no Victory, no treasure, no
 --                       outcome goes home; players debrief it in town.)
+--  data.challenge     = true  (host-stamped at setup, or by an authoring
+--                       test: the party plays the encounter's Challenge Mode.
+--                       In it alreadyCompleted means "won the challenge".)
+--  data.completedNormal = { [charid] = true }  (Challenge Mode: heroes whose
+--                       owners' town says they have won the normal mode, so
+--                       the challenge is worth one Victory to them, not two.)
 --  data.abilityBusy   = { [userid] = serverTime }  (that client has an
 --                       ability cast/prompt in flight; refreshed while busy,
 --                       cleared when idle. The host defers the
@@ -314,20 +320,22 @@ local function RecordEncounterMap(key, mapid)
     doc:CompleteChange("Encounter of the Week: encounter map", {undoable = false})
 end
 
---Host only, at setup: a party from the Proving Pits plays for practice (the
---town decides, from the week's schedule, and says so in the arrival). Only
---ever set, never cleared: a resume has no arrival flag and keeps the stamp.
-local function RecordPracticeMode(practice)
-    if practice ~= true then
+--Host only, at setup: stamp one of the party's modes from the arrival --
+--"practice" (a party from the Proving Pits; the town decides, from the
+--week's schedule) or "challenge" (the encounter's Challenge Mode, which the
+--town offers once the host has won the normal mode). Only ever set, never
+--cleared: a resume has no arrival flag and keeps the stamp.
+local function RecordPartyMode(field, on, description)
+    if on ~= true then
         return
     end
     local doc = mod:GetDocumentSnapshot(STATE_DOC_ID)
-    if doc.data.practice == true then
+    if doc.data[field] == true then
         return
     end
     doc:BeginChange()
-    doc.data.practice = true
-    doc:CompleteChange("Encounter of the Week: Proving Pits practice", {undoable = false})
+    doc.data[field] = true
+    doc:CompleteChange(description, {undoable = false})
 end
 
 --Is this a Proving Pits game? Practice only: the host awards no Victory,
@@ -336,6 +344,101 @@ function EncounterOfTheWeekGame.IsPracticeGame()
     local practice = false
     pcall(function() practice = mod:GetDocumentSnapshot(STATE_DOC_ID).data.practice == true end)
     return practice
+end
+
+--Is this game the encounter's Challenge Mode? Combat balances for one more
+--hero (or levels up the strongest monsters for a full party, see
+--ChallengeBalance), the montage gets one more threat and its consequences
+--cost more (EncounterMontage), and the win is worth an extra Victory.
+function EncounterOfTheWeekGame.IsChallenge()
+    local challenge = false
+    pcall(function() challenge = mod:GetDocumentSnapshot(STATE_DOC_ID).data.challenge == true end)
+    return challenge
+end
+
+--How the monsters are balanced for this many heroes: returns the hero count
+--to balance for and whether to level up the strongest monsters afterwards.
+--Challenge Mode balances for one extra hero, except that a full party
+--(nobody authors a 7-hero setup) keeps its own count and levels up instead.
+function EncounterOfTheWeekGame.ChallengeBalance(numHeroes)
+    --encounters are balanced for parties of up to this many heroes.
+    local CHALLENGE_MAX_BALANCED_HEROES = 6
+    numHeroes = tonumber(numHeroes) or 5
+    if not EncounterOfTheWeekGame.IsChallenge() then
+        return numHeroes, false
+    end
+    if numHeroes + 1 <= CHALLENGE_MAX_BALANCED_HEROES then
+        return numHeroes + 1, false
+    end
+    return numHeroes, true
+end
+
+--Challenge Mode with a full party (host, right after a spawn): level up the
+--strongest of these monsters by one level until about half their EV has been
+--leveled. A minion squad is one unit (a minion counts 1/minionsPerSquad of its
+--EV, as the encounter builder counts it). Returns the number of monsters leveled.
+function EncounterOfTheWeekGame.LevelUpStrongestHalf(charids)
+    local units = {}
+    local unitByKey = {}
+    local total = 0
+    for _, charid in ipairs(charids or {}) do
+        local token = dmhub.GetTokenById(charid)
+        local props = token ~= nil and token.properties or nil
+        local ev, minion, squad = 0, false, nil
+        local ok = props ~= nil and pcall(function()
+            ev = tonumber(props:EV()) or 0
+            minion = props.minion == true
+            squad = props:try_get("minionSquad")
+        end)
+        if ok and ev > 0 then
+            local key = charid
+            if minion then
+                ev = ev / GameSystem.minionsPerSquad
+                if squad ~= nil then
+                    key = "squad:" .. tostring(squad)
+                end
+            end
+            local unit = unitByKey[key]
+            if unit == nil then
+                unit = { ev = 0, tokens = {} }
+                unitByKey[key] = unit
+                units[#units + 1] = unit
+            end
+            unit.ev = unit.ev + ev
+            unit.tokens[#unit.tokens + 1] = token
+            total = total + ev
+        end
+    end
+    table.sort(units, function(a, b) return a.ev > b.ev end)
+
+    local target = total / 2
+    local leveledEV = 0
+    local leveled = 0
+    for _, unit in ipairs(units) do
+        if leveledEV >= target then
+            break
+        end
+        leveledEV = leveledEV + unit.ev
+        for _, token in ipairs(unit.tokens) do
+            local okLevel, err = pcall(function()
+                token:ModifyProperties{
+                    description = "Challenge Mode: level up",
+                    undoable = false,
+                    execute = function()
+                        local props = token.properties
+                        props:SetLevelAdjustment(round(tonumber(props.cr) or 1) + 1)
+                    end,
+                }
+            end)
+            if okLevel then
+                leveled = leveled + 1
+            else
+                printf("EotW challenge: could not level up %s: %s", tostring(token.name), tostring(err))
+            end
+        end
+    end
+    printf("EotW challenge: leveled up %d monsters (EV %.1f of %.1f)", leveled, leveledEV, total)
+    return leveled
 end
 
 
@@ -362,7 +465,7 @@ local function SeedHeroTokens(numHeroes)
     --written before the stamp: a write that somehow fails leaves the seed
     --pending rather than silently swallowing the party's tokens.
     local ok = pcall(function()
-        CharacterResource.SetGlobalResource(CharacterResource.heroTokenId, numHeroes, "Start of the session")
+        CharacterResource.SetGlobalResource(CharacterResource.heroTokenId, numHeroes, UIText.T("encounter.arrival.hero_tokens_note"))
     end)
     if not ok then
         printf("EotW: could not seed the party's Hero Tokens")
@@ -549,11 +652,11 @@ function EncounterOfTheWeekGame.EncounterInfo()
         local script = montage ~= nil and montage.FindMapScript() or nil
         local part = script ~= nil and script.parse ~= nil and script.parse.part or nil
         if part ~= nil then
-            local partName = string.format("Part %d", part.number)
+            local partName = UIText.T("encounter.about.part", { number = part.number })
             if part.title ~= nil then
-                partName = partName .. ": " .. part.title
+                partName = UIText.T("encounter.about.part_named", { number = part.number, title = part.title })
             end
-            title = title .. " -- " .. partName
+            title = UIText.T("encounter.about.title_with_part", { title = title, part = partName })
         end
     end)
 
@@ -1341,17 +1444,48 @@ local function AlreadyCompletedHeroes()
     return result
 end
 
+--The Victories this hero's win is worth: one the first time; in Challenge
+--Mode one more for the challenge's first win -- both at once for a hero who
+--never won the normal mode, and nothing for one who has won the challenge.
+function EncounterOfTheWeekGame.VictoryAward(charid)
+    --the extra Victory Challenge Mode is worth.
+    local CHALLENGE_VICTORIES = 1
+    if AlreadyCompletedHeroes()[charid] then
+        return 0
+    end
+    if not EncounterOfTheWeekGame.IsChallenge() then
+        return ENCOUNTER_VICTORIES
+    end
+    --heroes whose owners' town says they won the normal mode (data.completedNormal).
+    local wonNormal = false
+    pcall(function()
+        local stamped = mod:GetDocumentSnapshot(STATE_DOC_ID).data.completedNormal
+        wonNormal = type(stamped) == "table" and stamped[charid] == true
+    end)
+    if wonNormal then
+        return CHALLENGE_VICTORIES
+    end
+    return ENCOUNTER_VICTORIES + CHALLENGE_VICTORIES
+end
+
 --After hero placement: stamp which of MY heroes the town says already won
 --this encounter (the city marks them `completed` in the party roster), so
---the host's Victory award skips them and their victory card says why.
+--the host's Victory award skips them and their victory card says why. In
+--Challenge Mode `completed` is the challenge, and `completedNormal` marks the
+--heroes who won the normal mode (one Victory for them instead of two).
 local function RecordCompletedHeroes(heroes)
     local placed = GetPlacedHeroes(dmhub.loginUserid)
     local completed = {}
+    local completedNormal = {}
     local any = false
     for _, h in ipairs(heroes or {}) do
         local charid = placed["lobby:" .. tostring(h.id)]
         if h.completed == true and charid ~= nil then
             completed[charid] = true
+            any = true
+        end
+        if h.completedNormal == true and charid ~= nil then
+            completedNormal[charid] = true
             any = true
         end
     end
@@ -1363,6 +1497,12 @@ local function RecordCompletedHeroes(heroes)
     doc.data.alreadyCompleted = doc.data.alreadyCompleted or {}
     for charid in pairs(completed) do
         doc.data.alreadyCompleted[charid] = true
+    end
+    if next(completedNormal) ~= nil then
+        doc.data.completedNormal = doc.data.completedNormal or {}
+        for charid in pairs(completedNormal) do
+            doc.data.completedNormal[charid] = true
+        end
     end
     doc:CompleteChange("Encounter of the Week: heroes who already won", {undoable = false})
 end
@@ -1393,19 +1533,23 @@ local function AutoAwardVictories(live, now)
     end
     local completed = AlreadyCompletedHeroes()
     local exemptions = {}
+    --Challenge Mode: each hero's own count (1 or 2; see VictoryAward).
+    local amounts = {}
     for _, token in ipairs(live:GetBattleHeroTokens()) do
         local props = token.properties
         if props == nil or props:IsDead() then
             exemptions[token.charid] = ""
         elseif completed[token.charid] then
-            exemptions[token.charid] = "Already Completed"
+            exemptions[token.charid] = UIText.T("encounter.victory.already_completed")
+        else
+            amounts[token.charid] = EncounterOfTheWeekGame.VictoryAward(token.charid)
         end
     end
-    printf("EotW: awarding %d Victory to the heroes", ENCOUNTER_VICTORIES)
+    printf("EotW: awarding Victories to the heroes%s", cond(EncounterOfTheWeekGame.IsChallenge(), " (Challenge Mode)", ""))
     --elevated: the award writes every player's heroes, and the host is a
     --player in an EotW game.
     ElevateToHostPermissions()
-    local ok, err = pcall(DSVictoryScreen.AwardVictories, live, ENCOUNTER_VICTORIES, exemptions)
+    local ok, err = pcall(DSVictoryScreen.AwardVictories, live, ENCOUNTER_VICTORIES, exemptions, amounts)
     DropHostPermissions()
     if not ok then
         printf("EotW: the Victory award failed: %s", tostring(err))
@@ -1622,7 +1766,7 @@ pcall(function()
         if #treasure == 0 then
             return nil
         end
-        return "Treasure: " .. DescribeTreasure(treasure)
+        return UIText.T("encounter.victory.treasure_note", { treasure = DescribeTreasure(treasure) })
     end)
 end)
 
@@ -1632,7 +1776,7 @@ pcall(function()
         if not EncounterOfTheWeekGame.IsPracticeGame() then
             return nil
         end
-        return "Proving Pits: practice only"
+        return UIText.T("encounter.victory.practice_note")
     end)
 end)
 
@@ -1690,9 +1834,14 @@ local function OutcomesFor(userid, encounter, result)
             local outcome = {
                 encounter = encounter,
                 result = "victory",
-                victories = cond(completed[charid], 0, ENCOUNTER_VICTORIES),
+                victories = cond(completed[charid], 0, EncounterOfTheWeekGame.VictoryAward(charid)),
                 completed = true,
             }
+            --a Challenge Mode win completes the challenge too (the City
+            --records both, so the hero earns neither again).
+            if EncounterOfTheWeekGame.IsChallenge() then
+                outcome.challenge = true
+            end
             --the non-consumable treasure the hero won here travels home with
             --the outcome; the town adds it to their pack (EotwRoster).
             local treasure = EncounterOfTheWeekGame.TreasureGained(tok)
@@ -2007,7 +2156,7 @@ local function HallParty()
                     deaths = deaths + 1
                 end
                 local playerName = dmhub.GetDisplayName(userid) or "?"
-                local hero = { name = tok.name or "Hero", userid = userid, player = playerName, died = dead, portrait = StillPortrait(tok) }
+                local hero = { name = tok.name or UIText.T("encounter.hall.hero_fallback"), userid = userid, player = playerName, died = dead, portrait = StillPortrait(tok) }
                 if roster ~= nil then
                     pcall(function()
                         local className, ancestry, level = roster.HeroDetails(tok)
@@ -2475,8 +2624,8 @@ local function UpdateEncounterConclusion()
                 title = title,
                 section = section,
                 script = script,
-                buttonText = "End Test",
-                busyText = "Ending...",
+                buttonText = UIText.T("encounter.test.story_end_button"),
+                busyText = UIText.T("encounter.test.story_ending"),
                 onContinue = EncounterOfTheWeekGame.EndTest,
             })
             if not ok then
@@ -2554,11 +2703,11 @@ local function UpdateEncounterConclusion()
                 --a series names the part: "The Crypt -- Part 2: The Ossuary".
                 local part = script ~= nil and script.parse ~= nil and script.parse.part or nil
                 if part ~= nil then
-                    local partName = string.format("Part %d", part.number)
+                    local partName = UIText.T("encounter.story.part", { number = part.number })
                     if part.title ~= nil then
-                        partName = partName .. ": " .. part.title
+                        partName = UIText.T("encounter.story.part_named", { number = part.number, title = part.title })
                     end
-                    title = cond(title ~= nil, (title or "") .. " -- " .. partName, partName)
+                    title = cond(title ~= nil, UIText.T("encounter.story.title_with_part", { title = title or "", part = partName }), partName)
                 end
             end)
             local ok, err = pcall(stage.ShowStoryScreen, {
@@ -2868,7 +3017,7 @@ local function JoinNames(names)
     if #names <= 1 then
         return names[1] or ""
     end
-    return string.format("%s and %s", table.concat(names, ", ", 1, #names - 1), names[#names])
+    return UIText.T("encounter.arrange.names_and", { names = table.concat(names, ", ", 1, #names - 1), last = names[#names] })
 end
 
 local function CreateArrangePanel()
@@ -2884,7 +3033,7 @@ local function CreateArrangePanel()
         fontSize = 14,
     }
     local readyButton = gui.Button{
-        text = "Ready",
+        text = UIText.T("encounter.arrange.ready_button"),
         halign = "center",
         tmargin = 12,
         width = 200,
@@ -2913,18 +3062,18 @@ local function CreateArrangePanel()
             end
         end
         local left = math.max(0, math.ceil((state.deadline or dmhub.serverTime) - dmhub.serverTime))
-        local timeText = string.format("The fight begins in %d:%02d", math.floor(left / 60), left % 60)
+        local timeText = UIText.T("encounter.arrange.time_left", { time = string.format("%d:%02d", math.floor(left / 60), left % 60) })
         local mine = key ~= nil and ready[key] ~= nil
         if mine and #waiting > 0 then
-            statusLabel.text = string.format("You are ready. Waiting for %s. %s.", JoinNames(waiting), timeText)
+            statusLabel.text = UIText.T("encounter.arrange.status_ready_waiting", { names = JoinNames(waiting), time = timeText })
         elseif mine then
-            statusLabel.text = "Everyone is ready. Draw steel!"
+            statusLabel.text = UIText.T("encounter.arrange.status_everyone_ready")
         elseif #waiting > 0 then
-            statusLabel.text = string.format("Also waiting for %s. %s.", JoinNames(waiting), timeText)
+            statusLabel.text = UIText.T("encounter.arrange.status_also_waiting", { names = JoinNames(waiting), time = timeText })
         else
-            statusLabel.text = string.format("%s, or as soon as you are ready.", timeText)
+            statusLabel.text = UIText.T("encounter.arrange.status_not_ready", { time = timeText })
         end
-        readyButton.text = cond(mine, "Not Ready", "Ready")
+        readyButton.text = cond(mine, UIText.T("encounter.arrange.not_ready_button"), UIText.T("encounter.arrange.ready_button"))
     end
 
     local panel = gui.Panel{
@@ -2955,7 +3104,7 @@ local function CreateArrangePanel()
         children = {
             gui.Label{
                 classes = {"info"},
-                text = "Arrange Your Heroes",
+                text = UIText.T("encounter.arrange.title"),
                 width = "100%",
                 height = "auto",
                 halign = "center",
@@ -2966,7 +3115,7 @@ local function CreateArrangePanel()
             },
             gui.Label{
                 classes = {"fg"},
-                text = "You have won the initiative, and the enemy has not seen you yet. Move your heroes anywhere inside the outlined starting area, then press Ready. Your heroes act first.",
+                text = UIText.T("encounter.arrange.intro"),
                 width = "100%",
                 height = "auto",
                 halign = "center",
@@ -3299,6 +3448,9 @@ end
 --the encounter for the combat-setup dialog.
 --Returns true if monsters are (now or already) on the map, else false+error.
 function EncounterOfTheWeekGame.SpawnEncounterMonsters(numHeroes)
+    --Challenge Mode balances for one more hero, or levels up (ChallengeBalance).
+    local levelUp
+    numHeroes, levelUp = EncounterOfTheWeekGame.ChallengeBalance(numHeroes)
     local entry = FindMapEncounter()
     if entry == nil then
         return false, "This map's journal has no encounter to spawn."
@@ -3334,6 +3486,10 @@ function EncounterOfTheWeekGame.SpawnEncounterMonsters(numHeroes)
     end
 
     entry.encounter:RestoreMounts(mountEntries)
+
+    if levelUp then
+        EncounterOfTheWeekGame.LevelUpStrongestHalf(spawns)
+    end
 
     richEncounter.spawns = spawns
     richEncounter:UploadDocument()
@@ -3922,8 +4078,8 @@ local function RegisterMapScriptBuiltin()
     end
     ms.RegisterBuiltin{
         id = MAP_SCRIPT_ID,
-        name = "Encounter of the Week",
-        description = "Runs the weekly encounter: enters combat with the normal Draw Steel roll once every player has arrived, then keeps the Monster AI playing the monsters. Attached to the map automatically by the Encounter of the Week game mode.",
+        name = UIText.T("encounter.map_script.name"),
+        description = UIText.T("encounter.map_script.description"),
         code = [==[
 return {
     name = "Encounter of the Week",
@@ -5591,7 +5747,8 @@ function EncounterOfTheWeekGame.SetupOnArrival(args)
             --stamp it, so members arriving after the lobby record expires,
             --and every resume, land on the same map.
             RecordEncounterMap(encounterKey, encounterMapId)
-            RecordPracticeMode(args.practice)
+            RecordPartyMode("practice", args.practice, "Encounter of the Week: Proving Pits practice")
+            RecordPartyMode("challenge", args.challenge, "Encounter of the Week: Challenge Mode")
 
             --a series part starts from the story the earlier parts left
             --(the City's, for the host's account): before the region, which
@@ -5739,9 +5896,9 @@ end
 --Where each kind of test starts: the first beat, the first montage beat, or
 --the encounter beat (whatever follows a beat plays on, as in a real game).
 EncounterOfTheWeekGame.TEST_MODES = {
-    { id = "start", name = "From the Start", beatKind = nil },
-    { id = "montage", name = "Montage", beatKind = "montage" },
-    { id = "combat", name = "Combat", beatKind = "encounter" },
+    { id = "start", name = UIText.T("encounter.test.mode_start"), beatKind = nil },
+    { id = "montage", name = UIText.T("encounter.test.mode_montage"), beatKind = "montage" },
+    { id = "combat", name = UIText.T("encounter.test.mode_combat"), beatKind = "encounter" },
 }
 
 local function TestMode(id)
@@ -5757,11 +5914,11 @@ end
 function EncounterOfTheWeekGame.TestStartBeat(script, modeid)
     local mode = TestMode(modeid)
     if mode == nil then
-        return nil, "unknown test mode"
+        return nil, UIText.T("encounter.test.unknown_mode")
     end
     local beats = script ~= nil and script.parse ~= nil and script.parse.beats or {}
     if #beats == 0 then
-        return nil, "this map has no Encounter of the Week script"
+        return nil, UIText.T("encounter.test.no_script")
     end
     if mode.beatKind == nil then
         return 1, beats[1]
@@ -5772,9 +5929,9 @@ function EncounterOfTheWeekGame.TestStartBeat(script, modeid)
         end
     end
     if mode.beatKind == "montage" then
-        return nil, "this map's script has no # Montage beat"
+        return nil, UIText.T("encounter.test.no_montage_beat")
     end
-    return nil, "this map's script has no # Encounter beat"
+    return nil, UIText.T("encounter.test.no_encounter_beat")
 end
 
 --The current map's series parts, { {number, title}, ... } in order, or an
@@ -5800,26 +5957,26 @@ function EncounterOfTheWeekGame.CanStartTest(modeid, part)
         return a, b
     end
     if not dmhub.isDM then
-        return false, "only the Director can test an encounter"
+        return false, UIText.T("encounter.test.director_only")
     end
     if EncounterOfTheWeekGame.IsEotwGame() then
-        return false, "this is an Encounter of the Week game"
+        return false, UIText.T("encounter.test.in_eotw_game")
     end
     if EncounterOfTheWeekGame.GetTest() ~= nil then
-        return false, "a test is already running"
+        return false, UIText.T("encounter.test.already_running")
     end
     local q = dmhub.initiativeQueue
     if q ~= nil and not q.hidden then
-        return false, "end combat first"
+        return false, UIText.T("encounter.test.end_combat_first")
     end
     local montage = rawget(_G, "EncounterMontage")
     if montage == nil then
-        return false, "the Encounter of the Week code is not loaded"
+        return false, UIText.T("encounter.test.code_not_loaded")
     end
     local script = nil
     local ok = pcall(function() script = montage.FindMapScript() end)
     if not ok or script == nil then
-        return false, "this map has no Encounter of the Week script"
+        return false, UIText.T("encounter.test.no_script")
     end
     local index, reason = EncounterOfTheWeekGame.TestStartBeat(script, modeid)
     if index == nil then
@@ -5885,7 +6042,7 @@ function EncounterOfTheWeekGame.StartTest(options)
         return false, reason
     end
     if type(options.heroes) ~= "table" or #options.heroes == 0 then
-        return false, "choose at least one hero"
+        return false, UIText.T("encounter.test.choose_hero")
     end
     --parked in a global: the refresh rebuilds the game (and this codemod)
     --but not the Lua state, so the request crosses it -- the same way the
@@ -5895,6 +6052,7 @@ function EncounterOfTheWeekGame.StartTest(options)
         mode = options.mode,
         part = tonumber(options.part) or 1,
         heroes = options.heroes,
+        challenge = options.challenge == true,
         --a series part's Story so far (EncounterTest's editor), or nil.
         story = options.story,
         at = dmhub.Time(),
@@ -6034,8 +6192,10 @@ local function ClearTestArrival(data)
     data.arrivalItems = nil
     data.autoEquip = nil
     data.alreadyCompleted = nil
+    data.completedNormal = nil
     data.abilityBusy = nil
     data.practice = nil
+    data.challenge = nil
 end
 
 --The test's arrival (host, inside a coroutine, already in player-host mode).
@@ -6085,6 +6245,10 @@ local function TestArrival(pending)
             heroes = pending.heroes,
             saved = saved,
         }
+        --a test of the encounter's Challenge Mode plays it as a real one would.
+        if pending.challenge == true then
+            data.challenge = true
+        end
     end, "Encounter test: setting up")
     Series.testPart = nil
 
@@ -6117,7 +6281,7 @@ local function TestArrival(pending)
     --what a real EotW host writes at setup.
     local numHeroes = math.max(3, math.min(7, #placed))
     dmhub.SetSettingValue("numheroes", numHeroes)
-    CharacterResource.SetGlobalResource(CharacterResource.heroTokenId, #placed, "Start of the encounter test")
+    CharacterResource.SetGlobalResource(CharacterResource.heroTokenId, #placed, UIText.T("encounter.test.hero_tokens_start_note"))
     dmhub.SetSettingValue("permission:playersinitiative", true)
     EnforceStrictRules()
 
@@ -6234,7 +6398,7 @@ function EncounterOfTheWeekGame.EndTestCombat()
         q.hidden = true
         q.gameMode = "exploration"
         dmhub:UploadInitiativeQueue()
-        CharacterResource.SetMalice(0, "End of the encounter test")
+        CharacterResource.SetMalice(0, UIText.T("encounter.test.malice_end_note"))
         ActivatedAbilitySummonBehavior.RemoveSummonsAtEndOfCombat()
         Aura.RemoveExpiredMapAnchoredAurasAtEndOfCombat()
     end)
@@ -6324,7 +6488,7 @@ local function TestTeardown()
                     dmhub.SetSettingValue(id, value)
                 end
             end
-            CharacterResource.SetGlobalResource(CharacterResource.heroTokenId, tonumber(saved.heroTokens) or 0, "End of the encounter test")
+            CharacterResource.SetGlobalResource(CharacterResource.heroTokenId, tonumber(saved.heroTokens) or 0, UIText.T("encounter.test.hero_tokens_end_note"))
         end
     end)
     DropHostPermissions()

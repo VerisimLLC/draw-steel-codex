@@ -48,6 +48,8 @@
 
 local mod = dmhub.GetModLoading()
 
+local T = UIText.T
+
 EncounterNarrative = rawget(_G, "EncounterNarrative") or {}
 
 local DOC_ID = "eotwscript"
@@ -156,7 +158,7 @@ function EncounterNarrative.Voters(section, heroes)
         if entry == nil then
             local name = owner
             if owner == "PARTY" then
-                name = "The party"
+                name = T("narrative.party_name")
             else
                 pcall(function() name = dmhub.GetDisplayName(owner) or owner end)
             end
@@ -457,7 +459,7 @@ local function ResolveSection(m, doc, beat, section, heroes, optionIndex, decide
                 heroEntry = group.heroes[1],
                 userid = group.heroes[1] ~= nil and group.heroes[1].ownerId or nil,
                 entryName = section.name,
-                source = "Narrative",
+                source = T("narrative.effect_source"),
                 doc = doc,
             })
             for _, charid in ipairs(newAllies or {}) do
@@ -487,7 +489,7 @@ local function ResolveSection(m, doc, beat, section, heroes, optionIndex, decide
             heroEntry = anchor,
             userid = anchor ~= nil and anchor.ownerId or nil,
             entryName = section.name,
-            source = "Narrative",
+            source = T("narrative.effect_source"),
             --the whole party chose this, so its Intelligence is everyone's,
             --not the anchor's.
             splitIntelligence = true,
@@ -616,7 +618,7 @@ local function HandleRequest(m, doc, userid, req, beat, heroes)
             if key == nil then
                 return string.format("%s controls no hero and cannot choose", tostring(userid))
             end
-            name = key == "PARTY" and "The party" or nil
+            name = key == "PARTY" and T("narrative.party_name") or nil
             if name == nil then
                 pcall(function() name = dmhub.GetDisplayName(key) or key end)
             end

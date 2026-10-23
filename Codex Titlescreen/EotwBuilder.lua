@@ -17,6 +17,9 @@ local mod = dmhub.GetModLoading()
 --Design/plan doc: EncounterOfTheWeek/EncounterOfTheWeek.md,
 --"The hero builder and hero sheet".
 
+local T = UIText.T
+local TP = UIText.Plural
+
 EotwBuilder = {}
 
 --The builder's palette: the old character builder's cream on near-black
@@ -275,10 +278,10 @@ local function StepIntro(stepid)
     local strings = CharacterBuilder.STRINGS
     local key = string.upper(stepid)
     if stepid == "appearance" then
-        return "Give your hero a name and a face, and if you like a frame for their token and an anthem."
+        return T("builder.appearance.intro")
     end
     if stepid == "skills" then
-        return "Your ancestry, culture, career and class each let you pick skills and languages. Pick them all here: click a skill to take it, click it again to drop it. Each pick goes to whichever of your choices can take it, so you only see a skill as available if it still fits."
+        return T("builder.skills.intro")
     end
     local entry = strings[key]
     return entry and entry.INTRO or ""
@@ -557,11 +560,11 @@ local function SubclassDetail(subclass)
                 children[#children+1] = gui.Label{ classes = { "eotwbText" }, text = details, markdown = true, fontSize = 16, textAlignment = "topleft", bmargin = 10 }
             end
             if #features > 0 then
-                children[#children+1] = gui.Label{ classes = { "eotwbSection" }, text = "At 1st level" }
+                children[#children+1] = gui.Label{ classes = { "eotwbSection" }, text = T("builder.detail.subclass_first_level") }
             end
             for _,entry in ipairs(features) do
                 local feature = entry.feature
-                local name = Field(feature, "name") or "Feature"
+                local name = Field(feature, "name") or T("builder.detail.feature_fallback")
                 local ability = OptionAbility(feature)
                 if ability ~= nil then
                     children[#children+1] = AbilityCard(ability)
@@ -627,7 +630,7 @@ local function CultureDetail(item)
         lines[#lines+1] = description
         lines[#lines+1] = ""
     end
-    lines[#lines+1] = "Taking this culture sets:"
+    lines[#lines+1] = T("builder.culture.detail.sets")
     lines[#lines+1] = ""
     for _,cat in ipairs(CultureAspect.categories) do
         local aspect = aspectsTable[(item.aspects or {})[cat.id] or ""]
@@ -658,7 +661,7 @@ local function CultureDetail(item)
     local languageid = item:try_get("languageid")
     local language = type(languageid) == "string" and (dmhub.GetTableVisible(Language.tableName) or {})[languageid] or nil
     if language ~= nil then
-        lines[#lines+1] = string.format("**Language:** %s", language.name)
+        lines[#lines+1] = T("builder.culture.detail.language", { language = language.name })
     end
     return { title = item.name, text = table.concat(lines, "\n") }
 end
@@ -728,7 +731,7 @@ function EotwBuilder.Open(args)
         state.fillAllArmed = false
         local ok, err = pcall(fn, tok)
         if not ok then
-            state.message = "Something went wrong: " .. tostring(err)
+            state.message = T("builder.footer.error", { error = tostring(err) })
             printf("EotW builder: %s", tostring(err))
         end
         Refresh(false)
@@ -859,7 +862,7 @@ function EotwBuilder.Open(args)
     local function DefaultDetail(tok, stepid)
         local id = CurrentBaseId(tok, stepid)
         if stepid == "complication" and id == NO_COMPLICATION then
-            return { title = "No Complication", text = "Your hero takes no complication. You can come back and choose one at any time before you finish." }
+            return { title = T("builder.complication.none.title"), text = T("builder.complication.none.detail") }
         end
         local item = BaseItem(stepid, id)
         if item ~= nil then
@@ -894,15 +897,15 @@ function EotwBuilder.Open(args)
             --has not used reads "Optional", though it does not block Finish.
             local done = stepStatus.complete and not stepStatus.stale and not stepStatus.optional
             if stepStatus.stale then
-                sub = "Needs attention"
+                sub = T("builder.stepper.needs_attention")
             elseif stepStatus.optional then
-                sub = "Optional"
+                sub = T("builder.stepper.optional")
             elseif stepStatus.complete then
-                sub = "Done"
+                sub = T("builder.stepper.done")
             elseif stepStatus.filled == 0 then
-                sub = "Not started"
+                sub = T("builder.stepper.not_started")
             else
-                sub = string.format("%d left", left)
+                sub = T("builder.stepper.left", { count = left })
             end
             pills[#pills+1] = gui.Panel{
                 classes = Classes("eotwbPill", { current = state.step == stepid }),
@@ -1021,7 +1024,7 @@ function EotwBuilder.Open(args)
             local item = (dmhub.GetTableVisible(CharacterComplication.tableName) or {})[ids[1]]
             complication = item and item.name or "-"
         elseif EotwBuild.hero.ChoseNoComplication(hero) then
-            complication = "None"
+            complication = T("builder.summary.no_complication")
         end
 
 
@@ -1032,10 +1035,10 @@ function EotwBuilder.Open(args)
             return
         end
         state.summarySignature = signature
-        Line("Culture", cultureName)
-        Line("Career", career and career.name or nil)
-        Line("Kit", table.concat(kitNames, ", "))
-        Line("Complication", complication)
+        Line(T("builder.summary.culture"), cultureName)
+        Line(T("builder.summary.career"), career and career.name or nil)
+        Line(T("builder.summary.kit"), table.concat(kitNames, ", "))
+        Line(T("builder.summary.complication"), complication)
         summaryLines.children = lines
     end
 
@@ -1070,7 +1073,7 @@ function EotwBuilder.Open(args)
                         return
                     end
                     if id == NO_COMPLICATION then
-                        ShowDetail({ title = "No Complication", text = "Take no complication. Complications are optional: each gives a benefit and a drawback." })
+                        ShowDetail({ title = T("builder.complication.none.title"), text = T("builder.complication.none.preview") })
                     else
                         ShowDetail(EotwBuilder.ItemDetail(stepid, entry.item))
                     end
@@ -1091,9 +1094,9 @@ function EotwBuilder.Open(args)
                     end
                     if current ~= nil and EotwBuild.HasDependentPicks(t, stepid) then
                         EotwBuilder.Confirm(root, {
-                            title = string.format("Change %s?", step.title),
-                            message = string.format("This clears the choices you made for your current %s.", string.lower(step.title)),
-                            confirm = "Change",
+                            title = T("builder.change_confirm.title", { step = step.title }),
+                            message = T("builder.change_confirm.message", { step = string.lower(step.title) }),
+                            confirm = T("builder.change_confirm.button"),
                             onConfirm = Apply,
                         })
                     else
@@ -1194,7 +1197,7 @@ function EotwBuilder.Open(args)
                         interactable = false,
                     },
                     gui.Label{
-                        text = (info.description or attrid) .. cond(locked, " (fixed)", ""),
+                        text = cond(locked, T("builder.class.characteristic_fixed", { name = info.description or attrid }), info.description or attrid),
                         fontSize = 14,
                         color = C.MUTED,
                         width = "100%",
@@ -1212,7 +1215,7 @@ function EotwBuilder.Open(args)
             tmargin = 8,
             children = {
                 gui.Panel{ width = "100%", height = "auto", flow = "horizontal", children = boxes },
-                Text("Drag one characteristic onto another (or click both) to swap their values. Characteristics marked fixed are set by your class.", { "eotwbText", "muted" }, { fontSize = 14, tmargin = 6 }),
+                Text(T("builder.class.characteristics_hint"), { "eotwbText", "muted" }, { fontSize = 14, tmargin = 6 }),
             },
         }
     end
@@ -1224,17 +1227,17 @@ function EotwBuilder.Open(args)
         local statusText
         local statusClass = nil
         if #row.stale > 0 then
-            statusText = "A pick here is no longer valid. Choose again, or use Fill in the rest."
+            statusText = T("builder.choice.status.stale")
             statusClass = "stale"
         elseif row.complete then
-            statusText = cond(row.exhausted, "Nothing left to choose", "Done")
+            statusText = cond(row.exhausted, T("builder.choice.status.exhausted"), T("builder.choice.status.done"))
             statusClass = "done"
         elseif info.costsPoints then
-            statusText = string.format("%d %s to spend", row.remaining, info.pointsName)
+            statusText = T("builder.choice.status.points_to_spend", { count = row.remaining, points = info.pointsName })
         elseif row.remaining == info.numChoices then
-            statusText = cond(info.numChoices == 1, "Choose one", string.format("Choose %d", info.numChoices))
+            statusText = TP("builder.choice.status.choose", info.numChoices)
         else
-            statusText = string.format("Choose %d more", row.remaining)
+            statusText = T("builder.choice.status.choose_more", { count = row.remaining })
         end
 
         local isCharacteristics = row.guid == "characteristics"
@@ -1350,7 +1353,7 @@ function EotwBuilder.Open(args)
             end
         end
 
-        blocks[#blocks+1] = gui.Label{ classes = { "eotwbSection" }, text = "Name" }
+        blocks[#blocks+1] = gui.Label{ classes = { "eotwbSection" }, text = T("builder.appearance.name_heading") }
         blocks[#blocks+1] = gui.Panel{
             width = "100%",
             height = "auto",
@@ -1362,7 +1365,7 @@ function EotwBuilder.Open(args)
                     create = function(element)
                         state.nameInput = element
                     end,
-                    placeholderText = "Your hero's name",
+                    placeholderText = T("builder.appearance.name_placeholder"),
                     characterLimit = 60,
                     fontSize = 22,
                     width = 460,
@@ -1372,7 +1375,7 @@ function EotwBuilder.Open(args)
                     change = SetNameFrom,
                 },
                 gui.Button{
-                    text = "Suggest a Name",
+                    text = T("builder.appearance.suggest_name_button"),
                     fontSize = 18,
                     width = 200,
                     height = 44,
@@ -1384,7 +1387,7 @@ function EotwBuilder.Open(args)
                         end
                         local generated = EotwBuild.GenerateName(t.properties --[[@as character]])
                         if generated == nil then
-                            state.message = "This ancestry has no name list. Type a name instead."
+                            state.message = T("builder.appearance.no_name_list")
                             Refresh(false)
                             return
                         end
@@ -1421,7 +1424,7 @@ function EotwBuilder.Open(args)
             bgcolor = "white",
             data = { dragging = false, anchor = nil, start = nil, wheelSerial = 0 },
             linger = function(element)
-                gui.Tooltip("Drag to move the portrait within its frame. Scroll to zoom.")(element)
+                gui.Tooltip(T("builder.appearance.preview_tooltip"))(element)
             end,
             --The wheel drives the Zoom slider: each notch moves it 5%, and a
             --whole spin settles into one upload rather than one per notch.
@@ -1543,7 +1546,7 @@ function EotwBuilder.Open(args)
         local zoom = 1
         pcall(function() zoom = tok.portraitZoom or 1 end)
 
-        blocks[#blocks+1] = gui.Label{ classes = { "eotwbSection" }, text = "Portrait" }
+        blocks[#blocks+1] = gui.Label{ classes = { "eotwbSection" }, text = T("builder.appearance.portrait_heading") }
         blocks[#blocks+1] = gui.Panel{
             width = "100%",
             height = "auto",
@@ -1556,14 +1559,14 @@ function EotwBuilder.Open(args)
                     lmargin = 20,
                     flow = "vertical",
                     children = {
-                        Text("Your class's art is your portrait until you choose another. Click the image to the right to pick or upload your own.", { "eotwbText", "muted" }, { fontSize = 15, bmargin = 10 }),
+                        Text(T("builder.appearance.portrait_hint"), { "eotwbText", "muted" }, { fontSize = 15, bmargin = 10 }),
                         gui.Panel{
                             width = "100%",
                             height = "auto",
                             flow = "horizontal",
                             children = {
                                 gui.Button{
-                                    text = "Use Class Art",
+                                    text = T("builder.appearance.class_art_button"),
                                     fontSize = 18,
                                     width = 190,
                                     height = 44,
@@ -1571,11 +1574,11 @@ function EotwBuilder.Open(args)
                                     click = function()
                                         local t = Tok()
                                         local classItem = t and (t.properties --[[@as character]]):GetClass() or nil
-                                        SetPortraitTo(classItem and classItem:try_get("portraitid", "") or nil, "Choose a class first: its art is the default portrait.", true)
+                                        SetPortraitTo(classItem and classItem:try_get("portraitid", "") or nil, T("builder.appearance.class_art_missing"), true)
                                     end,
                                 },
                                 gui.Button{
-                                    text = "Use Ancestry Art",
+                                    text = T("builder.appearance.ancestry_art_button"),
                                     fontSize = 18,
                                     width = 190,
                                     height = 44,
@@ -1583,7 +1586,7 @@ function EotwBuilder.Open(args)
                                     click = function()
                                         local t = Tok()
                                         local race = t and EotwBuild.hero.Ancestry(t.properties --[[@as character]]) or nil
-                                        SetPortraitTo(race and race:try_get("portraitid", "") or nil, "Choose an ancestry with art first.")
+                                        SetPortraitTo(race and race:try_get("portraitid", "") or nil, T("builder.appearance.ancestry_art_missing"))
                                     end,
                                 },
                                 gui.IconEditor{
@@ -1599,7 +1602,7 @@ function EotwBuilder.Open(args)
                                     height = 96,
                                     bgcolor = "white",
                                     linger = function(element)
-                                        gui.Tooltip("Choose a portrait from the library, or upload your own.")(element)
+                                        gui.Tooltip(T("builder.appearance.portrait_picker_tooltip"))(element)
                                     end,
                                     --IconEditor swaps its image itself, and
                                     --imageLoaded does not reliably reach us, so a
@@ -1629,7 +1632,7 @@ function EotwBuilder.Open(args)
                                 },
                             },
                         },
-                        gui.Label{ classes = { "eotwbText", "muted" }, text = "Zoom", fontSize = 15, tmargin = 14 },
+                        gui.Label{ classes = { "eotwbText", "muted" }, text = T("builder.appearance.zoom_label"), fontSize = 15, tmargin = 14 },
                         gui.Slider{
                             width = 420,
                             height = 30,
@@ -1661,7 +1664,7 @@ function EotwBuilder.Open(args)
                             end,
                         },
                         gui.Button{
-                            text = "Reset Placement",
+                            text = T("builder.appearance.reset_placement_button"),
                             fontSize = 16,
                             width = 180,
                             height = 38,
@@ -1722,7 +1725,7 @@ function EotwBuilder.Open(args)
                     height = "auto",
                     flow = "vertical",
                     children = {
-                        gui.Label{ classes = { "eotwbSection" }, text = "Frame" },
+                        gui.Label{ classes = { "eotwbSection" }, text = T("builder.appearance.frame_heading") },
                         gui.IconEditor{
                             library = "AvatarFrame",
                             width = 140,
@@ -1744,7 +1747,7 @@ function EotwBuilder.Open(args)
                                 end
                             end,
                         },
-                        Text("The frame around your hero's token.", { "eotwbText", "muted" }, { fontSize = 14, tmargin = 6 }),
+                        Text(T("builder.appearance.frame_hint"), { "eotwbText", "muted" }, { fontSize = 14, tmargin = 6 }),
                     },
                 },
                 gui.Panel{
@@ -1752,9 +1755,9 @@ function EotwBuilder.Open(args)
                     height = "auto",
                     flow = "vertical",
                     children = {
-                        gui.Label{ classes = { "eotwbSection" }, text = "Anthem" },
+                        gui.Label{ classes = { "eotwbSection" }, text = T("builder.appearance.anthem_heading") },
                         anthemEditor,
-                        gui.Label{ classes = { "eotwbText", "muted" }, text = "Volume", fontSize = 14, tmargin = 6 },
+                        gui.Label{ classes = { "eotwbText", "muted" }, text = T("builder.appearance.volume_label"), fontSize = 14, tmargin = 6 },
                         gui.Slider{
                             width = 220,
                             height = 24,
@@ -1776,7 +1779,7 @@ function EotwBuilder.Open(args)
                                 end
                             end,
                         },
-                        Text("Music that plays when your hero takes their turn. Optional.", { "eotwbText", "muted" }, { fontSize = 14, tmargin = 6 }),
+                        Text(T("builder.appearance.anthem_hint"), { "eotwbText", "muted" }, { fontSize = 14, tmargin = 6 }),
                     },
                 },
             },
@@ -1826,35 +1829,36 @@ function EotwBuilder.Open(args)
         local lines = {}
         local category = entry.category and Skill.categoriesById[entry.category] or nil
         if kind == "skill" and category ~= nil then
-            lines[#lines+1] = string.format("*%s skill*", category.text)
+            lines[#lines+1] = T("builder.skills.detail.category", { category = category.text })
         end
         if entry.dead then
-            lines[#lines+1] = "*A dead language: no one speaks it any more, but its writing can still be read.*"
+            lines[#lines+1] = T("builder.skills.detail.dead")
         end
         if entry.speakers ~= nil then
-            lines[#lines+1] = string.format("**%s:** %s", cond(entry.dead, "Once spoken by", "Spoken by"), entry.speakers)
+            lines[#lines+1] = cond(entry.dead, T("builder.skills.detail.once_spoken_by", { speakers = entry.speakers }), T("builder.skills.detail.spoken_by", { speakers = entry.speakers }))
         end
         if type(entry.description) == "string" and entry.description ~= "" then
             lines[#lines+1] = entry.description
         end
         lines[#lines+1] = ""
         if entry.state == "native" then
-            lines[#lines+1] = "**Your native language** (chosen with your culture)."
+            lines[#lines+1] = T("builder.skills.detail.native")
         elseif entry.state == "fixed" then
-            lines[#lines+1] = string.format("**You know this %s already** from %s.", kind, entry.source or "another of your features")
+            local source = entry.source or T("builder.skills.detail.source_fallback")
+            lines[#lines+1] = cond(kind == "skill", T("builder.skills.detail.known_skill", { source = source }), T("builder.skills.detail.known_language", { source = source }))
         elseif entry.state == "selected" then
-            lines[#lines+1] = "**Picked.** Click to drop it."
+            lines[#lines+1] = T("builder.skills.detail.picked")
         elseif entry.state == "selectable" then
-            lines[#lines+1] = "**Available.** Click to pick it."
+            lines[#lines+1] = T("builder.skills.detail.available")
         else
-            lines[#lines+1] = "**Not available:** none of your remaining choices can take it."
+            lines[#lines+1] = T("builder.skills.detail.unavailable")
         end
         if #entry.pools > 0 and entry.state ~= "native" and entry.state ~= "fixed" then
-            lines[#lines+1] = "Can be picked for: " .. table.concat(entry.pools, ", ")
+            lines[#lines+1] = T("builder.skills.detail.pools", { choices = table.concat(entry.pools, ", ") })
         end
         if entry.special ~= nil then
             lines[#lines+1] = ""
-            lines[#lines+1] = "**Special:** your " .. table.concat(entry.special, ", ") .. " gives you a benefit with this skill."
+            lines[#lines+1] = T("builder.skills.detail.special", { features = table.concat(entry.special, ", ") })
         end
         return { title = entry.name, text = table.concat(lines, "\n") }
     end
@@ -1867,7 +1871,7 @@ function EotwBuilder.Open(args)
             notes[#notes+1] = entry.speakers
         end
         if entry.dead then
-            notes[#notes+1] = "dead"
+            notes[#notes+1] = T("builder.skills.card.dead")
         end
         if #notes == 0 then
             return entry.name
@@ -1939,14 +1943,14 @@ function EotwBuilder.Open(args)
         local rows = {}
         local function Add(pool, kindName)
             local step = EotwBuild.STEP_BY_ID[pool.source or ""]
-            local status = cond(pool.remaining == 0, "Done", string.format("%d left", pool.remaining))
+            local status = cond(pool.remaining == 0, T("builder.skills.summary.done"), T("builder.skills.summary.left", { count = pool.remaining }))
             rows[#rows+1] = gui.Panel{
                 width = "100%",
                 height = "auto",
                 flow = "horizontal",
                 vmargin = 3,
                 children = {
-                    gui.Label{ classes = { "eotwbText", "muted" }, text = string.format("%s (%s)", step and step.title or "", kindName), width = 220, fontSize = 15 },
+                    gui.Label{ classes = { "eotwbText", "muted" }, text = cond(kindName == "skill", T("builder.skills.summary.source_skill", { step = step and step.title or "" }), T("builder.skills.summary.source_language", { step = step and step.title or "" })), width = 220, fontSize = 15 },
                     gui.Label{ classes = { "eotwbText" }, text = pool.description or pool.name, markdown = true, width = "100%-330", fontSize = 15 },
                     gui.Label{ classes = Classes("eotwbStatus", { done = pool.remaining == 0 }), text = status, width = 100, textAlignment = "right" },
                 },
@@ -1959,7 +1963,7 @@ function EotwBuilder.Open(args)
             Add(pool, "language")
         end
         if #rows == 0 then
-            rows[1] = Text("You have no skills or languages to pick yet. They come from your ancestry, culture, career and class.", { "eotwbText", "muted" }, { fontSize = 15 })
+            rows[1] = Text(T("builder.skills.summary.none"), { "eotwbText", "muted" }, { fontSize = 15 })
         end
         return gui.Panel{
             classes = { "eotwbRow" },
@@ -2017,13 +2021,13 @@ function EotwBuilder.Open(args)
     local function GrantsBox(grants)
         local lines = {}
         if #grants.fixed > 0 then
-            lines[#lines+1] = "**You gain:** " .. table.concat(grants.fixed, ", ")
+            lines[#lines+1] = T("builder.grants.you_gain", { list = table.concat(grants.fixed, ", ") })
         end
         for _,pool in ipairs(grants.pools) do
             lines[#lines+1] = string.format("**%s:** %s", pool.name, pool.description or "")
         end
         local children = {
-            gui.Label{ classes = { "eotwbText" }, text = "Skills & Languages", fontSize = 18, bold = true, color = "#bfe0f0ff" },
+            gui.Label{ classes = { "eotwbText" }, text = T("builder.grants.heading"), fontSize = 18, bold = true, color = "#bfe0f0ff" },
             Text(table.concat(lines, "\n"), { "eotwbText" }, { fontSize = 15, vmargin = 4 }),
         }
         return gui.Panel{
@@ -2093,7 +2097,7 @@ function EotwBuilder.Open(args)
                 return PoolSummary(skillView, languageView)
             end, true)
             Add("skillsheader", "", function()
-                return gui.Label{ classes = { "eotwbSection" }, text = "Skills" }
+                return gui.Label{ classes = { "eotwbSection" }, text = T("builder.skills.skills_heading") }
             end)
             Add("skills", PoolViewSignature(skillView), function()
                 return PoolCards("skill", skillView)
@@ -2105,8 +2109,8 @@ function EotwBuilder.Open(args)
                     height = "auto",
                     flow = "vertical",
                     children = {
-                        gui.Label{ classes = { "eotwbSection" }, text = "Languages" },
-                        Text(nativeItem and string.format("Your native language is **%s**, from your culture.", nativeItem.name) or "Choose your native language on the Culture step.", { "eotwbText", "muted" }, { fontSize = 15, bmargin = 4 }),
+                        gui.Label{ classes = { "eotwbSection" }, text = T("builder.skills.languages_heading") },
+                        Text(nativeItem and T("builder.skills.native_language", { language = nativeItem.name }) or T("builder.skills.native_language_missing"), { "eotwbText", "muted" }, { fontSize = 15, bmargin = 4 }),
                     },
                 }
             end)
@@ -2152,16 +2156,16 @@ function EotwBuilder.Open(args)
                     end)
                 end
                 Add("ownculture", "", function()
-                    return gui.Label{ classes = { "eotwbSection" }, text = "Or build your own culture from three aspects" }
+                    return gui.Label{ classes = { "eotwbSection" }, text = T("builder.culture.own_culture_heading") }
                 end)
             elseif step.base ~= nil then
                 local baseRow = stepStatus.rows[1]
                 local optional = baseRow ~= nil and baseRow.optional == true
                 local done = baseRow ~= nil and baseRow.complete and not optional
-                local statusText = cond(optional, "Optional", cond(done, "Done", "Choose one"))
+                local statusText = cond(optional, T("builder.base.status.optional"), cond(done, T("builder.base.status.done"), T("builder.base.status.choose_one")))
                 local locked = BaseLocked(tok, stepid)
                 Add("baseheader", statusText .. tostring(locked), function()
-                    local heading = string.format(cond(locked, "Your %s", "Choose your %s"), string.lower(step.base))
+                    local heading = cond(locked, T("builder.base.heading_locked", { pick = string.lower(step.base) }), T("builder.base.heading", { pick = string.lower(step.base) }))
                     return gui.Panel{
                         width = "100%",
                         height = "auto",
@@ -2176,14 +2180,14 @@ function EotwBuilder.Open(args)
                                     gui.Label{ classes = Classes("eotwbStatus", { done = done }), text = statusText, valign = "center", lmargin = 14, tmargin = 12 },
                                 },
                             },
-                            locked and Text(string.format("Your %s is chosen when the hero is created and can't be changed.", string.lower(step.base)), { "eotwbText", "muted" }, { bmargin = 6 }) or nil,
+                            locked and Text(T("builder.base.locked_note", { pick = string.lower(step.base) }), { "eotwbText", "muted" }, { bmargin = 6 }) or nil,
                         },
                     }
                 end)
                 Add("basecards", current, function()
                     local options = EotwBuild.BaseOptions(hero, stepid)
                     if stepid == "complication" then
-                        table.insert(options, 1, { id = NO_COMPLICATION, name = "No Complication" })
+                        table.insert(options, 1, { id = NO_COMPLICATION, name = T("builder.complication.none.card") })
                     end
                     return BaseCards(tok, stepid, options)
                 end)
@@ -2212,7 +2216,7 @@ function EotwBuilder.Open(args)
                     if options ~= nil and info ~= nil then
                         if not headed and stepid ~= "culture" then
                             Add("choicesheader", "", function()
-                                return gui.Label{ classes = { "eotwbSection" }, text = "Your choices" }
+                                return gui.Label{ classes = { "eotwbSection" }, text = T("builder.choice.heading") }
                             end)
                             headed = true
                         end
@@ -2297,19 +2301,19 @@ function EotwBuilder.Open(args)
         if status.complete then
             state.fillAllArmed = false
         end
-        fillButton.text = cond(state.fillAllArmed, "For All Tabs?", "Fill in the Rest")
+        fillButton.text = cond(state.fillAllArmed, T("builder.footer.fill_all_button"), T("builder.footer.fill_button"))
         fillButton:SetClass("disabled", not state.fillAllArmed and stepStatus.complete and not stepStatus.stale)
         if index == #EotwBuild.STEPS then
-            nextButton.text = "Finish"
+            nextButton.text = T("builder.footer.finish_button")
         elseif stepStatus.complete then
-            nextButton.text = "Next"
+            nextButton.text = T("builder.footer.next_button")
         else
-            nextButton.text = "Skip for Now"
+            nextButton.text = T("builder.footer.skip_button")
         end
         messageLabel.text = state.message or ""
         state.allComplete = status.complete
         if closeButton ~= nil and closeButton.valid then
-            closeButton.text = cond(status.complete, "Finish", "Save and Close")
+            closeButton.text = cond(status.complete, T("builder.header.finish_button"), T("builder.header.save_close_button"))
         end
     end
 
@@ -2489,7 +2493,7 @@ function EotwBuilder.Open(args)
     }
 
     backButton = gui.Button{
-        text = "Back",
+        text = T("builder.footer.back_button"),
         fontSize = 20,
         width = 180,
         height = 48,
@@ -2504,16 +2508,16 @@ function EotwBuilder.Open(args)
     }
 
     fillButton = gui.Button{
-        text = "Fill in the Rest",
+        text = T("builder.footer.fill_button"),
         fontSize = 20,
         width = 220,
         height = 48,
         hmargin = 8,
         linger = function(element)
             if state.fillAllArmed then
-                gui.Tooltip("Fill every choice you have not made yet on all the other tabs too, completing the hero. Your own choices are kept.")(element)
+                gui.Tooltip(T("builder.footer.fill_all_tooltip"))(element)
             else
-                gui.Tooltip("Fill every choice on this page you have not made yet with a sensible default or a random pick. Your own choices are kept.")(element)
+                gui.Tooltip(T("builder.footer.fill_tooltip"))(element)
             end
         end,
         --First click fills this page and arms the button as "For All Tabs?";
@@ -2531,12 +2535,12 @@ function EotwBuilder.Open(args)
                 ok, picks = pcall(EotwBuild.Fill, tok, state.step)
             end
             if not ok then
-                state.message = "Something went wrong: " .. tostring(picks)
+                state.message = T("builder.footer.error", { error = tostring(picks) })
                 printf("EotW builder: %s", tostring(picks))
             elseif picks == nil or #picks == 0 then
-                state.message = cond(allTabs, "Nothing left to fill.", "Nothing left to fill on this page.")
+                state.message = cond(allTabs, T("builder.footer.nothing_to_fill_all"), T("builder.footer.nothing_to_fill"))
             else
-                state.message = string.format("Filled %d choice%s%s.", #picks, cond(#picks == 1, "", "s"), cond(allTabs, " across all tabs", ""))
+                state.message = cond(allTabs, TP("builder.footer.filled_all", #picks), TP("builder.footer.filled", #picks))
             end
             --UpdateFooter disarms it again once the whole hero is complete.
             state.fillAllArmed = ok and not allTabs
@@ -2548,7 +2552,7 @@ function EotwBuilder.Open(args)
     }
 
     nextButton = gui.Button{
-        text = "Next",
+        text = T("builder.footer.next_button"),
         fontSize = 20,
         width = 220,
         height = 48,
@@ -2573,7 +2577,7 @@ function EotwBuilder.Open(args)
             for _,stepid in ipairs(status.incomplete) do
                 names[#names+1] = EotwBuild.STEP_BY_ID[stepid].title
             end
-            state.message = "Still to do: " .. table.concat(names, ", ") .. "."
+            state.message = T("builder.footer.still_to_do", { steps = table.concat(names, ", ") })
             GoTo(status.incomplete[1])
         end,
     }
@@ -2640,8 +2644,8 @@ function EotwBuilder.Open(args)
                         borderBox = true,
                         flow = "vertical",
                         children = {
-                            gui.Label{ classes = { "eotwbHeading" }, text = args.title or "Create Your Hero", fontSize = 30, valign = "center", tmargin = 30 },
-                            gui.Label{ classes = { "eotwbText", "muted" }, text = "Level 1 hero for Blackbottom", fontSize = 15, width = "auto" },
+                            gui.Label{ classes = { "eotwbHeading" }, text = args.title or T("builder.header.title"), fontSize = 30, valign = "center", tmargin = 30 },
+                            gui.Label{ classes = { "eotwbText", "muted" }, text = T("builder.header.subtitle"), fontSize = 15, width = "auto" },
                         },
                     },
                     gui.Panel{
@@ -2656,7 +2660,7 @@ function EotwBuilder.Open(args)
                             --"Save and Close" until every step is complete,
                             --then "Finish" (UpdateFooter switches it).
                             gui.Button{
-                                text = "Save and Close",
+                                text = T("builder.header.save_close_button"),
                                 fontSize = 18,
                                 width = 200,
                                 height = 44,
@@ -2672,9 +2676,9 @@ function EotwBuilder.Open(args)
                                         return
                                     end
                                     if state.allComplete then
-                                        gui.Tooltip("Your hero is complete. Finish and add them to your roster.")(element)
+                                        gui.Tooltip(T("builder.header.finish_tooltip"))(element)
                                     else
-                                        gui.Tooltip("Keep this hero as a draft and come back to it later from the Hero's Guild.")(element)
+                                        gui.Tooltip(T("builder.header.save_close_tooltip"))(element)
                                     end
                                 end,
                                 click = function()
@@ -2782,7 +2786,7 @@ function EotwBuilder.Confirm(host, args)
                         flow = "horizontal",
                         children = {
                             gui.Button{
-                                text = args.confirm or "Confirm",
+                                text = args.confirm or T("builder.confirm.confirm_button"),
                                 fontSize = 18,
                                 width = 180,
                                 height = 44,
@@ -2793,7 +2797,7 @@ function EotwBuilder.Confirm(host, args)
                                 end,
                             },
                             gui.Button{
-                                text = "Cancel",
+                                text = T("builder.confirm.cancel_button"),
                                 fontSize = 18,
                                 width = 180,
                                 height = 44,

@@ -1893,16 +1893,23 @@ DSVictoryScreen.ProceedEndCombat = ProceedEndCombat
 -- Week awards automatically this way, exempting heroes who already won the
 -- encounter and heroes who died. Writes other players' heroes, so run it with
 -- Director capability (a player host elevates first).
-function DSVictoryScreen.AwardVictories(live, amount, exemptions)
+--amounts (optional): { [charid] = n } for heroes who earn a different number
+--than `amount` (Encounter of the Week's Challenge Mode gives 1 or 2).
+function DSVictoryScreen.AwardVictories(live, amount, exemptions, amounts)
     amount = math.max(0, math.floor(tonumber(amount) or 1))
     exemptions = exemptions or {}
+    local perHero = {}
+    for charid, n in pairs(amounts or {}) do
+        perHero[charid] = math.max(0, math.floor(tonumber(n) or 0))
+    end
     for _, token in ipairs(live:GetBattleHeroTokens()) do
-        if exemptions[token.charid] == nil and amount > 0 then
+        local heroAmount = perHero[token.charid] or amount
+        if exemptions[token.charid] == nil and heroAmount > 0 then
             token:ModifyProperties{
                 description = "Award Victories",
                 combine = true,
                 execute = function()
-                    token.properties:SetVictories(token.properties:GetVictories() + amount)
+                    token.properties:SetVictories(token.properties:GetVictories() + heroAmount)
                 end,
             }
         end
@@ -1911,6 +1918,7 @@ function DSVictoryScreen.AwardVictories(live, amount, exemptions)
     --record the awarded amount + flag on the live encounter and network it so
     --every client plays the drop animation and shows the change.
     live.victories = amount
+    live.victoryAmounts = perHero
     live.victoryExemptions = exemptions
     live.victoriesAwarded = true
     dmhub:UploadInitiativeQueue()
@@ -2070,6 +2078,7 @@ function DSVictoryScreen.CaptureSnapshot(live, outcome, options)
         heroes = {},
         monsters = {},
         victories = live:try_get("victories", 1),
+        victoryAmounts = live:try_get("victoryAmounts") or {},
         exemptions = live:try_get("victoryExemptions") or {},
         awarded = live:try_get("victoriesAwarded", false) == true,
     }
@@ -2080,7 +2089,8 @@ function DSVictoryScreen.CaptureSnapshot(live, outcome, options)
     for _, token in ipairs(live:GetBattleHeroTokens()) do
         local card = HeroCardData(live, token, heroRoles[token.charid])
         if options.afterAward and snapshot.awarded and snapshot.exemptions[token.charid] == nil then
-            card.victoriesOld = math.max(0, card.victoriesOld - (tonumber(snapshot.victories) or 0))
+            local awardedHere = snapshot.victoryAmounts[token.charid] or snapshot.victories
+            card.victoriesOld = math.max(0, card.victoriesOld - (tonumber(awardedHere) or 0))
         end
         snapshot.heroes[#snapshot.heroes + 1] = card
     end
@@ -2116,9 +2126,13 @@ function DSVictoryScreen.SavedSnapshot(snapshot)
         heroes = {},
         monsters = {},
         victories = snapshot.victories,
+        victoryAmounts = {},
         exemptions = {},
         awarded = snapshot.awarded,
     }
+    for charid, n in pairs(snapshot.victoryAmounts or {}) do
+        saved.victoryAmounts[charid] = n
+    end
     for _, card in ipairs(snapshot.heroes or {}) do
         saved.heroes[#saved.heroes + 1] = SavedCard(card)
     end
@@ -3398,7 +3412,7 @@ function DSVictoryScreen.Create(options)
         replayAward = function(element, g, snapshot)
             if g ~= element.data.generation or element.data.awardPlayed then return end
             element.data.awardPlayed = true
-            element:FireEvent("playAward", snapshot.victories or 1, snapshot.exemptions or {})
+            element:FireEvent("playAward", snapshot.victories or 1, snapshot.exemptions or {}, snapshot.victoryAmounts or {})
         end,
 
         --close a replay: fade out, then the panel removes itself.
@@ -3575,23 +3589,27 @@ function DSVictoryScreen.Create(options)
                 and live:try_get("victoriesAwarded", false) then
                 element.data.awardPlayed = true
                 local n = live:try_get("victories", 1)
+                local amounts = live:try_get("victoryAmounts") or {}
                 local exemptions = live:try_get("victoryExemptions") or {}
                 --the shown snapshot follows the award, so a copy saved now
                 --(the Hall of Heroes) replays it too.
                 if g_shownSnapshot ~= nil then
                     g_shownSnapshot.victories = n
+                    g_shownSnapshot.victoryAmounts = amounts
                     g_shownSnapshot.exemptions = exemptions
                     g_shownSnapshot.awarded = true
                 end
-                element:FireEvent("playAward", n, exemptions)
+                element:FireEvent("playAward", n, exemptions, amounts)
             end
         end,
 
         -- Drop `n` victory icons into each hero card in turn, one card after
-        -- another; heroes in `exemptions` ({ [charid] = note }) show the note.
-        playAward = function(element, n, exemptions)
+        -- another; heroes in `exemptions` ({ [charid] = note }) show the note,
+        -- and heroes in `amounts` ({ [charid] = n }) get their own count.
+        playAward = function(element, n, exemptions, amounts)
             local g = element.data.generation
             exemptions = exemptions or {}
+            amounts = amounts or {}
             --the drop animation lands on the hero cards, so make sure this client
             --is looking at them.
             element:FireEvent("selectTab", "heroes")
@@ -3602,7 +3620,8 @@ function DSVictoryScreen.Create(options)
             for i, card in ipairs(cards) do
                 local charid = card.data.charid
                 local note = charid ~= nil and exemptions[charid] or nil
-                element:ScheduleEvent("awardCard", (i - 1) * perCard, g, card, n, note)
+                local cardAmount = charid ~= nil and amounts[charid] or n
+                element:ScheduleEvent("awardCard", (i - 1) * perCard, g, card, cardAmount, note)
             end
         end,
 

@@ -19,6 +19,9 @@ local mod = dmhub.GetModLoading()
 --Kept across a reload of this file alone: EotwHeroSheetData.lua adds to the same table.
 EotwHeroSheet = rawget(_G, "EotwHeroSheet") or {}
 
+local T = UIText.T
+local TP = UIText.Plural
+
 --The sheet's colours by role. Read them through C, never as literals: C
 --follows the active colour scheme (see RefreshPalette).
 ---@class EotwSheetPalette
@@ -452,8 +455,23 @@ local function FrostSupported()
     return m_frostSupported == true
 end
 
-local CHARACTERISTICS = { "Might", "Agility", "Reason", "Intuition", "Presence" }
+--The characteristic tiles' names while a Hero loads (a loaded Hero's come from the rules).
+local CHARACTERISTICS = {
+    T("herosheet.stats.might"),
+    T("herosheet.stats.agility"),
+    T("herosheet.stats.reason"),
+    T("herosheet.stats.intuition"),
+    T("herosheet.stats.presence"),
+}
+--The pillar tags the features filter matches (keys), and what each chip shows.
 local PILLARS = { "Combat", "Exploration", "Montage", "Negotiation", "Respite" }
+local PILLAR_TEXT = {
+    Combat = T("herosheet.features.pillar.combat"),
+    Exploration = T("herosheet.features.pillar.exploration"),
+    Montage = T("herosheet.features.pillar.montage"),
+    Negotiation = T("herosheet.features.pillar.negotiation"),
+    Respite = T("herosheet.features.pillar.respite"),
+}
 
 --The sheet's rules, built from the palette C as it is now (see ScaledRules).
 ---@return table[]
@@ -1795,7 +1813,7 @@ local function SourcesTip(s)
     end
     local lines = {}
     if s.base ~= nil then
-        lines[#lines+1] = string.format("Base %s", tostring(s.base))
+        lines[#lines+1] = T("herosheet.stats.source_base", { base = tostring(s.base) })
     end
     for _,src in ipairs(s.sources or {}) do
         lines[#lines+1] = string.format("%s %s", src.name or "", src.value or "")
@@ -1825,13 +1843,13 @@ local m_swept = {}
 ---@return string
 local function Ordinal(n)
     if n == 1 then
-        return "1st"
+        return T("herosheet.ordinal.first")
     elseif n == 2 then
-        return "2nd"
+        return T("herosheet.ordinal.second")
     elseif n == 3 then
-        return "3rd"
+        return T("herosheet.ordinal.third")
     end
-    return string.format("%dth", n)
+    return T("herosheet.ordinal.nth", { n = string.format("%d", n) })
 end
 
 --Builds a hover that shows whatever text the panel's data.tip holds right
@@ -2104,12 +2122,11 @@ local function LevelRow(d, fallen, epicFeature)
                 halign = "right",
                 valign = "center",
                 flow = "horizontal",
-                data = { tip = string.format("%d %s %d XP and %d %s at the next respite.",
-                    victories, cond(victories == 1, "Victory becomes", "Victories become"), victories, victories, epic.name) },
+                data = { tip = TP("herosheet.card.epic_banked_tip", victories, { resource = epic.name }) },
                 hover = HoverTip,
                 click = PinTip,
                 Hatch(18, 7, { valign = "center", cornerRadius = 3 }),
-                Text(string.format("+%d at the next respite", victories), { "eotwsPlateText" }, { lmargin = 6, valign = "center" }),
+                Text(T("herosheet.card.epic_banked", { gain = string.format("+%d", victories) }), { "eotwsPlateText" }, { lmargin = 6, valign = "center" }),
             }
         end
         rows[#rows+1] = gui.Panel{
@@ -2129,9 +2146,9 @@ local function LevelRow(d, fallen, epicFeature)
     local fill = cond(ready, 1, math.min(1, into / per))
     local tip
     if ready then
-        tip = string.format("%d XP: enough for Level %d.", into, p.nextLevel)
+        tip = T("herosheet.card.xp_ready_tip", { xp = string.format("%d", into), level = string.format("%d", p.nextLevel) })
     else
-        tip = string.format("%d of %d XP to Level %d.", into, per, p.nextLevel)
+        tip = T("herosheet.card.xp_tip", { xp = string.format("%d", into), per = string.format("%d", per), level = string.format("%d", p.nextLevel) })
     end
 
     local barChildren = {
@@ -2162,10 +2179,9 @@ local function LevelRow(d, fallen, epicFeature)
             bgimage = "panels/square.png",
             bgcolor = "black",
         }
-        tip = string.format("%s %d %s %d XP at the next respite.", tip, victories,
-            cond(victories == 1, "Victory becomes", "Victories become"), victories)
+        tip = string.format("%s %s", tip, TP("herosheet.card.xp_banked_tip", victories))
         if reach then
-            tip = string.format("%s Enough for Level %d.", tip, p.nextLevel)
+            tip = string.format("%s %s", tip, T("herosheet.card.xp_banked_reach_tip", { level = string.format("%d", p.nextLevel) }))
         end
     end
 
@@ -2211,9 +2227,9 @@ local function LevelRow(d, fallen, epicFeature)
     --only the owner sees these: they speak to the player ("your Hero")
     if d.mine and not fallen then
         if ready then
-            rows[#rows+1] = Text("Head to the Training Grounds to Level your Hero.", { "eotwsReadyLine" }, { tmargin = 6 })
+            rows[#rows+1] = Text(T("herosheet.card.ready_line"), { "eotwsReadyLine" }, { tmargin = 6 })
         elseif reach then
-            rows[#rows+1] = Text("A respite would Level this Hero.", { "eotwsRespiteLine" }, { tmargin = 6 })
+            rows[#rows+1] = Text(T("herosheet.card.respite_line"), { "eotwsRespiteLine" }, { tmargin = 6 })
         end
     end
     return rows
@@ -2226,15 +2242,15 @@ end
 local function StaminaNote(s)
     local left
     if s.state == "dead" then
-        left = "<b>Dead</b>"
+        left = T("herosheet.card.stamina_dead")
     elseif s.state == "dying" then
-        left = "<b>Dying</b>"
+        left = T("herosheet.card.stamina_dying")
     elseif s.state == "winded" then
-        left = string.format("<b>Winded</b> at %d", s.winded)
+        left = T("herosheet.card.stamina_winded", { winded = string.format("%d", s.winded) })
     else
-        left = string.format("Winded at <b>%d</b>", s.winded)
+        left = T("herosheet.card.stamina_winded_at", { winded = string.format("%d", s.winded) })
     end
-    return left, string.format("Dead at <b>%d</b>", s.deadAt)
+    return left, T("herosheet.card.stamina_dead_at", { dead = string.format("%d", s.deadAt) })
 end
 
 --The status shape the character panel pairs with the stamina colour, for the
@@ -2265,7 +2281,7 @@ local function CardRegion(ctx)
             audio.FireSoundEvent("Mouse.Click")
             ctx.Retry()
         end,
-        Text("Try again", nil, { fontSize = 13, bold = true, valign = "center" }),
+        Text(T("herosheet.card.try_again"), nil, { fontSize = 13, bold = true, valign = "center" }),
     }
 
     ---@type Panel|nil
@@ -2406,7 +2422,7 @@ local function CardRegion(ctx)
         data = { tip = "" },
         hover = HoverTip,
         click = PinTip,
-        Text("Recoveries", { "eotwsPlateStrong" }),
+        Text(T("herosheet.card.recoveries"), { "eotwsPlateStrong" }),
         recoveriesSub,
     }
     local victoriesNumber = Text("", { "eotwsVitalNumber" })
@@ -2566,13 +2582,13 @@ local function CardRegion(ctx)
                     local t = d.titles[i]
                     local lines = {
                         string.format("<b>%s</b>", t.name),
-                        string.format("Title %s %s echelon", MIDDOT, Ordinal(t.echelon)),
+                        T("herosheet.card.title_echelon", { dot = MIDDOT, echelon = Ordinal(t.echelon) }),
                     }
                     if t.flavor ~= nil and t.flavor ~= "" then
                         lines[#lines+1] = string.format("<i>%s</i>", t.flavor)
                     end
                     if t.deed ~= nil and t.deed ~= "" then
-                        lines[#lines+1] = string.format("<b>Earned:</b> %s", t.deed)
+                        lines[#lines+1] = T("herosheet.card.title_earned", { deed = t.deed })
                     end
                     for _,b in ipairs(t.benefits or {}) do
                         if b.name ~= nil and b.text ~= nil then
@@ -2601,7 +2617,7 @@ local function CardRegion(ctx)
         end
 
         if d.level ~= nil then
-            local line = string.format("Level %d %s %s", d.level, d.ancestry or "", d.className or "")
+            local line = T("herosheet.card.subtitle", { level = string.format("%d", d.level), ancestry = d.ancestry or "", class = d.className or "" })
             if d.subclass ~= nil and d.subclass ~= "" then
                 line = string.format("%s %s %s", line, MIDDOT, d.subclass)
             end
@@ -2637,7 +2653,7 @@ local function CardRegion(ctx)
         if r ~= nil then
             ringLabel.text = tostring(r.current)
             ring:SetClass("empty", r.current <= 0)
-            local tip = string.format("Each Recovery regains %d Stamina.", r.value)
+            local tip = T("herosheet.card.recovery_tip", { value = string.format("%d", r.value) })
             local function WithSources(s)
                 local more = SourcesTip(s)
                 if more == "" then
@@ -2656,21 +2672,19 @@ local function CardRegion(ctx)
             ring.data.gain = r.value
             ring.data.count = tostring(r.current)
             if spendable then
-                ring.data.tip = string.format("Click to spend a Recovery: regain %d Stamina.", r.value)
+                ring.data.tip = T("herosheet.card.recovery_spend_tip", { value = string.format("%d", r.value) })
             else
                 ring.data.tip = WithSources(stats.recoveries)
             end
             recoveriesCell.data.tip = WithSources(stats.recoveryValue)
-            recoveriesSub.text = string.format("of %d %s +%d each", r.max, MIDDOT, r.value)
+            recoveriesSub.text = T("herosheet.card.recoveries_sub", { max = string.format("%d", r.max), dot = MIDDOT, value = string.format("+%d", r.value) })
         end
 
         if p ~= nil then
-            local resourceName = (d.resource ~= nil and d.resource.name) or "Heroic Resource"
+            local resourceName = (d.resource ~= nil and d.resource.name) or T("herosheet.card.resource_fallback")
             victoriesNumber.text = tostring(p.victories)
-            victoriesWord.text = cond(p.victories == 1, "Victory", "Victories")
-            victoriesCell.data.tip = string.format(
-                "Starts each combat with %d extra %s. Victories become XP at the next respite.",
-                p.victories, resourceName)
+            victoriesWord.text = TP("herosheet.card.victories_word", p.victories)
+            victoriesCell.data.tip = T("herosheet.card.victories_tip", { victories = string.format("%d", p.victories), resource = resourceName })
         end
 
         if d.resource ~= nil then
@@ -2680,7 +2694,7 @@ local function CardRegion(ctx)
                 resourceIcon.bgimage = res.iconid
             end
             resourceNumber.text = tostring(cond(dead, 0, res.value))
-            resourceCell.data.tip = res.name or "Heroic Resource"
+            resourceCell.data.tip = res.name or T("herosheet.card.resource_fallback")
         end
 
         if d.surges ~= nil then
@@ -2694,8 +2708,7 @@ local function CardRegion(ctx)
                 surges.children = icons
             end
             surges:SetClass("collapsed", count == 0)
-            surges.data.tip = string.format("%d %s. Each adds %d damage, up to 3 per roll. 2 raise a potency by 1.",
-                d.surges, cond(d.surges == 1, "surge", "surges"), d.surgeDamage or 0)
+            surges.data.tip = TP("herosheet.card.surges_tip", d.surges, { damage = string.format("%d", d.surgeDamage or 0) })
         end
 
         vitals:SetClass("collapsed", fallen)
@@ -2703,14 +2716,14 @@ local function CardRegion(ctx)
         epitaph:SetClass("collapsed", not fallen)
         if fallen then
             local f = ctx.fallen
-            local who = cond(d.mine, "you", f.playedBy or d.ownerName or "")
+            local who = cond(d.mine, T("herosheet.card.epitaph_you"), f.playedBy or d.ownerName or "")
             --the week comes from the City's schedule; without one the line ends
             --at the encounter
-            local fell = string.format("Fell in <b>%s</b>", f.encounter or "")
             if f.week ~= nil then
-                fell = string.format("%s, week %s", fell, tostring(f.week))
+                epitaphLabel.text = T("herosheet.card.epitaph_week", { encounter = f.encounter or "", week = tostring(f.week), who = who })
+            else
+                epitaphLabel.text = T("herosheet.card.epitaph", { encounter = f.encounter or "", who = who })
             end
-            epitaphLabel.text = string.format("%s\nPlayed by %s", fell, who)
         end
     end
 
@@ -2883,15 +2896,15 @@ local function GearLine(gear)
     local armor = Unique(gear.armor)
     local parts = {}
     if #armor > 0 then
-        parts[1] = table.concat(armor, " or ") .. " armor"
+        parts[1] = T("herosheet.kit.gear_armor", { armor = table.concat(armor, T("herosheet.kit.gear_or")) })
     else
-        parts[1] = "No armor"
+        parts[1] = T("herosheet.kit.gear_no_armor")
     end
     for _,w in ipairs(Unique(gear.weapons)) do
         if w == "Shield" then
-            parts[#parts+1] = "shield"
+            parts[#parts+1] = T("herosheet.kit.gear_shield")
         else
-            parts[#parts+1] = string.lower(w) .. " weapon"
+            parts[#parts+1] = T("herosheet.kit.gear_weapon", { weapon = string.lower(w) })
         end
     end
     return table.concat(parts, ", ")
@@ -2975,8 +2988,8 @@ local function KitContent(d)
     local kit = d.kit
     if kit == nil or kit.kind == "none" or #kit.entries == 0 then
         return {
-            Text("Kit", { "eotwsHeader" }),
-            Text("No kit", { "eotwsNone" }, { tmargin = 6 }),
+            Text(T("herosheet.kit.header"), { "eotwsHeader" }),
+            Text(T("herosheet.kit.no_kit"), { "eotwsNone" }, { tmargin = 6 }),
         }
     end
 
@@ -2986,14 +2999,15 @@ local function KitContent(d)
         for _,b in ipairs(e.bonuses or {}) do
             local tip = nil
             if b.from ~= nil then
-                tip = string.format("From %s.", b.from)
                 if b.other ~= nil then
-                    tip = string.format("%s %s gives %s.", tip, b.otherFrom, b.other)
+                    tip = T("herosheet.kit.bonus_from_both", { kit = b.from, other_kit = tostring(b.otherFrom), other = tostring(b.other) })
+                else
+                    tip = T("herosheet.kit.bonus_from", { kit = b.from })
                 end
             end
-            bonuses[#bonuses+1] = { label = b.label, value = b.value, tip = tip }
+            bonuses[#bonuses+1] = { label = b.text or b.label, value = b.value, tip = tip }
         end
-        local children = { Text("Kit", { "eotwsHeader" }) }
+        local children = { Text(T("herosheet.kit.header"), { "eotwsHeader" }) }
         if kit.combined then
             children[#children+1] = Text(e.name, { "eotwsKitName" }, { tmargin = 6, width = "100%" })
             children[#children+1] = Text(GearLine(e.gear), { "eotwsKitGear" }, { width = "100%" })
@@ -3010,7 +3024,7 @@ local function KitContent(d)
         end
         children[#children+1] = KitGrid(bonuses)
         if kit.meleeFrom ~= nil then
-            children[#children+1] = Text(string.format("Melee damage from %s. Change it during a respite.", kit.meleeFrom),
+            children[#children+1] = Text(T("herosheet.kit.melee_from", { kit = kit.meleeFrom }),
                 { "eotwsKitDesc" }, { tmargin = 3, width = "100%" })
         end
         return children
@@ -3038,7 +3052,7 @@ local function KitContent(d)
                 })
             end
         else
-            body[#body+1] = Text("None chosen", { "eotwsNone" }, { tmargin = 6 })
+            body[#body+1] = Text(T("herosheet.kit.none_chosen"), { "eotwsNone" }, { tmargin = 6 })
         end
         return body
     end
@@ -3071,7 +3085,7 @@ local function KitRegion(ctx)
     local skeleton = {}
     if ctx.skeleton then
         skeleton = {
-            Text("Kit", { "eotwsHeader" }),
+            Text(T("herosheet.kit.header"), { "eotwsHeader" }),
             gui.Panel{
                 width = "100%",
                 height = 16,
@@ -3124,14 +3138,14 @@ end
 ---@return string
 local function NoBenefitText(reason, gear)
     if reason == "nokit" or gear == nil then
-        return "Without a kit, this gives no benefit."
+        return T("herosheet.treasures.no_benefit.no_kit")
     elseif reason == "weapon" then
-        return "The kit does not use this weapon, so this gives no benefit."
+        return T("herosheet.treasures.no_benefit.weapon")
     end
     if #(gear.armor or {}) == 0 then
-        return "The kit uses no armor, so this gives no benefit."
+        return T("herosheet.treasures.no_benefit.no_armor")
     end
-    return string.format("The kit uses %s armor, so this gives no benefit.", string.lower(table.concat(gear.armor, " or ")))
+    return T("herosheet.treasures.no_benefit.armor", { armor = string.lower(table.concat(gear.armor, T("herosheet.kit.gear_or"))) })
 end
 
 --The codex's own item card (CreateItemTooltip), plus the R6 warning on a
@@ -3145,7 +3159,7 @@ local function ItemCard(it, tok)
     if it.noBenefit ~= nil then
         --set directly: a tooltip draws outside the sheet, so its classes do not apply
         children[#children+1] = gui.Label{
-            text = "Weapon and armor treasures only help when the kit uses that kind of gear.",
+            text = T("herosheet.treasures.card_warning"),
             width = "100%",
             height = "auto",
             tmargin = 8,
@@ -3193,9 +3207,9 @@ local function TreasuresRegion(ctx)
     local skeleton = {}
     if ctx.skeleton then
         skeleton = {
-            Section("Leveled treasures", 1),
-            Section("Trinkets", 2),
-            Section("Consumables", 1),
+            Section(T("herosheet.treasures.leveled"), 1),
+            Section(T("herosheet.treasures.trinkets"), 2),
+            Section(T("herosheet.treasures.consumables"), 1),
         }
     end
 
@@ -3292,7 +3306,7 @@ local function TreasuresRegion(ctx)
         --would land on the game's copy of the Hero, not the roster's
         local ownerActs = d.mine and not dead and ctx.fallen == nil and not ctx.inGame
         local away = ctx.AwayParty()
-        local awayTip = "Not while away with a party."
+        local awayTip = T("herosheet.treasures.away_tip")
         todoRow = nil
         tintedNames = {}
 
@@ -3305,7 +3319,7 @@ local function TreasuresRegion(ctx)
                     data = { tip = NoBenefitText(it.noBenefit, d.kitGear) },
                     hover = HoverTip,
                     click = PinTip,
-                    Text("No benefit", { "eotwsWarnText" }),
+                    Text(T("herosheet.treasures.no_benefit"), { "eotwsWarnText" }),
                 }
             end
 
@@ -3320,9 +3334,9 @@ local function TreasuresRegion(ctx)
                 elseif not it.equipped and tok ~= nil then
                     local _, reason = EotwHeroSheet.EquipSlot(tok, it.itemid)
                     if reason == "cap" then
-                        offTip = string.format("%d leveled treasures are equipped. Unequip one first.", EotwHeroSheet.LEVELED_EQUIP_CAP)
+                        offTip = T("herosheet.treasures.equip_cap", { cap = string.format("%d", EotwHeroSheet.LEVELED_EQUIP_CAP) })
                     elseif reason == "full" then
-                        offTip = "No free slot for this treasure."
+                        offTip = T("herosheet.treasures.equip_full")
                     end
                 end
                 right[#right+1] = gui.Panel{
@@ -3342,8 +3356,8 @@ local function TreasuresRegion(ctx)
                         element.data.changes = changes
                         local lines = {}
                         for _,c in ipairs(changes) do
-                            lines[#lines+1] = string.format("%s changes %s %d -> %d.",
-                                cond(it.equipped, "Unequipping", "Equipping"), c.label, c.from, c.to)
+                            local args = { stat = c.text or c.label, from = string.format("%d", c.from), to = string.format("%d", c.to) }
+                            lines[#lines+1] = cond(it.equipped, T("herosheet.treasures.preview_unequip", args), T("herosheet.treasures.preview_equip", args))
                         end
                         if #lines > 0 then
                             gui.Tooltip(table.concat(lines, "\n"))(element)
@@ -3382,13 +3396,13 @@ local function TreasuresRegion(ctx)
                         ctx.PushToCity()
                         ctx.Reread()
                     end,
-                    Text(cond(it.equipped, "Unequip", "Equip"), { "eotwsSmallButtonText" }),
+                    Text(cond(it.equipped, T("herosheet.treasures.unequip"), T("herosheet.treasures.equip")), { "eotwsSmallButtonText" }),
                 }
             else
                 --ancestry items and anything the sheet cannot move: a plain tag
-                right[#right+1] = Text(cond(it.equipped, "Equipped", "Carried"), { "eotwsTag" }, {
+                right[#right+1] = Text(cond(it.equipped, T("herosheet.treasures.equipped"), T("herosheet.treasures.carried")), { "eotwsTag" }, {
                     valign = "center",
-                    data = { tip = cond(it.kind == "other", "Part of the Hero's ancestry.", "") },
+                    data = { tip = cond(it.kind == "other", T("herosheet.treasures.ancestry_tip"), "") },
                     hover = HoverTip,
                     click = PinTip,
                 })
@@ -3447,20 +3461,20 @@ local function TreasuresRegion(ctx)
         end
 
         local children = {}
-        children[#children+1] = Sub("Leveled treasures", string.format("%d of 3 carried", t.leveledCarried))
+        children[#children+1] = Sub(T("herosheet.treasures.leveled"), T("herosheet.treasures.leveled_count", { carried = string.format("%d", t.leveledCarried) }))
         for _,it in ipairs(t.leveled) do
             children[#children+1] = Row(it)
         end
         if #t.leveled == 0 then
-            children[#children+1] = Text("None", { "eotwsNone" }, { tmargin = 4 })
+            children[#children+1] = Text(T("herosheet.treasures.none"), { "eotwsNone" }, { tmargin = 4 })
         end
 
-        children[#children+1] = Sub("Trinkets", tostring(#t.trinkets))
+        children[#children+1] = Sub(T("herosheet.treasures.trinkets"), tostring(#t.trinkets))
         for _,it in ipairs(t.trinkets) do
             children[#children+1] = Row(it)
         end
         if #t.trinkets == 0 then
-            children[#children+1] = Text("None", { "eotwsNone" }, { tmargin = 4 })
+            children[#children+1] = Text(T("herosheet.treasures.none"), { "eotwsNone" }, { tmargin = 4 })
         end
 
         local total = 0
@@ -3490,7 +3504,7 @@ local function TreasuresRegion(ctx)
                 children = parts,
             }
         end
-        children[#children+1] = Sub("Consumables", tostring(total))
+        children[#children+1] = Sub(T("herosheet.treasures.consumables"), tostring(total))
         if #chips > 0 then
             children[#children+1] = gui.Panel{
                 width = "100%",
@@ -3500,7 +3514,7 @@ local function TreasuresRegion(ctx)
                 children = chips,
             }
         else
-            children[#children+1] = Text("None", { "eotwsNone" }, { tmargin = 4 })
+            children[#children+1] = Text(T("herosheet.treasures.none"), { "eotwsNone" }, { tmargin = 4 })
         end
         --room under the last row so the fade does not cover it at the bottom
         children[#children+1] = gui.Panel{ width = 1, height = 18 }
@@ -3513,7 +3527,7 @@ local function TreasuresRegion(ctx)
         end
         cta:SetClass("collapsed", n == 0)
         cta:SetClass("off", away ~= nil)
-        ctaLabel.text = string.format("%d to equip", n)
+        ctaLabel.text = T("herosheet.treasures.to_equip", { count = string.format("%d", n) })
         cta.data.tip = cond(away ~= nil, awayTip, "")
 
         --the fade only belongs when the list runs past the bottom; check once
@@ -3550,7 +3564,7 @@ local function TreasuresRegion(ctx)
             width = "100%",
             height = "auto",
             flow = "horizontal",
-            Text("Treasures", { "eotwsHeader" }),
+            Text(T("herosheet.treasures.header"), { "eotwsHeader" }),
             cta,
         },
         gui.Panel{
@@ -3695,20 +3709,20 @@ local function NeededLine(ctx)
             pcall(function() trigger = HasTrigger(p) end)
             pcall(function() save = HasSave(p) end)
             if trigger then
-                return string.format("%s has a trigger waiting", entry.name)
+                return T("herosheet.topbar.needed_trigger", { hero = tostring(entry.name) })
             elseif save then
-                return string.format("%s has a save to make", entry.name)
+                return T("herosheet.topbar.needed_save", { hero = tostring(entry.name) })
             elseif HasRoll(entry.charid) then
-                return string.format("%s has a roll to make", entry.name)
+                return T("herosheet.topbar.needed_roll", { hero = tostring(entry.name) })
             end
         end
     end
     if ctx.storySignature ~= nil and StorySignature() ~= ctx.storySignature then
-        return "The story continues"
+        return T("herosheet.topbar.needed_story")
     end
     for _,entry in ipairs(mine) do
         if CanAct(entry.charid) then
-            return "The Heroes can act"
+            return T("herosheet.topbar.needed_act")
         end
     end
     return nil
@@ -3735,10 +3749,10 @@ local function CloseButton(ctx, onGold)
             audio.FireSoundEvent("UI.WindowClose")
             ctx.Close()
         end,
-        Text("Close", { "eotwsCloseText", gold }, { valign = "center" }),
+        Text(T("herosheet.topbar.close"), { "eotwsCloseText", gold }, { valign = "center" }),
         gui.Panel{
             classes = { "eotwsKbd", gold },
-            Text("Esc", { "eotwsKbdText", gold }),
+            Text(T("herosheet.topbar.esc"), { "eotwsKbdText", gold }),
         },
     }
 end
@@ -3762,12 +3776,12 @@ local function Thumb(ctx, charid, mineEdge, own)
     if own then
         local level = nil
         pcall(function() level = tok.properties:CharacterLevel() end)
-        tip = string.format("%s, Level %s", name, tostring(level or 1))
+        tip = T("herosheet.topbar.thumb_own", { hero = name, level = tostring(level or 1) })
     elseif owner ~= nil and owner ~= "" then
         local player = nil
         pcall(function() player = dmhub.GetDisplayName(owner) end)
         if player ~= nil and player ~= "" then
-            tip = string.format("%s, %s's Hero", name, player)
+            tip = T("herosheet.topbar.thumb_other", { hero = name, player = player })
         end
     end
     local thumb = gui.Panel{
@@ -3845,16 +3859,16 @@ local function SwitcherEntries(ctx)
                 theirs[#theirs+1] = { charid = entry.charid, mineEdge = false, own = false }
             end
         end
-        return "This encounter", ours, theirs
+        return T("herosheet.topbar.this_encounter"), ours, theirs
     end
     if ctx.data ~= nil and ctx.data.mine == true and rawget(_G, "EotwRoster") ~= nil then
         for _,hero in ipairs(EotwRoster.GetHeroes() or {}) do
             ours[#ours+1] = { charid = hero.heroid, mineEdge = false, own = true }
         end
-        return "Your roster", ours, theirs
+        return T("herosheet.topbar.your_roster"), ours, theirs
     end
     theirs[1] = { charid = ctx.charid, mineEdge = false, own = false }
-    return "Your party", ours, theirs
+    return T("herosheet.topbar.your_party"), ours, theirs
 end
 
 --Who the switcher lists, so it is rebuilt only when a Hero joins, leaves or
@@ -3956,14 +3970,14 @@ local function RightContent(ctx)
         right[#right+1] = gui.Panel{
             classes = { "eotwsStateChip" },
             flow = "vertical",
-            Text(string.format("Away: %s", away), { "eotwsStateChipText", "clamped" }),
-            Text("Changes are off until the party ends.", { "eotwsStateChipSmall" }),
+            Text(T("herosheet.topbar.away", { party = tostring(away) }), { "eotwsStateChipText", "clamped" }),
+            Text(T("herosheet.topbar.away_note"), { "eotwsStateChipSmall" }),
         }
     end
     if IsPractice(ctx) then
         right[#right+1] = gui.Panel{
             classes = { "eotwsStateChip" },
-            Text("Proving Pits: practice only", { "eotwsStateChipText" }),
+            Text(T("herosheet.topbar.practice"), { "eotwsStateChipText" }),
         }
     end
 
@@ -3971,8 +3985,8 @@ local function RightContent(ctx)
     if mine and not dead and not ctx.inGame and ctx.state == "ready" then
         --the town is where the Hero changes: appearance or the full builder,
         --any time the Hero is home
-        local offTip = cond(away ~= nil, "Not while away with a party.", nil)
-        right[#right+1] = OwnerButton("Change Appearance", nil, offTip, function()
+        local offTip = cond(away ~= nil, T("herosheet.topbar.away_tip"), nil)
+        right[#right+1] = OwnerButton(T("herosheet.topbar.change_appearance"), nil, offTip, function()
             local heroid = ctx.charid
             local host = ctx.host
             local tok = ctx.Token()
@@ -3986,7 +4000,7 @@ local function RightContent(ctx)
                 EotwBuilder.Open{
                     host = host,
                     token = tok,
-                    title = "Change Appearance",
+                    title = T("herosheet.topbar.change_appearance_title"),
                     step = "appearance",
                     only = "appearance",
                     onFinish = Save,
@@ -3995,7 +4009,7 @@ local function RightContent(ctx)
             end
         end)
         if CanEditInBuilder(ctx) then
-            right[#right+1] = OwnerButton("Edit in Builder", "Change any of this Hero's choices while they are in Blackbottom.", offTip, function()
+            right[#right+1] = OwnerButton(T("herosheet.topbar.edit_builder"), T("herosheet.topbar.edit_builder_tip"), offTip, function()
                 local heroid = ctx.charid
                 local host = ctx.host
                 ctx.Close()
@@ -4005,7 +4019,7 @@ local function RightContent(ctx)
     elseif not mine and ctx.state == "ready" and d.ownerName ~= nil then
         right[#right+1] = gui.Panel{
             classes = { "eotwsOwnerChip" },
-            Text(string.format("%s's Hero", d.ownerName), { "eotwsOwnerChipText" }),
+            Text(T("herosheet.topbar.owner_chip", { player = d.ownerName }), { "eotwsOwnerChipText" }),
         }
     end
     right[#right+1] = CloseButton(ctx)
@@ -4034,7 +4048,7 @@ local function TopBarRegion(ctx)
             thumbs[#thumbs+1] = Skel(40, 56, { lmargin = cond(i == 1, 10, 8), cornerRadius = 6, valign = "center" })
         end
         loading = {
-            Text(cond(ctx.inGame, "This encounter", "Your roster"), { "eotwsSwitchLabel" }, { valign = "center" }),
+            Text(cond(ctx.inGame, T("herosheet.topbar.this_encounter"), T("herosheet.topbar.your_roster")), { "eotwsSwitchLabel" }, { valign = "center" }),
             gui.Panel{
                 width = "auto",
                 height = "100%",
@@ -4065,7 +4079,7 @@ local function TopBarRegion(ctx)
                 mode = "fallen"
                 element:SetClass("needed", false)
                 element.children = {
-                    Text("The Graveyard", { "eotwsSwitchLabel" }, { valign = "center" }),
+                    Text(T("herosheet.topbar.graveyard"), { "eotwsSwitchLabel" }, { valign = "center" }),
                     CloseButton(ctx),
                 }
             end
@@ -4235,7 +4249,7 @@ local function StatsSkeleton()
                 width = "55%",
                 height = "auto",
                 flow = "vertical",
-                Text("Characteristics", { "eotwsHeader" }),
+                Text(T("herosheet.stats.characteristics"), { "eotwsHeader" }),
                 gui.Panel{
                     width = "100%",
                     height = "auto",
@@ -4246,9 +4260,9 @@ local function StatsSkeleton()
             },
             gui.Panel{
                 classes = { "eotwsLines" },
-                Line({ Pair("Size", true), Pair("Speed"), Pair("Disengage"), Pair("Stability") }, 0),
-                Line({ Pair("Potency", true), Pair("Weak"), Pair("Average"), Pair("Strong") }, 7),
-                Line({ Pair("Wealth", true), Pair("Renown") }, 7),
+                Line({ Pair(T("herosheet.stats.size"), true), Pair(T("herosheet.stats.speed")), Pair(T("herosheet.stats.disengage")), Pair(T("herosheet.stats.stability")) }, 0),
+                Line({ Pair(T("herosheet.stats.potency"), true), Pair(T("herosheet.stats.weak")), Pair(T("herosheet.stats.average")), Pair(T("herosheet.stats.strong")) }, 7),
+                Line({ Pair(T("herosheet.stats.wealth"), true), Pair(T("herosheet.stats.renown")) }, 7),
             },
         },
         Hairline(),
@@ -4256,10 +4270,10 @@ local function StatsSkeleton()
             width = "100%",
             height = "auto",
             flow = "horizontal",
-            Words("Skills", "46%", { 160, 200, 140, 170, 84 }, true),
-            Words("Languages", "17%", { 120 }),
-            Words("Immunities", "21%", { 36 }),
-            Words("Weaknesses", "16%", { 36 }),
+            Words(T("herosheet.stats.skills"), "46%", { 160, 200, 140, 170, 84 }, true),
+            Words(T("herosheet.stats.languages"), "17%", { 120 }),
+            Words(T("herosheet.stats.immunities"), "21%", { 36 }),
+            Words(T("herosheet.stats.weaknesses"), "16%", { 36 }),
         },
     }
 end
@@ -4295,11 +4309,12 @@ local function StatsBand(count)
         }
     end
 
-    --one "LABEL value" pair on a centred line; hover shows its sources
+    --one "LABEL value" pair on a centred line; hover shows its sources. key
+    --finds the stat (and its equip previews), label is what shows
     local pairsByKey = {}
-    local function Pair(key, first, extra)
+    local function Pair(key, label, first, extra)
         local value = StatValue(key, "", { "eotwsStatValue" })
-        local children = { Text(key, { "eotwsStatLabel" }, { valign = "center" }), value }
+        local children = { Text(label, { "eotwsStatLabel" }, { valign = "center" }), value }
         if extra ~= nil then
             children[#children+1] = extra
         end
@@ -4332,10 +4347,10 @@ local function StatsBand(count)
 
     local speedExtra = Text("", { "eotwsMovement" }, { valign = "center", lmargin = 5 })
     local body = Line({
-        Pair("Size", true),
-        Pair("Speed", false, speedExtra),
-        Pair("Disengage"),
-        Pair("Stability"),
+        Pair("Size", T("herosheet.stats.size"), true),
+        Pair("Speed", T("herosheet.stats.speed"), false, speedExtra),
+        Pair("Disengage", T("herosheet.stats.disengage")),
+        Pair("Stability", T("herosheet.stats.stability")),
     })
 
     local tiers = {}
@@ -4352,19 +4367,19 @@ local function StatsBand(count)
         }
     end
     local potencyLine = Line({
-        Text("Potency", { "eotwsStatLabel" }, { valign = "center" }),
-        Tier("Weak"),
-        Tier("Average"),
-        Tier("Strong"),
+        Text(T("herosheet.stats.potency"), { "eotwsStatLabel" }, { valign = "center" }),
+        Tier(T("herosheet.stats.weak")),
+        Tier(T("herosheet.stats.average")),
+        Tier(T("herosheet.stats.strong")),
     }, { classes = { "eotwsPotency" }, tmargin = 7 })
 
     --Wealth and Renown: labels only, no tooltip (round 13)
     local wealth = Text("", { "eotwsStatValue", "small" }, { lmargin = 8 })
     local renown = Text("", { "eotwsStatValue", "small" }, { lmargin = 8 })
     local standing = Line({
-        Text("Wealth", { "eotwsStatLabel" }, { valign = "center" }),
+        Text(T("herosheet.stats.wealth"), { "eotwsStatLabel" }, { valign = "center" }),
         wealth,
-        Text("Renown", { "eotwsStatLabel" }, { valign = "center", lmargin = 26 }),
+        Text(T("herosheet.stats.renown"), { "eotwsStatLabel" }, { valign = "center", lmargin = 26 }),
         renown,
     }, { tmargin = 7 })
 
@@ -4399,7 +4414,7 @@ local function StatsBand(count)
                 width = "55%",
                 height = "auto",
                 flow = "vertical",
-                Text("Characteristics", { "eotwsHeader" }),
+                Text(T("herosheet.stats.characteristics"), { "eotwsHeader" }),
                 gui.Panel{
                     width = "100%",
                     height = "auto",
@@ -4420,10 +4435,10 @@ local function StatsBand(count)
             width = "100%",
             height = "auto",
             flow = "horizontal",
-            Words("Skills", "46%", skills, true),
-            Words("Languages", "17%", List()),
-            Words("Immunities", "21%", List()),
-            Words("Weaknesses", "16%", List()),
+            Words(T("herosheet.stats.skills"), "46%", skills, true),
+            Words(T("herosheet.stats.languages"), "17%", List()),
+            Words(T("herosheet.stats.immunities"), "21%", List()),
+            Words(T("herosheet.stats.weaknesses"), "16%", List()),
         },
     }
 
@@ -4476,7 +4491,7 @@ local function StatsBand(count)
                     { "eotwsWords" }, { maxWidth = "100%", rmargin = 18 })
             end
             if #units == 0 then
-                units[1] = Text("None", { "eotwsNone" })
+                units[1] = Text(T("herosheet.stats.none"), { "eotwsNone" })
             end
             skills.children = units
         end
@@ -4485,7 +4500,7 @@ local function StatsBand(count)
             local none = items == nil or #items == 0
             lists[i]:SetClass("eotwsNone", none)
             lists[i]:SetClass("eotwsWords", not none)
-            lists[i].text = cond(none, "None", table.concat(items or {}, ", "))
+            lists[i].text = cond(none, T("herosheet.stats.none"), table.concat(items or {}, ", "))
         end
     end
 
@@ -4766,7 +4781,7 @@ local function AbilitiesContent(d, getTok, shown)
             }
             entry = {
                 sig = sig,
-                panel = Group("ab:" .. g.id, g.name, #g.items, cond(g.id == "standard", "Every Hero can do these", nil), body),
+                panel = Group("ab:" .. g.id, g.name, #g.items, cond(g.id == "standard", T("herosheet.abilities.standard_note"), nil), body),
                 rows = rowPanels,
             }
         end
@@ -4828,7 +4843,7 @@ local function FeatureCard(item)
         },
     }
     if item.chosenFor ~= nil then
-        children[#children+1] = Text(string.format("Chosen for %s", item.chosenFor), { "eotwsFeatureChosen" })
+        children[#children+1] = Text(T("herosheet.features.chosen_for", { choice = tostring(item.chosenFor) }), { "eotwsFeatureChosen" })
     end
     local text = item.text or ""
     if text ~= "" then
@@ -4843,13 +4858,13 @@ local function FeatureCard(item)
         children[#children+1] = desc
         if long then
             local toggle
-            toggle = Text("Show more", { "eotwsShowMore", "eotwsFocusable" }, {
+            toggle = Text(T("herosheet.features.show_more"), { "eotwsShowMore", "eotwsFocusable" }, {
                 canFocus = true,
                 click = function()
                     audio.FireSoundEvent("Mouse.Click")
                     folded = not folded
                     desc.text = cond(folded, Short(), text)
-                    toggle.text = cond(folded, "Show more", "Show less")
+                    toggle.text = cond(folded, T("herosheet.features.show_more"), T("herosheet.features.show_less"))
                 end,
             })
             children[#children+1] = toggle
@@ -5001,11 +5016,11 @@ local function ListsRegion(ctx)
         end
         shownSections = keep
         if #sections == 0 then
-            sections[1] = Text("No features match. Clear the filters to see them all.", { "eotwsEmpty" })
+            sections[1] = Text(T("herosheet.features.no_match"), { "eotwsEmpty" })
         end
         featureList.children = sections
         local total = d.features.total or 0
-        featureCount.text = cond(shown == total, tostring(total), string.format("%d of %d", shown, total))
+        featureCount.text = cond(shown == total, tostring(total), T("herosheet.features.count_filtered", { shown = string.format("%d", shown), total = string.format("%d", total) }))
     end
 
     local chips = {}
@@ -5027,7 +5042,7 @@ local function ListsRegion(ctx)
                 element:SetClass("off", not on)
                 FillFeatures()
             end,
-            Text(pillar, { "eotwsChipText" }, { valign = "center" }),
+            Text(PILLAR_TEXT[pillar] or pillar, { "eotwsChipText" }, { valign = "center" }),
         }
     end
     local pillarChips = {}
@@ -5036,7 +5051,7 @@ local function ListsRegion(ctx)
     end
     local filterInput = gui.Input{
         classes = { "eotwsFilter" },
-        placeholderText = "Filter features",
+        placeholderText = T("herosheet.features.filter_placeholder"),
         text = "",
         editlag = 0.2,
         edit = function(element)
@@ -5050,7 +5065,7 @@ local function ListsRegion(ctx)
     }
     chips[#chips+1] = filterInput
 
-    local featureHead = { Text("Features", { "eotwsHeader" }, { valign = "center" }), featureCount }
+    local featureHead = { Text(T("herosheet.features.header"), { "eotwsHeader" }, { valign = "center" }), featureCount }
     local filterLine
     if m_fontScale >= LARGE_TEXT_SCALE then
         --large text: the chips and filter box move to their own line
@@ -5103,7 +5118,7 @@ local function ListsRegion(ctx)
             width = "48%",
             height = "100%",
             flow = "vertical",
-            Underlined({ Text("Abilities", { "eotwsHeader" }, { valign = "center" }) }),
+            Underlined({ Text(T("herosheet.abilities.header"), { "eotwsHeader" }, { valign = "center" }) }),
             abilityBody,
         },
         gui.Panel{
@@ -5369,15 +5384,15 @@ function EotwHeroSheet.Show(args)
         if type(args.name) == "string" and args.name ~= "" then
             return args.name
         end
-        return "Hero"
+        return T("herosheet.card.hero_fallback")
     end
 
     function ctx.LoadingText()
-        return string.format("Loading %s...", ctx.HeroName())
+        return T("herosheet.card.loading", { hero = ctx.HeroName() })
     end
 
     function ctx.FailedText()
-        return string.format("%s could not load.", ctx.HeroName())
+        return T("herosheet.card.failed", { hero = ctx.HeroName() })
     end
 
     --A Hero counts as loaded once its token and properties both resolve.

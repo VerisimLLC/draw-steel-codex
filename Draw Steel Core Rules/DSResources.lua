@@ -517,6 +517,194 @@ function CharacterResource.HeroTokenSaveSucceedRule(args)
     }
 end
 
+--- One way to spend Hero Tokens outside a roll (the roll-time spends are the
+--- re-roll rules above).
+--- @class HeroTokenSpendOption
+--- @field id "surges"|"stamina"
+--- @field text string menu caption, cost included
+--- @field cost number Hero Tokens it takes from the pool
+--- @field available boolean whether it can be bought right now
+--- @field reason string|nil why not, when it can't
+--- @field Spend fun(): boolean pays and applies it; false if it could not
+
+--Report a pool change to analytics, the same event the character panel sends.
+--- @param token CharacterToken
+--- @param change number
+--- @param source string
+local function TrackHeroTokenSpend(token, change, source)
+    if dmhub.GetSettingValue("telemetry_enabled") == false then
+        return
+    end
+    local className = "unknown"
+    pcall(function()
+        if token.properties:IsHero() then
+            local hero = token.properties --[[@as character]]
+            local classInfo = hero:GetClass()
+            if classInfo ~= nil then
+                className = classInfo.name
+            end
+        end
+    end)
+    analytics.Event{
+        type = "hero_token_change",
+        userid = dmhub.userid,
+        gameid = dmhub.gameid,
+        version = dmhub.version,
+        change = change,
+        source = source,
+        class = className,
+        dailyLimit = 30,
+    }
+end
+
+--The spends a hero can make from the party's Hero Token pool at will:
+--  * 1 Hero Token: gain 2 surges (combat only; surges do not exist outside it).
+--  * 2 Hero Tokens: regain Stamina equal to the Recovery value, without
+--    spending a Recovery. The rules allow it "on your turn or when you take
+--    damage"; only the on-your-turn half can be offered from a button.
+--Under "Strictly Enforce Action Economy and Resource Costs" (strict:resources,
+--which Encounter of the Week forces) only the spends the hero can make right
+--now are listed: affordable, in combat, on the hero's own turn. Otherwise every
+--spend is listed, the unusable ones with available = false and a reason, and
+--the turn is not checked (the table polices it, as with the rest of the sheet).
+--- @param token CharacterToken|nil the hero spending
+--- @return HeroTokenSpendOption[]
+function CharacterResource.HeroTokenSpendOptions(token)
+    local result = {}
+    if token == nil or not token.valid or token.properties == nil then
+        return result
+    end
+
+    local c = token.properties
+    local hero = c:IsHero()
+    if not hero then
+        pcall(function() hero = c:IsCompanion() end)
+    end
+    if not hero then
+        return result
+    end
+
+    local strict = StrictActionEconomyEnforced()
+    local pool = CharacterResource.GetGlobalResource(CharacterResource.heroTokenId)
+    local q = dmhub.initiativeQueue
+    local inCombat = q ~= nil and not q.hidden
+
+    --- @param option HeroTokenSpendOption
+    local function Add(option)
+        if option.available or not strict then
+            result[#result+1] = option
+        end
+    end
+
+    --The first reason the hero can't buy something costing `cost` right now.
+    --- @param cost number
+    --- @return string|nil
+    local function CommonReason(cost)
+        if pool < cost then
+            return "not enough Hero Tokens"
+        end
+        if c:IsDead() then
+            return "dead"
+        end
+        return nil
+    end
+
+    local surgeReason = CommonReason(1)
+    if surgeReason == nil and not inCombat then
+        surgeReason = "only in combat"
+    end
+    if surgeReason == nil and strict and not c:IsOurTurn() then
+        surgeReason = "only on your turn"
+    end
+    Add{
+        id = "surges",
+        text = "Gain 2 Surges (1 Hero Token)",
+        cost = 1,
+        available = surgeReason == nil,
+        reason = surgeReason,
+        Spend = function()
+            --not SpendHeroTokenForRoll: Lucky's refund covers saves and
+            --re-rolls only. Re-read the pool, it may have moved since.
+            local now = CharacterResource.GetGlobalResource(CharacterResource.heroTokenId)
+            if now < 1 then
+                return false
+            end
+            CharacterResource.SetGlobalResource(CharacterResource.heroTokenId, now - 1, "Gained 2 surges")
+            token:ModifyProperties{
+                description = "Spend Hero Token for Surges",
+                execute = function()
+                    --a negative consume is a gain, and follows the hero's
+                    --surge sharing (a retainer's mentor, a summoner).
+                    token.properties:ConsumeSurges(-2, "Hero Token")
+                end,
+            }
+            TrackHeroTokenSpend(token, -1, "surges")
+            return true
+        end,
+    }
+
+    local amount = c:RecoveryAmount()
+    local staminaReason = CommonReason(2)
+    if staminaReason == nil and c:CurrentHitpoints() >= c:MaxHitpoints() then
+        staminaReason = "already at full Stamina"
+    end
+    if staminaReason == nil and strict and not c:IsOurTurn() then
+        staminaReason = "only on your turn"
+    end
+    Add{
+        id = "stamina",
+        text = string.format("Regain %d Stamina (2 Hero Tokens)", amount),
+        cost = 2,
+        available = staminaReason == nil,
+        reason = staminaReason,
+        Spend = function()
+            local now = CharacterResource.GetGlobalResource(CharacterResource.heroTokenId)
+            if now < 2 then
+                return false
+            end
+            CharacterResource.SetGlobalResource(CharacterResource.heroTokenId, now - 2, "Regained Stamina")
+            token:ModifyProperties{
+                description = "Spend Hero Tokens for Stamina",
+                execute = function()
+                    token.properties:Heal(token.properties:RecoveryAmount(), "Hero Tokens")
+                end,
+            }
+            TrackHeroTokenSpend(token, -2, "stamina")
+            return true
+        end,
+    }
+
+    return result
+end
+
+--Context-menu entries for HeroTokenSpendOptions. Unusable spends (listed only
+--outside strict mode) are greyed out with their reason in the caption, since a
+--disabled menu row shows no tooltip.
+--- @param token CharacterToken|nil
+--- @param onSpend? fun() called after a spend goes through (e.g. close the menu)
+--- @return ContextMenuEntry[]
+function CharacterResource.HeroTokenSpendMenuEntries(token, onSpend)
+    local entries = {}
+    for _, option in ipairs(CharacterResource.HeroTokenSpendOptions(token)) do
+        local text = option.text
+        if not option.available and option.reason ~= nil then
+            text = string.format("%s: %s", text, option.reason)
+        end
+        entries[#entries+1] = {
+            text = text,
+            icon = "drawsteel/hero-token.png",
+            disabled = not option.available,
+            click = function()
+                option.Spend()
+                if onSpend ~= nil then
+                    onSpend()
+                end
+            end,
+        }
+    end
+    return entries
+end
+
 function creature:GetEpicResources()
     local resources = self:try_get("resources")
     if resources ~= nil then

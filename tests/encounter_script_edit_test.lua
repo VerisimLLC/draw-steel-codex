@@ -6,6 +6,18 @@
 --hidden, file} rows, files beside it): every one must split and join back
 --byte for byte, and every roll in every script must survive being
 --rewritten by the writers.
+--The parser's words come from UIText and its text files, which call
+--dmhub.GetModLoading() and report problems with dmhub.Error: stub those
+--when running outside the app, so a missing id prints.
+if dmhub == nil then
+    dmhub = {
+        GetModLoading = function() return {} end,
+        Error = function(message) print(message) end,
+    }
+end
+dofile("DMHub Utils/UIText.lua")
+dofile("EncounterOfTheWeek/EncounterText.lua")
+dofile("EncounterOfTheWeek/EncounterAuthoringText.lua")
 dofile("DMHub Game Rules/TestRiders.lua")
 dofile("EncounterOfTheWeek/EncounterScript.lua")
 dofile("EncounterOfTheWeek/EncounterScriptEdit.lua")

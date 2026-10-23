@@ -3331,6 +3331,9 @@ function TacPanel.HeroTokenBox()
         linger = function(element)
             if element.data.token then
                 local text = HERO_TOKEN_TOOLTIP
+                if not TacPanel.IsReadOnly(element) then
+                    text = text .. "\n<i>Click the token to spend Hero Tokens.</i>"
+                end
                 local history = element.data.token.properties:GetHeroTokenHistory()
                 if history ~= nil and #history > 0 then
                     text = text .. "\n<b>Recent Changes:</b>"
@@ -3375,6 +3378,17 @@ function TacPanel.HeroTokenBox()
             flow = "horizontal",
             gui.Panel{
                 classes = {"icon", "hero-tokens"},
+                --the at-will spends (2 surges, Recovery-value Stamina); see
+                --CharacterResource.HeroTokenSpendOptions.
+                press = function(element)
+                    if TacPanel.IsReadOnly(element) then return end
+                    local token = element.parent.parent.data.token
+                    element.popup = gui.ContextMenu{
+                        entries = CharacterResource.HeroTokenSpendMenuEntries(token, function()
+                            element.popup = nil
+                        end),
+                    }
+                end,
             },
             gui.Input{
                 classes = {"tokenbox", "value", "hero-tokens"},

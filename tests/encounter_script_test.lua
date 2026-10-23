@@ -1,6 +1,18 @@
 --Run from the codex root with ../dependencies/lua/bin/lua.exe tests/encounter_script_test.lua
 --Exercises the pure Encounter of the Week script parser against the sample
 --script from EncounterOfTheWeek.md and a few edge cases.
+--The parser's words come from UIText and its text files, which call
+--dmhub.GetModLoading() and report problems with dmhub.Error: stub those
+--when running outside the app, so a missing id prints.
+if dmhub == nil then
+    dmhub = {
+        GetModLoading = function() return {} end,
+        Error = function(message) print(message) end,
+    }
+end
+dofile("DMHub Utils/UIText.lua")
+dofile("EncounterOfTheWeek/EncounterText.lua")
+dofile("EncounterOfTheWeek/EncounterAuthoringText.lua")
 dofile("DMHub Game Rules/TestRiders.lua")
 dofile("EncounterOfTheWeek/EncounterScript.lua")
 
@@ -747,6 +759,22 @@ check(removed["r1-threat-mire"] and removed["r1-threat-fog"], "two threats asked
 check(removed["r2-opportunity-ford"] == nil, "a round-1 directive does not reach round 2")
 check(EncounterScript.ChooseRemovedEntries(sb, 7, first)["r2-opportunity-ford"] == true, "a round-2 directive draws from round 2")
 check(next(EncounterScript.ChooseRemovedEntries(sb, 2, first)) == nil, "a party outside every range loses nothing")
+
+--Challenge Mode's extra threat: restore one the scaling removed, else double one.
+do
+local challengePick = EncounterScript.ChooseChallengeThreat(sb, removed, first)
+check(challengePick ~= nil and challengePick.restore == "r1-threat-mire" and challengePick.double == nil,
+    "Challenge Mode restores a threat the scaling removed")
+challengePick = EncounterScript.ChooseChallengeThreat(sb, {}, first)
+check(challengePick ~= nil and challengePick.double == "r1-threat-mire" and challengePick.restore == nil,
+    "with no threat removed, Challenge Mode doubles one of round 1's")
+local lastPick = function(n) return n end
+check(EncounterScript.ChooseChallengeThreat(sb, {}, lastPick).double == "r1-threat-fog", "the doubled threat is drawn at random")
+check(EncounterScript.ChooseChallengeThreat(sb, { ["r1-opportunity-standing-stones"] = true }, first).double == "r1-threat-mire",
+    "a removed opportunity is not a threat to restore")
+check(EncounterScript.ChooseChallengeThreat(EncounterScript.Parse("# Montage\n\n## Opportunity: Rest\n\n### Sit\n|Sit: Might\n|a\n|b\n|c\n").beats[1], {}, first) == nil,
+    "a montage with no threat gets no extra one")
+end
 check(EncounterScript.HasScaling(sb) and EncounterScript.RoundHasScaling(sb, 2), "HasScaling / RoundHasScaling")
 check(not EncounterScript.HasScaling(EncounterScript.Parse(SAMPLE).beats[1]), "a montage with no directives has no scaling")
 

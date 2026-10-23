@@ -19,6 +19,9 @@ EncounterMontageBuilder = {}
 local B = EncounterMontageBuilder
 local E = EncounterScriptEdit
 
+local T = UIText.T
+local TP = UIText.Plural
+
 local RULE_COLOR = "#7fd97f"
 local PROBLEM_COLOR = "#e88a8a"
 local OPPORTUNITY_COLOR = "#6fae7a"
@@ -26,7 +29,7 @@ local THREAT_COLOR = "#c46a6a"
 local OBSTACLE_COLOR = "#a08ac4"
 
 local CHARACTERISTICS = { "Might", "Agility", "Reason", "Intuition", "Presence" }
-local TIER_RANGES = { "11 or lower", "12-16", "17+", "Critical (natural 19-20)" }
+local TIER_RANGES = { T("author.montage_builder.rules.tier1_range"), "12-16", "17+", T("author.montage_builder.rules.critical_range") }
 
 local function trim(s)
     return (string.gsub(s or "", "^%s*(.-)%s*$", "%1"))
@@ -121,7 +124,7 @@ function B.Load(docid, pendingDoc)
         rootId = docid,
         mapid = mapid,
         texts = { [docid] = DocText(doc) },
-        names = { [docid] = doc.description or "Script" },
+        names = { [docid] = doc.description or T("author.montage_builder.load.script_fallback_name") },
         pending = {},
         uploading = {},
         undo = {},
@@ -256,7 +259,7 @@ end
 --whole blocks, so [[tag]] data is re-keyed to follow the tags.
 function B.Commit(session, what, patches, why, opts)
     if patches == nil then
-        session.status = "Not changed: " .. tostring(why or "that edit could not be made")
+        session.status = T("author.montage_builder.status.not_changed", { why = tostring(why or T("author.montage_builder.status.edit_failed")) })
         return false
     end
     if #patches == 0 then
@@ -264,7 +267,7 @@ function B.Commit(session, what, patches, why, opts)
     end
     local ok, changed = pcall(E.Apply, session.texts, patches)
     if not ok then
-        session.status = "Not changed: " .. tostring(changed)
+        session.status = T("author.montage_builder.status.not_changed", { why = tostring(changed) })
         return false
     end
     local maps = nil
@@ -285,7 +288,7 @@ end
 function B.Undo(session)
     local step = table.remove(session.undo)
     if step == nil then
-        session.status = "Nothing to undo."
+        session.status = T("author.montage_builder.status.nothing_to_undo")
         return false
     end
     local changed = {}
@@ -318,7 +321,7 @@ function B.Undo(session)
         session.pending[id] = nil
     end
     B.Reparse(session)
-    session.status = "Undid: " .. tostring(step.what)
+    session.status = T("author.montage_builder.status.undid", { what = tostring(step.what) })
     return true
 end
 
@@ -343,7 +346,7 @@ function B.PollExternal(session)
     end
     if changed then
         B.Reparse(session)
-        session.status = "Updated from the journal."
+        session.status = T("author.montage_builder.status.updated_from_journal")
     end
     return changed
 end
@@ -647,7 +650,7 @@ function B.AddEntry(session, roundIndex, kind)
         rootLine = E.RootLine(parse, beat.line)
     end
     if rootLine == nil then
-        session.status = "Not added: could not find where the round sits in the master document."
+        session.status = T("author.montage_builder.status.not_added_no_round")
         return false
     end
 
@@ -666,7 +669,7 @@ function B.AddEntry(session, roundIndex, kind)
     session.texts[id] = text
 
     local patch = E.InsertBlockAfterDocLine(session.texts, session.rootId, rootLine, { E.IncludeLine(name) })
-    if B.Commit(session, string.format("Added %s '%s'.", kind, name), { patch }) then
+    if B.Commit(session, cond(kind == "threat", T("author.montage_builder.status.added_threat", { name = name }), T("author.montage_builder.status.added_opportunity", { name = name })), { patch }) then
         session.undo[#session.undo].created = id
         --select it.
         local newBeat = B.CurrentBeat(session)
@@ -707,7 +710,7 @@ function B.DeleteEntry(session, entry)
                 if trim(rootLines[rootLine - 1] or "x") == "" and trim(rootLines[rootLine + 1] or "x") == "" then
                     last = rootLine + 1
                 end
-                local ok = B.Commit(session, string.format("Deleted '%s'.", entry.name), { E.Patch(session.rootId, rootLine, last, {}) })
+                local ok = B.Commit(session, T("author.montage_builder.status.deleted", { name = tostring(entry.name) }), { E.Patch(session.rootId, rootLine, last, {}) })
                 if ok then
                     local id = docid
                     dmhub.Schedule(0.3, function()
@@ -718,7 +721,7 @@ function B.DeleteEntry(session, entry)
                             doc:Upload(original)
                         end
                     end)
-                    session.status = string.format("Deleted '%s' (its document '%s' is hidden; Undo restores the link only).", entry.name, tostring(session.names[docid]))
+                    session.status = T("author.montage_builder.status.deleted_hid_document", { name = tostring(entry.name), document = tostring(session.names[docid]) })
                 end
                 session.selected = nil
                 return ok
@@ -727,7 +730,7 @@ function B.DeleteEntry(session, entry)
     end
     local patches, why = E.DeleteElement(parse, session.texts, entry.line, 2)
     session.selected = nil
-    return B.Commit(session, string.format("Deleted '%s'.", entry.name), patches, why)
+    return B.Commit(session, T("author.montage_builder.status.deleted", { name = tostring(entry.name) }), patches, why)
 end
 
 --Is the entry the whole of its own sub-document? Returns that docid or nil.
@@ -750,7 +753,7 @@ end
 function B.RenameEntry(session, entry, name)
     name = E.LineText(name)
     if name == "" then
-        session.status = "An entry needs a name."
+        session.status = T("author.montage_builder.status.entry_needs_name")
         return false
     end
     local parse = session.parse
@@ -763,7 +766,7 @@ function B.RenameEntry(session, entry, name)
     end
     local headPatch, why = E.PatchExpanded(parse, entry.line, entry.line, { heading })
     if headPatch == nil then
-        return B.Commit(session, "Renamed the entry.", nil, why)
+        return B.Commit(session, T("author.montage_builder.status.renamed_entry"), nil, why)
     end
     local patches = { headPatch }
 
@@ -796,7 +799,7 @@ function B.RenameEntry(session, entry, name)
         end
         session.names[docid] = renameDoc
     end
-    local ok = B.Commit(session, string.format("Renamed '%s' to '%s'.", entry.name, name), patches)
+    local ok = B.Commit(session, T("author.montage_builder.status.renamed", { old = tostring(entry.name), new = name }), patches)
     if ok and renameDoc ~= nil then
         session.undo[#session.undo].renamed = { docid = docid, name = oldDocName }
     end
@@ -831,7 +834,7 @@ function B.AddRound(session)
         return false
     end
     local block = { E.RoundHeadingLine(number) }
-    return B.Commit(session, string.format("Added Round %d.", number),
+    return B.Commit(session, T("author.montage_builder.status.added_round", { number = number }),
         { E.InsertBlockAfterDocLine(session.texts, session.rootId, lastLine, block) })
 end
 
@@ -905,7 +908,7 @@ function B.MoveEntry(session, fromRound, index, toRound)
     local parse = session.parse
     local anchor = RoundAnchor(session, toRound, entry)
     if anchor == nil then
-        session.status = "Not moved: could not find the round in the master document."
+        session.status = T("author.montage_builder.status.not_moved_no_round")
         return false
     end
     local rootLines = E.Split(session.texts[session.rootId]).lines
@@ -922,7 +925,7 @@ function B.MoveEntry(session, fromRound, index, toRound)
         lines = { rootLines[link] }
         removeFirst, removeLast = link, link
     else
-        session.status = "Not moved: this entry shares its document with other text; move it as text."
+        session.status = T("author.montage_builder.status.not_moved_shared")
         return false
     end
     --take the blank line after it too, when it would leave two in a row.
@@ -930,14 +933,14 @@ function B.MoveEntry(session, fromRound, index, toRound)
         removeLast = removeLast + 1
     end
     if anchor >= removeFirst - 1 and anchor <= removeLast then
-        session.status = "It is already there."
+        session.status = T("author.montage_builder.status.already_there")
         return false
     end
     local patches = {
         E.Patch(session.rootId, removeFirst, removeLast, {}),
         E.InsertBlockAfterDocLine(session.texts, session.rootId, anchor, lines),
     }
-    local ok = B.Commit(session, string.format("Moved '%s' to round %s.", entry.name, tostring(beat.rounds[toRound].number)), patches)
+    local ok = B.Commit(session, T("author.montage_builder.status.moved", { name = tostring(entry.name), round = tostring(beat.rounds[toRound].number) }), patches)
     if ok then
         local newBeat = B.CurrentBeat(session)
         local newRound = newBeat ~= nil and newBeat.rounds[toRound] or nil
@@ -1003,13 +1006,13 @@ function B.AddDelveOption(session, entry)
     local optionPatches, why = E.InsertAfterElement(session.parse, session.texts, entry.line, 2,
         { "### Explore " .. name, "", "Delve: " .. name })
     if optionPatches == nil then
-        session.status = "Not added: " .. tostring(why)
+        session.status = T("author.montage_builder.status.not_added", { why = tostring(why) })
         return false
     end
     for _, p in ipairs(optionPatches) do
         patches[#patches + 1] = p
     end
-    local ok = B.Commit(session, string.format("Added the delve '%s'.", name), patches)
+    local ok = B.Commit(session, T("author.montage_builder.status.added_delve", { name = name }), patches)
     if ok then
         session.undo[#session.undo].created = id
     end
@@ -1030,7 +1033,7 @@ function B.AddObstacle(session, delveKey)
     else
         patches, why = One(E.InsertBlockAfter(session.parse, session.texts, delve.line, block))
     end
-    return B.Commit(session, "Added an obstacle.", patches, why)
+    return B.Commit(session, T("author.montage_builder.status.added_obstacle"), patches, why)
 end
 
 --- UI building blocks ---------------------------------------------------------------
@@ -1127,7 +1130,7 @@ local function ConfirmButton(text, onConfirm)
                 return
             end
             armed = true
-            element.text = "Click again to confirm"
+            element.text = T("author.montage_builder.confirm_again")
             dmhub.Schedule(3, function()
                 if element.valid then
                     armed = false
@@ -1166,7 +1169,7 @@ function B.CreateWindow(session, close)
     local function Do(fn)
         local ok, err = pcall(fn)
         if not ok then
-            session.status = "Error: " .. tostring(err)
+            session.status = T("author.montage_builder.status.error", { error = tostring(err) })
         end
         Refresh()
     end
@@ -1185,48 +1188,48 @@ function B.CreateWindow(session, close)
     --entry's options, for "PC chose"), part = "intro"|"option"|"outcome",
     --entry } -- only an outcome scene knows the roll's tier.
     local STEP_STYLE = {
-        narrate = { "NARRATION", "#b0b0b0" },
-        say = { "SAYS", "#ffffff" },
-        enter = { "ENTERS", "#9fd0ff" },
-        exit = { "EXITS", "#9fd0ff" },
-        emote = { "EMOTE", "#e8c27a" },
-        ["if"] = { "IF", "#c9a4ff" },
-        ["elseif"] = { "ELSE IF", "#c9a4ff" },
-        ["else"] = { "ELSE", "#c9a4ff" },
-        ["end"] = { "END", "#c9a4ff" },
+        narrate = { T("author.montage_builder.scene.step_narration"), "#b0b0b0" },
+        say = { T("author.montage_builder.scene.step_says"), "#ffffff" },
+        enter = { T("author.montage_builder.scene.step_enters"), "#9fd0ff" },
+        exit = { T("author.montage_builder.scene.step_exits"), "#9fd0ff" },
+        emote = { T("author.montage_builder.scene.step_emote"), "#e8c27a" },
+        ["if"] = { T("author.montage_builder.scene.step_if"), "#c9a4ff" },
+        ["elseif"] = { T("author.montage_builder.scene.step_else_if"), "#c9a4ff" },
+        ["else"] = { T("author.montage_builder.scene.step_else"), "#c9a4ff" },
+        ["end"] = { T("author.montage_builder.scene.step_end"), "#c9a4ff" },
     }
     local STEP_TYPES = {
-        { id = "narrate", text = "Narration" },
-        { id = "pcsay", text = "PC says" },
-        { id = "say", text = "Character says" },
-        { id = "enter", text = "Character enters" },
-        { id = "exit", text = "Character exits" },
-        { id = "emote", text = "Emote" },
-        { id = "branch", text = "Branch (if ... end)" },
+        { id = "narrate", text = T("author.montage_builder.scene.type_narration") },
+        { id = "pcsay", text = T("author.montage_builder.scene.type_pc_says") },
+        { id = "say", text = T("author.montage_builder.scene.type_character_says") },
+        { id = "enter", text = T("author.montage_builder.scene.type_character_enters") },
+        { id = "exit", text = T("author.montage_builder.scene.type_character_exits") },
+        { id = "emote", text = T("author.montage_builder.scene.type_emote") },
+        { id = "branch", text = T("author.montage_builder.scene.type_branch") },
     }
     local INDENT = "    "
 
     --The predicates a branch condition row offers. `list` names a B.Lists()
     --list (or "options" / "tiers"); `free` takes typed text instead.
     local PREDICATES = {
-        { id = "ancestry", text = "PC is a (ancestry)", list = "ancestries" },
-        { id = "class", text = "PC is a (class)", list = "classes" },
-        { id = "career", text = "PC was a (career)", list = "careers" },
-        { id = "speaks", text = "PC speaks", list = "languages" },
-        { id = "skilled", text = "PC is skilled in", list = "skills" },
-        { id = "perk", text = "PC has the perk", list = "perks" },
-        { id = "can", text = "PC can", list = "capabilities" },
-        { id = "chose", text = "PC chose the option", list = "options" },
-        { id = "tier", text = "The roll is", list = "tiers" },
-        { id = "has", text = "PC has (anything)", free = "a lantern" },
-        { id = "is", text = "PC is (anything)", free = "small" },
-        { id = "custom", text = "Custom condition", free = "PC worships Grole" },
+        { id = "ancestry", text = T("author.montage_builder.condition.predicate_ancestry"), list = "ancestries" },
+        { id = "class", text = T("author.montage_builder.condition.predicate_class"), list = "classes" },
+        { id = "career", text = T("author.montage_builder.condition.predicate_career"), list = "careers" },
+        { id = "speaks", text = T("author.montage_builder.condition.predicate_speaks"), list = "languages" },
+        { id = "skilled", text = T("author.montage_builder.condition.predicate_skilled"), list = "skills" },
+        { id = "perk", text = T("author.montage_builder.condition.predicate_perk"), list = "perks" },
+        { id = "can", text = T("author.montage_builder.condition.predicate_can"), list = "capabilities" },
+        { id = "chose", text = T("author.montage_builder.condition.predicate_chose"), list = "options" },
+        { id = "tier", text = T("author.montage_builder.condition.predicate_tier"), list = "tiers" },
+        { id = "has", text = T("author.montage_builder.condition.predicate_has"), free = "a lantern" },
+        { id = "is", text = T("author.montage_builder.condition.predicate_is"), free = "small" },
+        { id = "custom", text = T("author.montage_builder.condition.predicate_custom"), free = "PC worships Grole" },
     }
     local TIER_OPTIONS = {
-        { id = "1", text = "Tier 1 (11 or lower)" },
-        { id = "2", text = "Tier 2 (12-16)" },
-        { id = "3", text = "Tier 3 (17+, or a critical)" },
-        { id = "4", text = "Critical (natural 19-20)" },
+        { id = "1", text = T("author.montage_builder.condition.tier1") },
+        { id = "2", text = T("author.montage_builder.condition.tier2") },
+        { id = "3", text = T("author.montage_builder.condition.tier3") },
+        { id = "4", text = T("author.montage_builder.condition.critical") },
     }
 
     --{id, text} options for a dropdown of names, and the id to show for
@@ -1249,7 +1252,7 @@ function B.CreateWindow(session, close)
             end
         end
         if chosen == nil and current ~= nil and trim(current) ~= "" then
-            table.insert(options, #(first or {}) + 1, { id = current, text = current .. " (not found)" })
+            table.insert(options, #(first or {}) + 1, { id = current, text = T("author.montage_builder.not_found_option", { name = current }) })
             chosen = current
         end
         return options, chosen
@@ -1312,7 +1315,7 @@ function B.CreateWindow(session, close)
             return string.match(raw, "^(%s*)") or ""
         end
         local function WriteForm(s, form, what)
-            Commit(what or "Edited a scene line.", E.SetLine(parse, s.line, Lead(s) .. E.SceneStepLine(form)))
+            Commit(what or T("author.montage_builder.status.edited_scene_line"), E.SetLine(parse, s.line, Lead(s) .. E.SceneStepLine(form)))
         end
 
         --the lines a new step of type `id` writes (unindented; a branch's
@@ -1356,7 +1359,7 @@ function B.CreateWindow(session, close)
             for _, l in ipairs(NewStepLines(id)) do
                 lines[#lines + 1] = lead .. l
             end
-            Commit("Added a scene step.", One(E.PatchAfter(parse, s.line, lines)))
+            Commit(T("author.montage_builder.status.added_scene_step"), One(E.PatchAfter(parse, s.line, lines)))
         end
 
         --remove steps i..j (expanded lines, one document).
@@ -1372,7 +1375,7 @@ function B.CreateWindow(session, close)
                 return
             end
             if lower(newName) == "pc" then
-                session.status = "'PC' is the hero; a character needs another name."
+                session.status = T("author.montage_builder.status.pc_is_the_hero")
                 Refresh()
                 return
             end
@@ -1396,7 +1399,7 @@ function B.CreateWindow(session, close)
                     end
                 end
             end
-            Commit(string.format("Renamed '%s' to '%s' in this entry's scenes.", oldName, newName), patches)
+            Commit(T("author.montage_builder.status.renamed_character", { old = oldName, new = newName }), patches)
         end
 
         --- one condition (an "if" or "else if" line) ---
@@ -1405,16 +1408,16 @@ function B.CreateWindow(session, close)
             local out = {}
             local function Write(newRows)
                 form.cond = E.ConditionText(newRows)
-                WriteForm(s, form, "Edited a branch condition.")
+                WriteForm(s, form, T("author.montage_builder.status.edited_condition"))
             end
             if rows == nil then
                 out[#out + 1] = Row({
                     TextBox(form.cond, function(text)
                         form.cond = E.LineText(text)
-                        WriteForm(s, form, "Edited a branch condition.")
+                        WriteForm(s, form, T("author.montage_builder.status.edited_condition"))
                     end, { width = "100%-4", height = 24 }),
                 })
-                out[#out + 1] = Label("Written by hand with parentheses: edit it as text, or clear the brackets to get the form back.", { "mbSub" })
+                out[#out + 1] = Label(T("author.montage_builder.condition.hand_written"), { "mbSub" })
             else
                 local classSet = {}
                 for _, c in ipairs(lists.classes) do
@@ -1439,16 +1442,19 @@ function B.CreateWindow(session, close)
                     ---@cast pinfo -nil
                     local children = {}
                     --one dropdown says how this part joins on and whether it is negated.
-                    local lead = cond(index == 1, cond(form.kind == "if", "If", "Else if"), nil)
+                    local lead = cond(index == 1, cond(form.kind == "if", "if", "elseif"), nil)
+                    --each join word, plain and negated. "Unless" reads more
+                    --naturally than "If not"; the script still says "if not ...".
+                    local joinText = {
+                        ["if"] = { T("author.montage_builder.condition.join_if"), T("author.montage_builder.condition.join_unless") },
+                        ["elseif"] = { T("author.montage_builder.condition.join_else_if"), T("author.montage_builder.condition.join_else_if_not") },
+                        ["and"] = { T("author.montage_builder.condition.join_and"), T("author.montage_builder.condition.join_and_not") },
+                        ["or"] = { T("author.montage_builder.condition.join_or"), T("author.montage_builder.condition.join_or_not") },
+                    }
                     local joinOptions = {}
                     for _, j in ipairs(cond(index == 1, { "" }, { "and", "or" })) do
                         for _, neg in ipairs({ false, true }) do
-                            local word = lead or j
-                            local text = word .. cond(neg, " not", "")
-                            if word == "If" and neg then
-                                --reads more naturally; the script still says "if not ...".
-                                text = "Unless"
-                            end
+                            local text = joinText[lead or j][cond(neg, 2, 1)]
                             joinOptions[#joinOptions + 1] = { id = j .. cond(neg, "-not", ""), text = text }
                         end
                     end
@@ -1458,7 +1464,7 @@ function B.CreateWindow(session, close)
                         rows[index].join = cond(index == 1 or j == "", nil, j)
                         rows[index].negate = neg == "-not"
                         Write(rows)
-                    end, { width = 96, lmargin = 0, tooltip = "'not' makes this part true when it is NOT the case." })
+                    end, { width = 96, lmargin = 0, tooltip = T("author.montage_builder.condition.join_tooltip") })
                     local predicateOptions = {}
                     for _, p in ipairs(PREDICATES) do
                         predicateOptions[#predicateOptions + 1] = { id = p.id, text = p.text }
@@ -1503,7 +1509,7 @@ function B.CreateWindow(session, close)
                     end
                     if #rows > 1 then
                         children[#children + 1] = gui.Button{ classes = { "sizeXs" }, width = 22, height = 22, lmargin = 4, valign = "center", text = "x",
-                            hover = gui.Tooltip("Remove this part of the condition"),
+                            hover = gui.Tooltip(T("author.montage_builder.condition.remove_part_tooltip")),
                             click = function()
                                 table.remove(rows, index)
                                 rows[1].join = nil
@@ -1512,17 +1518,17 @@ function B.CreateWindow(session, close)
                     end
                     out[#out + 1] = Row(children, { fit = true, vmargin = 1 })
                     if pinfo.list == "tiers" and ctx.part ~= "outcome" then
-                        out[#out + 1] = Label("The roll is only known in the lines after an option's test: here this is never true.", { "mbProblem" })
+                        out[#out + 1] = Label(T("author.montage_builder.condition.tier_never_true"), { "mbProblem" })
                     end
                 end
                 local addRow = {
-                    SmallButton("+ and", function()
+                    SmallButton(T("author.montage_builder.condition.add_and"), function()
                         local copy = DeepCopy(rows[#rows])
                         copy.join = "and"
                         rows[#rows + 1] = copy
                         Write(rows)
                     end),
-                    SmallButton("+ or", function()
+                    SmallButton(T("author.montage_builder.condition.add_or"), function()
                         local copy = DeepCopy(rows[#rows])
                         copy.join = "or"
                         rows[#rows + 1] = copy
@@ -1535,7 +1541,7 @@ function B.CreateWindow(session, close)
                     if rows[ri].join == "or" then hasOr = true else hasAnd = true end
                 end
                 if hasAnd and hasOr then
-                    out[#out + 1] = Label("'and' is checked before 'or': A and B or C means (A and B) or C.", { "mbSub" })
+                    out[#out + 1] = Label(T("author.montage_builder.condition.and_before_or"), { "mbSub" })
                 end
             end
             local _, problems = EncounterScript.ParseCondition(form.cond or "")
@@ -1554,14 +1560,14 @@ function B.CreateWindow(session, close)
                 return { TextBox(form.text, function(text)
                     form.text = text
                     WriteForm(s, form)
-                end, { width = "100%-4", height = 24, placeholder = "PC is replaced by the hero's name." }) }, true
+                end, { width = "100%-4", height = 24, placeholder = T("author.montage_builder.scene.narration_placeholder") }) }, true
             elseif kind == "say" then
-                local speakerOptions = { { id = "PC", text = "PC (the hero)" } }
+                local speakerOptions = { { id = "PC", text = T("author.montage_builder.scene.who_pc") } }
                 for _, n in ipairs(actorNames) do
                     speakerOptions[#speakerOptions + 1] = { id = n, text = n }
                 end
-                speakerOptions[#speakerOptions + 1] = { id = "@unknown", text = "Unknown voice (???)" }
-                speakerOptions[#speakerOptions + 1] = { id = "@custom", text = "Named voice off stage" }
+                speakerOptions[#speakerOptions + 1] = { id = "@unknown", text = T("author.montage_builder.scene.speaker_unknown_voice") }
+                speakerOptions[#speakerOptions + 1] = { id = "@custom", text = T("author.montage_builder.scene.speaker_named_voice") }
                 local chosen = form.speaker
                 if form.offstage then
                     chosen = cond(form.speaker == "???", "@unknown", "@custom")
@@ -1580,29 +1586,29 @@ function B.CreateWindow(session, close)
                             form.offstage, form.speaker = false, id
                         end
                         WriteForm(s, form)
-                    end, { width = 150, lmargin = 0, tooltip = "Who speaks. Only PC, characters who have entered, or a voice off stage (no portrait)." }),
+                    end, { width = 150, lmargin = 0, tooltip = T("author.montage_builder.scene.speaker_tooltip") }),
                 }
                 if chosen == "@custom" then
                     out[#out + 1] = TextBox(form.speaker, function(text)
                         form.speaker = (string.gsub(E.LineText(text), "[():]", ""))
                         WriteForm(s, form)
-                    end, { width = 120, height = 24, placeholder = "Name" })
+                    end, { width = 120, height = 24, placeholder = T("author.montage_builder.scene.voice_name_placeholder") })
                 end
                 if not form.offstage then
-                    local emoteOptions = { { id = "", text = "(no emote)" } }
+                    local emoteOptions = { { id = "", text = T("author.montage_builder.scene.no_emote") } }
                     for _, e in ipairs(E.SceneEmotes()) do
                         emoteOptions[#emoteOptions + 1] = { id = e, text = e }
                     end
                     out[#out + 1] = PickDropdown(emoteOptions, form.emote or "", function(id)
                         form.emote = cond(id == "", nil, id)
                         WriteForm(s, form)
-                    end, { width = 110, tooltip = "An emote the speaker shows as the line appears." })
+                    end, { width = 110, tooltip = T("author.montage_builder.scene.emote_tooltip") })
                 end
-                local langOptions, langChosen = NameOptions(lists.languages, form.lang, { { id = "", text = "(any language)" } })
+                local langOptions, langChosen = NameOptions(lists.languages, form.lang, { { id = "", text = T("author.montage_builder.scene.any_language") } })
                 out[#out + 1] = PickDropdown(langOptions, langChosen or "", function(id)
                     form.lang = cond(id == "", nil, id)
                     WriteForm(s, form)
-                end, { width = 140, menuWidth = 200, search = true, tooltip = "Spoken in a language: heroes who do not speak it see the line garbled." })
+                end, { width = 140, menuWidth = 200, search = true, tooltip = T("author.montage_builder.scene.language_tooltip") })
                 --the pickers on one line, the words on a full-width line below.
                 return { gui.Panel{
                     width = "100%-4",
@@ -1612,7 +1618,7 @@ function B.CreateWindow(session, close)
                     TextBox(form.text, function(text)
                         form.text = text
                         WriteForm(s, form)
-                    end, { width = "100%", height = 24, placeholder = "What they say" }),
+                    end, { width = "100%", height = 24, placeholder = T("author.montage_builder.scene.line_placeholder") }),
                 } }, true
             elseif kind == "enter" then
                 local options, chosen = NameOptions(lists.monsters, form.monster)
@@ -1620,17 +1626,17 @@ function B.CreateWindow(session, close)
                 local out = {
                     TextBox(form.name, function(text)
                         RenameCharacter(form.name, text)
-                    end, { width = 130, height = 24, placeholder = "Name" }),
-                    Word("played by"),
+                    end, { width = 130, height = 24, placeholder = T("author.montage_builder.scene.character_name_placeholder") }),
+                    Word(T("author.montage_builder.scene.played_by")),
                     PickDropdown(options, chosen, function(id)
                         form.monster = id
                         WriteForm(s, form)
-                    end, { width = 240, menuWidth = 300, search = true, tooltip = "The bestiary monster whose portrait shows on stage." }),
+                    end, { width = 240, menuWidth = 300, search = true, tooltip = T("author.montage_builder.scene.monster_tooltip") }),
                 }
                 local found = nil
                 pcall(function() found = EncounterMontage.FindMonster(form.monster) end)
                 if found == nil then
-                    out[#out + 1] = Word("not in the bestiary: no portrait", { color = PROBLEM_COLOR })
+                    out[#out + 1] = Word(T("author.montage_builder.scene.monster_not_found"), { color = PROBLEM_COLOR })
                 end
                 return out, false
             elseif kind == "exit" then
@@ -1640,10 +1646,10 @@ function B.CreateWindow(session, close)
                         form.name = id
                         WriteForm(s, form)
                     end, { width = 150, lmargin = 0 }),
-                    Word("leaves the stage"),
+                    Word(T("author.montage_builder.scene.leaves_the_stage")),
                 }, false
             elseif kind == "emote" then
-                local options, chosen = NameOptions(actorNames, form.name, { { id = "PC", text = "PC (the hero)" } })
+                local options, chosen = NameOptions(actorNames, form.name, { { id = "PC", text = T("author.montage_builder.scene.who_pc") } })
                 local emoteOptions = {}
                 for _, e in ipairs(E.SceneEmotes()) do
                     emoteOptions[#emoteOptions + 1] = { id = e, text = e }
@@ -1653,19 +1659,19 @@ function B.CreateWindow(session, close)
                         form.name = id
                         WriteForm(s, form)
                     end, { width = 150, lmargin = 0 }),
-                    Word("is"),
+                    Word(T("author.montage_builder.scene.emote_is")),
                     PickDropdown(emoteOptions, form.emote, function(id)
                         form.emote = id
                         WriteForm(s, form)
                     end, { width = 110 }),
-                    Word("(shown as the next line appears)"),
+                    Word(T("author.montage_builder.scene.emote_when")),
                 }, false
             elseif kind == "if" or kind == "elseif" then
                 return { gui.Panel{ width = "100%-4", height = "auto", flow = "vertical", children = ConditionEditor(s, form, i) } }, true
             elseif kind == "else" then
-                return { Word("otherwise (no condition above was true)", { hmargin = 0, tmargin = 4 }) }, false
+                return { Word(T("author.montage_builder.scene.else_help"), { hmargin = 0, tmargin = 4 }) }, false
             end
-            return { Word("closes the branch", { hmargin = 0, tmargin = 4 }) }, false
+            return { Word(T("author.montage_builder.scene.end_help"), { hmargin = 0, tmargin = 4 }) }, false
         end
 
         ---@type Panel[]
@@ -1698,7 +1704,7 @@ function B.CreateWindow(session, close)
                     textOverride = "+",
                     menuWidth = 200,
                     options = insertOptions,
-                    hover = gui.Tooltip(cond(kind == "if" or kind == "elseif" or kind == "else", "Add a step inside this branch", "Add a step below this one")),
+                    hover = gui.Tooltip(cond(kind == "if" or kind == "elseif" or kind == "else", T("author.montage_builder.scene.add_inside_tooltip"), T("author.montage_builder.scene.add_below_tooltip"))),
                     change = function(element)
                         ---@cast element Dropdown
                         local id = element.idChosen
@@ -1711,14 +1717,14 @@ function B.CreateWindow(session, close)
             --what "x" removes: a line, a whole branch, or (for an "if") the whole block.
             if kind ~= "end" then
                 local last = index
-                local what = "Removed a scene line."
-                local tip = "Remove this line"
+                local what = T("author.montage_builder.status.removed_scene_line")
+                local tip = T("author.montage_builder.scene.remove_line_tooltip")
                 if kind == "if" then
                     last = E.SceneBlockEnd(texts, index) or index
-                    what, tip = "Removed a branch block.", "Remove the whole branch block, with every line inside it (click twice)"
+                    what, tip = T("author.montage_builder.status.removed_branch_block"), T("author.montage_builder.scene.remove_block_tooltip")
                 elseif kind == "elseif" or kind == "else" then
                     last = E.SceneBranchEnd(texts, index) or index
-                    what, tip = "Removed a branch.", "Remove this branch and the lines inside it"
+                    what, tip = T("author.montage_builder.status.removed_branch"), T("author.montage_builder.scene.remove_branch_tooltip")
                 end
                 local armed = false
                 tools[#tools + 1] = gui.Button{ classes = { "sizeXs" }, width = 26, height = 24, lmargin = 2, valign = "top", text = "x",
@@ -1781,22 +1787,22 @@ function B.CreateWindow(session, close)
                         Commit(what, One(E.PatchExpanded(parse, steps[j].line, steps[j].line - 1, lines)))
                     end
                     local grow = {
-                        SmallButton("+ Else if", function()
-                            InsertBefore(elseAt or blockEnd, { lead .. "elseif " .. (form.cond or "tier2") .. " then", lead .. INDENT .. "PC looks around." }, "Added an 'else if' branch.")
+                        SmallButton(T("author.montage_builder.scene.add_else_if"), function()
+                            InsertBefore(elseAt or blockEnd, { lead .. "elseif " .. (form.cond or "tier2") .. " then", lead .. INDENT .. "PC looks around." }, T("author.montage_builder.status.added_else_if"))
                         end),
                     }
                     if elseAt == nil then
-                        grow[#grow + 1] = SmallButton("+ Else", function()
-                            InsertBefore(blockEnd, { lead .. "else", lead .. INDENT .. "PC looks around." }, "Added an 'else' branch.")
+                        grow[#grow + 1] = SmallButton(T("author.montage_builder.scene.add_else"), function()
+                            InsertBefore(blockEnd, { lead .. "else", lead .. INDENT .. "PC looks around." }, T("author.montage_builder.status.added_else"))
                         end)
                     end
                     children[#children + 1] = Row(grow, { fit = true, lmargin = 70 + indent + 54, vmargin = 1 })
                 else
                     children[#children + 1] = Row({
-                        SmallButton("+ End", function()
-                            Commit("Closed the branch.", One(E.PatchAfter(parse, steps[#steps].line, { Lead(s) .. "end" })))
+                        SmallButton(T("author.montage_builder.scene.add_end"), function()
+                            Commit(T("author.montage_builder.status.closed_branch"), One(E.PatchAfter(parse, steps[#steps].line, { Lead(s) .. "end" })))
                         end),
-                        Label("This branch is never closed.", { "mbProblem" }, { width = "auto" }),
+                        Label(T("author.montage_builder.scene.never_closed"), { "mbProblem" }, { width = "auto" }),
                     }, { fit = true, lmargin = 70 + indent, vmargin = 1 })
                 end
             end
@@ -1806,9 +1812,9 @@ function B.CreateWindow(session, close)
             end
         end
         if #steps == 0 then
-            children[#children + 1] = Label("(no lines yet)", { "mbSub" })
+            children[#children + 1] = Label(T("author.montage_builder.scene.no_lines"), { "mbSub" })
         end
-        local addOptions = { { id = "", text = "+ Add a step at the end..." } }
+        local addOptions = { { id = "", text = T("author.montage_builder.scene.add_step_at_end") } }
         for _, t in ipairs(STEP_TYPES) do
             if t.id ~= "exit" or #actorNames > 0 then
                 addOptions[#addOptions + 1] = t
@@ -1829,14 +1835,14 @@ function B.CreateWindow(session, close)
                 end
                 local last = steps[#steps] ~= nil and steps[#steps].line or anchor
                 if last == nil then
-                    session.status = "Nowhere to put the line."
+                    session.status = T("author.montage_builder.status.nowhere_for_line")
                     Refresh()
                     return
                 end
-                Commit("Added a scene step.", One(E.PatchAfter(parse, last, NewStepLines(id))))
+                Commit(T("author.montage_builder.status.added_scene_step"), One(E.PatchAfter(parse, last, NewStepLines(id))))
             end,
         }
-        children[#children + 1] = Label("Lines play top to bottom. PC is the hero who steps up. A character must enter (with a bestiary portrait) before they can speak; a voice off stage speaks with no portrait. A branch plays different lines depending on the hero" .. cond(ctx.part == "outcome", " or how the roll went.", "."), { "mbSub" })
+        children[#children + 1] = Label(cond(ctx.part == "outcome", T("author.montage_builder.scene.help_outcome"), T("author.montage_builder.scene.help")), { "mbSub" })
         return gui.Panel{ classes = { "mbSection" }, children = children }
     end
 
@@ -1900,30 +1906,30 @@ function B.CreateWindow(session, close)
         return locked, options
     end
 
-    local TARGET_OPTIONS = { { id = "self", text = "the hero" }, { id = "party", text = "every hero" } }
+    local TARGET_OPTIONS = { { id = "self", text = T("author.montage_builder.outcome.target_self") }, { id = "party", text = T("author.montage_builder.outcome.target_party") } }
     local TEST_EFFECT_OPTIONS = {
-        { id = "edge", text = "an edge" }, { id = "doubleedge", text = "a double edge" },
-        { id = "bane", text = "a bane" }, { id = "doublebane", text = "a double bane" },
+        { id = "edge", text = T("author.montage_builder.outcome.test_edge") }, { id = "doubleedge", text = T("author.montage_builder.outcome.test_double_edge") },
+        { id = "bane", text = T("author.montage_builder.outcome.test_bane") }, { id = "doublebane", text = T("author.montage_builder.outcome.test_double_bane") },
     }
     local OUTCOME_OPTIONS = {
-        { id = "win", text = "The heroes win initiative" },
-        { id = "lose", text = "The heroes lose initiative" },
-        { id = "surprise", text = "The heroes surprise the enemy" },
-        { id = "surprised", text = "The heroes begin surprised" },
+        { id = "win", text = T("author.montage_builder.outcome.initiative_win") },
+        { id = "lose", text = T("author.montage_builder.outcome.initiative_lose") },
+        { id = "surprise", text = T("author.montage_builder.outcome.initiative_surprise") },
+        { id = "surprised", text = T("author.montage_builder.outcome.initiative_surprised") },
     }
     local CLAUSE_HELP = {
-        intelligence = "Only does anything when a narrative beat unlocks Intelligence ('Unlock: Intelligence').",
-        malice = "Malice the Director gets for the encounter.",
-        surges = "Granted at the start of the next combat.",
-        loserecovery = "The Recovery is gone, with no Stamina back for it.",
-        loseconsumable = "A random consumable; a hero with none loses a Recovery instead.",
-        unlock = "A (Locked) entry joins the board. Usually hidden, so the players do not see it coming.",
-        testmod = "A standing edge or bane on another test of this montage, for whoever takes it.",
-        rolltable = "Rolls a dice table written in this entry.",
-        revealobject = "An object you left inactive on the map appears for the encounter.",
-        startzone = "The heroes may also start the encounter in that zone type.",
-        revealzones = "Those zones are shown to the players during the next combat.",
-        knowstamina = "The party learns the Stamina of every monster with that keyword, for good.",
+        intelligence = T("author.montage_builder.outcome.help_intelligence"),
+        malice = T("author.montage_builder.outcome.help_malice"),
+        surges = T("author.montage_builder.outcome.help_surges"),
+        loserecovery = T("author.montage_builder.outcome.help_loserecovery"),
+        loseconsumable = T("author.montage_builder.outcome.help_loseconsumable"),
+        unlock = T("author.montage_builder.outcome.help_unlock"),
+        testmod = T("author.montage_builder.outcome.help_testmod"),
+        rolltable = T("author.montage_builder.outcome.help_rolltable"),
+        revealobject = T("author.montage_builder.outcome.help_revealobject"),
+        startzone = T("author.montage_builder.outcome.help_startzone"),
+        revealzones = T("author.montage_builder.outcome.help_revealzones"),
+        knowstamina = T("author.montage_builder.outcome.help_knowstamina"),
     }
 
     local function Numbers(lo, hi, current)
@@ -1963,7 +1969,7 @@ function B.CreateWindow(session, close)
         children[#children + 1] = TextBox(outcome.text, function(newText)
             outcome.text = newText
             Write()
-        end, { multiline = true, minHeight = 26, placeholder = opts.placeholder or "What happens, in the words the players read" })
+        end, { multiline = true, minHeight = 26, placeholder = opts.placeholder or T("author.montage_builder.outcome.text_placeholder") })
 
         --one parameter control of an effect row.
         local function ParamControl(effect, param)
@@ -1987,7 +1993,7 @@ function B.CreateWindow(session, close)
                     else
                         Set("dice", id)
                     end
-                end, { width = 66, tooltip = "A number, or dice rolled for each hero." })
+                end, { width = 66, tooltip = T("author.montage_builder.outcome.recoveries_tooltip") })
             elseif param == "item" then
                 local resolved = effect.name
                 pcall(function()
@@ -2003,7 +2009,7 @@ function B.CreateWindow(session, close)
                 return PickDropdown(options, chosen, function(id) Set("name", id) end, { width = 230, menuWidth = 300, search = true })
             elseif param == "entry" then
                 local options, chosen = NameOptions(locked, effect.name)
-                return PickDropdown(options, chosen, function(id) Set("name", id) end, { width = 230, menuWidth = 300, tooltip = "The montage's (Locked) entries." })
+                return PickDropdown(options, chosen, function(id) Set("name", id) end, { width = 230, menuWidth = 300, tooltip = T("author.montage_builder.outcome.entry_tooltip") })
             elseif param == "option" then
                 local options, chosen = NameOptions(optionNames, effect.name)
                 return PickDropdown(options, chosen, function(id) Set("name", id) end, { width = 230, menuWidth = 300, search = true })
@@ -2067,12 +2073,12 @@ function B.CreateWindow(session, close)
             for _, p in ipairs(info ~= nil and info.params or {}) do
                 row[#row + 1] = ParamControl(effect, p)
             end
-            row[#row + 1] = PickDropdown({ { id = "shown", text = "Shown" }, { id = "hidden", text = "Hidden" } }, cond(effect.hidden, "hidden", "shown"), function(id)
+            row[#row + 1] = PickDropdown({ { id = "shown", text = T("author.montage_builder.outcome.shown") }, { id = "hidden", text = T("author.montage_builder.outcome.hidden") } }, cond(effect.hidden, "hidden", "shown"), function(id)
                 effect.hidden = id == "hidden"
                 Write()
-            end, { width = 84, tooltip = "Hidden: it happens, but the players are never shown the words." })
+            end, { width = 84, tooltip = T("author.montage_builder.outcome.hidden_tooltip") })
             row[#row + 1] = gui.Button{ classes = { "sizeXs" }, width = 22, height = 22, lmargin = 4, valign = "center", text = "x",
-                hover = gui.Tooltip("Remove this"),
+                hover = gui.Tooltip(T("author.montage_builder.outcome.remove_tooltip")),
                 click = function()
                     table.remove(outcome.effects, index)
                     Write()
@@ -2082,13 +2088,13 @@ function B.CreateWindow(session, close)
                 children[#children + 1] = Label(CLAUSE_HELP[effect.kind], { "mbSub" }, { lmargin = 8 })
             end
             if effect.kind == "unlock" and #locked == 0 then
-                children[#children + 1] = Label("This montage has no (Locked) entry to unlock: tick Locked on one.", { "mbProblem" })
+                children[#children + 1] = Label(T("author.montage_builder.outcome.no_locked_entry"), { "mbProblem" })
             elseif effect.kind == "rolltable" and #tableNames == 0 then
-                children[#children + 1] = Label("This entry has no dice table: add one with '+ Dice table'.", { "mbProblem" })
+                children[#children + 1] = Label(T("author.montage_builder.outcome.no_dice_table"), { "mbProblem" })
             end
         end
 
-        local addOptions = { { id = "", text = "+ Add a reward or cost..." } }
+        local addOptions = { { id = "", text = T("author.montage_builder.outcome.add") } }
         for _, o in ipairs(kindOptions) do
             addOptions[#addOptions + 1] = o
         end
@@ -2128,12 +2134,12 @@ function B.CreateWindow(session, close)
         local parse = session.parse
         local children = {}
         children[#children + 1] = Row({
-            gui.Label{ classes = { "mbFieldLabel" }, width = "auto", height = "auto", valign = "center", rmargin = 8, text = title or "Dice table" },
+            gui.Label{ classes = { "mbFieldLabel" }, width = "auto", height = "auto", valign = "center", rmargin = 8, text = title or T("author.montage_builder.table.title") },
             TextBox(t.name, function(text)
-                Commit("Renamed a dice table.", E.SetLine(parse, t.line, string.format("|%s: %s", trim((string.gsub(E.LineText(text), ":", ""))), t.dice)))
+                Commit(T("author.montage_builder.status.renamed_table"), E.SetLine(parse, t.line, string.format("|%s: %s", trim((string.gsub(E.LineText(text), ":", ""))), t.dice)))
             end, { width = 220, height = 24 }),
             TextBox(t.dice, function(text)
-                Commit("Changed a table's dice.", E.SetLine(parse, t.line, string.format("|%s: %s", t.name, E.LineText(text))))
+                Commit(T("author.montage_builder.status.changed_table_dice"), E.SetLine(parse, t.line, string.format("|%s: %s", t.name, E.LineText(text))))
             end, { width = 70, height = 24 }),
         }, { fit = true })
         for _, row in ipairs(t.rows or {}) do
@@ -2141,28 +2147,28 @@ function B.CreateWindow(session, close)
             local range = cond(r.lo == r.hi, tostring(r.lo), string.format("%d-%d", r.lo, r.hi))
             children[#children + 1] = Row({
                 TextBox(range, function(text)
-                    Commit("Edited a table row.", E.SetLine(parse, r.line, string.format("|%s: %s", trim(text), r.text)))
+                    Commit(T("author.montage_builder.status.edited_table_row"), E.SetLine(parse, r.line, string.format("|%s: %s", trim(text), r.text)))
                 end, { width = 60, height = 24 }),
                 gui.Panel{
                     width = "100%-100",
                     height = "auto",
                     flow = "vertical",
                     OutcomeEditor(r.text, function(text)
-                        Commit("Edited a table row.", E.SetLine(parse, r.line, string.format("|%s: %s", range, E.LineText(text))))
-                    end, entry, { placeholder = "What this row gives" }),
+                        Commit(T("author.montage_builder.status.edited_table_row"), E.SetLine(parse, r.line, string.format("|%s: %s", range, E.LineText(text))))
+                    end, entry, { placeholder = T("author.montage_builder.table.row_placeholder") }),
                 },
                 gui.Button{ classes = { "sizeXs" }, width = 26, height = 24, lmargin = 4, valign = "top", text = "x",
                     click = function()
-                        Commit("Removed a table row.", E.DeleteLine(parse, r.line))
+                        Commit(T("author.montage_builder.status.removed_table_row"), E.DeleteLine(parse, r.line))
                     end },
             })
         end
         children[#children + 1] = Row({
-            SmallButton("+ Row", function()
+            SmallButton(T("author.montage_builder.table.add_row"), function()
                 local after = t.lastLine or t.line
                 local hi = 0
                 for _, r in ipairs(t.rows or {}) do hi = math.max(hi, r.hi or 0) end
-                Commit("Added a table row.", One(E.PatchAfter(parse, after, { string.format("|%d: +1 hero token", hi + 1) })))
+                Commit(T("author.montage_builder.status.added_table_row"), One(E.PatchAfter(parse, after, { string.format("|%d: +1 hero token", hi + 1) })))
             end),
         }, { fit = true })
         return gui.Panel{ classes = { "mbSection" }, children = children }
@@ -2175,11 +2181,11 @@ function B.CreateWindow(session, close)
         if roll ~= nil then
             local chars, skills = B.SplitAttr(roll.attr)
             local function WriteHeader(name, newChars, newSkills)
-                Commit("Edited a test.", E.SetRollHeader(parse, roll, name, E.AttrText(newChars, newSkills)))
+                Commit(T("author.montage_builder.status.edited_test"), E.SetRollHeader(parse, roll, name, E.AttrText(newChars, newSkills)))
             end
-            children[#children + 1] = Label("Test", { "mbFieldLabel" })
+            children[#children + 1] = Label(T("author.montage_builder.rules.test_label"), { "mbFieldLabel" })
             children[#children + 1] = Row({
-                gui.Label{ classes = { "mbSub" }, width = 60, height = "auto", valign = "center", text = "Name" },
+                gui.Label{ classes = { "mbSub" }, width = 60, height = "auto", valign = "center", text = T("author.montage_builder.rules.test_name") },
                 TextBox(roll.name, function(text) WriteHeader(text, chars, skills) end, { width = 220 }),
             }, { fit = true })
             local charChecks = {}
@@ -2207,7 +2213,7 @@ function B.CreateWindow(session, close)
                             if keep then list[#list + 1] = x end
                         end
                         if #list == 0 then
-                            session.status = "A test needs at least one characteristic."
+                            session.status = T("author.montage_builder.status.test_needs_characteristic")
                             Refresh()
                             return
                         end
@@ -2218,7 +2224,7 @@ function B.CreateWindow(session, close)
             children[#children + 1] = Row(charChecks, { fit = true })
 
             --skills: chips with an x, and a dropdown to add one.
-            local skillChildren = { gui.Label{ classes = { "mbSub" }, width = 60, height = "auto", valign = "center", text = "Skills" } }
+            local skillChildren = { gui.Label{ classes = { "mbSub" }, width = 60, height = "auto", valign = "center", text = T("author.montage_builder.rules.skills") } }
             local known = {}
             for _, s in ipairs(B.SkillOptions()) do
                 known[lower(s)] = true
@@ -2234,7 +2240,7 @@ function B.CreateWindow(session, close)
                     rmargin = 4,
                     text = s .. "  x",
                     color = cond(known[lower(s)], nil, PROBLEM_COLOR),
-                    hover = gui.Tooltip(cond(known[lower(s)], "Remove this skill", "'" .. s .. "' is not a skill name: it adds nothing to the roll. Click to remove.")),
+                    hover = gui.Tooltip(cond(known[lower(s)], T("author.montage_builder.rules.remove_skill_tooltip"), T("author.montage_builder.rules.unknown_skill_tooltip", { skill = s }))),
                     click = function()
                         local list = {}
                         for k, x in ipairs(skills) do
@@ -2244,7 +2250,7 @@ function B.CreateWindow(session, close)
                     end,
                 }
             end
-            local addOptions = { { id = "", text = "+ Add skill" } }
+            local addOptions = { { id = "", text = T("author.montage_builder.rules.add_skill") } }
             for _, s in ipairs(B.SkillOptions()) do
                 addOptions[#addOptions + 1] = { id = s, text = s }
             end
@@ -2269,7 +2275,7 @@ function B.CreateWindow(session, close)
             children[#children + 1] = Row(skillChildren, { fit = true })
 
             --tiers.
-            children[#children + 1] = Label("Outcomes: the teaser is what players see until that tier lands (optional)", { "mbFieldLabel" })
+            children[#children + 1] = Label(T("author.montage_builder.rules.outcomes_label"), { "mbFieldLabel" })
             for t = 1, 3 do
                 local tier = t
                 children[#children + 1] = Row({
@@ -2279,10 +2285,10 @@ function B.CreateWindow(session, close)
                         height = "auto",
                         flow = "vertical",
                         TextBox(roll.teasers[t], function(text)
-                            Commit("Edited a teaser.", E.SetTier(parse, roll, tier, text, roll.tiers[tier]))
-                        end, { placeholder = "Teaser (optional)", height = 24 }),
+                            Commit(T("author.montage_builder.status.edited_teaser"), E.SetTier(parse, roll, tier, text, roll.tiers[tier]))
+                        end, { placeholder = T("author.montage_builder.rules.teaser_placeholder"), height = 24 }),
                         OutcomeEditor(roll.tiers[t], function(text)
-                            Commit("Edited an outcome.", E.SetTier(parse, roll, tier, roll.teasers[tier], text))
+                            Commit(T("author.montage_builder.status.edited_outcome"), E.SetTier(parse, roll, tier, roll.teasers[tier], text))
                         end, entry),
                     },
                 })
@@ -2293,24 +2299,24 @@ function B.CreateWindow(session, close)
                     classes = { "sizeXs" },
                     width = 400,
                     height = 24,
-                    text = "Automatic: tier 3 plus an additional hero token",
+                    text = T("author.montage_builder.rules.critical_automatic"),
                     value = roll.critAuto == true,
                     change = function(element)
                         if element.value then
-                            Commit("Critical set to automatic.", E.ClearCritical(parse, roll))
+                            Commit(T("author.montage_builder.status.critical_automatic"), E.ClearCritical(parse, roll))
                         else
-                            Commit("Wrote a critical.", E.SetTier(parse, roll, 4, nil, roll.tiers[4]))
+                            Commit(T("author.montage_builder.status.wrote_critical"), E.SetTier(parse, roll, 4, nil, roll.tiers[4]))
                         end
                     end,
                 },
             }
             if not roll.critAuto then
                 critChildren[#critChildren + 1] = OutcomeEditor(roll.tiers[4], function(text)
-                    Commit("Edited the critical.", E.SetTier(parse, roll, 4, roll.teasers[4], text))
+                    Commit(T("author.montage_builder.status.edited_critical"), E.SetTier(parse, roll, 4, roll.teasers[4], text))
                 end, entry)
             end
             children[#children + 1] = Row({
-                gui.Label{ classes = { "mbSub" }, width = 90, height = "auto", valign = "top", tmargin = 4, text = "Critical" },
+                gui.Label{ classes = { "mbSub" }, width = 90, height = "auto", valign = "top", tmargin = 4, text = T("author.montage_builder.rules.critical_label") },
                 gui.Panel{
                     width = "100%-96",
                     height = "auto",
@@ -2319,7 +2325,7 @@ function B.CreateWindow(session, close)
                 },
             })
         elseif holder.free ~= nil then
-            children[#children + 1] = Label("What happens (no roll: it applies at once)", { "mbFieldLabel" })
+            children[#children + 1] = Label(T("author.montage_builder.rules.no_roll_label"), { "mbFieldLabel" })
             local ruleLines = holder.free.lines or {}
             for _, l in ipairs(ruleLines) do
                 local lineNo = l
@@ -2330,22 +2336,22 @@ function B.CreateWindow(session, close)
                 local editor = OutcomeEditor(ruleText, function(text)
                     if trim(text) == "" then
                         if #ruleLines > 1 then
-                            Commit("Removed a rule line.", E.DeleteLine(parse, lineNo))
+                            Commit(T("author.montage_builder.status.removed_rule_line"), E.DeleteLine(parse, lineNo))
                         else
-                            session.status = "An option with no roll needs something to happen."
+                            session.status = T("author.montage_builder.status.no_roll_needs_rule")
                             Refresh()
                         end
                         return
                     end
-                    Commit("Edited the rules.", E.SetLine(parse, lineNo, lead .. "|" .. text))
+                    Commit(T("author.montage_builder.status.edited_rules"), E.SetLine(parse, lineNo, lead .. "|" .. text))
                 end, entry)
                 if #ruleLines > 1 then
                     children[#children + 1] = Row({
                         gui.Panel{ width = "100%-34", height = "auto", flow = "vertical", editor },
                         gui.Button{ classes = { "sizeXs" }, width = 26, height = 24, lmargin = 4, valign = "top", text = "x",
-                            hover = gui.Tooltip("Remove this paragraph"),
+                            hover = gui.Tooltip(T("author.montage_builder.rules.remove_paragraph_tooltip")),
                             click = function()
-                                Commit("Removed a rule line.", E.DeleteLine(parse, lineNo))
+                                Commit(T("author.montage_builder.status.removed_rule_line"), E.DeleteLine(parse, lineNo))
                             end },
                     })
                 else
@@ -2354,8 +2360,8 @@ function B.CreateWindow(session, close)
             end
             if #ruleLines > 0 then
                 children[#children + 1] = Row({
-                    SmallButton("+ Paragraph", function()
-                        Commit("Added a rule line.", One(E.PatchAfter(parse, ruleLines[#ruleLines], { "|+1 hero token" })))
+                    SmallButton(T("author.montage_builder.rules.add_paragraph"), function()
+                        Commit(T("author.montage_builder.status.added_rule_line"), One(E.PatchAfter(parse, ruleLines[#ruleLines], { "|+1 hero token" })))
                     end),
                 }, { fit = true })
             end
@@ -2368,15 +2374,15 @@ function B.CreateWindow(session, close)
         end
         for _, r in ipairs(holder.riders or {}) do riders[#riders + 1] = r end
         if roll ~= nil or holder.free ~= nil then
-            children[#children + 1] = Label("Knacks: edges, banes and secret (Allow) requirements", { "mbFieldLabel" })
+            children[#children + 1] = Label(T("author.montage_builder.rules.knacks_label"), { "mbFieldLabel" })
             local effectOptions = {}
             for _, eff in ipairs(E.RIDER_EFFECTS) do
                 effectOptions[#effectOptions + 1] = { id = eff, text = E.RiderWord(eff) }
             end
-            local roundOptions = { { id = "any", text = "Any round" } }
+            local roundOptions = { { id = "any", text = T("author.montage_builder.rules.any_round") } }
             local beat = B.CurrentBeat(session)
             for r = 1, math.max(1, beat ~= nil and #beat.rounds or 1) do
-                roundOptions[#roundOptions + 1] = { id = tostring(r), text = "Round " .. r }
+                roundOptions[#roundOptions + 1] = { id = tostring(r), text = T("author.montage_builder.rules.round_option", { number = r }) }
             end
             for _, rider in ipairs(riders) do
                 local r = rider
@@ -2391,7 +2397,7 @@ function B.CreateWindow(session, close)
                         idChosen = r.effect,
                         change = function(element)
                             ---@cast element Dropdown
-                            Commit("Edited a knack.", E.SetRider(parse, r, element.idChosen, r.round, r.text))
+                            Commit(T("author.montage_builder.status.edited_knack"), E.SetRider(parse, r, element.idChosen, r.round, r.text))
                         end,
                     },
                     gui.Dropdown{
@@ -2404,14 +2410,14 @@ function B.CreateWindow(session, close)
                         change = function(element)
                             ---@cast element Dropdown
                             local round = tonumber(element.idChosen)
-                            Commit("Edited a knack.", E.SetRider(parse, r, r.effect, round, r.text))
+                            Commit(T("author.montage_builder.status.edited_knack"), E.SetRider(parse, r, r.effect, round, r.text))
                         end,
                     },
                     TextBox(r.text, function(text)
-                        Commit("Edited a knack.", E.SetRider(parse, r, r.effect, r.round, text))
+                        Commit(T("author.montage_builder.status.edited_knack"), E.SetRider(parse, r, r.effect, r.round, text))
                     end, { width = "100%-300" }),
-                    SmallButton("Remove", function()
-                        Commit("Removed a knack.", E.RemoveRider(parse, r))
+                    SmallButton(T("author.montage_builder.rules.remove_knack"), function()
+                        Commit(T("author.montage_builder.status.removed_knack"), E.RemoveRider(parse, r))
                     end),
                 })
                 for _, p in ipairs(problems or {}) do
@@ -2420,39 +2426,39 @@ function B.CreateWindow(session, close)
             end
             local addRow = {}
             if roll ~= nil then
-                addRow[#addRow + 1] = SmallButton("+ Edge", function()
-                    Commit("Added a knack.", E.AddRider(parse, session.texts, holder, "edge", nil, "you can climb"))
+                addRow[#addRow + 1] = SmallButton(T("author.montage_builder.rules.add_edge"), function()
+                    Commit(T("author.montage_builder.status.added_knack"), E.AddRider(parse, session.texts, holder, "edge", nil, "you can climb"))
                 end)
-                addRow[#addRow + 1] = SmallButton("+ Bane", function()
-                    Commit("Added a knack.", E.AddRider(parse, session.texts, holder, "bane", nil, "you have cold weakness"))
+                addRow[#addRow + 1] = SmallButton(T("author.montage_builder.rules.add_bane"), function()
+                    Commit(T("author.montage_builder.status.added_knack"), E.AddRider(parse, session.texts, holder, "bane", nil, "you have cold weakness"))
                 end)
             end
-            addRow[#addRow + 1] = SmallButton("+ Secret (Allow)", function()
-                Commit("Added a knack.", E.AddRider(parse, session.texts, holder, "allow", nil, "you are a Dwarf"))
+            addRow[#addRow + 1] = SmallButton(T("author.montage_builder.rules.add_secret"), function()
+                Commit(T("author.montage_builder.status.added_knack"), E.AddRider(parse, session.texts, holder, "allow", nil, "you are a Dwarf"))
             end)
             children[#children + 1] = Row(addRow, { fit = true })
-            children[#children + 1] = Label("Requirements read as intent: 'you can teleport', 'you speak Zaliac', 'you are a Dwarf', 'you are skilled in Track', 'you have the Lucky Dog perk', 'your Wealth is 2 or higher'... (KNACKS_REFERENCE.md).", { "mbSub" })
+            children[#children + 1] = Label(T("author.montage_builder.rules.requirements_help"), { "mbSub" })
         end
 
         --switch between a test and no roll.
         local switch = {}
         if roll ~= nil then
-            switch[#switch + 1] = SmallButton("Make it no-roll", function()
+            switch[#switch + 1] = SmallButton(T("author.montage_builder.rules.make_no_roll"), function()
                 local block = { "|" .. E.LineText(roll.tiers[2]) }
                 for _, r in ipairs(riders) do
                     if r.effect == "allow" then
                         block[#block + 1] = E.RiderLine(r.effect, r.round, r.text)
                     end
                 end
-                Commit("Changed to no roll.", E.SetRules(parse, session.texts, holder, block))
+                Commit(T("author.montage_builder.status.changed_to_no_roll"), E.SetRules(parse, session.texts, holder, block))
             end)
         elseif holder.free ~= nil or holder.delve == nil then
-            switch[#switch + 1] = SmallButton("Make it a test", function()
+            switch[#switch + 1] = SmallButton(T("author.montage_builder.rules.make_test"), function()
                 local block = DefaultRoll(entry.kind)
                 for _, r in ipairs(riders) do
                     block[#block + 1] = E.RiderLine(r.effect, r.round, r.text)
                 end
-                Commit("Changed to a test.", E.SetRules(parse, session.texts, holder, block))
+                Commit(T("author.montage_builder.status.changed_to_test"), E.SetRules(parse, session.texts, holder, block))
             end)
         end
         return switch
@@ -2471,8 +2477,8 @@ function B.CreateWindow(session, close)
             Label(note, { "mbSub" }),
             input,
             Row({
-                SmallButton("Save text", function()
-                    Commit("Edited as text.", E.ReplaceElement(parse, session.texts, line, level, input.text))
+                SmallButton(T("author.montage_builder.text_editor.save"), function()
+                    Commit(T("author.montage_builder.status.edited_as_text"), E.ReplaceElement(parse, session.texts, line, level, input.text))
                 end),
             }, { fit = true }),
         }
@@ -2483,31 +2489,31 @@ function B.CreateWindow(session, close)
         local parse = session.parse
         local children = {}
         children[#children + 1] = Row({
-            gui.Label{ classes = { "mbHeading" }, color = "#d9b3ff", width = "auto", height = "auto", valign = "center", rmargin = 8, text = "KNACK: If" },
+            gui.Label{ classes = { "mbHeading" }, color = "#d9b3ff", width = "auto", height = "auto", valign = "center", rmargin = 8, text = T("author.montage_builder.knack.heading") },
             TextBox(k.requirementText, function(text)
-                Commit("Edited a knack version.", E.SetLine(parse, k.line, E.KnackHeadingLine(text)))
+                Commit(T("author.montage_builder.status.edited_knack_version"), E.SetLine(parse, k.line, E.KnackHeadingLine(text)))
             end, { width = 420 }),
         }, { fit = true })
-        children[#children + 1] = Label("A hero who meets this takes this version of the option instead: no roll (the knack makes the problem moot) or a better test.", { "mbSub" })
+        children[#children + 1] = Label(T("author.montage_builder.knack.help"), { "mbSub" })
         local problems = {}
         pcall(function() problems = EncounterScript.RequirementProblems(k.requirement) end)
         for _, p in ipairs(problems or {}) do
             children[#children + 1] = Label(p, { "mbProblem" })
         end
         if entry.scripted then
-            children[#children + 1] = SceneEditor("Before (after the option's own lines)", k.preLines, k.line, SceneCtx(entry, "option"))
+            children[#children + 1] = SceneEditor(T("author.montage_builder.knack.scene_before"), k.preLines, k.line, SceneCtx(entry, "option"))
         end
         local switch = RulesEditor(entry, k, children)
         if entry.scripted then
             local anchor = B.RulesEnd(k)
             if anchor ~= nil then
-                children[#children + 1] = SceneEditor("After the outcome (otherwise the option's own)", k.postLines, anchor, SceneCtx(entry, "outcome"))
+                children[#children + 1] = SceneEditor(T("author.montage_builder.knack.scene_after"), k.postLines, anchor, SceneCtx(entry, "outcome"))
             end
         end
         local tools = {}
         for _, b in ipairs(switch) do tools[#tools + 1] = b end
-        tools[#tools + 1] = ConfirmButton("Delete knack version", function()
-            Commit("Deleted a knack version.", E.DeleteElement(parse, session.texts, k.line, 4))
+        tools[#tools + 1] = ConfirmButton(T("author.montage_builder.knack.delete"), function()
+            Commit(T("author.montage_builder.status.deleted_knack_version"), E.DeleteElement(parse, session.texts, k.line, 4))
         end)
         children[#children + 1] = Row(tools, { fit = true, tmargin = 6 })
         return gui.Panel{ classes = { "mbSection" }, borderColor = "#d9b3ff60", children = children }
@@ -2519,32 +2525,32 @@ function B.CreateWindow(session, close)
         local children = {}
         local kindText
         if o.delve ~= nil then
-            kindText = "Enters the delve '" .. o.delve .. "' (edit it from the board)"
+            kindText = T("author.montage_builder.option.kind_delve", { delve = o.delve })
         elseif o.roll ~= nil then
-            kindText = "Test"
+            kindText = T("author.montage_builder.option.kind_test")
         elseif o.free ~= nil then
-            kindText = "No roll: its rules apply at once"
+            kindText = T("author.montage_builder.option.kind_no_roll")
         else
-            kindText = "No rules yet"
+            kindText = T("author.montage_builder.option.kind_none")
         end
         local secret = EncounterScript.OptionIsSecret(o)
 
         children[#children + 1] = Row({
             gui.Label{ classes = { "mbHeading" }, width = 30, text = tostring(optionIndex) .. "." },
             TextBox(o.name, function(text)
-                Commit("Renamed an option.", E.SetLine(parse, o.line, E.OptionHeadingLine(text)))
+                Commit(T("author.montage_builder.status.renamed_option"), E.SetLine(parse, o.line, E.OptionHeadingLine(text)))
             end, { width = 380 }),
             gui.Label{ classes = { "mbSub" }, width = "auto", height = "auto", valign = "center", lmargin = 8,
-                text = kindText .. cond(secret, "  (SECRET: only heroes who meet an Allow line see it)", "") },
+                text = cond(secret, T("author.montage_builder.option.kind_secret", { kind = kindText }), kindText) },
         }, { fit = true })
 
         if entry.scripted then
-            children[#children + 1] = SceneEditor("Scene when chosen (before the roll)", o.preLines, o.line, SceneCtx(entry, "option"))
+            children[#children + 1] = SceneEditor(T("author.montage_builder.option.scene_before"), o.preLines, o.line, SceneCtx(entry, "option"))
         else
-            children[#children + 1] = Label("What the option says (optional)", { "mbFieldLabel" })
+            children[#children + 1] = Label(T("author.montage_builder.option.text_label"), { "mbFieldLabel" })
             children[#children + 1] = TextBox(o.text, function(text)
-                Commit("Edited an option's text.", E.SetProse(parse, session.texts, o.textLines, o.line, text))
-            end, { multiline = true, placeholder = "Shown with the option." })
+                Commit(T("author.montage_builder.status.edited_option_text"), E.SetProse(parse, session.texts, o.textLines, o.line, text))
+            end, { multiline = true, placeholder = T("author.montage_builder.option.text_placeholder") })
         end
 
         local switch = {}
@@ -2554,7 +2560,7 @@ function B.CreateWindow(session, close)
         if entry.scripted and o.delve == nil then
             local anchor = B.RulesEnd(o)
             if anchor ~= nil then
-                children[#children + 1] = SceneEditor("Outcome scene (after the roll; effects apply once it has been read)", o.postLines, anchor, SceneCtx(entry, "outcome"))
+                children[#children + 1] = SceneEditor(T("author.montage_builder.option.scene_after"), o.postLines, anchor, SceneCtx(entry, "outcome"))
             end
         end
 
@@ -2563,26 +2569,26 @@ function B.CreateWindow(session, close)
         end
 
         --option tools.
-        local textEditor = TextEditorPanel(o.line, 3, "The option as written. Anything the forms above do not cover can be edited here.")
+        local textEditor = TextEditorPanel(o.line, 3, T("author.montage_builder.option.text_editor_note"))
         local toolRow = {
-            SmallButton("Edit as text", function()
+            SmallButton(T("author.montage_builder.option.edit_as_text"), function()
                 textEditor:SetClass("collapsed", not textEditor:HasClass("collapsed"))
             end),
         }
         for _, b in ipairs(switch) do toolRow[#toolRow + 1] = b end
         if o.delve == nil then
-            toolRow[#toolRow + 1] = SmallButton("+ Knack version (no roll)", function()
-                Commit("Added a knack version.", E.InsertAfterElement(parse, session.texts, o.line, 3,
+            toolRow[#toolRow + 1] = SmallButton(T("author.montage_builder.option.add_knack_no_roll"), function()
+                Commit(T("author.montage_builder.status.added_knack_version"), E.InsertAfterElement(parse, session.texts, o.line, 3,
                     { E.KnackHeadingLine("you can teleport"), "", "|The problem is solved in a blink. +1 hero token" }))
             end)
-            toolRow[#toolRow + 1] = SmallButton("+ Knack version (own test)", function()
+            toolRow[#toolRow + 1] = SmallButton(T("author.montage_builder.option.add_knack_test"), function()
                 local block = { E.KnackHeadingLine("you can fly"), "" }
                 for _, l in ipairs(DefaultRoll(entry.kind)) do block[#block + 1] = l end
-                Commit("Added a knack version.", E.InsertAfterElement(parse, session.texts, o.line, 3, block))
+                Commit(T("author.montage_builder.status.added_knack_version"), E.InsertAfterElement(parse, session.texts, o.line, 3, block))
             end)
         end
-        toolRow[#toolRow + 1] = ConfirmButton("Delete option", function()
-            Commit(string.format("Deleted option '%s'.", o.name), E.DeleteElement(parse, session.texts, o.line, 3))
+        toolRow[#toolRow + 1] = ConfirmButton(T("author.montage_builder.option.delete"), function()
+            Commit(T("author.montage_builder.status.deleted_option", { name = tostring(o.name) }), E.DeleteElement(parse, session.texts, o.line, 3))
         end)
         children[#children + 1] = Row(toolRow, { fit = true, tmargin = 6 })
         children[#children + 1] = textEditor
@@ -2602,24 +2608,24 @@ function B.CreateWindow(session, close)
         local color = cond(entry.kind == "threat", THREAT_COLOR, cond(isObstacle or isSection, OBSTACLE_COLOR, OPPORTUNITY_COLOR))
 
         if isSection then
-            children[#children + 1] = Label(string.upper("Delve: " .. tostring(entry.delve) .. " -- " .. entry.name), { "mbHeading" }, { color = color })
-            children[#children + 1] = SceneEditor("Scene", entry.sceneLines, entry.line, SceneCtx(entry, "intro"))
+            children[#children + 1] = Label(string.upper(T("author.montage_builder.section.heading", { delve = tostring(entry.delve), name = tostring(entry.name) })), { "mbHeading" }, { color = color })
+            children[#children + 1] = SceneEditor(T("author.montage_builder.section.scene"), entry.sceneLines, entry.line, SceneCtx(entry, "intro"))
             if entry.table ~= nil then
-                children[#children + 1] = TableEditor(entry.table, "Treasure table", entry)
+                children[#children + 1] = TableEditor(entry.table, T("author.montage_builder.section.treasure_table"), entry)
             elseif entry.section == "chest" then
                 children[#children + 1] = Row({
-                    SmallButton("+ Treasure table", function()
-                        Commit("Added a treasure table.", E.InsertAfterElement(parse, session.texts, entry.line, 2,
+                    SmallButton(T("author.montage_builder.section.add_treasure_table"), function()
+                        Commit(T("author.montage_builder.status.added_treasure_table"), E.InsertAfterElement(parse, session.texts, entry.line, 2,
                             E.TableLines{ name = "Treasure", dice = "1d6", rows = { { lo = 1, hi = 3, text = "You gain 1 Healing Potion" }, { lo = 4, hi = 6, text = "+1 hero token" } } }))
                     end),
                 }, { fit = true })
             end
-            local textEditor = TextEditorPanel(entry.line, 2, "The section as written.")
+            local textEditor = TextEditorPanel(entry.line, 2, T("author.montage_builder.section.text_editor_note"))
             children[#children + 1] = Row({
-                SmallButton("Edit as text", function() textEditor:SetClass("collapsed", not textEditor:HasClass("collapsed")) end),
-                ConfirmButton("Delete section", function()
+                SmallButton(T("author.montage_builder.section.edit_as_text"), function() textEditor:SetClass("collapsed", not textEditor:HasClass("collapsed")) end),
+                ConfirmButton(T("author.montage_builder.section.delete"), function()
                     session.selected = nil
-                    Commit("Deleted a delve section.", E.DeleteElement(parse, session.texts, entry.line, 2))
+                    Commit(T("author.montage_builder.status.deleted_section"), E.DeleteElement(parse, session.texts, entry.line, 2))
                 end),
             }, { fit = true, tmargin = 8 })
             children[#children + 1] = textEditor
@@ -2628,12 +2634,12 @@ function B.CreateWindow(session, close)
 
         children[#children + 1] = Row({
             gui.Label{ classes = { "mbHeading" }, width = "auto", height = "auto", valign = "center", rmargin = 8, color = color,
-                text = string.upper(cond(isObstacle, "Obstacle", entry.kind)) },
+                text = string.upper(cond(isObstacle, T("author.montage_builder.kind.obstacle"), cond(entry.kind == "threat", T("author.montage_builder.kind.threat"), T("author.montage_builder.kind.opportunity")))) },
             TextBox(entry.name, function(text)
                 Do(function() B.RenameEntry(session, entry, text) end)
             end, { width = 320, height = 28 }),
         }, { fit = true })
-        children[#children + 1] = Label(string.format("In the journal document '%s'.", B.SourceName(session, entry.line)), { "mbSub" })
+        children[#children + 1] = Label(T("author.montage_builder.entry.source", { document = B.SourceName(session, entry.line) }), { "mbSub" })
 
         if not isObstacle then
             local tagRow = {
@@ -2641,18 +2647,18 @@ function B.CreateWindow(session, close)
                     classes = { "sizeXs" },
                     width = 130,
                     height = 24,
-                    options = { { id = "opportunity", text = "Opportunity" }, { id = "threat", text = "Threat" } },
+                    options = { { id = "opportunity", text = T("author.montage_builder.entry.kind_opportunity") }, { id = "threat", text = T("author.montage_builder.entry.kind_threat") } },
                     idChosen = entry.kind,
                     change = function(element)
                         ---@cast element Dropdown
-                        Commit("Changed the entry's kind.", E.SetEntryHeading(parse, entry, { kind = element.idChosen }))
+                        Commit(T("author.montage_builder.status.changed_kind"), E.SetEntryHeading(parse, entry, { kind = element.idChosen }))
                     end,
                 },
             }
             local tagHelp = {
-                required = "Never removed by the party-size trim.",
-                locked = "Off the board until an 'unlock <name>' outcome lands.",
-                temporary = "Gone at the end of the round it appears in.",
+                required = T("author.montage_builder.entry.required_tooltip"),
+                locked = T("author.montage_builder.entry.locked_tooltip"),
+                temporary = T("author.montage_builder.entry.temporary_tooltip"),
             }
             for _, tag in ipairs({ "required", "locked", "temporary" }) do
                 local key = tag
@@ -2662,50 +2668,50 @@ function B.CreateWindow(session, close)
                     width = 120,
                     height = 24,
                     lmargin = 8,
-                    text = string.upper(string.sub(key, 1, 1)) .. string.sub(key, 2),
+                    text = ({ required = T("author.montage_builder.entry.required"), locked = T("author.montage_builder.entry.locked"), temporary = T("author.montage_builder.entry.temporary") })[key],
                     value = entry[key] == true,
                     hover = gui.Tooltip(tagHelp[key]),
                     change = function(element)
-                        Commit("Changed the entry's tags.", E.SetEntryHeading(parse, entry, { [key] = element.value == true }))
+                        Commit(T("author.montage_builder.status.changed_tags"), E.SetEntryHeading(parse, entry, { [key] = element.value == true }))
                     end,
                 }
             end
             children[#children + 1] = Row(tagRow, { fit = true, tmargin = 4 })
         end
 
-        children[#children + 1] = Label("Card text: what the party reads on the board", { "mbFieldLabel" })
+        children[#children + 1] = Label(T("author.montage_builder.entry.card_text_label"), { "mbFieldLabel" })
         children[#children + 1] = TextBox(entry.description, function(text)
-            Commit("Edited the card text.", E.SetDescription(parse, session.texts, entry, text))
-        end, { multiline = true, placeholder = "A cottage sits off the path, smoke curling from its chimney." })
+            Commit(T("author.montage_builder.status.edited_card_text"), E.SetDescription(parse, session.texts, entry, text))
+        end, { multiline = true, placeholder = T("author.montage_builder.entry.card_text_placeholder") })
 
-        children[#children + 1] = Label("Approach text (optional 'Options:' line, shown when the hero steps up)", { "mbFieldLabel" })
+        children[#children + 1] = Label(T("author.montage_builder.entry.approach_label"), { "mbFieldLabel" })
         children[#children + 1] = TextBox(entry.approach, function(text)
             text = E.LineText(text)
             local block = cond(text == "", {}, { "Options: " .. text })
             if entry.approachLines ~= nil then
                 local span = entry.approachLines
-                Commit("Edited the approach text.", One(E.PatchExpanded(parse, span[1][1], span[#span][2], block)))
+                Commit(T("author.montage_builder.status.edited_approach"), One(E.PatchExpanded(parse, span[1][1], span[#span][2], block)))
             elseif #block > 0 then
                 local after = entry.line
                 if entry.descriptionLines ~= nil then
                     after = entry.descriptionLines[#entry.descriptionLines][2]
                 end
-                Commit("Added approach text.", One(E.InsertBlockAfter(parse, session.texts, after, block)))
+                Commit(T("author.montage_builder.status.added_approach"), One(E.InsertBlockAfter(parse, session.texts, after, block)))
             end
-        end, { placeholder = "Approaching the cottage, you see a witch within..." })
+        end, { placeholder = T("author.montage_builder.entry.approach_placeholder") })
 
         if entry.kind == "threat" then
-            children[#children + 1] = Label("Consequence: what happens at the end if the threat is never vanquished", { "mbFieldLabel" })
+            children[#children + 1] = Label(T("author.montage_builder.entry.consequence_label"), { "mbFieldLabel" })
             children[#children + 1] = OutcomeEditor(entry.consequence ~= nil and entry.consequence.text or "", function(text)
-                Commit("Edited the consequence.", E.SetConsequence(parse, session.texts, entry, text))
-            end, entry, { placeholder = "What the party suffers at the end of the montage (optional words)" })
+                Commit(T("author.montage_builder.status.edited_consequence"), E.SetConsequence(parse, session.texts, entry, text))
+            end, entry, { placeholder = T("author.montage_builder.entry.consequence_placeholder") })
         end
 
         if entry.scripted then
-            children[#children + 1] = SceneEditor("Scene: plays when a hero approaches", entry.sceneLines, entry.sceneSepLine, SceneCtx(entry, "intro"))
+            children[#children + 1] = SceneEditor(T("author.montage_builder.entry.scene"), entry.sceneLines, entry.sceneSepLine, SceneCtx(entry, "intro"))
         else
             children[#children + 1] = Row({
-                SmallButton("+ Add a scene", function()
+                SmallButton(T("author.montage_builder.entry.add_scene"), function()
                     --"---" ends the card text; the scene follows it, above the first option.
                     local after = entry.line
                     if entry.consequence ~= nil and entry.consequence.lines ~= nil then
@@ -2717,41 +2723,41 @@ function B.CreateWindow(session, close)
                     if entry.descriptionLines ~= nil then
                         after = math.max(after, entry.descriptionLines[#entry.descriptionLines][2])
                     end
-                    Commit("Added a scene.", One(E.InsertBlockAfter(parse, session.texts, after, { "---", "", "PC approaches." })))
+                    Commit(T("author.montage_builder.status.added_scene"), One(E.InsertBlockAfter(parse, session.texts, after, { "---", "", "PC approaches." })))
                 end),
             }, { fit = true })
-            children[#children + 1] = Label("A scene plays the approach as dialogue with portraits. With one, each option's own lines become its scenes too.", { "mbSub" })
+            children[#children + 1] = Label(T("author.montage_builder.entry.scene_help"), { "mbSub" })
         end
 
         for _, t in pairs(entry.tables or {}) do
-            children[#children + 1] = TableEditor(t, "Dice table", entry)
+            children[#children + 1] = TableEditor(t, T("author.montage_builder.table.title"), entry)
         end
         children[#children + 1] = Row({
-            SmallButton("+ Dice table", function()
+            SmallButton(T("author.montage_builder.entry.add_dice_table"), function()
                 local after = entry.line
                 if entry.descriptionLines ~= nil then
                     after = entry.descriptionLines[#entry.descriptionLines][2]
                 end
-                Commit("Added a dice table.", One(E.InsertBlockAfter(parse, session.texts, after,
+                Commit(T("author.montage_builder.status.added_dice_table"), One(E.InsertBlockAfter(parse, session.texts, after,
                     E.TableLines{ name = "Wares", dice = "1d6", rows = { { lo = 1, hi = 3, text = "You gain 1 Healing Potion" }, { lo = 4, hi = 6, text = "+1 hero token" } } })))
             end),
         }, { fit = true })
-        children[#children + 1] = Label("An outcome rolls an entry's table with 'roll on <table name>' (or 'roll twice on ...').", { "mbSub" })
+        children[#children + 1] = Label(T("author.montage_builder.entry.dice_table_help"), { "mbSub" })
 
-        children[#children + 1] = Label(string.format("Options (%d)", #entry.options), { "mbHeading" }, { tmargin = 10 })
+        children[#children + 1] = Label(T("author.montage_builder.entry.options_heading", { count = #entry.options }), { "mbHeading" }, { tmargin = 10 })
         for i, o in ipairs(entry.options) do
             children[#children + 1] = OptionEditor(entry, o, i)
         end
         children[#children + 1] = Row({
-            SmallButton("+ Option with a test", function()
-                Commit("Added an option.", E.InsertAfterElement(parse, session.texts, entry.line, 2,
+            SmallButton(T("author.montage_builder.entry.add_option_test"), function()
+                Commit(T("author.montage_builder.status.added_option"), E.InsertAfterElement(parse, session.texts, entry.line, 2,
                     E.OptionBlock("New option", "", DefaultRoll(entry.kind))))
             end),
-            SmallButton("+ Option with no roll", function()
-                Commit("Added an option.", E.InsertAfterElement(parse, session.texts, entry.line, 2,
+            SmallButton(T("author.montage_builder.entry.add_option_no_roll"), function()
+                Commit(T("author.montage_builder.status.added_option"), E.InsertAfterElement(parse, session.texts, entry.line, 2,
                     E.OptionBlock("New option", "", { "|+1 hero token" })))
             end),
-            SmallButton("+ Option that enters a delve", function()
+            SmallButton(T("author.montage_builder.entry.add_option_delve"), function()
                 Do(function() B.AddDelveOption(session, entry) end)
             end),
         }, { fit = true })
@@ -2766,7 +2772,7 @@ function B.CreateWindow(session, close)
             end
         end
         if #warnings > 0 then
-            children[#children + 1] = Label(string.format("Problems (%d)", #warnings), { "mbHeading" }, { tmargin = 10, color = PROBLEM_COLOR })
+            children[#children + 1] = Label(T("author.montage_builder.entry.problems_heading", { count = #warnings }), { "mbHeading" }, { tmargin = 10, color = PROBLEM_COLOR })
             for _, w in ipairs(warnings) do
                 children[#children + 1] = Label(w.message, { "mbProblem" })
             end
@@ -2776,17 +2782,17 @@ function B.CreateWindow(session, close)
             for _, w in ipairs(textOnly) do
                 quoted[#quoted + 1] = string.match(w.message, "'(.-)'") or w.message
             end
-            children[#children + 1] = Label(string.format("Text only, no rule matched (%d): usually flavour; check for a typo'd rule. %s",
-                #textOnly, table.concat(quoted, " / ")), { "mbSub" }, { tmargin = 8 })
+            children[#children + 1] = Label(T("author.montage_builder.entry.text_only",
+                { count = #textOnly, list = table.concat(quoted, " / ") }), { "mbSub" }, { tmargin = 8 })
         end
 
         --entry tools.
-        local textEditor = TextEditorPanel(entry.line, 2, "The entry as written in its document. Anything the forms do not cover can be edited here.")
+        local textEditor = TextEditorPanel(entry.line, 2, T("author.montage_builder.entry.text_editor_note"))
         local tools = {
-            SmallButton("Edit entry as text", function()
+            SmallButton(T("author.montage_builder.entry.edit_as_text"), function()
                 textEditor:SetClass("collapsed", not textEditor:HasClass("collapsed"))
             end),
-            SmallButton("Open in journal", function()
+            SmallButton(T("author.montage_builder.entry.open_in_journal"), function()
                 local docid = E.Source(parse, entry.line)
                 local doc = DocsTable()[docid]
                 close()
@@ -2799,10 +2805,10 @@ function B.CreateWindow(session, close)
             local beat = B.CurrentBeat(session)
             local sel = session.selected
             if beat ~= nil and sel ~= nil and sel.kind == "entry" and #beat.rounds > 1 then
-                local moveOptions = { { id = "", text = "Move to round..." } }
+                local moveOptions = { { id = "", text = T("author.montage_builder.entry.move_to_round") } }
                 for ri, r in ipairs(beat.rounds) do
                     if ri ~= sel.round then
-                        moveOptions[#moveOptions + 1] = { id = tostring(ri), text = "Round " .. tostring(r.number) }
+                        moveOptions[#moveOptions + 1] = { id = tostring(ri), text = T("author.montage_builder.entry.move_round_option", { number = tostring(r.number) }) }
                     end
                 end
                 tools[#tools + 1] = gui.Dropdown{
@@ -2821,13 +2827,13 @@ function B.CreateWindow(session, close)
                     end,
                 }
             end
-            tools[#tools + 1] = ConfirmButton("Delete entry", function()
+            tools[#tools + 1] = ConfirmButton(T("author.montage_builder.entry.delete"), function()
                 Do(function() B.DeleteEntry(session, entry) end)
             end)
         else
-            tools[#tools + 1] = ConfirmButton("Delete obstacle", function()
+            tools[#tools + 1] = ConfirmButton(T("author.montage_builder.entry.delete_obstacle"), function()
                 session.selected = nil
-                Commit("Deleted an obstacle.", E.DeleteElement(parse, session.texts, entry.line, 2))
+                Commit(T("author.montage_builder.status.deleted_obstacle"), E.DeleteElement(parse, session.texts, entry.line, 2))
             end)
         end
         children[#children + 1] = Row(tools, { fit = true, tmargin = 10 })
@@ -2840,8 +2846,8 @@ function B.CreateWindow(session, close)
     local function DelveEditor(delve)
         local parse = session.parse
         local children = {}
-        children[#children + 1] = Label("DELVE: " .. string.upper(delve.name), { "mbHeading" }, { color = OBSTACLE_COLOR })
-        children[#children + 1] = Label(string.format("In the journal document '%s'. The whole delve is one hero's turn: they meet obstacles, find chests, and press deeper (losing a Recovery) or turn back.", B.SourceName(session, delve.line)), { "mbSub" })
+        children[#children + 1] = Label(T("author.montage_builder.delve.heading", { name = string.upper(delve.name) }), { "mbHeading" }, { color = OBSTACLE_COLOR })
+        children[#children + 1] = Label(T("author.montage_builder.delve.intro", { document = B.SourceName(session, delve.line) }), { "mbSub" })
 
         children[#children + 1] = gui.Check{
             classes = { "sizeXs" },
@@ -2849,13 +2855,13 @@ function B.CreateWindow(session, close)
             width = 520,
             height = 24,
             tmargin = 6,
-            text = "In sequence: obstacles come in written order, pressing on is free (a story chain)",
+            text = T("author.montage_builder.delve.in_sequence"),
             value = delve.ordered == true,
             change = function(element)
                 if element.value then
-                    Commit("Delve set to in sequence.", One(E.InsertBlockAfter(parse, session.texts, delve.line, { "Order: in sequence" })))
+                    Commit(T("author.montage_builder.status.delve_in_sequence"), One(E.InsertBlockAfter(parse, session.texts, delve.line, { "Order: in sequence" })))
                 elseif delve.orderLines ~= nil then
-                    Commit("Delve set to random.", One(E.PatchExpanded(parse, delve.orderLines[1], delve.orderLines[2], {})))
+                    Commit(T("author.montage_builder.status.delve_random"), One(E.PatchExpanded(parse, delve.orderLines[1], delve.orderLines[2], {})))
                 end
             end,
         }
@@ -2863,40 +2869,40 @@ function B.CreateWindow(session, close)
             local function WriteChest(lo, hi)
                 lo, hi = tonumber(lo), tonumber(hi)
                 if lo == nil or hi == nil or lo < 1 or hi < lo then
-                    session.status = "A chest interval is two numbers, low to high (e.g. 1 and 2)."
+                    session.status = T("author.montage_builder.status.chest_interval_invalid")
                     Refresh()
                     return
                 end
                 local line = cond(lo == hi, string.format("Chest: every %d obstacles", lo), string.format("Chest: every %d-%d obstacles", lo, hi))
                 if delve.chestLines ~= nil then
-                    Commit("Changed the chest interval.", One(E.PatchExpanded(parse, delve.chestLines[1], delve.chestLines[2], { line })))
+                    Commit(T("author.montage_builder.status.changed_chest_interval"), One(E.PatchExpanded(parse, delve.chestLines[1], delve.chestLines[2], { line })))
                 else
-                    Commit("Set the chest interval.", One(E.InsertBlockAfter(parse, session.texts, delve.line, { line })))
+                    Commit(T("author.montage_builder.status.set_chest_interval"), One(E.InsertBlockAfter(parse, session.texts, delve.line, { line })))
                 end
             end
             children[#children + 1] = Row({
-                gui.Label{ classes = { "mbSub" }, width = "auto", height = "auto", valign = "center", rmargin = 6, text = "A chest every" },
+                gui.Label{ classes = { "mbSub" }, width = "auto", height = "auto", valign = "center", rmargin = 6, text = T("author.montage_builder.delve.chest_every") },
                 TextBox(tostring(delve.chestEvery[1]), function(text) WriteChest(text, delve.chestEvery[2]) end, { width = 40, height = 24 }),
-                gui.Label{ classes = { "mbSub" }, width = "auto", height = "auto", valign = "center", hmargin = 6, text = "to" },
+                gui.Label{ classes = { "mbSub" }, width = "auto", height = "auto", valign = "center", hmargin = 6, text = T("author.montage_builder.delve.chest_to") },
                 TextBox(tostring(delve.chestEvery[2]), function(text) WriteChest(delve.chestEvery[1], text) end, { width = 40, height = 24 }),
-                gui.Label{ classes = { "mbSub" }, width = "auto", height = "auto", valign = "center", lmargin = 6, text = "obstacles" },
+                gui.Label{ classes = { "mbSub" }, width = "auto", height = "auto", valign = "center", lmargin = 6, text = T("author.montage_builder.delve.chest_obstacles") },
             }, { fit = true, tmargin = 4 })
         end
 
-        children[#children + 1] = Label("Intro", { "mbFieldLabel" })
+        children[#children + 1] = Label(T("author.montage_builder.delve.intro_label"), { "mbFieldLabel" })
         children[#children + 1] = TextBox(delve.intro, function(text)
-            Commit("Edited the delve intro.", E.SetProse(parse, session.texts, delve.introLines, delve.line, text))
-        end, { multiline = true, placeholder = "Notes for the delve (optional)." })
+            Commit(T("author.montage_builder.status.edited_delve_intro"), E.SetProse(parse, session.texts, delve.introLines, delve.line, text))
+        end, { multiline = true, placeholder = T("author.montage_builder.delve.intro_placeholder") })
 
         --the sections: which exist, and buttons for the missing ones.
         local SECTIONS = {
-            { key = "chest", heading = "Chest", text = "PC pries open a dusty chest.", note = "a chest is found" },
-            { key = "continue", heading = "Continue", text = "PC peers deeper into the dark.", note = "between obstacles" },
-            { key = "leave", heading = "Leave", text = "PC turns back toward the light.", note = "turning back" },
-            { key = "forced", heading = "Forced Out", text = "Exhausted, PC staggers out.", note = "at 0 Recoveries" },
-            { key = "finish", heading = "End", text = "PC has done it.", note = "the last step of an in-sequence delve" },
+            { key = "chest", heading = "Chest", text = "PC pries open a dusty chest.", note = T("author.montage_builder.delve.section_chest_note") },
+            { key = "continue", heading = "Continue", text = "PC peers deeper into the dark.", note = T("author.montage_builder.delve.section_continue_note") },
+            { key = "leave", heading = "Leave", text = "PC turns back toward the light.", note = T("author.montage_builder.delve.section_leave_note") },
+            { key = "forced", heading = "Forced Out", text = "Exhausted, PC staggers out.", note = T("author.montage_builder.delve.section_forced_note") },
+            { key = "finish", heading = "End", text = "PC has done it.", note = T("author.montage_builder.delve.section_finish_note") },
         }
-        children[#children + 1] = Label("Scenes of the delve (pick one on the board to edit it)", { "mbFieldLabel" })
+        children[#children + 1] = Label(T("author.montage_builder.delve.sections_label"), { "mbFieldLabel" })
         local missing = {}
         for _, sec in ipairs(SECTIONS) do
             local present = delve.sections[sec.key]
@@ -2916,16 +2922,16 @@ function B.CreateWindow(session, close)
                         block[#block + 1] = l
                     end
                 end
-                Commit("Added a delve section.", E.InsertAfterElement(parse, session.texts, delve.line, 1, block))
+                Commit(T("author.montage_builder.status.added_section"), E.InsertAfterElement(parse, session.texts, delve.line, 1, block))
             end)
         end
         if #addButtons > 0 then
             children[#children + 1] = Row(addButtons, { fit = true })
         end
 
-        local textEditor = TextEditorPanel(delve.line, 1, "The whole delve as written.")
+        local textEditor = TextEditorPanel(delve.line, 1, T("author.montage_builder.delve.text_editor_note"))
         children[#children + 1] = Row({
-            SmallButton("Edit delve as text", function() textEditor:SetClass("collapsed", not textEditor:HasClass("collapsed")) end),
+            SmallButton(T("author.montage_builder.delve.edit_as_text"), function() textEditor:SetClass("collapsed", not textEditor:HasClass("collapsed")) end),
         }, { fit = true, tmargin = 8 })
         children[#children + 1] = textEditor
         return children
@@ -2934,23 +2940,23 @@ function B.CreateWindow(session, close)
     --- the board ---
     local function EntryCard(entry, selection, isSelected)
         local color = cond(entry.kind == "threat", THREAT_COLOR, cond(entry.kind == "obstacle" or entry.kind == "delvesection", OBSTACLE_COLOR, OPPORTUNITY_COLOR))
-        local kindLabel = cond(entry.kind == "delvesection", "DELVE SCENE", string.upper(entry.kind))
+        local kindLabel = cond(entry.kind == "delvesection", T("author.montage_builder.card.kind_delve_scene"), string.upper(cond(entry.kind == "obstacle", T("author.montage_builder.kind.obstacle"), cond(entry.kind == "threat", T("author.montage_builder.kind.threat"), T("author.montage_builder.kind.opportunity")))))
         local tags = {}
-        if entry.required then tags[#tags + 1] = "Required" end
-        if entry.locked then tags[#tags + 1] = "Locked" end
-        if entry.temporary then tags[#tags + 1] = "Temporary" end
+        if entry.required then tags[#tags + 1] = T("author.montage_builder.card.tag_required") end
+        if entry.locked then tags[#tags + 1] = T("author.montage_builder.card.tag_locked") end
+        if entry.temporary then tags[#tags + 1] = T("author.montage_builder.card.tag_temporary") end
         local tests, secrets = 0, 0
         for _, o in ipairs(entry.options) do
             if o.roll ~= nil then tests = tests + 1 end
             if EncounterScript.OptionIsSecret(o) then secrets = secrets + 1 end
         end
-        local parts = { string.format("%d option%s", #entry.options, cond(#entry.options == 1, "", "s")) }
+        local parts = { TP("author.montage_builder.card.options", #entry.options) }
         if entry.kind == "delvesection" then
-            parts = { string.format("%d scene line%s", #(entry.sceneLines or {}), cond(#(entry.sceneLines or {}) == 1, "", "s")) }
-            if entry.table ~= nil then parts[#parts + 1] = "treasure table" end
+            parts = { TP("author.montage_builder.card.scene_lines", #(entry.sceneLines or {})) }
+            if entry.table ~= nil then parts[#parts + 1] = T("author.montage_builder.card.treasure_table") end
         end
-        if secrets > 0 then parts[#parts + 1] = string.format("%d secret", secrets) end
-        if entry.scripted and entry.kind ~= "delvesection" then parts[#parts + 1] = "scene" end
+        if secrets > 0 then parts[#parts + 1] = T("author.montage_builder.card.secrets", { count = secrets }) end
+        if entry.scripted and entry.kind ~= "delvesection" then parts[#parts + 1] = T("author.montage_builder.card.scene") end
         local warnings = {}
         for _, w in ipairs(B.WarningsIn(session, entry.line, 2)) do
             if not w.textOnly then
@@ -2978,7 +2984,7 @@ function B.CreateWindow(session, close)
                 if #warnings == 0 then
                     return nil
                 end
-                return Label(string.format("%d problem%s", #warnings, cond(#warnings == 1, "", "s")), { "mbProblem" })
+                return Label(TP("author.montage_builder.card.problems", #warnings), { "mbProblem" })
             end)(),
         }
     end
@@ -2990,14 +2996,14 @@ function B.CreateWindow(session, close)
         local values = { min = d.min, max = d.max, opportunity = d.removals.opportunity or 0, threat = d.removals.threat or 0 }
         local function Write()
             if values.opportunity + values.threat == 0 then
-                session.status = "Not changed: a party-size line has to drop at least one card."
+                session.status = T("author.montage_builder.status.party_size_needs_card")
                 Refresh()
                 return
             end
             if values.max ~= nil and values.max < values.min then
                 values.max = values.min
             end
-            Commit("Edited a party-size line.", E.SetLine(parse, d.line, E.ScalingLine{
+            Commit(T("author.montage_builder.status.edited_party_size"), E.SetLine(parse, d.line, E.ScalingLine{
                 min = values.min, max = values.max,
                 removals = { opportunity = values.opportunity, threat = values.threat } }))
         end
@@ -3024,7 +3030,7 @@ function B.CreateWindow(session, close)
             }
         end
         local maxOptions = Numbers(1, 6, d.max)
-        maxOptions[#maxOptions + 1] = { id = "+", text = "or more" }
+        maxOptions[#maxOptions + 1] = { id = "+", text = T("author.montage_builder.party_size.or_more") }
         local function Text(text)
             return gui.Label{ classes = { "mbSub" }, width = "auto", height = "auto", valign = "center", text = text }
         end
@@ -3034,31 +3040,31 @@ function B.CreateWindow(session, close)
             height = "auto",
             flow = "vertical",
             Row({
-                Text("Between"),
+                Text(T("author.montage_builder.party_size.between")),
                 Pick(Numbers(1, 6, d.min), tostring(d.min), 52, function(id)
                     values.min = tonumber(id) or values.min
                     Write()
                 end),
-                Text("and"),
+                Text(T("author.montage_builder.party_size.and")),
                 Pick(maxOptions, d.max ~= nil and tostring(d.max) or "+", 86, function(id)
                     values.max = tonumber(id)
                     Write()
                 end),
-                Text("players:"),
+                Text(T("author.montage_builder.party_size.players")),
             }, { fit = true }),
             Row({
                 Pick(Numbers(0, 6, values.opportunity, "-"), tostring(values.opportunity), 52, function(id)
                     values.opportunity = tonumber(id) or 0
                     Write()
                 end),
-                gui.Label{ classes = { "mbSub" }, width = "auto", height = "auto", valign = "center", color = OPPORTUNITY_COLOR, text = "Opportunity;" },
+                gui.Label{ classes = { "mbSub" }, width = "auto", height = "auto", valign = "center", color = OPPORTUNITY_COLOR, text = T("author.montage_builder.party_size.opportunity") },
                 Pick(Numbers(0, 6, values.threat, "-"), tostring(values.threat), 52, function(id)
                     values.threat = tonumber(id) or 0
                     Write()
                 end),
-                gui.Label{ classes = { "mbSub" }, width = "auto", height = "auto", valign = "center", color = THREAT_COLOR, rmargin = 12, text = "Threat" },
-                SmallButton("Remove", function()
-                    Commit("Removed a party-size line.", E.DeleteLine(parse, d.line))
+                gui.Label{ classes = { "mbSub" }, width = "auto", height = "auto", valign = "center", color = THREAT_COLOR, rmargin = 12, text = T("author.montage_builder.party_size.threat") },
+                SmallButton(T("author.montage_builder.party_size.remove"), function()
+                    Commit(T("author.montage_builder.status.removed_party_size"), E.DeleteLine(parse, d.line))
                 end),
             }, { fit = true }),
         }
@@ -3068,40 +3074,40 @@ function B.CreateWindow(session, close)
         local children = {}
         local beat = B.CurrentBeat(session)
         if beat == nil then
-            children[1] = Label("This script has no '# Montage' beat yet.", { "mbHeading" })
+            children[1] = Label(T("author.montage_builder.board.no_montage"), { "mbHeading" })
             return children
         end
         local parse = session.parse
 
-        children[#children + 1] = Label("Intro (shown in the header for the whole montage)", { "mbFieldLabel" })
+        children[#children + 1] = Label(T("author.montage_builder.board.intro_label"), { "mbFieldLabel" })
         children[#children + 1] = TextBox(beat.intro, function(text)
-            Commit("Edited the montage intro.", E.SetProse(parse, session.texts, beat.introLines, beat.line, text))
-        end, { multiline = true, placeholder = "The party's standing context." })
+            Commit(T("author.montage_builder.status.edited_montage_intro"), E.SetProse(parse, session.texts, beat.introLines, beat.line, text))
+        end, { multiline = true, placeholder = T("author.montage_builder.board.intro_placeholder") })
 
         for ri, round in ipairs(beat.rounds) do
             local roundIndex = ri
-            children[#children + 1] = Label(cond(round.implicit, "Round 1 (no round heading)", "Round " .. tostring(round.number)), { "mbHeading" }, { tmargin = 12 })
+            children[#children + 1] = Label(cond(round.implicit, T("author.montage_builder.board.round_implicit"), T("author.montage_builder.board.round", { number = tostring(round.number) })), { "mbHeading" }, { tmargin = 12 })
             --party-size trim lines, as forms.
             for _, d in ipairs(round.scaling or {}) do
                 children[#children + 1] = PartySizeRow(d)
             end
             if #(round.scaling or {}) > 0 then
-                children[#children + 1] = Label("At that party size the round drops that many cards, drawn at random from the ones it introduces (never a Required one).", { "mbSub" })
+                children[#children + 1] = Label(T("author.montage_builder.board.party_size_help"), { "mbSub" })
             end
             local opps, threats = 0, 0
             for _, e in ipairs(round.entries) do
                 if e.kind == "threat" then threats = threats + 1 else opps = opps + 1 end
             end
-            children[#children + 1] = Label(string.format("%d opportunities, %d threats introduced. A round needs about 6 for a full party; trim for 4 and 5 heroes.", opps, threats), { "mbSub" })
+            children[#children + 1] = Label(T("author.montage_builder.board.round_counts", { opportunities = opps, threats = threats }), { "mbSub" })
             if not round.implicit then
                 children[#children + 1] = Row({
-                    SmallButton("+ Party-size line", function()
+                    SmallButton(T("author.montage_builder.board.add_party_size"), function()
                         local after = round.line
                         if round.scaling ~= nil and #round.scaling > 0 then
                             after = round.scaling[#round.scaling].line
                         end
                         local patch, why = E.PatchAfter(parse, after, { E.ScalingLine{ min = 4, max = 4, removals = { opportunity = 1 } } })
-                        Commit("Added a party-size line.", patch ~= nil and { patch } or nil, why)
+                        Commit(T("author.montage_builder.status.added_party_size"), patch ~= nil and { patch } or nil, why)
                     end),
                 }, { fit = true })
             end
@@ -3112,12 +3118,12 @@ function B.CreateWindow(session, close)
                 children[#children + 1] = EntryCard(e, sel, isSelected)
             end
             children[#children + 1] = Row({
-                SmallButton("+ Opportunity", function() Do(function() B.AddEntry(session, roundIndex, "opportunity") end) end),
-                SmallButton("+ Threat", function() Do(function() B.AddEntry(session, roundIndex, "threat") end) end),
+                SmallButton(T("author.montage_builder.board.add_opportunity"), function() Do(function() B.AddEntry(session, roundIndex, "opportunity") end) end),
+                SmallButton(T("author.montage_builder.board.add_threat"), function() Do(function() B.AddEntry(session, roundIndex, "threat") end) end),
             }, { fit = true })
         end
         children[#children + 1] = Row({
-            SmallButton("+ Round", function() Do(function() B.AddRound(session) end) end),
+            SmallButton(T("author.montage_builder.board.add_round"), function() Do(function() B.AddRound(session) end) end),
         }, { fit = true, tmargin = 8 })
 
         --the delves this montage leads into: settings, obstacles and scenes.
@@ -3138,10 +3144,9 @@ function B.CreateWindow(session, close)
                         editorPanel.vscrollPosition = 1
                     end
                 end,
-                Label("DELVE: " .. delve.name, { "mbHeading" }, { color = OBSTACLE_COLOR, bmargin = 0 }),
-                Label(string.format("%s; %d obstacle%s%s. Click for its settings.",
-                    cond(delve.ordered, "In sequence", "Random obstacles"), #delve.obstacles, cond(#delve.obstacles == 1, "", "s"),
-                    cond(delve.ordered, "", string.format(", a chest every %d-%d", delve.chestEvery[1], delve.chestEvery[2]))), { "mbSub" }),
+                Label(T("author.montage_builder.board.delve_heading", { name = delve.name }), { "mbHeading" }, { color = OBSTACLE_COLOR, bmargin = 0 }),
+                Label(cond(delve.ordered, T("author.montage_builder.board.delve_summary_sequence", { obstacles = TP("author.montage_builder.board.delve_obstacles", #delve.obstacles) }),
+                    T("author.montage_builder.board.delve_summary_random", { obstacles = TP("author.montage_builder.board.delve_obstacles", #delve.obstacles), low = delve.chestEvery[1], high = delve.chestEvery[2] })), { "mbSub" }),
             }
             for oi, ob in ipairs(delve.obstacles) do
                 local sel = { kind = "obstacle", delve = key, index = oi }
@@ -3157,7 +3162,7 @@ function B.CreateWindow(session, close)
                 end
             end
             children[#children + 1] = Row({
-                SmallButton("+ Obstacle", function() Do(function() B.AddObstacle(session, key) end) end),
+                SmallButton(T("author.montage_builder.board.add_obstacle"), function() Do(function() B.AddObstacle(session, key) end) end),
             }, { fit = true })
         end
         return children
@@ -3170,7 +3175,7 @@ function B.CreateWindow(session, close)
                 n = n + 1
             end
         end
-        return cond(n == 0, "No problems in the script.", string.format("%d problem%s in the whole script (open the validator for all of them).", n, cond(n == 1, "", "s")))
+        return cond(n == 0, T("author.montage_builder.footer.no_problems"), TP("author.montage_builder.footer.problems", n))
     end
 
     --What the script view (EncounterScriptBuilder.lua) builds with: this
@@ -3228,7 +3233,7 @@ function B.CreateWindow(session, close)
             ok, children = pcall(Board)
         end
         if not ok then
-            children = { Label("Board failed: " .. tostring(children), { "mbProblem" }) }
+            children = { Label(T("author.montage_builder.window.board_failed", { error = tostring(children) }), { "mbProblem" }) }
         end
         boardBody.children = children
 
@@ -3241,35 +3246,35 @@ function B.CreateWindow(session, close)
             if okScript then
                 editorChildren = built
             else
-                editorChildren = { Label("Editor failed: " .. tostring(built), { "mbProblem" }) }
+                editorChildren = { Label(T("author.montage_builder.window.editor_failed", { error = tostring(built) }), { "mbProblem" }) }
             end
         elseif selectedDelve ~= nil then
             local okDelve, built = pcall(DelveEditor, selectedDelve)
             if okDelve then
                 editorChildren = built
             else
-                editorChildren = { Label("Editor failed: " .. tostring(built), { "mbProblem" }) }
+                editorChildren = { Label(T("author.montage_builder.window.editor_failed", { error = tostring(built) }), { "mbProblem" }) }
             end
         elseif entry == nil then
             editorChildren = {
-                Label("Pick an opportunity, threat or delve obstacle on the left to edit it.", { "mbHeading" }),
-                Label("Every change is written straight into the journal document it came from, and the script is re-checked with the game's own parser. Undo takes back one change at a time.", { "mbSub" }),
+                Label(T("author.montage_builder.window.empty_heading"), { "mbHeading" }),
+                Label(T("author.montage_builder.window.empty_help"), { "mbSub" }),
             }
         else
             local okEditor, built = pcall(EntryEditor, entry)
             if okEditor then
                 editorChildren = built
             else
-                editorChildren = { Label("Editor failed: " .. tostring(built), { "mbProblem" }) }
+                editorChildren = { Label(T("author.montage_builder.window.editor_failed", { error = tostring(built) }), { "mbProblem" }) }
             end
         end
         editorBody.children = editorChildren
         statusLabel.text = (session.status ~= "" and (session.status .. "   ") or "") .. ProblemsFooterText()
-        titleLabel.text = string.format("%s: %s", cond(scriptView, "Encounter Builder", "Montage Builder"), tostring(session.names[session.rootId]))
+        titleLabel.text = cond(scriptView, T("author.encounter_builder.window.title", { name = tostring(session.names[session.rootId]) }), T("author.montage_builder.window.title", { name = tostring(session.names[session.rootId]) }))
         if beatDropdown ~= nil then
             local options = {}
             for i, m in ipairs(session.montages) do
-                options[#options + 1] = { id = tostring(i), text = string.format("Montage %d (beat %d)", i, m.index) }
+                options[#options + 1] = { id = tostring(i), text = T("author.montage_builder.window.montage_option", { number = i, beat = m.index }) }
             end
             beatDropdown.options = options
             beatDropdown.idChosen = tostring(session.beatIndex)
@@ -3283,7 +3288,7 @@ function B.CreateWindow(session, close)
         end
     end
 
-    titleLabel = gui.Label{ classes = { "sizeXl", "bold" }, width = "auto", height = "auto", halign = "left", valign = "center", text = "Montage Builder" }
+    titleLabel = gui.Label{ classes = { "sizeXl", "bold" }, width = "auto", height = "auto", halign = "left", valign = "center", text = T("author.montage_builder.window.title_initial") }
     statusLabel = gui.Label{ classes = { "mbSub" }, width = "100%", height = "auto", valign = "center", textWrap = true, text = "" }
     beatDropdown = gui.Dropdown{
         classes = { "sizeXs", "collapsed" },
@@ -3299,14 +3304,14 @@ function B.CreateWindow(session, close)
             Refresh()
         end,
     }
-    backButton = SmallButton("Back to the script", function()
+    backButton = SmallButton(T("author.montage_builder.window.back_to_script"), function()
         session.view = "script"
         Refresh()
         if boardPanel ~= nil and boardPanel.valid then
             boardPanel.vscrollPosition = 1
         end
     end)
-    testButton = SmallButton("Test this montage", function()
+    testButton = SmallButton(T("author.montage_builder.window.test_montage"), function()
         close()
         pcall(function() EncounterTest.ShowDialog("montage") end)
     end)
@@ -3380,13 +3385,13 @@ function B.CreateWindow(session, close)
                     valign = "center",
                     flow = "horizontal",
                     backButton,
-                    SmallButton("Undo", function() Do(function() B.Undo(session) end) end),
+                    SmallButton(T("author.montage_builder.window.undo"), function() Do(function() B.Undo(session) end) end),
                     testButton,
-                    SmallButton("Validator", function()
+                    SmallButton(T("author.montage_builder.window.validator"), function()
                         close()
                         pcall(function() DockablePanel.ShowPanelByName(EncounterScriptValidator.panelName) end)
                     end),
-                    SmallButton("Close", function() close() end),
+                    SmallButton(T("author.montage_builder.window.close"), function() close() end),
                 },
             },
 
@@ -3455,10 +3460,10 @@ local function OfferNewScript()
             flow = "vertical",
             pad = 20,
             borderBox = true,
-            Label("This map has no Encounter of the Week script yet.", { "mbHeading" }),
-            Label("Create one to start building: a journal document filed under this map with a narrative, a montage and the encounter to begin from. You can change or delete any of it.", { "mbSub" }),
+            Label(T("author.encounter_builder.new_script.heading"), { "mbHeading" }),
+            Label(T("author.encounter_builder.new_script.help"), { "mbSub" }),
             Row({
-                SmallButton("Create the script", function()
+                SmallButton(T("author.encounter_builder.new_script.create"), function()
                     gamehud:CloseModal()
                     local lines = { "Encounter script for this map." , "" }
                     for _, block in ipairs({ E.NarrativeBeatBlock(), E.MontageBeatBlock(), E.EncounterBeatBlock(),
@@ -3481,11 +3486,11 @@ local function OfferNewScript()
                     doc:Upload()
                     local session = B.Load(id, doc)
                     if session ~= nil then
-                        session.status = "Created the script document 'Encounter Script' under this map."
+                        session.status = T("author.encounter_builder.new_script.created", { document = doc.description })
                         ShowWindow(session, "script")
                     end
                 end),
-                SmallButton("Cancel", function() gamehud:CloseModal() end),
+                SmallButton(T("author.encounter_builder.new_script.cancel"), function() gamehud:CloseModal() end),
             }, { fit = true, tmargin = 10 }),
         },
     }

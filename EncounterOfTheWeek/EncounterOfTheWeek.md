@@ -77,6 +77,16 @@ EotW interface".
 with no restore/minimize/close, in games and tests. Written, type-checks,
 NOT run, uncommitted. See "The EotW interface".
 
+**Challenge Mode (2026-10-22):** every encounter (and series part) has a
+lethal version, offered once the normal mode is won, worth an extra Victory.
+Built across the lobby/City server, the town, the game, the montage and the
+core victory screen; server unit tests, parser tests, luac, UIText and the
+typing check pass. The game side was verified live 2026-10-22 through Test
+Encounter on Goblin Ambush (montage restore and x2 paths, +1 consequences,
+5- and 6-hero combat); the town, the per-hero Victory award and the worker
+are NOT run, the worker is NOT deployed, all uncommitted. See "Challenge
+Mode".
+
 ## Committed, deployed, published
 
 - **Codex (Lua).** EotW work is committed on `draw-steel-codex` `main` up to
@@ -356,6 +366,7 @@ In a real EotW game with **at least two clients** and the current week:
 | The schedule, debriefs, nominations and unlocks on the server | `cloudflare-game-server/src/city-core.ts` ("The Encounter of the Week and the Proving Pits"), `src/city.ts` |
 | Weekly assessment + rotation tooling | `tools/eotw_week.py` (admin HTTP), `.claude/skills/eotw-rotate/` (MCP) |
 | Authoring content | `C:\dev\eotw` (git repo, no remote) + the Local authoring game `e96656f3-a11c-477b-89f1-978452983324` |
+| All user-facing text (see "User-facing text") | `Codex Titlescreen/EotwTextTown.lua`, `Codex Titlescreen/EotwTextHeroes.lua`, `EncounterOfTheWeek/EncounterText.lua`, `EncounterOfTheWeek/EncounterAuthoringText.lua`; helper `DMHub Utils/UIText.lua`; checker `tests/uitext_check.lua` |
 
 Codemod gotchas that apply to all of it:
 
@@ -377,6 +388,68 @@ Codemod gotchas that apply to all of it:
   loads, so if that mod reloads after the EotW hud, the takeover silently
   disappears until a restart.
 - Do not hot-reload during someone's roll: it destroys the open roll dialog.
+
+## User-facing text (UIText; BUILT 2026-10-22, checks clean, NOT run in the app)
+
+Every string a player or an encounter author sees that is written in the EotW
+Lua lives in four ID-keyed text files, so a writer can rewrite it without
+touching code (decided with the user 2026-10-22, over a one-off spreadsheet
+export). Text from an encounter's own script document is not in them.
+
+| File | Holds |
+|---|---|
+| `Codex Titlescreen/EotwTextTown.lua` | the EotW screen, town map and locations, lobby/parties, Gate/Pits, debrief, welcome, survey, Steam invites, Hero's Guild, Graveyard, Hall of Heroes, the Blue Fish Inn, downtime, leads, the Arcane Market |
+| `Codex Titlescreen/EotwTextHeroes.lua` | the hero builder, hero sheet, hero card |
+| `EncounterOfTheWeek/EncounterText.lua` | in-game: arrival, the stage, montages, narratives, Tactical Preparation, the HUD, presence/hosting, victory notes, parser-generated effect prose (`script.`) |
+| `EncounterOfTheWeek/EncounterAuthoringText.lua` | the Montage/Encounter/Script Builders, the validator, the authoring test, parser warnings (`author.script.`), edit messages (`author.script_edit.`) |
+
+- **Format.** `text("market.buy_button", [[Buy]])`, one per line, with a
+  writer's `--` note above each. `{name}` placeholders; plurals are
+  `<id>.one` / `<id>.other` read with `UIText.Plural(id, count, args)`. Each
+  file opens with editing instructions for the writer. ASCII only (the Lua
+  runtime cannot read other bytes; curly quotes and em dashes break a file).
+- **Code.** `local T = UIText.T` (and `TP = UIText.Plural`) at the top of each
+  file; `game/EncounterOfTheWeek.lua` is at the 200-local limit so it calls
+  `UIText.T` directly. Ids are always literal strings. `DMHub Utils/UIText.lua`
+  is generic (any feature can use it); it lives in DMHub Utils because the
+  game-side codemod loads BEFORE Codex Titlescreen. A missing id shows `[id]`
+  and is reported once in the DebugConsole; `UIText.showIds = true` prefixes
+  every string with its id for an on-screen review (rebuild the UI after).
+- **Load order.** Code looks text up while it loads (location, project, step
+  and lead tables), so each text file is registered before the code in its
+  codemod: UIText after Utils; EotwTextTown, EotwTextHeroes first in Codex
+  Titlescreen; EncounterText, EncounterAuthoringText first in
+  EncounterOfTheWeek. A module publish of the game codemod needs a core codex
+  with UIText deployed first.
+- **Check.** `../dependencies/lua/bin/lua.exe tests/uitext_check.lua` (codex
+  root): every id used exists, each call gives every `{placeholder}`, no id
+  is defined twice or unused, no `%s` or non-ASCII left. The parser tests load
+  UIText and the two game-side text files (stubbing `dmhub`). Run the checker
+  after a writer's pass and before committing.
+- **The writer edits the Lua text files directly** (decided 2026-10-22; a
+  spreadsheet export/import round trip was built, then dropped at the user's
+  request). Run the checker on the files that come back.
+- **Deliberately left in code** (not user text): ids/keys, logs, undo
+  descriptions, dev commands and admin-only dialogs (`ShowWeekDialog`,
+  `ShowPoolDialog`, CodexMenuItems), compendium rules data, script syntax the
+  builders write into documents and the starter prose they insert, notation.
+  Also left because they are both shown and used as keys: the montage boon
+  effect names (`EncounterMontage.lua`, matched by name), DockablePanel names
+  used as HUD tooltips, game-menu command names in `EncounterTest.lua`, the
+  parser's `unrecognized effect` warnings (searched for by the builder and
+  validator), project skill lists (compendium skill names).
+- **Writer cautions** (noted in the files): text that is upper-cased in code
+  (`ListSectionTitle`, `Overline`) or lower-cased before it is inserted (the
+  builder's step names); the assassin threat entries (`montage.assassin.*`),
+  which are fed through the script parser; trailing spaces in some validator
+  labels; party default names and the roster's "Unnamed Hero", which are sent
+  to and stored on the City.
+- **Not done.** Not run in the app (needs a deploy and a restart; the hero
+  sheet and HUD About menu had small key/display splits worth eyeballing).
+  `EncounterMonsterAssessment.lua` was being written by another session and is
+  not converted. Shared files outside EotW (`DSVictoryScreen`, `CreatorCredit`,
+  ModShare's EotW publish checks) are not converted. No translation support
+  yet: a translation would be a second set of files with the same ids.
 
 ---
 
@@ -2446,6 +2519,145 @@ the app. The City (step 4) and the town (step 5) wait on step 0.
   host result, where the totals live, story-text grammar, hidden-track
   clauses, comparison words, the Bone Cathedral example. Findings that
   touched the user's decisions went to the user (see the ledger).
+
+---
+
+# Challenge Mode (BUILT 2026-10-22; game side verified live, town not run, worker not deployed)
+
+User direction (2026-10-22): every encounter automatically has a Challenge
+Mode -- no authoring. Decisions taken with the user:
+
+- **Eligibility is the normal mode won, on the board it is played from**
+  (`EncounterOfTheWeek.ChallengeUnlocked` = `PartWon`: at the Town Gate any
+  of the account's heroes' wins, in the Proving Pits the account's practice
+  wins). Each series part has its own. **Both boards** offer it; the Pits
+  still award nothing.
+- **Form a Party** shows a "Challenge Mode" checkbox only when eligible,
+  tooltip "Play an especially lethal version of this encounter. Gain an extra
+  victory point the first time you win!" (the user's words). Anyone may join
+  a challenge party: only the host must be eligible.
+- **Victories** (`EncounterOfTheWeekGame.VictoryAward`): a normal win is 1 the
+  first time, as before. A challenge win is 1 for a hero who has won the
+  normal mode but not the challenge, **2 for a hero who has won neither**
+  (who then can earn nothing more from either mode), 0 ("Already Completed")
+  for a hero who has won the challenge.
+- **Combat** (`ChallengeBalance`, `LevelUpStrongestHalf`): balanced for one
+  more hero. Encounters carry balancing for 4-6 heroes only and nobody
+  should have to author a 7-hero setup (no algorithmic extra start
+  positions either), so **a party of 6 is balanced for 6 and the strongest
+  monsters are leveled up by one level** (`monster:SetLevelAdjustment`),
+  strongest EV first, until at least half the spawned EV is leveled. A
+  minion squad is one unit worth EV/minionsPerSquad per minion, as the
+  encounter builder counts it. Reinforcement waves get the same rule as they
+  arrive (half of each wave).
+- **Montage**: one more threat. Party-size scaling's removals stand except
+  one threat, which comes back (the earliest round's, at random). When the
+  scaling removed no threat, an existing threat must be **vanquished twice**:
+  a formal "x2" -- one of the first round that has a threat, at random, never
+  a Locked one (`EncounterScript.ChooseChallengeThreat`, pure, tested). The
+  card's title reads "Goblin Scouts x2"; after one vanquish "Vanquished once
+  -- once more to go". Never vanquished, its consequence lands twice;
+  vanquished once, once (end of the montage, or at its round's end for a
+  Temporary one).
+- **Threat consequences cost more**: every `+N malice` gives N+1, every
+  `lose N recoveries` (dice too) takes N+1, per payout. Test outcomes are
+  unchanged.
+
+## How it is built
+
+- **Keys.** Winning the challenge is a completion of its own, keyed
+  `<encounter or part key>!challenge` (`EncounterOfTheWeek.ChallengeKey`;
+  `challengeKey` in `city-core.ts`). Map names never end in that. The party
+  record keeps the plain key plus `challenge: true`, so nothing that parses
+  keys changed.
+- **Lobby** (`lobby-core.ts`): `create-game {challenge: true}` (only with an
+  encounter) rides the reservation onto the record (`challengeOf`); the horn
+  reads "... for Goblin Ambush (Challenge Mode)". `sanitizeHeroes` keeps
+  `completedNormal`.
+- **City** (`city-core.ts`): `record-outcome` with `outcome.challenge = true`
+  adds BOTH completions (normal + challenge). `checkHeroClaim` in a challenge
+  party sets `completed` = won the challenge and `completedNormal` = won the
+  normal mode. Unit tests in `test/lobby-core.test.ts` and
+  `test/city-core.test.ts`. An undeployed worker drops the flag, so the game
+  plays (and pays) as normal mode -- no half-state.
+- **Town** (`Codex Titlescreen/EncounterOfTheWeek.lua`): `ChallengeKey`,
+  `ChallengeUnlocked`; the checkbox in `ShowCreateDialog`; "(Challenge Mode)"
+  after the encounter in the games list and byline (`EncounterSuffix`); a note
+  under the party's backstory; the add-hero picker's "Already Completed"
+  checks the challenge key in a challenge party; `MyHeroesCopy` carries
+  `completedNormal`; the arrival carries `challenge`. Text in
+  `EotwTextTown.lua` (`eotw.create.challenge_*`, `eotw.party.challenge_*`).
+- **Game** (`EncounterOfTheWeek.lua`): the host stamps `eotwstate.challenge`
+  at setup (`RecordPartyMode`, shared with the practice stamp);
+  `EncounterOfTheWeekGame.IsChallenge()`; `RecordCompletedHeroes` also stamps
+  `data.completedNormal`; `SpawnEncounterMonsters` and the reinforcements'
+  `Arrive` balance through `ChallengeBalance`; the award passes per-hero
+  amounts and the pending outcome carries `victories` per hero and
+  `challenge = true`.
+- **Core** (`Draw Steel UI/DSVictoryScreen.lua`): `AwardVictories(live,
+  amount, exemptions, amounts)` takes optional per-hero counts
+  (`live.victoryAmounts`), and the drop animation, snapshots and Hall of
+  Heroes replays use them.
+- **Montage** (`EncounterMontage.lua`): `RollRemovals` applies the extra
+  threat; state `m.threatTimes`, `m.vanquishHits`, `m.challengeRestored`;
+  `ThreatTimes` / `ThreatRemaining`; the vanquish effect counts hits; the
+  consequence list and temporary expiry pay `ThreatRemaining` times;
+  `ApplyEffects` ctx `challenge` adds the +1. Stage: `EncounterMontageStage.lua`
+  card refresh. Text in `EncounterText.lua`.
+- **Authoring test**: a "Challenge Mode" checkbox in Test Encounter
+  (`EncounterTest.lua`, `StartTest{challenge}` -> `data.challenge`, cleared
+  with the test).
+- `EncounterOfTheWeek.lua` is at Lua's 200-local ceiling: new file-level
+  helpers there must be table fields or nested.
+
+## Verified live (2026-10-22, Test Encounter on Goblin Ambush, one client)
+
+- Montage, 5 heroes: round 2's "3-5 Players: -1 Threat" would remove
+  Gathering Darkness; Challenge Mode kept it (`challengeRestored`).
+- Montage, 6+ heroes: nothing removed, so Traps in the Forest became "x2" (a
+  Required threat can be picked; only Locked ones are skipped). The card read
+  "Traps in the Forest x2", and after one vanquish "Traps in the Forest" with
+  "Vanquished once -- once more to go".
+- The vanquish effect on an x2 threat: "weakened" then "vanquished"; a normal
+  threat still goes in one.
+- Unbeaten to the end: the consequence list held Traps twice; every Recovery
+  loss cost one more (1 -> 2, 2 -> 3), capped at what a hero had.
+- `+2 malice` with ctx.challenge gave 3 (2 without). Goblin Ambush has no
+  Malice consequence, so this was checked through `ApplyEffects` directly.
+- Combat, 6 heroes: 26 monsters (the 6-hero setup, 42 EV), then 10 leveled to
+  level 2 -- exactly 21 EV: six 3-EV monsters and one 4-Sniper squad as a unit.
+- Combat, 5 heroes: 26 monsters (normal 5 is 21), none leveled.
+- No Lua errors in any run; ending each test cleared `data.challenge`.
+
+## Not done / known gaps
+
+- **Not run:** the town (checkbox, party labels, arrival), the per-hero
+  Victory award and the pending outcome, the core victory screen's per-hero
+  drop, the worker. Needs the worker deployed (staging and release; the user
+  deploys).
+- After a first vanquish of an x2 threat, its status line replaces the card's
+  "Drag a hero here" hint.
+- Inside the game nothing says "Challenge Mode" apart from the "x2" card;
+  no HUD or stage banner yet.
+- The Hall of Heroes does not tell challenge wins from normal ones.
+- The town shows no "challenge won" tick (series chips, Past Encounters).
+- No server-side check that a challenge party's host is eligible (keys are
+  opaque to the lobby, as for series parts).
+
+## To test
+
+1. Authoring test with the Challenge Mode box: montage -- a scaled-away
+   threat is back, or one card reads "x2" (console: "Challenge Mode keeps /
+   doubles threat"); vanquish it once, then leave it: consequence once; a
+   `+N malice` / `lose N recoveries` consequence costs one more.
+2. Combat with 4-5 heroes: the spawn matches the next party size up. With 6:
+   the strongest monsters show level +1 (console "leveled up N monsters (EV
+   x of y)").
+3. Town (after the deploy): a hero who has won the Encounter of the Week sees
+   the checkbox; Form a Party with it; the party shows the note and the games
+   list "(Challenge Mode)". Win: a hero new to the encounter gets 2
+   Victories, one who had won it 1; back in town both show "Already
+   Completed" for the challenge and the normal mode.
 
 ---
 
@@ -6858,6 +7070,15 @@ NOT deployed; [ ] S8 the section's "To test" (author a series first).
 [~] S9 carrying the story forward (tracks, part results, `# Results`):
 signed off 2026-10-19; Lua steps 1-3, 6, 7 built (not run); City and town
 wait on the series City source (step 0); steps in that subsection.
+
+**Phase 19 -- Challenge Mode (built 2026-10-22).** [x] C1 design with the
+user (eligibility, Victories, 6-hero level-up, the "x2" threat, both
+boards); [~] C2 lobby + City (`challenge`, both completions,
+`completedNormal`) -- unit-tested, NOT deployed; [~] C3 town checkbox, party
+labels, arrival; [~] C4 game balance, level-up, per-hero Victories; [~] C5
+montage extra threat, "x2", +1 Malice/Recovery -- verified live in Test
+Encounter; [~] C6 the section's "To test": steps 1-2 done 2026-10-22, step 3
+(town, after the deploy) open.
 
 **Launch readiness (not started).** [ ] lobby on the release worker and games on
 release DOs, [ ] non-owner module access verified, [ ] disconnected-player

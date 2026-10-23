@@ -19,6 +19,8 @@ local mod = dmhub.GetModLoading()
 --a normal Director game. (The old "/toggle eotw:forcecustomui" dev toggle
 --that forced it on anywhere was retired for the authoring test.)
 
+local T = UIText.T
+
 --- Hero cards ---------------------------------------------------------------
 
 --The hero card (and the helpers this file still uses) moved to the core
@@ -426,27 +428,17 @@ end
 --tooltip (MCDMCharacterPanel HERO_TOKEN_TOOLTIP), kept word for word so the
 --two never drift apart.
 local POOL_TITLE = {
-    malice = "Malice",
-    herotokens = "Hero Tokens",
-    intelligence = "Intelligence",
+    malice = T("hud.pool.malice.title"),
+    herotokens = T("hud.pool.herotokens.title"),
+    intelligence = T("hud.pool.intelligence.title"),
 }
 
 local POOL_EXPLANATION = {
-    malice = [==[**Malice**
+    malice = T("hud.pool.malice.explanation"),
 
-This is a power used by Monsters to charge their most powerful abilities. Beware that it will be used against you in battle!]==],
+    herotokens = T("hud.pool.herotokens.explanation"),
 
-    herotokens = [==[**Hero Tokens**
-* You can spend a hero token to gain two surges.
-* You can spend a hero token when you fail a saving throw to succeed instead.
-* You can reroll the result of a test. You must use the new result.
-* You can spend 2 hero tokens to regain Stamina equal to your Recovery value without spending a Recovery.]==],
-
-    intelligence = [==[**Intelligence**
-
-The amount of awareness you have of what you are up against. It can be used at the start of a fight to control how much you know about the encounter.
-
-Each hero keeps the Intelligence they earned (shown on their card), and each player spends their own heroes' Intelligence. This is the party's total.]==],
+    intelligence = T("hud.pool.intelligence.explanation"),
 }
 
 local POOL_TOOLTIP_WIDTH = 420
@@ -1054,7 +1046,7 @@ local function CreateRulesButton()
         end,
 
         hover = function(element)
-            gui.Tooltip("Encounter Rules")(element)
+            gui.Tooltip(T("hud.rules_button.tooltip"))(element)
         end,
 
         gui.Panel{
@@ -1318,13 +1310,13 @@ local ABOUT_ART_HEIGHT = 240
 local ABOUT_THUMB_WIDTH = 168
 local ABOUT_THUMB_HEIGHT = 108
 
---The mode's credits, in order: the text before the name (TextMeshPro rich
---text), the name, and optionally a site the name links to.
---- @type {lead: string, name: string, url: nil|string}[]
+--The mode's credits, in order: the line (TextMeshPro rich text) given the
+--name as it is shown, the name, and optionally a site the name links to.
+--- @type {line: (fun(name: string): string), name: string, url: nil|string}[]
 local ABOUT_CREDITS = {
-    { lead = "<b>Draw Steel</b> by", name = "MCDM" },
-    { lead = "<b>Encounter of the Week</b> concept and engineering by", name = "the Codex Development Team" },
-    { lead = "<b>Cartography</b> by", name = "Czepeku", url = "https://czepeku.com" },
+    { line = function(name) return T("hud.about.credit.draw_steel", { name = name }) end, name = "MCDM" },
+    { line = function(name) return T("hud.about.credit.eotw", { name = name }) end, name = T("hud.about.credit.eotw_name") },
+    { line = function(name) return T("hud.about.credit.cartography", { name = name }) end, name = "Czepeku", url = "https://czepeku.com" },
 }
 
 --Map packs whose maps are credited to someone other than the pack's
@@ -1647,7 +1639,7 @@ UpdateMapWatermark = function(hidden)
         height = MAP_WATERMARK_HEIGHT,
         light = true,
         backing = true,
-        label = "Map by",
+        label = T("hud.map_credit.lead"),
         hmargin = 16,
         vmargin = 16,
     }
@@ -1695,15 +1687,15 @@ local function AboutEncounterSection(info)
     local authorLabel = PendingLine()
     local mapLabel = PendingLine()
 
-    local function Fill(label, prefix)
+    local function Fill(label, line)
         return function(credit)
             if credit ~= nil and label.valid then
-                label:FireEvent("fill", string.format("%s %s", prefix, AboutName(credit.name, credit.url, true)))
+                label:FireEvent("fill", line(AboutName(credit.name, credit.url, true)))
             end
         end
     end
-    AboutEncounterAuthor(info.moduleid, Fill(authorLabel, "Written by"))
-    AboutMapCreator(info.mapid, Fill(mapLabel, "Map by"))
+    AboutEncounterAuthor(info.moduleid, Fill(authorLabel, function(name) return T("hud.about.written_by", { name = name }) end))
+    AboutMapCreator(info.mapid, Fill(mapLabel, function(name) return T("hud.about.map_by", { name = name }) end))
 
     local thumb = nil
     pcall(function() thumb = game.GetMap(info.mapid).thumbnailImage end)
@@ -1737,7 +1729,7 @@ local function AboutEncounterSection(info)
             flow = "vertical",
             gui.Label{
                 classes = {"eotwAboutHeading"},
-                text = string.format("About %s", info.title),
+                text = T("hud.about.encounter_heading", { title = info.title }),
             },
             authorLabel,
             mapLabel,
@@ -1765,7 +1757,7 @@ function EncounterOfTheWeekHud.ShowAbout()
     for _,credit in ipairs(ABOUT_CREDITS) do
         credits[#credits+1] = AboutLinkLabel{
             classes = {"eotwAboutCredit"},
-            text = string.format("%s %s", credit.lead, AboutName(credit.name, credit.url)),
+            text = credit.line(AboutName(credit.name, credit.url)),
         }
     end
 
@@ -1804,7 +1796,7 @@ function EncounterOfTheWeekHud.ShowAbout()
 
         gui.Label{
             classes = {"eotwAboutTitle"},
-            text = "About Encounter of the Week",
+            text = T("hud.about.title"),
             tmargin = 18,
             bmargin = 12,
         },
@@ -1825,7 +1817,7 @@ function EncounterOfTheWeekHud.ShowAbout()
 
         gui.Button{
             classes = {"sizeL"},
-            text = "Close",
+            text = T("hud.about.close"),
             halign = "center",
             tmargin = 22,
             bmargin = 18,
@@ -1839,6 +1831,8 @@ end
 
 Commands.Register{
     name = "About Encounter of the Week",
+    --name is also the command's key (its keybinding); this is what the menu shows.
+    gettext = function() return T("hud.about.menu_item") end,
     identifier = "eotwabout",
     icon = "phosphor/info.png",
     menu = "codex",

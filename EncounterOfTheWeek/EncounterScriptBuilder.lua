@@ -21,6 +21,9 @@ EncounterScriptBuilder = {}
 local S = EncounterScriptBuilder
 local E = EncounterScriptEdit
 
+local T = UIText.T
+local TP = UIText.Plural
+
 local KIND_COLOR = {
     narrative = "#7fb7d9",
     montage = "#6fae7a",
@@ -33,11 +36,11 @@ local ON_COLOR = "#7fd97f"
 
 --The story screens, in the order they are seen.
 local STORY = {
-    towngate = { key = "towngate", title = "Town Gate", note = "Shown in town under the encounter while a party forms: why the heroes should come.",
+    towngate = { key = "towngate", title = "Town Gate", note = T("author.script_builder.story.towngate_note"),
         starter = "Why the heroes have come here." },
-    conclusion = { key = "conclusion", title = "Conclusion", note = "The story screen after a victory, before the heroes return to Blackbottom.",
+    conclusion = { key = "conclusion", title = "Conclusion", note = T("author.script_builder.story.conclusion_note"),
         starter = "What the heroes' victory means." },
-    defeat = { key = "defeat", title = "Defeat", note = "The story screen after a defeat.",
+    defeat = { key = "defeat", title = "Defeat", note = T("author.script_builder.story.defeat_note"),
         starter = "What the heroes' defeat means." },
 }
 
@@ -73,6 +76,18 @@ local function RealOptions(section)
     return result
 end
 
+--What a beat's kind is called in its small tag on the outline.
+local function BeatKindName(kind)
+    if kind == "narrative" then
+        return T("author.script_builder.outline.kind_narrative")
+    elseif kind == "montage" then
+        return T("author.script_builder.outline.kind_montage")
+    elseif kind == "encounter" then
+        return T("author.script_builder.outline.kind_encounter")
+    end
+    return kind
+end
+
 --- reading the script ----------------------------------------------------------------
 
 --What a beat is called on the outline: a narrative by its first scene.
@@ -80,15 +95,15 @@ function S.BeatLabel(beat)
     if beat.kind == "narrative" then
         local first = beat.sections ~= nil and beat.sections[1] or nil
         if first ~= nil then
-            return "Narrative: " .. first.name
+            return T("author.script_builder.beat.label_narrative_scene", { scene = first.name })
         end
-        return "Narrative"
+        return T("author.script_builder.beat.label_narrative")
     elseif beat.kind == "montage" then
-        return "Montage"
+        return T("author.script_builder.beat.label_montage")
     elseif beat.kind == "encounter" then
-        return "Encounter"
+        return T("author.script_builder.beat.label_encounter")
     end
-    return beat.title or "Beat"
+    return beat.title or T("author.script_builder.beat.label_other")
 end
 
 --One line saying what is in a beat.
@@ -98,22 +113,22 @@ function S.BeatSummary(beat)
         for _, s in ipairs(beat.sections or {}) do
             options = options + #RealOptions(s)
         end
-        return string.format("%d scene%s, %d choice%s", #(beat.sections or {}), cond(#(beat.sections or {}) == 1, "", "s"),
-            options, cond(options == 1, "", "s"))
+        return T("author.script_builder.beat.summary_narrative", { scenes = TP("author.script_builder.beat.scenes", #(beat.sections or {})),
+            choices = TP("author.script_builder.beat.choices", options) })
     elseif beat.kind == "montage" then
         local entries = 0
         for _, r in ipairs(beat.rounds or {}) do
             entries = entries + #(r.entries or {})
         end
-        return string.format("%d round%s, %d opportunit%s and threats", #(beat.rounds or {}), cond(#(beat.rounds or {}) == 1, "", "s"),
-            entries, cond(entries == 1, "y", "ies"))
+        return T("author.script_builder.beat.summary_montage", { rounds = TP("author.script_builder.beat.rounds", #(beat.rounds or {})),
+            entries = TP("author.script_builder.beat.entries", entries) })
     elseif beat.kind == "encounter" then
-        local parts = { cond(beat.encounterTag ~= nil, "monsters placed", "NO monsters ([[encounter]] missing)") }
+        local parts = { cond(beat.encounterTag ~= nil, T("author.script_builder.beat.monsters_placed"), T("author.script_builder.beat.no_monsters")) }
         if #(beat.setup or {}) > 0 then
-            parts[#parts + 1] = string.format("%d setup line%s", #beat.setup, cond(#beat.setup == 1, "", "s"))
+            parts[#parts + 1] = TP("author.script_builder.beat.setup_lines", #beat.setup)
         end
         if #(beat.reinforcements or {}) > 0 then
-            parts[#parts + 1] = string.format("%d reinforcement group%s", #beat.reinforcements, cond(#beat.reinforcements == 1, "", "s"))
+            parts[#parts + 1] = TP("author.script_builder.beat.reinforcement_groups", #beat.reinforcements)
         end
         return table.concat(parts, ", ")
     end
@@ -262,7 +277,7 @@ function S.MoveBeat(ctx, index, dir)
     local spans = S.RootSpans(session)
     local a, b = spans[math.min(index, other)], spans[math.max(index, other)]
     if a == nil or b == nil or a.shared or b.shared then
-        session.status = "Not moved: that beat shares its journal document with other sections; move it in the journal."
+        session.status = T("author.script_builder.status.not_moved_shared")
         ctx.Refresh()
         return
     end
@@ -274,12 +289,12 @@ function S.MoveBeat(ctx, index, dir)
     end
     local ok, changed = pcall(E.Apply, session.texts, { E.Patch(session.rootId, a.first, b.last, region) })
     if not ok then
-        session.status = "Not moved: " .. tostring(changed)
+        session.status = T("author.script_builder.status.not_moved", { why = tostring(changed) })
         ctx.Refresh()
         return
     end
     ctx.Do(function()
-        if EncounterMontageBuilder.CommitTexts(session, string.format("Moved '%s' %s.", S.BeatLabel(beats[index]), cond(dir < 0, "earlier", "later")),
+        if EncounterMontageBuilder.CommitTexts(session, cond(dir < 0, T("author.script_builder.status.moved_earlier", { beat = S.BeatLabel(beats[index]) }), T("author.script_builder.status.moved_later", { beat = S.BeatLabel(beats[index]) })),
             changed, { [session.rootId] = map }) then
             session.scriptSelected = { kind = "beat", index = other }
         end
@@ -295,7 +310,7 @@ function S.DeleteBeat(ctx, index)
         return
     end
     if span.shared then
-        session.status = "Not deleted: that beat shares its journal document with other sections; delete it in the journal."
+        session.status = T("author.script_builder.status.not_deleted_shared")
         ctx.Refresh()
         return
     end
@@ -305,7 +320,7 @@ function S.DeleteBeat(ctx, index)
         last = last + 1
     end
     session.scriptSelected = nil
-    ctx.Commit(string.format("Deleted '%s'.", S.BeatLabel(beat)), { E.Patch(session.rootId, span.first, last, {}) }, nil, { keepTags = true })
+    ctx.Commit(T("author.script_builder.status.deleted_beat", { beat = S.BeatLabel(beat) }), { E.Patch(session.rootId, span.first, last, {}) }, nil, { keepTags = true })
 end
 
 --Add a new beat of `kind`: a narrative or montage goes in front of the
@@ -341,7 +356,7 @@ function S.AddBeat(ctx, kind)
     local patch = E.InsertBlockAfterDocLine(session.texts, session.rootId, anchor, block)
     local before = #beats
     ctx.Do(function()
-        if EncounterMontageBuilder.Commit(session, string.format("Added a %s beat.", kind), { patch }, nil, { keepTags = true }) then
+        if EncounterMontageBuilder.Commit(session, (kind == "narrative" and T("author.script_builder.status.added_narrative") or (kind == "montage" and T("author.script_builder.status.added_montage") or T("author.script_builder.status.added_encounter"))), { patch }, nil, { keepTags = true }) then
             --select the new beat: the first of that kind starting below the anchor.
             local newBeats = session.parse.beats
             local newSpans = S.RootSpans(session)
@@ -356,7 +371,7 @@ function S.AddBeat(ctx, kind)
                 session.scriptSelected = { kind = "beat", index = best }
             end
             if #newBeats <= before then
-                session.status = "Added, but the new beat did not parse: check the journal."
+                session.status = T("author.script_builder.status.added_unparsed")
             end
         end
     end)
@@ -369,7 +384,7 @@ function S.AddStory(ctx, key)
     local info = STORY[key]
     local patch = E.InsertBlockAfterDocLine(session.texts, session.rootId, LastTextLine(session), E.StoryBlock(info.title, info.starter))
     session.scriptSelected = { kind = "story", key = key }
-    ctx.Commit(string.format("Added the %s text.", info.title), { patch }, nil, { keepTags = true })
+    ctx.Commit(T("author.script_builder.status.added_story", { title = info.title }), { patch }, nil, { keepTags = true })
 end
 
 --Turn a feature on (an "Unlock:" line in the first narrative beat, made if
@@ -387,7 +402,7 @@ function S.SetFeature(ctx, feature, on)
                 end
             end
         end
-        ctx.Commit(string.format("Turned %s off.", feature.name), patches)
+        ctx.Commit(T("author.script_builder.status.feature_off", { feature = feature.name }), patches)
         return
     end
     for _, b in ipairs(parse.beats or {}) do
@@ -396,7 +411,7 @@ function S.SetFeature(ctx, feature, on)
             for _, span in ipairs(b.introLines or {}) do
                 after = math.max(after, span[2])
             end
-            ctx.Commit(string.format("Turned %s on (in the first narrative).", feature.name),
+            ctx.Commit(T("author.script_builder.status.feature_on", { feature = feature.name }),
                 One(E.InsertBlockAfter(parse, session.texts, after, { E.UnlockLine(feature.name) })))
             return
         end
@@ -410,7 +425,7 @@ function S.SetFeature(ctx, feature, on)
     end
     local block = { "# Narrative", "", "The heroes prepare for what lies ahead.", "", E.UnlockLine(feature.name), "",
         "## Preparations", "", "Describe the scene." }
-    ctx.Commit(string.format("Turned %s on (in a new narrative at the start).", feature.name),
+    ctx.Commit(T("author.script_builder.status.feature_on_new_narrative", { feature = feature.name }),
         { E.InsertBlockAfterDocLine(session.texts, session.rootId, anchor, block) }, nil, { keepTags = true })
 end
 
@@ -432,7 +447,7 @@ local function Card(ctx, selection, color, kindText, title, sub, problems, tools
         children[#children + 1] = ctx.Label(sub, { "mbSub" })
     end
     if problems ~= nil and problems > 0 then
-        children[#children + 1] = ctx.Label(string.format("%d problem%s", problems, cond(problems == 1, "", "s")), { "mbProblem" })
+        children[#children + 1] = ctx.Label(TP("author.script_builder.outline.problems", problems), { "mbProblem" })
     end
     return gui.Panel{
         classes = { "mbCard", cond(isSelected, "selected", nil) },
@@ -466,32 +481,32 @@ function S.Outline(ctx)
     local children = {}
 
     if parse.part ~= nil then
-        children[#children + 1] = ctx.Label(string.format("Part %d of a series%s.", parse.part.number,
-            parse.part.title ~= nil and (": " .. parse.part.title) or ""), { "mbSub" })
+        children[#children + 1] = ctx.Label((parse.part.title ~= nil and T("author.script_builder.outline.series_part_titled", { number = parse.part.number, title = parse.part.title })
+            or T("author.script_builder.outline.series_part", { number = parse.part.number })), { "mbSub" })
     end
 
     --optional features.
     local unlocked = EncounterScript.UnlockedFeatures(parse)
     local featureNames = {}
     for _, f in pairs(EncounterScript.FEATURES) do
-        featureNames[#featureNames + 1] = f.name .. ": " .. cond(unlocked[f.key], "on", "off")
+        featureNames[#featureNames + 1] = cond(unlocked[f.key], T("author.script_builder.outline.feature_on", { feature = f.name }), T("author.script_builder.outline.feature_off", { feature = f.name }))
     end
     table.sort(featureNames)
-    children[#children + 1] = Card(ctx, { kind = "features" }, KIND_COLOR.features, "FEATURES", "Optional features",
+    children[#children + 1] = Card(ctx, { kind = "features" }, KIND_COLOR.features, T("author.script_builder.outline.features_kind"), T("author.script_builder.outline.features_title"),
         table.concat(featureNames, "  |  "), 0, {})
 
     --before the adventure.
-    children[#children + 1] = ctx.Label("Before the adventure", { "mbHeading" }, { tmargin = 10 })
+    children[#children + 1] = ctx.Label(T("author.script_builder.outline.before_heading"), { "mbHeading" }, { tmargin = 10 })
     local story = parse.story or {}
     if story.towngate ~= nil then
-        children[#children + 1] = Card(ctx, { kind = "story", key = "towngate" }, KIND_COLOR.story, "STORY", "Town Gate",
+        children[#children + 1] = Card(ctx, { kind = "story", key = "towngate" }, KIND_COLOR.story, T("author.script_builder.outline.story_kind"), STORY.towngate.title,
             string.sub(story.towngate.text or "", 1, 80), #Problems(session, story.towngate.line, 1), {})
     else
-        children[#children + 1] = ctx.Row({ ctx.SmallButton("+ Town Gate text", function() ctx.Do(function() S.AddStory(ctx, "towngate") end) end) }, { fit = true })
+        children[#children + 1] = ctx.Row({ ctx.SmallButton(T("author.script_builder.outline.add_story", { title = STORY.towngate.title }), function() ctx.Do(function() S.AddStory(ctx, "towngate") end) end) }, { fit = true })
     end
 
     --the beats, in the order they play.
-    children[#children + 1] = ctx.Label("The adventure, in order", { "mbHeading" }, { tmargin = 10 })
+    children[#children + 1] = ctx.Label(T("author.script_builder.outline.beats_heading"), { "mbHeading" }, { tmargin = 10 })
     local beats = parse.beats or {}
     local spans = S.RootSpans(session)
     local hasEncounter = false
@@ -503,10 +518,10 @@ function S.Outline(ctx)
         local tools = {}
         if not beat.implicit and spans[i] ~= nil then
             if i > 1 then
-                tools[#tools + 1] = TinyButton("^", "Play this earlier", function() S.MoveBeat(ctx, index, -1) end)
+                tools[#tools + 1] = TinyButton("^", T("author.script_builder.outline.move_earlier_tooltip"), function() S.MoveBeat(ctx, index, -1) end)
             end
             if i < #beats then
-                tools[#tools + 1] = TinyButton("v", "Play this later", function() S.MoveBeat(ctx, index, 1) end)
+                tools[#tools + 1] = TinyButton("v", T("author.script_builder.outline.move_later_tooltip"), function() S.MoveBeat(ctx, index, 1) end)
             end
         end
         local problems = 0
@@ -514,32 +529,32 @@ function S.Outline(ctx)
             problems = #Problems(session, beat.line, 1)
         end
         children[#children + 1] = Card(ctx, { kind = "beat", index = index }, KIND_COLOR[beat.kind] or "#b0b0b0",
-            string.format("%d. %s", i, string.upper(beat.kind)), S.BeatLabel(beat), S.BeatSummary(beat), problems, tools)
+            string.format("%d. %s", i, string.upper(BeatKindName(beat.kind))), S.BeatLabel(beat), S.BeatSummary(beat), problems, tools)
     end
     if #beats == 0 then
-        children[#children + 1] = ctx.Label("No beats yet.", { "mbSub" })
+        children[#children + 1] = ctx.Label(T("author.script_builder.outline.no_beats"), { "mbSub" })
     end
     local addRow = {
-        ctx.SmallButton("+ Narrative", function() S.AddBeat(ctx, "narrative") end),
-        ctx.SmallButton("+ Montage", function() S.AddBeat(ctx, "montage") end),
+        ctx.SmallButton(T("author.script_builder.outline.add_narrative"), function() S.AddBeat(ctx, "narrative") end),
+        ctx.SmallButton(T("author.script_builder.outline.add_montage"), function() S.AddBeat(ctx, "montage") end),
     }
     if not hasEncounter then
-        addRow[#addRow + 1] = ctx.SmallButton("+ Encounter", function() S.AddBeat(ctx, "encounter") end)
+        addRow[#addRow + 1] = ctx.SmallButton(T("author.script_builder.outline.add_encounter"), function() S.AddBeat(ctx, "encounter") end)
     end
     children[#children + 1] = ctx.Row(addRow, { fit = true, tmargin = 4 })
-    children[#children + 1] = ctx.Label("A narrative or montage is added in front of the encounter; ^ and v change the order.", { "mbSub" })
+    children[#children + 1] = ctx.Label(T("author.script_builder.outline.add_help"), { "mbSub" })
 
     --after the adventure.
-    children[#children + 1] = ctx.Label("After the adventure", { "mbHeading" }, { tmargin = 10 })
+    children[#children + 1] = ctx.Label(T("author.script_builder.outline.after_heading"), { "mbHeading" }, { tmargin = 10 })
     local missing = {}
     for _, key in ipairs({ "conclusion", "defeat" }) do
         local st = story[key]
         if st ~= nil then
-            children[#children + 1] = Card(ctx, { kind = "story", key = key }, KIND_COLOR.story, "STORY", STORY[key].title,
+            children[#children + 1] = Card(ctx, { kind = "story", key = key }, KIND_COLOR.story, T("author.script_builder.outline.story_kind"), STORY[key].title,
                 string.sub(st.text or "", 1, 80), #Problems(session, st.line, 1), {})
         else
             local k = key
-            missing[#missing + 1] = ctx.SmallButton("+ " .. STORY[key].title .. " text", function() ctx.Do(function() S.AddStory(ctx, k) end) end)
+            missing[#missing + 1] = ctx.SmallButton(T("author.script_builder.outline.add_story", { title = STORY[key].title }), function() ctx.Do(function() S.AddStory(ctx, k) end) end)
         end
     end
     if #missing > 0 then
@@ -598,7 +613,7 @@ end
 local function IslandSummary(session, line)
     local encounter = IslandEncounter(session, line)
     if encounter == nil then
-        return "No monsters yet."
+        return T("author.script_builder.encounter.no_monsters")
     end
     local text, ev = nil, nil
     pcall(function() text = encounter:Describe() end)
@@ -606,10 +621,10 @@ local function IslandSummary(session, line)
     --one line: the description's lines joined, no separator left dangling.
     text = (string.gsub(trim(tostring(text or "")), "%s*[\r\n]+%s*", "; "))
     if text == "" then
-        text = "No monsters yet."
+        text = T("author.script_builder.encounter.no_monsters")
     end
     if ev ~= nil and ev > 0 then
-        text = string.format("%s  (EV %d)", text, ev)
+        text = T("author.script_builder.encounter.monsters_with_ev", { monsters = text, ev = ev })
     end
     return text
 end
@@ -623,7 +638,7 @@ function S.OpenCombatBuilder(ctx, line)
     local session = ctx.session
     local docid, key = IslandKey(session, line)
     if docid == nil or key == nil then
-        session.status = "Could not find that [[encounter]] island in its document."
+        session.status = T("author.script_builder.status.island_not_found")
         ctx.Refresh()
         return
     end
@@ -671,8 +686,8 @@ local function CombatBuilderButton(ctx, line, addIsland)
         height = 30,
         hpad = 14,
         borderBox = true,
-        text = "Open Combat Encounter Builder",
-        hover = gui.Tooltip("Pick the monsters, balance the encounter and place them on the map. Saving there saves them into this script."),
+        text = T("author.script_builder.encounter.open_combat_builder"),
+        hover = gui.Tooltip(T("author.script_builder.encounter.open_combat_builder_tooltip")),
         click = function()
             local target = line
             if target == nil and addIsland ~= nil then
@@ -696,8 +711,8 @@ end
 
 function S.FeaturesEditor(ctx)
     local session = ctx.session
-    local children = { ctx.Label("OPTIONAL FEATURES", { "mbHeading" }, { color = KIND_COLOR.features }) }
-    children[#children + 1] = ctx.Label("Parts of Encounter of the Week a script turns on for itself. A feature the script does not turn on is not part of the game at all.", { "mbSub" })
+    local children = { ctx.Label(T("author.script_builder.features.heading"), { "mbHeading" }, { color = KIND_COLOR.features }) }
+    children[#children + 1] = ctx.Label(T("author.script_builder.features.intro"), { "mbSub" })
     local unlocked = EncounterScript.UnlockedFeatures(session.parse)
     local unlocks = S.Unlocks(session)
     local keys = {}
@@ -720,31 +735,31 @@ function S.FeaturesEditor(ctx)
                     ctx.Do(function() S.SetFeature(ctx, feature, element.value == true) end)
                 end,
             },
-            ctx.Label("Turns on " .. feature.summary .. ".", { "mbSub" }),
+            ctx.Label(T("author.script_builder.features.turns_on", { summary = feature.summary }), { "mbSub" }),
         }
         if on then
             for _, u in ipairs(unlocks) do
                 if u.feature == key then
                     local where = S.BeatLabel(u.beat)
                     if u.section ~= nil then
-                        where = string.format("the scene '%s' of %s", u.section.name, where)
+                        where = T("author.script_builder.features.where_scene", { scene = u.section.name, beat = where })
                     end
-                    section[#section + 1] = ctx.Label(string.format("ON: explained to the party when %s opens.", where), { "mbRule" }, { color = ON_COLOR })
+                    section[#section + 1] = ctx.Label(T("author.script_builder.features.on_explained", { where = where }), { "mbRule" }, { color = ON_COLOR })
                 end
             end
             if key == "intelligence" then
                 local grants = S.IntelligenceGrants(session)
                 if grants == 0 then
-                    section[#section + 1] = ctx.Label("Nothing in the script grants Intelligence yet: add 'Reward: Intelligence' to some outcomes.", { "mbProblem" })
+                    section[#section + 1] = ctx.Label(T("author.script_builder.features.intelligence_none"), { "mbProblem" })
                 else
-                    section[#section + 1] = ctx.Label(string.format("%d outcome%s grant%s Intelligence.", grants, cond(grants == 1, "", "s"), cond(grants == 1, "s", "")), { "mbSub" })
+                    section[#section + 1] = ctx.Label(TP("author.script_builder.features.intelligence_grants", grants), { "mbSub" })
                 end
             end
-            section[#section + 1] = ctx.Label("What the party is told: " .. tostring(feature.explanation or ""), { "mbSub" })
+            section[#section + 1] = ctx.Label(T("author.script_builder.features.party_told", { explanation = tostring(feature.explanation or "") }), { "mbSub" })
         else
-            section[#section + 1] = ctx.Label("OFF. Ticking it writes 'Unlock: " .. feature.name .. "' into the first narrative beat (one is made at the start if the script has none), so the party is told about it as that beat opens.", { "mbSub" })
+            section[#section + 1] = ctx.Label(T("author.script_builder.features.off_help", { feature = feature.name }), { "mbSub" })
             if key == "intelligence" and S.IntelligenceGrants(session) > 0 then
-                section[#section + 1] = ctx.Label("Some outcomes grant Intelligence, but it is off: the party could never spend it.", { "mbProblem" })
+                section[#section + 1] = ctx.Label(T("author.script_builder.features.intelligence_off"), { "mbProblem" })
             end
         end
         children[#children + 1] = gui.Panel{ classes = { "mbSection" }, children = section }
@@ -760,21 +775,21 @@ function S.StoryEditor(ctx, key)
     local children = { ctx.Label(string.upper(info.title), { "mbHeading" }, { color = KIND_COLOR.story }) }
     children[#children + 1] = ctx.Label(info.note, { "mbSub" })
     if st == nil then
-        children[#children + 1] = ctx.Row({ ctx.SmallButton("+ Add it", function() ctx.Do(function() S.AddStory(ctx, key) end) end) }, { fit = true })
+        children[#children + 1] = ctx.Row({ ctx.SmallButton(T("author.script_builder.story.add_button"), function() ctx.Do(function() S.AddStory(ctx, key) end) end) }, { fit = true })
         return children
     end
     children[#children + 1] = ctx.TextBox(st.text, function(text)
-        ctx.Commit(string.format("Edited the %s text.", info.title), E.SetProse(parse, session.texts, st.textLines, st.line, text))
+        ctx.Commit(T("author.script_builder.status.edited_story", { title = info.title }), E.SetProse(parse, session.texts, st.textLines, st.line, text))
     end, { multiline = true, minHeight = 120, maxHeight = 500, placeholder = info.starter })
     if st.sceneTag ~= nil then
-        children[#children + 1] = ctx.Label("Backdrop: its [[scene]] picture (set in the journal).", { "mbSub" })
+        children[#children + 1] = ctx.Label(T("author.script_builder.story.backdrop"), { "mbSub" })
     end
     ProblemLabels(ctx, st.line, 1, children)
     children[#children + 1] = ctx.Row({
-        ctx.SmallButton("Open in journal", function() OpenInJournal(ctx, st.line) end),
-        ctx.ConfirmButton("Delete this text", function()
+        ctx.SmallButton(T("author.script_builder.story.open_in_journal"), function() OpenInJournal(ctx, st.line) end),
+        ctx.ConfirmButton(T("author.script_builder.story.delete_button"), function()
             session.scriptSelected = nil
-            ctx.Commit(string.format("Deleted the %s text.", info.title), E.DeleteElement(parse, session.texts, st.line, 1), nil, { keepTags = true })
+            ctx.Commit(T("author.script_builder.status.deleted_story", { title = info.title }), E.DeleteElement(parse, session.texts, st.line, 1), nil, { keepTags = true })
         end),
     }, { fit = true, tmargin = 8 })
     return children
@@ -788,9 +803,9 @@ local function NarrativeRules(ctx, o, children)
     if #lines == 0 then
         children[#children + 1] = ctx.OutcomeEditor("", function(text)
             if trim(text) ~= "" then
-                ctx.Commit("Added what a choice does.", E.InsertAfterElement(parse, session.texts, o.line, 3, { "|" .. E.LineText(text) }))
+                ctx.Commit(T("author.script_builder.status.added_choice_rule"), E.InsertAfterElement(parse, session.texts, o.line, 3, { "|" .. E.LineText(text) }))
             end
-        end, nil, { placeholder = "What happens when it is chosen (optional words)" })
+        end, nil, { placeholder = T("author.script_builder.narrative.choice_rule_placeholder") })
         return
     end
     for _, l in ipairs(lines) do
@@ -801,11 +816,11 @@ local function NarrativeRules(ctx, o, children)
         local text = trim((string.gsub(string.gsub(raw, "^%s*|", ""), "|%s*$", "")))
         children[#children + 1] = ctx.OutcomeEditor(text, function(newText)
             if trim(newText) == "" then
-                ctx.Commit("Removed what a choice does.", E.DeleteLine(parse, lineNo))
+                ctx.Commit(T("author.script_builder.status.removed_choice_rule"), E.DeleteLine(parse, lineNo))
             else
-                ctx.Commit("Edited what a choice does.", E.SetLine(parse, lineNo, lead .. "|" .. E.LineText(newText)))
+                ctx.Commit(T("author.script_builder.status.edited_choice_rule"), E.SetLine(parse, lineNo, lead .. "|" .. E.LineText(newText)))
             end
-        end, nil, { placeholder = "What happens when it is chosen (optional words)" })
+        end, nil, { placeholder = T("author.script_builder.narrative.choice_rule_placeholder") })
     end
 end
 
@@ -813,16 +828,16 @@ function S.NarrativeEditor(ctx, beat, index)
     local session = ctx.session
     local parse = session.parse
     local children = { ctx.Label(string.upper(S.BeatLabel(beat)), { "mbHeading" }, { color = KIND_COLOR.narrative }) }
-    children[#children + 1] = ctx.Label("A story beat on the stage: its scenes play in order, and each may ask the party a choice.", { "mbSub" })
-    children[#children + 1] = ctx.Label("Intro: shown when the beat opens", { "mbFieldLabel" })
+    children[#children + 1] = ctx.Label(T("author.script_builder.narrative.intro_help"), { "mbSub" })
+    children[#children + 1] = ctx.Label(T("author.script_builder.narrative.intro_label"), { "mbFieldLabel" })
     children[#children + 1] = ctx.TextBox(beat.intro, function(text)
-        ctx.Commit("Edited the narrative's intro.", E.SetProse(parse, session.texts, beat.introLines, beat.line, text))
-    end, { multiline = true, placeholder = "The heroes gather before the road ahead." })
+        ctx.Commit(T("author.script_builder.status.edited_narrative_intro"), E.SetProse(parse, session.texts, beat.introLines, beat.line, text))
+    end, { multiline = true, placeholder = T("author.script_builder.narrative.intro_placeholder") })
     for _, u in ipairs(beat.unlocks or {}) do
-        children[#children + 1] = ctx.Label(string.format("Turns on %s as it opens (Optional features).", u.name), { "mbRule" }, { color = ON_COLOR })
+        children[#children + 1] = ctx.Label(T("author.script_builder.narrative.turns_on_beat", { feature = u.name }), { "mbRule" }, { color = ON_COLOR })
     end
     if beat.sceneTag ~= nil then
-        children[#children + 1] = ctx.Label("Backdrop: its [[scene]] picture (set in the journal).", { "mbSub" })
+        children[#children + 1] = ctx.Label(T("author.script_builder.narrative.backdrop"), { "mbSub" })
     end
 
     for si, sec in ipairs(beat.sections or {}) do
@@ -831,20 +846,20 @@ function S.NarrativeEditor(ctx, beat, index)
         local sc = {}
         sc[#sc + 1] = ctx.Row({
             gui.Label{ classes = { "mbHeading" }, color = KIND_COLOR.narrative, width = "auto", height = "auto", valign = "center", rmargin = 8,
-                text = string.format("SCENE %d", si) },
+                text = T("author.script_builder.narrative.scene_heading", { number = si }) },
             ctx.TextBox(s.name, function(text)
                 text = (string.gsub(E.LineText(text), "^#+%s*", ""))
                 if text ~= "" then
-                    ctx.Commit("Renamed a scene.", E.SetLine(parse, s.line, "## " .. text))
+                    ctx.Commit(T("author.script_builder.status.renamed_scene"), E.SetLine(parse, s.line, "## " .. text))
                 end
             end, { width = 320, height = 28 }),
         }, { fit = true })
-        sc[#sc + 1] = ctx.Label("What happens", { "mbFieldLabel" })
+        sc[#sc + 1] = ctx.Label(T("author.script_builder.narrative.scene_text_label"), { "mbFieldLabel" })
         sc[#sc + 1] = ctx.TextBox(s.text, function(text)
-            ctx.Commit("Edited a scene's text.", E.SetProse(parse, session.texts, s.textLines, s.line, text))
-        end, { multiline = true, placeholder = "The road forks beneath a lightning-split oak." })
+            ctx.Commit(T("author.script_builder.status.edited_scene_text"), E.SetProse(parse, session.texts, s.textLines, s.line, text))
+        end, { multiline = true, placeholder = T("author.script_builder.narrative.scene_text_placeholder") })
         for _, u in ipairs(s.unlocks or {}) do
-            sc[#sc + 1] = ctx.Label(string.format("Turns on %s when this scene arrives.", u.name), { "mbRule" }, { color = ON_COLOR })
+            sc[#sc + 1] = ctx.Label(T("author.script_builder.narrative.turns_on_scene", { feature = u.name }), { "mbRule" }, { color = ON_COLOR })
         end
 
         --who chooses, and the question.
@@ -852,66 +867,66 @@ function S.NarrativeEditor(ctx, beat, index)
             local line = E.NarrativeModeLine(mode, prompt)
             local spans = s.promptLines
             if spans ~= nil and #spans > 0 then
-                ctx.Commit("Edited a scene's choice.", One(E.PatchExpanded(parse, spans[1][1], spans[#spans][2], { line })))
+                ctx.Commit(T("author.script_builder.status.edited_scene_choice"), One(E.PatchExpanded(parse, spans[1][1], spans[#spans][2], { line })))
             else
                 local after = s.line
                 for _, span in ipairs(s.textLines or {}) do
                     after = math.max(after, span[2])
                 end
-                ctx.Commit("Edited a scene's choice.", One(E.InsertBlockAfter(parse, session.texts, after, { line })))
+                ctx.Commit(T("author.script_builder.status.edited_scene_choice"), One(E.InsertBlockAfter(parse, session.texts, after, { line })))
             end
         end
         if #options > 0 then
-            sc[#sc + 1] = ctx.Label("The choice", { "mbFieldLabel" })
+            sc[#sc + 1] = ctx.Label(T("author.script_builder.narrative.choice_label"), { "mbFieldLabel" })
             sc[#sc + 1] = ctx.Row({
                 ctx.PickDropdown({
-                    { id = "together", text = "The party chooses together" },
-                    { id = "individual", text = "Each hero chooses for themselves" },
+                    { id = "together", text = T("author.script_builder.narrative.mode_together") },
+                    { id = "individual", text = T("author.script_builder.narrative.mode_individual") },
                 }, s.mode, function(id) WriteMode(id, s.prompt) end, { width = 260, lmargin = 0,
-                    tooltip = "Together: one vote per player, and a split vote is settled at random. Each hero: every hero picks, and each choice applies to those who took it." }),
-                ctx.TextBox(s.prompt, function(text) WriteMode(s.mode, text) end, { width = 420, height = 24, placeholder = "The question (optional): Which way do you go?" }),
+                    tooltip = T("author.script_builder.narrative.mode_tooltip") }),
+                ctx.TextBox(s.prompt, function(text) WriteMode(s.mode, text) end, { width = 420, height = 24, placeholder = T("author.script_builder.narrative.prompt_placeholder") }),
             }, { fit = true })
             if not s.modeExplicit and #options >= 2 then
-                sc[#sc + 1] = ctx.Label("Not written yet: pick who chooses to make it explicit.", { "mbSub" })
+                sc[#sc + 1] = ctx.Label(T("author.script_builder.narrative.mode_implicit"), { "mbSub" })
             end
         else
-            sc[#sc + 1] = ctx.Label("No choices: the party reads it and presses on.", { "mbSub" })
+            sc[#sc + 1] = ctx.Label(T("author.script_builder.narrative.no_choices"), { "mbSub" })
         end
 
         for oi, opt in ipairs(options) do
             local o = opt
             local oc = {}
             oc[#oc + 1] = ctx.Row({
-                gui.Label{ classes = { "mbSub" }, bold = true, width = "auto", height = "auto", valign = "center", rmargin = 8, text = string.format("CHOICE %d", oi) },
+                gui.Label{ classes = { "mbSub" }, bold = true, width = "auto", height = "auto", valign = "center", rmargin = 8, text = T("author.script_builder.narrative.choice_heading", { number = oi }) },
                 ctx.TextBox(o.name, function(text)
                     text = (string.gsub(E.LineText(text), "^#+%s*", ""))
                     if text ~= "" then
-                        ctx.Commit("Renamed a choice.", E.SetLine(parse, o.line, E.OptionHeadingLine(text)))
+                        ctx.Commit(T("author.script_builder.status.renamed_choice"), E.SetLine(parse, o.line, E.OptionHeadingLine(text)))
                     end
                 end, { width = 320, height = 26 }),
-                ctx.ConfirmButton("Delete", function()
-                    ctx.Commit(string.format("Deleted the choice '%s'.", o.name), E.DeleteElement(parse, session.texts, o.line, 3), nil, { keepTags = true })
+                ctx.ConfirmButton(T("author.script_builder.narrative.delete_choice_button"), function()
+                    ctx.Commit(T("author.script_builder.status.deleted_choice", { choice = o.name }), E.DeleteElement(parse, session.texts, o.line, 3), nil, { keepTags = true })
                 end),
             }, { fit = true })
             oc[#oc + 1] = ctx.TextBox(o.text, function(text)
-                ctx.Commit("Edited a choice's text.", E.SetProse(parse, session.texts, o.textLines, o.line, text))
-            end, { multiline = true, minHeight = 26, placeholder = "Shown with the choice (optional): The ridge path is longer but safer." })
+                ctx.Commit(T("author.script_builder.status.edited_choice_text"), E.SetProse(parse, session.texts, o.textLines, o.line, text))
+            end, { multiline = true, minHeight = 26, placeholder = T("author.script_builder.narrative.choice_text_placeholder") })
             NarrativeRules(ctx, o, oc)
             sc[#sc + 1] = gui.Panel{ classes = { "mbSection" }, children = oc }
         end
 
         sc[#sc + 1] = ctx.Row({
-            ctx.SmallButton("+ Choice", function()
+            ctx.SmallButton(T("author.script_builder.narrative.add_choice"), function()
                 local last = options[#options]
                 if last ~= nil then
-                    ctx.Commit("Added a choice.", E.InsertAfterElement(parse, session.texts, last.line, 3, E.OptionBlock("New choice", "", {})))
+                    ctx.Commit(T("author.script_builder.status.added_choice"), E.InsertAfterElement(parse, session.texts, last.line, 3, E.OptionBlock("New choice", "", {})))
                 else
-                    ctx.Commit("Added a choice.", E.InsertAfterElement(parse, session.texts, s.line, 2,
+                    ctx.Commit(T("author.script_builder.status.added_choice"), E.InsertAfterElement(parse, session.texts, s.line, 2,
                         { E.NarrativeModeLine("together", "What do you do?"), "", E.OptionHeadingLine("New choice") }))
                 end
             end),
-            ctx.ConfirmButton("Delete scene", function()
-                ctx.Commit(string.format("Deleted the scene '%s'.", s.name), E.DeleteElement(parse, session.texts, s.line, 2), nil, { keepTags = true })
+            ctx.ConfirmButton(T("author.script_builder.narrative.delete_scene"), function()
+                ctx.Commit(T("author.script_builder.status.deleted_scene", { scene = s.name }), E.DeleteElement(parse, session.texts, s.line, 2), nil, { keepTags = true })
             end),
         }, { fit = true, tmargin = 4 })
         children[#children + 1] = gui.Panel{ classes = { "mbSection" }, children = sc }
@@ -919,23 +934,23 @@ function S.NarrativeEditor(ctx, beat, index)
 
     ProblemLabels(ctx, beat.line, 1, children)
     children[#children + 1] = ctx.Row({
-        ctx.SmallButton("+ Scene", function()
+        ctx.SmallButton(T("author.script_builder.narrative.add_scene"), function()
             local last = beat.sections ~= nil and beat.sections[#beat.sections] or nil
             if last ~= nil then
-                ctx.Commit("Added a scene.", E.InsertAfterElement(parse, session.texts, last.line, 2, E.NarrativeSectionBlock("New Scene")))
+                ctx.Commit(T("author.script_builder.status.added_scene"), E.InsertAfterElement(parse, session.texts, last.line, 2, E.NarrativeSectionBlock("New Scene")))
             else
-                ctx.Commit("Added a scene.", E.InsertAfterElement(parse, session.texts, beat.line, 1, E.NarrativeSectionBlock("New Scene")))
+                ctx.Commit(T("author.script_builder.status.added_scene"), E.InsertAfterElement(parse, session.texts, beat.line, 1, E.NarrativeSectionBlock("New Scene")))
             end
         end),
-        ctx.SmallButton("Open in journal", function() OpenInJournal(ctx, beat.line) end),
-        ctx.ConfirmButton("Delete this narrative", function() ctx.Do(function() S.DeleteBeat(ctx, index) end) end),
+        ctx.SmallButton(T("author.script_builder.narrative.open_in_journal"), function() OpenInJournal(ctx, beat.line) end),
+        ctx.ConfirmButton(T("author.script_builder.narrative.delete_button"), function() ctx.Do(function() S.DeleteBeat(ctx, index) end) end),
     }, { fit = true, tmargin = 8 })
     return children
 end
 
 function S.MontageEditor(ctx, beat, index)
-    local children = { ctx.Label("MONTAGE", { "mbHeading" }, { color = KIND_COLOR.montage }) }
-    children[#children + 1] = ctx.Label("Rounds of opportunities and threats: each hero takes a turn at one, with tests, scenes and delves.", { "mbSub" })
+    local children = { ctx.Label(T("author.script_builder.montage.heading"), { "mbHeading" }, { color = KIND_COLOR.montage }) }
+    children[#children + 1] = ctx.Label(T("author.script_builder.montage.intro"), { "mbSub" })
     children[#children + 1] = ctx.Row({
         gui.Button{
             classes = { "sizeS" },
@@ -943,7 +958,7 @@ function S.MontageEditor(ctx, beat, index)
             height = 34,
             hpad = 16,
             borderBox = true,
-            text = "Open in the Montage Builder",
+            text = T("author.script_builder.montage.open_builder"),
             click = function()
                 ctx.OpenMontage(beat)
             end,
@@ -957,12 +972,12 @@ function S.MontageEditor(ctx, beat, index)
         for _, e in ipairs(r.entries or {}) do
             names[#names + 1] = e.name
         end
-        children[#children + 1] = ctx.Label(string.format("Round %s: %s", tostring(r.number), cond(#names == 0, "(empty)", table.concat(names, ", "))), { "mbSub" })
+        children[#children + 1] = ctx.Label(T("author.script_builder.montage.round_line", { number = tostring(r.number), entries = cond(#names == 0, T("author.script_builder.montage.round_empty"), table.concat(names, ", ")) }), { "mbSub" })
     end
     ProblemLabels(ctx, beat.line, 1, children)
     children[#children + 1] = ctx.Row({
-        ctx.SmallButton("Open in journal", function() OpenInJournal(ctx, beat.line) end),
-        ctx.ConfirmButton("Delete this montage", function() ctx.Do(function() S.DeleteBeat(ctx, index) end) end),
+        ctx.SmallButton(T("author.script_builder.montage.open_in_journal"), function() OpenInJournal(ctx, beat.line) end),
+        ctx.ConfirmButton(T("author.script_builder.montage.delete_button"), function() ctx.Do(function() S.DeleteBeat(ctx, index) end) end),
     }, { fit = true, tmargin = 8 })
     return children
 end
@@ -970,9 +985,9 @@ end
 --- the encounter --------------------------------------------------------------------------
 
 local SETUP_KINDS = {
-    { id = "placeobjects", text = "Place objects in zones" },
-    { id = "bystanders", text = "Bystanders (stay out of initiative)" },
-    { id = "victory", text = "Extra way to win" },
+    { id = "placeobjects", text = T("author.script_builder.setup.kind_placeobjects") },
+    { id = "bystanders", text = T("author.script_builder.setup.kind_bystanders") },
+    { id = "victory", text = T("author.script_builder.setup.kind_victory") },
 }
 
 local function Numbers(lo, hi)
@@ -1007,7 +1022,7 @@ local function SetupRow(ctx, ins)
     local parse = session.parse
     local lists = EncounterMontageBuilder.Lists()
     local function Write(newIns)
-        ctx.Commit("Edited a setup line.", E.SetLine(parse, ins.line, E.SetupLine(newIns)))
+        ctx.Commit(T("author.script_builder.status.edited_setup"), E.SetLine(parse, ins.line, E.SetupLine(newIns)))
     end
     local function Copy()
         local c = {}
@@ -1022,7 +1037,7 @@ local function SetupRow(ctx, ins)
             c.label = (string.gsub(E.LineText(text), ":", ""))
             Write(c)
         end, { width = 90, height = 24 })
-        row[#row + 1] = ctx.Word("Place")
+        row[#row + 1] = ctx.Word(T("author.script_builder.setup.place"))
         row[#row + 1] = ctx.PickDropdown(Numbers(1, 12), tostring(ins.qty), function(id)
             local c = Copy()
             c.qty = tonumber(id)
@@ -1034,7 +1049,7 @@ local function SetupRow(ctx, ins)
                 local c = Copy()
                 c.object = id
                 Write(c)
-            end, { width = 190, menuWidth = 260, search = true, tooltip = "An object on this map; one is copied onto each drawn tile." })
+            end, { width = 190, menuWidth = 260, search = true, tooltip = T("author.script_builder.setup.object_tooltip") })
         else
             row[#row + 1] = ctx.TextBox(ins.object, function(text)
                 local c = Copy()
@@ -1042,22 +1057,22 @@ local function SetupRow(ctx, ins)
                 Write(c)
             end, { width = 160, height = 24 })
         end
-        row[#row + 1] = ctx.Word("objects in")
+        row[#row + 1] = ctx.Word(T("author.script_builder.setup.objects_in"))
         local zoneOptions, zoneChosen = ctx.NameOptions(lists.zones, ins.zone)
         row[#row + 1] = ctx.PickDropdown(zoneOptions, zoneChosen, function(id)
             local c = Copy()
             c.zone = lower(id)
             Write(c)
         end, { width = 130 })
-        row[#row + 1] = ctx.Word("zones")
+        row[#row + 1] = ctx.Word(T("author.script_builder.setup.zones"))
         row[#row + 1] = gui.Check{
             classes = { "sizeXs" },
             width = 230,
             height = 24,
             valign = "center",
-            text = "and delete the other ones",
+            text = T("author.script_builder.setup.delete_others"),
             value = ins.deleteOthers == true,
-            hover = gui.Tooltip("Every tile of that zone type that was not drawn is removed, so only the placed ones matter."),
+            hover = gui.Tooltip(T("author.script_builder.setup.delete_others_tooltip")),
             change = function(element)
                 local c = Copy()
                 c.deleteOthers = element.value == true
@@ -1081,25 +1096,25 @@ local function SetupRow(ctx, ins)
             if #c.names > 0 then
                 Write(c)
             end
-        end, { width = 260, height = 24, placeholder = "Civilian, Old Tam" })
-        row[#row + 1] = ctx.Word("tokens stay out of initiative")
+        end, { width = 260, height = 24, placeholder = T("author.script_builder.setup.bystander_names_placeholder") })
+        row[#row + 1] = ctx.Word(T("author.script_builder.setup.bystanders_rest"))
     elseif ins.kind == "victory" then
-        row[#row + 1] = ctx.Word("The heroes also win when every")
-        local options, chosen = ctx.NameOptions(lists.keywords, ins.who ~= nil and (ins.whoText or ins.who) or nil, { { id = "", text = "enemy" } })
+        row[#row + 1] = ctx.Word(T("author.script_builder.setup.victory_start"))
+        local options, chosen = ctx.NameOptions(lists.keywords, ins.who ~= nil and (ins.whoText or ins.who) or nil, { { id = "", text = T("author.script_builder.setup.victory_enemy") } })
         row[#row + 1] = ctx.PickDropdown(options, chosen or "", function(id)
             Write({ kind = "victory", who = cond(id == "", nil, lower(id)), whoText = cond(id == "", nil, id) })
         end, { width = 160, menuWidth = 220, search = true })
-        row[#row + 1] = ctx.Word("on the map is defeated")
+        row[#row + 1] = ctx.Word(T("author.script_builder.setup.victory_end"))
     else
         local docid, at = E.Source(parse, ins.line)
         row[#row + 1] = ctx.TextBox(E.Split(session.texts[docid] or "").lines[at] or "", function(text)
-            ctx.Commit("Edited a setup line.", E.SetLine(parse, ins.line, E.LineText(text)))
+            ctx.Commit(T("author.script_builder.status.edited_setup"), E.SetLine(parse, ins.line, E.LineText(text)))
         end, { width = 520, height = 24 })
     end
     row[#row + 1] = gui.Button{ classes = { "sizeXs" }, width = 22, height = 22, lmargin = 6, valign = "center", text = "x",
-        hover = gui.Tooltip("Remove this line"),
+        hover = gui.Tooltip(T("author.script_builder.setup.remove_tooltip")),
         click = function()
-            ctx.Commit("Removed a setup line.", E.DeleteLine(parse, ins.line))
+            ctx.Commit(T("author.script_builder.status.removed_setup"), E.DeleteLine(parse, ins.line))
         end }
     return ctx.Row(row, { fit = true, vmargin = 2 })
 end
@@ -1112,16 +1127,16 @@ local function ScheduleRow(ctx, r)
     local function Write(newSchedule)
         local line = E.ArriveLine(newSchedule)
         if r.scheduleLine ~= nil then
-            ctx.Commit("Edited when reinforcements arrive.", E.SetLine(parse, r.scheduleLine, line))
+            ctx.Commit(T("author.script_builder.status.edited_arrive"), E.SetLine(parse, r.scheduleLine, line))
         else
-            ctx.Commit("Set when reinforcements arrive.", One(E.InsertBlockAfter(parse, session.texts, r.line, { line })))
+            ctx.Commit(T("author.script_builder.status.set_arrive"), One(E.InsertBlockAfter(parse, session.texts, r.line, { line })))
         end
     end
     local mode = cond(schedule.rounds ~= nil, "rounds", "every")
     ---@type Panel[]
     local row = {
-        ctx.Word("Arrive", { hmargin = 0 }),
-        ctx.PickDropdown({ { id = "rounds", text = "on rounds" }, { id = "every", text = "every N rounds" } }, mode, function(id)
+        ctx.Word(T("author.script_builder.reinforcements.arrive"), { hmargin = 0 }),
+        ctx.PickDropdown({ { id = "rounds", text = T("author.script_builder.reinforcements.mode_rounds") }, { id = "every", text = T("author.script_builder.reinforcements.mode_every") } }, mode, function(id)
             if id == "rounds" then
                 Write({ rounds = { [3] = true } })
             else
@@ -1148,26 +1163,26 @@ local function ScheduleRow(ctx, r)
             if any then
                 Write({ rounds = rounds })
             end
-        end, { width = 120, height = 24, placeholder = "3, or 2, 4" })
+        end, { width = 120, height = 24, placeholder = T("author.script_builder.reinforcements.rounds_placeholder") })
     else
-        row[#row + 1] = ctx.Word("every")
+        row[#row + 1] = ctx.Word(T("author.script_builder.reinforcements.every"))
         row[#row + 1] = ctx.PickDropdown(Numbers(1, 5), tostring(schedule.every or 1), function(id)
             Write({ every = tonumber(id), from = schedule.from, to = schedule.to })
         end, { width = 56 })
-        row[#row + 1] = ctx.Word("round(s) from round")
+        row[#row + 1] = ctx.Word(T("author.script_builder.reinforcements.rounds_from"))
         row[#row + 1] = ctx.PickDropdown(Numbers(1, 10), tostring(schedule.from or 1), function(id)
             Write({ every = schedule.every, from = tonumber(id), to = schedule.to })
         end, { width = 56 })
-        local untilOptions = { { id = "", text = "on" } }
+        local untilOptions = { { id = "", text = T("author.script_builder.reinforcements.until_none") } }
         for _, o in ipairs(Numbers(1, 12)) do
-            untilOptions[#untilOptions + 1] = { id = o.id, text = "until " .. o.text }
+            untilOptions[#untilOptions + 1] = { id = o.id, text = T("author.script_builder.reinforcements.until_round", { round = o.text }) }
         end
         row[#row + 1] = ctx.PickDropdown(untilOptions, schedule.to ~= nil and tostring(schedule.to) or "", function(id)
             Write({ every = schedule.every, from = schedule.from, to = tonumber(id) })
         end, { width = 96 })
     end
     if r.schedule == nil then
-        row[#row + 1] = ctx.Word("(not set: they never arrive)", { color = PROBLEM_COLOR })
+        row[#row + 1] = ctx.Word(T("author.script_builder.reinforcements.never_arrive"), { color = PROBLEM_COLOR })
     end
     return ctx.Row(row, { fit = true, vmargin = 2 })
 end
@@ -1178,80 +1193,80 @@ local function ReinforcementEditor(ctx, r)
     local lists = EncounterMontageBuilder.Lists()
     local rc = {}
     rc[#rc + 1] = ctx.Row({
-        gui.Label{ classes = { "mbHeading" }, color = KIND_COLOR.encounter, width = "auto", height = "auto", valign = "center", rmargin = 8, text = "REINFORCEMENTS" },
+        gui.Label{ classes = { "mbHeading" }, color = KIND_COLOR.encounter, width = "auto", height = "auto", valign = "center", rmargin = 8, text = T("author.script_builder.reinforcements.heading") },
         ctx.TextBox(r.name, function(text)
             text = E.LineText(text)
             if text ~= "" then
-                ctx.Commit("Renamed reinforcements.", E.SetLine(parse, r.line, "## Reinforcements: " .. text))
+                ctx.Commit(T("author.script_builder.status.renamed_reinforcements"), E.SetLine(parse, r.line, "## Reinforcements: " .. text))
             end
         end, { width = 280, height = 28 }),
     }, { fit = true })
     rc[#rc + 1] = ScheduleRow(ctx, r)
 
     --where they come in.
-    local zoneOptions, zoneChosen = ctx.NameOptions(lists.zones, r.zone, { { id = "", text = "where their group was placed" } })
+    local zoneOptions, zoneChosen = ctx.NameOptions(lists.zones, r.zone, { { id = "", text = T("author.script_builder.reinforcements.enter_where_placed") } })
     rc[#rc + 1] = ctx.Row({
-        ctx.Word("Enter", { hmargin = 0 }),
+        ctx.Word(T("author.script_builder.reinforcements.enter"), { hmargin = 0 }),
         ctx.PickDropdown(zoneOptions, zoneChosen or "", function(id)
             if id == "" then
                 if r.zoneLine ~= nil then
-                    ctx.Commit("Reinforcements arrive where they were placed.", E.DeleteLine(parse, r.zoneLine))
+                    ctx.Commit(T("author.script_builder.status.enter_where_placed"), E.DeleteLine(parse, r.zoneLine))
                 end
             elseif r.zoneLine ~= nil then
-                ctx.Commit("Changed where reinforcements enter.", E.SetLine(parse, r.zoneLine, E.EnterLine(id)))
+                ctx.Commit(T("author.script_builder.status.changed_enter"), E.SetLine(parse, r.zoneLine, E.EnterLine(id)))
             else
-                ctx.Commit("Set where reinforcements enter.", One(E.InsertBlockAfter(parse, session.texts, r.scheduleLine or r.line, { E.EnterLine(id) })))
+                ctx.Commit(T("author.script_builder.status.set_enter"), One(E.InsertBlockAfter(parse, session.texts, r.scheduleLine or r.line, { E.EnterLine(id) })))
             end
-        end, { width = 240, tooltip = "A zone type on the map: they appear on its tiles." }),
+        end, { width = 240, tooltip = T("author.script_builder.reinforcements.enter_tooltip") }),
     }, { fit = true, vmargin = 2 })
 
     --what they shout as they arrive.
     for _, sh in ipairs(r.shoutLines or {}) do
         local shout = sh
         rc[#rc + 1] = ctx.Row({
-            ctx.Word("Shout", { hmargin = 0 }),
+            ctx.Word(T("author.script_builder.reinforcements.shout"), { hmargin = 0 }),
             ctx.TextBox(shout.text, function(text)
                 if trim(text) == "" then
-                    ctx.Commit("Removed a shout.", E.DeleteLine(parse, shout.line))
+                    ctx.Commit(T("author.script_builder.status.removed_shout"), E.DeleteLine(parse, shout.line))
                 else
-                    ctx.Commit("Edited a shout.", E.SetLine(parse, shout.line, E.ShoutLine(text)))
+                    ctx.Commit(T("author.script_builder.status.edited_shout"), E.SetLine(parse, shout.line, E.ShoutLine(text)))
                 end
             end, { width = 420, height = 24 }),
             gui.Button{ classes = { "sizeXs" }, width = 22, height = 22, lmargin = 6, valign = "center", text = "x",
-                click = function() ctx.Commit("Removed a shout.", E.DeleteLine(parse, shout.line)) end },
+                click = function() ctx.Commit(T("author.script_builder.status.removed_shout"), E.DeleteLine(parse, shout.line)) end },
         }, { fit = true, vmargin = 1 })
     end
 
     --the groups that come, one per arrival, in turn.
     local groups = #(r.islands or {})
     if groups == 0 then
-        rc[#rc + 1] = ctx.Label("No groups of monsters yet: '+ Group' adds one.", { "mbProblem" })
+        rc[#rc + 1] = ctx.Label(T("author.script_builder.reinforcements.no_groups"), { "mbProblem" })
     end
     for gi, island in ipairs(r.islands or {}) do
-        rc[#rc + 1] = ctx.Label(string.format("Group %d%s: %s", gi, cond(groups > 1, string.format(" (arrival %d, %d, ...)", gi, gi + groups), ""),
-            IslandSummary(session, island.line)), { "mbSub" }, { tmargin = 4 })
+        rc[#rc + 1] = ctx.Label(cond(groups > 1, T("author.script_builder.reinforcements.group_cycle", { number = gi, first = gi, second = gi + groups, monsters = IslandSummary(session, island.line) }),
+            T("author.script_builder.reinforcements.group", { number = gi, monsters = IslandSummary(session, island.line) })), { "mbSub" }, { tmargin = 4 })
         rc[#rc + 1] = ctx.Row({ CombatBuilderButton(ctx, island.line) }, { fit = true })
     end
     ProblemLabels(ctx, r.line, 2, rc)
     rc[#rc + 1] = ctx.Row({
-        ctx.SmallButton("+ Shout", function()
+        ctx.SmallButton(T("author.script_builder.reinforcements.add_shout"), function()
             local after = r.line
             if r.shoutLines ~= nil and #r.shoutLines > 0 then
                 after = r.shoutLines[#r.shoutLines].line
             elseif r.zoneLine ~= nil or r.scheduleLine ~= nil then
                 after = math.max(r.zoneLine or 0, r.scheduleLine or 0)
             end
-            ctx.Commit("Added a shout.", One(E.InsertBlockAfter(parse, session.texts, after, { E.ShoutLine("Here they come!") })))
+            ctx.Commit(T("author.script_builder.status.added_shout"), One(E.InsertBlockAfter(parse, session.texts, after, { E.ShoutLine("Here they come!") })))
         end),
-        ctx.SmallButton("+ Group", function()
+        ctx.SmallButton(T("author.script_builder.reinforcements.add_group"), function()
             local after = r.line
             for _, island in ipairs(r.islands or {}) do
                 after = math.max(after, island.line)
             end
-            ctx.Commit("Added a reinforcement group.", One(E.InsertBlockAfter(parse, session.texts, after, { "[[encounter]]" })), nil, { keepTags = true })
+            ctx.Commit(T("author.script_builder.status.added_group"), One(E.InsertBlockAfter(parse, session.texts, after, { "[[encounter]]" })), nil, { keepTags = true })
         end),
-        ctx.ConfirmButton("Delete", function()
-            ctx.Commit(string.format("Deleted the reinforcements '%s'.", r.name), E.DeleteElement(parse, session.texts, r.line, 2), nil, { keepTags = true })
+        ctx.ConfirmButton(T("author.script_builder.reinforcements.delete_button"), function()
+            ctx.Commit(T("author.script_builder.status.deleted_reinforcements", { name = r.name }), E.DeleteElement(parse, session.texts, r.line, 2), nil, { keepTags = true })
         end),
     }, { fit = true, tmargin = 4 })
     return gui.Panel{ classes = { "mbSection" }, children = rc }
@@ -1260,20 +1275,20 @@ end
 function S.EncounterEditor(ctx, beat, index)
     local session = ctx.session
     local parse = session.parse
-    local children = { ctx.Label("ENCOUNTER", { "mbHeading" }, { color = KIND_COLOR.encounter }) }
-    children[#children + 1] = ctx.Label("The fight. Setup runs once, just before the monsters appear.", { "mbSub" })
+    local children = { ctx.Label(T("author.script_builder.encounter.heading"), { "mbHeading" }, { color = KIND_COLOR.encounter }) }
+    children[#children + 1] = ctx.Label(T("author.script_builder.encounter.intro"), { "mbSub" })
 
     --the monsters.
-    local mc = { ctx.Label("The monsters", { "mbFieldLabel" }) }
+    local mc = { ctx.Label(T("author.script_builder.encounter.monsters_label"), { "mbFieldLabel" }) }
     if beat.encounterTag ~= nil then
         mc[#mc + 1] = ctx.Label(IslandSummary(session, beat.encounterLine), { "mbSub" })
         mc[#mc + 1] = ctx.Row({ CombatBuilderButton(ctx, beat.encounterLine) }, { fit = true, tmargin = 4 })
     else
-        mc[#mc + 1] = ctx.Label("No monsters yet.", { "mbSub" })
+        mc[#mc + 1] = ctx.Label(T("author.script_builder.encounter.no_monsters"), { "mbSub" })
         --the button writes the [[encounter]] tag the monsters are saved under.
         mc[#mc + 1] = ctx.Row({
             CombatBuilderButton(ctx, nil, function()
-                if not EncounterMontageBuilder.Commit(session, "Added the encounter island.",
+                if not EncounterMontageBuilder.Commit(session, T("author.script_builder.status.added_island"),
                     { E.InsertBlockAfter(parse, session.texts, beat.line, { "[[encounter]]" }) }, nil, { keepTags = true }) then
                     return nil
                 end
@@ -1285,14 +1300,14 @@ function S.EncounterEditor(ctx, beat, index)
     children[#children + 1] = gui.Panel{ classes = { "mbSection" }, children = mc }
 
     --setup lines.
-    local sc = { ctx.Label("Setup and victory", { "mbFieldLabel" }) }
+    local sc = { ctx.Label(T("author.script_builder.setup.label"), { "mbFieldLabel" }) }
     for _, ins in ipairs(beat.setup or {}) do
         sc[#sc + 1] = SetupRow(ctx, ins)
     end
     if #(beat.setup or {}) == 0 then
-        sc[#sc + 1] = ctx.Label("None: the fight starts as the map is laid out.", { "mbSub" })
+        sc[#sc + 1] = ctx.Label(T("author.script_builder.setup.none"), { "mbSub" })
     end
-    local addOptions = { { id = "", text = "+ Add setup..." } }
+    local addOptions = { { id = "", text = T("author.script_builder.setup.add") } }
     for _, k in ipairs(SETUP_KINDS) do
         addOptions[#addOptions + 1] = k
     end
@@ -1314,10 +1329,10 @@ function S.EncounterEditor(ctx, beat, index)
             for _, ins in ipairs(beat.setup or {}) do
                 after = math.max(after, ins.line)
             end
-            ctx.Commit("Added a setup line.", One(E.InsertBlockAfter(parse, session.texts, after, { E.SetupLine(NewSetup(kind)) })))
+            ctx.Commit(T("author.script_builder.status.added_setup"), One(E.InsertBlockAfter(parse, session.texts, after, { E.SetupLine(NewSetup(kind)) })))
         end,
     }
-    sc[#sc + 1] = ctx.Label("Place objects: draws that many tiles of the zone type and copies the object onto each (traps). Bystanders: tokens on the map that never take a turn. Extra way to win: on top of defeating the encounter.", { "mbSub" })
+    sc[#sc + 1] = ctx.Label(T("author.script_builder.setup.help"), { "mbSub" })
     children[#children + 1] = gui.Panel{ classes = { "mbSection" }, children = sc }
 
     --reinforcements (each shows its own problems).
@@ -1331,10 +1346,10 @@ function S.EncounterEditor(ctx, beat, index)
 
     ProblemLabels(ctx, beat.line, 1, children, shown)
     children[#children + 1] = ctx.Row({
-        ctx.SmallButton("+ Reinforcements", function()
-            ctx.Commit("Added reinforcements.", E.InsertAfterElement(parse, session.texts, beat.line, 1, E.ReinforcementBlock("New Arrivals")), nil, { keepTags = true })
+        ctx.SmallButton(T("author.script_builder.encounter.add_reinforcements"), function()
+            ctx.Commit(T("author.script_builder.status.added_reinforcements"), E.InsertAfterElement(parse, session.texts, beat.line, 1, E.ReinforcementBlock("New Arrivals")), nil, { keepTags = true })
         end),
-        ctx.ConfirmButton("Delete the encounter", function() ctx.Do(function() S.DeleteBeat(ctx, index) end) end),
+        ctx.ConfirmButton(T("author.script_builder.encounter.delete_button"), function() ctx.Do(function() S.DeleteBeat(ctx, index) end) end),
     }, { fit = true, tmargin = 8 })
     return children
 end
@@ -1357,16 +1372,16 @@ function S.Editor(ctx)
                 return S.MontageEditor(ctx, beat, sel.index)
             elseif beat.kind == "encounter" then
                 if beat.implicit then
-                    return { ctx.Label("The encounter comes from the map's own encounter, not from a script line.", { "mbSub" }) }
+                    return { ctx.Label(T("author.script_builder.encounter.implicit"), { "mbSub" }) }
                 end
                 return S.EncounterEditor(ctx, beat, sel.index)
             end
         end
     end
     return {
-        ctx.Label("Pick a part of the script on the left.", { "mbHeading" }),
-        ctx.Label("The script plays top to bottom: the Town Gate text in town, then each beat in order (narratives, montages, the encounter), then the Conclusion or Defeat screen. Optional features (like Intelligence) are turned on at the top.", { "mbSub" }),
-        ctx.Label("Every change is written straight into the journal document it came from and re-checked with the game's own parser. Undo takes back one change at a time.", { "mbSub" }),
+        ctx.Label(T("author.script_builder.editor.empty_heading"), { "mbHeading" }),
+        ctx.Label(T("author.script_builder.editor.empty_help"), { "mbSub" }),
+        ctx.Label(T("author.script_builder.editor.empty_undo"), { "mbSub" }),
     }
 end
 

@@ -128,7 +128,8 @@ local function Arrive(script, section, ordinal, queue, live)
         return {}, index
     end
 
-    local numHeroes = tonumber(dmhub.GetSettingValue("numheroes")) or 5
+    --Challenge Mode balances a wave like the opening fight (ChallengeBalance).
+    local numHeroes, levelUp = EncounterOfTheWeekGame.ChallengeBalance(tonumber(dmhub.GetSettingValue("numheroes")) or 5)
     local zoneLocs = section.zone ~= nil and ZoneLocs(section.zone) or {}
     if section.zone ~= nil and #zoneLocs == 0 then
         printf("EotW reinforcements: the map has no '%s' zone; '%s' arrive at their saved positions", tostring(section.zone), tostring(section.name))
@@ -170,6 +171,9 @@ local function Arrive(script, section, ordinal, queue, live)
                 queue:SetInitiative(groupid, 0, 0)
             end
         end
+    end
+    if levelUp and #spawned > 0 then
+        EncounterOfTheWeekGame.LevelUpStrongestHalf(spawned)
     end
     game.UpdateCharacterTokens()
 

@@ -1070,12 +1070,11 @@ local function SkinBodyMarkup(body, content)
     return SkinAlign(body.align, SkinFont(body.font, open .. content .. close))
 end
 
--- Unordered bullet. `defmarker` is the original marker character ("-" or "*"),
--- used as the glyph when no skin glyph is set so unstyled journals are unchanged.
+-- Always a real glyph, never the typed marker: the engine only bullets a bare "* " (our tags hide it), never "- ".
 local function SkinBulletMarkup(bullet, defmarker, content, bodyColor, bodyFont)
     bullet = bullet or {}
     local glyph = bullet.glyph
-    if glyph == nil or glyph == false or glyph == "" then glyph = defmarker end
+    if glyph == nil or glyph == false or glyph == "" then glyph = "\u{2022}" end
     local bodyCol = SkinColor(bodyColor)
     -- Marker uses its own color if set, else the body text color so it stays as
     -- readable as the item text.
@@ -1093,7 +1092,13 @@ local function SkinBulletMarkup(bullet, defmarker, content, bodyColor, bodyFont)
     if bodyCol then
         body = string.format("<color=%s>%s</color>", bodyCol, content)
     end
-    local line = SkinFont(bullet.font or bodyFont, prefix .. " " .. body)
+    --Hanging indent so wrapped lines sit under the text, as the engine's own "* " bullet does.
+    --Skipped with a skin indent: TMP indents don't nest, so this would override it.
+    local sep, closeSep = " ", ""
+    if indent == 0 then
+        sep, closeSep = "<indent=0.8em>", "</indent>"
+    end
+    local line = SkinFont(bullet.font or bodyFont, prefix .. sep .. body .. closeSep)
     if indent ~= 0 then
         line = string.format("<indent=%dpx>%s</indent>", indent, line)
     end

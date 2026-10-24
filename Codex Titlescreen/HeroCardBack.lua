@@ -1525,6 +1525,7 @@ local function CreateFlipButton(charid)
             },
             {
                 selectors = {"heroCardFlip", "hover"},
+                hidden = 0,
                 borderColor = COLOR_GOLD,
                 scale = 1.15,
             },

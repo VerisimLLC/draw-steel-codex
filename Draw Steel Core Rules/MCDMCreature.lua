@@ -6275,11 +6275,13 @@ function creature.TakeDamage(self, amount, note, info)
             self:DispatchEvent("losehitpoints", eventArg)
         end
 
+        --Forced movement can pass the pusher as an ability-symbols function. Unwrap it so
+        --the death skull can call methods on whoever is stored here.
         if eventArg.attacker == nil or dmhub.LookupTokenId(eventArg.attacker) == dmhub.LookupTokenId(self) then
-            self._tmp_lastattacker = eventArg.pusher
+            self._tmp_lastattacker = Utils.ResolveGoblinScriptObject(eventArg.pusher)
             print("ATTACKER::", dmhub.LookupTokenId(self:try_get("_tmp_lastattacker")))
         else
-            self._tmp_lastattacker = eventArg.attacker
+            self._tmp_lastattacker = Utils.ResolveGoblinScriptObject(eventArg.attacker)
             print("ATTACKER::", dmhub.LookupTokenId(self:try_get("_tmp_lastattacker")))
         end
         self._tmp_lastdamagetype = eventArg.damagetype
@@ -6602,11 +6604,13 @@ function creature.TakeDamage(self, amount, note, info)
         print("DYING:: WINDED")
     end
 
+    --Forced movement can pass the pusher as an ability-symbols function. Unwrap it so
+    --the death skull can call methods on whoever is stored here.
     if eventArg.attacker == nil or dmhub.LookupTokenId(eventArg.attacker) == dmhub.LookupTokenId(self) then
-        self._tmp_lastattacker = eventArg.pusher
+        self._tmp_lastattacker = Utils.ResolveGoblinScriptObject(eventArg.pusher)
         print("ATTACKER::", dmhub.LookupTokenId(self:try_get("_tmp_lastattacker")))
     else
-        self._tmp_lastattacker = eventArg.attacker
+        self._tmp_lastattacker = Utils.ResolveGoblinScriptObject(eventArg.attacker)
         print("ATTACKER::", dmhub.LookupTokenId(self:try_get("_tmp_lastattacker")))
     end
 

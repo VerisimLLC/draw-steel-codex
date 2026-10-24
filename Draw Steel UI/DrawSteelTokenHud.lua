@@ -16,14 +16,10 @@ local function MinionDeathPending(creatureProps)
     return confirmedAt ~= nil and dmhub.Time() - confirmedAt < g_minionDeathPendingTimeout
 end
 
---The creature that last damaged this minion, or nil. Mirrors the Monster AI's
---reader: some writers store a GoblinScript-style accessor instead of the creature.
+--The creature that last damaged this minion, or nil. Also accepts an
+--ability-symbols function stored in its place, as a safety net.
 local function MinionLastAttacker(creatureProps)
-    local attacker = creatureProps:try_get("_tmp_lastattacker")
-    if type(attacker) == "function" then
-        attacker = attacker("self")
-    end
-    return attacker
+    return Utils.ResolveGoblinScriptObject(creatureProps:try_get("_tmp_lastattacker"))
 end
 
 --Kill a minion whose death skull is showing: what clicking the skull does.
@@ -40,7 +36,7 @@ local function ConfirmMinionDeath(token, attacker)
     if attacker ~= nil then
         props._tmp_lastattacker = attacker
     else
-        attacker = props:try_get("_tmp_lastattacker")
+        attacker = MinionLastAttacker(props)
     end
     if attacker ~= nil then
         attacker:TriggerEvent("kill", {

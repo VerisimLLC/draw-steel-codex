@@ -1625,6 +1625,12 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
                     if dialogInfo ~= nil then
                         m_presentedDialog = dialogInfo.create(m_presentedDialogArgs.args)
                         if m_presentedDialog ~= nil then
+                            --on the documents layer it shares the layer with the map
+                            --windows; the class keeps it above a maximized map, which
+                            --can be built after it (PanelDocument.ABOVE_MAXIMIZED_MAP).
+                            if mapHost == nil then
+                                m_presentedDialog:SetClass("presentedDialog", true)
+                            end
                             (mapHost or GameHud.instance.documentsPanel):AddChild(m_presentedDialog)
                         end
 					elseif LaunchablePanel.LaunchPanelByName(data.dialog.dialog, data.dialog.args) then

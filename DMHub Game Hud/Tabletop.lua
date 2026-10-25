@@ -2201,6 +2201,9 @@ local function PlaceWindow(rec)
             panel:Unparent()
         end
         target:AddChild(panel)
+        --appended over everything: stack it again, so what must stay above
+        --a maximized map (a presented stage) is lifted back over it.
+        rec.maximizedPanel = nil
     end
 
     g_chrome.StackMaximized(rec, rec.maximized == true)
@@ -9226,6 +9229,7 @@ local function DefineSceneWindows()
                 panel:Unparent()
             end
             target:AddChild(panel)
+            rec.maximizedPanel = nil
         end
         --maximized among the windows: stacked as a maximized map is.
         g_chrome.StackMaximized(rec, rec.maximized == true and target ~= g_layer)

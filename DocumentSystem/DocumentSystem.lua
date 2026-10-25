@@ -8661,10 +8661,13 @@ local g_onPanelGroupChanged
 --raiseBelowClasses, Tabletop.lua): the rails and what they float on the
 --layer, the chat preview bubble, and pinned panel windows (David,
 --2026-10-24). Every other window stacks with the map by click order.
+--presentedDialog is a dialog presented to the players (GameHud), such as
+--the Encounter of the Week stage: a player whose client builds the forced
+--map after the stage would otherwise be left looking at the map.
 PanelDocument.ABOVE_MAXIMIZED_MAP = {
     "iconRail", "iconRailGhost", "iconRailGhostLine", "iconRailCardGhost", "iconRailTrash",
     "iconRailViewChip", "iconRailViewToast", "iconRailToolkitStrip", "chatSpeechBubble",
-    "panelDocumentPinned",
+    "panelDocumentPinned", "presentedDialog",
 }
 
 function PanelDocument.IsPinned(key)

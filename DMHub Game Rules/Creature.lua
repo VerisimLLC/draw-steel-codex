@@ -9761,7 +9761,17 @@ function creature:LookupSymbol(symbolTable)
 	return GenerateSymbols(self, symbolTable)
 end
 
-function creature:BeginTurn()
+--- Starts this creature's turn: start-of-turn triggers and aura and effect expiry.
+--- options is passed only by the Monster AI, which must not act until the turn
+--- start has played out:
+---   aiActivityId: tags the turn start's events, so a hero prompt they raise holds
+---     the AI until the player answers it and the cast it starts finishes.
+---   onComplete: called once the turn start has finished, even if a trigger errored.
+--- @param options? {aiActivityId: string|nil, onComplete: fun()|nil}
+function creature:BeginTurn(options)
+	local aiActivityId = options ~= nil and options.aiActivityId or nil
+	local onComplete = options ~= nil and options.onComplete or nil
+
 	--just in case some linger.
 	self:ClearMomentaryOngoingEffects()
 
@@ -9783,6 +9793,13 @@ function creature:BeginTurn()
     end
 
 	dmhub.Coroutine(function()
+        --Calls onComplete when this coroutine ends, whether it finishes or errors.
+        local completion <close> = setmetatable({}, {__close = function()
+            if onComplete ~= nil then
+                onComplete()
+            end
+        end})
+
         --The initiative queue has already advanced to this creature's turn before
         --BeginTurn runs, so effects/auras that expire "at the start of this creature's
         --turn" would otherwise expire the instant the prestartturn (Before Start of
@@ -9797,7 +9814,7 @@ function creature:BeginTurn()
         end
 
         local ok, err = pcall(function()
-            self:DispatchEventAndWait("prestartturn", {})
+            self:DispatchEventAndWait("prestartturn", {aiActivityId = aiActivityId})
         end)
 
         --Clear the flag even if a trigger handler errored.
@@ -9863,7 +9880,7 @@ function creature:BeginTurn()
             end
         end
 
-        self:DispatchEvent("beginturn", {order = order})
+        self:DispatchEvent("beginturn", {order = order, aiActivityId = aiActivityId})
 
         --Surface a prestartturn trigger error after cleanup so a buggy trigger does not
         --abort the rest of BeginTurn.
@@ -10203,7 +10220,7 @@ function creature:EndRound(token)
 
     self:CheckAuraExpiration("endround")
 
-	self:DispatchEvent("beginround")
+	self:DispatchBeginRound()
 end
 
 --returns a list in this format:
@@ -10484,6 +10501,36 @@ end
 
 function creature.GetAIActivityInProgress()
     return g_aiActivityInProgress
+end
+
+--- The AI activity id for the start of the queue's current round, or nil out of
+--- combat. Every client derives the same id from the queue, so the hero prompts a
+--- round's "beginround" raises (Showdown) are tracked under the id the Monster AI
+--- host waits on before it picks the round's next monster turn -- whichever
+--- machine started the round.
+--- @param queue InitiativeQueue|nil
+--- @return string|nil
+function creature.RoundStartAIActivityId(queue)
+    if queue == nil or queue.hidden then
+        return nil
+    end
+    return string.format("round-start:%s:%s", tostring(queue.guid), tostring(queue.round))
+end
+
+--- Dispatches "beginround" on this creature. While the Monster AI runs on any
+--- client the event carries the round's AI activity id, so a hero's start-of-round
+--- prompt holds the AI until the player answers it and the cast it starts --
+--- target pick included -- finishes. With no AI running it is a plain dispatch.
+function creature:DispatchBeginRound()
+    local info = nil
+    local activityId = creature.RoundStartAIActivityId(dmhub.initiativeQueue)
+    --rawget: Monster AI loads after this module and may not be present at all.
+    local monsterAI = rawget(_G, "MonsterAI")
+    local isAIRunningAnywhere = monsterAI ~= nil and rawget(monsterAI, "IsAIRunningAnywhere") or nil
+    if activityId ~= nil and isAIRunningAnywhere ~= nil and isAIRunningAnywhere() then
+        info = {aiActivityId = activityId}
+    end
+    self:DispatchEvent("beginround", info)
 end
 
 --Monster AI control of individual tokens, keyed by charid. It lives here, not

@@ -90,13 +90,36 @@ local function HasRelayedTriggerInFlight(token)
     return false
 end
 
+--A start-of-round reaction (see creature:DispatchBeginRound) the hero has not
+--finished. Accepting the prompt clears its card while the cast it starts --
+--Showdown's target pick -- is still running; the marker on the hero's token
+--covers that gap on whichever machine runs the cast. A marker that can no
+--longer be confirmed releases the wait, so a lost reaction cannot stall the table.
+---@param token CharacterToken
+---@param activityId string|nil
+---@return string|nil description
+local function PendingRoundStartReaction(token, activityId)
+    if activityId == nil then
+        return nil
+    end
+    local ok, pending, description, failure = pcall(token.properties.GetAIActivityReactionStatus, token.properties, activityId)
+    if not ok or failure ~= nil or pending == 0 then
+        return nil
+    end
+    return description or "reaction"
+end
+
 --A hero's trigger the monsters wait for before choosing their next turn: a
 --hero may use it to claim the turn or to act before the monsters do. Returns
---the token and its prompt, or the token and nil while a relayed event is still
---being evaluated on its player's client. Data-driven, so custom classes work.
----@return CharacterToken|nil, ActiveTrigger|nil
+--the token and its prompt; the token, nil and a description while a
+--start-of-round reaction is still resolving; or the token and nil while a
+--relayed event is still being evaluated on its player's client. Data-driven,
+--so custom classes work.
+---@return CharacterToken|nil, ActiveTrigger|nil, string|nil
 local function FindPendingPlayerTrigger(queue)
     local relayToken = nil
+    local reactionToken, reactionText = nil, nil
+    local roundActivityId = creature.RoundStartAIActivityId(queue)
     for _,token in ipairs(dmhub.allTokens) do
         if MonsterAI.TokenIsLiveCombatant(token) and token.playerControlled then
             local initiativeid = InitiativeQueue.GetInitiativeId(token)
@@ -106,6 +129,12 @@ local function FindPendingPlayerTrigger(queue)
                         return token, trigger
                     end
                 end
+                if reactionToken == nil then
+                    local description = PendingRoundStartReaction(token, roundActivityId)
+                    if description ~= nil then
+                        reactionToken, reactionText = token, description
+                    end
+                end
                 if relayToken == nil and HasRelayedTriggerInFlight(token) then
                     relayToken = token
                 end
@@ -113,14 +142,21 @@ local function FindPendingPlayerTrigger(queue)
         end
     end
 
-    return relayToken, nil
+    if reactionToken ~= nil then
+        return reactionToken, nil, reactionText
+    end
+    return relayToken, nil, nil
 end
 
 --The banner text for a FindPendingPlayerTrigger result.
 ---@param token CharacterToken
 ---@param trigger ActiveTrigger|nil
-local function PendingPlayerTriggerText(token, trigger)
+---@param reactionText string|nil
+local function PendingPlayerTriggerText(token, trigger, reactionText)
     if trigger == nil then
+        if reactionText ~= nil then
+            return string.format("Waiting for %s's %s", token.name or "a hero", reactionText)
+        end
         return string.format("Waiting for %s's triggers", token.name or "a hero")
     end
     local name = trigger.abilityName
@@ -191,6 +227,9 @@ local function MonsterAIThread(process)
     --document read per iteration.
     local turnClaimWaiting = false
     local saveWaiting = false
+    --The monster turn this process last began. The turn is not played until its
+    --start-of-turn triggers have finished. nil for turns begun by anyone else.
+    local turnStart = nil
     MonsterAI.ClearWaiting()
     pcall(MonsterAI.ClearPlanPreview)
     creature.SetAIActivityInProgress(nil)
@@ -318,11 +357,11 @@ local function MonsterAIThread(process)
             and not GameHud.BetweenTurnTransitionInProgress() and (not queue:IsPlayersTurn()) then
             local initiativeid = queue:CurrentInitiativeId()
             if initiativeid == nil then
-                local claimToken, claimTrigger = FindPendingPlayerTrigger(queue)
+                local claimToken, claimTrigger, claimReaction = FindPendingPlayerTrigger(queue)
                 if claimToken ~= nil then
                     --Tell the table why the monsters are not moving. The banner's
                     --Dismiss (offered when there is a prompt) releases the wait.
-                    local text = PendingPlayerTriggerText(claimToken, claimTrigger)
+                    local text = PendingPlayerTriggerText(claimToken, claimTrigger, claimReaction)
                     if not turnClaimWaiting then
                         lifecycleAI:LogDecision("INITIATIVE WAITING", {
                             actor = MonsterAI.TokenLogName(claimToken),
@@ -452,14 +491,29 @@ local function MonsterAIThread(process)
                     dmhub:UploadInitiativeQueue()
 
                     local tokens = GameHud.GetTokensForInitiativeId(GameHud.instance, GameHud.instance.initiativeInterface, initiativeid)
+                    local pending = {count = 0}
+                    turnStart = {initiativeid = initiativeid, activityId = "turn-start:" .. dmhub.GenerateGuid(), pending = pending}
                     for i,tok in ipairs(tokens) do
                         if tok.properties ~= nil then
-                            tok.properties:BeginTurn()
+                            pending.count = pending.count + 1
+                            tok.properties:BeginTurn{
+                                aiActivityId = turnStart.activityId,
+                                onComplete = function()
+                                    pending.count = pending.count - 1
+                                end,
+                            }
                         end
                     end
                 end
             else
                 local ai = MonsterAI.new{}
+                if turnStart ~= nil and turnStart.initiativeid == initiativeid then
+                    ai:SetLogContext(nil, {turn = initiativeid, round = queue.round})
+                    if not ai:WaitForTurnStart(turnStart) then
+                        return
+                    end
+                end
+                turnStart = nil
                 g_status = "Playing Turn"
                 ai:PlayTurnSafely(initiativeid)
                 g_status = nil

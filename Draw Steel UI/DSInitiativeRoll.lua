@@ -2847,7 +2847,7 @@ Commands.RegisterMacro{
             end
 
             tok.properties:DispatchEvent("rollinitiative", {})
-            tok.properties:DispatchEvent("beginround")
+            tok.properties:DispatchBeginRound()
         end
     end
 
@@ -2858,7 +2858,7 @@ Commands.RegisterMacro{
 
 
     for _,tok in ipairs(dmhub.allObjectTokens) do
-        tok.properties:DispatchEvent("beginround")
+        tok.properties:DispatchBeginRound()
     end
 
     local averageVictories = 0

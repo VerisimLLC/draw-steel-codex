@@ -9761,7 +9761,19 @@ function creature:LookupSymbol(symbolTable)
 	return GenerateSymbols(self, symbolTable)
 end
 
-function creature:BeginTurn()
+--- Starts this creature's turn: start-of-turn triggers and aura and effect expiry.
+--- options is passed only by the Monster AI, which must not act until the turn
+--- start has played out:
+---   aiActivityId: tags the turn start's events, so a hero prompt they raise holds
+---     the AI until the player answers it and the cast it starts finishes.
+---   onComplete: called when BeginTurn's own work is done, even if a trigger errored.
+---     "beginturn" triggers may still be running; the AI waits for those through
+---     aiActivityId.
+--- @param options? {aiActivityId: string|nil, onComplete: fun()|nil}
+function creature:BeginTurn(options)
+	local aiActivityId = options ~= nil and options.aiActivityId or nil
+	local onComplete = options ~= nil and options.onComplete or nil
+
 	--just in case some linger.
 	self:ClearMomentaryOngoingEffects()
 
@@ -9783,6 +9795,9 @@ function creature:BeginTurn()
     end
 
 	dmhub.Coroutine(function()
+        --Tell the Monster AI this turn start is over, even if something below errors.
+        coroutine.atexit(onComplete)
+
         --The initiative queue has already advanced to this creature's turn before
         --BeginTurn runs, so effects/auras that expire "at the start of this creature's
         --turn" would otherwise expire the instant the prestartturn (Before Start of
@@ -9797,7 +9812,7 @@ function creature:BeginTurn()
         end
 
         local ok, err = pcall(function()
-            self:DispatchEventAndWait("prestartturn", {})
+            self:DispatchEventAndWait("prestartturn", {aiActivityId = aiActivityId})
         end)
 
         --Clear the flag even if a trigger handler errored.
@@ -9863,7 +9878,7 @@ function creature:BeginTurn()
             end
         end
 
-        self:DispatchEvent("beginturn", {order = order})
+        self:DispatchEvent("beginturn", {order = order, aiActivityId = aiActivityId})
 
         --Surface a prestartturn trigger error after cleanup so a buggy trigger does not
         --abort the rest of BeginTurn.
@@ -10203,7 +10218,7 @@ function creature:EndRound(token)
 
     self:CheckAuraExpiration("endround")
 
-	self:DispatchEvent("beginround")
+	self:DispatchBeginRound()
 end
 
 --returns a list in this format:
@@ -10484,6 +10499,35 @@ end
 
 function creature.GetAIActivityInProgress()
     return g_aiActivityInProgress
+end
+
+--- The AI activity id for the start of the current round, or nil out of combat.
+--- Built from the queue's guid and round, so every client computes the same id.
+--- Prompts a hero gets from the round's "beginround" triggers are tagged with it,
+--- and the Monster AI waits on it before picking the next monster turn.
+--- @param queue InitiativeQueue|nil
+--- @return string|nil
+function creature.RoundStartAIActivityId(queue)
+    if queue == nil or queue.hidden then
+        return nil
+    end
+    return string.format("round-start:%s:%s", tostring(queue.guid), tostring(queue.round))
+end
+
+--- Dispatches "beginround" on this creature. If the Monster AI is running on any
+--- client, the event is tagged with the round's AI activity id, so the AI waits
+--- while a hero answers a start-of-round prompt and finishes the ability it
+--- starts (including picking targets). Otherwise this is a plain dispatch.
+function creature:DispatchBeginRound()
+    local info = nil
+    local activityId = creature.RoundStartAIActivityId(dmhub.initiativeQueue)
+    --rawget: Monster AI loads after this module and may not be present at all.
+    local monsterAI = rawget(_G, "MonsterAI")
+    local isAIRunningAnywhere = monsterAI ~= nil and rawget(monsterAI, "IsAIRunningAnywhere") or nil
+    if activityId ~= nil and isAIRunningAnywhere ~= nil and isAIRunningAnywhere() then
+        info = {aiActivityId = activityId}
+    end
+    self:DispatchEvent("beginround", info)
 end
 
 --Monster AI control of individual tokens, keyed by charid. It lives here, not

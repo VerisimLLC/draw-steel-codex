@@ -91,7 +91,7 @@ local function HasRelayedTriggerInFlight(token)
 end
 
 --Description of a start-of-round reaction this hero has not finished, or nil.
---Accepting a prompt like Showdown removes its card before the hero has picked
+--When a hero accepts a trigger prompt, its card is removed before they have picked
 --targets, so this also checks the reaction record on the hero. If that record
 --can't be confirmed we stop waiting, so a lost reaction can't stall the table.
 ---@param token CharacterToken

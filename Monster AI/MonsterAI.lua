@@ -2542,8 +2542,8 @@ end
 local g_turnStartWaitSeconds = 30
 
 --- Holds a monster turn the AI just began until its start has played out, so
---- the monsters do not act while a hero is still answering a "Begin Turn"
---- trigger it set off (the Gunslinger's Showdown free strike).
+--- the monsters do not act while a hero is still answering, or still resolving,
+--- a trigger that fired when the monster started its turn.
 --- turnStart is what the AI recorded when it began the turn:
 ---   activityId: the id passed to BeginTurn, which tags the turn start's events.
 ---   pending.count: how many of the turn's creatures have not finished BeginTurn.

@@ -10503,7 +10503,7 @@ end
 
 --- The AI activity id for the start of the current round, or nil out of combat.
 --- Built from the queue's guid and round, so every client computes the same id.
---- Hero prompts from the round's "beginround" (e.g. Showdown) are tagged with it,
+--- Prompts a hero gets from the round's "beginround" triggers are tagged with it,
 --- and the Monster AI waits on it before picking the next monster turn.
 --- @param queue InitiativeQueue|nil
 --- @return string|nil

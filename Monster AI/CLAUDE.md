@@ -130,8 +130,8 @@ check runs again just before `SelectTurn`. The "Waiting for Fox's Showdown"
 banner offers the hero's player Select and Dismiss; dismissing the prompt, or
 its 10-minute expiry, releases the wait.
 
-Accepting the prompt clears its card before the cast it starts has finished:
-Showdown's target pick runs after the card is gone. To cover that, while the AI
+Accepting the prompt clears its card before the cast it starts has finished: an
+ability that asks for a target asks after the card is gone. To cover that, while the AI
 runs anywhere, every "beginround" goes out through `creature:DispatchBeginRound`
 (`DMHub Game Rules/Creature.lua`) stamped with the round's AI activity ID,
 `creature.RoundStartAIActivityId(queue)` (`round-start:<queue guid>:<round>`).
@@ -139,18 +139,19 @@ Every client derives the same ID, so it does not matter which machine started th
 round. The prompt then carries a reaction marker on the hero's token that stays
 "resolving" until the cast, target pick included, finishes there, and the same
 check holds the monsters on it ("Waiting for Fox's reaction to finish:
-Showdown"). A marker that reports a failure (undelivered, or past its 10-minute
+<ability>"). A marker that reports a failure (undelivered, or past its 10-minute
 expiry) releases the wait instead of stalling the table.
 
 Once the AI has picked a group, it also waits for that turn's start to play out
 before acting. It calls `creature:BeginTurn{aiActivityId, onComplete}` with a
 fresh `turn-start:<guid>` ID. The ID tags the "prestartturn" and "beginturn"
-events, so a hero's prompt card they raise (the Gunslinger's Showdown free strike,
-"Showdown - Enemy Starts Turn") carries a reaction marker that lasts until the
-player answers it and its cast finishes, on any machine.
+events, so a prompt card they raise on a hero (a hero trigger that fires when an
+enemy starts its turn) carries a reaction marker that lasts until the player
+answers it and its cast finishes, on any machine.
 `MonsterAI:WaitForTurnStart` then waits for every creature's `BeginTurn` to report
-back (through `coroutine.atexit`, so an error still reports; at most 30s), lets this machine's casts settle (at most 5s, so a trigger deferred behind a
-cast can post its card), and calls `WaitForActivityReactions` on the ID. Only
+back (through `coroutine.atexit`, so an error still reports; at most 30s), lets
+this machine's casts settle (at most 5s, so a trigger deferred behind a cast can
+post its card), and calls `WaitForActivityReactions` on the ID. Only
 prompt cards are tracked: a mandatory (automatic) hero trigger gets no marker by
 design (see `TriggeredAbility:Trigger`), so a turn-start trigger that should make
 the monsters wait must be authored as a prompt.

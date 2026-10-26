@@ -90,11 +90,10 @@ local function HasRelayedTriggerInFlight(token)
     return false
 end
 
---A start-of-round reaction (see creature:DispatchBeginRound) the hero has not
---finished. Accepting the prompt clears its card while the cast it starts --
---Showdown's target pick -- is still running; the marker on the hero's token
---covers that gap on whichever machine runs the cast. A marker that can no
---longer be confirmed releases the wait, so a lost reaction cannot stall the table.
+--Description of a start-of-round reaction this hero has not finished, or nil.
+--Accepting a prompt like Showdown removes its card before the hero has picked
+--targets, so this also checks the reaction record on the hero. If that record
+--can't be confirmed we stop waiting, so a lost reaction can't stall the table.
 ---@param token CharacterToken
 ---@param activityId string|nil
 ---@return string|nil description
@@ -229,6 +228,7 @@ local function MonsterAIThread(process)
     local saveWaiting = false
     --The monster turn this process last began. The turn is not played until its
     --start-of-turn triggers have finished. nil for turns begun by anyone else.
+    ---@type {initiativeid: string, activityId: string, pending: {count: integer}}|nil
     local turnStart = nil
     MonsterAI.ClearWaiting()
     pcall(MonsterAI.ClearPlanPreview)

@@ -149,7 +149,7 @@ events, so a hero's prompt card they raise (the Gunslinger's Showdown free strik
 "Showdown - Enemy Starts Turn") carries a reaction marker that lasts until the
 player answers it and its cast finishes, on any machine.
 `MonsterAI:WaitForTurnStart` then waits for every creature's `BeginTurn` to report
-back, lets this machine's casts settle (at most 5s, so a trigger deferred behind a
+back (through `coroutine.atexit`, so an error still reports; at most 30s), lets this machine's casts settle (at most 5s, so a trigger deferred behind a
 cast can post its card), and calls `WaitForActivityReactions` on the ID. Only
 prompt cards are tracked: a mandatory (automatic) hero trigger gets no marker by
 design (see `TriggeredAbility:Trigger`), so a turn-start trigger that should make

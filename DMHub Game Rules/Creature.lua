@@ -9766,7 +9766,9 @@ end
 --- start has played out:
 ---   aiActivityId: tags the turn start's events, so a hero prompt they raise holds
 ---     the AI until the player answers it and the cast it starts finishes.
----   onComplete: called once the turn start has finished, even if a trigger errored.
+---   onComplete: called when BeginTurn's own work is done, even if a trigger errored.
+---     "beginturn" triggers may still be running; the AI waits for those through
+---     aiActivityId.
 --- @param options? {aiActivityId: string|nil, onComplete: fun()|nil}
 function creature:BeginTurn(options)
 	local aiActivityId = options ~= nil and options.aiActivityId or nil
@@ -9793,12 +9795,8 @@ function creature:BeginTurn(options)
     end
 
 	dmhub.Coroutine(function()
-        --Calls onComplete when this coroutine ends, whether it finishes or errors.
-        local completion <close> = setmetatable({}, {__close = function()
-            if onComplete ~= nil then
-                onComplete()
-            end
-        end})
+        --Tell the Monster AI this turn start is over, even if something below errors.
+        coroutine.atexit(onComplete)
 
         --The initiative queue has already advanced to this creature's turn before
         --BeginTurn runs, so effects/auras that expire "at the start of this creature's
@@ -10503,11 +10501,10 @@ function creature.GetAIActivityInProgress()
     return g_aiActivityInProgress
 end
 
---- The AI activity id for the start of the queue's current round, or nil out of
---- combat. Every client derives the same id from the queue, so the hero prompts a
---- round's "beginround" raises (Showdown) are tracked under the id the Monster AI
---- host waits on before it picks the round's next monster turn -- whichever
---- machine started the round.
+--- The AI activity id for the start of the current round, or nil out of combat.
+--- Built from the queue's guid and round, so every client computes the same id.
+--- Hero prompts from the round's "beginround" (e.g. Showdown) are tagged with it,
+--- and the Monster AI waits on it before picking the next monster turn.
 --- @param queue InitiativeQueue|nil
 --- @return string|nil
 function creature.RoundStartAIActivityId(queue)
@@ -10517,10 +10514,10 @@ function creature.RoundStartAIActivityId(queue)
     return string.format("round-start:%s:%s", tostring(queue.guid), tostring(queue.round))
 end
 
---- Dispatches "beginround" on this creature. While the Monster AI runs on any
---- client the event carries the round's AI activity id, so a hero's start-of-round
---- prompt holds the AI until the player answers it and the cast it starts --
---- target pick included -- finishes. With no AI running it is a plain dispatch.
+--- Dispatches "beginround" on this creature. If the Monster AI is running on any
+--- client, the event is tagged with the round's AI activity id, so the AI waits
+--- while a hero answers a start-of-round prompt and finishes the ability it
+--- starts (including picking targets). Otherwise this is a plain dispatch.
 function creature:DispatchBeginRound()
     local info = nil
     local activityId = creature.RoundStartAIActivityId(dmhub.initiativeQueue)

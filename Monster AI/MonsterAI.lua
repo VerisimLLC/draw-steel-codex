@@ -2536,6 +2536,11 @@ function MonsterAI:WaitForActivityReactions(activityId)
     return true
 end
 
+--Seconds a monster turn waits for its creatures to finish starting their turn.
+--Normally well under a second; a turn start that errors early never reports
+--back, and must not hold the table forever.
+local g_turnStartWaitSeconds = 30
+
 --- Holds a monster turn the AI just began until its start has played out, so
 --- the monsters do not act while a hero is still answering a "Begin Turn"
 --- trigger it set off (the Gunslinger's Showdown free strike).
@@ -2544,6 +2549,7 @@ end
 ---   pending.count: how many of the turn's creatures have not finished BeginTurn.
 --- Returns true when the turn may go ahead; false (plus a reason) when the AI
 --- was stopped, or a hero's reaction could not be confirmed (the AI is paused).
+--- Stops waiting on a creature that has not reported back after g_turnStartWaitSeconds.
 --- @param turnStart {activityId: string, pending: {count: integer}}
 --- @return boolean, string|nil
 function MonsterAI:WaitForTurnStart(turnStart)
@@ -2551,10 +2557,16 @@ function MonsterAI:WaitForTurnStart(turnStart)
         self:LogDecision("TURN START WAIT", {activity = turnStart.activityId,
             result = "waiting for start-of-turn triggers to fire"})
     end
+    local startedAt = dmhub.Time()
     while turnStart.pending.count > 0 do
         if mod.unloaded or not MonsterAI.active then
             MonsterAI.ClearWaiting()
             return false, "Monster AI stop requested"
+        end
+        if dmhub.Time() - startedAt >= g_turnStartWaitSeconds then
+            self:LogDecision("TURN START WAIT TIMEOUT", {activity = turnStart.activityId,
+                pending = turnStart.pending.count, result = "playing the turn anyway"})
+            break
         end
         MonsterAI.SetWaiting("turnstart", "Waiting for start-of-turn effects")
         coroutine.yield(0.1)

@@ -1150,6 +1150,7 @@ CreateHeroesPanel = function()
 
             directorHeader,
             playersHeader,
+            noPlayersLabel,
             footer,
         },
     }

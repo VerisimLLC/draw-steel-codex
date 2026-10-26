@@ -1388,6 +1388,88 @@ local function CreateConnectivityPanel()
         --the glyph itself carries the sync state).
     }
 
+    --Discord voice (Draw Steel V/DiscordVoice.lua): a microphone beside the
+    --wifi glyph while voice is on in this game. Click to mute or unmute; when
+    --not in the call it opens the Heroes popout, where voice is set up.
+    local m_micIcon
+    m_micIcon = gui.Panel{
+        classes = {"collapsed"},
+        width = 20,
+        height = 20,
+        halign = "left",
+        valign = "center",
+        rmargin = 6,
+        bgimage = "phosphor/microphone-slash-fill.png",
+        bgcolor = "#c8c8c8",
+        data = { tooltip = nil },
+        hover = function(element)
+            gui.Tooltip(element.data.tooltip or "")(element)
+        end,
+        click = function(element)
+            local voice = rawget(_G, "DiscordVoice")
+            if voice == nil then
+                return
+            end
+            if voice.Status().voice == "connected" then
+                voice.ToggleMuted()
+            elseif g_connectivityPanel ~= nil and g_connectivityPanel.valid then
+                g_connectivityPanel:FireEvent("click")
+            end
+        end,
+    }
+
+    --the microphone's wrapper never collapses: its think runs DiscordVoice.Tick
+    --(joining, leaving, speaking emotes), and a collapsed panel stops thinking.
+    local micWrapper = gui.Panel{
+        width = "auto",
+        height = "100%",
+        halign = "left",
+        valign = "center",
+        thinkTime = 0.1,
+        think = function(element)
+            local voice = rawget(_G, "DiscordVoice")
+            if voice == nil then
+                return
+            end
+            voice.Tick()
+            local available = voice.Available()
+            m_micIcon:SetClass("collapsed", not available)
+            if not available then
+                return
+            end
+
+            local colors = voice.colors
+            local s = voice.Status()
+            local status = voice.StatusText()
+            local icon, color = "phosphor/microphone-slash-fill.png", colors.idle
+            local opacity = 1
+            if s.account ~= "ready" then
+                color = (s.account == "notlinked" or s.account == "error") and colors.warn or colors.idle
+                m_micIcon.data.tooltip = string.format("Discord voice: %s\nClick to set up.", status)
+            elseif s.voice ~= "connected" then
+                m_micIcon.data.tooltip = string.format("Discord voice: %s\nClick for voice controls.", status)
+            else
+                local open = (not s.muted) or s.pushToTalk
+                if open then
+                    icon = "phosphor/microphone-fill.png"
+                    color = colors.icon
+                    if s.transmitting then
+                        --pulse while our voice is going out.
+                        color = colors.good
+                        opacity = 0.65 + 0.35 * math.abs(math.sin(dmhub.Time() * 6))
+                    end
+                else
+                    color = colors.bad
+                end
+                m_micIcon.data.tooltip = string.format("Discord voice: %s\nClick to %s. Push to talk: %s", status, s.muted and "unmute" or "mute", voice.BindingText("pushtotalk"))
+            end
+            m_micIcon.bgimage = icon
+            m_micIcon.selfStyle.bgcolor = color
+            m_micIcon.selfStyle.opacity = opacity
+        end,
+        m_micIcon,
+    }
+
     local playersRow = gui.Panel{
         flow = "horizontal",
         width = "auto",
@@ -1460,6 +1542,7 @@ local function CreateConnectivityPanel()
         halign = "left",
         valign = "center",
         m_wifiIcon,
+        micWrapper,
         playersRow,
     }
 

@@ -29,6 +29,7 @@
 --- @field whiteLabelEntityName string The name of the publisher of the product the engine is running as.
 --- @field whiteLabelAppName string The name of the app the engine is running as, suitable for showing to users.
 --- @field cloudFunctionsBaseUrl string Base URL for Firebase cloud functions for the current whitelabel project (e.g. https://us-central1-mcdm-385cf.cloudfunctions.net). Append the function name with a leading slash.
+--- @field discordStatus {account: 'unsupported'|'off'|'notlinked'|'linking'|'connecting'|'ready'|'error', accountError: string|nil, displayName: string|nil, voice: 'off'|'joining'|'connecting'|'connected'|'disconnected', voiceError: string|nil, muted: boolean, pushToTalk: boolean|nil, deafened: boolean|nil, transmitting: boolean, inputVolume: number|nil, outputVolume: number|nil, noiseSuppression: boolean|nil, participants: {id: string, userid: string|nil, name: string, speaking: boolean, isSelf: boolean, volume: number|nil, localMute: boolean|nil}[]} (read-only, PROTOTYPE) The Discord account link and voice state. account is 'unsupported' outside the MCDM white label on Windows/macOS and 'off' when the Discord integration is off; 'ready' means signed in to Discord. voice describes this game's Discord call. muted is the user's choice; pushToTalk is true while the Push to Talk key is held (the mic is open then even when muted); transmitting is true while our own voice is going out. inputVolume is 0-100, outputVolume 0-200. participants are the people in the call: id is their Discord id, userid their Codex userid (when they joined with one), volume (0-200, 100 normal) and localMute are how this user hears them.
 --- @field platform string The platform the engine is running on. Returns 'windows', 'macOS', or 'linux'.
 --- @field applicationsFolder string The default operating-system folder where applications/executables live: the Program Files folder on Windows, /Applications on macOS, /usr/bin on Linux. Useful as a starting directory for a file dialog that browses for an executable.
 --- @field liveEditSessions {objid: string, name: string, imageId: string, changesPending: boolean}[]|nil The active image live-edit sessions, each as a table with 'objid' (the map object being edited), 'name' (a display label), 'imageId' (the live, updating image id, suitable as a thumbnail), and 'changesPending' (true once the external editor has saved a change that has not yet been uploaded). Returns nil when there are no active sessions.
@@ -1374,12 +1375,68 @@ function dmhub.InviteViaSteam(kind, payload) end
 --- @param kind? string
 --- @param payload? string
 --- @param group? string
---- @param groupSize? integer
+--- @param groupSize? number
 function dmhub.SetSteamJoinTarget(kind, payload, group, groupSize) end
 
 --- Takes (and clears) the Steam invite this player accepted, or returns nil. Set when a friend's InviteViaSteam / SetSteamJoinTarget invite is accepted, including one that launched the app; an invite accepted inside a game is held until the player has left it. Poll it at the titlescreen.
---- @return nil|{kind: string, payload: string}
+--- nil|{kind: string, payload: string}
+--- @return any
 function dmhub.TakeSteamInvite() end
+
+--- (PROTOTYPE) Starts linking the user's Discord account: Discord's approval screen opens (in the Discord app or a browser). Watch dmhub.discordStatus.account for the result. Returns false when linking cannot start (unsupported, or already in progress).
+--- @return boolean
+function dmhub.DiscordLink() end
+
+--- (PROTOTYPE) Unlinks the user's Discord account: leaves voice, disconnects, and revokes the link on the server. Returns false when Discord is not available.
+--- @return boolean
+function dmhub.DiscordUnlink() end
+
+--- (PROTOTYPE) Joins this game's Discord voice call (needs a linked account and a real game, not the titlescreen). Returns nil when joining started, or a message saying why it cannot.
+--- @return string|nil
+function dmhub.DiscordJoinVoice() end
+
+--- (PROTOTYPE) Leaves the Discord voice call. Leaving the game does this too.
+function dmhub.DiscordLeaveVoice() end
+
+--- (PROTOTYPE) Mutes or unmutes the user's microphone in Discord voice. Saved for next time. While the Push to Talk key is held the mic is open anyway.
+--- @param muted boolean
+function dmhub.DiscordSetVoiceMuted(muted) end
+
+--- (PROTOTYPE) Deafens (hear nobody) or undeafens the user in Discord voice.
+--- @param deafened boolean
+function dmhub.DiscordSetVoiceDeafened(deafened) end
+
+--- (PROTOTYPE) Sets the microphone volume, 0-100. Saved for next time.
+--- @param volume number
+function dmhub.DiscordSetVoiceInputVolume(volume) end
+
+--- (PROTOTYPE) Sets the volume of everyone in the call, 0-200 (100 normal). Saved for next time.
+--- @param volume number
+function dmhub.DiscordSetVoiceOutputVolume(volume) end
+
+--- (PROTOTYPE) Turns Discord's background noise suppression on or off. Saved for next time.
+--- @param on boolean
+function dmhub.DiscordSetVoiceNoiseSuppression(on) end
+
+--- (PROTOTYPE) Sets how loud one call participant is for this user only, 0-200 (100 normal). discordId is a participant id from dmhub.discordStatus. Saved for next time.
+--- @param discordId string
+--- @param volume number
+function dmhub.DiscordSetParticipantVolume(discordId, volume) end
+
+--- (PROTOTYPE) Mutes or unmutes one call participant for this user only. Saved for next time.
+--- @param discordId string
+--- @param mute boolean
+function dmhub.DiscordSetParticipantLocalMute(discordId, mute) end
+
+--- (PROTOTYPE) Lists the microphones and speakers Discord can use and the ones in use, calling callback when ready. Returns false (and never calls back) when Discord is not available.
+--- @param callback fun(devices: {inputs: {id: string, name: string, isDefault: boolean}[], outputs: {id: string, name: string, isDefault: boolean}[], input: string|nil, output: string|nil})
+--- @return boolean
+function dmhub.DiscordGetAudioDevices(callback) end
+
+--- (PROTOTYPE) Switches Discord voice to the given microphone ('input') or speakers ('output'), a device id from DiscordGetAudioDevices. Saved for next time.
+--- @param kind 'input'|'output'
+--- @param deviceId string
+function dmhub.DiscordSetAudioDevice(kind, deviceId) end
 
 --- Testing aid: handle a Steam connect string exactly as if a friend's 'Join Game' or invite had just been accepted ('dshub1:{gameid}' enters a game; 'dshub2:{kind}:{payload}' queues an invite for TakeSteamInvite). Works without Steam, so dev builds can exercise the receiving side.
 --- @param connect? string

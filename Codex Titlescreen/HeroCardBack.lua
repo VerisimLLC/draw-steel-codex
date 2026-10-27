@@ -1390,7 +1390,10 @@ local function CreateFlipButton(charid)
                 hidden = 0,
             },
             {
+                --hidden = 0 too: while the button itself is hovered the card
+                --may not be, and without this it would hide and flicker.
                 selectors = {"heroCardFlip", "hover"},
+                hidden = 0,
                 borderColor = COLOR_GOLD,
                 scale = 1.15,
             },

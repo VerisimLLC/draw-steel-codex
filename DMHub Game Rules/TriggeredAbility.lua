@@ -485,6 +485,16 @@ TriggeredAbility.triggers = {
 		end,
 	},
 	{
+		--Fires on every creature in initiative as the round ends, before round-scoped
+		--effects expire and before the next round's "beginround". For "at the end of
+		--each round" effects (Topaz Dragon's Topaz Flare).
+		id = "endround",
+		text = "End of Round",
+		hide = function()
+			return not GameSystem.HaveBeginRoundTrigger
+		end,
+	},
+	{
 		id = "endcombat",
 		text = "End of Combat",
 	},
@@ -949,6 +959,9 @@ TriggeredAbility.effects = {
 ActivatedAbility.name = ""
 ActivatedAbility.castingTime = "none"
 TriggeredAbility.conditionFormula = ""
+--For targetType "aura": when set (GoblinScript), target creatures within this many
+--squares of the aura area's centre square instead of creatures inside the area.
+TriggeredAbility.auraBurstRadius = ""
 TriggeredAbility.save = 'none'
 TriggeredAbility.savedc = '10'
 TriggeredAbility.mandatory = true
@@ -1097,6 +1110,33 @@ end
 --- @field aiActivityId nil|string
 --- @field aiReactionId nil|string
 --- @field alreadyPaid nil|boolean
+
+--- The square at the centre of an area: the one of its squares nearest the mean of
+--- them all (the exact centre of an odd cube or burst). nil for an empty area.
+--- @param area LuaShape
+--- @return Loc|nil
+function TriggeredAbility.AreaCenterLoc(area)
+    local locs = area ~= nil and area.locations or nil
+    if locs == nil or #locs == 0 then
+        return nil
+    end
+
+    local sx, sy = 0, 0
+    for _,loc in ipairs(locs) do
+        sx = sx + loc.x
+        sy = sy + loc.y
+    end
+    local mx, my = sx / #locs, sy / #locs
+
+    local best, bestDist = nil, nil
+    for _,loc in ipairs(locs) do
+        local d = (loc.x - mx)*(loc.x - mx) + (loc.y - my)*(loc.y - my)
+        if bestDist == nil or d < bestDist then
+            best, bestDist = loc, d
+        end
+    end
+    return best
+end
 
 --auraControllerToken: token controlling an aura this is triggered from, or can be nil for a regular trigger attached to the creature it's triggering on.
 --- @param characterModifier CharacterModifier
@@ -1364,9 +1404,25 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
             return
         end
 
+        --auraBurstRadius: target everyone within that many squares of the centre of
+        --the aura's area instead of everyone inside it ("explodes in a 5 burst
+        --centered on the center of the cube", Topaz Dragon's Thermal Exchange).
+        local burstCenter = nil
+        local burstRadius = nil
+        if trim(tostring(self:try_get("auraBurstRadius", ""))) ~= "" then
+            burstRadius = ExecuteGoblinScript(self.auraBurstRadius, creature:LookupSymbol(symbols), 0, "Aura burst radius")
+            burstCenter = TriggeredAbility.AreaCenterLoc(aura.area)
+        end
+
         local tokens = dmhub.allTokens
         for i,tok in ipairs(tokens) do
-            if tok.id ~= casterToken.charid and aura.area:ContainsToken(tok) and self:TargetPassesFilter(casterToken, tok, symbols) then
+            local inArea
+            if burstCenter ~= nil then
+                inArea = (tonumber(tok:Distance(burstCenter)) or 999) <= burstRadius
+            else
+                inArea = aura.area:ContainsToken(tok)
+            end
+            if tok.id ~= casterToken.charid and inArea and self:TargetPassesFilter(casterToken, tok, symbols) then
                 targets = targets or {}
                 targets[#targets+1] = {
                     loc = tok.loc,

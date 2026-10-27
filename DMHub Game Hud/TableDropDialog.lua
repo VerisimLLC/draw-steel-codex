@@ -3,9 +3,11 @@ local mod = dmhub.GetModLoading()
 --Image and video files dragged from the desktop onto the bare table
 --(Tabletop.lua's TableFilesDropped, Director only) open this dialog: "Add
 --Image", "Add Video" or "Add 4 Images". It lists what the files can become --
---a map, scenes, or the pictures themselves on the table -- and suggests one
---from their sizes: a whole number of 140-pixel squares is a map, a big
---widescreen picture is a scene, anything else stays a picture.
+--a map, scenes, or the pictures themselves on the table -- and suggests one:
+--a picture with a grid is a map (a whole number of 140-pixel squares, or a
+--grid the grid detector finds drawn on it -- MapGridDetection in
+--MapImport.lua, which runs while the dialog is open), a big widescreen
+--picture is a scene, anything else stays a picture.
 --
 --Pictures and videos put on the table are journal image entries (in the
 --Director's private folder) shown as journal items (Tabletop.lua's "Journal
@@ -402,12 +404,14 @@ end
 --- @field sameSize boolean every file is the same, known size
 --- @field mapW nil|number the squares the files fit as a map
 --- @field mapH nil|number
+--- @field grid nil|MapGridChoice the first picture's grid: a perfect fit or a detected grid
 --- @field scenes boolean every file looks like a scene
 --- @field suggestion string the option to start on
 
 --- @param files TableDropFile[]
+--- @param detection nil|false|ImageGridDetection the first file's grid detection, once done
 --- @return TableDropAnalysis
-local function Analyse(files)
+local function Analyse(files, detection)
     local a = {count = #files, videos = 0, allKnown = true, sameSize = true, scenes = true, suggestion = "images"}
     local first = files[1]
     for _, file in ipairs(files) do
@@ -431,8 +435,12 @@ local function Analyse(files)
     if a.sameSize then
         a.mapW, a.mapH = MapFit(first.width, first.height)
     end
+    --one picture, or several of one size (floors or versions of one map).
+    if not first.video and first.width > 0 and (a.count == 1 or a.sameSize) then
+        a.grid = MapGridDetection.Choose(first.width, first.height, detection, MIN_MAP_SQUARES)
+    end
 
-    if a.mapW ~= nil then
+    if a.grid ~= nil then
         if a.count == 1 then
             a.suggestion = "map"
         elseif NamesSayFloors(files) then
@@ -689,8 +697,20 @@ function TableDropDialog.Show(paths, mx, my)
     end
     local dropped = #paths
 
+    --the first picture's grid detection: done already if it was dropped before.
+    local detectPath = nil
+    if not files[1].video and MapGridDetection.CanDetect(files[1].path) then
+        detectPath = files[1].path
+    end
+    local detection = nil
+    if detectPath ~= nil then
+        detection = MapGridDetection.Result(detectPath)
+    end
+
     local state = {
-        analysis = Analyse(files),
+        detection = detection,
+        detecting = detectPath ~= nil and detection == nil,
+        analysis = Analyse(files, detection),
         selected = nil,
         --the Director picked an option or changed the video settings: what
         --arrives later (a video's size) no longer changes them.
@@ -720,29 +740,41 @@ function TableDropDialog.Show(paths, mx, my)
         local list = {}
 
         local mapCallout = nil
-        if a.mapW ~= nil then
+        local grid = a.grid
+        if grid ~= nil and grid.source == "fit" then
+            local agrees = cond(grid.confirmed, " The grid drawn on it lines up too.", "")
             if single then
                 mapCallout = {
-                    bold = string.format("This looks like a <nobr>%d x %d</nobr> map.", a.mapW, a.mapH),
-                    text = "At 140 pixels per square it fits the grid exactly, the size map creators most often use.",
+                    bold = string.format("This looks like a <nobr>%d x %d</nobr> map.", grid.tilesW, grid.tilesH),
+                    text = "At 140 pixels per square it fits the grid exactly, the size map creators most often use." .. agrees,
                 }
             else
                 mapCallout = {
-                    bold = string.format("These look like <nobr>%d x %d</nobr> maps.", a.mapW, a.mapH),
+                    bold = string.format("These look like <nobr>%d x %d</nobr> maps.", grid.tilesW, grid.tilesH),
                     text = string.format("All %d are <nobr>%d x %d</nobr> pixels: exactly 140 pixels per square, the size map creators most often use.",
-                        n, first.width, first.height),
+                        n, first.width, first.height) .. agrees,
                 }
             end
+        elseif grid ~= nil then
+            local words = MapGridDetection.Describe(grid, first.width, first.height)
+            mapCallout = {
+                bold = cond(grid.hex, "Hex grid detected.", "Grid detected."),
+                text = cond(single, words.text, "On the first of them: " .. words.text),
+            }
         end
 
         if single then
+            local mapText = "A playable map with a grid, tokens and fog of war. You'll set the grid size next."
+            if grid ~= nil and grid.source == "fit" then
+                mapText = "A playable map with a grid, tokens and fog of war. Its window opens showing the whole map."
+            elseif grid ~= nil then
+                mapText = "A playable map with a grid, tokens and fog of war. You'll check the grid we found next."
+            end
             list[#list+1] = {
                 id = "map",
                 icon = "phosphor/map-trifold.png",
                 title = "Map",
-                text = cond(a.mapW ~= nil,
-                    "A playable map with a grid, tokens and fog of war. Its window opens showing the whole map.",
-                    "A playable map with a grid, tokens and fog of war. You'll set the grid size next."),
+                text = mapText,
                 callout = mapCallout,
             }
         else
@@ -1069,38 +1101,58 @@ function TableDropDialog.Show(paths, mx, my)
             h = math.max(8, math.floor(file.height * s))
         end
         local children = {}
-        if withGrid and state.analysis.mapW ~= nil then
-            local tw, th = state.analysis.mapW, state.analysis.mapH
-            --a line per square when they are big enough to see, else every few.
-            local step = math.max(1, math.ceil(4 / math.max(0.01, w / tw)))
-            local lines = {}
-            for i = step, tw - 1, step do
-                lines[#lines+1] = gui.Panel{
-                    floating = true,
-                    halign = "left",
-                    valign = "top",
-                    x = math.floor(i * w / tw),
-                    y = 0,
-                    width = 1,
-                    height = h,
-                    bgimage = "panels/square.png",
-                    bgcolor = "#00000066",
-                    interactable = false,
-                }
+        local grid = state.analysis.grid
+        --hex grids are previewed in the import wizard, which can draw them.
+        if withGrid and grid ~= nil and not grid.hex and file.width > 0 then
+            --the lines in image pixels: a fit's start at the image's edge, a
+            --detected grid's where the detector found them.
+            local cellW, cellH, x0, y0 = grid.cellW, grid.cellH, 0, 0
+            if grid.source == "detected" then
+                local d = grid.detection --[[@as ImageGridDetection]]
+                x0 = d.originX % cellW
+                y0 = d.originY % cellH
             end
-            for i = step, th - 1, step do
-                lines[#lines+1] = gui.Panel{
-                    floating = true,
-                    halign = "left",
-                    valign = "top",
-                    x = 0,
-                    y = math.floor(i * h / th),
-                    width = w,
-                    height = 1,
-                    bgimage = "panels/square.png",
-                    bgcolor = "#00000066",
-                    interactable = false,
-                }
+            local scale = w / file.width
+            --a line per square when they are big enough to see, else every few.
+            local step = math.max(1, math.ceil(4 / math.max(0.01, cellW * scale)))
+            local lines = {}
+            local i = 0
+            while x0 + i * cellW < file.width do
+                local x = math.floor((x0 + i * cellW) * scale)
+                if i % step == 0 and x > 0 and x < w then
+                    lines[#lines+1] = gui.Panel{
+                        floating = true,
+                        halign = "left",
+                        valign = "top",
+                        x = x,
+                        y = 0,
+                        width = 1,
+                        height = h,
+                        bgimage = "panels/square.png",
+                        bgcolor = "#00000066",
+                        interactable = false,
+                    }
+                end
+                i = i + 1
+            end
+            i = 0
+            while y0 + i * cellH < file.height do
+                local y = math.floor((y0 + i * cellH) * h / file.height)
+                if i % step == 0 and y > 0 and y < h then
+                    lines[#lines+1] = gui.Panel{
+                        floating = true,
+                        halign = "left",
+                        valign = "top",
+                        x = 0,
+                        y = y,
+                        width = w,
+                        height = 1,
+                        bgimage = "panels/square.png",
+                        bgcolor = "#00000066",
+                        interactable = false,
+                    }
+                end
+                i = i + 1
             end
             lines[#lines+1] = gui.Panel{
                 classes = {"tableDropPreviewFrame"},
@@ -1226,8 +1278,12 @@ function TableDropDialog.Show(paths, mx, my)
         end
 
         local mapLine = nil
-        if single and state.analysis.mapW ~= nil then
-            mapLine = string.format("%d x %d squares at 140 px each", state.analysis.mapW, state.analysis.mapH)
+        if single and state.analysis.grid ~= nil then
+            mapLine = MapGridDetection.Describe(state.analysis.grid, first.width, first.height).short
+        end
+        local lookingLine = nil
+        if state.detecting and state.analysis.grid == nil then
+            lookingLine = "Looking for a grid..."
         end
 
         local names = {}
@@ -1282,6 +1338,15 @@ function TableDropDialog.Show(paths, mx, my)
                     element:SetClass("collapsed", state.selected ~= "map")
                 end,
             } or nil,
+            lookingLine and gui.Label{
+                classes = {"tableDropMuted"},
+                text = lookingLine,
+                width = PREVIEW_SIZE,
+                height = "auto",
+                fontSize = 14,
+                italics = true,
+                tmargin = 2,
+            } or nil,
         }
     end
 
@@ -1310,7 +1375,7 @@ function TableDropDialog.Show(paths, mx, my)
             return
         end
         if reanalyse then
-            state.analysis = Analyse(files)
+            state.analysis = Analyse(files, state.detection)
             if not state.picked then
                 state.selected = state.analysis.suggestion
             end
@@ -1523,6 +1588,16 @@ function TableDropDialog.Show(paths, mx, my)
     BuildPreview()
     gui.ShowModal(dialog)
     Refresh()
+
+    --the grid detector runs on a worker thread while the dialog is up; a grid
+    --it finds makes Map the suggestion (unless the Director already chose).
+    if state.detecting and detectPath ~= nil then
+        MapGridDetection.Request(detectPath, function(result)
+            state.detecting = false
+            state.detection = result
+            FilesChanged(true)
+        end)
+    end
 
     --videos: their size, length and first frame, one after another (each
     --plays the file briefly).

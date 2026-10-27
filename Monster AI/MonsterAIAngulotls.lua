@@ -424,6 +424,15 @@ local function EnemiesAdjacentTo(token, enemies)
     return result
 end
 
+--A creature holding a zone (the Monster AI "Hold" directive, e.g. the
+--Daybringer at the Ritual Basin) never jumps off it, and one off it jumps back.
+local function HoldLandingScore(token, loc)
+    if MonsterAI.Holds(token) and MonsterAI.InHoldZone(token, loc) then
+        return 5
+    end
+    return 0
+end
+
 --Best landing for a purpose ("engage" or "skirmish"). Returns loc and score.
 local function FindBestLanding(token, range, purpose, enemies, reserved)
     local reach = SignatureStrikeRange(token)
@@ -431,27 +440,32 @@ local function FindBestLanding(token, range, purpose, enemies, reserved)
     local best = nil
     local bestScore = nil
     for _,loc in ipairs(LandingCandidates(token, range, reserved)) do
-        local score
-        if purpose == "skirmish" then
-            score = SkirmishScore(token, loc, enemies)
-        else
-            score = EngageScore(token, loc, enemies, reach)
-        end
-        score = score - ProvokePenalty(token, loc, adjacentNow)
-            - token.loc:DistanceInTiles(loc)*0.01
-        if bestScore == nil or score > bestScore then
-            best = loc
-            bestScore = score
+        if MonsterAI.HoldPermits(token, loc) then
+            local score
+            if purpose == "skirmish" then
+                score = SkirmishScore(token, loc, enemies)
+            else
+                score = EngageScore(token, loc, enemies, reach)
+            end
+            score = score - ProvokePenalty(token, loc, adjacentNow)
+                - token.loc:DistanceInTiles(loc)*0.01 + HoldLandingScore(token, loc)
+            if bestScore == nil or score > bestScore then
+                best = loc
+                bestScore = score
+            end
         end
     end
     return best, bestScore
 end
 
 local function CurrentLandingScore(token, purpose, enemies)
+    local score
     if purpose == "skirmish" then
-        return SkirmishScore(token, token.loc, enemies)
+        score = SkirmishScore(token, token.loc, enemies)
+    else
+        score = EngageScore(token, token.loc, enemies, SignatureStrikeRange(token))
     end
-    return EngageScore(token, token.loc, enemies, SignatureStrikeRange(token))
+    return score + HoldLandingScore(token, token.loc)
 end
 
 --Planned jump destinations for prompts that arrive one creature at a time
@@ -752,6 +766,8 @@ local function FindHazardPullLanding(invokerToken, casterToken, abilityClone, sy
     local bestDistance = nil
     for _,loc in ipairs(shape.locations or {}) do
         if HazardAt(loc) > 0 and legal(loc) then
+            --aim on the ground: a target altitude means "this high above it".
+            loc = loc:WithAltitude(0)
             local preview = casterToken:MarkMovementArrow(loc, {
                 straightline = true,
                 ignorecreatures = false,
@@ -1025,7 +1041,10 @@ local function FindNoxiousBubblePlan(ai, token, ability)
 
     local scored = {}
     for _,center in ipairs(centers) do
-        local area = BuildBubbleArea(token, ability, center, 999, nil)
+        --Just far enough to reach the center unclamped. The engine's cube cost
+        --grew with the square of this range: 999 took ~680 ms a call.
+        local reach = token:Distance(center) + ability:GetRadius(token.properties) + 1
+        local area = BuildBubbleArea(token, ability, center, reach, nil)
         local locs = area.locations or {}
         if BubbleSquaresAreFree(locs, castBubbles) then
             local value, caught = BubbleValue(locs, enemies, allies, leader)
@@ -1345,7 +1364,7 @@ local function FindAcidGraspJumpPlan(ai, token, ability)
             local key = LocKey(landing)
             if not checked[key] then
                 checked[key] = true
-                if LandingIsFree(token, landing) then
+                if LandingIsFree(token, landing) and MonsterAI.HoldPermits(token, landing) then
                     local targets = {}
                     for _,other in ipairs(enemies) do
                         if other:Distance(landing) <= 1 then
@@ -1438,8 +1457,10 @@ MonsterAI:RegisterMove{
         end
 
         --Jumping away provokes opportunity attacks unless the daybringer is immune (wet).
+        --A daybringer holding a post (the Ritual Basin's ward) stays on it instead.
         local mode = 1
-        if StaminaFraction(token) < 0.5 and DoesNotProvoke(token) and ability:CanAfford(token, {mode = 3}) then
+        if StaminaFraction(token) < 0.5 and DoesNotProvoke(token) and ability:CanAfford(token, {mode = 3})
+            and not MonsterAI.Holds(token) then
             local _, adjacent = EnemyContact(LiveEnemies(ai), loc)
             if adjacent >= 2 then
                 mode = 3
@@ -1601,6 +1622,74 @@ MonsterAI:RegisterTrigger{
             return {dismiss = true}
         end
         return {activate = true}
+    end,
+}
+
+--Moisturizing End Effect's free option: the adjacent wet creature to dry.
+--Friends first (non-angulotls, then minions, then other angulotls), a hero
+--last: a wet hero takes It Is Day's 6 acid and can slip prone.
+local function MoisturizingDonor(token)
+    local best, bestRank = nil, nil
+    for _,other in ipairs(dmhub.allTokens) do
+        if other.charid ~= token.charid and LiveCreature(other) and IsWet(other)
+            and MonsterAI.TargetDistance(token, other) <= 1 then
+            local rank = 4
+            if other:IsFriend(token) then
+                if not IsAngulotl(other) then
+                    rank = 1
+                elseif IsMinion(other) then
+                    rank = 2
+                else
+                    rank = 3
+                end
+            end
+            if bestRank == nil or rank < bestRank then
+                best, bestRank = other, rank
+            end
+        end
+    end
+    return best
+end
+
+MonsterAI:RegisterTrigger{
+    id = "Angulotl Daybringer: Moisturizing End Effect",
+    monsters = {"Angulotl Daybringer"},
+    abilities = {"End Effect"},
+    description = "End a bad save-ends effect by drying an adjacent wet creature (allies before heroes) when one is there, otherwise by taking 5 damage when it can spare the Stamina.",
+    handler = function(ai, token, triggerInfo)
+        local worst, purge = MonsterAI.EndEffectSeverity(token, triggerInfo)
+        local donor = MoisturizingDonor(token)
+        local decision, reason
+        if purge ~= nil and donor ~= nil and worst >= MonsterAI.endEffectMinimumSeverity then
+            decision = {activate = true, mode = 2}
+            reason = string.format("ending severity %d by drying %s", worst, MonsterAI.TokenLogName(donor))
+        else
+            decision, reason = MonsterAI.EndEffectDecision(token, triggerInfo)
+        end
+        local result = "Director decision"
+        local mode = nil
+        if decision ~= nil then
+            result = cond(decision.activate, "activate", "dismiss")
+            mode = decision.mode
+        end
+        ai:LogDecision("END EFFECT", {
+            ability = triggerInfo.abilityName,
+            result = result,
+            mode = mode,
+            reason = reason,
+        })
+        return decision
+    end,
+}
+
+MonsterAI:RegisterPrompt{
+    prompts = {"Angulotl Daybringer:Moisturizing End Effect"},
+    handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
+        local donor = MoisturizingDonor(casterToken)
+        if donor == nil then
+            return {targets = {}}
+        end
+        return {targets = {{token = donor}}}
     end,
 }
 
@@ -1901,7 +1990,7 @@ MonsterAI:RegisterMaliceAbility{
     id = "Angulotl Malice: Resonating Croak",
     monsterGroups = angulotlGroup,
     abilities = {"Resonating Croak"},
-    description = "Spend 5 Malice when at least two enemies are next to an angulotl and no non-angulotl ally would be caught.",
+    description = "Spend 5 Malice when at least two enemies are next to an angulotl; each non-angulotl ally it would catch lowers the score.",
     score = function(self, ai, token, ability, context)
         local enemies, allies = 0, 0
         for _,target in ipairs(dmhub.allTokens) do
@@ -1942,42 +2031,74 @@ local function DaybringerCanStillUseItIsDay(token)
     return false
 end
 
+--Rainfall only soaks creatures exposed to the sky (not under a ceiling or a
+--Tree Canopy zone). Unreadable symbol = assume exposed, as most maps are open.
+local function ExposedToSky(token)
+    local exposed = true
+    pcall(function()
+        exposed = creature.lookupSymbols["exposedtosky"](token.properties) == true
+    end)
+    return exposed
+end
+
+--The Malice Rainfall costs this caster right now. Encounter rules and zones
+--discount it (Aixco Hollow: 5 while a wave lives, 3 at the ritual basin).
+local function MaliceCost(token, ability)
+    local cost = 7
+    pcall(function()
+        local details = ability:GetCost(token).details
+        local quantity = details ~= nil and details[1] ~= nil and tonumber(details[1].quantity) or nil
+        if quantity ~= nil then
+            cost = quantity
+        end
+    end)
+    return cost
+end
+
 MonsterAI:RegisterMaliceAbility{
     id = "Angulotl Malice: Rainfall",
     monsterGroups = angulotlGroup,
     abilities = {"Rainfall"},
-    description = "Spend 7 Malice to soak the encounter when several enemies are dry, especially alongside clawfish or a daybringer saving It Is Day.",
+    description = "Spend Malice to soak the encounter when dry enemies and dry angulotls are under open sky, especially alongside clawfish, a daybringer saving It Is Day, or when an encounter makes it cheaper.",
     score = function(self, ai, token, ability, context)
-        --Rainfall only soaks creatures exposed to the sky (not under a ceiling
-        --or a Tree Canopy zone), so only those count.
+        --Wet enemies slip prone when they end a turn with no movement left (and
+        --clawfish shock them); wet angulotls move without provoking opportunity
+        --attacks. Both sides get soaked, so both count.
         local dryEnemies = 0
         for _,enemy in ipairs(context.enemyTokens or {}) do
-            if LiveCreature(enemy) and not IsWet(enemy) then
-                local exposed = true
-                pcall(function()
-                    exposed = creature.lookupSymbols["exposedtosky"](enemy.properties) == true
-                end)
-                if exposed then
-                    dryEnemies = dryEnemies + 1
-                end
+            if LiveCreature(enemy) and not IsWet(enemy) and ExposedToSky(enemy) then
+                dryEnemies = dryEnemies + 1
             end
         end
-        if dryEnemies < 3 then
-            return nil, "fewer than three dry enemies are exposed to the sky"
-        end
 
+        local dryAllies = 0
         local clawfish = 0
         for _,ally in ipairs(FriendlyAngulotls(token)) do
             if MonsterType(ally) == "Clawfish" then
                 clawfish = clawfish + 1
             end
+            if not IsWet(ally) and ExposedToSky(ally) then
+                dryAllies = dryAllies + 1
+            end
         end
+
+        if dryEnemies == 0 then
+            return nil, "no dry enemy is exposed to the sky"
+        end
+        if dryEnemies < 2 and dryAllies < 4 then
+            return nil, "too few dry creatures are exposed to the sky"
+        end
+
+        local cost = MaliceCost(token, ability)
+        local discount = math.max(0, 7 - cost)
         local itIsDay = DaybringerCanStillUseItIsDay(token)
         return {
-            score = math.min(0.95, 0.56 + dryEnemies*0.04 + math.min(4, clawfish)*0.04
-                + cond(itIsDay, 0.12, 0)),
+            score = math.min(0.95, 0.5 + math.min(5, dryEnemies)*0.05 + math.min(6, dryAllies)*0.02
+                + math.min(4, clawfish)*0.04 + cond(itIsDay, 0.12, 0) + discount*0.02),
             dryEnemies = dryEnemies,
+            dryAllies = dryAllies,
             clawfish = clawfish,
+            cost = cost,
         }
     end,
     execute = function(self, ai, token, scoringInfo, ability, context)

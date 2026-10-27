@@ -48,6 +48,8 @@
 
 local mod = dmhub.GetModLoading()
 
+local T = UIText.T
+
 EncounterNarrative = rawget(_G, "EncounterNarrative") or {}
 
 local DOC_ID = "eotwscript"
@@ -156,7 +158,7 @@ function EncounterNarrative.Voters(section, heroes)
         if entry == nil then
             local name = owner
             if owner == "PARTY" then
-                name = "The party"
+                name = T("narrative.party_name")
             else
                 pcall(function() name = dmhub.GetDisplayName(owner) or owner end)
             end
@@ -457,7 +459,7 @@ local function ResolveSection(m, doc, beat, section, heroes, optionIndex, decide
                 heroEntry = group.heroes[1],
                 userid = group.heroes[1] ~= nil and group.heroes[1].ownerId or nil,
                 entryName = section.name,
-                source = "Narrative",
+                source = T("narrative.effect_source"),
                 doc = doc,
             })
             for _, charid in ipairs(newAllies or {}) do
@@ -487,7 +489,7 @@ local function ResolveSection(m, doc, beat, section, heroes, optionIndex, decide
             heroEntry = anchor,
             userid = anchor ~= nil and anchor.ownerId or nil,
             entryName = section.name,
-            source = "Narrative",
+            source = T("narrative.effect_source"),
             --the whole party chose this, so its Intelligence is everyone's,
             --not the anchor's.
             splitIntelligence = true,
@@ -519,6 +521,34 @@ local function ResolveSection(m, doc, beat, section, heroes, optionIndex, decide
     m.log = m.log or {}
     m.log[#m.log + 1] = log
     m.seq = (tonumber(m.seq) or 0) + 1
+
+    --analytics (host): which way the party went. For an individual section,
+    --how many heroes took each option ("2,1,0" by option order).
+    local fields = {
+        section = section.name,
+        mode = section.mode,
+        options = #(section.options or {}),
+        landed = applied,
+    }
+    if section.mode == "individual" then
+        local counts = {}
+        for i = 1, #(section.options or {}) do
+            counts[i] = 0
+        end
+        for _, group in ipairs(result.groups or {}) do
+            counts[group.optionIndex] = #(group.heroNames or {})
+        end
+        local parts = {}
+        for i, n in ipairs(counts) do
+            parts[i] = tostring(n)
+        end
+        fields.optionCounts = table.concat(parts, ",")
+    else
+        fields.option = result.optionName
+        fields.optionIndex = optionIndex
+        fields.decidedBy = decidedBy
+    end
+    EotwAnalytics.Track("eotw_narrative_choice", fields)
 end
 
 --A split agreed-upon vote: the host picks a player at random and records the
@@ -588,7 +618,7 @@ local function HandleRequest(m, doc, userid, req, beat, heroes)
             if key == nil then
                 return string.format("%s controls no hero and cannot choose", tostring(userid))
             end
-            name = key == "PARTY" and "The party" or nil
+            name = key == "PARTY" and T("narrative.party_name") or nil
             if name == nil then
                 pcall(function() name = dmhub.GetDisplayName(key) or key end)
             end
@@ -639,6 +669,11 @@ function EncounterNarrative.Begin(script, beat, beatIndex)
     }
     doc.data.stageDismissAt = nil
     ApplyUnlocks(doc, beat, beat.title or "Narrative")
+    --a series part's "When <condition>:" lines, against the story so far.
+    local whenOk, whenErr = pcall(EncounterMontage.ApplyWhenLines, doc, beat, beatIndex, nil)
+    if not whenOk then
+        printf("EotW story: When lines failed: %s", tostring(whenErr))
+    end
     doc:CompleteChange("Narrative started", { undoable = false })
     printf("EotW narrative: beat %d started (%d sections)", beatIndex, EncounterScript.SectionCount(beat))
     EncounterNarrative.Present(beatIndex)

@@ -649,13 +649,108 @@ local BestiaryPanelHeight = 24
 --bestiary in one frame.
 local MaxBestiarySearchResults = 40
 
+--Bestiary extensions: other modules add to the bestiary's monster rows
+--without the bestiary knowing about them (the Encounter of the Week
+--monster assessment is one). Each part is optional:
+--  visible()                 -> boolean; the extension is skipped while false
+--  rowBadge(monsterid)       -> Panel|nil; a small (10x10) panel shown left of
+--                               the automation diamond. Built once with the
+--                               row; it keeps itself current on refreshAssets.
+--  entryHeader(monsterid)    -> Panel|nil; shown above the stat block in the
+--                               row's hover view
+--  menuItems(monsterid)      -> {text, click}[] for the row's right-click menu
+--  searchPrefix, searchMatches(value, monsterid) -> boolean; a search word
+--                               "<searchPrefix><value>" (e.g. "ai:avoid")
+--                               keeps only the monsters it accepts
+--- @class BestiaryExtension
+--- @field id string
+--- @field visible? fun(): boolean
+--- @field rowBadge? fun(monsterid: string): Panel|nil
+--- @field entryHeader? fun(monsterid: string): Panel|nil
+--- @field menuItems? fun(monsterid: string): {text: string, click: fun()}[]
+--- @field searchPrefix? string
+--- @field searchMatches? fun(value: string, monsterid: string): boolean
+
+---@type BestiaryExtension[]
+local g_bestiaryExtensions = {}
+
+--- Add (or, with the same id, replace) a bestiary extension. See above.
+--- @param args BestiaryExtension
+function CharacterPanel.RegisterBestiaryExtension(args)
+    for i, existing in ipairs(g_bestiaryExtensions) do
+        if existing.id == args.id then
+            g_bestiaryExtensions[i] = args
+            return
+        end
+    end
+    g_bestiaryExtensions[#g_bestiaryExtensions + 1] = args
+end
+
+--- @return BestiaryExtension[]
+local function ActiveBestiaryExtensions()
+    local result = {}
+    for _, ext in ipairs(g_bestiaryExtensions) do
+        local ok, visible = pcall(function() return ext.visible == nil or ext.visible() end)
+        if ok and visible then
+            result[#result + 1] = ext
+        end
+    end
+    return result
+end
+
+--A node's search match, honoring extension search words: "ai:avoid goblin"
+--hands "avoid" to the extension registered for "ai:" and matches "goblin"
+--as usual. Folders never match on their own while such a word is present,
+--so a search shows only the monsters inside them that qualify.
+local function NodeMatchesSearch(node, text)
+    if not string.find(text, ":", 1, true) then
+        return node:MatchesSearch(text)
+    end
+
+    local filters = {}
+    local rest = {}
+    local extensions = ActiveBestiaryExtensions()
+    for word in string.gmatch(text, "%S+") do
+        local claimed = false
+        for _, ext in ipairs(extensions) do
+            local prefix = ext.searchPrefix
+            if prefix ~= nil and ext.searchMatches ~= nil
+                and string.lower(string.sub(word, 1, #prefix)) == string.lower(prefix) then
+                filters[#filters + 1] = { ext = ext, value = string.sub(word, #prefix + 1) }
+                claimed = true
+                break
+            end
+        end
+        if not claimed then
+            rest[#rest + 1] = word
+        end
+    end
+
+    if #filters == 0 then
+        return node:MatchesSearch(text)
+    end
+    if node.folder ~= nil or node.monster == nil then
+        return false
+    end
+    if #rest > 0 and not node:MatchesSearch(table.concat(rest, " ")) then
+        return false
+    end
+    for _, filter in ipairs(filters) do
+        local ok, matches = pcall(filter.ext.searchMatches, filter.value, node.id)
+        if not ok or not matches then
+            return false
+        end
+    end
+    return true
+end
+
 --Data-level search over a bestiary subtree: true if the node or any
 --non-hidden descendant matches. Lets a search decide whether a
 --collapsed, not-yet-built folder contains anything it needs to show
 --without building panels to find out.
 local NodeSubtreeMatchesSearch
 NodeSubtreeMatchesSearch = function(node, text)
-    if node:MatchesSearch(text) then
+    if NodeMatchesSearch(node, text) then
         return true
     end
 
@@ -1010,6 +1105,79 @@ local function CreateMonsterEntry(nodeid, startHidden)
         m_pipRetained = false
     end
 
+    --The hover view: the monster's stat block, under any headers bestiary
+    --extensions add (RegisterBestiaryExtension).
+    local function BuildEntryView(monsterEntry)
+        local lockedHeight = math.floor(dmhub.screenDimensionsBelowTitlebar.y * 0.6)
+        --Reserved gutter: a vscroll panel lays its children out at the
+        --panel's FULL width, but once the content overflows the
+        --scrollbar appears and the scroll viewport shrinks by the
+        --scrollbar's width -- so the last few pixels of every child get
+        --masked off. The stat block right-aligns its header text
+        --("Level 6 Elite Controller", "EV 32", "Free Strike") to 100%
+        --width, so it was the visible casualty. borderBox keeps the
+        --padding inside the declared 800 rather than widening the panel.
+        local statBlock = monsterEntry:Render {
+            width = 800,
+            maxHeight = lockedHeight,
+            vscroll = true,
+            rpad = 12,
+            borderBox = true,
+        }
+        if statBlock == nil then
+            return nil
+        end
+
+        local children = {}
+        for _, ext in ipairs(ActiveBestiaryExtensions()) do
+            if ext.entryHeader ~= nil then
+                local ok, header = pcall(ext.entryHeader, nodeid)
+                if ok and header ~= nil then
+                    children[#children + 1] = header
+                elseif not ok then
+                    print("BESTIARY:: entry header failed for", ext.id, header)
+                end
+            end
+        end
+        if #children == 0 then
+            return statBlock
+        end
+        children[#children + 1] = statBlock
+        return gui.Panel {
+            flow = "vertical",
+            width = "auto",
+            height = "auto",
+            children = children,
+        }
+    end
+
+    --Badges from bestiary extensions, built once with the row; each keeps
+    --itself current.
+    local extensionBadges = {}
+    for _, ext in ipairs(ActiveBestiaryExtensions()) do
+        if ext.rowBadge ~= nil then
+            local ok, badge = pcall(ext.rowBadge, nodeid)
+            if ok and badge ~= nil then
+                badge:SetClass("bestiaryBadge", true)
+                extensionBadges[#extensionBadges + 1] = badge
+            end
+        end
+    end
+    --in a row just left of the implementation diamond.
+    local extensionBadgeRow = nil
+    if #extensionBadges > 0 then
+        extensionBadgeRow = gui.Panel {
+            floating = true,
+            halign = "right",
+            valign = "center",
+            x = -28,
+            width = "auto",
+            height = "auto",
+            flow = "horizontal",
+            children = extensionBadges,
+        }
+    end
+
     --"Level 3 Elite Brute" style summary line: the monster's level plus its
     --role string (which encodes organization and role). Falls back to the
     --monster type for entries without either (followers, imports). Guarded
@@ -1114,12 +1282,14 @@ local function CreateMonsterEntry(nodeid, startHidden)
 
             --render a tooltip of the monster.
             linger = function(element)
-                --If the cursor is on the implementation-status diamond, its own
-                --tooltip is showing; don't replace it with the stat block.
-                local diamond = element:FindChildRecursive(function(p)
-                    return p:HasClass("implementationDiamond")
+                --If the cursor is on the implementation-status diamond or an
+                --extension badge, its own tooltip is showing; don't replace it
+                --with the stat block.
+                local badge = element:FindChildRecursive(function(p)
+                    return (p:HasClass("implementationDiamond") or p:HasClass("bestiaryBadge"))
+                        and p:HasClass("hover")
                 end)
-                if diamond ~= nil and diamond:HasClass("hover") then
+                if badge ~= nil then
                     return
                 end
 
@@ -1132,22 +1302,7 @@ local function CreateMonsterEntry(nodeid, startHidden)
                     return
                 end
 
-                local lockedHeight = math.floor(dmhub.screenDimensionsBelowTitlebar.y * 0.6)
-                --Reserved gutter: a vscroll panel lays its children out at the
-                --panel's FULL width, but once the content overflows the
-                --scrollbar appears and the scroll viewport shrinks by the
-                --scrollbar's width -- so the last few pixels of every child get
-                --masked off. The stat block right-aligns its header text
-                --("Level 6 Elite Controller", "EV 32", "Free Strike") to 100%
-                --width, so it was the visible casualty. borderBox keeps the
-                --padding inside the declared 800 rather than widening the panel.
-                local panel = monsterEntry:Render {
-                    width = 800,
-                    maxHeight = lockedHeight,
-                    vscroll = true,
-                    rpad = 12,
-                    borderBox = true,
-                }
+                local panel = BuildEntryView(monsterEntry)
 
                 if panel ~= nil then
                     element.tooltip = gui.TooltipFrame(
@@ -1179,15 +1334,7 @@ local function CreateMonsterEntry(nodeid, startHidden)
                     return
                 end
 
-                local lockedHeight = math.floor(dmhub.screenDimensionsBelowTitlebar.y * 0.6)
-                --see the linger handler above for why the right gutter is reserved.
-                local panel = monsterEntry:Render {
-                    width = 800,
-                    maxHeight = lockedHeight,
-                    vscroll = true,
-                    rpad = 12,
-                    borderBox = true,
-                }
+                local panel = BuildEntryView(monsterEntry)
                 if panel == nil then
                     return
                 end
@@ -1335,6 +1482,21 @@ local function CreateMonsterEntry(nodeid, startHidden)
                             }
                         end
                     end
+
+                    for _, ext in ipairs(ActiveBestiaryExtensions()) do
+                        if ext.menuItems ~= nil then
+                            local ok, items = pcall(ext.menuItems, nodeid)
+                            for _, item in ipairs(ok and items or {}) do
+                                menuItems[#menuItems + 1] = {
+                                    text = item.text,
+                                    click = function(element)
+                                        parentElement.popup = nil
+                                        item.click()
+                                    end,
+                                }
+                            end
+                        end
+                    end
                 end
 
                 element.popup = gui.ContextMenu {
@@ -1373,7 +1535,7 @@ local function CreateMonsterEntry(nodeid, startHidden)
 
             search = function(text, matchedParent, budget)
                 searchActive = text ~= ''
-                matchesSearch = matchedParent or text == '' or node:MatchesSearch(text)
+                matchesSearch = matchedParent or text == '' or NodeMatchesSearch(node, text)
 
                 --Each entry a search shows spends from the shared result
                 --budget; entries past the cap hide and flag the search
@@ -1507,8 +1669,9 @@ local function CreateMonsterEntry(nodeid, startHidden)
             gui.Panel {
                 flow = "vertical",
                 --reserves the portrait column on the left and the
-                --implementation diamond's corner on the right.
-                width = "100%-60",
+                --implementation diamond's corner (plus any extension
+                --badges) on the right.
+                width = cond(#extensionBadges > 0, string.format("100%%-%d", 60 + 16 * #extensionBadges), "100%-60"),
                 height = "auto",
                 halign = "left",
                 valign = "top",
@@ -1582,6 +1745,8 @@ local function CreateMonsterEntry(nodeid, startHidden)
                     end,
                 },
             }),
+
+            extensionBadgeRow,
         }
     })
 
@@ -2169,7 +2334,7 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
                         el.data.search(text, false, budget)
                     end
                 else
-                    local selfMatches = matchedParent or node:MatchesSearch(text)
+                    local selfMatches = matchedParent or NodeMatchesSearch(node, text)
                     matchesSearch = selfMatches or (nodeid == '') --root node always matches searches.
 
                     --Walk the child NODES (not panels) in display order

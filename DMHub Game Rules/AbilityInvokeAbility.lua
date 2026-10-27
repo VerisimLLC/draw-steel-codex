@@ -706,6 +706,34 @@ local function FormTemporarySquad(members)
     end
 end
 
+--True when this invoke only prompts a player's own hero for its own ability, so a cancelled
+--prompt means the player backed out of the whole ability. Monsters, Monster AI and invokes
+--handed to other creatures keep committing up front.
+--- @param behavior ActivatedAbilityInvokeAbilityBehavior
+--- @param casterToken CharacterToken
+--- @param targets nil|table
+--- @return boolean
+local function CanDeferCommitUntilInvokedCast(behavior, casterToken, targets)
+    if behavior.targeting ~= "prompt" and behavior.targeting ~= "prompt_inherit" then
+        return false
+    end
+    if casterToken == nil or not casterToken.valid or not casterToken.playerControlled then
+        return false
+    end
+    if creature.IsTokenAIControlled(casterToken.charid) then
+        return false
+    end
+    if targets == nil or #targets == 0 then
+        return false
+    end
+    for _,target in ipairs(targets) do
+        if target.token == nil or target.token.charid ~= casterToken.charid then
+            return false
+        end
+    end
+    return true
+end
+
 function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, targets, options)
 
     --Resolve a "choose an ability off your class list" pick up front, before any
@@ -844,12 +872,17 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
         end
 
         print("INVOKE:: Casting on", #targets, ability.name, "coroutine:", coroutine.running())
-        --TODO: maybe only commit to paying with more generous criteria -- only if an ability
-        --is actually used?
-        ability:CommitToPaying(casterToken, options)
+        --A player backing out of their own invoke prompt (Escape or Skip) has not used the
+        --ability, so the commit waits until the invoked ability starts casting (72PBXRQV).
+        --Everything else still commits here, before any prompt.
+        local deferCommit = (not options.pay) and CanDeferCommitUntilInvokedCast(self, casterToken, targets)
+        if not deferCommit then
+            ability:CommitToPaying(casterToken, options)
+        end
         for i,target in ipairs(targets) do
             if target.token ~= nil then
                 print("INVOKE:: CASTING ON TARGET", i, "/", #targets)
+                local promptOffered = false
 
                 local rangeOriginTokenId = nil
                 if rangeOrigin == "parent_primary_target" then
@@ -1287,6 +1320,31 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                             abilityClone.rangeOriginTokenId = rangeOriginTokenId
                         end
 
+                        --Pay for the parent ability once the player confirms this prompt.
+                        --OnFinishCast is a fallback for a cast that never ran OnBeginCast.
+                        if deferCommit then
+                            promptOffered = true
+                            local commitOnce = function()
+                                if not options.pay then
+                                    ability:CommitToPaying(casterToken, options)
+                                end
+                            end
+                            local priorBeginCast = abilityClone:try_get("OnBeginCast")
+                            abilityClone.OnBeginCast = function(beginAbility, castOptions)
+                                if priorBeginCast ~= nil then
+                                    priorBeginCast(beginAbility, castOptions)
+                                end
+                                commitOnce()
+                            end
+                            local priorFinishCast = abilityClone:try_get("OnFinishCast")
+                            abilityClone.OnFinishCast = function(finishedAbility, finishOptions)
+                                if priorFinishCast ~= nil then
+                                    priorFinishCast(finishedAbility, finishOptions)
+                                end
+                                commitOnce()
+                            end
+                        end
+
                         print("Invoke:: Execute...")
                         --invokeOnCaster: in a squad coordinated strike the "caster" for THIS
                         --target's invoke is the main minion for that creature (invokeSource,
@@ -1351,6 +1409,11 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                     end
                 end
 
+                --No prompt went up for this target (skipped, sent to another client, or
+                --suppressed), so there was nothing to back out of: pay as before.
+                if deferCommit and not promptOffered and not options.pay then
+                    ability:CommitToPaying(casterToken, options)
+                end
             end
         end
     until promptWhenResolving == false or #targetChoices == 0
@@ -1612,6 +1675,16 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
             abilityClone = abilityOverride
             abilityClone.invoker = invokerToken.properties
             installCastCallbacks(abilityClone)
+        end
+
+        --The caster can be despawned while an AI prompt handler yields (Swordplay's
+        --granted free strike killed the struck minion, BR9S67PR). Cast would set
+        --casting and then no-op inside ModifyProperties, hanging the invoke until the
+        --timeout, so end the invoke as cancelled instead.
+        if casterToken == nil or not casterToken.valid or casterToken.properties == nil then
+            printf("INVOKEDIAG:: caster of %s is gone before cast -- treating the invoke as cancelled", tostring(abilityClone.name))
+            canceled = true
+            break
         end
 
         if targeting == "prompt" or targeting == "prompt_inherit" then

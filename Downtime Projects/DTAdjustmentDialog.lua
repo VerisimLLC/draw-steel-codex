@@ -132,8 +132,9 @@ function DTAdjustmentDialog._createPanel(adjustment, onConfirm, onCancel)
     dlg:AddFooterButton{
         slot = "right",
         text = "Save",
+        --an amount of 0 changes nothing, so Save waits for one.
         enabled = function()
-            return Trimmed(currentReason) ~= ""
+            return Trimmed(currentReason) ~= "" and currentAmount ~= 0
         end,
         click = function(shell)
             local reason = Trimmed(currentReason)

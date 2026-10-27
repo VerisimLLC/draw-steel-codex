@@ -3931,6 +3931,176 @@ local ShowItemDetailsInternal = function(args)
 		}
 	end
 
+	--Admin testing aid: Grant puts the viewed item in this account's inventory
+	--for free; Remove takes every directly held copy back out. Both write the
+	--account's inventory record (shop:AdminGrantItem / AdminRemoveItem) and the
+	--page re-renders when the inventory refresh lands. Admin accounts only.
+	--- @type Panel|nil
+	local m_adminInventoryControls = nil
+	if not args.gift and dmhub.isAdminAccount then
+		local adminStatusLabel = gui.Label{
+			text = "",
+			fontSize = 12,
+			width = "100%",
+			height = "auto",
+			textAlignment = "center",
+			textWrap = true,
+			vmargin = 2,
+		}
+
+		--How the viewed item is held: owned at all (bundles included), and the
+		--instances held directly (the only ones Remove can delete).
+		--- @param item ShopItemLua
+		--- @return boolean owned
+		--- @return integer directCount
+		--- @return nil|string bundleName
+		local function AdminOwnership(item)
+			local owned = shop:ItemInInventory(item.id)
+			local directCount = 0
+			local bundleid = nil
+			local inventory = shop.inventoryItems
+			for _, instance in pairs(inventory) do
+				if instance.itemid == item.id then
+					if instance.bundleid == nil or instance.bundleid == "" then
+						directCount = directCount + 1
+					else
+						bundleid = instance.bundleid
+					end
+				end
+			end
+
+			local bundleName = nil
+			if bundleid ~= nil then
+				local bundleItem = assets.shopItems[bundleid]
+				bundleName = bundleItem ~= nil and bundleItem.name or bundleid
+			end
+
+			return owned, directCount, bundleName
+		end
+
+		local adminGrantButton = gui.Label{
+			classes = {"itemButton"},
+			text = "Grant Item",
+			width = g_backButtonWidth,
+			press = function(element)
+				local panel = m_adminInventoryControls
+				if panel == nil or panel.data.item == nil or panel.data.busy then
+					return
+				end
+				local item = panel.data.item
+				panel.data.busy = true
+				adminStatusLabel.text = "Granting..."
+				shop:AdminGrantItem(item.id, function(ok, err)
+					if not panel.valid then
+						return
+					end
+					panel.data.busy = false
+					panel:FireEvent("refreshAdminInventory")
+					if not ok then
+						adminStatusLabel.text = string.format("<color=#ff8888>%s</color>", tostring(err))
+					end
+				end)
+			end,
+		}
+
+		local adminRemoveButton = gui.Label{
+			classes = {"itemButton"},
+			text = "Remove Item",
+			width = g_backButtonWidth,
+			press = function(element)
+				local panel = m_adminInventoryControls
+				if panel == nil or panel.data.item == nil or panel.data.busy then
+					return
+				end
+				local item = panel.data.item
+				local count = shop:AdminRemoveItem(item.id, function()
+					if panel.valid then
+						panel.data.busy = false
+						panel:FireEvent("refreshAdminInventory")
+					end
+				end)
+				if count > 0 then
+					panel.data.busy = true
+					adminStatusLabel.text = "Removing..."
+				end
+			end,
+		}
+
+		m_adminInventoryControls = gui.Panel{
+			floating = true,
+			halign = "right",
+			valign = "top",
+			x = g_backButtonWidth + g_backButtonGap,
+			width = g_backButtonWidth,
+			height = "auto",
+			flow = "vertical",
+			data = { item = nil, busy = false, owned = nil },
+
+			create = function(element)
+				shop.events:Listen(element)
+			end,
+
+			showProductDetails = function(element, item)
+				element.data.item = item
+				element.data.owned = nil
+				element:FireEvent("refreshAdminInventory")
+			end,
+
+			hideProductDetails = function(element)
+				element.data.item = nil
+			end,
+
+			refreshInventory = function(element)
+				local item = element.data.item
+				if item == nil then
+					return
+				end
+				--Ownership gates other controls on the page (Add as Gift, the dice
+				--equip panel, the Hero module switch), so a change re-shows the
+				--whole page in place. Other /Patrons updates only relabel.
+				if element.data.owned ~= nil and element.data.owned ~= shop:ItemInInventory(item.id) then
+					adminStatusLabel.text = ""
+					element:FireEventOnParents("showItemDetails", item)
+				else
+					element:FireEvent("refreshAdminInventory")
+				end
+			end,
+
+			refreshAdminInventory = function(element)
+				local item = element.data.item
+				if item == nil then
+					return
+				end
+				local owned, directCount, bundleName = AdminOwnership(item)
+				element.data.owned = owned
+				adminGrantButton:SetClass("collapsed", owned)
+				adminRemoveButton:SetClass("collapsed", directCount == 0)
+				if not element.data.busy then
+					if owned and directCount == 0 then
+						adminStatusLabel.text = string.format("Owned through %s. Remove that bundle instead.", bundleName or "a bundle or membership")
+					elseif directCount > 1 then
+						adminStatusLabel.text = string.format("%d copies held.", directCount)
+					else
+						adminStatusLabel.text = ""
+					end
+				end
+			end,
+
+			gui.Label{
+				text = "Admin",
+				fontSize = 12,
+				color = "#ffffff99",
+				uppercase = true,
+				width = "100%",
+				height = "auto",
+				textAlignment = "center",
+			},
+			adminGrantButton,
+			adminRemoveButton,
+			adminStatusLabel,
+		}
+	end
+
 	return gui.Panel{
 		classes = {"shopDetailsMainPanel"},
 
@@ -3992,6 +4162,8 @@ local ShowItemDetailsInternal = function(args)
 				interactable = false,
 			},
 		} or nil,
+
+		m_adminInventoryControls,
 
 		--Dice showcase: the configured banner, centered, with Add to Cart /
 		--Equip below it. Shown for Dice items; collapsed for everything else

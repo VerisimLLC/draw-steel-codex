@@ -50,6 +50,7 @@
 --- @field playerControlledAndPrimary boolean (Read-only) True if this is the primary character of a player.
 --- @field activeControllerId nil|string (Read-only) the userid of the user who is best suited to responding to prompts on this token right now. Will return nil if the current user is the best suited to responding to prompts on this character.
 --- @field canSee boolean (Read-only) True if the current user can see this token (it's in their vision). False for a token that is not spawned on the current map, e.g. one from dmhub.GetCharacterById that lives on another map.
+--- @field hiddenFromLocalViewer boolean (Read-only) True if this client must not show this token at all because it is hidden from players: the creature's RefreshToken set _tmp_hiddenFromPlayers, and the current user is neither the Director nor in control of it in their own right (a player host counts as a player). While true the token fades out and then canSee reads false, so its sprite, HUD, auras and target reticules are not shown. The token object still exists on every client, so game logic and the Monster AI keep working. Use it to suppress other evidence of the creature (footprints, sounds).
 --- @field sheet Panel The panel that is attached to this token to display their UI.
 --- @field topsheet Panel The panel that is attached to this token to display their UI.
 --- @field bottomsheet Panel The panel that is attached to this token to display their UI.
@@ -451,10 +452,10 @@ function CharacterToken:CalculateMovementPerimeter(movementAllowance, args) end
 --- @return Loc[]
 function CharacterToken:CalculateJumpReachable(distance, jumpHeight) end
 
---- Draw a movement arrow. options.errorFrom (0-1) draws the arrow in the error color from that fraction of its length on (e.g. where a teleport loses line of effect). @see ClearMovementArrow to clear the movement arrow.
+--- Draw a movement arrow. options.errorFrom (0-1) draws the arrow in the error color from that fraction of its length on (e.g. where a teleport loses line of effect). options.separate draws a new arrow of its own instead of replacing the one shared movement arrow, so several can show at once; Destroy() the result's marker to remove it (ClearMovementArrow does not). @see ClearMovementArrow to clear the movement arrow.
 --- @param targetLoc Loc
 --- @param options nil|table
---- @return nil|{path: LuaPath, collideWith: nil|CharacterToken[], bounceCollisions: nil|{speed: number, collideWith: CharacterToken[], destination: Loc}[]}
+--- @return nil|{path: LuaPath, marker: nil|LuaMultiObjectReference, collideWith: nil|CharacterToken[], bounceCollisions: nil|{speed: number, collideWith: CharacterToken[], destination: Loc}[]}
 function CharacterToken:MarkMovementArrow(targetLoc, options) end
 
 --- Plan a same-floor straight charge with at most one jump. Prefer guaranteed routes; optional tier capabilities permit a roll-dependent route with fixed takeoff/landing and per-tier outcomes. Does not move the token.
@@ -479,6 +480,11 @@ function CharacterToken:FindChargeRoutes(enemy, radius, range, distance, cache) 
 --- @param jumpHeight number
 --- @return nil|table
 function CharacterToken:PlanChargeJumpOutcome(sourceLoc, targetLoc, distance, jumpHeight) end
+
+--- Show a translucent ghost of this token standing at loc, like the one a drag shows, until Destroy() is called on the result. Only a picture on this client: the token does not move. The Monster AI's plan preview uses it to show where a monster will move to.
+--- @param loc Loc
+--- @return nil|LuaMultiObjectReference
+function CharacterToken:CreateGhost(loc) end
 
 --- ClearMovementArrow
 function CharacterToken:ClearMovementArrow() end

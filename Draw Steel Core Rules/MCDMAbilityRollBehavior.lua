@@ -254,6 +254,17 @@ local function FormatTierTextWithOrChoices(rawText, caster, skipValidation, tier
     return text
 end
 
+--Tier text styled the way the power roll table shows it, for surfaces outside
+--the roll dialog (the shared group roll board in DSRequestRollsDialog.lua).
+--caster may be nil; "or" choices show their default alternative.
+--- @param rawText string
+--- @param caster nil|creature
+--- @param tierIndex number
+--- @return string
+function ActivatedAbilityPowerRollBehavior.FormatTierTextForDisplay(rawText, caster, tierIndex)
+    return FormatTierTextWithOrChoices(rawText or "", caster, false, tierIndex, nil, nil)
+end
+
 --Record an "or" choice on rollProperties. The same choice usually appears
 --on every tier row with only its duration differing ("slowed or weakened
 --(save ends)" vs "(EoT)"), and the user cannot know which tier will land
@@ -837,7 +848,7 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
 
                     local critEligible = false
                     if options ~= nil and options.ability ~= nil then
-                        critEligible = options.ability:HasKeyword("Strike") or options.ability:IsAction()
+                        critEligible = options.ability:CanCriticalHit()
                     end
 
                     local eventName = string.format("UI.PowerRoll_Tier%d", tier)
@@ -2928,6 +2939,14 @@ TierSymbols.lookupSymbols = {
     slide = function(c)
         local match = regex.MatchGroups(c.tier, "slide +(?<value>[0-9]+)")
         return (match ~= nil and tonumber(match.value)) or 0
+    end,
+
+    --The damage types this tier deals ("untyped" for plain damage), e.g.
+    --Tier.DamageTypes has "cold". Lets a power-roll trigger react to the type
+    --of the damage it answered (Topaz Dragon's Absorption).
+    damagetypes = function(c)
+        local strings = RollPropertiesPowerTable.new{tiers = {c.tier}}:GetDamageTypes() or {}
+        return StringSet.new{strings = strings}
     end,
 }
 

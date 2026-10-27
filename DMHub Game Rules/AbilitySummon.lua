@@ -79,6 +79,17 @@ ActivatedAbilitySummonBehavior.tweakRadius = "1"
 ActivatedAbilitySummonBehavior.tweakAnchor = "target"
 ActivatedAbilitySummonBehavior.tweakMessage = ""
 
+--How summoned creatures arrive on the map. Purely cosmetic: each creature is
+--on its summoned square the whole time, so nothing that reacts to movement
+--(triggers, pressure plates, opportunity attacks, auras) sees the animation.
+--  "none" (default) -- the creature simply appears on its square.
+--  "fromCaster" -- the creature emerges from the caster's space and travels to
+--                  its square over summonAnimationDuration seconds.
+--Applies only to auto-placed summons: skipped when choosePlacement,
+--tweakPlacement or replaceCaster is in effect, and in duplicate mode.
+ActivatedAbilitySummonBehavior.summonAnimation = "none"
+ActivatedAbilitySummonBehavior.summonAnimationDuration = 0.6
+
 --duplicate mode fields
 ActivatedAbilitySummonBehavior.duplicateMode = false
 ActivatedAbilitySummonBehavior.copyStamina = false
@@ -114,6 +125,13 @@ end
 --Map of look key -> true.
 ---@type table<string, boolean>
 creature.summonHistory = {}
+
+--Set on a creature summoned with summonAnimation "fromCaster" until its
+--arrival animation starts, so no client shows it on its square first. See
+--"Summon arrival animation" below. Cleared (set to nil) by the summoning client.
+creature.summonEmergeHide = false
+--Seconds the arrival animation takes; read by every client that plays it.
+creature.summonEmergeDuration = 0
 
 --- Records a summoned creature type. Call from inside ModifyProperties.
 --- @param lookKey string
@@ -1480,8 +1498,9 @@ end
 --- @param isMinion boolean true if the creature being placed is a minion.
 --- @param squadCtx table|nil persistent squad-selection state (see Cast()).
 --- @param creatureCtx table|nil persistent creature-selection state with .choices and .selectedCreature.
---- @return Loc|nil pickedLoc, table|nil squadResult, table|nil pickedCreature, nil|"cancelled"|"abandoned" failReason Why no loc was picked.
-function ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTiles, index, total, isMinion, squadCtx, creatureCtx, ability, promptPrefix)
+--- @param castOptions table|nil the running cast's options. When its abort is set (a Revert Turn / Turn Rewind cancelled the cast) the prompt closes and returns "aborted".
+--- @return Loc|nil pickedLoc, table|nil squadResult, table|nil pickedCreature, nil|"cancelled"|"abandoned"|"aborted" failReason Why no loc was picked.
+function ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTiles, index, total, isMinion, squadCtx, creatureCtx, ability, promptPrefix, castOptions)
     --optional context text shown before "Place minion N of M", e.g.
     --"Lingering Hunger Trait:". Normalized here so every prompt variant
     --below can just concatenate it.
@@ -1910,6 +1929,11 @@ function ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTil
         gui.TooltipFrame(pickerContent, { vmargin = 85 }),
 
         mappress = function(element, loc, point)
+            --Strict targeting: players can't place a summon outside the range.
+            --The red hover marker already shows why. Directors bypass this.
+            if (not dmhub.isDM) and dmhub.GetSettingValue("strict:targeting") and not isInRange(loc) then
+                return
+            end
             if commitWithSquadSelection ~= nil then
                 local r = commitWithSquadSelection()
                 if r == nil then
@@ -1949,9 +1973,16 @@ function ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTil
 
     gamehud.popupPanel:AddChild(picker)
 
-    while pickedLoc == nil and not cancelled and picker.valid do
+    local function castAborted()
+        return castOptions ~= nil and castOptions.abort == true
+    end
+
+    while pickedLoc == nil and not cancelled and picker.valid and not castAborted() do
         coroutine.yield(0.1)
     end
+
+    --the cast was cancelled under us: drop any click made on the same frame too.
+    local aborted = castAborted()
 
     --the picker being destroyed externally (not by our own DestroySelf below)
     --means the placement UI was torn down under us, e.g. a HUD rebuild or the
@@ -1963,6 +1994,9 @@ function ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTil
         picker:DestroySelf()
     end
 
+    if aborted then
+        return nil, nil, nil, "aborted"
+    end
     if cancelled then
         return nil, nil, nil, "cancelled"
     end
@@ -1970,6 +2004,264 @@ function ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTil
         return nil, nil, nil, "abandoned"
     end
     return pickedLoc, pickedSquadResult, pickedCreature
+end
+
+---------------------------------------------------------------------------
+-- Summon arrival animation (summonAnimation = "fromCaster")
+--
+-- The creature is spawned on its real square, then plays a hidden teleport
+-- style that snaps its VISUAL to the caster and slides it back to the square.
+-- token.animation:Tween only works inside a registered teleport style, and a
+-- same-square token:Teleport() is how every client is told to play it (the
+-- Hop In Place precedent in AbilityJump.lua). The logical position never
+-- leaves the summoned square, and _tmp_suppressTeleportEvent keeps the rules
+-- from seeing a teleport, so no movement, trigger, plate or aura reacts.
+--
+-- Hiding before the animation: other clients get the new token a moment
+-- before its teleport, so the token carries summonEmergeHide while it waits.
+-- Each client's RefreshToken then draws it at opacity 0 and hides it from
+-- players until the animation starts there (or a safety limit runs out, so a
+-- summoner that disconnects mid-cast can never leave it invisible).
+-- The origin is the summoner (token.summonerid), already networked.
+---------------------------------------------------------------------------
+
+local SUMMON_EMERGE_STYLE = "summonemerge"
+--seconds after spawning before the teleports start, so every client has
+--received the new tokens first (a client that gets both together skips it).
+local SUMMON_EMERGE_SETTLE_SECONDS = 0.3
+--delay between creatures, so a group reads as several arriving.
+local SUMMON_EMERGE_STAGGER_SECONDS = 0.15
+--longest a client keeps an awaiting creature hidden.
+local SUMMON_EMERGE_HIDE_LIMIT_SECONDS = 15
+
+--this client's view of creatures awaiting their arrival animation.
+--charid -> { seenAt = dmhub.Time() first seen, started = animation began here }
+local g_summonEmergeState = {}
+
+--- The square the arrival animation starts from: the summoner's square nearest
+--- the target, on the same map and floor. nil means "just appear in place".
+--- @param token CharacterToken the summoned creature.
+--- @param targetLoc Loc the square it was summoned into.
+--- @return Loc|nil
+function ActivatedAbilitySummonBehavior.EmergeOrigin(token, targetLoc)
+    local summonerid = token.summonerid
+    if summonerid == nil or summonerid == "" then
+        return nil
+    end
+    local summoner = dmhub.GetTokenById(summonerid)
+    if summoner == nil or (not summoner.valid) or (not summoner.onBoard) or summoner.mapid ~= token.mapid then
+        return nil
+    end
+
+    --a large caster: start from the edge of its space facing the target.
+    local best = nil
+    local bestDist = nil
+    for _,loc in ipairs(summoner:LocsOccupyingWhenAt(summoner.loc)) do
+        if loc.floor == targetLoc.floor then
+            local dx = math.abs(loc.x - targetLoc.x)
+            local dy = math.abs(loc.y - targetLoc.y)
+            local dist = math.max(dx, dy) * 1000 + dx + dy
+            if bestDist == nil or dist < bestDist then
+                best = loc
+                bestDist = dist
+            end
+        end
+    end
+    return best
+end
+
+--- Called from creature:RefreshToken (Creature.lua) on every client for a
+--- creature still flagged summonEmergeHide: keeps it unseen until its arrival
+--- animation starts here. Runs after the game system's own hidden state, so it wins.
+--- @param c creature
+--- @param token CharacterToken
+function ActivatedAbilitySummonBehavior.RefreshEmergeHide(c, token)
+    local charid = token.charid
+    local now = dmhub.Time()
+    local state = g_summonEmergeState[charid]
+    if state == nil then
+        state = { seenAt = now, started = false }
+        g_summonEmergeState[charid] = state
+
+        --refresh again when the safety limit runs out so the creature shows
+        --up even if its animation never plays on this client.
+        dmhub.Schedule(SUMMON_EMERGE_HIDE_LIMIT_SECONDS + 0.1, function()
+            if mod.unloaded then
+                return
+            end
+            local tok = dmhub.GetTokenById(charid)
+            --forget a creature whose arrival is over; one still flagged keeps its
+            --entry so it is not hidden again for another full limit.
+            if tok == nil or (not tok.valid) or tok.properties == nil or not tok.properties:try_get("summonEmergeHide", false) then
+                g_summonEmergeState[charid] = nil
+            end
+            if tok ~= nil and tok.valid then
+                tok:InvalidateObjects()
+            end
+        end)
+    end
+
+    if (not state.started) and now - state.seenAt < SUMMON_EMERGE_HIDE_LIMIT_SECONDS then
+        --opacity 0 for everyone (the Director and controllers keep a faint
+        --minimum), and fully hidden from players. Both are client-local.
+        c._tmp_tokenOpacity = 0
+        c._tmp_hiddenFromPlayers = true
+    end
+end
+
+
+dmhub.tokenAnimations:RegisterTeleport{
+    id = SUMMON_EMERGE_STYLE,
+    name = "Summon Emerge",
+    hidden = true,
+    animation = function(token, targetLoc, opts)
+        local anim = token.animation
+        local origin = ActivatedAbilitySummonBehavior.EmergeOrigin(token, targetLoc)
+        if origin ~= nil then
+            anim:Tween{ translate = origin, duration = 0 }
+        end
+
+        --reveal now that the visual sits on the origin. The refresh is deferred
+        --a moment so it does not run inside the engine's teleport update.
+        local charid = token.charid
+        local state = g_summonEmergeState[charid]
+        if state ~= nil and not state.started then
+            state.started = true
+            dmhub.Schedule(0.01, function()
+                if mod.unloaded then
+                    return
+                end
+                local tok = dmhub.GetTokenById(charid)
+                if tok ~= nil and tok.valid then
+                    tok:InvalidateObjects()
+                end
+            end)
+        end
+
+        if origin == nil then
+            return
+        end
+
+        local duration = 0.6
+        local props = token.properties
+        if props ~= nil then
+            local d = tonumber(props:try_get("summonEmergeDuration"))
+            if d ~= nil and d > 0 then
+                duration = d
+            end
+        end
+
+        anim:Tween{ translate = targetLoc, duration = duration, easing = "easeOut" }
+        sleep(duration)
+    end,
+}
+
+--- Ends the arrival state of summons: shows them on this client, clears the
+--- networked flags and restores each creature's own teleport style. Also the
+--- fallback when a cast stops before its animations could play.
+--- @param entries {charid: string, previousStyle: string}[]
+function ActivatedAbilitySummonBehavior.FinishEmergeSummons(entries)
+    for _,entry in ipairs(entries) do
+        local tok = dmhub.GetTokenById(entry.charid)
+        if tok ~= nil and tok.valid and tok.properties ~= nil then
+            local anim = tok.animation
+            if anim ~= nil then
+                anim:SetVisible(true)
+            end
+            if tok.teleportAnimation == SUMMON_EMERGE_STYLE then
+                tok.teleportAnimation = entry.previousStyle
+                tok:UploadAppearance()
+            end
+            if tok.properties.summonEmergeHide or tok.properties.summonEmergeDuration ~= 0 then
+                tok:ModifyProperties{
+                    description = "Summon arrival",
+                    undoable = false,
+                    execute = function()
+                        tok.properties.summonEmergeHide = nil
+                        tok.properties.summonEmergeDuration = nil
+                    end,
+                }
+            end
+        end
+    end
+end
+
+--- Plays the arrival animation for creatures this cast just spawned, and
+--- blocks the cast until the last one has reached its square.
+--- @param entries {charid: string, previousStyle: string}[] summons flagged at spawn.
+--- @param duration number seconds each creature takes to arrive.
+--- @param args table the cast options (args.abort is set by Revert Turn).
+function ActivatedAbilitySummonBehavior.PlayEmergeAnimations(entries, duration, args)
+    --wait out a villain-action banner so the arrival is not hidden behind it.
+    local banner = rawget(_G, "DramaticBanner")
+    if banner ~= nil and coroutine.isyieldable() then
+        while banner.TimeUntilDone() > 0 do
+            coroutine.yield(0.1)
+        end
+    end
+
+    game.UpdateCharacterTokens()
+
+    local canYield = coroutine.isyieldable()
+    local function Wait(seconds)
+        if not canYield then
+            return
+        end
+        local untilTime = dmhub.Time() + seconds
+        while dmhub.Time() < untilTime and not args.abort do
+            coroutine.yield(0.02)
+        end
+    end
+
+    Wait(SUMMON_EMERGE_SETTLE_SECONDS)
+
+    local landAt = dmhub.Time()
+    for i,entry in ipairs(entries) do
+        local tok = dmhub.GetTokenById(entry.charid)
+        if tok ~= nil and tok.valid then
+            --undo this client's own pre-hide (see the spawn loop) right before
+            --the teleport, so the animation shows the creature.
+            local anim = tok.animation
+            if anim ~= nil then
+                anim:SetVisible(true)
+            end
+
+            if not args.abort then
+                --a same-square teleport: must not read as a real teleport to the rules.
+                tok.properties._tmp_suppressTeleportEvent = true
+                tok:Teleport(tok.loc)
+                tok.properties._tmp_suppressTeleportEvent = nil
+                landAt = dmhub.Time() + duration
+            end
+
+            --sent after the teleport, so a client that missed the animation
+            --(it joined late, or got both at once) still shows the creature.
+            tok:ModifyProperties{
+                description = "Summon arrival",
+                undoable = false,
+                execute = function()
+                    tok.properties.summonEmergeHide = nil
+                end,
+            }
+        end
+
+        if i < #entries then
+            Wait(SUMMON_EMERGE_STAGGER_SECONDS)
+        end
+    end
+
+    --put each creature's own teleport style back once every client has had
+    --time to finish playing this one.
+    dmhub.Schedule(math.max(0, landAt - dmhub.Time()) + 1, function()
+        if mod.unloaded then
+            return
+        end
+        ActivatedAbilitySummonBehavior.FinishEmergeSummons(entries)
+    end)
+
+    --hold the cast until the last creature lands, so later behaviors and the
+    --Monster AI carry on after the creatures have arrived.
+    Wait(math.max(0, landAt - dmhub.Time()) + 0.05)
 end
 
 function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args)
@@ -1999,7 +2291,26 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
     --within each group's radius and confirms. One group per outer target.
     local tweakGroups = {}
 
+    --summonAnimation "fromCaster": every summon to animate once all are spawned.
+    local emergeEntries = {}
+    local emergeDuration = tonumber(self:try_get("summonAnimationDuration", 0.6)) or 0.6
+    emergeDuration = math.min(3, math.max(0.1, emergeDuration))
+    local emergePlayed = false
+
+    --a cast that stops early (a dialog abandoned, an error, Revert Turn) must
+    --never leave already-spawned summons hidden: show them without animating.
+    args.OnFinishCastHandlers[#args.OnFinishCastHandlers+1] = function()
+        if (not emergePlayed) and #emergeEntries > 0 then
+            emergePlayed = true
+            ActivatedAbilitySummonBehavior.FinishEmergeSummons(emergeEntries)
+        end
+    end
+
     for _,target in ipairs(targets) do
+        --a cancelled cast (Revert Turn / Turn Rewind) summons nothing more.
+        if args.abort then
+            break
+        end
         local newOwner = ""
         if self.casterControls then
             newOwner = casterToken.ownerId
@@ -2133,6 +2444,11 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
             end
         end
 
+        --the arrival animation is for auto-placed summons only: hand-placed and
+        --rearranged ones have already been seen where they stand.
+        local emergeFromCaster = self:try_get("summonAnimation", "none") == "fromCaster"
+            and (not manualPlacement) and (not tweakPlacement) and (not self.replaceCaster)
+
         local summonedTokens = {}
         local adjacentSpawnLocs = {}
         local summonerEntries = {}
@@ -2144,6 +2460,19 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
         local chooseSquad = self:try_get("chooseSquad", false)
         local usesSquadChooser = isSummoner or chooseSquad
         local useEncounterSquads = chooseSquad and not isSummoner
+
+        --When a summoned creature turns into another one, such as an Elemental
+        --Mote, the new creature belongs to whoever summoned the old one. It used
+        --to belong to the old creature, which is removed right after.
+        local inheritedSummonerToken = nil
+        local inheritedSummonerEntries = {}
+        if self.replaceCaster and casterToken.summonerid ~= nil and casterToken.summonerid ~= "" then
+            local summonerToken = dmhub.GetTokenById(casterToken.summonerid)
+            if summonerToken ~= nil and summonerToken.valid and summonerToken.properties ~= nil then
+                inheritedSummonerToken = summonerToken
+            end
+        end
+
         local cachedSquadResult = nil
         local placementSquadCtx = nil
         local placementCreatureCtx = nil
@@ -2277,9 +2606,12 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                 local pickedCreature = nil
                 if not autoPlaceSummons then
                     local promptResult
-                    pickedLoc, squadResult, pickedCreature, promptResult = ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTiles, j, numSummons, isMinion, squadCtxArg, creatureCtxArg, ability, self.placementPrompt)
+                    pickedLoc, squadResult, pickedCreature, promptResult = ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTiles, j, numSummons, isMinion, squadCtxArg, creatureCtxArg, ability, self.placementPrompt, args)
                     if pickedLoc == nil then
-                        if promptResult == "abandoned" then
+                        if promptResult == "aborted" then
+                            --the cast was cancelled (args.abort is already set): place nothing more.
+                            break
+                        elseif promptResult == "abandoned" then
                             --the placement UI was torn down externally (e.g.
                             --the caster was removed mid-cast): never strand
                             --the summons. Auto-place this and every remaining
@@ -2388,7 +2720,11 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
 
             token.ownerId = newOwner
 
-            token.summonerid = casterToken.charid
+            if inheritedSummonerToken ~= nil then
+                token.summonerid = inheritedSummonerToken.charid
+            else
+                token.summonerid = casterToken.charid
+            end
 
             if self.shareSurgesWithSummoner then
                 token.properties.sharesSurgesWithSummoner = true
@@ -2470,6 +2806,14 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
 
             summonedTokens[#summonedTokens+1] = token
 
+            if inheritedSummonerToken ~= nil and token.properties.minion then
+                inheritedSummonerEntries[#inheritedSummonerEntries+1] = {
+                    charid = token.charid,
+                    squad = token.properties:try_get("minionSquad"),
+                    monsterType = chosenOption.properties.monster_type,
+                }
+            end
+
             if self.casterControls then
                 local lookKey = ActivatedAbilitySummonBehavior.SummonLookKey(chosenOption, chosenOption.id)
 
@@ -2485,8 +2829,32 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                 end
             end
 
+            if emergeFromCaster then
+                --ride along in the token's first upload, so every client knows
+                --to keep it hidden and which animation to play.
+                emergeEntries[#emergeEntries+1] = {
+                    charid = token.charid,
+                    previousStyle = token.teleportAnimation or "",
+                }
+                token.teleportAnimation = SUMMON_EMERGE_STYLE
+                token.properties.summonEmergeHide = true
+                token.properties.summonEmergeDuration = emergeDuration
+            end
+
             token:UploadToken("Summon Creature")
             game.UpdateCharacterTokens()
+
+            if emergeFromCaster then
+                --hide it outright on this client until its teleport (the opacity
+                --hide leaves the Director a faint ghost). Client-local.
+                local live = dmhub.GetTokenById(token.charid)
+                if live ~= nil and live.valid then
+                    local anim = live.animation
+                    if anim ~= nil then
+                        anim:SetVisible(false)
+                    end
+                end
+            end
         end
 
         --seed the fresh squad's shared stamina pool with the summons' initial
@@ -2592,6 +2960,19 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                 }
             end
 
+            --Show the new minions in the summoner's panel too. Otherwise they
+            --belong to the summoner but are missing from their panel.
+            if inheritedSummonerToken ~= nil and inheritedSummonerToken.valid and #inheritedSummonerEntries > 0 then
+                inheritedSummonerToken:ModifyProperties{
+                    description = "Register summons",
+                    execute = function()
+                        for _,entry in ipairs(inheritedSummonerEntries) do
+                            inheritedSummonerToken.properties:RegisterSummonedMinion(entry.charid, entry.squad, entry.monsterType)
+                        end
+                    end,
+                }
+            end
+
             if casterAlive then
                 --add newly summoned creature types to the caster's summon history.
                 local newHistory = {}
@@ -2636,6 +3017,14 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                 }
             end
         end
+    end
+
+    --summonAnimation "fromCaster": every summon is spawned (and hidden); now
+    --show them arriving from the caster, holding the cast until they land.
+    if #emergeEntries > 0 and not emergePlayed then
+        ActivatedAbilitySummonBehavior.PlayEmergeAnimations(emergeEntries, emergeDuration, args)
+        --only once it returns: if it errors, the finish handler still shows them.
+        emergePlayed = true
     end
 
     --tweak-placement mode: all summons are on the map (hidden from players).
@@ -3101,6 +3490,59 @@ function ActivatedAbilityBehavior:SummonEditor(parentPanel, list, options)
 				change = function(element)
 					---@cast element Dropdown
 					self.tweakAnchor = element.idChosen
+				end,
+			},
+		}
+
+		--arrival animation; see summonAnimation at the top of this file.
+		local isFromCaster = function()
+			return self:try_get("summonAnimation", "none") == "fromCaster"
+		end
+
+		list[#list+1] = gui.Panel{
+			classes = "formPanel",
+			gui.Label{
+				classes = "formLabel",
+				text = "Arrival:",
+			},
+			gui.Dropdown{
+				classes = {"formDropdown"},
+				options = {
+					{ id = "none", text = "Appear in place" },
+					{ id = "fromCaster", text = "Emerge from caster" },
+				},
+				idChosen = self:try_get("summonAnimation", "none"),
+				change = function(element)
+					---@cast element Dropdown
+					self.summonAnimation = element.idChosen
+					element.parent.parent:FireEventTree("refreshSummonAnimation")
+				end,
+			},
+		}
+
+		list[#list+1] = gui.Panel{
+			classes = {"formPanel", cond(not isFromCaster(), "collapsed")},
+			refreshSummonAnimation = function(element)
+				element:SetClass("collapsed", not isFromCaster())
+			end,
+			gui.Label{
+				classes = "formLabel",
+				text = "Arrival Seconds:",
+			},
+			gui.Input{
+				classes = "formInput",
+				text = tostring(self:try_get("summonAnimationDuration", 0.6)),
+				characterLimit = 6,
+				change = function(element)
+					--only auto-placed summons animate; 0.1 to 3 seconds.
+					local value = tonumber(element.text)
+					if value == nil then
+						element.text = tostring(self:try_get("summonAnimationDuration", 0.6))
+						return
+					end
+					value = math.min(3, math.max(0.1, value))
+					self.summonAnimationDuration = value
+					element.text = tostring(value)
 				end,
 			},
 		}

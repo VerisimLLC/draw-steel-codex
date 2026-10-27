@@ -47,6 +47,8 @@ local mod = dmhub.GetModLoading()
 --- @field objectKeyword string|nil An object keyword (the Core keywords on a map object, matched ignoring case, e.g. "burning"). When a Targetable object with it is in a zone of this keyword, the zone record becomes objectKeywordBecomes and is revealed to players, e.g. a burning Candelabra thrown into Flammable Oil setting it alight. Checked by the elected host every 0.7s, so it catches however the object got there (EnvironmentalKeyword.ObjectKeywordZoneTick). Only meaningful with objectKeywordBecomes. No class default: absent = none.
 --- @field objectKeywordBecomes string|nil Id (environmentalKeywords key) of the keyword a zone of this keyword becomes when an object with objectKeyword is in it. No class default: absent = none.
 --- @field mapFeature CharacterFeature|nil Map-wide features: modifiers granted to every creature on a map that has at least one zone of this keyword, anywhere on any floor (e.g. a trap's "Allied Awareness" ability). Each modifier's own filter decides which creatures take it. A player-controlled creature only counts zones that are visible to players, so a concealed trap never tips off the heroes. No class default: absent = none.
+--- @field aiDirectiveList {directive: string, filter: string|nil}[]|nil Special instructions to the Monster AI for zones of this keyword, edited under "Monster AI Directives": one entry per directive, applying only to the AI-driven creatures its filter accepts (GoblinScript on the creature; absent = every one). The same directive may appear more than once with different filters. directive = "avoid": the creature never voluntarily enters a zone of this keyword, paths around it, and leaves one it stands in. "forceInto": the creature strongly prefers pushing, pulling or sliding enemies into a zone of this keyword, and picks where it attacks from to make that possible. "hold": a zone of this keyword is the creature's post: it ends its movement inside whenever it can reach it, and heads back when driven out. Read with EnvironmentalKeyword:GetAIDirectives. No class default: absent = no directives.
+--- @field aiDirectives {enabled: boolean|nil, avoid: boolean|nil, forceInto: boolean|nil, hold: boolean|nil, holdFilter: string|nil}|nil Legacy (before 2026-10-24) form of aiDirectiveList: an on/off switch plus one flag per directive, with holdFilter the Hold filter. GetAIDirectives converts it while aiDirectiveList is absent (directives switched off are dropped), and the editor clears it on its first edit. No class default: absent = none.
 --- @field mapid string|nil When set, this keyword is a map-scoped zone type: it was created from that map's Zone Types palette and is hidden from the compendium, other maps' palettes, and keyword dropdowns until promoted ("Make Available to All Maps" clears the field). No class default: absent = a full keyword.
 --- @field hidden? boolean Soft-delete flag (unhidden_pairs skips it); set when an unused map-scoped zone type is retired.
 EnvironmentalKeyword = RegisterGameType("EnvironmentalKeyword", "CharacterFeature")
@@ -81,6 +83,50 @@ function EnvironmentalKeyword.OnDeserialize(self)
 	if not self:has_key("guid") then
 		self.guid = dmhub.GenerateGuid()
 	end
+end
+
+--The Monster AI directives a zone type can carry, in the editor's order.
+EnvironmentalKeyword.aiDirectiveTypes = {
+	{
+		id = "avoid",
+		text = "Avoid",
+		tooltip = "Creatures the Monster AI controls never voluntarily enter a zone of this type. They path around it, and one that starts its turn inside moves out. Forced movement still puts them there.",
+		filterHelp = "Which creatures avoid zones of this type. Leave it empty for every creature the Monster AI controls.",
+	},
+	{
+		id = "forceInto",
+		text = "Force Into",
+		tooltip = "The Monster AI strongly prefers to push, pull or slide enemies into zones of this type, and picks where it attacks from to give itself the best chance of doing so.",
+		filterHelp = "Which creatures try to force enemies into zones of this type. Leave it empty for every creature the Monster AI controls.",
+	},
+	{
+		id = "hold",
+		text = "Hold",
+		tooltip = "Creatures the Monster AI controls treat a zone of this type as their post: when they can reach it they always end their movement inside it, and one that is driven out heads back before doing anything else.",
+		filterHelp = "Which creatures hold zones of this type. Leave it empty for every creature the Monster AI controls.",
+	},
+}
+
+--- This keyword's Monster AI directives. A keyword saved before the list
+--- existed has its old on/off flags converted (switched-off ones dropped).
+--- Read-only: the editor is what changes them.
+--- @return {directive: string, filter: string|nil}[]
+function EnvironmentalKeyword:GetAIDirectives()
+	local list = self:try_get("aiDirectiveList")
+	if list ~= nil then
+		return list
+	end
+	local legacy = self:try_get("aiDirectives")
+	local result = {}
+	if legacy == nil or legacy.enabled ~= true then
+		return result
+	end
+	for _,info in ipairs(EnvironmentalKeyword.aiDirectiveTypes) do
+		if legacy[info.id] == true then
+			result[#result+1] = {directive = info.id, filter = cond(info.id == "hold", legacy.holdFilter, nil)}
+		end
+	end
+	return result
 end
 
 --- @return EnvironmentalKeyword
@@ -2675,6 +2721,151 @@ local SetData = function(tableName, keywordPanel, keyid)
 					keyword.objectKeywordBecomes = element.idChosen --[[@as string]]
 				end
 				UploadKeyword()
+			end,
+		},
+	}
+
+	--Monster AI Directives: special instructions to the Monster AI for zones of
+	--this type, one entry per directive, each limited to the creatures its
+	--filter accepts. The list and its add-dropdown live in a self-refreshing
+	--sub-panel, like Dispels.
+	local directiveTypesById = {}
+	for _,info in ipairs(EnvironmentalKeyword.aiDirectiveTypes) do
+		directiveTypesById[info.id] = info
+	end
+
+	--Saves the edited list in the current format; a legacy aiDirectives
+	--record is replaced the first time anything here changes.
+	local function SaveAIDirectives(list)
+		if #list == 0 then
+			--nil-assignment removes the field from serialization.
+			keyword.aiDirectiveList = nil
+		else
+			keyword.aiDirectiveList = list
+		end
+		keyword.aiDirectives = nil
+		UploadKeyword()
+	end
+
+	children[#children+1] = gui.Panel{
+		classes = {"formStackedRow"},
+		gui.Label{
+			classes = {"formStacked"},
+			text = "Monster AI Directives:",
+			hover = gui.Tooltip("Give the Monster AI special instructions for how to handle zones of this type. Each directive can be limited to some creatures with its filter."),
+		},
+		gui.Panel{
+			classes = {"formStacked"},
+			flow = "vertical",
+			height = "auto",
+
+			create = function(element)
+				element:FireEvent("refreshDirectives")
+			end,
+
+			refreshDirectives = function(element)
+				local listPanel = element
+				local rows = {}
+
+				for i,entry in ipairs(keyword:GetAIDirectives()) do
+					local index = i
+					local info = directiveTypesById[entry.directive]
+					local name = info ~= nil and info.text or entry.directive
+					rows[#rows+1] = gui.Panel{
+						flow = "vertical",
+						width = "100%",
+						height = "auto",
+						vmargin = 4,
+						gui.Panel{
+							flow = "horizontal",
+							width = "100%",
+							height = "auto",
+							gui.Label{
+								fontSize = 18,
+								bold = true,
+								width = "80%",
+								height = "auto",
+								halign = "left",
+								valign = "center",
+								text = name,
+								hover = info ~= nil and gui.Tooltip(info.tooltip) or nil,
+							},
+							gui.DeleteItemButton{
+								width = 16,
+								height = 16,
+								halign = "right",
+								valign = "center",
+								click = function()
+									local list = keyword:GetAIDirectives()
+									table.remove(list, index)
+									SaveAIDirectives(list)
+									listPanel:FireEvent("refreshDirectives")
+								end,
+							},
+						},
+						gui.Panel{
+							classes = {"formPanel"},
+							gui.Label{
+								classes = {"formLabel"},
+								--formLabel's fixed width clips this caption under the input.
+								width = "auto",
+								minWidth = 0,
+								rmargin = 8,
+								text = "Applies To:",
+							},
+							gui.GoblinScriptInput{
+								value = entry.filter or "",
+								change = function(input)
+									local value = trim(input.value or "")
+									local list = keyword:GetAIDirectives()
+									if list[index] ~= nil then
+										list[index].filter = cond(value == "", nil, value)
+										SaveAIDirectives(list)
+									end
+								end,
+								documentation = {
+									help = info ~= nil and info.filterHelp or "Which creatures this directive applies to. Leave it empty for every creature the Monster AI controls.",
+									output = "boolean",
+									subject = creature.helpSymbols,
+									subjectDescription = "The creature the Monster AI is controlling",
+									examples = {
+										{
+											script = 'Name is "Angulotl Daybringer"',
+											text = "Only the Angulotl Daybringer.",
+										},
+										{
+											script = 'Leader and Keywords has "Angulotl"',
+											text = "Only an angulotl leader.",
+										},
+									},
+								},
+							},
+						},
+					}
+				end
+
+				local options = {{id = "none", text = "Add Monster AI Directive..."}}
+				for _,info in ipairs(EnvironmentalKeyword.aiDirectiveTypes) do
+					options[#options+1] = {id = info.id, text = info.text}
+				end
+				rows[#rows+1] = gui.Dropdown{
+					classes = {"formStacked"},
+					vmargin = 2,
+					idChosen = "none",
+					options = options,
+					change = function(dropdown)
+						---@cast dropdown Dropdown
+						if dropdown.idChosen == "none" or dropdown.idChosen == nil then
+							return
+						end
+						local list = keyword:GetAIDirectives()
+						list[#list+1] = {directive = dropdown.idChosen --[[@as string]]}
+						SaveAIDirectives(list)
+						listPanel:FireEvent("refreshDirectives")
+					end,
+				}
+
+				listPanel.children = rows
 			end,
 		},
 	}

@@ -5484,10 +5484,9 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                     escapeActivates = true,
                     escapePriority = EscapePriority.CANCEL_ACTION_BAR,
                     captureEscape = true,
+                    --No defocus handler: losing focus to a trigger card or the roll
+                    --dialog must not cancel the prompt. A pick or Escape ends it.
                     escape = function(element)
-                        element:DestroySelf()
-                    end,
-                    defocus = function(element)
                         element:DestroySelf()
                     end,
                     destroy = function()
@@ -5514,7 +5513,10 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                     execute = function(targetToken, info) --info has {targetEffects = {list of effect panels}}
                         choose(targetToken)
                         cancel = function() end
-                        gui.SetFocus(nil)
+                        --closed explicitly now that defocus no longer does it.
+                        if targetChooser.valid then
+                            targetChooser:DestroySelf()
+                        end
                     end,
                 }
 		

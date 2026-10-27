@@ -4459,6 +4459,9 @@ function LiveEncounter:DeployWave(waveid, initiativeQueue)
                         if (group.invisibleToPlayers or {})[slot] then
                             token.invisibleToPlayers = true
                         end
+                        if (group.startsHidden or {})[slot] then
+                            token.properties:BecomeHidden(token)
+                        end
 
                         local balancing = group.balancing
                         if balancing ~= nil then
@@ -5347,7 +5350,8 @@ EncounterScript.starterTemplate = [==[
 --
 -- ctx methods (call with ':'):
 --   ctx:Announce(text)      send a chat message
---   ctx:Banner(text, subtitle)  show everyone a full-screen dramatic banner
+--   ctx:Banner(text, subtitle, bannerType)  show everyone a full-screen dramatic
+--                               banner; bannerType "malice" for the lighter one
 --   ctx:SetWaterLevel(level)    set the map water level (multiples of 0.5; nil
 --                               removes it); creatures float up/settle with it
 --   ctx:GetWaterLevel()     the map water level, or nil
@@ -6156,10 +6160,11 @@ local function MakeHostContext(instance)
     end
 
     --the full-screen DramaticBanner; it is a shared document, so everyone sees it.
-    ctx.Banner = function(_, text, subtitle)
+    --bannerType is a DramaticBanner.types id ("heroic" swords, the default, or "malice").
+    ctx.Banner = function(_, text, subtitle, bannerType)
         local banner = rawget(_G, "DramaticBanner")
         if banner ~= nil then
-            pcall(function() banner.Show{ text = tostring(text), subtitle = subtitle } end)
+            pcall(function() banner.Show{ text = tostring(text), subtitle = subtitle, bannerType = bannerType } end)
         end
     end
 
@@ -7159,7 +7164,7 @@ return {
             ctx:Announce(string.format("The water rises by %s! (%d of %d)", squares, rises, ctx.params.rises))
         end
         if ctx.params.banner then
-            ctx:Banner("Rising Waters", string.format("The waters have risen by %s!", squares))
+            ctx:Banner("Rising Waters", string.format("The waters have risen by %s!", squares), "malice")
         end
     end,
 }

@@ -46,7 +46,7 @@ Review the proposed prose template for each trigger. Edit the text freely. Use t
 
 **Codebase bugs to flag during implementation** (unchanged from TRIGGER_SYMBOL_PROSE.md):
 - ~~`forcemove.hasattacker` declared as `creature`, should be `boolean`.~~ **FIXED 2026-04-28.**
-- `AbilityRoutineCast` type id `rouitineControl` -- typo for `routineControl`. Data-migration, separate from this work.
+- ~~`AbilityRoutineCast` type id `rouitineControl` -- typo for `routineControl`.~~ **FIXED 2026-10-19:** renamed to `routineControl`. No migration was needed: saved content stores the behaviour by `__typeName`, never by this id.
 
 ---
 

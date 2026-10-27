@@ -68,6 +68,8 @@ MonsterAI = {
     RunConcurrently = function(_, fns) for _,fn in ipairs(fns) do fn() end end,
     MovementTokenIsAtLoc = function(_, t, loc) return t.loc == loc end,
 }
+--Plan previews (Continue to go on) are off in these tests.
+MonsterAI.PlanPreviewsOn = function() return false end
 local prefix = 'local g_moveResultExecuted="executed"; local g_moveResultNone="none"; local g_moveResultUnsafe="unsafe";\n'
 assert(load(section("function MonsterAI.TargetDistance", "-- Use the real token volume")))()
 assert(load(section("function MonsterAI:FindSquadActionToken()", "function MonsterAI:PlayTurnCoroutine")))()
@@ -95,6 +97,7 @@ local function fixture(count)
     }
     local ability = {name = "Whistling Axes", categorization = "Signature Ability"}
     function ability:GetRange() return 1 end
+    function ability:ActionResource() return "action" end
     function ability:CanAfford(t) return t.actions > 0 end
     function ability:UsesSquadStrike() return true end
     function ability:UsesSquadCoordination() return true end
@@ -269,6 +272,24 @@ ai, tokens, run = fixture(1)
 ai.noTargets = true
 run()
 check(#ai.casts == 0 and ai.moveCounts["1"] == nil, "no legal targets ends the squad turn")
+
+--A maneuver mis-tagged "Signature Ability" (the Quick Snack a pollywog's aura
+--grants) is still affordable after the real signature spends the main action.
+ai, tokens, run = fixture(1)
+local nip = tokens["1"].properties:GetActivatedAbilities()[1]
+local snack = setmetatable({name = "Quick Snack"}, {__index = nip})
+function snack:ActionResource() return "maneuver" end
+function snack:CanAfford() return true end
+tokens["1"].properties.GetActivatedAbilities = function() return {nip, snack} end
+local castNames = {}
+local baseExecute = ai.ExecuteAbility
+function ai:ExecuteAbility(caster, castAbility, targets, options)
+    castNames[#castNames+1] = castAbility.name
+    if castAbility == nip then return baseExecute(self, caster, castAbility, targets, options) end
+end
+run()
+check(#castNames == 1 and castNames[1] == "Whistling Axes",
+    "a maneuver tagged Signature Ability is never cast as the minion signature")
 
 ai, tokens, run = fixture(1)
 ai.noTargets = true

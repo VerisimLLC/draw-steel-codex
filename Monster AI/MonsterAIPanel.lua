@@ -192,6 +192,7 @@ local function MonsterAIThread(process)
     local turnClaimWaiting = false
     local saveWaiting = false
     MonsterAI.ClearWaiting()
+    pcall(MonsterAI.ClearPlanPreview)
     creature.SetAIActivityInProgress(nil)
     creature.ClearAIControl()
     while true do
@@ -205,6 +206,7 @@ local function MonsterAIThread(process)
                     or "background process stop requested",
             })
             pcall(MonsterAI.ClearWaiting)
+            pcall(MonsterAI.ClearPlanPreview)
             pcall(creature.SetAIActivityInProgress, nil)
             --a turn abandoned mid-action never reaches its EndTokenControl.
             pcall(creature.ClearAIControl)

@@ -1171,7 +1171,8 @@ local g_rulePatterns = {
         end,
     },
     {
-        pattern = "^(?<condition>prone|grabbed)",
+        --"knocked prone" is the book's usual wording for the same condition.
+        pattern = "^(knocked )?(?<condition>prone|grabbed)",
         execute = function(behavior, ability, casterToken, targetToken, options, match)
             ability:CommitToPaying(casterToken, options)
             local cond = match.condition

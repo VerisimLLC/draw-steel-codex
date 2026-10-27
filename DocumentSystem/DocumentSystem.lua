@@ -4287,14 +4287,18 @@ function CustomDocument:CreateInterface(args)
         end
     end
 
+    --presentationAllowClose: a presentation-mode window (no editing chrome)
+    --the reader may still close themselves -- e.g. the Encounter of the Week
+    --rules reader -- as opposed to one the Director holds open.
+    local m_presentationLocked = args.presentationMode and not args.presentationAllowClose
     local m_closeButton = gui.Button {
-        classes = { "closeButton", "sizeXs", cond(args.suppressCloseButton or args.presentationMode or (args.dialog == nil and args.close == nil), "collapsed") },
+        classes = { "closeButton", "sizeXs", cond(args.suppressCloseButton or m_presentationLocked or (args.dialog == nil and args.close == nil), "collapsed") },
         hmargin = 4,
         closedocuments = function(element)
             --a presented document is held open by the Director; the
             --/closedocuments macro (fired tree-wide, so it reaches this
             --button even collapsed) must not dismiss it.
-            if args.presentationMode then
+            if m_presentationLocked then
                 return
             end
             element:FireEvent("press")
@@ -8374,6 +8378,9 @@ function CustomDocument:PresentDocument(args)
         --same event.
         refreshPanelPinned = function(element)
             element.dragMove = not DialogPinned()
+            --map windows stay under pinned windows; the engine looks for
+            --this on the window root (PanelDocument.ABOVE_MAP_WINDOWS).
+            element:SetClass("panelDocumentPinned", DialogPinned())
             local resize = element.data.resizePanel
             if resize ~= nil and resize.valid then
                 resize:SetClass("collapsed", DialogPinned())
@@ -8649,6 +8656,20 @@ local g_onPanelPinnedChanged
 --when a GROUP forms or breaks up. The rails rebuild, because grouping
 --adds a badge to one button and takes another off the rail entirely.
 local g_onPanelGroupChanged
+
+--The documents-layer panels every tabletop map or scene window stays under,
+--windowed or maximized (its raiseBelowClasses, Tabletop.lua): the rails and
+--what they float on the layer, the chat preview bubble, and rail panel
+--windows, pinned or not (panelDocumentWindow, PresentPanel; David,
+--2026-10-24/25). Journals and other windows stack with the maps by click
+--order. presentedDialog is a dialog presented to the players (GameHud),
+--such as the Encounter of the Week stage: a player whose client builds the
+--forced map after the stage would otherwise be left looking at the map.
+PanelDocument.ABOVE_MAP_WINDOWS = {
+    "iconRail", "iconRailGhost", "iconRailGhostLine", "iconRailCardGhost", "iconRailTrash",
+    "iconRailViewChip", "iconRailViewToast", "iconRailToolkitStrip", "chatSpeechBubble",
+    "panelDocumentWindow", "panelDocumentPinned", "presentedDialog",
+}
 
 function PanelDocument.IsPinned(key)
     if key == nil then
@@ -9005,6 +9026,8 @@ function PanelDocument:PresentPanel(args)
 
     local dialog = self:PresentDocument(args)
     self._tmp_dialog = dialog
+    --map windows stay under rail panel windows (PanelDocument.ABOVE_MAP_WINDOWS).
+    dialog:SetClass("panelDocumentWindow", true)
     GameHud.instance.documentsPanel:AddChild(dialog)
     --apply the rail-mode window zoom now that the window is attached
     --(pivot writes need an attached panel -- see setWindowScale).
@@ -15640,6 +15663,20 @@ function RailRightColumnWidth()
     return result
 end
 
+--Whether a rail side ("left" or "right") shows anything: panel buttons, or
+--a custom-interface widget (assumed present whenever one is active). An
+--empty rail still has a wrapper with a width, so RailRightColumnWidth alone
+--cannot tell.
+--- @param side string
+--- @return boolean
+function RailSideOccupied(side)
+    if GameHud.CustomInterface() ~= nil then
+        return true
+    end
+    local sides = RailLayout()
+    return #(sides[side] or {}) > 0
+end
+
 --Whether a registered panel currently has a rail button.
 function RailHasPanel(name)
     local key = string.lower(name)
@@ -16561,8 +16598,20 @@ end
 --it as an ordinary child of the documents layer -- the same layer the
 --rails, the windows and this bubble live on -- so it buries everything
 --built before it. Nothing presented, or a small centred dialog that
---leaves the rail corners alone, reads as no stage.
+--leaves the rail corners alone, reads as no stage. A maximized tabletop
+--window stacked with the windows is a stage too, when it is the higher.
 function PanelDocument.FullscreenStage()
+    local stage, depth = PanelDocument.PresentedStage()
+    local maximized = Tabletop.MaximizedWindowPanel()
+    local maximizedDepth = maximized ~= nil and PanelDocument.LayerDepth(maximized) or nil
+    if maximizedDepth ~= nil and (depth == nil or maximizedDepth > depth) then
+        return maximized, maximizedDepth
+    end
+    return stage, depth
+end
+
+--The presented dialog alone, when it is a full-screen stage (FullscreenStage).
+function PanelDocument.PresentedStage()
     local hud = GameHud and GameHud.instance
     if not hud then
         return nil

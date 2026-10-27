@@ -29,6 +29,8 @@
 --- @field whiteLabelEntityName string The name of the publisher of the product the engine is running as.
 --- @field whiteLabelAppName string The name of the app the engine is running as, suitable for showing to users.
 --- @field cloudFunctionsBaseUrl string Base URL for Firebase cloud functions for the current whitelabel project (e.g. https://us-central1-mcdm-385cf.cloudfunctions.net). Append the function name with a leading slash.
+--- @field discordStatus {account: 'unsupported'|'off'|'notlinked'|'linking'|'connecting'|'ready'|'error', accountError: string|nil, displayName: string|nil, voice: 'off'|'joining'|'connecting'|'connected'|'disconnected', voiceError: string|nil, muted: boolean, pushToTalk: boolean|nil, deafened: boolean|nil, transmitting: boolean, inputVolume: number|nil, outputVolume: number|nil, noiseSuppression: boolean|nil, autoGainControl: boolean|nil, echoCancellation: boolean|nil, sensitivityAutomatic: boolean|nil, sensitivity: number|nil, participants: {id: string, userid: string|nil, name: string, speaking: boolean, isSelf: boolean, volume: number|nil, localMute: boolean|nil}[]} (read-only, PROTOTYPE) The Discord account link and voice state. account is 'unsupported' outside the MCDM white label on Windows/macOS and 'off' when the Discord integration is off; 'ready' means signed in to Discord. voice describes this game's Discord call. muted is the user's choice; pushToTalk is true while the Push to Talk key is held (the mic is open then even when muted); transmitting is true while our own voice is going out. inputVolume is 0-100, outputVolume 0-200. sensitivityAutomatic and sensitivity (dB, -100 to 0) are the input sensitivity. participants are the people in the call: id is their Discord id, userid their Codex userid (when they joined with one), volume (0-200, 100 normal) and localMute are how this user hears them.
+--- @field discordMicLevel number|nil (read-only, PROTOTYPE) The user's microphone level in dB, -100 (silence) to 0 (loudest), on the same scale as the input sensitivity threshold. Measured from the audio Discord captures, so it is nil when not in a call or while Discord is not capturing. Smoothed: it rises at once and falls at 60 dB a second.
 --- @field platform string The platform the engine is running on. Returns 'windows', 'macOS', or 'linux'.
 --- @field applicationsFolder string The default operating-system folder where applications/executables live: the Program Files folder on Windows, /Applications on macOS, /usr/bin on Linux. Useful as a starting directory for a file dialog that browses for an executable.
 --- @field liveEditSessions {objid: string, name: string, imageId: string, changesPending: boolean}[]|nil The active image live-edit sessions, each as a table with 'objid' (the map object being edited), 'name' (a display label), 'imageId' (the live, updating image id, suitable as a thumbnail), and 'changesPending' (true once the external editor has saved a change that has not yet been uploaded). Returns nil when there are no active sessions.
@@ -208,6 +210,9 @@
 --- @field infoBubbles table<string, InfoBubbleHudLua> (Read-only) The info bubbles available on the current map.
 --- @field initiativeQueue nil|InitiativeQueue The initiative queue. Note: check to make sure it's not nil and that the hidden member isn't set to check if initiative is active.
 --- @field tabletopMode boolean Tabletop mode: the screen shows a table and the map is shown only inside map window panels, which display it with the bgimage "#MapView" (a panel showing it sees just the part of the map under it, and becomes the area the map takes input in, centres on and clamps to). With no such panel the map is hidden and takes no input. While on, leaving a map freezes its window into "#MapSnapshot:<mapid>" and remembers its view, floor and zoom, which entering the map again restores. Off restores the full-screen map. Client-only.
+--- @field mapTransitionMapId nil|string (read-only) Tabletop mode: the map a map change shown inside the map windows is heading to, from the moment Travel() starts it until the window has been uncovered; nil otherwise. A change that falls back to the full-screen loading screen clears it. Before the map is current, the window waiting for it can show that it is loading; once it is current, see mapTransitionCovered.
+--- @field mapTransitionCovered boolean (read-only) Tabletop mode: true while the window that has just taken the map named by mapTransitionMapId should stay covered by what it showed before (its snapshot), because the new map is still building or loading its images. When it turns false the window's cover should fade out over about 0.3 seconds; mapTransitionMapId clears when that is done.
+--- @field mapWindowPictureVisit boolean (read-only) Tabletop mode: true while the engine is visiting maps behind a cover to take their windows' pictures (SetTabletopWindowMaps). A map change seen meanwhile is not the user's: the tabletop must not bring windows forward, flash or refocus them.
 --- @field mapViewportActive boolean (read-only) Tabletop mode: true while a map window panel is showing the live map ("#MapView").
 --- @field tabletopSurface string Tabletop mode: the table's surface. One of "leather" (the playmat with the debossed wordmark, the default), "felt" (green card-table felt with the logo burnt into it), "stars" (Sea of Stars: a slowly drifting nebula and twinkling stars with the logo glowing in it), "marble" (polished white marble with the logo chiselled into it), "darkmarble" (the same in polished black marble), "llianar" (white marble veined with gold, the logo gilded, a glint sweeping across it now and then), "soulkiller" (spectral mist: teal fog drifting, souls rising, the logo as a ghost), "terransteel" (etched Damascus gunmetal, the logo engraved and heating to a forge glow now and then), "zodiakol" (molten obsidian: cracked black glass with heat glowing in the cracks and the logo as molten metal) or "custom" (the image in dmhub.tabletopSurfaceImage, scaled to cover the screen). Any other value means "leather". Takes effect at once, frosted panels included. Client-only; not saved.
 --- @field tabletopSurfaceImage nil|string Tabletop mode: the image the "custom" table surface shows, by image id (a cloud asset id, an "md5:" id or a built-in image path), or nil. Drawn to cover the screen: scaled to fill it with its aspect kept, centred and cropped. Until it has loaded, or if it can't be loaded (or is a video), the leather table is drawn. Client-only; not saved.
@@ -215,9 +220,6 @@
 --- @field tabletopDragSurface nil|string (read-only) Tabletop mode: what a drag released now would land on. "map" while the placement preview (the ghost of a character or creature dragged from a panel or a table card) is showing in the live map window; "table" over the bare table: outside the live map window, with no UI panel under the mouse (the panel being dragged doesn't count), where a drop fires 'tabletopCreatureDropped'. nil otherwise: over a UI panel, inside the window with no preview showing, or with the view off.
 --- @field tabletopTokenDrag nil|string[] (read-only) Tabletop mode: while tokens dragged off the live map window are over the bare table, their charids (the grabbed token first). A release now cancels the move and fires 'tabletopTokenDropped' with these ids, so this is where to show the cards that drop would make; the map shows no move preview meanwhile. nil whenever no token drag is over the table, including over a UI panel, where a release does nothing.
 --- @field tokenDropTargetUnderMouse nil|Panel (read-only) The token drop target panel (a panel with tokenDropTarget = true) that a map token dragged and released at the mouse now would be dropped onto, or nil. Answers whether or not a drag is in progress. During a panel drag the dragged panel is looked past, so it also says which drop target a dragged panel is over (read it from the dragging event).
---- @field mapTransitionMapId nil|string (read-only) Tabletop mode: the map a map change shown inside the map windows is heading to, from the moment Travel() starts it until the window has been uncovered; nil otherwise. A change that falls back to the full-screen loading screen clears it. Before the map is current, the window waiting for it can show that it is loading; once it is current, see mapTransitionCovered.
---- @field mapWindowPictureVisit boolean (read-only) Tabletop mode: true while the engine is visiting maps behind a cover to take their windows' pictures (SetTabletopWindowMaps). A map change seen meanwhile is not the user's: the tabletop must not bring windows forward, flash or refocus them.
---- @field mapTransitionCovered boolean (read-only) Tabletop mode: true while the window that has just taken the map named by mapTransitionMapId should stay covered by what it showed before (its snapshot), because the new map is still building or loading its images. When it turns false the window's cover should fade out over about 0.3 seconds; mapTransitionMapId clears when that is done.
 --- @field panelDropSurface nil|string (read-only) Where a panel being dragged (a journal row, say) would land if released now. "map" over the visible map: anywhere off the UI normally, or inside the live map window in tabletop mode. "table" over the bare table in tabletop mode. nil over any UI panel (the panel being dragged doesn't count), or when no game is showing. Unlike tabletopDragSurface it needs no placement preview, so it suits drags that are not creatures; read it from the drag's dragging/drag events.
 --- @field panelDropPanel nil|Panel (read-only) The UI panel a panel being dragged would be released onto: the frontmost panel under the mouse, the one that makes panelDropSurface nil (the panel being dragged doesn't count). nil whenever panelDropSurface is not nil, when a popup is up, or when no game is showing. Walk its parents to ask which window a drop is over; read it from the drag's dragging/drag events.
 --- @field mouseScreenPosition Vector2 (read-only) The mouse position in screen pixels from the top-left corner of the screen: the same measure as the screenx/screeny of the tabletop drop events.
@@ -625,10 +627,6 @@ function dmhub.AddImageToLibraryLocally(libraryName, imageid) end
 --- @param libraryName? string
 --- @param imageid? string
 function dmhub.AddAndUploadImageToLibrary(libraryName, imageid) end
-
---- Admin only, for testing: feeds the main window an operating-system file drag step as if files were dragged in from the desktop. x and y are screen pixels from the top-left (the measure of dmhub.mouseScreenPosition). Send "over" steps while moving, then "drop" or "leave"; the drop runs exactly as a real one would (uploads included).
---- @param args {paths: string[], x: number, y: number, phase: "over"|"leave"|"drop"}
-function dmhub.SimulateFileDrag(args) end
 
 --- Searches available images for entries matching the given search string. If libraryName is provided, only that library is searched. Returns a list of matching image asset ids.
 --- @param searchString string The string to search for.
@@ -1368,6 +1366,96 @@ function dmhub.IsSteamOverlayRunning() end
 --- @param gameid? string
 function dmhub.InviteToGameViaSteam(gameid) end
 
+--- Opens the Steam overlay's 'invite a friend' dialog with an invite that Lua handles rather than a game to enter. kind names the feature that owns it (lowercase letters/digits, e.g. 'eotw'); payload is its data (letters, digits, '-', '_', ':'). A friend who accepts gets it from dmhub.TakeSteamInvite() at their titlescreen. Returns false when it could not be sent: not running under Steam, the overlay is unavailable, or kind/payload are invalid.
+--- @param kind? string
+--- @param payload? string
+--- @return boolean
+function dmhub.InviteViaSteam(kind, payload) end
+
+--- Advertises an invite (same kind/payload rules as InviteViaSteam) as this player's Steam 'Join Game' target, so friends can join from the friends list without an explicit invite. group/groupSize show friends 'In a group of N' (groupSize 0 = no group). Lasts 10 seconds after the last call, so re-push from a think handler; pass nil to clear it. While set it replaces the in-game join target.
+--- @param kind? string
+--- @param payload? string
+--- @param group? string
+--- @param groupSize? number
+function dmhub.SetSteamJoinTarget(kind, payload, group, groupSize) end
+
+--- Takes (and clears) the Steam invite this player accepted, or returns nil. Set when a friend's InviteViaSteam / SetSteamJoinTarget invite is accepted, including one that launched the app; an invite accepted inside a game is held until the player has left it. Poll it at the titlescreen.
+--- nil|{kind: string, payload: string}
+--- @return any
+function dmhub.TakeSteamInvite() end
+
+--- (PROTOTYPE) Starts linking the user's Discord account: Discord's approval screen opens (in the Discord app or a browser). Watch dmhub.discordStatus.account for the result. Returns false when linking cannot start (unsupported, or already in progress).
+--- @return boolean
+function dmhub.DiscordLink() end
+
+--- (PROTOTYPE) Unlinks the user's Discord account: leaves voice, disconnects, and revokes the link on the server. Returns false when Discord is not available.
+--- @return boolean
+function dmhub.DiscordUnlink() end
+
+--- (PROTOTYPE) Joins this game's Discord voice call (needs a linked account and a real game, not the titlescreen). Returns nil when joining started, or a message saying why it cannot.
+--- @return string|nil
+function dmhub.DiscordJoinVoice() end
+
+--- (PROTOTYPE) Leaves the Discord voice call. Leaving the game does this too.
+function dmhub.DiscordLeaveVoice() end
+
+--- (PROTOTYPE) Mutes or unmutes the user's microphone in Discord voice. Saved for next time. While the Push to Talk key is held the mic is open anyway.
+--- @param muted boolean
+function dmhub.DiscordSetVoiceMuted(muted) end
+
+--- (PROTOTYPE) Deafens (hear nobody) or undeafens the user in Discord voice.
+--- @param deafened boolean
+function dmhub.DiscordSetVoiceDeafened(deafened) end
+
+--- (PROTOTYPE) Sets the microphone volume, 0-100. Saved for next time.
+--- @param volume number
+function dmhub.DiscordSetVoiceInputVolume(volume) end
+
+--- (PROTOTYPE) Sets the volume of everyone in the call, 0-200 (100 normal). Saved for next time.
+--- @param volume number
+function dmhub.DiscordSetVoiceOutputVolume(volume) end
+
+--- (PROTOTYPE) Turns Discord's background noise suppression on or off. Saved for next time.
+--- @param on boolean
+function dmhub.DiscordSetVoiceNoiseSuppression(on) end
+
+--- (PROTOTYPE) Sets the input sensitivity: how loud the user must be before Discord sends their voice. automatic lets Discord decide; otherwise threshold is used, in dB from -100 (picks up everything) to 0 (Discord's usual manual value is -60). Saved for next time.
+--- @param automatic boolean
+--- @param threshold number
+function dmhub.DiscordSetVoiceSensitivity(automatic, threshold) end
+
+--- (PROTOTYPE) Turns Discord's automatic gain control (evening out the mic volume) on or off. Saved for next time.
+--- @param on boolean
+function dmhub.DiscordSetVoiceAutoGainControl(on) end
+
+--- (PROTOTYPE) Turns Discord's echo cancellation on or off. Saved for next time.
+--- @param on boolean
+function dmhub.DiscordSetVoiceEchoCancellation(on) end
+
+--- (PROTOTYPE) Sets how loud one call participant is for this user only, 0-200 (100 normal). discordId is a participant id from dmhub.discordStatus. Saved for next time.
+--- @param discordId string
+--- @param volume number
+function dmhub.DiscordSetParticipantVolume(discordId, volume) end
+
+--- (PROTOTYPE) Mutes or unmutes one call participant for this user only. Saved for next time.
+--- @param discordId string
+--- @param mute boolean
+function dmhub.DiscordSetParticipantLocalMute(discordId, mute) end
+
+--- (PROTOTYPE) Lists the microphones and speakers Discord can use and the ones in use, calling callback when ready. Returns false (and never calls back) when Discord is not available.
+--- @param callback fun(devices: {inputs: {id: string, name: string, isDefault: boolean}[], outputs: {id: string, name: string, isDefault: boolean}[], input: string|nil, output: string|nil})
+--- @return boolean
+function dmhub.DiscordGetAudioDevices(callback) end
+
+--- (PROTOTYPE) Switches Discord voice to the given microphone ('input') or speakers ('output'), a device id from DiscordGetAudioDevices. Saved for next time.
+--- @param kind 'input'|'output'
+--- @param deviceId string
+function dmhub.DiscordSetAudioDevice(kind, deviceId) end
+
+--- Testing aid: handle a Steam connect string exactly as if a friend's 'Join Game' or invite had just been accepted ('dshub1:{gameid}' enters a game; 'dshub2:{kind}:{payload}' queues an invite for TakeSteamInvite). Works without Steam, so dev builds can exercise the receiving side.
+--- @param connect? string
+function dmhub.SimulateSteamJoin(connect) end
+
 --- True if this account has a Patreon entitlement to the given creator organization. Honors the creator's persist-on-lapse policy.
 --- @param orgid string The id of the creator organization.
 --- @return boolean
@@ -1705,6 +1793,24 @@ function dmhub.GetMapInitiativeQueue(mapid) end
 --- @return boolean
 function dmhub.HasMapSnapshot(mapid) end
 
+--- Lets this client view a map opened from a chat link: until the app closes, the map counts as Player Viewable for this player while they have no token of their own on it. Not saved and not sent to anyone; the map's own Player Viewable setting is not touched.
+--- @param mapid? string
+function dmhub.GrantLinkedMapView(mapid) end
+
+--- Whether dmhub.GrantLinkedMapView was called for this map since the app started.
+--- @param mapid? string
+--- @return boolean
+function dmhub.HasLinkedMapView(mapid) end
+
+--- Diagnostic, tabletop mode: for the given number of seconds, every 0.1 s, logs (MAPTRACE lines) the live map window's mean brightness and what a map change is still waiting to load. Start it just before switching maps to see when the new map actually appears.
+--- @param seconds? number
+function dmhub.TraceMapLoad(seconds) end
+
+--- Diagnostic, tabletop mode: saves each of the next count frames (at most 300) of the screen as drawn to a new folder under persistentDataPath/frame-capture, and returns that folder (nil outside tabletop mode). Start it just before a map switch to see a flicker frame by frame. The capture slows those frames down.
+--- @param count integer
+--- @return nil|string
+function dmhub.RecordScreenFrames(count) end
+
 --- Tabletop mode: what the map's frozen snapshot ("#MapSnapshot:<mapid>") shows, or nil if it has none. x1/y1/x2/y2 is the world rectangle it covers (x1,y1 its bottom-left corner), floor the floor index it shows. tokens, keyed by charid, are the tokens drawn in it (the ones this client could see) and where they were, in the same terms as GetMapTokens. hasTokenFree is true when "#MapSnapshotBase:<mapid>" exists: the same view with no tokens drawn, for drawing the map's tokens over where they are now.
 --- @param mapid string
 --- @return nil|{x1: number, y1: number, x2: number, y2: number, floor: integer, floorid: nil|string, hasTokenFree: boolean, tokens: table<string, {charid: string, x: number, y: number, floor: integer, scale: number}>}
@@ -1715,26 +1821,9 @@ function dmhub.GetMapSnapshotInfo(mapid) end
 --- @return {charid: string, x: number, y: number, floor: integer, scale: number, playerControlled: boolean}[]
 function dmhub.GetMapTokens(mapid) end
 
---- Tabletop mode: the maps open in map windows on this table, minimized ones included. Leaving one of these maps keeps it loaded but hidden (up to three maps), so switching back to its window is quick; they are also kept synced first. needPictures lists the maps of shown, not-live windows that have no snapshot yet (never shown on this machine): the engine visits them behind a cover -- the loading screen at startup, else a brief freeze-frame of the screen -- so their windows get pictures, then returns to the current map. Each map is visited once a session. Call whenever the windows change.
---- @param mapids string[]
---- @param needPictures nil|string[]
-function dmhub.SetTabletopWindowMaps(mapids, needPictures) end
-
---- Diagnostic, tabletop mode: for the given number of seconds, every 0.1 s, logs (MAPTRACE lines) the live map window's mean brightness and what a map change is still waiting to load. Start it just before switching maps to see when the new map actually appears.
---- @param seconds number
-function dmhub.TraceMapLoad(seconds) end
-
---- Lets this client view a map opened from a chat link: until the app closes, the map counts as Player Viewable for this player while they have no token of their own on it. Not saved and not sent to anyone; the map's own Player Viewable setting is not touched.
---- @param mapid string
-function dmhub.GrantLinkedMapView(mapid) end
-
---- Whether dmhub.GrantLinkedMapView was called for this map since the app started.
---- @param mapid string
---- @return boolean
-function dmhub.HasLinkedMapView(mapid) end
-
 --- Tabletop mode: refreshes the current map's frozen snapshot ("#MapSnapshot:<mapid>") from what its live window shows right now. Does nothing when no window shows the map. Used before a live window is minimized, so its button's preview and the collapse animation show the map as it was left.
 function dmhub.CaptureMapSnapshot() end
+
 --- Tabletop mode: shows one movement arrow drawn across the whole screen, over the table, the HUD and every map window (the map's own arrows only show inside the live window). It is the map's arrow (same look, at the map's zoom), arcing like a jump arrow. It runs from the token charid as drawn on the live map, or from the screen point fromx, fromy when charid is nil or not on the map, to the screen point tox, toy (pixels from the top-left, as dmhub.mouseScreenPosition). arc is how high it rises, as a fraction of its length (default 0.3; 0 is straight). image is the arrow's colour (default 'purple', the teleport arrow). Calling it again moves the arrow; call it every frame while it follows the mouse, as it hides itself if not called for half a second. Hide it with dmhub.HideTabletopArrow.
 --- @param args {tox: number, toy: number, charid: nil|string, fromx: nil|number, fromy: nil|number, arc: nil|number, image: nil|'purple'|'red'|'blue'|'grey'|'normal'}
 function dmhub.ShowTabletopArrow(args) end
@@ -1746,6 +1835,15 @@ function dmhub.HideTabletopArrow(seconds) end
 --- Diagnostic: describes tabletop mode -- the map window viewport, every rendering camera with its target and culling layers, and the layers the off-screen token indicators render on.
 --- @return string
 function dmhub.DescribeTabletop() end
+
+--- Tabletop mode: the maps open in map windows on this table, minimized ones included. Leaving one of these maps keeps it loaded but hidden (up to three maps), so switching back to its window is quick; they are also kept synced first. needPictures lists the maps of shown, not-live windows that have no snapshot yet (never shown on this machine): the engine visits them behind a cover -- the loading screen at startup, else a brief freeze-frame of the screen -- so their windows get pictures, then returns to the current map. Each map is visited once a session. Call whenever the windows change.
+--- @param mapids string[]
+--- @param needPictures nil|string[]
+function dmhub.SetTabletopWindowMaps(mapids, needPictures) end
+
+--- Admin only, for testing: feeds the main window an operating-system file drag step as if files were dragged in from the desktop. x and y are screen pixels from the top-left (the measure of dmhub.mouseScreenPosition). Send "over" steps while moving, then "drop" or "leave"; the drop runs exactly as a real one would (uploads included).
+--- @param args {paths: string[], x: number, y: number, phase: "over"|"leave"|"drop"}
+function dmhub:SimulateFileDrag(args) end
 
 --- Tranmit changes to the initiative queue to the cloud.
 function dmhub:UploadInitiativeQueue() end
@@ -1944,14 +2042,15 @@ function dmhub.GetMouseWorldPoint() end
 --- @return LuaTargetingMarkers
 function dmhub.HighlightLine(options) end
 
---- Mark the line of sight between the attacker and target on the map. Call Destroy() on the returned reference to clear the marker. Optionally pass pierceSurfaces to ignore thin walls. arrowColor sets the arrow color: 'red' (enemies), 'green' (allies), 'black' (mixed). maxRange greys out the portion of the arrow past the range boundary (in tile units).
+--- Mark the line of sight between the attacker and target on the map. Call Destroy() on the returned reference to clear the marker. Optionally pass pierceSurfaces to ignore thin walls. arrowColor sets the arrow color: 'red' (enemies), 'green' (allies), 'black' (mixed), 'orange' (planned attacks). maxRange greys out the portion of the arrow past the range boundary (in tile units). fromLoc previews an attack from a square the attacker has not reached yet (the Monster AI's plan preview): that arrow is local to this client and not attached to the attacker.
 --- @param attacker CharacterToken
 --- @param target CharacterToken
 --- @param pierceSurfaces number? Optional number of thin wall surfaces (thickness <= 1 square) to ignore.
---- @param arrowColor string? Arrow color: 'red' (default), 'green', or 'black'.
+--- @param arrowColor string? Arrow color: 'red' (default), 'green', 'black', or 'orange'.
 --- @param maxRange number? Optional max range in tile units. If the target is beyond this distance, the portion of the arrow past the range boundary is greyed out.
+--- @param fromLoc Loc? Optional square the attacker will attack from. The arrow starts there instead of at the attacker, is drawn on this client only, and stays put if the attacker moves.
 --- @return LuaTargetingMarkers
-function dmhub.MarkLineOfSight(attacker, target, pierceSurfaces, arrowColor, maxRange) end
+function dmhub.MarkLineOfSight(attacker, target, pierceSurfaces, arrowColor, maxRange, fromLoc) end
 
 --- Applies the given easing function to t and returns the result. Useful for animation interpolation.
 --- @param t number A value between 0 and 1.

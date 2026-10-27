@@ -952,6 +952,255 @@ local function CreateWaterSection()
 	}
 end
 
+--Map Type: a Battlemap (tactical: distances follow the Measurement Units
+--preference) or a World Map, where each tile is a stretch of land measured in
+--miles, kilometers, leagues or a unit the Director names. The measuring tool
+--reports distances in the map's units. Settings live in MeasurementSystem.lua.
+local function CreateMapTypeControls()
+	local function IsWorld()
+		return dmhub.GetSettingValue("map:maptype") == "world"
+	end
+
+	local function CurrentScale()
+		return tonumber(dmhub.GetSettingValue("map:worldtilesize")) or 6, dmhub.GetSettingValue("map:worldunit"), dmhub.GetSettingValue("map:worldunitname") or ""
+	end
+
+	local function DefaultScale()
+		return tonumber(dmhub.GetSettingValue("worldmap:defaulttilesize")) or 6, dmhub.GetSettingValue("worldmap:defaultunit"), dmhub.GetSettingValue("worldmap:defaultunitname") or ""
+	end
+
+	local function ScaleText(amount, unitid, customName)
+		local plural, singular = MeasurementSystem.WorldUnitNames(unitid, customName)
+		return string.format("%s %s", MeasurementSystem.ToString(amount), cond(amount == 1, singular, plural))
+	end
+
+	local function IsDefaultScale()
+		local amount, unitid, customName = CurrentScale()
+		local defAmount, defUnit, defName = DefaultScale()
+		return amount == defAmount and unitid == defUnit and (unitid ~= "custom" or customName == defName)
+	end
+
+	local function EachCellText()
+		return cond(MeasurementSystem.IsHexMap(), "Each hex is:", "Each tile is:")
+	end
+
+	local typeDropdown = gui.Dropdown{
+		classes = {"formStacked"},
+		width = "98%",
+		halign = "left",
+		lmargin = 6,
+		options = {
+			{ id = "battlemap", text = "Battlemap" },
+			{ id = "world", text = "World Map" },
+		},
+		idChosen = cond(IsWorld(), "world", "battlemap"),
+		hover = gui.Tooltip("Battlemap: a tactical map, each tile a few feet across. World Map: a region or world map, each tile miles across. The measuring tool reports distances in the map's units."),
+		change = function(element)
+			---@cast element Dropdown
+			if element.idChosen == "world" and not IsWorld() then
+				--a map made a World Map starts at the game's default scale.
+				local amount, unitid, customName = DefaultScale()
+				dmhub.SetSettingValue("map:worldtilesize", amount)
+				dmhub.SetSettingValue("map:worldunit", unitid)
+				dmhub.SetSettingValue("map:worldunitname", customName)
+			end
+			dmhub.SetSettingValue("map:maptype", element.idChosen)
+		end,
+		refreshMapType = function(element)
+			---@cast element Dropdown
+			element.idChosen = cond(IsWorld(), "world", "battlemap")
+		end,
+	}
+
+	local function AmountText()
+		local amount = CurrentScale()
+		return MeasurementSystem.ToString(amount)
+	end
+
+	local amountLabel = gui.Label{
+		classes = {"msFloorHeight"},
+		width = 48,
+		text = AmountText(),
+		editable = true,
+		characterLimit = 5,
+		hover = gui.Tooltip("How many units one tile spans, as a whole number."),
+		change = function(element)
+			local n = tonumber(element.text)
+			if n == nil or n ~= math.floor(n) or n < 1 or n > 99999 then
+				--rejected: restore the stored size and flash the box.
+				element.text = AmountText()
+				element:PulseClass("invalid")
+				return
+			end
+			dmhub.SetSettingValue("map:worldtilesize", math.tointeger(n))
+		end,
+		refreshMapType = function(element)
+			if not element.hasFocus then
+				element.text = AmountText()
+			end
+		end,
+	}
+
+	local unitOptions = {}
+	for _,unit in ipairs(MeasurementSystem.worldUnits) do
+		unitOptions[#unitOptions+1] = { id = unit.id, text = unit.text }
+	end
+
+	local function UnitId()
+		local _, unitid = CurrentScale()
+		return unitid
+	end
+
+	local function CustomName()
+		local _, _, customName = CurrentScale()
+		return customName
+	end
+
+	local unitDropdown = gui.Dropdown{
+		classes = {"formStacked"},
+		width = 150,
+		halign = "left",
+		valign = "center",
+		lmargin = 8,
+		options = unitOptions,
+		idChosen = UnitId(),
+		change = function(element)
+			---@cast element Dropdown
+			dmhub.SetSettingValue("map:worldunit", element.idChosen)
+		end,
+		refreshMapType = function(element)
+			---@cast element Dropdown
+			element.idChosen = UnitId()
+		end,
+	}
+
+	--the unit's name, only for a custom unit.
+	local customPanel = gui.Panel{
+		classes = {cond(UnitId() ~= "custom", "collapsed")},
+		width = "100%",
+		height = "auto",
+		flow = "vertical",
+		refreshMapType = function(element)
+			element:SetClass("collapsed", UnitId() ~= "custom")
+		end,
+		WaterFieldLabel("Unit Name:"),
+		gui.Input{
+			classes = {"formStacked"},
+			width = "98%",
+			halign = "left",
+			lmargin = 6,
+			text = CustomName(),
+			placeholderText = "e.g. days",
+			characterLimit = 24,
+			change = function(element)
+				dmhub.SetSettingValue("map:worldunitname", string.match(element.text, "^%s*(.-)%s*$"))
+			end,
+			refreshMapType = function(element)
+				if not element.hasFocus then
+					element.text = CustomName()
+				end
+			end,
+		},
+	}
+
+	local function DefaultText()
+		if IsDefaultScale() then
+			return "This is the default for new world maps."
+		end
+		return string.format("New world maps use %s.", ScaleText(DefaultScale()))
+	end
+
+	local defaultRow = gui.Panel{
+		flow = "horizontal",
+		width = "100%",
+		height = 28,
+		tmargin = 4,
+		gui.Label{
+			classes = {"formStacked", "sizeXs"},
+			width = "100%-120",
+			height = "auto",
+			valign = "center",
+			hmargin = 2,
+			text = DefaultText(),
+			refreshMapType = function(element)
+				element.text = DefaultText()
+			end,
+		},
+		gui.Button{
+			classes = {cond(IsDefaultScale(), "collapsed")},
+			text = "Set as Default",
+			width = 110,
+			height = 24,
+			fontSize = 12,
+			halign = "right",
+			valign = "center",
+			hover = gui.Tooltip("Use this map's scale for maps made World Maps from now on."),
+			click = function(element)
+				local amount, unitid, customName = CurrentScale()
+				dmhub.SetSettingValue("worldmap:defaulttilesize", amount)
+				dmhub.SetSettingValue("worldmap:defaultunit", unitid)
+				dmhub.SetSettingValue("worldmap:defaultunitname", customName)
+			end,
+			refreshMapType = function(element)
+				element:SetClass("collapsed", IsDefaultScale())
+			end,
+		},
+	}
+
+	--"Each hex is:" or "Each tile is:", following the grid type.
+	local eachCellLabel = gui.Label{
+		classes = {"formStacked", "sizeXs"},
+		width = "98%",
+		height = "auto",
+		hmargin = 2,
+		tmargin = 6,
+		text = EachCellText(),
+		refreshMapType = function(element)
+			element.text = EachCellText()
+		end,
+	}
+
+	local worldPanel = gui.Panel{
+		classes = {cond(not IsWorld(), "collapsed")},
+		width = "100%",
+		height = "auto",
+		flow = "vertical",
+		refreshMapType = function(element)
+			element:SetClass("collapsed", not IsWorld())
+		end,
+		eachCellLabel,
+		gui.Panel{
+			flow = "horizontal",
+			width = "100%",
+			height = 30,
+			lmargin = 6,
+			amountLabel,
+			unitDropdown,
+		},
+		customPanel,
+		defaultRow,
+	}
+
+	return {
+		gui.Panel{
+			width = "100%",
+			height = "auto",
+			flow = "vertical",
+			multimonitor = {
+				"map:maptype", "map:worldunit", "map:worldunitname", "map:worldtilesize",
+				"worldmap:defaultunit", "worldmap:defaultunitname", "worldmap:defaulttilesize",
+				"maplayout:tiletype", "maplayout:stagger",
+			},
+			monitor = function(element)
+				element:FireEventTree("refreshMapType")
+			end,
+			WaterFieldLabel("Map Type:"),
+			typeDropdown,
+			worldPanel,
+		},
+	}
+end
+
 CreateMapSettings = function()
 
 	local stackedOpts = {stacked = true, height = 28}
@@ -999,15 +1248,14 @@ CreateMapSettings = function()
 		--the tile-type editor is a bare row of icons; name it like the
 		--stacked editors around it.
 		---@type Panel[]
-		local grid = {
-			gui.Label{
-				classes = {"formStacked", "sizeXs"},
-				width = "98%",
-				height = "auto",
-				hmargin = 2,
-				tmargin = 4,
-				text = "Grid Type:",
-			},
+		local grid = CreateMapTypeControls()
+		grid[#grid+1] = gui.Label{
+			classes = {"formStacked", "sizeXs"},
+			width = "98%",
+			height = "auto",
+			hmargin = 2,
+			tmargin = 4,
+			text = "Grid Type:",
 		}
 		for _, editor in ipairs(Editors{
 			"maplayout:tiletype",

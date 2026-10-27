@@ -461,6 +461,12 @@ local TRIGGER_METADATA = {
         tags = {"round", "begin", "start"},
         group = "turn",
     },
+    endround = {
+        label = "End of Round",
+        description = "Fires at the end of each round, before round-long effects expire.",
+        tags = {"round", "end"},
+        group = "turn",
+    },
     startrespite = {
         label = "Start Respite",
         description = "Fires when a respite begins.",
@@ -2213,6 +2219,7 @@ local CASTER_INCLUSIVE_SUBJECTS = {
 -- conservative -- add here only if verified from runtime dispatch.
 local GLOBAL_SUBJECTLESS_TRIGGERS = {
     beginround = true,
+    endround = true,
     endcombat = true,
     rollinitiative = true,
 }

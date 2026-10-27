@@ -19,6 +19,8 @@ local mod = dmhub.GetModLoading()
 
 EotwLeads = {}
 
+local T = UIText.T
+
 local TEXT = "#efe4cc"
 local DIM = "#c9bfa9"
 local GOLD = "#d9b56a"
@@ -40,23 +42,23 @@ EotwLeads.ORDER = { "arcane-market" }
 EotwLeads.LEADS = {
     ["arcane-market"] = {
         id = "arcane-market",
-        title = "The Arcane Market",
+        title = T("leads.arcane_market.title"),
         project = "find-arcane-market",
         npc = {
-            name = "Old Ysolde",
-            title = "Elementalist",
+            name = T("leads.arcane_market.npc_name"),
+            title = T("leads.arcane_market.npc_title"),
             --the bestiary's Rival Elementalist art.
             portrait = "3492c3c2-871e-44c5-abc1-1cde5a7fb097",
         },
         conversation = function(heroName)
             return {
-                { who = "npc", text = "You've the look of someone who buys their potions from the front of the shop. Pity. The good ones never are." },
-                { who = "hero", text = "And where would the good ones be, grandmother?" },
-                { who = "npc", text = "Grandmother! Ha. Forty years I've bought my powders in Blackbottom. There is a market here, the Arcane Market, that never stands still. Stalls in back rooms, carts that are there one night and gone the next." },
-                { who = "hero", text = "How does anyone find a market that moves?" },
-                { who = "npc", text = "Just the right set of contacts. An alchemist who owes you a favour. A gnome who talks too much. A door that only opens to the right knock." },
-                { who = "npc", text = "Ask around, " .. heroName .. ". And mind the gnome tinkerers: half of them are mad, and the other half are worse." },
-                { who = "hero", text = "Then I know what I'm doing with my downtime." },
+                { who = "npc", text = T("leads.arcane_market.line1_npc") },
+                { who = "hero", text = T("leads.arcane_market.line2_hero") },
+                { who = "npc", text = T("leads.arcane_market.line3_npc") },
+                { who = "hero", text = T("leads.arcane_market.line4_hero") },
+                { who = "npc", text = T("leads.arcane_market.line5_npc") },
+                { who = "npc", text = T("leads.arcane_market.line6_npc", { hero = heroName }) },
+                { who = "hero", text = T("leads.arcane_market.line7_hero") },
             }
         end,
     },
@@ -99,7 +101,7 @@ setting{
 local function SendCarouse(entry, onDone)
     local conn = EotwRoster.Connection()
     if conn == nil or not conn.connected then
-        onDone(false, "Not connected to the town. The carouse is saved and will be recorded when you reconnect.")
+        onDone(false, T("leads.carouse.offline"))
         return
     end
     conn:Request{
@@ -107,6 +109,19 @@ local function SendCarouse(entry, onDone)
         args = entry,
         success = function(result)
             EotwDowntime.UI.SaveMine("eotw:pendingCarouse", nil)
+            local tier = nil
+            pcall(function() tier = EotwDowntime.TestTier(entry.natural, entry.total) end)
+            local leads = 0
+            for _, _ in pairs(result.leads or {}) do
+                leads = leads + 1
+            end
+            EotwAnalytics.Track("eotw_carouse", {
+                heroid = entry.heroid,
+                natural = entry.natural,
+                total = entry.total,
+                tier = tier,
+                leads = leads,
+            })
             EotwRoster.SetListedLeads(result.leads, result.carouse)
             --the lead's project can be started now: list it.
             EotwDowntime.RefreshProjects()
@@ -228,7 +243,7 @@ function EotwLeads.ShowConversation(host, leadid, heroid, onDone)
         end
         return
     end
-    local heroName = (tok ~= nil and tok.name) or "Hero"
+    local heroName = (tok ~= nil and tok.name) or T("leads.hero_fallback")
     local lines = lead.conversation(heroName)
     local index = 1
     local typed = 0
@@ -258,7 +273,7 @@ function EotwLeads.ShowConversation(host, leadid, heroid, onDone)
     local function ShowSpeaker()
         local line = lines[index]
         local npcSpeaks = line.who == "npc"
-        speakerLabel.text = cond(npcSpeaks, string.format("%s, %s", lead.npc.name, lead.npc.title), heroName)
+        speakerLabel.text = cond(npcSpeaks, T("leads.conversation.npc_speaker", { name = lead.npc.name, title = lead.npc.title }), heroName)
         npcFigure:SetClass("listening", not npcSpeaks)
         heroFigure:SetClass("listening", npcSpeaks)
         textLabel.text = ""
@@ -460,9 +475,9 @@ end
 
 --What each tier of a carouse means, shown in the tier table.
 local CAROUSE_TIERS = {
-    "A sore head and no new friends. Nothing learned.",
-    "Good company and tall tales, but nothing worth chasing.",
-    "Someone in the corner knows a thing or two: learn a lead.",
+    T("leads.carouse.tier1"),
+    T("leads.carouse.tier2"),
+    T("leads.carouse.tier3"),
 }
 
 --The Draw Steel tier glyphs (DrawSteelGlyphs font): 11 or lower, 12-16, 17+.
@@ -658,7 +673,7 @@ function EotwLeads.ShowCarouseDialog(host)
         local heroid = state.heroid
         dmhub.Roll{
             roll = string.format("2d10%+d", bonus),
-            description = "Carouse at the Blue Fish Inn",
+            description = T("leads.carouse.roll_name"),
             preview = true,
             previewPanel = cage,
             cancel = function()
@@ -715,7 +730,7 @@ function EotwLeads.ShowCarouseDialog(host)
                         state.leadid = result.leadid
                         if state.leadid ~= nil then
                             local lead = EotwLeads.LEADS[state.leadid]
-                            EotwDowntime.UI.ShowBanner(host, "A New Lead!", lead ~= nil and lead.title or "", "Notify.BigBanner_Pos")
+                            EotwDowntime.UI.ShowBanner(host, T("leads.carouse.new_lead_banner"), lead ~= nil and lead.title or "", "Notify.BigBanner_Pos")
                         end
                     end
                     Render()
@@ -743,11 +758,11 @@ function EotwLeads.ShowCarouseDialog(host)
                 end
             end
         end
-        local name = chosen ~= nil and tostring(chosen.tok.name or "Your hero") or "Your hero"
+        local name = chosen ~= nil and tostring(chosen.tok.name or T("leads.carouse.your_hero")) or T("leads.carouse.your_hero")
 
         local children = {}
         children[#children+1] = gui.Label{
-            text = "Who carouses",
+            text = T("leads.carouse.who_heading"),
             fontSize = 15,
             color = DIM,
             width = "100%",
@@ -781,7 +796,7 @@ function EotwLeads.ShowCarouseDialog(host)
                 end,
                 EotwDowntime.UI.Portrait(c.tok, 24, 32),
                 gui.Label{
-                    text = string.format("%s  (Presence %+d)", tostring(c.tok.name or "Hero"), EotwDowntime.UI.CharacteristicValue(c.tok, EotwLeads.CAROUSE_CHARACTERISTIC)),
+                    text = T("leads.carouse.hero_choice", { hero = tostring(c.tok.name or T("leads.hero_fallback")), bonus = string.format("%+d", EotwDowntime.UI.CharacteristicValue(c.tok, EotwLeads.CAROUSE_CHARACTERISTIC)) }),
                     fontSize = 16,
                     color = TEXT,
                     width = "auto",
@@ -794,7 +809,7 @@ function EotwLeads.ShowCarouseDialog(host)
         end
         if #chips == 0 then
             chips[1] = gui.Label{
-                text = "None of your heroes are at home.",
+                text = T("leads.carouse.nobody_home"),
                 fontSize = 16,
                 italics = true,
                 color = DIM,
@@ -812,9 +827,9 @@ function EotwLeads.ShowCarouseDialog(host)
 
         if chosen ~= nil then
             local trained = CarouseSkills(chosen.tok)
-            local skillOptions = { { id = "", text = "No skill" } }
+            local skillOptions = { { id = "", text = T("leads.carouse.no_skill") } }
             for _, skillName in ipairs(trained) do
-                skillOptions[#skillOptions+1] = { id = skillName, text = string.format("%s (+2)", skillName) }
+                skillOptions[#skillOptions+1] = { id = skillName, text = T("leads.carouse.skill_choice", { skill = skillName }) }
             end
             children[#children+1] = gui.Panel{
                 width = "100%",
@@ -822,7 +837,7 @@ function EotwLeads.ShowCarouseDialog(host)
                 flow = "horizontal",
                 tmargin = 12,
                 gui.Label{
-                    text = "Skill",
+                    text = T("leads.carouse.skill_heading"),
                     fontSize = 15,
                     color = DIM,
                     width = 100,
@@ -869,18 +884,18 @@ function EotwLeads.ShowCarouseDialog(host)
         local resultText, resultDetail = "", ""
         if state.phase == "rolling" and state.total > 0 then
             resultText = tostring(state.total)
-            resultDetail = string.format("natural %d", state.natural)
+            resultDetail = T("leads.carouse.result_natural", { natural = state.natural })
         elseif state.phase == "done" and state.tier > 0 then
-            resultText = string.format("Tier %d", state.tier)
+            resultText = T("leads.carouse.result_tier", { tier = state.tier })
             if state.leadid ~= nil then
                 local lead = EotwLeads.LEADS[state.leadid]
-                resultDetail = string.format("%d (natural %d). %s catches the eye of someone in the corner who knows a thing or two... Lead: %s", state.total, state.natural, name, lead ~= nil and lead.title or state.leadid)
+                resultDetail = T("leads.carouse.result_lead", { total = state.total, natural = state.natural, hero = name, lead = lead ~= nil and lead.title or state.leadid })
             elseif state.tier == 3 then
-                resultDetail = string.format("%d (natural %d). A grand night, but there is nothing left to learn.", state.total, state.natural)
+                resultDetail = T("leads.carouse.result_tier3_nothing_left", { total = state.total, natural = state.natural })
             elseif state.tier == 2 then
-                resultDetail = string.format("%d (natural %d). %s trades stories all night. Good company, but nothing worth chasing.", state.total, state.natural, name)
+                resultDetail = T("leads.carouse.result_tier2", { total = state.total, natural = state.natural, hero = name })
             else
-                resultDetail = string.format("%d (natural %d). %s wakes with a sore head and no new friends. Nothing learned.", state.total, state.natural, name)
+                resultDetail = T("leads.carouse.result_tier1", { total = state.total, natural = state.natural, hero = name })
             end
         end
         body.children = children
@@ -928,11 +943,11 @@ function EotwLeads.ShowCarouseDialog(host)
         local hint = ""
         if state.phase == "choose" then
             if respiteid == nil then
-                hint = "Take a respite first: each respite earns one night of carousing."
+                hint = T("leads.carouse.hint_no_respite")
             elseif chosen == nil then
-                hint = "None of your heroes are at home."
+                hint = T("leads.carouse.nobody_home")
             else
-                hint = "Click or throw the dice to carouse. One carouse per respite."
+                hint = T("leads.carouse.hint_roll")
             end
         end
         if hintLabel ~= nil and hintLabel.valid then
@@ -1008,7 +1023,7 @@ function EotwLeads.ShowCarouseDialog(host)
                     bgcolor = GOLD,
                 },
                 gui.Label{
-                    text = "Carouse at the Blue Fish Inn",
+                    text = T("leads.carouse.title"),
                     fontSize = 28,
                     bold = true,
                     color = TEXT,
@@ -1018,7 +1033,7 @@ function EotwLeads.ShowCarouseDialog(host)
                 },
             },
             gui.Label{
-                text = "The common room is loud tonight. One hero buys a round, swaps stories and listens for rumours: a Presence test. A tier 3 result turns up a lead worth chasing.",
+                text = T("leads.carouse.intro"),
                 fontSize = 16,
                 italics = true,
                 color = DIM,
@@ -1125,7 +1140,7 @@ function EotwLeads.ShowCarouseDialog(host)
                 gui.Button{
                     id = "eotwLeadListen",
                     classes = { "collapsed" },
-                    text = "Listen...",
+                    text = T("leads.carouse.listen_button"),
                     fontSize = 24,
                     width = 260,
                     height = 54,
@@ -1142,7 +1157,7 @@ function EotwLeads.ShowCarouseDialog(host)
                     end,
                 },
                 gui.Button{
-                    text = "Close",
+                    text = T("leads.carouse.close_button"),
                     fontSize = 24,
                     width = 200,
                     height = 54,
@@ -1168,7 +1183,7 @@ function EotwLeads.ShowCarouseDialog(host)
                 { selectors = { "eotwDialogClose", "hover" }, bgcolor = "#ffffff", scale = 1.15 },
             },
             classes = { "eotwDialogClose" },
-            linger = gui.Tooltip("Close"),
+            linger = gui.Tooltip(T("leads.carouse.close_tooltip")),
             press = function()
                 audio.FireSoundEvent("UI.WindowClose")
                 CloseDialog()
@@ -1238,8 +1253,8 @@ function EotwLeads.InnLeadsPanel(host)
         local children = {}
         if EotwLeads.CanCarouse() then
             children[#children+1] = Row("phosphor/beer-stein-fill.png",
-                "The common room is lively tonight. One of your heroes could carouse and listen for rumours.",
-                "Carouse", "A Presence test. Tier 3 learns a lead. One carouse per respite: if you rest again first, tonight's chance is gone.",
+                T("leads.inn.carouse_row"),
+                T("leads.inn.carouse_button"), T("leads.inn.carouse_tooltip"),
                 function()
                     EotwLeads.ShowCarouseDialog(host)
                 end)
@@ -1250,8 +1265,8 @@ function EotwLeads.InnLeadsPanel(host)
             if known[leadid] and lead ~= nil and EotwDowntime.CanStart(lead.project) then
                 local project = EotwDowntime.PROJECTS[lead.project]
                 children[#children+1] = Row(project ~= nil and project.icon or "phosphor/hammer-fill.png",
-                    string.format("Lead: %s. %s told you where to start looking.", lead.title, lead.npc.name),
-                    "Start Project", "Start " .. (project ~= nil and project.title or "the project") .. ", to spend Downtime on it.",
+                    T("leads.inn.project_row", { lead = lead.title, npc = lead.npc.name }),
+                    T("leads.inn.project_button"), T("leads.inn.project_tooltip", { project = project ~= nil and project.title or T("leads.inn.project_fallback") }),
                     function()
                         EotwDowntime.ShowStartProjectDialog(host, lead.project)
                     end)

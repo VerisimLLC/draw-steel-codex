@@ -976,17 +976,23 @@ function GameHud:DisplayDocument(info)
     else
         -- Sections-based bubbles use the existing dialog
         local documentDialog = self:try_get('documentDialog')
-        if documentDialog == nil or loadid ~= self:try_get("documentDialogLoadID") then
-            if documentDialog ~= nil then
+        if documentDialog == nil or not documentDialog.valid or loadid ~= self:try_get("documentDialogLoadID") then
+            if documentDialog ~= nil and documentDialog.valid then
                 documentDialog:DestroySelf()
             end
 
             documentDialog = self:CreateDocumentDialog()
             self.documentDialogLoadID = loadid
             self.documentDialog = documentDialog
-            self.documentsPanel.children = { documentDialog }
+            --added among the other windows and the rails: assigning the layer's
+            --children instead removed every one of them.
+            self.documentsPanel:AddChild(documentDialog)
         else
             documentDialog:SetClass('hidden', not documentDialog:HasClass('hidden'))
+            --it shares the layer now, so shown again it comes to the front.
+            if not documentDialog:HasClass('hidden') then
+                documentDialog:SetAsLastSibling()
+            end
         end
 
         if not documentDialog:HasClass('hidden') then

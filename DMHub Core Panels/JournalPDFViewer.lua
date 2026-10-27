@@ -114,6 +114,224 @@ local function CharacterIndexToLocation(layout, index)
     return nil
 end
 
+--Finds a section of a PDF page from its heading: the heading and the text below
+--it down to the next heading (any heading on the page, or untilHeading when given),
+--following the text from the bottom of the left column to the top of the right.
+--A heading in body-size type (a run-in label such as "Station 4: Medical:") is a
+--paragraph: it also ends at the first blank gap.
+--Rects are page points, bottom-origin, like the text layout.
+--  layout:       the page's TextLayout result
+--  heading:      the heading text, matched case- and spacing-insensitively; a
+--                heading set over two lines matches on its first line
+--  summary:      the document summary (pageWidth, pageHeight)
+--  untilHeading: optional; the line that ends the section, for a section that
+--                takes in smaller headings of its own. "" runs to the end of the
+--                column (a stat block, whose feature names look like headings).
+--Returns {rects = {rect, ...}, top = y} (one rect per column the section covers),
+--or nil when the heading is not on the page. A global so other code (and tests
+--over the MCP bridge) can use it on any PDF.
+function PDFSectionRects(layout, heading, summary, untilHeading)
+    if layout == nil or summary == nil or heading == nil then
+        return nil
+    end
+    local pageWidth = summary.pageWidth
+    local pageHeight = summary.pageHeight
+
+    local function Normalize(s)
+        local result = string.gsub(string.lower(trim(s or "")), "%s+", " ")
+        --curly apostrophes in the book vs straight ones in callers' text.
+        result = string.gsub(result, "\226\128\153", "'")
+        --leading ornaments and punctuation ("... Into the Fire" opens with an ellipsis).
+        result = string.gsub(result, "^[^%w]+", "")
+        return result
+    end
+    local needle = Normalize(heading)
+    local untilNeedle = untilHeading ~= nil and Normalize(untilHeading) or nil
+    if needle == "" then
+        return nil
+    end
+
+    --glyph advance: the font-size proxy the heading search uses.
+    local function Advance(r)
+        local sum, count = 0, 0
+        for i = 1, #r.breaks - 1 do
+            sum = sum + math.abs(r.breaks[i + 1] - r.breaks[i])
+            count = count + 1
+        end
+        return sum / math.max(1, count), count
+    end
+
+    --body text only: no running footer or page number at the bottom, no
+    --vertical chapter tab down either edge.
+    local lines = {}
+    local totalSum, totalCount = 0, 0
+    for _, r in ipairs(layout.mergedRects) do
+        local rect = r.rect
+        if rect.y1 > pageHeight * 0.04 and rect.x2 > pageWidth * 0.05 and rect.x1 < pageWidth * 0.95 then
+            local adv, n = Advance(r)
+            local line = { r = r, rect = rect, text = Normalize(layout.text:Substring(r.a, r.b)) }
+            lines[#lines + 1] = line
+            totalSum = totalSum + adv * n
+            totalCount = totalCount + n
+            line.adv, line.n = adv, n
+        end
+    end
+    local pageAvg = totalSum / math.max(1, totalCount)
+    for _, line in ipairs(lines) do
+        line.isHeading = line.n >= 3 and line.adv >= pageAvg * 1.2
+    end
+
+    --the heading: an exact line beats a prefix match; bigger type breaks ties.
+    local best, bestScore = nil, 0
+    for _, line in ipairs(lines) do
+        local base = 0
+        if line.text == needle then
+            base = 100
+        elseif string.starts_with(line.text, needle) then
+            base = 60
+        elseif #line.text >= 6 and string.starts_with(needle, line.text) then
+            base = 40
+        end
+        if base > 0 then
+            local score = base * clamp(line.adv / math.max(1, pageAvg), 0.5, 4)
+            if score > bestScore then
+                best, bestScore = line, score
+            end
+        end
+    end
+    if best == nil then
+        return nil
+    end
+
+    local mid = pageWidth * 0.5
+    local function ColumnOf(rect)
+        if rect.x2 <= mid + pageWidth * 0.03 then
+            return "left"
+        elseif rect.x1 >= mid - pageWidth * 0.03 then
+            return "right"
+        end
+        return "both"
+    end
+    local headingColumn = ColumnOf(best.rect)
+    local function InColumn(rect, column)
+        if column == "both" then
+            return true
+        end
+        local cx = (rect.x1 + rect.x2) * 0.5
+        if column == "left" then
+            return cx < mid
+        end
+        return cx >= mid
+    end
+
+    --the heading's own lines: the matched one plus any continuation set just
+    --below it in heading type that the heading text runs on into.
+    local headingTop = best.rect.y2
+    local headingBottom = best.rect.y1
+    local headingLines = { [best] = true }
+    local lineHeight = best.rect.y2 - best.rect.y1
+    local extended = true
+    while extended do
+        extended = false
+        for _, line in ipairs(lines) do
+            if not headingLines[line] and line.isHeading and InColumn(line.rect, headingColumn)
+                and line.rect.y2 < headingBottom + 1 and line.rect.y2 >= headingBottom - lineHeight * 1.2
+                and string.find(needle, line.text, 1, true) ~= nil then
+                headingLines[line] = true
+                headingBottom = line.rect.y1
+                extended = true
+            end
+        end
+    end
+
+    --true for a line that ends the section.
+    local function EndsSection(line)
+        if untilNeedle == "" then
+            return false
+        elseif untilNeedle ~= nil then
+            return line.text == untilNeedle or string.starts_with(line.text, untilNeedle)
+        end
+        return line.isHeading
+    end
+
+    --a run-in label's paragraph also ends at blank space this tall (points; body
+    --lines sit about 11 apart).
+    local runIn = not best.isHeading
+    local PARAGRAPH_GAP = 22
+
+    --one column's share of the section: walks down from topY to the first line
+    --that ends the section. Returns the rect (nil if empty) and whether it ended.
+    local function ColumnRegion(column, topY, startRect)
+        local below = {}
+        for _, line in ipairs(lines) do
+            if not headingLines[line] and InColumn(line.rect, column) and line.rect.y2 < topY + 1 then
+                below[#below + 1] = line
+            end
+        end
+        table.sort(below, function(a, b)
+            return a.rect.y2 > b.rect.y2
+        end)
+
+        local rect = startRect
+        local previousBottom = topY
+        for _, line in ipairs(below) do
+            if EndsSection(line) then
+                return rect, true
+            end
+            if runIn and rect ~= nil and previousBottom - line.rect.y2 > PARAGRAPH_GAP then
+                return rect, true
+            end
+            if rect == nil then
+                rect = { x1 = line.rect.x1, x2 = line.rect.x2, y1 = line.rect.y1, y2 = line.rect.y2 }
+            else
+                rect.x1 = math.min(rect.x1, line.rect.x1)
+                rect.x2 = math.max(rect.x2, line.rect.x2)
+                rect.y1 = math.min(rect.y1, line.rect.y1)
+                rect.y2 = math.max(rect.y2, line.rect.y2)
+            end
+            previousBottom = math.min(previousBottom, line.rect.y1)
+        end
+        return rect, false
+    end
+
+    local first, ended = ColumnRegion(headingColumn, headingBottom, {
+        x1 = best.rect.x1, x2 = best.rect.x2, y1 = headingBottom, y2 = headingTop,
+    })
+    local rects = { first }
+
+    --ran off the bottom of the left column: carry on at the top of the right.
+    if not ended and headingColumn == "left" then
+        local second = ColumnRegion("right", pageHeight, nil)
+        if second ~= nil then
+            rects[#rects + 1] = second
+        end
+    end
+
+    local pad = 6
+    for i, r in ipairs(rects) do
+        rects[i] = {
+            x1 = math.max(0, r.x1 - pad),
+            x2 = math.min(pageWidth, r.x2 + pad),
+            y1 = math.max(0, r.y1 - pad),
+            y2 = math.min(pageHeight, r.y2 + pad),
+        }
+    end
+    return { rects = rects, top = math.min(pageHeight, headingTop + pad) }
+end
+
+--A section link's highlight, as {seconds after it starts, phase}: it lights up
+--brightly out of nothing, settles, pulses once more, holds so the reader finds
+--it, then fades out over SECTION_FLASH_FADE_TIME (the "sectionFade" style's
+--transitionTime). Phases are the tocFlash "section" style classes.
+SECTION_FLASH_PHASES = {
+    { 0.05, "lit" },
+    { 1.1, "steady" },
+    { 1.55, "lit" },
+    { 2.15, "steady" },
+    { 3.6, "fade" },
+}
+SECTION_FLASH_FADE_TIME = 2.4
+
 local function SmartImporterPanel(doc)
     local header = {
         {
@@ -387,7 +605,10 @@ local function SmartImporterPanel(doc)
     }
 end
 
-local ShowPDFViewerDialogInternal = function(doc, starting_page)
+--focus (optional): {heading = string, page = index, untilHeading = string|nil} --
+--once the viewer is up,
+--scroll to that section and flash it (see FocusSection).
+local ShowPDFViewerDialogInternal = function(doc, starting_page, focus)
     print("PDF:: SHOW WITH", type(starting_page), json(starting_page))
     local document = doc.doc
     printf("PAGES: %d", document.summary.npages)
@@ -446,6 +667,10 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
     --the interactive layer exist. Scrolls to a toc entry's position within
     --its page and briefly flashes a highlight there.
     local ScrollToTocEntry
+
+    --forward-declared like ScrollToTocEntry: turns to a page, finds a section
+    --by its heading (PDFSectionRects), scrolls it into view and outlines it.
+    local FocusSection
 
     --page index -> text layout, filled on demand by ScrollToTocEntry for
     --documents whose bookmarks carry no destination position.
@@ -2087,6 +2312,45 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                 opacity = 0,
                 transitionTime = 0.9,
             },
+            --a whole section, from a link: outlined so it reads as a region,
+            --and animated through the SECTION_FLASH_PHASES timeline below: it
+            --lights up from nothing, pulses, holds, then fades away slowly.
+            --Each rule's transitionTime is how long the move INTO it takes.
+            --(colour, not brightness, carries the "lit" look: the page is white,
+            --so brightening washes the outline out instead of lighting it up.)
+            {
+                selectors = { "tocFlash", "section" },
+                bgcolor = "#C0957133",
+                borderWidth = 3,
+                borderColor = "#B8865A",
+                cornerRadius = 4,
+                transitionTime = 0.45,
+            },
+            --set instantly when a flash starts (SetClassImmediate); its
+            --transitionTime is the fade-in as it is removed for the first glow.
+            {
+                selectors = { "tocFlash", "section", "dark" },
+                opacity = 0,
+                transitionTime = 0.4,
+                priority = 2,
+            },
+            {
+                selectors = { "tocFlash", "section", "lit" },
+                bgcolor = "#F5A62E70",
+                borderWidth = 6,
+                borderColor = "#E07800",
+                opacity = 1,
+                transitionTime = 0.3,
+                priority = 2,
+            },
+            --its own class rather than "fade": the TOC's quick {tocFlash, fade}
+            --rule would also match and finish the fade in under a second.
+            {
+                selectors = { "tocFlash", "section", "sectionFade" },
+                opacity = 0,
+                transitionTime = 2.4,
+                priority = 3,
+            },
         },
 
         --augmentation overlays: image panels that sit on top of the page
@@ -2491,8 +2755,11 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
         --a section starts. Panels are pooled; each flash holds briefly then
         --fades out via the tocFlash styles. The flashid guards a pooled
         --panel's scheduled fade/hide against a newer flash reusing it.
-        flashRegion = function(element, rects)
+        --kind "section" outlines the region and plays SECTION_FLASH_PHASES
+        --(section links); the default is the TOC's brief tint.
+        flashRegion = function(element, rects, kind)
             local panels = element.data.flashPanels
+            local isSection = kind == "section"
             for i, r in ipairs(rects) do
                 local p = panels[i]
                 if p == nil then
@@ -2514,6 +2781,15 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                                 element:SetClass("hidden", true)
                             end
                         end,
+                        --one step of a section flash: the classes for that phase.
+                        sectionPhase = function(element, flashid, phase)
+                            if flashid ~= element.data.flashid then
+                                return
+                            end
+                            element:SetClass("dark", phase == "dark")
+                            element:SetClass("lit", phase == "lit")
+                            element:SetClass("sectionFade", phase == "fade")
+                        end,
                     }
                     panels[i] = p
                     element:AddChild(p)
@@ -2525,10 +2801,28 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                 p.selfStyle.height = element.renderedHeight * (r.y2 - r.y1) / document.summary.pageHeight
 
                 p.data.flashid = p.data.flashid + 1
-                p:SetClass("hidden", false)
+                p:SetClass("section", isSection)
+                p:SetClass("lit", false)
                 p:SetClass("fade", false)
-                p:ScheduleEvent("beginFade", 0.8, p.data.flashid)
-                p:ScheduleEvent("endFlash", 2.5, p.data.flashid)
+                p:SetClass("sectionFade", false)
+                if isSection then
+                    --start from nothing so the light-up is seen, then play the phases.
+                    --Immediate: a normal SetClass would ramp "dark" in, showing the
+                    --outline at full strength for a moment first.
+                    p:SetClassImmediate("dark", true)
+                    p:SetClass("hidden", false)
+                    local last = 0
+                    for _, step in ipairs(SECTION_FLASH_PHASES) do
+                        p:ScheduleEvent("sectionPhase", step[1], p.data.flashid, step[2])
+                        last = math.max(last, step[1])
+                    end
+                    p:ScheduleEvent("endFlash", last + SECTION_FLASH_FADE_TIME + 0.1, p.data.flashid)
+                else
+                    p:SetClass("dark", false)
+                    p:SetClass("hidden", false)
+                    p:ScheduleEvent("beginFade", 0.8, p.data.flashid)
+                    p:ScheduleEvent("endFlash", 2.5, p.data.flashid)
+                end
             end
 
             for i = #rects + 1, #panels do
@@ -3388,6 +3682,11 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
             RefreshPage()
         end,
 
+        --{heading, page}: turn to the page and show that section.
+        gotosection = function(element, spec)
+            FocusSection(spec)
+        end,
+
         -- Navigation keyboard shortcuts. While the viewer modal is open the
         -- 'journalpdf' command context (pushed in ShowPDFViewerDialog) binds
         -- left/right and page up/page down to the paging commands and up/down to
@@ -4178,7 +4477,92 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
         end)
     end
 
+    --Shows the section of spec.page headed spec.heading: turns there, scrolls so
+    --the section's top sits near the top of the view, and outlines it briefly.
+    --Retries while the viewer is still laying out (a freshly opened viewer has
+    --no page size yet). A heading not on the page leaves the page-top view.
+    FocusSection = function(spec)
+        if type(spec) ~= "table" or spec.page == nil then
+            return
+        end
+        if m_npage ~= spec.page then
+            m_npage = spec.page
+            m_searchResults = nil
+            m_searchText = nil
+            RefreshPage()
+        end
+
+        local tries = 0
+        local function Attempt(layout)
+            if not pdfViewPanel.valid or m_npage ~= spec.page then
+                return
+            end
+            local laidOut = pdfViewPanel.renderedHeight > 0 and pdfScrollViewPanel.renderedHeight > 0
+            if not laidOut then
+                tries = tries + 1
+                if tries < 60 then
+                    dmhub.Schedule(0.05, function()
+                        Attempt(layout)
+                    end)
+                end
+                return
+            end
+            local section = PDFSectionRects(layout, spec.heading, document.summary, spec.untilHeading)
+            if section == nil then
+                return
+            end
+            ScrollToPageRegion(spec.page, section.top + 10)
+
+            --true once the page's full-resolution render is on screen. bgimageInit
+            --matters as well as fullLoaded: a pooled panel moved to a new page keeps
+            --fullLoaded but has bgimageInit reset until the new render is bound.
+            local function PageReady()
+                for _, p in ipairs(pdfContentPanel.data.allPanels or {}) do
+                    if p.valid and p.data.npage == spec.page and not p:HasClass("hidden") then
+                        local full = p.data.fullPanel
+                        return full ~= nil and full:HasClass("fullLoaded") and full.bgimageInit == true
+                    end
+                end
+                return false
+            end
+
+            --the outline waits for the page to render (a freshly opened book can
+            --take seconds), or it would fade out over a blank page. A page shown
+            --too small for a full render never reports ready, hence the limit.
+            local waited = 0
+            local function Flash()
+                if not pdfViewPanel.valid or m_npage ~= spec.page then
+                    return
+                end
+                if not PageReady() and waited < 8 then
+                    waited = waited + 0.05
+                    dmhub.Schedule(0.05, Flash)
+                    return
+                end
+                pdfViewPanel:FireEvent("flashRegion", section.rects, "section")
+            end
+            dmhub.Schedule(0.05, Flash)
+        end
+
+        local cached = m_tocLayoutCache[spec.page]
+        if type(cached) == "table" then
+            Attempt(cached)
+            return
+        end
+        document:TextLayout(spec.page, function(layout)
+            if layout == nil or not pdfViewPanel.valid then
+                return
+            end
+            m_tocLayoutCache[spec.page] = layout
+            Attempt(layout)
+        end)
+    end
+
     RefreshPage()
+
+    if focus ~= nil then
+        FocusSection(focus)
+    end
 
     return dialogPanel
 end
@@ -4234,9 +4618,12 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page, options)
     if g_pdfViewerDialog ~= nil and g_pdfViewerDialog.valid then
         if g_pdfViewerDialog.data.doc == doc then
             --opening a minimized viewer brings it back rather than closing it.
+            local focus = options ~= nil and options.focus or nil
             if g_pdfViewerDialog.data.minimized and g_pdfViewerDialog.data.restoreViewer ~= nil then
                 g_pdfViewerDialog.data.restoreViewer()
-                if starting_page ~= nil then
+                if focus ~= nil then
+                    g_pdfViewerDialog:FireEventTree("gotosection", focus)
+                elseif starting_page ~= nil then
                     g_pdfViewerDialog:FireEventTree("gotopage", starting_page)
                 end
                 return
@@ -4245,7 +4632,11 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page, options)
                 --opening the document that is already open with no page specified toggles it.
                 g_pdfViewerDialog.data.closeViewer()
             else
-                g_pdfViewerDialog:FireEventTree("gotopage", starting_page)
+                if focus ~= nil then
+                    g_pdfViewerDialog:FireEventTree("gotosection", focus)
+                else
+                    g_pdfViewerDialog:FireEventTree("gotopage", starting_page)
+                end
                 --a window on the table comes forward to show the page.
                 if not g_pdfViewerDialog.data.maximized and not g_pdfViewerDialog.data.poppedOut then
                     g_pdfViewerDialog:SetAsLastSibling()
@@ -4946,7 +5337,7 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page, options)
 
             loading = function(element)
                 if document.summary ~= nil then
-                    element.children = { ShowPDFViewerDialogInternal(doc, starting_page) }
+                    element.children = { ShowPDFViewerDialogInternal(doc, starting_page, options ~= nil and options.focus or nil) }
                 else
                     element:ScheduleEvent("loading", 0.01)
                 end
@@ -5302,6 +5693,8 @@ local function ParseDocumentURL(url)
 end
 
 --options: see ShowPDFViewerDialog (options.host hosts the viewer on a panel).
+--options.focus = {heading = string, page = index} opens at that section of the
+--page, scrolled into view and briefly outlined (see PDFSectionRect).
 function OpenPDFDocument(doc, page, options)
     mod.shared.ShowPDFViewerDialog(doc, page, options)
 end

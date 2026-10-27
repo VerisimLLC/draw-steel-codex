@@ -164,10 +164,19 @@ function DTSelectItemDialog._createPanel(callbacks)
         },
     }
 
+    --Custom keeps the project to fill in by hand; closing any other way cancels
+    --it. A caller with nothing to fill in by hand asks for a plain Cancel there.
+    local offerCustom = callbacks.offerCustom ~= false
     dlg:AddFooterButton{
         slot = "left",
-        text = "Custom",
+        text = offerCustom and "Custom" or "Cancel",
         click = function(shell)
+            if offerCustom then
+                confirmed = true
+                if callbacks.custom ~= nil then
+                    callbacks.custom()
+                end
+            end
             shell:Close()
         end,
     }
@@ -192,7 +201,8 @@ function DTSelectItemDialog._createPanel(callbacks)
 end
 
 --- Creates a select item dialog for AddChild usage
---- @param callbacks table Table with confirm and cancel callback functions
+--- @param callbacks table confirm, cancel and custom callbacks; offerCustom = false puts
+--- Cancel where Custom would be
 --- @return table panel The GUI panel ready for AddChild
 function DTSelectItemDialog.CreateAsChild(callbacks)
     if not callbacks then callbacks = {} end

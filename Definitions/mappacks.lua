@@ -28,6 +28,7 @@
 --- @field objectsTier integer Patreon pledge in cents that unlocks the object set on top of the map itself; 0 = no extra gate
 --- @field objectsTierName string the creator's name for that pledge level; "" when free or unnamed
 --- @field objectsOwned boolean whether the current account can use the map's object set
+--- @field defaultMarkup string id of the shared markup set the pack makes this map's default (added with the map unless AddMapToGame passes markupId = "none"); "" when the map has none
 ---
 --- @class MapPackObjectPreview One object of a map's "Objects for this map" set, for display.
 --- @field id string the object asset's guid
@@ -87,7 +88,7 @@ function mappacks.Search(options) end
 --- @return {org: string, cents: integer, linked: boolean, entitled: boolean, full: boolean}
 function mappacks.GetPackAccess(pack) end
 
---- Adds one map from a map pack to the current game without installing the pack's module: the map's manifest, floors and rasters plus the object and image asset records it references are copied into the game, and the appearance variant at options.variantIndex (default 0) is armed. options.name, when given, becomes the added map's name instead of the pack's. options.markupId, when given, is the id of a shared markup set (see ListMarkup) whose walls, zones, footstep regions, props and markup settings are laid over the map before it is written. Requires access to the chosen appearance (free, unlocked by the account's Patreon pledge to the pack's creator, or the whole pack owned); appearances of the map the account is NOT entitled to are left out of the added map. If the map is already in the game a fresh copy with new ids is added. Calls options.success with the new map id, or options.error with a message.
+--- Adds one map from a map pack to the current game without installing the pack's module: the map's manifest, floors and rasters plus the object and image asset records it references are copied into the game, and the appearance variant at options.variantIndex (default 0) is armed. options.name, when given, becomes the added map's name instead of the pack's. options.markupId, when given, is the id of a shared markup set (see ListMarkup) whose walls, zones, footstep regions, props and markup settings are laid over the map before it is written. When it is omitted the pack's default markup set for the map is used (the index entry's defaultMarkup), if it has one; pass markupId = "none" to add the plain map. Requires access to the chosen appearance (free, unlocked by the account's Patreon pledge to the pack's creator, or the whole pack owned); appearances of the map the account is NOT entitled to are left out of the added map. If the map is already in the game a fresh copy with new ids is added. Calls options.success with the new map id, or options.error with a message.
 --- @param options {pack: string, mapid: string, variantIndex: nil|integer, name: nil|string, markupId: nil|string, success: nil|fun(result: string), error: nil|fun(message: string)}
 function mappacks.AddMapToGame(options) end
 

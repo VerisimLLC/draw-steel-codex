@@ -249,6 +249,11 @@ end
 function ChatItemLinks.Dragging(items, options)
     options = options or {}
     local target = dmhub.tokenDropTargetUnderMouse
+    --a window lying under the open Director's Screen is out of sight there:
+    --the screen takes no mouse, so the lookup sees through it.
+    if target ~= nil and rawget(_G, "DirectorScreen") ~= nil and DirectorScreen.Hides(target) then
+        target = nil
+    end
     local role = nil
     local home = false
     if target ~= nil then

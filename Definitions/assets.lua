@@ -128,7 +128,7 @@ function assets:UploadAudioAsset(options) end
 --- @return nil|string The GUID of the uploaded clipboard asset, or nil on failure.
 function assets:UploadClipboardAsset(options) end
 
---- Uploads a generic image asset. Options include path, description, parentFolder, imageType, ord, error, and upload callbacks. Pass core=true to force the upload into the global Core asset store regardless of the current game; ignored for non-admin users.
+--- Uploads a generic image asset. Options include path, description, parentFolder, imageType, ord, error, and upload callbacks. Pass core=true to force the upload into the global Core asset store regardless of the current game; ignored for non-admin users. An imageType of 'AvatarPopout' on an image with no real transparency is stored as 'Avatar' instead; read assets.imagesTable[guid].imageType in the upload callback for the type actually used.
 --- @param options table Upload options.
 --- @return nil|string The GUID of the uploaded image, or nil on failure.
 function assets:UploadImageAsset(options) end
@@ -222,6 +222,10 @@ function assets:LoadImageOrVideoFileLocally(path) end
 --- @param path string A local file path.
 --- @return nil|{width: number, height: number, bytes: number}
 function assets:ReadImageFileInfo(path) end
+
+--- Looks for a grid drawn on a local image file (PNG, JPEG, WebP, BMP, TGA or GIF) with the FFT grid detector (GRID_DETECTION_REFERENCE.md): square, rectangular or hex, its cell size, where it sits, its rotation and how sure it is. Reading, decoding and detecting all run on a worker thread, so the app never stalls; a typical map takes well under a second, a huge one a few seconds (maps over 4096 px are detected on a downscaled copy, results still in full-size pixels). Each file is detected once: asking again for the same unchanged file (from another dialog, say) shares the first run's result. done(result) is called on the main thread with result = {found, type, tileType, cellWidth, cellHeight, periodX, periodY, originX, originY, angle, confidence, imageWidth, imageHeight, decodeMs, detectMs, message}: type is 'square', 'rectangular', 'hexpointy', 'hexflat' or 'none'; tileType the matching map import tile type ('squares', 'pointtop' or 'flattop'); cellWidth x cellHeight the cell (a hex's bounding box) and periodX/periodY the grid's repeat along x and y, all in pixels; originX/originY a line crossing (square) or a hexagon centre (hex), in pixels from the image's top-left with y down; angle the grid's rotation in degrees, clockwise (0 if aligned); confidence 0..1; message why nothing was found. error(message) is called instead if the file cannot be read as an image.
+--- @param options {path: string, done: fun(result: {found: boolean, type: string, tileType: string, cellWidth: number, cellHeight: number, periodX: number, periodY: number, originX: number, originY: number, angle: number, confidence: number, imageWidth: number, imageHeight: number, decodeMs: number, detectMs: number, message: string}), error: nil|fun(message: string)}
+function assets:DetectImageGrid(options) end
 
 --- Loads an image file (png, jpeg or webp) into the local cache without uploading, downscaling it if needed so its longer edge is at most maxDimension pixels. Pass 'CLIPBOARD' to load from the system clipboard. Returns nil if the file could not be read as an image. Used for small branding images such as creator organization logos (call Upload on the result to commit it) and for previews of dropped files. Decodes on the main thread, so a large file takes a moment.
 --- @param path string The file path or 'CLIPBOARD'.

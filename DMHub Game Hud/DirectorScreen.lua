@@ -44,8 +44,9 @@ local mod = dmhub.GetModLoading()
 --  - Nothing on it is ever shared: an item on it that gets shared some other
 --    way (Map Settings) is moved off it.
 --  - The screen resizes from its left edge or its tab, from the full width of
---    the table down to just the tab in the bottom-right corner. A click on the
---    tab opens or closes it. Closed, the items on it are hidden (stowed), and
+--    the table down to just the tab in the bottom-right corner; let go near
+--    the right side and it slides shut. A click on the tab slides it open or
+--    shut (Venla, 2026-10-18). Closed, the items on it are hidden (stowed), and
 --    focusing a stowed map window opens the screen again (Reveal).
 --  - Its size and its items are saved with the table layout (per user, per
 --    game). Players have no screen.
@@ -97,11 +98,27 @@ local TAB_WIDTH = 14
 local TAB_HEIGHT = 64
 --between the tab and the bottom of the table.
 local TAB_BOTTOM = 18
-local GRIP_WIDTH = 12
+--the tab's grab area reaches this far past what is drawn, all round, so it
+--is easy to hit (Venla, 2026-10-19).
+local TAB_SLOP = 10
+local GRIP_WIDTH = 16
 --narrower than this past the right rail, the screen closes to its tab.
 local MIN_OPEN = 90
+--an edge dragged closer than this to the table's left side snaps all the way
+--to it: the grab offset otherwise keeps it a few units short of full width.
+local SNAP_FULL = 40
 --how much of the table a screen opened for the first time takes.
 local DEFAULT_FRACTION = 0.22
+--the widest the screen gets, as a fraction of the table: all of it
+--(Venla, 2026-10-19; a 0.7 cap that kept a players' side was dropped).
+local MAX_FRACTION = 1
+--the old cap; a saved size of exactly this is read as full width (Load).
+local STALE_CAP = 0.7
+--let go of the edge closer than this (past the rail) to the table's right
+--side and the screen slides shut.
+local SNAP_CLOSE = 200
+--how long opening or closing the screen slides.
+local SLIDE_SECONDS = 0.22
 --after the Director moves an item across the edge, its share takes a moment
 --to come back from the server; meanwhile the item is not moved off the screen.
 local GRACE_SECONDS = 2.5
@@ -173,7 +190,8 @@ end
 --placed: key -> time until which a drop's item is awaited (ItemPlaced).
 --drag: {key, centre, seen} while the Director drags an item; key is nil and
 --fresh is true for something new dragged from a panel (NewItemDragging).
---resize: {offset, startX, moved} while the edge or the tab is dragged.
+--resize: {offset, startX, moved, before} while the edge or the tab is dragged.
+--slide: {from, to, start} while the screen slides open or shut (SlideTo).
 --preview: {key, mode, overlay} while a dragged item shows what dropping it
 --would do (SetPreview).
 --passUntil: while a drag reports in (ItemDragging, NewItemDragging), the
@@ -190,6 +208,7 @@ local g = {
     placed = {},
     drag = nil,
     resize = nil,
+    slide = nil,
     preview = nil,
     passUntil = 0,
     passing = false,
@@ -231,8 +250,14 @@ local function TableSize()
     return rect.w, rect.h
 end
 
---How far in from the right the right icon rail reaches (0 with no rail).
+--How far in from the right the right icon rail reaches: 0 with no rail, or
+--when the rail is empty, so the closed tab sits flush to the table's edge
+--(Venla, 2026-10-19).
 local function RailReserve()
+    local occupied = rawget(_G, "RailSideOccupied")
+    if occupied ~= nil and not occupied("right") then
+        return 0
+    end
     local fn = rawget(_G, "RailRightColumnWidth")
     if fn == nil then
         return 0
@@ -241,6 +266,7 @@ local function RailReserve()
 end
 
 --The x of the screen's left edge: the table's width while it is closed.
+--Fully open it reaches the table's left side (Venla, 2026-10-19).
 local function Edge()
     local w = TableSize()
     if not IsOpen() then
@@ -325,10 +351,31 @@ local g_styles = {
     {
         selectors = {"directorScreenTabFace"},
         bgcolor = "@bg",
+        --rounded on the left only: its right side runs into the divider.
+        cornerRadius = {x1 = 6, y1 = 0, x2 = 0, y2 = 6},
     },
     {
         selectors = {"directorScreenTabFace", "lit"},
         bgcolor = "@bgRaised",
+    },
+    {
+        --flipped: the screen is at full width, so the tab lies on the screen
+        --against its edge, rounded on the right (Venla, 2026-10-19).
+        selectors = {"directorScreenTabFace", "flipped"},
+        cornerRadius = {x1 = 0, y1 = 6, x2 = 6, y2 = 0},
+    },
+    {
+        selectors = {"directorScreenTabX"},
+        bgcolor = "#ffffff90",
+        hidden = 1,
+    },
+    {
+        selectors = {"directorScreenTabX", "parent:flipped"},
+        hidden = 0,
+    },
+    {
+        selectors = {"directorScreenTabX", "parent:lit"},
+        bgcolor = "#ffffffff",
     },
     {
         selectors = {"directorScreenHint"},
@@ -376,7 +423,10 @@ local function Layout(force)
     local w, h = TableSize()
     local edge = Edge()
     local reserve = RailReserve()
-    local signature = string.format("%s|%s|%d|%d|%d|%d", tostring(active), tostring(hidden), math.floor(w), math.floor(h), math.floor(edge), math.floor(reserve))
+    --IsOpen is in it: the last frames of a slide shut leave the edge at the
+    --table's side while still open, so the edge alone missed the close and
+    --the band (and its shadow) stayed up.
+    local signature = string.format("%s|%s|%s|%d|%d|%d|%d", tostring(active), tostring(hidden), tostring(IsOpen()), math.floor(w), math.floor(h), math.floor(edge), math.floor(reserve))
     if signature == g.signature and not force then
         return
     end
@@ -410,43 +460,96 @@ local function Layout(force)
 
     --the tab hangs off the screen's edge, and never under the right rail.
     local right = math.min(edge, w - reserve)
-    tab.x = math.max(0, right - TAB_WIDTH)
-    tab.y = math.max(0, h - TAB_BOTTOM - TAB_HEIGHT)
-    face.x = tab.x
-    face.y = tab.y
+    --no room to hang off the edge (full width): it flips onto the screen and
+    --shows an X.
+    local flipped = IsOpen() and right < TAB_WIDTH
+    face:SetClass("flipped", flipped)
+    if flipped then
+        right = right + TAB_WIDTH
+    end
+    face.x = math.max(0, right - TAB_WIDTH)
+    face.y = math.max(0, h - TAB_BOTTOM - TAB_HEIGHT)
+    tab.x = face.x - TAB_SLOP
+    tab.y = face.y - TAB_SLOP
 end
 
 local function SetFraction(fraction)
-    g.fraction = math.max(0, math.min(1, fraction))
+    g.fraction = math.max(0, math.min(MAX_FRACTION, fraction))
     Layout()
+end
+
+--Slides the screen to a size (0 closes it): Slide, each frame, moves it
+--along; the items on it ride along with the edge (FollowEdge).
+--- @param fraction number
+local function SlideTo(fraction)
+    fraction = math.max(0, math.min(MAX_FRACTION, fraction))
+    if fraction == g.fraction then
+        g.slide = nil
+        return
+    end
+    g.slide = {from = g.fraction, to = fraction, start = dmhub.Time()}
+end
+
+--Moves a slide on (ease out cubic); the tab layer's think calls it.
+local function Slide()
+    local slide = g.slide
+    if slide == nil then
+        return
+    end
+    local t = math.min(1, (dmhub.Time() - slide.start) / SLIDE_SECONDS)
+    local e = 1 - (1 - t) ^ 3
+    SetFraction(slide.from + (slide.to - slide.from) * e)
+    if t >= 1 then
+        g.slide = nil
+        SetFraction(slide.to)
+        Tabletop.SaveLayoutSoon()
+    end
+end
+
+--Where the screen is going: a slide's end, or where it is.
+local function Target()
+    if g.slide ~= nil then
+        return g.slide.to
+    end
+    return g.fraction
 end
 
 --Opens the screen to the size it last had.
 local function Open()
-    if IsOpen() then
+    if Target() > 0 then
         return
     end
-    SetFraction(g.lastFraction or DEFAULT_FRACTION)
-    Tabletop.SaveLayoutSoon()
+    SlideTo(g.lastFraction or DEFAULT_FRACTION)
 end
 
 local function Close()
-    if not IsOpen() then
+    if Target() == 0 then
         return
     end
-    g.lastFraction = g.fraction
-    SetFraction(0)
-    Tabletop.SaveLayoutSoon()
+    if g.slide == nil then
+        g.lastFraction = g.fraction
+    end
+    SlideTo(0)
 end
 
 --The edge and the tab resize the screen: the edge follows the mouse. Below
 --MIN_OPEN past the rail it shows closed, and is closed on release.
 local function BeginResize()
+    --a drag takes over from a slide.
+    if g.slide ~= nil then
+        SetFraction(g.slide.to)
+        g.slide = nil
+    end
     local mx = MouseOnTable()
     local w = TableSize()
     --closed, the edge is where the tab is drawn, so a pull starts from there.
     local edge = math.min(Edge(), w - RailReserve())
-    g.resize = {offset = edge - mx, startX = mx, moved = false}
+    --before: the size to open to again if this drag ends by snapping shut.
+    local before = g.lastFraction or DEFAULT_FRACTION
+    if IsOpen() then
+        before = g.fraction
+    end
+    g.resize = {offset = edge - mx, startX = mx, moved = false, before = before}
 end
 
 local function Resizing()
@@ -463,6 +566,9 @@ local function Resizing()
     end
     local w = TableSize()
     local edge = math.max(0, math.min(w, mx + resize.offset))
+    if edge < SNAP_FULL then
+        edge = 0
+    end
     local width = w - edge
     if width < RailReserve() + MIN_OPEN then
         SetFraction(0)
@@ -477,16 +583,35 @@ local function EndResize()
     if resize == nil or not resize.moved then
         return false
     end
-    if IsOpen() then
+    local w = TableSize()
+    if IsOpen() and w * g.fraction < RailReserve() + SNAP_CLOSE then
+        --let go near the right side: it slides shut, and opens again to the
+        --size it had before this drag.
+        g.lastFraction = resize.before
+        SlideTo(0)
+    elseif IsOpen() then
         g.lastFraction = g.fraction
     end
     Tabletop.SaveLayoutSoon()
     return true
 end
 
+--The tab's click: open or shut.
+local function Toggle()
+    if Target() > 0 then
+        Close()
+    else
+        Open()
+    end
+end
+
 --The drag events the edge and the tab share. dragMove is off, so the panel
 --stays put and Layout moves it.
-local function ResizeEvents(args)
+--onTab: a press that wobbles past the engine's drag threshold without moving
+--sideways counts as a click. The engine starts a drag after a few pixels in
+--any direction and then swallows the click, so without this a slightly
+--sloppy click on the tab did nothing.
+local function ResizeEvents(args, onTab)
     args.draggable = true
     args.dragMove = false
     args.beginDrag = function(element)
@@ -496,7 +621,9 @@ local function ResizeEvents(args)
         Resizing()
     end
     args.drag = function(element)
-        EndResize()
+        if not EndResize() and onTab then
+            Toggle()
+        end
     end
     return args
 end
@@ -621,6 +748,8 @@ local function BuildBand()
                         valign = "center",
                         interactable = false,
                     },
+                    --add dice behind the screen (TableDice.lua).
+                    rawget(_G, "TableDice") ~= nil and TableDice.CreateScreenButton() or nil,
                 },
             },
         },
@@ -666,16 +795,29 @@ function DirectorScreen.CreateTabLayer()
         width = TAB_WIDTH,
         height = TAB_HEIGHT,
         bgimage = "panels/square.png",
-        --rounded on the left only: its right side runs into the divider.
-        cornerRadius = {x1 = 6, y1 = 0, x2 = 0, y2 = 6},
         interactable = false,
+        flow = "none",
+        children = {
+            --shown while the tab is flipped (Layout): a click there shuts
+            --the screen.
+            gui.Panel{
+                classes = {"directorScreenTabX"},
+                bgimage = "phosphor/x-bold.png",
+                halign = "center",
+                valign = "center",
+                width = 10,
+                height = 10,
+                interactable = false,
+            },
+        },
     }
-    g.tab = gui.Panel(ResizeEvents{
+    --the grab area is bigger than the face by TAB_SLOP all round (Layout).
+    g.tab = gui.Panel(ResizeEvents({
         classes = {"directorScreenTab", "collapsed"},
         halign = "left",
         valign = "top",
-        width = TAB_WIDTH,
-        height = TAB_HEIGHT,
+        width = TAB_WIDTH + TAB_SLOP * 2,
+        height = TAB_HEIGHT + TAB_SLOP * 2,
         bgimage = "panels/square.png",
         swallowPress = true,
         hoverCursor = "horizontal-expand",
@@ -690,13 +832,9 @@ function DirectorScreen.CreateTabLayer()
             SetLit(false)
         end,
         click = function(element)
-            if IsOpen() then
-                Close()
-            else
-                Open()
-            end
+            Toggle()
         end,
-    })
+    }, true))
     g.hintLabel = gui.Label{
         classes = {"directorScreenHintLabel"},
         text = "",
@@ -739,6 +877,11 @@ function DirectorScreen.CreateTabLayer()
         children = {g.tabFace, g.tab, g.hint},
         create = function(element)
             Layout(true)
+        end,
+        --every frame: a slide in progress moves on (Slide).
+        thinkTime = 0.01,
+        think = function(element)
+            Slide()
         end,
     }
     return g.tabLayer
@@ -938,14 +1081,93 @@ end
 ----------------------------------------------------------------------
 --The items.
 
+--Snapping (Venla, 2026-10-19): an item dragged on the screen close to
+--another item on it jumps into line with it, a neat gap beside, above or
+--below it with their edges lined up. Live, through the engine's dragSnap.
+--Only on the open screen; the players' side is left free.
+--wider than Tabletop's SNAP (14), so a window's own edge snap on release
+--(SnapWindow) does not pull it flush against its neighbour.
+local SNAP_GAP = 16
+--how close (in either direction) a spot must be for the item to jump to it.
+local SNAP_DISTANCE = 28
+
+--Where an item of size w x h at (x, y) snaps to on the screen, or nil.
+--- @param key string the dragged item (never snapped to itself)
+--- @return number|nil x
+--- @return number|nil y
+local function SnapSpot(key, x, y, w, h)
+    if not Shown() or not OnScreen({x = x, y = y, w = w, h = h}) then
+        return nil, nil
+    end
+    local best = SNAP_DISTANCE
+    local bestX, bestY = nil, nil
+    for _, other in ipairs(Tabletop.ScreenItems()) do
+        local o = other.rect
+        if other.key ~= key and g.members[other.key] and o ~= nil then
+            local spots = {
+                {o.x + o.w + SNAP_GAP, o.y},
+                {o.x - w - SNAP_GAP, o.y},
+                {o.x, o.y + o.h + SNAP_GAP},
+                {o.x, o.y - h - SNAP_GAP},
+            }
+            for _, spot in ipairs(spots) do
+                local d = math.max(math.abs(spot[1] - x), math.abs(spot[2] - y))
+                if d < best then
+                    best = d
+                    bestX, bestY = spot[1], spot[2]
+                end
+            end
+        end
+    end
+    return bestX, bestY
+end
+
+--Sets the engine's dragSnap. An engine older than it reads it as nil (and
+--would log an error on every write), so snapping is then left off.
+--- @param element Panel
+--- @param offset nil|{x: number, y: number}
+local function SetDragSnap(element, offset)
+    if element.dragSnap == nil then
+        return
+    end
+    element.dragSnap = offset
+end
+
+--Snaps the panel being dragged (or lets it follow the mouse again).
+--- @param key string
+--- @param element Panel
+local function SnapDrag(key, element)
+    local item = FindItem(key)
+    local x, y = element.xdrag, element.ydrag
+    local snapX, snapY = nil, nil
+    if item ~= nil and item.rect ~= nil then
+        snapX, snapY = SnapSpot(key, x, y, item.rect.w, item.rect.h)
+    end
+    if snapX ~= nil and snapY ~= nil then
+        SetDragSnap(element, {x = snapX - x, y = snapY - y})
+    else
+        SetDragSnap(element, nil)
+    end
+end
+
 --- Called from an item's dragging event each frame: x is where its left
 --- edge would land and width its width (documents-layer units). A nil key
 --- (the drag is going somewhere other than the table) clears the hint.
+--- element, the panel being dragged, lets the item snap into line with
+--- others on the screen (SnapDrag).
 --- @param key string|nil
 --- @param x number
 --- @param width number
-function DirectorScreen.ItemDragging(key, x, width)
+--- @param element? Panel
+function DirectorScreen.ItemDragging(key, x, width, element)
     LetDragsThrough()
+    if element ~= nil and element.valid then
+        if key ~= nil and Active() then
+            SnapDrag(key, element)
+        else
+            SetDragSnap(element, nil)
+        end
+    end
     if key == nil or not Active() then
         if g.drag ~= nil then
             g.drag = nil
@@ -1164,6 +1386,45 @@ end
 --- @return string[]
 function DirectorScreen.Members()
     return SortedKeys(g.members)
+end
+
+--- Whether the screen hides a panel at the mouse: it is showing, the mouse
+--- is over it, and the panel lies behind the band (a shared window running
+--- under it). The band takes no mouse, so what is under it still answers to
+--- a pointer: a drop there must not reach what the Director cannot see.
+--- @param panel Panel
+--- @return boolean
+function DirectorScreen.Hides(panel)
+    local band = g.band
+    if not Shown() or band == nil or not band.valid or panel == nil or not panel.valid then
+        return false
+    end
+    local x = MouseOnTable()
+    if x < Edge() then
+        return false
+    end
+    local docs = band.parent
+    if docs == nil then
+        return false
+    end
+    --the panel's ancestor among the band's siblings: behind the band if it
+    --comes before it.
+    local top = panel
+    while top ~= nil and top.parent ~= docs do
+        top = top.parent
+    end
+    if top == nil then
+        return false
+    end
+    for _, child in ipairs(docs.children) do
+        if child == band then
+            return false
+        end
+        if child == top then
+            return true
+        end
+    end
+    return false
 end
 
 --- Where the screen's edge is (documents-layer units), or nil while it is
@@ -1482,11 +1743,20 @@ function DirectorScreen.Load(saved)
     g.placed = {}
     g.drag = nil
     g.resize = nil
+    g.slide = nil
     g.fraction = DEFAULT_FRACTION
     g.lastFraction = DEFAULT_FRACTION
     if type(saved) == "table" then
-        g.fraction = math.max(0, math.min(1, tonumber(saved.fraction) or DEFAULT_FRACTION))
-        g.lastFraction = math.max(0.05, math.min(1, tonumber(saved.lastFraction) or DEFAULT_FRACTION))
+        g.fraction = math.max(0, math.min(MAX_FRACTION, tonumber(saved.fraction) or DEFAULT_FRACTION))
+        g.lastFraction = math.max(0.05, math.min(MAX_FRACTION, tonumber(saved.lastFraction) or DEFAULT_FRACTION))
+        --exactly 0.7 is the cap the screen had for a day (2026-10-18): a size
+        --saved then was pinned there, so it was really "as wide as it goes".
+        if g.fraction == STALE_CAP then
+            g.fraction = MAX_FRACTION
+        end
+        if g.lastFraction == STALE_CAP then
+            g.lastFraction = MAX_FRACTION
+        end
         if type(saved.members) == "table" then
             for _, key in ipairs(saved.members) do
                 if type(key) == "string" then

@@ -2429,7 +2429,8 @@ end
 --
 --args.ability / args.token: the ability that caused the prompt and the token
 --casting it. When nothing else is on the sidebar we put that ability's card up
---so the player can see what they are rolling against.
+--so the player can see what they are rolling against. args.renderAsAbility is
+--passed on to DisplayAbility (a synthetic test card sets it).
 --
 --The roll always goes under the ability card. If it cannot -- no sidebar, or
 --someone else's card is up -- this returns nil and the caller should fall back
@@ -2487,7 +2488,7 @@ function CharacterPanel.EmbedPromptRollDialog(args)
         --outside any coroutine, and the roll outlives the caller anyway.
         CharacterPanel.ForceUnlockDisplayAbility()
         local shown
-        shown, lockId = CharacterPanel.DisplayAbility(token, ability, nil, {lock = true})
+        shown, lockId = CharacterPanel.DisplayAbility(token, ability, nil, {lock = true, renderAsAbility = args.renderAsAbility})
         if not shown then
             CharacterPanel.UnlockDisplayAbility(lockId)
             return nil

@@ -113,6 +113,89 @@ local function HasGoblinKeyword(token)
     return false
 end
 
+--------------------------------------------------------------------------------
+-- Too small for traps.
+--------------------------------------------------------------------------------
+
+-- Traps calibrated for Medium creatures (the Snare Trap's "Size >= 3") never
+-- spring under a goblin. Players who push one onto a trap read that as a bug,
+-- so the goblin crows about it instead. Spoken in Caelian so heroes can read it.
+local goblinTrapSpeech = {
+    "Ha! Traps are people-size, not goblin-size!",
+    "Goblins too small for traps!",
+}
+
+-- Size 3 is 1M, the size a trap's pressure plate is calibrated for.
+local mediumSizeNumber = 3
+
+-- Do the players know where this trap is? Either they can see the object, or
+-- a player-visible markup zone marks its square (EotW's Reveal Traps and
+-- Tactical Preparation mark traps that way).
+local function TrapKnownToPlayers(trapToken)
+    if not trapToken.objectInvisibleToPlayers then
+        return true
+    end
+    local loc = trapToken.loc
+    local map = game.currentMap
+    for _,floor in ipairs(map ~= nil and map.floors or {}) do
+        local zones, floorIndex = nil, nil
+        pcall(function()
+            zones = floor.markupZones
+            floorIndex = floor.floorIndex
+        end)
+        if zones ~= nil and floorIndex == loc.floor then
+            for _,record in pairs(zones) do
+                if type(record) == "table" and record.category == nil and record.playerVisible == true then
+                    for _,l in ipairs(record.locs or {}) do
+                        if math.floor(l.x) == loc.x and math.floor(l.y) == loc.y then
+                            return true
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return false
+end
+
+-- The engine dispatches "pressureplateignored" on a creature a pressure plate's
+-- filter turned away, on the client that moved it, with args.forced true when
+-- something else moved it there. A goblin walking over a trap by itself says
+-- nothing, and neither does one on a trap the players have not found.
+local function OnPressurePlateIgnored(goblin, args)
+    -- DispatchEvent re-sends every event to all other creatures with
+    -- args.subject set to the original one; only that original counts.
+    if args == nil or args.subject ~= nil or args.forced ~= true or args.trap == nil then
+        return
+    end
+    local token = dmhub.LookupToken(goblin)
+    local trapToken = dmhub.LookupToken(args.trap)
+    if token == nil or trapToken == nil or not HasGoblinKeyword(token) then
+        return
+    end
+    -- A goblin of Medium size or bigger was turned away for some other
+    -- reason (flying over it, say), not for being too small.
+    if goblin:GetCalculatedCreatureSizeAsNumber() >= mediumSizeNumber then
+        return
+    end
+    if not TrapKnownToPlayers(trapToken) then
+        return
+    end
+    MonsterAI:SpeakNow(token, goblinTrapSpeech, {language = "Caelian"})
+end
+
+-- Chained like every other DispatchEvent wrapper.
+local g_baseDispatchEvent = creature.DispatchEvent
+function creature:DispatchEvent(eventName, args)
+    if eventName == "pressureplateignored" then
+        local ok, err = pcall(OnPressurePlateIgnored, self, args)
+        if not ok then
+            printf("Goblin AI: trap speech failed: %s", tostring(err))
+        end
+    end
+    return g_baseDispatchEvent(self, eventName, args)
+end
+
 -- Casts a targetType "map" group ability. With no target list it hits every
 -- creature the ability's filter accepts; pass targetTokens to narrow that.
 local function ExecuteMapAbility(ai, caster, ability, targetTokens)

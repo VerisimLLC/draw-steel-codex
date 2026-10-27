@@ -464,6 +464,65 @@ local function FindBestPullLocation(invokerToken, casterToken, abilityClone, sym
     return bestLoc
 end
 
+--Zone directive "Force Into": when an enemy can be moved so it ends inside a
+--Force Into zone, that landing beats every other consideration. Tested
+--against the real forced-movement path, so walls and creatures that would
+--stop it short are respected. Deeper landings (more of the zone around them)
+--are preferred, since they are harder to step out of. nil when none works.
+local function FindForceIntoLocation(invokerToken, casterToken, abilityClone, symbols, range, forcedMovement)
+    if verticalForcedMovementTypes[forcedMovement] or casterToken:IsFriend(invokerToken)
+        or not MonsterAI.AnyDirectiveZones("forceInto", invokerToken)
+        or MonsterAI.InDirectiveZone("forceInto", casterToken, nil, invokerToken) then
+        return nil
+    end
+    ---@type fun(loc: Loc): boolean
+    local filterTargetPredicate = abilityClone:TargetLocPassesFilterPredicate(casterToken, symbols)
+        or function() return true end
+
+    local bestLoc = nil
+    local bestScore = nil
+    local origin = casterToken.loc
+    for dx = -range,range do
+        for dy = -range,range do
+            local testLoc = origin:dir(dx, dy)
+            --cheap zone test first; the arrow is the expensive part.
+            if (dx ~= 0 or dy ~= 0) and MonsterAI.InDirectiveZone("forceInto", casterToken, testLoc, invokerToken)
+                and filterTargetPredicate(testLoc) then
+                --aim on the ground: a target altitude means "this high above it".
+                testLoc = testLoc:WithAltitude(0)
+                local movementInfo = casterToken:MarkMovementArrow(testLoc,
+                    ForcedMovementArrowOptions(forcedMovement, range))
+                local destination = movementInfo ~= nil and movementInfo.path.destination or nil
+                if destination ~= nil and destination:DistanceInTiles(origin) > 0
+                    and MonsterAI.InDirectiveZone("forceInto", casterToken, destination, invokerToken) then
+                    local depth = 0
+                    for ny = -1,1 do
+                        for nx = -1,1 do
+                            if MonsterAI.InDirectiveZone("forceInto", casterToken, destination:dir(nx, ny), invokerToken) then
+                                depth = depth + 1
+                            end
+                        end
+                    end
+                    local collideWithAllies = 0
+                    for _,collideToken in ipairs(movementInfo.collideWith or {}) do
+                        if not collideToken.isObject and collideToken:IsFriend(invokerToken) then
+                            collideWithAllies = collideWithAllies + 1
+                        end
+                    end
+                    local score = depth - collideWithAllies*4
+                    if bestScore == nil or score > bestScore then
+                        bestScore = score
+                        bestLoc = testLoc
+                    end
+                end
+            end
+        end
+    end
+
+    casterToken:ClearMovementArrow()
+    return bestLoc
+end
+
 MonsterAI:RegisterPrompt{
     prompts = {"Push!", "Pull!", "Slide!"},
 
@@ -476,7 +535,15 @@ MonsterAI:RegisterPrompt{
         if isVertical then
             altitudeCalculator = abilityClone:TargetLocMaxElevationChangeFunction(casterToken, movementSymbols)
         end
+        --The engine reads a forced-move target's altitude as height above the
+        --ground there, so a sideways move must aim at altitude 0. Candidate
+        --squares are built from the target's own loc, which carries its
+        --absolute altitude: on raised ground that turned a push into a lift
+        --and a fall.
         local preferAltitude = function(loc)
+            if not isVertical then
+                return loc:WithAltitude(0)
+            end
             if altitudeCalculator == nil then
                 return loc
             end
@@ -485,6 +552,22 @@ MonsterAI:RegisterPrompt{
                 return loc
             end
             return loc:WithAltitude(maxAltitude)
+        end
+
+        local forceIntoLoc = FindForceIntoLocation(invokerToken, casterToken, abilityClone,
+            movementSymbols, range, forcedMovement)
+        if forceIntoLoc ~= nil then
+            ai:LogDecision("FORCE INTO ZONE", {
+                targets = ai.TargetsLogName({{token = casterToken}}),
+                to = ai.LocLogName(forceIntoLoc),
+                plan = forcedMovement,
+            })
+            casterToken:MarkMovementArrow(forceIntoLoc, ForcedMovementArrowOptions(forcedMovement, range))
+            MonsterAI.Sleep(1)
+            casterToken:ClearMovementArrow()
+            return {
+                targets = {{loc = forceIntoLoc}},
+            }
         end
 
         if forcedMovement == "pull" or forcedMovement == "vertical_pull" then
@@ -884,6 +967,26 @@ local function EndEffectPurge(token, triggerInfo)
     return fallback
 end
 
+--- How bad the worst effect an End Effect trigger could end is (0-5, see
+--- MonsterAI.conditionSeverity), and the purge behind it with its Stamina cost.
+--- Both nil when the trigger is not shaped like an End Effect.
+--- @param token CharacterToken
+--- @param triggerInfo ActiveTrigger
+--- @return number|nil worst
+--- @return nil|{behavior: ActivatedAbilityPurgeEffectsBehavior, cost: number} purge
+function MonsterAI.EndEffectSeverity(token, triggerInfo)
+    local purge = EndEffectPurge(token, triggerInfo)
+    if purge == nil then
+        return nil, nil
+    end
+    local data = purge.behavior:CollectPurgeItems(token, nil)
+    local worst = 0
+    for _,item in ipairs(data ~= nil and data.items or {}) do
+        worst = math.max(worst, MonsterAI.PurgeItemValue(item, token, token))
+    end
+    return worst, purge
+end
+
 --Whether a monster should take its End Effect: only to end something nasty
 --(endEffectMinimumSeverity or worse), and only when it can afford the
 --Stamina with endEffectStaminaReserve to spare. Accepting it lets the purge
@@ -893,14 +996,9 @@ end
 --- @return nil|table decision {activate = true}, {dismiss = true}, or nil for the Director
 --- @return string reason
 function MonsterAI.EndEffectDecision(token, triggerInfo)
-    local purge = EndEffectPurge(token, triggerInfo)
+    local worst, purge = MonsterAI.EndEffectSeverity(token, triggerInfo)
     if purge == nil then
         return nil, "no purge behind this End Effect; left to the Director"
-    end
-    local data = purge.behavior:CollectPurgeItems(token, nil)
-    local worst = 0
-    for _,item in ipairs(data ~= nil and data.items or {}) do
-        worst = math.max(worst, MonsterAI.PurgeItemValue(item, token, token))
     end
     if worst < MonsterAI.endEffectMinimumSeverity then
         return {dismiss = true}, string.format("worst effect is only severity %d", worst)

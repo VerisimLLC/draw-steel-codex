@@ -6,6 +6,18 @@
 --hidden, file} rows, files beside it): every one must split and join back
 --byte for byte, and every roll in every script must survive being
 --rewritten by the writers.
+--The parser's words come from UIText and its text files, which call
+--dmhub.GetModLoading() and report problems with dmhub.Error: stub those
+--when running outside the app, so a missing id prints.
+if dmhub == nil then
+    dmhub = {
+        GetModLoading = function() return {} end,
+        Error = function(message) print(message) end,
+    }
+end
+dofile("DMHub Utils/UIText.lua")
+dofile("EncounterOfTheWeek/EncounterText.lua")
+dofile("EncounterOfTheWeek/EncounterAuthoringText.lua")
 dofile("DMHub Game Rules/TestRiders.lua")
 dofile("EncounterOfTheWeek/EncounterScript.lua")
 dofile("EncounterOfTheWeek/EncounterScriptEdit.lua")
@@ -270,6 +282,274 @@ local tableEntry = ParseOne({ "## Opportunity: Tinkerer", "", "### Browse", "", 
     table.unpack(E.TableLines({ name = "Wares", dice = "1d6", rows = { { lo = 1, hi = 2, text = "You gain 1 Healing Potion" }, { lo = 3, hi = 6, text = "+1 hero token" } } })) })
 local wares = (tableEntry.tables or {})[EncounterScript.MatchKey("Wares")]
 check(wares ~= nil and #wares.rows == 2 and wares.rows[2].lo == 3 and wares.rows[2].hi == 6, "table lines round trip")
+
+--- scene step forms ------------------------------------------------------------------
+
+local ACTORS = { witch = { name = "Witch", monster = "Hag" } }
+local function StepRoundTrip(line, expect)
+    local form = E.ReadSceneStep(line, ACTORS)
+    for k, v in pairs(expect) do
+        check(form[k] == v, string.format("ReadSceneStep %q: %s = %s, got %s", line, k, tostring(v), tostring(form[k])))
+    end
+    local again = E.ReadSceneStep(E.SceneStepLine(form), ACTORS)
+    for k, v in pairs(form) do
+        check(again[k] == v, string.format("SceneStepLine round trip %q: %s", line, k))
+    end
+    return form
+end
+StepRoundTrip("PC looks around.", { kind = "narrate", text = "PC looks around." })
+StepRoundTrip("Beware: the path is steep.", { kind = "narrate" })
+StepRoundTrip("PC: Hello there!", { kind = "say", speaker = "PC", text = "Hello there!", offstage = false })
+StepRoundTrip("Witch (scared): (in Hyrallic) Spare me!", { kind = "say", speaker = "Witch", emote = "scared", lang = "Hyrallic", text = "Spare me!" })
+StepRoundTrip("??? (offstage): Who goes there?", { kind = "say", speaker = "???", offstage = true })
+StepRoundTrip("Witch (Hag) enters", { kind = "enter", name = "Witch", monster = "Hag" })
+StepRoundTrip("Goblin enters", { kind = "enter", name = "Goblin", monster = "Goblin" })
+StepRoundTrip("Witch exits", { kind = "exit", name = "Witch" })
+StepRoundTrip("Witch is alarmed", { kind = "emote", name = "Witch", emote = "alarmed" })
+StepRoundTrip("if PC speaks Caelian then", { kind = "if", cond = "PC speaks Caelian" })
+StepRoundTrip("elseif tier2 then", { kind = "elseif", cond = "tier2" })
+StepRoundTrip("else", { kind = "else" })
+StepRoundTrip("end", { kind = "end" })
+check(E.SceneStepLine({ kind = "enter", name = "Xochi", monster = "Goblin Sniper" }) == "Xochi (Goblin Sniper) enters", "enter line with a portrait")
+check(E.SceneStepLine({ kind = "say", speaker = "Witch", offstage = true, emote = "scared", text = "Hi" }) == "Witch (offstage): Hi", "an off-stage voice drops the emote")
+check(E.SceneStepLine({ kind = "say", speaker = "PC", text = "a\nb | c" }) == "PC: a b / c", "speech is one line")
+for _, e in ipairs(E.SceneEmotes()) do
+    check(EncounterScript.SCENE_EMOTES[e], "SceneEmotes lists the parser's emotes")
+end
+
+local blockLines = { "PC: a", "if tier1 then", "  PC: b", "  if PC speaks X then", "    PC: c", "  end", "elseif tier2 then", "  PC: d", "else", "  PC: e", "end", "PC: f" }
+check(E.SceneBlockEnd(blockLines, 2) == 11, "SceneBlockEnd skips a nested block")
+check(E.SceneBlockEnd(blockLines, 4) == 6, "SceneBlockEnd of the nested block")
+check(E.SceneBranchEnd(blockLines, 2) == 6, "SceneBranchEnd: the if branch runs to the elseif")
+check(E.SceneBranchEnd(blockLines, 7) == 8, "SceneBranchEnd: the elseif branch")
+check(E.SceneBranchEnd(blockLines, 9) == 10, "SceneBranchEnd: the else branch")
+check(E.SceneBlockEnd({ "if tier1 then", "PC: a" }, 1) == nil, "an unclosed block has no end")
+
+--- condition forms ---------------------------------------------------------------------
+
+local function CondRoundTrip(text, expectRows)
+    local rows = E.ReadCondition(text)
+    check(rows ~= nil and #rows == #expectRows, "ReadCondition row count: " .. text)
+    ---@cast rows -nil
+    for i, want in ipairs(expectRows) do
+        for k, v in pairs(want) do
+            check(rows[i][k] == v, string.format("ReadCondition %q row %d: %s = %s, got %s", text, i, k, tostring(v), tostring(rows[i][k])))
+        end
+    end
+    --the written text means the same to the parser.
+    local written = E.ConditionText(rows)
+    local _, problems = EncounterScript.ParseCondition(written)
+    check(#problems == 0, "ConditionText parses clean: " .. written)
+    local again = E.ReadCondition(written)
+    ---@cast again -nil
+    for i, row in ipairs(rows) do
+        check(again[i].kind == row.kind and again[i].value == row.value and (again[i].negate == true) == (row.negate == true)
+            and again[i].join == row.join, string.format("condition round trip %q row %d", text, i))
+    end
+    return rows
+end
+CondRoundTrip("PC speaks Caelian then", { { kind = "speaks", value = "Caelian" } })
+CondRoundTrip("PC does not speak Caelian", { { kind = "speaks", value = "Caelian", negate = true } })
+CondRoundTrip("PC is a Dwarf and not PC is skilled in Sneak", { { kind = "kindred", value = "Dwarf" }, { kind = "skilled", value = "Sneak", negate = true, join = "and" } })
+CondRoundTrip("PC is an Elementalist or PC was a Farmer", { { kind = "kindred", value = "Elementalist" }, { kind = "career", value = "Farmer", join = "or" } })
+CondRoundTrip("PC has the Lucky Dog perk", { { kind = "perk", value = "Lucky Dog" } })
+CondRoundTrip("PC has a lantern", { { kind = "has", value = "a lantern" } })
+CondRoundTrip("PC can fly", { { kind = "can", value = "fly" } })
+CondRoundTrip("PC is small", { { kind = "is", value = "small" } })
+CondRoundTrip("PC chose Steal some potions and not tier1", { { kind = "chose", value = "Steal some potions" }, { kind = "tier", value = "1", negate = true, join = "and" } })
+CondRoundTrip("tier 2 or crit", { { kind = "tier", value = "2" }, { kind = "tier", value = "4", join = "or" } })
+CondRoundTrip("PC worships Grole", { { kind = "custom", value = "PC worships Grole" } })
+check(E.ReadCondition("(PC can fly or PC can climb) and tier3") == nil, "parentheses stay text")
+check(E.ReadCondition("PC can fly and") == nil, "a dangling join stays text")
+check(E.ConditionText({ { kind = "career", value = "Artisan" } }) == "PC was an Artisan", "an before a vowel")
+
+--- the clause catalogue and outcome forms -------------------------------------------
+
+--every catalogue kind, with every value its picker offers, writes a clause
+--that parses back to the same kind and values.
+local EFFECT_FIELDS = { "target", "qty", "dice", "outcome", "keyword", "zone", "object", "effect", "damageType" }
+local VARIANTS = {
+    target = { "self", "party" }, qty = { 1, 2, 5 }, outcome = { "win", "lose", "surprise", "surprised" },
+    effect = { "edge", "doubleedge", "bane", "doublebane" }, damageType = EncounterScript.DAMAGE_TYPES,
+}
+local catalogueChecks = 0
+for _, c in ipairs(EncounterScript.CLAUSES) do
+    check(EncounterScript.ClauseInfo(c.kind) == c, "ClauseInfo: " .. c.kind)
+    ---@type table<string, any>
+    local base = { kind = c.kind }
+    for k, v in pairs(c.defaults) do base[k] = v end
+    if base.name == "" then base.name = "Capture Them" end
+    local tries = { base }
+    for field, values in pairs(VARIANTS) do
+        if base[field] ~= nil then
+            for _, v in ipairs(values) do
+                local e = {}
+                for k, x in pairs(base) do e[k] = x end
+                e[field] = v
+                tries[#tries + 1] = e
+            end
+        end
+    end
+    if c.kind == "loserecovery" then
+        tries[#tries + 1] = { kind = "loserecovery", target = "party", dice = "1d3", qty = 3 }
+    end
+    for _, e in ipairs(tries) do
+        local text = EncounterScript.ClauseText(e)
+        local back = EncounterScript.ParseEffects(text)
+        check(#back == 1 and back[1].kind == c.kind, string.format("catalogue %s: %q parses back as %s", c.kind, tostring(text), tostring(back[1] and back[1].kind)))
+        for _, f in ipairs(EFFECT_FIELDS) do
+            if e[f] ~= nil and not (f == "qty" and e.dice ~= nil) then
+                check(tostring(back[1][f]) == tostring(e[f]), string.format("catalogue %s %q: %s", c.kind, text, f))
+            end
+        end
+        if e.name ~= nil and c.kind ~= "item" then
+            check(back[1].name == e.name, string.format("catalogue %s %q: name", c.kind, text))
+        end
+        catalogueChecks = catalogueChecks + 1
+    end
+end
+check(catalogueChecks > 60, "the catalogue was exercised")
+check(EncounterScript.ParseEffects(EncounterScript.ClauseText({ kind = "item", qty = 3, name = "Healing Potion" }))[1].name == "Healing Potions",
+    "three of an item are written in the plural (FindGear drops the s)")
+
+local function SameEffects(a, b, label)
+    check(#a.effects == #b.effects, label .. ": effect count")
+    for i, x in ipairs(a.effects) do
+        local y = b.effects[i]
+        for _, f in ipairs({ "kind", "target", "qty", "dice", "name", "outcome", "keyword", "zone", "object", "effect", "damageType" }) do
+            check(tostring(x[f]) == tostring(y[f]), string.format("%s: effect %d %s", label, i, f))
+        end
+        check(x.hidden == y.hidden, string.format("%s: effect %d hidden", label, i))
+    end
+    --the free text may gain a full stop: it separates it from the effects.
+    local function Bare(t) return (string.gsub(t, "[%.,;!%?]$", "")) end
+    check(Bare(a.text) == Bare(b.text), label .. ": text " .. string.format("%q vs %q", a.text, b.text))
+end
+for _, line in ipairs({
+    "You make off with some potions! Each party member gains one Healing Potion",
+    "You gain a Rope. {Unlock the Old Mill}",
+    "The witch is unimpressed.",
+    "You lose 6 Stamina. Each party member gains one Healing Potion.",
+    "Nothing comes of it",
+    "The threat is vanquished. +1 hero token",
+    "Bones everywhere, and a chill. You lose a recovery. {The party has an edge on Capture Them}, you shiver",
+    "+2 Malice",
+    "",
+}) do
+    local o = E.ReadOutcome(line)
+    local written = E.OutcomeText(o)
+    SameEffects(o, E.ReadOutcome(written), "outcome round trip " .. string.format("%q", line))
+end
+check(E.OutcomeText(E.ReadOutcome("You make off with some potions! Each party member gains one Healing Potion"))
+    == "You make off with some potions! Each party member gains one Healing Potion", "an untouched line is written back as it was")
+check(E.OutcomeText(E.ReadOutcome("You gain a Rope. {Unlock the Old Mill}")) == "You gain a Rope. {Unlock the Old Mill}", "a hidden clause keeps its braces")
+local edited = E.ReadOutcome("The goblin flees. You gain 1 Healing Potion")
+edited.effects[1].qty, edited.effects[1].text = 2, nil
+edited.effects[#edited.effects + 1] = { kind = "herotoken", qty = 1 }
+check(E.OutcomeText(edited) == "The goblin flees. You gain 2 Healing Potions. +1 hero token", "an edited effect is rewritten, a new one appended: " .. E.OutcomeText(edited))
+check(E.OutcomeText({ text = "No full stop", effects = { { kind = "malice", qty = 1 } } }) == "No full stop. +1 Malice", "free text gets a full stop before the effects")
+--untouched lines from the real scripts come back byte for byte.
+for _, line in ipairs({
+    "Impressed, she shares a trick of the trade. You gain two Healing Potions.",
+    "She recognizes a kindred spirit and trades secrets late into the night. Each party member gains one Healing Potion. At the start of the next combat, you gain 1 surge.",
+    "The old song moves them. A Wode Elf Sentry joins you.",
+    "It seems ready to talk... You gain 1 Rope?! Wow.",
+    "You capture it! It seems ready to talk... {Unlock Talk to the Goblin. Edge on Interrogate the Goblin. Bane on Befriend the Goblin}",
+    "+1 Intelligence. {Unlock Talk to the Goblin. Edge on Befriend the Goblin}.",
+    "Bones everywhere, and a chill. You lose a recovery. {The party has an edge on Capture Them}, you shiver",
+}) do
+    check(E.OutcomeText(E.ReadOutcome(line)) == line, "untouched outcome is identical: " .. E.OutcomeText(E.ReadOutcome(line)))
+end
+local glued = E.ReadOutcome("Late at night. +1 hero token. At the start of the next combat, you gain 1 surge.")
+check(glued.text == "Late at night." and glued.effects[2].prefix == "At the start of the next combat, ", "flavour between effects stays glued to the next one")
+local appended = E.ReadOutcome("You lose a recovery, you shiver")
+appended.effects[#appended.effects + 1] = { kind = "herotoken", qty = 1 }
+check(E.OutcomeText(appended) == "You lose a recovery, you shiver. +1 hero token", "a trailing phrase stays with its effect: " .. E.OutcomeText(appended))
+check(E.OutcomeText({ text = "", effects = { { kind = "unlock", name = "The Mill", hidden = true } } }) == "{Unlock The Mill}", "effects alone")
+
+--- the script builder: setup, reinforcements, narratives, tags ----------------------
+
+for _, ins in ipairs({
+    { kind = "placeobjects", label = "Trap", qty = 4, object = "Snare Trap", zone = "trap", deleteOthers = true },
+    { kind = "placeobjects", label = "Pit", qty = 1, object = "Pit", zone = "pit", deleteOthers = false },
+}) do
+    local line = E.SetupLine(ins)
+    local label, rest = string.match(line, "^([%a][%a '%-]*):%s*(.*)$")
+    local back = EncounterScript.ParseSetupInstruction(rest)
+    check(label == ins.label and back ~= nil and back.kind == "placeobjects" and back.qty == ins.qty and back.object == ins.object
+        and back.zone == ins.zone and back.deleteOthers == ins.deleteOthers, "setup line round trip: " .. line)
+end
+local byLine = E.SetupLine({ kind = "bystanders", label = "Bystanders", names = { "Civilian", "Old Tam" } })
+local by = EncounterScript.ParseSetupInstruction(string.match(byLine, ":%s*(.*)$"))
+check(by ~= nil and by.kind == "bystanders" and #by.names == 2 and by.names[2] == "Old Tam", "bystander line round trip: " .. byLine)
+local v1 = EncounterScript.ParseVictoryInstruction(string.match(E.SetupLine({ kind = "victory" }), ":%s*(.*)$"))
+check(v1 ~= nil and v1.who == nil, "victory over every enemy round trip")
+local v2 = EncounterScript.ParseVictoryInstruction(string.match(E.SetupLine({ kind = "victory", who = "dwarf", whoText = "Dwarf" }), ":%s*(.*)$"))
+check(v2 ~= nil and v2.who == "dwarf", "victory over every Dwarf round trip")
+
+for _, sched in ipairs({
+    { rounds = { [3] = true } }, { rounds = { [2] = true, [4] = true, [6] = true } },
+    { every = 1, from = 2 }, { every = 2, from = 3, to = 7 }, { every = 3, from = 1 },
+}) do
+    local line = E.ArriveLine(sched)
+    local back = EncounterScript.ParseReinforcementSchedule(string.match(line, "^Arrive:%s*(.*)$"))
+    check(back ~= nil, "arrive line parses: " .. line)
+    ---@cast back -nil
+    for r = 1, 10 do
+        check(EncounterScript.ScheduleIncludes(back, r) == EncounterScript.ScheduleIncludes(sched, r), string.format("arrive round trip %q round %d", line, r))
+    end
+end
+check(EncounterScript.ParseReinforcementZone(string.match(E.EnterLine("stairs"), ":%s*(.*)$")) == "Stairs", "enter line round trip")
+check(EncounterScript.ParseShout(string.match(E.ShoutLine('For the "Hand"!'), ":%s*(.*)$")) == "For the 'Hand'!", "shout line round trip")
+
+--new beats and sections parse clean, and a mode line sets the mode.
+local starter = {}
+for _, block in ipairs({ E.NarrativeBeatBlock(), E.MontageBeatBlock(), E.EncounterBeatBlock(), E.StoryBlock("Town Gate", "Goblins!") }) do
+    for _, l in ipairs(block) do starter[#starter + 1] = l end
+    starter[#starter + 1] = ""
+end
+local starterParse = EncounterScript.Parse(table.concat(starter, "\n"))
+check(#starterParse.beats == 3 and starterParse.beats[1].kind == "narrative" and starterParse.beats[2].kind == "montage"
+    and starterParse.beats[3].kind == "encounter" and starterParse.story.towngate ~= nil, "starter beats parse")
+local narr = starterParse.beats[1]
+check(#narr.sections == 1 and narr.sections[1].modeExplicit and #narr.sections[1].options == 2
+    and narr.sections[1].options[1].ruleLines ~= nil and #narr.sections[1].options[1].effects == 1, "starter narrative section, options and rule lines")
+local individual = EncounterScript.Parse("# Narrative\n## S\n" .. E.NarrativeModeLine("individual", "Pick one") .. "\n### A\n### B")
+check(individual.beats[1].sections[1].mode == "individual" and individual.beats[1].sections[1].prompt == "Pick one", "mode line round trip")
+local sectionParse = EncounterScript.Parse("# Narrative\n" .. table.concat(E.NarrativeSectionBlock("Camp"), "\n"))
+check(#sectionParse.beats[1].sections == 1 and #sectionParse.beats[1].sections[1].options == 2, "new section block")
+local rfParse = EncounterScript.Parse("# Encounter\n[[encounter]]\n" .. table.concat(E.ReinforcementBlock("Gunners"), "\n"))
+local rf = rfParse.beats[1].reinforcements[1]
+check(rf ~= nil and rf.name == "Gunners" and rf.schedule ~= nil and #rf.islands == 1 and rf.scheduleLine == 5, "new reinforcement block")
+local rf2 = EncounterScript.Parse("# Encounter\n## Reinforcements: X\nArrive: round 2\nEnter: the Stairs zone\nShout: \"Hi\"\nThey come.\n[[encounter]]").beats[1].reinforcements[1]
+check(rf2.scheduleLine == 3 and rf2.zoneLine == 4 and rf2.shoutLines[1].line == 5 and rf2.noteLines[1] == 6, "reinforcement line fields")
+local unlockParse = EncounterScript.Parse("# Narrative\n" .. E.UnlockLine("Intelligence") .. "\n## S\n### A")
+check(unlockParse.beats[1].unlocks ~= nil and unlockParse.beats[1].unlocks[1].feature == "intelligence", "unlock line")
+
+--tags keep their data through swaps, deletes and inserts.
+local tagLines = { "# A", "[[scene]]", "", "# B", "[[scene]]", "[[encounter]]", "", "# C" }
+local occ = E.TagOccurrences(tagLines)
+check(#occ == 3 and occ[1].key == "scene" and occ[2].key == "scene-1" and occ[3].key == "encounter", "tag keys follow the journal")
+local swapped, swapMap = E.SwapBlocks(tagLines, 1, 2, 4, 6)
+check(swapped[1] == "# B" and swapped[4] == "" and swapped[5] == "# A" and swapped[8] == "# C", "swap keeps the gap between blocks")
+local remap, gone = E.RekeyTags(tagLines, swapped, swapMap)
+check(remap["scene"] == "scene-1" and remap["scene-1"] == "scene" and remap["encounter"] == "encounter" and #gone == 0, "a swap swaps the keys")
+check(E.RekeyChanges(remap, gone), "a swap changes keys")
+local delPatch = E.Patch("d", 1, 3, {})
+local afterDelete = E.Split(E.Replace(table.concat(tagLines, "\n"), 1, 3, {})).lines
+remap, gone = E.RekeyTags(tagLines, afterDelete, E.PatchLineMap(#tagLines, { delPatch }))
+check(remap["scene-1"] == "scene" and #gone == 1 and gone[1] == "scene", "deleting the first scene moves the second onto its key")
+local insPatch = E.Patch("d", 1, 0, { "# New", "[[scene]]" })
+local afterInsert = E.Split(E.Replace(table.concat(tagLines, "\n"), 1, 0, { "# New", "[[scene]]" })).lines
+remap, gone = E.RekeyTags(tagLines, afterInsert, E.PatchLineMap(#tagLines, { insPatch }))
+check(remap["scene"] == "scene-1" and remap["scene-1"] == "scene-2" and #gone == 0, "a new tag above shifts the old ones' keys")
+remap, gone = E.RekeyTags(tagLines, tagLines, E.PatchLineMap(#tagLines, {}))
+check(not E.RekeyChanges(remap, gone), "no edit, no change")
+--a block moved as delete + insert keeps its tag.
+local moveLines = { "# A", "[[scene:Night]]", "# B", "[[scene]]" }
+local moved = { "# B", "[[scene]]", "# A", "[[scene:Night]]" }
+remap = E.RekeyTags(moveLines, moved, { [1] = nil, [2] = nil, [3] = 1, [4] = 2 })
+check(remap["scene:Night"] == "scene:Night" and remap["scene"] == "scene", "a moved named tag keeps its key")
 
 --- the corpus -----------------------------------------------------------------------
 

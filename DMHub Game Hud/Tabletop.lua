@@ -133,8 +133,6 @@ local g_lastMapId = nil
 local g_gameid = nil
 
 local g_layer = nil
---Over the whole hud: a maximized scene on show over the UI (Tabletop.CreateTopLayer).
-local g_topLayer = nil
 --The strip under the app title bar that a maximized map or scene window's
 --titlebar moves into (see "The maximized window's strip" below): {layer,
 --strip, leadSlot, controlsSlot, owner}. A table, not locals: this file is at
@@ -646,7 +644,13 @@ local function BuildFloorControl(rec)
     }
 end
 
+--A maximized window keeps its place: focusing it from the Maps panel, a
+--journal link or a map change must not bury the window being used (David,
+--2026-10-25). g_chrome.StackMaximized says what does raise it.
 local function BringToFront(rec)
+    if rec.maximized then
+        return
+    end
     if rec.panel ~= nil and rec.panel.valid then
         rec.panel:SetAsLastSibling()
     end
@@ -1203,11 +1207,11 @@ end
 --hung from the right of the app title bar, which fades out to the left over
 --the map (David, 2026-10-15). It is chrome, like the title bar: it sits in
 --its own layer over the whole hud (Tabletop.CreateChromeLayer), so it stays
---reachable over docks, dialogs and a scene shown over the UI, and while the
+--reachable over docks, dialogs and the full-screen display, and while the
 --Director's scene shown to the Players alone is hidden here.
 
 --- The layer for the maximized window's strip. GameHud puts it straight
---- after the top layer.
+--- after the over-the-UI full-screen display.
 --- @return Panel
 function Tabletop.CreateChromeLayer()
     g_chrome.leadSlot = gui.Panel{
@@ -1319,6 +1323,19 @@ function g_chrome.Owner()
         end
     end
     return nil
+end
+
+--- The maximized map or scene window's panel while it is on show among the
+--- windows (not a scene under the UI at the bottom), else nil. It covers the
+--- table, so the chat bubble treats it as a full-screen stage
+--- (PanelDocument.FullscreenStage).
+--- @return Panel|nil
+function Tabletop.MaximizedWindowPanel()
+    local rec = g_chrome.Owner()
+    if rec == nil or rec.panel.parent ~= DocumentsLayer() or rec.panel:HasClass("collapsed") then
+        return nil
+    end
+    return rec.panel
 end
 
 --A window leaving the strip: its rows go home to its titlebar, or are
@@ -2110,7 +2127,7 @@ local function BuildWindow(rec)
         dragInPlace = true,
         dragging = function(element)
             if not rec.maximized then
-                DirectorScreen.ItemDragging(g_sharing.ScreenKey(rec), element.xdrag, rec.width)
+                DirectorScreen.ItemDragging(g_sharing.ScreenKey(rec), element.xdrag, rec.width, element)
             end
         end,
         drag = function(element)
@@ -2130,7 +2147,11 @@ local function BuildWindow(rec)
             if ClicksGuarded() then
                 return
             end
-            Focus(rec)
+            --the press already raised it (raiseOnPress). Raising again here buried
+            --a window the press had just opened from inside it: a map rail button
+            --opens its panel on press and has no click handler, so the click
+            --bubbles up to here (2026-10-25).
+            Focus(rec, nil, true)
         end,
         children = {
             titlebar,
@@ -2160,10 +2181,11 @@ local function BuildWindow(rec)
     rec.shownState = nil
 end
 
---Puts a built window in its layer: the documents layer, mixed in with
---journals and panel windows, or the bottom tabletop layer when maximized,
---so the docks and the rest of the hud sit over it as they do over a
---full-screen map.
+--Puts a built window in the documents layer, mixed in with journals and
+--panel windows. Maximized it stays there and covers the hud's lower layers
+--(docks, Director's Screen). Windowed or maximized it stacks with the other
+--windows by click order, but always under the icon rails and rail panel
+--windows (David, 2026-10-24/25).
 local function PlaceWindow(rec)
     local panel = rec.panel
     if panel == nil or not panel.valid then
@@ -2171,19 +2193,23 @@ local function PlaceWindow(rec)
     end
 
     local target = DocumentsLayer()
-    if rec.maximized then
-        target = g_layer
-    end
     if target == nil or not target.valid then
         return
     end
 
+    local appended = false
     if panel.parent ~= target then
         if panel.parent ~= nil then
             panel:Unparent()
         end
         target:AddChild(panel)
+        --appended over everything: stack it again, so what must stay above
+        --a map window (rail panels, a presented stage) is lifted back over it.
+        rec.maximizedPanel = nil
+        appended = true
     end
+
+    g_chrome.StackMaximized(rec, rec.maximized == true, appended)
 
     if rec.maximized then
         panel.x = 0
@@ -2208,6 +2234,34 @@ local function PlaceWindow(rec)
     rec.overlay.selfStyle.height = cond(rec.maximized, string.format("100%%-%d", TITLE_HEIGHT), "100%")
     Tabletop.ApplyCollapsed(rec)
     g_chrome.Sync()
+end
+
+--How a map or scene window stacks. Windowed or maximized, the engine keeps
+--the rails and rail panel windows over it whenever it is raised; maximized
+--among the windows (stacked; false windowed or under the UI) it keeps any
+--dialog over it too (David, 2026-10-24/25). Maximizing brings it up once:
+--to the top, or, taking the maximize over from rec.stackAbove (the window
+--it replaces), into that window's place, so the windows over the old map
+--stay over it. After that only a click on it, Ctrl+Tab or restoring it
+--raises it (BringToFront leaves a maximized window where it is).
+--appended: it was just added to the layer, over everything.
+function g_chrome.StackMaximized(rec, stacked, appended)
+    local panel = rec.panel
+    panel.raiseBelowClasses = PanelDocument.ABOVE_MAP_WINDOWS
+    panel.raiseUnderNonWindows = stacked
+    local above = rec.stackAbove
+    rec.stackAbove = nil
+    if stacked and rec.maximizedPanel ~= panel then
+        if above ~= nil and above.valid and above.parent == panel.parent then
+            panel:SetAsSiblingAbove(above)
+        else
+            panel:SetAsLastSibling()
+        end
+    elseif appended and not stacked then
+        --already on top; the raise lifts the rails and rail panels back over it.
+        panel:SetAsLastSibling()
+    end
+    rec.maximizedPanel = cond(stacked, panel, nil)
 end
 
 --The maximized map window on show (built, not minimized), or nil.
@@ -2238,9 +2292,8 @@ end
 --stays built so restoring it is instant (Refresh re-applies this to every
 --window). A maximized map window covers the other map windows, so they are
 --hidden under it (David, 2026-10-15); every other window -- scenes,
---journals, panel windows, cards -- still floats over it, as does every
---window over a maximized scene or a scene shown under the UI (David,
---2026-10-14).
+--journals, panel windows, cards -- stays open and stacks with it by click
+--order (PlaceWindow).
 function Tabletop.ApplyCollapsed(rec)
     local panel = rec.panel
     if panel == nil or not panel.valid then
@@ -2277,7 +2330,7 @@ end
 --goes out on the table (DirectorScreen grows it). One size for every card.
 --(One table, g_card, holds the card's size and helpers: this file's top
 --level is near Lua's 200-local limit.)
-local g_card = {width = 168, height = 112}
+local g_card = {width = 168, height = 112, caption = 24}
 
 --A minimized window's button size on the table, in documents-layer units.
 function g_card.Size(rec)
@@ -2414,10 +2467,11 @@ function g_card.Name(rec)
     return MapName(rec.mapid)
 end
 
---The part of an image a card shows: cropped to the card's shape from the
---middle, never stretched. aspect is the image's width over its height.
+--The part of an image a card shows: cropped to the picture's shape (the card
+--above its name strip) from the middle, never stretched. aspect is the
+--image's width over its height.
 function g_card.Crop(aspect)
-    local box = g_card.width / g_card.height
+    local box = g_card.width / (g_card.height - g_card.caption)
     local w, h = 1, 1
     if aspect > box then
         w = box / aspect
@@ -2443,15 +2497,33 @@ function g_card.Expand(rec, ops)
     ops.restore(rec)
 end
 
---A minimized window's card (see g_card.width): its picture with its name along
---the bottom. Dragged like the button; double-click, or the expand button
+--A minimized window's card (see g_card.width): its picture, with its name on
+--a strip of its own below it (Venla, 2026-10-22: nothing laid over the map,
+--which made dark maps hard to read). Dragged like the button; double-click, or the expand button
 --that shows on hover, grows it back into its window.
 function g_card.Button(rec, ops, scale)
     local image, placeholder
+    --a map card shows the whole map (its thumbnail, pack or loading art),
+    --filling the card from the middle (Venla, 2026-10-19). The window's
+    --snapshot is the fallback: it is see-through wherever the window showed
+    --no map, so it cannot fill the card.
+    local mapAspect = nil
     if ops.image ~= nil then
         image, placeholder = ops.image(rec)
     else
-        image, placeholder = Tabletop.FrozenImage(rec)
+        local thumbnails = rawget(_G, "MapThumbnail")
+        local thumb, source = nil, nil
+        if thumbnails ~= nil then
+            thumb, source = thumbnails.Image(rec.mapid)
+        end
+        if thumb ~= nil and source ~= "snapshot" then
+            image, placeholder = thumb, false
+            if source == "thumbnail" then
+                mapAspect = thumbnails.Aspect(rec.mapid)
+            end
+        else
+            image, placeholder = Tabletop.FrozenImage(rec)
+        end
     end
     local expand = gui.Panel{
         classes = {"tabletopCardExpand", "hidden"},
@@ -2480,14 +2552,26 @@ function g_card.Button(rec, ops, scale)
             interactable = false,
         },
     }
-    local card
-    card = gui.Panel{
-        classes = {"tabletopTableButton", "tabletopWindowCard"},
+    --the picture sits on a solid card: a map snapshot is see-through where the
+    --window showed no map, which let what lies under the card show through.
+    local picture = gui.Panel{
         bgimage = image,
         bgcolor = cond(placeholder, "#1b1814ff", "white"),
         cornerRadius = 6,
-        borderWidth = 1,
-        borderColor = "#ffffff30",
+        floating = true,
+        halign = "center",
+        valign = "top",
+        width = g_card.width,
+        height = g_card.height - g_card.caption,
+        interactable = false,
+    }
+    local card
+    card = gui.Panel{
+        classes = {"tabletopTableButton", "tabletopWindowCard"},
+        bgimage = "panels/square.png",
+        bgcolor = "#1b1814ff",
+        --no frame (Venla, 2026-10-22): the picture runs to the card's edges.
+        cornerRadius = 6,
         floating = true,
         halign = "left",
         valign = "top",
@@ -2502,7 +2586,7 @@ function g_card.Button(rec, ops, scale)
         dragging = function(element, target)
             ChatItemLinks.Dragging(function() return ops.chatItems(rec) end)
             local w = g_card.Size(rec)
-            DirectorScreen.ItemDragging(g_sharing.ScreenKey(rec), element.xdrag, w)
+            DirectorScreen.ItemDragging(g_sharing.ScreenKey(rec), element.xdrag, w, element)
         end,
         drag = function(element, target)
             if ChatItemLinks.Dropped() then
@@ -2525,11 +2609,9 @@ function g_card.Button(rec, ops, scale)
             g_card.Expand(rec, ops)
         end,
         hover = function(element)
-            element.selfStyle.borderColor = "#ffffff90"
             expand:SetClass("hidden", false)
         end,
         dehover = function(element)
-            element.selfStyle.borderColor = "#ffffff30"
             expand:SetClass("hidden", true)
         end,
         rightClick = function(element)
@@ -2547,48 +2629,36 @@ function g_card.Button(rec, ops, scale)
             }
         end,
 
-        --its name along the bottom, with the map or scene icon.
-        gui.Panel{
-            bgimage = "panels/square.png",
-            bgcolor = "#16171bee",
+        picture,
+        --its name, one line, on the card below the picture.
+        gui.Label{
+            text = g_card.Name(rec),
+            --a long name shrinks to stay on the card (about 22 characters
+            --fit at 12).
+            fontSize = math.max(9, math.min(12, 12 * 22 / math.max(1, #g_card.Name(rec)))),
+            color = "#efe6dc",
             floating = true,
             halign = "left",
             valign = "bottom",
-            width = "100%",
-            height = 22,
-            flow = "horizontal",
+            x = 8,
+            width = g_card.width - 16,
+            height = g_card.caption,
+            textAlignment = "left",
+            textWrap = false,
             interactable = false,
-            gui.Panel{
-                bgimage = ops.icon,
-                bgcolor = "#ffffffc0",
-                width = 12,
-                height = 12,
-                valign = "center",
-                lmargin = 7,
-                rmargin = 5,
-                interactable = false,
-            },
-            gui.Label{
-                text = g_card.Name(rec),
-                fontSize = 11,
-                color = "#ffffffe8",
-                width = g_card.width - 34,
-                height = "auto",
-                valign = "center",
-                textWrap = false,
-                interactable = false,
-            },
         },
         expand,
     }
-    --cropped to the card's shape: a map's snapshot has its window's shape;
-    --anything else is measured.
-    if type(image) == "string" and string.sub(image, 1, 13) == "#MapSnapshot:" then
-        card.selfStyle.imageRect = g_card.Crop(rec.width / math.max(1, rec.height))
+    --cropped to the card's shape: a map's thumbnail has the map's shape, its
+    --snapshot its window's; anything else is measured.
+    if mapAspect ~= nil then
+        picture.selfStyle.imageRect = g_card.Crop(mapAspect)
+    elseif type(image) == "string" and string.sub(image, 1, 13) == "#MapSnapshot:" then
+        picture.selfStyle.imageRect = g_card.Crop(rec.width / math.max(1, rec.height))
     elseif type(image) == "string" and string.sub(image, 1, 1) ~= "#" and not placeholder then
         gui.GetImageDimensionsCallback(image, function(dims)
-            if card.valid and dims ~= nil and (dims.width or 0) > 0 and (dims.height or 0) > 0 then
-                card.selfStyle.imageRect = g_card.Crop(dims.width / dims.height)
+            if picture.valid and dims ~= nil and (dims.width or 0) > 0 and (dims.height or 0) > 0 then
+                picture.selfStyle.imageRect = g_card.Crop(dims.width / dims.height)
             end
         end)
     end
@@ -2669,7 +2739,7 @@ local function UpdateTableButton(rec)
         dragging = function(element, target)
             IconRailDocDragging(target)
             ChatItemLinks.Dragging(function() return ops.chatItems(rec) end)
-            DirectorScreen.ItemDragging(g_sharing.ScreenKey(rec), element.xdrag, BUTTON_SIZE * scale)
+            DirectorScreen.ItemDragging(g_sharing.ScreenKey(rec), element.xdrag, BUTTON_SIZE * scale, element)
         end,
         drag = function(element, target)
             IconRailDocDragging(nil)
@@ -2833,11 +2903,17 @@ RestoreWindow = function(rec)
     Travel(rec.mapid)
     AnimateGhost(rec, from, to, function()
         if IsOpen(rec) and not rec.minimized then
+            local takesOver = g_chrome.CoveringMap(rec) ~= nil
             PlaceWindow(rec)
             if rec.maximized then
                 Tabletop.SetForced(rec.mapid, true)
             end
             Focus(rec)
+            --a maximized window restored from its button comes up (BringToFront
+            --leaves it); one taking the maximize over keeps the old one's place.
+            if rec.maximized and not takesOver and rec.panel ~= nil and rec.panel.valid then
+                rec.panel:SetAsLastSibling()
+            end
         end
     end)
     SaveSoon()
@@ -3338,7 +3414,9 @@ local function EnsureBuilt(rec)
 end
 
 --fromPress: the button of a press on the window's frozen map (see Travel).
-Focus = function(rec, fromPress)
+--keepPlace: focus it without raising it (the window's own click: the press
+--already raised it).
+Focus = function(rec, fromPress, keepPlace)
     --a click on a window's close button also reaches the window itself.
     if not IsOpen(rec) then
         return
@@ -3356,7 +3434,9 @@ Focus = function(rec, fromPress)
         ToggleMaximize(rec)
         return
     end
-    BringToFront(rec)
+    if not keepPlace then
+        BringToFront(rec)
+    end
     if g_focusedId ~= rec.id then
         g_focusedId = rec.id
         SaveSoon()
@@ -3426,6 +3506,8 @@ ToggleMaximize = function(rec)
         UnmaximizeScenes()
         for _,other in ipairs(g_windows) do
             if other ~= rec and other.maximized then
+                --taking the maximize over: this one goes into its place.
+                rec.stackAbove = other.panel
                 other.maximized = false
                 PlaceWindow(other)
                 Tabletop.SetForced(other.mapid, false)
@@ -3535,6 +3617,10 @@ function Tabletop.SwitcherMapWindows()
             combat = Tabletop.MapInCombat(rec.mapid),
             activate = function()
                 Focus(rec)
+                --picked by name: a maximized window comes up too (BringToFront leaves it).
+                if rec.maximized and not rec.minimized and rec.panel ~= nil and rec.panel.valid then
+                    rec.panel:SetAsLastSibling()
+                end
             end,
         }
     end
@@ -3601,8 +3687,13 @@ local function OnCurrentMapChanged(newMapId, fromMapId)
         g_liveId = target.id
         g_focusedId = target.id
         if target.minimized then
-            --we are on its map now: it opens back up.
-            RestoreWindow(target)
+            --we are on its map now: it opens back up. Not a card on the
+            --Director's Screen: a map row dropped there opens a window,
+            --travels to its map and is shrunk to a card before the travel
+            --lands (Venla, 2026-10-19); double-clicking the card grows it.
+            if not target.card then
+                RestoreWindow(target)
+            end
         elseif g_chrome.CoveringMap(target) ~= nil then
             --hidden under the maximized map: it takes the maximize over.
             ToggleMaximize(target)
@@ -4601,6 +4692,8 @@ local function ApplyForced(forced)
                 UpdateTableButton(rec)
                 for _, other in ipairs(g_windows) do
                     if other ~= rec and other.maximized and not other.forced then
+                        --into the place of the map it replaces; with none it comes to the top.
+                        rec.stackAbove = other.panel
                         other.maximized = false
                         PlaceWindow(other)
                     end
@@ -6040,7 +6133,7 @@ local function BuildCard(card)
                 DirectorScreen.ItemDragging(nil, 0, 0)
             else
                 local cw = CardSize()
-                DirectorScreen.ItemDragging(CardItemId(card.charid), element.xdrag, cw * (card.scale or 1))
+                DirectorScreen.ItemDragging(CardItemId(card.charid), element.xdrag, cw * (card.scale or 1), element)
             end
             dmhub.SetDraggingMonster()
             local overMap = dmhub.tabletopDragSurface == "map"
@@ -8053,7 +8146,7 @@ do
                 IconRailDocDragging(target)
                 ChatItemLinks.Dragging(function() return {ChatItemLinks.DocItem(item.entryid)} end)
                 local iw = ItemSize(item)
-                DirectorScreen.ItemDragging(DocItemId(item.entryid), element.xdrag, iw * (item.scale or 1))
+                DirectorScreen.ItemDragging(DocItemId(item.entryid), element.xdrag, iw * (item.scale or 1), element)
             end,
             drag = function(element, target)
                 IconRailDocDragging(nil)
@@ -8953,7 +9046,7 @@ DefineTableItems()
 --until shared, which then shows it; David, 2026-10-16); the title bar's
 --Players / All control
 --(FullscreenDisplay.UpdatePresentationBar) can narrow it to the players,
---with Below UI beside it, and closing the window stops showing it. Scenes
+--with Above UI beside it, and closing the window stops showing it. Scenes
 --are per user like the rest of the table, and minimize to a button on the
 --table or the icon rail as map windows do. A function rather than a do
 --block: this file is at Lua's 200-local limit, and a function's locals
@@ -9068,9 +9161,9 @@ local function DefineSceneWindows()
 
     --A minimized scene window (or one still growing back out of its button)
     --is hidden, and so is the Director's maximized scene shown to the Players
-    --alone. A scene window is never hidden by a maximized window: the
-    --maximized one sits under it (map windows, unlike scenes, are hidden
-    --under a maximized map; ApplyCollapsed).
+    --alone. A scene window is never hidden by a maximized window: they stack
+    --by click order (map windows, unlike scenes, are hidden under a
+    --maximized map; ApplyCollapsed).
     local function ApplySceneCollapsed(rec)
         local panel = rec.panel
         if panel == nil or not panel.valid then
@@ -9082,12 +9175,6 @@ local function DefineSceneWindows()
         covered = covered or (not rec.maximized and DirectorScreen.IsStowed(g_sharing.ScreenKey(rec)))
         if panel:HasClass("collapsed") ~= covered then
             panel:SetClass("collapsed", covered)
-        end
-        --maximized under the UI it is the table's background: its cards'
-        --layer lets the mouse through, and the table passes it the drops
-        --(SceneElements.DropOnBackground).
-        if rec.view ~= nil and rec.view.valid then
-            rec.view:FireEvent("setBackground", rec.maximized == true and not covered and panel.parent == g_layer)
         end
     end
 
@@ -9110,45 +9197,30 @@ local function DefineSceneWindows()
         end
     end
 
-    --A maximized scene goes over everything (the top layer, over the whole
-    --hud) while it is on show and the title bar's Below UI is off -- the way
-    --the players see it (David, 2026-10-14). Otherwise it sits at the bottom
-    --like a maximized map, and a player's own maximized scene that is not
-    --on show always does.
-    local function SceneOnTop(rec)
-        return rec.maximized == true and Scenes.ShowState(rec.sceneid) ~= false and not Scenes.IsBelowUI()
-    end
-
-    --The layer a scene window belongs in: among the windows and journals;
-    --maximized, the bottom tabletop layer (under the docks, as a maximized
-    --map is) or the top layer (SceneOnTop).
-    local function SceneLayer(rec)
-        if not rec.maximized then
-            return DocumentsLayer()
-        end
-        if SceneOnTop(rec) then
-            return g_topLayer
-        end
-        return g_layer
-    end
-
-    --Puts a built scene window in its layer (SceneLayer). Maximized it fills,
-    --cropping; in a window it shows the whole picture.
+    --Puts a built scene window among the windows and journals. Maximized it
+    --fills, cropping, and stacks as a maximized map does, whether or not it
+    --is on show (David, 2026-10-25: there is no under-the-UI scene window any
+    --more; Above UI puts the players' display over all the UI). In a window
+    --it shows the whole picture.
     local function PlaceSceneWindow(rec)
         local panel = rec.panel
         if panel == nil or not panel.valid then
             return
         end
-        local target = SceneLayer(rec)
+        local target = DocumentsLayer()
         if target == nil or not target.valid then
             return
         end
+        local appended = false
         if panel.parent ~= target then
             if panel.parent ~= nil then
                 panel:Unparent()
             end
             target:AddChild(panel)
+            rec.maximizedPanel = nil
+            appended = true
         end
+        g_chrome.StackMaximized(rec, rec.maximized == true, appended)
         if rec.maximized then
             panel.x = 0
             panel.y = 0
@@ -9165,10 +9237,6 @@ local function DefineSceneWindows()
         rec.view:FireEvent("setFit", cond(rec.maximized, "cover", "contain"))
         rec.maximizeButton:FireEventTree("setIcon", cond(rec.maximized, "window-chrome/chrome-restore.png", "window-chrome/chrome-maximize.png"))
         panel.draggable = rec.maximized ~= true
-        --maximized under the UI it is the table's background: the mouse goes
-        --through to the table layer, so drops, file drops and the right-click
-        --menu work there as on the bare table (David, 2026-10-16).
-        panel.interactable = target ~= g_layer
         panel:SetClass("tabletopMaximized", rec.maximized == true)
         ApplySceneCollapsed(rec)
         if rec.presentation ~= nil then
@@ -9195,7 +9263,7 @@ local function DefineSceneWindows()
         local nameLabel = g_chrome.NameLabel(Scenes.Name(rec.sceneid))
 
         --The Director's maximized scene: who it is shown to (Players / All;
-        --closing the window hides it) and whether it sits under the UI. It
+        --closing the window hides it) and whether it shows over all the UI. It
         --used to be the app title bar's presentation control
         --(FullscreenDisplay.UpdatePresentationBar), which now leaves a
         --maximized scene to this. Rebuilt only when what it shows changes.
@@ -9219,8 +9287,8 @@ local function DefineSceneWindows()
                         return
                     end
                     local state = Scenes.ShowState(rec.sceneid)
-                    local belowui = Scenes.IsBelowUI()
-                    local signature = string.format("%s|%s", tostring(state), tostring(belowui))
+                    local aboveui = Scenes.IsAboveUI()
+                    local signature = string.format("%s|%s", tostring(state), tostring(aboveui))
                     if signature == element.data.signature then
                         return
                     end
@@ -9243,12 +9311,12 @@ local function DefineSceneWindows()
                             valign = "center",
                             lmargin = 12,
                             rmargin = 4,
-                            text = "Below UI",
+                            text = "Above UI",
                             fontSize = 14,
-                            value = belowui,
-                            hover = gui.Tooltip("Show the scene under the game's panels, rather than over everything"),
+                            value = aboveui,
+                            hover = gui.Tooltip("Show the scene over everything, rather than among the windows under the icon rails and their panels"),
                             change = function(check)
-                                Scenes.SetBelowUI(check.value)
+                                Scenes.SetAboveUI(check.value)
                             end,
                         },
                     }
@@ -9417,7 +9485,7 @@ local function DefineSceneWindows()
             dragInPlace = true,
             dragging = function(element)
                 if not rec.maximized then
-                    DirectorScreen.ItemDragging(g_sharing.ScreenKey(rec), element.xdrag, rec.width)
+                    DirectorScreen.ItemDragging(g_sharing.ScreenKey(rec), element.xdrag, rec.width, element)
                 end
             end,
             drag = function(element)
@@ -9433,11 +9501,10 @@ local function DefineSceneWindows()
                 --it, the players get it (DirectorScreen.lua).
                 DirectorScreen.ItemDropped(g_sharing.ScreenKey(rec))
             end,
-            click = function(element)
-                if ClicksGuarded() or rec.maximized then
-                    return
-                end
-                element:SetAsLastSibling()
+            --kept to swallow the click. It no longer raises: the press already did
+            --(raiseOnPress), and raising again on the click buried a window a press
+            --inside it had just opened, as on a map window (2026-10-25).
+            click = function()
             end,
             children = {
                 titlebar,
@@ -9518,10 +9585,12 @@ local function DefineSceneWindows()
             end
             --the Director maximizing a shared scene shows it to everyone; the
             --title bar then narrows it to the Players, and the share button
-            --stops it. One already on show keeps its audience. Maximizing
-            --never shares (David, 2026-10-16): an unshared scene stays the
-            --Director's, and its share button shows it (share's changed).
-            if dmhub.isDM and not Scenes.ShowState(rec.sceneid) and ShareState(SceneItemId(rec.sceneid)) ~= nil then
+            --stops it. That includes one already on show to the Players alone
+            --(restoring narrows it to them): left there, the window would be
+            --maximized but not drawn here. Maximizing never shares (David,
+            --2026-10-16): an unshared scene stays the Director's, and its
+            --share button shows it (share's changed).
+            if dmhub.isDM and Scenes.ShowState(rec.sceneid) ~= "all" and ShareState(SceneItemId(rec.sceneid)) ~= nil then
                 Scenes.Present(rec.sceneid, "all")
             end
         elseif dmhub.isDM and Scenes.ShowState(rec.sceneid) == "all" then
@@ -9674,7 +9743,7 @@ local function DefineSceneWindows()
     --stays hidden; the time runs out on its own if the animation is lost.
     RestoreScene = function(rec)
         if not rec.minimized then
-            if not rec.maximized and rec.panel ~= nil and rec.panel.valid then
+            if rec.panel ~= nil and rec.panel.valid then
                 rec.panel:SetAsLastSibling()
             end
             return
@@ -9693,7 +9762,7 @@ local function DefineSceneWindows()
             end
             rec.showAllOnRestore = nil
             PlaceSceneWindow(rec)
-            if not rec.maximized and rec.panel ~= nil and rec.panel.valid then
+            if rec.panel ~= nil and rec.panel.valid then
                 rec.panel:SetAsLastSibling()
             end
             Refresh()
@@ -9887,6 +9956,7 @@ local function DefineSceneWindows()
             SaveSoon()
             return
         end
+        --a maximized one keeps its place, as a maximized map does (BringToFront).
         if not rec.maximized and rec.panel ~= nil and rec.panel.valid then
             rec.panel:SetAsLastSibling()
         end
@@ -10094,8 +10164,7 @@ local function DefineSceneWindows()
         for _, rec in ipairs(g_sceneWindows) do
             if rec.panel == nil or not rec.panel.valid then
                 EnsureSceneBuilt(rec)
-            elseif rec.panel.parent ~= SceneLayer(rec) then
-                --Below UI flipped, or the scene went on or off show.
+            elseif rec.panel.parent ~= DocumentsLayer() then
                 PlaceSceneWindow(rec)
             else
                 ApplySceneCollapsed(rec)
@@ -11664,8 +11733,8 @@ local function ShowTableMenu()
     anchor.popup = menu
 end
 
---The bottom layer of the GameHud: maximized windows live here, under the
---docks and the rest of the hud, and its think drives the tabletop. It is
+--The bottom layer of the GameHud, under the docks and the rest of the hud;
+--its think drives the tabletop. It is
 --the table itself (a clear image, so it takes the right-click), and it
 --never blocks the map's own input.
 function Tabletop.CreateLayer()
@@ -11681,6 +11750,10 @@ function Tabletop.CreateLayer()
         blocksGameInteraction = false,
         swallowPress = true,
         rightClick = function(element)
+            --a right-click on a table die opens the die's menu instead.
+            if rawget(_G, "TableDice") ~= nil and TableDice.DieJustRightClicked() then
+                return
+            end
             ShowTableMenu()
         end,
 
@@ -11763,20 +11836,6 @@ function Tabletop.CreateLayer()
         end,
     }
     return g_layer
-end
-
---The layer over the whole hud: a maximized scene window on show with Below
---UI off sits here, over the docks, rails and dialogs, as the players see it
---(SceneOnTop). GameHud puts it straight after the over-the-UI fullscreen
---display. It has no image, so when empty it takes no mouse.
-function Tabletop.CreateTopLayer()
-    g_topLayer = gui.Panel{
-        id = "tabletopTopLayer",
-        width = "100%",
-        height = "100%",
-        interactable = false,
-    }
-    return g_topLayer
 end
 
 --The layer over the map windows and journals: minimized windows' floating

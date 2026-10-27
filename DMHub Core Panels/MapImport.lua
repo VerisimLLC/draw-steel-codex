@@ -266,6 +266,313 @@ local function ObjectNodeHasComponent(id, componentType)
     return false
 end
 
+----------------------------------------------------------------------
+--MapGridDetection: finding the grid drawn on a map image, shared by the
+--table's Add Image dialog (TableDropDialog.lua) and the import wizard below,
+--so both suggest the same grid. The engine (assets:DetectImageGrid) does the
+--work on a worker thread and runs each file once, so the wizard opening after
+--the drop dialog gets the drop dialog's answer at once.
+
+--- @class ImageGridDetection
+--- @field found boolean
+--- @field type string 'square', 'rectangular', 'hexpointy', 'hexflat' or 'none'
+--- @field tileType string the import tile type: 'squares', 'pointtop' or 'flattop'
+--- @field cellWidth number a cell (or a hex's bounding box) in pixels
+--- @field cellHeight number
+--- @field periodX number the grid's repeat along x and y, in pixels
+--- @field periodY number
+--- @field originX number a line crossing or hex centre, pixels from the top-left, y down
+--- @field originY number
+--- @field angle number the grid's rotation in degrees (0 if aligned)
+--- @field confidence number 0..1
+--- @field imageWidth number
+--- @field imageHeight number
+--- @field decodeMs number
+--- @field detectMs number
+--- @field message string
+
+--- What a map image's grid should be imported as: the 140 px "perfect fit", or the
+--- grid the detector found.
+--- @class MapGridChoice
+--- @field source string 'fit' or 'detected'
+--- @field tileType string 'squares', 'flattop' or 'pointtop'
+--- @field hex boolean
+--- @field tilesW number tiles (or hexes) across the image, rounded
+--- @field tilesH number
+--- @field cellW number pixels
+--- @field cellH number
+--- @field confirmed boolean a fit whose drawn grid the detector found too
+--- @field overrodeFit boolean a detected grid that won over a 140 px fit
+--- @field detection nil|ImageGridDetection
+
+--- @class MapGridDetection
+MapGridDetection = {}
+
+--Map art is most often made at this many pixels per square: an image a whole
+--number of them across and down is a "perfect fit".
+MapGridDetection.FIT_PIXELS = 140
+
+--The detector must be at least this confident to override a perfect fit.
+--Measured on gridalign's test maps, the drawn 70 px grids of 140-fit maps
+--score 0.99-1.00 and every false positive 0.36 or less.
+MapGridDetection.OVERRIDE_CONFIDENCE = 0.90
+
+--Same limits as the map import's per-axis tile cap and the hex tile shape
+--the import accepts (SheetMapImport.HexTileShapeValid).
+local MAX_DETECTED_TILES = MAX_MAP_TILES_PER_AXIS
+local MIN_HEX_SHAPE = 0.5
+local MAX_HEX_SHAPE = 2
+
+local IMAGE_EXTENSIONS = {png = true, jpg = true, jpeg = true, webp = true, bmp = true, tga = true, gif = true}
+
+--path -> ImageGridDetection, or false if it couldn't be read; and the
+--callbacks waiting for a path still being detected.
+local g_gridResults = {}
+local g_gridWaiting = {}
+
+--- True for a file the detector can read (not a video or a VTT file).
+--- @param path string
+--- @return boolean
+function MapGridDetection.CanDetect(path)
+    local ext = string.match(string.lower(path or ""), "%.(%w+)$")
+    return ext ~= nil and IMAGE_EXTENSIONS[ext] == true
+end
+
+--- The detection of a file, if it has finished: the result, false if the
+--- file couldn't be read, or nil if not asked for or still running.
+--- @param path string
+--- @return nil|false|ImageGridDetection
+function MapGridDetection.Result(path)
+    return g_gridResults[path]
+end
+
+--- Starts detecting the grid on a local image file (once per file), and calls
+--- callback(result) when it is done: at once if it already is. result is
+--- false if the file couldn't be read.
+--- @param path string
+--- @param callback nil|fun(result: false|ImageGridDetection)
+function MapGridDetection.Request(path, callback)
+    if not MapGridDetection.CanDetect(path) then
+        return
+    end
+    local done = g_gridResults[path]
+    if done ~= nil then
+        if callback ~= nil then
+            callback(done)
+        end
+        return
+    end
+    local waiting = g_gridWaiting[path]
+    if waiting ~= nil then
+        waiting[#waiting+1] = callback
+        return
+    end
+    waiting = {callback}
+    g_gridWaiting[path] = waiting
+    local function Finish(result)
+        if mod.unloaded then
+            return
+        end
+        g_gridResults[path] = result
+        g_gridWaiting[path] = nil
+        for _, fn in ipairs(waiting) do
+            fn(result)
+        end
+    end
+    assets:DetectImageGrid{
+        path = path,
+        done = function(result)
+            Finish(result)
+        end,
+        error = function(message)
+            printf("GRIDDETECT:: %s: %s", path, tostring(message))
+            Finish(false)
+        end,
+    }
+end
+
+--The size in squares an image of w x h pixels fits exactly at FIT_PIXELS,
+--with at least minSquares on its short side, or nil.
+local function PerfectFit(w, h, minSquares)
+    if w == nil or h == nil or w <= 0 or h <= 0 then
+        return nil, nil
+    end
+    local pps = MapGridDetection.FIT_PIXELS
+    local tw = w / pps
+    local th = h / pps
+    if math.abs(tw - math.floor(tw + 0.5)) > 0.01 or math.abs(th - math.floor(th + 0.5)) > 0.01 then
+        return nil, nil
+    end
+    tw = math.floor(tw + 0.5)
+    th = math.floor(th + 0.5)
+    if math.min(tw, th) < (minSquares or 1) or math.max(tw, th) > MAX_MAP_TILES_PER_AXIS then
+        return nil, nil
+    end
+    return tw, th
+end
+
+--A detected grid the import can use: found, not rotated (a map's grid is
+--always aligned with its image), and a tile count and hex shape the import accepts.
+--- @param d nil|false|ImageGridDetection
+--- @return boolean
+local function Usable(d)
+    if not d or not d.found or d.type == "none" or d.angle ~= 0 then
+        return false
+    end
+    if d.periodX <= 0 or d.periodY <= 0 then
+        return false
+    end
+    local hex = d.tileType ~= "squares"
+    local across, down
+    if not hex then
+        across, down = d.imageWidth / d.cellWidth, d.imageHeight / d.cellHeight
+    elseif d.tileType == "flattop" then
+        across, down = d.imageWidth / d.periodX, d.imageHeight / (2 * d.periodY)
+        local shape = d.periodX / (2 * d.periodY)
+        if shape < MIN_HEX_SHAPE or shape > MAX_HEX_SHAPE then
+            return false
+        end
+    else
+        across, down = d.imageWidth / (2 * d.periodX), d.imageHeight / d.periodY
+        local shape = d.periodY / (2 * d.periodX)
+        if shape < MIN_HEX_SHAPE or shape > MAX_HEX_SHAPE then
+            return false
+        end
+    end
+    return across >= 1 and down >= 1 and across <= MAX_DETECTED_TILES and down <= MAX_DETECTED_TILES
+end
+
+--A detected square grid that is the perfect fit's own grid: 140 px cells
+--whose lines sit on the image's edges.
+--- @param d ImageGridDetection
+local function SameAsFit(d)
+    local pps = MapGridDetection.FIT_PIXELS
+    if d.tileType ~= "squares" then
+        return false
+    end
+    if math.abs(d.cellWidth / pps - 1) > 0.01 or math.abs(d.cellHeight / pps - 1) > 0.01 then
+        return false
+    end
+    local function NearLine(v)
+        local r = v % pps
+        return math.min(r, pps - r) <= 3
+    end
+    return NearLine(d.originX) and NearLine(d.originY)
+end
+
+--- How to grid a w x h map image, given its detection (nil while it runs, or
+--- false if it failed): a perfect fit wins unless the detector found another
+--- grid with at least OVERRIDE_CONFIDENCE; otherwise any usable detected grid.
+--- nil when neither applies. minSquares: the fewest squares a fit may have on
+--- its short side (default 1).
+--- @param w number
+--- @param h number
+--- @param detection nil|false|ImageGridDetection
+--- @param minSquares nil|number
+--- @return nil|MapGridChoice
+function MapGridDetection.Choose(w, h, detection, minSquares)
+    local fitW, fitH = PerfectFit(w, h, minSquares)
+    local d = nil
+    if Usable(detection) then
+        d = detection --[[@as ImageGridDetection]]
+    end
+
+    if fitW ~= nil and (d == nil or SameAsFit(d) or d.confidence < MapGridDetection.OVERRIDE_CONFIDENCE) then
+        local pps = MapGridDetection.FIT_PIXELS
+        return {
+            source = "fit",
+            tileType = "squares",
+            hex = false,
+            tilesW = fitW,
+            tilesH = fitH,
+            cellW = pps,
+            cellH = pps,
+            confirmed = d ~= nil and SameAsFit(d),
+            overrodeFit = false,
+            detection = d,
+        }
+    end
+
+    if d == nil then
+        return nil
+    end
+    local hex = d.tileType ~= "squares"
+    local across, down
+    if not hex then
+        across, down = w / d.cellWidth, h / d.cellHeight
+    elseif d.tileType == "flattop" then
+        across, down = w / d.periodX, h / (2 * d.periodY)
+    else
+        across, down = w / (2 * d.periodX), h / d.periodY
+    end
+    return {
+        source = "detected",
+        tileType = d.tileType,
+        hex = hex,
+        tilesW = math.max(1, math.floor(across + 0.5)),
+        tilesH = math.max(1, math.floor(down + 0.5)),
+        cellW = d.cellWidth,
+        cellH = d.cellHeight,
+        confirmed = false,
+        overrodeFit = fitW ~= nil,
+        detection = d,
+    }
+end
+
+--Pixels as shown to the user: whole when they are (nearly) whole.
+local function Px(v)
+    if math.abs(v - math.floor(v + 0.5)) < 0.05 then
+        return string.format("%d", math.floor(v + 0.5))
+    end
+    return string.format("%.1f", v)
+end
+
+--- Words for a choice, for the dialogs: title ('A Perfect Fit!', 'Grid
+--- Detected', 'Hex Grid Detected'), a sentence about it, and a short line
+--- for a caption ('20 x 15 squares at 140 px each').
+--- @param choice MapGridChoice
+--- @param w number the image's size in pixels
+--- @param h number
+--- @return {title: string, text: string, short: string}
+function MapGridDetection.Describe(choice, w, h)
+    if choice.source == "fit" then
+        local text = string.format("This image is %dx%d pixels, which perfectly fits a %dx%d tile grid at %d pixels per square -- the standard used by most professional map creators.",
+            w, h, choice.tilesW, choice.tilesH, MapGridDetection.FIT_PIXELS)
+        if choice.confirmed then
+            text = text .. " The grid drawn on the map lines up with it too."
+        end
+        return {
+            title = "A Perfect Fit!",
+            text = text,
+            short = string.format("%d x %d squares at %d px each", choice.tilesW, choice.tilesH, MapGridDetection.FIT_PIXELS),
+        }
+    end
+
+    local d = choice.detection --[[@as ImageGridDetection]]
+    local sure = string.format("%d%% sure", math.floor(d.confidence * 100 + 0.5))
+    if choice.hex then
+        local kind = cond(choice.tileType == "flattop", "flat-top", "pointy-top")
+        return {
+            title = "Hex Grid Detected",
+            text = string.format("This map has a %s hex grid drawn on it: hexes %s x %s pixels, about %d x %d of them (%s).",
+                kind, Px(choice.cellW), Px(choice.cellH), choice.tilesW, choice.tilesH, sure),
+            short = string.format("Hex grid: %s x %s px %s hexes", Px(choice.cellW), Px(choice.cellH), kind),
+        }
+    end
+
+    local shape = cond(math.abs(choice.cellW - choice.cellH) <= 0.02 * math.max(choice.cellW, choice.cellH), "squares", "cells")
+    local text = string.format("This map has a grid drawn on it: %s x %s pixel %s, about %d x %d of them (%s).",
+        Px(choice.cellW), Px(choice.cellH), shape, choice.tilesW, choice.tilesH, sure)
+    if choice.overrodeFit then
+        text = text .. string.format(" Its size also fits %d px squares exactly, but the grid drawn on it is %s px.", MapGridDetection.FIT_PIXELS, Px(choice.cellW))
+    end
+    return {
+        title = "Grid Detected",
+        text = text,
+        short = string.format("About %d x %d %s at %s px each", choice.tilesW, choice.tilesH, shape, Px(choice.cellW)),
+    }
+end
+
 mod.shared.ImportMapDialog = function(paths, options)
     options = options or {}
 
@@ -274,9 +581,56 @@ mod.shared.ImportMapDialog = function(paths, options)
 
     local tileType = options.tileType or "squares"
 
-    -- 140 PPS auto-detection state.
+    -- Map Type for the new map, as in Map Settings > Map Type: a Battlemap, or a
+    -- World Map whose tiles are miles across. Until the user picks, a hex grid
+    -- means World Map. A World Map starts at the game's default scale (6 miles a
+    -- tile unless the Director set another). A floor shares its map's type, so
+    -- floor imports don't offer it.
+    local chosenMapType = nil
+    local worldAmount = tonumber(dmhub.GetSettingValue("worldmap:defaulttilesize")) or 6
+    local worldUnit = dmhub.GetSettingValue("worldmap:defaultunit") or "miles"
+    local worldUnitName = dmhub.GetSettingValue("worldmap:defaultunitname") or ""
+
+    local function MapType()
+        if chosenMapType ~= nil then
+            return chosenMapType
+        end
+        return cond(tileType == "squares", "battlemap", "world")
+    end
+
+    --- @type Panel|nil
+    local mapTypePanel = nil
+
+    -- Call when tileType or the choice changes: the default type follows the grid.
+    local function RefreshMapType()
+        if mapTypePanel ~= nil then
+            mapTypePanel:FireEventTree("refreshMapType")
+        end
+    end
+
+    -- Puts a World Map choice into the settings FinishMapImport applies to the new map.
+    local function AddMapTypeSettings(info)
+        if options.floorImport or MapType() ~= "world" then
+            return
+        end
+        local settings = info.mapSettings or {}
+        settings["map:maptype"] = "world"
+        settings["map:worldtilesize"] = worldAmount
+        settings["map:worldunit"] = worldUnit
+        settings["map:worldunitname"] = worldUnitName
+        info.mapSettings = settings
+    end
+
+    -- Automatic grid: the 140 PPS perfect fit, or the grid MapGridDetection finds.
+    -- perfectFitActive: the auto panel is showing (until "Set Grid by Hand...").
     local perfectFitChecked = false
     local perfectFitActive = false
+    local autoChoice = nil
+    local userChoseManual = false
+    local detectPath = paths ~= nil and paths[1] or nil
+    if options.floorImport or detectPath == nil or not MapGridDetection.CanDetect(detectPath) then
+        detectPath = nil
+    end
 
     -- Forward-declare so the confirmButton closure (defined below) can capture them as upvalues.
     -- Set later inside the floorImport branch when the user clicks "Match Existing Map".
@@ -316,6 +670,7 @@ mod.shared.ImportMapDialog = function(paths, options)
                             info.matchCalibration = capturedMatchCalibration
                             printf("FLOOR_ALIGN_DIAG:: Attached matchCalibration to info: %s", json(capturedMatchCalibration))
                         end
+                        AddMapTypeSettings(info)
                         options.finish(info)
                     end
                     return
@@ -528,21 +883,216 @@ mod.shared.ImportMapDialog = function(paths, options)
         end
     end
 
+    -- The Map Type control; its state is set up next to tileType.
+    if not options.floorImport then
+        local unitOptions = {}
+        for _,unit in ipairs(MeasurementSystem.worldUnits) do
+            unitOptions[#unitOptions+1] = { id = unit.id, text = unit.text }
+        end
+
+        local function ValidAmount(text)
+            local n = tonumber(text)
+            if n == nil or n ~= math.floor(n) or n < 1 or n > 99999 then
+                return nil
+            end
+            return math.tointeger(n)
+        end
+
+        mapTypePanel = gui.Panel{
+            flow = "vertical",
+            width = 400,
+            height = "auto",
+            halign = "left",
+            vmargin = 8,
+
+            gui.Label{
+                width = 400,
+                height = "auto",
+                fontSize = 16,
+                text = "Map Type:",
+            },
+
+            gui.EnumeratedSliderControl{
+                options = {
+                    {id = "battlemap", text = "Battlemap"},
+                    {id = "world", text = "World Map"},
+                },
+                width = 400,
+                value = MapType(),
+                hover = gui.Tooltip("Battlemap: a tactical map, each tile a few feet across. World Map: a region or world map, each tile miles across. The measuring tool reports distances in the map's units. You can change this later in Map Settings."),
+                change = function(element)
+                    if element.value == MapType() then
+                        return
+                    end
+                    chosenMapType = element.value
+                    RefreshMapType()
+                end,
+                refreshMapType = function(element)
+                    if element.value ~= MapType() then
+                        element.value = MapType()
+                    end
+                end,
+            },
+
+            -- The world scale: "Each hex is: [6] [Miles]".
+            gui.Panel{
+                classes = {cond(MapType() ~= "world", "collapsed")},
+                flow = "horizontal",
+                width = 400,
+                height = 30,
+                tmargin = 6,
+                refreshMapType = function(element)
+                    element:SetClass("collapsed", MapType() ~= "world")
+                end,
+
+                gui.Label{
+                    width = "auto",
+                    height = "auto",
+                    fontSize = 16,
+                    valign = "center",
+                    rmargin = 8,
+                    text = cond(tileType == "squares", "Each tile is:", "Each hex is:"),
+                    refreshMapType = function(element)
+                        element.text = cond(tileType == "squares", "Each tile is:", "Each hex is:")
+                    end,
+                },
+
+                gui.Input{
+                    fontSize = 16,
+                    width = 60,
+                    height = 24,
+                    valign = "center",
+                    characterLimit = 5,
+                    text = MeasurementSystem.ToString(worldAmount),
+                    hover = gui.Tooltip("How many units one tile spans, as a whole number."),
+                    edit = function(element)
+                        local n = ValidAmount(element.text)
+                        if n ~= nil then
+                            worldAmount = n
+                        end
+                    end,
+                    change = function(element)
+                        local n = ValidAmount(element.text)
+                        if n == nil then
+                            element.textNoNotify = MeasurementSystem.ToString(worldAmount)
+                            return
+                        end
+                        worldAmount = n
+                    end,
+                },
+
+                gui.Dropdown{
+                    width = 150,
+                    height = 24,
+                    fontSize = 16,
+                    valign = "center",
+                    lmargin = 8,
+                    options = unitOptions,
+                    idChosen = worldUnit,
+                    change = function(element)
+                        ---@cast element Dropdown
+                        worldUnit = element.idChosen
+                        RefreshMapType()
+                    end,
+                },
+            },
+
+            -- The unit's name, only for a custom unit.
+            gui.Panel{
+                classes = {cond(MapType() ~= "world" or worldUnit ~= "custom", "collapsed")},
+                flow = "horizontal",
+                width = 400,
+                height = 30,
+                tmargin = 4,
+                refreshMapType = function(element)
+                    element:SetClass("collapsed", MapType() ~= "world" or worldUnit ~= "custom")
+                end,
+
+                gui.Label{
+                    width = "auto",
+                    height = "auto",
+                    fontSize = 16,
+                    valign = "center",
+                    rmargin = 8,
+                    text = "Unit Name:",
+                },
+
+                gui.Input{
+                    fontSize = 16,
+                    width = 200,
+                    height = 24,
+                    valign = "center",
+                    characterLimit = 24,
+                    placeholderText = "e.g. days",
+                    text = worldUnitName,
+                    edit = function(element)
+                        worldUnitName = string.match(element.text, "^%s*(.-)%s*$")
+                    end,
+                    change = function(element)
+                        worldUnitName = string.match(element.text, "^%s*(.-)%s*$")
+                    end,
+                },
+            },
+        }
+    end
+
+    -- Squares or hexes, for sizing by hand. Changing it starts the sizing over.
+    -- A floor must match its map, so floor imports don't offer it.
+    local tileTypeChoice = gui.EnumeratedSliderControl{
+        options = {
+            {id = "squares", text = "Squares"},
+            {id = "flattop", text = "Flat Top"},
+            {id = "pointtop", text = "Pointy Top"},
+        },
+        width = 400,
+        valign = "top",
+        value = tileType,
+        change = function(element)
+            if element.value == tileType then
+                return
+            end
+            tileType = element.value
+            importPanel.tileType = element.value
+            gridlessChoice.value = true
+            RefreshMapType()
+        end,
+        vmargin = 8,
+    }
+    --(not via classes: they would replace the control's own.)
+    if options.floorImport then
+        tileTypeChoice:SetClass("hidden", true)
+    end
+
+    -- While the grid detector runs, and if it finds nothing.
+    local detectStatusLabel = gui.Label{
+        classes = {"hidden"},
+        width = 400,
+        height = "auto",
+        fontSize = 15,
+        wrap = true,
+        color = "@fgMuted",
+        vmargin = 6,
+        text = "",
+    }
+
     local instructionsPanel = gui.Panel{
         width = 400,
         height = "auto",
         flow = "vertical",
         halign = "left",
         valign = "top",
+        detectStatusLabel,
+        tileTypeChoice,
         instructionsText,
         gridlessChoice,
         matchMapPanel,
     }
 
-    -- "A Perfect Fit!" panel for 140 PPS auto-detection.
+    -- The automatic grid panel: "A Perfect Fit!" (140 PPS) or a detected grid,
+    -- with Accept and Set Grid by Hand.
     local perfectFitPanel
     perfectFitPanel = gui.Panel{
-        classes = {"hidden"},
+        classes = {"collapsed"},
         flow = "vertical",
         width = 400,
         height = "auto",
@@ -550,6 +1100,7 @@ mod.shared.ImportMapDialog = function(paths, options)
         valign = "top",
 
         gui.Label{
+            id = "perfectFitTitle",
             width = 400,
             height = "auto",
             fontSize = 28,
@@ -603,6 +1154,7 @@ mod.shared.ImportMapDialog = function(paths, options)
                             info.paths = paths
                             info.imageWidth = imgW
                             info.imageHeight = imgH
+                            AddMapTypeSettings(info)
                             options.finish(info)
                         end
                         return
@@ -614,18 +1166,75 @@ mod.shared.ImportMapDialog = function(paths, options)
 
         gui.Button{
             classes = {"sizeL"},
-            text = "Customize Grid...",
+            text = "Set Grid by Hand...",
             halign = "left",
             vmargin = 8,
             click = function(element)
                 perfectFitActive = false
-                perfectFitPanel:SetClass("hidden", true)
-                instructionsPanel:SetClass("hidden", false)
-                importPanel:ClearMarkers()
+                userChoseManual = true
+                perfectFitPanel:SetClass("collapsed", true)
+                instructionsPanel:SetClass("collapsed", false)
+                detectStatusLabel:SetClass("hidden", true)
+                --ResetCalibration, not ClearMarkers: a detected grid marks every
+                --sizing step done, and sizing by hand must start from the first.
+                importPanel:ResetCalibration()
+                tileTypeChoice.value = tileType
                 gridlessChoice.value = true
             end,
         },
     }
+
+    -- Shows a choice (MapGridDetection.Choose) on the import panel and in the auto
+    -- panel. Returns false if the panel couldn't take it (image not loaded yet).
+    local function ShowAutoChoice(element, choice)
+        local imgW = element.imageWidth
+        local imgH = element.imageHeight
+        if choice.source == "fit" then
+            --a fit's grid starts at the image's corner: gridless markers sized to it.
+            if choice.tileType ~= tileType then
+                tileType = choice.tileType
+                element.tileType = tileType
+            end
+            element:ResetCalibration()
+            element:CreateGridless()
+            element:SetMapDimensions(choice.tilesW, choice.tilesH)
+        else
+            local d = choice.detection --[[@as ImageGridDetection]]
+            if not element:ApplyDetectedGrid{
+                tileType = d.tileType,
+                periodX = d.periodX,
+                periodY = d.periodY,
+                originX = d.originX,
+                originY = d.originY,
+            } then
+                return false
+            end
+            tileType = d.tileType
+        end
+        autoChoice = choice
+        perfectFitActive = true
+        tileTypeChoice.value = tileType
+        RefreshMapType()
+
+        local words = MapGridDetection.Describe(choice, imgW, imgH)
+        perfectFitPanel:Get("perfectFitTitle").text = words.title
+        perfectFitPanel:Get("perfectFitDescription").text = words.text
+        perfectFitPanel:Get("perfectFitDimensions").text = string.format("%d x %d %s",
+            choice.tilesW, choice.tilesH, cond(choice.hex, "hexes", "tiles"))
+        perfectFitPanel:SetClass("collapsed", false)
+        instructionsPanel:SetClass("collapsed", true)
+        return true
+    end
+
+    -- True when two choices would import the same grid and say the same thing
+    -- (a fit the detector later confirms is re-shown, to say so).
+    local function SameChoice(a, b)
+        if a == nil or b == nil then
+            return a == b
+        end
+        return a.source == b.source and a.tileType == b.tileType and a.confirmed == b.confirmed
+            and math.abs(a.cellW - b.cellW) < 0.01 and math.abs(a.cellH - b.cellH) < 0.01
+    end
 
     local statusWidth = gui.Input{
         fontSize = 16,
@@ -957,6 +1566,7 @@ mod.shared.ImportMapDialog = function(paths, options)
         },
 
         gui.Panel{
+            id = "tileScalingRow",
             classes = {cond(tileType == "squares", nil, "hidden")},
             flow = "horizontal",
             width = "auto",
@@ -1133,42 +1743,37 @@ mod.shared.ImportMapDialog = function(paths, options)
         thinkTime = 0.05,
 
         think = function(element)
-            -- One-shot 140 PPS detection.
+            -- One-shot automatic grid, once the image has loaded: the 140 PPS
+            -- perfect fit at once if the image is one, then whatever the grid
+            -- detector finds (MapGridDetection.Choose decides between them).
             if not perfectFitChecked and not options.floorImport and tileType == "squares" then
                 local imgW = element.imageWidth
                 local imgH = element.imageHeight
                 if imgW ~= nil and imgW > 0 and imgH ~= nil and imgH > 0 then
                     perfectFitChecked = true
-                    local pps = 140
-                    local tilesW = imgW / pps
-                    local tilesH = imgH / pps
-                    local rW = math.abs(tilesW - math.floor(tilesW + 0.5))
-                    local rH = math.abs(tilesH - math.floor(tilesH + 0.5))
-                    if rW < 0.01 and rH < 0.01 then
-                        tilesW = math.floor(tilesW + 0.5)
-                        tilesH = math.floor(tilesH + 0.5)
-                        if tilesW >= 1 and tilesH >= 1
-                           and tilesW <= MAX_MAP_TILES_PER_AXIS
-                           and tilesH <= MAX_MAP_TILES_PER_AXIS then
-                            perfectFitActive = true
+                    local known = detectPath ~= nil and MapGridDetection.Result(detectPath) or nil
+                    local choice = MapGridDetection.Choose(imgW, imgH, known)
+                    if choice ~= nil then
+                        ShowAutoChoice(element, choice)
+                    end
 
-                            -- Configure the grid preview at detected dimensions.
-                            element:CreateGridless()
-                            element:SetMapDimensions(tilesW, tilesH)
-
-                            -- Populate the panel text.
-                            perfectFitPanel:Get("perfectFitDescription").text = string.format(
-                                "This image is %dx%d pixels, which perfectly fits a %dx%d tile grid at 140 pixels per square -- the standard used by most professional map creators.",
-                                imgW, imgH, tilesW, tilesH
-                            )
-                            perfectFitPanel:Get("perfectFitDimensions").text = string.format(
-                                "%d x %d tiles", tilesW, tilesH
-                            )
-
-                            -- Show perfect fit panel, hide normal instructions.
-                            perfectFitPanel:SetClass("hidden", false)
-                            instructionsPanel:SetClass("hidden", true)
-                        end
+                    if detectPath ~= nil and known == nil then
+                        detectStatusLabel.text = "Looking for a grid on this map..."
+                        detectStatusLabel:SetClass("hidden", false)
+                        MapGridDetection.Request(detectPath, function(result)
+                            if not element.valid or userChoseManual then
+                                return
+                            end
+                            local found = MapGridDetection.Choose(imgW, imgH, result)
+                            if found ~= nil and not SameChoice(found, autoChoice) then
+                                ShowAutoChoice(element, found)
+                            end
+                            if autoChoice == nil then
+                                detectStatusLabel.text = "No grid was found on this map. Mark one of its squares below, or choose Gridless."
+                            else
+                                detectStatusLabel:SetClass("hidden", true)
+                            end
+                        end)
                     end
                 end
             end
@@ -1206,6 +1811,8 @@ mod.shared.ImportMapDialog = function(paths, options)
                 statusPanel:SetClass("hidden", true)
             else
                 statusPanel:SetClass("hidden", false)
+                --tile scaling is for squares only; the tile type can change by hand now.
+                statusPanel:Get("tileScalingRow"):SetClass("hidden", tileType ~= "squares")
 
                 -- Show the mode toggle only in gridless mode.
                 local isGridless = gridlessChoice.value == false
@@ -1266,8 +1873,18 @@ mod.shared.ImportMapDialog = function(paths, options)
         layersPagingPanel,
         importPanel,
         buttonsPanel,
-        instructionsPanel,
-        perfectFitPanel,
+        -- The left column: the sizing instructions or the automatic grid
+        -- (one at a time), then the Map Type choice under either.
+        gui.Panel{
+            flow = "vertical",
+            width = 400,
+            height = "auto",
+            halign = "left",
+            valign = "top",
+            instructionsPanel,
+            perfectFitPanel,
+            mapTypePanel,
+        },
         statusPanel,
     }
 

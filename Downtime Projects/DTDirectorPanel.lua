@@ -565,8 +565,13 @@ local function RegisterWithRespite()
         name = "Downtime Projects",
         paintPlayer = DTProjectEditor.PaintRespiteProjects,
         paintDirector = DTProjectEditor.PaintRespiteDirectorFeed,
+        paintIdle = DTProjectEditor.PaintRespiteIdle,
+        idleTitle = "Party's Incomplete Downtime Projects",
+        playerActions = DTProjectEditor.PaintRespiteActions,
         needsAttention = DTProjectEditor.RespiteNeedsAttention,
         journalSummary = DTProjectEditor.RespiteJournalSummary,
+        partyRecord = DTProjectEditor.RespitePartyRecord,
+        partyWatch = DTProjectEditor.RespitePartyWatch,
     }
 end
 

@@ -813,6 +813,14 @@ local function IsMainActionAbility(c)
     return actionid == "d19658a2-4d7b-4504-af9e-1a5410fb17fd" --id of action
 end
 
+--- True if a natural roll at or above the Critical Threshold on this ability is a Critical Hit.
+--- Only main action abilities can crit, but they still can when used off-turn or as a
+--- granted free strike that pays a different cost (e.g. Gunshot through Make Free Strike).
+--- @return boolean
+function ActivatedAbility:CanCriticalHit()
+    return IsMainActionAbility(self) or self:try_get("baseActionResourceId") == CharacterResource.actionResourceId
+end
+
 RegisterGoblinScriptSymbol(ActivatedAbility, {
     name = "action",
     type = "boolean",
@@ -830,6 +838,17 @@ RegisterGoblinScriptSymbol(ActivatedAbility, {
     seealso = { "action" },
     calculate = function(c)
         return IsMainActionAbility(c)
+    end,
+
+})
+
+RegisterGoblinScriptSymbol(ActivatedAbility, {
+    name = "can critical hit",
+    type = "boolean",
+    desc = "Returns true if this ability can score a Critical Hit. True for main action abilities.",
+    seealso = { "main action" },
+    calculate = function(ability)
+        return ability:CanCriticalHit()
     end,
 
 })
@@ -1250,20 +1269,16 @@ function ActivatedAbility.AdjacentAbilityBlockedReason(ability, creatureToken, o
     return nil
 end
 
---Under Strictly Enforce Action Economy, a player cannot fire a triggered
---action by hand from the action bar when the game will prompt them for it.
---Pressed at the wrong moment, the manual copy skips the trigger entirely:
---Hesitation is Weakness grabbed the turn mid-monster-turn (6TTFJWFP).
---Only real triggered actions are refused -- ones spending a Trigger or Free
---Triggered Action that also have an automatic trigger on the creature. Manual
---triggers with no prompt (Conduit domain effects) and manual helper buttons
---that spend no triggered action (Tactician Mark) keep working. Failing the
---ability filter greys the chip, shows the reason in its tooltip, and refuses
---the press for players (the action bar's strict:resources gate).
-local function SpendsTriggeredAction(ability)
-    local rid = ability:try_get("actionResourceId", "none")
-    return rid == CharacterResource.triggerResourceId or rid == CharacterResource.freeTriggeredActionResourceId
-end
+--Under Strictly Enforce Action Economy, a player cannot fire a trigger by
+--hand from the action bar: triggers only happen when the game prompts for
+--them. Pressed at the wrong moment, a manual copy skips the trigger entirely
+--(Hesitation is Weakness grabbed the turn mid-monster-turn, 6TTFJWFP), and a
+--manual trigger with no prompt could be fired at will (a Conduit's Storm
+--Domain Effect cleared a whole EotW run, ZHWSYTC5). Failing the ability
+--filter greys the chip, shows the reason in its tooltip, and refuses the
+--press for players (the action bar's strict:resources gate). A trigger offered
+--as a choice inside an already-running invoked cast (a prayer's Conduit Domain
+--Effect) is marked _tmp_invokedChoice by the action bar and stays usable.
 
 --Does the creature have an automatic trigger by this name (case-insensitive)?
 local function HasAutomaticTrigger(creatureProps, name)
@@ -1291,9 +1306,6 @@ function ActivatedAbility:AbilityFilterFailureMessage(casterCreature)
     if not (manualCopy or self.categorization == "Trigger") then
         return nil
     end
-    if not SpendsTriggeredAction(self) then
-        return nil
-    end
     if not StrictActionEconomyEnforced() then
         return nil
     end
@@ -1304,12 +1316,46 @@ function ActivatedAbility:AbilityFilterFailureMessage(casterCreature)
         return nil
     end
 
-    --a generated manual copy always has its trigger; an authored one may not.
-    if not manualCopy and not HasAutomaticTrigger(casterCreature, self.name) then
+    if self:try_get("_tmp_invokedChoice", false) then
         return nil
     end
 
-    return "Use this from its prompt when it triggers."
+    --a generated manual copy always has its trigger; an authored one may not.
+    if manualCopy or HasAutomaticTrigger(casterCreature, self.name) then
+        return "Use this from its prompt when it triggers."
+    end
+    return "Strict rules: triggers can't be used by hand."
+end
+
+--A player's flying creature can stop flying and drop to the ground below,
+--taking falling damage as normal. Offered in the Move drawer only while it
+--flies: a hero pushed off a ledge starts flying and had no obvious way down.
+local g_dropToGroundAbility = nil
+
+--- The Drop to Ground ability for creatureToken, or nil when it is not flying.
+--- @param creatureToken nil|CharacterToken
+--- @return nil|ActivatedAbility
+function ActivatedAbility.GetDropToGroundAbility(creatureToken)
+    if creatureToken == nil or not creatureToken.valid or creatureToken.properties == nil or not creatureToken.playerControlled then
+        return nil
+    end
+    if creatureToken.properties:CurrentMoveType() ~= "fly" then
+        return nil
+    end
+    if g_dropToGroundAbility == nil then
+        g_dropToGroundAbility = ActivatedAbility.Create{
+            name = "Drop to Ground",
+            description = "Stop flying and fall to the ground below. You take falling damage as normal.",
+            categorization = "Move",
+            actionResourceId = "none",
+            targetType = "self",
+            selfTarget = true,
+            castImmediately = true,
+            behaviors = { ActivatedAbilityFallBehavior.new{ stopFlying = true } },
+        }
+        g_dropToGroundAbility._tmp_isNewAbility = false
+    end
+    return g_dropToGroundAbility
 end
 
 --Tokens on the map with granted abilities, worked out once per frame:
@@ -1474,6 +1520,45 @@ local function CardBookmarkTab(hide, buildArgs)
     return gui.Panel(buildArgs())
 end
 
+--- The power roll whose tier table the ability card shows. A top-level roll wins;
+--- otherwise it is a roll inside an invoked custom ability, or inside a trigger of
+--- an aura the ability places (e.g. Noxious Bubble's Might test when it bursts).
+--- @param ability ActivatedAbility
+--- @param token CharacterToken|nil
+--- @param params table
+--- @return ActivatedAbilityPowerRollBehavior|nil
+local function FindCardPowerTableBehavior(ability, token, params)
+    local result = nil
+    for _, behavior in ipairs(ability.behaviors) do
+        if behavior:IsFiltered(ability, token, params) then
+            --the modes didn't match, so just pass on this one.
+        elseif behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+            return behavior --[[@as ActivatedAbilityPowerRollBehavior]]
+        elseif behavior.typeName == "ActivatedAbilityInvokeAbilityBehavior" and behavior.abilityType == "custom" then
+            --if we invoke a power roll ability try to pull that out.
+            --customAbility has no class default and may be unset even when
+            --abilityType resolves to "custom" (the class default), so read it safely.
+            local customAbility = behavior:try_get("customAbility")
+            for _, subbehavior in ipairs(customAbility ~= nil and customAbility.behaviors or {}) do
+                if subbehavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+                    result = subbehavior
+                end
+            end
+        elseif behavior.typeName == "ActivatedAbilityAuraBehavior" then
+            local aura = behavior:try_get("aura")
+            for _, trigger in ipairs(aura ~= nil and aura:try_get("triggers") or {}) do
+                local triggered = trigger.ability
+                for _, subbehavior in ipairs(triggered ~= nil and triggered.behaviors or {}) do
+                    if subbehavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+                        result = subbehavior
+                    end
+                end
+            end
+        end
+    end
+    return result
+end
+
 function ActivatedAbility:Render(options, params)
     params = params or {}
     options = options or {}
@@ -1532,25 +1617,7 @@ function ActivatedAbility:Render(options, params)
         end
     end
 
-    local powerTableBehavior = nil
-    for _, behavior in ipairs(self.behaviors) do
-        if behavior:IsFiltered(self, params.token, params) then
-            --the modes didn't match, so just pass on this one.
-        elseif behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
-            powerTableBehavior = behavior
-            break
-        elseif behavior.typeName == "ActivatedAbilityInvokeAbilityBehavior" and behavior.abilityType == "custom" then
-            --if we invoke a power roll ability try to pull that out.
-            --customAbility has no class default and may be unset even when
-            --abilityType resolves to "custom" (the class default), so read it safely.
-            local customAbility = behavior:try_get("customAbility")
-            for _, subbehavior in ipairs(customAbility ~= nil and customAbility.behaviors or {}) do
-                if subbehavior.typeName == "ActivatedAbilityPowerRollBehavior" then
-                    powerTableBehavior = subbehavior
-                end
-            end
-        end
-    end
+    local powerTableBehavior = FindCardPowerTableBehavior(self, params.token, params)
 
     -- Apply active Modify Power Roll modifiers to a deep copy of the power-table
     -- tiers for display purposes. Each tier is fully pre-evaluated first
@@ -1838,7 +1905,8 @@ function ActivatedAbility:Render(options, params)
             c = params.token.properties
         end
 
-        local roll = powerTableBehavior:DescribeRoll(c, self)
+        --DescribeRoll turns table rolls into text, so this is always printable.
+        local roll = tostring(powerTableBehavior:DescribeRoll(c, self))
 
         local triangleBlack = nil
         if not string.find(roll, "2d6") then
@@ -2234,25 +2302,7 @@ function ActivatedAbility:Render(options, params)
     local preDescription = self:try_get("preDescription", "")
     local description = self.description
 
-    local powerTableBehavior = nil
-    for _, behavior in ipairs(self.behaviors) do
-        if behavior:IsFiltered(self, params.token, params) then
-            --the modes didn't match, so just pass on this one.
-        elseif behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
-            powerTableBehavior = behavior
-            break
-        elseif behavior.typeName == "ActivatedAbilityInvokeAbilityBehavior" and behavior.abilityType == "custom" then
-            --if we invoke a power roll ability try to pull that out.
-            --customAbility has no class default and may be unset even when
-            --abilityType resolves to "custom" (the class default), so read it safely.
-            local customAbility = behavior:try_get("customAbility")
-            for _, subbehavior in ipairs(customAbility ~= nil and customAbility.behaviors or {}) do
-                if subbehavior.typeName == "ActivatedAbilityPowerRollBehavior" then
-                    powerTableBehavior = subbehavior
-                end
-            end
-        end
-    end
+    powerTableBehavior = FindCardPowerTableBehavior(self, params.token, params)
 
     local powerRollQueenPanel
 
@@ -4354,6 +4404,114 @@ function ActivatedAbility:GetTargetingRays(casterToken, range, symbols, targets)
     return nil
 end
 
+--A creature with this modifier who aims a single-target ability at a creature
+--carrying the named effect it applied, while at least minCount creatures carry
+--that effect from it, targets every one of them instead. Added in PrepareTargets,
+--so the extra targets need neither range nor line of effect.
+CharacterModifier.RegisterType("expandsingletarget", "Expand Single Target")
+
+CharacterModifier.TypeInfo.expandsingletarget = {
+    init = function(modifier)
+        modifier.effectName = ""
+        modifier.minCount = 3
+    end,
+
+    createEditor = function(modifier, element)
+        element.children = {
+            gui.Panel{
+                classes = {"formPanel"},
+                gui.Label{
+                    classes = {"formLabel"},
+                    text = "Effect Name:",
+                },
+                gui.Input{
+                    classes = {"formInput"},
+                    text = modifier:try_get("effectName", ""),
+                    change = function(input)
+                        modifier.effectName = input.text
+                    end,
+                },
+            },
+            gui.Panel{
+                classes = {"formPanel"},
+                gui.Label{
+                    classes = {"formLabel"},
+                    text = "Minimum Carrying:",
+                },
+                gui.Input{
+                    classes = {"formInput"},
+                    text = tostring(modifier:try_get("minCount", 3)),
+                    change = function(input)
+                        modifier.minCount = tonumber(input.text) or 3
+                        input.text = tostring(modifier.minCount)
+                    end,
+                },
+            },
+        }
+    end,
+}
+
+--- Does token carry the named ongoing effect, applied by casterToken? Names match the way ConditionCaster matches them.
+--- @param token CharacterToken
+--- @param effectName string lowercased
+--- @param casterToken CharacterToken
+--- @return boolean
+local function CarriesEffectFrom(token, effectName, casterToken)
+    if token == nil or not token.valid or token.properties == nil then
+        return false
+    end
+
+    local effectsTable = GetTableCached("characterOngoingEffects")
+    for _, instance in ipairs(token.properties:ActiveOngoingEffects()) do
+        local casterInfo = instance:try_get("casterInfo")
+        if casterInfo ~= nil and casterInfo.tokenid == casterToken.charid then
+            local effect = effectsTable[instance.ongoingEffectid]
+            if effect ~= nil and string.lower(effect.name) == effectName then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+--- Applies the caster's Expand Single Target modifiers to a chosen target list.
+--- @param ability ActivatedAbility
+--- @param casterToken CharacterToken
+--- @param symbols table
+--- @param targets table[]
+--- @return table[]
+local function ExpandSingleTarget(ability, casterToken, symbols, targets)
+    if casterToken == nil or casterToken.properties == nil or ability.targetType ~= "target" or #targets ~= 1 then
+        return targets
+    end
+
+    local sole = targets[1].token
+    if sole == nil or not sole.valid or sole.properties == nil then
+        return targets
+    end
+
+    for _, entry in ipairs(casterToken.properties:GetActiveModifiers()) do
+        local modifier = entry.mod
+        if modifier.behavior == "expandsingletarget" then
+            local effectName = string.lower(modifier:try_get("effectName", ""))
+            if effectName ~= "" and ability:GetNumTargets(casterToken, symbols) == 1
+                    and CarriesEffectFrom(sole, effectName, casterToken) then
+                local carriers = {}
+                for _, token in ipairs(dmhub.allTokens) do
+                    if CarriesEffectFrom(token, effectName, casterToken) then
+                        carriers[#carriers + 1] = { loc = token.loc, token = token }
+                    end
+                end
+                if #carriers >= (tonumber(modifier:try_get("minCount", 3)) or 3) then
+                    return carriers
+                end
+            end
+        end
+    end
+
+    return targets
+end
+
 function ActivatedAbility:PrepareTargets(casterToken, symbols, targets)
     if self:UsesSquadStrike(casterToken) then
         --minion squad signature abilities collapse multiple strikes against the
@@ -4380,7 +4538,7 @@ function ActivatedAbility:PrepareTargets(casterToken, symbols, targets)
         return result
     end
 
-    return targets
+    return ExpandSingleTarget(self, casterToken, symbols, targets)
 end
 
 local g_customTargetShapeFunction = ActivatedAbility.CustomTargetShape
@@ -5190,6 +5348,12 @@ ActivatedAbility.RegisterProperty {
 }
 
 ActivatedAbility.RegisterProperty {
+    id = "searchforhidden",
+    name = "Search for Hidden",
+    description = "If true, this ability searches for hidden creatures rather than being an area effect, so it still reaches creatures that are Unaffected By Area (such as a polder in Shadowmeld). Modifiers can test it with Ability.SearchForHidden.",
+}
+
+ActivatedAbility.RegisterProperty {
     id = "forcemovefrominvoker",
     name = "All Force Move From Caster",
     description = "If true, push/pull/slide effects from this ability use the original caster as the source for size-difference calculations (Big Versus Little), rather than this ability's caster. Generally only used within Invoked Abilities",
@@ -5213,6 +5377,16 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
     --of effect to where the area lands, not to each creature caught in it, which the base
     --filter already checks against the area's origin.
     local isAreaAbility = self:HasKeyword("Area") or self.targetType == "map"
+
+    --"Unaffected By Area" (Shadowmeld): area abilities from anyone, allies included, skip this
+    --creature. Area shapes missing the Area keyword count too. A Search for Hidden ability is
+    --a search, not an area effect, so it still reaches the creature.
+    if (isAreaAbility or self:IsTargetTypeAOE())
+        and (not self:HasProperty("searchforhidden"))
+        and targetToken.properties:CalculateNamedCustomAttribute("Unaffected By Area") > 0 then
+        return false, "Unaffected by area abilities."
+    end
+
     if not isAreaAbility then
         local denialReason = RuleUtils.LineOfEffectDenialReason(casterToken, targetToken)
         if denialReason ~= nil then

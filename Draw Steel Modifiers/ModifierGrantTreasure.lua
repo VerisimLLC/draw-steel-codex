@@ -447,6 +447,7 @@ CharacterModifier.TypeInfo.granttreasure = {
 --- @class CharacterTreasureGrantChoice: CharacterChoice
 --- @field new fun(o?: table): CharacterTreasureGrantChoice
 --- @field modifier CharacterModifier The granttreasure modifier this choice was built from.
+--- @field prompt string What to choose, without the claim step, e.g. "Choose a 1st-echelon trinket".
 --- @field options {guid: string, name: string, unique: boolean, render: fun(): Panel}[] One entry per matching item.
 --- @field choices {id: string, text: string, unique: boolean, render: fun(): Panel}[] The same items in choice-list form.
 CharacterTreasureGrantChoice = RegisterGameType("CharacterTreasureGrantChoice", "CharacterChoice")
@@ -456,6 +457,30 @@ CharacterTreasureGrantChoice.numChoices = 1
 CharacterTreasureGrantChoice.costsPoints = false
 CharacterTreasureGrantChoice.hasRoll = false
 
+--Extra tests a treasure must pass to be offered, by id. A game mode uses
+--this to narrow the list (Encounter of the Week offers Gold automation only).
+---@type table<string, fun(hero: character, item: equipment): boolean>
+local g_optionFilters = {}
+
+--- Register (or with nil, remove) a test every offered treasure must pass.
+--- @param id string
+--- @param fn nil|fun(hero: character, item: equipment): boolean
+function CharacterTreasureGrantChoice.RegisterOptionFilter(id, fn)
+    g_optionFilters[id] = fn
+end
+
+--- @param hero character
+--- @param item equipment
+--- @return boolean
+local function PassesOptionFilters(hero, item)
+    for _,fn in pairs(g_optionFilters) do
+        if not fn(hero, item) then
+            return false
+        end
+    end
+    return true
+end
+
 --- @param hero character
 --- @param feature CharacterFeature the feature carrying the modifier; names the choice
 --- @param modifier CharacterModifier the granttreasure modifier
@@ -464,7 +489,14 @@ function CharacterTreasureGrantChoice.CreateNew(hero, feature, modifier)
     local options = {}
     local choices = {}
 
+    local offered = {}
     for _,entry in ipairs(MatchingItems(modifier)) do
+        if PassesOptionFilters(hero, entry.item) then
+            offered[#offered+1] = entry
+        end
+    end
+
+    for _,entry in ipairs(offered) do
         local item = entry.item
         local renderFn = function()
             --Render through the item's document so its annotations resolve
@@ -520,6 +552,7 @@ function CharacterTreasureGrantChoice.CreateNew(hero, feature, modifier)
         description = cond(IsManifestMode(modifier),
             ChoicePrompt(modifier) .. ".",
             ChoicePrompt(modifier) .. ", then claim it to add it to your inventory."),
+        prompt = ChoicePrompt(modifier),
         modifier = modifier,
         options = options,
         choices = choices,

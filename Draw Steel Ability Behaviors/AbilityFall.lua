@@ -16,10 +16,29 @@ ActivatedAbility.RegisterType
 
 ActivatedAbilityFallBehavior.summary = 'Fall'
 
+--If true, a flying target stops flying first, so it falls (TryFall leaves a
+--flier where it is). Used by Drop to Ground.
+ActivatedAbilityFallBehavior.stopFlying = false
+
 function ActivatedAbilityFallBehavior:Cast(ability, casterToken, targets, options)
     for _, target in ipairs(targets) do
-        if target.token ~= nil then
-            target.token:TryFall()
+        local tok = target.token
+        if tok ~= nil and tok.valid then
+            if self.stopFlying and tok.properties:CurrentMoveType() == "fly" then
+                tok.properties:SetAndUploadCurrentMoveType("walk")
+                --The engine would turn the fall straight back into flight (it tries
+                --flying before falling for any creature that can fly).
+                tok.properties._tmp_droppingToGround = true
+                tok:TryFall()
+                tok.properties._tmp_droppingToGround = false
+                --TryFall applies the falling rules but leaves a creature hovering
+                --only 1 square up in place; step it down to the ground instead.
+                if tok.valid and tok.altitude > tok.loc.withGroundAltitude.altitude then
+                    tok:MoveVertical(tok.loc.withGroundAltitude.altitude)
+                end
+            else
+                tok:TryFall()
+            end
         end
     end
 end
@@ -28,6 +47,15 @@ function ActivatedAbilityFallBehavior:EditorItems(parentPanel)
 	local result = {}
 	self:ApplyToEditor(parentPanel, result)
 	self:FilterEditor(parentPanel, result)
+
+	result[#result+1] = gui.Check{
+		text = "Stop Flying First",
+		value = self.stopFlying,
+		change = function(element)
+			self.stopFlying = element.value
+		end,
+	}
+
 	return result
 end
 

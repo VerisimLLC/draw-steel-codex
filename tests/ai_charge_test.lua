@@ -12,6 +12,8 @@ local helperEnd = assert(source:find("function MonsterAI:MovementTokenIsAtLoc", 
 assert(load(source:sub(helperStart, helperEnd-1)))()
 dmhub = {unitsPerSquare=1, Time = function() return 1 end, CreateChargeRouteCache = function() return {} end}
 assert(load(source:sub(first, last-1)))()
+--no zone holds the charger (the Hold directive's own checks need a map).
+function MonsterAI:HoldConstrains() return false end
 local function loc(x, altitude)
     return {x=x, altitude=altitude, str=x .. ":" .. altitude,
         DistanceInTiles=function(self, other) return math.abs(self.x-other.x) end}
@@ -74,4 +76,84 @@ enemy.altitude=7
 assert(ai:ChargeProbe(mover,enemy,6,1) == nil, "ground charge cannot reach flying enemy")
 enemy.altitude=3; ai:InvalidatePlanningMemo()
 assert(ai:ChargeProbe(mover,enemy,6,1), "charge permits one-square vertical diagonal")
-print("AI charge altitude, validation, and failed-route tests passed")
+
+--NYQSV5BJ: a multi-target Charge strike charges once, to one shared landing.
+local selectStart = assert(source:find("function MonsterAI.StrikeChargeRange", 1, true))
+local selectEnd = assert(source:find("function MonsterAI:FindValidTargetsOfStrike", selectStart, true))
+assert(load(source:sub(selectStart, selectEnd-1)))()
+function shallow_copy_table(t) local r = {} for k,v in pairs(t) do r[k] = v end return r end
+local function at(x) return {x=x, altitude=0, str="x" .. x} end
+local mino = {id="mino", altitude=0, tileSize=1, loc=at(0),
+    properties={GetPierceWalls=function() return false end}}
+function mino:Distance(other) return math.abs(self.loc.x-other.loc.x) end
+function mino:ExecuteWithTheoreticalLoc(destination, fn)
+    local old = self.loc
+    self.loc = destination
+    fn()
+    self.loc = old
+end
+function mino:GetLineOfSight(target) return target.blocked and 0 or 1 end
+local function hero(name, x) return {charid=name, altitude=0, tileSize=1, loc=at(x)} end
+local flailAndBlade = {meleeAndRanged=false,
+    HasKeyword=function(_, k) return k == "Melee" or k == "Charge" or k == "Strike" end,
+    GetRange=function() return 1 end, GetNumTargets=function() return 2 end}
+local landingAi = setmetatable({}, {__index=MonsterAI})
+function landingAi:GetMovementToken() return mino end
+
+--Heroes on opposite sides need two landings: only one is planned.
+local east, west = hero("east", 10), hero("west", -10)
+local split = landingAi:SelectChargeTargets(mino, flailAndBlade,
+    {{token=east, charge=at(9), edges=0}, {token=west, charge=at(-9), edges=0}})
+assert(#split == 1 and split[1].charge.str == "x9", "two landings are never planned together")
+
+--A hero next to another hero's landing joins that one charge.
+local near = hero("near", 8)
+local nearOwn = {token=near, charge=at(7), edges=0}
+local shared = landingAi:SelectChargeTargets(mino, flailAndBlade,
+    {{token=east, charge=at(9), edges=0}, nearOwn})
+assert(#shared == 2, "one landing reaching both targets strikes both")
+for _,target in ipairs(shared) do
+    assert(target.charge.str == "x9", "every target shares the landing")
+end
+assert(nearOwn.charge.str == "x7", "joining a landing copies the target, leaving the planner's entry alone")
+
+--Line of sight from the landing is required to join it.
+near.blocked = true
+assert(#landingAi:SelectChargeTargets(mino, flailAndBlade,
+    {{token=east, charge=at(9), edges=0}, nearOwn}) == 1, "no sight from the landing, no strike")
+near.blocked = nil
+
+--A hero in reach now and one needing a charge: no charge wins the tie.
+local adjacent = {token=hero("adjacent", 1), edges=0}
+local mixed = landingAi:SelectChargeTargets(mino, flailAndBlade,
+    {{token=east, charge=at(9), edges=0}, adjacent})
+assert(#mixed == 1 and mixed[1] == adjacent and mixed[1].charge == nil, "ties keep the creature where it stands")
+
+--A scorer can still prefer the charge.
+local preferEast = landingAi:SelectChargeTargets(mino, flailAndBlade,
+    {{token=east, charge=at(9), edges=0}, adjacent}, 2,
+    function(t) return t.token == east and 2 or 1 end)
+assert(#preferEast == 1 and preferEast[1].token == east)
+
+--Targets that already agree, and single-target strikes, are untouched.
+local agreeing = {{token=east, charge=at(9), edges=0}, {token=near, charge=at(9), edges=0}}
+assert(landingAi:SelectChargeTargets(mino, flailAndBlade, agreeing) == agreeing)
+local single = {{token=east, charge=at(9), edges=0}, {token=west, charge=at(-9), edges=0}}
+assert(landingAi:SelectChargeTargets(mino, flailAndBlade, single, 1) == single)
+
+--A size 2+ creature asked to move to its own square is not moved (the
+--engine used to nudge it a square, which the AI then saw as a failed move).
+local moveStart = assert(source:find("function MonsterAI:MoveToken", 1, true))
+assert(load(source:sub(moveStart, helperStart-1)))()
+local logged = {}
+local moveAi = setmetatable({}, {__index=MonsterAI})
+function moveAi:GetMovementToken() return mino end
+function moveAi:MovementTokenIsAtLoc(_, dest) return mino.loc.str == dest.str end
+function moveAi:LogDecision(event) logged[#logged+1] = event end
+function MonsterAI.TokenLogName() return "mino" end
+function MonsterAI.LocLogName(l) return l and l.str end
+function mino:Move() error("Move must not be called for the square the creature stands on") end
+local path, survived = moveAi:MoveToken(mino, at(0), {maxCost = 10000})
+assert(path == nil and survived == true and moveAi._tmp_moveFailure == nil, "a cost-0 plan is not a failed move")
+assert(logged[1] == "MOVEMENT SKIPPED")
+print("AI charge altitude, validation, failed-route, shared landing and no-op move tests passed")

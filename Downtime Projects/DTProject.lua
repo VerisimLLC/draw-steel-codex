@@ -21,6 +21,7 @@
 --- @field projectRolls table Array of DTRoll objects - History of all rolls made on this project
 --- @field progressAdjustments table Array of DTAdjustment objects - History of all adjustments made to project progress
 --- @field createdBy string GUID identifier of the user who created this project
+--- @field itemsGiven table<string, boolean>|nil Item ids this project has given; each is given once, even if picked again
 DTProject = RegisterGameType("DTProject")
 DTProject.sortOrder = 1
 
@@ -332,6 +333,23 @@ function DTProject:_invalidateProgressCache()
     self._progressDirty = true
 end
 
+--- Repairs progress items that came back from storage as plain, method-less tables.
+--- A record saved without its "__typeName" tag deserializes with no metatable, so
+--- calling GetID or GetAmount on it would fail. The list it lives in says what it
+--- should be, and every field of these types has a type-level default (or is read
+--- via try_get), so re-attaching the metatable is the whole repair.
+--- @param items table The projectRolls or progressAdjustments list
+--- @param gameType table DTRoll or DTAdjustment
+--- @return table items The same list, with every plain table entry restored
+local function _rehydrateItems(items, gameType)
+    for _, item in ipairs(items) do
+        if type(item) == "table" and getmetatable(item) == nil then
+            setmetatable(item, gameType.mt)
+        end
+    end
+    return items
+end
+
 --- Gets a specific project roll
 --- @param rollId string GUID ID of the roll to find
 --- @return DTRoll|nil roll The roll object or nil if not found
@@ -341,10 +359,11 @@ function DTProject:GetRoll(rollId)
         return nil, nil
     end
 
-    for i = #self.projectRolls, 1, -1 do
-        local roll = self.projectRolls[i]
+    local rolls = self:GetRolls()
+    for i = #rolls, 1, -1 do
+        local roll = rolls[i]
         if roll and roll:GetID() == rollId then
-            return self.projectRolls[i], i
+            return roll, i
         end
     end
 
@@ -354,7 +373,7 @@ end
 --- Gets all project rolls
 --- @return table projectRolls Array of DTRoll instances
 function DTProject:GetRolls()
-    return self.projectRolls or {}
+    return _rehydrateItems(self.projectRolls or {}, DTRoll)
 end
 
 --- Sets project status before adding or removing a progress item
@@ -374,30 +393,9 @@ function DTProject:_setStateFromProgressChange(item, direction, priorProgress)
     local projectGoal = self:GetProjectGoal()
     local milestoneStop = self:GetMilestoneThreshold()
 
+    self:_healLegacyGrant(oldValue)
     if newValue >= projectGoal then
-        DTBusinessRules.GiveItemToCharacter(self)
-        self:SetStatusReason("Project complete.")
-            :SetStatus(DTConstants.STATUS.COMPLETE.key)
-
-        -- Announce completion with a dramatic banner (synced to all clients,
-        -- non-modal). Gate on the transition INTO complete: this branch
-        -- re-enters whenever more progress is added to an already-finished
-        -- project, and the banner, unlike the item grant above, should fire
-        -- once. Title falls back to "a project" for untitled projects.
-        if currentStatus ~= STATUS.COMPLETE.key then
-            local token = dmhub.GetTokenById(self:GetOwnerID())
-            if token ~= nil and token.valid then
-                local title = self:GetTitle()
-                if title == nil or title == "" then
-                    title = "a project"
-                end
-                DramaticBanner.Show{
-                    tokenid = token.charid,
-                    text = "Project Complete",
-                    subtitle = string.format("%s completed %s", token.name, title),
-                }
-            end
-        end
+        self:_markComplete(currentStatus)
     elseif currentStatus == DTConstants.STATUS.COMPLETE.key then
         if newValue < projectGoal then
             self:SetStatus(STATUS.ACTIVE.key)
@@ -414,6 +412,104 @@ function DTProject:_setStateFromProgressChange(item, direction, priorProgress)
                 :SetStatus(STATUS.MILESTONE.key)
         end
     end
+end
+
+--- Is the project stopped until the Director acts (Paused or at a Milestone)?
+--- @return boolean
+function DTProject:WaitsOnDirector()
+    local status = self:GetStatus()
+    return status == DTConstants.STATUS.PAUSED.key or status == DTConstants.STATUS.MILESTONE.key
+end
+
+--- Has this project already given the item it is crafting now?
+--- @return boolean
+function DTProject:HasGivenItem()
+    local itemId = self:GetItemID()
+    local given = self:try_get("itemsGiven")
+    return itemId ~= "" and given ~= nil and given[itemId] == true
+end
+
+--- Records that this project gave the item it is crafting now.
+--- A new table each time, so the write never lands on a shared default.
+function DTProject:_recordItemGiven()
+    local itemId = self:GetItemID()
+    if itemId == "" then
+        return
+    end
+    local given = {}
+    for id, value in pairs(self:try_get("itemsGiven") or {}) do
+        given[id] = value
+    end
+    given[itemId] = true
+    self.itemsGiven = given
+end
+
+--- A crafting project finished before itemsGiven existed gave its item when its
+--- progress reached the goal, so one that is Complete at its goal counts as given.
+--- Without this, deleting its last roll and rolling again would give a second copy.
+--- @param progress number The progress before the change being made
+function DTProject:_healLegacyGrant(progress)
+    if self:GetStatus() == DTConstants.STATUS.COMPLETE.key and progress >= self:GetProjectGoal()
+            and self:try_get("itemsGiven") == nil then
+        self:_recordItemGiven()
+    end
+end
+
+--- Marks the project Complete. The item comes the first time progress reaches
+--- the goal, whatever the status was (a Director may have picked Complete by
+--- hand), and never again, so deleting a roll and rolling again never crafts a
+--- second copy. The banner waits for the transition INTO complete, because
+--- progress added to or removed from a finished project comes back through here.
+--- @param currentStatus string The status before this change
+function DTProject:_markComplete(currentStatus)
+    local STATUS = DTConstants.STATUS
+    local completing = currentStatus ~= STATUS.COMPLETE.key
+    if not self:HasGivenItem() then
+        if DTBusinessRules.GiveItemToCharacter(self) then
+            self:_recordItemGiven()
+        end
+    end
+    self:SetStatusReason("Project complete.")
+        :SetStatus(STATUS.COMPLETE.key)
+
+    -- Announce completion with a dramatic banner (synced to all clients,
+    -- non-modal). Title falls back to "a project" for untitled projects.
+    -- GetCharacterById, not GetTokenById: the owner may not be on the loaded
+    -- map (a Respite run on another map), and the banner must still show.
+    if completing then
+        local token = dmhub.GetCharacterById(self:GetOwnerID())
+        if token ~= nil and token.valid then
+            local title = self:GetTitle()
+            if title == nil or title == "" then
+                title = "a project"
+            end
+            DramaticBanner.Show{
+                tokenid = token.charid,
+                text = "Project Complete",
+                subtitle = string.format("%s completed %s", token.name, title),
+            }
+        end
+    end
+end
+
+--- Changes the goal and settles the status it implies: reaching the new goal
+--- completes the project (and gives its item, once); a Complete project whose
+--- goal is raised past its progress is Active again.
+--- Must be called within token:ModifyProperties on the project's owner.
+--- @param goal number The new goal
+--- @return DTProject self For chaining
+function DTProject:ChangeProjectGoal(goal)
+    local STATUS = DTConstants.STATUS
+    local currentStatus = self:GetStatus()
+    self:_healLegacyGrant(self:GetProgress())
+    self:SetProjectGoal(goal)
+    if self:GetProgress() >= self:GetProjectGoal() then
+        self:_markComplete(currentStatus)
+    elseif currentStatus == STATUS.COMPLETE.key then
+        self:SetStatus(STATUS.ACTIVE.key)
+            :SetStatusReason("")
+    end
+    return self
 end
 
 --- Adds a project roll to this project
@@ -478,7 +574,7 @@ end
 --- Gets all progress adjustments
 --- @return table adjustments Array of DTAdjustment instances
 function DTProject:GetAdjustments()
-    return self.progressAdjustments or {}
+    return _rehydrateItems(self.progressAdjustments or {}, DTAdjustment)
 end
 
 --- Adds a progress adjustment to this project
@@ -506,8 +602,9 @@ function DTProject:RemoveAdjustment(adjustmentId)
         return self
     end
 
-    for i = #self.progressAdjustments, 1, -1 do
-        local adjustment = self.progressAdjustments[i]
+    local adjustments = self:GetAdjustments()
+    for i = #adjustments, 1, -1 do
+        local adjustment = adjustments[i]
         if adjustment and adjustment:GetID() == adjustmentId then
             self:_setStateFromProgressChange(adjustment, -1)
             table.remove(self.progressAdjustments, i)

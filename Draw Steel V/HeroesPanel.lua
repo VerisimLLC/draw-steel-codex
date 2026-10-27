@@ -13,25 +13,76 @@ end
 
 local CreateHeroesPanel
 
+--Styles for the Heroes popout (the status-dot redesign, 2026-10-23): quiet
+--transparent rows that lift on hover, no table grid, dimmed offline rows.
 local g_heroesExtras = {
     {
-        selectors = {"beforeDivider"},
-        width = "40%",
-        height = "100%",
-        flow = "horizontal",
-        halign = "left",
-        valign = "center",
-        rmargin = 15,
+        selectors = {"heroRow"},
+        bgimage = "panels/square.png",
+        bgcolor = "clear",
     },
     {
-        selectors = {"row", "bordered"},
-        cornerRadius = 0,
+        selectors = {"heroRow", "hover"},
+        bgcolor = "@bgAlt",
+        transitionTime = 0.1,
     },
     {
-        selectors = {"label", "bordered"},
-        cornerRadius = 0,
+        selectors = {"heroRow", "offline"},
+        opacity = 0.55,
+    },
+    {
+        selectors = {"heroName"},
+        fontSize = 14,
+        color = "@fg",
+    },
+    {
+        selectors = {"heroMuted"},
+        fontSize = 11,
+        color = "@fgMuted",
+    },
+    {
+        selectors = {"heroSection"},
+        fontSize = 11,
+        bold = true,
+        color = "@fgMuted",
+    },
+    {
+        selectors = {"heroHairline"},
+        bgimage = "panels/square.png",
+        bgcolor = "@border",
+        opacity = 0.35,
+    },
+    {
+        selectors = {"heroChip"},
+        bgimage = "panels/square.png",
+        bgcolor = "@bg",
+        borderWidth = 1,
+        borderColor = "@border",
+        cornerRadius = 4,
+    },
+    {
+        selectors = {"heroChip", "hover"},
+        bgcolor = "@bgAlt",
     },
 }
+
+--Connection colors, the same ones the title bar's player dots use.
+local STATUS_COLOR_ONLINE = "#58b060"
+local STATUS_COLOR_LAGGING = "#d8b23a"
+local STATUS_COLOR_OFFLINE = "#7a7a7a"
+
+--"online", "lagging" (no contact for a minute: probably reconnecting) or
+--"offline". Matches ClassifyUserStatus in CodexTitleBar.lua.
+local function ClassifyUserStatus(info)
+    if info == nil or info.loggedOut or info.timeSinceLastContact >= 140 then
+        return "offline"
+    end
+    if info.timeSinceLastContact > 60 then
+        return "lagging"
+    end
+    return "online"
+end
+
 
 --The Heroes panel is NOT a dockable panel any more (2026-08-08): its
 --registration is gone, so it has no rail button, no dock presence and
@@ -57,1226 +108,880 @@ local IsLocalGame = function()
     return false
 end
 
---The invite code, inline at the bottom of the Heroes popout with the
---click-to-copy icon (2026-08-08): online games get no dialog at all --
---the old "Invite Players" modal rendered BELOW the popup layer anyway.
---Local games keep the button flow (CreateAddButtonPanel): they have no
---code to show until promoted, and the promote flow needs its modal.
-local CreateInviteCodeRow = function()
-    local displayGameid = dmhub.gameid
-    return gui.Panel {
-        classes = {"row"},
+local ShowPromoteDialog
+
+--The Put Game Online dialog for a local game (or, online, the invite code in
+--a modal). Promoting copies the game to the cloud under a new id and enters it.
+ShowPromoteDialog = function(element)
+    local isLocalGame = IsLocalGame()
+
+    local inviteDialog
+    local contentPanel
+    local progressLabel
+    local StartPromote
+    local SetContent
+
+    local BuildInviteCodeView = function(displayGameid)
+        return gui.Panel {
+            halign = "center",
+            valign = "center",
+            flow = "horizontal",
+            width = "auto",
+            height = "auto",
+
+            gui.Label {
+                classes = {"sizeS"},
+                text = "Invite Code:",
+                width = 100,
+                textAlignment = "left",
+            },
+
+            gui.Panel {
+                halign = "center",
+                width = "auto",
+                height = "auto",
+                flow = "horizontal",
+
+                click = function(el)
+                    gui.Tooltip { text = "Copied to Clipboard", valign = "top", borderWidth = 0 } (el)
+                    dmhub.CopyToClipboard(displayGameid)
+                end,
+
+                gui.Label {
+                    classes = {"sizeM"},
+                    width = "auto",
+                    height = "auto",
+                    halign = "center",
+                    valign = "center",
+                    vmargin = 20,
+                    text = displayGameid,
+                },
+
+                gui.Panel {
+                    classes = {"image"},
+                    bgimage = "icons/icon_app/icon_app_108.png",
+                    styles = {
+                        {
+                            selectors = {"parent:hover"},
+                            brightness = 1.8,
+                        }
+                    },
+
+                    width = "100% height",
+                    height = 24,
+                    valign = "center",
+                    hmargin = 4,
+                },
+            }
+        }
+    end
+
+    local BuildOfflinePromptView = function()
+        return gui.Panel {
+            halign = "center",
+            valign = "center",
+            width = "90%",
+            height = "auto",
+            flow = "vertical",
+
+            gui.Label {
+                classes = {"sizeS"},
+                text = "This game is currently offline. Put it online to get an invite code that players can use to join.",
+                width = "90%",
+                height = "auto",
+                halign = "center",
+                textAlignment = "center",
+                textWrap = true,
+                vmargin = 8,
+            },
+
+            gui.Label {
+                classes = {"sizeS"},
+                text = "A new game ID will be generated and all game data will be copied to the cloud. This may take a moment.",
+                width = "90%",
+                height = "auto",
+                halign = "center",
+                textAlignment = "center",
+                textWrap = true,
+                vmargin = 4,
+            },
+
+            gui.Button {
+                classes = {"sizeM"},
+                text = "Put Game Online",
+                halign = "center",
+                vmargin = 16,
+                click = function()
+                    StartPromote()
+                end,
+            },
+        }
+    end
+
+    local BuildProgressView = function()
+        return gui.Panel {
+            halign = "center",
+            valign = "center",
+            width = "90%",
+            height = "auto",
+            flow = "vertical",
+
+            gui.Label {
+                classes = {"sizeM", "bold"},
+                text = "Putting Game Online...",
+                width = "auto",
+                height = "auto",
+                halign = "center",
+                vmargin = 8,
+            },
+
+            gui.Label {
+                classes = {"sizeS"},
+                text = "Preparing...",
+                width = "90%",
+                height = "auto",
+                halign = "center",
+                textAlignment = "center",
+                textWrap = true,
+                create = function(el)
+                    progressLabel = el
+                end,
+            },
+        }
+    end
+
+    local BuildErrorView = function(msg)
+        return gui.Panel {
+            halign = "center",
+            valign = "center",
+            width = "90%",
+            height = "auto",
+            flow = "vertical",
+
+            gui.Label {
+                classes = {"sizeM", "bold", "danger"},
+                text = "Failed to Put Game Online",
+                width = "auto",
+                height = "auto",
+                halign = "center",
+                vmargin = 4,
+            },
+
+            gui.Label {
+                classes = {"sizeS"},
+                text = msg,
+                width = "90%",
+                height = "auto",
+                halign = "center",
+                textAlignment = "center",
+                textWrap = true,
+                vmargin = 8,
+            },
+        }
+    end
+
+    SetContent = function(newContent)
+        if contentPanel ~= nil and contentPanel.valid then
+            contentPanel.children = { newContent }
+        end
+    end
+
+    StartPromote = function()
+        SetContent(BuildProgressView())
+        lobby:PromoteLocalGame {
+            gameid = dmhub.gameid,
+            -- TEMP: target staging until the release DO server
+            -- is redeployed with the /admin/bulk-upload route.
+            staging = true,
+            progress = function(status, pct)
+                if progressLabel ~= nil and progressLabel.valid then
+                    progressLabel.text = status or ""
+                end
+            end,
+            complete = function(success, newGameid, err)
+                if success then
+                    -- Archiving the local copy closes its WebSocket. Leave
+                    -- before it reconnects to a newly-created empty database.
+                    gui.CloseModal()
+                    lobby:EnterGame(newGameid)
+                    return
+                end
+
+                if inviteDialog == nil or not inviteDialog.valid then return end
+                SetContent(BuildErrorView(err or "Unknown error"))
+            end,
+        }
+    end
+
+    local titleText = isLocalGame and "Put Game Online" or "Invite Players"
+
+    inviteDialog = gui.Panel {
+        classes = { "framedPanel" },
+        width = 600,
+        height = 400,
+        styles = ThemeEngine.GetStyles(),
+
+        gui.Label {
+            classes = {"modalTitle"},
+            text = titleText,
+            tmargin = 16,
+        },
+
+        gui.Button {
+            classes = {"closeButton"},
+            halign = "right",
+            valign = "top",
+            floating = true,
+            margin = 8,
+            escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+            click = function(element)
+                gui.CloseModal()
+            end,
+        },
+
+        gui.Panel {
+            halign = "center",
+            valign = "center",
+            width = "90%",
+            height = "auto",
+            flow = "vertical",
+            create = function(el)
+                contentPanel = el
+                if isLocalGame then
+                    el.children = { BuildOfflinePromptView() }
+                else
+                    el.children = { BuildInviteCodeView(dmhub.gameid) }
+                end
+            end,
+        },
+    }
+
+    gui.ShowModal(inviteDialog)
+
+    --popups render above the modal layer, so the popout
+    --hosting us would sit on top of the dialog we just
+    --opened -- close it.
+    local popout = element:FindParentWithClass("heroesPopout")
+    if popout ~= nil then
+        popout:FireEvent("closePopout")
+    end
+end
+
+local DescribeSecondsAgo = function(secondsAgo)
+    if secondsAgo < 6 then
+        return "just now"
+    elseif secondsAgo < 15 then
+        return "a few seconds ago"
+    elseif secondsAgo < 40 then
+        return "seconds ago"
+    elseif secondsAgo < 90 then
+        return "a minute ago"
+    elseif secondsAgo < 280 then
+        return "a few minutes ago"
+    elseif secondsAgo < 55 * 60 then
+        local minutes = round(secondsAgo / 60)
+        return string.format("%d minutes ago", minutes)
+    elseif secondsAgo < 90 * 60 then
+        return "an hour ago"
+    elseif secondsAgo < 60 * 60 * 24 then
+        local hours = round(secondsAgo / (60 * 60))
+        return string.format("%d hours ago", hours)
+    elseif secondsAgo < 2 * 60 * 60 * 24 then
+        return "a day ago"
+    else
+        local days = round(secondsAgo / (60 * 60 * 24))
+        return string.format("%d days ago", days)
+    end
+end
+
+--The right-click menu on a user's row: party, Director status, DJ status
+--and kick. Only the game owner and Directors get entries.
+local function ShowUserContextMenu(element, userid)
+    local contextMenu = {}
+
+    local parties = dmhub.GetTable(Party.tableName) or {}
+    local playerInfo = dmhub.GetPlayerInfo(userid)
+    local partyid = playerInfo.partyid
+
+    ---@type Party|nil
+    local playerParty = Party.PlayerParty()
+
+    local partySubmenu = {}
+    for k, party in unhidden_pairs(parties) do
+        if playerParty ~= nil and k == playerParty.id then
+            playerParty = nil
+        end
+
+        partySubmenu[#partySubmenu + 1] = {
+            text = party.name,
+            check = k == partyid,
+            click = function()
+                local playerInfo = dmhub.GetPlayerInfo(userid, true)
+                playerInfo.partyid = k
+                dmhub.UploadPlayerInfo(userid)
+                element.popup = nil
+            end,
+        }
+    end
+
+    if playerParty ~= nil then
+        partySubmenu[#partySubmenu + 1] = {
+            text = playerParty.name,
+            check = playerParty.id == partyid,
+            click = function()
+                local playerInfo = dmhub.GetPlayerInfo(userid, true)
+                playerInfo.partyid = playerParty.id
+                dmhub.UploadPlayerInfo(userid)
+                element.popup = nil
+            end,
+        }
+    end
+
+    if dmhub.isGameOwner or dmhub.isDM then
+        if #partySubmenu > 0 then
+            contextMenu[#contextMenu + 1] = {
+                submenu = partySubmenu,
+                text = "Party",
+            }
+        end
+
+        if dmhub.IsUserDM(userid) == false then
+            contextMenu[#contextMenu + 1] = {
+                text = string.format('Make %s', GameSystem.GameMasterShortName),
+                click = function()
+                    dmhub.SetDMStatus(userid, true)
+                    element.popup = nil
+                end
+            }
+        else
+            contextMenu[#contextMenu + 1] = {
+                text = string.format('Revoke %s Status', GameSystem.GameMasterShortName),
+                click = function()
+                    dmhub.SetDMStatus(userid, false)
+                    element.popup = nil
+                end
+            }
+        end
+
+        --DJ delegation (audio): grant/revoke full audio control. Hidden for
+        --DM users - a Director already has it. rawget so the menu degrades
+        --to no entry if the audio module is absent.
+        local audioBar = rawget(_G, "g_drawSteelAudioBar")
+        if audioBar ~= nil and dmhub.IsUserDM(userid) == false then
+            if audioBar.IsAudioDelegate(userid) then
+                contextMenu[#contextMenu + 1] = {
+                    text = 'Revoke DJ Status',
+                    click = function()
+                        audioBar.SetAudioDelegate(userid, false)
+                        element.popup = nil
+                    end,
+                }
+            else
+                contextMenu[#contextMenu + 1] = {
+                    text = 'Make DJ',
+                    click = function()
+                        audioBar.SetAudioDelegate(userid, true)
+                        element.popup = nil
+                    end,
+                }
+            end
+        end
+
+        if dmhub.userid ~= userid and dmhub.isGameOwner then
+            contextMenu[#contextMenu + 1] = {
+                text = 'Kick Player',
+                click = function()
+                    dmhub.KickPlayer(userid)
+                    element.popup = nil
+                end,
+            }
+        end
+    end
+
+    if #contextMenu > 0 then
+        element.popup = gui.ContextMenu {
+            entries = contextMenu
+        }
+    end
+end
+
+--The connection diagnostics tooltip shown when hovering a user's avatar.
+local function ShowSessionTooltip(element, userid)
+    local sessionInfo = dmhub.GetSessionInfo(userid)
+    if sessionInfo.version == nil then
+        return
+    end
+
+    local perf = sessionInfo.perf
+    local loggedInText = "Logged In"
+    if sessionInfo.loggedOut or sessionInfo.timeSinceLastContact > 60 then
+        --the server only persists a coarse last-contact time, and
+        --records written before it did so have none at all -- in which
+        --case timeSinceLastContact is measured from the epoch and would
+        --render as "20664 days ago". lastContactKnown reads nil on
+        --engine builds that predate it; treat that as known.
+        if sessionInfo.lastContactKnown == false then
+            loggedInText = "Last seen: unknown"
+        else
+            loggedInText = string.format("Last seen %s",
+                DescribeSecondsAgo(sessionInfo.timeSinceLastContact))
+        end
+    else
+        if sessionInfo.ping == nil then
+            loggedInText = loggedInText .. "\nPing: unknown"
+        else
+            loggedInText = string.format("%s\nPing: %.2f seconds", loggedInText, sessionInfo.ping)
+        end
+    end
+
+    local peerToPeerInfo = "Peer-to-peer: no connection"
+    if sessionInfo.p2pheartbeat ~= nil then
+        local connType = sessionInfo.p2pconnection or "unknown"
+        peerToPeerInfo = string.format("Peer-to-peer: %.2f seconds ago (%s)", sessionInfo.p2pheartbeat, connType)
+    end
+    gui.Tooltip(string.format(
+        'Version %s\n%s\n%s\nPerf: min=%dms; max=%dms; median=%dms; mean=%dms; cpu=%dms; gpu=%dms; res=%dx%d\nClick to ping',
+        sessionInfo.version, peerToPeerInfo, loggedInText, math.floor(perf.min * 1000 or 0),
+        math.floor(perf.max * 1000 or 0), math.floor(perf.median * 1000 or 0),
+        math.floor(perf.mean * 1000 or 0), math.floor(perf.meanCPU or 0),
+        math.floor(perf.meanGPU or 0), math.floor(perf.screenWidth),
+        math.floor(perf.screenHeight)))(element)
+end
+
+--Pings the user and shows the round trip (and the peer-to-peer one, if
+--any) in a tooltip. At most one ping every 10 seconds.
+local function PingUserFromAvatar(element, userid)
+    local t = dmhub.Time()
+    if element.data.pingTime ~= nil and (t - element.data.pingTime) < 10 then
+        return
+    end
+
+    local delta = nil
+    local p2pping = nil
+    local p2pconntype = nil
+
+    element.data.pingTime = t
+
+    local onping = function()
+        local tcptext = ""
+        if delta ~= nil then
+            tcptext = string.format("Pinged in %.2f seconds", delta)
+        end
+        local p2ptext = ""
+        if p2pping ~= nil then
+            local connLabel = p2pconntype or "unknown"
+            p2ptext = string.format("Peer-to-peer: %.2f seconds (%s)", p2pping, connLabel)
+        end
+
+        element:PulseClassTree("pingsuccess")
+        gui.Tooltip(table.concat({tcptext, p2ptext}, "\n"))(element)
+    end
+
+    dmhub.PingUser(userid, function()
+            if (not element.valid) or t ~= element.data.pingTime then
+                return
+            end
+
+            element.data.pingTime = nil
+            delta = dmhub.Time() - t
+            onping()
+        end,
+
+        function(p2ptime, conntype)
+            if not element.valid then
+                return
+            end
+            p2pping = p2ptime
+            p2pconntype = conntype
+            onping()
+        end)
+end
+
+--The token a player plays (their primary character), or nil.
+local function PrimaryToken(info)
+    if info.primaryCharacter == nil or info.primaryCharacter == "" then
+        return nil
+    end
+    return dmhub.GetCharacterById(info.primaryCharacter)
+end
+
+--One row of the Heroes popout: avatar (the hero's portrait, or the user's
+--initial) with a connection dot, the user's name over a subtitle, and a
+--quiet status on the right. Hover the avatar for connection details,
+--click it to ping, right-click the row for party/Director/DJ/kick.
+--director: true for the Director section's rows.
+local function CreateUserRow(userid, director)
+    --the hero whose portrait the avatar shows; "" until the first update.
+    ---@type string|nil
+    local m_charid = ""
+    local avatarImage
+    local dot
+
+    --dark backing circle so the color reads on any portrait, then the color.
+    dot = gui.Panel {
+        floating = true,
+        width = 12,
+        height = 12,
+        halign = "right",
+        valign = "bottom",
+        x = 2,
+        y = 2,
+        bgimage = "game-icons/plain-circle.png",
+        bgcolor = "#202020",
+        interactable = false,
+        gui.Panel {
+            width = 8,
+            height = 8,
+            halign = "center",
+            valign = "center",
+            bgimage = "game-icons/plain-circle.png",
+            bgcolor = STATUS_COLOR_OFFLINE,
+            update = function(element, info)
+                local status = ClassifyUserStatus(info)
+                local color = STATUS_COLOR_OFFLINE
+                if status == "online" then
+                    color = STATUS_COLOR_ONLINE
+                elseif status == "lagging" then
+                    color = STATUS_COLOR_LAGGING
+                end
+                element.selfStyle.bgcolor = color
+            end,
+        },
+    }
+
+    local resultPanel
+    resultPanel = gui.Panel {
+        classes = {"heroRow"},
+        data = {
+            order = "x",
+            previousLoggedOut = nil,
+        },
+
         width = "100%",
-        height = 36,
+        height = 48,
+        hpad = 12,
+        borderBox = true,
         flow = "horizontal",
         halign = "center",
         valign = "top",
 
-        gui.Label {
-            classes = {"sizeS"},
-            text = "Invite Code:",
-            width = "auto",
+        update = function(element, info)
+            local offline = ClassifyUserStatus(info) == "offline"
+            element.data.order = cond(offline, "x", "a") .. string.lower(info.displayName)
+            element:SetClass("offline", offline)
+
+            --players get a sound as they come and go.
+            if not director then
+                local previous = element.data.previousLoggedOut
+                if previous ~= nil and previous ~= info.loggedOut then
+                    if info.loggedOut then
+                        audio.FireSoundEvent("Notify.UserLeave")
+                    else
+                        audio.FireSoundEvent("Notify.UserJoin")
+                    end
+                end
+                element.data.previousLoggedOut = info.loggedOut
+            end
+        end,
+
+        rightClick = function(element)
+            ShowUserContextMenu(element, userid)
+        end,
+
+        --avatar with the connection dot in its corner.
+        gui.Panel {
+            width = 32,
+            height = 32,
+            halign = "left",
+            valign = "center",
+            rmargin = 10,
+
+            hover = function(element)
+                ShowSessionTooltip(element, userid)
+            end,
+
+            click = function(element)
+                PingUserFromAvatar(element, userid)
+            end,
+
+            dot,
+
+            update = function(element, info)
+                --rebuild the picture only when the player's hero changes.
+                local token = nil
+                if not director then
+                    token = PrimaryToken(info)
+                end
+                local charid = token ~= nil and info.primaryCharacter or nil
+                if charid == m_charid and avatarImage ~= nil then
+                    return
+                end
+                m_charid = charid
+
+                if token ~= nil then
+                    avatarImage = gui.CreateTokenImage(token, {
+                        width = 32,
+                        height = 32,
+                        halign = "center",
+                        valign = "center",
+                        interactable = false,
+                    })
+                else
+                    local name = info.displayName or "?"
+                    avatarImage = gui.Panel {
+                        width = 32,
+                        height = 32,
+                        halign = "center",
+                        valign = "center",
+                        bgimage = "game-icons/plain-circle.png",
+                        bgcolor = "#3a3a3a",
+                        interactable = false,
+                        gui.Label {
+                            width = "100%",
+                            height = "100%",
+                            textAlignment = "center",
+                            fontSize = 14,
+                            bold = true,
+                            color = "@fg",
+                            text = string.upper(string.sub(name, 1, 1)),
+                        },
+                    }
+                end
+                element.children = {avatarImage, dot}
+            end,
+        },
+
+        --name over subtitle.
+        gui.Panel {
+            width = 220,
             height = "auto",
             halign = "left",
             valign = "center",
-            lmargin = 8,
+            flow = "vertical",
+
+            gui.Label {
+                classes = {"heroName"},
+                width = "100%",
+                height = "auto",
+                textWrap = false,
+                textOverflow = "ellipsis",
+                update = function(element, info)
+                    element.text = info.displayName
+                end,
+            },
+
+            gui.Label {
+                classes = {"heroMuted"},
+                width = "100%",
+                height = "auto",
+                textWrap = false,
+                textOverflow = "ellipsis",
+                update = function(element, info)
+                    local parts = {}
+                    if director then
+                        parts[#parts + 1] = "Director"
+                    else
+                        local token = PrimaryToken(info)
+                        if token ~= nil and token.name ~= nil and token.name ~= "" then
+                            parts[#parts + 1] = "Playing " .. token.name
+                        end
+                    end
+
+                    --what they are doing ("Exploring <map>"); the Director's can be
+                    --hidden from players with a setting.
+                    local redact = info.dm and dmhub.GetSettingValue("redactdirectorlocation")
+                    if ClassifyUserStatus(info) ~= "offline" and info.richStatus ~= nil and not redact then
+                        parts[#parts + 1] = info.richStatus
+                    end
+
+                    if #parts == 0 then
+                        parts[1] = "No hero yet"
+                    end
+                    element.text = table.concat(parts, " - ")
+                end,
+            },
+        },
+
+        --quiet connection status, right-aligned.
+        gui.Label {
+            classes = {"heroMuted"},
+            floating = true,
+            width = 120,
+            height = "auto",
+            halign = "right",
+            valign = "center",
+            textAlignment = "right",
+            textWrap = false,
+            update = function(element, info)
+                local status = ClassifyUserStatus(info)
+                if status == "offline" then
+                    element.text = "Offline"
+                elseif status == "lagging" then
+                    element.text = "Reconnecting..."
+                elseif director or info.ping == nil or info.ping < 0 then
+                    element.text = "Online"
+                else
+                    --ping is the round trip in seconds.
+                    element.text = string.format("Online - %d ms", round(info.ping * 1000))
+                end
+            end,
+        },
+    }
+
+    return resultPanel
+end
+
+--A section heading ("Director", "Players") with its underline.
+local function CreateSectionHeader(text)
+    return gui.Panel {
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        valign = "top",
+        tmargin = 8,
+
+        gui.Label {
+            classes = {"heroSection"},
+            text = text,
+            width = "100%",
+            height = 20,
+            hpad = 12,
+            borderBox = true,
+            valign = "center",
         },
 
         gui.Panel {
-            width = "auto",
-            height = "auto",
-            flow = "horizontal",
-            halign = "left",
-            valign = "center",
-            lmargin = 8,
+            classes = {"heroHairline"},
+            width = "100%",
+            height = 1,
+        },
+    }
+end
 
-            click = function(el)
-                gui.Tooltip { text = "Copied to Clipboard", valign = "top", borderWidth = 0 } (el)
-                dmhub.CopyToClipboard(displayGameid)
-            end,
+--The popout's footer. Online games: the invite code as a chip, click to
+--copy. Local games have no code until promoted, so they explain that and
+--offer the promote flow instead.
+local function CreateFooter()
+    local body
+    if IsLocalGame() then
+        body = gui.Panel {
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
 
             gui.Label {
+                classes = {"heroMuted"},
+                fontSize = 12,
+                text = "This game is on your computer. Put it online to invite players.",
+                width = "100%",
+                height = "auto",
+                textWrap = true,
+            },
+
+            gui.Button {
                 classes = {"sizeS"},
+                text = "Put game online",
+                width = "auto",
+                height = "auto",
+                hpad = 12,
+                vpad = 4,
+                borderBox = true,
+                halign = "left",
+                tmargin = 8,
+                click = function(element)
+                    ShowPromoteDialog(element)
+                end,
+            },
+        }
+    else
+        local displayGameid = dmhub.gameid
+        body = gui.Panel {
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+
+            gui.Label {
+                classes = {"heroMuted"},
+                fontSize = 12,
+                text = "Invite code",
                 width = "auto",
                 height = "auto",
                 valign = "center",
-                text = displayGameid,
+                rmargin = 10,
             },
 
             gui.Panel {
-                classes = {"image"},
-                bgimage = "icons/icon_app/icon_app_108.png",
-                styles = {
-                    {
-                        selectors = {"parent:hover"},
-                        brightness = 1.8,
-                    }
-                },
-                width = "100% height",
-                height = 20,
-                valign = "center",
-                hmargin = 4,
-            },
-        },
-    }
-end
-
-local CreateAddButtonPanel = function()
-    local resultPanel = gui.Panel {
-
-        data = {
-
-            order = "x"
-
-        },
-
-        update = function(element, info)
-            element.data.order = "x" .. string.lower(info.displayName)
-        end,
-
-        classes = {"row", "bordered"},
-        width = "100%",
-        height = 32,
-
-        border = { x1 = 0, x2 = 0, y1 = 0, y2 = 1 },
-
-        halign = "center",
-        valign = "top",
-
-        flow = "horizontal",
-
-        gui.Button {
-            classes = {"sizeM", "addButton"},
-            halign = "center",
-            valign = "center",
-            click = function(element)
-                local isLocalGame = IsLocalGame()
-
-                local inviteDialog
-                local contentPanel
-                local progressLabel
-                local StartPromote
-                local SetContent
-
-                local BuildInviteCodeView = function(displayGameid)
-                    return gui.Panel {
-                        halign = "center",
-                        valign = "center",
-                        flow = "horizontal",
-                        width = "auto",
-                        height = "auto",
-
-                        gui.Label {
-                            classes = {"sizeS"},
-                            text = "Invite Code:",
-                            width = 100,
-                            textAlignment = "left",
-                        },
-
-                        gui.Panel {
-                            halign = "center",
-                            width = "auto",
-                            height = "auto",
-                            flow = "horizontal",
-
-                            click = function(el)
-                                gui.Tooltip { text = "Copied to Clipboard", valign = "top", borderWidth = 0 } (el)
-                                dmhub.CopyToClipboard(displayGameid)
-                            end,
-
-                            gui.Label {
-                                classes = {"sizeM"},
-                                width = "auto",
-                                height = "auto",
-                                halign = "center",
-                                valign = "center",
-                                vmargin = 20,
-                                text = displayGameid,
-                            },
-
-                            gui.Panel {
-                                classes = {"image"},
-                                bgimage = "icons/icon_app/icon_app_108.png",
-                                styles = {
-                                    {
-                                        selectors = {"parent:hover"},
-                                        brightness = 1.8,
-                                    }
-                                },
-
-                                width = "100% height",
-                                height = 24,
-                                valign = "center",
-                                hmargin = 4,
-                            },
-                        }
-                    }
-                end
-
-                local BuildOfflinePromptView = function()
-                    return gui.Panel {
-                        halign = "center",
-                        valign = "center",
-                        width = "90%",
-                        height = "auto",
-                        flow = "vertical",
-
-                        gui.Label {
-                            classes = {"sizeS"},
-                            text = "This game is currently offline. Put it online to get an invite code that players can use to join.",
-                            width = "90%",
-                            height = "auto",
-                            halign = "center",
-                            textAlignment = "center",
-                            textWrap = true,
-                            vmargin = 8,
-                        },
-
-                        gui.Label {
-                            classes = {"sizeS"},
-                            text = "A new game ID will be generated and all game data will be copied to the cloud. This may take a moment.",
-                            width = "90%",
-                            height = "auto",
-                            halign = "center",
-                            textAlignment = "center",
-                            textWrap = true,
-                            vmargin = 4,
-                        },
-
-                        gui.Button {
-                            classes = {"sizeM"},
-                            text = "Put Game Online",
-                            halign = "center",
-                            vmargin = 16,
-                            click = function()
-                                StartPromote()
-                            end,
-                        },
-                    }
-                end
-
-                local BuildProgressView = function()
-                    return gui.Panel {
-                        halign = "center",
-                        valign = "center",
-                        width = "90%",
-                        height = "auto",
-                        flow = "vertical",
-
-                        gui.Label {
-                            classes = {"sizeM", "bold"},
-                            text = "Putting Game Online...",
-                            width = "auto",
-                            height = "auto",
-                            halign = "center",
-                            vmargin = 8,
-                        },
-
-                        gui.Label {
-                            classes = {"sizeS"},
-                            text = "Preparing...",
-                            width = "90%",
-                            height = "auto",
-                            halign = "center",
-                            textAlignment = "center",
-                            textWrap = true,
-                            create = function(el)
-                                progressLabel = el
-                            end,
-                        },
-                    }
-                end
-
-                local BuildErrorView = function(msg)
-                    return gui.Panel {
-                        halign = "center",
-                        valign = "center",
-                        width = "90%",
-                        height = "auto",
-                        flow = "vertical",
-
-                        gui.Label {
-                            classes = {"sizeM", "bold", "danger"},
-                            text = "Failed to Put Game Online",
-                            width = "auto",
-                            height = "auto",
-                            halign = "center",
-                            vmargin = 4,
-                        },
-
-                        gui.Label {
-                            classes = {"sizeS"},
-                            text = msg,
-                            width = "90%",
-                            height = "auto",
-                            halign = "center",
-                            textAlignment = "center",
-                            textWrap = true,
-                            vmargin = 8,
-                        },
-                    }
-                end
-
-                SetContent = function(newContent)
-                    if contentPanel ~= nil and contentPanel.valid then
-                        contentPanel.children = { newContent }
-                    end
-                end
-
-                StartPromote = function()
-                    SetContent(BuildProgressView())
-                    lobby:PromoteLocalGame {
-                        gameid = dmhub.gameid,
-                        -- TEMP: target staging until the release DO server
-                        -- is redeployed with the /admin/bulk-upload route.
-                        staging = true,
-                        progress = function(status, pct)
-                            if progressLabel ~= nil and progressLabel.valid then
-                                progressLabel.text = status or ""
-                            end
-                        end,
-                        complete = function(success, newGameid, err)
-                            if success then
-                                -- Archiving the local copy closes its WebSocket. Leave
-                                -- before it reconnects to a newly-created empty database.
-                                gui.CloseModal()
-                                lobby:EnterGame(newGameid)
-                                return
-                            end
-
-                            if inviteDialog == nil or not inviteDialog.valid then return end
-                            SetContent(BuildErrorView(err or "Unknown error"))
-                        end,
-                    }
-                end
-
-                local titleText = isLocalGame and "Put Game Online" or "Invite Players"
-
-                inviteDialog = gui.Panel {
-                    classes = { "framedPanel" },
-                    width = 600,
-                    height = 400,
-                    styles = ThemeEngine.GetStyles(),
-
-                    gui.Label {
-                        classes = {"modalTitle"},
-                        text = titleText,
-                        tmargin = 16,
-                    },
-
-                    gui.Button {
-                        classes = {"closeButton"},
-                        halign = "right",
-                        valign = "top",
-                        floating = true,
-                        margin = 8,
-                        escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
-                        click = function(element)
-                            gui.CloseModal()
-                        end,
-                    },
-
-                    gui.Panel {
-                        halign = "center",
-                        valign = "center",
-                        width = "90%",
-                        height = "auto",
-                        flow = "vertical",
-                        create = function(el)
-                            contentPanel = el
-                            if isLocalGame then
-                                el.children = { BuildOfflinePromptView() }
-                            else
-                                el.children = { BuildInviteCodeView(dmhub.gameid) }
-                            end
-                        end,
-                    },
-                }
-
-                gui.ShowModal(inviteDialog)
-
-                --popups render above the modal layer, so the popout
-                --hosting us would sit on top of the dialog we just
-                --opened -- close it.
-                local popout = element:FindParentWithClass("heroesPopout")
-                if popout ~= nil then
-                    popout:FireEvent("closePopout")
-                end
-            end,
-
-            tooltip = "Invite players",
-
-        },
-
-
-
-
-    }
-
-    return resultPanel
-end
-
-local CreateDirectorPanel = function(userid)
-    --Director queen panel
-    local resultPanel = gui.Panel {
-
-        data = {
-
-            order = "x"
-
-        },
-
-        update = function(element, info)
-            if info.loggedOut or info.timeSinceLastContact > 140 then
-                element.data.order = "dx" .. string.lower(info.displayName)
-            else
-                element.data.order = "da" .. string.lower(info.displayName)
-            end
-        end,
-
-        classes = {"row", "bordered"},
-        width = "100%",
-        height = 40,
-
-        border = { x1 = 0, x2 = 0, y1 = 0, y2 = 1 },
-
-        halign = "center",
-        valign = "top",
-
-        flow = "horizontal",
-
-        rowColor = function(element, bgFlag)
-            element:SetClass("evenRow", bgFlag)
-            element:SetClass("oddRow", not bgFlag)
-        end,
-
-        rightClick = function(element)
-            local contextMenu = {}
-
-            local parties = dmhub.GetTable(Party.tableName) or {}
-            local playerInfo = dmhub.GetPlayerInfo(userid)
-            local partyid = playerInfo.partyid
-
-            ---@type Party|nil
-            local playerParty = Party.PlayerParty()
-
-            local partySubmenu = {}
-            for k, party in unhidden_pairs(parties) do
-                if playerParty ~= nil and k == playerParty.id then
-                    playerParty = nil
-                end
-                partySubmenu[#partySubmenu + 1] = {
-                    text = party.name,
-                    check = k == partyid,
-                    click = function()
-                        local playerInfo = dmhub.GetPlayerInfo(userid, true)
-                        playerInfo.partyid = k
-                        dmhub.UploadPlayerInfo(userid)
-                        element.popup = nil
-                    end,
-                }
-            end
-
-            if playerParty ~= nil then
-                partySubmenu[#partySubmenu + 1] = {
-                    text = playerParty.name,
-                    check = playerParty.id == partyid,
-                    click = function()
-                        local playerInfo = dmhub.GetPlayerInfo(userid, true)
-                        playerInfo.partyid = playerParty.id
-                        dmhub.UploadPlayerInfo(userid)
-                        element.popup = nil
-                    end,
-                }
-            end
-
-            if dmhub.isGameOwner or dmhub.isDM then
-                if #partySubmenu > 0 then
-                    contextMenu[#contextMenu + 1] = {
-                        submenu = partySubmenu,
-                        text = "Party",
-                    }
-                end
-
-                if dmhub.IsUserDM(userid) == false then
-                    contextMenu[#contextMenu + 1] = {
-                        text = string.format('Make %s', GameSystem.GameMasterShortName),
-                        click = function()
-                            dmhub.SetDMStatus(userid, true)
-                            element.popup = nil
-                            --userSessionPanel:FireEventTree("dmstatus", userid, true)
-                        end
-                    }
-                else
-                    contextMenu[#contextMenu + 1] = {
-                        text = string.format('Revoke %s Status', GameSystem.GameMasterShortName),
-                        click = function()
-                            dmhub.SetDMStatus(userid, false)
-                            element.popup = nil
-                            --userSessionPanel:FireEventTree("dmstatus", userid, false)
-                        end
-                    }
-                end
-
-                --DJ delegation (audio): grant/revoke full audio control. Hidden for
-                --DM users - a Director already has it. rawget so the menu degrades
-                --to no entry if the audio module is absent.
-                local audioBar = rawget(_G, "g_drawSteelAudioBar")
-                if audioBar ~= nil and dmhub.IsUserDM(userid) == false then
-                    if audioBar.IsAudioDelegate(userid) then
-                        contextMenu[#contextMenu + 1] = {
-                            text = 'Revoke DJ Status',
-                            click = function()
-                                audioBar.SetAudioDelegate(userid, false)
-                                element.popup = nil
-                            end,
-                        }
-                    else
-                        contextMenu[#contextMenu + 1] = {
-                            text = 'Make DJ',
-                            click = function()
-                                audioBar.SetAudioDelegate(userid, true)
-                                element.popup = nil
-                            end,
-                        }
-                    end
-                end
-
-                if dmhub.userid ~= userid and dmhub.isGameOwner then
-                    contextMenu[#contextMenu + 1] = {
-                        text = 'Kick Player',
-                        click = function()
-                            dmhub.KickPlayer(userid)
-                            element.popup = nil
-                        end,
-                    }
-                end
-            end
-
-            if #contextMenu > 0 then
-                element.popup = gui.ContextMenu {
-                    entries = contextMenu
-                }
-            end
-        end,
-
-
-
-        gui.Panel {
-
-            classes = { "director", "beforeDivider" },
-
-            --online icon
-            gui.Panel {
-
-                classes = {"image"},
-
-                width = 23 * 2,
-                height = 23 * 2,
-
-                bgimage = mod.images.status,
-
-                halign = "left",
-                valign = "center",
-
-                flow = "horizontal",
-
-                update = function(element, info)
-                    if info.loggedOut or info.timeSinceLastContact > 140 then
-                        element.selfStyle.saturation = 0
-                    else
-                        element.selfStyle.saturation = 1
-                    end
-                end,
-
-                --invisible hover panel
-                gui.Panel {
-
-                    width = 13,
-                    height = 13,
-
-                    opacity = 0.4,
-                    bgimage = true,
-                    bgcolor = "clear",
-
-                    halign = "center",
-                    valign = "center",
-                    x = -2,
-
-                    hover = function(element)
-                        local sessionInfo = dmhub.GetSessionInfo(userid)
-                        if sessionInfo.version ~= nil then
-                            --can delete this after version 0.0.368 ships and this is a core function.
-                            local DescribeSecondsAgo = function(secondsAgo)
-                                if secondsAgo < 6 then
-                                    return "just now"
-                                elseif secondsAgo < 15 then
-                                    return "a few seconds ago"
-                                elseif secondsAgo < 40 then
-                                    return "seconds ago"
-                                elseif secondsAgo < 90 then
-                                    return "a minute ago"
-                                elseif secondsAgo < 280 then
-                                    return "a few minutes ago"
-                                elseif secondsAgo < 55 * 60 then
-                                    local minutes = round(secondsAgo / 60)
-                                    return string.format("%d minutes ago", minutes)
-                                elseif secondsAgo < 90 * 60 then
-                                    return "an hour ago"
-                                elseif secondsAgo < 60 * 60 * 24 then
-                                    local hours = round(secondsAgo / (60 * 60))
-                                    return string.format("%d hours ago", hours)
-                                elseif secondsAgo < 2 * 60 * 60 * 24 then
-                                    return "a day ago"
-                                else
-                                    local days = round(secondsAgo / (60 * 60 * 24))
-                                    return string.format("%d days ago", days)
-                                end
-                            end
-
-
-                            local perf = sessionInfo.perf
-                            local loggedInText = "Logged In"
-                            if sessionInfo.loggedOut or sessionInfo.timeSinceLastContact > 60 then
-                                --the server only persists a coarse last-contact time, and
-                                --records written before it did so have none at all -- in which
-                                --case timeSinceLastContact is measured from the epoch and would
-                                --render as "20664 days ago". lastContactKnown reads nil on
-                                --engine builds that predate it; treat that as known.
-                                if sessionInfo.lastContactKnown == false then
-                                    loggedInText = "Last seen: unknown"
-                                else
-                                    loggedInText = string.format("Last seen %s",
-                                        DescribeSecondsAgo(sessionInfo.timeSinceLastContact))
-                                end
-                            else
-                                if sessionInfo.ping == nil then
-                                    loggedInText = loggedInText .. "\nPing: unknown"
-                                else
-                                    loggedInText = string.format("%s\nPing: %.2f seconds", loggedInText, sessionInfo
-                                        .ping)
-                                end
-                            end
-
-                            local peerToPeerInfo = "Peer-to-peer: no connection"
-                            if sessionInfo.p2pheartbeat ~= nil then
-                                local connType = sessionInfo.p2pconnection or "unknown"
-                                peerToPeerInfo = string.format("Peer-to-peer: %.2f seconds ago (%s)", sessionInfo
-                                    .p2pheartbeat, connType)
-                            end
-                            gui.Tooltip(string.format(
-                                'Version %s\n%s\n%s\nPerf: min=%dms; max=%dms; median=%dms; mean=%dms; cpu=%dms; gpu=%dms; res=%dx%d',
-                                sessionInfo.version, peerToPeerInfo, loggedInText, math.floor(perf.min * 1000 or 0),
-                                math.floor(perf.max * 1000 or 0), math.floor(perf.median * 1000 or 0),
-                                math.floor(perf.mean * 1000 or 0), math.floor(perf.meanCPU or 0),
-                                math.floor(perf.meanGPU or 0), math.floor(perf.screenWidth),
-                                math.floor(perf.screenHeight)))(
-                                    element)
-                        end
-                    end,
-
-                    click = function(element)
-                        local t = dmhub.Time()
-                        if element.data.pingTime ~= nil and (t - element.data.pingTime) < 10 then
-                            return
-                        end
-
-                        local p2pping = nil
-                        local p2pconntype = nil
-
-                        element.data.pingTime = t
-                        element.data.pingSeq = 1
-                        element.thinkTime = 0.1
-                        print("PING:: PINGING AT", t)
-                        dmhub.PingUser(userid, function()
-                                if (not element.valid) or t ~= element.data.pingTime then
-                                    return
-                                end
-
-                                element.data.pingTime = nil
-                                local delta = dmhub.Time() - t
-                                print("PING:: Got ping:", delta)
-
-                                local p2ptext = ""
-                                if p2pping ~= nil then
-                                    local connLabel = p2pconntype or "unknown"
-                                    p2ptext = string.format("\nPeer-to-peer: %.2f seconds (%s)", p2pping, connLabel)
-                                end
-
-                                element:PulseClassTree("pingsuccess")
-                                if element:HasClass("hover") then
-                                    gui.Tooltip(string.format("Pinged in %.2f seconds%s", delta, p2ptext))(element)
-                                end
-                            end,
-
-                            function(p2ptime, conntype)
-                                p2pping = p2ptime
-                                p2pconntype = conntype
-                                print("PING:: Got peertopeer ping time:", p2ptime, "connection:", conntype)
-                            end)
-                    end,
-
-                },
-
-
-
-
-            },
-
-
-
-            --"Director" label
-            gui.Label {
-
-                classes = {"sizeS"},
-                text = "Director",
-                textOverflow = "ellipsis",
-                textWrap = false,
-                lmargin = -8,
-
+                classes = {"heroChip"},
                 width = "auto",
-                height = "100%",
-                maxWidth = "90",
-
-                bgimage = true,
-                bgcolor = "clear",
-
-                halign = "left",
-                valign = "top",
-
+                height = "auto",
+                hpad = 8,
+                vpad = 4,
+                borderBox = true,
                 flow = "horizontal",
-
-                update = function(element, info)
-                    element.text = info.displayName
-                    element.data.info = info
-                end,
-
-                hover = function (element)
-                    gui.Tooltip(string.format("%s -- Director", element.data.info.displayName))(element)
-                end
-            
-            },
-
-        },
-
-
-        --Acitivity text
-        gui.Label {
-
-            classes = {"sizeS", "bordered"},
-            text = "Playing as MONSTERS",
-            textOverflow = "ellipsis",
-            textWrap = false,
-
-            border = { x1 = 1, x2 = 0, y1 = 0, y2 = 0 },
-            lmargin = 8,
-            hpad = 8,
-            borderBox = true,
-
-            width = "auto",
-            height = "100%",
-            maxWidth = "170",
-
-            halign = "left",
-            valign = "top",
-
-            flow = "horizontal",
-
-            update = function(element, info)
-                if info.loggedOut or info.timeSinceLastContact > 140 then
-                    element.text = "Offline"
-                elseif info.dm and dmhub.GetSettingValue("redactdirectorlocation") then
-                    element.text = "Online"
-                elseif info.richStatus == nil then
-                    element.text = "Online"
---[[
-                    if dmhub.initiativeQueue ~= nil and not dmhub.initiativeQueue.hidden then
-                        element.text = string.format("Fighting in %s", game.currentMap.description)
-                    else
-                        element.text = string.format("Exploring %s", game.currentMap.description)
-                    end
-                    ]]
-                else
-                    element.text = info.richStatus
-                end
-            end
-
-        },
-
-
-
-
-
-
-    }
-
-    return resultPanel
-end
-
-local CreatePlayerPanel = function(userid)
-    local resultPanel = gui.Panel {
-
-        data = {
-
-            order = "x"
-
-        },
-
-        update = function(element, info)
-            if info.loggedOut or info.timeSinceLastContact > 140 then
-                element.data.order = "px" .. string.lower(info.displayName)
-            else
-                element.data.order = "pa" .. string.lower(info.displayName)
-            end
-        end,
-
-        classes = {"row", "bordered"},
-        width = "100%",
-        height = 40,
-
-        border = { x1 = 0, x2 = 0, y1 = 0, y2 = 1 },
-
-        halign = "center",
-        valign = "top",
-
-        flow = "horizontal",
-
-        rowColor = function(element, bgFlag)
-            element:SetClass("evenRow", bgFlag)
-            element:SetClass("oddRow", not bgFlag)
-        end,
-
-        rightClick = function(element)
-            local contextMenu = {}
-
-            local parties = dmhub.GetTable(Party.tableName) or {}
-            local playerInfo = dmhub.GetPlayerInfo(userid)
-            local partyid = playerInfo.partyid
-
-            ---@type Party|nil
-            local playerParty = Party.PlayerParty()
-
-            local partySubmenu = {}
-            for k, party in unhidden_pairs(parties) do
-                if playerParty ~= nil and k == playerParty.id then
-                    playerParty = nil
-                end
-
-                partySubmenu[#partySubmenu + 1] = {
-                    text = party.name,
-                    check = k == partyid,
-                    click = function()
-                        local playerInfo = dmhub.GetPlayerInfo(userid, true)
-                        playerInfo.partyid = k
-                        dmhub.UploadPlayerInfo(userid)
-                        element.popup = nil
-                    end,
-                }
-            end
-
-            if playerParty ~= nil then
-                partySubmenu[#partySubmenu + 1] = {
-                    text = playerParty.name,
-                    check = playerParty.id == partyid,
-                    click = function()
-                        local playerInfo = dmhub.GetPlayerInfo(userid, true)
-                        playerInfo.partyid = playerParty.id
-                        dmhub.UploadPlayerInfo(userid)
-                        element.popup = nil
-                    end,
-                }
-            end
-
-            if dmhub.isGameOwner or dmhub.isDM then
-                if #partySubmenu > 0 then
-                    contextMenu[#contextMenu + 1] = {
-                        submenu = partySubmenu,
-                        text = "Party",
-                    }
-                end
-
-                if dmhub.IsUserDM(userid) == false then
-                    contextMenu[#contextMenu + 1] = {
-                        text = string.format('Make %s', GameSystem.GameMasterShortName),
-                        click = function()
-                            dmhub.SetDMStatus(userid, true)
-                            element.popup = nil
-                            --userSessionPanel:FireEventTree("dmstatus", userid, true)
-                        end
-                    }
-                else
-                    contextMenu[#contextMenu + 1] = {
-                        text = string.format('Revoke %s Status', GameSystem.GameMasterShortName),
-                        click = function()
-                            dmhub.SetDMStatus(userid, false)
-                            element.popup = nil
-                            --userSessionPanel:FireEventTree("dmstatus", userid, false)
-                        end
-                    }
-                end
-
-                --DJ delegation (audio): grant/revoke full audio control. Hidden for
-                --DM users - a Director already has it. rawget so the menu degrades
-                --to no entry if the audio module is absent.
-                local audioBar = rawget(_G, "g_drawSteelAudioBar")
-                if audioBar ~= nil and dmhub.IsUserDM(userid) == false then
-                    if audioBar.IsAudioDelegate(userid) then
-                        contextMenu[#contextMenu + 1] = {
-                            text = 'Revoke DJ Status',
-                            click = function()
-                                audioBar.SetAudioDelegate(userid, false)
-                                element.popup = nil
-                            end,
-                        }
-                    else
-                        contextMenu[#contextMenu + 1] = {
-                            text = 'Make DJ',
-                            click = function()
-                                audioBar.SetAudioDelegate(userid, true)
-                                element.popup = nil
-                            end,
-                        }
-                    end
-                end
-
-                if dmhub.userid ~= userid and dmhub.isGameOwner then
-                    contextMenu[#contextMenu + 1] = {
-                        text = 'Kick Player',
-                        click = function()
-                            dmhub.KickPlayer(userid)
-                            element.popup = nil
-                        end,
-                    }
-                end
-            end
-
-            if #contextMenu > 0 then
-                element.popup = gui.ContextMenu {
-                    entries = contextMenu
-                }
-            end
-        end,
-
-
-        gui.Panel {
-
-            classes = { "player", "beforeDivider" },
-
-            --online icon
-            gui.Panel {
-
-                classes = {"image"},
-
-                data = {previousLoggedOut = nil},
-
-                width = 23 * 2,
-                height = 23 * 2,
-
-                bgimage = mod.images.status,
-
-                halign = "left",
                 valign = "center",
 
-                update = function(element, info)
-                    if element.data.previousLoggedOut ~= nil and element.data.previousLoggedOut ~= info.loggedOut then 
-
-                        if info.loggedOut then
-                        
-                            audio.FireSoundEvent("Notify.UserLeave")
-
-                        else
-
-                            audio.FireSoundEvent("Notify.UserJoin")
-                        
-                        end
-
-                    end
-
-                    if info.loggedOut or info.timeSinceLastContact >= 140 then
-                        element.selfStyle.saturation = 0
-                    else
-                        element.selfStyle.saturation = 1
-                    end
-
-                    element.data.previousLoggedOut = info.loggedOut
+                click = function(el)
+                    gui.Tooltip { text = "Copied to Clipboard", valign = "top", borderWidth = 0 } (el)
+                    dmhub.CopyToClipboard(displayGameid)
                 end,
 
-                --invisible hover panel
-                gui.Panel {
+                hover = function(el)
+                    gui.Tooltip("Copy the invite code")(el)
+                end,
 
-                    width = 13,
-                    height = 13,
-
-                    opacity = 0.4,
-                    bgimage = true,
-                    bgcolor = "clear",
-
-                    halign = "center",
+                gui.Label {
+                    fontSize = 13,
+                    color = "@fg",
+                    width = "auto",
+                    height = "auto",
                     valign = "center",
-                    x = -2,
-
-                    hover = function(element)
-                        local sessionInfo = dmhub.GetSessionInfo(userid)
-                        if sessionInfo.version ~= nil then
-                            --can delete this after version 0.0.368 ships and this is a core function.
-                            local DescribeSecondsAgo = function(secondsAgo)
-                                if secondsAgo < 6 then
-                                    return "just now"
-                                elseif secondsAgo < 15 then
-                                    return "a few seconds ago"
-                                elseif secondsAgo < 40 then
-                                    return "seconds ago"
-                                elseif secondsAgo < 90 then
-                                    return "a minute ago"
-                                elseif secondsAgo < 280 then
-                                    return "a few minutes ago"
-                                elseif secondsAgo < 55 * 60 then
-                                    local minutes = round(secondsAgo / 60)
-                                    return string.format("%d minutes ago", minutes)
-                                elseif secondsAgo < 90 * 60 then
-                                    return "an hour ago"
-                                elseif secondsAgo < 60 * 60 * 24 then
-                                    local hours = round(secondsAgo / (60 * 60))
-                                    return string.format("%d hours ago", hours)
-                                elseif secondsAgo < 2 * 60 * 60 * 24 then
-                                    return "a day ago"
-                                else
-                                    local days = round(secondsAgo / (60 * 60 * 24))
-                                    return string.format("%d days ago", days)
-                                end
-                            end
-
-
-                            local perf = sessionInfo.perf
-                            local loggedInText = "Logged In"
-                            if sessionInfo.loggedOut or sessionInfo.timeSinceLastContact > 60 then
-                                --the server only persists a coarse last-contact time, and
-                                --records written before it did so have none at all -- in which
-                                --case timeSinceLastContact is measured from the epoch and would
-                                --render as "20664 days ago". lastContactKnown reads nil on
-                                --engine builds that predate it; treat that as known.
-                                if sessionInfo.lastContactKnown == false then
-                                    loggedInText = "Last seen: unknown"
-                                else
-                                    loggedInText = string.format("Last seen %s",
-                                        DescribeSecondsAgo(sessionInfo.timeSinceLastContact))
-                                end
-                            else
-                                if sessionInfo.ping == nil then
-                                    loggedInText = loggedInText .. "\nPing: unknown"
-                                else
-                                    loggedInText = string.format("%s\nPing: %.2f seconds", loggedInText, sessionInfo
-                                        .ping)
-                                end
-                            end
-
-                            local peerToPeerInfo = "Peer-to-peer: no connection"
-                            if sessionInfo.p2pheartbeat ~= nil then
-                                local connType = sessionInfo.p2pconnection or "unknown"
-                                peerToPeerInfo = string.format("Peer-to-peer: %.2f seconds ago (%s)", sessionInfo
-                                    .p2pheartbeat, connType)
-                            end
-                            gui.Tooltip(string.format(
-                                'Version %s\n%s\n%s\nPerf: min=%dms; max=%dms; median=%dms; mean=%dms; cpu=%dms; gpu=%dms; res=%dx%d',
-                                sessionInfo.version, peerToPeerInfo, loggedInText, math.floor(perf.min * 1000 or 0),
-                                math.floor(perf.max * 1000 or 0), math.floor(perf.median * 1000 or 0),
-                                math.floor(perf.mean * 1000 or 0), math.floor(perf.meanCPU or 0),
-                                math.floor(perf.meanGPU or 0), math.floor(perf.screenWidth),
-                                math.floor(perf.screenHeight)))(
-                                    element)
-                        end
-                    end,
-
-                    click = function(element)
-                        local t = dmhub.Time()
-                        if element.data.pingTime ~= nil and (t - element.data.pingTime) < 10 then
-                            return
-                        end
-
-                        local delta = nil
-                        local p2pping = nil
-                        local p2pconntype = nil
-
-                        element.data.pingTime = t
-                        element.data.pingSeq = 1
-                        element.thinkTime = 0.1
-                        print("PING:: PINGING AT", t)
-
-                        local onping = function()
-                            local tcptext = ""
-                            if delta ~= nil then
-                                tcptext = string.format("Pinged in %.2f seconds", delta)
-                            end
-                            local p2ptext = ""
-                            if p2pping ~= nil then
-                                local connLabel = p2pconntype or "unknown"
-                                p2ptext = string.format("Peer-to-peer: %.2f seconds (%s)", p2pping, connLabel)
-                            end
-
-                            element:PulseClassTree("pingsuccess")
-                            gui.Tooltip(table.concat({tcptext, p2ptext}, "\n"))(element)
-                        end
-
-
-                        dmhub.PingUser(userid, function()
-                                if (not element.valid) or t ~= element.data.pingTime then
-                                    return
-                                end
-
-                                element.data.pingTime = nil
-                                delta = dmhub.Time() - t
-                                print("PING:: Got ping:", delta)
-                                onping()
-                            end,
-
-                            function(p2ptime, conntype)
-                                p2pping = p2ptime
-                                p2pconntype = conntype
-                                print("PING:: Got peertopeer ping time:", p2ptime, "connection:", conntype)
-                                onping()
-                            end)
-                    end,
-
+                    text = displayGameid,
                 },
 
-
-
-
+                gui.Panel {
+                    classes = {"image"},
+                    bgimage = "icons/icon_app/icon_app_108.png",
+                    styles = {
+                        {
+                            selectors = {"parent:hover"},
+                            brightness = 1.8,
+                        }
+                    },
+                    width = "100% height",
+                    height = 16,
+                    valign = "center",
+                    lmargin = 6,
+                },
             },
+        }
+    end
 
-            --"NAME" label
-            gui.Panel{
-                height = "100%",
-                width = "auto",
-                maxWidth = 90,
-                flow = "vertical",
+    return gui.Panel {
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        valign = "top",
+        tmargin = 8,
 
-                gui.Label{
-                    classes = {"sizeS"},
-                    text = "Username",
-                    textOverflow = "ellipsis",
-                    textWrap = false,
-
-                    lmargin = -8,
-
-                    width = "auto",
-                    maxWidth = "90",
-                    height = "60%",
-
-                    halign = "left",
-                    valign = "top",
-
-                    flow = "horizontal",
-
-                    update = function(element, info)
-                        element.text = info.displayName
-                        local token = nil
-                        if info.primaryCharacter ~= nil then
-                            token = dmhub.GetCharacterById(info.primaryCharacter)
-                        end
-
-                        if token ~= nil then
-                            element.text = token.name
-                        end
-                        print("info:", info.primaryCharacter)
-                        element.data.info = info
-                    end,
-                },
-
-                gui.Label{
-                    classes = {"sizeXs", "bold"},
-                    text = "Username",
-                    textOverflow = "ellipsis",
-                    textWrap = false,
-
-                    lmargin = -8,
-
-                    width = "auto",
-                    maxWidth = "90",
-                    height = "40%",
-
-                    halign = "left",
-                    valign = "top",
-
-                    flow = "horizontal",
-
-                    update = function(element, info)
-                        element.text = info.displayName
-                    end,
-                },
-
-            },
-
-
-        },
-
-        --Acitivity text
-        gui.Label {
-
-            classes = {"sizeS", "bordered"},
-            text = "Playing as MONSTERS",
-            textOverflow = "ellipsis",
-            textWrap = false,
-
-            border = { x1 = 1, x2 = 0, y1 = 0, y2 = 0 },
-            lmargin = 8,
-            hpad = 8,
-            borderBox = true,
-
-            width = "auto",
-            height = "100%",
-            maxWidth = "170",
-
-            halign = "left",
-            valign = "top",
-
-            flow = "horizontal",
-
-            update = function(element, info)
-                if info.loggedOut or info.timeSinceLastContact > 140 then
-                    element.text = "Offline"
-                elseif info.richStatus == nil then
-                    if dmhub.initiativeQueue ~= nil and not dmhub.initiativeQueue.hidden then
-                        element.text = string.format("Fighting in %s", game.currentMap.description)
-                    else
-                        element.text = string.format("Exploring %s", game.currentMap.description)
-                    end
-                else
-                    element.text = info.richStatus
-                end
-            end
-
-        },
-
-        --[[activity icon
         gui.Panel {
+            classes = {"heroHairline"},
+            width = "100%",
+            height = 1,
+        },
 
-
-            width = "10%",
-            height = "100%",
-
-            bgimage = true,
-            bgcolor = "purple",
-
-            halign = "left",
-            valign = "top",
-
-            flow = "horizontal",
-
-        },]]
-
-
-
-
-
-
+        gui.Panel {
+            width = "100%",
+            height = "auto",
+            hpad = 12,
+            vpad = 10,
+            borderBox = true,
+            body,
+        },
     }
-
-    return resultPanel
 end
 
 CreateHeroesPanel = function()
-    local directorPanels = {}
+    local rowPanels = {}
 
     local m_currentRichStatus = nil
     local m_richStatusId = nil
@@ -1284,15 +989,34 @@ CreateHeroesPanel = function()
     --can differ from m_currentRichStatus.
     local m_pushedRichStatus = nil
 
-    --online games show the invite code inline at the bottom; local
-    --(offline) games keep the button that runs the promote-to-online
-    --dialog. NOT cond(): both branches would construct panels.
-    local addButtonPanel
-    if IsLocalGame() then
-        addButtonPanel = CreateAddButtonPanel()
-    else
-        addButtonPanel = CreateInviteCodeRow()
-    end
+    local directorHeader = CreateSectionHeader("Director")
+    local playersHeader = CreateSectionHeader("Players")
+    local footer = CreateFooter()
+
+    local noPlayersLabel = gui.Panel {
+        width = "100%",
+        height = "auto",
+        hpad = 12,
+        vpad = 10,
+        borderBox = true,
+        valign = "top",
+        gui.Label {
+            classes = {"heroMuted"},
+            text = "No players yet",
+            width = "auto",
+            height = "auto",
+        },
+    }
+
+    local countLabel = gui.Label {
+        classes = {"heroMuted"},
+        floating = true,
+        width = "auto",
+        height = "auto",
+        halign = "right",
+        valign = "center",
+        text = "",
+    }
 
     --king panel
     local heroesPanel = gui.Panel {
@@ -1315,7 +1039,7 @@ CreateHeroesPanel = function()
             else
                 richStatus = string.format("Exploring %s", game.currentMap.description)
             end
-            
+
             if richStatus ~= m_currentRichStatus then
                 local existing = dmhub.currentUserStatusMessage
                 --only replace our own status: leave one another panel pushed on top alone.
@@ -1335,83 +1059,27 @@ CreateHeroesPanel = function()
 
         styles = ThemeEngine.MergeStyles(g_heroesExtras),
 
-
-
-        --[[queen panel for title and collapse button
-        gui.Panel{
-
+        --header: title and how many are here.
+        gui.Panel {
             width = "100%",
-            height = 45,
-
-            bgimage = true,
-            bgcolor = "black",
-
-            border = 2,
-            borderColor = "white",
-
-            halign = "center",
+            height = 32,
+            hpad = 12,
+            borderBox = true,
             valign = "top",
 
-            flow = "horizontal",
-
-            --player icon
-            gui.Panel{
-
-
-                width = 11*1.7,
-                height = 11*1.7,
-
-                bgimage = mod.images.user,
-                bgcolor = "white",
-
-                halign = "left",
-                valign = "center",
-                lmargin = 10,
-                rmargin = 15,
-
-            },
-
-            --"Player Status" label
-            gui.Label{
-
-                text = "Player Status",
-                fontFace = "Berling",
-                fontSize = 19,
-                color = "#A29078",
-
+            gui.Label {
+                fontSize = 15,
+                bold = true,
+                color = "@fgStrong",
+                text = "In this game",
                 width = "auto",
-                height = "100%",
-
-                bgimage = true,
-                bgcolor = "clear",
-
+                height = "auto",
                 halign = "left",
                 valign = "center",
-
             },
 
-            --player icon
-            gui.Panel{
-
-
-                width = 10*1.4,
-                height = 6*1.4,
-
-                bgimage = mod.images.collapse,
-                bgcolor = "white",
-
-                halign = "right",
-                valign = "center",
-                lmargin = 10,
-                rmargin = 15,
-
-            },
-
-
-
-
-
-        },]]
+            countLabel,
+        },
 
         gui.Panel {
 
@@ -1420,73 +1088,68 @@ CreateHeroesPanel = function()
             flow = "vertical",
             valign = "top",
 
-
             monitorGame = '/usersToSessions',
-
 
             refreshGame = function(element)
                 local newPanels = {}
-                local children = {}
-                local nrOfDirectors = 0
+                local directors = {}
+                local players = {}
+                local nonline = 0
 
-                local users = dmhub.users
-                for i, userid in ipairs(users) do
+                for _, userid in ipairs(dmhub.users) do
                     local info = dmhub.GetSessionInfo(userid)
-                    print("info", info)
+                    if ClassifyUserStatus(info) ~= "offline" then
+                        nonline = nonline + 1
+                    end
+
+                    local key = cond(info.dm, userid .. "director", userid)
+                    local row = rowPanels[key] or CreateUserRow(userid, info.dm)
+                    newPanels[key] = row
+                    row:FireEventTree("update", info)
+
                     if info.dm then
-                        local key = userid .. "director"
-                        newPanels[key] = directorPanels[key] or CreateDirectorPanel(userid)
-                        children[#children + 1] = newPanels[key]
-
-                        newPanels[key]:FireEventTree("update", info)
-
-                        nrOfDirectors = nrOfDirectors + 1
+                        directors[#directors + 1] = row
                     else
-                        newPanels[userid] = directorPanels[userid] or CreatePlayerPanel(userid)
-                        children[#children + 1] = newPanels[userid]
-
-                        newPanels[userid]:FireEventTree("update", info)
+                        players[#players + 1] = row
                     end
                 end
 
-                table.sort(children, function(a, b)
+                --online first, then by name.
+                local byOrder = function(a, b)
                     return a.data.order < b.data.order
-                end)
+                end
+                table.sort(directors, byOrder)
+                table.sort(players, byOrder)
 
-                local nrOfPlayers = #children - nrOfDirectors
-                local bgFlag = true
-
-
-                for i = nrOfDirectors + 1, #children do
-                    children[i]:FireEventTree("rowColor", bgFlag)
-
-                    bgFlag = not bgFlag
+                if nonline <= 1 then
+                    countLabel.text = "Just you"
+                else
+                    countLabel.text = string.format("%d online", nonline)
                 end
 
-                children[#children + 1] = addButtonPanel
-
-
+                local children = {directorHeader}
+                for _, row in ipairs(directors) do
+                    children[#children + 1] = row
+                end
+                children[#children + 1] = playersHeader
+                for _, row in ipairs(players) do
+                    children[#children + 1] = row
+                end
+                if #players == 0 then
+                    children[#children + 1] = noPlayersLabel
+                end
+                children[#children + 1] = footer
 
                 element.children = children
 
-                directorPanels = newPanels
+                rowPanels = newPanels
             end,
 
-            addButtonPanel,
+            directorHeader,
+            playersHeader,
+            noPlayersLabel,
+            footer,
         },
-
-
-
-
-
-
-
-
-
-
-
-
-
     }
 
     ThemeEngine.OnThemeChanged(mod, function()

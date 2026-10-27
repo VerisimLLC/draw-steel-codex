@@ -133,16 +133,19 @@ end
 --- Parses the item's project goal to determine quantity, which can be as complex as
 --- `45 (yields 1d3 darts, or three darts if crafted by a shadow)`.
 --- @param project DTProject The project whose completion generated the item
+--- @return boolean granted True when an item was given
 function DTBusinessRules.GiveItemToCharacter(project)
-    if not project then return end
+    if not project then return false end
 
     local itemId = project:GetItemID()
     local tokenId = project:GetOwnerID()
-    if itemId == nil or #itemId == 0 or tokenId == nil or #tokenId == 0 then return end
+    if itemId == nil or #itemId == 0 or tokenId == nil or #tokenId == 0 then return false end
 
     local item = dmhub.GetTableVisible(equipment.tableName)[itemId]
     if item then
-        local token = dmhub.GetTokenById(tokenId)
+        -- GetCharacterById finds the owner on any map; GetTokenById only finds
+        -- tokens on the loaded map, so an off-map owner silently got nothing.
+        local token = dmhub.GetCharacterById(tokenId)
         if token and token.properties then
             local qty = 1
 
@@ -171,15 +174,25 @@ function DTBusinessRules.GiveItemToCharacter(project)
                 end
             end
 
-            token:ModifyProperties {
-                description = "Grant Item from Crafting",
-                undoable = false,
-                execute = function()
-                    token.properties:GiveItem(itemId, qty)
-                end
-            }
+            -- Callers are inside a write of the creature holding the project.
+            -- When that is this token's creature, give the item in the same
+            -- write, so the item and the project's record of it save together.
+            local downtimeInfo = token.properties:GetDowntimeInfo()
+            if downtimeInfo ~= nil and rawequal(downtimeInfo:GetProject(project:GetID()), project) then
+                token.properties:GiveItem(itemId, qty)
+            else
+                token:ModifyProperties {
+                    description = "Grant Item from Crafting",
+                    undoable = false,
+                    execute = function()
+                        token.properties:GiveItem(itemId, qty)
+                    end
+                }
+            end
+            return true
         end
     end
+    return false
 end
 
 --- Iterates through all hero tokens in the game, calling a callback for each
@@ -297,6 +310,8 @@ function DTBusinessRules.ApplySourceToProject(project, sourceType, selectedId)
         return nil
     end
 
+    -- Picking an item this project already gave does not give it again
+    -- (see DTProject:HasGivenItem).
     if sourceType == "crafting" then
         local item = dmhub.GetTable(equipment.tableName)[selectedId]
         if item then

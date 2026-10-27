@@ -316,6 +316,10 @@ function EncounterZones.RunEncounterSetup(beat)
                     --nothing to place: GatherCombatSides reads these when
                     --combat starts.
                     setup.entries[#setup.entries + 1] = { label = instruction.label, kind = "bystanders", text = instruction.text }
+                elseif instruction.kind == "aibehavior" then
+                    --nothing to set up: the Monster AI asks the script as it
+                    --plans (the "eotw" behavior source in EncounterOfTheWeek.lua).
+                    setup.entries[#setup.entries + 1] = { label = instruction.label, kind = "aibehavior", text = instruction.text }
                 elseif instruction.kind == "victory" then
                     --nothing to set up: the host's outcome check reads it
                     --(EncounterReinforcements.ClearMapVictory).

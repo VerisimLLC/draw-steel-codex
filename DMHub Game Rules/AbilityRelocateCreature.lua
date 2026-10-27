@@ -202,7 +202,8 @@ function ActivatedAbilityRelocateCreatureBehavior:HasChargeAttackTarget(casterTo
                 local hiddenFromStrike = false
                 if target.valid and attack:HasKeyword("Strike") and target.properties:HasNamedCondition("Hidden") then
                     local ignoreRange = props:CalculateNamedCustomAttribute("Ignore Hidden Within Range") or 0
-                    hiddenFromStrike = ignoreRange <= 0 or casterToken:Distance(target) > ignoreRange
+                    hiddenFromStrike = (ignoreRange <= 0 or casterToken:Distance(target) > ignoreRange)
+                        and not RuleUtils.WallMeldSeesTarget(casterToken, target)
                 end
                 if target.valid and attack:TargetPassesFilter(casterToken, target, symbols)
                     and not hiddenFromStrike

@@ -5,6 +5,7 @@
 --- @field tokenMaskBorder number
 --- @field tokenMaskTexture any
 --- @field tokenMaskInclusiveTexture any
+--- @field tokenFrameOuterRadius number
 --- @field textureReadable boolean
 --- @field imageType any
 --- @field tokenZoom number

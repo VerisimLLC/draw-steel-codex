@@ -384,6 +384,16 @@ function TurnCheckpoint.ForCurrentTurn(q)
 	return cur.checkpoint
 end
 
+--False in Encounter of the Week games, which offer no Revert Turn: players undo with
+--Turn Rewind (Ctrl+Z) instead. The snapshot is still kept, as Turn Rewind reuses it.
+--pcall-guarded: the EotW codemod may not be loaded in this game.
+--- @return boolean
+function TurnCheckpoint.RevertAllowed()
+	local eotw = false
+	pcall(function() eotw = EncounterOfTheWeekGame.IsEotwGame() end)
+	return not eotw
+end
+
 --Restores checkpoint, telling the user when it could not be done.
 --- @param checkpoint CombatCheckpoint
 function TurnCheckpoint.Revert(checkpoint)
@@ -4444,8 +4454,9 @@ local function CreateBossBarStrip(self, info)
                 return
             end
 
-            --players only see the bar once it has been revealed.
-            if not isDM and not visible then
+            --players only see the bar once it has been revealed. With no Director
+            --(e.g. Encounter of the Week) nobody can press the eye, so show it outright.
+            if not isDM and not visible and not dmhub.directorlessPlay then
                 element:SetClass("collapsed", true)
                 return
             end
@@ -4592,7 +4603,7 @@ function GameHud.CreateInitiativeBar(self, info)
 
                 --Revert Turn -- only when there is a snapshot from just before this turn.
                 local checkpoint = TurnCheckpoint.ForCurrentTurn(q)
-                if checkpoint ~= nil then
+                if checkpoint ~= nil and TurnCheckpoint.RevertAllowed() then
                     entries[#entries+1] = {
                         text = element.data.checkpointReason,
                         click = function()
@@ -7144,7 +7155,7 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
 
 	--Revert-turn button: only visible while this entry is the current turn.
 	--Pressed -> cancels the turn (sends us back to the choose-next-turn state).
-	if CanControlInitiative() then
+	if CanControlInitiative() and TurnCheckpoint.RevertAllowed() then
 
 		closeButton = gui.Button{
             classes = {"closeButton", "revertTurnButton"},
@@ -7347,22 +7358,24 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
                 end
 
                 if q.currentTurn == initiativeid then
-                    entries[#entries+1] = {
-                        text = "Revert Turn",
-                        click = function()
-                            element.popup = nil
-                            --Prefer the full pre-turn snapshot so heroic resources,
-                            --stamina, and other start-of-turn side effects are undone
-                            --too. CancelTurn alone only rewinds the initiative pointer.
-                            local checkpoint = TurnCheckpoint.ForCurrentTurn(q)
-                            if checkpoint ~= nil then
-                                TurnCheckpoint.Revert(checkpoint)
-                            else
-                                q:CancelTurn(initiativeid)
-                                info.UploadInitiative()
-                            end
-                        end,
-                    }
+                    if TurnCheckpoint.RevertAllowed() then
+                        entries[#entries+1] = {
+                            text = "Revert Turn",
+                            click = function()
+                                element.popup = nil
+                                --Prefer the full pre-turn snapshot so heroic resources,
+                                --stamina, and other start-of-turn side effects are undone
+                                --too. CancelTurn alone only rewinds the initiative pointer.
+                                local checkpoint = TurnCheckpoint.ForCurrentTurn(q)
+                                if checkpoint ~= nil then
+                                    TurnCheckpoint.Revert(checkpoint)
+                                else
+                                    q:CancelTurn(initiativeid)
+                                    info.UploadInitiative()
+                                end
+                            end,
+                        }
+                    end
                 elseif q:EntryUnmoved(entry) then
                     entries[#entries+1] = {
                         text = "Set Has Moved",

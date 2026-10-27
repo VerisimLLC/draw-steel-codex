@@ -4,18 +4,7 @@
 --- @param token any The follower's token
 --- @return boolean
 local function IsDowntimeFollower(token)
-    local follower = token ~= nil and token.properties or nil
-    if follower == nil then
-        return false
-    end
-
-    local followerType = follower:try_get("followerType")
-    if type(followerType) ~= "string" then
-        return false
-    end
-
-    followerType = followerType:lower()
-    return followerType == "artisan" or followerType == "sage"
+    return DTFollowers.RollsOnProjects(token)
 end
 
 --- Activities Dialog - Edits how many downtime activities a household holds

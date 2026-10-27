@@ -51,6 +51,8 @@
 
 local mod = dmhub.GetModLoading()
 
+local T = UIText.T
+
 EncounterPrep = rawget(_G, "EncounterPrep") or {}
 
 local DOC_ID = "eotwscript"
@@ -62,24 +64,24 @@ local SPEND_COST = 1
 --the monsters spawn behind it either way.
 local RESOLVED_LINGER_SECONDS = 4
 
-EncounterPrep.TITLE = "Tactical Preparation"
-EncounterPrep.INSTRUCTIONS = "Combat is upon you! Spend your Intelligence wisely."
+EncounterPrep.TITLE = T("prep.title")
+EncounterPrep.INSTRUCTIONS = T("prep.instructions")
 
 --- the bars ------------------------------------------------------------------
 
 --The surprise bar's five rungs, worst to best. Index here is level + 1.
 local SURPRISE_LEVELS = {
-    "You are surprised.",
-    "You lose the initiative.",
-    "You roll for initiative.",
-    "You win the initiative.",
-    "The enemy is surprised.",
+    T("prep.surprise.level0"),
+    T("prep.surprise.level1"),
+    T("prep.surprise.level2"),
+    T("prep.surprise.level3"),
+    T("prep.surprise.level4"),
 }
 
 local STAMINA_LEVELS = {
-    "You have little awareness of the enemy's health.",
-    "You see enemy stamina bars.",
-    "You fully know the stamina of your enemies.",
+    T("prep.stamina.level0"),
+    T("prep.stamina.level1"),
+    T("prep.stamina.level2"),
 }
 
 --What the enemy stamina bar's level means to the game setting that draws
@@ -106,9 +108,9 @@ end
 --go down), but not how many there are in all.
 function EncounterPrep.TrapsDescription(beat)
     if #EncounterPrep.TrapInstructions(beat) == 0 then
-        return "There are no traps on the map."
+        return T("prep.traps.level1_none")
     end
-    return "You know where some of the traps are."
+    return T("prep.traps.level1")
 end
 
 --The bar's display: its title and the text of every level, so the stage
@@ -117,17 +119,17 @@ end
 --the host has to be able to say what a spend bought.
 function EncounterPrep.BarInfo(beat, barId)
     if barId == "surprise" then
-        return { id = barId, title = "Surprise", levels = SURPRISE_LEVELS }
+        return { id = barId, title = T("prep.surprise.title"), levels = SURPRISE_LEVELS }
     end
     if barId == "traps" then
-        return { id = barId, title = "Traps", levels = {
-            "You are unaware of traps.",
+        return { id = barId, title = T("prep.traps.title"), levels = {
+            T("prep.traps.level0"),
             EncounterPrep.TrapsDescription(beat),
-            "All traps on the map are marked.",
+            T("prep.traps.level2"),
         } }
     end
     if barId == "stamina" then
-        return { id = barId, title = "Enemy Stamina", levels = STAMINA_LEVELS }
+        return { id = barId, title = T("prep.stamina.title"), levels = STAMINA_LEVELS }
     end
     return { id = tostring(barId), title = tostring(barId), levels = { "" } }
 end
@@ -386,7 +388,7 @@ end
 
 local function DisplayName(userid)
     if userid == "PARTY" then
-        return "The party"
+        return T("prep.party_name")
     end
     local name = userid
     pcall(function() name = dmhub.GetDisplayName(userid) or userid end)
@@ -480,7 +482,7 @@ local function Resolve(m, doc, beat, heroes)
             heroEntry = heroes[1],
             userid = heroes[1] ~= nil and heroes[1].ownerId or nil,
             entryName = EncounterPrep.TITLE,
-            source = "Preparation",
+            source = T("prep.effect_source"),
             doc = doc,
         })
         if not ok then
@@ -553,8 +555,8 @@ local function HandleRequest(m, doc, userid, req, beat, heroes)
             value = tonumber(doc.data.intelligence) or 0,
             amount = -SPEND_COST,
             who = name,
-            note = string.format("%s: %s (%s)", EncounterPrep.TITLE, EncounterPrep.BarInfo(beat, bar.id).title,
-                table.concat(from or {}, ", ")),
+            note = T("prep.intelligence_log.spend", { screen = EncounterPrep.TITLE, bar = EncounterPrep.BarInfo(beat, bar.id).title,
+                heroes = table.concat(from or {}, ", ") }),
             at = dmhub.serverTime,
         }
         doc.data.intelligenceLog = log

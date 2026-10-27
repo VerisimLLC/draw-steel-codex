@@ -815,6 +815,7 @@ function GameHud.CreateEmbeddedRollDialog()
     --- @field failsRequirement nil|boolean
     --- @field modFromTarget nil|boolean
     --- @field isAfterRoll nil|boolean
+    --- @field rollerDecides nil|boolean the rules cannot tell whether it applies (Skilled on a test that names no skill), so the roller chooses even under Strictly Enforce Rolls. See CharacterModifier.MarkSkilledRollerDecides.
 
     --- One target row of a multi-target roll.
     --- @class EmbeddedRollMultiTarget
@@ -4037,8 +4038,10 @@ function GameHud.CreateEmbeddedRollDialog()
                         --Strictly Enforce Rolls: the panel lists what applied to
                         --this roll, so the modifiers the rules did NOT apply are
                         --not offered at all. (The ones that did are still built,
-                        --read-only, below.)
-                        if m_strictRolls and not ischecked then
+                        --read-only, below.) A rollerDecides chip is the
+                        --exception: only the roller can say whether it applies.
+                        local strictChip = m_strictRolls and not mod.rollerDecides
+                        if strictChip and not ischecked then
                             goto continue
                         end
 
@@ -4224,7 +4227,7 @@ function GameHud.CreateEmbeddedRollDialog()
                             classes = classes,
                             text = text,
                             value = ischecked,
-                            readOnly = m_strictRolls,
+                            readOnly = strictChip,
                             hmargin = 2,
                             mod = mod,
                             eye = spoilerEye,
@@ -5060,8 +5063,8 @@ function GameHud.CreateEmbeddedRollDialog()
     --It rides the same "shownWhenPending" gate as the native Re-roll button,
     --and additionally hides itself whenever the party has no Intel to spend --
     --so in campaigns that do not use Intel (pool always 0) it never appears.
-    --The whole feature is experimental and lives behind the per-user
-    --"dev:trackintel" flag (declared in CampaignTrackerPanel.lua).
+    --It shows only where IntelTracker.Enabled() (CampaignTrackerPanel.lua): the
+    --campaign has switched the tracker on, or the "dev:trackintel" flag is set.
     --On press it spends 1 Intel, then drives the existing reroll path.
     local intelRerollButton = gui.PrettyButton {
         text = "Re-roll for 1 Intel",
@@ -5086,10 +5089,10 @@ function GameHud.CreateEmbeddedRollDialog()
         refreshIntel = function(element)
             local it = rawget(_G, "IntelTracker")
             local pool = (it ~= nil) and it.Pool() or 0
-            --hide entirely when the dev:trackintel flag is off or there is no
-            --Intel to spend (also the "not this campaign" case). The
+            --hide entirely when the tracker is off in this campaign or there is
+            --no Intel to spend (also the "not this campaign" case). The
             --shownWhenPending style handles the rest.
-            local enabled = dmhub.GetSettingValue("dev:trackintel") and true or false
+            local enabled = (it ~= nil and it.Enabled ~= nil and it.Enabled()) and true or false
             element:SetClass("collapsed", (not enabled) or pool < 1)
         end,
         press = function(element)
@@ -6956,6 +6959,7 @@ function GameHud.CreateEmbeddedRollDialog()
                                     end
 
                                     m_resolveState.current = t
+                                    UpdateAITriggerHint(nil)
                                     UpdateTriggerReactionPanel(m_resolveState)
                                     dmhub.Schedule(0.2, function()
                                         TryToProceed()
@@ -6972,43 +6976,36 @@ function GameHud.CreateEmbeddedRollDialog()
                                     local t = dmhub.Time()
                                     if m_timerState == nil then
                                         print("AI:: SET TIMER STATE")
-                                        --Encounter of the Week: no countdown. Start already
-                                        --paused (full dice, "Click to dismiss") so the timer
-                                        --never auto-proceeds; a click proceeds. pcall-guarded:
-                                        --the EotW codemod may not be loaded in this game.
+                                        --Shown as a Tip banner notice with a "Dismiss Triggers" button (see
+                                        --UpdateAITriggerHint). Encounter of the Week: no countdown, the roll
+                                        --waits until the heroes act or someone dismisses. Elsewhere the roll
+                                        --proceeds after 5s. pcall-guarded: the EotW codemod may not be loaded.
                                         local eotw = false
                                         pcall(function() eotw = EncounterOfTheWeekGame.IsEotwGame() end)
                                         m_timerState = {
                                             start = t,
-                                            current = t,
                                             expire = t + 5,
                                             paused = eotw or nil,
-                                            text = cond(eotw, "Triggers available. Click to dismiss.", "Triggers available. Click to pause."),
                                             callback = function()
-                                                if m_timerState ~= nil then
-                                                    if m_timerState.paused then
-                                                        UpdateTriggerReactionPanel(nil)
-                                                        if proceedAfterRollButton.valid then
-                                                            proceedAfterRollButton:FireEventTree("press")
-                                                        end
-                                                        return
-                                                    else
-                                                        m_timerState.text = "Triggers available. Click to dismiss."
-                                                        m_timerState.paused = true
-                                                        UpdateTriggerReactionPanel(m_timerState)
-                                                    end
+                                                UpdateAITriggerHint(nil)
+                                                if proceedAfterRollButton.valid then
+                                                    proceedAfterRollButton:FireEventTree("press")
                                                 end
                                             end,
                                         }
                                     end
 
-                                    m_timerState.current = t
-                                    UpdateTriggerReactionPanel(m_timerState)
+                                    local hintText = "Triggers available."
+                                    if not m_timerState.paused then
+                                        hintText = string.format("Triggers available. Proceeding in %ds.", math.max(1, math.ceil(m_timerState.expire - t)))
+                                    end
+                                    UpdateAITriggerHint{ text = hintText, callback = m_timerState.callback }
                                     dmhub.Schedule(0.2, function()
                                         TryToProceed()
                                     end)
                                 else
                                     UpdateTriggerReactionPanel(nil)
+                                    UpdateAITriggerHint(nil)
                                     proceedAfterRollButton:FireEventTree("press")
                                 end
                             end

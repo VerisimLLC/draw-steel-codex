@@ -45,7 +45,6 @@ DTConstants.CHARACTERISTICS = {
     DTConstant.CreateNew("prs", 5, "Presence")
 }
 
-print("TYPE:: CHARACTERISTICS = ", DTConstants.CHARACTERISTICS[1].typeName)
 
 --- Valid status values for downtime projects
 DTConstants.STATUS = {

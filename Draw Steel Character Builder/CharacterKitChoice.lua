@@ -100,7 +100,7 @@ end
 --- @param option table
 --- @return boolean haltSavePropagation
 function CharacterKitChoice:RemoveSelection(hero, option)
-    local optionId = option.guid
+    local optionId = option.guid or option.id
     local kitid = hero:try_get("kitid")
     local kitid2 = hero:try_get("kitid2")
     if kitid == optionId then

@@ -61,6 +61,17 @@ local g_lastSectionSetting = setting{
     default = "library|all|",
 }
 
+--Goes to a map just added to the game. On the table it opens in the focused
+--map window, or, with none, in a new window shaped to the map (Tabletop.OpenMap).
+---@param map MapManifestLua
+local function ShowNewMap(map)
+    if Tabletop.IsActive() then
+        Tabletop.OpenMap(map.id)
+    else
+        map:Travel()
+    end
+end
+
 --options (optional): { created = function(mapid) } is called once the map
 --the dialog makes exists in the game, before travelling to it. Every way of
 --making a map calls it: blank, import, map library, another game.
@@ -1398,7 +1409,7 @@ mod.shared.ShowCreateMapDialog = function(options)
                     local map = game.GetMap(mapid)
                     if map ~= nil then
                         NotifyCreated(mapid)
-                        map:Travel()
+                        ShowNewMap(map)
                     end
                 end)
             end,
@@ -1428,7 +1439,7 @@ mod.shared.ShowCreateMapDialog = function(options)
                     local map = game.GetMap(mapid)
                     if map ~= nil then
                         NotifyCreated(mapid)
-                        map:Travel()
+                        ShowNewMap(map)
                     end
                 end)
             end,
@@ -1529,7 +1540,7 @@ mod.shared.ShowCreateMapDialog = function(options)
                     --the loop above only exits once the map exists.
                     ---@cast map -nil
                     NotifyCreated(guid)
-                    map:Travel()
+                    ShowNewMap(map)
 
                     while game.currentMapId ~= guid do
                         coroutine.yield(0.05)
@@ -4056,7 +4067,7 @@ mod.shared.FinishMapImport = function(mapName, info, created, extra)
             created(guid)
         end
 
-        map:Travel()
+        ShowNewMap(map)
 
         while game.currentMapId ~= guid do
             coroutine.yield(0.05)

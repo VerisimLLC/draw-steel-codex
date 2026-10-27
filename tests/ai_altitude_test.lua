@@ -15,7 +15,7 @@ MonsterAI = {TokenIsLiveCombatant = function(t) return t and t.valid end,
 function MonsterAI:PlanningMemo() return {filters = {}, lineOfSight = {}, chargeProbes = {}, chargeRoutes = false} end
 dmhub = {unitsPerSquare = 1}
 assert(load(section("function MonsterAI.TargetDistance", "function MonsterAI:MovementTokenIsAtLoc")))()
-assert(load(section("function MonsterAI:FindValidTargetsOfStrike", "function MonsterAI:FindSquadMemberStrikeOptions")))()
+assert(load(section("function MonsterAI.StrikeChargeRange", "function MonsterAI:FindSquadMemberStrikeOptions")))()
 -- Run the actual cast preflight, stopping before presentation and resource spending.
 assert(load(section("function MonsterAI:ExecuteAbility(", "    if targetArea ~= nil and options.telegraphArea") .. "return true, targets, ability end"))()
 table.resize_array = function(t, n) for i = #t,n+1,-1 do t[i] = nil end end

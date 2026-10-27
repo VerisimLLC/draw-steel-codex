@@ -10,6 +10,9 @@ local mod = dmhub.GetModLoading()
 
 EncounterTest = {}
 
+local T = UIText.T
+local TP = UIText.Plural
+
 --The last party picked, so the next test opens with it already chosen.
 --Machine-local: a per-author convenience, not game state.
 setting{
@@ -76,6 +79,28 @@ local function TestableParts(modeid)
 end
 
 --The "Start at" choices for one part: the test modes whose beat its script has.
+--The story tracks a series part declares ({name, key, hidden}), from its own
+--script; empty for a plain map or a part that declares none.
+local function PartTracks(part)
+    local tracks = {}
+    pcall(function()
+        local found = EncounterMontage.ScriptForMap(game.currentMapId)
+        for _, script in ipairs(found.parts or {}) do
+            if script.parse.part ~= nil and script.parse.part.number == part then
+                tracks = script.parse.tracks or {}
+            end
+        end
+    end)
+    return tracks
+end
+
+local STORY_OUTCOMES = {
+    { id = "none", text = "Not recorded" },
+    { id = "total", text = "Total success" },
+    { id = "partial", text = "Partial success" },
+    { id = "failure", text = "Failure" },
+}
+
 --- @param part integer
 --- @return {id: string, text: string}[]
 local function ModeOptionsForPart(part)
@@ -121,10 +146,130 @@ function EncounterTest.ShowDialog(modeid)
     --the first part that has the mode asked for.
     local seriesParts = EncounterOfTheWeekGame.SeriesParts()
     local chosenPart = testable[1]
+    --test the encounter's Challenge Mode instead of its normal one.
+    local chosenChallenge = false
     --the Start at choices for chosenPart; rebuilt when the part changes.
     local partModes = ModeOptionsForPart(chosenPart)
     local statusLabel
     local startButton
+
+    --A series' Story so far (Part 2 and later): what the earlier parts left,
+    --as a real party would carry it from the City. Kept across part changes:
+    --earlier[k] = { outcome = "none"|"total"|"partial"|"failure", score, rounds },
+    --trackValues[track key] = value.
+    local earlier = {}
+    local trackValues = {}
+    local storyPanel = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+    }
+
+    --The story the test starts from, in the City's shape, or nil for Part 1.
+    local function ChosenStory()
+        if chosenPart <= 1 then
+            return nil
+        end
+        local story = { parts = {}, tracks = {} }
+        for k = 1, chosenPart - 1 do
+            local e = earlier[k] or {}
+            if e.outcome ~= nil and e.outcome ~= "none" then
+                story.parts[k] = { outcome = e.outcome, score = tonumber(e.score) or 0, rounds = tonumber(e.rounds) }
+            else
+                story.parts[k] = "not recorded"
+            end
+        end
+        for _, decl in ipairs(PartTracks(chosenPart)) do
+            story.tracks[decl.name] = tonumber(trackValues[decl.key]) or 0
+        end
+        return story
+    end
+
+    local function SmallInput(text, placeholder, onChange)
+        return gui.Input{
+            classes = { "sizeS", "bordered" },
+            width = 60,
+            height = 26,
+            valign = "center",
+            lmargin = 6,
+            characterLimit = 8,
+            placeholderText = placeholder,
+            text = text or "",
+            change = function(element)
+                onChange(element.text)
+            end,
+        }
+    end
+
+    local function SmallLabel(text, width)
+        return gui.Label{
+            classes = { "sizeS" },
+            width = width or "auto",
+            height = "auto",
+            valign = "center",
+            lmargin = 6,
+            text = text,
+        }
+    end
+
+    local function RebuildStory()
+        local children = {}
+        if chosenPart > 1 then
+            children[#children + 1] = gui.Label{
+                classes = { "sizeS", "bold" },
+                width = "100%",
+                height = "auto",
+                tmargin = 12,
+                text = "Story so far",
+            }
+            children[#children + 1] = gui.Label{
+                classes = { "sizeXs", "fgMuted" },
+                width = "100%",
+                height = "auto",
+                textWrap = true,
+                bmargin = 4,
+                text = "What the earlier parts left, as a real party would bring it. Score is per hero.",
+            }
+            for k = 1, chosenPart - 1 do
+                local part = k
+                earlier[part] = earlier[part] or { outcome = "none" }
+                local e = earlier[part]
+                children[#children + 1] = gui.Panel{
+                    width = "100%",
+                    height = 30,
+                    flow = "horizontal",
+                    SmallLabel(string.format("Part %d", part), 60),
+                    gui.Dropdown{
+                        classes = { "sizeS" },
+                        width = 160,
+                        height = 26,
+                        valign = "center",
+                        options = STORY_OUTCOMES,
+                        idChosen = e.outcome,
+                        change = function(element)
+                            ---@cast element Dropdown
+                            e.outcome = element.idChosen --[[@as string]]
+                        end,
+                    },
+                    SmallLabel("score"),
+                    SmallInput(e.score ~= nil and tostring(e.score) or "", "0", function(text) e.score = tonumber(text) end),
+                    SmallLabel("won in round"),
+                    SmallInput(e.rounds ~= nil and tostring(e.rounds) or "", "-", function(text) e.rounds = tonumber(text) end),
+                }
+            end
+            for _, decl in ipairs(PartTracks(chosenPart)) do
+                local key = decl.key
+                children[#children + 1] = gui.Panel{
+                    width = "100%",
+                    height = 30,
+                    flow = "horizontal",
+                    SmallLabel(string.format("%s%s", decl.name, cond(decl.hidden, " (hidden)", ""))),
+                    SmallInput(trackValues[key] ~= nil and tostring(trackValues[key]) or "", "0", function(text) trackValues[key] = tonumber(text) end),
+                }
+            end
+        end
+        storyPanel.children = children
+    end
 
     local function ChosenList()
         local list = {}
@@ -145,17 +290,17 @@ function EncounterTest.ShowDialog(modeid)
         if #partModes == 0 then
             --cannot happen from the menu, but a part may have no script beats.
             local _, why = EncounterOfTheWeekGame.CanStartTest(chosenMode, chosenPart)
-            statusLabel.text = string.format("Part %d cannot be tested: %s", chosenPart, tostring(why))
+            statusLabel.text = T("author.test.picker.part_untestable", { part = chosenPart, reason = tostring(why) })
             startButton:SetClass("disabled", true)
             return
         elseif n == 0 then
-            text = "Choose the heroes to play the encounter with."
+            text = T("author.test.picker.status_none")
         elseif n > MAX_TEST_HEROES then
-            text = string.format("%d heroes chosen: a party is at most %d.", n, MAX_TEST_HEROES)
+            text = T("author.test.picker.status_too_many", { count = n, max = MAX_TEST_HEROES })
         elseif n < 4 then
-            text = string.format("%d %s chosen. A real party is 4-6; the monsters scale for at least 3.", n, cond(n == 1, "hero", "heroes"))
+            text = TP("author.test.picker.status_few", n)
         else
-            text = string.format("%d heroes chosen.", n)
+            text = T("author.test.picker.status_ok", { count = n })
         end
         statusLabel.text = text
         startButton:SetClass("disabled", n == 0 or n > MAX_TEST_HEROES)
@@ -169,7 +314,7 @@ function EncounterTest.ShowDialog(modeid)
             height = "auto",
             textWrap = true,
             vmargin = 12,
-            text = "This game has no heroes off this map to test with. Install a module with pregens (or make some heroes) and keep them off the encounter map.",
+            text = T("author.test.picker.no_heroes"),
         }
     end
     local lastGroup = nil
@@ -184,7 +329,7 @@ function EncounterTest.ShowDialog(modeid)
                 tmargin = cond(#rows == 0, 0, 10),
                 bmargin = 2,
                 uppercase = true,
-                text = cond(candidate.pregen, "Pregens", "Other heroes in this game"),
+                text = cond(candidate.pregen, T("author.test.picker.group_pregens"), T("author.test.picker.group_other")),
             }
         end
         rows[#rows + 1] = gui.Panel{
@@ -216,9 +361,9 @@ function EncounterTest.ShowDialog(modeid)
     local heroesOnMap = EncounterOfTheWeekGame.HeroesOnMap()
     local partOptions = {}
     for _, p in ipairs(seriesParts) do
-        local text = string.format("Part %d", p.number)
+        local text = T("author.test.picker.part_option", { number = p.number })
         if p.title ~= nil then
-            text = text .. ": " .. p.title
+            text = T("author.test.picker.part_option_titled", { number = p.number, title = p.title })
         end
         partOptions[#partOptions + 1] = { id = tostring(p.number), text = text }
     end
@@ -250,6 +395,7 @@ function EncounterTest.ShowDialog(modeid)
         end
         modeDropdown.options = partModes
         modeDropdown.idChosen = chosenMode
+        RebuildStory()
         Refresh()
     end
 
@@ -267,7 +413,7 @@ function EncounterTest.ShowDialog(modeid)
         width = "100%",
         halign = "center",
         tmargin = 12,
-        text = "START TEST",
+        text = T("author.test.picker.start_button"),
         click = function(element)
             if element:HasClass("disabled") then
                 return
@@ -275,7 +421,7 @@ function EncounterTest.ShowDialog(modeid)
             local list = ChosenList()
             RememberHeroes(list)
             gamehud:CloseModal()
-            local started, why = EncounterOfTheWeekGame.StartTest{ mode = chosenMode, heroes = list, part = chosenPart }
+            local started, why = EncounterOfTheWeekGame.StartTest{ mode = chosenMode, heroes = list, part = chosenPart, story = ChosenStory(), challenge = chosenChallenge }
             if not started then
                 printf("EotW test: %s", tostring(why))
             end
@@ -310,7 +456,7 @@ function EncounterTest.ShowDialog(modeid)
                 classes = { "sizeXl", "bold" },
                 width = "100%",
                 height = "auto",
-                text = "Test Encounter",
+                text = T("author.test.picker.title"),
             },
             gui.Label{
                 classes = { "sizeS", "fgMuted" },
@@ -325,7 +471,7 @@ function EncounterTest.ShowDialog(modeid)
                 height = "auto",
                 tmargin = 10,
                 textWrap = true,
-                text = "Play this map's encounter the way its players will: you become a player for the test, with copies of the heroes you choose placed in the Start zone. END TEST (in the title bar) puts the map back and returns you to the Director.",
+                text = T("author.test.picker.intro"),
             },
             gui.Panel{
                 width = "100%",
@@ -338,7 +484,7 @@ function EncounterTest.ShowDialog(modeid)
                     height = "auto",
                     valign = "center",
                     rmargin = 8,
-                    text = "Start at",
+                    text = T("author.test.picker.start_at"),
                 },
                 modeDropdown,
             },
@@ -355,7 +501,7 @@ function EncounterTest.ShowDialog(modeid)
                     height = "auto",
                     valign = "center",
                     rmargin = 8,
-                    text = "Part",
+                    text = T("author.test.picker.part"),
                 },
                 gui.Dropdown{
                     classes = { "sizeS" },
@@ -371,13 +517,27 @@ function EncounterTest.ShowDialog(modeid)
                     end,
                 },
             },
+            --only for Part 2 and later of a series.
+            storyPanel,
+            gui.Check{
+                classes = { "sizeS" },
+                width = "100%",
+                height = 26,
+                tmargin = 6,
+                text = T("author.test.picker.challenge"),
+                value = false,
+                linger = gui.Tooltip(T("author.test.picker.challenge_tooltip")),
+                change = function(element)
+                    chosenChallenge = element.value == true
+                end,
+            },
             gui.Label{
                 classes = { "sizeS", "bold" },
                 width = "100%",
                 height = "auto",
                 tmargin = 12,
                 bmargin = 4,
-                text = "Heroes",
+                text = T("author.test.picker.heroes_heading"),
             },
             gui.Panel{
                 width = "100%",
@@ -393,7 +553,7 @@ function EncounterTest.ShowDialog(modeid)
                 height = "auto",
                 tmargin = 8,
                 textWrap = true,
-                text = "Already on this map, so also in the test: " .. table.concat(heroesOnMap, ", ") .. ".",
+                text = T("author.test.picker.already_on_map", { heroes = table.concat(heroesOnMap, ", ") }),
             },
             statusLabel,
             startButton,
@@ -403,7 +563,7 @@ function EncounterTest.ShowDialog(modeid)
                 height = 30,
                 halign = "center",
                 tmargin = 6,
-                text = "CANCEL",
+                text = T("author.test.picker.cancel_button"),
                 click = function(element)
                     gamehud:CloseModal()
                 end,
@@ -411,6 +571,7 @@ function EncounterTest.ShowDialog(modeid)
         },
     }
 
+    RebuildStory()
     Refresh()
     gamehud:ShowModal(dialog)
 end
@@ -440,16 +601,16 @@ function EncounterTest.CreateTitlebarItem()
         valign = "center",
         rmargin = 10,
         uppercase = true,
-        text = "Encounter Test",
+        text = T("author.test.titlebar.title_initial"),
     }
     local endButton = gui.Button{
         classes = { "sizeXs", "selected" },
         width = 90,
         height = 22,
         valign = "center",
-        text = "END TEST",
+        text = T("author.test.titlebar.end_button"),
         click = function(element)
-            element.text = "ENDING..."
+            element.text = T("author.test.titlebar.ending_button")
             element:SetClass("disabled", true)
             EncounterOfTheWeekGame.EndTest()
         end,
@@ -460,9 +621,9 @@ function EncounterTest.CreateTitlebarItem()
         if test == nil then
             return
         end
-        local text = string.format("Encounter Test: %s", ModeName(test.mode))
+        local text = T("author.test.titlebar.title", { mode = ModeName(test.mode) })
         if test.phase == "ending" then
-            text = text .. " (ending...)"
+            text = T("author.test.titlebar.title_ending", { mode = ModeName(test.mode) })
         end
         titleLabel.text = text
         endButton:SetClass("collapsed", test.phase ~= "running")

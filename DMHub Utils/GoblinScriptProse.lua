@@ -1191,6 +1191,7 @@ GoblinScriptProse.eventProse = {
     endrespite        = "when {subject} end{s} a respite",
     endturn           = "at the end of {subject-possessive} turn",
     beginround        = "at the start of each round",
+    endround          = "at the end of each round",
     startrespite      = "when {subject} start{s} a respite",
 
     -- Custom band

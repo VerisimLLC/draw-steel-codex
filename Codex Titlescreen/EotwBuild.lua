@@ -25,19 +25,21 @@ local mod = dmhub.GetModLoading()
 --Design/plan doc: EncounterOfTheWeek/EncounterOfTheWeek.md,
 --"The hero builder and hero sheet".
 
+local T = UIText.T
+
 EotwBuild = {}
 
 --The steps in order. `base` is the label of the step's main pick.
 EotwBuild.STEPS = {
-    { id = "ancestry", title = "Ancestry", base = "Ancestry" },
-    { id = "culture", title = "Culture" },
-    { id = "career", title = "Career", base = "Career" },
-    { id = "class", title = "Class", base = "Class" },
+    { id = "ancestry", title = T("builder.steps.ancestry.title"), base = T("builder.steps.ancestry.base") },
+    { id = "culture", title = T("builder.steps.culture.title") },
+    { id = "career", title = T("builder.steps.career.title"), base = T("builder.steps.career.base") },
+    { id = "class", title = T("builder.steps.class.title"), base = T("builder.steps.class.base") },
     --every skill and language choice from the other steps, made in one
     --place (see "Skills & Languages" below)
-    { id = "skills", title = "Skills & Languages" },
-    { id = "complication", title = "Complication", base = "Complication" },
-    { id = "appearance", title = "Appearance" },
+    { id = "skills", title = T("builder.steps.skills.title") },
+    { id = "complication", title = T("builder.steps.complication.title"), base = T("builder.steps.complication.base") },
+    { id = "appearance", title = T("builder.steps.appearance.title") },
 }
 
 --stepid -> step entry.
@@ -148,6 +150,41 @@ local function ComplicationPrereqMet(hero, item)
         return true
     end
     return GoblinScriptTrue(ExecuteGoblinScript(prereq, hero:LookupSymbol(), 0, string.format("Complication %s prerequisite", item.name)))
+end
+
+--A complication's treasure choice (Secret Twin's "a 1st-echelon trinket of
+--your choice") offers an EotW hero Gold-automation treasure only, the same
+--test as the market. Draw Steel Modifiers loads after this file, so the
+--filter is registered the first time the rows are built (Wrappers).
+
+--Below-Gold treasure that still plays well enough to offer, by gear id
+--(user direction 2026-10-21, after a review of the Silver trinkets).
+EotwBuild.EXTRA_GRANT_TREASURE = {
+    ["b2f04f55-0275-4e4e-a6b4-23dc3ffce594"] = true, --Color Cloak - Red
+    ["d20ae94a-9917-43be-b69b-38113b36fc97"] = true, --Gecko Gloves
+}
+
+--Treasure never offered even at Gold, by gear id: no use to a hero.
+EotwBuild.EXCLUDED_GRANT_TREASURE = {
+    ["27bf449d-9a2c-40a3-aea4-a8ec4e19d67d"] = true, --Precious Collar (beastheart companions only)
+}
+
+local g_goldTreasureFilter = false
+local function EnsureGoldTreasureFilter()
+    if g_goldTreasureFilter or rawget(_G, "CharacterTreasureGrantChoice") == nil then
+        return
+    end
+    g_goldTreasureFilter = true
+    CharacterTreasureGrantChoice.RegisterOptionFilter("eotw-gold", function(hero, item)
+        local eotw = hero:try_get("eotwDraft", false) == true or hero:try_get("eotwHero", false) == true
+        if not eotw or EotwBuild.EXTRA_GRANT_TREASURE[item.id] then
+            return true
+        end
+        if EotwBuild.EXCLUDED_GRANT_TREASURE[item.id] then
+            return false
+        end
+        return (tonumber(item:try_get("implementation", 1)) or 1) >= gui.ImplementationStatus.Gold
+    end)
 end
 
 --------------------------------------------------------------------------
@@ -403,6 +440,7 @@ end
 ---@param includePools boolean|nil
 ---@return EotwBuildRow[]
 function EotwBuild.hero.Wrappers(hero, stepid, includePools)
+    EnsureGoldTreasureFilter()
     if stepid == "skills" then
         local result = {}
         for _,source in ipairs(EotwBuild.POOL_SOURCE_STEPS) do
@@ -1007,6 +1045,14 @@ function EotwBuild.hero.RowOptions(hero, stepid, rowid)
     local feature = wrapper:GetFeature()
     local description = nil
     pcall(function() description = wrapper:GetDescription() end)
+    --EotW gives a grant treasure on the pick (SyncTreasureGrants), so drop
+    --the old builder's "then claim it" wording.
+    if feature.typeName == "CharacterTreasureGrantChoice" then
+        local prompt = (feature --[[@as CharacterTreasureGrantChoice]]):try_get("prompt")
+        if prompt ~= nil then
+            description = T("builder.choice.treasure_grant_prompt", { prompt = prompt })
+        end
+    end
     return result, {
         name = wrapper:GetName(),
         description = description,
@@ -1038,6 +1084,21 @@ function EotwBuild.hero.Unchoose(hero, stepid, rowid, optionId)
         EotwBuild.hero.SetCultureAspect(hero, choiceGuid, "")
         return
     end
+    if feature.typeName == "CharacterTreasureGrantChoice" then
+        --The grant's own RemoveSelection keeps a claimed pick locked. EotW
+        --lets the player change it: SyncTreasureGrants takes the old item back.
+        local grants = hero:try_get("treasureGrants")
+        local state = grants ~= nil and grants[choiceGuid] or nil
+        if type(state) == "table" then
+            if state.claimed and state.eotwGiven == nil then
+                state.eotwGiven = state.itemid
+            end
+            state.itemid = nil
+            state.claimed = false
+        end
+        hero:Invalidate()
+        return
+    end
 
     local option = FindOption(wrapper, optionId)
     if option ~= nil then
@@ -1064,6 +1125,91 @@ function EotwBuild.hero.Unchoose(hero, stepid, rowid, optionId)
         end
     end
     hero:Invalidate()
+end
+
+--------------------------------------------------------------------------
+--Treasure grants. A complication benefit like Secret Twin's "a 1st-echelon
+--trinket of your choice" is a Grant Treasure modifier, and its row records
+--the pick in hero.treasureGrants[modifier guid]. The old builder hands the
+--item over with a separate Claim button; EotW has none, so this keeps the
+--hero holding exactly the treasure picked: given on a pick, taken back when
+--the pick or the complication changes. state.eotwGiven is the item handed
+--over. Manifest-mode grants (Artifact Bonded) only record the pick.
+--------------------------------------------------------------------------
+
+--The modifier guids of the hero's claim-mode grants, as a set.
+---@param hero character
+---@return table<string, boolean>
+local function LiveTreasureGrants(hero)
+    local result = {}
+    for _,stepid in ipairs(EotwBuild.POOL_SOURCE_STEPS) do
+        for _,row in ipairs(EotwBuild.hero.Wrappers(hero, stepid, true)) do
+            local feature = row.wrapper:GetFeature()
+            if feature.typeName == "CharacterTreasureGrantChoice" then
+                local modifier = (feature --[[@as CharacterTreasureGrantChoice]]).modifier
+                if modifier:try_get("treasureDelivery", "claim") ~= "manifest" then
+                    result[modifier.guid] = true
+                end
+            end
+        end
+    end
+    return result
+end
+
+--Whether the hero has the item in the pack or in an equipment slot.
+---@param hero character
+---@param itemid string
+---@return boolean
+local function HoldsItem(hero, itemid)
+    if hero:GetItemQuantity(itemid) > 0 then
+        return true
+    end
+    for _,equipped in pairs(hero:Equipment()) do
+        if equipped == itemid then
+            return true
+        end
+    end
+    return false
+end
+
+--Give each picked grant treasure and take back any the hero no longer owns
+--by their build. Every token write runs it (see Modify), and so does
+--joining the roster. With a token, a given treasure is worn at once while
+--there is a free slot, as all EotW treasure is.
+---@param hero character
+---@param token CharacterToken|nil
+function EotwBuild.hero.SyncTreasureGrants(hero, token)
+    local grants = hero:try_get("treasureGrants")
+    if grants == nil then
+        return
+    end
+    local live = LiveTreasureGrants(hero)
+    for guid,state in pairs(grants) do
+        if type(state) == "table" then
+            --claimed elsewhere (the full sheet, a pregen): now managed here
+            if state.claimed and state.eotwGiven == nil then
+                state.eotwGiven = state.itemid
+            end
+            local want = live[guid] and state.itemid or nil
+            if state.eotwGiven ~= nil and state.eotwGiven ~= want then
+                if HoldsItem(hero, state.eotwGiven) then
+                    hero:GiveItem(state.eotwGiven, -1)
+                end
+                state.eotwGiven = nil
+                state.claimed = false
+            end
+            if not live[guid] then
+                grants[guid] = nil
+            elseif want ~= nil and not state.claimed then
+                hero:GiveItem(want, 1)
+                state.claimed = true
+                state.eotwGiven = want
+                if token ~= nil then
+                    pcall(function() EotwHeroSheet.EquipInPlace(token, want) end)
+                end
+            end
+        end
+    end
 end
 
 --------------------------------------------------------------------------
@@ -1479,7 +1625,7 @@ local function SkillBenefits(hero)
         if ok and behavior == "power" then
             local skills = mod:try_get("skills")
             if type(skills) == "table" then
-                local name = mod:try_get("name") or "A special ability"
+                local name = mod:try_get("name") or T("builder.skills.special_fallback")
                 for k,v in pairs(skills) do
                     --an array of ids here, but tolerate a set
                     local id = cond(type(k) == "number", v, k)
@@ -1522,9 +1668,10 @@ local function GrantSources(hero)
     for _,stepid in ipairs(EotwBuild.POOL_SOURCE_STEPS) do
         local grants = EotwBuild.hero.StepGrants(hero, stepid)
         local name = ItemName(stepid)
-        local phrase = string.format("your %s", string.lower(EotwBuild.STEP_BY_ID[stepid].title))
+        local stepName = string.lower(EotwBuild.STEP_BY_ID[stepid].title)
+        local phrase = T("builder.skills.source.step", { step = stepName })
         if name ~= nil then
-            phrase = string.format("%s (%s)", phrase, name)
+            phrase = T("builder.skills.source.step_item", { step = stepName, item = name })
         end
         for id,_ in pairs(grants.fixedIds) do
             result[id] = result[id] or phrase
@@ -1644,14 +1791,16 @@ function EotwBuild.hero.PoolTable(hero, kind)
         end
         local source = nil
         if state == "native" then
-            source = "your culture"
+            source = T("builder.skills.source.culture")
         elseif state == "fixed" then
             source = sources[id]
         end
         entries[#entries+1] = {
             id = id,
             name = item.name,
-            category = item:try_get("category"),
+            --plain read: try_get skips the "crafting" type default, which most
+            --crafting skills rely on rather than storing it
+            category = kind == "skill" and item.category or nil,
             description = description,
             state = state,
             --for a native or fixed one: where it comes from, or nil
@@ -1745,7 +1894,7 @@ function EotwBuild.hero.StepGrants(hero, stepid)
             if kind ~= nil then
                 local description = nil
                 pcall(function() description = feature:GetDescription() end)
-                result.pools[#result.pools+1] = { name = feature:try_get("name") or "Choice", description = description, kind = kind }
+                result.pools[#result.pools+1] = { name = feature:try_get("name") or T("builder.grants.choice_fallback"), description = description, kind = kind }
             end
         end
     end
@@ -1762,10 +1911,10 @@ function EotwBuild.hero.StepGrants(hero, stepid)
                     for id,on in pairs(mod:try_get("skills", {})) do
                         if on then
                             if subtype == "skill" and skills[id] ~= nil then
-                                result.fixed[#result.fixed+1] = string.format("%s (skill)", skills[id].name)
+                                result.fixed[#result.fixed+1] = T("builder.grants.fixed_skill", { name = skills[id].name })
                                 result.fixedIds[id] = true
                             elseif subtype == "language" and languages[id] ~= nil then
-                                result.fixed[#result.fixed+1] = string.format("%s (language)", languages[id].name)
+                                result.fixed[#result.fixed+1] = T("builder.grants.fixed_language", { name = languages[id].name })
                                 result.fixedIds[id] = true
                             end
                         end
@@ -1795,9 +1944,17 @@ local function Modify(token, description, fn)
         execute = function()
             local hero = token.properties --[[@as character]]
             result = fn(hero)
+            EotwBuild.hero.SyncTreasureGrants(hero, token)
         end,
     }
     return result
+end
+
+--Give the hero their picked grant treasure (see SyncTreasureGrants). Call
+--it INSIDE the caller's own token:ModifyProperties.
+---@param token CharacterToken
+function EotwBuild.SyncTreasureGrants(token)
+    EotwBuild.hero.SyncTreasureGrants(token.properties --[[@as character]], token)
 end
 
 ---@param token CharacterToken
@@ -2068,7 +2225,7 @@ local function FillAppearance(token)
         if generated == nil then
             local race = EotwBuild.hero.Ancestry(hero)
             local classItem = hero:GetClass()
-            generated = string.format("%s %s", race and race.name or "Nameless", classItem and classItem.name or "Hero")
+            generated = T("builder.appearance.fallback_name", { ancestry = race and race.name or T("builder.appearance.fallback_ancestry"), class = classItem and classItem.name or T("builder.appearance.fallback_class") })
         end
         token.name = generated
         picks[#picks+1] = "Name -> " .. generated

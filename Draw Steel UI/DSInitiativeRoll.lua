@@ -419,7 +419,7 @@ local function createDrawSteelBanner(options)
                     elseif roll ~= nil then
                         --a caller may hold the start of combat once the winner
                         --is known (Encounter of the Week lets the heroes arrange
-                        --themselves when they win): it gets the result and a
+                        --themselves, whichever side won): it gets the result and a
                         --begin function to call when it is ready.
                         local heroesWin = m_heroesWin
                         local begun = false

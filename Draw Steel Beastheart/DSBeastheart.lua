@@ -80,13 +80,23 @@ end
 --- verify it matches the beastheart's currently-chosen companion type: if it
 --- does, teleport it; if it does not (e.g. the player switched species), the
 --- old companion is despawned and a fresh one is summoned.
-local function CallCompanion(beastheartToken)
-    if beastheartToken == nil or not beastheartToken.valid then return end
+--- Bring this beastheart's companion to destination, or to a vacant tile
+--- beside the beastheart when destination is nil. The same rules as the Call
+--- button: an existing companion of the chosen type is teleported, one of a
+--- different type is despawned and replaced. Also used by game modes that
+--- deploy the companion themselves (Encounter of the Week puts it in the
+--- hero start area). Returns the companion token, or nil when the creature
+--- has no companion type or there is nowhere to put it.
+--- @param beastheartToken CharacterToken
+--- @param destination Loc|nil
+--- @return CharacterToken|nil
+function creature:SummonCompanionAt(beastheartToken, destination)
+    if beastheartToken == nil or not beastheartToken.valid then return nil end
 
-    local companionType = beastheartToken.properties:GetCompanionType()
-    if companionType == nil then return end
+    local companionType = self:GetCompanionType()
+    if companionType == nil then return nil end
 
-    local companionToken = beastheartToken.properties:GetCompanionToken()
+    local companionToken = self:GetCompanionToken()
     if companionToken ~= nil then
         local stampedId = companionToken.properties:try_get("companionBestiaryId")
         if stampedId ~= companionType then
@@ -95,22 +105,32 @@ local function CallCompanion(beastheartToken)
         end
     end
 
-    local destination = FindVacantAdjacentLoc(beastheartToken, companionToken)
+    --a caller's tile is stood on (it may be sunken or raised ground); the
+    --Call button's adjacent tile keeps its old spawn rule.
+    local onGround = destination ~= nil
+    destination = destination or FindVacantAdjacentLoc(beastheartToken, companionToken)
     if destination == nil then
-        return
+        return nil
     end
 
     if companionToken ~= nil then
-        companionToken:Teleport(destination, false)
-        return
+        companionToken:Teleport(cond(onGround, destination.withGroundAltitude, destination), false)
+        return companionToken
     end
 
     local newToken = game.SpawnTokenFromBestiaryLocally(companionType, destination, {
         fitLocation = true,
+        onGround = onGround,
     })
-    if newToken == nil then return end
+    if newToken == nil then return nil end
 
     LinkCompanion(beastheartToken, newToken, companionType)
+    return newToken
+end
+
+local function CallCompanion(beastheartToken)
+    if beastheartToken == nil or not beastheartToken.valid then return end
+    beastheartToken.properties:SummonCompanionAt(beastheartToken, nil)
 end
 
 --- Build the Companion section for the character details panel. It is hidden

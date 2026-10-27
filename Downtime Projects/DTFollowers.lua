@@ -32,6 +32,32 @@ function DTFollowers:GetFollower(followerId)
     return self.followers[followerId or ""]
 end
 
+--- A follower's type in lower case ("artisan", "sage" or "retainer"), or nil
+--- when the token is not a follower.
+--- @param follower CharacterToken|nil
+--- @return string|nil
+function DTFollowers.FollowerType(follower)
+    local followerType = nil
+    pcall(function()
+        if follower ~= nil and follower.properties:IsFollower() then
+            followerType = string.lower(follower.properties:try_get("followerType", ""))
+        end
+    end)
+    return followerType
+end
+
+--- Artisans and sages work on projects; retainers fight and never roll. The
+--- one check for this: the Respite, the activities dialog and the roll picker
+--- all use it, so a retainer's leftover count is neither counted nor offered.
+--- @param follower CharacterToken|nil
+--- @return boolean
+function DTFollowers.RollsOnProjects(follower)
+    local followerType = DTFollowers.FollowerType(follower)
+    return followerType == "artisan" or followerType == "sage"
+end
+
+local RollsOnProjects = DTFollowers.RollsOnProjects
+
 --- Retrieve the total number of rolls the followers have. Only counts followers
 --- that still resolve to a live character, so rolls stranded on a deleted
 --- follower are not reported as spendable.
@@ -45,8 +71,10 @@ function DTFollowers:AggregateAvailableRolls()
     if not downtimeInfo then return 0 end
 
     local total = 0
-    for id,_ in pairs(self.followers or {}) do
-        total = total + downtimeInfo:GetFollowerRolls(id)
+    for id, follower in pairs(self.followers or {}) do
+        if RollsOnProjects(follower) then
+            total = total + downtimeInfo:GetFollowerRolls(id)
+        end
     end
     return total
 end
@@ -64,7 +92,7 @@ function DTFollowers:GetFollowersWithAvailbleRolls()
     if not downtimeInfo then return followers end
 
     for id, follower in pairs(self.followers or {}) do
-        if downtimeInfo:GetFollowerRolls(id) > 0 then
+        if RollsOnProjects(follower) and downtimeInfo:GetFollowerRolls(id) > 0 then
             followers[id] = follower
         end
     end

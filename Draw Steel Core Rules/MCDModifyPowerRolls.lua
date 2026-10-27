@@ -273,6 +273,19 @@ function CharacterModifier:CheckRollRequirement(rollInfo, enabledModifiers, roll
     return true
 end
 
+--A test that names no skill (a characteristic clicked on the character panel, or
+--a Director's request with no skill picked) cannot know whether a skill applies,
+--so its Skilled chip is the roller's call. Flag it so the Timeline roller still
+--offers it as a toggle under Strictly Enforce Rolls instead of hiding it.
+--- @param modifiers table[] entries as creature:GetModifiersForPowerRoll returns them.
+function CharacterModifier.MarkSkilledRollerDecides(modifiers)
+    for _,entry in ipairs(modifiers) do
+        if entry.modifier ~= nil and entry.modifier.name == "Skilled" then
+            entry.rollerDecides = true
+        end
+    end
+end
+
 --A hero's power-roll trigger accepted on a Monster AI roll (e.g. In All This
 --Confusion on a monster's strike) resolves its custom trigger only after the
 --monster's cast ends, so no event marks it as a reaction the AI must wait on.

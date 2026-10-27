@@ -166,18 +166,18 @@ CreateGameControls = function()
             end,
         },
         gui.Check{
-            text = "Show Below UI",
-            value = doc.data.belowui,
+            text = "Show Above UI",
+            value = doc.data.aboveui == true,
             change = function(element)
                 local doc = FullscreenDisplay.GetDocumentSnapshot()
                 doc:BeginChange()
-                doc.data.belowui = element.value
-                doc:CompleteChange("Show Below UI")
+                doc.data.aboveui = element.value
+                doc:CompleteChange("Show Above UI")
             end,
             monitorGame = doc.path,
             refreshGame = function(element)
                 local doc = FullscreenDisplay.GetDocumentSnapshot()
-                element.value = doc.data.belowui
+                element.value = doc.data.aboveui == true
             end,
         },
     }

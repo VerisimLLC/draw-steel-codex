@@ -1063,7 +1063,7 @@ audio.SoundEvent{
     name = "Dice.Numglow_Wode",
     mixgroup = "dice",
     sounds = {"dice/cust/wode/Dice_NumGlow_Wode_01.wav","dice/cust/wode/Dice_NumGlow_Wode_02.wav","dice/cust/wode/Dice_NumGlow_Wode_03.wav","dice/cust/wode/Dice_NumGlow_Wode_04.wav","dice/cust/wode/Dice_NumGlow_Wode_05.wav"},
-    volume = 0.08,
+    volume = 0.1,
     pitchRand = 0.01,
     ignoreDuplicates = 0.01,
     delay = 0.0,
@@ -1339,7 +1339,7 @@ audio.SoundEvent{
     name = "DiceImp.Hard_Leafy",
     mixgroup = "dice",
     sounds = {"dice/leafy/DiceImp_leafy_Hard_01.wav","dice/leafy/DiceImp_leafy_Hard_02.wav","dice/leafy/DiceImp_leafy_Hard_03.wav","dice/leafy/DiceImp_leafy_Hard_04.wav","dice/leafy/DiceImp_leafy_Hard_05.wav","dice/leafy/DiceImp_leafy_Hard_06.wav"},
-    volume = 0.1,
+    volume = 0.05,
     pitchRand = 0.0,
 }
 
@@ -1347,7 +1347,7 @@ audio.SoundEvent{
     name = "DiceImp.Mild_Leafy",
     mixgroup = "dice",
     sounds = {"dice/leafy/DiceImp_leafy_Mild_01.wav","dice/leafy/DiceImp_leafy_Mild_02.wav","dice/leafy/DiceImp_leafy_Mild_03.wav","dice/leafy/DiceImp_leafy_Mild_04.wav","dice/leafy/DiceImp_leafy_Mild_05.wav","dice/leafy/DiceImp_leafy_Mild_06.wav"},
-    volume = 0.15,
+    volume = 0.05,
     pitchRand = 0.0,
 }
 
@@ -1366,7 +1366,7 @@ audio.SoundEvent{
     name = "DiceImp.Hard_Glass",
     mixgroup = "dice",
     sounds = {"dice/glass/DiceImp_Glass_Hard_01.wav","dice/glass/DiceImp_Glass_Hard_02.wav","dice/glass/DiceImp_Glass_Hard_03.wav","dice/glass/DiceImp_Glass_Hard_04.wav","dice/glass/DiceImp_Glass_Hard_05.wav","dice/glass/DiceImp_Glass_Hard_06.wav"},
-    volume = 0.1,
+    volume = 0.05,
     pitchRand = 0.0,
 }
 
@@ -1374,7 +1374,7 @@ audio.SoundEvent{
     name = "DiceImp.Mild_Glass",
     mixgroup = "dice",
     sounds = {"dice/glass/DiceImp_Glass_Mild_01.wav","dice/glass/DiceImp_Glass_Mild_02.wav","dice/glass/DiceImp_Glass_Mild_03.wav","dice/glass/DiceImp_Glass_Mild_04.wav","dice/glass/DiceImp_Glass_Mild_05.wav","dice/glass/DiceImp_Glass_Mild_06.wav"},
-    volume = 0.15,
+    volume = 0.05,
     pitchRand = 0.0,
 }
 
@@ -1446,7 +1446,7 @@ audio.SoundEvent{
     name = "DiceImp.Hard_GlassLight",
     mixgroup = "dice",
     sounds = {"dice/glasslight/DiceImp_glasslight_Hard_01.wav","dice/glasslight/DiceImp_glasslight_Hard_02.wav","dice/glasslight/DiceImp_glasslight_Hard_03.wav","dice/glasslight/DiceImp_glasslight_Hard_04.wav","dice/glasslight/DiceImp_glasslight_Hard_05.wav","dice/glasslight/DiceImp_glasslight_Hard_06.wav"},
-    volume = 0.05,
+    volume = 0.03,
     pitchRand = 0.0,
 }
 
@@ -1454,7 +1454,7 @@ audio.SoundEvent{
     name = "DiceImp.Mild_GlassLight",
     mixgroup = "dice",
     sounds = {"dice/glasslight/DiceImp_glasslight_Mild_01.wav","dice/glasslight/DiceImp_glasslight_Mild_02.wav","dice/glasslight/DiceImp_glasslight_Mild_03.wav","dice/glasslight/DiceImp_glasslight_Mild_04.wav","dice/glasslight/DiceImp_glasslight_Mild_05.wav","dice/glasslight/DiceImp_glasslight_Mild_06.wav"},
-    volume = 0.08,
+    volume = 0.05,
     pitchRand = 0.0,
 }
 
@@ -2080,6 +2080,11 @@ end
 
 ---@param args TokenMovingOnPathArgs
 dmhub.TokenMovingOnPath = function(args)
+    --a creature hidden from this viewer makes no footsteps and leaves no tracks.
+    if args.token.hiddenFromLocalViewer then
+        return
+    end
+
     local surface = args.path:GetStepSurfaceType(args.stepIndex) or 0
     local surfaceInfo = AudioSurfaceTypes.surfaces[surface]
 

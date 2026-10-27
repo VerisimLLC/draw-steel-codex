@@ -703,6 +703,73 @@ function RSPWidgets.DocumentMonitor(path)
     }
 end
 
+---@class RSPWatchersArgs
+---@field paths fun(): string[] the documents to watch, read again on every rewatch
+---@field changed fun() what to do when any of them moves
+
+--- Zero-size watchers over documents that can come and go while the window is
+--- open. Pooled by position and re-pointed rather than rebuilt; a watcher past
+--- the end of the list stays built but goes quiet.
+--- @param args RSPWatchersArgs
+--- @return Panel
+function RSPWidgets.Watchers(args)
+    local function Rewatch(element)
+        local paths = args.paths() or {}
+        local pool = element.children
+
+        if #pool < #paths then
+            local grown = {}
+            for i, watcher in ipairs(pool) do
+                grown[i] = watcher
+            end
+            for i = #pool + 1, #paths do
+                grown[i] = gui.Panel{
+                    width = 0,
+                    height = 0,
+                    data = {
+                        path = nil,
+                    },
+                    refreshGame = function(watcher)
+                        if watcher.data.path ~= nil then
+                            args.changed()
+                        end
+                    end,
+                }
+            end
+            element.children = grown
+            pool = grown
+        end
+
+        for i, watcher in ipairs(pool) do
+            local path = paths[i]
+            if path ~= watcher.data.path then
+                watcher.data.path = path
+                if path ~= nil then
+                    watcher.monitorGame = path
+                end
+            end
+        end
+    end
+
+    return gui.Panel{
+        width = 0,
+        height = 0,
+
+        -- Assigned on a delay the way the character sheet does it.
+        create = function(element)
+            dmhub.Schedule(0.2, function()
+                if element.valid then
+                    Rewatch(element)
+                end
+            end)
+        end,
+
+        rewatch = function(element)
+            Rewatch(element)
+        end,
+    }
+end
+
 --- A label-left, control-right form row. Shared so a registered activity can
 --- paint its own fields in the same language as the rest of the step.
 --- @param labelText string

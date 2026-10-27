@@ -2193,6 +2193,23 @@ local function CancelCountdown(charid)
     end
 end
 
+--The collar operations other Condemned files use (the Campaign panel in
+--CondemnedCampaign.lua records who is still collared and runs the Medical station
+--through these). A global table, not locals: this chunk is at the 200-local limit.
+CondemnedCollars = {
+    IsCollared = IsCollared,
+    GetExploded = GetExploded,
+    --attach (true) or remove (false) a collar with the lock animation.
+    SetCollar = SetCollar,
+    --swaps the frame back with no animation; works on a hero on another map.
+    RemoveNow = RemoveCollar,
+    --the same 3-2-1 Explode the Loyalty Collars panel runs; the hero must be on this map.
+    Detonate = StartCountdown,
+    IsBusy = function(charid)
+        return g_busy[charid] == true or g_countdowns[charid] ~= nil
+    end,
+}
+
 --Row layout widths; the countdown view lines its Cancel button up with Explode.
 local STATUS_WIDTH = 76
 local MAIN_BUTTON_WIDTH = 112
@@ -2356,10 +2373,37 @@ local function CreateHeroRow(token, fallbackName)
         children = { countdownLabel, cancelButton },
     }
 
-    return gui.Panel{
+    --the campaign's line under the row (its collar record, the Medical station), from
+    --CondemnedCampaign.lua, which loads after this file.
+    local campaign = rawget(_G, "CondemnedCampaign")
+    local extras = nil
+    if campaign ~= nil and campaign.CollarRowExtras ~= nil then
+        extras = campaign.CollarRowExtras(charid)
+    end
+
+    local mainLine = gui.Panel{
         width = "100%",
         height = 52,
         flow = "horizontal",
+        children = {
+            portrait,
+            gui.Label{
+                classes = {"sizeS"},
+                width = 160,
+                height = "auto",
+                valign = "center",
+                lmargin = 8,
+                text = token.name or fallbackName or "(unnamed)",
+            },
+            controls,
+            countdownPanel,
+        },
+    }
+
+    return gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
         --fast enough that the countdown ticks over close to each second.
         thinkTime = 0.1,
         styles = g_rowStyles,
@@ -2426,19 +2470,7 @@ local function CreateHeroRow(token, fallbackName)
             end
         end,
 
-        children = {
-            portrait,
-            gui.Label{
-                classes = {"sizeS"},
-                width = 160,
-                height = "auto",
-                valign = "center",
-                lmargin = 8,
-                text = token.name or fallbackName or "(unnamed)",
-            },
-            controls,
-            countdownPanel,
-        },
+        children = { mainLine, extras },
     }
 end
 
@@ -2582,7 +2614,8 @@ local function CreateExplosiveRow(entry)
     }
 end
 
-local function CreateCollarPanel()
+---@param owner Panel|nil the rail button the popup hangs from
+local function CreateCollarPanel(owner)
     --keeps one row per listed hero, in name order, adding and removing rows as heroes
     --arrive, leave or are blown up. Existing rows are reused so they keep their state.
     local listPanel = gui.Panel{
@@ -2761,6 +2794,20 @@ local function CreateCollarPanel()
         },
     }
 
+    --the campaign's summary (counts, the ending, book links) and the Condemned on
+    --other maps, from CondemnedCampaign.lua (empty placeholders without it).
+    --reopen: a popup is placed only when it opens, and grows from its centre after
+    --that, so a big change in height (unfolding Elsewhere) reopens it to place it again.
+    local parts = {}
+    local campaign = rawget(_G, "CondemnedCampaign")
+    if campaign ~= nil and campaign.CollarPanelParts ~= nil then
+        parts = campaign.CollarPanelParts(owner, function()
+            if owner ~= nil and owner.valid and owner.popup ~= nil then
+                owner.popup = CreateCollarPanel(owner)
+            end
+        end)
+    end
+
     --the map button bar does not pass a themed cascade to its popups, so the popup
     --roots its own. A panel's styles only reach its descendants, so the framed
     --surface is a child of the styled root.
@@ -2787,8 +2834,10 @@ local function CreateCollarPanel()
                         bmargin = 6,
                         text = "Loyalty Collars",
                     },
+                    parts.summary or gui.Panel{ width = 1, height = 1 },
                     ledModeRow,
                     listPanel,
+                    parts.elsewhere or gui.Panel{ width = 1, height = 1 },
                     explosivesSection,
                 },
             },
@@ -2810,13 +2859,25 @@ local mapButtons = rawget(_G, "MapButtons")
 ;(function()
     --id -> button. Add further campaign tools here and to ORDER.
     local BUTTONS = {
+        --the Campaign panel lives in CondemnedCampaign.lua, which loads after this file.
+        campaign = {
+            name = "The Condemned: Campaign",
+            icon = "phosphor/scroll-fill.png",
+            popup = function(owner)
+                local campaign = rawget(_G, "CondemnedCampaign")
+                if campaign == nil or campaign.CreatePanel == nil then
+                    return nil
+                end
+                return campaign.CreatePanel(owner)
+            end,
+        },
         collars = {
             name = "Loyalty Collars",
             icon = "phosphor/lock-simple-fill.png",
             popup = CreateCollarPanel,
         },
     }
-    local ORDER = { "collars" }
+    local ORDER = { "campaign", "collars" }
     local RAIL_TYPE = "condemned"
 
     --ids this Director took off the rail: never put back automatically (/condemnedbuttons does).
@@ -2834,7 +2895,7 @@ local mapButtons = rawget(_G, "MapButtons")
         if button == nil then
             return
         end
-        element.popup = button.popup()
+        element.popup = button.popup(element)
     end
 
     local railTypes = rawget(_G, "RailEntryTypes")
@@ -2896,7 +2957,7 @@ local mapButtons = rawget(_G, "MapButtons")
         commands.RegisterMacro{
             name = "condemnedbuttons",
             summary = "put the Condemned buttons back on the rail",
-            doc = "Usage: /condemnedbuttons\nPuts the Condemned campaign buttons (Loyalty Collars) back on your icon rail.",
+            doc = "Usage: /condemnedbuttons\nPuts the Condemned campaign buttons (Campaign, Loyalty Collars) back on your icon rail.",
             command = function(str)
                 removedSetting:Set({})
                 SeedRail()

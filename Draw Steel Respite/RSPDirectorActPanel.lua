@@ -103,7 +103,7 @@ local function BuildFeedSections(charid)
                 --Respite started would otherwise hold a zero forever, and a
                 --window of "everything after time zero" admits every roll the
                 --campaign has ever recorded.
-                paint{charid = charid, since = RSPSession.StartedAt},
+                paint{charid = charid, since = RSPSession.StartedAt, roster = RSPSession.Roster},
             }
         end
     end

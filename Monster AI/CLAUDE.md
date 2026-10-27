@@ -51,7 +51,8 @@ shadow-elves.lua
 1. `MonsterAIPanel.lua` runs a coroutine (`MonsterAIThread`) that polls the initiative queue.
 2. When it is the monsters' side to choose, it picks which waiting initiative group goes next. This runs before every monster turn over every group still waiting, so it is deliberately cheap and plans no moves (see "Initiative choice" in `MonsterAI.lua`). Each member bids `MonsterAI.TurnPriority` times a random factor of 1 to 1.5: minions bid `initiativeMinionPriority` (4), other creatures 1 plus up to `initiativeNearDeathPriority` (3) as they near death. A member that cannot strike anyone this turn (`CanStrikeThisTurn`, a reach check using straight-line distance and, only when needed, its movement area) keeps a tenth of its bid, so every group that can strike goes first. The group's score is its best member's. When only one group is waiting it is chosen without any checks. Run `../dependencies/lua/bin/lua.exe tests/ai_initiative_choice_test.lua` from the codex root.
    Once a group is chosen and it is a non-player turn, the thread creates a `MonsterAI` instance and calls `PlayTurnSafely(initiativeid)`.
-3. Score all registered start-of-turn Malice abilities, use the highest-scoring affordable option that meets its threshold, and wait for it to resolve.
+3. Reveal every acting monster that is Hidden (`RevealHiddenActors`, calling `creature:LoseHidden()`), so a hidden monster always comes out and acts; Hidden This Turn keeps its edge. With "Hidden Creatures are Invisible" (`strict:hiddeninvisible`, forced on in EotW) players cannot see a Hidden monster at all, so this is where it reappears.
+   Then score all registered start-of-turn Malice abilities, use the highest-scoring affordable option that meets its threshold, and wait for it to resolve.
 4. For each token in that initiative entry:
    - If the actual actor is outside the usable map view, pan and sync the camera before it begins. Shared initiative entries can therefore pan again as each distinct monster acts without recentering monsters that are already visible.
    - Minions: find their Signature Ability and execute it as a coordinated squad strike (`ExecuteSquadStrike`). The squad moves as one: every member is planned before any moves, with the squares and charge lanes already claimed by squad-mates held in a reservation table (`ReserveSquadOption` / `SquadOptionIsFree`) so no two members end on one square or charge through each other. The captain (or a member) calls the attack and two or three members shout back (`AnnounceSquadStrike`, which writes bubbles directly through `SpeakNow`), then all members move side by side, each starting `squadMoveStagger` (0.2s) after the last (`RunConcurrently`). Chargers move to their charge start, then all shout "Charge!" and charge together. Each member's plan is checked after movement; a second round re-plans members that advanced, failed, or gained a target slot from a fallen squad-mate. Run `../dependencies/lua/bin/lua.exe tests/ai_squad_volley_test.lua`. Reassess members who advanced before firing so they can join the same volley, including sharing targets within the normal limit. The rules layer spends the action for every active squad member, including nonparticipants. Reconsider up to 6 action cycles so critical-hit extra actions are used. Each cycle selects a surviving member with an affordable signature; only affordable members join its target pairs, and movement uses the remaining turn budget.
@@ -71,6 +72,39 @@ signature target use the same fallback; squad target caps still take priority.
 Run `../dependencies/lua/bin/lua.exe tests/ai_advance_test.lua` and
 `../dependencies/lua/bin/lua.exe tests/ai_minion_critical_test.lua` from the codex
 root to check route selection, action economy, attack priority, and squad retries.
+
+### Zone directives (Avoid, Force Into, Hold)
+
+A zone type (Environmental Keyword) can carry "Monster AI Directives": a list
+of entries edited in the keyword editor ("Add Monster AI Directive..."), stored
+in `aiDirectiveList` as `{directive, filter}` and read with
+`EnvironmentalKeyword:GetAIDirectives()` (which also converts the old
+`aiDirectives` on/off flags). Each entry applies only to the AI creatures its
+`filter` accepts (GoblinScript on the creature, e.g.
+`Name is "Angulotl Daybringer"`; empty = every one). All of them read the
+zone's squares from its aura instances (`MonsterAI.InDirectiveZone(directive,
+token, loc, subject)`, where `subject` is the creature whose filters are
+checked), cached per frame.
+
+- **Avoid**: AI-driven creatures never step into the zone (a wrap of
+  `creature:MoveToLocPermitted`, which every non-forced path search consults),
+  never plan to end in it, and leave one they stand in ("Leave avoided zone").
+  The filter is checked on the mover and, for a mount, its riders.
+- **Force Into**: the Push!/Pull!/Slide! prompt prefers landings in the zone,
+  and the "Force Into Zones" tactic picks attack positions that make it possible.
+  The filter is checked on the monster doing the forcing, not the enemy moved.
+- **Hold** (filter checked on the creature that holds): the zone is a post. `CalculateMovementPaths`
+  drops every destination off the post while the creature stands on it or can
+  reach it, so strikes, bursts, advances and squad moves all plan from the post;
+  `ChargeProbe` also skips charge landings off it. A holder that is off its post
+  with nothing better to do runs "Return to held zone"
+  (`ExecuteReturnToHoldZone`, ahead of the advance fallback): walk onto it if in
+  reach, else cast an affordable self relocation onto it (an empty-space
+  ability with a Relocate Creature behavior, such as a teleport), else walk
+  toward it. Band code that moves a creature outside the path search (jumps,
+  shifts) asks `MonsterAI.HoldPermits(token, loc)`; `MonsterAI.Holds`,
+  `MonsterAI.InHoldZone` and `MonsterAI.HoldSquares` are the other helpers.
+  The Angulotl Daybringer holds the Ritual Basin in Aixco Hollow this way.
 
 ### Player reactions during AI movement
 
@@ -348,6 +382,41 @@ A **tactic** is a passive scoring modifier that adjusts the edge count when eval
 - `id`, `description`
 - `score(self, token, tokenLoc, enemy, ability)` -- returns a number (typically 0 or 1) added to the target's edge score, or `nil`
 
+#### Behavior modules (`MonsterAI:RegisterBehavior{}`)
+
+A **behavior** is a switchable piece of a monster's personality. Unlike a
+tactic it is **off** unless switched on: by the monster types in its
+`monsters` list (or `allMonsters = true`), or by a behavior source. The two
+built in, registered at the bottom of `MonsterAITactics.lua` with empty
+`monsters` lists, are:
+
+- **Bully**: `targetEdges` adds up to `MonsterAI.bullyMaxEdges` (6) edges to a
+  target as its share of Stamina falls to 0 (dying counts as 0), and cancels
+  `TargetStaminaBias`. A behavior with `targetEdges` is also stored in
+  `tactics`, so every strike planner, squad and free strike uses it.
+  Area planners that score targets without edges do not see it.
+- **Avoid Opportunity Attacks**: when the creature starts next to enemies who
+  could make an opportunity attack (`ai:OpportunityAttackers`, mirroring the
+  checks in `creature:OnMove`), `FindAndExecuteMove` scores every move twice
+  (`ChooseAvoidingOpportunityAttacks`): from only the squares that provoke
+  nothing, then from every square. The second plan wins only when its
+  destination provokes and it still scores higher after paying
+  `MonsterAI.opportunityAttackPenalty` (0.8) per attack. A safe choice keeps
+  the safe squares for the move's execution (`_tmp_oaSafeOnly`, honored by
+  `CalculateMovementPaths`). `CalculateMovementPaths` marks each square's
+  `provokes`; the advance fallback skips squares that provoke, and minion
+  squads add `squadOpportunityAttackPenalty` (100) per attack to a
+  position's cost. It is an estimate from start and end squares: a route that
+  walks past an enemy it did not start next to is not seen.
+
+`MonsterAI.HasBehavior(token, id)` answers whether it is on: behavior sources
+first (the last one with an answer wins), then the `monsters` list; the panel's
+per-type switch can still turn it off. `MonsterAI.RegisterBehaviorSource(id,
+fn)` adds a source; Encounter of the Week registers `"eotw"`, which reads the
+script's `Monster AI:` lines. `MonsterAI.FindBehavior(name)` matches an id or
+alias ignoring case and punctuation. Run
+`../dependencies/lua/bin/lua.exe tests/ai_behavior_modules_test.lua`.
+
 #### 5. Trigger handlers (`MonsterAI:RegisterTrigger{}`)
 
 A **trigger handler** decides whether the AI accepts or dismisses a specific optional triggered ability. Registrations can match `abilityGuids`, `abilities`, or the displayed trigger name in `triggers`. Adding `monsters` makes an ability-name or trigger-name registration monster-specific. Matching priority is GUID, monster-qualified ability name, generic ability name, monster-qualified trigger name, then generic trigger name. Trigger names are read through `ActiveTrigger:GetText()`, which also supports power-roll triggers.
@@ -498,7 +567,7 @@ that load sections of `MonsterAI.lua`; add them to any new test that does so.
 | `ai:FindValidTargetsOfStrike(token, ability, loc, range?)` | Returns sorted array of `{token, loc, charge, edges}` for valid targets from a position |
 | `ai:ExecuteAbility(casterToken, ability, targets?, options?)` | Displays a three-pulse labeled telegraph for placed target areas, preserves the full area target list, invokes the original target type, and waits for resolution |
 | `ai:Speech(token, text, options?)` | Makes a token say something (text can be a string or array for random selection) |
-| `ai:SpeakNow(token, text)` | Shows the speech bubble at once without casting, so several tokens can talk together |
+| `ai:SpeakNow(token, text, options?)` | Shows the speech bubble at once without casting, so several tokens can talk together. `options.language` (an id or a name such as `"Caelian"`) speaks in that language instead of the creature's own, so players who know it are not shown scrambled text |
 | `ai:RunConcurrently(fns, stagger?)` | Runs yielding actions side by side, each starting `stagger` seconds after the last; raises the first error once all finish |
 | `ai:FindMostSeniorInitiativeGroupMember(tokens)` | Chooses a live initiative-group leader by non-minion status, squad captain status, then highest EV; exact ties retain token order |
 | `ai:FindReachableConcealment()` | Finds the nearest reachable concealed tile |
@@ -705,6 +774,37 @@ MonsterAI:RegisterMove{
 
 Use `ai:SetTargetsForExpectedPrompt{}` if the first ability triggers a prompt that should be auto-resolved for the combo.
 
+## Bestiary support assessment
+
+`MonsterAISupport.lua` works out, from a bestiary entry with no token or
+combat, how much of a monster's kit the AI will use:
+`MonsterAI.AssessSupport(props)` (or `MonsterAI.AssessBestiarySupport(monsterid)`,
+remembered for 60 s; `MonsterAI.InvalidateSupport` forgets). It reads the
+loaded registries rather than the `.lua` text, so it reports exactly what the
+AI runs:
+
+- Each of the monster's own abilities (innate plus trait-granted), villain
+  actions, band and own Malice, and triggered actions gets a status: tailored
+  (registered for this monster or its band), generic (a shared move), squad
+  (minion signature), synthesized (`GetSynthesizedAbilityProfile`, which takes
+  `{ignoreImplementation = true}` so "blocked only by automation" can be
+  reported), automatic (mandatory trigger), narrative, or unused with a plain
+  reason.
+- Every `Register*` call stamps `registeredAt` ("MonsterAIGoblins.lua:352"), so
+  the report points at the hand-written AI.
+- Registrations naming abilities or triggers the monster lacks are listed as
+  stale.
+- The level is Minimal (signature unusable), Basic, Capable (60% weighted
+  coverage, villain actions handled; generic-only AI tops out here) or
+  Tailored (hand-written, 90%, no unhandled optional triggers).
+
+**Keep it in step with the registries:** a new kind of registration the AI
+runs must be counted in `AssessSupport`, or monsters that rely on it will read
+as unsupported. The Encounter of the Week bestiary assessment
+(`EncounterOfTheWeek/EncounterMonsterAssessment.lua`) is the consumer. Run
+`../dependencies/lua/bin/lua.exe tests/ai_support_assessment_test.lua` from the
+codex root.
+
 ## Existing Monster AIs
 
 Currently implemented in `MonsterAIMonsters.lua`:
@@ -747,6 +847,17 @@ its charge segment's zero-altitude `loc` with straight-line walking; the absolut
 `expectedLoc`/destination is used to verify arrival. Jump-assisted charge plans
 are not currently selected by the AI. Synthetic leap combos retain their separate
 probe and ability execution.
+
+A charge moves the creature once, so every target of a multi-target Charge
+strike must be hit from one landing. `FindValidTargetsOfStrike` still plans a
+landing per target; `ai:SelectChargeTargets(token, ability, candidates,
+numTargets?, scoreOf?)` turns that into one plan (no charge, or one shared
+landing that every chosen target carries as `charge`). The strike planners,
+the synthesized moves and the plan preview call it, and `ExecuteAbility` calls
+it again on any target list a band passes in, then charges at most once and
+strikes whichever targets are still legal from where the creature ended up.
+`MoveToken` to the square the creature already stands on logs
+`MOVEMENT SKIPPED` and returns `nil, true` without asking the engine to move.
 
 Failed charge routes are excluded for that actor's turn, including when another
 strike registration considers the same route. Failed movement records a transient

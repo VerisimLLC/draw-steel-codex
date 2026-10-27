@@ -59,6 +59,13 @@ function creature:CalculateLoopingEmotes()
 		if mount ~= nil and mount.emoteid ~= nil and mount.emoteid ~= "" then
 			loopemotes[mount.emoteid] = { timestamp = ServerTimestamp() }
 		end
+
+		--Discord voice (Draw Steel V/DiscordVoice.lua): the speech balloon while
+		--this token's player is talking. Local only, never saved.
+		local voice = rawget(_G, "DiscordVoice")
+		if voice ~= nil and voice.IsTokenSpeaking(token.charid) then
+			loopemotes[voice.TALK_EMOTE] = { timestamp = ServerTimestamp() }
+		end
 	end
 
 	return loopemotes

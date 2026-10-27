@@ -96,9 +96,16 @@ RSPConstants.activityPaneWidth = "72%"
 RSPConstants.activityPickerGap = 8          -- label sizes to its text, so this is the gap to the dropdown
 RSPConstants.activityBodyHeight = "100%-56"
 RSPConstants.activitySheetButtonSize = 28
+RSPConstants.activityActionGap = 6          -- between an activity's own buttons and the sheet button
 RSPConstants.iconCharacterSheet = "ui-icons/character-sheet.png"
 RSPConstants.sheetTabBuilder = "Builder"    -- where a player goes to change a kit mid-Respite
 RSPConstants.sheetTabDowntime = "Downtime"  -- where the Director goes to read a hero's projects
+RSPConstants.viewSelectorWidth = 160        -- Act | Watch; a view switch, kept small
+RSPConstants.viewSelectorRowHeight = 30
+RSPConstants.viewBodyHeight = "100%-30"
+RSPConstants.toneGood = "good"              -- a party record line that went well
+RSPConstants.toneAlert = "alert"            -- a party record line someone should look at
+RSPConstants.recordPortraitSize = 24        -- whoever acted, at the left of a Watch line
 
 -- Activities step, Director: wider roster, it carries markers and roll counts
 RSPConstants.directorListWidth = "40%"

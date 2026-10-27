@@ -502,11 +502,13 @@ end
 
 --Czepeku's commercial use licence (czepeku.com/blog/commercial-use-licence)
 --requires their watermark in the bottom-right corner of the art, at least a
---quarter of its width. The logo is their official black watermark (they
---also publish a white one).
+--quarter of its width. The logo is their official white watermark; Badge
+--shows it black unless the caller passes light = true (every Encounter of
+--the Week scene does). Their black watermark is core image 95efaeaa-...;
+--brightness cannot lighten it, so it is not used.
 CreatorCredit.Register("czepeku", {
     name = "Czepeku Scenes",
-    logo = "95efaeaa-6055-4269-937b-eda919907d02",
+    logo = "a19fa01d-7d92-4e1c-b48a-7b8d8de18c38",
     logoWidth = 1032,
     logoHeight = 101,
     widthFraction = 0.25,

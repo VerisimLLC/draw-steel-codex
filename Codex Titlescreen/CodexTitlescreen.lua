@@ -8546,6 +8546,51 @@ function CreateTitlescreen(dialog, options)
                         height = "85%",
                         width = "100%",
 
+                        --Admins only: which game server the town and new EotW games
+                        --use (see EotwRoster.UseStaging; everyone else is always on
+                        --release). Takes effect the next time the town opens.
+                        gui.Dropdown {
+                            classes = cond(dmhub.isAdminAccount, {}, { "collapsed" }),
+                            width = 200,
+                            height = 30,
+                            fontSize = 16,
+                            halign = "right",
+                            valign = "top",
+                            tmargin = 8,
+                            rmargin = 8,
+                            options = {
+                                { id = "release", text = "Release server" },
+                                { id = "staging", text = "Staging server" },
+                            },
+                            idChosen = "release",
+                            --Dropdowns open on press and have no click handler, so
+                            --the click would bubble to the card and enter EotW.
+                            --Handling it here swallows it.
+                            click = function() end,
+                            --The open menu takes its styles from the nearest ancestor
+                            --with `styles`, here the card, which has no dropdown menu
+                            --rules. Carry the theme here so the menu is styled.
+                            styles = ThemeEngine.GetStyles(),
+                            create = function(element)
+                                ---@cast element Dropdown
+                                ThemeEngine.OnThemeChanged(mod, function()
+                                    if element.valid then
+                                        element.styles = ThemeEngine.GetStyles()
+                                    end
+                                end)
+                                local chosen = dmhub.GetSettingValue("eotw:server")
+                                if chosen == "staging" and element.idChosen ~= "staging" then
+                                    element.idChosen = "staging"
+                                end
+                            end,
+                            change = function(element)
+                                ---@cast element Dropdown
+                                if dmhub.GetSettingValue("eotw:server") ~= element.idChosen then
+                                    dmhub.SetSettingValue("eotw:server", element.idChosen)
+                                end
+                            end,
+                        },
+
                         --How many players are in Blackbottom right now, read over
                         --HTTP so being on the titlescreen does not count you as in
                         --town. Collapsed until the first answer, and while nobody is there.
@@ -8573,6 +8618,14 @@ function CreateTitlescreen(dialog, options)
                                 element:FireEvent("think")
                             end,
 
+                            --An admin switched servers: show that town's count.
+                            multimonitor = { "eotw:server" },
+                            monitor = function(element)
+                                element.data.fetching = false
+                                element:SetClass("collapsed", true)
+                                element:FireEvent("think")
+                            end,
+
                             thinkTime = 60,
                             think = function(element)
                                 local roster = rawget(_G, "EotwRoster")
@@ -8580,8 +8633,9 @@ function CreateTitlescreen(dialog, options)
                                     return
                                 end
                                 element.data.fetching = true
+                                local server = dmhub.GetSettingValue("eotw:server")
                                 roster.FetchHeadcount(function(count)
-                                    if mod.unloaded or not element.valid then
+                                    if mod.unloaded or not element.valid or server ~= dmhub.GetSettingValue("eotw:server") then
                                         return
                                     end
                                     element.data.fetching = false

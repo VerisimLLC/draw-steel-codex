@@ -16,6 +16,8 @@ end
 MonsterAI = {TokenIsLiveCombatant = function(t) return t.valid end,
     LogDecision = noop, TokenLogName = tostring, LocLogName = tostring,
     TargetsLogName = tostring, Sleep = noop}
+--Plan previews (Continue to go on) are off in these tests.
+MonsterAI.PlanPreviewsOn = function() return false end
 function RunYieldingFunction(fn)
     local ok, err = pcall(fn)
     if not ok then return false, err end
@@ -119,6 +121,10 @@ MonsterAI.AbilitiesLogName = tostring
 MonsterAI.AbilityActionsLogName = tostring
 MonsterAI.ScoringPlanLogName = tostring
 MonsterAI.MoveMatchesMonster = function() return true end
+--no zone holds this actor (the Hold directive's own checks need a map).
+MonsterAI.Holds = function() return false end
+--the actor does not avoid opportunity attacks (one scoring pass).
+MonsterAI.OpportunityAttackers = function() return nil end
 local actor = {valid = true, properties = {minion = false, monster_type = "Test",
     has_key = function() return true end}}
 local selector = setmetatable({token = actor, abilities = {}, moves = {}, try_get = try_get}, {__index = MonsterAI})

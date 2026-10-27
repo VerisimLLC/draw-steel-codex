@@ -31,6 +31,20 @@ local mod = dmhub.GetModLoading()
 --- @field journalDetail fun(): string|nil one line about this activity for the write-up
 --- @field journalSummary fun(args: table): string[]|nil what args.charid did;
 --- receives args.since like paintDirector does
+--- @field partyRecord fun(args: table): table[] what the players did, for the Watch
+--- view: entries of {at = server time, text, charid = who acted, tone = nil|
+--- RSPConstants.toneGood|toneAlert}; the Respite puts the activity's name in front of
+--- the text. Receives args.since like paintDirector does
+--- @field partyWatch fun(args: table): string[] document paths whose changes move
+--- that record
+--- @field paintIdle fun(args: table): Panel what a player sees of it between Respites
+--- @field idleTitle string|nil the heading over paintIdle; the activity's name when nil
+--- @field playerActions fun(args: table): Panel buttons on the player's Activity row, always
+--- shown like the sheet button; args.selection() is the selected {charid, owner} entry or
+--- nil, args.host() the Respite window. The Respite fires rspSelectionChanged down the
+--- panel when the selection moves
+--- Every painter, summary and record also receives args.roster: an accessor for the
+--- heroes on the Respite's Participants page, participating or not.
 RSPActivity = RegisterGameType("RSPActivity")
 
 RSPActivity.name = "Activity"
@@ -51,6 +65,11 @@ local m_activities = {}
 ---@field onRested? fun()
 ---@field journalDetail? fun(): string|nil
 ---@field journalSummary? fun(args: table): string[]|nil
+---@field partyRecord? fun(args: table): table[]
+---@field partyWatch? fun(args: table): string[]
+---@field paintIdle? fun(args: table): Panel
+---@field idleTitle? string
+---@field playerActions? fun(args: table): Panel
 
 --- Offer an activity to the Respite.
 --- Registering a key twice replaces the earlier entry, so a code reload
@@ -73,6 +92,11 @@ function RSPActivity.Register(args)
         onRested = args.onRested,
         journalDetail = args.journalDetail,
         journalSummary = args.journalSummary,
+        partyRecord = args.partyRecord,
+        partyWatch = args.partyWatch,
+        paintIdle = args.paintIdle,
+        idleTitle = args.idleTitle,
+        playerActions = args.playerActions,
     }
 end
 

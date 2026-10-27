@@ -57,3 +57,11 @@ function LuaSheetMapImport:CreateGridless() end
 
 --- ClearMarkers
 function LuaSheetMapImport:ClearMarkers() end
+
+--- Sets the grid from a result of assets:DetectImageGrid and skips straight to reviewing it, as if every calibration point had been placed perfectly by hand; Confirm then imports with that grid (and, for hexes, the matching tile type and map layout settings). grid needs tileType ('squares', 'flattop' or 'pointtop'), periodX, periodY, originX and originY, in image pixels with y down. Returns false, changing nothing, if the image hasn't loaded yet or the grid doesn't fit it.
+--- @param grid {tileType: string, periodX: number, periodY: number, originX: number, originY: number}
+--- @return boolean
+function LuaSheetMapImport:ApplyDetectedGrid(grid) end
+
+--- Removes every calibration point and starts the grid sizing over from its first step, zoomed out to the whole image. Use it to hand an automatically set grid (ApplyDetectedGrid, CreateGridless) back to the user to place by hand.
+function LuaSheetMapImport:ResetCalibration() end

@@ -86,6 +86,7 @@ end
 --- @field OnFinishCast? fun(ability: ActivatedAbility, options: table) Runtime hook run when the cast finishes.
 --- @field invoker? creature Creature that invoked this ability clone (invoke-ability behavior).
 --- @field invokerActionResourceId? string Action resource of the invoking ability, on an invoked clone.
+--- @field baseActionResourceId? string The strike's own action resource, saved when an augment (e.g. Make Free Strike) replaces actionResourceId with its own cost.
 --- @field rangeUsesInvoker? boolean If true, an invoked clone measures range from the invoker.
 --- @field disableSquadCoordination? boolean If true, an invoked clone does not coordinate with the minion squad.
 --- @field promptOverride? string Prompt text shown instead of the default when an invoked clone targets.
@@ -3109,9 +3110,19 @@ local g_castStartHandlers = {}
 --- Registers fn(ability, casterToken, options) to run synchronously at the start of every
 --- ActivatedAbility:Cast, before any cost is paid or the cast's coroutine starts. It must
 --- not yield. Turn Rewind uses it to checkpoint the board before an ability.
+--- Handlers run in ascending priority (default 0), then registration order; a handler
+--- that changes the board should use a positive priority so checkpoints run first.
 --- @param fn fun(ability: ActivatedAbility, casterToken: CharacterToken, options: table|nil)
-function ActivatedAbility.RegisterCastStartHandler(fn)
-	g_castStartHandlers[#g_castStartHandlers+1] = fn
+--- @param priority? number
+function ActivatedAbility.RegisterCastStartHandler(fn, priority)
+	local entry = {fn = fn, priority = priority or 0, order = #g_castStartHandlers + 1}
+	g_castStartHandlers[#g_castStartHandlers+1] = entry
+	table.sort(g_castStartHandlers, function(a, b)
+		if a.priority ~= b.priority then
+			return a.priority < b.priority
+		end
+		return a.order < b.order
+	end)
 end
 
 --casterToken: a token representing the caster.
@@ -3131,7 +3142,7 @@ function ActivatedAbility:Cast(casterToken, targets, options)
 
 	--a broken handler must never stop the cast itself.
 	for _,handler in ipairs(g_castStartHandlers) do
-		local ok, err = pcall(handler, self, casterToken, options)
+		local ok, err = pcall(handler.fn, self, casterToken, options)
 		if not ok then
 			print("Cast:: cast start handler failed:", err)
 		end

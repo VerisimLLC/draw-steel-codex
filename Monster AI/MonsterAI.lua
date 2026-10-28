@@ -115,7 +115,7 @@ local function FindPlayerTriggerPromptNotice()
             for key,trigger in pairs(token.properties:GetAvailableTriggers(true) or {}) do
                 if not trigger.dismissed and not trigger.triggered
                     and type(trigger.abilityName) == "string" then
-                    return string.format("Waiting for %s's %s", token.name, trigger.abilityName),
+                    return string.format("Waiting for %s's %s", token.name or "a hero", trigger.abilityName),
                         {charid = token.charid, triggerid = key}
                 end
             end
@@ -2612,11 +2612,17 @@ function MonsterAI:CountPendingActivityReactions(activityId)
             local ok, pending, description, err, reactionId = pcall(token.properties.GetAIActivityReactionStatus, token.properties, activityId)
             if not ok then err = "could not inspect reaction state: " .. tostring(pending); pending = 1; reactionId = nil end
             result = result + pending
+            --A disguised hero (Fury's Hybrid Form: Corven) has no token name.
+            --A nil concat here once killed the wait and stranded its banner (PWGUJAAP).
+            local name = token.name
+            if type(name) ~= "string" or name == "" then
+                name = "a hero"
+            end
             if pending > 0 then
-                status = "Waiting for " .. token.name .. "'s " .. (description or "reaction")
+                status = "Waiting for " .. name .. "'s " .. (description or "reaction")
                 subject = {charid = token.charid, triggerid = reactionId}
             end
-            if err ~= nil then failure = token.name .. ": " .. tostring(err) end
+            if err ~= nil then failure = name .. ": " .. tostring(err) end
         end
     end
     return result, status, failure, subject
@@ -2671,7 +2677,22 @@ end
 --(opportunity attacks) or an ability cast (Repulsive Ward on the damage it
 --dealt). Returns true when clear; false plus a reason when the AI was stopped
 --or a reaction could not be confirmed (the AI is stopped with a modal).
+--An error inside the wait is re-raised after the shared "Waiting for ..."
+--notice is cleared, so a failed wait can never leave its banner up (PWGUJAAP).
 function MonsterAI:WaitForActivityReactions(activityId)
+    local completed, reason
+    local ok, err = self:RunYieldingFunction(function()
+        completed, reason = self:WaitForActivityReactionsUnguarded(activityId)
+    end)
+    if not ok then
+        MonsterAI.reactionStatus = false
+        MonsterAI.ClearWaiting()
+        error(err, 0)
+    end
+    return completed, reason
+end
+
+function MonsterAI:WaitForActivityReactionsUnguarded(activityId)
     local pending, status, failure = self:CountPendingActivityReactions(activityId)
     local pendingMinionDeaths = self:CountPendingMinionDeathConfirmations()
     if pending == 0 and pendingMinionDeaths == 0 and failure == nil then
@@ -8123,6 +8144,14 @@ function MonsterAI:ExecuteAbility(casterToken, ability, targets, options)
             end
         end
     end
+    --Every exit below must call this, errors included: an error that skipped
+    --it left Dread March's arrows on the map for good (B9NKW8HF).
+    local function DestroyRays()
+        for _,ray in ipairs(rays) do
+            ray:DestroyLineOfSight()
+        end
+        rays = {}
+    end
 
     --A strike at a target past melee reach (or one with no melee use) is a
     --ranged attack. Checked here, before the cast moves anyone.
@@ -8209,6 +8238,7 @@ function MonsterAI:ExecuteAbility(casterToken, ability, targets, options)
     creature.SetAIActivityInProgress(previousInProgress)
     creature.SetTokenAIActivity(casterToken.charid, previousActivityId)
     if not castOk then
+        DestroyRays()
         error(castErr)
     end
 
@@ -8228,18 +8258,24 @@ function MonsterAI:ExecuteAbility(casterToken, ability, targets, options)
         duration = dmhub.Time() - startedAt,
     })
 
-    local completed, reason = self:WaitForActivityReactions(activityId)
+    local completed, reason
+    local waitOk, waitErr = RunYieldingFunction(function()
+        completed, reason = self:WaitForActivityReactions(activityId)
+    end)
+    if not waitOk then
+        DestroyRays()
+        error(waitErr, 0)
+    end
     if not completed then
         self._tmp_abortTurn = reason
+        DestroyRays()
         error(reason)
     end
     self.Sleep(options.sleep or 1.0)
 
     self:ResolvePendingMinionDeaths()
 
-    for _,ray in ipairs(rays) do
-        ray:DestroyLineOfSight()
-    end
+    DestroyRays()
 end
 
 function MonsterAI:FindReachableConcealment()

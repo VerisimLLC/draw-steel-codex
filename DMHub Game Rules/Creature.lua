@@ -12020,9 +12020,35 @@ local function RouteMergedTriggerAccept(availableTriggers, triggerInfo)
 	triggerInfo.dismissed = true
 end
 
+--Dismissing any prompt of a merged group declines the whole group: its members
+--share the one triggered action. Dismissing only the front prompt promoted the
+--next member to a fresh card, and the Monster AI kept waiting on it (W5VTYKV7).
+local function RouteMergedTriggerDismiss(availableTriggers, triggerInfo)
+	if (not triggerInfo.dismissed) or triggerInfo.triggered then
+		return
+	end
+
+	local front = triggerInfo
+	if triggerInfo.mergedInto ~= false then
+		front = availableTriggers[triggerInfo.mergedInto] or triggerInfo
+	end
+	if front.mergeMembers == false then
+		return
+	end
+
+	for _,id in pairs(front.mergeMembers) do
+		local other = availableTriggers[id]
+		if other ~= nil and other.id ~= triggerInfo.id and (not other.triggered) then
+			other.dismissed = true
+		end
+	end
+end
+
 --- @param triggerInfo ActiveTrigger
 function creature:DispatchAvailableTrigger(triggerInfo)
     print("RECALCULATE:: DISPATCH TRIGGER:", triggerInfo)
+    --Before the clearOnDismiss early-out, whose clear would promote a member.
+    RouteMergedTriggerDismiss(self:get_or_add("availableTriggers", {}), triggerInfo)
     if triggerInfo.clearOnDismiss and (triggerInfo.dismissed or (self:get_or_add("_tmp_clearedTriggers", {})[triggerInfo.id] == true)) then
         self:ClearAvailableTrigger(triggerInfo)
         return

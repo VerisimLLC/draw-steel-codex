@@ -1888,7 +1888,7 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 
 	--A hud rebuilt for the same game (a reload of another mod's scripts) took
 	--the icon rails and map-button bar with it; DocumentSystem only builds them
-	--on game entry or its own reload. Ask again (both no-op if they exist).
+	--on game entry or its own reload, so ask for both again here.
 	local rebuilt = rawget(_G, "g_hudGameId") == dmhub.gameid
 	rawset(_G, "g_hudGameId", dmhub.gameid)
 	if rebuilt then

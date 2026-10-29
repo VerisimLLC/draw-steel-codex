@@ -163,11 +163,11 @@ function GameHud.TokenMoving(self, token, path)
         if mover ~= nil and mover:CanTeleport() and mover:IsOurTurn() and not dmhub.isDM then
             local speed = mover:GetEffectiveSpeed(mover:CurrentMoveType())
             local alreadyMoved = mover:DistanceMovedThisTurn()
-            text = string.format(tr("%s\nUses %s of %s's %s %s allowed by Advance Move Action"), text, MeasurementSystem.NativeToDisplayString(distance*dmhub.FeetPerTile), mover.GetTokenDescription(token), MeasurementSystem.NativeToDisplayString(speed), string.lower(MeasurementSystem.UnitName()))
+            text = string.format(tr("%s\nUses %s of %s's %s %s allowed by Advance Move Action"), text, MeasurementSystem.NativeToDisplayString(distance*dmhub.unitsPerSquare), mover.GetTokenDescription(token), MeasurementSystem.NativeToDisplayString(speed), string.lower(MeasurementSystem.UnitName()))
             if alreadyMoved > 0 then
-                text = string.format(tr("%s\nAlready moved %s %s this turn."), text, MeasurementSystem.NativeToDisplayString(alreadyMoved*dmhub.FeetPerTile), string.lower(MeasurementSystem.UnitName()))
+                text = string.format(tr("%s\nAlready moved %s %s this turn."), text, MeasurementSystem.NativeToDisplayString(alreadyMoved*dmhub.unitsPerSquare), string.lower(MeasurementSystem.UnitName()))
             end
-            if (alreadyMoved + distance)*dmhub.FeetPerTile > speed then
+            if (alreadyMoved + distance)*dmhub.unitsPerSquare > speed then
                 statusText = statusText .. "\n" .. tr("<color=#ff0000>This teleport is farther than your remaining movement.</color>")
             end
         end

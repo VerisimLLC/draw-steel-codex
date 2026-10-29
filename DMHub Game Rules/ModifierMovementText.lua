@@ -445,7 +445,7 @@ function CharacterModifier:MovementCodexCallout(creature, path)
         return nil
     end
 
-    local s = StringInterpolateGoblinScript(self.text, creature:LookupSymbol{
+    local s = StringInterpolateGoblinScript(self:try_get("text", ""), creature:LookupSymbol{
         path = PathMoved.new{path = path},
     })
     if s == nil or s == "" then

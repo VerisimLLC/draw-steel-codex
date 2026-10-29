@@ -1813,6 +1813,13 @@ end
 local function BuildWindow(rec)
     local panel
 
+    --the new panels start from their defaults: forget what was applied to the
+    --old ones, or Refresh thinks the new body already carries "#MapView" and
+    --never gives it the map (a HUD rebuilt without this file reloading kept
+    --the record), and the new title keeps no width limit.
+    rec.liveImage = nil
+    rec.titleNameMax = nil
+
     --the Director's shape overlay, cropped the same way as the map.
     local liveChildren = {}
     if dmhub.isDM then

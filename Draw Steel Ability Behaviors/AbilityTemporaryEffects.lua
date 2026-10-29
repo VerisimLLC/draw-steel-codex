@@ -87,7 +87,12 @@ function ActivatedAbilityApplyAbilityDurationEffect:ApplyOnCasting(casterToken, 
 end
 
 function ActivatedAbilityApplyAbilityDurationEffect:Cast(ability, casterToken, targets, options)
-    ability:CommitToPaying(casterToken, options)
+    --The strain pre-pass (ActivatedAbility's "Strained During Ability") is not a use of the
+    --ability, so it leaves paying to the ability's own behaviors: a prompt the player skips
+    --must stay free.
+    if not self:try_get("_tmp_noCommit", false) then
+        ability:CommitToPaying(casterToken, options)
+    end
 
         print("ApplyTo:: Applying effect to", #targets)
     local tokenids = {}

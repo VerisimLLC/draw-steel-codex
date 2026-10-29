@@ -16,32 +16,34 @@ local mod = dmhub.GetModLoading()
 --Shared with EotwHeroSheet.lua; either file may run first or alone (a reload).
 EotwHeroSheet = rawget(_G, "EotwHeroSheet") or {}
 
+local T = UIText.T
+
 local CHARACTERISTIC_IDS = { "mgt", "agl", "rea", "inu", "prs" }
 
 --Ability groups in display order (A2). Free strikes and Standard actions are
 --every Hero's global abilities; the rest are the Hero's own.
 local ABILITY_GROUPS = {
-    { id = "main", name = "Main actions" },
-    { id = "maneuver", name = "Maneuvers" },
-    { id = "triggered", name = "Triggered actions" },
-    { id = "other", name = "Other" },
-    { id = "freestrike", name = "Free strikes" },
-    { id = "standard", name = "Standard actions" },
+    { id = "main", name = T("herosheet.abilities.group.main") },
+    { id = "maneuver", name = T("herosheet.abilities.group.maneuver") },
+    { id = "triggered", name = T("herosheet.abilities.group.triggered") },
+    { id = "other", name = T("herosheet.abilities.group.other") },
+    { id = "freestrike", name = T("herosheet.abilities.group.freestrike") },
+    { id = "standard", name = T("herosheet.abilities.group.standard") },
 }
 
 --Feature sections in display order (F4). "core" holds the class's Core
 --Feature pins, wherever they came from.
 local FEATURE_SECTIONS = {
-    { id = "core", name = "Core feature" },
-    { id = "class", name = "Class" },
-    { id = "ancestry", name = "Ancestry" },
-    { id = "complication", name = "Complication" },
-    { id = "kit", name = "Kit" },
-    { id = "title", name = "Titles" },
-    { id = "perk", name = "Perks" },
-    { id = "career", name = "Career" },
-    { id = "culture", name = "Culture" },
-    { id = "treasure", name = "Treasures" },
+    { id = "core", name = T("herosheet.features.section.core") },
+    { id = "class", name = T("herosheet.features.section.class") },
+    { id = "ancestry", name = T("herosheet.features.section.ancestry") },
+    { id = "complication", name = T("herosheet.features.section.complication") },
+    { id = "kit", name = T("herosheet.features.section.kit") },
+    { id = "title", name = T("herosheet.features.section.title") },
+    { id = "perk", name = T("herosheet.features.section.perk") },
+    { id = "career", name = T("herosheet.features.section.career") },
+    { id = "culture", name = T("herosheet.features.section.culture") },
+    { id = "treasure", name = T("herosheet.features.section.treasure") },
 }
 
 --Index buckets the Features list never shows: skills and languages have the
@@ -524,15 +526,28 @@ end
 --Kit bonuses always list in this order, one kit or two.
 local KIT_BONUS_ORDER = { "Stamina", "Speed", "Stability", "Disengage", "Melee distance", "Ranged distance", "Area", "Melee damage", "Ranged damage" }
 
+--What each bonus label (the key above) shows on the kit card.
+local KIT_BONUS_TEXT = {
+    ["Stamina"] = T("herosheet.kit.bonus.stamina"),
+    ["Speed"] = T("herosheet.kit.bonus.speed"),
+    ["Stability"] = T("herosheet.kit.bonus.stability"),
+    ["Disengage"] = T("herosheet.kit.bonus.disengage"),
+    ["Melee distance"] = T("herosheet.kit.bonus.melee_distance"),
+    ["Ranged distance"] = T("herosheet.kit.bonus.ranged_distance"),
+    ["Area"] = T("herosheet.kit.bonus.area"),
+    ["Melee damage"] = T("herosheet.kit.bonus.melee_damage"),
+    ["Ranged damage"] = T("herosheet.kit.bonus.ranged_damage"),
+}
+
 --One kit's bonuses for the Hero's echelon (Stamina scales with echelon).
 ---@param kit Kit
 ---@param echelon number
----@return table[] { {label, value} }
+---@return table[] { {label, text, value} }
 local function KitBonuses(kit, echelon)
     local result = {}
     local function Add(label, value)
         if value ~= nil and value ~= 0 then
-            result[#result+1] = { label = label, value = Signed(value) }
+            result[#result+1] = { label = label, text = KIT_BONUS_TEXT[label] or label, value = Signed(value) }
         end
     end
     Add("Stamina", (kit:try_get("health", 0) or 0) * echelon)
@@ -553,7 +568,8 @@ local function KitBonuses(kit, echelon)
                 parts[#parts+1] = Signed(v)
             end
             if any then
-                result[#result+1] = { label = cond(dtype == "melee", "Melee damage", "Ranged damage"), value = table.concat(parts, "/") }
+                local label = cond(dtype == "melee", "Melee damage", "Ranged damage")
+                result[#result+1] = { label = label, text = KIT_BONUS_TEXT[label] or label, value = table.concat(parts, "/") }
             end
         end
     end
@@ -629,6 +645,7 @@ function Sections.kit(d, tok, p, ctx)
                 end
                 bonuses[#bonuses+1] = {
                     label = label,
+                    text = KIT_BONUS_TEXT[label] or label,
                     value = cond(useFirst, v1, v2),
                     from = cond(useFirst, kit1.name, kit2.name),
                     other = cond(useFirst, v2, v1),
@@ -643,7 +660,7 @@ function Sections.kit(d, tok, p, ctx)
             result.combined = true
             result.meleeFrom = meleeFrom
             result.entries[1] = {
-                header = "Kit",
+                header = T("herosheet.kit.header"),
                 name = kit1.name .. " + " .. kit2.name,
                 gear = { armor = armor, weapons = weapons },
                 bonuses = bonuses,
@@ -653,7 +670,7 @@ function Sections.kit(d, tok, p, ctx)
             ---@cast kit -nil
             result.kind = "kit"
             result.entries[1] = {
-                header = "Kit",
+                header = T("herosheet.kit.header"),
                 name = kit.name,
                 gear = KitGear(kit),
                 bonuses = KitBonuses(kit, echelon),
@@ -949,13 +966,34 @@ function EotwHeroSheet.Equip(tok, itemid)
             p:Equipment()[slot] = itemid
         end,
     }
+    EotwAnalytics.Track("eotw_equip", { action = "equip", heroid = tok.charid, itemid = itemid, slot = slot })
     return true, nil
+end
+
+--- Auto-equip: moves one of an item from the inventory into a free slot, by the
+--- same rules as the sheet's Equip button. Call it INSIDE the caller's own
+--- tok:ModifyProperties (the treasure grants do), so it uploads with the grant.
+--- @param tok CharacterToken
+--- @param itemid string
+--- @return string|nil slot where it went, or nil when it stays in the inventory
+function EotwHeroSheet.EquipInPlace(tok, itemid)
+    local slot = EotwHeroSheet.EquipSlot(tok, itemid)
+    if slot == nil then
+        return nil
+    end
+    local p = tok.properties
+    p:SetItemQuantity(itemid, p:GetItemQuantity(itemid) - 1)
+    p:Equipment()[slot] = itemid
+    return slot
 end
 
 --- Unequips the item in an equipment slot back into the inventory.
 --- @param tok CharacterToken
 --- @param slot string
 function EotwHeroSheet.Unequip(tok, slot)
+    local itemid = nil
+    pcall(function() itemid = tok.properties:Equipment()[slot] end)
+    EotwAnalytics.Track("eotw_equip", { action = "unequip", heroid = tok.charid, itemid = itemid, slot = slot })
     tok:ModifyProperties{
         description = "Unequip treasure",
         execute = function()
@@ -964,27 +1002,29 @@ function EotwHeroSheet.Unequip(tok, slot)
     }
 end
 
---The stats an equip preview compares (N3), in the stats band's words.
+--The stats an equip preview compares (N3), in the stats band's words: label
+--is the key the band's values match, text the stat's name in the tooltip.
 ---@param p creature
----@return table[] { {label, value} }
+---@return table[] { {label, text, value} }
 local function PreviewSnapshot(p)
     local result = {}
-    local function Put(label, fn)
+    local function Put(label, text, fn)
         local ok, v = pcall(fn)
         if ok and type(v) == "number" then
-            result[#result+1] = { label = label, value = v }
+            result[#result+1] = { label = label, text = text, value = v }
         end
     end
-    Put("Stamina", function() return p:MaxHitpoints() end)
-    Put("Speed", function() return p:WalkingSpeed() end)
-    Put("Disengage", function()
+    Put("Stamina", T("herosheet.treasures.preview_stat.stamina"), function() return p:MaxHitpoints() end)
+    Put("Speed", T("herosheet.treasures.preview_stat.speed"), function() return p:WalkingSpeed() end)
+    Put("Disengage", T("herosheet.treasures.preview_stat.disengage"), function()
         local attr = CustomAttribute.attributeInfoByLookupSymbol["disengagespeed"]
         return attr ~= nil and p:GetCustomAttribute(attr) or nil
     end)
-    Put("Stability", function() return p:Stability() end)
+    Put("Stability", T("herosheet.treasures.preview_stat.stability"), function() return p:Stability() end)
     for _,attrid in ipairs(CHARACTERISTIC_IDS) do
         local info = creature.attributesInfo[attrid]
-        Put(info and info.description or attrid, function() return p:GetAttribute(attrid):Modifier() end)
+        local name = info and info.description or attrid
+        Put(name, name, function() return p:GetAttribute(attrid):Modifier() end)
     end
     return result
 end
@@ -995,7 +1035,7 @@ end
 --- @param tok CharacterToken
 --- @param itemid string
 --- @param slot string|nil the item's slot when equipped (to preview Unequip)
---- @return table[] changes { {label, from, to} }
+--- @return table[] changes { {label, text, from, to} }
 function EotwHeroSheet.EquipPreview(tok, itemid, slot)
     local p = tok.properties
     local equip = p:Equipment()
@@ -1021,7 +1061,7 @@ function EotwHeroSheet.EquipPreview(tok, itemid, slot)
     for i,b in ipairs(before) do
         local a = after[i]
         if a ~= nil and a.label == b.label and a.value ~= b.value then
-            changes[#changes+1] = { label = b.label, from = b.value, to = a.value }
+            changes[#changes+1] = { label = b.label, text = b.text, from = b.value, to = a.value }
         end
     end
     return changes
@@ -1074,6 +1114,7 @@ end
 ---@param resourceName string
 ---@return string actionTag
 ---@return string|nil costTag
+---@return string groupTag the untranslated action tag AbilityGroup reads
 local function AbilityTags(ability, resourceName)
     local resTable = dmhub.GetTable(CharacterResource.tableName) or {}
     local actionName = nil
@@ -1085,12 +1126,16 @@ local function AbilityTags(ability, resourceName)
     end)
     local cat = ability:try_get("categorization")
     local actionTag
+    local groupTag
     if cat == "Trigger" then
-        actionTag = "Triggered action"
+        actionTag = T("herosheet.abilities.tag.triggered")
+        groupTag = "Triggered action"
     elseif actionName == nil or actionName == "" or actionName == "Free" then
-        actionTag = "No action"
+        actionTag = T("herosheet.abilities.tag.no_action")
+        groupTag = "No action"
     else
         actionTag = string.upper(string.sub(actionName, 1, 1)) .. string.lower(string.sub(actionName, 2))
+        groupTag = actionTag
     end
 
     local costTag = nil
@@ -1098,16 +1143,16 @@ local function AbilityTags(ability, resourceName)
         if ability:has_key("resourceCost") and resTable[ability.resourceCost] ~= nil then
             local n = tonumber(ability:try_get("resourceNumber", 1)) or 1
             if n > 0 then
-                costTag = string.format("%d %s", n, resourceName)
+                costTag = T("herosheet.abilities.tag.cost", { number = string.format("%d", n), resource = resourceName })
             end
         end
     end)
     if costTag == nil and cat == "Signature Ability" then
-        costTag = "Signature"
+        costTag = T("herosheet.abilities.tag.signature")
     elseif costTag == nil and cat == "Basic Attack" then
-        costTag = "Free strike"
+        costTag = T("herosheet.abilities.tag.free_strike")
     end
-    return actionTag, costTag
+    return actionTag, costTag, groupTag
 end
 
 ---@param actionTag string
@@ -1191,8 +1236,8 @@ function Sections.abilities(d, tok, p, ctx)
         local show = (not Hidden(ability)) and Shows(source)
         if show and not seenNames[ability.name] then
             seenNames[ability.name] = true
-            local actionTag, costTag = AbilityTags(ability, resourceName)
-            local groupid = AbilityGroup(actionTag)
+            local actionTag, costTag, groupTag = AbilityTags(ability, resourceName)
+            local groupid = AbilityGroup(groupTag)
             if ability:try_get("categorization") == "Basic Attack" then
                 groupid = "freestrike"
             end
@@ -1237,7 +1282,7 @@ function Sections.abilities(d, tok, p, ctx)
             local list = groups.triggered.items
             list[#list+1] = {
                 name = t.name,
-                actionTag = cond(t.type == "free", "Free triggered action", "Triggered action"),
+                actionTag = cond(t.type == "free", T("herosheet.abilities.tag.free_triggered"), T("herosheet.abilities.tag.triggered")),
                 costTag = cond(t.cost ~= nil and t.cost ~= "", t.cost, nil),
                 category = "Triggered Action",
                 source = tt.source ~= nil and tt.source.name or nil,

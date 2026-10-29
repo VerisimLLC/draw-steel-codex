@@ -141,7 +141,7 @@ TriggeredAbility.TargetTypes = {
 		id = 'attacker',
 		text = 'Creature Attacking Me',
 		condition = function(ability)
-			return ability.trigger == "attacked" or ability.trigger == "hit" or ability.trigger == "losehitpoints" or ability.trigger == "inflictcondition" or ability.trigger == "winded" or ability.trigger == "dying" or ability.trigger == "forcemove"
+			return ability.trigger == "attacked" or ability.trigger == "hit" or ability.trigger == "losehitpoints" or ability.trigger == "inflictcondition" or ability.trigger == "winded" or ability.trigger == "dying" or ability.trigger == "forcemove" or ability.trigger == "objectdestroyed"
 		end,
 	},
 	{
@@ -312,6 +312,48 @@ TriggeredAbility.triggers = {
 
 	},
 	{
+		--Map objects (Targetable components) only: fired by TargetableObject.TakeDamage
+		--when the object's Stamina reaches 0. Objects never reach the creature death
+		--branch (creature:IsDead is false for them), so zerohitpoints/creaturedeath
+		--never fire on an object. The object's onDeath (delete/disable/open) waits
+		--until this trigger's cast has finished.
+		id = "objectdestroyed",
+		text = "Destroyed (Objects)",
+
+		symbols = {
+			damage = {
+				name = "Damage",
+				type = "number",
+				desc = "The amount of damage taken by the hit that destroyed the object.",
+			},
+			damagetype = {
+				name = "Damage Type",
+				type = "text",
+				desc = "The type of damage that destroyed the object.",
+				valueOptionsSource = "damageTypes",
+			},
+			attacker = {
+				name = "Attacker",
+				type = "creature",
+				desc = "The creature that destroyed the object. Only valid if Has Attacker is true.",
+				prose = "the attacker",
+			},
+			hasattacker = {
+				name = "HasAttacker",
+				type = "boolean",
+				desc = "True if the damage that destroyed the object has an attacker.",
+				prose = "there is an attacker",
+			},
+		},
+
+		examples = {
+			{
+				script = "damage type is fire",
+				text = "The triggered ability only activates if the object was destroyed by fire damage.",
+			},
+		},
+	},
+	{
 		id = "kill",
 		text = "Kill a Creature",
         symbols = {
@@ -438,6 +480,16 @@ TriggeredAbility.triggers = {
 	{
 		id = "beginround",
 		text = "Begin Round",
+		hide = function()
+			return not GameSystem.HaveBeginRoundTrigger
+		end,
+	},
+	{
+		--Fires on every creature in initiative as the round ends, before round-scoped
+		--effects expire and before the next round's "beginround". For "at the end of
+		--each round" effects (Topaz Dragon's Topaz Flare).
+		id = "endround",
+		text = "End of Round",
 		hide = function()
 			return not GameSystem.HaveBeginRoundTrigger
 		end,
@@ -907,6 +959,9 @@ TriggeredAbility.effects = {
 ActivatedAbility.name = ""
 ActivatedAbility.castingTime = "none"
 TriggeredAbility.conditionFormula = ""
+--For targetType "aura": when set (GoblinScript), target creatures within this many
+--squares of the aura area's centre square instead of creatures inside the area.
+TriggeredAbility.auraBurstRadius = ""
 TriggeredAbility.save = 'none'
 TriggeredAbility.savedc = '10'
 TriggeredAbility.mandatory = true
@@ -968,6 +1023,14 @@ local g_liveTriggerWatchers = {}
 --on another machine: GenerateSymbols function wrappers are unwrapped to their
 --underlying creatures, and SerializeEventValue converts live tokens/creatures
 --into string refs which DeserializeEventValue resolves back to live objects.
+--While the Director has the game frozen, ActivatedAbility:Cast refuses this
+--client's casts (the same test). An accepted prompt that executed then would
+--be consumed and lost (237AHPF5: Judgment accepted, never cast), so the prompt
+--watcher holds an accepted answer until the game is unfrozen.
+local function CastsRefusedByFreeze()
+	return dmhub.frozen and not IsDMOrPlayerHost()
+end
+
 local function SerializeTriggerContext(symbols, targets)
 	local visited = {}
 	local serializedSymbols = {}
@@ -1056,6 +1119,33 @@ end
 --- @field aiActivityId nil|string
 --- @field aiReactionId nil|string
 --- @field alreadyPaid nil|boolean
+
+--- The square at the centre of an area: the one of its squares nearest the mean of
+--- them all (the exact centre of an odd cube or burst). nil for an empty area.
+--- @param area LuaShape
+--- @return Loc|nil
+function TriggeredAbility.AreaCenterLoc(area)
+    local locs = area ~= nil and area.locations or nil
+    if locs == nil or #locs == 0 then
+        return nil
+    end
+
+    local sx, sy = 0, 0
+    for _,loc in ipairs(locs) do
+        sx = sx + loc.x
+        sy = sy + loc.y
+    end
+    local mx, my = sx / #locs, sy / #locs
+
+    local best, bestDist = nil, nil
+    for _,loc in ipairs(locs) do
+        local d = (loc.x - mx)*(loc.x - mx) + (loc.y - my)*(loc.y - my)
+        if bestDist == nil or d < bestDist then
+            best, bestDist = loc, d
+        end
+    end
+    return best
+end
 
 --auraControllerToken: token controlling an aura this is triggered from, or can be nil for a regular trigger attached to the creature it's triggering on.
 --- @param characterModifier CharacterModifier
@@ -1323,9 +1413,25 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
             return
         end
 
+        --auraBurstRadius: target everyone within that many squares of the centre of
+        --the aura's area instead of everyone inside it ("explodes in a 5 burst
+        --centered on the center of the cube", Topaz Dragon's Thermal Exchange).
+        local burstCenter = nil
+        local burstRadius = nil
+        if trim(tostring(self:try_get("auraBurstRadius", ""))) ~= "" then
+            burstRadius = ExecuteGoblinScript(self.auraBurstRadius, creature:LookupSymbol(symbols), 0, "Aura burst radius")
+            burstCenter = TriggeredAbility.AreaCenterLoc(aura.area)
+        end
+
         local tokens = dmhub.allTokens
         for i,tok in ipairs(tokens) do
-            if tok.id ~= casterToken.charid and aura.area:ContainsToken(tok) and self:TargetPassesFilter(casterToken, tok, symbols) then
+            local inArea
+            if burstCenter ~= nil then
+                inArea = (tonumber(tok:Distance(burstCenter)) or 999) <= burstRadius
+            else
+                inArea = aura.area:ContainsToken(tok)
+            end
+            if tok.id ~= casterToken.charid and inArea and self:TargetPassesFilter(casterToken, tok, symbols) then
                 targets = targets or {}
                 targets[#targets+1] = {
                     loc = tok.loc,
@@ -1736,7 +1842,12 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
             --were undiagnosable because every exit path looked the same.
             local exitReason = nil
 
-			while trigger ~= nil and (not trigger.triggered) and (not trigger.dismissed) and sustain do
+			local heldByFreeze = false
+			while trigger ~= nil and ((not trigger.triggered) or CastsRefusedByFreeze()) and (not trigger.dismissed) and sustain do
+				if trigger.triggered and not heldByFreeze then
+					heldByFreeze = true
+					printf("TRIGGERGUARD:: prompt %s (%s) accepted while frozen; held until unfrozen", tostring(guid), tostring(self.name))
+				end
 				coroutine.yield()
 
 				trigger = nil
@@ -1872,12 +1983,31 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 			--with no coroutine watching it -- clickable but unresponsive. Clear by
 			--guid rather than by the (possibly nil) trigger reference, since some
 			--exits leave trigger nil while the entry is still present.
+			--
+			--A hero's accepted prompt held the Monster AI's next turn choice while
+			--it was open; the cast runs after the card is gone and may claim the
+			--turn itself (Hesitation Is Weakness), so a "turn-claim" marker keeps
+			--holding the AI until the cast completes (BR8M9Z2W). It rides in the
+			--card's removal write, so the AI never sees the card gone without it.
+			local turnClaimMarker = aiActivityId == nil and trigger ~= nil and trigger.triggered
+				and casterToken ~= nil and casterToken.valid and casterToken.playerControlled
+				and dmhub.initiativeQueue ~= nil and not dmhub.initiativeQueue.hidden
+				and not trigger:try_get("hostile", false)
+				and trigger:try_get("powerRollModifier", false) == false
+			if turnClaimMarker then
+				aiActivityId = "turn-claim"
+				argOptions.aiActivityId = aiActivityId
+				argOptions.aiReactionId = guid
+			end
 			if casterToken ~= nil and casterToken.valid then
 				casterToken:ModifyProperties{
 					description = "Clear Trigger",
 					undoable = false,
 					execute = function()
 						casterToken.properties:ClearAvailableTrigger({id = guid})
+						if turnClaimMarker then
+							casterToken.properties:AddPendingAIActivityReaction("turn-claim", guid, self.name, "resolving")
+						end
 					end,
 				}
 			end
@@ -2004,6 +2134,9 @@ function TriggeredAbility:ExecuteTriggerCast(args)
 	if type(argOptions.aiActivityId) == "string" and type(argOptions.aiReactionId) == "string"
 		and args.casterToken ~= nil and args.casterToken.valid then
 		args.casterToken.properties:SetAIActivityReactionResolving(argOptions.aiActivityId, argOptions.aiReactionId)
+		--From here every exit completes the marker. A caller that made the
+		--marker itself (MCDModifyPowerRolls triggerOnUse) reads this to know.
+		argOptions.aiReactionHandedOff = true
 	end
 	local casterToken = args.casterToken
 	local symbols = args.symbols

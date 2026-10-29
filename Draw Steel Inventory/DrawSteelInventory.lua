@@ -2359,7 +2359,7 @@ function GameHud.CreateInventoryDialog(self, options)
 									val[currency.id] = quantity
 								end
 
-								local spend = Currency.CalculateSpend(nil, Currency.CalculatePriceInStandard(val, standardid), standardid, true)
+								local spend = Currency.CalculatePayment(Currency.CalculatePriceInStandard(val, standardid), standardid, true)
 
 								printf("SPEND:: %s", json(spend))
 
@@ -2419,7 +2419,7 @@ function GameHud.CreateInventoryDialog(self, options)
 						val[currencyid] = token.properties:GetCurrency(currencyid)
 					end
 
-					local spend = Currency.CalculateSpend(nil, Currency.CalculatePriceInStandard(val, standardid), standardid, true)
+					local spend = Currency.CalculatePayment(Currency.CalculatePriceInStandard(val, standardid), standardid, true)
 
 					token:BeginChanges()
 					for i,currency in ipairs(standardEntry) do

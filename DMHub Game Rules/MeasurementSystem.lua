@@ -12,6 +12,7 @@ local mod = dmhub.GetModLoading()
 --- @field text string Label shown in the setting dropdown.
 --- @field abbreviation string Short unit label (e.g. "ft", "m").
 --- @field tileSize number How many of this unit one tile spans.
+--- @field worldUnits table[] World Map units (id, text, unitName, unitSingular) for the Map Type setting.
 --- Manages conversion between native (world unit) measurements and display units.
 MeasurementSystem = RegisterGameType("MeasurementSystem")
 
@@ -177,6 +178,116 @@ setting{
     enum = MeasurementSystem.systems,
 }
 
+--Map type and world-map scale. A Battlemap is tactical: one tile is a few feet
+--and distances follow the Measurement Units preference. A World Map is a
+--region or world: one tile (usually a hex) is a stretch of land, measured in
+--miles, kilometers, leagues or a unit the Director names. Edited in Map
+--Settings > Map Type; the measuring tool reports distances in these units.
+setting{
+    id = "map:maptype",
+    description = "Map Type",
+    storage = "map",
+    default = "battlemap",
+}
+
+setting{
+    id = "map:worldunit",
+    description = "World Map Unit",
+    storage = "map",
+    default = "miles",
+}
+
+--the unit's name when map:worldunit is "custom" (e.g. "days").
+setting{
+    id = "map:worldunitname",
+    description = "World Map Custom Unit",
+    storage = "map",
+    default = "",
+}
+
+setting{
+    id = "map:worldtilesize",
+    description = "World Map Tile Size",
+    storage = "map",
+    default = 6,
+}
+
+--The scale a map gets when it is first made a World Map. The Director can
+--replace it with any map's scale ("Use as default" in Map Settings).
+setting{
+    id = "worldmap:defaultunit",
+    description = "Default World Map Unit",
+    storage = "game",
+    default = "miles",
+}
+
+setting{
+    id = "worldmap:defaultunitname",
+    description = "Default World Map Custom Unit",
+    storage = "game",
+    default = "",
+}
+
+setting{
+    id = "worldmap:defaulttilesize",
+    description = "Default World Map Tile Size",
+    storage = "game",
+    default = 6,
+}
+
+MeasurementSystem.worldUnits = {
+    { id = "miles", text = "Miles", unitName = "miles", unitSingular = "mile" },
+    { id = "kilometers", text = "Kilometers", unitName = "kilometers", unitSingular = "kilometer" },
+    { id = "leagues", text = "Leagues", unitName = "leagues", unitSingular = "league" },
+    { id = "custom", text = "Custom", unitName = "units", unitSingular = "unit" },
+}
+
+--true if the current map's grid is hexes rather than squares.
+function MeasurementSystem.IsHexMap()
+    local tiletype = dmhub.GetSettingValue("maplayout:tiletype")
+    if tiletype == "flattop" or tiletype == "pointtop" then
+        return true
+    end
+    if tiletype == "custom" then
+        local stagger = dmhub.GetSettingValue("maplayout:stagger")
+        return stagger == "vertical" or stagger == "horizontal"
+    end
+    return false
+end
+
+--Plural and singular names for a world unit id; customName is used for "custom".
+function MeasurementSystem.WorldUnitNames(unitid, customName)
+    if unitid == "custom" then
+        local name = string.match(customName or "", "^%s*(.-)%s*$")
+        if name ~= "" then
+            return name, name
+        end
+    end
+    for _,unit in ipairs(MeasurementSystem.worldUnits) do
+        if unit.id == unitid then
+            return unit.unitName, unit.unitSingular
+        end
+    end
+    return "miles", "mile"
+end
+
+--The current map's scale if it is a World Map, else nil:
+--{amount = units per tile, unitName = plural, unitSingular = singular}.
+function MeasurementSystem.WorldMapScale()
+    if dmhub.GetSettingValue("map:maptype") ~= "world" then
+        return nil
+    end
+    local amount = tonumber(dmhub.GetSettingValue("map:worldtilesize")) or 6
+    local plural, singular = MeasurementSystem.WorldUnitNames(dmhub.GetSettingValue("map:worldunit"), dmhub.GetSettingValue("map:worldunitname"))
+    return { amount = amount, unitName = plural, unitSingular = singular }
+end
+
+--A distance of `tiles` tiles on a world map, e.g. "18 miles".
+function MeasurementSystem.WorldDistanceString(tiles, scale)
+    local d = round(tiles * scale.amount * 10) / 10
+    return string.format("%s %s", MeasurementSystem.ToString(d), cond(d == 1, scale.unitSingular, scale.unitName))
+end
+
 dmhub.DistanceDisplayFunction = function(num)
     local sys = MeasurementSystem.CurrentSystem()
     local n = tonumber(num)
@@ -184,6 +295,15 @@ dmhub.DistanceDisplayFunction = function(num)
         return tostring(num)
     end
 
+    local world = MeasurementSystem.WorldMapScale()
+    if world ~= nil then
+        return MeasurementSystem.WorldDistanceString(n / dmhub.unitsPerSquare, world)
+    end
+
     local display = MeasurementSystem.NativeToDisplay(n, sys)
-    return string.format("%s %s", display, sys.unitName)
+    local unitName = sys.unitName
+    if sys.value == "Tiles" and MeasurementSystem.IsHexMap() then
+        unitName = "Hexes"
+    end
+    return string.format("%s %s", display, unitName)
 end

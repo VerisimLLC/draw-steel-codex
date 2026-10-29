@@ -22,6 +22,9 @@ local mod = dmhub.GetModLoading()
 
 EotwDowntime = {}
 
+local T = UIText.T
+local TP = UIText.Plural
+
 local TEXT = "#efe4cc"
 local DIM = "#c9bfa9"
 local GOLD = "#d9b56a"
@@ -49,19 +52,19 @@ EotwDowntime.PROJECTS = {
     ["expand-guild"] = {
         id = "expand-guild",
         scope = "player",
-        title = "Expand the Guild",
+        title = T("downtime.projects.expand_guild.title"),
         icon = "phosphor/shield-star-fill.png",
         location = "guild",
         characteristics = { "rea", "prs" },
         skills = { "Brag", "Empathize", "Flirt", "Lead", "Perform", "Persuade" },
         --what completing it gives, shown under its cost.
-        benefit = "+1 Hero Slot",
+        benefit = T("downtime.projects.expand_guild.benefit"),
         --the line under the title, from the project's state (list-projects).
         blurb = function(state)
             if state ~= nil and state.maxed then
-                return "The guild hall is as grand as it will get."
+                return T("downtime.projects.expand_guild.blurb_maxed")
             end
-            return "Recruit new Heroes into the Guild."
+            return T("downtime.projects.expand_guild.blurb")
         end,
     },
     --Opened by a lead heard while carousing at the Blue Fish Inn (EotwLeads);
@@ -69,20 +72,20 @@ EotwDowntime.PROJECTS = {
     ["find-arcane-market"] = {
         id = "find-arcane-market",
         scope = "player",
-        title = "Find the Arcane Market",
+        title = T("downtime.projects.find_arcane_market.title"),
         icon = "phosphor/storefront-fill.png",
         location = "inn",
         lead = "arcane-market",
         characteristics = { "inu", "prs" },
         skills = { "Alchemy", "Magic", "Read Person" },
-        benefit = "The Arcane Market appears on your map",
+        benefit = T("downtime.projects.find_arcane_market.benefit"),
         --the banner when it completes.
-        completeBanner = { text = "The Arcane Market!", subtitle = "Your heroes found the way in. It is on your town map now." },
+        completeBanner = { text = T("downtime.projects.find_arcane_market.complete_banner"), subtitle = T("downtime.projects.find_arcane_market.complete_subtitle") },
         blurb = function(state)
             if state ~= nil and state.maxed then
-                return "Your heroes know the way into the Arcane Market."
+                return T("downtime.projects.find_arcane_market.blurb_maxed")
             end
-            return "Follow the old Elementalist's hints to the market that only the right contacts can find."
+            return T("downtime.projects.find_arcane_market.blurb")
         end,
         --What the hero says after a roll (EotwDowntime.PickRollLine): by how far
         --along the project now is (early under a third, late from two thirds)
@@ -92,59 +95,216 @@ EotwDowntime.PROJECTS = {
         rollLines = {
             early = {
                 hopeful = {
-                    "The apothecary went pale when I said 'Arcane Market'. That's a start.",
-                    "A chalk mark on the alley wall, the same one the old Elementalist drew. We're on the right track.",
-                    "A street sweeper says the carts only come out after midnight. Promising.",
+                    T("downtime.lines.arcane_market.early_hopeful_1"),
+                    T("downtime.lines.arcane_market.early_hopeful_2"),
+                    T("downtime.lines.arcane_market.early_hopeful_3"),
                 },
                 neutral = {
-                    "Hmmm stymied again, but we'll keep looking.",
-                    "Nobody admits the market exists. Which, I suppose, means it does.",
-                    "Three taverns, two dead ends and one very suspicious goat. Tomorrow, then.",
+                    T("downtime.lines.arcane_market.early_neutral_1"),
+                    T("downtime.lines.arcane_market.early_neutral_2"),
+                    T("downtime.lines.arcane_market.early_neutral_3"),
                 },
                 frustrated = {
-                    "If I have to talk to one more Crazy Gnome Tinkerer I think I'm going to come unglued...",
-                    "I asked a fortune teller for directions. She charged me double and told me to look within.",
-                    "Every alchemist in Blackbottom suddenly has somewhere else to be.",
+                    T("downtime.lines.arcane_market.early_frustrated_1"),
+                    T("downtime.lines.arcane_market.early_frustrated_2"),
+                    T("downtime.lines.arcane_market.early_frustrated_3"),
                 },
             },
             mid = {
                 hopeful = {
-                    "A gnome with singed eyebrows swore the stalls move every night. I think I'm on the right track.",
-                    "I traded a favour for a name. A real name, this time.",
-                    "The knock is two short, one long. I'm sure of it. Nearly sure.",
+                    T("downtime.lines.arcane_market.mid_hopeful_1"),
+                    T("downtime.lines.arcane_market.mid_hopeful_2"),
+                    T("downtime.lines.arcane_market.mid_hopeful_3"),
                 },
                 neutral = {
-                    "Hmmm stymied again, but we'll keep looking.",
-                    "The trail went cold at the fishmonger's. It always goes cold at the fishmonger's.",
-                    "Half these contacts are lying. The trick is working out which half.",
+                    T("downtime.lines.arcane_market.mid_neutral_1"),
+                    T("downtime.lines.arcane_market.mid_neutral_2"),
+                    T("downtime.lines.arcane_market.mid_neutral_3"),
                 },
                 frustrated = {
-                    "If I have to talk to one more Crazy Gnome Tinkerer I think I'm going to come unglued...",
-                    "That gnome sold me a 'map'. It's a drawing of a duck.",
-                    "I've knocked on so many doors my knuckles have calluses.",
+                    T("downtime.lines.arcane_market.mid_frustrated_1"),
+                    T("downtime.lines.arcane_market.mid_frustrated_2"),
+                    T("downtime.lines.arcane_market.mid_frustrated_3"),
                 },
             },
             late = {
                 hopeful = {
-                    "This seems like I'm getting close.",
-                    "I can smell brimstone and cinnamon through the wall. It's right here somewhere.",
-                    "The right contact finally owes me a favour. One more push.",
+                    T("downtime.lines.arcane_market.late_hopeful_1"),
+                    T("downtime.lines.arcane_market.late_hopeful_2"),
+                    T("downtime.lines.arcane_market.late_hopeful_3"),
                 },
                 neutral = {
-                    "Hmmm, stymied again, but we'll keep looking. It can't be far now.",
-                    "So close. The door was there last night, I'd swear to it.",
-                    "Another painted door, another blank wall. But we're getting warmer.",
+                    T("downtime.lines.arcane_market.late_neutral_1"),
+                    T("downtime.lines.arcane_market.late_neutral_2"),
+                    T("downtime.lines.arcane_market.late_neutral_3"),
                 },
                 frustrated = {
-                    "Missed the cart by a minute. A MINUTE.",
-                    "It moved again. Of course it moved again.",
-                    "If one more gnome tells me it's 'just around the corner'...",
+                    T("downtime.lines.arcane_market.late_frustrated_1"),
+                    T("downtime.lines.arcane_market.late_frustrated_2"),
+                    T("downtime.lines.arcane_market.late_frustrated_3"),
                 },
             },
             done = {
-                "There it is: a painted door that opens when you knock twice. We're in!",
-                "Just the right set of contacts, she said. Well, now we have them.",
-                "Lanterns, smoke and a hundred whispering stalls. We found it!",
+                T("downtime.lines.arcane_market.done_1"),
+                T("downtime.lines.arcane_market.done_2"),
+                T("downtime.lines.arcane_market.done_3"),
+            },
+        },
+    },
+    --A COMMUNITY project: every hero in town adds to one total (1000 points,
+    --in city-core.ts). Under way from the start; worked on at the
+    --Construction, which becomes the Hall of Heroes when it completes.
+    ["build-hall-of-heroes"] = {
+        id = "build-hall-of-heroes",
+        scope = "community",
+        title = T("downtime.projects.build_hall.title"),
+        icon = "phosphor/hammer-fill.png",
+        location = "hall",
+        locationName = T("downtime.projects.build_hall.place"),
+        characteristics = { "mgt", "rea" },
+        skills = { "Architecture", "Blacksmithing", "Carpentry", "Mechanics" },
+        benefit = T("downtime.projects.build_hall.benefit"),
+        completeBanner = { text = T("downtime.projects.build_hall.complete_banner"), subtitle = T("downtime.projects.build_hall.complete_subtitle") },
+        blurb = function(state)
+            if state ~= nil and state.maxed then
+                return T("downtime.projects.build_hall.blurb_maxed")
+            end
+            return T("downtime.projects.build_hall.blurb")
+        end,
+        rollLines = {
+            early = {
+                hopeful = {
+                    T("downtime.lines.hall.early_hopeful_1"),
+                    T("downtime.lines.hall.early_hopeful_2"),
+                    T("downtime.lines.hall.early_hopeful_3"),
+                },
+                neutral = {
+                    T("downtime.lines.hall.early_neutral_1"),
+                    T("downtime.lines.hall.early_neutral_2"),
+                    T("downtime.lines.hall.early_neutral_3"),
+                },
+                frustrated = {
+                    T("downtime.lines.hall.early_frustrated_1"),
+                    T("downtime.lines.hall.early_frustrated_2"),
+                    T("downtime.lines.hall.early_frustrated_3"),
+                },
+            },
+            mid = {
+                hopeful = {
+                    T("downtime.lines.hall.mid_hopeful_1"),
+                    T("downtime.lines.hall.mid_hopeful_2"),
+                    T("downtime.lines.hall.mid_hopeful_3"),
+                },
+                neutral = {
+                    T("downtime.lines.hall.mid_neutral_1"),
+                    T("downtime.lines.hall.mid_neutral_2"),
+                    T("downtime.lines.hall.mid_neutral_3"),
+                },
+                frustrated = {
+                    T("downtime.lines.hall.mid_frustrated_1"),
+                    T("downtime.lines.hall.mid_frustrated_2"),
+                    T("downtime.lines.hall.mid_frustrated_3"),
+                },
+            },
+            late = {
+                hopeful = {
+                    T("downtime.lines.hall.late_hopeful_1"),
+                    T("downtime.lines.hall.late_hopeful_2"),
+                    T("downtime.lines.hall.late_hopeful_3"),
+                },
+                neutral = {
+                    T("downtime.lines.hall.late_neutral_1"),
+                    T("downtime.lines.hall.late_neutral_2"),
+                    T("downtime.lines.hall.late_neutral_3"),
+                },
+                frustrated = {
+                    T("downtime.lines.hall.late_frustrated_1"),
+                    T("downtime.lines.hall.late_frustrated_2"),
+                    T("downtime.lines.hall.late_frustrated_3"),
+                },
+            },
+            done = {
+                T("downtime.lines.hall.done_1"),
+                T("downtime.lines.hall.done_2"),
+                T("downtime.lines.hall.done_3"),
+            },
+        },
+    },
+    --The second COMMUNITY project, built at its own site (4000 points, in
+    --city-core.ts); completing it opens the Town Hall's votes and petitions.
+    ["build-town-hall"] = {
+        id = "build-town-hall",
+        scope = "community",
+        title = T("downtime.projects.build_town_hall.title"),
+        icon = "phosphor/hammer-fill.png",
+        location = "townhall",
+        locationName = T("downtime.projects.build_town_hall.place"),
+        characteristics = { "mgt", "rea", "prs" },
+        skills = { "Architecture", "Lead", "Persuade", "Society" },
+        benefit = T("downtime.projects.build_town_hall.benefit"),
+        completeBanner = { text = T("downtime.projects.build_town_hall.complete_banner"), subtitle = T("downtime.projects.build_town_hall.complete_subtitle") },
+        blurb = function(state)
+            if state ~= nil and state.maxed then
+                return T("downtime.projects.build_town_hall.blurb_maxed")
+            end
+            return T("downtime.projects.build_town_hall.blurb")
+        end,
+        rollLines = {
+            early = {
+                hopeful = {
+                    T("downtime.lines.town_hall.early_hopeful_1"),
+                    T("downtime.lines.town_hall.early_hopeful_2"),
+                    T("downtime.lines.town_hall.early_hopeful_3"),
+                },
+                neutral = {
+                    T("downtime.lines.town_hall.early_neutral_1"),
+                    T("downtime.lines.town_hall.early_neutral_2"),
+                    T("downtime.lines.town_hall.early_neutral_3"),
+                },
+                frustrated = {
+                    T("downtime.lines.town_hall.early_frustrated_1"),
+                    T("downtime.lines.town_hall.early_frustrated_2"),
+                    T("downtime.lines.town_hall.early_frustrated_3"),
+                },
+            },
+            mid = {
+                hopeful = {
+                    T("downtime.lines.town_hall.mid_hopeful_1"),
+                    T("downtime.lines.town_hall.mid_hopeful_2"),
+                    T("downtime.lines.town_hall.mid_hopeful_3"),
+                },
+                neutral = {
+                    T("downtime.lines.town_hall.mid_neutral_1"),
+                    T("downtime.lines.town_hall.mid_neutral_2"),
+                    T("downtime.lines.town_hall.mid_neutral_3"),
+                },
+                frustrated = {
+                    T("downtime.lines.town_hall.mid_frustrated_1"),
+                    T("downtime.lines.town_hall.mid_frustrated_2"),
+                    T("downtime.lines.town_hall.mid_frustrated_3"),
+                },
+            },
+            late = {
+                hopeful = {
+                    T("downtime.lines.town_hall.late_hopeful_1"),
+                    T("downtime.lines.town_hall.late_hopeful_2"),
+                    T("downtime.lines.town_hall.late_hopeful_3"),
+                },
+                neutral = {
+                    T("downtime.lines.town_hall.late_neutral_1"),
+                    T("downtime.lines.town_hall.late_neutral_2"),
+                    T("downtime.lines.town_hall.late_neutral_3"),
+                },
+                frustrated = {
+                    T("downtime.lines.town_hall.late_frustrated_1"),
+                    T("downtime.lines.town_hall.late_frustrated_2"),
+                    T("downtime.lines.town_hall.late_frustrated_3"),
+                },
+            },
+            done = {
+                T("downtime.lines.town_hall.done_1"),
+                T("downtime.lines.town_hall.done_2"),
+                T("downtime.lines.town_hall.done_3"),
             },
         },
     },
@@ -163,35 +323,41 @@ end
 --projectid -> the project's state as the City last reported it:
 --{projectid, completions, maxCompletions, points, goal, maxed, recent, open}.
 local m_projects = {}
-local m_listing = false
+--scope -> a list request is in flight.
+local m_listing = {}
 
 --A project's last known state, or nil before the first list.
 function EotwDowntime.GetProject(projectid)
     return m_projects[projectid]
 end
 
---Ask the City for this account's projects (player scope) and cache them.
+--Ask the City for this account's projects and the town's community ones,
+--and cache them.
 function EotwDowntime.RefreshProjects()
     local conn = EotwRoster.Connection()
-    if conn == nil or not conn.connected or m_listing then
+    if conn == nil or not conn.connected then
         return
     end
-    m_listing = true
-    conn:Request{
-        action = "list-projects",
-        args = { scope = "player" },
-        success = function(result)
-            m_listing = false
-            for _, project in ipairs(result.projects or {}) do
-                m_projects[project.projectid] = project
-            end
-            Bump()
-        end,
-        error = function(message)
-            m_listing = false
-            printf("EotW town: could not list projects: %s", tostring(message))
-        end,
-    }
+    for _, scope in ipairs({ "player", "community" }) do
+        if not m_listing[scope] then
+            m_listing[scope] = true
+            conn:Request{
+                action = "list-projects",
+                args = { scope = scope },
+                success = function(result)
+                    m_listing[scope] = false
+                    for _, project in ipairs(result.projects or {}) do
+                        m_projects[project.projectid] = project
+                    end
+                    Bump()
+                end,
+                error = function(message)
+                    m_listing[scope] = false
+                    printf("EotW town: could not list %s projects: %s", scope, tostring(message))
+                end,
+            }
+        end
+    end
 end
 
 --The ids of the characteristics a project allows, with display names, in
@@ -375,9 +541,9 @@ function EotwDowntime.RestCandidates()
         local tok = dmhub.GetCharacterById(hero.heroid)
         local entry = { hero = hero, tok = tok, away = away[hero.heroid], victories = 0, canRest = false, wounded = false }
         if entry.away ~= nil then
-            entry.reason = string.format("Away: %s", entry.away)
+            entry.reason = T("inn.row.away", { party = entry.away })
         elseif tok == nil or not EotwRoster.IsInStep(hero.heroid) then
-            entry.reason = "Loading..."
+            entry.reason = T("inn.row.loading")
         else
             entry.victories = Victories(tok)
             entry.canRest = true
@@ -392,11 +558,37 @@ end
 local m_respiteBusy = false
 
 --Why a respite cannot be taken when every hero at home is unhurt.
-EotwDowntime.NO_WOUNDS_MESSAGE = "Your heroes are fresh and whole. Come back to rest when someone needs Stamina or Recoveries."
+EotwDowntime.NO_WOUNDS_MESSAGE = T("inn.footer.no_wounds")
 
 --Is a respite being written right now?
 function EotwDowntime.RespiteBusy()
     return m_respiteBusy
+end
+
+--Secret Twin's drawback: after each respite roll a d10, and on a 1 or 2 the
+--hero's past catches up. EotW plays it out: the hero is marked with
+--ASSASSIN_FIELD, and the next montage they play gets an assassin threat
+--(EncounterMontage). No roll while an assassin is still on their trail.
+local SECRET_TWIN_ID = "d8af2c17-c677-44bb-b237-d695fcff49c1"
+EotwDowntime.ASSASSIN_FIELD = "eotwAssassinPending"
+
+--Heroes whose past caught up in the respite being taken, waiting for their
+--banner (ShowPastCatchesUp): { heroid, ... }.
+local m_pastCatchesUp = {}
+
+--Roll Secret Twin's d10 for a hero who is resting. Runs inside RestHero's
+--ModifyProperties.
+local function RollSecretTwin(tok)
+    local props = tok.properties
+    if not props:try_get("complications", {})[SECRET_TWIN_ID] or props:try_get(EotwDowntime.ASSASSIN_FIELD, false) then
+        return
+    end
+    local roll = math.random(1, 10)
+    printf("EotW town: %s rolls %d for Secret Twin", tostring(tok.name), roll)
+    if roll <= 2 then
+        props[EotwDowntime.ASSASSIN_FIELD] = true
+        m_pastCatchesUp[#m_pastCatchesUp+1] = tok.charid
+    end
 end
 
 --Rest one hero's working copy for this respite, unless it already has.
@@ -416,6 +608,7 @@ local function RestHero(tok, respiteid, victories)
             local props = tok.properties
             --heals, turns Victories into XP and refreshes Recoveries.
             props:Rest("long")
+            RollSecretTwin(tok)
             local stamps = {}
             local old = rawget(props, "eotwRespites")
             if type(old) == "table" then
@@ -427,6 +620,19 @@ local function RestHero(tok, respiteid, victories)
             props.eotwRespites = stamps
         end,
     }
+end
+
+--Drop one hero from a pending respite (they fell or were dismissed since it
+--began) and save it. Returns true if the hero was in it.
+local function DropRespiteHero(pending, heroid)
+    if pending.grants == nil or pending.grants[heroid] == nil then
+        return false
+    end
+    pending.grants[heroid] = nil
+    pending.pushed[heroid] = nil
+    SaveMine("eotw:pendingRespite", pending)
+    printf("EotW town: hero %s is no longer on the roster; left out of the respite", tostring(heroid))
+    return true
 end
 
 --Carry a pending respite forward: rest and push each hero not yet pushed,
@@ -445,20 +651,29 @@ local function ContinueRespite(onDone)
     if conn == nil or not conn.connected then
         m_respiteBusy = false
         if onDone ~= nil then
-            onDone(false, "not connected")
+            onDone(false, T("inn.respite.not_connected"))
         end
         return
     end
     pending.pushed = pending.pushed or {}
 
+    --a hero who fell or was dismissed since the respite began has nothing to
+    --rest or credit, pushed or not; the City refuses the whole Downtime grant
+    --while one is in it (F32BZRF2). The roster lists living heroes only, but
+    --until it has been listed FindHero misses everyone, so wait for it.
+    if EotwRoster.GetHeroes() ~= nil then
+        for heroid, _ in pairs(pending.grants or {}) do
+            if EotwRoster.FindHero(heroid) == nil then
+                DropRespiteHero(pending, heroid)
+            end
+        end
+    end
+
     --first every hero's record, one push at a time.
     for heroid, amount in pairs(pending.grants or {}) do
         if not pending.pushed[heroid] then
-            if EotwRoster.FindHero(heroid) == nil then
-                --dismissed or fallen meanwhile: nothing to rest or credit.
-                pending.grants[heroid] = nil
-                SaveMine("eotw:pendingRespite", pending)
-            elseif not EotwRoster.IsInStep(heroid) then
+            --not in step also covers a roster not listed yet.
+            if not EotwRoster.IsInStep(heroid) then
                 --an import is in flight; try again shortly.
                 dmhub.Schedule(1, function()
                     if not mod.unloaded then
@@ -515,19 +730,34 @@ local function ContinueRespite(onDone)
         success = function(result)
             SaveMine("eotw:pendingRespite", nil)
             m_respiteBusy = false
+            local heroCount = 0
+            for _, _ in pairs(result.downtime or {}) do
+                heroCount = heroCount + 1
+            end
+            EotwAnalytics.Track("eotw_downtime", { activity = "respite", heroes = heroCount })
             for heroid, downtime in pairs(result.downtime or {}) do
                 EotwRoster.SetListedDowntime(heroid, downtime)
             end
             EotwRoster.SetListedLeads(nil, result.carouse)
+            --the respite closed every series part the account had open.
+            EotwRoster.SetOpenParts(result.openParts)
             Bump()
             EotwRoster.Refresh()
             if onDone ~= nil then
-                onDone(true)
+                onDone(true, nil, result.closedParts)
             end
         end,
         error = function(message)
             m_respiteBusy = false
             printf("EotW town: the Downtime from the respite was not credited yet: %s", tostring(message))
+            --a hero our roster still thought was alive: leave them out and
+            --send the rest. Each retry removes a hero, so this cannot loop.
+            local text = tostring(message)
+            local gone = text:match("^hero ([%w_%-]+) has fallen") or text:match("^hero ([%w_%-]+) does not exist")
+            if gone ~= nil and not mod.unloaded and DropRespiteHero(pending, gone) then
+                ContinueRespite(onDone)
+                return
+            end
             if onDone ~= nil then
                 onDone(false, message)
             end
@@ -536,7 +766,8 @@ local function ContinueRespite(onDone)
 end
 
 --Take a respite: every hero at home (not away in a party) rests at once.
---onDone(ok, message) when it has all reached the City.
+--onDone(ok, message, closedParts) when it has all reached the City;
+--closedParts lists the series parts it closed ({board, encounter}).
 function EotwDowntime.TakeRespite(onDone)
     if m_respiteBusy then
         return
@@ -561,7 +792,7 @@ function EotwDowntime.TakeRespite(onDone)
     end
     if count == 0 then
         if onDone ~= nil then
-            onDone(false, "None of your heroes are at home to rest.")
+            onDone(false, T("inn.respite.nobody_home"))
         end
         return
     end
@@ -586,17 +817,17 @@ end
 function EotwDowntime.CatchBreathBlocked(heroid)
     local tok = dmhub.GetCharacterById(heroid)
     if tok == nil or not EotwRoster.IsInStep(heroid) then
-        return "Loading..."
+        return T("inn.catch_breath.loading")
     end
     if EotwRoster.AwayHeroes()[heroid] ~= nil then
-        return "This hero is away in a party."
+        return T("inn.catch_breath.away")
     end
     local cur, max, left = Vitals(tok)
     if cur >= max then
-        return "Already at full Stamina."
+        return T("inn.catch_breath.full_stamina")
     end
     if left <= 0 then
-        return "No Recoveries left. Take a respite to regain them."
+        return T("inn.catch_breath.no_recoveries")
     end
     return nil
 end
@@ -618,6 +849,7 @@ function EotwDowntime.CatchBreath(heroid, onDone)
         end,
     }
     Bump()
+    EotwAnalytics.Track("eotw_downtime", { activity = "catch_breath", heroid = heroid })
     dmhub.Schedule(0.3, function()
         if mod.unloaded then
             return
@@ -640,7 +872,7 @@ local function SendProjectRoll(roll, onDone)
     local conn = EotwRoster.Connection()
     if conn == nil or not conn.connected then
         if onDone ~= nil then
-            onDone(false, "Not connected to the town. Your roll is saved and will be recorded when you reconnect.")
+            onDone(false, T("downtime.roll.offline"))
         end
         return
     end
@@ -661,6 +893,21 @@ local function SendProjectRoll(roll, onDone)
             if type(result.project) == "table" then
                 m_projects[result.project.projectid] = result.project
             end
+            local tier = nil
+            pcall(function() tier = EotwDowntime.TestTier(roll.natural, roll.total) end)
+            local project = type(result.project) == "table" and result.project or {}
+            EotwAnalytics.Track("eotw_project_roll", {
+                projectid = roll.projectid,
+                heroid = roll.heroid,
+                natural = roll.natural,
+                total = roll.total,
+                tier = tier,
+                characteristic = roll.characteristic,
+                skill = roll.skill,
+                breakthrough = roll.breakthroughOf ~= nil,
+                progress = project.progress,
+                completed = project.completed,
+            })
             EotwRoster.SetListedDowntime(roll.heroid, result.downtime)
             EotwRoster.SetListedSlots(result.slots)
             Bump()
@@ -725,7 +972,7 @@ function EotwDowntime.Roll(args)
     local project = EotwDowntime.PROJECTS[args.projectid]
     local tok = dmhub.GetCharacterById(args.heroid)
     if project == nil or tok == nil then
-        args.done(false, "That hero is not ready yet.")
+        args.done(false, T("downtime.roll.not_ready"))
         return
     end
     local bonus = EotwDowntime.RollBonus(tok, args.characteristic, args.skill)
@@ -737,7 +984,7 @@ function EotwDowntime.Roll(args)
         skill = args.skill or "",
         breakthroughOf = args.breakthroughOf,
     }
-    local title = cond(args.breakthroughOf ~= nil, "Breakthrough: ", "Project Roll: ") .. project.title
+    local title = cond(args.breakthroughOf ~= nil, T("downtime.roll.dice_breakthrough", { project = project.title }), T("downtime.roll.dice_project", { project = project.title }))
     dmhub.Roll{
         roll = string.format("2d10%+d", bonus),
         description = title,
@@ -797,7 +1044,9 @@ end
 --banner's default is the Draw Steel sting). Returns false if it could not
 --be shown.
 local m_bannerPanel = nil
-local function ShowBanner(host, text, subtitle, sound)
+---@param tokenid nil|string the token whose portrait the banner shows
+---@param bannerType nil|string an id from DramaticBanner.types ("heroic" when nil)
+local function ShowBanner(host, text, subtitle, sound, tokenid, bannerType)
     local ok = pcall(function()
         if m_bannerPanel == nil or not m_bannerPanel.valid then
             m_bannerPanel = gui.Panel{
@@ -812,9 +1061,24 @@ local function ShowBanner(host, text, subtitle, sound)
             --on top of whatever opened since.
             m_bannerPanel:SetAsLastSibling()
         end
-        DramaticBanner.Show{ text = text, subtitle = subtitle, sound = sound }
+        DramaticBanner.Show{ text = text, subtitle = subtitle, sound = sound, tokenid = tokenid, bannerType = bannerType }
     end)
     return ok
+end
+
+--After a respite: a malice banner, one after another, for each Secret Twin
+--hero whose d10 came up 1 or 2 (RollSecretTwin).
+local function ShowPastCatchesUp(host)
+    local list = m_pastCatchesUp
+    m_pastCatchesUp = {}
+    for i, heroid in ipairs(list) do
+        dmhub.Schedule((i - 1) * 4.5, function()
+            if mod.unloaded or not host.valid then
+                return
+            end
+            ShowBanner(host, T("inn.secret_twin.banner_title"), T("inn.secret_twin.banner_subtitle"), nil, heroid, "malice")
+        end)
+    end
 end
 
 --How long a gain takes to ease into place on a project bar, in seconds.
@@ -1284,7 +1548,7 @@ function EotwDowntime.ShowRollDialog(host, projectid)
                 state.rolling = true
                 state.message = ""
                 state.resultText = "..."
-                state.resultDetail = "The dice are rolling."
+                state.resultDetail = T("downtime.roll.dice_rolling")
                 state.breakthrough = false
                 state.line = nil
                 if bar.valid then
@@ -1301,7 +1565,7 @@ function EotwDowntime.ShowRollDialog(host, projectid)
                 state.natural = natural
                 state.total = total
                 state.resultText = string.format("+%d", math.max(0, total))
-                state.resultDetail = string.format("natural %d", natural)
+                state.resultDetail = T("downtime.roll.result_natural", { natural = natural })
                 state.breakthrough = natural >= EotwDowntime.BREAKTHROUGH_NATURAL
                 if bar.valid then
                     barCtl.StopDice()
@@ -1324,7 +1588,7 @@ function EotwDowntime.ShowRollDialog(host, projectid)
                     return
                 end
                 local tok = dmhub.GetCharacterById(state.heroid)
-                local name = tok ~= nil and tok.name or "Your hero"
+                local name = tok ~= nil and tok.name or T("downtime.roll.your_hero")
                 local p = result.project or {}
 
                 --the banners wait for the gain to settle on the bar.
@@ -1333,18 +1597,18 @@ function EotwDowntime.ShowRollDialog(host, projectid)
                         return
                     end
                     if result.breakthrough then
-                        local subtitle = string.format("%s made a breakthrough on %s", name, project.title)
+                        local subtitle = T("downtime.roll.breakthrough_subtitle", { hero = name, project = project.title })
                         if result.refunded then
-                            subtitle = string.format("%s finished %s with a breakthrough: the extra roll comes back as a Downtime Activity", name, project.title)
+                            subtitle = T("downtime.roll.breakthrough_refunded_subtitle", { hero = name, project = project.title })
                         end
-                        ShowBanner(host, "Breakthrough!", subtitle)
+                        ShowBanner(host, T("downtime.roll.breakthrough_banner"), subtitle)
                     end
                     if result.completed then
-                        local text = project.title .. "!"
-                        local subtitle = "The project is complete."
+                        local text = T("downtime.roll.complete_banner", { project = project.title })
+                        local subtitle = T("downtime.roll.complete_subtitle")
                         if projectid == "expand-guild" then
-                            text = "The Guild Expands!"
-                            subtitle = string.format("You now have %d hero slots.", EotwRoster.Slots())
+                            text = T("downtime.roll.guild_banner")
+                            subtitle = T("downtime.roll.guild_subtitle", { slots = string.format("%d", EotwRoster.Slots()) })
                         elseif project.completeBanner ~= nil then
                             text = project.completeBanner.text
                             subtitle = project.completeBanner.subtitle
@@ -1359,13 +1623,13 @@ function EotwDowntime.ShowRollDialog(host, projectid)
                 end
 
                 if result.completed then
-                    state.resultDetail = state.resultDetail .. cond(p.maxed, " -- the project is finished", " -- complete! Any extra points are lost")
+                    state.resultDetail = cond(p.maxed, T("downtime.roll.result_finished", { natural = state.natural }), T("downtime.roll.result_complete", { natural = state.natural }))
                     if result.refunded then
                         --the City gave the breakthrough's extra roll back.
-                        state.resultDetail = state.resultDetail .. string.format(". The breakthrough refunds a Downtime Activity to %s", name)
+                        state.resultDetail = cond(p.maxed, T("downtime.roll.result_finished_refunded", { natural = state.natural, hero = name }), T("downtime.roll.result_complete_refunded", { natural = state.natural, hero = name }))
                     end
                 else
-                    state.resultDetail = state.resultDetail .. " -- " .. tostring(name)
+                    state.resultDetail = T("downtime.roll.result_hero", { natural = state.natural, hero = tostring(name) })
                 end
 
                 --the hero's word on how it went: by the roll's tier and how
@@ -1438,7 +1702,7 @@ function EotwDowntime.ShowRollDialog(host, projectid)
 
         --who works on it.
         children[#children+1] = gui.Label{
-            text = "Who works on it",
+            text = T("downtime.roll.who_heading"),
             fontSize = 15,
             color = DIM,
             width = "100%",
@@ -1475,14 +1739,14 @@ function EotwDowntime.ShowRollDialog(host, projectid)
                 end,
                 linger = function(element)
                     if w.breakthrough ~= nil then
-                        gui.Tooltip("A breakthrough roll is waiting: the next roll is free.")(element)
+                        gui.Tooltip(T("downtime.roll.free_roll_tooltip"))(element)
                     elseif not usable then
-                        gui.Tooltip("No Downtime Activities. Rest at the Blue Fish Inn to earn them.")(element)
+                        gui.Tooltip(T("downtime.roll.no_downtime_tooltip"))(element)
                     end
                 end,
                 Portrait(w.tok, 24, 32),
                 gui.Label{
-                    text = w.tok.name or "Hero",
+                    text = w.tok.name or T("downtime.roll.hero_fallback"),
                     fontSize = 16,
                     color = TEXT,
                     width = "auto",
@@ -1494,7 +1758,7 @@ function EotwDowntime.ShowRollDialog(host, projectid)
                 HammerChip(w.downtime),
                 gui.Label{
                     classes = { cond(w.breakthrough ~= nil, "visible", "collapsed") },
-                    text = "free roll",
+                    text = T("downtime.roll.free_roll_tag"),
                     fontSize = 13,
                     italics = true,
                     color = AMBER,
@@ -1508,7 +1772,7 @@ function EotwDowntime.ShowRollDialog(host, projectid)
         end
         if #chips == 0 then
             chips[1] = gui.Label{
-                text = "None of your heroes are at home.",
+                text = T("downtime.roll.nobody_home"),
                 fontSize = 16,
                 italics = true,
                 color = DIM,
@@ -1569,7 +1833,7 @@ function EotwDowntime.ShowRollDialog(host, projectid)
                 flow = "horizontal",
                 tmargin = 12,
                 gui.Label{
-                    text = "Characteristic",
+                    text = T("downtime.roll.characteristic_heading"),
                     fontSize = 15,
                     color = DIM,
                     width = 140,
@@ -1586,9 +1850,9 @@ function EotwDowntime.ShowRollDialog(host, projectid)
 
             --the skill.
             local trained = TrainedProjectSkills(chosen.tok, project)
-            local skillOptions = { { id = "", text = "No skill" } }
+            local skillOptions = { { id = "", text = T("downtime.roll.no_skill") } }
             for _, name in ipairs(trained) do
-                skillOptions[#skillOptions+1] = { id = name, text = string.format("%s (+2)", name) }
+                skillOptions[#skillOptions+1] = { id = name, text = T("downtime.roll.skill_choice", { skill = name }) }
             end
             children[#children+1] = gui.Panel{
                 width = "100%",
@@ -1596,7 +1860,7 @@ function EotwDowntime.ShowRollDialog(host, projectid)
                 flow = "horizontal",
                 tmargin = 8,
                 gui.Label{
-                    text = "Skill",
+                    text = T("downtime.roll.skill_heading"),
                     fontSize = 15,
                     color = DIM,
                     width = 140,
@@ -1620,7 +1884,7 @@ function EotwDowntime.ShowRollDialog(host, projectid)
                     end,
                 },
                 gui.Label{
-                    text = cond(#trained == 0, "None of " .. table.concat(project.skills, ", "), table.concat(project.skills, ", ")),
+                    text = cond(#trained == 0, T("downtime.roll.skills_none_trained", { skills = table.concat(project.skills, ", ") }), table.concat(project.skills, ", ")),
                     fontSize = 13,
                     italics = true,
                     color = DIM,
@@ -1650,7 +1914,7 @@ function EotwDowntime.ShowRollDialog(host, projectid)
             tmargin = 10,
             gui.Label{
                 classes = { cond(state.breakthrough, "visible", "collapsed") },
-                text = "Breakthrough!",
+                text = T("downtime.roll.breakthrough_label"),
                 fontFace = "display",
                 fontSize = 30,
                 color = AMBER,
@@ -1692,7 +1956,7 @@ function EotwDowntime.ShowRollDialog(host, projectid)
             borderBox = true,
             Portrait(lineTok, 36, 48),
             gui.Label{
-                text = state.line ~= nil and string.format("<b>%s:</b> \"%s\"", tostring(lineTok ~= nil and lineTok.name or "Your hero"), state.line.text) or "",
+                text = state.line ~= nil and T("downtime.roll.hero_line", { hero = tostring(lineTok ~= nil and lineTok.name or T("downtime.roll.your_hero")), line = state.line.text }) or "",
                 fontSize = 17,
                 italics = true,
                 color = TEXT,
@@ -1718,7 +1982,7 @@ function EotwDowntime.ShowRollDialog(host, projectid)
         local free = chosen ~= nil and chosen.breakthrough ~= nil
         local projectActive = projectState ~= nil and projectState.active == true
         local canRoll = chosen ~= nil and (free or chosen.downtime > 0) and projectActive
-        local chosenName = "your hero"
+        local chosenName = T("downtime.roll.hint_your_hero")
         local freeRollid = ""
         if chosen ~= nil then
             chosenName = tostring(chosen.tok.name or chosenName)
@@ -1744,19 +2008,19 @@ function EotwDowntime.ShowRollDialog(host, projectid)
         if state.rolling then
             hint = ""
         elseif canRoll and free then
-            hint = string.format("Breakthrough! Click or throw the dice for %s's free roll.", chosenName)
+            hint = T("downtime.roll.hint_free", { hero = chosenName })
         elseif canRoll then
-            hint = "Click or throw the dice to roll. It spends one of this hero's Downtime Activities."
+            hint = T("downtime.roll.hint_roll")
         elseif state.completed then
-            hint = string.format("Project complete! %s.", tostring(project.benefit or "Done"))
+            hint = T("downtime.roll.hint_complete", { benefit = tostring(project.benefit or T("downtime.roll.hint_done")) })
         elseif not projectActive then
-            hint = "This project is not under way."
+            hint = T("downtime.roll.hint_not_under_way")
         elseif chosen == nil then
-            hint = "None of your heroes are at home."
+            hint = T("downtime.roll.hint_nobody_home")
         elseif not anyCanWork then
-            hint = "Your heroes have no Downtime Activities left. Rest at the Blue Fish Inn to earn more."
+            hint = T("downtime.roll.hint_no_downtime_left")
         else
-            hint = "This hero has no Downtime Activities. Choose another hero, or rest at the Blue Fish Inn."
+            hint = T("downtime.roll.hint_hero_no_downtime")
         end
         if hintLabel ~= nil and hintLabel.valid then
             hintLabel.text = hint
@@ -1835,7 +2099,7 @@ function EotwDowntime.ShowRollDialog(host, projectid)
                     bgcolor = GOLD,
                 },
                 gui.Label{
-                    text = project.title .. ": Project Roll",
+                    text = T("downtime.roll.title", { project = project.title }),
                     fontSize = 28,
                     bold = true,
                     color = TEXT,
@@ -1940,7 +2204,7 @@ function EotwDowntime.ShowRollDialog(host, projectid)
                 halign = "center",
                 valign = "bottom",
                 bmargin = 34,
-                text = "Close",
+                text = T("downtime.roll.close_button"),
                 fontSize = 24,
                 width = 260,
                 height = 54,
@@ -1978,7 +2242,7 @@ function EotwDowntime.ShowRollDialog(host, projectid)
                 { selectors = { "eotwDialogClose", "hover" }, bgcolor = "#ffffff", scale = 1.15 },
             },
             classes = { "eotwDialogClose" },
-            linger = gui.Tooltip("Close"),
+            linger = gui.Tooltip(T("downtime.roll.close_tooltip")),
             press = function()
                 if state.rolling then
                     return
@@ -2024,7 +2288,7 @@ function EotwDowntime.StartProject(projectid, onDone)
     local conn = EotwRoster.Connection()
     if conn == nil or not conn.connected then
         if onDone ~= nil then
-            onDone(false, "Not connected to the town.")
+            onDone(false, T("downtime.start.not_connected"))
         end
         return
     end
@@ -2032,6 +2296,7 @@ function EotwDowntime.StartProject(projectid, onDone)
         action = "start-project",
         args = { projectid = projectid },
         success = function(result)
+            EotwAnalytics.Track("eotw_project_start", { projectid = projectid })
             if type(result.project) == "table" then
                 m_projects[result.project.projectid] = result.project
             end
@@ -2103,7 +2368,7 @@ function EotwDowntime.ShowStartProjectDialog(host, projectid)
                 bgcolor = GOLD,
             },
             gui.Label{
-                text = string.format("Start a Project: %s?", project.title),
+                text = T("downtime.start.title", { project = project.title }),
                 fontSize = 28,
                 bold = true,
                 color = TEXT,
@@ -2123,7 +2388,7 @@ function EotwDowntime.ShowStartProjectDialog(host, projectid)
             vmargin = 10,
         },
         gui.Label{
-            text = cond(maxed, "The guildmasters shake their heads: there is no room left to grow.", string.format("%d Project Points to complete.", goal)),
+            text = cond(maxed, T("downtime.start.maxed"), T("downtime.start.goal", { goal = string.format("%d", goal) })),
             fontSize = 20,
             color = TEXT,
             width = "100%",
@@ -2151,7 +2416,7 @@ function EotwDowntime.ShowStartProjectDialog(host, projectid)
             tmargin = 8,
             gui.Button{
                 classes = { cond(maxed, "collapsed", "eotwStart") },
-                text = "Start Project",
+                text = T("downtime.start.start_button"),
                 fontSize = 20,
                 width = 220,
                 height = 46,
@@ -2175,7 +2440,7 @@ function EotwDowntime.ShowStartProjectDialog(host, projectid)
                 end,
             },
             gui.Button{
-                text = "Not Now",
+                text = T("downtime.start.not_now_button"),
                 fontSize = 20,
                 width = 180,
                 height = 46,
@@ -2228,7 +2493,7 @@ function EotwDowntime.ProjectCard(host, projectid)
         characteristicNames[#characteristicNames+1] = c.name
     end
     local needsLabel = gui.Label{
-        text = string.format("%s  -  %s", table.concat(characteristicNames, " or "), table.concat(project.skills, ", ")),
+        text = T("downtime.card.needs", { characteristics = table.concat(characteristicNames, T("downtime.card.characteristic_separator")), skills = table.concat(project.skills, ", ") }),
         fontSize = 14,
         color = DIM,
         width = "100%",
@@ -2244,7 +2509,7 @@ function EotwDowntime.ProjectCard(host, projectid)
         tmargin = 4,
     }
     local workButton = gui.Button{
-        text = "Work on This Project",
+        text = T("downtime.card.work_button"),
         fontSize = 18,
         width = 250,
         height = 40,
@@ -2278,13 +2543,16 @@ function EotwDowntime.ProjectCard(host, projectid)
             if i > 4 then
                 break
             end
-            local text = string.format("%s +%d", tostring(r.heroName or "Hero"), tonumber(r.total) or 0)
+            local heroName = tostring(r.heroName or T("downtime.card.hero_fallback"))
+            local total = string.format("%d", tonumber(r.total) or 0)
+            local text = T("downtime.card.recent_roll", { hero = heroName, total = total })
             if r.breakthrough then
-                text = text .. string.format(" <color=%s>breakthrough</color>", AMBER)
+                local word = string.format("<color=%s>%s</color>", AMBER, T("downtime.card.breakthrough_word"))
+                text = T("downtime.card.recent_roll_breakthrough", { hero = heroName, total = total, breakthrough = word })
             end
             parts[#parts+1] = text
         end
-        recentLabel.text = cond(#parts > 0, "Latest: " .. table.concat(parts, "  -  "), "No one has worked on it yet.")
+        recentLabel.text = cond(#parts > 0, T("downtime.card.latest", { rolls = table.concat(parts, "  -  ") }), T("downtime.card.no_rolls"))
 
         --who can work on it now.
         local anyDowntime, anyBreakthrough = false, false
@@ -2298,13 +2566,13 @@ function EotwDowntime.ProjectCard(host, projectid)
         end
         local reason = nil
         if state == nil or state.active ~= true then
-            reason = "This project is not under way."
+            reason = T("downtime.card.not_under_way")
         elseif not anyDowntime and not anyBreakthrough then
-            reason = "None of your heroes at home have Downtime Activities. Rest at the Blue Fish Inn to earn them."
+            reason = T("downtime.card.no_downtime")
         end
         workButton.data.reason = reason
         workButton.selfStyle.opacity = cond(reason == nil, 1, 0.45)
-        workButton.text = cond(anyBreakthrough, "Breakthrough Roll Waiting", "Work on This Project")
+        workButton.text = cond(anyBreakthrough, T("downtime.card.breakthrough_button"), T("downtime.card.work_button"))
     end
 
     EotwDowntime.RefreshProjects()
@@ -2348,7 +2616,7 @@ function EotwDowntime.ProjectCard(host, projectid)
             titleLabel,
             stepLabel,
             gui.Label{
-                text = "Project under way",
+                text = T("downtime.card.under_way"),
                 fontSize = 13,
                 italics = true,
                 color = GOLD,
@@ -2409,6 +2677,288 @@ function EotwDowntime.ProjectSidePanel(host, projectid, width)
     }
 end
 
+--- Tribute to the Builders ------------------------------------------------------
+
+--Text shown as typed: rich-text tags in a player's name are not applied.
+local function PlainName(text)
+    return "<noparse>" .. string.gsub(tostring(text or ""), "</?[nN][oO][pP][aA][rR][sS][eE]>", "") .. "</noparse>"
+end
+
+--A builder's name, or the stand-in for rolls made before names were kept.
+local function BuilderName(name)
+    if type(name) ~= "string" or name == "" then
+        return T("tribute.unknown_player")
+    end
+    return PlainName(name)
+end
+
+local function BuilderHeroName(name)
+    if type(name) ~= "string" or name == "" then
+        return T("tribute.unknown_hero")
+    end
+    return PlainName(name)
+end
+
+--The cornerstone or capstone: who placed it, with which hero, and when.
+local function StoneBox(heading, subtitle, stone)
+    return gui.Panel{
+        width = "48%",
+        height = "auto",
+        flow = "vertical",
+        halign = "center",
+        hmargin = 6,
+        bgimage = "panels/square.png",
+        bgcolor = "#d9b56a1c",
+        borderWidth = 1,
+        borderColor = "#d9b56a66",
+        cornerRadius = 8,
+        pad = 12,
+        borderBox = true,
+        gui.Label{ text = heading, fontSize = 20, bold = true, color = GOLD, width = "100%", height = "auto", textAlignment = "center" },
+        gui.Label{ text = subtitle, fontSize = 14, italics = true, color = DIM, width = "100%", height = "auto", textAlignment = "center" },
+        gui.Label{ text = BuilderName(stone.name), fontSize = 22, bold = true, color = TEXT, width = "100%", height = "auto", textAlignment = "center", tmargin = 6 },
+        gui.Label{
+            text = T("tribute.stone_detail", { hero = BuilderHeroName(stone.heroName), when = DescribeServerTimestamp(stone.at) }),
+            fontSize = 14,
+            color = DIM,
+            width = "100%",
+            height = "auto",
+            textAlignment = "center",
+        },
+    }
+end
+
+--One ranked builder: place, name and points; hovering lists their heroes.
+local function BuilderRow(rank, builder)
+    local lines = { T("tribute.heroes_heading") }
+    for _, hero in ipairs(builder.heroes or {}) do
+        lines[#lines+1] = TP("tribute.hero_line", tonumber(hero.points) or 0, { hero = BuilderHeroName(hero.name) })
+    end
+    local mine = builder.userid == dmhub.loginUserid
+    return gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        bgimage = "panels/square.png",
+        bgcolor = cond(mine, "#2a2418cc", "#ffffff0a"),
+        styles = {
+            { selectors = {"hover"}, bgcolor = cond(mine, "#3a3220dd", "#ffffff18") },
+        },
+        cornerRadius = 6,
+        hpad = 10,
+        vpad = 6,
+        borderBox = true,
+        vmargin = 2,
+        hover = gui.Tooltip(table.concat(lines, "\n")),
+        gui.Label{ text = string.format("#%d", rank), fontSize = 17, bold = true, color = cond(rank <= 3, GOLD, DIM), width = 54, height = "auto", valign = "center" },
+        gui.Label{ text = BuilderName(builder.name), fontSize = 17, bold = mine, color = TEXT, width = "100%-190", height = "auto", valign = "center" },
+        gui.Label{ text = TP("tribute.points", tonumber(builder.points) or 0), fontSize = 16, color = TEXT, width = 130, height = "auto", valign = "center", textAlignment = "right" },
+    }
+end
+
+--The Tribute to the Builders for a project: its cornerstone (the first
+--roll), its capstone once complete (the roll that finished it), and every
+--builder ranked by Project Points. Read from the City's
+--list-project-builders. host mounts the dialog.
+function EotwDowntime.ShowTribute(host, projectid)
+    local project = EotwDowntime.PROJECTS[projectid]
+    local body = nil
+    local dlg
+    local function Show(children)
+        if body ~= nil and body.valid then
+            body.children = children
+        end
+    end
+    dlg = gui.Panel{
+        floating = true,
+        width = 760,
+        height = "auto",
+        halign = "center",
+        valign = "center",
+        bgimage = "panels/square.png",
+        bgcolor = "#14110dff",
+        borderWidth = 2,
+        borderColor = "#8c7a55",
+        cornerRadius = 10,
+        flow = "vertical",
+        pad = 24,
+        borderBox = true,
+        styles = { Styles.Default },
+        captureEscape = true,
+        escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+        escape = function(element)
+            element:DestroySelf()
+        end,
+        gui.Label{ text = T("tribute.title"), fontSize = 30, bold = true, color = TEXT, width = "100%", height = "auto", textAlignment = "center" },
+        gui.Label{ text = project ~= nil and project.title or "", fontSize = 18, italics = true, color = DIM, width = "100%", height = "auto", textAlignment = "center", bmargin = 10 },
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            create = function(element)
+                body = element
+                Show{ gui.Label{ text = T("tribute.loading"), fontSize = 18, color = DIM, width = "100%", height = "auto", textAlignment = "center", vmargin = 20 } }
+            end,
+        },
+        gui.Button{
+            text = T("tribute.close_button"),
+            fontSize = 18,
+            width = 180,
+            height = 40,
+            halign = "center",
+            tmargin = 12,
+            click = function()
+                dlg:DestroySelf()
+            end,
+        },
+    }
+    host:AddChild(dlg)
+
+    local conn = EotwRoster.Connection()
+    if conn == nil or not conn.connected then
+        Show{ gui.Label{ text = T("tribute.error"), fontSize = 18, color = RED, width = "100%", height = "auto", textAlignment = "center", vmargin = 20 } }
+        return
+    end
+    conn:Request{
+        action = "list-project-builders",
+        args = { projectid = projectid },
+        success = function(result)
+            if mod.unloaded or dlg == nil or not dlg.valid then
+                return
+            end
+            local builders = result.builders or {}
+            if #builders == 0 then
+                Show{ gui.Label{ text = T("tribute.empty"), fontSize = 18, color = DIM, width = "100%", height = "auto", textAlignment = "center", vmargin = 20 } }
+                return
+            end
+            ---@type Panel[]
+            local stones = {}
+            if type(result.cornerstone) == "table" then
+                stones[#stones+1] = StoneBox(T("tribute.cornerstone"), T("tribute.cornerstone_subtitle"), result.cornerstone)
+            end
+            if type(result.capstone) == "table" then
+                stones[#stones+1] = StoneBox(T("tribute.capstone"), T("tribute.capstone_subtitle"), result.capstone)
+            end
+            ---@type Panel[]
+            local rows = {}
+            for i, builder in ipairs(builders) do
+                rows[#rows+1] = BuilderRow(i, builder)
+            end
+            local more = (tonumber(result.builderCount) or #builders) - #builders
+            if more > 0 then
+                rows[#rows+1] = gui.Label{ text = TP("tribute.more_builders", more), fontSize = 15, italics = true, color = DIM, width = "100%", height = "auto", textAlignment = "center", vmargin = 4 }
+            end
+            Show{
+                gui.Panel{ width = "100%", height = "auto", flow = "horizontal", halign = "center", children = stones },
+                gui.Label{
+                    text = T("tribute.summary", { builders = TP("tribute.builder_count", tonumber(result.builderCount) or #builders), points = TP("tribute.points", tonumber(result.totalPoints) or 0) }),
+                    fontSize = 16,
+                    color = TEXT,
+                    width = "100%",
+                    height = "auto",
+                    textAlignment = "center",
+                    vmargin = 10,
+                },
+                gui.Label{ text = T("tribute.ranked_heading"), fontSize = 18, bold = true, color = GOLD, width = "100%", height = "auto", bmargin = 4 },
+                gui.Panel{
+                    width = "100%",
+                    height = "auto",
+                    maxHeight = 420,
+                    flow = "vertical",
+                    vscroll = true,
+                    rpad = 10,
+                    borderBox = true,
+                    children = rows,
+                },
+            }
+        end,
+        error = function(message)
+            printf("EotW town: could not list the builders of %s: %s", projectid, tostring(message))
+            if not mod.unloaded then
+                Show{ gui.Label{ text = T("tribute.error"), fontSize = 18, color = RED, width = "100%", height = "auto", textAlignment = "center", vmargin = 20 } }
+            end
+        end,
+    }
+end
+
+--The small "Tribute to the Builders" button under a community project, and
+--on the building it became.
+function EotwDowntime.TributeButton(host, projectid)
+    return gui.Button{
+        text = T("tribute.button"),
+        fontSize = 12,
+        width = 160,
+        height = 22,
+        halign = "right",
+        tmargin = 8,
+        click = function()
+            audio.FireSoundEvent("Mouse.Click")
+            EotwDowntime.ShowTribute(host, projectid)
+        end,
+    }
+end
+
+--- the Construction (the Hall of Heroes being built) --------------------------
+
+--The Construction scene's card: what is being built, and the town's shared
+--project (Build the Hall of Heroes) with its progress, the latest builders
+--and the way in to the roll dialog. host mounts the roll dialog.
+function EotwDowntime.ConstructionPanel(host)
+    return gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        gui.Label{
+            text = T("downtime.construction.intro"),
+            fontSize = 20,
+            italics = true,
+            color = TEXT,
+            width = "100%",
+            height = "auto",
+            bmargin = 12,
+        },
+        gui.Label{
+            text = T("downtime.construction.community"),
+            fontSize = 15,
+            color = DIM,
+            width = "100%",
+            height = "auto",
+            bmargin = 16,
+        },
+        EotwDowntime.ProjectCard(host, "build-hall-of-heroes"),
+        EotwDowntime.TributeButton(host, "build-hall-of-heroes"),
+    }
+end
+
+--The Town Hall's building site: the same, for the town's shared project
+--Build the Town Hall.
+function EotwDowntime.TownHallConstructionPanel(host)
+    return gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        gui.Label{
+            text = T("downtime.town_hall_site.intro"),
+            fontSize = 20,
+            italics = true,
+            color = TEXT,
+            width = "100%",
+            height = "auto",
+            bmargin = 12,
+        },
+        gui.Label{
+            text = T("downtime.town_hall_site.community"),
+            fontSize = 15,
+            color = DIM,
+            width = "100%",
+            height = "auto",
+            bmargin = 16,
+        },
+        EotwDowntime.ProjectCard(host, "build-town-hall"),
+        EotwDowntime.TributeButton(host, "build-town-hall"),
+    }
+end
+
 --- the Blue Fish Inn ----------------------------------------------------------
 
 --One hero's row at the inn: portrait, name, Stamina and Recoveries, what a
@@ -2417,14 +2967,14 @@ local function InnRow(entry, onChanged)
     local hero = entry.hero
     local tok = entry.tok
     local summary = hero.summary or {}
-    local name = (tok ~= nil and tok.name) or summary.name or "Hero"
+    local name = (tok ~= nil and tok.name) or summary.name or T("inn.row.hero_fallback")
 
     local vitals = "-"
     local barFraction = 0
     local dying = false
     if tok ~= nil then
         local cur, max, left, rmax = Vitals(tok)
-        vitals = string.format("Stamina %d/%d  -  Recoveries %d/%d", cur, max, left, rmax)
+        vitals = T("inn.row.vitals", { stamina = string.format("%d", cur), stamina_max = string.format("%d", max), recoveries = string.format("%d", left), recoveries_max = string.format("%d", rmax) })
         if max > 0 then
             barFraction = math.max(0, math.min(1, cur / max))
         end
@@ -2474,8 +3024,8 @@ local function InnRow(entry, onChanged)
             },
             gui.Label{
                 text = cond(entry.victories > 0,
-                    string.format("+%d XP  -  +%d Downtime", entry.victories, entry.victories),
-                    "Full rest"),
+                    T("inn.row.gains", { xp = string.format("%d", entry.victories), downtime = string.format("%d", entry.victories) }),
+                    T("inn.row.full_rest")),
                 fontSize = 13,
                 color = cond(entry.victories > 0, AMBER, DIM),
                 width = "auto",
@@ -2487,7 +3037,7 @@ local function InnRow(entry, onChanged)
 
     local breathReason = EotwDowntime.CatchBreathBlocked(hero.heroid)
     local breathButton = gui.Button{
-        text = "Catch Breath",
+        text = T("inn.catch_breath.button"),
         fontSize = 14,
         width = 120,
         height = 30,
@@ -2500,7 +3050,7 @@ local function InnRow(entry, onChanged)
             elseif tok ~= nil then
                 local amount = 0
                 pcall(function() amount = tok.properties:RecoveryAmount() end)
-                gui.Tooltip(string.format("Spend a Recovery to regain %d Stamina, without resting. Victories stay unspent.", amount))(element)
+                gui.Tooltip(T("inn.catch_breath.tooltip", { amount = string.format("%d", amount) }))(element)
             end
         end,
         click = function()
@@ -2559,7 +3109,7 @@ local function InnRow(entry, onChanged)
                 },
             },
             gui.Label{
-                text = cond(dying, string.format("<color=#ff8f7a>Dying</color>  -  %s", vitals), vitals),
+                text = cond(dying, T("inn.row.vitals_dying", { dying = string.format("<color=#ff8f7a>%s</color>", T("inn.row.dying")), vitals = vitals }), vitals),
                 fontSize = 13,
                 color = DIM,
                 width = "100%",
@@ -2580,6 +3130,10 @@ function EotwDowntime.InnPanel(host, openLocation)
     local statusLabel = nil
     local afterPanel = nil
     local respiteButton = nil
+    --a series' next part that a respite would close (warning), and the
+    --ones the last respite here did close (note).
+    local seriesWarning = nil
+    local seriesNote = nil
 
     local Rebuild
     Rebuild = function()
@@ -2600,22 +3154,34 @@ function EotwDowntime.InnPanel(host, openLocation)
             end
         end
         if EotwRoster.GetHeroes() == nil then
-            rows[1] = gui.Label{ text = "The innkeeper is checking the guest book...", fontSize = 16, italics = true, color = DIM, width = "auto", height = "auto", halign = "center", vmargin = 20 }
+            rows[1] = gui.Label{ text = T("inn.list.loading"), fontSize = 16, italics = true, color = DIM, width = "auto", height = "auto", halign = "center", vmargin = 20 }
         elseif #rows == 0 then
-            rows[1] = gui.Label{ text = "You have no heroes. Visit the Hero's Guild.", fontSize = 16, italics = true, color = DIM, width = "auto", height = "auto", halign = "center", vmargin = 20 }
+            rows[1] = gui.Label{ text = T("inn.list.no_heroes"), fontSize = 16, italics = true, color = DIM, width = "auto", height = "auto", halign = "center", vmargin = 20 }
         end
         listPanel.children = rows
 
         if footerLabel ~= nil and footerLabel.valid then
             if resting == 0 then
-                footerLabel.text = "None of your heroes are at home to rest."
+                footerLabel.text = T("inn.footer.nobody_home")
             elseif wounded == 0 then
                 footerLabel.text = EotwDowntime.NO_WOUNDS_MESSAGE
             else
-                footerLabel.text = string.format("%d %s rest: Victories become XP%s, and Stamina and Recoveries are restored.",
-                    resting, cond(resting == 1, "hero", "heroes"),
-                    cond(victories > 0, string.format(" and %d Downtime %s", victories, cond(victories == 1, "Activity", "Activities")), ""))
+                if victories > 0 then
+                    footerLabel.text = TP("inn.footer.rest_downtime", resting, { downtime = TP("inn.footer.downtime_activities", victories) })
+                else
+                    footerLabel.text = TP("inn.footer.rest", resting)
+                end
             end
+        end
+        if seriesWarning ~= nil and seriesWarning.valid then
+            local lines = {}
+            if resting > 0 and wounded > 0 then
+                for _, held in ipairs(EncounterOfTheWeek.PartsHeldOpen()) do
+                    lines[#lines+1] = T("inn.series.warning", held)
+                end
+            end
+            seriesWarning.text = table.concat(lines, "\n")
+            seriesWarning:SetClass("collapsed", #lines == 0)
         end
         if respiteButton ~= nil and respiteButton.valid then
             --on the button itself: opacity is not inherited from this wrapper.
@@ -2642,7 +3208,7 @@ function EotwDowntime.InnPanel(host, openLocation)
                     valign = "center",
                     HammerChip(total),
                     gui.Label{
-                        text = string.format("Your heroes have %d Downtime %s to spend on projects.", total, cond(total == 1, "Activity", "Activities")),
+                        text = TP("inn.after.downtime", total),
                         fontSize = 15,
                         color = TEXT,
                         width = "auto",
@@ -2662,7 +3228,7 @@ function EotwDowntime.InnPanel(host, openLocation)
                             width = 300,
                             height = 34,
                             tmargin = 6,
-                            linger = gui.Tooltip(cond(project.location == "inn", "Work on it here.", "Go to the Hero's Guild to work on it.")),
+                            linger = gui.Tooltip(cond(project.location == "inn", T("inn.after.project_here_tooltip"), T("inn.after.project_elsewhere_tooltip", { place = project.locationName or T("inn.after.guild_place") }))),
                             click = function()
                                 if project.location == "inn" then
                                     EotwDowntime.ShowRollDialog(host, id)
@@ -2676,12 +3242,12 @@ function EotwDowntime.InnPanel(host, openLocation)
                 if not anyActive then
                     --no project under way: point the way to where one starts.
                     children[#children+1] = gui.Button{
-                        text = "Go to the Hero's Guild",
+                        text = T("inn.after.guild_button"),
                         fontSize = 15,
                         width = 300,
                         height = 34,
                         tmargin = 6,
-                        linger = gui.Tooltip("No project is under way. When your roster is full, the guild can start one to expand."),
+                        linger = gui.Tooltip(T("inn.after.guild_tooltip")),
                         click = function()
                             openLocation("guild")
                         end,
@@ -2714,7 +3280,7 @@ function EotwDowntime.InnPanel(host, openLocation)
             height = "auto",
             flow = "horizontal",
             gui.Label{
-                text = "Take a Respite",
+                text = T("inn.respite.heading"),
                 fontSize = 26,
                 bold = true,
                 color = TEXT,
@@ -2723,7 +3289,7 @@ function EotwDowntime.InnPanel(host, openLocation)
                 valign = "center",
             },
             gui.Label{
-                text = "24 hours of rest",
+                text = T("inn.respite.duration"),
                 fontSize = 16,
                 italics = true,
                 color = DIM,
@@ -2734,7 +3300,7 @@ function EotwDowntime.InnPanel(host, openLocation)
             },
         },
         gui.Label{
-            text = "Rest together and every hero at home turns their Victories into XP and Downtime Activities, and recovers fully. Or just catch your breath: spend a Recovery and keep your Victories for the next fight.",
+            text = T("inn.respite.intro"),
             fontSize = 15,
             italics = true,
             color = DIM,
@@ -2766,6 +3332,18 @@ function EotwDowntime.InnPanel(host, openLocation)
             end,
         },
         gui.Label{
+            classes = { "collapsed" },
+            text = "",
+            fontSize = 15,
+            color = AMBER,
+            width = "100%",
+            height = "auto",
+            tmargin = 6,
+            create = function(element)
+                seriesWarning = element
+            end,
+        },
+        gui.Label{
             text = "",
             fontSize = 15,
             color = RED,
@@ -2786,7 +3364,7 @@ function EotwDowntime.InnPanel(host, openLocation)
                 create = function(element)
                     respiteButton = element
                 end,
-                ConfirmButton("Take a Respite", "Rest Now? (Victories become XP)", 360, function()
+                ConfirmButton(T("inn.respite.button"), T("inn.respite.button_confirm"), 360, function()
                     if EotwDowntime.RespiteBusy() then
                         return
                     end
@@ -2794,18 +3372,42 @@ function EotwDowntime.InnPanel(host, openLocation)
                     if statusLabel ~= nil and statusLabel.valid then
                         statusLabel.text = ""
                     end
-                    EotwDowntime.TakeRespite(function(ok, message)
+                    EotwDowntime.TakeRespite(function(ok, message, closedParts)
                         if mod.unloaded then
                             return
                         end
                         if not ok and statusLabel ~= nil and statusLabel.valid then
                             statusLabel.text = tostring(message)
                         end
+                        if ok then
+                            ShowPastCatchesUp(host)
+                            if seriesNote ~= nil and seriesNote.valid then
+                                local lines = {}
+                                for _, held in ipairs(EncounterOfTheWeek.PartsHeldOpen(closedParts or {})) do
+                                    lines[#lines+1] = T("inn.series.closed", held)
+                                end
+                                seriesNote.text = table.concat(lines, "\n")
+                                seriesNote:SetClass("collapsed", #lines == 0)
+                            end
+                        end
                         Rebuild()
                     end)
                     Rebuild()
                 end),
             },
+        },
+        gui.Label{
+            classes = { "collapsed" },
+            text = "",
+            fontSize = 15,
+            italics = true,
+            color = AMBER,
+            width = "100%",
+            height = "auto",
+            tmargin = 8,
+            create = function(element)
+                seriesNote = element
+            end,
         },
         --after a respite: carouse in the common room for leads, and start
         --the projects those leads open (EotwLeads.lua).

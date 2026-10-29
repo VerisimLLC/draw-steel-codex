@@ -17,6 +17,9 @@ RichVideo.loop = true
 RichVideo.autoplay = true
 RichVideo.muted = false
 RichVideo.volume = 1
+--false plays the clip with no sound at all and drops the mute and volume controls
+--(a table video added without its audio).
+RichVideo.audio = true
 
 local FormatTime = function(value, maxValue)
     maxValue = maxValue or value
@@ -50,12 +53,12 @@ end
 -- when it finishes, which collapses the autosizeimage panel (the video "disappears").
 -- The widget's own "no loop" setting is emulated in Lua instead: think() pauses the clip
 -- on its last frame when it reaches the end and shows the replay poster.
-local function BuildVideoSource(image, guid)
+local function BuildVideoSource(image, guid, audio)
     if not image then
         return nil
     end
 
-    return image .. "###LOOPAUDIO" .. guid
+    return image .. cond(audio == false, "###LOOP", "###LOOPAUDIO") .. guid
 end
 
 function RichVideo.CreateDisplay(self)
@@ -376,7 +379,9 @@ function RichVideo.CreateDisplay(self)
                 m_muteButton:SetClass("muted", m_muted)
             end
 
-            local src = BuildVideoSource(tag.image, m_guid)
+            local src = BuildVideoSource(tag.image, m_guid, tag.audio)
+            m_muteButton:SetClass("collapsed", tag.audio == false)
+            m_volumeWrapper:SetClass("collapsed", tag.audio == false)
             if src ~= m_currentSrc then
                 m_currentSrc = src
                 m_started = false
@@ -497,7 +502,7 @@ function RichVideo.CreateDisplay(self)
             m_guid = dmhub.GenerateGuid()
             m_started = false
             --m_image is truthy here, so BuildVideoSource returns a string.
-            local src = BuildVideoSource(m_image, m_guid) --[[@as string]]
+            local src = BuildVideoSource(m_image, m_guid, self.audio) --[[@as string]]
             m_currentSrc = src
             m_videoPanel.bgimageStreamed = src
         end

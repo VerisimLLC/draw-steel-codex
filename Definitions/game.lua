@@ -98,6 +98,32 @@ function game.GetGameGlobalCharacters() end
 --- @return nil|CharacterToken[]
 function game.GetTokensAtLoc(loc) end
 
+--- Teleports tokens to a map, which need not be the current one; Director (or player host) only. The first token is centred on the world point x, y on floor index floor of that map (the terms of dmhub.GetMapSnapshotInfo and dmhub.GetMapTokens), and the others go on the nearest free tiles around it. On the current map this is an ordinary summon. On another map its walls and terrain are not loaded: tokens only avoid other tokens, and land at altitude 0. Mounted tokens take their mounts along. Undoable. Used by the tabletop to drop a token dragged out of the live map window onto another map's window.
+--- @param charids string[]
+--- @param mapid string
+--- @param x number
+--- @param y number
+--- @param floor integer
+function game.SendTokensToMap(charids, mapid, x, y, floor) end
+
+--- Creates bestiary creatures on a map, which need not be the current one; Director (or player host) only. monsterids is a list of bestiary ids, which join initiative together (a minion squad lists its id once per minion), or a list of such lists, one per initiative group (an encounter). The first creature is centred on the world point x, y on floor index floor of that map (the terms of dmhub.GetMapSnapshotInfo), and the others go on the nearest free tiles around it, as game.SendTokensToMap places tokens; game.PlanTokensOnMap says where. Each runs its OnCreateFromBestiary. Undoable as one step. Unlike placing on the live map this does not fire spawnFromBestiary, whose handlers act on the current map. Returns the new charids. Used by the tabletop to drop a bestiary entry onto another map's window.
+--- @param monsterids string[]|string[][]
+--- @param mapid string
+--- @param x number
+--- @param y number
+--- @param floor integer
+--- @return string[]
+function game.SpawnBestiaryOnMap(monsterids, mapid, x, y, floor) end
+
+--- Where tokens would land if dropped on a map at a world point, without placing them: the plan game.SendTokensToMap (ids are charids) and game.SpawnBestiaryOnMap (ids are bestiary ids, decided by the first) follow for the same point, so a drag can preview a drop exactly. One entry per token that would arrive, in order: its id (a rider's mount stands in for it, as it moves in its place), the world point at the centre of its footprint, and the footprint's width in tiles. Only other tokens are in the way, as with those calls.
+--- @param ids string[]
+--- @param mapid string
+--- @param x number
+--- @param y number
+--- @param floor integer
+--- @return {id: string, x: number, y: number, tiles: integer}[]
+function game.PlanTokensOnMap(ids, mapid, x, y, floor) end
+
 --- Removes the specified tokens from the game with an unsummon animation.
 --- @param tokenidList string[] A table of token ID strings to unsummon.
 function game.UnsummonTokens(tokenidList) end

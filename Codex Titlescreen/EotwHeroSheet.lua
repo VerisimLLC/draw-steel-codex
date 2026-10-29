@@ -15,26 +15,90 @@ local mod = dmhub.GetModLoading()
 
 ---@class EotwHeroSheet
 ---@field debugNeededLine string|nil test switch: shows this line on the gold you're-needed bar in a game
+---@field themeHandler {Deregister: fun()}|nil the colour scheme handler, kept so a reload can drop it
 --Kept across a reload of this file alone: EotwHeroSheetData.lua adds to the same table.
 EotwHeroSheet = rawget(_G, "EotwHeroSheet") or {}
 
---The fixed dark skin (EotW does not follow colour schemes yet): the
---builder's cream/tan on near-black frosted plates.
-local C = {
+local T = UIText.T
+local TP = UIText.Plural
+
+--The sheet's colours by role. Read them through C, never as literals: C
+--follows the active colour scheme (see RefreshPalette).
+---@class EotwSheetPalette
+---@field CREAM string body text
+---@field CREAM_LIGHT string section headers and values
+---@field TAN string small labels: stat names, sub-headers, group labels, cost tags
+---@field MUTED string
+---@field LAB string secondary labels: pillar tags, tier names, ability tags
+---@field BORDER string
+---@field BORDER_HOVER string hovered and pinned rows
+---@field INK string dark text on gold or cream
+---@field CARD string buttons
+---@field CARD_HOVER string
+---@field ROW string ability rows and feature cards
+---@field ROW_HOVER string
+---@field SKEL_ROW string placeholder rows while a Hero loads
+---@field BLOCK string every plate and the top bar
+---@field BLOCK_OPAQUE string plates with Transparent UI off
+---@field BLOCK_EDGE string
+---@field FADE_CLEAR string the treasures fade, top
+---@field FADE string the treasures fade, bottom
+---@field TILE string characteristic tiles
+---@field LABEL_RULE string the line over the abilities and features lists
+---@field LABEL_OUTLINE string the potency outline
+---@field LABEL_WASH string the state chip's ground
+---@field LABEL_EDGE string the state chip's outline
+---@field RING string the Recoveries ring
+---@field RING_HOVER string
+---@field RING_EMPTY string
+---@field HATCH string
+---@field HATCH_GROUND string
+---@field HAIRLINE string
+---@field SKEL string
+---@field SKEL_LIT string
+---@field GOLD string
+---@field PLATE_TEXT string
+---@field PLATE string
+---@field WARN string
+
+--Today's skin: the builder's cream/tan on near-black frosted plates. A scheme
+--with Default's colours gets exactly this; the rest blend from it.
+---@type EotwSheetPalette
+local SKIN = {
     CREAM = "#DFCFC0ff",
     CREAM_LIGHT = "#F3EDE7ff",
     TAN = "#BC9B7Bff",
     MUTED = "#A6A096ff",
+    LAB = "#A6A096ff",
     BORDER = "#3a3833ff",
+    BORDER_HOVER = "#6a6459ff",
     INK = "#10110Fff",
     CARD = "#1a1b18ff",
     CARD_HOVER = "#262722ff",
+    ROW = "#1a1b18d9",
+    ROW_HOVER = "#262722e6",
+    SKEL_ROW = "#1c1b18c2",
     --every plate and the top bar, in town and in a game: dark enough that
     --text reads over the brightest scene behind (the town map), with a hint
     --of the frosted scene still showing
     BLOCK = "#0e0d0bdb",
     BLOCK_OPAQUE = "#14130fff",
     BLOCK_EDGE = "#ffffff1a",
+    FADE_CLEAR = "#0e0d0b00",
+    FADE = "#0e0d0bcc",
+    TILE = "#00000038",
+    LABEL_RULE = "#bc9b7b66",
+    LABEL_OUTLINE = "#bc9b7b59",
+    LABEL_WASH = "#bc9b7b24",
+    LABEL_EDGE = "#bc9b7b99",
+    RING = "#dfcfc099",
+    RING_HOVER = "#f3ede72e",
+    RING_EMPTY = "#c94040cc",
+    --the hatched stretch of the XP bar: cream stripes on a faint cream ground
+    HATCH = "#dfcfc0e6",
+    HATCH_GROUND = "#dfcfc040",
+
+    --fixed in every scheme
     HAIRLINE = "#ffffff14",
     SKEL = "#ffffff0f",
     SKEL_LIT = "#ffffff24",
@@ -44,10 +108,258 @@ local C = {
     PLATE_TEXT = "#c6d0daff",
     PLATE = "#000000c4",
     WARN = "#e9b86fff",
-    --the hatched stretch of the XP bar: cream stripes on a faint cream ground
-    HATCH = "#dfcfc0e6",
-    HATCH_GROUND = "#dfcfc040",
 }
+
+---@return EotwSheetPalette
+local function CopySkin()
+    local p = {}
+    for k,v in pairs(SKIN) do
+        p[k] = v
+    end
+    return p --[[@as EotwSheetPalette]]
+end
+
+local C = CopySkin()
+
+--Colour schemes (option A, "Blended", brief "Colour schemes"): every text
+--colour, border and surface follows the scheme, blended toward the skin.
+--Mixing, alpha and contrast cannot be written as @tokens, so they are done
+--here (the same escape hatch as Audio.lua's AccentColorHex).
+
+--The scheme tokens the palette reads. The first eight decide "Default-coloured".
+local SCHEME_KEYS = { "bg", "bgAlt", "fg", "fgStrong", "fgMuted", "border", "accent", "accentHover", "danger" }
+local DEFAULT_MATCH_KEYS = 8
+--How far the plates and rows move from the skin toward the scheme's surfaces.
+local PLATE_TINT = 0.55
+--A scheme whose bg is lighter than this keeps the skin's dark plates.
+local LIGHT_BG_LUMINANCE = 0.2
+--Text must reach this contrast on the plate, or the next candidate is used.
+local READABLE_CONTRAST = 4.5
+
+--"#rgb", "#rrggbb" or "#rrggbbaa" to { r, g, b, a } (0-255, a 0-1); nil if not a hex colour.
+---@param hex any
+---@return number[]|nil
+local function ParseHex(hex)
+    if type(hex) ~= "string" then
+        return nil
+    end
+    local h = string.match(hex, "^#?(%x+)$")
+    if h == nil then
+        return nil
+    end
+    if #h == 3 then
+        h = string.gsub(h, "%x", "%0%0")
+    end
+    if #h ~= 6 and #h ~= 8 then
+        return nil
+    end
+    local alpha = 1
+    if #h == 8 then
+        alpha = tonumber(string.sub(h, 7, 8), 16) / 255
+    end
+    return { tonumber(string.sub(h, 1, 2), 16), tonumber(string.sub(h, 3, 4), 16), tonumber(string.sub(h, 5, 6), 16), alpha }
+end
+
+---@param c number[]
+---@param alpha? number 0-1, default opaque
+---@return string "#rrggbbaa"
+local function ToHex(c, alpha)
+    local parts = {}
+    for i = 1, 3 do
+        parts[i] = string.format("%02x", math.floor(math.max(0, math.min(255, c[i])) + 0.5))
+    end
+    parts[4] = string.format("%02x", math.floor(math.max(0, math.min(1, alpha or 1)) * 255 + 0.5))
+    return "#" .. table.concat(parts)
+end
+
+--The colour t (0-1) of the way from a to b, opaque.
+---@param a number[]
+---@param b number[]
+---@param t number
+---@return number[]
+local function Mix(a, b, t)
+    return { a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t, a[3] + (b[3] - a[3]) * t, 1 }
+end
+
+--WCAG relative luminance.
+---@param c number[]
+---@return number
+local function Luminance(c)
+    local out = {}
+    for i = 1, 3 do
+        local v = c[i] / 255
+        if v <= 0.03928 then
+            out[i] = v / 12.92
+        else
+            out[i] = ((v + 0.055) / 1.055) ^ 2.4
+        end
+    end
+    return 0.2126 * out[1] + 0.7152 * out[2] + 0.0722 * out[3]
+end
+
+---@param a number[]
+---@param b number[]
+---@return number
+local function Contrast(a, b)
+    local x, y = Luminance(a), Luminance(b)
+    return (math.max(x, y) + 0.05) / (math.min(x, y) + 0.05)
+end
+
+--True if two scheme colours are the same colour. Compared parsed, not as text:
+--saved user schemes write "#1A1A1EFF" where Default has "#1A1A1E".
+---@param a any
+---@param b any
+---@return boolean
+local function SameColour(a, b)
+    local x, y = ParseHex(a), ParseHex(b)
+    if x == nil or y == nil then
+        return string.lower(tostring(a)) == string.lower(tostring(b))
+    end
+    for i = 1, 3 do
+        if math.floor(x[i] + 0.5) ~= math.floor(y[i] + 0.5) then
+            return false
+        end
+    end
+    return math.floor(x[4] * 255 + 0.5) == math.floor(y[4] * 255 + 0.5)
+end
+
+--The palette for a scheme's colour table (token -> hex). Default-coloured or
+--unreadable tables get the skin.
+---@param colors table
+---@param defaults table the Default scheme's colours
+---@return EotwSheetPalette
+local function BuildPalette(colors, defaults)
+    local p = CopySkin()
+
+    local same = true
+    for i = 1, DEFAULT_MATCH_KEYS do
+        local key = SCHEME_KEYS[i]
+        if not SameColour(colors[key], defaults[key]) then
+            same = false
+            break
+        end
+    end
+    if same then
+        return p
+    end
+
+    local s = {}
+    for _,key in ipairs(SCHEME_KEYS) do
+        s[key] = ParseHex(colors[key])
+        if s[key] == nil then
+            return p
+        end
+    end
+
+    local skinPlate = ParseHex("#0e0d0b") --[[@as number[] ]]
+    local plate = skinPlate
+    local row = ParseHex("#1a1b18") --[[@as number[] ]]
+    local opaque = ParseHex("#14130f") --[[@as number[] ]]
+    local skelRow = ParseHex("#1c1b18") --[[@as number[] ]]
+    local tile = ParseHex("#000000") --[[@as number[] ]]
+    --a light-surfaced scheme would wash the plates out: keep them warm-black.
+    --Rows follow bgAlt, so a light bgAlt keeps the skin's rows the same way.
+    local light = Luminance(s.bg) > LIGHT_BG_LUMINANCE
+    local lightAlt = light or Luminance(s.bgAlt) > LIGHT_BG_LUMINANCE
+    if not light then
+        plate = Mix(plate, s.bg, PLATE_TINT)
+        opaque = Mix(opaque, s.bg, PLATE_TINT)
+        tile = Mix(tile, s.bg, PLATE_TINT * 0.6)
+    end
+    if not lightAlt then
+        row = Mix(row, s.bgAlt, PLATE_TINT)
+        skelRow = Mix(skelRow, s.bgAlt, PLATE_TINT)
+    end
+
+    --a see-through scheme colour, as it shows on the plate
+    local function Over(c)
+        return Mix(plate, c, c[4])
+    end
+    --every surface text sits on: the plate, the rows and cards, the tiles
+    local surfaces = { plate, row, Mix(plate, row, 0.85), Mix(plate, tile, 0.22) }
+    --the first candidate that reads on every surface, else the last (a skin colour)
+    local function Readable(...)
+        local cands = { ... }
+        for _,c in ipairs(cands) do
+            local ok = true
+            for _,surface in ipairs(surfaces) do
+                if Contrast(Mix(surface, c, c[4]), surface) < READABLE_CONTRAST then
+                    ok = false
+                    break
+                end
+            end
+            if ok then
+                return Over(c)
+            end
+        end
+        return cands[#cands]
+    end
+
+    local skinMuted = ParseHex(SKIN.MUTED) --[[@as number[] ]]
+    local label = Readable(s.accent, s.accentHover, ParseHex(SKIN.TAN))
+    local strong = Readable(s.fgStrong, ParseHex(SKIN.CREAM_LIGHT))
+    local body = Readable(s.fg, ParseHex(SKIN.CREAM))
+    local muted = Readable(s.fgMuted, Mix(Over(s.fgMuted), Over(s.fg), 0.35), skinMuted)
+    local lab = Readable(Mix(Over(s.fg), muted, 0.45), skinMuted)
+
+    p.CREAM = ToHex(body)
+    p.CREAM_LIGHT = ToHex(strong)
+    p.TAN = ToHex(label)
+    p.MUTED = ToHex(muted)
+    p.LAB = ToHex(lab)
+    p.BLOCK = ToHex(plate, 0.86)
+    p.BLOCK_OPAQUE = ToHex(opaque)
+    p.FADE_CLEAR = ToHex(plate, 0)
+    p.FADE = ToHex(plate, 0.8)
+    p.TILE = ToHex(tile, 0.22)
+    p.SKEL_ROW = ToHex(skelRow, 0.76)
+    p.ROW = ToHex(row, 0.85)
+    p.CARD = ToHex(row)
+    --the plate is the skin's, so there is nothing to blend the borders toward
+    if not light then
+        local border = Over(s.border)
+        local hoverRow = Mix(row, s.fgMuted, 0.18)
+        p.CARD_HOVER = ToHex(hoverRow)
+        p.ROW_HOVER = ToHex(hoverRow, 0.9)
+        p.BORDER = ToHex(Mix(border, plate, 0.6))
+        p.BORDER_HOVER = ToHex(Mix(border, plate, 0.3))
+        p.BLOCK_EDGE = ToHex(s.border, 0.22 * s.border[4])
+    end
+    p.LABEL_RULE = ToHex(label, 0.4)
+    p.LABEL_OUTLINE = ToHex(label, 0.35)
+    p.LABEL_WASH = ToHex(label, 0.14)
+    p.LABEL_EDGE = ToHex(label, 0.6)
+    p.RING = ToHex(body, 0.6)
+    p.RING_HOVER = ToHex(strong, 0.18)
+    p.RING_EMPTY = ToHex(s.danger, 0.8)
+    p.HATCH = ToHex(body, 0.9)
+    p.HATCH_GROUND = ToHex(body, 0.25)
+    return p
+end
+
+--The colours the palette was last built from, so an unchanged scheme is a no-op.
+local m_paletteSignature = ""
+
+--Re-read the active scheme into C (in place: closures holding C see the new
+--colours). Keyed by colour, not id: editing a user scheme keeps its id.
+---@return boolean changed
+local function RefreshPalette()
+    local colors = ThemeEngine.GetColorSchemeColors(ThemeEngine.GetActiveColorScheme()) or {}
+    local parts = {}
+    for i,key in ipairs(SCHEME_KEYS) do
+        parts[i] = string.lower(tostring(colors[key]))
+    end
+    local signature = table.concat(parts, "|")
+    if signature == m_paletteSignature then
+        return false
+    end
+    m_paletteSignature = signature
+    local palette = BuildPalette(colors, ThemeEngine.GetColorSchemeColors(nil) or {})
+    for k,v in pairs(palette) do
+        C[k] = v
+    end
+    return true
+end
 
 --The card's sections a live refresh re-reads (any character change): cheap,
 --with no feature index. Titles and the rest are read once when the Hero loads.
@@ -56,6 +368,10 @@ local LIVE_SECTIONS = { "identity", "progress", "vitals", "resource" }
 --Layout at the 1920x1080 design size (see the mock): a 400px left column
 --that never scrolls, and the main column taking the rest.
 local PAD = 24
+--The layout sits this much lower than PAD: both columns end 24px short of
+--their full height, so +12 at the top and -12 at the bottom leaves an even
+--36px above and below, where the sheet has always opened.
+local LAYOUT_DROP = 12
 local COLUMN_GAP = 20
 local LEFT_WIDTH = 400
 local LEFT_GAP = 14
@@ -92,8 +408,9 @@ local LOAD_TIMEOUT = 15
 local SHIMMER_SECONDS = 0.7
 --How long a stat equipping just changed stays gold before it settles.
 local PREVIEW_HOLD_SECONDS = 1.5
---Motion (C6): the sheet opens with a 200ms fade and rise; the card's wash
---for a hit or a heal fires at most once a second.
+--Motion (C6): the sheet opens with a 200ms fade (no rise: the engine snaps a
+--style y rather than animating it); the card's wash for a hit or a heal fires
+--at most once a second.
 local OPEN_SECONDS = 0.2
 local WASH_MIN_GAP = 1
 --A kit-equivalent's text longer than this (at 100% Font Size; shorter when
@@ -138,1160 +455,1189 @@ local function FrostSupported()
     return m_frostSupported == true
 end
 
-local CHARACTERISTICS = { "Might", "Agility", "Reason", "Intuition", "Presence" }
-local PILLARS = { "Combat", "Exploration", "Montage", "Negotiation", "Respite" }
+--Frost draws junk (green streaks on Macs) while the screen renders below full
+--resolution, i.e. with High Definition / Retina Display off, and the engine
+--turns it off then; the plates use blurBackground instead. (AVKPBDDE)
+---@return boolean
+local function FullResolution()
+    return dmhub.GetSettingValue("hidef") ~= false
+end
 
-local RULES = {
-    {
-        selectors = { "eotwsText" },
-        fontFace = "Berling",
-        color = C.CREAM,
-        fontSize = 14,
-        width = "auto",
-        height = "auto",
-    },
-    {
-        selectors = { "eotwsText", "muted" },
-        color = C.MUTED,
-    },
-    --section headers: Kit, Treasures, Characteristics, Abilities...
-    {
-        selectors = { "eotwsHeader" },
-        color = C.CREAM_LIGHT,
-        fontSize = 16,
-        bold = true,
-        uppercase = true,
-    },
-    --small gold-tan labels: characteristic names, treasure sub-headers.
-    {
-        selectors = { "eotwsLabel" },
-        color = C.TAN,
-        fontSize = 11.5,
-        bold = true,
-        uppercase = true,
-    },
-    {
-        selectors = { "eotwsName" },
-        color = "white",
-        fontSize = 28,
-        bold = true,
-        width = "100%",
-        --one line: a long name shrinks to fit the plate rather than wrapping
-        --(which would push the plate up over the art), "..." past the floor
-        textWrap = false,
-        minFontSize = 16,
-        textOverflow = "ellipsis",
-    },
-    {
-        selectors = { "eotwsBlock" },
-        bgimage = "panels/square.png",
-        bgcolor = C.BLOCK,
-        borderWidth = 1,
-        borderColor = C.BLOCK_EDGE,
-        cornerRadius = 10,
-    },
-    --the Transparent UI setting is off: solid plates, nothing shows through
-    {
-        selectors = { "eotwsBlock", "opaque" },
-        bgcolor = C.BLOCK_OPAQUE,
-    },
-    {
-        selectors = { "eotwsSkel" },
-        bgimage = "panels/square.png",
-        bgcolor = C.SKEL,
-        cornerRadius = 5,
-        transitionTime = SHIMMER_SECONDS,
-    },
-    {
-        selectors = { "eotwsSkel", "lit" },
-        bgcolor = C.SKEL_LIT,
-    },
-    --an outlined row the real content will fill: ability rows, items.
-    {
-        selectors = { "eotwsRow" },
-        bgimage = "panels/square.png",
-        bgcolor = "#1c1b18c2",
-        borderWidth = 1,
-        borderColor = C.BORDER,
-        cornerRadius = 8,
-    },
-    {
-        selectors = { "eotwsChip" },
-        bgimage = "panels/square.png",
-        bgcolor = "#00000000",
-        borderWidth = 1,
-        borderColor = C.BORDER,
-        cornerRadius = 14,
-    },
-    {
-        selectors = { "eotwsButton" },
-        bgimage = "panels/square.png",
-        bgcolor = C.CARD,
-        borderWidth = 1,
-        borderColor = C.BORDER,
-        cornerRadius = 6,
-    },
-    {
-        selectors = { "eotwsButton", "hover" },
-        bgcolor = C.CARD_HOVER,
-        borderColor = C.TAN,
-    },
-    {
-        selectors = { "eotwsButton", "press" },
-        brightness = 0.85,
-    },
-
-    --the card: art full-bleed (or the dark ground when there is none), greyed
-    --for a Hero who is dead or fallen
-    {
-        selectors = { "eotwsCard" },
-        bgimage = "panels/square.png",
-        bgcolor = "#151515ff",
-        borderWidth = 1,
-        borderColor = "#000000cc",
-        cornerRadius = 10,
-    },
-    {
-        selectors = { "eotwsCard", "dead" },
-        saturation = 0,
-        brightness = 0.7,
-    },
-    {
-        selectors = { "eotwsPlate" },
-        bgimage = "panels/square.png",
-        bgcolor = C.PLATE,
-        cornerRadius = 8,
-    },
-    {
-        selectors = { "eotwsPlateText" },
-        color = C.PLATE_TEXT,
-        fontSize = 12.5,
-    },
-    {
-        selectors = { "eotwsPlateStrong" },
-        color = "white",
-        fontSize = 14,
-        bold = true,
-    },
-    {
-        selectors = { "eotwsSubtitle" },
-        color = C.PLATE_TEXT,
-        fontSize = 14,
-        tmargin = 2,
-        width = "100%",
-    },
-    {
-        selectors = { "eotwsTitle" },
-        color = C.CREAM,
-        fontSize = 14,
-        italics = true,
-    },
-    {
-        selectors = { "eotwsTitle", "hover" },
-        color = C.CREAM_LIGHT,
-    },
-    {
-        selectors = { "eotwsMedal" },
-        width = 15,
-        height = 15,
-        valign = "center",
-        bgimage = "phosphor/medal-fill.png",
-        bgcolor = C.TAN,
-    },
-    {
-        selectors = { "eotwsLevelNumber" },
-        color = "white",
-        fontSize = 14,
-        bold = true,
-        width = LEVEL_NUMBER_WIDTH,
-        textAlignment = "center",
-        valign = "center",
-    },
-    {
-        selectors = { "eotwsLevelNumber", "next" },
-        color = C.PLATE_TEXT,
-    },
-    {
-        selectors = { "eotwsLevelNumber", "next", "reach" },
-        color = C.CREAM_LIGHT,
-    },
-    {
-        selectors = { "eotwsLevelNumber", "next", "ready" },
-        color = C.GOLD,
-    },
-    {
-        selectors = { "eotwsXpBar" },
-        bgimage = "panels/square.png",
-        bgcolor = "#ffffff1f",
-        cornerRadius = 5,
-    },
-    {
-        selectors = { "eotwsXpFill" },
-        bgimage = "panels/square.png",
-        bgcolor = "white",
-        cornerRadius = 5,
-        gradient = gui.Gradient{
-            point_a = { x = 0, y = 0 },
-            point_b = { x = 1, y = 0 },
-            stops = {
-                { position = 0, color = C.TAN },
-                { position = 1, color = C.CREAM },
-            },
-        },
-    },
-    {
-        selectors = { "eotwsXpFill", "ready" },
-        gradient = gui.Gradient{
-            point_a = { x = 0, y = 0 },
-            point_b = { x = 1, y = 0 },
-            stops = {
-                { position = 0, color = C.GOLD },
-                { position = 1, color = C.GOLD },
-            },
-        },
-    },
-    {
-        selectors = { "eotwsReadyLine" },
-        color = C.GOLD,
-        fontSize = 14,
-        bold = true,
-        width = "100%",
-    },
-    {
-        selectors = { "eotwsRespiteLine" },
-        color = C.CREAM_LIGHT,
-        fontSize = 13.5,
-        bold = true,
-        width = "100%",
-    },
-    {
-        selectors = { "eotwsEpic" },
-        fontSize = 13,
-        valign = "center",
-    },
-    {
-        selectors = { "eotwsEpicIcon" },
-        width = 14,
-        height = 14,
-        valign = "center",
-        bgcolor = C.CREAM_LIGHT,
-    },
-    {
-        selectors = { "eotwsNote" },
-        fontSize = 13,
-    },
-    {
-        selectors = { "eotwsStatusIcon" },
-        width = 14,
-        height = 14,
-        bgcolor = "white",
-    },
-    --the Recoveries ring: Recoveries left in a dark disc
-    {
-        selectors = { "eotwsRing" },
-        width = 42,
-        height = 42,
-        valign = "center",
-        bgimage = "panels/square.png",
-        bgcolor = "#000000a0",
-        cornerRadius = 21,
-        borderWidth = 2,
-        borderColor = "#dfcfc099",
-    },
-    {
-        selectors = { "eotwsRing", "spendable", "hover" },
-        bgcolor = "#f3ede72e",
-        borderColor = C.CREAM_LIGHT,
-    },
-    {
-        selectors = { "eotwsRing", "empty" },
-        borderColor = "#c94040cc",
-    },
-    {
-        selectors = { "eotwsRingNumber" },
-        color = C.CREAM_LIGHT,
-        fontSize = 18,
-        bold = true,
-        halign = "center",
-        valign = "center",
-    },
-    {
-        selectors = { "eotwsVitalNumber" },
-        color = "white",
-        fontSize = 20,
-        bold = true,
-        valign = "center",
-    },
-    {
-        selectors = { "eotwsResourceIcon" },
-        width = 17,
-        height = 17,
-        valign = "center",
-        bgcolor = "white",
-    },
-    {
-        selectors = { "eotwsEpitaph" },
-        color = C.PLATE_TEXT,
-        fontSize = 14,
-        width = "100%",
-    },
-    {
-        selectors = { "eotwsSurges" },
-        width = "auto",
-        height = "auto",
-        flow = "horizontal",
-        hpad = 7,
-        vpad = 5,
-        borderBox = true,
-        bgimage = "panels/square.png",
-        bgcolor = C.PLATE,
-        cornerRadius = 8,
-    },
-    {
-        selectors = { "eotwsSurgeIcon" },
-        width = 15,
-        height = 15,
-        lmargin = 1,
-        rmargin = 1,
-        bgimage = "game-icons/surge.png",
-        bgcolor = C.GOLD,
-    },
-    --keyboard focus (Tab, the arrow keys): a cream ring
-    {
-        selectors = { "eotwsFocusable", "focus" },
-        borderWidth = 2,
-        borderColor = C.CREAM_LIGHT,
-    },
-    {
-        selectors = { "eotwsShowMore", "focus" },
-        color = C.CREAM_LIGHT,
-    },
-    {
-        selectors = { "eotwsItemName", "focus" },
-        color = C.CREAM_LIGHT,
-    },
-    --motion: the cover the sheet opens behind, and the layout's rise
-    {
-        selectors = { "eotwsOpener" },
-        bgimage = "panels/square.png",
-        bgcolor = "#0b0b0aff",
-    },
-    {
-        selectors = { "eotwsOpener", "done" },
-        bgcolor = "#0b0b0a00",
-        transitionTime = OPEN_SECONDS,
-    },
-    {
-        selectors = { "eotwsRise" },
-        y = 12,
-    },
-    {
-        selectors = { "eotwsRise", "done" },
-        y = 0,
-        transitionTime = OPEN_SECONDS,
-    },
-    --the card's art fades in over its dark ground (on open and on a switch)
-    {
-        selectors = { "eotwsArtCover" },
-        bgimage = "panels/square.png",
-        bgcolor = "#151515ff",
-        cornerRadius = 10,
-    },
-    {
-        selectors = { "eotwsArtCover", "shown" },
-        bgcolor = "#15151500",
-        transitionTime = 0.25,
-    },
-    --on a switch, the last Hero's art (or dark ground) held over the card
-    --and faded out, so the new Hero's art cross-fades in beneath it
-    {
-        selectors = { "eotwsOldArt" },
-        bgimage = "panels/square.png",
-        bgcolor = "#151515ff",
-        cornerRadius = 10,
-    },
-    {
-        selectors = { "eotwsOldArt", "art" },
-        bgcolor = "#ffffffff",
-    },
-    {
-        selectors = { "eotwsOldArt", "dead" },
-        saturation = 0,
-        brightness = 0.7,
-    },
-    {
-        selectors = { "eotwsOldArt", "fading" },
-        bgcolor = "#15151500",
-        transitionTime = 0.4,
-    },
-    {
-        selectors = { "eotwsOldArt", "art", "fading" },
-        bgcolor = "#ffffff00",
-        transitionTime = 0.4,
-    },
-    --the card's wash for a hit or a heal, at 30%; PulseClass fades it out
-    --over the pulse rule's transitionTime
-    {
-        selectors = { "eotwsWash" },
-        bgimage = "panels/square.png",
-        bgcolor = "#00000000",
-        cornerRadius = 10,
-    },
-    {
-        selectors = { "eotwsWash", "hurt" },
-        bgcolor = "#ff3b3b4d",
-        transitionTime = 0.45,
-        easing = "easeOutCubic",
-    },
-    {
-        selectors = { "eotwsWash", "healed" },
-        bgcolor = "#3bff7b4d",
-        transitionTime = 0.45,
-        easing = "easeOutCubic",
-    },
-    --the one light sweep across the XP bar the first time a Hero is ready
-    {
-        selectors = { "eotwsSweep" },
-        width = 46,
-        height = "100%",
-        x = -46,
-        bgimage = "panels/square.png",
-        bgcolor = "#fffbe8b3",
-    },
-    {
-        selectors = { "eotwsSweep", "go" },
-        x = XP_BAR_WIDTH,
-        transitionTime = 0.9,
-        easing = "easeInOutCubic",
-    },
-    --abilities and features
-    {
-        selectors = { "eotwsListHead" },
-        width = "100%",
-        height = 44,
-        flow = "horizontal",
-        borderColor = "#bc9b7b66",
-        border = { x1 = 0, x2 = 0, y1 = 1, y2 = 0 },
-    },
-    {
-        selectors = { "eotwsListCount" },
-        color = C.MUTED,
-        fontSize = 13,
-    },
-    {
-        selectors = { "eotwsChip", "on" },
-        bgcolor = C.CREAM,
-        borderColor = C.CREAM,
-    },
-    {
-        selectors = { "eotwsChip", "hover" },
-        borderColor = C.TAN,
-    },
-    {
-        selectors = { "eotwsChipText" },
-        color = C.CREAM,
-        fontSize = 12.5,
-    },
-    {
-        selectors = { "eotwsChipText", "parent:on" },
-        color = C.INK,
-        bold = true,
-    },
-    {
-        selectors = { "eotwsFilter" },
-        width = "100% available",
-        height = 28,
-        lmargin = 10,
-        hpad = 10,
-        borderBox = true,
-        valign = "center",
-        fontSize = 13,
-        color = C.CREAM,
-        bgimage = "panels/square.png",
-        bgcolor = "#00000040",
-        borderWidth = 1,
-        borderColor = C.BORDER,
-        cornerRadius = 6,
-    },
-    {
-        selectors = { "eotwsGroupHead" },
-        width = "100%",
-        height = "auto",
-        vpad = 3,
-        borderBox = true,
-        flow = "horizontal",
-        bgimage = "panels/square.png",
-        bgcolor = "#00000000",
-    },
-    {
-        selectors = { "eotwsCaret" },
-        width = 10,
-        height = 10,
-        rmargin = 6,
-        valign = "center",
-        bgimage = "phosphor/caret-down-fill.png",
-        bgcolor = C.MUTED,
-    },
-    {
-        selectors = { "eotwsCaret", "closed" },
-        rotate = -90,
-    },
-    {
-        selectors = { "eotwsGroupLabel" },
-        color = C.TAN,
-        fontSize = 12,
-        bold = true,
-        uppercase = true,
-    },
-    {
-        selectors = { "eotwsGroupCount" },
-        color = C.MUTED,
-        fontSize = 13,
-    },
-    {
-        selectors = { "eotwsGroupNote" },
-        color = C.MUTED,
-        fontSize = 12,
-        italics = true,
-    },
-    {
-        selectors = { "eotwsAbilityRow" },
-        width = "100%",
-        height = "auto",
-        tmargin = 6,
-        hpad = 12,
-        vpad = 8,
-        borderBox = true,
-        flow = "horizontal",
-        bgimage = "panels/square.png",
-        bgcolor = "#1a1b18d9",
-        borderWidth = 1,
-        borderColor = C.BORDER,
-        cornerRadius = 8,
-    },
-    {
-        selectors = { "eotwsAbilityRow", "compact" },
-        width = "50%-3",
-        tmargin = 0,
-        hpad = 10,
-        vpad = 6,
-        rmargin = 6,
-    },
-    {
-        selectors = { "eotwsAbilityRow", "compact", "single" },
-        width = "100%",
-        rmargin = 0,
-    },
-    {
-        selectors = { "eotwsAbilityRow", "hover" },
-        bgcolor = "#262722e6",
-        borderColor = "#6a6459ff",
-    },
-    {
-        selectors = { "eotwsAbilityName" },
-        color = C.CREAM_LIGHT,
-        fontSize = 16,
-        bold = true,
-    },
-    {
-        selectors = { "eotwsAbilityName", "compact" },
-        fontSize = 14.5,
-    },
-    {
-        selectors = { "eotwsAbilityKeywords" },
-        color = C.MUTED,
-        fontSize = 12,
-        width = "100% available",
-        textWrap = false,
-        textOverflow = "ellipsis",
-    },
-    {
-        selectors = { "eotwsAbilityTag" },
-        color = C.MUTED,
-        fontSize = 12.5,
-    },
-    {
-        selectors = { "eotwsAbilityTag", "cost" },
-        color = C.TAN,
-        bold = true,
-    },
-    {
-        selectors = { "eotwsFeatureCard" },
-        width = "100%",
-        height = "auto",
-        tmargin = 7,
-        hpad = 14,
-        vpad = 10,
-        borderBox = true,
-        flow = "vertical",
-        bgimage = "panels/square.png",
-        bgcolor = "#1a1b18d9",
-        borderWidth = 1,
-        borderColor = C.BORDER,
-        cornerRadius = 8,
-    },
-    {
-        selectors = { "eotwsFeatureName" },
-        color = C.CREAM_LIGHT,
-        fontSize = 16,
-        bold = true,
-    },
-    {
-        selectors = { "eotwsPillTag" },
-        width = "auto",
-        height = "auto",
-        lmargin = 5,
-        hpad = 7,
-        borderBox = true,
-        bgimage = "panels/square.png",
-        bgcolor = "#00000000",
-        borderWidth = 1,
-        borderColor = C.BORDER,
-        cornerRadius = 9,
-    },
-    {
-        selectors = { "eotwsPillTagText" },
-        color = C.MUTED,
-        fontSize = 12,
-    },
-    {
-        selectors = { "eotwsFeatureChosen" },
-        color = C.MUTED,
-        fontSize = 13,
-        italics = true,
-        tmargin = 1,
-    },
-    {
-        selectors = { "eotwsFeatureText" },
-        color = C.CREAM,
-        fontSize = 14,
-        tmargin = 6,
-        width = "100%",
-        maxWidth = FEATURE_TEXT_MAX_WIDTH,
-    },
-    {
-        selectors = { "eotwsShowMore" },
-        color = C.TAN,
-        fontSize = 13,
-        tmargin = 4,
-        underline = true,
-    },
-    {
-        selectors = { "eotwsShowMore", "hover" },
-        color = C.CREAM_LIGHT,
-    },
-    {
-        selectors = { "eotwsEmpty" },
-        color = C.MUTED,
-        fontSize = 14,
-        italics = true,
-        tmargin = 20,
-        width = "100%",
-    },
-    --top bar
-    {
-        selectors = { "eotwsTopBar" },
-        bgimage = "panels/square.png",
-        bgcolor = C.BLOCK,
-        cornerRadius = 10,
-    },
-    --you're needed: the bar itself turns gold, so nothing below it moves
-    {
-        selectors = { "eotwsTopBar", "needed" },
-        bgcolor = "#ffd66bf2",
-    },
-    {
-        selectors = { "eotwsNeededText" },
-        color = C.INK,
-        fontSize = 17,
-        bold = true,
-    },
-    {
-        selectors = { "eotwsSwitchLabel" },
-        color = C.MUTED,
-        fontSize = 11,
-        bold = true,
-        uppercase = true,
-    },
-    {
-        selectors = { "eotwsSwitchSep" },
-        width = 1,
-        height = 44,
-        hmargin = 6,
-        valign = "center",
-        bgimage = "panels/square.png",
-        bgcolor = C.BORDER,
-    },
-    {
-        selectors = { "eotwsThumb" },
-        width = 40,
-        height = 56,
-        lmargin = 8,
-        valign = "center",
-        bgimage = "panels/square.png",
-        bgcolor = "#151515ff",
-        borderWidth = 1,
-        borderColor = "#000000ff",
-        cornerRadius = 6,
-    },
-    {
-        selectors = { "eotwsThumb", "small" },
-        width = 32,
-        height = 45,
-        lmargin = 6,
-    },
-    {
-        selectors = { "eotwsThumb", "tiny" },
-        width = 26,
-        height = 36,
-        lmargin = 5,
-    },
-    {
-        selectors = { "eotwsStateChipText", "clamped" },
-        maxWidth = 300,
-        textWrap = false,
-        textOverflow = "ellipsis",
-    },
-    {
-        selectors = { "eotwsThumb", "mine" },
-        borderWidth = 2,
-        borderColor = "#6fa8ffcc",
-    },
-    {
-        selectors = { "eotwsThumb", "current" },
-        borderWidth = 2,
-        borderColor = C.CREAM_LIGHT,
-    },
-    {
-        selectors = { "eotwsThumb", "hover" },
-        brightness = 1.15,
-    },
-    {
-        selectors = { "eotwsButtonText" },
-        color = C.CREAM,
-        fontSize = 14,
-    },
-    {
-        selectors = { "eotwsButton", "off" },
-        opacity = 0.45,
-    },
-    {
-        selectors = { "eotwsLock" },
-        width = 10,
-        height = 12,
-        rmargin = 7,
-        valign = "center",
-        bgimage = "phosphor/lock-fill.png",
-        bgcolor = C.CREAM,
-    },
-    {
-        selectors = { "eotwsCloseText" },
-        color = C.CREAM,
-        fontSize = 14,
-    },
-    {
-        selectors = { "eotwsCloseText", "onGold" },
-        color = C.GOLD,
-    },
-    {
-        selectors = { "eotwsClose", "onGold" },
-        bgcolor = C.INK,
-        borderColor = C.INK,
-    },
-    {
-        selectors = { "eotwsKbd" },
-        width = "auto",
-        height = "auto",
-        lmargin = 8,
-        hpad = 5,
-        borderBox = true,
-        valign = "center",
-        bgimage = "panels/square.png",
-        bgcolor = "#00000000",
-        borderWidth = 1,
-        borderColor = C.BORDER,
-        cornerRadius = 4,
-    },
-    {
-        selectors = { "eotwsKbd", "onGold" },
-        borderColor = "#ffd66b66",
-    },
-    {
-        selectors = { "eotwsKbdText" },
-        color = C.MUTED,
-        fontSize = 11,
-    },
-    {
-        selectors = { "eotwsKbdText", "onGold" },
-        color = C.GOLD,
-    },
-    {
-        selectors = { "eotwsStateChip" },
-        width = "auto",
-        height = "auto",
-        lmargin = 10,
-        hpad = 14,
-        vpad = 5,
-        borderBox = true,
-        valign = "center",
-        bgimage = "panels/square.png",
-        bgcolor = "#bc9b7b24",
-        borderWidth = 1,
-        borderColor = "#bc9b7b99",
-        cornerRadius = 12,
-    },
-    {
-        selectors = { "eotwsStateChipText" },
-        color = C.CREAM_LIGHT,
-        fontSize = 14,
-    },
-    {
-        selectors = { "eotwsStateChipSmall" },
-        color = C.MUTED,
-        fontSize = 11.5,
-    },
-    {
-        selectors = { "eotwsOwnerChip" },
-        width = "auto",
-        height = "auto",
-        lmargin = 10,
-        hpad = 10,
-        vpad = 4,
-        borderBox = true,
-        valign = "center",
-        bgimage = "panels/square.png",
-        bgcolor = "#00000000",
-        borderWidth = 1,
-        borderColor = "#ffffff24",
-        cornerRadius = 6,
-    },
-    {
-        selectors = { "eotwsOwnerChipText" },
-        color = C.CREAM,
-        fontSize = 13.5,
-    },
-    --stats band
-    {
-        selectors = { "eotwsTile" },
-        width = "20%-6",
-        height = "auto",
-        vpad = 6,
-        borderBox = true,
-        flow = "vertical",
-        bgimage = "panels/square.png",
-        bgcolor = "#00000038",
-        borderWidth = 1,
-        borderColor = C.BORDER,
-        cornerRadius = 8,
-    },
-    {
-        selectors = { "eotwsTileLabel" },
-        color = C.TAN,
-        fontSize = 11.5,
-        bold = true,
-        uppercase = true,
-        halign = "center",
-    },
-    {
-        selectors = { "eotwsTileValue" },
-        color = C.CREAM_LIGHT,
-        fontSize = 30,
-        bold = true,
-        halign = "center",
-    },
-    {
-        selectors = { "eotwsLines" },
-        width = "45%-26",
-        height = "auto",
-        lmargin = 26,
-        lpad = 24,
-        borderBox = true,
-        valign = "center",
-        flow = "vertical",
-        borderColor = "#ffffff14",
-        border = { x1 = 1, x2 = 0, y1 = 0, y2 = 0 },
-    },
-    {
-        selectors = { "eotwsStatLabel" },
-        color = C.TAN,
-        fontSize = 11.5,
-        bold = true,
-        uppercase = true,
-    },
-    {
-        selectors = { "eotwsStatValue" },
-        color = C.CREAM_LIGHT,
-        fontSize = 21,
-        bold = true,
-        lmargin = 8,
-        valign = "center",
-    },
-    {
-        selectors = { "eotwsStatValue", "small" },
-        fontSize = 18,
-    },
-    --a stat an Equip / Unequip hover (or a change just made) is about to move
-    {
-        selectors = { "eotwsStatValue", "preview" },
-        color = C.GOLD,
-    },
-    {
-        selectors = { "eotwsTileValue", "preview" },
-        color = C.GOLD,
-    },
-    {
-        selectors = { "eotwsTierLabel" },
-        color = C.MUTED,
-        fontSize = 14,
-    },
-    {
-        selectors = { "eotwsMovement" },
-        color = C.CREAM,
-        fontSize = 14,
-    },
-    {
-        selectors = { "eotwsPotency" },
-        hpad = 14,
-        vpad = 3,
-        borderBox = true,
-        bgimage = "panels/square.png",
-        bgcolor = "#00000000",
-        borderWidth = 1,
-        borderColor = "#bc9b7b59",
-        cornerRadius = 18,
-    },
-    {
-        selectors = { "eotwsWordsCol" },
-        height = "auto",
-        flow = "vertical",
-    },
-    {
-        selectors = { "eotwsWordsCol", "rest" },
-        lpad = 16,
-        lmargin = 2,
-        borderBox = true,
-        borderColor = "#ffffff14",
-        border = { x1 = 1, x2 = 0, y1 = 0, y2 = 0 },
-    },
-    {
-        selectors = { "eotwsWords" },
-        color = C.CREAM,
-        fontSize = 14,
-    },
-    --kit card
-    {
-        selectors = { "eotwsKitName" },
-        color = C.CREAM_LIGHT,
-        fontSize = 16.5,
-        bold = true,
-    },
-    {
-        selectors = { "eotwsKitGear" },
-        color = C.MUTED,
-        fontSize = 12.5,
-    },
-    {
-        selectors = { "eotwsKitDesc" },
-        color = C.CREAM,
-        fontSize = 13,
-    },
-    {
-        selectors = { "eotwsKvLabel" },
-        color = C.TAN,
-        fontSize = 11,
-        bold = true,
-        uppercase = true,
-        valign = "center",
-    },
-    {
-        selectors = { "eotwsKvValue" },
-        color = C.CREAM_LIGHT,
-        fontSize = 13.5,
-        bold = true,
-        valign = "center",
-    },
-    {
-        selectors = { "eotwsNone" },
-        color = C.MUTED,
-        fontSize = 13.5,
-    },
-    --treasures card
-    {
-        selectors = { "eotwsSub" },
-        color = C.TAN,
-        fontSize = 11.5,
-        bold = true,
-        uppercase = true,
-    },
-    {
-        selectors = { "eotwsSubCount" },
-        color = C.TAN,
-        fontSize = 11.5,
-    },
-    {
-        selectors = { "eotwsItem" },
-        bgimage = "panels/square.png",
-        bgcolor = "#00000033",
-        borderWidth = 1,
-        borderColor = C.BORDER,
-        cornerRadius = 6,
-        hpad = 10,
-        vpad = 5,
-        borderBox = true,
-        minHeight = 31,
-    },
-    {
-        selectors = { "eotwsItem", "hover" },
-        borderColor = "#6a6459ff",
-    },
-    {
-        selectors = { "eotwsItem", "todo" },
-        borderColor = C.GOLD,
-    },
-    {
-        selectors = { "eotwsItem", "chip" },
-        hpad = 9,
-        vpad = 4,
-        minHeight = 28,
-    },
-    {
-        selectors = { "eotwsItem", "glow" },
-        bgcolor = "#ffd66b55",
-        transitionTime = 1.1,
-    },
-    {
-        selectors = { "eotwsItemName" },
-        color = C.CREAM,
-        fontSize = 13.5,
-        valign = "center",
-    },
-    {
-        selectors = { "eotwsItemName", "row" },
-        width = "100% available",
-        textWrap = false,
-        textOverflow = "ellipsis",
-    },
-    {
-        selectors = { "eotwsItemSlot" },
-        color = C.MUTED,
-        fontSize = 13.5,
-        valign = "center",
-    },
-    {
-        selectors = { "eotwsQty" },
-        color = C.CREAM_LIGHT,
-        fontSize = 13,
-        bold = true,
-        valign = "center",
-    },
-    {
-        selectors = { "eotwsTag" },
-        color = C.MUTED,
-        fontSize = 12,
-        rmargin = 4,
-    },
-    {
-        selectors = { "eotwsWarnChip" },
-        width = "auto",
-        height = "auto",
-        hpad = 6,
-        vpad = 1,
-        borderBox = true,
-        bgimage = "panels/square.png",
-        bgcolor = "#00000000",
-        borderWidth = 1,
-        borderColor = "#e9b86f80",
-        cornerRadius = 9,
-    },
-    {
-        selectors = { "eotwsWarnText" },
-        color = C.WARN,
-        fontSize = 11,
-    },
-    {
-        selectors = { "eotwsSmallButton" },
-        width = "auto",
-        height = 24,
-        hpad = 9,
-        borderBox = true,
-        bgimage = "panels/square.png",
-        bgcolor = C.CARD,
-        borderWidth = 1,
-        borderColor = C.BORDER,
-        cornerRadius = 5,
-    },
-    {
-        selectors = { "eotwsSmallButton", "hover" },
-        bgcolor = C.CARD_HOVER,
-        borderColor = C.TAN,
-    },
-    {
-        selectors = { "eotwsSmallButton", "primary" },
-        bgcolor = C.GOLD,
-        borderColor = C.GOLD,
-    },
-    {
-        selectors = { "eotwsSmallButton", "primary", "hover" },
-        brightness = 1.1,
-    },
-    {
-        selectors = { "eotwsSmallButton", "off" },
-        opacity = 0.45,
-    },
-    {
-        selectors = { "eotwsSmallButtonText" },
-        color = C.CREAM_LIGHT,
-        fontSize = 12.5,
-        bold = true,
-        valign = "center",
-    },
-    {
-        selectors = { "eotwsSmallButtonText", "parent:primary" },
-        color = C.INK,
-    },
-    {
-        selectors = { "eotwsCta" },
-        width = "auto",
-        height = "auto",
-        hpad = 8,
-        vpad = 1,
-        borderBox = true,
-        bgimage = "panels/square.png",
-        bgcolor = C.GOLD,
-        borderWidth = 1,
-        borderColor = C.GOLD,
-        cornerRadius = 9,
-    },
-    {
-        selectors = { "eotwsCta", "off" },
-        bgcolor = "#00000000",
-        borderColor = C.BORDER,
-    },
-    {
-        selectors = { "eotwsCtaText" },
-        color = C.INK,
-        fontSize = 12,
-        bold = true,
-    },
-    {
-        selectors = { "eotwsCtaText", "parent:off" },
-        color = C.MUTED,
-    },
-    --the bottom of the treasures list fades out under the last rows
-    {
-        selectors = { "eotwsFade" },
-        bgimage = "panels/square.png",
-        bgcolor = "white",
-        gradient = gui.Gradient{
-            point_a = { x = 0, y = 1 },
-            point_b = { x = 0, y = 0 },
-            stops = {
-                { position = 0, color = "#0e0d0b00" },
-                { position = 1, color = "#0e0d0bcc" },
-            },
-        },
-    },
+--The characteristic tiles' names while a Hero loads (a loaded Hero's come from the rules).
+local CHARACTERISTICS = {
+    T("herosheet.stats.might"),
+    T("herosheet.stats.agility"),
+    T("herosheet.stats.reason"),
+    T("herosheet.stats.intuition"),
+    T("herosheet.stats.presence"),
 }
+--The pillar tags the features filter matches (keys), and what each chip shows.
+local PILLARS = { "Combat", "Exploration", "Montage", "Negotiation", "Respite" }
+local PILLAR_TEXT = {
+    Combat = T("herosheet.features.pillar.combat"),
+    Exploration = T("herosheet.features.pillar.exploration"),
+    Montage = T("herosheet.features.pillar.montage"),
+    Negotiation = T("herosheet.features.pillar.negotiation"),
+    Respite = T("herosheet.features.pillar.respite"),
+}
+
+--The sheet's rules, built from the palette C as it is now (see ScaledRules).
+---@return table[]
+local function BuildRules()
+    return {
+        {
+            selectors = { "eotwsText" },
+            fontFace = "Berling",
+            color = C.CREAM,
+            fontSize = 14,
+            width = "auto",
+            height = "auto",
+        },
+        {
+            selectors = { "eotwsText", "muted" },
+            color = C.MUTED,
+        },
+        --section headers: Kit, Treasures, Characteristics, Abilities...
+        {
+            selectors = { "eotwsHeader" },
+            color = C.CREAM_LIGHT,
+            fontSize = 16,
+            bold = true,
+            uppercase = true,
+        },
+        --small gold-tan labels: characteristic names, treasure sub-headers.
+        {
+            selectors = { "eotwsLabel" },
+            color = C.TAN,
+            fontSize = 11.5,
+            bold = true,
+            uppercase = true,
+        },
+        {
+            selectors = { "eotwsName" },
+            color = "white",
+            fontSize = 28,
+            bold = true,
+            width = "100%",
+            --one line: a long name shrinks to fit the plate rather than wrapping
+            --(which would push the plate up over the art), "..." past the floor
+            textWrap = false,
+            minFontSize = 16,
+            textOverflow = "ellipsis",
+        },
+        {
+            selectors = { "eotwsBlock" },
+            bgimage = "panels/square.png",
+            bgcolor = C.BLOCK,
+            borderWidth = 1,
+            borderColor = C.BLOCK_EDGE,
+            cornerRadius = 10,
+        },
+        --the Transparent UI setting is off: solid plates, nothing shows through
+        {
+            selectors = { "eotwsBlock", "opaque" },
+            bgcolor = C.BLOCK_OPAQUE,
+        },
+        {
+            selectors = { "eotwsSkel" },
+            bgimage = "panels/square.png",
+            bgcolor = C.SKEL,
+            cornerRadius = 5,
+            transitionTime = SHIMMER_SECONDS,
+        },
+        {
+            selectors = { "eotwsSkel", "lit" },
+            bgcolor = C.SKEL_LIT,
+        },
+        --an outlined row the real content will fill: ability rows, items.
+        {
+            selectors = { "eotwsRow" },
+            bgimage = "panels/square.png",
+            bgcolor = C.SKEL_ROW,
+            borderWidth = 1,
+            borderColor = C.BORDER,
+            cornerRadius = 8,
+        },
+        {
+            selectors = { "eotwsChip" },
+            bgimage = "panels/square.png",
+            bgcolor = "#00000000",
+            borderWidth = 1,
+            borderColor = C.BORDER,
+            cornerRadius = 14,
+        },
+        {
+            selectors = { "eotwsButton" },
+            bgimage = "panels/square.png",
+            bgcolor = C.CARD,
+            borderWidth = 1,
+            borderColor = C.BORDER,
+            cornerRadius = 6,
+        },
+        {
+            selectors = { "eotwsButton", "hover" },
+            bgcolor = C.CARD_HOVER,
+            borderColor = C.TAN,
+        },
+        {
+            selectors = { "eotwsButton", "press" },
+            brightness = 0.85,
+        },
+
+        --the card: art full-bleed (or the dark ground when there is none), greyed
+        --for a Hero who is dead or fallen
+        {
+            selectors = { "eotwsCard" },
+            bgimage = "panels/square.png",
+            bgcolor = "#151515ff",
+            borderWidth = 1,
+            borderColor = "#000000cc",
+            cornerRadius = 10,
+        },
+        {
+            selectors = { "eotwsCard", "dead" },
+            saturation = 0,
+            brightness = 0.7,
+        },
+        {
+            selectors = { "eotwsPlate" },
+            bgimage = "panels/square.png",
+            bgcolor = C.PLATE,
+            cornerRadius = 8,
+        },
+        {
+            selectors = { "eotwsPlateText" },
+            color = C.PLATE_TEXT,
+            fontSize = 12.5,
+        },
+        {
+            selectors = { "eotwsPlateStrong" },
+            color = "white",
+            fontSize = 14,
+            bold = true,
+        },
+        {
+            selectors = { "eotwsSubtitle" },
+            color = C.PLATE_TEXT,
+            fontSize = 14,
+            tmargin = 2,
+            width = "100%",
+        },
+        {
+            selectors = { "eotwsTitle" },
+            color = C.CREAM,
+            fontSize = 14,
+            italics = true,
+        },
+        {
+            selectors = { "eotwsTitle", "hover" },
+            color = C.CREAM_LIGHT,
+        },
+        {
+            selectors = { "eotwsMedal" },
+            width = 15,
+            height = 15,
+            valign = "center",
+            bgimage = "phosphor/medal-fill.png",
+            bgcolor = C.TAN,
+        },
+        {
+            selectors = { "eotwsLevelNumber" },
+            color = "white",
+            fontSize = 14,
+            bold = true,
+            width = LEVEL_NUMBER_WIDTH,
+            textAlignment = "center",
+            valign = "center",
+        },
+        {
+            selectors = { "eotwsLevelNumber", "next" },
+            color = C.PLATE_TEXT,
+        },
+        {
+            selectors = { "eotwsLevelNumber", "next", "reach" },
+            color = C.CREAM_LIGHT,
+        },
+        {
+            selectors = { "eotwsLevelNumber", "next", "ready" },
+            color = C.GOLD,
+        },
+        {
+            selectors = { "eotwsXpBar" },
+            bgimage = "panels/square.png",
+            bgcolor = "#ffffff1f",
+            cornerRadius = 5,
+        },
+        {
+            selectors = { "eotwsXpFill" },
+            bgimage = "panels/square.png",
+            bgcolor = "white",
+            cornerRadius = 5,
+            gradient = gui.Gradient{
+                point_a = { x = 0, y = 0 },
+                point_b = { x = 1, y = 0 },
+                stops = {
+                    { position = 0, color = C.TAN },
+                    { position = 1, color = C.CREAM },
+                },
+            },
+        },
+        {
+            selectors = { "eotwsXpFill", "ready" },
+            gradient = gui.Gradient{
+                point_a = { x = 0, y = 0 },
+                point_b = { x = 1, y = 0 },
+                stops = {
+                    { position = 0, color = C.GOLD },
+                    { position = 1, color = C.GOLD },
+                },
+            },
+        },
+        {
+            selectors = { "eotwsReadyLine" },
+            color = C.GOLD,
+            fontSize = 14,
+            bold = true,
+            width = "100%",
+        },
+        {
+            selectors = { "eotwsRespiteLine" },
+            color = C.CREAM_LIGHT,
+            fontSize = 13.5,
+            bold = true,
+            width = "100%",
+        },
+        {
+            selectors = { "eotwsEpic" },
+            fontSize = 13,
+            valign = "center",
+        },
+        {
+            selectors = { "eotwsEpicIcon" },
+            width = 14,
+            height = 14,
+            valign = "center",
+            bgcolor = C.CREAM_LIGHT,
+        },
+        {
+            selectors = { "eotwsNote" },
+            fontSize = 13,
+        },
+        {
+            selectors = { "eotwsStatusIcon" },
+            width = 14,
+            height = 14,
+            bgcolor = "white",
+        },
+        --the Recoveries ring: Recoveries left in a dark disc
+        {
+            selectors = { "eotwsRing" },
+            width = 42,
+            height = 42,
+            valign = "center",
+            bgimage = "panels/square.png",
+            bgcolor = "#000000a0",
+            cornerRadius = 21,
+            borderWidth = 2,
+            borderColor = C.RING,
+        },
+        {
+            selectors = { "eotwsRing", "spendable", "hover" },
+            bgcolor = C.RING_HOVER,
+            borderColor = C.CREAM_LIGHT,
+        },
+        {
+            selectors = { "eotwsRing", "empty" },
+            borderColor = C.RING_EMPTY,
+        },
+        {
+            selectors = { "eotwsRingNumber" },
+            color = C.CREAM_LIGHT,
+            fontSize = 18,
+            bold = true,
+            halign = "center",
+            valign = "center",
+        },
+        {
+            selectors = { "eotwsVitalNumber" },
+            color = "white",
+            fontSize = 20,
+            bold = true,
+            valign = "center",
+        },
+        {
+            selectors = { "eotwsResourceIcon" },
+            width = 17,
+            height = 17,
+            valign = "center",
+            bgcolor = "white",
+        },
+        {
+            selectors = { "eotwsEpitaph" },
+            color = C.PLATE_TEXT,
+            fontSize = 14,
+            width = "100%",
+        },
+        {
+            selectors = { "eotwsSurges" },
+            width = "auto",
+            height = "auto",
+            flow = "horizontal",
+            hpad = 7,
+            vpad = 5,
+            borderBox = true,
+            bgimage = "panels/square.png",
+            bgcolor = C.PLATE,
+            cornerRadius = 8,
+        },
+        {
+            selectors = { "eotwsSurgeIcon" },
+            width = 15,
+            height = 15,
+            lmargin = 1,
+            rmargin = 1,
+            bgimage = "game-icons/surge.png",
+            bgcolor = C.GOLD,
+        },
+        --keyboard focus (Tab, the arrow keys): a cream ring
+        {
+            selectors = { "eotwsFocusable", "focus" },
+            borderWidth = 2,
+            borderColor = C.CREAM_LIGHT,
+        },
+        {
+            selectors = { "eotwsShowMore", "focus" },
+            color = C.CREAM_LIGHT,
+        },
+        {
+            selectors = { "eotwsItemName", "focus" },
+            color = C.CREAM_LIGHT,
+        },
+        --motion: the cover the sheet fades in from
+        {
+            selectors = { "eotwsOpener" },
+            bgimage = "panels/square.png",
+            bgcolor = "#0b0b0aff",
+        },
+        {
+            selectors = { "eotwsOpener", "done" },
+            bgcolor = "#0b0b0a00",
+            transitionTime = OPEN_SECONDS,
+        },
+        --the card's art fades in over its dark ground (on open and on a switch)
+        {
+            selectors = { "eotwsArtCover" },
+            bgimage = "panels/square.png",
+            bgcolor = "#151515ff",
+            cornerRadius = 10,
+        },
+        {
+            selectors = { "eotwsArtCover", "shown" },
+            bgcolor = "#15151500",
+            transitionTime = 0.25,
+        },
+        --on a switch, the last Hero's art (or dark ground) held over the card
+        --and faded out, so the new Hero's art cross-fades in beneath it
+        {
+            selectors = { "eotwsOldArt" },
+            bgimage = "panels/square.png",
+            bgcolor = "#151515ff",
+            cornerRadius = 10,
+        },
+        {
+            selectors = { "eotwsOldArt", "art" },
+            bgcolor = "#ffffffff",
+        },
+        {
+            selectors = { "eotwsOldArt", "dead" },
+            saturation = 0,
+            brightness = 0.7,
+        },
+        {
+            selectors = { "eotwsOldArt", "fading" },
+            bgcolor = "#15151500",
+            transitionTime = 0.4,
+        },
+        {
+            selectors = { "eotwsOldArt", "art", "fading" },
+            bgcolor = "#ffffff00",
+            transitionTime = 0.4,
+        },
+        --the card's wash for a hit or a heal, at 30%; PulseClass fades it out
+        --over the pulse rule's transitionTime
+        {
+            selectors = { "eotwsWash" },
+            bgimage = "panels/square.png",
+            bgcolor = "#00000000",
+            cornerRadius = 10,
+        },
+        {
+            selectors = { "eotwsWash", "hurt" },
+            bgcolor = "#ff3b3b4d",
+            transitionTime = 0.45,
+            easing = "easeOutCubic",
+        },
+        {
+            selectors = { "eotwsWash", "healed" },
+            bgcolor = "#3bff7b4d",
+            transitionTime = 0.45,
+            easing = "easeOutCubic",
+        },
+        --the one light sweep across the XP bar the first time a Hero is ready
+        {
+            selectors = { "eotwsSweep" },
+            width = 46,
+            height = "100%",
+            x = -46,
+            bgimage = "panels/square.png",
+            bgcolor = "#fffbe8b3",
+        },
+        {
+            selectors = { "eotwsSweep", "go" },
+            x = XP_BAR_WIDTH,
+            transitionTime = 0.9,
+            easing = "easeInOutCubic",
+        },
+        --the XP bar's hatch (Hatch): classes, so a scheme switch recolours it
+        {
+            selectors = { "eotwsHatchStripe" },
+            bgimage = "panels/square.png",
+            bgcolor = C.HATCH,
+        },
+        {
+            selectors = { "eotwsHatchGround" },
+            bgimage = "panels/square.png",
+            bgcolor = C.HATCH_GROUND,
+        },
+        --abilities and features
+        {
+            selectors = { "eotwsListHead" },
+            width = "100%",
+            height = 44,
+            flow = "horizontal",
+            borderColor = C.LABEL_RULE,
+            border = { x1 = 0, x2 = 0, y1 = 1, y2 = 0 },
+        },
+        {
+            selectors = { "eotwsListCount" },
+            color = C.MUTED,
+            fontSize = 13,
+        },
+        {
+            selectors = { "eotwsChip", "on" },
+            bgcolor = C.CREAM,
+            borderColor = C.CREAM,
+        },
+        {
+            selectors = { "eotwsChip", "hover" },
+            borderColor = C.TAN,
+        },
+        {
+            selectors = { "eotwsChipText" },
+            color = C.CREAM,
+            fontSize = 12.5,
+        },
+        {
+            selectors = { "eotwsChipText", "parent:on" },
+            color = C.INK,
+            bold = true,
+        },
+        {
+            selectors = { "eotwsFilter" },
+            width = "100% available",
+            height = 28,
+            lmargin = 10,
+            hpad = 10,
+            borderBox = true,
+            valign = "center",
+            fontSize = 13,
+            color = C.CREAM,
+            bgimage = "panels/square.png",
+            bgcolor = "#00000040",
+            borderWidth = 1,
+            borderColor = C.BORDER,
+            cornerRadius = 6,
+        },
+        {
+            selectors = { "eotwsGroupHead" },
+            width = "100%",
+            height = "auto",
+            vpad = 3,
+            borderBox = true,
+            flow = "horizontal",
+            bgimage = "panels/square.png",
+            bgcolor = "#00000000",
+        },
+        {
+            selectors = { "eotwsCaret" },
+            width = 10,
+            height = 10,
+            rmargin = 6,
+            valign = "center",
+            bgimage = "phosphor/caret-down-fill.png",
+            bgcolor = C.MUTED,
+        },
+        {
+            selectors = { "eotwsCaret", "closed" },
+            rotate = -90,
+        },
+        {
+            selectors = { "eotwsGroupLabel" },
+            color = C.TAN,
+            fontSize = 12,
+            bold = true,
+            uppercase = true,
+        },
+        {
+            selectors = { "eotwsGroupCount" },
+            color = C.MUTED,
+            fontSize = 13,
+        },
+        {
+            selectors = { "eotwsGroupNote" },
+            color = C.MUTED,
+            fontSize = 12,
+            italics = true,
+        },
+        {
+            selectors = { "eotwsAbilityRow" },
+            width = "100%",
+            height = "auto",
+            tmargin = 6,
+            hpad = 12,
+            vpad = 8,
+            borderBox = true,
+            flow = "horizontal",
+            bgimage = "panels/square.png",
+            bgcolor = C.ROW,
+            borderWidth = 1,
+            borderColor = C.BORDER,
+            cornerRadius = 8,
+        },
+        {
+            selectors = { "eotwsAbilityRow", "compact" },
+            width = "50%-3",
+            tmargin = 0,
+            hpad = 10,
+            vpad = 6,
+            rmargin = 6,
+        },
+        {
+            selectors = { "eotwsAbilityRow", "compact", "single" },
+            width = "100%",
+            rmargin = 0,
+        },
+        {
+            selectors = { "eotwsAbilityRow", "hover" },
+            bgcolor = C.ROW_HOVER,
+            borderColor = C.BORDER_HOVER,
+        },
+        {
+            selectors = { "eotwsAbilityName" },
+            color = C.CREAM_LIGHT,
+            fontSize = 16,
+            bold = true,
+        },
+        {
+            selectors = { "eotwsAbilityName", "compact" },
+            fontSize = 14.5,
+        },
+        {
+            selectors = { "eotwsAbilityKeywords" },
+            color = C.MUTED,
+            fontSize = 12,
+            width = "100% available",
+            textWrap = false,
+            textOverflow = "ellipsis",
+        },
+        {
+            selectors = { "eotwsAbilityTag" },
+            color = C.LAB,
+            fontSize = 12.5,
+        },
+        {
+            selectors = { "eotwsAbilityTag", "cost" },
+            color = C.TAN,
+            bold = true,
+        },
+        {
+            selectors = { "eotwsFeatureCard" },
+            width = "100%",
+            height = "auto",
+            tmargin = 7,
+            hpad = 14,
+            vpad = 10,
+            borderBox = true,
+            flow = "vertical",
+            bgimage = "panels/square.png",
+            bgcolor = C.ROW,
+            borderWidth = 1,
+            borderColor = C.BORDER,
+            cornerRadius = 8,
+        },
+        {
+            selectors = { "eotwsFeatureName" },
+            color = C.CREAM_LIGHT,
+            fontSize = 16,
+            bold = true,
+        },
+        {
+            selectors = { "eotwsPillTag" },
+            width = "auto",
+            height = "auto",
+            lmargin = 5,
+            hpad = 7,
+            borderBox = true,
+            bgimage = "panels/square.png",
+            bgcolor = "#00000000",
+            borderWidth = 1,
+            borderColor = C.BORDER,
+            cornerRadius = 9,
+        },
+        {
+            selectors = { "eotwsPillTagText" },
+            color = C.LAB,
+            fontSize = 12,
+        },
+        {
+            selectors = { "eotwsFeatureChosen" },
+            color = C.MUTED,
+            fontSize = 13,
+            italics = true,
+            tmargin = 1,
+        },
+        {
+            selectors = { "eotwsFeatureText" },
+            color = C.CREAM,
+            fontSize = 14,
+            tmargin = 6,
+            width = "100%",
+            maxWidth = FEATURE_TEXT_MAX_WIDTH,
+        },
+        {
+            selectors = { "eotwsShowMore" },
+            color = C.TAN,
+            fontSize = 13,
+            tmargin = 4,
+            underline = true,
+        },
+        {
+            selectors = { "eotwsShowMore", "hover" },
+            color = C.CREAM_LIGHT,
+        },
+        {
+            selectors = { "eotwsEmpty" },
+            color = C.MUTED,
+            fontSize = 14,
+            italics = true,
+            tmargin = 20,
+            width = "100%",
+        },
+        --top bar
+        {
+            selectors = { "eotwsTopBar" },
+            bgimage = "panels/square.png",
+            bgcolor = C.BLOCK,
+            cornerRadius = 10,
+        },
+        --you're needed: the bar itself turns gold, so nothing below it moves
+        {
+            selectors = { "eotwsTopBar", "needed" },
+            bgcolor = "#ffd66bf2",
+        },
+        {
+            selectors = { "eotwsNeededText" },
+            color = C.INK,
+            fontSize = 17,
+            bold = true,
+        },
+        {
+            selectors = { "eotwsSwitchLabel" },
+            color = C.MUTED,
+            fontSize = 11,
+            bold = true,
+            uppercase = true,
+        },
+        {
+            selectors = { "eotwsSwitchSep" },
+            width = 1,
+            height = 44,
+            hmargin = 6,
+            valign = "center",
+            bgimage = "panels/square.png",
+            bgcolor = C.BORDER,
+        },
+        {
+            selectors = { "eotwsThumb" },
+            width = 40,
+            height = 56,
+            lmargin = 8,
+            valign = "center",
+            bgimage = "panels/square.png",
+            bgcolor = "#151515ff",
+            borderWidth = 1,
+            borderColor = "#000000ff",
+            cornerRadius = 6,
+        },
+        {
+            selectors = { "eotwsThumb", "small" },
+            width = 32,
+            height = 45,
+            lmargin = 6,
+        },
+        {
+            selectors = { "eotwsThumb", "tiny" },
+            width = 26,
+            height = 36,
+            lmargin = 5,
+        },
+        {
+            selectors = { "eotwsStateChipText", "clamped" },
+            maxWidth = 300,
+            textWrap = false,
+            textOverflow = "ellipsis",
+        },
+        {
+            selectors = { "eotwsThumb", "mine" },
+            borderWidth = 2,
+            borderColor = "#6fa8ffcc",
+        },
+        {
+            selectors = { "eotwsThumb", "current" },
+            borderWidth = 2,
+            borderColor = C.CREAM_LIGHT,
+        },
+        {
+            selectors = { "eotwsThumb", "hover" },
+            brightness = 1.15,
+        },
+        {
+            selectors = { "eotwsButtonText" },
+            color = C.CREAM,
+            fontSize = 14,
+        },
+        {
+            selectors = { "eotwsButton", "off" },
+            opacity = 0.45,
+        },
+        {
+            selectors = { "eotwsLock" },
+            width = 10,
+            height = 12,
+            rmargin = 7,
+            valign = "center",
+            bgimage = "phosphor/lock-fill.png",
+            bgcolor = C.CREAM,
+        },
+        {
+            selectors = { "eotwsCloseText" },
+            color = C.CREAM,
+            fontSize = 14,
+        },
+        {
+            selectors = { "eotwsCloseText", "onGold" },
+            color = C.GOLD,
+        },
+        {
+            selectors = { "eotwsClose", "onGold" },
+            bgcolor = C.INK,
+            borderColor = C.INK,
+        },
+        {
+            selectors = { "eotwsKbd" },
+            width = "auto",
+            height = "auto",
+            lmargin = 8,
+            hpad = 5,
+            borderBox = true,
+            valign = "center",
+            bgimage = "panels/square.png",
+            bgcolor = "#00000000",
+            borderWidth = 1,
+            borderColor = C.BORDER,
+            cornerRadius = 4,
+        },
+        {
+            selectors = { "eotwsKbd", "onGold" },
+            borderColor = "#ffd66b66",
+        },
+        {
+            selectors = { "eotwsKbdText" },
+            color = C.MUTED,
+            fontSize = 11,
+        },
+        {
+            selectors = { "eotwsKbdText", "onGold" },
+            color = C.GOLD,
+        },
+        {
+            selectors = { "eotwsStateChip" },
+            width = "auto",
+            height = "auto",
+            lmargin = 10,
+            hpad = 14,
+            vpad = 5,
+            borderBox = true,
+            valign = "center",
+            bgimage = "panels/square.png",
+            bgcolor = C.LABEL_WASH,
+            borderWidth = 1,
+            borderColor = C.LABEL_EDGE,
+            cornerRadius = 12,
+        },
+        {
+            selectors = { "eotwsStateChipText" },
+            color = C.CREAM_LIGHT,
+            fontSize = 14,
+        },
+        {
+            selectors = { "eotwsStateChipSmall" },
+            color = C.LAB,
+            fontSize = 11.5,
+        },
+        {
+            selectors = { "eotwsOwnerChip" },
+            width = "auto",
+            height = "auto",
+            lmargin = 10,
+            hpad = 10,
+            vpad = 4,
+            borderBox = true,
+            valign = "center",
+            bgimage = "panels/square.png",
+            bgcolor = "#00000000",
+            borderWidth = 1,
+            borderColor = "#ffffff24",
+            cornerRadius = 6,
+        },
+        {
+            selectors = { "eotwsOwnerChipText" },
+            color = C.CREAM,
+            fontSize = 13.5,
+        },
+        --stats band
+        {
+            selectors = { "eotwsTile" },
+            width = "20%-6",
+            height = "auto",
+            vpad = 6,
+            borderBox = true,
+            flow = "vertical",
+            bgimage = "panels/square.png",
+            bgcolor = C.TILE,
+            borderWidth = 1,
+            borderColor = C.BORDER,
+            cornerRadius = 8,
+        },
+        {
+            selectors = { "eotwsTileLabel" },
+            color = C.TAN,
+            fontSize = 11.5,
+            bold = true,
+            uppercase = true,
+            halign = "center",
+        },
+        {
+            selectors = { "eotwsTileValue" },
+            color = C.CREAM_LIGHT,
+            fontSize = 30,
+            bold = true,
+            halign = "center",
+        },
+        {
+            selectors = { "eotwsLines" },
+            width = "45%-26",
+            height = "auto",
+            lmargin = 26,
+            lpad = 24,
+            borderBox = true,
+            valign = "center",
+            flow = "vertical",
+            borderColor = "#ffffff14",
+            border = { x1 = 1, x2 = 0, y1 = 0, y2 = 0 },
+        },
+        {
+            selectors = { "eotwsStatLabel" },
+            color = C.TAN,
+            fontSize = 11.5,
+            bold = true,
+            uppercase = true,
+        },
+        {
+            selectors = { "eotwsStatValue" },
+            color = C.CREAM_LIGHT,
+            fontSize = 21,
+            bold = true,
+            lmargin = 8,
+            valign = "center",
+        },
+        {
+            selectors = { "eotwsStatValue", "small" },
+            fontSize = 18,
+        },
+        --a stat an Equip / Unequip hover (or a change just made) is about to move
+        {
+            selectors = { "eotwsStatValue", "preview" },
+            color = C.GOLD,
+        },
+        {
+            selectors = { "eotwsTileValue", "preview" },
+            color = C.GOLD,
+        },
+        {
+            selectors = { "eotwsTierLabel" },
+            color = C.LAB,
+            fontSize = 14,
+        },
+        {
+            selectors = { "eotwsMovement" },
+            color = C.CREAM,
+            fontSize = 14,
+        },
+        {
+            selectors = { "eotwsPotency" },
+            hpad = 14,
+            vpad = 3,
+            borderBox = true,
+            bgimage = "panels/square.png",
+            bgcolor = "#00000000",
+            borderWidth = 1,
+            borderColor = C.LABEL_OUTLINE,
+            cornerRadius = 18,
+        },
+        {
+            selectors = { "eotwsWordsCol" },
+            height = "auto",
+            flow = "vertical",
+        },
+        {
+            selectors = { "eotwsWordsCol", "rest" },
+            lpad = 16,
+            lmargin = 2,
+            borderBox = true,
+            borderColor = "#ffffff14",
+            border = { x1 = 1, x2 = 0, y1 = 0, y2 = 0 },
+        },
+        {
+            selectors = { "eotwsWords" },
+            color = C.CREAM,
+            fontSize = 14,
+        },
+        --kit card
+        {
+            selectors = { "eotwsKitName" },
+            color = C.CREAM_LIGHT,
+            fontSize = 16.5,
+            bold = true,
+        },
+        {
+            selectors = { "eotwsKitGear" },
+            color = C.MUTED,
+            fontSize = 12.5,
+        },
+        {
+            selectors = { "eotwsKitDesc" },
+            color = C.CREAM,
+            fontSize = 13,
+        },
+        {
+            selectors = { "eotwsKvLabel" },
+            color = C.TAN,
+            fontSize = 11,
+            bold = true,
+            uppercase = true,
+            valign = "center",
+        },
+        {
+            selectors = { "eotwsKvValue" },
+            color = C.CREAM_LIGHT,
+            fontSize = 13.5,
+            bold = true,
+            valign = "center",
+        },
+        {
+            selectors = { "eotwsNone" },
+            color = C.MUTED,
+            fontSize = 13.5,
+        },
+        --treasures card
+        {
+            selectors = { "eotwsSub" },
+            color = C.TAN,
+            fontSize = 11.5,
+            bold = true,
+            uppercase = true,
+        },
+        {
+            selectors = { "eotwsSubCount" },
+            color = C.TAN,
+            fontSize = 11.5,
+        },
+        {
+            selectors = { "eotwsItem" },
+            bgimage = "panels/square.png",
+            bgcolor = "#00000033",
+            borderWidth = 1,
+            borderColor = C.BORDER,
+            cornerRadius = 6,
+            hpad = 10,
+            vpad = 5,
+            borderBox = true,
+            minHeight = 31,
+        },
+        {
+            selectors = { "eotwsItem", "hover" },
+            borderColor = C.BORDER_HOVER,
+        },
+        {
+            selectors = { "eotwsItem", "todo" },
+            borderColor = C.GOLD,
+        },
+        {
+            selectors = { "eotwsItem", "chip" },
+            hpad = 9,
+            vpad = 4,
+            minHeight = 28,
+        },
+        {
+            selectors = { "eotwsItem", "glow" },
+            bgcolor = "#ffd66b55",
+            transitionTime = 1.1,
+        },
+        {
+            selectors = { "eotwsItemName" },
+            color = C.CREAM,
+            fontSize = 13.5,
+            valign = "center",
+        },
+        {
+            selectors = { "eotwsItemName", "row" },
+            width = "100% available",
+            textWrap = false,
+            textOverflow = "ellipsis",
+        },
+        {
+            selectors = { "eotwsItemSlot" },
+            color = C.MUTED,
+            fontSize = 13.5,
+            valign = "center",
+        },
+        {
+            selectors = { "eotwsQty" },
+            color = C.CREAM_LIGHT,
+            fontSize = 13,
+            bold = true,
+            valign = "center",
+        },
+        {
+            selectors = { "eotwsTag" },
+            color = C.MUTED,
+            fontSize = 12,
+            rmargin = 4,
+        },
+        {
+            selectors = { "eotwsWarnChip" },
+            width = "auto",
+            height = "auto",
+            hpad = 6,
+            vpad = 1,
+            borderBox = true,
+            bgimage = "panels/square.png",
+            bgcolor = "#00000000",
+            borderWidth = 1,
+            borderColor = "#e9b86f80",
+            cornerRadius = 9,
+        },
+        {
+            selectors = { "eotwsWarnText" },
+            color = C.WARN,
+            fontSize = 11,
+        },
+        {
+            selectors = { "eotwsSmallButton" },
+            width = "auto",
+            height = 24,
+            hpad = 9,
+            borderBox = true,
+            bgimage = "panels/square.png",
+            bgcolor = C.CARD,
+            borderWidth = 1,
+            borderColor = C.BORDER,
+            cornerRadius = 5,
+        },
+        {
+            selectors = { "eotwsSmallButton", "hover" },
+            bgcolor = C.CARD_HOVER,
+            borderColor = C.TAN,
+        },
+        {
+            selectors = { "eotwsSmallButton", "primary" },
+            bgcolor = C.GOLD,
+            borderColor = C.GOLD,
+        },
+        {
+            selectors = { "eotwsSmallButton", "primary", "hover" },
+            brightness = 1.1,
+        },
+        {
+            selectors = { "eotwsSmallButton", "off" },
+            opacity = 0.45,
+        },
+        {
+            selectors = { "eotwsSmallButtonText" },
+            color = C.CREAM_LIGHT,
+            fontSize = 12.5,
+            bold = true,
+            valign = "center",
+        },
+        {
+            selectors = { "eotwsSmallButtonText", "parent:primary" },
+            color = C.INK,
+        },
+        {
+            selectors = { "eotwsCta" },
+            width = "auto",
+            height = "auto",
+            hpad = 8,
+            vpad = 1,
+            borderBox = true,
+            bgimage = "panels/square.png",
+            bgcolor = C.GOLD,
+            borderWidth = 1,
+            borderColor = C.GOLD,
+            cornerRadius = 9,
+        },
+        {
+            selectors = { "eotwsCta", "off" },
+            bgcolor = "#00000000",
+            borderColor = C.BORDER,
+        },
+        {
+            selectors = { "eotwsCtaText" },
+            color = C.INK,
+            fontSize = 12,
+            bold = true,
+        },
+        {
+            selectors = { "eotwsCtaText", "parent:off" },
+            color = C.LAB,
+        },
+        --the bottom of the treasures list fades out under the last rows
+        {
+            selectors = { "eotwsFade" },
+            bgimage = "panels/square.png",
+            bgcolor = "white",
+            gradient = gui.Gradient{
+                point_a = { x = 0, y = 1 },
+                point_b = { x = 0, y = 0 },
+                stops = {
+                    { position = 0, color = C.FADE_CLEAR },
+                    { position = 1, color = C.FADE },
+                },
+            },
+        },
+    }
+end
 
 --Font Size (120-140%: grow and wrap). With the icon-rail UI the engine no
 --longer enlarges fonts (it zooms rail windows instead), so the full-screen
@@ -1318,20 +1664,33 @@ local function FS(n)
 end
 
 --The sheet's rules after the hero card's, whose stamina bar the card reuses.
---Built once per font scale so the theme's merge cache (keyed by table) is hit
---every open: each rule's fontSize is scaled, everything else shared.
+--Kept per font scale so they are built and scaled only once: each rule's
+--fontSize is scaled, everything else shared. A new palette empties the cache.
+--ThemeEngine.MergeStyles does not cache, so every open still re-resolves them.
+--Call RefreshPalette first.
+---@type table<number, table[]>
 local SHEET_RULES_BY_SCALE = {}
+--The unscaled rules for the palette that is current, and that palette.
+---@type table[]|nil
+local m_baseRules = nil
+local m_baseRulesSignature = nil
 
 ---@param scale number
 ---@return table[]
 local function ScaledRules(scale)
+    if m_baseRules == nil or m_baseRulesSignature ~= m_paletteSignature then
+        --a new palette: rules for the old ones are not coming back soon
+        SHEET_RULES_BY_SCALE = {}
+        m_baseRules = BuildRules()
+        m_baseRulesSignature = m_paletteSignature
+    end
     local key = math.floor(scale * 100 + 0.5)
     local rules = SHEET_RULES_BY_SCALE[key]
     if rules ~= nil then
         return rules
     end
     rules = {}
-    for _,list in ipairs({ EotwHeroCard.rules, RULES }) do
+    for _,list in ipairs({ EotwHeroCard.rules, m_baseRules }) do
         for _,rule in ipairs(list) do
             if type(rule.fontSize) == "number" and scale ~= 1 then
                 local copy = {}
@@ -1356,6 +1715,20 @@ local m_sheet = nil
 --The character the open sheet shows.
 ---@type string|nil
 local m_sheetCharid = nil
+--Recolours the open sheet for the active colour scheme (set by Show).
+---@type fun()|nil
+local m_recolour = nil
+
+--Handlers only drop when the mod unloads, so a reload of this file alone
+--removes the last one first; otherwise each reload adds another.
+if EotwHeroSheet.themeHandler ~= nil then
+    EotwHeroSheet.themeHandler.Deregister()
+end
+EotwHeroSheet.themeHandler = ThemeEngine.OnThemeChanged(mod, function()
+    if m_recolour ~= nil and m_sheet ~= nil and m_sheet.valid then
+        m_recolour()
+    end
+end)
 
 --- shared pieces ------------------------------------------------------------
 
@@ -1448,7 +1821,7 @@ local function SourcesTip(s)
     end
     local lines = {}
     if s.base ~= nil then
-        lines[#lines+1] = string.format("Base %s", tostring(s.base))
+        lines[#lines+1] = T("herosheet.stats.source_base", { base = tostring(s.base) })
     end
     for _,src in ipairs(s.sources or {}) do
         lines[#lines+1] = string.format("%s %s", src.name or "", src.value or "")
@@ -1478,13 +1851,13 @@ local m_swept = {}
 ---@return string
 local function Ordinal(n)
     if n == 1 then
-        return "1st"
+        return T("herosheet.ordinal.first")
     elseif n == 2 then
-        return "2nd"
+        return T("herosheet.ordinal.second")
     elseif n == 3 then
-        return "3rd"
+        return T("herosheet.ordinal.third")
     end
-    return string.format("%dth", n)
+    return T("herosheet.ordinal.nth", { n = string.format("%d", n) })
 end
 
 --Builds a hover that shows whatever text the panel's data.tip holds right
@@ -1503,6 +1876,9 @@ end
 --pinned card before it closes the sheet.
 ---@type Panel|nil
 local m_pinned = nil
+--Builds the pinned card again, so a colour scheme switch can redraw it.
+---@type (fun(): Panel|nil)|nil
+local m_pinnedBuild = nil
 
 --A hover or pinned card beside its row. The codex's ability card draws its
 --own background, so it shows bare, as the action bar shows it (James
@@ -1560,16 +1936,21 @@ local function LeaveCard(element)
     element.data.cardGen = (element.data.cardGen or 0) + 1
 end
 
---Pins `popup` open beside `element` until the player clicks elsewhere or
---presses Escape.
+--Pins the card build() makes open beside `element` until the player clicks
+--elsewhere or presses Escape. build is kept for RefreshPin.
 ---@param element Panel
----@param popup Panel
-local function PinPanel(element, popup)
+---@param build fun(): Panel|nil
+local function PinPanel(element, build)
+    local popup = build()
+    if popup == nil then
+        return
+    end
     audio.FireSoundEvent("Mouse.Click")
     element.tooltip = nil
     element.popupPositioning = "panel"
     element.popup = popup
     m_pinned = element
+    m_pinnedBuild = build
 end
 
 --Click handler for a text tooltip (data.tip): keep it open.
@@ -1579,15 +1960,17 @@ local function PinTip(element)
     if tip == nil or tip == "" then
         return
     end
-    PinPanel(element, gui.TooltipFrame(gui.Label{
-        text = tip,
-        width = "auto",
-        height = "auto",
-        maxWidth = 460,
-        textWrap = true,
-        fontSize = 15,
-        color = "white",
-    }, { halign = "right", valign = "center" }))
+    PinPanel(element, function()
+        return gui.TooltipFrame(gui.Label{
+            text = tip,
+            width = "auto",
+            height = "auto",
+            maxWidth = 460,
+            textWrap = true,
+            fontSize = 15,
+            color = "white",
+        }, { halign = "right", valign = "center" })
+    end)
 end
 
 --Closes a pinned card; true if there was one.
@@ -1595,11 +1978,25 @@ end
 local function ClosePin()
     local pinned = m_pinned
     m_pinned = nil
+    m_pinnedBuild = nil
     if pinned ~= nil and pinned.valid and pinned.popup ~= nil then
         pinned.popup = nil
         return true
     end
     return false
+end
+
+--Redraws a pinned card that is still open (after a colour scheme switch:
+--cards are built with the palette as it was).
+local function RefreshPin()
+    local pinned, build = m_pinned, m_pinnedBuild
+    if pinned == nil or build == nil or not pinned.valid or pinned.popup == nil then
+        return
+    end
+    local popup = build()
+    if popup ~= nil then
+        pinned.popup = popup
+    end
 end
 
 
@@ -1633,8 +2030,7 @@ local function Hatch(width, height, args)
             width = 2,
             height = height * 3,
             rotate = 45,
-            bgimage = "panels/square.png",
-            bgcolor = C.HATCH,
+            classes = { "eotwsHatchStripe" },
             interactable = false,
         }
     end
@@ -1643,8 +2039,7 @@ local function Hatch(width, height, args)
         height = height,
         flow = "none",
         clip = true,
-        bgimage = "panels/square.png",
-        bgcolor = C.HATCH_GROUND,
+        classes = { "eotwsHatchGround" },
         children = stripes,
     }
     for k,v in pairs(args or {}) do
@@ -1723,7 +2118,7 @@ local function LevelRow(d, fallen, epicFeature)
                 click = function(element)
                     if epicFeature ~= nil then
                         LeaveCard(element)
-                        PinPanel(element, CardFrame(EpicCardContent(epicFeature), true))
+                        PinPanel(element, function() return CardFrame(EpicCardContent(epicFeature), true) end)
                     end
                 end,
             }),
@@ -1735,12 +2130,11 @@ local function LevelRow(d, fallen, epicFeature)
                 halign = "right",
                 valign = "center",
                 flow = "horizontal",
-                data = { tip = string.format("%d %s %d XP and %d %s at the next respite.",
-                    victories, cond(victories == 1, "Victory becomes", "Victories become"), victories, victories, epic.name) },
+                data = { tip = TP("herosheet.card.epic_banked_tip", victories, { resource = epic.name }) },
                 hover = HoverTip,
                 click = PinTip,
                 Hatch(18, 7, { valign = "center", cornerRadius = 3 }),
-                Text(string.format("+%d at the next respite", victories), { "eotwsPlateText" }, { lmargin = 6, valign = "center" }),
+                Text(T("herosheet.card.epic_banked", { gain = string.format("+%d", victories) }), { "eotwsPlateText" }, { lmargin = 6, valign = "center" }),
             }
         end
         rows[#rows+1] = gui.Panel{
@@ -1760,9 +2154,9 @@ local function LevelRow(d, fallen, epicFeature)
     local fill = cond(ready, 1, math.min(1, into / per))
     local tip
     if ready then
-        tip = string.format("%d XP: enough for Level %d.", into, p.nextLevel)
+        tip = T("herosheet.card.xp_ready_tip", { xp = string.format("%d", into), level = string.format("%d", p.nextLevel) })
     else
-        tip = string.format("%d of %d XP to Level %d.", into, per, p.nextLevel)
+        tip = T("herosheet.card.xp_tip", { xp = string.format("%d", into), per = string.format("%d", per), level = string.format("%d", p.nextLevel) })
     end
 
     local barChildren = {
@@ -1793,10 +2187,9 @@ local function LevelRow(d, fallen, epicFeature)
             bgimage = "panels/square.png",
             bgcolor = "black",
         }
-        tip = string.format("%s %d %s %d XP at the next respite.", tip, victories,
-            cond(victories == 1, "Victory becomes", "Victories become"), victories)
+        tip = string.format("%s %s", tip, TP("herosheet.card.xp_banked_tip", victories))
         if reach then
-            tip = string.format("%s Enough for Level %d.", tip, p.nextLevel)
+            tip = string.format("%s %s", tip, T("herosheet.card.xp_banked_reach_tip", { level = string.format("%d", p.nextLevel) }))
         end
     end
 
@@ -1842,9 +2235,9 @@ local function LevelRow(d, fallen, epicFeature)
     --only the owner sees these: they speak to the player ("your Hero")
     if d.mine and not fallen then
         if ready then
-            rows[#rows+1] = Text("Head to the Training Grounds to Level your Hero.", { "eotwsReadyLine" }, { tmargin = 6 })
+            rows[#rows+1] = Text(T("herosheet.card.ready_line"), { "eotwsReadyLine" }, { tmargin = 6 })
         elseif reach then
-            rows[#rows+1] = Text("A respite would Level this Hero.", { "eotwsRespiteLine" }, { tmargin = 6 })
+            rows[#rows+1] = Text(T("herosheet.card.respite_line"), { "eotwsRespiteLine" }, { tmargin = 6 })
         end
     end
     return rows
@@ -1857,15 +2250,15 @@ end
 local function StaminaNote(s)
     local left
     if s.state == "dead" then
-        left = "<b>Dead</b>"
+        left = T("herosheet.card.stamina_dead")
     elseif s.state == "dying" then
-        left = "<b>Dying</b>"
+        left = T("herosheet.card.stamina_dying")
     elseif s.state == "winded" then
-        left = string.format("<b>Winded</b> at %d", s.winded)
+        left = T("herosheet.card.stamina_winded", { winded = string.format("%d", s.winded) })
     else
-        left = string.format("Winded at <b>%d</b>", s.winded)
+        left = T("herosheet.card.stamina_winded_at", { winded = string.format("%d", s.winded) })
     end
-    return left, string.format("Dead at <b>%d</b>", s.deadAt)
+    return left, T("herosheet.card.stamina_dead_at", { dead = string.format("%d", s.deadAt) })
 end
 
 --The status shape the character panel pairs with the stamina colour, for the
@@ -1896,7 +2289,7 @@ local function CardRegion(ctx)
             audio.FireSoundEvent("Mouse.Click")
             ctx.Retry()
         end,
-        Text("Try again", nil, { fontSize = 13, bold = true, valign = "center" }),
+        Text(T("herosheet.card.try_again"), nil, { fontSize = 13, bold = true, valign = "center" }),
     }
 
     ---@type Panel|nil
@@ -2037,7 +2430,7 @@ local function CardRegion(ctx)
         data = { tip = "" },
         hover = HoverTip,
         click = PinTip,
-        Text("Recoveries", { "eotwsPlateStrong" }),
+        Text(T("herosheet.card.recoveries"), { "eotwsPlateStrong" }),
         recoveriesSub,
     }
     local victoriesNumber = Text("", { "eotwsVitalNumber" })
@@ -2197,13 +2590,13 @@ local function CardRegion(ctx)
                     local t = d.titles[i]
                     local lines = {
                         string.format("<b>%s</b>", t.name),
-                        string.format("Title %s %s echelon", MIDDOT, Ordinal(t.echelon)),
+                        T("herosheet.card.title_echelon", { dot = MIDDOT, echelon = Ordinal(t.echelon) }),
                     }
                     if t.flavor ~= nil and t.flavor ~= "" then
                         lines[#lines+1] = string.format("<i>%s</i>", t.flavor)
                     end
                     if t.deed ~= nil and t.deed ~= "" then
-                        lines[#lines+1] = string.format("<b>Earned:</b> %s", t.deed)
+                        lines[#lines+1] = T("herosheet.card.title_earned", { deed = t.deed })
                     end
                     for _,b in ipairs(t.benefits or {}) do
                         if b.name ~= nil and b.text ~= nil then
@@ -2232,7 +2625,7 @@ local function CardRegion(ctx)
         end
 
         if d.level ~= nil then
-            local line = string.format("Level %d %s %s", d.level, d.ancestry or "", d.className or "")
+            local line = T("herosheet.card.subtitle", { level = string.format("%d", d.level), ancestry = d.ancestry or "", class = d.className or "" })
             if d.subclass ~= nil and d.subclass ~= "" then
                 line = string.format("%s %s %s", line, MIDDOT, d.subclass)
             end
@@ -2268,7 +2661,7 @@ local function CardRegion(ctx)
         if r ~= nil then
             ringLabel.text = tostring(r.current)
             ring:SetClass("empty", r.current <= 0)
-            local tip = string.format("Each Recovery regains %d Stamina.", r.value)
+            local tip = T("herosheet.card.recovery_tip", { value = string.format("%d", r.value) })
             local function WithSources(s)
                 local more = SourcesTip(s)
                 if more == "" then
@@ -2287,21 +2680,19 @@ local function CardRegion(ctx)
             ring.data.gain = r.value
             ring.data.count = tostring(r.current)
             if spendable then
-                ring.data.tip = string.format("Click to spend a Recovery: regain %d Stamina.", r.value)
+                ring.data.tip = T("herosheet.card.recovery_spend_tip", { value = string.format("%d", r.value) })
             else
                 ring.data.tip = WithSources(stats.recoveries)
             end
             recoveriesCell.data.tip = WithSources(stats.recoveryValue)
-            recoveriesSub.text = string.format("of %d %s +%d each", r.max, MIDDOT, r.value)
+            recoveriesSub.text = T("herosheet.card.recoveries_sub", { max = string.format("%d", r.max), dot = MIDDOT, value = string.format("+%d", r.value) })
         end
 
         if p ~= nil then
-            local resourceName = (d.resource ~= nil and d.resource.name) or "Heroic Resource"
+            local resourceName = (d.resource ~= nil and d.resource.name) or T("herosheet.card.resource_fallback")
             victoriesNumber.text = tostring(p.victories)
-            victoriesWord.text = cond(p.victories == 1, "Victory", "Victories")
-            victoriesCell.data.tip = string.format(
-                "Starts each combat with %d extra %s. Victories become XP at the next respite.",
-                p.victories, resourceName)
+            victoriesWord.text = TP("herosheet.card.victories_word", p.victories)
+            victoriesCell.data.tip = T("herosheet.card.victories_tip", { victories = string.format("%d", p.victories), resource = resourceName })
         end
 
         if d.resource ~= nil then
@@ -2311,7 +2702,7 @@ local function CardRegion(ctx)
                 resourceIcon.bgimage = res.iconid
             end
             resourceNumber.text = tostring(cond(dead, 0, res.value))
-            resourceCell.data.tip = res.name or "Heroic Resource"
+            resourceCell.data.tip = res.name or T("herosheet.card.resource_fallback")
         end
 
         if d.surges ~= nil then
@@ -2325,8 +2716,7 @@ local function CardRegion(ctx)
                 surges.children = icons
             end
             surges:SetClass("collapsed", count == 0)
-            surges.data.tip = string.format("%d %s. Each adds %d damage, up to 3 per roll. 2 raise a potency by 1.",
-                d.surges, cond(d.surges == 1, "surge", "surges"), d.surgeDamage or 0)
+            surges.data.tip = TP("herosheet.card.surges_tip", d.surges, { damage = string.format("%d", d.surgeDamage or 0) })
         end
 
         vitals:SetClass("collapsed", fallen)
@@ -2334,14 +2724,14 @@ local function CardRegion(ctx)
         epitaph:SetClass("collapsed", not fallen)
         if fallen then
             local f = ctx.fallen
-            local who = cond(d.mine, "you", f.playedBy or d.ownerName or "")
+            local who = cond(d.mine, T("herosheet.card.epitaph_you"), f.playedBy or d.ownerName or "")
             --the week comes from the City's schedule; without one the line ends
             --at the encounter
-            local fell = string.format("Fell in <b>%s</b>", f.encounter or "")
             if f.week ~= nil then
-                fell = string.format("%s, week %s", fell, tostring(f.week))
+                epitaphLabel.text = T("herosheet.card.epitaph_week", { encounter = f.encounter or "", week = tostring(f.week), who = who })
+            else
+                epitaphLabel.text = T("herosheet.card.epitaph", { encounter = f.encounter or "", who = who })
             end
-            epitaphLabel.text = string.format("%s\nPlayed by %s", fell, who)
         end
     end
 
@@ -2514,15 +2904,15 @@ local function GearLine(gear)
     local armor = Unique(gear.armor)
     local parts = {}
     if #armor > 0 then
-        parts[1] = table.concat(armor, " or ") .. " armor"
+        parts[1] = T("herosheet.kit.gear_armor", { armor = table.concat(armor, T("herosheet.kit.gear_or")) })
     else
-        parts[1] = "No armor"
+        parts[1] = T("herosheet.kit.gear_no_armor")
     end
     for _,w in ipairs(Unique(gear.weapons)) do
         if w == "Shield" then
-            parts[#parts+1] = "shield"
+            parts[#parts+1] = T("herosheet.kit.gear_shield")
         else
-            parts[#parts+1] = string.lower(w) .. " weapon"
+            parts[#parts+1] = T("herosheet.kit.gear_weapon", { weapon = string.lower(w) })
         end
     end
     return table.concat(parts, ", ")
@@ -2606,8 +2996,8 @@ local function KitContent(d)
     local kit = d.kit
     if kit == nil or kit.kind == "none" or #kit.entries == 0 then
         return {
-            Text("Kit", { "eotwsHeader" }),
-            Text("No kit", { "eotwsNone" }, { tmargin = 6 }),
+            Text(T("herosheet.kit.header"), { "eotwsHeader" }),
+            Text(T("herosheet.kit.no_kit"), { "eotwsNone" }, { tmargin = 6 }),
         }
     end
 
@@ -2617,14 +3007,15 @@ local function KitContent(d)
         for _,b in ipairs(e.bonuses or {}) do
             local tip = nil
             if b.from ~= nil then
-                tip = string.format("From %s.", b.from)
                 if b.other ~= nil then
-                    tip = string.format("%s %s gives %s.", tip, b.otherFrom, b.other)
+                    tip = T("herosheet.kit.bonus_from_both", { kit = b.from, other_kit = tostring(b.otherFrom), other = tostring(b.other) })
+                else
+                    tip = T("herosheet.kit.bonus_from", { kit = b.from })
                 end
             end
-            bonuses[#bonuses+1] = { label = b.label, value = b.value, tip = tip }
+            bonuses[#bonuses+1] = { label = b.text or b.label, value = b.value, tip = tip }
         end
-        local children = { Text("Kit", { "eotwsHeader" }) }
+        local children = { Text(T("herosheet.kit.header"), { "eotwsHeader" }) }
         if kit.combined then
             children[#children+1] = Text(e.name, { "eotwsKitName" }, { tmargin = 6, width = "100%" })
             children[#children+1] = Text(GearLine(e.gear), { "eotwsKitGear" }, { width = "100%" })
@@ -2641,7 +3032,7 @@ local function KitContent(d)
         end
         children[#children+1] = KitGrid(bonuses)
         if kit.meleeFrom ~= nil then
-            children[#children+1] = Text(string.format("Melee damage from %s. Change it during a respite.", kit.meleeFrom),
+            children[#children+1] = Text(T("herosheet.kit.melee_from", { kit = kit.meleeFrom }),
                 { "eotwsKitDesc" }, { tmargin = 3, width = "100%" })
         end
         return children
@@ -2669,7 +3060,7 @@ local function KitContent(d)
                 })
             end
         else
-            body[#body+1] = Text("None chosen", { "eotwsNone" }, { tmargin = 6 })
+            body[#body+1] = Text(T("herosheet.kit.none_chosen"), { "eotwsNone" }, { tmargin = 6 })
         end
         return body
     end
@@ -2702,7 +3093,7 @@ local function KitRegion(ctx)
     local skeleton = {}
     if ctx.skeleton then
         skeleton = {
-            Text("Kit", { "eotwsHeader" }),
+            Text(T("herosheet.kit.header"), { "eotwsHeader" }),
             gui.Panel{
                 width = "100%",
                 height = 16,
@@ -2755,14 +3146,14 @@ end
 ---@return string
 local function NoBenefitText(reason, gear)
     if reason == "nokit" or gear == nil then
-        return "Without a kit, this gives no benefit."
+        return T("herosheet.treasures.no_benefit.no_kit")
     elseif reason == "weapon" then
-        return "The kit does not use this weapon, so this gives no benefit."
+        return T("herosheet.treasures.no_benefit.weapon")
     end
     if #(gear.armor or {}) == 0 then
-        return "The kit uses no armor, so this gives no benefit."
+        return T("herosheet.treasures.no_benefit.no_armor")
     end
-    return string.format("The kit uses %s armor, so this gives no benefit.", string.lower(table.concat(gear.armor, " or ")))
+    return T("herosheet.treasures.no_benefit.armor", { armor = string.lower(table.concat(gear.armor, T("herosheet.kit.gear_or"))) })
 end
 
 --The codex's own item card (CreateItemTooltip), plus the R6 warning on a
@@ -2776,7 +3167,7 @@ local function ItemCard(it, tok)
     if it.noBenefit ~= nil then
         --set directly: a tooltip draws outside the sheet, so its classes do not apply
         children[#children+1] = gui.Label{
-            text = "Weapon and armor treasures only help when the kit uses that kind of gear.",
+            text = T("herosheet.treasures.card_warning"),
             width = "100%",
             height = "auto",
             tmargin = 8,
@@ -2824,9 +3215,9 @@ local function TreasuresRegion(ctx)
     local skeleton = {}
     if ctx.skeleton then
         skeleton = {
-            Section("Leveled treasures", 1),
-            Section("Trinkets", 2),
-            Section("Consumables", 1),
+            Section(T("herosheet.treasures.leveled"), 1),
+            Section(T("herosheet.treasures.trinkets"), 2),
+            Section(T("herosheet.treasures.consumables"), 1),
         }
     end
 
@@ -2861,6 +3252,20 @@ local function TreasuresRegion(ctx)
 
     --the first row that wants equipping, for the call to action
     local todoRow = nil
+    --the item name labels whose slot is in the muted colour, so a colour
+    --scheme switch can redraw their text without rebuilding the rows
+    ---@type {label: Panel, it: table}[]
+    local tintedNames = {}
+
+    --an item's name, with its slot (if any) in the muted colour
+    ---@param it table
+    ---@return string
+    local function ItemNameText(it)
+        if it.body == nil then
+            return it.name
+        end
+        return string.format("%s  <color=%s>(%s)</color>", it.name, C.MUTED, it.body)
+    end
 
     --"{n} to equip": scrolls the list to the first treasure to equip
     local ctaLabel = Text("", { "eotwsCtaText" })
@@ -2909,8 +3314,9 @@ local function TreasuresRegion(ctx)
         --would land on the game's copy of the Hero, not the roster's
         local ownerActs = d.mine and not dead and ctx.fallen == nil and not ctx.inGame
         local away = ctx.AwayParty()
-        local awayTip = "Not while away with a party."
+        local awayTip = T("herosheet.treasures.away_tip")
         todoRow = nil
+        tintedNames = {}
 
         local function Row(it)
             local right = {}
@@ -2921,7 +3327,7 @@ local function TreasuresRegion(ctx)
                     data = { tip = NoBenefitText(it.noBenefit, d.kitGear) },
                     hover = HoverTip,
                     click = PinTip,
-                    Text("No benefit", { "eotwsWarnText" }),
+                    Text(T("herosheet.treasures.no_benefit"), { "eotwsWarnText" }),
                 }
             end
 
@@ -2936,9 +3342,9 @@ local function TreasuresRegion(ctx)
                 elseif not it.equipped and tok ~= nil then
                     local _, reason = EotwHeroSheet.EquipSlot(tok, it.itemid)
                     if reason == "cap" then
-                        offTip = string.format("%d leveled treasures are equipped. Unequip one first.", EotwHeroSheet.LEVELED_EQUIP_CAP)
+                        offTip = T("herosheet.treasures.equip_cap", { cap = string.format("%d", EotwHeroSheet.LEVELED_EQUIP_CAP) })
                     elseif reason == "full" then
-                        offTip = "No free slot for this treasure."
+                        offTip = T("herosheet.treasures.equip_full")
                     end
                 end
                 right[#right+1] = gui.Panel{
@@ -2958,8 +3364,8 @@ local function TreasuresRegion(ctx)
                         element.data.changes = changes
                         local lines = {}
                         for _,c in ipairs(changes) do
-                            lines[#lines+1] = string.format("%s changes %s %d -> %d.",
-                                cond(it.equipped, "Unequipping", "Equipping"), c.label, c.from, c.to)
+                            local args = { stat = c.text or c.label, from = string.format("%d", c.from), to = string.format("%d", c.to) }
+                            lines[#lines+1] = cond(it.equipped, T("herosheet.treasures.preview_unequip", args), T("herosheet.treasures.preview_equip", args))
                         end
                         if #lines > 0 then
                             gui.Tooltip(table.concat(lines, "\n"))(element)
@@ -2998,13 +3404,13 @@ local function TreasuresRegion(ctx)
                         ctx.PushToCity()
                         ctx.Reread()
                     end,
-                    Text(cond(it.equipped, "Unequip", "Equip"), { "eotwsSmallButtonText" }),
+                    Text(cond(it.equipped, T("herosheet.treasures.unequip"), T("herosheet.treasures.equip")), { "eotwsSmallButtonText" }),
                 }
             else
                 --ancestry items and anything the sheet cannot move: a plain tag
-                right[#right+1] = Text(cond(it.equipped, "Equipped", "Carried"), { "eotwsTag" }, {
+                right[#right+1] = Text(cond(it.equipped, T("herosheet.treasures.equipped"), T("herosheet.treasures.carried")), { "eotwsTag" }, {
                     valign = "center",
-                    data = { tip = cond(it.kind == "other", "Part of the Hero's ancestry.", "") },
+                    data = { tip = cond(it.kind == "other", T("herosheet.treasures.ancestry_tip"), "") },
                     hover = HoverTip,
                     click = PinTip,
                 })
@@ -3012,9 +3418,20 @@ local function TreasuresRegion(ctx)
 
             --name and slot in one label, so a long name ends in "..." before
             --it can push the buttons out of the row
-            local nameText = it.name
+            local nameLabel = Text(ItemNameText(it), { "eotwsItemName", "row", "eotwsFocusable" }, {
+                canFocus = true,
+                data = {},
+                hover = function(element)
+                    HoverCard(element, function() return CardFrame(ItemCard(it, tok), true) end)
+                end,
+                dehover = LeaveCard,
+                click = function(element)
+                    LeaveCard(element)
+                    PinPanel(element, function() return CardFrame(ItemCard(it, tok), true) end)
+                end,
+            })
             if it.body ~= nil then
-                nameText = string.format("%s  <color=%s>(%s)</color>", it.name, C.MUTED, it.body)
+                tintedNames[#tintedNames+1] = { label = nameLabel, it = it }
             end
             local row = gui.Panel{
                 classes = { "eotwsItem", cond(todo, "todo", "done") },
@@ -3024,18 +3441,7 @@ local function TreasuresRegion(ctx)
                 flow = "horizontal",
                 --the item card hangs off the name, so the buttons and the
                 --No benefit chip keep their own tooltips
-                Text(nameText, { "eotwsItemName", "row", "eotwsFocusable" }, {
-                    canFocus = true,
-                    data = {},
-                    hover = function(element)
-                        HoverCard(element, function() return CardFrame(ItemCard(it, tok), true) end)
-                    end,
-                    dehover = LeaveCard,
-                    click = function(element)
-                        LeaveCard(element)
-                        PinPanel(element, CardFrame(ItemCard(it, tok), true))
-                    end,
-                }),
+                nameLabel,
                 gui.Panel{
                     width = "auto",
                     height = "auto",
@@ -3063,20 +3469,20 @@ local function TreasuresRegion(ctx)
         end
 
         local children = {}
-        children[#children+1] = Sub("Leveled treasures", string.format("%d of 3 carried", t.leveledCarried))
+        children[#children+1] = Sub(T("herosheet.treasures.leveled"), T("herosheet.treasures.leveled_count", { carried = string.format("%d", t.leveledCarried) }))
         for _,it in ipairs(t.leveled) do
             children[#children+1] = Row(it)
         end
         if #t.leveled == 0 then
-            children[#children+1] = Text("None", { "eotwsNone" }, { tmargin = 4 })
+            children[#children+1] = Text(T("herosheet.treasures.none"), { "eotwsNone" }, { tmargin = 4 })
         end
 
-        children[#children+1] = Sub("Trinkets", tostring(#t.trinkets))
+        children[#children+1] = Sub(T("herosheet.treasures.trinkets"), tostring(#t.trinkets))
         for _,it in ipairs(t.trinkets) do
             children[#children+1] = Row(it)
         end
         if #t.trinkets == 0 then
-            children[#children+1] = Text("None", { "eotwsNone" }, { tmargin = 4 })
+            children[#children+1] = Text(T("herosheet.treasures.none"), { "eotwsNone" }, { tmargin = 4 })
         end
 
         local total = 0
@@ -3101,12 +3507,12 @@ local function TreasuresRegion(ctx)
                 dehover = LeaveCard,
                 click = function(element)
                     LeaveCard(element)
-                    PinPanel(element, CardFrame(ItemCard(it, tok), true))
+                    PinPanel(element, function() return CardFrame(ItemCard(it, tok), true) end)
                 end,
                 children = parts,
             }
         end
-        children[#children+1] = Sub("Consumables", tostring(total))
+        children[#children+1] = Sub(T("herosheet.treasures.consumables"), tostring(total))
         if #chips > 0 then
             children[#children+1] = gui.Panel{
                 width = "100%",
@@ -3116,7 +3522,7 @@ local function TreasuresRegion(ctx)
                 children = chips,
             }
         else
-            children[#children+1] = Text("None", { "eotwsNone" }, { tmargin = 4 })
+            children[#children+1] = Text(T("herosheet.treasures.none"), { "eotwsNone" }, { tmargin = 4 })
         end
         --room under the last row so the fade does not cover it at the bottom
         children[#children+1] = gui.Panel{ width = 1, height = 18 }
@@ -3129,7 +3535,7 @@ local function TreasuresRegion(ctx)
         end
         cta:SetClass("collapsed", n == 0)
         cta:SetClass("off", away ~= nil)
-        ctaLabel.text = string.format("%d to equip", n)
+        ctaLabel.text = T("herosheet.treasures.to_equip", { count = string.format("%d", n) })
         cta.data.tip = cond(away ~= nil, awayTip, "")
 
         --the fade only belongs when the list runs past the bottom; check once
@@ -3150,6 +3556,13 @@ local function TreasuresRegion(ctx)
         flow = "vertical",
         eotwsState = Rebuild,
         eotwsData = Rebuild,
+        eotwsRecolour = function(element)
+            for _,entry in ipairs(tintedNames) do
+                if entry.label.valid then
+                    entry.label.text = ItemNameText(entry.it)
+                end
+            end
+        end,
         --another Hero starts at the top of their list
         eotwsSwitch = function(element)
             todoRow = nil
@@ -3159,7 +3572,7 @@ local function TreasuresRegion(ctx)
             width = "100%",
             height = "auto",
             flow = "horizontal",
-            Text("Treasures", { "eotwsHeader" }),
+            Text(T("herosheet.treasures.header"), { "eotwsHeader" }),
             cta,
         },
         gui.Panel{
@@ -3230,8 +3643,6 @@ local function HasRoll(charid)
         pcall(function() turn = montage.GetState().turn end)
         if type(turn) == "table" then
             if turn.status == "rolling" and turn.heroid == charid then
-                return true
-            elseif turn.status == "assisting" and turn.assist ~= nil and turn.assist.heroid == charid then
                 return true
             elseif turn.status == "pardon" and turn.pardon ~= nil and turn.pardon.heroid == charid then
                 return true
@@ -3306,20 +3717,20 @@ local function NeededLine(ctx)
             pcall(function() trigger = HasTrigger(p) end)
             pcall(function() save = HasSave(p) end)
             if trigger then
-                return string.format("%s has a trigger waiting", entry.name)
+                return T("herosheet.topbar.needed_trigger", { hero = tostring(entry.name) })
             elseif save then
-                return string.format("%s has a save to make", entry.name)
+                return T("herosheet.topbar.needed_save", { hero = tostring(entry.name) })
             elseif HasRoll(entry.charid) then
-                return string.format("%s has a roll to make", entry.name)
+                return T("herosheet.topbar.needed_roll", { hero = tostring(entry.name) })
             end
         end
     end
     if ctx.storySignature ~= nil and StorySignature() ~= ctx.storySignature then
-        return "The story continues"
+        return T("herosheet.topbar.needed_story")
     end
     for _,entry in ipairs(mine) do
         if CanAct(entry.charid) then
-            return "The Heroes can act"
+            return T("herosheet.topbar.needed_act")
         end
     end
     return nil
@@ -3346,10 +3757,10 @@ local function CloseButton(ctx, onGold)
             audio.FireSoundEvent("UI.WindowClose")
             ctx.Close()
         end,
-        Text("Close", { "eotwsCloseText", gold }, { valign = "center" }),
+        Text(T("herosheet.topbar.close"), { "eotwsCloseText", gold }, { valign = "center" }),
         gui.Panel{
             classes = { "eotwsKbd", gold },
-            Text("Esc", { "eotwsKbdText", gold }),
+            Text(T("herosheet.topbar.esc"), { "eotwsKbdText", gold }),
         },
     }
 end
@@ -3373,12 +3784,12 @@ local function Thumb(ctx, charid, mineEdge, own)
     if own then
         local level = nil
         pcall(function() level = tok.properties:CharacterLevel() end)
-        tip = string.format("%s, Level %s", name, tostring(level or 1))
+        tip = T("herosheet.topbar.thumb_own", { hero = name, level = tostring(level or 1) })
     elseif owner ~= nil and owner ~= "" then
         local player = nil
         pcall(function() player = dmhub.GetDisplayName(owner) end)
         if player ~= nil and player ~= "" then
-            tip = string.format("%s, %s's Hero", name, player)
+            tip = T("herosheet.topbar.thumb_other", { hero = name, player = player })
         end
     end
     local thumb = gui.Panel{
@@ -3456,16 +3867,16 @@ local function SwitcherEntries(ctx)
                 theirs[#theirs+1] = { charid = entry.charid, mineEdge = false, own = false }
             end
         end
-        return "This encounter", ours, theirs
+        return T("herosheet.topbar.this_encounter"), ours, theirs
     end
     if ctx.data ~= nil and ctx.data.mine == true and rawget(_G, "EotwRoster") ~= nil then
         for _,hero in ipairs(EotwRoster.GetHeroes() or {}) do
             ours[#ours+1] = { charid = hero.heroid, mineEdge = false, own = true }
         end
-        return "Your roster", ours, theirs
+        return T("herosheet.topbar.your_roster"), ours, theirs
     end
     theirs[1] = { charid = ctx.charid, mineEdge = false, own = false }
-    return "Your party", ours, theirs
+    return T("herosheet.topbar.your_party"), ours, theirs
 end
 
 --Who the switcher lists, so it is rebuilt only when a Hero joins, leaves or
@@ -3530,7 +3941,7 @@ local function SwitcherPanel(ctx, label, ours, theirs)
     }
 end
 
---Whether the practice-only chip shows: a Danger Room game.
+--Whether the practice-only chip shows: a Proving Pits game.
 ---@param ctx table
 ---@return boolean
 local function IsPractice(ctx)
@@ -3541,8 +3952,8 @@ local function IsPractice(ctx)
     return practice
 end
 
---Whether the Hero on show may still be rebuilt in the builder: your own, until
---they win an encounter.
+--Whether the Hero on show may be rebuilt in the builder: any Hero on your
+--roster (the button is disabled while they are away with a party).
 ---@param ctx table
 ---@return boolean
 local function CanEditInBuilder(ctx)
@@ -3550,7 +3961,7 @@ local function CanEditInBuilder(ctx)
     if rawget(_G, "EotwRoster") ~= nil then
         pcall(function() hero = EotwRoster.FindHero(ctx.charid) end)
     end
-    return hero ~= nil and #(hero.completed or {}) == 0
+    return hero ~= nil
 end
 
 --The bar's right-hand side, packed against Close: the away and practice
@@ -3567,23 +3978,23 @@ local function RightContent(ctx)
         right[#right+1] = gui.Panel{
             classes = { "eotwsStateChip" },
             flow = "vertical",
-            Text(string.format("Away: %s", away), { "eotwsStateChipText", "clamped" }),
-            Text("Changes are off until the party ends.", { "eotwsStateChipSmall" }),
+            Text(T("herosheet.topbar.away", { party = tostring(away) }), { "eotwsStateChipText", "clamped" }),
+            Text(T("herosheet.topbar.away_note"), { "eotwsStateChipSmall" }),
         }
     end
     if IsPractice(ctx) then
         right[#right+1] = gui.Panel{
             classes = { "eotwsStateChip" },
-            Text("Danger Rooms: practice only", { "eotwsStateChipText" }),
+            Text(T("herosheet.topbar.practice"), { "eotwsStateChipText" }),
         }
     end
 
     local dead = d.stamina ~= nil and d.stamina.state == "dead"
     if mine and not dead and not ctx.inGame and ctx.state == "ready" then
-        --the town is where the Hero changes: appearance always, the full
-        --builder only until the Hero's first encounter is won
-        local offTip = cond(away ~= nil, "Not while away with a party.", nil)
-        right[#right+1] = OwnerButton("Change Appearance", nil, offTip, function()
+        --the town is where the Hero changes: appearance or the full builder,
+        --any time the Hero is home
+        local offTip = cond(away ~= nil, T("herosheet.topbar.away_tip"), nil)
+        right[#right+1] = OwnerButton(T("herosheet.topbar.change_appearance"), nil, offTip, function()
             local heroid = ctx.charid
             local host = ctx.host
             local tok = ctx.Token()
@@ -3597,7 +4008,7 @@ local function RightContent(ctx)
                 EotwBuilder.Open{
                     host = host,
                     token = tok,
-                    title = "Change Appearance",
+                    title = T("herosheet.topbar.change_appearance_title"),
                     step = "appearance",
                     only = "appearance",
                     onFinish = Save,
@@ -3606,7 +4017,7 @@ local function RightContent(ctx)
             end
         end)
         if CanEditInBuilder(ctx) then
-            right[#right+1] = OwnerButton("Edit in Builder", "Change any choice until this Hero wins an encounter.", offTip, function()
+            right[#right+1] = OwnerButton(T("herosheet.topbar.edit_builder"), T("herosheet.topbar.edit_builder_tip"), offTip, function()
                 local heroid = ctx.charid
                 local host = ctx.host
                 ctx.Close()
@@ -3616,7 +4027,7 @@ local function RightContent(ctx)
     elseif not mine and ctx.state == "ready" and d.ownerName ~= nil then
         right[#right+1] = gui.Panel{
             classes = { "eotwsOwnerChip" },
-            Text(string.format("%s's Hero", d.ownerName), { "eotwsOwnerChipText" }),
+            Text(T("herosheet.topbar.owner_chip", { player = d.ownerName }), { "eotwsOwnerChipText" }),
         }
     end
     right[#right+1] = CloseButton(ctx)
@@ -3645,7 +4056,7 @@ local function TopBarRegion(ctx)
             thumbs[#thumbs+1] = Skel(40, 56, { lmargin = cond(i == 1, 10, 8), cornerRadius = 6, valign = "center" })
         end
         loading = {
-            Text(cond(ctx.inGame, "This encounter", "Your roster"), { "eotwsSwitchLabel" }, { valign = "center" }),
+            Text(cond(ctx.inGame, T("herosheet.topbar.this_encounter"), T("herosheet.topbar.your_roster")), { "eotwsSwitchLabel" }, { valign = "center" }),
             gui.Panel{
                 width = "auto",
                 height = "100%",
@@ -3676,7 +4087,7 @@ local function TopBarRegion(ctx)
                 mode = "fallen"
                 element:SetClass("needed", false)
                 element.children = {
-                    Text("The Graveyard", { "eotwsSwitchLabel" }, { valign = "center" }),
+                    Text(T("herosheet.topbar.graveyard"), { "eotwsSwitchLabel" }, { valign = "center" }),
                     CloseButton(ctx),
                 }
             end
@@ -3846,7 +4257,7 @@ local function StatsSkeleton()
                 width = "55%",
                 height = "auto",
                 flow = "vertical",
-                Text("Characteristics", { "eotwsHeader" }),
+                Text(T("herosheet.stats.characteristics"), { "eotwsHeader" }),
                 gui.Panel{
                     width = "100%",
                     height = "auto",
@@ -3857,9 +4268,9 @@ local function StatsSkeleton()
             },
             gui.Panel{
                 classes = { "eotwsLines" },
-                Line({ Pair("Size", true), Pair("Speed"), Pair("Disengage"), Pair("Stability") }, 0),
-                Line({ Pair("Potency", true), Pair("Weak"), Pair("Average"), Pair("Strong") }, 7),
-                Line({ Pair("Wealth", true), Pair("Renown") }, 7),
+                Line({ Pair(T("herosheet.stats.size"), true), Pair(T("herosheet.stats.speed")), Pair(T("herosheet.stats.disengage")), Pair(T("herosheet.stats.stability")) }, 0),
+                Line({ Pair(T("herosheet.stats.potency"), true), Pair(T("herosheet.stats.weak")), Pair(T("herosheet.stats.average")), Pair(T("herosheet.stats.strong")) }, 7),
+                Line({ Pair(T("herosheet.stats.wealth"), true), Pair(T("herosheet.stats.renown")) }, 7),
             },
         },
         Hairline(),
@@ -3867,10 +4278,10 @@ local function StatsSkeleton()
             width = "100%",
             height = "auto",
             flow = "horizontal",
-            Words("Skills", "46%", { 160, 200, 140, 170, 84 }, true),
-            Words("Languages", "17%", { 120 }),
-            Words("Immunities", "21%", { 36 }),
-            Words("Weaknesses", "16%", { 36 }),
+            Words(T("herosheet.stats.skills"), "46%", { 160, 200, 140, 170, 84 }, true),
+            Words(T("herosheet.stats.languages"), "17%", { 120 }),
+            Words(T("herosheet.stats.immunities"), "21%", { 36 }),
+            Words(T("herosheet.stats.weaknesses"), "16%", { 36 }),
         },
     }
 end
@@ -3906,11 +4317,12 @@ local function StatsBand(count)
         }
     end
 
-    --one "LABEL value" pair on a centred line; hover shows its sources
+    --one "LABEL value" pair on a centred line; hover shows its sources. key
+    --finds the stat (and its equip previews), label is what shows
     local pairsByKey = {}
-    local function Pair(key, first, extra)
+    local function Pair(key, label, first, extra)
         local value = StatValue(key, "", { "eotwsStatValue" })
-        local children = { Text(key, { "eotwsStatLabel" }, { valign = "center" }), value }
+        local children = { Text(label, { "eotwsStatLabel" }, { valign = "center" }), value }
         if extra ~= nil then
             children[#children+1] = extra
         end
@@ -3943,10 +4355,10 @@ local function StatsBand(count)
 
     local speedExtra = Text("", { "eotwsMovement" }, { valign = "center", lmargin = 5 })
     local body = Line({
-        Pair("Size", true),
-        Pair("Speed", false, speedExtra),
-        Pair("Disengage"),
-        Pair("Stability"),
+        Pair("Size", T("herosheet.stats.size"), true),
+        Pair("Speed", T("herosheet.stats.speed"), false, speedExtra),
+        Pair("Disengage", T("herosheet.stats.disengage")),
+        Pair("Stability", T("herosheet.stats.stability")),
     })
 
     local tiers = {}
@@ -3963,19 +4375,19 @@ local function StatsBand(count)
         }
     end
     local potencyLine = Line({
-        Text("Potency", { "eotwsStatLabel" }, { valign = "center" }),
-        Tier("Weak"),
-        Tier("Average"),
-        Tier("Strong"),
+        Text(T("herosheet.stats.potency"), { "eotwsStatLabel" }, { valign = "center" }),
+        Tier(T("herosheet.stats.weak")),
+        Tier(T("herosheet.stats.average")),
+        Tier(T("herosheet.stats.strong")),
     }, { classes = { "eotwsPotency" }, tmargin = 7 })
 
     --Wealth and Renown: labels only, no tooltip (round 13)
     local wealth = Text("", { "eotwsStatValue", "small" }, { lmargin = 8 })
     local renown = Text("", { "eotwsStatValue", "small" }, { lmargin = 8 })
     local standing = Line({
-        Text("Wealth", { "eotwsStatLabel" }, { valign = "center" }),
+        Text(T("herosheet.stats.wealth"), { "eotwsStatLabel" }, { valign = "center" }),
         wealth,
-        Text("Renown", { "eotwsStatLabel" }, { valign = "center", lmargin = 26 }),
+        Text(T("herosheet.stats.renown"), { "eotwsStatLabel" }, { valign = "center", lmargin = 26 }),
         renown,
     }, { tmargin = 7 })
 
@@ -4010,7 +4422,7 @@ local function StatsBand(count)
                 width = "55%",
                 height = "auto",
                 flow = "vertical",
-                Text("Characteristics", { "eotwsHeader" }),
+                Text(T("herosheet.stats.characteristics"), { "eotwsHeader" }),
                 gui.Panel{
                     width = "100%",
                     height = "auto",
@@ -4031,10 +4443,10 @@ local function StatsBand(count)
             width = "100%",
             height = "auto",
             flow = "horizontal",
-            Words("Skills", "46%", skills, true),
-            Words("Languages", "17%", List()),
-            Words("Immunities", "21%", List()),
-            Words("Weaknesses", "16%", List()),
+            Words(T("herosheet.stats.skills"), "46%", skills, true),
+            Words(T("herosheet.stats.languages"), "17%", List()),
+            Words(T("herosheet.stats.immunities"), "21%", List()),
+            Words(T("herosheet.stats.weaknesses"), "16%", List()),
         },
     }
 
@@ -4072,7 +4484,8 @@ local function StatsBand(count)
         for _,g in ipairs(d.skills or {}) do
             parts[#parts+1] = g.name .. ":" .. table.concat(g.skills, ",")
         end
-        local sig = table.concat(parts, "|")
+        --the group names carry the label colour in their markup
+        local sig = C.TAN .. "|" .. table.concat(parts, "|")
         if sig ~= shownSkills then
             shownSkills = sig
             local units = {}
@@ -4086,7 +4499,7 @@ local function StatsBand(count)
                     { "eotwsWords" }, { maxWidth = "100%", rmargin = 18 })
             end
             if #units == 0 then
-                units[1] = Text("None", { "eotwsNone" })
+                units[1] = Text(T("herosheet.stats.none"), { "eotwsNone" })
             end
             skills.children = units
         end
@@ -4095,7 +4508,7 @@ local function StatsBand(count)
             local none = items == nil or #items == 0
             lists[i]:SetClass("eotwsNone", none)
             lists[i]:SetClass("eotwsWords", not none)
-            lists[i].text = cond(none, "None", table.concat(items or {}, ", "))
+            lists[i].text = cond(none, T("herosheet.stats.none"), table.concat(items or {}, ", "))
         end
     end
 
@@ -4137,6 +4550,8 @@ local function StatsRegion(ctx)
         children = skeleton,
         eotwsState = Fill,
         eotwsData = Fill,
+        --the skill group names carry the label colour in their markup
+        eotwsRecolour = Fill,
     })
 end
 
@@ -4289,11 +4704,11 @@ local function AbilityRow(item, getTok, compact)
         dehover = LeaveCard,
         click = function(element)
             LeaveCard(element)
-            local it = element.data.item
-            local card = AbilityCardContent(it, getTok())
-            if card ~= nil then
-                PinPanel(element, CardFrame(card, it.ability == nil))
-            end
+            PinPanel(element, function()
+                local it = element.data.item
+                local card = AbilityCardContent(it, getTok())
+                return card ~= nil and CardFrame(card, it.ability == nil) or nil
+            end)
         end,
         children = children,
     }
@@ -4374,7 +4789,7 @@ local function AbilitiesContent(d, getTok, shown)
             }
             entry = {
                 sig = sig,
-                panel = Group("ab:" .. g.id, g.name, #g.items, cond(g.id == "standard", "Every Hero can do these", nil), body),
+                panel = Group("ab:" .. g.id, g.name, #g.items, cond(g.id == "standard", T("herosheet.abilities.standard_note"), nil), body),
                 rows = rowPanels,
             }
         end
@@ -4436,7 +4851,7 @@ local function FeatureCard(item)
         },
     }
     if item.chosenFor ~= nil then
-        children[#children+1] = Text(string.format("Chosen for %s", item.chosenFor), { "eotwsFeatureChosen" })
+        children[#children+1] = Text(T("herosheet.features.chosen_for", { choice = tostring(item.chosenFor) }), { "eotwsFeatureChosen" })
     end
     local text = item.text or ""
     if text ~= "" then
@@ -4451,13 +4866,13 @@ local function FeatureCard(item)
         children[#children+1] = desc
         if long then
             local toggle
-            toggle = Text("Show more", { "eotwsShowMore", "eotwsFocusable" }, {
+            toggle = Text(T("herosheet.features.show_more"), { "eotwsShowMore", "eotwsFocusable" }, {
                 canFocus = true,
                 click = function()
                     audio.FireSoundEvent("Mouse.Click")
                     folded = not folded
                     desc.text = cond(folded, Short(), text)
-                    toggle.text = cond(folded, "Show more", "Show less")
+                    toggle.text = cond(folded, T("herosheet.features.show_more"), T("herosheet.features.show_less"))
                 end,
             })
             children[#children+1] = toggle
@@ -4609,11 +5024,11 @@ local function ListsRegion(ctx)
         end
         shownSections = keep
         if #sections == 0 then
-            sections[1] = Text("No features match. Clear the filters to see them all.", { "eotwsEmpty" })
+            sections[1] = Text(T("herosheet.features.no_match"), { "eotwsEmpty" })
         end
         featureList.children = sections
         local total = d.features.total or 0
-        featureCount.text = cond(shown == total, tostring(total), string.format("%d of %d", shown, total))
+        featureCount.text = cond(shown == total, tostring(total), T("herosheet.features.count_filtered", { shown = string.format("%d", shown), total = string.format("%d", total) }))
     end
 
     local chips = {}
@@ -4635,7 +5050,7 @@ local function ListsRegion(ctx)
                 element:SetClass("off", not on)
                 FillFeatures()
             end,
-            Text(pillar, { "eotwsChipText" }, { valign = "center" }),
+            Text(PILLAR_TEXT[pillar] or pillar, { "eotwsChipText" }, { valign = "center" }),
         }
     end
     local pillarChips = {}
@@ -4644,7 +5059,7 @@ local function ListsRegion(ctx)
     end
     local filterInput = gui.Input{
         classes = { "eotwsFilter" },
-        placeholderText = "Filter features",
+        placeholderText = T("herosheet.features.filter_placeholder"),
         text = "",
         editlag = 0.2,
         edit = function(element)
@@ -4658,7 +5073,7 @@ local function ListsRegion(ctx)
     }
     chips[#chips+1] = filterInput
 
-    local featureHead = { Text("Features", { "eotwsHeader" }, { valign = "center" }), featureCount }
+    local featureHead = { Text(T("herosheet.features.header"), { "eotwsHeader" }, { valign = "center" }), featureCount }
     local filterLine
     if m_fontScale >= LARGE_TEXT_SCALE then
         --large text: the chips and filter box move to their own line
@@ -4711,7 +5126,7 @@ local function ListsRegion(ctx)
             width = "48%",
             height = "100%",
             flow = "vertical",
-            Underlined({ Text("Abilities", { "eotwsHeader" }, { valign = "center" }) }),
+            Underlined({ Text(T("herosheet.abilities.header"), { "eotwsHeader" }, { valign = "center" }) }),
             abilityBody,
         },
         gui.Panel{
@@ -4915,6 +5330,8 @@ end
 --- @return Panel|nil sheet the open sheet, or nil if there was nowhere to mount it
 function EotwHeroSheet.Show(args)
     EotwHeroSheet.Close()
+    --every region reads C as it builds
+    RefreshPalette()
 
     local charid = args.charid
     if charid == nil and args.token ~= nil then
@@ -4924,6 +5341,9 @@ function EotwHeroSheet.Show(args)
     local context = args.context
     if context == nil then
         context = cond(dmhub.inGame and not dmhub.isLobbyGame, "game", "town")
+    end
+    if not args.switching then
+        EotwAnalytics.Track("eotw_hero_sheet_open", { heroid = charid, where = context, fallen = args.fallen ~= nil })
     end
 
     ---@type Panel|nil
@@ -4972,15 +5392,15 @@ function EotwHeroSheet.Show(args)
         if type(args.name) == "string" and args.name ~= "" then
             return args.name
         end
-        return "Hero"
+        return T("herosheet.card.hero_fallback")
     end
 
     function ctx.LoadingText()
-        return string.format("Loading %s...", ctx.HeroName())
+        return T("herosheet.card.loading", { hero = ctx.HeroName() })
     end
 
     function ctx.FailedText()
-        return string.format("%s could not load.", ctx.HeroName())
+        return T("herosheet.card.failed", { hero = ctx.HeroName() })
     end
 
     --A Hero counts as loaded once its token and properties both resolve.
@@ -5156,7 +5576,7 @@ function EotwHeroSheet.Show(args)
         end
     end
 
-    ctx.frost = ctx.transparent and FrostSupported()
+    ctx.frost = ctx.transparent and FrostSupported() and FullResolution()
     m_fontScale = ctx.fontScale
 
     local host = FindHost(ctx)
@@ -5191,11 +5611,12 @@ function EotwHeroSheet.Show(args)
 
     local animate = not args.switching and not ThemeEngine.GetAccessibility().reduceMotion
     local layout = gui.Panel{
-        classes = { cond(animate, "eotwsRise", "eotwsStill") },
         floating = true,
         width = "100%",
         height = "100%",
-        pad = PAD,
+        hpad = PAD,
+        tpad = PAD + LAYOUT_DROP,
+        bpad = PAD - LAYOUT_DROP,
         borderBox = true,
         flow = "horizontal",
         leftColumn,
@@ -5282,6 +5703,7 @@ function EotwHeroSheet.Show(args)
         destroy = function(element)
             if m_sheet == element then
                 m_sheet = nil
+                m_recolour = nil
             end
         end,
 
@@ -5297,15 +5719,39 @@ function EotwHeroSheet.Show(args)
     m_sheet = root
     m_sheetCharid = charid
 
-    --open: fade and rise (not on a switch between Heroes, not under Reduce Motion)
+    --a colour scheme change (or a saved edit to the active one) recolours the
+    --open sheet in place: new rules, then a repaint for colours baked into text
+    local themeTick = false
+    m_recolour = function()
+        if root == nil or not root.valid then
+            return
+        end
+        --a Transparent UI / High Contrast or Font Size change rebuilds the whole
+        --sheet on its next think (with the new palette), so recolouring first is wasted
+        if SeeThrough() ~= ctx.transparent or FontScale() ~= ctx.fontScale then
+            return
+        end
+        if not RefreshPalette() then
+            return
+        end
+        root.styles = ThemeEngine.MergeStyles(ScaledRules(ctx.fontScale))
+        --new styles alone do not repaint what is already drawn
+        themeTick = not themeTick
+        root:SetClassTree("eotwsThemeTick", themeTick)
+        --only colours baked into text need redrawing; eotwsData would rebuild
+        --whole lists and destroy the row a pinned card hangs off
+        if ctx.state == "ready" and ctx.data ~= nil then
+            root:FireEventTree("eotwsRecolour")
+        end
+        RefreshPin()
+    end
+
+    --open: fade (not on a switch between Heroes, not under Reduce Motion)
     if not args.switching then
         audio.FireSoundEvent("UI.WindowOpen")
     end
     if animate then
         dmhub.Schedule(0.02, function()
-            if layout.valid then
-                layout:SetClass("done", true)
-            end
             if opener ~= nil and opener.valid then
                 opener:SetClass("done", true)
             end

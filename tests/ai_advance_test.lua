@@ -16,6 +16,10 @@ end
 MonsterAI = {TokenIsLiveCombatant = function(t) return t.valid end,
     LogDecision = noop, TokenLogName = tostring, LocLogName = tostring,
     TargetsLogName = tostring, Sleep = noop}
+--Plan previews (Continue to go on) are off in these tests.
+MonsterAI.PlanPreviewsOn = function() return false end
+--No hero takes the turn mid-move in these tests.
+MonsterAI.TurnTakenBeforeMove = function() return false end
 function RunYieldingFunction(fn)
     local ok, err = pcall(fn)
     if not ok then return false, err end
@@ -119,6 +123,10 @@ MonsterAI.AbilitiesLogName = tostring
 MonsterAI.AbilityActionsLogName = tostring
 MonsterAI.ScoringPlanLogName = tostring
 MonsterAI.MoveMatchesMonster = function() return true end
+--no zone holds this actor (the Hold directive's own checks need a map).
+MonsterAI.Holds = function() return false end
+--the actor does not avoid opportunity attacks (one scoring pass).
+MonsterAI.OpportunityAttackers = function() return nil end
 local actor = {valid = true, properties = {minion = false, monster_type = "Test",
     has_key = function() return true end}}
 local selector = setmetatable({token = actor, abilities = {}, moves = {}, try_get = try_get}, {__index = MonsterAI})
@@ -168,4 +176,23 @@ assert(selector:FindAndExecuteMove() == "executed" and selector.advanced,
 selector._tmp_failedMoves = {}
 selector.moves.strike.execute = function() return false end
 assert(selector:FindAndExecuteMove() == "failed", "explicit false also fails the move")
+
+-- A move stopped short after moving (a trap, a reaction) is re-planned once
+-- from where the creature stands; a second shortfall quarantines it, so a
+-- move that keeps falling short cannot repeat for the rest of the turn.
+selector._tmp_failedMoves = {}
+selector._tmp_shortMoveRetries = {}
+local shortfalls = 0
+selector.moves.strike.execute = function()
+    shortfalls = shortfalls + 1
+    selector._tmp_moveFailure = "movement did not reach the planned destination"
+    selector._tmp_moveFellShort = true
+end
+assert(selector:FindAndExecuteMove() == "failed" and not selector._tmp_failedMoves.strike,
+    "first shortfall is re-planned, not quarantined")
+assert(selector:FindAndExecuteMove() == "failed" and selector._tmp_failedMoves.strike,
+    "second shortfall quarantines the move")
+selector.advanced = false
+for _=1,4 do selector:FindAndExecuteMove() end
+assert(shortfalls == 2 and selector.advanced, "a quarantined move is never tried again this turn")
 print("AI failed move fallback tests passed")

@@ -369,6 +369,7 @@ function FSHTrip.AddCast(charid, cast)
     end
 
     cast.seq = #casts + 1
+    cast.at = dmhub.serverTime
     casts[#casts + 1] = cast
 
     local points = (trip.points or 0) + (cast.points or 0)
@@ -543,6 +544,7 @@ function FSHTrip.AddEvent(charid, event)
     for _, existing in ipairs(trip.events or {}) do
         events[#events + 1] = existing
     end
+    event.at = dmhub.serverTime
     events[#events + 1] = event
 
     FSHTrip._write(charid, function(data)
@@ -697,7 +699,8 @@ function FSHTrip.AddPurchase(charid, name, cost)
     end
     purchases[#purchases + 1] = {
         name = name,
-        cost = cost
+        cost = cost,
+        at = dmhub.serverTime
     }
 
     local points = math.max(0, (trip.points or 0) - (cost or 0))

@@ -127,6 +127,10 @@ end
 m.mapScope = {
     openableSupport = nil,
 
+    --warn-once flag for CreateMarkupWallAsset failing: preset chips retry
+    --creation on every click, so the message must not repeat each time.
+    createFailWarned = false,
+
     --Engine gate, same probe recipe as OpenableWallsSupported: the accessor
     --reads "" (never nil) when unset precisely so this probe works.
     wallSupportCache = nil,
@@ -600,17 +604,26 @@ end
 --("#rrggbb", nil = the engine's stock grey). Returns the new guid, or nil on
 --failure.
 local function CreateMarkupWallAsset(name, fields, color)
-    if assets.walls[K.BASE_INVISIBLE_WALL_ID] == nil then
-        dmhub.Debug("MARKUP:: base invisible wall asset is not available in this game")
-        return nil
-    end
-
+    --No assets.walls pre-check on the base: that table omits deleted walls,
+    --and a game whose Director deleted the base must still get wall types.
+    --DuplicateWall reads every wall and un-hides the copy (T9FYM2HZ).
     local guid = assets:DuplicateWall(K.BASE_INVISIBLE_WALL_ID)
-    if guid == nil then
+    local wall = nil
+    if guid ~= nil then
+        wall = assets.walls[guid]
+    end
+    if wall == nil then
+        dmhub.Debug("MARKUP:: could not create a wall type from the base invisible wall")
+        if not m.mapScope.createFailWarned then
+            m.mapScope.createFailWarned = true
+            gui.ModalMessage{
+                title = "Map Markup",
+                message = "Map Markup cannot create wall types in this game: the built-in invisible wall they are copied from is missing (it may have been deleted in the Building editor). Please send a bug report so we can help.",
+            }
+        end
         return nil
     end
 
-    local wall = assets.walls[guid]
     wall.description = name
     ApplyFieldsToWall(wall, fields)
     --engine-gated exactly like m_wallColor: WallAsset.markupColor does not

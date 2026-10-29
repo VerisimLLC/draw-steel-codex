@@ -114,6 +114,224 @@ local function CharacterIndexToLocation(layout, index)
     return nil
 end
 
+--Finds a section of a PDF page from its heading: the heading and the text below
+--it down to the next heading (any heading on the page, or untilHeading when given),
+--following the text from the bottom of the left column to the top of the right.
+--A heading in body-size type (a run-in label such as "Station 4: Medical:") is a
+--paragraph: it also ends at the first blank gap.
+--Rects are page points, bottom-origin, like the text layout.
+--  layout:       the page's TextLayout result
+--  heading:      the heading text, matched case- and spacing-insensitively; a
+--                heading set over two lines matches on its first line
+--  summary:      the document summary (pageWidth, pageHeight)
+--  untilHeading: optional; the line that ends the section, for a section that
+--                takes in smaller headings of its own. "" runs to the end of the
+--                column (a stat block, whose feature names look like headings).
+--Returns {rects = {rect, ...}, top = y} (one rect per column the section covers),
+--or nil when the heading is not on the page. A global so other code (and tests
+--over the MCP bridge) can use it on any PDF.
+function PDFSectionRects(layout, heading, summary, untilHeading)
+    if layout == nil or summary == nil or heading == nil then
+        return nil
+    end
+    local pageWidth = summary.pageWidth
+    local pageHeight = summary.pageHeight
+
+    local function Normalize(s)
+        local result = string.gsub(string.lower(trim(s or "")), "%s+", " ")
+        --curly apostrophes in the book vs straight ones in callers' text.
+        result = string.gsub(result, "\226\128\153", "'")
+        --leading ornaments and punctuation ("... Into the Fire" opens with an ellipsis).
+        result = string.gsub(result, "^[^%w]+", "")
+        return result
+    end
+    local needle = Normalize(heading)
+    local untilNeedle = untilHeading ~= nil and Normalize(untilHeading) or nil
+    if needle == "" then
+        return nil
+    end
+
+    --glyph advance: the font-size proxy the heading search uses.
+    local function Advance(r)
+        local sum, count = 0, 0
+        for i = 1, #r.breaks - 1 do
+            sum = sum + math.abs(r.breaks[i + 1] - r.breaks[i])
+            count = count + 1
+        end
+        return sum / math.max(1, count), count
+    end
+
+    --body text only: no running footer or page number at the bottom, no
+    --vertical chapter tab down either edge.
+    local lines = {}
+    local totalSum, totalCount = 0, 0
+    for _, r in ipairs(layout.mergedRects) do
+        local rect = r.rect
+        if rect.y1 > pageHeight * 0.04 and rect.x2 > pageWidth * 0.05 and rect.x1 < pageWidth * 0.95 then
+            local adv, n = Advance(r)
+            local line = { r = r, rect = rect, text = Normalize(layout.text:Substring(r.a, r.b)) }
+            lines[#lines + 1] = line
+            totalSum = totalSum + adv * n
+            totalCount = totalCount + n
+            line.adv, line.n = adv, n
+        end
+    end
+    local pageAvg = totalSum / math.max(1, totalCount)
+    for _, line in ipairs(lines) do
+        line.isHeading = line.n >= 3 and line.adv >= pageAvg * 1.2
+    end
+
+    --the heading: an exact line beats a prefix match; bigger type breaks ties.
+    local best, bestScore = nil, 0
+    for _, line in ipairs(lines) do
+        local base = 0
+        if line.text == needle then
+            base = 100
+        elseif string.starts_with(line.text, needle) then
+            base = 60
+        elseif #line.text >= 6 and string.starts_with(needle, line.text) then
+            base = 40
+        end
+        if base > 0 then
+            local score = base * clamp(line.adv / math.max(1, pageAvg), 0.5, 4)
+            if score > bestScore then
+                best, bestScore = line, score
+            end
+        end
+    end
+    if best == nil then
+        return nil
+    end
+
+    local mid = pageWidth * 0.5
+    local function ColumnOf(rect)
+        if rect.x2 <= mid + pageWidth * 0.03 then
+            return "left"
+        elseif rect.x1 >= mid - pageWidth * 0.03 then
+            return "right"
+        end
+        return "both"
+    end
+    local headingColumn = ColumnOf(best.rect)
+    local function InColumn(rect, column)
+        if column == "both" then
+            return true
+        end
+        local cx = (rect.x1 + rect.x2) * 0.5
+        if column == "left" then
+            return cx < mid
+        end
+        return cx >= mid
+    end
+
+    --the heading's own lines: the matched one plus any continuation set just
+    --below it in heading type that the heading text runs on into.
+    local headingTop = best.rect.y2
+    local headingBottom = best.rect.y1
+    local headingLines = { [best] = true }
+    local lineHeight = best.rect.y2 - best.rect.y1
+    local extended = true
+    while extended do
+        extended = false
+        for _, line in ipairs(lines) do
+            if not headingLines[line] and line.isHeading and InColumn(line.rect, headingColumn)
+                and line.rect.y2 < headingBottom + 1 and line.rect.y2 >= headingBottom - lineHeight * 1.2
+                and string.find(needle, line.text, 1, true) ~= nil then
+                headingLines[line] = true
+                headingBottom = line.rect.y1
+                extended = true
+            end
+        end
+    end
+
+    --true for a line that ends the section.
+    local function EndsSection(line)
+        if untilNeedle == "" then
+            return false
+        elseif untilNeedle ~= nil then
+            return line.text == untilNeedle or string.starts_with(line.text, untilNeedle)
+        end
+        return line.isHeading
+    end
+
+    --a run-in label's paragraph also ends at blank space this tall (points; body
+    --lines sit about 11 apart).
+    local runIn = not best.isHeading
+    local PARAGRAPH_GAP = 22
+
+    --one column's share of the section: walks down from topY to the first line
+    --that ends the section. Returns the rect (nil if empty) and whether it ended.
+    local function ColumnRegion(column, topY, startRect)
+        local below = {}
+        for _, line in ipairs(lines) do
+            if not headingLines[line] and InColumn(line.rect, column) and line.rect.y2 < topY + 1 then
+                below[#below + 1] = line
+            end
+        end
+        table.sort(below, function(a, b)
+            return a.rect.y2 > b.rect.y2
+        end)
+
+        local rect = startRect
+        local previousBottom = topY
+        for _, line in ipairs(below) do
+            if EndsSection(line) then
+                return rect, true
+            end
+            if runIn and rect ~= nil and previousBottom - line.rect.y2 > PARAGRAPH_GAP then
+                return rect, true
+            end
+            if rect == nil then
+                rect = { x1 = line.rect.x1, x2 = line.rect.x2, y1 = line.rect.y1, y2 = line.rect.y2 }
+            else
+                rect.x1 = math.min(rect.x1, line.rect.x1)
+                rect.x2 = math.max(rect.x2, line.rect.x2)
+                rect.y1 = math.min(rect.y1, line.rect.y1)
+                rect.y2 = math.max(rect.y2, line.rect.y2)
+            end
+            previousBottom = math.min(previousBottom, line.rect.y1)
+        end
+        return rect, false
+    end
+
+    local first, ended = ColumnRegion(headingColumn, headingBottom, {
+        x1 = best.rect.x1, x2 = best.rect.x2, y1 = headingBottom, y2 = headingTop,
+    })
+    local rects = { first }
+
+    --ran off the bottom of the left column: carry on at the top of the right.
+    if not ended and headingColumn == "left" then
+        local second = ColumnRegion("right", pageHeight, nil)
+        if second ~= nil then
+            rects[#rects + 1] = second
+        end
+    end
+
+    local pad = 6
+    for i, r in ipairs(rects) do
+        rects[i] = {
+            x1 = math.max(0, r.x1 - pad),
+            x2 = math.min(pageWidth, r.x2 + pad),
+            y1 = math.max(0, r.y1 - pad),
+            y2 = math.min(pageHeight, r.y2 + pad),
+        }
+    end
+    return { rects = rects, top = math.min(pageHeight, headingTop + pad) }
+end
+
+--A section link's highlight, as {seconds after it starts, phase}: it lights up
+--brightly out of nothing, settles, pulses once more, holds so the reader finds
+--it, then fades out over SECTION_FLASH_FADE_TIME (the "sectionFade" style's
+--transitionTime). Phases are the tocFlash "section" style classes.
+SECTION_FLASH_PHASES = {
+    { 0.05, "lit" },
+    { 1.1, "steady" },
+    { 1.55, "lit" },
+    { 2.15, "steady" },
+    { 3.6, "fade" },
+}
+SECTION_FLASH_FADE_TIME = 2.4
+
 local function SmartImporterPanel(doc)
     local header = {
         {
@@ -387,7 +605,10 @@ local function SmartImporterPanel(doc)
     }
 end
 
-local ShowPDFViewerDialogInternal = function(doc, starting_page)
+--focus (optional): {heading = string, page = index, untilHeading = string|nil} --
+--once the viewer is up,
+--scroll to that section and flash it (see FocusSection).
+local ShowPDFViewerDialogInternal = function(doc, starting_page, focus)
     print("PDF:: SHOW WITH", type(starting_page), json(starting_page))
     local document = doc.doc
     printf("PAGES: %d", document.summary.npages)
@@ -417,6 +638,9 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
 
     local m_zoom = tonumber(m_settings.zoom) or 1
     local m_twoPage = m_settings.twopage and true or false
+    --the left sidebar (thumbnails, contents, search results) folds away to
+    --give the pages the room, e.g. in a small window. Remembered per PDF.
+    local m_sidebarCollapsed = m_settings.sidebarCollapsed == true
     local m_importer = false
     local m_importerPanel = SmartImporterPanel(doc)
 
@@ -443,6 +667,10 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
     --the interactive layer exist. Scrolls to a toc entry's position within
     --its page and briefly flashes a highlight there.
     local ScrollToTocEntry
+
+    --forward-declared like ScrollToTocEntry: turns to a page, finds a section
+    --by its heading (PDFSectionRects), scrolls it into view and outlines it.
+    local FocusSection
 
     --page index -> text layout, filled on demand by ScrollToTocEntry for
     --documents whose bookmarks carry no destination position.
@@ -894,7 +1122,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
             },
 
             page = function(element)
-                element:SetClass("collapsed", m_searchResults == nil)
+                element:SetClass("collapsed", m_searchResults == nil or m_sidebarCollapsed)
             end,
 
             executeSearch = function(element, results)
@@ -1241,7 +1469,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
             flow = "vertical",
 
             page = function(element)
-                element:SetClass("collapsed", m_searchResults ~= nil)
+                element:SetClass("collapsed", m_searchResults ~= nil or m_sidebarCollapsed)
             end,
 
             m_importerPanel,
@@ -2084,6 +2312,45 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                 opacity = 0,
                 transitionTime = 0.9,
             },
+            --a whole section, from a link: outlined so it reads as a region,
+            --and animated through the SECTION_FLASH_PHASES timeline below: it
+            --lights up from nothing, pulses, holds, then fades away slowly.
+            --Each rule's transitionTime is how long the move INTO it takes.
+            --(colour, not brightness, carries the "lit" look: the page is white,
+            --so brightening washes the outline out instead of lighting it up.)
+            {
+                selectors = { "tocFlash", "section" },
+                bgcolor = "#C0957133",
+                borderWidth = 3,
+                borderColor = "#B8865A",
+                cornerRadius = 4,
+                transitionTime = 0.45,
+            },
+            --set instantly when a flash starts (SetClassImmediate); its
+            --transitionTime is the fade-in as it is removed for the first glow.
+            {
+                selectors = { "tocFlash", "section", "dark" },
+                opacity = 0,
+                transitionTime = 0.4,
+                priority = 2,
+            },
+            {
+                selectors = { "tocFlash", "section", "lit" },
+                bgcolor = "#F5A62E70",
+                borderWidth = 6,
+                borderColor = "#E07800",
+                opacity = 1,
+                transitionTime = 0.3,
+                priority = 2,
+            },
+            --its own class rather than "fade": the TOC's quick {tocFlash, fade}
+            --rule would also match and finish the fade in under a second.
+            {
+                selectors = { "tocFlash", "section", "sectionFade" },
+                opacity = 0,
+                transitionTime = 2.4,
+                priority = 3,
+            },
         },
 
         --augmentation overlays: image panels that sit on top of the page
@@ -2488,8 +2755,11 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
         --a section starts. Panels are pooled; each flash holds briefly then
         --fades out via the tocFlash styles. The flashid guards a pooled
         --panel's scheduled fade/hide against a newer flash reusing it.
-        flashRegion = function(element, rects)
+        --kind "section" outlines the region and plays SECTION_FLASH_PHASES
+        --(section links); the default is the TOC's brief tint.
+        flashRegion = function(element, rects, kind)
             local panels = element.data.flashPanels
+            local isSection = kind == "section"
             for i, r in ipairs(rects) do
                 local p = panels[i]
                 if p == nil then
@@ -2511,6 +2781,15 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                                 element:SetClass("hidden", true)
                             end
                         end,
+                        --one step of a section flash: the classes for that phase.
+                        sectionPhase = function(element, flashid, phase)
+                            if flashid ~= element.data.flashid then
+                                return
+                            end
+                            element:SetClass("dark", phase == "dark")
+                            element:SetClass("lit", phase == "lit")
+                            element:SetClass("sectionFade", phase == "fade")
+                        end,
                     }
                     panels[i] = p
                     element:AddChild(p)
@@ -2522,10 +2801,28 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                 p.selfStyle.height = element.renderedHeight * (r.y2 - r.y1) / document.summary.pageHeight
 
                 p.data.flashid = p.data.flashid + 1
-                p:SetClass("hidden", false)
+                p:SetClass("section", isSection)
+                p:SetClass("lit", false)
                 p:SetClass("fade", false)
-                p:ScheduleEvent("beginFade", 0.8, p.data.flashid)
-                p:ScheduleEvent("endFlash", 2.5, p.data.flashid)
+                p:SetClass("sectionFade", false)
+                if isSection then
+                    --start from nothing so the light-up is seen, then play the phases.
+                    --Immediate: a normal SetClass would ramp "dark" in, showing the
+                    --outline at full strength for a moment first.
+                    p:SetClassImmediate("dark", true)
+                    p:SetClass("hidden", false)
+                    local last = 0
+                    for _, step in ipairs(SECTION_FLASH_PHASES) do
+                        p:ScheduleEvent("sectionPhase", step[1], p.data.flashid, step[2])
+                        last = math.max(last, step[1])
+                    end
+                    p:ScheduleEvent("endFlash", last + SECTION_FLASH_FADE_TIME + 0.1, p.data.flashid)
+                else
+                    p:SetClass("dark", false)
+                    p:SetClass("hidden", false)
+                    p:ScheduleEvent("beginFade", 0.8, p.data.flashid)
+                    p:ScheduleEvent("endFlash", 2.5, p.data.flashid)
+                end
             end
 
             for i = #rects + 1, #panels do
@@ -3264,7 +3561,9 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
     --view panel.
     pdfScrollViewPanel = gui.Panel {
         id = "pdfScrollView",
-        width = "100%-260",
+        --takes whatever the sidebar leaves, so it fills the window when the
+        --sidebar is collapsed.
+        width = "100% available",
         height = "100%",
         vscroll = true,
         data = {
@@ -3330,6 +3629,11 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
         dialogPanel:FireEventTree("synczoom")
     end
 
+    --the toolbar's centred row (see the header's think), and the room kept
+    --clear for the sidebar and settings buttons on either side of it.
+    local toolbarRow = nil
+    local TOOLBAR_SIDE_ROOM = 40
+
     dialogPanel = gui.Panel {
         width = "100%",
         height = "100%",
@@ -3378,6 +3682,11 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
             RefreshPage()
         end,
 
+        --{heading, page}: turn to the page and show that section.
+        gotosection = function(element, spec)
+            FocusSection(spec)
+        end,
+
         -- Navigation keyboard shortcuts. While the viewer modal is open the
         -- 'journalpdf' command context (pushed in ShowPDFViewerDialog) binds
         -- left/right and page up/page down to the paging commands and up/down to
@@ -3422,11 +3731,161 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
             height = 30,
             bmargin = 4,
 
+            --A narrow window drops toolbar pieces, least needed first, until
+            --the centred row fits between the sidebar and settings buttons:
+            --  tier 1: the two view checkboxes (also in PDF Settings);
+            --  tier 2: the Page and Zoom captions and the zoom box, and a
+            --      narrower search box;
+            --  tier 3: the search box.
+            --Self-measuring: the row's width at each tier is recorded, and a
+            --tier comes back once the width it needed is available again.
+            data = {
+                tier = 0,
+                rowWidths = {},
+            },
+            thinkTime = 0.1,
+            think = function(element)
+                if toolbarRow == nil or not toolbarRow.valid then
+                    return
+                end
+                --the row is centred, so it must clear the corner buttons on
+                --both sides.
+                local room = element.renderedWidth - 2 * TOOLBAR_SIDE_ROOM
+                local tier = element.data.tier
+                local rowWidth = toolbarRow.renderedWidth
+                element.data.rowWidths[tier] = rowWidth
+                if rowWidth > room and tier < 3 then
+                    tier = tier + 1
+                elseif tier > 0 then
+                    local wider = element.data.rowWidths[tier - 1]
+                    if wider ~= nil and wider <= room then
+                        tier = tier - 1
+                    end
+                end
+                if tier ~= element.data.tier then
+                    element.data.tier = tier
+                    element:FireEventTree("pdfToolbarTier", tier)
+                end
+            end,
+
+            --fold the left sidebar away, or bring it back.
+            gui.Button {
+                classes = {"sizeXs", cond(m_sidebarCollapsed, nil, "selected")},
+                icon = "phosphor/sidebar-simple.png",
+                borderWidth = 0,
+                floating = true,
+                halign = "left",
+                valign = "center",
+                lmargin = 4,
+                linger = function(element)
+                    gui.Tooltip(cond(m_sidebarCollapsed, "Show sidebar", "Hide sidebar"))(element)
+                end,
+                click = function(element)
+                    m_sidebarCollapsed = not m_sidebarCollapsed
+                    m_settings.sidebarCollapsed = m_sidebarCollapsed
+                    WriteSettings()
+                    element:SetClass("selected", not m_sidebarCollapsed)
+                    RefreshPage({noscroll = true})
+                end,
+            },
+
+            gui.Button {
+                classes = {"settingsButton", "sizeS"},
+                halign = "right",
+                valign = "center",
+                floating = true,
+                rmargin = 4,
+
+                data = {},
+
+                press = function(element)
+                    if element.data.settingsDialog ~= nil and element.data.settingsDialog.valid then
+                        element.data.settingsDialog:DestroySelf()
+                        element.data.settingsDialog = nil
+                        return
+                    end
+
+                    local dialog
+                    dialog = gui.Panel {
+                        width = 600,
+                        height = 290,
+                        classes = { "framedPanel" },
+                        styles = ThemeEngine.GetStyles(),
+                        halign = "center",
+                        valign = "center",
+                        flow = "vertical",
+
+                        destroy = function()
+                            if element ~= nil and element.valid and element.data.settingsDialog == dialog then
+                                element.data.settingsDialog = nil
+                            end
+                        end,
+
+                        gui.Button {
+                            classes = {"closeButton"},
+                            floating = true,
+                            halign = "right",
+                            valign = "top",
+                            click = function(element)
+                                dialog:DestroySelf()
+                            end,
+                        },
+
+                        gui.Label {
+                            classes = { "dialogTitle" },
+                            width = "auto",
+                            height = "auto",
+                            text = "PDF Settings",
+                            halign = "center",
+                            valign = "top",
+                        },
+
+                        gui.Panel {
+                            tmargin = 60,
+                            floating = true,
+                            valign = "top",
+                            halign = "center",
+                            width = "80%",
+                            height = "auto",
+                            flow = "vertical",
+
+                            CreateSettingsEditor("pdfdark"),
+                            CreateSettingsEditor("pdfbrightness"),
+                            --the toolbar's view checkboxes, here too: a
+                            --narrow window drops them from the toolbar.
+                            CreateSettingsEditor("pdfcontinuous"),
+                            gui.Check {
+                                text = "Two Pages",
+                                value = m_twoPage,
+                                tooltip = "Show two pages side by side, like an open book.",
+                                fontSize = 14,
+                                width = "auto",
+                                height = 20,
+                                halign = "left",
+                                tmargin = 6,
+                                change = function(element)
+                                    SetTwoPageView(element.value)
+                                    --the toolbar's own checkbox follows.
+                                    dialogPanel:FireEventTree("syncTwoPage")
+                                end,
+                            },
+                        },
+                    }
+
+                    element.data.settingsDialog = dialog
+
+                    gui.ShowModal(dialog)
+                end,
+            },
+
             gui.Panel {
                 width = "auto",
                 height = "100%",
                 flow = "horizontal",
                 halign = "center",
+                create = function(element)
+                    toolbarRow = element
+                end,
 
                 --                gui.Panel{
                 --                    width = 200,
@@ -3440,9 +3899,17 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                     height = "100%",
                     flow = "horizontal",
                     hpad = 80,
+                    pdfToolbarTier = function(element, tier)
+                        element:SetClass("collapsed", tier >= 3)
+                        element.selfStyle.width = cond(tier >= 2, 260, 300)
+                        element.selfStyle.hpad = cond(tier >= 2, 8, 80)
+                    end,
                     gui.SearchInput {
                         placeholderText = "Search...",
                         width = 180,
+                        pdfToolbarTier = function(element, tier)
+                            element.selfStyle.width = cond(tier >= 2, 150, 180)
+                        end,
                         data = {
                             searchid = 0,
                         },
@@ -3619,6 +4086,9 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                     width = "auto",
                     height = "auto",
                     text = "Page",
+                    pdfToolbarTier = function(element, tier)
+                        element:SetClass("collapsed", tier >= 2)
+                    end,
                 },
                 gui.Input {
                     classes = {"sizeXs"},
@@ -3668,11 +4138,17 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                     height = "auto",
                     width = "auto",
                     hmargin = 32,
+                    pdfToolbarTier = function(element, tier)
+                        element.selfStyle.hmargin = cond(tier >= 2, 8, 32)
+                    end,
                     gui.Label {
                         classes = {"sizeXs"},
                         width = "auto",
                         height = "auto",
                         text = "Zoom:",
+                        pdfToolbarTier = function(element, tier)
+                            element:SetClass("collapsed", tier >= 2)
+                        end,
                     },
 
                     gui.Input {
@@ -3681,6 +4157,10 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                         hmargin = 4,
                         valign = "center",
                         text = string.format("%d", round(m_zoom * 100)),
+                        pdfToolbarTier = function(element, tier)
+                            element:SetClass("collapsed", tier >= 2)
+                            element.text = string.format("%d", round(m_zoom * 100))
+                        end,
 
                         --the zoom was changed programmatically (the two page
                         --view toggle picks its own zoom).
@@ -3708,6 +4188,9 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                         width = "auto",
                         height = "auto",
                         text = "%",
+                        pdfToolbarTier = function(element, tier)
+                            element:SetClass("collapsed", tier >= 2)
+                        end,
                     },
 
                     gui.Button {
@@ -3717,7 +4200,10 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                         lmargin = 16,
                         halign = "right",
                         press = function(element)
-                            element.parent:FireEventTree("command", "zoomout")
+                            --directly, not through the zoom box: a narrow toolbar hides it.
+                            m_zoom = clamp(m_zoom - 0.2, 0.05, 8)
+                            dialogPanel:FireEventTree("synczoom")
+                            RefreshPage()
                         end,
                         styles = {
                             {
@@ -3732,7 +4218,10 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                         icon = "icons/icon_tool/icon_tool_40.png",
                         halign = "right",
                         press = function(element)
-                            element.parent:FireEventTree("command", "zoomin")
+                            --directly, not through the zoom box: a narrow toolbar hides it.
+                            m_zoom = clamp(m_zoom + 0.2, 0.05, 8)
+                            dialogPanel:FireEventTree("synczoom")
+                            RefreshPage()
                         end,
                         styles = {
                             {
@@ -3761,6 +4250,9 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                     monitor = function(element)
                         element:SetValue(dmhub.GetSettingValue("pdfcontinuous") and true or false, false)
                     end,
+                    pdfToolbarTier = function(element, tier)
+                        element:SetClass("collapsed", tier >= 1)
+                    end,
                 },
 
                 gui.Check {
@@ -3775,78 +4267,15 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                     change = function(element)
                         SetTwoPageView(element.value)
                     end,
-                },
-
-                gui.Button {
-                    classes = {"settingsButton", "sizeS"},
-                    halign = "right",
-                    valign = "center",
-                    floating = true,
-                    hmargin = -32,
-
-                    data = {},
-
-                    press = function(element)
-                        if element.data.settingsDialog ~= nil and element.data.settingsDialog.valid then
-                            element.data.settingsDialog:DestroySelf()
-                            element.data.settingsDialog = nil
-                            return
-                        end
-
-                        local dialog
-                        dialog = gui.Panel {
-                            width = 600,
-                            height = 200,
-                            classes = { "framedPanel" },
-                            styles = ThemeEngine.GetStyles(),
-                            halign = "center",
-                            valign = "center",
-                            flow = "vertical",
-
-                            destroy = function()
-                                if element ~= nil and element.valid and element.data.settingsDialog == dialog then
-                                    element.data.settingsDialog = nil
-                                end
-                            end,
-
-                            gui.Button {
-                                classes = {"closeButton"},
-                                floating = true,
-                                halign = "right",
-                                valign = "top",
-                                click = function(element)
-                                    dialog:DestroySelf()
-                                end,
-                            },
-
-                            gui.Label {
-                                classes = { "dialogTitle" },
-                                width = "auto",
-                                height = "auto",
-                                text = "PDF Settings",
-                                halign = "center",
-                                valign = "top",
-                            },
-
-                            gui.Panel {
-                                tmargin = 60,
-                                floating = true,
-                                valign = "top",
-                                halign = "center",
-                                width = "80%",
-                                height = "auto",
-                                flow = "vertical",
-
-                                CreateSettingsEditor("pdfdark"),
-                                CreateSettingsEditor("pdfbrightness"),
-                            },
-                        }
-
-                        element.data.settingsDialog = dialog
-
-                        gui.ShowModal(dialog)
+                    --changed from PDF Settings.
+                    syncTwoPage = function(element)
+                        element:SetValue(m_twoPage, false)
+                    end,
+                    pdfToolbarTier = function(element, tier)
+                        element:SetClass("collapsed", tier >= 1)
                     end,
                 },
+
             },
         },
 
@@ -4048,7 +4477,92 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
         end)
     end
 
+    --Shows the section of spec.page headed spec.heading: turns there, scrolls so
+    --the section's top sits near the top of the view, and outlines it briefly.
+    --Retries while the viewer is still laying out (a freshly opened viewer has
+    --no page size yet). A heading not on the page leaves the page-top view.
+    FocusSection = function(spec)
+        if type(spec) ~= "table" or spec.page == nil then
+            return
+        end
+        if m_npage ~= spec.page then
+            m_npage = spec.page
+            m_searchResults = nil
+            m_searchText = nil
+            RefreshPage()
+        end
+
+        local tries = 0
+        local function Attempt(layout)
+            if not pdfViewPanel.valid or m_npage ~= spec.page then
+                return
+            end
+            local laidOut = pdfViewPanel.renderedHeight > 0 and pdfScrollViewPanel.renderedHeight > 0
+            if not laidOut then
+                tries = tries + 1
+                if tries < 60 then
+                    dmhub.Schedule(0.05, function()
+                        Attempt(layout)
+                    end)
+                end
+                return
+            end
+            local section = PDFSectionRects(layout, spec.heading, document.summary, spec.untilHeading)
+            if section == nil then
+                return
+            end
+            ScrollToPageRegion(spec.page, section.top + 10)
+
+            --true once the page's full-resolution render is on screen. bgimageInit
+            --matters as well as fullLoaded: a pooled panel moved to a new page keeps
+            --fullLoaded but has bgimageInit reset until the new render is bound.
+            local function PageReady()
+                for _, p in ipairs(pdfContentPanel.data.allPanels or {}) do
+                    if p.valid and p.data.npage == spec.page and not p:HasClass("hidden") then
+                        local full = p.data.fullPanel
+                        return full ~= nil and full:HasClass("fullLoaded") and full.bgimageInit == true
+                    end
+                end
+                return false
+            end
+
+            --the outline waits for the page to render (a freshly opened book can
+            --take seconds), or it would fade out over a blank page. A page shown
+            --too small for a full render never reports ready, hence the limit.
+            local waited = 0
+            local function Flash()
+                if not pdfViewPanel.valid or m_npage ~= spec.page then
+                    return
+                end
+                if not PageReady() and waited < 8 then
+                    waited = waited + 0.05
+                    dmhub.Schedule(0.05, Flash)
+                    return
+                end
+                pdfViewPanel:FireEvent("flashRegion", section.rects, "section")
+            end
+            dmhub.Schedule(0.05, Flash)
+        end
+
+        local cached = m_tocLayoutCache[spec.page]
+        if type(cached) == "table" then
+            Attempt(cached)
+            return
+        end
+        document:TextLayout(spec.page, function(layout)
+            if layout == nil or not pdfViewPanel.valid then
+                return
+            end
+            m_tocLayoutCache[spec.page] = layout
+            Attempt(layout)
+        end)
+    end
+
     RefreshPage()
+
+    if focus ~= nil then
+        FocusSection(focus)
+    end
 
     return dialogPanel
 end
@@ -4092,17 +4606,41 @@ local function CreatePDFPopoutWindowControl(args)
     }
 end
 
+--Where the restored (windowed) PDF viewer was last left this session, in
+--documents-layer units, with the layer size it was measured against:
+--{x, y, w, h, lw, lh}. Shared by every PDF.
+local g_pdfWindowGeometry = nil
+
 --options.host (optional): a panel to parent the viewer on instead of the
 --gamehud modal stack. The titlescreen needs this -- the gamehud modal layer
 --renders UNDERNEATH the titlescreen, so a normal modal there is invisible.
 mod.shared.ShowPDFViewerDialog = function(doc, starting_page, options)
     if g_pdfViewerDialog ~= nil and g_pdfViewerDialog.valid then
         if g_pdfViewerDialog.data.doc == doc then
+            --opening a minimized viewer brings it back rather than closing it.
+            local focus = options ~= nil and options.focus or nil
+            if g_pdfViewerDialog.data.minimized and g_pdfViewerDialog.data.restoreViewer ~= nil then
+                g_pdfViewerDialog.data.restoreViewer()
+                if focus ~= nil then
+                    g_pdfViewerDialog:FireEventTree("gotosection", focus)
+                elseif starting_page ~= nil then
+                    g_pdfViewerDialog:FireEventTree("gotopage", starting_page)
+                end
+                return
+            end
             if starting_page == nil then
                 --opening the document that is already open with no page specified toggles it.
                 g_pdfViewerDialog.data.closeViewer()
             else
-                g_pdfViewerDialog:FireEventTree("gotopage", starting_page)
+                if focus ~= nil then
+                    g_pdfViewerDialog:FireEventTree("gotosection", focus)
+                else
+                    g_pdfViewerDialog:FireEventTree("gotopage", starting_page)
+                end
+                --a window on the table comes forward to show the page.
+                if not g_pdfViewerDialog.data.maximized and not g_pdfViewerDialog.data.poppedOut then
+                    g_pdfViewerDialog:SetAsLastSibling()
+                end
             end
             return
         end
@@ -4120,14 +4658,328 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page, options)
     --viewer lives in the gamehud modal stack.
     local host = options ~= nil and options.host or nil
     local hostFrame = nil
+
+    --Window modes, in a game (the titlescreen host keeps the plain viewer):
+    --  maximized: in the gamehud modal stack, covering the game, as the
+    --      viewer always was. It opens this way.
+    --  restored: a movable, resizable window on the documents layer, with
+    --      the game still playable around it. Its arrow keys turn pages
+    --      only while it has the GUI focus (a press inside it gives it).
+    --  minimized: collapsed on the documents layer, shown as a Tabletop
+    --      button (on the table, or docked on the icon rail) that brings it
+    --      back as it was, maximized or not.
+    --Switching moves this one panel between the two layers (Unparent +
+    --re-add), so the page, zoom and search survive.
+    local resizeOverlay = nil
+    ---@type table|nil
+    local tableRec = nil
+
+    local function ModalLayer()
+        local hud = GameHud.instance
+        if not hud then
+            return nil
+        end
+        local layer = hud.modalPanel
+        if layer == nil or not layer.valid then
+            return nil
+        end
+        return layer
+    end
+
+    local function DocumentsLayer()
+        local hud = GameHud.instance
+        if not hud then
+            return nil
+        end
+        local layer = hud.documentsPanel
+        if layer == nil or not layer.valid then
+            return nil
+        end
+        return layer
+    end
+
+    local function InModal()
+        local layer = ModalLayer()
+        return layer ~= nil and dialogPanel ~= nil and dialogPanel.valid and dialogPanel.parent == layer
+    end
+
+    --Once the viewer leaves the modal layer the layer must hide if nothing
+    --else is on it (Hud.CloseModalInLayer's rule): showing, it blocks the
+    --whole game. The viewer also made it non-interactable while it was up.
+    local function ReleaseModalLayer()
+        local layer = ModalLayer()
+        if layer == nil then
+            return
+        end
+        layer.interactable = true
+        if #layer.children == 0 then
+            layer:AddClass("hidden")
+        end
+    end
+
+    local function CanRestore()
+        return host == nil and DocumentsLayer() ~= nil
+    end
+
+    local function CanMinimize()
+        return CanRestore() and Tabletop.CanMinimizeExternal()
+    end
+
+    --The restored window's spot and size: where a PDF window was last left
+    --this session, else a large window in the middle of the table.
+    local function RestoredGeometry()
+        local layer = DocumentsLayer() --[[@as Panel]]
+        local lw, lh = layer.renderedWidth, layer.renderedHeight
+        local g = g_pdfWindowGeometry
+        if g ~= nil and g.lw == lw and g.lh == lh then
+            return g.x, g.y, g.w, g.h
+        end
+        local w = math.max(480, math.min(1100, lw - 200))
+        local h = math.max(360, math.min(900, lh - 80))
+        return math.floor((lw - w) / 2), math.floor((lh - h) / 2), w, h
+    end
+
+    local function RememberGeometry()
+        local layer = DocumentsLayer()
+        if layer == nil or dialogPanel == nil or not dialogPanel.valid then
+            return
+        end
+        local w = dialogPanel.selfStyle.width
+        local h = dialogPanel.selfStyle.height
+        if type(w) ~= "number" or type(h) ~= "number" then
+            return
+        end
+        g_pdfWindowGeometry = {
+            x = dialogPanel.x,
+            y = dialogPanel.y,
+            w = w,
+            h = h,
+            lw = layer.renderedWidth,
+            lh = layer.renderedHeight,
+        }
+    end
+
+    --The resize handles are built for one size and track it by events, so a
+    --fresh overlay is made each time the window is restored at a new size.
+    local function RemoveResizeOverlay()
+        if resizeOverlay ~= nil and resizeOverlay.valid then
+            resizeOverlay:DestroySelf()
+        end
+        resizeOverlay = nil
+    end
+
+    --Puts the panel where its mode says, sized for it.
+    local function PlaceViewer()
+        local data = dialogPanel.data
+        if data.maximized and not data.minimized then
+            RemoveResizeOverlay()
+            if not InModal() then
+                dialogPanel:Unparent()
+                gui.ShowModal(dialogPanel, {nofade = true})
+            end
+            local layer = ModalLayer()
+            if layer ~= nil then
+                layer.interactable = false
+            end
+            dialogPanel.selfStyle.halign = "center"
+            dialogPanel.selfStyle.valign = "center"
+            dialogPanel.x = 0
+            dialogPanel.y = 0
+            dialogPanel.selfStyle.width = "100%"
+            dialogPanel.selfStyle.height = "100%"
+            dialogPanel.dragMove = false
+            dialogPanel:SetClass("collapsed", false)
+        else
+            local docsLayer = DocumentsLayer() --[[@as Panel]]
+            if dialogPanel.parent ~= docsLayer then
+                local wasModal = InModal()
+                dialogPanel:Unparent()
+                docsLayer:AddChild(dialogPanel)
+                if wasModal then
+                    ReleaseModalLayer()
+                end
+            end
+            local x, y, w, h = RestoredGeometry()
+            dialogPanel.selfStyle.halign = "left"
+            dialogPanel.selfStyle.valign = "top"
+            dialogPanel.x = x
+            dialogPanel.y = y
+            dialogPanel.selfStyle.width = w
+            dialogPanel.selfStyle.height = h
+            dialogPanel.dragMove = true
+            RemoveResizeOverlay()
+            resizeOverlay = gui.WindowResizePanel({
+                try_get = function(self, key)
+                    return rawget(self, key)
+                end,
+            }, w, h, {
+                minWidth = 480,
+                minHeight = 360,
+                onResized = function()
+                    RememberGeometry()
+                end,
+            })
+            --last child: the handles must sit over the content at the border.
+            dialogPanel:AddChild(resizeOverlay)
+            dialogPanel:SetClass("collapsed", data.minimized == true)
+            if not data.minimized then
+                dialogPanel:SetAsLastSibling()
+            end
+        end
+        dialogPanel:FireEventTree("pdfWindowMode", data.maximized == true)
+    end
+
+    --The PDF paging keys: always while maximized (the viewer covers the
+    --game), never while minimized, and while restored only when the viewer
+    --holds the GUI focus -- otherwise the arrows stay with the map. Popped
+    --out, the popout path owns the context instead.
+    local function SyncCommandContext()
+        if dialogPanel == nil or not dialogPanel.valid then
+            return
+        end
+        local data = dialogPanel.data
+        if data.poppedOut or host ~= nil then
+            return
+        end
+        local want
+        if data.minimized then
+            want = false
+        elseif data.maximized then
+            want = true
+        else
+            want = gui.ChildHasFocus(dialogPanel)
+        end
+        if want ~= (data.pdfContextActive == true) then
+            data.pdfContextActive = want
+            if want then
+                dmhub.PushCommandContext(PDF_COMMAND_CONTEXT)
+            else
+                dmhub.PopCommandContext(PDF_COMMAND_CONTEXT)
+            end
+        end
+    end
+
+    local function FocusViewer()
+        if dialogPanel ~= nil and dialogPanel.valid and not gui.ChildHasFocus(dialogPanel) then
+            gui.SetFocus(dialogPanel)
+        end
+        SyncCommandContext()
+    end
+
+    local function SetMaximized(maximized)
+        local data = dialogPanel.data
+        if data.minimized or data.poppedOut or not CanRestore() then
+            return
+        end
+        data.maximized = maximized
+        if maximized and gui.GetFocus() == dialogPanel then
+            --maximized, commands go to the modal tree, but to a focused
+            --panel only when one has focus: let the modal tree have them.
+            gui.SetFocus(nil)
+        end
+        PlaceViewer()
+        if not maximized then
+            FocusViewer()
+        end
+        SyncCommandContext()
+    end
+
+    --The current page's thumbnail: what the collapse animation shows.
+    local function CurrentPageImage()
+        local settings = dmhub.GetPref(string.format("pdf-browse-%s", doc.id)) or {}
+        return string.format("#PDF:thumb:%s|%d", doc.id, tonumber(settings.page) or 0), false
+    end
+
+    local function MinimizeViewer()
+        local data = dialogPanel.data
+        if tableRec == nil or data.minimized or data.poppedOut or not CanMinimize() then
+            return
+        end
+        local from = Tabletop.PanelRect(dialogPanel)
+        data.minimized = true
+        if gui.ChildHasFocus(dialogPanel) then
+            gui.SetFocus(nil)
+        end
+        PlaceViewer()
+        SyncCommandContext()
+        --docked on the rail it collapses onto its rail button; otherwise it
+        --becomes the PDF's item on the table, which a click opens (and so
+        --restores, see ShowPDFViewerDialog). Taking that off the table closes it.
+        if from ~= nil and not Tabletop.IsExternalDocked(tableRec) and Tabletop.MinimizeToDocItem(doc.id, from, {
+            token = dialogPanel,
+            still = function()
+                return dialogPanel ~= nil and dialogPanel.valid and data.minimized == true
+            end,
+            onTakenOff = function()
+                if dialogPanel ~= nil and dialogPanel.valid and data.minimized and data.closeViewer ~= nil then
+                    data.closeViewer()
+                end
+            end,
+        }) then
+            data.minimizedOnTable = true
+            return
+        end
+        Tabletop.MinimizeExternal(tableRec, from)
+    end
+
+    local function RestoreViewer()
+        local data = dialogPanel.data
+        if tableRec == nil or not data.minimized then
+            return
+        end
+        if not data.minimizedOnTable and tableRec.minimized == false then
+            return
+        end
+        local to
+        if data.maximized then
+            to = Tabletop.LayerRect()
+        else
+            local x, y, w, h = RestoredGeometry()
+            to = {x = x, y = y, w = w, h = h}
+        end
+        local function Shown()
+            if dialogPanel == nil or not dialogPanel.valid or not data.minimized then
+                return
+            end
+            data.minimized = false
+            PlaceViewer()
+            if not data.maximized then
+                FocusViewer()
+            end
+            SyncCommandContext()
+        end
+        if data.minimizedOnTable then
+            --minimized onto the table: grows back out of its item there.
+            data.minimizedOnTable = false
+            Tabletop.RestoreFromDocItems(dialogPanel, to, Shown, doc.id)
+        else
+            Tabletop.RestoreExternal(tableRec, to, Shown)
+        end
+    end
+
     local function CloseViewer()
         if hostFrame ~= nil then
             if hostFrame.valid then
                 hostFrame:DestroySelf()
             end
-        else
-            gui.CloseModal()
+            return
         end
+        if InModal() then
+            --take just this panel off the layer (another modal may sit
+            --over it); the layer hides if it was the only one.
+            local layer = ModalLayer() --[[@as Panel]]
+            local kept = {}
+            for _, child in ipairs(layer.children) do
+                if child ~= dialogPanel then
+                    kept[#kept + 1] = child
+                end
+            end
+            layer.children = kept
+        elseif dialogPanel ~= nil and dialogPanel.valid and dialogPanel.parent ~= nil and not dialogPanel.data.poppedOut then
+            dialogPanel:DestroySelf()
+        end
+        --popped out maximized, the panel has already left the layer.
+        ReleaseModalLayer()
     end
 
     local popoutTitleBar = gui.Panel {
@@ -4212,6 +5064,9 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page, options)
 
     dialogPanel = gui.Panel {
         classes = { "framedPanel", },
+        --full size until restored (PlaceViewer sets the window size).
+        width = "100%",
+        height = "100%",
         pad = 8,
         flow = "vertical",
         data = {
@@ -4219,8 +5074,76 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page, options)
             poppedOut = false,
             chromeVisible = false,
             closeViewer = CloseViewer,
+            --see the window modes above; it opens maximized.
+            maximized = true,
+            minimized = false,
+            restoreViewer = function()
+                RestoreViewer()
+            end,
         },
+
+        --Restored, the window drags by any part that does not take the drag
+        --itself (the page view does, for text selection). dragMove is off
+        --while maximized (PlaceViewer).
+        draggable = true,
+        dragMove = false,
+        raiseOnPress = true,
+        drag = function(element)
+            if element.data.maximized or element.data.minimized or element.data.poppedOut then
+                return
+            end
+            local layer = DocumentsLayer()
+            if layer == nil then
+                return
+            end
+            --keep enough of it on the table to grab again.
+            local w = element.renderedWidth
+            element.x = math.max(120 - w, math.min(element.xdrag, layer.renderedWidth - 120))
+            element.y = math.max(0, math.min(element.ydrag, layer.renderedHeight - 40))
+            RememberGeometry()
+        end,
+
+        --a press anywhere in the restored window gives it the focus, which
+        --is what hands it the arrow keys (SyncCommandContext).
+        press = function(element)
+            if element.data.maximized or element.data.minimized or element.data.poppedOut then
+                return
+            end
+            FocusViewer()
+        end,
+
+        --Restored and focused, the paging keys arrive as these commands (the
+        --game's input path, not the modal one, since nothing modal is up);
+        --hand them to the viewer's own command handler.
+        commands = {"pdfprevpage", "pdfnextpage", "pdfscrollup", "pdfscrolldown"},
+        pdfprevpage = function(element)
+            element:FireEventTree("command", "pdfprevpage")
+        end,
+        pdfnextpage = function(element)
+            element:FireEventTree("command", "pdfnextpage")
+        end,
+        pdfscrollup = function(element)
+            element:FireEventTree("command", "pdfscrollup")
+        end,
+        pdfscrolldown = function(element)
+            element:FireEventTree("command", "pdfscrolldown")
+        end,
         styles = {
+            --Restored, the viewer sits in the documents layer, whose
+            --selector-less rule sizes every panel under it 100% x 100%. The
+            --viewer was built under the modal layer, whose rule does not, so
+            --put the engine defaults (100 x 100) back first, as Tabletop's
+            --g_overlayStyles does, and it lays out the same in both layers.
+            {
+                {
+                    valign = "center",
+                    halign = "center",
+                    bgcolor = "clear",
+                    width = 100,
+                    height = 100,
+                },
+            },
+
             ThemeEngine.GetStyles(),
 
             --MergeTokens turns @fg / @bg into real colors. Popped out, this
@@ -4313,6 +5236,9 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page, options)
                         "window-chrome/chrome-maximize.png"))
                 end
             end
+
+            --restored, the paging keys follow the focus as it comes and goes.
+            SyncCommandContext()
         end,
 
         --scheduled by the popout button: binds the PDF paging keys to the
@@ -4340,6 +5266,11 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page, options)
                 dmhub.PopCommandContext(PDF_COMMAND_CONTEXT)
             end
 
+            --a minimized viewer's button (and its rail entry) goes with it.
+            if tableRec ~= nil then
+                Tabletop.CloseExternal(tableRec)
+            end
+
             if g_pdfViewerDialog == element then
                 g_pdfViewerDialog = nil
                 Search.UnregisterContextProvider("pdf-viewer")
@@ -4354,6 +5285,45 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page, options)
 
         popoutTitleBar,
 
+        --The restored window's hold on the focus ends with a press anywhere
+        --else (the map, another window): the engine clears GUI focus only on
+        --a right-click, so without this the arrows would keep paging after
+        --the user went back to the map. Checked every frame, since a click
+        --can be over within a few frames. A popup the viewer opened (its
+        --context menus) does not count as elsewhere.
+        gui.Panel {
+            floating = true,
+            interactable = false,
+            width = 1,
+            height = 1,
+            thinkTime = 0.01,
+            think = function(element)
+                local data = dialogPanel.data
+                if data.maximized or data.minimized or data.poppedOut or host ~= nil then
+                    return
+                end
+                if not gui.ChildHasFocus(dialogPanel) then
+                    return
+                end
+                if not (element:GetMouseButton(0) or element:GetMouseButton(1) or element:GetMouseButton(2)) then
+                    return
+                end
+                if gui.SubtreeHasPopup(dialogPanel) then
+                    return
+                end
+                --a margin for the resize handles, which overhang the border.
+                local mp = dialogPanel.mousePoint
+                local w = math.max(1, dialogPanel.renderedWidth)
+                local h = math.max(1, dialogPanel.renderedHeight)
+                local mx, my = 16 / w, 16 / h
+                if mp ~= nil and mp.x >= -mx and mp.x <= 1 + mx and mp.y >= -my and mp.y <= 1 + my then
+                    return
+                end
+                gui.SetFocus(nil)
+                SyncCommandContext()
+            end,
+        },
+
         gui.Panel {
             classes = { "pdfViewerContent" },
             width = "100%-30",
@@ -4367,7 +5337,7 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page, options)
 
             loading = function(element)
                 if document.summary ~= nil then
-                    element.children = { ShowPDFViewerDialogInternal(doc, starting_page) }
+                    element.children = { ShowPDFViewerDialogInternal(doc, starting_page, options ~= nil and options.focus or nil) }
                 else
                     element:ScheduleEvent("loading", 0.01)
                 end
@@ -4399,6 +5369,16 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page, options)
                     gui.Tooltip("Pop out window")(element)
                 end,
                 click = function(element)
+                    --a restored window pops out at full size: the OS window
+                    --sizes it from here on, and owns moving and resizing.
+                    if not dialogPanel.data.maximized then
+                        RemoveResizeOverlay()
+                        dialogPanel.dragMove = false
+                        dialogPanel.selfStyle.halign = "center"
+                        dialogPanel.selfStyle.valign = "center"
+                        dialogPanel.x = 0
+                        dialogPanel.y = 0
+                    end
                     dialogPanel:FireEvent("destroy")
                     dialogPanel:FireEventTree("popout")
                     --owner-routed modals: anything shown with an owner
@@ -4438,10 +5418,49 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page, options)
                 end,
             },
 
+            --Minimize: the viewer shrinks into a button on the table (like a
+            --minimized map window); the button brings it back.
+            gui.Button {
+                classes = { "sizeXs", cond(CanMinimize(), nil, "collapsed") },
+                icon = "window-chrome/chrome-minimize.png",
+                borderWidth = 0,
+                valign = "center",
+                rmargin = 6,
+                linger = function(element)
+                    gui.Tooltip("Minimize")(element)
+                end,
+                click = function(element)
+                    MinimizeViewer()
+                end,
+            },
+
+            --Maximize / restore: covering the game, or a window on the table.
+            gui.Button {
+                classes = { "sizeXs", cond(CanRestore(), nil, "collapsed") },
+                icon = "window-chrome/chrome-restore.png",
+                borderWidth = 0,
+                valign = "center",
+                rmargin = 6,
+                linger = function(element)
+                    gui.Tooltip(cond(dialogPanel.data.maximized, "Restore down", "Maximize"))(element)
+                end,
+                pdfWindowMode = function(element, maximized)
+                    element:FireEvent("setIcon", cond(maximized, "window-chrome/chrome-restore.png", "window-chrome/chrome-maximize.png"))
+                end,
+                click = function(element)
+                    SetMaximized(not dialogPanel.data.maximized)
+                end,
+            },
+
             gui.Button{
                 classes = {"closeButton", "sizeXs"},
                 valign = "center",
                 escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+                --Escape closes the viewer only while it covers the game; as
+                --a window on the table, Escape belongs to the game.
+                pdfWindowMode = function(element, maximized)
+                    element.captureEscape = maximized
+                end,
                 press = function(element)
                     CloseViewer()
                 end,
@@ -4496,6 +5515,41 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page, options)
     dialogPanel.data.pdfContextActive = true
     dmhub.PushCommandContext(PDF_COMMAND_CONTEXT)
 
+    --What the minimized viewer's button shows and does (Tabletop draws it,
+    --on the table or docked on the rail as "pdfwindow:<doc id>").
+    if CanRestore() then
+        tableRec = {
+            id = doc.id,
+            railKey = "pdfwindow:" .. doc.id,
+            buttonOps = {
+                icon = CustomDocument.JournalEntryIcon(doc),
+                image = function(rec)
+                    return CurrentPageImage()
+                end,
+                restore = function(rec)
+                    RestoreViewer()
+                end,
+                close = function(rec)
+                    CloseViewer()
+                end,
+                closeText = "Close PDF",
+                hover = function(rec, element)
+                    CustomDocument.ShowJournalPreview(element, doc.id, {hint = "Click to restore"})
+                end,
+                chatItems = function(rec)
+                    return {ChatItemLinks.DocItem(doc.id)}
+                end,
+                --nothing to flag on a PDF.
+                badge = {icon = "phosphor/file-pdf.png", color = "clear"},
+                badgeShown = function(rec)
+                    return false
+                end,
+            },
+        }
+        dialogPanel.data.tableRec = tableRec
+        dialogPanel.data.minimizeViewer = MinimizeViewer
+    end
+
     if host ~= nil then
         --size to the host's visible area (its data.dialog, the contract the
         --Shop and Library screens use too), not 100% of the host: the
@@ -4516,6 +5570,104 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page, options)
         GameHud.instance.modalPanel.interactable = false
     end
 end
+
+--The open PDF viewer when it is showing the PDF with this id, else nil.
+local function PdfViewerFor(docid)
+    local viewer = g_pdfViewerDialog
+    if viewer == nil or not viewer.valid or viewer.data.tableRec == nil then
+        return nil
+    end
+    if viewer.data.doc == nil or viewer.data.doc.id ~= docid then
+        return nil
+    end
+    return viewer
+end
+
+--A minimized PDF viewer docked on the icon rail ("pdfwindow:<doc id>" in
+--the rail layout; see RailEntryTypes in DocumentSystem.lua), as minimized
+--map windows are. It draws like the journal's PDF shortcut (the cover), is
+--lit while the viewer is open, and leaves the rail when the viewer closes.
+RailEntryTypes = rawget(_G, "RailEntryTypes") or {}
+RailEntryTypes.pdfwindow = {
+    available = function(id)
+        return PdfViewerFor(id) ~= nil
+    end,
+    name = function(id)
+        local entry = CustomDocument.FindJournalEntry(id)
+        return (entry ~= nil and entry.description) or "PDF"
+    end,
+    icon = function(id)
+        return RailEntryTypes.journal.icon(id)
+    end,
+    span = function(id)
+        return RailEntryTypes.journal.span(id)
+    end,
+    width = function(id, h)
+        return RailEntryTypes.journal.width(id, h)
+    end,
+    face = function(id, w, h)
+        return RailEntryTypes.journal.face(id, w, h)
+    end,
+    isActive = function(id)
+        local viewer = PdfViewerFor(id)
+        return viewer ~= nil and not viewer.data.minimized
+    end,
+    --brings a minimized viewer back; an open one collapses onto the rail.
+    activate = function(id, element)
+        local viewer = PdfViewerFor(id)
+        if viewer == nil then
+            return
+        end
+        if viewer.data.minimized then
+            viewer.data.restoreViewer()
+        else
+            viewer.data.minimizeViewer()
+        end
+    end,
+    hover = function(id, element)
+        local viewer = PdfViewerFor(id)
+        local placement = CustomDocument.RailPreviewPlacement(element)
+        placement.hint = cond(viewer ~= nil and not viewer.data.minimized, "Click to minimize", "Click to restore")
+        CustomDocument.ShowJournalPreview(element, id, placement)
+    end,
+    menu = function(id, element)
+        local viewer = PdfViewerFor(id)
+        if viewer == nil then
+            return {}
+        end
+        return {
+            {
+                text = cond(viewer.data.minimized, "Restore", "Minimize"),
+                click = function()
+                    element.popup = nil
+                    if viewer.valid then
+                        if viewer.data.minimized then
+                            viewer.data.restoreViewer()
+                        else
+                            viewer.data.minimizeViewer()
+                        end
+                    end
+                end,
+            },
+            {
+                text = "Close PDF",
+                click = function()
+                    element.popup = nil
+                    if viewer.valid then
+                        viewer.data.closeViewer()
+                    end
+                end,
+            },
+        }
+    end,
+    --taken off the rail: a minimized viewer's button goes back on the table.
+    onRemove = function(id)
+        local viewer = PdfViewerFor(id)
+        if viewer ~= nil then
+            Tabletop.UndockExternal(viewer.data.tableRec)
+        end
+    end,
+}
 
 local function ParseDocumentURL(url)
     local i = string.find(url, ":")
@@ -4541,6 +5693,8 @@ local function ParseDocumentURL(url)
 end
 
 --options: see ShowPDFViewerDialog (options.host hosts the viewer on a panel).
+--options.focus = {heading = string, page = index} opens at that section of the
+--page, scrolled into view and briefly outlined (see PDFSectionRect).
 function OpenPDFDocument(doc, page, options)
     mod.shared.ShowPDFViewerDialog(doc, page, options)
 end
@@ -4777,6 +5931,13 @@ function ImageDocument:Render(options)
             height = string.format("%f%% width", 100 * self.height / self.width),
             bgcolor = "white",
             bgimage = self.imageid,
+            create = function(element)
+                --a video entry (a video file dropped on the journal, say)
+                --plays through its own looping player, as scenes do.
+                if FullscreenDisplay.IsVideo(self.imageid) then
+                    element.bgimageStreamed = self.imageid .. "###LOOP" .. dmhub.GenerateGuid()
+                end
+            end,
             click = function(element)
                 if summary then
                     GameHud.instance:ViewCompendiumEntryModal(self)

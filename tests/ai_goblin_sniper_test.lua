@@ -50,6 +50,8 @@ MonsterAI = {
     RunConcurrently = function(_, fns) for _,fn in ipairs(fns) do fn() end end,
     MovementTokenIsAtLoc = function(_, t, loc) return t.loc == loc end,
 }
+--Plan previews (Continue to go on) are off in these tests.
+MonsterAI.PlanPreviewsOn = function() return false end
 assert(load(section("function MonsterAI.TargetDistance", "-- Use the real token volume")))()
 assert(load(section("function MonsterAI:ExecuteSquadStrike(ability)", "function MonsterAI:FindBestMoveToUseStrike")))()
 

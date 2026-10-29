@@ -12,6 +12,7 @@ local mod = dmhub.GetModLoading()
 local playersManageProjects = setting{
 	id = "permission:playersprojectrolls",
 	description = "Players Manage Downtime Projects",
+	help = "Players can roll on their Heroes' projects from the character sheet, and use the Director's project controls: status, milestones, adjustments, event rolls, activity counts and deleting history.",
 	editor = "check",
 	default = false,
 
@@ -22,8 +23,9 @@ local playersManageProjects = setting{
 
 --- May the current user work the Director's controls on a downtime project -
 --- status, milestones, adjustments, the event roll? True for the Director
---- always, and for a player only while the game hands it to them. Asked again
---- on every refresh, since the permission can be granted with a sheet open.
+--- always, and for a player only while the game hands it to them. Project
+--- cards read it when built; a player's open sheet picks up a change to the
+--- setting when it is next opened.
 --- @return boolean
 function DTCharSheetTab.CanManageProjects()
 	return dmhub.isDM or playersManageProjects:Get()
@@ -102,17 +104,22 @@ function DTCharSheetTab.CreateDowntimePanel()
                         end
                     end
 
-                    modifyTokenProps{
-                        execute = function()
-                            downtimeInfo.followerRolls = migratedRolls
-                        end
-                    }
+                    --Only write when there are old rolls to move: opening a sheet
+                    --must not upload anything (a viewer's open used to write, and
+                    --every first open cost an upload and a second refresh).
+                    if next(migratedRolls) ~= nil then
+                        modifyTokenProps{
+                            execute = function()
+                                downtimeInfo.followerRolls = migratedRolls
+                            end
+                        }
+                    end
                 end
             end
         end,
 
         deleteProject = function(element, projectId)
-            if projectId and type(projectId) == "string" and #projectId then
+            if projectId and type(projectId) == "string" and #projectId > 0 then
                 local downtimeInfo = element.data.getDowntimeInfo()
                 if downtimeInfo then
                     modifyTokenProps{
@@ -120,14 +127,22 @@ function DTCharSheetTab.CreateDowntimePanel()
                             downtimeInfo:RemoveProject(projectId)
                         end,
                     }
+                    --its shares end with it, so no recipient keeps a stale entry.
+                    --Sharing with no one revokes every share in one change.
+                    local token = getToken()
+                    if token ~= nil then
+                        DTShares.CreateNew():Share(token.charid, projectId, {})
+                    end
                     DTSettings.Touch()
                     element:FireEventTree("refreshToken")
                 end
             end
         end,
 
-        adjustRolls = function(element, amount, roller)
-            DTProjectEditor.AdjustDowntimeRolls(getToken(), roller:GetTokenID(), amount)
+        --a roll that names no payer refunds this sheet's Hero, as before.
+        --roller is nil when the one who rolled no longer resolves.
+        refundRoll = function(element, roll, roller)
+            DTProjectEditor.RefundProjectRoll(roll, getToken(), roller and roller:GetTokenID())
             DTSettings.Touch()
             element:FireEventTree("refreshToken")
         end,
@@ -282,8 +297,24 @@ function DTCharSheetTab._createHeaderPanel()
                                 end)
                             end
                         end,
+                        custom = function()
+                            -- keep the new project, empty, for manual editing
+                        end,
                         cancel = function()
-                            -- Custom / cancel: leave the new project empty for manual editing
+                            -- closed without a choice: the project was never wanted.
+                            local di = token.properties:GetDowntimeInfo()
+                            if di ~= nil and di:GetProject(newProjectId) ~= nil then
+                                modifyTokenProps{
+                                    execute = function()
+                                        di:RemoveProject(newProjectId)
+                                    end
+                                }
+                                local sa = CharacterSheet.instance:Get("projectScrollArea")
+                                if sa then
+                                    sa:FireEventTree("refreshToken")
+                                end
+                                DTSettings.Touch()
+                            end
                         end
                     }))
                 end
@@ -396,10 +427,11 @@ function DTCharSheetTab._refreshProjectsList(element)
         return
     end
 
-    local projects
+    --stays empty when the Hero has no downtime info but has projects shared with them.
+    local projects = {}
     if downtimeInfo then
-        projects = downtimeInfo:GetSortedProjects()
-        if (not projects or #projects == 0) and #sharedProjects == 0 then
+        projects = downtimeInfo:GetSortedProjects() or {}
+        if #projects == 0 and #sharedProjects == 0 then
             element.children = {
                 gui.Label {
                     classes = {"sizeL"},
@@ -417,6 +449,10 @@ function DTCharSheetTab._refreshProjectsList(element)
 
     -- Reconcile existing panels with current projects
     local panels = element.children or {}
+    --an owned card built under the other permission is rebuilt on this refresh.
+    --A player's open sheet only refreshes on its own changes, so a permission
+    --switched by the Director reaches it when the sheet is next opened.
+    local canManage = DTCharSheetTab.CanManageProjects()
 
     -- Step 1: Remove panels for projects that no longer exist OR have wrong type
     for i = #panels, 1, -1 do
@@ -427,7 +463,7 @@ function DTCharSheetTab._refreshProjectsList(element)
         -- Check owned projects (should NOT be shared panel)
         for _, project in ipairs(projects) do
             if project:GetID() == panel.id then
-                if not isSharedPanel then
+                if not isSharedPanel and panel.data.builtCanManage == canManage then
                     shouldRemove = false
                 end
                 break
@@ -464,7 +500,9 @@ function DTCharSheetTab._refreshProjectsList(element)
             end
         end
         if not foundPanel then
-            panels[#panels + 1] = DTProjectEditor.new{project = project}:CreateEditorPanel()
+            local panel = DTProjectEditor.new{project = project}:CreateEditorPanel()
+            panel.data.builtCanManage = canManage
+            panels[#panels + 1] = panel
         end
     end
 

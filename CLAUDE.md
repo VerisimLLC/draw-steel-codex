@@ -205,33 +205,39 @@ reference; that is expected. No codex file uses the engine's `@if`/`@else`/`@end
 preprocessor directives any more, so a raw `luac -p` sweep is clean with no special
 handling; see "Checking Lua Yourself" in the root [`CLAUDE.md`](../CLAUDE.md).
 
-**Do not leave a file worse typed than you found it.** `luac -p` only catches syntax.
-The type checker is `../tools/lua-typing/check.ps1` (run it from the repo root), and
-`tools/lua-typing/baseline.json` holds a per-file ceiling; the run exits 1 when a file goes
-over it, naming the file and the delta. Run it before you call Lua work finished. Use
-`-Changed` while editing (~15 s; only the git-changed files are diagnosed, with the rest
-of the codex loaded as a library so nothing shows as undefined) and the plain whole-codex
-run (~3.5 min) before committing -- only the full run catches an edit that breaks typing
-in a file you did not change. Do not use `-Target` on a subdirectory: that loses the
-workspace and reports everything defined elsewhere as undefined.
+**Every file checks clean, and must stay that way.** [`TYPING.md`](TYPING.md) is the
+contributor-facing statement of the standard (it is all that someone with only this
+repository has); CI (`.github/workflows/lua-typecheck.yml`) runs LuaLS on every push to
+`main` and every pull request. `luac -p` only catches syntax.
+The type checker is `../tools/lua-typing/check.ps1` (run it from the repo root), and its
+ceiling is **zero** (since 2026-10-14): one problem anywhere exits 1, naming the file. Run
+it before you call Lua work finished: `-Changed` while editing (~45 s; only the
+git-changed files are diagnosed, with the rest of the codex loaded as a library so nothing
+shows as undefined). Only a full run catches an edit that breaks typing in a file you did
+not change: CI makes one on every push, and the plain whole-codex run (~95 s on 8 worker
+processes, ~20 GB of RAM) gives you the same answer before pushing when you want it. Do not use `-Target` on a subdirectory: that loses the workspace and
+reports everything defined elsewhere as undefined.
 
-A Claude Code Stop hook (`../.claude/settings.json` -> `tools/lua-typing/claude_hook.py`)
-runs the per-file check on every codex `.lua` file the session edited with Edit/Write when
-you try to finish, and blocks the stop with the offending lines if one is over its
-ceiling. Treat that as a failing test: fix the problems it lists. It does not see edits
-made through Bash (sed, scripts), and it is not the full run.
+Fix what it reports. Only where a problem is deliberate, suppress exactly that line with
+`---@diagnostic disable-next-line: <code>` and a comment saying why; never a file-wide
+`---@diagnostic disable`. There is no per-file allowance and `-UpdateBaseline` will not
+record one. A problem that appears on one run and not the next is an untyped symbol:
+annotate it.
 
-The ceiling has slack in it because LuaLS is not deterministic here (the same code checks
-to a number a few problems wide), so do not read small count changes as signal in either
-direction. **Except in clean files:** a file that checks clean, and any new file, has a
-ceiling of 0 and no slack -- one problem in it fails. Most of the codex is in that state,
-so new code is expected to check clean.
+Three gates enforce this. A Claude Code Stop hook (`../.claude/settings.json` ->
+`tools/lua-typing/claude_hook.py`) runs the per-file check on every codex `.lua` file the
+session edited with Edit/Write when you try to finish, and blocks the stop with the
+offending lines; it does not see edits made through Bash. The codex pre-commit hook
+(`../tools/lua-typing/git-hooks/`, wired in with its `install.sh`) blocks a commit whose
+staged Lua has a problem. CI checks the whole codex after every push to `main`. Treat all
+three as failing tests.
 
-Adding to a file that is already over its ceiling is fine as long as you do not push it
-further. If your change genuinely improves a file, re-record with `-UpdateBaseline` and
-say so in the commit message. See [`LUA_TYPING_REFERENCE.md`](../LUA_TYPING_REFERENCE.md)
-for the annotation conventions that keep new code clean -- `@cast` in event handlers,
-typed locals for `panel.data`, `core.Vector2` on property writes.
+`lowercase-global` is on: assigning a global whose name starts lower-case is reported,
+because it is usually a missing `local`. Intended ones are listed in `diagnostics.globals`
+in `.luarc.json`, and `g_` names are exempt. See
+[`LUA_TYPING_REFERENCE.md`](../LUA_TYPING_REFERENCE.md) for the annotation conventions that
+keep new code clean -- `@cast` in event handlers, typed locals for `panel.data`,
+`core.Vector2` on property writes.
 
 Game types and data-table rows are typed at the root: `X.new{...}` returns an `X` (every
 `@class` carries `--- @field new fun(o?: table): X`; `annotate_gametypes.py` adds it to a

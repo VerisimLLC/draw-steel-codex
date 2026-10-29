@@ -27,8 +27,9 @@ local mod = dmhub.GetModLoading()
 --       }
 --
 --   * MAP BUTTONS: a definition's `buttons` render as rail-styled,
---     accent-glyph buttons in the top-right corner of the map (the
---     DocumentSystem MapButtons bar) for as long as the instance runs on
+--     accent-glyph buttons on the map rail's right column (inside the live
+--     map window; DocumentSystem MapButtons / MapRail) for as long as the
+--     instance runs on
 --     this client. A click runs the handler with the instance ctx and the
 --     button panel; `element.popup = gui.Panel{...}` opens UI anchored to
 --     the button with click-away/Escape dismissal. directorOnly defaults
@@ -1002,7 +1003,7 @@ local function RegisterInstanceEvents(instance)
 end
 
 --Publish the definition's map buttons for a running instance (the
---top-right MapButtons bar in DocumentSystem; absent on a core without it,
+--MapButtons registry in DocumentSystem, shown on the map rail; absent on a core without it,
 --in which case buttons are silently not shown). A click runs the handler
 --with the instance ctx and the button panel. A failing click is reported
 --like any handler error but never disables the button: clicks are

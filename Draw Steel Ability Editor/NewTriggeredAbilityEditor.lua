@@ -267,6 +267,12 @@ local TRIGGER_METADATA = {
         tags = {"death", "die", "dead", "kill"},
         group = "combat",
     },
+    objectdestroyed = {
+        label = "Destroyed (Objects Only)",
+        description = "Fires when a map object is reduced to zero stamina, before it is removed from the map.",
+        tags = {"destroyed", "object", "break", "dynamic terrain", "zero", "stamina"},
+        group = "combat",
+    },
     zerohitpoints = {
         label = "Drop to Zero Stamina",
         description = "Fires when the creature reaches zero stamina.",
@@ -459,6 +465,12 @@ local TRIGGER_METADATA = {
         label = "Start of Round",
         description = "Fires at the start of each round.",
         tags = {"round", "begin", "start"},
+        group = "turn",
+    },
+    endround = {
+        label = "End of Round",
+        description = "Fires at the end of each round, before round-long effects expire.",
+        tags = {"round", "end"},
         group = "turn",
     },
     startrespite = {
@@ -2213,6 +2225,7 @@ local CASTER_INCLUSIVE_SUBJECTS = {
 -- conservative -- add here only if verified from runtime dispatch.
 local GLOBAL_SUBJECTLESS_TRIGGERS = {
     beginround = true,
+    endround = true,
     endcombat = true,
     rollinitiative = true,
 }

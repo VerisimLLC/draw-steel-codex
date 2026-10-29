@@ -937,7 +937,8 @@ function CBFeatureWrapper:Update(hero)
         end
     else
         -- TODO: Remove this once we've refactored all choice types
-        local featureOptions = self.feature:GetOptions(levelChoices, hero)
+        --the base CharacterChoice:GetOptions returns nil; only subclasses list options.
+        local featureOptions = self.feature:GetOptions(levelChoices, hero) or {}
         for _,option in ipairs(featureOptions) do
             local wrappedOption = CBOptionWrapper.CreateNew(option)
             options[#options+1] = wrappedOption
@@ -2198,9 +2199,12 @@ end
 --- groups, order, counts, total) containing only the passive "what else"
 --- entries. Reuses the cached full index, so the per-call cost is the
 --- predicate sweep.
---- @param creature creature
+--- @param creature creature|nil nil gives an empty index.
 --- @return table index
 function FeatureCategoriser.BuildTacIndex(creature)
+    if creature == nil then
+        return { features = {}, groups = {}, order = {}, counts = {}, total = 0 }
+    end
     local full = FeatureCategoriser.BuildIndexCached(creature)
 
     --Owned domains: the build pipeline lists EVERY domain's features (and the
@@ -2376,7 +2380,7 @@ local g_tacIndexCache = setmetatable({}, { __mode = "k" })
 --- applyGlobalQuery builds the index a second time in the same refresh to test
 --- for matches; both now share this cache so the curation sweep + recursive
 --- collectLeaves runs at most once per creature per second.
---- @param creature creature
+--- @param creature creature|nil nil gives an empty index.
 --- @return table index
 function FeatureCategoriser.BuildTacIndexCached(creature)
     if creature == nil then return FeatureCategoriser.BuildTacIndex(creature) end

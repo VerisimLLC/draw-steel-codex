@@ -620,7 +620,7 @@ function BloodSpatter.Emit(token, entry)
     end
 
     --a hidden creature must not give itself away to players through its wounds.
-    if token.invisibleToPlayers and not dmhub.isDM then
+    if (token.invisibleToPlayers and not dmhub.isDM) or token.hiddenFromLocalViewer then
         return
     end
 

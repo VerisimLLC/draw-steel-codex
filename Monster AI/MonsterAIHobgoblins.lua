@@ -1631,18 +1631,6 @@ MonsterAI:RegisterTrigger{
     end,
 }
 
-MonsterAI:RegisterTrigger{
-    id = "Hobgoblin Bloodlord: End Effect",
-    monsters = {"Hobgoblin Bloodlord"},
-    abilityGuids = {"f8cbfa6d-efa6-4668-b41b-a3d2b4621202"},
-    abilities = {"End Effect"},
-    description = "Take 10 damage to end a save-ends effect unless doing so would reduce the bloodlord to 0 Stamina.",
-    handler = function(ai, token, triggerInfo)
-        return cond(token.properties:CurrentHitpoints() > 10,
-            {activate = true}, {dismiss = true})
-    end,
-}
-
 MonsterAI:RegisterPrompt{
     prompts = {
         "Summon 1st Hobgoblin Recruit",

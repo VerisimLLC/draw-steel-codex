@@ -132,6 +132,10 @@ end
 --before this file and resolves the export at click time.
 g_drawSteelPromptEndCombat = PromptEndCombat
 
+--Exported for EncounterPanel.lua's "New Encounter" choice, which ends the
+--running combat (no Victory Screen) before starting another encounter.
+g_drawSteelEndCombat = PerformEndCombat
+
 local g_triggeredResourceId = "b9bc06dd-80f1-4f33-bc55-25c114e3300c"
 
 --DJ delegation (audio): these game-scoped audio settings are operated by the
@@ -289,6 +293,24 @@ local CanControlInitiative = function()
 	return dmhub.isDM or playersControlInitiativeSetting:Get()
 end
 
+--True in Encounter of the Week games. pcall-guarded: the EotW codemod may not be
+--loaded in this game.
+--- @return boolean
+local function IsEotwGame()
+	local eotw = false
+	pcall(function() eotw = EncounterOfTheWeekGame.IsEotwGame() end)
+	return eotw
+end
+
+--Manual overrides of the initiative bar: moving cards between sides, switching
+--the acting side, picking who goes first, skipping rounds, ending combat, removing
+--cards or marking them moved. EotW turns players-run-initiative on so they can
+--claim turns, but the game runs everything else, so none of this is offered there.
+--- @return boolean
+local function CanRearrangeInitiative()
+	return CanControlInitiative() and not IsEotwGame()
+end
+
 --Revert Turn. While the queue is between turns, a client showing the Director UI keeps a
 --snapshot of the board (backup.CreateCombatCheckpoint); the Revert Turn buttons restore it
 --to undo everything the current turn did. One snapshot, held in memory on that client.
@@ -380,6 +402,14 @@ function TurnCheckpoint.ForCurrentTurn(q)
 	return cur.checkpoint
 end
 
+--False in Encounter of the Week games, which offer no Revert Turn: players undo with
+--Turn Rewind (Ctrl+Z) instead. The snapshot is still kept, as Turn Rewind reuses it.
+--pcall-guarded: the EotW codemod may not be loaded in this game.
+--- @return boolean
+function TurnCheckpoint.RevertAllowed()
+	return not IsEotwGame()
+end
+
 --Restores checkpoint, telling the user when it could not be done.
 --- @param checkpoint CombatCheckpoint
 function TurnCheckpoint.Revert(checkpoint)
@@ -441,6 +471,9 @@ TurnRewind = {
 	--network, and the board only matches the entry once it has arrived.
 	restoreFromSeq = -1,
 	restoreTime = 0,
+	--True when this client's last restore rolled the board forward (a redo), so the
+	--restoreFromBackup handler shows "FORWARD" instead of "REWIND". Cleared once shown.
+	restoreForward = false,
 	--Set when a restore cancelled abilities that were still resolving. A cancelled cast
 	--keeps running until its next step and writes as it unwinds (refunds, costs, the end
 	--of a half-applied effect), all after the restore. Once those casts are gone, the
@@ -465,6 +498,9 @@ TurnRewind = {
 	undoListener = nil,
 	--True while HandleUndoKey is sending a key on to the ordinary undo.
 	passingKeyOn = false,
+	--True if the last poll found this client playing the current turn, so the next
+	--poll can tell when that turn ends.
+	wasTracking = false,
 	seenSeq = -1,
 	seenTime = 0,
 }
@@ -489,14 +525,66 @@ local function RewindTurnKey(q, turn)
 	return string.format("%s:%s:%s", tostring(q.guid), tostring(q.round), tostring(turn or q.turn))
 end
 
+--Shown, and returned by GoTo, while the Monster AI is playing a turn on this client.
+local g_rewindAIBusyMessage = "Must wait for monster AI to finish"
+
+--The Monster AI module, or nil if it is not loaded. It loads after this file, hence
+--rawget at call time.
+local function MonsterAIModule()
+	return rawget(_G, "MonsterAI")
+end
+
+--A function on the Monster AI module, or nil if the module or the function is missing.
+--Monster AI ships as its own codemod and can lag behind this one (76C77DP6); MonsterAI
+--is a game type, so reading a field it lacks raises instead of returning nil.
+--- @param name string
+--- @return function|nil
+local function MonsterAIFunction(name)
+	local ai = MonsterAIModule()
+	if ai == nil then
+		return nil
+	end
+	local fn = rawget(ai, name)
+	if type(fn) ~= "function" then
+		return nil
+	end
+	return fn
+end
+
+--True if the Monster AI, on any client, plays initiativeid's turns (it plays every turn
+--that is not the players'). The AI runs on the hosting machine and publishes that it is
+--running, so every client knows (MonsterAI.IsAIRunningAnywhere).
+--- @param q InitiativeQueue
+--- @param initiativeid any
+--- @return boolean
+local function AIPlaysInitiative(q, initiativeid)
+	local running = MonsterAIFunction("IsAIRunningAnywhere")
+	return type(initiativeid) == "string" and running ~= nil and running() == true and q:IsEntryPlayer(initiativeid) == false
+end
+
+--True while the Monster AI, on any client, is playing a monster's turn or is in the
+--middle of something (a monster's triggered ability during another turn). Rewinding
+--then would pull the board out from under it, so Turn History refuses until it is done.
+--- @param q InitiativeQueue|nil
+--- @return boolean
+function TurnRewind.MonsterAIBusy(q)
+	local busy = MonsterAIFunction("IsAIBusyAnywhere")
+	return q ~= nil and not q.hidden and busy ~= nil and busy() == true
+end
+
 --True if this client plays initiativeid's turn. The Director can control every token,
 --but a hero a player owns is that player's to play: the Director only keeps a history
 --for it when the Director started the turn (playing for a player who is not there).
+--A turn the Monster AI plays gets no history: it cannot be rewound.
 --- @param initiativeid any
 --- @param selectedHere boolean|nil
 --- @return boolean
 local function ClientPlaysInitiative(initiativeid, selectedHere)
 	if type(initiativeid) ~= "string" or not GameHud.instance then
+		return false
+	end
+	local q = dmhub.initiativeQueue
+	if q ~= nil and AIPlaysInitiative(q, initiativeid) then
 		return false
 	end
 	for _,tok in ipairs(GameHud.instance:GetTokensForInitiativeId(GameHud.instance.initiativeInterface, initiativeid)) do
@@ -520,6 +608,27 @@ end
 
 local function NothingResolving()
 	return ActivatedAbility.CountActiveCasts() == 0 and not ActivatedAbility.IsCasting()
+end
+
+--True while the queue is between turns and the turn this history covers is still the
+--last one: it has ended (or was rewound to before it started) and no other turn has
+--started since. The player can still go back into it then; once another turn starts,
+--they cannot.
+--- @param q InitiativeQueue
+--- @return boolean
+local function RewindTurnIsLatest(q)
+	local key = TurnRewind.turnKey
+	if key == nil or not q:ChoosingTurn() then
+		return false
+	end
+	--Ended (SelectTurn moved q.turn on; ending it does not), or rewound to before it began.
+	if key == RewindTurnKey(q) or key == RewindTurnKey(q, q.turn + 1) then
+		return true
+	end
+	--It was the last turn of its round: the round has advanced and nothing has started in
+	--the new one yet (the next SelectTurn makes q.turn 2).
+	local prevRound = type(q.round) == "number" and q.round - 1 or nil
+	return prevRound ~= nil and q.turn == 1 and string.starts_with(key, string.format("%s:%s:", tostring(q.guid), tostring(prevRound)))
 end
 
 --- @param turnKey string|nil
@@ -726,6 +835,8 @@ function TurnRewind.Poll()
 	--A restore landed: from now on the entry restored to is the board's state. Wait for
 	--the restore's own update to arrive (5s at most) before trusting the quiet.
 	if TurnRewind.restoring then
+		--A restore can hand the turn back or end it again; neither is the turn ending.
+		TurnRewind.wasTracking = false
 		local arrived = seq ~= TurnRewind.restoreFromSeq or now - TurnRewind.restoreTime > 5
 
 		--The restore cancelled abilities that were resolving. Once they have unwound (or
@@ -765,12 +876,38 @@ function TurnRewind.Poll()
 		return
 	end
 
-	if not RewindTracking(q) then
-		return
-	end
+	local tracking = RewindTracking(q)
+	local wasTracking = TurnRewind.wasTracking
+	TurnRewind.wasTracking = tracking
 
-	--A turn of ours began without SelectTurn running here (e.g. the Director picked it).
-	if RewindTurnKey(q) ~= TurnRewind.turnKey then
+	if not tracking then
+		if TurnRewind.turnKey == nil then
+			return
+		end
+		if q:ChoosingTurn() then
+			if not RewindTurnIsLatest(q) then
+				--Another turn has come and gone: this history's turn can no longer be rewound.
+				TurnRewind.Reset(nil)
+				return
+			end
+			if wasTracking then
+				--Our turn just ended. Until another turn starts, the player can still go
+				--back into it, so the end gets a checkpoint of its own to redo to.
+				RewindNoteAction("Turn ended")
+				TurnRewind.pendingAfter = "After the turn ended"
+				TurnRewind.seenTime = now
+			end
+		elseif RewindTurnKey(q) ~= TurnRewind.turnKey then
+			--Another turn has started (a monster's, another hero's): the turn this
+			--history covers, and everything before it, can no longer be rewound.
+			TurnRewind.Reset(nil)
+			return
+		else
+			--Still our turn, but this client cannot play it right now.
+			return
+		end
+	elseif RewindTurnKey(q) ~= TurnRewind.turnKey then
+		--A turn of ours began without SelectTurn running here (e.g. the Director picked it).
 		TurnRewind.Reset(RewindTurnKey(q))
 		RewindNoteAction("Turn started")
 		TurnRewind.pendingAfter = "Start of turn"
@@ -804,6 +941,34 @@ function TurnRewind.BoardMovedOn()
 	return cur == nil or cur.seq ~= dmhub.checkpointContentSeq
 end
 
+--Shown, and returned by GoTo, when strict rules stop a rewind past a dice roll.
+local g_rewindRollBarMessage = "Strict rules: you cannot rewind to before a dice roll."
+
+--Under Strictly Enforce Action Economy and Resource Costs a player may still undo, but
+--not to before a dice roll: that would let them roll it again. Returns the earliest entry
+--this client may rewind to, or nil when nothing is barred (no roll, or not bound by it).
+--An entry's actions happened just before it, so a roll there bars every earlier entry; a
+--roll not yet followed by a checkpoint bars them all.
+--- @return integer|nil
+function TurnRewind.RollFloor()
+	if not StrictActionEconomyEnforced() then
+		return nil
+	end
+	for _,action in ipairs(TurnRewind.pendingActions) do
+		if action.roll then
+			return TurnRewind.position + 1
+		end
+	end
+	for i = math.min(TurnRewind.position, #TurnRewind.entries), 1, -1 do
+		for _,action in ipairs(TurnRewind.entries[i].actions) do
+			if action.roll then
+				return i
+			end
+		end
+	end
+	return nil
+end
+
 --Rolls the board back (or forward) to entry index. Abilities still resolving are
 --cancelled: the restore sets their abort flag on every client (the restoreFromBackup
 --handler in ActivatedAbility.lua), and a cancel pass restores again once they unwind.
@@ -813,6 +978,15 @@ function TurnRewind.GoTo(index)
 	local entry = TurnRewind.entries[index]
 	if entry == nil then
 		return nil
+	end
+
+	if TurnRewind.MonsterAIBusy(dmhub.initiativeQueue) then
+		return g_rewindAIBusyMessage
+	end
+
+	local rollFloor = TurnRewind.RollFloor()
+	if rollFloor ~= nil and index < rollFloor then
+		return g_rewindRollBarMessage
 	end
 
 	--If the board has moved on from the current entry, keep it as a new entry so the
@@ -838,11 +1012,13 @@ function TurnRewind.GoTo(index)
 		TurnRewind.pendingAfter = nil
 	end
 
+	local forward = index > TurnRewind.position
 	local restoreFromSeq = dmhub.checkpointContentSeq
 	local err = entry.checkpoint:Restore()
 	if err ~= nil then
 		return err
 	end
+	TurnRewind.restoreForward = forward
 	TurnRewind.position = index
 	TurnRewind.pendingAfter = nil
 	TurnRewind.pendingActions = {}
@@ -861,12 +1037,13 @@ end
 --slide back over 0.6s (CharacterToken.RewindSlideSeconds), inside this.
 local g_rewindEffectSeconds = 1.1
 
---The on-screen "<< REWIND" label shown with the effect, while it is up.
+--The on-screen "<< REWIND" / ">> FORWARD" label shown with the effect, while it is up.
 --- @type Panel|nil
 local g_rewindOsd = nil
 
 --A VCR-style on-screen display in the top-left corner for the length of the effect.
-local function ShowRewindOsd()
+--- @param forward boolean true for a redo (rolling the board forward)
+local function ShowRewindOsd(forward)
 	if g_rewindOsd ~= nil and g_rewindOsd.valid then
 		g_rewindOsd:DestroySelf()
 	end
@@ -885,7 +1062,7 @@ local function ShowRewindOsd()
 		bold = true,
 		color = "white",
 		textAlignment = "left",
-		text = "<< REWIND",
+		text = cond(forward, ">> FORWARD", "<< REWIND"),
 		create = function(element)
 			element:ScheduleEvent("expire", g_rewindEffectSeconds)
 		end,
@@ -909,8 +1086,12 @@ dmhub.RegisterEventHandler("restoreFromBackup", function(info)
 	if mod.unloaded or (type(info) == "table" and info.quiet) then
 		return
 	end
+	--Only the client that restored knows the direction; a stale flag (its own restore
+	--never arrived) is ignored after a few seconds.
+	local forward = TurnRewind.restoreForward and dmhub.Time() - TurnRewind.restoreTime < 5
+	TurnRewind.restoreForward = false
 	dmhub.PlayScreenEffect("vcrRewind", g_rewindEffectSeconds)
-	local ok, err = pcall(ShowRewindOsd)
+	local ok, err = pcall(ShowRewindOsd, forward)
 	if not ok then
 		print("TurnRewind:: rewind label failed:", err)
 	end
@@ -967,6 +1148,10 @@ function TurnRewind.ShowDialog()
 		--Rewinding now would cancel the abilities underway, so even an unchanged board's
 		--checkpoint is worth a button. Not while a restore is already cancelling them.
 		local canCancel = #underway > 0 and not TurnRewind.restoring
+		--While the Monster AI is playing, every button is disabled.
+		local aiBusy = TurnRewind.MonsterAIBusy(dmhub.initiativeQueue)
+		--Under strict rules, checkpoints before this one are behind a dice roll.
+		local rollFloor = TurnRewind.RollFloor()
 
 		--- @param action TurnRewindAction
 		--- @param undone boolean
@@ -985,7 +1170,7 @@ function TurnRewind.ShowDialog()
 				vmargin = 1,
 				borderBox = true,
 				text = action.text,
-				linger = action.roll and gui.Tooltip("Rewinding to a checkpoint above this undoes the roll.") or nil,
+				linger = action.roll and gui.Tooltip(cond(rollFloor ~= nil, g_rewindRollBarMessage, "Rewinding to a checkpoint above this undoes the roll.")) or nil,
 			}
 		end
 
@@ -1003,14 +1188,17 @@ function TurnRewind.ShowDialog()
 		--- @param index integer
 		local function CheckpointButton(index)
 			local forward = index > position
+			local barred = rollFloor ~= nil and index < rollFloor
+			local disabled = aiBusy or barred
 			rows[#rows+1] = gui.Button{
-				classes = {"sizeS"},
+				classes = cond(disabled, {"sizeS", "disabled"}, {"sizeS"}),
+				interactable = not disabled,
 				width = "100%",
 				height = 26,
 				vmargin = 3,
 				borderBox = true,
 				text = cond(forward, "Redo to here", "Rewind to here"),
-				linger = gui.Tooltip(entries[index].label),
+				linger = gui.Tooltip(cond(barred, entries[index].label .. "\n" .. g_rewindRollBarMessage, entries[index].label)),
 				click = function(element)
 					local err = TurnRewind.GoTo(index)
 					if err ~= nil then
@@ -1026,9 +1214,16 @@ function TurnRewind.ShowDialog()
 		if not g_rewindSetting:Get() then
 			rows[#rows+1] = gui.Label{classes = {"label", "sizeS"}, width = "100%", height = "auto",
 				text = "Turn Rewind is off. Turn it on with /toggle dev:rewind."}
-		elseif #entries == 0 then
+		elseif aiBusy then
+			rows[#rows+1] = gui.Label{classes = {"label", "sizeS", "bold", "warning"}, width = "100%", height = "auto",
+				bmargin = 6, text = g_rewindAIBusyMessage}
+		elseif rollFloor ~= nil then
+			rows[#rows+1] = gui.Label{classes = {"label", "sizeS", "warning"}, width = "100%", height = "auto",
+				bmargin = 6, text = g_rewindRollBarMessage}
+		end
+		if g_rewindSetting:Get() and #entries == 0 and not aiBusy then
 			rows[#rows+1] = gui.Label{classes = {"label", "sizeS"}, width = "100%", height = "auto",
-				text = "No checkpoints yet. They are taken during turns you play."}
+				text = "No checkpoints yet. They are taken during turns you play, and last until another turn starts."}
 		end
 
 		for i,entry in ipairs(entries) do
@@ -1093,10 +1288,11 @@ function TurnRewind.ShowDialog()
 	--What the list shows depends on these; the list rebuilds when one changes.
 	local function Signature()
 		local last = TurnRewind.entries[#TurnRewind.entries]
-		return string.format("%s|%d|%d|%d|%s|%s|%s|%s|%s", tostring(TurnRewind.turnKey), #TurnRewind.entries,
+		return string.format("%s|%d|%d|%d|%s|%s|%s|%s|%s|%s|%s", tostring(TurnRewind.turnKey), #TurnRewind.entries,
 			TurnRewind.position, #TurnRewind.pendingActions, tostring(TurnRewind.BoardMovedOn()),
 			tostring(last ~= nil and last.seq), tostring(g_rewindSetting:Get()),
-			tostring(TurnRewind.restoring), table.concat(TurnRewind.CastsUnderway(), ";"))
+			tostring(TurnRewind.restoring), table.concat(TurnRewind.CastsUnderway(), ";"),
+			tostring(TurnRewind.MonsterAIBusy(dmhub.initiativeQueue)), tostring(TurnRewind.RollFloor()))
 	end
 
 	listPanel = gui.Panel{
@@ -1175,17 +1371,24 @@ function TurnRewind.ShowDialog()
 	gui.ShowDialogOverMap(mod, dialog)
 end
 
---True while Ctrl+Z should open Turn History: during a turn this client plays, or while
---rewound to "Before the turn started" of this client's history (the turn is then
---unclaimed, but the player can still roll forward).
+--True while Ctrl+Z should open Turn History: during a turn this client plays, or after
+--that turn ended (or was rewound to before it started) while no other turn has started.
+--Also while the Monster AI here is playing, so Ctrl+Z shows why nothing can be rewound
+--instead of undoing an edit out from under the AI.
 --- @param q InitiativeQueue|nil
 --- @return boolean
 function TurnRewind.UndoAvailable(q)
-	if not g_rewindSetting:Get() or q == nil or q.hidden or #TurnRewind.entries == 0 then
+	if not g_rewindSetting:Get() or q == nil or q.hidden then
+		return false
+	end
+	if TurnRewind.MonsterAIBusy(q) then
+		return true
+	end
+	if #TurnRewind.entries == 0 then
 		return false
 	end
 	if q:ChoosingTurn() then
-		return TurnRewind.position == 1 and TurnRewind.turnKey == RewindTurnKey(q, q.turn + 1)
+		return RewindTurnIsLatest(q)
 	end
 	return RewindTracking(q)
 end
@@ -1358,7 +1561,7 @@ local function CreateDrawSteelBubble()
         classes = "arrow",
 
         press = function(element)
-            if not element:HasClass("selected") and CanControlInitiative() and dmhub.initiativeQueue:ChoosingTurn() then
+            if not element:HasClass("selected") and CanRearrangeInitiative() and dmhub.initiativeQueue:ChoosingTurn() then
                 dmhub.initiativeQueue.playersTurn = true
                 dmhub:UploadInitiativeQueue()
                 bubblePanel:FireEventTree("refresh")
@@ -1396,7 +1599,7 @@ local function CreateDrawSteelBubble()
         classes = { "arrow", "selected" },
 
         press = function(element)
-            if not element:HasClass("selected") and CanControlInitiative() and dmhub.initiativeQueue:ChoosingTurn() then
+            if not element:HasClass("selected") and CanRearrangeInitiative() and dmhub.initiativeQueue:ChoosingTurn() then
                 dmhub.initiativeQueue.playersTurn = false
                 dmhub:UploadInitiativeQueue()
                 bubblePanel:FireEventTree("refresh")
@@ -1501,10 +1704,11 @@ local function CreateDrawSteelBubble()
             end
 
             local canSelectToken = false
+            --onBoard: a creature selected off the board (a tabletop card) has no token or turn here.
             local token = dmhub.selectedOrPrimaryTokens[1]
-            if TokenControlledByUser(token) then
+            if token ~= nil and token.onBoard and TokenControlledByUser(token) then
                 local initiativeid = InitiativeQueue.GetInitiativeId(token)
-                if initiativeid ~= nil and dmhub.initiativeQueue:IsEntryPlayer(initiativeid) and token.topsheet ~= nil then
+                if initiativeid ~= nil and dmhub.initiativeQueue:IsEntryPlayer(initiativeid) and dmhub.initiativeQueue:HasHadTurn(initiativeid) == false and token.topsheet ~= nil then
                     canSelectToken = true
                 end
             end
@@ -1564,9 +1768,11 @@ local function CreateDrawSteelBubble()
             end
 
             local token = dmhub.selectedOrPrimaryTokens[1]
-            if TokenControlledByUser(token) then
+            if token ~= nil and token.onBoard and TokenControlledByUser(token) then
                 local initiativeid = InitiativeQueue.GetInitiativeId(token)
-                if initiativeid ~= nil and (dmhub.initiativeQueue:IsEntryPlayer(initiativeid) == dmhub.initiativeQueue:IsPlayersTurn()) and token.topsheet ~= nil then
+                --HasHadTurn: with nothing selected, selectedOrPrimaryTokens falls back to
+                --the last hero used, who may already have gone this round (QM6XE5YN).
+                if initiativeid ~= nil and (dmhub.initiativeQueue:IsEntryPlayer(initiativeid) == dmhub.initiativeQueue:IsPlayersTurn()) and dmhub.initiativeQueue:HasHadTurn(initiativeid) == false and token.topsheet ~= nil then
                     local nameplate = token.topsheet:GetChildrenWithClassRecursive("nameplate")[1]
                     if nameplate ~= nil then
                         nameplate:FireEvent("press")
@@ -1578,7 +1784,7 @@ local function CreateDrawSteelBubble()
 
 		rightClick = function (self)
 
-			if not CanControlInitiative() then
+			if not CanRearrangeInitiative() then
 				return
 			end
 
@@ -1798,9 +2004,9 @@ local function CreateDrawSteelBubble()
                 end
 
                 local token = dmhub.selectedOrPrimaryTokens[1]
-                if TokenControlledByUser(token) then
+                if token ~= nil and token.onBoard and TokenControlledByUser(token) then
                     local initiativeid = InitiativeQueue.GetInitiativeId(token)
-                    if initiativeid ~= nil and (dmhub.initiativeQueue:IsEntryPlayer(initiativeid) == dmhub.initiativeQueue:IsPlayersTurn()) then
+                    if initiativeid ~= nil and (dmhub.initiativeQueue:IsEntryPlayer(initiativeid) == dmhub.initiativeQueue:IsPlayersTurn()) and dmhub.initiativeQueue:HasHadTurn(initiativeid) == false then
                         element.parent:FireEventTree("claiming", true)
                         return
                     end
@@ -4266,8 +4472,9 @@ local function CreateBossBarStrip(self, info)
                 return
             end
 
-            --players only see the bar once it has been revealed.
-            if not isDM and not visible then
+            --players only see the bar once it has been revealed. With no Director
+            --(e.g. Encounter of the Week) nobody can press the eye, so show it outright.
+            if not isDM and not visible and not dmhub.directorlessPlay then
                 element:SetClass("collapsed", true)
                 return
             end
@@ -4414,7 +4621,7 @@ function GameHud.CreateInitiativeBar(self, info)
 
                 --Revert Turn -- only when there is a snapshot from just before this turn.
                 local checkpoint = TurnCheckpoint.ForCurrentTurn(q)
-                if checkpoint ~= nil then
+                if checkpoint ~= nil and TurnCheckpoint.RevertAllowed() then
                     entries[#entries+1] = {
                         text = element.data.checkpointReason,
                         click = function()
@@ -4958,7 +5165,7 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 			},
 
 			press = function(element)
-				if element:HasClass("inactive") and CanControlInitiative() then
+				if element:HasClass("inactive") and CanRearrangeInitiative() then
 					info.initiativeQueue.playersTurn = not info.initiativeQueue.playersTurn
 					info.UploadInitiative()
 				end
@@ -4987,7 +5194,7 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 			end,
 
 			press = function(element)
-				if CanControlInitiative() and (not element:HasClass("won")) then
+				if CanRearrangeInitiative() and (not element:HasClass("won")) then
 					info.initiativeQueue.playersGoFirst = playerside
 					info.UploadInitiative()
 
@@ -5743,7 +5950,9 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 							--InitiativeQueue.ClaimTurn so other surfaces can reuse it. It
 							--reads the LIVE queue and uses the loop key k as the initiative
 							--id (group entries do not populate v.initiativeid).
-							InitiativeQueue.ClaimTurn(k, {canControlInitiative = CanControlInitiative()})
+							--In EotW only the players' normal claim applies (no monster or
+							--out-of-turn claims), as on the EotW hero sheet.
+							InitiativeQueue.ClaimTurn(k, {canControlInitiative = CanRearrangeInitiative()})
 						end,
 					})
 					newEntries[k]:SetClass("player", isplayer)
@@ -6966,7 +7175,7 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
 
 	--Revert-turn button: only visible while this entry is the current turn.
 	--Pressed -> cancels the turn (sends us back to the choose-next-turn state).
-	if CanControlInitiative() then
+	if CanControlInitiative() and TurnCheckpoint.RevertAllowed() then
 
 		closeButton = gui.Button{
             classes = {"closeButton", "revertTurnButton"},
@@ -7011,7 +7220,7 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
 
 	local playerColor = "black"
 	if token ~= nil then
-		playercolor = token.playerColor.tostring
+		playerColor = token.playerColor.tostring
 	end
 
 	local m_bossTurnsPanel = nil
@@ -7021,7 +7230,7 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
 	--the initiative bar (the DM, or the "players control initiative" setting). As a
 	--special case we also let a non-DM player drag a hero card onto the center
 	--"Drag Hero Here" slot to claim that hero's turn. Reassigning an entry between
-	--containers stays DM-only.
+	--containers stays DM-only, and is never allowed in EotW (CanRearrangeInitiative).
 	--
 	--We make the card draggable under EXACTLY the conditions selectinitiative accepts
 	--the drop (heroes' choose-a-turn phase, an unmoved hero entry) -- NOT token
@@ -7033,7 +7242,7 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
 	--created then cached across refreshes, and eligibility changes as the initiative
 	--phase changes, so a value frozen at creation would be wrong.
 	local CanDragEntry = function()
-		if CanControlInitiative() then
+		if CanRearrangeInitiative() then
 			return true
 		end
 
@@ -7071,7 +7280,7 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
 			end
 
 			--Reassigning an entry between containers is a DM-only reorganization.
-			if not CanControlInitiative() then
+			if not CanRearrangeInitiative() then
 				return
 			end
 
@@ -7097,7 +7306,7 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
 
 			--Only DMs (or when players control initiative) may move an entry between
 			--containers by dropping on another entry container.
-			if CanControlInitiative() and target:HasClass("initiativeEntryContainer") then
+			if CanRearrangeInitiative() and target:HasClass("initiativeEntryContainer") then
 				return true
 			end
 
@@ -7122,7 +7331,7 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
 
             rightClick = function(element)
                 local q = info.initiativeQueue
-                if q == nil or q.hidden then
+                if q == nil or q.hidden or IsEotwGame() then
                     return
                 end
 
@@ -7155,7 +7364,7 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
                 --the acting entry would orphan currentTurn) and to whoever may
                 --reorganize the bar, the same gate as dragging cards between
                 --sides. A minion squad counts as a single creature.
-                if q.currentTurn ~= initiativeid and CanControlInitiative() then
+                if q.currentTurn ~= initiativeid and CanRearrangeInitiative() then
                     local groupTokens = self:GetTokensForInitiativeId(info, initiativeid)
                     if CountInitiativeUnits(groupTokens) > 1 then
                         entries[#entries+1] = {
@@ -7169,22 +7378,24 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
                 end
 
                 if q.currentTurn == initiativeid then
-                    entries[#entries+1] = {
-                        text = "Revert Turn",
-                        click = function()
-                            element.popup = nil
-                            --Prefer the full pre-turn snapshot so heroic resources,
-                            --stamina, and other start-of-turn side effects are undone
-                            --too. CancelTurn alone only rewinds the initiative pointer.
-                            local checkpoint = TurnCheckpoint.ForCurrentTurn(q)
-                            if checkpoint ~= nil then
-                                TurnCheckpoint.Revert(checkpoint)
-                            else
-                                q:CancelTurn(initiativeid)
-                                info.UploadInitiative()
-                            end
-                        end,
-                    }
+                    if TurnCheckpoint.RevertAllowed() then
+                        entries[#entries+1] = {
+                            text = "Revert Turn",
+                            click = function()
+                                element.popup = nil
+                                --Prefer the full pre-turn snapshot so heroic resources,
+                                --stamina, and other start-of-turn side effects are undone
+                                --too. CancelTurn alone only rewinds the initiative pointer.
+                                local checkpoint = TurnCheckpoint.ForCurrentTurn(q)
+                                if checkpoint ~= nil then
+                                    TurnCheckpoint.Revert(checkpoint)
+                                else
+                                    q:CancelTurn(initiativeid)
+                                    info.UploadInitiative()
+                                end
+                            end,
+                        }
+                    end
                 elseif q:EntryUnmoved(entry) then
                     entries[#entries+1] = {
                         text = "Set Has Moved",

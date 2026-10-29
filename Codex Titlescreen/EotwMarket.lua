@@ -10,7 +10,7 @@ local mod = dmhub.GetModLoading()
 --  * A hero may buy as many of the offered treasures as their Wealth (each
 --    one once). Treasures cost nothing else.
 --  * One roll and one round of buying per hero until that hero comes home
---    from another Town Gate encounter. Danger Rooms games do not count.
+--    from another Town Gate encounter. Proving Pits games do not count.
 --  * The stock: every echelon 1 consumable whose automation is Gold, plus
 --    the extras below, read live from the compendium.
 --
@@ -22,6 +22,9 @@ local mod = dmhub.GetModLoading()
 --an encounter opens a fresh visit without anything having to clear it.
 
 EotwMarket = {}
+
+local T = UIText.T
+local TP = UIText.Plural
 
 local TEXT = "#efe4cc"
 local DIM = "#c9bfa9"
@@ -199,13 +202,16 @@ function EotwMarket.RollBonus(tok, skill)
     local value = 0
     pcall(function() value = tok.properties:GetAttribute(EotwMarket.CHARACTERISTIC):Modifier() end)
     local info = creature.attributesInfo[EotwMarket.CHARACTERISTIC]
-    local parts = { "2d10", string.format("%+d %s", value, info ~= nil and info.description or "Presence") }
+    local characteristic = info ~= nil and info.description or T("market.formula.presence")
     local bonus = value
+    local formula
     if skill ~= nil and skill ~= "" then
         bonus = bonus + 2
-        parts[#parts+1] = string.format("+2 %s", skill)
+        formula = T("market.formula.with_skill", { bonus = string.format("%+d", value), characteristic = characteristic, skill = skill })
+    else
+        formula = T("market.formula.no_skill", { bonus = string.format("%+d", value), characteristic = characteristic })
     end
-    return bonus, table.concat(parts, " ")
+    return bonus, formula
 end
 
 --The tier (1-3) of a total.
@@ -227,11 +233,11 @@ end
 function EotwMarket.Blocked(heroid)
     local tok = dmhub.GetCharacterById(heroid)
     if tok == nil or not EotwRoster.IsInStep(heroid) then
-        return "Loading..."
+        return T("market.blocked.loading")
     end
     local away = EotwRoster.AwayHeroes()[heroid]
     if away ~= nil then
-        return string.format("Away: %s", away)
+        return T("market.blocked.away", { reason = away })
     end
     return nil
 end
@@ -247,7 +253,7 @@ local function ChangeVisit(heroid, description, visit, execute, onDone)
     local tok = dmhub.GetCharacterById(heroid)
     if tok == nil then
         if onDone ~= nil then
-            onDone(false, "That hero is not ready yet.")
+            onDone(false, T("market.error.hero_not_ready"))
         end
         return
     end
@@ -324,17 +330,17 @@ function EotwMarket.Roll(args)
     local tok = dmhub.GetCharacterById(args.heroid)
     local blocked = EotwMarket.Blocked(args.heroid)
     if tok == nil or blocked ~= nil then
-        args.done(false, blocked or "That hero is not ready yet.")
+        args.done(false, blocked or T("market.error.hero_not_ready"))
         return
     end
     if EotwMarket.Visit(tok) ~= nil then
-        args.done(false, "This hero has already shopped. The stalls change after their next encounter.")
+        args.done(false, T("market.error.already_shopped"))
         return
     end
     local bonus = EotwMarket.RollBonus(tok, args.skill)
     dmhub.Roll{
         roll = string.format("2d10%+d", bonus),
-        description = "The Arcane Market",
+        description = T("market.shop.roll_name"),
         preview = args.previewPanel ~= nil,
         previewPanel = args.previewPanel,
         cancel = function()
@@ -395,7 +401,7 @@ function EotwMarket.BuyBlocked(heroid, itemid)
     local tok = dmhub.GetCharacterById(heroid)
     local visit = tok ~= nil and EotwMarket.Visit(tok) or nil
     if tok == nil or visit == nil then
-        return "Make the Presence test first."
+        return T("market.buy_blocked.roll_first")
     end
     local offered = false
     for _, id in ipairs(EotwMarket.Offer(visit)) do
@@ -404,13 +410,13 @@ function EotwMarket.BuyBlocked(heroid, itemid)
         end
     end
     if not offered then
-        return "That treasure is not on offer to this hero."
+        return T("market.buy_blocked.not_offered")
     end
     if type(visit.bought) == "table" and visit.bought[itemid] == true then
-        return "Already bought."
+        return T("market.buy_blocked.already_bought")
     end
     if EotwMarket.BoughtCount(visit) >= EotwMarket.PurchaseLimit(tok, visit) then
-        return "No purchases left until this hero's next encounter."
+        return T("market.buy_blocked.no_purchases_left")
     end
     return nil
 end
@@ -437,17 +443,26 @@ function EotwMarket.Buy(heroid, itemid, onDone)
         bought[itemid] = true
         copy.bought = bought
         props:GiveItem(itemid, 1)
-    end, onDone)
+    end, function(ok, message)
+        if ok then
+            local itemName = nil
+            pcall(function() itemName = dmhub.GetTable(equipment.tableName)[itemid].name end)
+            EotwAnalytics.Track("eotw_market_buy", { heroid = heroid, itemid = itemid, item = itemName })
+        end
+        if onDone ~= nil then
+            onDone(ok, message)
+        end
+    end)
 end
 
 --- UI bits ---------------------------------------------------------------------
 
 --The tier lines shown before the roll: { {label, text}, ... }.
 local TIER_LINES = {
-    { "11 or lower", "2 treasures on offer" },
-    { "12 - 16", "3 treasures on offer" },
-    { "17 or higher", "4 treasures on offer" },
-    { "Natural 19 - 20", "4 treasures on offer, and buy one extra" },
+    { T("market.shop.tier1_label"), T("market.shop.tier1_text") },
+    { T("market.shop.tier2_label"), T("market.shop.tier2_text") },
+    { T("market.shop.tier3_label"), T("market.shop.tier3_text") },
+    { T("market.shop.critical_label"), T("market.shop.critical_text") },
 }
 
 local function Portrait(tok, width, height)
@@ -506,7 +521,7 @@ end
 local function ItemIcon(itemid, size, faded)
     local item = (dmhub.GetTable("tbl_Gear") or {})[itemid]
     local icon = item ~= nil and item:try_get("iconid", "") or ""
-    local name = item ~= nil and item.name or "Treasure"
+    local name = item ~= nil and item.name or T("market.card.treasure_fallback")
     return gui.Panel{
         width = size,
         height = size,
@@ -638,14 +653,14 @@ function EotwMarket.ShowShopDialog(host, heroid)
         local cards = {}
         for _, itemid in ipairs(EotwMarket.Offer(visit)) do
             local item = gear[itemid]
-            local name = item ~= nil and item.name or "A treasure"
+            local name = item ~= nil and item.name or T("market.shop.treasure_fallback")
             local bought = type(visit.bought) == "table" and visit.bought[itemid] == true
             local blocked = EotwMarket.BuyBlocked(heroid, itemid)
             local icon = item ~= nil and item:try_get("iconid", "") or ""
             local buyButton
             if bought then
                 buyButton = gui.Label{
-                    text = "Bought",
+                    text = T("market.shop.bought"),
                     fontSize = 18,
                     bold = true,
                     color = GREEN,
@@ -657,7 +672,7 @@ function EotwMarket.ShowShopDialog(host, heroid)
                 }
             else
                 buyButton = gui.Button{
-                    text = "Buy",
+                    text = T("market.shop.buy_button"),
                     fontSize = 18,
                     width = 130,
                     height = 34,
@@ -680,7 +695,7 @@ function EotwMarket.ShowShopDialog(host, heroid)
                         EotwMarket.Buy(heroid, itemid, function(okBuy, message)
                             state.buying = false
                             if not okBuy then
-                                state.message = tostring(message or "The purchase did not go through.")
+                                state.message = tostring(message or T("market.error.purchase_failed"))
                             end
                             if not mod.unloaded then
                                 Render()
@@ -752,16 +767,16 @@ function EotwMarket.ShowShopDialog(host, heroid)
         local canRoll = tok ~= nil and visit == nil and blocked == nil and not state.rolling
 
         if tok == nil then
-            children[#children+1] = gui.Label{ text = "This hero is not here.", fontSize = 16, italics = true, color = DIM, width = "auto", height = "auto" }
+            children[#children+1] = gui.Label{ text = T("market.shop.hero_missing"), fontSize = 16, italics = true, color = DIM, width = "auto", height = "auto" }
         elseif visit == nil then
             --before the test: the skill, the formula, what each tier finds.
             local trained = EotwMarket.TrainedSkills(tok)
-            local skillOptions = { { id = "", text = "No skill" } }
+            local skillOptions = { { id = "", text = T("market.shop.no_skill") } }
             for _, name in ipairs(trained) do
-                skillOptions[#skillOptions+1] = { id = name, text = string.format("%s (+2)", name) }
+                skillOptions[#skillOptions+1] = { id = name, text = T("market.shop.skill_choice", { skill = name }) }
             end
             children[#children+1] = gui.Label{
-                text = "Make a Presence test to find the stalls worth your coin.",
+                text = T("market.shop.intro"),
                 fontSize = 17,
                 color = TEXT,
                 width = "100%",
@@ -774,7 +789,7 @@ function EotwMarket.ShowShopDialog(host, heroid)
                 flow = "horizontal",
                 tmargin = 12,
                 gui.Label{
-                    text = "Skill",
+                    text = T("market.shop.skill_heading"),
                     fontSize = 15,
                     color = DIM,
                     width = 100,
@@ -796,7 +811,7 @@ function EotwMarket.ShowShopDialog(host, heroid)
                     end,
                 },
                 gui.Label{
-                    text = cond(#trained == 0, "Alchemy or Magic would help (this hero has neither)", "Alchemy or Magic"),
+                    text = cond(#trained == 0, T("market.shop.skills_hint_none"), T("market.shop.skills_hint")),
                     fontSize = 13,
                     italics = true,
                     color = DIM,
@@ -840,7 +855,7 @@ function EotwMarket.ShowShopDialog(host, heroid)
                 }
             end
             children[#children+1] = gui.Label{
-                text = string.format("%s can buy up to %d (Wealth %d).", tostring(tok.name), EotwMarket.Wealth(tok), EotwMarket.Wealth(tok)),
+                text = T("market.shop.can_buy", { hero = tostring(tok.name), wealth = EotwMarket.Wealth(tok) }),
                 fontSize = 15,
                 italics = true,
                 color = DIM,
@@ -858,7 +873,7 @@ function EotwMarket.ShowShopDialog(host, heroid)
                 flow = "horizontal",
                 tmargin = 8,
                 gui.Label{
-                    text = cond(visit.critical == true, "Critical!", string.format("Tier %d", tonumber(visit.tier) or 1)),
+                    text = cond(visit.critical == true, T("market.shop.result_critical"), T("market.shop.result_tier", { tier = tonumber(visit.tier) or 1 })),
                     fontFace = "display",
                     fontSize = 30,
                     color = cond(visit.critical == true, AMBER, GOLD),
@@ -867,8 +882,9 @@ function EotwMarket.ShowShopDialog(host, heroid)
                     valign = "center",
                 },
                 gui.Label{
-                    text = string.format("Rolled %d (natural %d)%s", tonumber(visit.total) or 0, tonumber(visit.natural) or 0,
-                        cond(type(visit.skill) == "string" and visit.skill ~= "", string.format(" with %s", tostring(visit.skill)), "")),
+                    text = cond(type(visit.skill) == "string" and visit.skill ~= "",
+                        T("market.shop.rolled_with_skill", { total = tonumber(visit.total) or 0, natural = tonumber(visit.natural) or 0, skill = tostring(visit.skill) }),
+                        T("market.shop.rolled", { total = tonumber(visit.total) or 0, natural = tonumber(visit.natural) or 0 })),
                     fontSize = 15,
                     color = DIM,
                     width = "auto",
@@ -878,10 +894,9 @@ function EotwMarket.ShowShopDialog(host, heroid)
                 },
             }
             children[#children+1] = gui.Label{
-                text = string.format("%d %s on offer.  Bought %d of %d%s.",
-                    #EotwMarket.Offer(visit), cond(#EotwMarket.Offer(visit) == 1, "treasure", "treasures"),
-                    boughtCount, limit,
-                    cond(visit.critical == true, string.format(" (Wealth %d, +1 for the critical)", EotwMarket.Wealth(tok)), string.format(" (Wealth %d)", EotwMarket.Wealth(tok)))),
+                text = cond(visit.critical == true,
+                    TP("market.shop.offer_summary_critical", #EotwMarket.Offer(visit), { bought = boughtCount, limit = limit, wealth = EotwMarket.Wealth(tok) }),
+                    TP("market.shop.offer_summary", #EotwMarket.Offer(visit), { bought = boughtCount, limit = limit, wealth = EotwMarket.Wealth(tok) })),
                 fontSize = 17,
                 color = TEXT,
                 width = "100%",
@@ -890,7 +905,7 @@ function EotwMarket.ShowShopDialog(host, heroid)
             }
             local cards = StallCards(tok, visit)
             if #cards == 0 then
-                cards[1] = gui.Label{ text = "The stalls had nothing in stock.", fontSize = 16, italics = true, color = DIM, width = "auto", height = "auto" }
+                cards[1] = gui.Label{ text = T("market.shop.nothing_in_stock"), fontSize = 16, italics = true, color = DIM, width = "auto", height = "auto" }
             end
             children[#children+1] = gui.Panel{
                 width = "100%",
@@ -918,11 +933,11 @@ function EotwMarket.ShowShopDialog(host, heroid)
         if state.rolling then
             hint = ""
         elseif canRoll then
-            hint = "Click or throw the dice to make the test."
+            hint = T("market.shop.hint_roll")
         elseif blocked ~= nil then
             hint = blocked
         elseif visit ~= nil then
-            hint = "The stalls change after this hero's next encounter."
+            hint = T("market.shop.hint_done")
         end
         if hintLabel ~= nil and hintLabel.valid then
             hintLabel.text = hint
@@ -945,7 +960,7 @@ function EotwMarket.ShowShopDialog(host, heroid)
         end
     end
 
-    local name = "Your hero"
+    local name = T("market.shop.your_hero")
     do
         local tok = dmhub.GetCharacterById(heroid)
         if tok ~= nil and tok.name ~= nil then
@@ -1005,7 +1020,7 @@ function EotwMarket.ShowShopDialog(host, heroid)
                     bgcolor = GOLD,
                 },
                 gui.Label{
-                    text = string.format("The Arcane Market: %s", name),
+                    text = T("market.shop.title", { hero = name }),
                     fontSize = 28,
                     bold = true,
                     color = TEXT,
@@ -1015,7 +1030,7 @@ function EotwMarket.ShowShopDialog(host, heroid)
                 },
             },
             gui.Label{
-                text = "Potions, powders and stranger things, sold from carts and back rooms to those who know whom to ask.",
+                text = T("market.shop.flavor"),
                 fontSize = 16,
                 italics = true,
                 color = DIM,
@@ -1109,7 +1124,7 @@ function EotwMarket.ShowShopDialog(host, heroid)
                 classes = { "collapsed" },
                 halign = "center",
                 bmargin = 10,
-                text = "Close",
+                text = T("market.shop.close_button"),
                 fontSize = 22,
                 width = 240,
                 height = 50,
@@ -1138,7 +1153,7 @@ function EotwMarket.ShowShopDialog(host, heroid)
                 { selectors = { "eotwDialogClose", "hover" }, bgcolor = "#ffffff", scale = 1.15 },
             },
             classes = { "eotwDialogClose" },
-            linger = gui.Tooltip("Close"),
+            linger = gui.Tooltip(T("market.shop.close_tooltip")),
             press = function()
                 if state.rolling then
                     return
@@ -1157,29 +1172,29 @@ end
 --this visit, and Shop / Browse.
 local function MarketRow(host, hero)
     local tok = dmhub.GetCharacterById(hero.heroid)
-    local name = (tok ~= nil and tok.name) or (hero.summary or {}).name or "Hero"
+    local name = (tok ~= nil and tok.name) or (hero.summary or {}).name or T("market.card.hero_fallback")
     local blocked = EotwMarket.Blocked(hero.heroid)
     local visit = tok ~= nil and EotwMarket.Visit(tok) or nil
 
     local status
     local icons = {}
     if blocked ~= nil or tok == nil then
-        status = blocked or "Loading..."
+        status = blocked or T("market.card.loading")
     elseif visit == nil then
-        status = string.format("Wealth %d  -  has not shopped since their last encounter", EotwMarket.Wealth(tok))
+        status = T("market.card.status_not_shopped", { wealth = EotwMarket.Wealth(tok) })
     else
         local limit = EotwMarket.PurchaseLimit(tok, visit)
         local boughtCount = EotwMarket.BoughtCount(visit)
-        status = string.format("%s: %d on offer  -  bought %d of %d",
-            cond(visit.critical == true, "Critical", string.format("Tier %d", tonumber(visit.tier) or 1)),
-            #EotwMarket.Offer(visit), boughtCount, limit)
+        status = cond(visit.critical == true,
+            T("market.card.status_critical", { offered = #EotwMarket.Offer(visit), bought = boughtCount, limit = limit }),
+            T("market.card.status_tier", { tier = tonumber(visit.tier) or 1, offered = #EotwMarket.Offer(visit), bought = boughtCount, limit = limit }))
         for _, itemid in ipairs(EotwMarket.Offer(visit)) do
             local bought = type(visit.bought) == "table" and visit.bought[itemid] == true
             icons[#icons+1] = ItemIcon(itemid, 30, not bought)
         end
     end
 
-    local buttonText = cond(visit == nil, "Shop", "Browse")
+    local buttonText = cond(visit == nil, T("market.card.shop_button"), T("market.card.browse_button"))
     return gui.Panel{
         width = "100%",
         height = 72,
@@ -1236,7 +1251,7 @@ local function MarketRow(host, hero)
                 if blocked ~= nil then
                     gui.Tooltip(blocked)(element)
                 elseif visit == nil then
-                    gui.Tooltip("Make a Presence test to find what is on offer.")(element)
+                    gui.Tooltip(T("market.card.shop_tooltip"))(element)
                 end
             end,
             click = function()
@@ -1266,9 +1281,9 @@ function EotwMarket.MarketPanel(host)
             rows[#rows+1] = MarketRow(host, hero)
         end
         if EotwRoster.GetHeroes() == nil then
-            rows[1] = gui.Label{ text = "The traders are sizing you up...", fontSize = 16, italics = true, color = DIM, width = "auto", height = "auto", halign = "center", vmargin = 20 }
+            rows[1] = gui.Label{ text = T("market.card.loading_heroes"), fontSize = 16, italics = true, color = DIM, width = "auto", height = "auto", halign = "center", vmargin = 20 }
         elseif #rows == 0 then
-            rows[1] = gui.Label{ text = "You have no heroes. Visit the Hero's Guild.", fontSize = 16, italics = true, color = DIM, width = "auto", height = "auto", halign = "center", vmargin = 20 }
+            rows[1] = gui.Label{ text = T("market.card.no_heroes"), fontSize = 16, italics = true, color = DIM, width = "auto", height = "auto", halign = "center", vmargin = 20 }
         end
         listPanel.children = rows
     end
@@ -1294,7 +1309,7 @@ function EotwMarket.MarketPanel(host)
         end,
 
         gui.Label{
-            text = "Shop the Stalls",
+            text = T("market.card.title"),
             fontSize = 26,
             bold = true,
             color = TEXT,
@@ -1302,7 +1317,7 @@ function EotwMarket.MarketPanel(host)
             height = "auto",
         },
         gui.Label{
-            text = "Each hero makes a Presence test (Alchemy or Magic help) to find what is on offer, then buys as many treasures as their Wealth. The stalls change after that hero's next encounter.",
+            text = T("market.card.intro"),
             fontSize = 15,
             italics = true,
             color = DIM,
@@ -1316,7 +1331,7 @@ function EotwMarket.MarketPanel(host)
             flow = "horizontal",
             bmargin = 10,
             gui.Label{
-                text = "In stock:",
+                text = T("market.card.in_stock"),
                 fontSize = 14,
                 color = DIM,
                 width = "auto",

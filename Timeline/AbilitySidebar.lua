@@ -94,6 +94,23 @@ local function ShouldShareAbility(token)
     return IsTokenOnCurrentTurn(token)
 end
 
+--Identity of a shared ability card: which ability, cast by which token. The
+--cast often swaps in a copy of the same ability (targeting -> casting), so this
+--compares guid rather than object identity; name covers abilities with no guid.
+---@param ability any
+---@param casterTokenId string|nil
+---@return string
+local function AbilityShareKey(ability, casterTokenId)
+    if ability == nil then
+        return ""
+    end
+    local guid = nil
+    local name = nil
+    pcall(function() name = ability.name end)
+    pcall(function() guid = ability:try_get("guid") end)
+    return string.format("%s|%s|%s", tostring(casterTokenId), tostring(guid), tostring(name))
+end
+
 -- Write the current sharing data to the shared document.
 local function WriteAbilityShare()
     if g_sharingData == nil then
@@ -747,6 +764,34 @@ local function CreateReadOnlyRollInfo(shareData)
         }
     end
 
+    -- The landed dice, matching the faces the roller sees in their dialog.
+    -- Only a "finished" broadcast carries them; a re-roll goes back through
+    -- "rolling", which rebuilds this card, so they never go stale.
+    if ds.rollState == "finished" and ds.dice ~= nil then
+        local diceRow = RollDiceFaces.Panel(ds.dice, ds.diceStyle, {
+            height = 64,
+            vmargin = 4,
+        })
+        if diceRow ~= nil then
+            sections[#sections+1] = diceRow
+        end
+    end
+
+    -- The roll's total with modifiers, as the roller's dialog shows it.
+    if ds.rollState == "finished" and ds.total ~= nil then
+        sections[#sections+1] = gui.Label{
+            halign = "center",
+            textAlignment = "center",
+            width = "auto",
+            height = "auto",
+            fontSize = 28,
+            bold = true,
+            color = "white",
+            vmargin = 2,
+            text = string.format("Total: %s", tostring(math.tointeger(ds.total) or ds.total)),
+        }
+    end
+
     -- Power roll tier table with dice animation support.
     -- Uses gui.Table / gui.TableRow to match the interactive power table
     -- in MCDMAbilityRollBehavior.lua so that style selectors ("row" and
@@ -1180,6 +1225,10 @@ local g_remoteLastSection = nil
 -- the dice event subscriptions on the tier table).
 local g_remoteLastRollState = nil
 
+-- AbilityShareKey of the card the remote display is showing. The incremental
+-- update only swaps the roll, so a new key means the card must be rebuilt.
+local g_remoteAbilityKey = nil
+
 ----------------------------------------------------------------------
 -- Movable / pinnable ability card
 --
@@ -1600,11 +1649,15 @@ local function RefreshRemoteAbilityDisplay(displayPanel, shareData)
 
     local ability = shareData.ability
     local casterToken = dmhub.GetTokenById(shareData.casterTokenId)
+    local abilityKey = AbilityShareKey(ability, shareData.casterTokenId)
 
-    -- If the remote display is already showing for this user, do an
-    -- incremental update: replace the embedded roll info and update
-    -- section highlighting without rebuilding the full ability tooltip.
-    if g_remoteDisplayUserId == shareData.userid and g_remoteAbilityPanel ~= nil and g_remoteAbilityPanel.valid then
+    -- If the remote display is already showing this user's card for the same
+    -- ability, do an incremental update: replace the embedded roll info and
+    -- update section highlighting without rebuilding the full ability tooltip.
+    -- A different ability falls through to a full rebuild, or the old card's
+    -- title would stay up around the new ability's roll.
+    if g_remoteDisplayUserId == shareData.userid and g_remoteAbilityKey == abilityKey
+        and g_remoteAbilityPanel ~= nil and g_remoteAbilityPanel.valid then
         -- Rebuild the roll info panel when data changes, EXCEPT during
         -- "rolling" where the tier table has live dice event
         -- subscriptions that would be destroyed by a rebuild.
@@ -1727,6 +1780,7 @@ local function RefreshRemoteAbilityDisplay(displayPanel, shareData)
     displayPanel.children = { cardWrapper }
     g_remoteDisplayUserId = shareData.userid
     g_remoteAbilityPanel = abilityPanel
+    g_remoteAbilityKey = abilityKey
 end
 
 --The grey banner pinned to the top of the ability card whenever the local
@@ -2371,6 +2425,16 @@ local function TypeNameOf(obj)
     return name
 end
 
+--True for an ActivatedAbility or any type built on it (MaliceAbility, ...).
+local function IsActivatedAbility(obj)
+    if TypeNameOf(obj) == nil then
+        return false
+    end
+    local result = false
+    pcall(function() result = obj.IsDerivedFrom("ActivatedAbility") end)
+    return result == true
+end
+
 --A leftover roll dialog we are allowed to throw away: it is not on screen, and
 --no live ability cast still owns it. Mirrors the classification in
 --AcquireAbilityRollDialog.
@@ -2406,7 +2470,8 @@ end
 --
 --args.ability / args.token: the ability that caused the prompt and the token
 --casting it. When nothing else is on the sidebar we put that ability's card up
---so the player can see what they are rolling against.
+--so the player can see what they are rolling against. args.renderAsAbility is
+--passed on to DisplayAbility (a synthetic test card sets it).
 --
 --The roll always goes under the ability card. If it cannot -- no sidebar, or
 --someone else's card is up -- this returns nil and the caller should fall back
@@ -2455,7 +2520,7 @@ function CharacterPanel.EmbedPromptRollDialog(args)
     if displayed == nil then
         --Nothing on the sidebar: put the ability card up ourselves, and lock it
         --so a stray hover cannot yank it out from under the roll.
-        if ability == nil or TypeNameOf(ability) ~= "ActivatedAbility" or token == nil or not token.valid then
+        if ability == nil or not IsActivatedAbility(ability) or token == nil or not token.valid then
             return nil
         end
 
@@ -2464,7 +2529,7 @@ function CharacterPanel.EmbedPromptRollDialog(args)
         --outside any coroutine, and the roll outlives the caller anyway.
         CharacterPanel.ForceUnlockDisplayAbility()
         local shown
-        shown, lockId = CharacterPanel.DisplayAbility(token, ability, nil, {lock = true})
+        shown, lockId = CharacterPanel.DisplayAbility(token, ability, nil, {lock = true, renderAsAbility = args.renderAsAbility})
         if not shown then
             CharacterPanel.UnlockDisplayAbility(lockId)
             return nil
@@ -3028,6 +3093,34 @@ function CharacterPanel.HighlightAbilitySection(options)
         and ShouldShareAbility(options.caster)
     then
         BeginAbilitySharing(options.caster, g_displayedAbility)
+    elseif g_sharingData ~= nil and g_displayedAbility ~= nil then
+        --A different ability took over the card while a share was still live
+        --(DisplayAbility keeps sharing across a card swap, and the share is only
+        --cleared once no card is up). Seen live: Black Ash Teleport's hide card
+        --was still showing when the hero began Eviscerate, so the table saw
+        --Eviscerate's roll under "Caster May Hide And Gain A Surge". Re-point
+        --the share at the new ability and drop the old roll's state. This sets
+        --the fields in place instead of calling BeginAbilitySharing again,
+        --which would start a second heartbeat loop.
+        local caster = options.caster or g_sharingToken
+        local casterId = (caster ~= nil and caster.valid) and caster.charid or g_sharingData.casterTokenId
+        if AbilityShareKey(g_displayedAbility, casterId) ~= AbilityShareKey(g_sharingData.ability, g_sharingData.casterTokenId) then
+            if caster ~= nil and caster.valid and (caster.charid == g_sharingData.casterTokenId or ShouldShareAbility(caster)) then
+                g_sharingToken = caster
+                g_sharingData = {
+                    casterTokenId = caster.charid,
+                    ability = g_displayedAbility,
+                    userid = dmhub.loginUserid,
+                }
+                if spine.setCurrentCastingToken ~= nil then
+                    spine.setCurrentCastingToken(caster)
+                end
+            else
+                --Not ours to share (another token, off its turn): stop
+                --broadcasting the old ability rather than leave it up.
+                ClearAbilityShare()
+            end
+        end
     end
 
     -- Update the shared document with the new section.

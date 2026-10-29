@@ -10,12 +10,17 @@ local mod = dmhub.GetModLoading()
 --
 --Layout, left to right under a stepper: the hero so far (the town's hero
 --card plus a few lines), the current step's page (main pick cards, then
---one block per choice), and a detail pane describing whatever the player
---last hovered. A footer holds Back, Fill in the rest, and Next / Finish.
+--one block per choice), and a picks pane listing what the player has chosen
+--on this step so far. Every card and pick has an (i) whose hover popup
+--shows the item in full. A footer holds Back, Fill in the rest, and
+--Next / Finish.
 --
 --Entry point: EotwBuilder.Open{host, token, onFinish, onClose}.
 --Design/plan doc: EncounterOfTheWeek/EncounterOfTheWeek.md,
 --"The hero builder and hero sheet".
+
+local T = UIText.T
+local TP = UIText.Plural
 
 EotwBuilder = {}
 
@@ -38,7 +43,9 @@ local C = {
 }
 
 local SUMMARY_WIDTH = 360
-local DETAIL_WIDTH = 500
+local PICKS_WIDTH = 440
+--the width of an (i) popup's contents
+local POPUP_WIDTH = 480
 local HEADER_HEIGHT = 132
 local FOOTER_HEIGHT = 86
 
@@ -236,6 +243,34 @@ local RULES = {
         selectors = { "eotwbStatus", "stale" },
         color = C.STALE,
     },
+    --the (i) on a card or pick that pops up the item's details
+    {
+        selectors = { "eotwbInfoIcon" },
+        bgcolor = C.MUTED,
+    },
+    {
+        selectors = { "eotwbInfoIcon", "hover" },
+        bgcolor = C.CREAM_LIGHT,
+    },
+    {
+        selectors = { "eotwbInfoIcon", "parent:selected" },
+        bgcolor = C.INK,
+    },
+    --a block in the picks pane: the main pick, or one choice's picks
+    {
+        selectors = { "eotwbPickBlock" },
+        bgcolor = C.CARD,
+        borderColor = C.BORDER,
+        borderWidth = 1,
+    },
+    {
+        selectors = { "eotwbPickBlock", "todo" },
+        borderColor = "#e9b86f88",
+    },
+    {
+        selectors = { "eotwbPickBlock", "stale" },
+        borderColor = C.STALE,
+    },
     --characteristic boxes on the Class page
     {
         selectors = { "eotwbAttr" },
@@ -259,7 +294,7 @@ local RULES = {
 }
 
 --The full cascade: the theme, the old builder's classes (ability cards in
---the detail pane use them), the hero card's rules, then ours.
+--the (i) popups use them), the hero card's rules, then ours.
 local function BuilderStyles()
     local rules = {}
     for _,list in ipairs({ CBStyles.GetStyles(), EotwHeroCard.rules, RULES }) do
@@ -275,22 +310,13 @@ local function StepIntro(stepid)
     local strings = CharacterBuilder.STRINGS
     local key = string.upper(stepid)
     if stepid == "appearance" then
-        return "Give your hero a name and a face, and if you like a frame for their token and an anthem."
+        return T("builder.appearance.intro")
     end
     if stepid == "skills" then
-        return "Your ancestry, culture, career and class each let you pick skills and languages. Pick them all here: click a skill to take it, click it again to drop it. Each pick goes to whichever of your choices can take it, so you only see a skill as available if it still fits."
+        return T("builder.skills.intro")
     end
     local entry = strings[key]
     return entry and entry.INTRO or ""
-end
-
---The step's overview text for the detail pane when nothing is focused.
-local function StepOverview(stepid)
-    local entry = CharacterBuilder.STRINGS[string.upper(stepid)]
-    if entry ~= nil and entry.OVERVIEW ~= nil then
-        return entry.OVERVIEW
-    end
-    return StepIntro(stepid)
 end
 
 --The current main pick of a step, as the id its cards use.
@@ -346,7 +372,7 @@ local function SetBase(token, stepid, id)
     end
 end
 
---The table row behind a main-pick id, for the detail pane.
+--The table row behind a main-pick id, for its (i) and the picks pane.
 local function BaseItem(stepid, id)
     local tableName = nil
     if stepid == "ancestry" then
@@ -406,48 +432,6 @@ local function Text(text, classes, extra)
         args[k] = v
     end
     return gui.Label(args)
-end
-
---A clickable card (a main pick) or chip (a choice's option).
---args: text, selected, unavailable, width, height, fontSize, press, hover
-local function Card(args)
-    return gui.Panel{
-        classes = Classes("eotwbCard", { selected = args.selected == true, unavailable = args.unavailable == true }),
-        bgimage = "panels/square.png",
-        cornerRadius = 6,
-        width = args.width or 230,
-        height = args.height or 56,
-        hmargin = 4,
-        vmargin = 4,
-        hpad = 8,
-        borderBox = true,
-        hover = function()
-            if args.hover ~= nil then
-                args.hover()
-            end
-        end,
-        dehover = function()
-            if args.dehover ~= nil then
-                args.dehover()
-            end
-        end,
-        press = function()
-            if args.unavailable or args.press == nil then
-                return
-            end
-            audio.FireSoundEvent("Mouse.Click")
-            args.press()
-        end,
-        children = {
-            gui.Label{
-                classes = { "eotwbCardText" },
-                text = args.text,
-                fontSize = args.fontSize,
-                minFontSize = 11,
-                interactable = false,
-            },
-        },
-    }
 end
 
 --Set a scroll position now and again once layout has run: set while the
@@ -538,7 +522,234 @@ local function CoverCrop(element, aspect)
     end
 end
 
---An ability card for the detail pane, top-aligned.
+--A panel showing `image` cropped to fill it (CoverCrop). extra: more panel
+--fields (width, height, margins, children, ...).
+---@param image string
+---@param extra table
+---@return Panel
+local function ArtPanel(image, extra)
+    local panelArgs = {
+        bgimage = image,
+        bgcolor = "white",
+        cornerRadius = 8,
+        interactable = false,
+        --Crop only once both the image and the panel's size are known:
+        --imageLoaded can come before layout, or never (an image already
+        --cached), so a short think retries it.
+        data = { cropped = false },
+        imageLoaded = function(element)
+            element:FireEvent("crop")
+        end,
+        crop = function(element)
+            local w = element.renderedWidth
+            local h = element.renderedHeight
+            if element.bgsprite == nil or w == nil or h == nil or w <= 1 or h <= 1 then
+                return
+            end
+            CoverCrop(element, w / h)
+            element.data.cropped = true
+        end,
+        thinkTime = 0.05,
+        think = function(element)
+            element:FireEvent("crop")
+            if element.data.cropped then
+                element.thinkTime = nil
+            end
+        end,
+    }
+    for k,v in pairs(extra) do
+        panelArgs[k] = v
+    end
+    return gui.Panel(panelArgs)
+end
+
+--The builder's styles for (i) popups, made on first use. A popup is not
+--inside the builder's root, so it does not inherit the root's styles.
+local g_popupStyles = nil
+local function PopupStyles()
+    if g_popupStyles == nil then
+        g_popupStyles = BuilderStyles()
+    end
+    return g_popupStyles
+end
+
+--The contents of an (i) popup for a detail table:
+--  { title, text, panelFn, art, image }
+--art (a class's or ancestry's) is a banner across the top; image (another
+--item's portrait) sits centered above the title.
+local function DetailBody(d)
+    ---@type Panel[]
+    local children = {}
+    if d.art ~= nil and d.art ~= "" then
+        children[#children+1] = ArtPanel(d.art, { width = "100%", height = 220, bmargin = 12 })
+    elseif d.image ~= nil and d.image ~= "" then
+        children[#children+1] = gui.Panel{
+            width = "auto",
+            height = "auto",
+            maxWidth = 240,
+            maxHeight = 240,
+            halign = "center",
+            bgimage = d.image,
+            bgcolor = "white",
+            cornerRadius = 8,
+            bmargin = 12,
+            autosizeimage = true,
+            interactable = false,
+        }
+    end
+    if d.title ~= nil then
+        children[#children+1] = gui.Label{ classes = { "eotwbHeading" }, text = d.title, fontSize = 26, width = "100%", bmargin = 8 }
+    end
+    if d.panelFn ~= nil then
+        local ok, panel = pcall(d.panelFn)
+        if ok and panel ~= nil then
+            children[#children+1] = panel
+        end
+    end
+    if d.text ~= nil and d.text ~= "" then
+        children[#children+1] = Text(d.text, { "eotwbText" }, { fontSize = 16 })
+    end
+    return gui.Panel{
+        styles = PopupStyles(),
+        width = POPUP_WIDTH,
+        height = "auto",
+        flow = "vertical",
+        interactable = false,
+        children = children,
+    }
+end
+
+--The (i) on a card or pick: hovering it pops up the item in full.
+--detailFn returns a detail table (see DetailBody), or nil for none.
+--side: where the popup opens, "right" (default) or "left" (the picks pane
+--is at the screen's right edge). extra: more panel fields.
+---@param detailFn fun(): table|nil
+---@param side? string
+---@param extra? table
+---@return Panel
+local function InfoIcon(detailFn, side, extra)
+    local panelArgs = {
+        classes = { "eotwbInfoIcon" },
+        bgimage = "phosphor/info.png",
+        width = 20,
+        height = 20,
+        popupPositioning = "panel",
+        hover = function(element)
+            local ok, d = pcall(detailFn)
+            if not ok or d == nil then
+                return
+            end
+            local built, body = pcall(DetailBody, d)
+            if built and body ~= nil then
+                element.tooltip = gui.TooltipFrame(body, { halign = side or "right", valign = "center" })
+            end
+        end,
+        --the (i) is for reading: a click on it must not pick its card.
+        press = function() end,
+        click = function() end,
+    }
+    for k,v in pairs(extra or {}) do
+        panelArgs[k] = v
+    end
+    return gui.Panel(panelArgs)
+end
+
+--A clickable card (a main pick) or chip (a choice's option).
+--args: text, selected, unavailable, width, height, fontSize, press, info,
+--blockedTip
+--info: a function returning the card's detail table for its (i), or nil
+--for a card without one.
+--blockedTip: a tooltip shown when an unavailable card is clicked, saying
+--why it can't be picked.
+local function Card(args)
+    ---@type Panel[]
+    local children = {
+        gui.Label{
+            classes = { "eotwbCardText" },
+            text = args.text,
+            fontSize = args.fontSize,
+            minFontSize = 11,
+            --leave room for the (i) on the right, evenly on both sides so
+            --the name stays centered.
+            width = cond(args.info ~= nil, "100%-44", "100%"),
+            halign = "center",
+            interactable = false,
+        },
+    }
+    if args.info ~= nil then
+        children[#children+1] = InfoIcon(args.info, "right", { floating = true, halign = "right", valign = "center" })
+    end
+    return gui.Panel{
+        classes = Classes("eotwbCard", { selected = args.selected == true, unavailable = args.unavailable == true }),
+        bgimage = "panels/square.png",
+        cornerRadius = 6,
+        width = args.width or 230,
+        height = args.height or 56,
+        hmargin = 4,
+        vmargin = 4,
+        hpad = 8,
+        borderBox = true,
+        press = function(element)
+            if args.unavailable and args.blockedTip ~= nil then
+                gui.Tooltip(args.blockedTip)(element)
+                return
+            end
+            if args.unavailable or args.press == nil then
+                return
+            end
+            audio.FireSoundEvent("Mouse.Click")
+            args.press()
+        end,
+        children = children,
+    }
+end
+
+--The opening of an item's text for the picks pane: its first line that is
+--not a heading, cut at a sentence (or a word) near `limit` characters.
+---@param text string|nil
+---@param limit integer
+---@return string
+local function Blurb(text, limit)
+    if type(text) ~= "string" then
+        return ""
+    end
+    for line in string.gmatch(text, "[^\n]+") do
+        line = trim(line)
+        if line ~= "" and string.sub(line, 1, 1) ~= "#" then
+            if #line <= limit then
+                return line
+            end
+            local cut = string.sub(line, 1, limit)
+            local stop = string.match(cut, "^.*()[%.!?] ")
+            if stop ~= nil and stop > limit / 2 then
+                return string.sub(cut, 1, stop)
+            end
+            local space = string.match(cut, "^.*() ") or (limit + 1)
+            return string.sub(cut, 1, space - 1) .. "..."
+        end
+    end
+    return ""
+end
+
+--A choice row's status words and their class (nil, "done" or "stale"),
+--e.g. "Choose 2", as both the page and the picks pane show it.
+---@param row table a row from EotwBuild.Status
+---@param info table the row's info from EotwBuild.RowOptions
+---@return string, string|nil
+local function RowStatusText(row, info)
+    if #row.stale > 0 then
+        return T("builder.choice.status.stale"), "stale"
+    elseif row.complete then
+        return cond(row.exhausted, T("builder.choice.status.exhausted"), T("builder.choice.status.done")), "done"
+    elseif info.costsPoints then
+        return T("builder.choice.status.points_to_spend", { count = row.remaining, points = info.pointsName }), nil
+    elseif row.remaining == info.numChoices then
+        return TP("builder.choice.status.choose", info.numChoices), nil
+    end
+    return T("builder.choice.status.choose_more", { count = row.remaining }), nil
+end
+
+--An ability card for an (i) popup, top-aligned.
 local function AbilityCard(ability)
     return ability:Render({ width = "100%", halign = "left", valign = "top", vmargin = 4 }, {})
 end
@@ -557,11 +768,11 @@ local function SubclassDetail(subclass)
                 children[#children+1] = gui.Label{ classes = { "eotwbText" }, text = details, markdown = true, fontSize = 16, textAlignment = "topleft", bmargin = 10 }
             end
             if #features > 0 then
-                children[#children+1] = gui.Label{ classes = { "eotwbSection" }, text = "At 1st level" }
+                children[#children+1] = gui.Label{ classes = { "eotwbSection" }, text = T("builder.detail.subclass_first_level") }
             end
             for _,entry in ipairs(features) do
                 local feature = entry.feature
-                local name = Field(feature, "name") or "Feature"
+                local name = Field(feature, "name") or T("builder.detail.feature_fallback")
                 local ability = OptionAbility(feature)
                 if ability ~= nil then
                     children[#children+1] = AbilityCard(ability)
@@ -579,7 +790,7 @@ local function SubclassDetail(subclass)
     }
 end
 
---What the detail pane shows for one option of a choice row. A kit shows
+--What the (i) popup shows for one option of a choice row. A kit shows
 --the whole kit; an ability pick shows its ability card (top-aligned, with
 --no repeat of its flavor text underneath).
 local function OptionDetail(entry, info)
@@ -595,7 +806,7 @@ local function OptionDetail(entry, info)
             return {
                 title = kit.name,
                 panelFn = function()
-                    return kit:Render({ width = DETAIL_WIDTH - 60 }, {})
+                    return kit:Render({ width = POPUP_WIDTH }, {})
                 end,
             }
         end
@@ -627,7 +838,7 @@ local function CultureDetail(item)
         lines[#lines+1] = description
         lines[#lines+1] = ""
     end
-    lines[#lines+1] = "Taking this culture sets:"
+    lines[#lines+1] = T("builder.culture.detail.sets")
     lines[#lines+1] = ""
     for _,cat in ipairs(CultureAspect.categories) do
         local aspect = aspectsTable[(item.aspects or {})[cat.id] or ""]
@@ -658,7 +869,7 @@ local function CultureDetail(item)
     local languageid = item:try_get("languageid")
     local language = type(languageid) == "string" and (dmhub.GetTableVisible(Language.tableName) or {})[languageid] or nil
     if language ~= nil then
-        lines[#lines+1] = string.format("**Language:** %s", language.name)
+        lines[#lines+1] = T("builder.culture.detail.language", { language = language.name })
     end
     return { title = item.name, text = table.concat(lines, "\n") }
 end
@@ -673,6 +884,9 @@ end
 --  step      optional step to open on (default: the first incomplete one)
 --  only      optional step id: show only that step (no stepper choice, no
 --            Back / Fill / Next), e.g. "appearance" for Change Appearance
+--  lockedSteps optional set of step ids ({ancestry = true}) whose main pick
+--            is fixed once made: the page shows only the chosen card. A
+--            rebuild locks Ancestry and Class; Create locks nothing.
 --  onFinish  function(token) when the player finishes a complete hero
 --  onClose   function(token) when the player closes without finishing
 ---@param args table
@@ -687,7 +901,10 @@ function EotwBuilder.Open(args)
     local pageContent = nil
     --above the scrolling page: blocks that stay in view (see BuildPage)
     local pageHeader
-    local detail
+    --the picks pane on the right: its heading and its scrolling body
+    local picks
+    local picksHeading
+    local picksBody
     local footer
     local messageLabel
     local themeHandler = nil
@@ -696,8 +913,6 @@ function EotwBuilder.Open(args)
         step = nil,
         --a characteristic picked as the first half of a swap
         swapAttr = nil,
-        --what the detail pane shows; nil = the step's own overview
-        detail = nil,
         message = "",
         --true after Fill in the Rest filled this page: the button then offers
         --to fill every other tab too. Any other action disarms it.
@@ -706,6 +921,9 @@ function EotwBuilder.Open(args)
         blocks = {},
         stepperSignature = nil,
         summarySignature = nil,
+        --the picks pane's two blocks, each rebuilt only when its signature
+        --changes: { step, baseSignature, basePanel, rowsSignature, rowsPanel }
+        picks = {},
     }
 
     local function Tok()
@@ -725,145 +943,10 @@ function EotwBuilder.Open(args)
         state.fillAllArmed = false
         local ok, err = pcall(fn, tok)
         if not ok then
-            state.message = "Something went wrong: " .. tostring(err)
+            state.message = T("builder.footer.error", { error = tostring(err) })
             printf("EotW builder: %s", tostring(err))
         end
         Refresh(false)
-    end
-
-    --- detail pane ---
-
-    local function ShowDetail(d)
-        state.detail = d
-        if detail == nil or not detail.valid then
-            return
-        end
-        d = d or {}
-
-        --Art mode (a class): the art fills the pane and the text sits on a
-        --darkened band over its lower part, as the old builder showed it.
-        if d.art ~= nil and d.art ~= "" then
-            ---@type Panel[]
-            local overlay = {}
-            if d.title ~= nil then
-                overlay[#overlay+1] = gui.Label{ classes = { "eotwbHeading" }, text = d.title, fontSize = 30, width = "100%", bmargin = 8 }
-            end
-            if d.text ~= nil and d.text ~= "" then
-                overlay[#overlay+1] = Text(d.text, { "eotwbText" }, { fontSize = 16 })
-            end
-            detail.children = {
-                gui.Panel{
-                    width = "100%",
-                    height = "100%",
-                    bgimage = d.art,
-                    bgcolor = "white",
-                    cornerRadius = 8,
-                    --Crop only once both the image and the panel's size are
-                    --known: imageLoaded can come before layout, or never (an
-                    --image already cached), so a short think retries it.
-                    data = { cropped = false },
-                    imageLoaded = function(element)
-                        element:FireEvent("crop")
-                    end,
-                    crop = function(element)
-                        local w = element.renderedWidth
-                        local h = element.renderedHeight
-                        if element.bgsprite == nil or w == nil or h == nil or w <= 1 or h <= 1 then
-                            return
-                        end
-                        CoverCrop(element, w / h)
-                        element.data.cropped = true
-                    end,
-                    thinkTime = 0.05,
-                    think = function(element)
-                        element:FireEvent("crop")
-                        if element.data.cropped then
-                            element.thinkTime = nil
-                        end
-                    end,
-                    children = {
-                        gui.Panel{
-                            width = "100%",
-                            height = "auto",
-                            maxHeight = 560,
-                            valign = "bottom",
-                            flow = "vertical",
-                            vscroll = true,
-                            bgimage = "panels/square.png",
-                            bgcolor = "#10110Fe6",
-                            pad = 18,
-                            rpad = 26,
-                            borderBox = true,
-                            children = overlay,
-                        },
-                    },
-                },
-            }
-            return
-        end
-
-        ---@type Panel[]
-        local children = {}
-        if d.image ~= nil and d.image ~= "" then
-            children[#children+1] = gui.Panel{
-                width = "auto",
-                height = "auto",
-                maxWidth = 320,
-                maxHeight = 360,
-                halign = "center",
-                bgimage = d.image,
-                bgcolor = "white",
-                cornerRadius = 8,
-                bmargin = 12,
-                autosizeimage = true,
-                interactable = false,
-            }
-        end
-        if d.title ~= nil then
-            children[#children+1] = gui.Label{
-                classes = { "eotwbHeading" },
-                text = d.title,
-                fontSize = 26,
-                width = "100%",
-                bmargin = 8,
-            }
-        end
-        if d.panelFn ~= nil then
-            local ok, panel = pcall(d.panelFn)
-            if ok and panel ~= nil then
-                children[#children+1] = panel
-            end
-        end
-        if d.text ~= nil and d.text ~= "" then
-            children[#children+1] = Text(d.text, { "eotwbText" }, { fontSize = 16 })
-        end
-        local body = gui.Panel{
-            width = "100%",
-            height = "100%",
-            flow = "vertical",
-            vscroll = true,
-            pad = 18,
-            rpad = 26,
-            borderBox = true,
-            children = children,
-        }
-        detail.children = { body }
-        SetScroll(body, 1)
-    end
-
-    --The detail for a step when nothing is hovered: the chosen main pick,
-    --or the step's overview.
-    local function DefaultDetail(tok, stepid)
-        local id = CurrentBaseId(tok, stepid)
-        if stepid == "complication" and id == NO_COMPLICATION then
-            return { title = "No Complication", text = "Your hero takes no complication. You can come back and choose one at any time before you finish." }
-        end
-        local item = BaseItem(stepid, id)
-        if item ~= nil then
-            return EotwBuilder.ItemDetail(stepid, item)
-        end
-        local step = EotwBuild.STEP_BY_ID[stepid]
-        return { title = step.title, text = StepOverview(stepid) }
     end
 
     --- the stepper ---
@@ -891,15 +974,15 @@ function EotwBuilder.Open(args)
             --has not used reads "Optional", though it does not block Finish.
             local done = stepStatus.complete and not stepStatus.stale and not stepStatus.optional
             if stepStatus.stale then
-                sub = "Needs attention"
+                sub = T("builder.stepper.needs_attention")
             elseif stepStatus.optional then
-                sub = "Optional"
+                sub = T("builder.stepper.optional")
             elseif stepStatus.complete then
-                sub = "Done"
+                sub = T("builder.stepper.done")
             elseif stepStatus.filled == 0 then
-                sub = "Not started"
+                sub = T("builder.stepper.not_started")
             else
-                sub = string.format("%d left", left)
+                sub = T("builder.stepper.left", { count = left })
             end
             pills[#pills+1] = gui.Panel{
                 classes = Classes("eotwbPill", { current = state.step == stepid }),
@@ -914,7 +997,6 @@ function EotwBuilder.Open(args)
                 press = function()
                     audio.FireSoundEvent("Mouse.Click")
                     state.step = stepid
-                    state.detail = nil
                     state.swapAttr = nil
                     state.message = ""
                     Refresh(true)
@@ -1018,7 +1100,7 @@ function EotwBuilder.Open(args)
             local item = (dmhub.GetTableVisible(CharacterComplication.tableName) or {})[ids[1]]
             complication = item and item.name or "-"
         elseif EotwBuild.hero.ChoseNoComplication(hero) then
-            complication = "None"
+            complication = T("builder.summary.no_complication")
         end
 
 
@@ -1029,38 +1111,40 @@ function EotwBuilder.Open(args)
             return
         end
         state.summarySignature = signature
-        Line("Culture", cultureName)
-        Line("Career", career and career.name or nil)
-        Line("Kit", table.concat(kitNames, ", "))
-        Line("Complication", complication)
+        Line(T("builder.summary.culture"), cultureName)
+        Line(T("builder.summary.career"), career and career.name or nil)
+        Line(T("builder.summary.kit"), table.concat(kitNames, ", "))
+        Line(T("builder.summary.complication"), complication)
         summaryLines.children = lines
     end
 
     --- the page ---
 
-    --The cards for a step's main pick.
+    --Whether this step's main pick is fixed (args.lockedSteps) and already made.
+    --An unmade pick is never locked, so a hero missing one can still choose.
+    local function BaseLocked(tok, stepid)
+        return args.lockedSteps ~= nil and args.lockedSteps[stepid] == true and CurrentBaseId(tok, stepid) ~= nil
+    end
+
+    --The cards for a step's main pick. A locked pick shows only its own card.
     local function BaseCards(tok, stepid, options, width)
         local current = CurrentBaseId(tok, stepid)
+        local locked = BaseLocked(tok, stepid)
         local cards = {}
         for _,entry in ipairs(options) do
             local id = entry.id
+            if locked and id ~= current then
+                goto continue
+            end
             cards[#cards+1] = Card{
                 text = entry.name,
                 selected = current == id,
                 width = width,
-                --Previews only while nothing is chosen, and the preview stays
-                --after the pointer leaves. Once something is chosen the pane
-                --stays on it. (No Complication is a default, not a choice, so
-                --complications can still be previewed over it.)
-                hover = function()
-                    if current ~= nil and current ~= NO_COMPLICATION then
-                        return
-                    end
+                info = function()
                     if id == NO_COMPLICATION then
-                        ShowDetail({ title = "No Complication", text = "Take no complication. Complications are optional: each gives a benefit and a drawback." })
-                    else
-                        ShowDetail(EotwBuilder.ItemDetail(stepid, entry.item))
+                        return { title = T("builder.complication.none.title"), text = T("builder.complication.none.preview") }
                     end
+                    return EotwBuilder.ItemDetail(stepid, entry.item)
                 end,
                 press = function()
                     if current == id then
@@ -1072,15 +1156,14 @@ function EotwBuilder.Open(args)
                     end
                     local step = EotwBuild.STEP_BY_ID[stepid]
                     local Apply = function()
-                        state.detail = nil
                         state.message = ""
                         Act(function(t2) SetBase(t2, stepid, id) end)
                     end
                     if current ~= nil and EotwBuild.HasDependentPicks(t, stepid) then
                         EotwBuilder.Confirm(root, {
-                            title = string.format("Change %s?", step.title),
-                            message = string.format("This clears the choices you made for your current %s.", string.lower(step.title)),
-                            confirm = "Change",
+                            title = T("builder.change_confirm.title", { step = step.title }),
+                            message = T("builder.change_confirm.message", { step = string.lower(step.title) }),
+                            confirm = T("builder.change_confirm.button"),
                             onConfirm = Apply,
                         })
                     else
@@ -1088,6 +1171,7 @@ function EotwBuilder.Open(args)
                     end
                 end,
             }
+            ::continue::
         end
         return gui.Panel{
             width = "100%",
@@ -1180,7 +1264,7 @@ function EotwBuilder.Open(args)
                         interactable = false,
                     },
                     gui.Label{
-                        text = (info.description or attrid) .. cond(locked, " (fixed)", ""),
+                        text = cond(locked, T("builder.class.characteristic_fixed", { name = info.description or attrid }), info.description or attrid),
                         fontSize = 14,
                         color = C.MUTED,
                         width = "100%",
@@ -1198,7 +1282,7 @@ function EotwBuilder.Open(args)
             tmargin = 8,
             children = {
                 gui.Panel{ width = "100%", height = "auto", flow = "horizontal", children = boxes },
-                Text("Drag one characteristic onto another (or click both) to swap their values. Characteristics marked fixed are set by your class.", { "eotwbText", "muted" }, { fontSize = 14, tmargin = 6 }),
+                Text(T("builder.class.characteristics_hint"), { "eotwbText", "muted" }, { fontSize = 14, tmargin = 6 }),
             },
         }
     end
@@ -1207,23 +1291,12 @@ function EotwBuilder.Open(args)
     --options/info come from EotwBuild.RowOptions.
     local function RowBlock(tok, stepid, row, options, info)
 
-        local statusText
-        local statusClass = nil
-        if #row.stale > 0 then
-            statusText = "A pick here is no longer valid. Choose again, or use Fill in the rest."
-            statusClass = "stale"
-        elseif row.complete then
-            statusText = cond(row.exhausted, "Nothing left to choose", "Done")
-            statusClass = "done"
-        elseif info.costsPoints then
-            statusText = string.format("%d %s to spend", row.remaining, info.pointsName)
-        elseif row.remaining == info.numChoices then
-            statusText = cond(info.numChoices == 1, "Choose one", string.format("Choose %d", info.numChoices))
-        else
-            statusText = string.format("Choose %d more", row.remaining)
-        end
+        local statusText, statusClass = RowStatusText(row, info)
 
         local isCharacteristics = row.guid == "characteristics"
+        --a full multi-kit row (a Tactician's two kits) greys out the other
+        --kits; clicking one says to free a slot rather than doing nothing.
+        local kitsFull = info.typeName == "CharacterKitChoice" and info.numChoices > 1 and info.remaining == 0
         local chips = {}
         for _,entry in ipairs(options) do
             local text = entry.name
@@ -1235,12 +1308,12 @@ function EotwBuilder.Open(args)
                 text = text,
                 selected = entry.selected,
                 unavailable = not entry.available,
+                blockedTip = (kitsFull and not entry.available) and T("builder.choice.kits_full") or nil,
                 width = cond(isCharacteristics, 150, 220),
                 height = 44,
                 fontSize = 15,
-                hover = function()
-                    ShowDetail(OptionDetail(entry, info))
-                end,
+                --an array of numbers needs no popup: the boxes below show it.
+                info = (not isCharacteristics) and function() return OptionDetail(entry, info) end or nil,
                 press = function()
                     state.message = ""
                     if isCharacteristics then
@@ -1336,7 +1409,7 @@ function EotwBuilder.Open(args)
             end
         end
 
-        blocks[#blocks+1] = gui.Label{ classes = { "eotwbSection" }, text = "Name" }
+        blocks[#blocks+1] = gui.Label{ classes = { "eotwbSection" }, text = T("builder.appearance.name_heading") }
         blocks[#blocks+1] = gui.Panel{
             width = "100%",
             height = "auto",
@@ -1348,7 +1421,7 @@ function EotwBuilder.Open(args)
                     create = function(element)
                         state.nameInput = element
                     end,
-                    placeholderText = "Your hero's name",
+                    placeholderText = T("builder.appearance.name_placeholder"),
                     characterLimit = 60,
                     fontSize = 22,
                     width = 460,
@@ -1358,7 +1431,7 @@ function EotwBuilder.Open(args)
                     change = SetNameFrom,
                 },
                 gui.Button{
-                    text = "Suggest a Name",
+                    text = T("builder.appearance.suggest_name_button"),
                     fontSize = 18,
                     width = 200,
                     height = 44,
@@ -1370,7 +1443,7 @@ function EotwBuilder.Open(args)
                         end
                         local generated = EotwBuild.GenerateName(t.properties --[[@as character]])
                         if generated == nil then
-                            state.message = "This ancestry has no name list. Type a name instead."
+                            state.message = T("builder.appearance.no_name_list")
                             Refresh(false)
                             return
                         end
@@ -1407,9 +1480,9 @@ function EotwBuilder.Open(args)
             bgcolor = "white",
             data = { dragging = false, anchor = nil, start = nil, wheelSerial = 0 },
             linger = function(element)
-                gui.Tooltip("Drag to move the portrait within its frame. Scroll to zoom.")(element)
+                gui.Tooltip(T("builder.appearance.preview_tooltip"))(element)
             end,
-            --The wheel drives the Zoom slider: each notch moves it 5%, and a
+            --The wheel drives the Zoom slider: each notch moves it 0.5%, and a
             --whole spin settles into one upload rather than one per notch.
             wheel = function(element, delta)
                 local t = Tok()
@@ -1417,7 +1490,7 @@ function EotwBuilder.Open(args)
                     return true
                 end
                 local current = zoomSlider.value or 1
-                local newZoom = current + 0.05 * delta
+                local newZoom = current + 0.005 * delta
                 --clamp to the slider's range, but never snap a typed-in value
                 --that already lies outside it back inside.
                 if delta > 0 then
@@ -1529,7 +1602,7 @@ function EotwBuilder.Open(args)
         local zoom = 1
         pcall(function() zoom = tok.portraitZoom or 1 end)
 
-        blocks[#blocks+1] = gui.Label{ classes = { "eotwbSection" }, text = "Portrait" }
+        blocks[#blocks+1] = gui.Label{ classes = { "eotwbSection" }, text = T("builder.appearance.portrait_heading") }
         blocks[#blocks+1] = gui.Panel{
             width = "100%",
             height = "auto",
@@ -1542,14 +1615,14 @@ function EotwBuilder.Open(args)
                     lmargin = 20,
                     flow = "vertical",
                     children = {
-                        Text("Your class's art is your portrait until you choose another. Click the image to the right to pick or upload your own.", { "eotwbText", "muted" }, { fontSize = 15, bmargin = 10 }),
+                        Text(T("builder.appearance.portrait_hint"), { "eotwbText", "muted" }, { fontSize = 15, bmargin = 10 }),
                         gui.Panel{
                             width = "100%",
                             height = "auto",
                             flow = "horizontal",
                             children = {
                                 gui.Button{
-                                    text = "Use Class Art",
+                                    text = T("builder.appearance.class_art_button"),
                                     fontSize = 18,
                                     width = 190,
                                     height = 44,
@@ -1557,11 +1630,11 @@ function EotwBuilder.Open(args)
                                     click = function()
                                         local t = Tok()
                                         local classItem = t and (t.properties --[[@as character]]):GetClass() or nil
-                                        SetPortraitTo(classItem and classItem:try_get("portraitid", "") or nil, "Choose a class first: its art is the default portrait.", true)
+                                        SetPortraitTo(classItem and classItem:try_get("portraitid", "") or nil, T("builder.appearance.class_art_missing"), true)
                                     end,
                                 },
                                 gui.Button{
-                                    text = "Use Ancestry Art",
+                                    text = T("builder.appearance.ancestry_art_button"),
                                     fontSize = 18,
                                     width = 190,
                                     height = 44,
@@ -1569,11 +1642,13 @@ function EotwBuilder.Open(args)
                                     click = function()
                                         local t = Tok()
                                         local race = t and EotwBuild.hero.Ancestry(t.properties --[[@as character]]) or nil
-                                        SetPortraitTo(race and race:try_get("portraitid", "") or nil, "Choose an ancestry with art first.")
+                                        SetPortraitTo(race and race:try_get("portraitid", "") or nil, T("builder.appearance.ancestry_art_missing"))
                                     end,
                                 },
                                 gui.IconEditor{
-                                    library = cond(dmhub.GetSettingValue("popoutavatars"), "popoutavatars", "Avatar"),
+                                    --Always open on plain Avatars: players kept uploading ordinary
+                                    --portraits into Popout Avatars by accident. It stays pickable.
+                                    library = "Avatar",
                                     restrictImageType = "Avatar",
                                     allowPaste = true,
                                     borderColor = C.TAN,
@@ -1583,7 +1658,7 @@ function EotwBuilder.Open(args)
                                     height = 96,
                                     bgcolor = "white",
                                     linger = function(element)
-                                        gui.Tooltip("Choose a portrait from the library, or upload your own.")(element)
+                                        gui.Tooltip(T("builder.appearance.portrait_picker_tooltip"))(element)
                                     end,
                                     --IconEditor swaps its image itself, and
                                     --imageLoaded does not reliably reach us, so a
@@ -1613,7 +1688,7 @@ function EotwBuilder.Open(args)
                                 },
                             },
                         },
-                        gui.Label{ classes = { "eotwbText", "muted" }, text = "Zoom", fontSize = 15, tmargin = 14 },
+                        gui.Label{ classes = { "eotwbText", "muted" }, text = T("builder.appearance.zoom_label"), fontSize = 15, tmargin = 14 },
                         gui.Slider{
                             width = 420,
                             height = 30,
@@ -1645,7 +1720,7 @@ function EotwBuilder.Open(args)
                             end,
                         },
                         gui.Button{
-                            text = "Reset Placement",
+                            text = T("builder.appearance.reset_placement_button"),
                             fontSize = 16,
                             width = 180,
                             height = 38,
@@ -1706,7 +1781,7 @@ function EotwBuilder.Open(args)
                     height = "auto",
                     flow = "vertical",
                     children = {
-                        gui.Label{ classes = { "eotwbSection" }, text = "Frame" },
+                        gui.Label{ classes = { "eotwbSection" }, text = T("builder.appearance.frame_heading") },
                         gui.IconEditor{
                             library = "AvatarFrame",
                             width = 140,
@@ -1728,7 +1803,7 @@ function EotwBuilder.Open(args)
                                 end
                             end,
                         },
-                        Text("The frame around your hero's token.", { "eotwbText", "muted" }, { fontSize = 14, tmargin = 6 }),
+                        Text(T("builder.appearance.frame_hint"), { "eotwbText", "muted" }, { fontSize = 14, tmargin = 6 }),
                     },
                 },
                 gui.Panel{
@@ -1736,9 +1811,9 @@ function EotwBuilder.Open(args)
                     height = "auto",
                     flow = "vertical",
                     children = {
-                        gui.Label{ classes = { "eotwbSection" }, text = "Anthem" },
+                        gui.Label{ classes = { "eotwbSection" }, text = T("builder.appearance.anthem_heading") },
                         anthemEditor,
-                        gui.Label{ classes = { "eotwbText", "muted" }, text = "Volume", fontSize = 14, tmargin = 6 },
+                        gui.Label{ classes = { "eotwbText", "muted" }, text = T("builder.appearance.volume_label"), fontSize = 14, tmargin = 6 },
                         gui.Slider{
                             width = 220,
                             height = 24,
@@ -1760,7 +1835,7 @@ function EotwBuilder.Open(args)
                                 end
                             end,
                         },
-                        Text("Music that plays when your hero takes their turn. Optional.", { "eotwbText", "muted" }, { fontSize = 14, tmargin = 6 }),
+                        Text(T("builder.appearance.anthem_hint"), { "eotwbText", "muted" }, { fontSize = 14, tmargin = 6 }),
                     },
                 },
             },
@@ -1810,35 +1885,36 @@ function EotwBuilder.Open(args)
         local lines = {}
         local category = entry.category and Skill.categoriesById[entry.category] or nil
         if kind == "skill" and category ~= nil then
-            lines[#lines+1] = string.format("*%s skill*", category.text)
+            lines[#lines+1] = T("builder.skills.detail.category", { category = category.text })
         end
         if entry.dead then
-            lines[#lines+1] = "*A dead language: no one speaks it any more, but its writing can still be read.*"
+            lines[#lines+1] = T("builder.skills.detail.dead")
         end
         if entry.speakers ~= nil then
-            lines[#lines+1] = string.format("**%s:** %s", cond(entry.dead, "Once spoken by", "Spoken by"), entry.speakers)
+            lines[#lines+1] = cond(entry.dead, T("builder.skills.detail.once_spoken_by", { speakers = entry.speakers }), T("builder.skills.detail.spoken_by", { speakers = entry.speakers }))
         end
         if type(entry.description) == "string" and entry.description ~= "" then
             lines[#lines+1] = entry.description
         end
         lines[#lines+1] = ""
         if entry.state == "native" then
-            lines[#lines+1] = "**Your native language** (chosen with your culture)."
+            lines[#lines+1] = T("builder.skills.detail.native")
         elseif entry.state == "fixed" then
-            lines[#lines+1] = string.format("**You know this %s already** from %s.", kind, entry.source or "another of your features")
+            local source = entry.source or T("builder.skills.detail.source_fallback")
+            lines[#lines+1] = cond(kind == "skill", T("builder.skills.detail.known_skill", { source = source }), T("builder.skills.detail.known_language", { source = source }))
         elseif entry.state == "selected" then
-            lines[#lines+1] = "**Picked.** Click to drop it."
+            lines[#lines+1] = T("builder.skills.detail.picked")
         elseif entry.state == "selectable" then
-            lines[#lines+1] = "**Available.** Click to pick it."
+            lines[#lines+1] = T("builder.skills.detail.available")
         else
-            lines[#lines+1] = "**Not available:** none of your remaining choices can take it."
+            lines[#lines+1] = T("builder.skills.detail.unavailable")
         end
         if #entry.pools > 0 and entry.state ~= "native" and entry.state ~= "fixed" then
-            lines[#lines+1] = "Can be picked for: " .. table.concat(entry.pools, ", ")
+            lines[#lines+1] = T("builder.skills.detail.pools", { choices = table.concat(entry.pools, ", ") })
         end
         if entry.special ~= nil then
             lines[#lines+1] = ""
-            lines[#lines+1] = "**Special:** your " .. table.concat(entry.special, ", ") .. " gives you a benefit with this skill."
+            lines[#lines+1] = T("builder.skills.detail.special", { features = table.concat(entry.special, ", ") })
         end
         return { title = entry.name, text = table.concat(lines, "\n") }
     end
@@ -1851,7 +1927,7 @@ function EotwBuilder.Open(args)
             notes[#notes+1] = entry.speakers
         end
         if entry.dead then
-            notes[#notes+1] = "dead"
+            notes[#notes+1] = T("builder.skills.card.dead")
         end
         if #notes == 0 then
             return entry.name
@@ -1870,17 +1946,20 @@ function EotwBuilder.Open(args)
                 text = PoolCardText(entry),
                 fontSize = 15,
                 minFontSize = 11,
+                --room for the star on the left and the (i) on the right
+                width = "100%-44",
+                halign = "center",
                 interactable = false,
             },
+            InfoIcon(function() return PoolEntryDetail(kind, entry) end, "right", { floating = true, halign = "right", valign = "center" }),
         }
         if entry.special ~= nil then
             children[#children+1] = gui.Panel{
                 floating = true,
                 width = 16,
                 height = 16,
-                halign = "right",
+                halign = "left",
                 valign = "top",
-                x = -4,
                 y = 4,
                 bgimage = "phosphor/star-fill.png",
                 bgcolor = "#ffd66bff",
@@ -1903,9 +1982,6 @@ function EotwBuilder.Open(args)
             vmargin = 4,
             hpad = 8,
             borderBox = true,
-            hover = function()
-                ShowDetail(PoolEntryDetail(kind, entry))
-            end,
             press = function()
                 if not clickable then
                     return
@@ -1923,14 +1999,14 @@ function EotwBuilder.Open(args)
         local rows = {}
         local function Add(pool, kindName)
             local step = EotwBuild.STEP_BY_ID[pool.source or ""]
-            local status = cond(pool.remaining == 0, "Done", string.format("%d left", pool.remaining))
+            local status = cond(pool.remaining == 0, T("builder.skills.summary.done"), T("builder.skills.summary.left", { count = pool.remaining }))
             rows[#rows+1] = gui.Panel{
                 width = "100%",
                 height = "auto",
                 flow = "horizontal",
                 vmargin = 3,
                 children = {
-                    gui.Label{ classes = { "eotwbText", "muted" }, text = string.format("%s (%s)", step and step.title or "", kindName), width = 220, fontSize = 15 },
+                    gui.Label{ classes = { "eotwbText", "muted" }, text = cond(kindName == "skill", T("builder.skills.summary.source_skill", { step = step and step.title or "" }), T("builder.skills.summary.source_language", { step = step and step.title or "" })), width = 220, fontSize = 15 },
                     gui.Label{ classes = { "eotwbText" }, text = pool.description or pool.name, markdown = true, width = "100%-330", fontSize = 15 },
                     gui.Label{ classes = Classes("eotwbStatus", { done = pool.remaining == 0 }), text = status, width = 100, textAlignment = "right" },
                 },
@@ -1943,7 +2019,7 @@ function EotwBuilder.Open(args)
             Add(pool, "language")
         end
         if #rows == 0 then
-            rows[1] = Text("You have no skills or languages to pick yet. They come from your ancestry, culture, career and class.", { "eotwbText", "muted" }, { fontSize = 15 })
+            rows[1] = Text(T("builder.skills.summary.none"), { "eotwbText", "muted" }, { fontSize = 15 })
         end
         return gui.Panel{
             classes = { "eotwbRow" },
@@ -2001,13 +2077,13 @@ function EotwBuilder.Open(args)
     local function GrantsBox(grants)
         local lines = {}
         if #grants.fixed > 0 then
-            lines[#lines+1] = "**You gain:** " .. table.concat(grants.fixed, ", ")
+            lines[#lines+1] = T("builder.grants.you_gain", { list = table.concat(grants.fixed, ", ") })
         end
         for _,pool in ipairs(grants.pools) do
             lines[#lines+1] = string.format("**%s:** %s", pool.name, pool.description or "")
         end
         local children = {
-            gui.Label{ classes = { "eotwbText" }, text = "Skills & Languages", fontSize = 18, bold = true, color = "#bfe0f0ff" },
+            gui.Label{ classes = { "eotwbText" }, text = T("builder.grants.heading"), fontSize = 18, bold = true, color = "#bfe0f0ff" },
             Text(table.concat(lines, "\n"), { "eotwbText" }, { fontSize = 15, vmargin = 4 }),
         }
         return gui.Panel{
@@ -2077,7 +2153,7 @@ function EotwBuilder.Open(args)
                 return PoolSummary(skillView, languageView)
             end, true)
             Add("skillsheader", "", function()
-                return gui.Label{ classes = { "eotwbSection" }, text = "Skills" }
+                return gui.Label{ classes = { "eotwbSection" }, text = T("builder.skills.skills_heading") }
             end)
             Add("skills", PoolViewSignature(skillView), function()
                 return PoolCards("skill", skillView)
@@ -2089,8 +2165,8 @@ function EotwBuilder.Open(args)
                     height = "auto",
                     flow = "vertical",
                     children = {
-                        gui.Label{ classes = { "eotwbSection" }, text = "Languages" },
-                        Text(nativeItem and string.format("Your native language is **%s**, from your culture.", nativeItem.name) or "Choose your native language on the Culture step.", { "eotwbText", "muted" }, { fontSize = 15, bmargin = 4 }),
+                        gui.Label{ classes = { "eotwbSection" }, text = T("builder.skills.languages_heading") },
+                        Text(nativeItem and T("builder.skills.native_language", { language = nativeItem.name }) or T("builder.skills.native_language_missing"), { "eotwbText", "muted" }, { fontSize = 15, bmargin = 4 }),
                     },
                 }
             end)
@@ -2136,28 +2212,38 @@ function EotwBuilder.Open(args)
                     end)
                 end
                 Add("ownculture", "", function()
-                    return gui.Label{ classes = { "eotwbSection" }, text = "Or build your own culture from three aspects" }
+                    return gui.Label{ classes = { "eotwbSection" }, text = T("builder.culture.own_culture_heading") }
                 end)
             elseif step.base ~= nil then
                 local baseRow = stepStatus.rows[1]
                 local optional = baseRow ~= nil and baseRow.optional == true
                 local done = baseRow ~= nil and baseRow.complete and not optional
-                local statusText = cond(optional, "Optional", cond(done, "Done", "Choose one"))
-                Add("baseheader", statusText, function()
+                local statusText = cond(optional, T("builder.base.status.optional"), cond(done, T("builder.base.status.done"), T("builder.base.status.choose_one")))
+                local locked = BaseLocked(tok, stepid)
+                Add("baseheader", statusText .. tostring(locked), function()
+                    local heading = cond(locked, T("builder.base.heading_locked", { pick = string.lower(step.base) }), T("builder.base.heading", { pick = string.lower(step.base) }))
                     return gui.Panel{
                         width = "100%",
                         height = "auto",
-                        flow = "horizontal",
+                        flow = "vertical",
                         children = {
-                            gui.Label{ classes = { "eotwbSection" }, text = string.format("Choose your %s", string.lower(step.base)), width = "auto" },
-                            gui.Label{ classes = Classes("eotwbStatus", { done = done }), text = statusText, valign = "center", lmargin = 14, tmargin = 12 },
+                            gui.Panel{
+                                width = "100%",
+                                height = "auto",
+                                flow = "horizontal",
+                                children = {
+                                    gui.Label{ classes = { "eotwbSection" }, text = heading, width = "auto" },
+                                    gui.Label{ classes = Classes("eotwbStatus", { done = done }), text = statusText, valign = "center", lmargin = 14, tmargin = 12 },
+                                },
+                            },
+                            locked and Text(T("builder.base.locked_note", { pick = string.lower(step.base) }), { "eotwbText", "muted" }, { bmargin = 6 }) or nil,
                         },
                     }
                 end)
                 Add("basecards", current, function()
                     local options = EotwBuild.BaseOptions(hero, stepid)
                     if stepid == "complication" then
-                        table.insert(options, 1, { id = NO_COMPLICATION, name = "No Complication" })
+                        table.insert(options, 1, { id = NO_COMPLICATION, name = T("builder.complication.none.card") })
                     end
                     return BaseCards(tok, stepid, options)
                 end)
@@ -2186,7 +2272,7 @@ function EotwBuilder.Open(args)
                     if options ~= nil and info ~= nil then
                         if not headed and stepid ~= "culture" then
                             Add("choicesheader", "", function()
-                                return gui.Label{ classes = { "eotwbSection" }, text = "Your choices" }
+                                return gui.Label{ classes = { "eotwbSection" }, text = T("builder.choice.heading") }
                             end)
                             headed = true
                         end
@@ -2245,6 +2331,302 @@ function EotwBuilder.Open(args)
         end
     end
 
+    --- the picks pane ---
+
+    --One block in the picks pane: a bordered box around `children`.
+    --todo/stale color the border as the page's choice blocks do.
+    local function PickBlock(children, todo, stale)
+        return gui.Panel{
+            classes = Classes("eotwbPickBlock", { todo = todo == true, stale = stale == true }),
+            bgimage = "panels/square.png",
+            cornerRadius = 8,
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            pad = 12,
+            borderBox = true,
+            vmargin = 5,
+            children = children,
+        }
+    end
+
+    --A block's small heading, such as "Signature Ability".
+    local function PickLabel(text)
+        return gui.Label{ classes = { "eotwbText" }, text = text, fontSize = 15, bold = true, color = C.TAN, bmargin = 4 }
+    end
+
+    --One pick: its name and, when it has details, an (i) opening to the left.
+    --color: optional, e.g. for a stale pick or one the hero has from elsewhere.
+    local function PickLine(name, detailFn, color)
+        ---@type Panel[]
+        local children = {
+            gui.Label{
+                classes = { "eotwbText" },
+                text = name,
+                fontSize = 17,
+                color = color or C.CREAM_LIGHT,
+                width = "auto",
+                maxWidth = PICKS_WIDTH - 90,
+                valign = "center",
+            },
+        }
+        if detailFn ~= nil then
+            children[#children+1] = InfoIcon(detailFn, "left", { valign = "center", lmargin = 8 })
+        end
+        return gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            vmargin = 2,
+            children = children,
+        }
+    end
+
+    --A row status line ("Choose 2"), colored like the page's.
+    local function PickStatus(text, statusClass)
+        return gui.Label{
+            classes = Classes("eotwbStatus", { [statusClass or "none"] = statusClass ~= nil }),
+            text = text,
+            tmargin = 2,
+        }
+    end
+
+    --The main pick's block: its art, its name with an (i), and the opening of
+    --its text; or a note that it is still to choose. nil when the step has
+    --no main pick to show (Culture without a typical culture: its aspects
+    --are listed as choices below).
+    local function PicksBase(tok, stepid)
+        local step = EotwBuild.STEP_BY_ID[stepid]
+        local id = CurrentBaseId(tok, stepid)
+        if stepid == "complication" and id == NO_COMPLICATION then
+            return PickBlock({
+                PickLine(T("builder.complication.none.title"), nil),
+                Text(T("builder.complication.none.detail"), { "eotwbText", "muted" }, { fontSize = 15, tmargin = 4 }),
+            })
+        end
+        local item = BaseItem(stepid, id)
+        if item == nil then
+            if step.base == nil then
+                return nil
+            end
+            return PickBlock({
+                PickLabel(step.base),
+                PickStatus(T("builder.picks.not_chosen"), nil),
+            }, true)
+        end
+        local d = EotwBuilder.ItemDetail(stepid, item)
+        local banner = d.art or d.image
+        ---@type Panel[]
+        local children = {}
+        if banner ~= nil and banner ~= "" then
+            children[#children+1] = ArtPanel(banner, { width = "100%", height = 170, bmargin = 10 })
+        end
+        if step.base ~= nil then
+            children[#children+1] = PickLabel(step.base)
+        end
+        children[#children+1] = gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            children = {
+                gui.Label{ classes = { "eotwbHeading" }, text = item.name, fontSize = 24, maxWidth = PICKS_WIDTH - 90, valign = "center" },
+                InfoIcon(function() return EotwBuilder.ItemDetail(stepid, item) end, "left", { valign = "center", lmargin = 10 }),
+            },
+        }
+        local blurb = Blurb(d.text, 220)
+        if blurb ~= "" then
+            children[#children+1] = Text(blurb, { "eotwbText", "muted" }, { fontSize = 15, tmargin = 6 })
+        end
+        return PickBlock(children)
+    end
+
+    --The five characteristics as small boxes, once an array is chosen.
+    local function PicksCharacteristics(tok)
+        local hero = tok.properties --[[@as character]]
+        local build = hero:try_get("attributeBuild") or {}
+        if build.array == nil then
+            return nil
+        end
+        local boxes = {}
+        for _,attrid in ipairs(creature.attributeIds) do
+            local info = creature.attributesInfo[attrid] or {}
+            local value = 0
+            pcall(function() value = hero:GetBaseAttribute(attrid).baseValue or 0 end)
+            boxes[#boxes+1] = gui.Panel{
+                classes = { "eotwbAttr" },
+                bgimage = "panels/square.png",
+                cornerRadius = 6,
+                width = 68,
+                height = 58,
+                hmargin = 3,
+                flow = "vertical",
+                children = {
+                    gui.Label{ text = string.format("%+d", value), fontSize = 22, bold = true, color = C.CREAM_LIGHT, width = "100%", height = 32, textAlignment = "center" },
+                    gui.Label{ text = info.description or attrid, fontSize = 11, minFontSize = 8, color = C.MUTED, width = "100%", height = "auto", textAlignment = "center", textWrap = false },
+                },
+            }
+        end
+        return gui.Panel{ width = "auto", height = "auto", flow = "horizontal", halign = "left", tmargin = 2, children = boxes }
+    end
+
+    --One choice row's block: its name, each pick with an (i), and what is
+    --still to choose.
+    local function PicksRow(tok, stepid, row, options, info)
+        local statusText, statusClass = RowStatusText(row, info)
+        local stale = {}
+        for _,id in ipairs(row.stale) do
+            stale[id] = true
+        end
+        ---@type Panel[]
+        local children = { PickLabel(row.name) }
+        if row.guid == "characteristics" then
+            local boxes = PicksCharacteristics(tok)
+            if boxes ~= nil then
+                children[#children+1] = boxes
+            end
+        else
+            for _,entry in ipairs(options) do
+                if entry.selected then
+                    children[#children+1] = PickLine(entry.name, function() return OptionDetail(entry, info) end, stale[entry.id] and C.STALE or nil)
+                end
+            end
+        end
+        --"Done" goes without saying once the picks are listed.
+        if statusClass ~= "done" then
+            children[#children+1] = PickStatus(statusText, statusClass)
+        end
+        return PickBlock(children, not row.complete, #row.stale > 0)
+    end
+
+    --Skills & Languages in the picks pane: per kind, what the player picked
+    --here, what is still to pick, and what the hero has from elsewhere.
+    local function PicksPools(views)
+        local blocks = {}
+        for _,kind in ipairs({ "skill", "language" }) do
+            local view = views[kind]
+            local remaining = 0
+            for _,pool in ipairs(view.pools) do
+                remaining = remaining + pool.remaining
+            end
+            local chosen = {}
+            local known = {}
+            for _,entry in ipairs(view.entries) do
+                local DetailFn = function() return PoolEntryDetail(kind, entry) end
+                if entry.state == "selected" then
+                    chosen[#chosen+1] = PickLine(entry.name, DetailFn)
+                elseif entry.state == "native" then
+                    known[#known+1] = PickLine(T("builder.picks.native", { language = entry.name }), DetailFn, C.CREAM)
+                elseif entry.state == "fixed" then
+                    known[#known+1] = PickLine(entry.name, DetailFn, C.CREAM)
+                end
+            end
+            if #chosen > 0 or remaining > 0 then
+                local children = { PickLabel(cond(kind == "skill", T("builder.picks.skills_chosen"), T("builder.picks.languages_chosen"))) }
+                for _,line in ipairs(chosen) do
+                    children[#children+1] = line
+                end
+                if remaining > 0 then
+                    children[#children+1] = PickStatus(T("builder.picks.left_to_choose", { count = remaining }), nil)
+                end
+                blocks[#blocks+1] = PickBlock(children, remaining > 0)
+            end
+            if #known > 0 then
+                local children = { PickLabel(cond(kind == "skill", T("builder.picks.skills_known"), T("builder.picks.languages_known"))) }
+                for _,line in ipairs(known) do
+                    children[#children+1] = line
+                end
+                blocks[#blocks+1] = PickBlock(children)
+            end
+        end
+        return blocks
+    end
+
+    --Appearance in the picks pane: the name, whether a portrait and an
+    --anthem are set.
+    local function PicksAppearance(tok)
+        local name = trim(tok.name or "")
+        local hasPortrait = EotwBuild.PortraitIsSet(tok.portrait)
+        local hasAnthem = false
+        pcall(function() hasAnthem = tok.anthem ~= nil and tok.anthem ~= "" end)
+        local function Block(label, value, todo)
+            if value == nil then
+                return PickBlock({ PickLabel(label), PickStatus(T("builder.picks.not_chosen"), nil) }, todo)
+            end
+            return PickBlock({ PickLabel(label), PickLine(value, nil) })
+        end
+        return {
+            Block(T("builder.picks.name"), cond(name ~= "", name, nil), true),
+            Block(T("builder.picks.portrait"), cond(hasPortrait, T("builder.picks.chosen"), nil), true),
+            Block(T("builder.picks.anthem"), cond(hasAnthem, T("builder.picks.chosen"), T("builder.picks.none")), false),
+        }
+    end
+
+    --Draw the picks pane for the current step. The main pick and the rest
+    --are separate blocks, each rebuilt only when what it shows changed, so a
+    --pick lower down does not reload the class art.
+    local function BuildPicks(tok, stepStatus)
+        local stepid = stepStatus.id
+        if state.picks.step ~= stepid then
+            state.picks = { step = stepid }
+        end
+        local cache = state.picks
+        picksHeading.text = T("builder.picks.heading", { step = stepStatus.title })
+
+        local baseSignature = tostring(CurrentBaseId(tok, stepid))
+        local rowsSignature
+        local BuildRows
+        if stepid == "skills" then
+            local views = { skill = EotwBuild.PoolTable(tok, "skill"), language = EotwBuild.PoolTable(tok, "language") }
+            rowsSignature = PoolViewSignature(views.skill) .. "#" .. PoolViewSignature(views.language)
+            BuildRows = function() return PicksPools(views) end
+        elseif stepid == "appearance" then
+            local anthem = nil
+            pcall(function() anthem = tok.anthem end)
+            rowsSignature = string.format("%s|%s|%s", tostring(tok.name), tostring(EotwBuild.PortraitIsSet(tok.portrait)), tostring(anthem))
+            BuildRows = function() return PicksAppearance(tok) end
+        else
+            local rows = {}
+            local parts = {}
+            for _,row in ipairs(stepStatus.rows) do
+                if not row.base then
+                    local options, info = EotwBuild.RowOptions(tok, stepid, row.guid)
+                    if options ~= nil and info ~= nil then
+                        rows[#rows+1] = { row = row, options = options, info = info }
+                        parts[#parts+1] = RowSignature(tok, row, options)
+                    end
+                end
+            end
+            rowsSignature = table.concat(parts, "#")
+            BuildRows = function()
+                local blocks = {}
+                for _,r in ipairs(rows) do
+                    blocks[#blocks+1] = PicksRow(tok, stepid, r.row, r.options, r.info)
+                end
+                return blocks
+            end
+        end
+
+        local changed = false
+        if cache.baseSignature ~= baseSignature or (cache.basePanel ~= nil and not cache.basePanel.valid) then
+            cache.baseSignature = baseSignature
+            cache.basePanel = (stepid ~= "skills" and stepid ~= "appearance") and PicksBase(tok, stepid) or nil
+            changed = true
+        end
+        if cache.rowsSignature ~= rowsSignature or cache.rowsPanel == nil or not cache.rowsPanel.valid then
+            cache.rowsSignature = rowsSignature
+            cache.rowsPanel = gui.Panel{ width = "100%", height = "auto", flow = "vertical", children = BuildRows() }
+            changed = true
+        end
+        if changed then
+            local children = {}
+            if cache.basePanel ~= nil then
+                children[#children+1] = cache.basePanel
+            end
+            children[#children+1] = cache.rowsPanel
+            picksBody.children = children
+        end
+    end
+
     --- the footer ---
 
     local backButton
@@ -2271,26 +2653,26 @@ function EotwBuilder.Open(args)
         if status.complete then
             state.fillAllArmed = false
         end
-        fillButton.text = cond(state.fillAllArmed, "For All Tabs?", "Fill in the Rest")
+        fillButton.text = cond(state.fillAllArmed, T("builder.footer.fill_all_button"), T("builder.footer.fill_button"))
         fillButton:SetClass("disabled", not state.fillAllArmed and stepStatus.complete and not stepStatus.stale)
         if index == #EotwBuild.STEPS then
-            nextButton.text = "Finish"
+            nextButton.text = T("builder.footer.finish_button")
         elseif stepStatus.complete then
-            nextButton.text = "Next"
+            nextButton.text = T("builder.footer.next_button")
         else
-            nextButton.text = "Skip for Now"
+            nextButton.text = T("builder.footer.skip_button")
         end
         messageLabel.text = state.message or ""
         state.allComplete = status.complete
         if closeButton ~= nil and closeButton.valid then
-            closeButton.text = cond(status.complete, "Finish", "Save and Close")
+            closeButton.text = cond(status.complete, T("builder.header.finish_button"), T("builder.header.save_close_button"))
         end
     end
 
     --- refresh ---
 
     --Redraw everything from the character. newStep: the page is a different
-    --step than before (scroll to the top, show the step's own detail).
+    --step than before (scroll the page and the picks pane to the top).
     Refresh = function(newStep)
         if root == nil or not root.valid then
             return
@@ -2306,14 +2688,17 @@ function EotwBuilder.Open(args)
         end
         BuildStepper(status)
         BuildSummary(tok)
-        BuildPage(tok, status.steps[StepIndex(state.step)], not newStep)
-        if newStep or state.detail == nil then
-            ShowDetail(DefaultDetail(tok, state.step))
+        local stepStatus = status.steps[StepIndex(state.step)]
+        BuildPage(tok, stepStatus, not newStep)
+        BuildPicks(tok, stepStatus)
+        if newStep then
+            SetScroll(picksBody, 1)
         end
         UpdateFooter(status)
     end
 
-    --Redraw the stepper, the hero summary and the footer, but not the page.
+    --Redraw the stepper, the hero summary, the picks pane and the footer,
+    --but not the page.
     RefreshChrome = function()
         if root == nil or not root.valid then
             return
@@ -2325,12 +2710,12 @@ function EotwBuilder.Open(args)
         local status = EotwBuild.Status(tok)
         BuildStepper(status)
         BuildSummary(tok)
+        BuildPicks(tok, status.steps[StepIndex(state.step)])
         UpdateFooter(status)
     end
 
     GoTo = function(stepid)
         state.step = stepid
-        state.detail = nil
         state.swapAttr = nil
         state.fillAllArmed = false
         Refresh(true)
@@ -2400,6 +2785,9 @@ function EotwBuilder.Open(args)
                         name = args.token.name or "",
                     }, {
                         halign = "center",
+                        --centred in its wrapper: the stats card's uiscale grows
+                        --it about its centre, so top-aligned it pokes out above.
+                        valign = "center",
                         showStats = true,
                         showSkills = false,
                         showResources = false,
@@ -2436,20 +2824,39 @@ function EotwBuilder.Open(args)
 
     --the page's column: the pinned header over the scrolling page.
     local pageColumn = gui.Panel{
-        width = string.format("100%%-%d", SUMMARY_WIDTH + DETAIL_WIDTH + 40),
+        width = string.format("100%%-%d", SUMMARY_WIDTH + PICKS_WIDTH + 40),
         height = "100%",
         hmargin = 20,
         flow = "vertical",
         children = { pageHeader, page },
     }
 
-    --holds either a scrolling body or the full-bleed art view (ShowDetail).
-    detail = gui.Panel{
+    picksHeading = gui.Label{
+        classes = { "eotwbSection" },
+        text = "",
+        fontSize = 22,
+        tmargin = 0,
+        bmargin = 4,
+    }
+
+    picksBody = gui.Panel{
+        width = "100%",
+        height = "100% available",
+        flow = "vertical",
+        vscroll = true,
+    }
+
+    --what the player has chosen on this step so far (BuildPicks)
+    picks = gui.Panel{
         classes = { "eotwbColumn" },
         bgimage = "panels/square.png",
-        width = DETAIL_WIDTH,
+        width = PICKS_WIDTH,
         height = "100%",
         flow = "vertical",
+        pad = 16,
+        rpad = 10,
+        borderBox = true,
+        children = { picksHeading, picksBody },
     }
 
     messageLabel = gui.Label{
@@ -2463,7 +2870,7 @@ function EotwBuilder.Open(args)
     }
 
     backButton = gui.Button{
-        text = "Back",
+        text = T("builder.footer.back_button"),
         fontSize = 20,
         width = 180,
         height = 48,
@@ -2478,16 +2885,16 @@ function EotwBuilder.Open(args)
     }
 
     fillButton = gui.Button{
-        text = "Fill in the Rest",
+        text = T("builder.footer.fill_button"),
         fontSize = 20,
         width = 220,
         height = 48,
         hmargin = 8,
         linger = function(element)
             if state.fillAllArmed then
-                gui.Tooltip("Fill every choice you have not made yet on all the other tabs too, completing the hero. Your own choices are kept.")(element)
+                gui.Tooltip(T("builder.footer.fill_all_tooltip"))(element)
             else
-                gui.Tooltip("Fill every choice on this page you have not made yet with a sensible default or a random pick. Your own choices are kept.")(element)
+                gui.Tooltip(T("builder.footer.fill_tooltip"))(element)
             end
         end,
         --First click fills this page and arms the button as "For All Tabs?";
@@ -2505,16 +2912,15 @@ function EotwBuilder.Open(args)
                 ok, picks = pcall(EotwBuild.Fill, tok, state.step)
             end
             if not ok then
-                state.message = "Something went wrong: " .. tostring(picks)
+                state.message = T("builder.footer.error", { error = tostring(picks) })
                 printf("EotW builder: %s", tostring(picks))
             elseif picks == nil or #picks == 0 then
-                state.message = cond(allTabs, "Nothing left to fill.", "Nothing left to fill on this page.")
+                state.message = cond(allTabs, T("builder.footer.nothing_to_fill_all"), T("builder.footer.nothing_to_fill"))
             else
-                state.message = string.format("Filled %d choice%s%s.", #picks, cond(#picks == 1, "", "s"), cond(allTabs, " across all tabs", ""))
+                state.message = cond(allTabs, TP("builder.footer.filled_all", #picks), TP("builder.footer.filled", #picks))
             end
             --UpdateFooter disarms it again once the whole hero is complete.
             state.fillAllArmed = ok and not allTabs
-            state.detail = nil
             state.swapAttr = nil
             --the Appearance page's inputs show the filled name, so rebuild it.
             Refresh(state.step == "appearance")
@@ -2522,7 +2928,7 @@ function EotwBuilder.Open(args)
     }
 
     nextButton = gui.Button{
-        text = "Next",
+        text = T("builder.footer.next_button"),
         fontSize = 20,
         width = 220,
         height = 48,
@@ -2547,7 +2953,7 @@ function EotwBuilder.Open(args)
             for _,stepid in ipairs(status.incomplete) do
                 names[#names+1] = EotwBuild.STEP_BY_ID[stepid].title
             end
-            state.message = "Still to do: " .. table.concat(names, ", ") .. "."
+            state.message = T("builder.footer.still_to_do", { steps = table.concat(names, ", ") })
             GoTo(status.incomplete[1])
         end,
     }
@@ -2614,8 +3020,8 @@ function EotwBuilder.Open(args)
                         borderBox = true,
                         flow = "vertical",
                         children = {
-                            gui.Label{ classes = { "eotwbHeading" }, text = args.title or "Create Your Hero", fontSize = 30, valign = "center", tmargin = 30 },
-                            gui.Label{ classes = { "eotwbText", "muted" }, text = "Level 1 hero for Blackbottom", fontSize = 15, width = "auto" },
+                            gui.Label{ classes = { "eotwbHeading" }, text = args.title or T("builder.header.title"), fontSize = 30, valign = "center", tmargin = 30 },
+                            gui.Label{ classes = { "eotwbText", "muted" }, text = T("builder.header.subtitle"), fontSize = 15, width = "auto" },
                         },
                     },
                     gui.Panel{
@@ -2630,7 +3036,7 @@ function EotwBuilder.Open(args)
                             --"Save and Close" until every step is complete,
                             --then "Finish" (UpdateFooter switches it).
                             gui.Button{
-                                text = "Save and Close",
+                                text = T("builder.header.save_close_button"),
                                 fontSize = 18,
                                 width = 200,
                                 height = 44,
@@ -2646,9 +3052,9 @@ function EotwBuilder.Open(args)
                                         return
                                     end
                                     if state.allComplete then
-                                        gui.Tooltip("Your hero is complete. Finish and add them to your roster.")(element)
+                                        gui.Tooltip(T("builder.header.finish_tooltip"))(element)
                                     else
-                                        gui.Tooltip("Keep this hero as a draft and come back to it later from the Hero's Guild.")(element)
+                                        gui.Tooltip(T("builder.header.save_close_tooltip"))(element)
                                     end
                                 end,
                                 click = function()
@@ -2659,13 +3065,13 @@ function EotwBuilder.Open(args)
                     },
                 },
             },
-            --body: summary | page | detail
+            --body: summary | page | picks
             gui.Panel{
                 width = "100%-32",
                 height = string.format("100%%-%d", HEADER_HEIGHT + FOOTER_HEIGHT),
                 halign = "center",
                 flow = "horizontal",
-                children = { summary, pageColumn, detail },
+                children = { summary, pageColumn, picks },
             },
             footer,
         },
@@ -2674,6 +3080,7 @@ function EotwBuilder.Open(args)
     args.host:AddChild(root)
 
     themeHandler = ThemeEngine.OnThemeChanged(mod, function()
+        g_popupStyles = nil
         if root ~= nil and root.valid then
             root.styles = BuilderStyles()
         end
@@ -2684,7 +3091,7 @@ function EotwBuilder.Open(args)
     return root
 end
 
---What the detail pane shows for a main-pick item: its art, name and text
+--What the (i) popup shows for a main-pick item: its art, name and text
 --(a complication shows its benefit and drawback).
 ---@param stepid string
 ---@param item table
@@ -2756,7 +3163,7 @@ function EotwBuilder.Confirm(host, args)
                         flow = "horizontal",
                         children = {
                             gui.Button{
-                                text = args.confirm or "Confirm",
+                                text = args.confirm or T("builder.confirm.confirm_button"),
                                 fontSize = 18,
                                 width = 180,
                                 height = 44,
@@ -2767,7 +3174,7 @@ function EotwBuilder.Confirm(host, args)
                                 end,
                             },
                             gui.Button{
-                                text = "Cancel",
+                                text = T("builder.confirm.cancel_button"),
                                 fontSize = 18,
                                 width = 180,
                                 height = 44,

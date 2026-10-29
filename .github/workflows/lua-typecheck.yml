@@ -1,0 +1,57 @@
+name: Lua type check
+
+# Runs lua-language-server (LuaLS) over the whole codex with the settings in .luarc.json.
+# The rule is zero problems: fix what it reports, or suppress that one line with
+# `---@diagnostic disable-next-line: <code>` and a comment saying why. See TYPING.md.
+
+on:
+  push:
+    branches: [main]
+    paths: ['**.lua', '.luarc.json', '.github/workflows/lua-typecheck.yml', '.github/scripts/luals_report.py']
+  pull_request:
+    paths: ['**.lua', '.luarc.json', '.github/workflows/lua-typecheck.yml', '.github/scripts/luals_report.py']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lua-typecheck-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Keep in step with the LuaLS bundled with the VS Code Lua extension people use locally,
+  # so CI and editors report the same problems. Bump both together.
+  LUALS_VERSION: 3.19.2
+  LUALS_SHA256: 93ad326b10f6c00911dd8c450fa098332dbd8f9f45d1052f5636a2d54479b947
+  # LuaLS worker processes. Each holds the whole codex in memory, so this is bounded by
+  # the runner's RAM; see "Running it in CI" in TYPING.md for the measurements.
+  LUALS_WORKERS: 4
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install lua-language-server ${{ env.LUALS_VERSION }}
+        run: |
+          cd "$RUNNER_TEMP"
+          curl -fsSL -o luals.tar.gz "https://github.com/LuaLS/lua-language-server/releases/download/${LUALS_VERSION}/lua-language-server-${LUALS_VERSION}-linux-x64.tar.gz"
+          echo "${LUALS_SHA256}  luals.tar.gz" | sha256sum -c -
+          mkdir luals
+          tar -xzf luals.tar.gz -C luals
+
+      - name: Type check
+        run: |
+          "$RUNNER_TEMP/luals/bin/lua-language-server" --check "$GITHUB_WORKSPACE" \
+            --configpath "$GITHUB_WORKSPACE/.luarc.json" --checklevel=Warning \
+            --num_threads="$LUALS_WORKERS" --logpath "$RUNNER_TEMP/luals-log" \
+            --check_out_path "$RUNNER_TEMP/luals-check.json"
+
+      - name: Report problems
+        if: always()
+        run: |
+          python3 .github/scripts/luals_report.py "$RUNNER_TEMP/luals-check.json" \
+            "$GITHUB_WORKSPACE" "$RUNNER_TEMP/luals-log" "$LUALS_WORKERS"

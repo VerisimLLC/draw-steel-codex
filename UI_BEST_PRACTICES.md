@@ -358,7 +358,9 @@ gui.Panel{
 
 Layout: `width`, `height`, `flow`, `halign`, `valign`, `pad`, `hpad`, `vpad`, `margin`, `hmargin`, `vmargin`, `tmargin`, `bmargin`, `lmargin`, `rmargin`, `maxWidth`, `maxHeight`, `borderBox`
 
-Visual: `bgcolor`, `bgimage`, `bgslice`, `border`, `borderColor`, `borderWidth`, `cornerRadius`, `gradient`, `opacity`, `brightness`, `shadow`, `hueshift`
+Visual: `bgcolor`, `bgimage`, `bgslice`, `border`, `borderColor`, `borderWidth`, `cornerRadius`, `gradient`, `opacity`, `groupOpacity`, `brightness`, `boxShadow`, `hueshift`
+
+`opacity` fades only the panel's own background and text, not its children. To fade a whole panel with everything inside it (CSS `opacity`), use `groupOpacity`.
 
 Text: `color`, `fontSize`, `fontFace`, `textAlignment`, `bold`, `italic`, `strikethrough`, `textWrap`
 
@@ -571,6 +573,17 @@ cornerRadius = { x1 = 0, x2 = 0, y1 = 4, y2 = 4 } -- bottom corners only
 ```
 
 **Use real borders, not panels-as-dividers.** When you need a separator line between sibling sections (e.g. between modifier cards in a list), put a per-edge `border` on the section panel — do not add a thin `gui.Panel{ height = 1, bgcolor = "@border" }` sibling. The border facility is semantic, ignores layout flow, costs zero extra layout passes, and respects `borderColor` cleanly. A panel-as-divider adds a layout child, contends with margins, and risks breaking under scrolling. Reach for a divider panel only when the border facility can't express what you need (gradient line, shaped separator, divider with mid-line text/icon).
+
+### Drop Shadows
+
+`boxShadow` works like CSS `box-shadow`: a soft shadow outside the panel, following its `cornerRadius`. Every field is optional; `false` removes a shadow an earlier rule set. It animates with `transitionTime`, so a rule can lift a panel:
+
+```lua
+boxShadow = {x = 3, y = 5, blur = 18, color = "#000000a0"}   -- y is down
+{selectors = {"myCard", "dragging"}, boxShadow = {y = 18, blur = 44, color = "#000000b8"}, transitionTime = 0.15}
+```
+
+It is drawn only outside the panel, on whatever is behind it, so it suits panels that float over something (windows, cards). The engine sets `dragging` on a panel while it is dragged.
 
 ### Wrap
 

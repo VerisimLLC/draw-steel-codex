@@ -742,14 +742,9 @@ function RSPSession.FollowersOf(charid, includeRetainers)
 
     for followerId, _ in pairs(followers) do
         local follower = dmhub.GetCharacterById(followerId)
-        local followerType = nil
-        pcall(function()
-            if follower ~= nil and follower.properties:IsFollower() then
-                followerType = string.lower(follower.properties:try_get("followerType", ""))
-            end
-        end)
+        local followerType = DTFollowers.FollowerType(follower)
 
-        local wanted = followerType == "artisan" or followerType == "sage"
+        local wanted = DTFollowers.RollsOnProjects(follower)
         if includeRetainers and followerType == "retainer" then
             wanted = true
         end

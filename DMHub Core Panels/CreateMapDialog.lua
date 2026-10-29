@@ -51,7 +51,38 @@ end
 --then the game.GetOtherGameMapPreview result (or {failed = true}).
 local s_otherGamePreviews = {}
 
-mod.shared.ShowCreateMapDialog = function()
+--the sidebar section the dialog last showed, so the next open this session
+--returns to it (transient: every app start opens on All Maps). One of
+--"empty", "import", "othergames", or "library|<kind>|<packid or blank>".
+local g_lastSectionSetting = setting{
+    id = "createmap:lastsection",
+    description = "Create Map Dialog Section",
+    storage = "transient",
+    default = "library|all|",
+}
+
+--Goes to a map just added to the game. On the table it opens in the focused
+--map window, or, with none, in a new window shaped to the map (Tabletop.OpenMap).
+---@param map MapManifestLua
+local function ShowNewMap(map)
+    if Tabletop.IsActive() then
+        Tabletop.OpenMap(map.id)
+    else
+        map:Travel()
+    end
+end
+
+--options (optional): { created = function(mapid) } is called once the map
+--the dialog makes exists in the game, before travelling to it. Every way of
+--making a map calls it: blank, import, map library, another game.
+mod.shared.ShowCreateMapDialog = function(options)
+
+    local m_created = options ~= nil and options.created or nil
+    local function NotifyCreated(mapid)
+        if m_created ~= nil then
+            m_created(mapid)
+        end
+    end
 
     ---@type Panel?
     local selectedMap = nil
@@ -377,6 +408,16 @@ mod.shared.ShowCreateMapDialog = function()
         return SameMap(a, b) and a.variantIndex == b.variantIndex
     end
 
+    --id of the markup set the pack makes this map's default, "" for none.
+    local DefaultMarkupOf = function(entry)
+        if entry == nil then
+            return ""
+        end
+        --engine field added with default markup; the generated stub gains it on the next regen.
+        ---@diagnostic disable-next-line: undefined-field
+        return entry.defaultMarkup or ""
+    end
+
     --"12 walls, 3 zones, 2 footstep regions, 1 prop" for a shared markup set.
     local MarkupPartsText = function(info)
         local parts = {}
@@ -447,7 +488,8 @@ mod.shared.ShowCreateMapDialog = function()
                 flow = "horizontal",
                 gui.Label{
                     classes = {"mapPackMarkupAuthor"},
-                    text = cond(info.author ~= "", info.author, "Anonymous"),
+                    text = cond(info.author ~= "", info.author, "Anonymous")
+                        .. cond(info.id ~= "" and info.id == DefaultMarkupOf(m_packEntry), " (Default)", ""),
                 },
                 gui.Label{
                     classes = {"mapPackMarkupParts"},
@@ -537,6 +579,14 @@ mod.shared.ShowCreateMapDialog = function()
                 if #list == 0 then
                     return
                 end
+                --the pack's default set for this map starts checked, so the
+                --dialog adds what an encounter or a drop would.
+                local defaultId = DefaultMarkupOf(entry)
+                for _, info in ipairs(list) do
+                    if info.id == defaultId then
+                        m_markupId = defaultId
+                    end
+                end
                 local rows = {}
                 for _, info in ipairs(list) do
                     rows[#rows + 1] = MarkupRow(info)
@@ -544,6 +594,9 @@ mod.shared.ShowCreateMapDialog = function()
                 markupList.children = rows
                 markupHeading:SetClass("hidden", false)
                 markupStatus:SetClass("hidden", false)
+                markupStatus.text = cond(m_markupId ~= nil,
+                    "The map's default markup is checked. Choose another set, or uncheck it for the plain map.",
+                    "Choose a set to add the map with that markup, or none for the plain map.")
                 RefreshMarkupStatus()
             end,
             error = function(msg)
@@ -1355,7 +1408,8 @@ mod.shared.ShowCreateMapDialog = function()
                     end
                     local map = game.GetMap(mapid)
                     if map ~= nil then
-                        map:Travel()
+                        NotifyCreated(mapid)
+                        ShowNewMap(map)
                     end
                 end)
             end,
@@ -1384,7 +1438,8 @@ mod.shared.ShowCreateMapDialog = function()
                     end
                     local map = game.GetMap(mapid)
                     if map ~= nil then
-                        map:Travel()
+                        NotifyCreated(mapid)
+                        ShowNewMap(map)
                     end
                 end)
             end,
@@ -1447,6 +1502,12 @@ mod.shared.ShowCreateMapDialog = function()
                 local entry = m_packEntry
                 local name = m_mapName
                 local markupId = m_markupId
+                --with nothing checked the user wants the plain map; when the
+                --map has a default set the engine would add that instead
+                --unless told "none".
+                if markupId == nil and DefaultMarkupOf(entry) ~= "" then
+                    markupId = "none"
+                end
                 gui.CloseModal()
                 AddPackMap(entry, name, markupId)
                 return
@@ -1462,7 +1523,7 @@ mod.shared.ShowCreateMapDialog = function()
                     tileType = tileType,
                     nofade = true,
                     finish = function(info)
-                        mod.shared.FinishMapImport(m_mapName, info)
+                        mod.shared.FinishMapImport(m_mapName, info, m_created)
                     end,
                 }
             else
@@ -1478,7 +1539,8 @@ mod.shared.ShowCreateMapDialog = function()
                     local map = game.GetMap(guid)
                     --the loop above only exits once the map exists.
                     ---@cast map -nil
-                    map:Travel()
+                    NotifyCreated(guid)
+                    ShowNewMap(map)
 
                     while game.currentMapId ~= guid do
                         coroutine.yield(0.05)
@@ -2110,6 +2172,19 @@ mod.shared.ShowCreateMapDialog = function()
         --the rows arrive after the dialog opened; when the library view
         --is already showing, light the row for the active filter.
         if m_mainMode == "library" then
+            --a filter remembered from an earlier open may name a pack that
+            --is gone, or Your Maps for an account no longer pledged: then
+            --show All Maps instead (every caller refreshes the grid next).
+            local matched = false
+            for _, row in ipairs(rows) do
+                if row.data.pack == m_packFilter and row.data.kind == m_packKind then
+                    matched = true
+                end
+            end
+            if not matched then
+                m_packFilter = nil
+                m_packKind = "all"
+            end
             for _, row in ipairs(rows) do
                 row:SetClass("selected", row.data.pack == m_packFilter and row.data.kind == m_packKind)
             end
@@ -2282,7 +2357,7 @@ mod.shared.ShowCreateMapDialog = function()
             nofade = true,
             paths = paths,
             finish = function(info)
-                mod.shared.FinishMapImport(name, info)
+                mod.shared.FinishMapImport(name, info, m_created)
             end,
         }
     end
@@ -2822,10 +2897,36 @@ mod.shared.ShowCreateMapDialog = function()
                 row:SetClass("selected", false)
             end
         end
+        if mode == "library" then
+            g_lastSectionSetting:Set(string.format("library|%s|%s", m_packKind, m_packFilter or ""))
+        else
+            g_lastSectionSetting:Set(mode)
+        end
     end
-    --open on the library with All Maps active (m_packFilter starts nil);
-    --the filter rows light themselves in BuildLibraryNav once synced.
-    GoToLibrary()
+
+    --reopen on the section used last this session (All Maps by default).
+    --Library filter rows light themselves in BuildLibraryNav once synced,
+    --which falls back to All Maps if the remembered row no longer exists.
+    local lastSection = g_lastSectionSetting:Get() or ""
+    local restoredSource = false
+    if lastSection == "empty" or lastSection == "import" or lastSection == "othergames" then
+        for _, el in ipairs(sourceNav.children) do
+            if el.data.type == lastSection then
+                el:FireEvent("press")
+                restoredSource = true
+                break
+            end
+        end
+    else
+        local kind, packid = string.match(lastSection, "^library|([^|]*)|(.*)$")
+        if kind ~= nil and kind ~= "" then
+            m_packKind = kind
+            m_packFilter = cond(packid == "", nil, packid)
+        end
+    end
+    if not restoredSource then
+        GoToLibrary()
+    end
 
     local main = gui.Panel{
         width = string.format("100%%-%d", SIDEBAR_WIDTH),
@@ -3896,7 +3997,13 @@ mod.shared.ImportMapToFloorCo = function(info)
     end
 end
 
-mod.shared.FinishMapImport = function(mapName, info)
+--created (optional): called with the new map's id once it exists, before
+--travelling there (ShowCreateMapDialog's options.created).
+--extra (optional): variations, local image or video paths that become the
+--first floor's map appearances (the Floors panel's Map Appearance gallery),
+--each named after its file; done(mapid), called once the images are placed.
+mod.shared.FinishMapImport = function(mapName, info, created, extra)
+    extra = extra or {}
     local floors = {}
 
     for i,objid in ipairs(info.objids) do
@@ -3956,7 +4063,11 @@ mod.shared.FinishMapImport = function(mapName, info)
         }
         map:Upload()
 
-        map:Travel()
+        if created ~= nil then
+            created(guid)
+        end
+
+        ShowNewMap(map)
 
         while game.currentMapId ~= guid do
             coroutine.yield(0.05)
@@ -4010,7 +4121,66 @@ mod.shared.FinishMapImport = function(mapName, info)
         end
 
         mod.shared.FitMapBoundsToImagesCo(game.GetMap(guid), false, "Fit map bounds to imported images")
+
+        if extra.variations ~= nil and #extra.variations > 0 then
+            mod.shared.AddMapVariations(extra.variations, info.paths)
+        end
+
+        if extra.done ~= nil then
+            extra.done(guid)
+        end
     end)
+end
+
+--Gives the current map's map image the files in paths as alternate
+--appearances (uploaded; they show at once), named after their files, with
+--the base image named after basePaths[1]. Same-sized images line up exactly.
+mod.shared.AddMapVariations = function(paths, basePaths)
+    local mapObj = nil
+    for _, floor in ipairs(game.currentMap.floors) do
+        for _, obj in pairs(floor.objects) do
+            if obj:GetComponent("Map") ~= nil then
+                mapObj = obj
+                break
+            end
+        end
+        if mapObj ~= nil then
+            break
+        end
+    end
+    if mapObj == nil then
+        return
+    end
+
+    local swaps = {}
+    local names = {}
+    for _, path in ipairs(paths) do
+        local imageid = FileDrops.UploadImage(path)
+        if imageid ~= nil then
+            swaps[#swaps+1] = imageid
+            names[#names+1] = FileDrops.BaseName(path)
+        end
+    end
+    if #swaps == 0 then
+        return
+    end
+
+    local baseName = ""
+    if basePaths ~= nil and basePaths[1] ~= nil then
+        baseName = FileDrops.BaseName(basePaths[1])
+    end
+
+    mapObj:MarkUndo()
+    mapObj:AddComponent("Appearance")
+    local comp = mapObj:GetComponent("Appearance")
+    if comp == nil then
+        return
+    end
+    comp:SetProperty("imageSwaps", swaps)
+    comp:SetProperty("imageSwapNames", names)
+    comp:SetProperty("imageDefaultName", baseName)
+    comp:SetProperty("imageNumber", 0)
+    mapObj:Upload()
 end
 
 -- Open the alignment dialog in "realign" mode for an already-imported floor.
@@ -5029,6 +5199,51 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
     gui.ShowModal(dialogPanel)
 end
 
+--The grid this map uses. Hex maps from the import wizard are saved as Custom,
+--so their tile shape says which kind of hex they are.
+local function CurrentWizardTileType()
+    local tiletype = dmhub.GetSettingValue("maplayout:tiletype")
+    if tiletype == "custom" then
+        local stagger = dmhub.GetSettingValue("maplayout:stagger")
+        if stagger == "vertical" then
+            return "flattop"
+        elseif stagger == "horizontal" then
+            return "pointtop"
+        end
+        return "squares"
+    end
+
+    if tiletype == "flattop" or tiletype == "pointtop" then
+        return tiletype
+    end
+
+    return "squares"
+end
+
+local ReimportTileTypeNames = {
+    squares = "Squares",
+    flattop = "Flat Top Hexes",
+    pointtop = "Pointy Top Hexes",
+}
+
+--Only change settings that differ, since each change redraws the map.
+--Custom goes last so the map never shows a half-finished hex grid.
+local function ApplyMapLayoutSettings(settings)
+    local keys = {"maplayout:stagger", "maplayout:tilewidth", "maplayout:tileheight", "maplayout:hexslant"}
+    if settings["maplayout:tiletype"] == "custom" then
+        keys[#keys + 1] = "maplayout:tiletype"
+    else
+        table.insert(keys, 1, "maplayout:tiletype")
+    end
+
+    for _, key in ipairs(keys) do
+        local value = settings[key]
+        if value ~= nil and dmhub.GetSettingValue(key) ~= value then
+            dmhub.SetSettingValue(key, value)
+        end
+    end
+end
+
 -- Reimport map sizing: re-run the grid calibration on an existing map object.
 -- floor: the MapFloorLua that contains the map object
 -- mapObj: the LuaObjectInstance with a Map component
@@ -5058,7 +5273,9 @@ mod.shared.ReimportMapSizing = function(floor, mapObj)
     -- Build a reimport dialog using gui.MapImport with imageFromId.
     local resultPanel
     local importPanel
+    local gridlessChoice
     local gridlessInitApplied = false
+    local startTileType = CurrentWizardTileType()
 
     local confirmButton = gui.Button{
         classes = {"sizeL", "hidden"},
@@ -5089,6 +5306,21 @@ mod.shared.ReimportMapSizing = function(floor, mapObj)
             mapObj:Upload()
 
             printf("REIMPORT:: Applied new calibration to object %s", mapObj.id)
+
+            --Update the map's grid too. Reimporting used to fix the image but
+            --leave an old, squashed grid behind.
+            local oldTileType = CurrentWizardTileType()
+            if calibration.mapSettings ~= nil then
+                ApplyMapLayoutSettings(calibration.mapSettings)
+            end
+
+            if oldTileType ~= calibration.tileType then
+                printf("REIMPORT:: Map tiling changed from %s to %s", oldTileType, tostring(calibration.tileType))
+                gui.ModalMessage{
+                    title = "Map Tiling Changed",
+                    message = string.format("This map now uses %s. Undo won't change this back, but you can change it in Map Settings.", ReimportTileTypeNames[calibration.tileType] or "a new grid"),
+                }
+            end
 
             -- Refit the map bounds to the recalibrated image (and any other floors'
             -- images), once the engine reports the new calibration is rendered.
@@ -5139,7 +5371,24 @@ mod.shared.ReimportMapSizing = function(floor, mapObj)
         valign = "top",
     }
 
-    local gridlessChoice = gui.EnumeratedSliderControl{
+    --Changing the grid type starts the grid sizing over.
+    local tileTypeChoice = gui.EnumeratedSliderControl{
+        options = {
+            {id = "squares", text = "Squares"},
+            {id = "flattop", text = "Flat Top"},
+            {id = "pointtop", text = "Pointy Top"},
+        },
+        width = 400,
+        valign = "top",
+        value = startTileType,
+        change = function(element)
+            importPanel.tileType = element.value
+            gridlessChoice.value = true
+        end,
+        vmargin = 8,
+    }
+
+    gridlessChoice = gui.EnumeratedSliderControl{
         options = {
             {id = true, text = "Grid"},
             {id = false, text = "Gridless"},
@@ -5175,6 +5424,7 @@ mod.shared.ReimportMapSizing = function(floor, mapObj)
         flow = "vertical",
         halign = "left",
         valign = "top",
+        tileTypeChoice,
         instructionsText,
         gridlessChoice,
     }
@@ -5258,7 +5508,7 @@ mod.shared.ReimportMapSizing = function(floor, mapObj)
         halign = "right",
         valign = "top",
         y = 26,
-        tileType = "squares",
+        tileType = startTileType,
         imageFromId = imageId,
 
         thinkTime = 0.05,
@@ -5622,4 +5872,34 @@ mod.shared.FinishFloorImport = function(info, offsetX, offsetY)
 
         printf("FLOOR_IMPORT:: ===== END FinishFloorImport =====")
     end)
+end
+
+--The create-map dialog for other modules, which cannot reach this one's
+--mod.shared. options as mod.shared.ShowCreateMapDialog: { created = function(mapid) }.
+function ShowCreateMapDialog(options)
+    mod.shared.ShowCreateMapDialog(options)
+end
+
+--- Makes a new map from image or video files (an operating-system file drop
+--- on the table, say) through the import wizard, where the user sets the
+--- grid. The new map is travelled to once made.
+--- @param paths string[] Local file paths, one per floor.
+--- @param options nil|{name: nil|string, created: nil|fun(mapid: string), variations: nil|string[], done: nil|fun(mapid: string)} name: the map's name; created: called once the map exists, just before travelling to it; variations: more files that become the map's alternate appearances (same size as paths[1], which should then be the only path); done: called once the images are placed on the map.
+function ImportMapFromFiles(paths, options)
+    options = options or {}
+    if paths == nil or #paths == 0 then
+        return
+    end
+    mod.shared.ImportMap{
+        --tile type is always squares for now (as in the create-map dialog).
+        tileType = "squares",
+        nofade = true,
+        paths = paths,
+        finish = function(info)
+            mod.shared.FinishMapImport(options.name or "New Map", info, options.created, {
+                variations = options.variations,
+                done = options.done,
+            })
+        end,
+    }
 end

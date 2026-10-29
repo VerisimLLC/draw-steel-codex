@@ -95,7 +95,8 @@ local function FreeStrikeTargetScore(targetInfo)
     return 1 + (targetInfo.edges or 0)*0.1 + MonsterAI.TargetStaminaBias(targetInfo.token)
 end
 
-local function FindBestImmediateFreeStrike(ai, actor, abilities)
+--onlyTarget (optional) limits the plan to strikes against that one creature.
+local function FindBestImmediateFreeStrike(ai, actor, abilities, onlyTarget)
     --Death-triggered grants resolve before the creature is removed, so the
     --caster can already report dead while still being allowed this strike.
     if not AIControlledCreature(actor) then
@@ -134,7 +135,8 @@ local function FindBestImmediateFreeStrike(ai, actor, abilities)
             for _,targetInfo in ipairs(ai:FindValidTargetsOfStrike(
                 actor, scoringAbility, actor.loc, range)) do
                 local utility = FreeStrikeTargetScore(targetInfo)
-                if best == nil or utility > best.utility then
+                if (onlyTarget == nil or targetInfo.token.charid == onlyTarget.charid)
+                    and (best == nil or utility > best.utility) then
                     local activation = DeepCopy(ability)
                     activation.disableSquadCoordination = true
                     best = {
@@ -216,6 +218,90 @@ MonsterAI:RegisterPrompt{
             return {targets = {}}
         end
         return {targets = {{token = best.token}}}
+    end,
+}
+
+--The melee free strikes a creature can make (the melee half of a melee-and-
+--ranged basic attack counts).
+local function CreatureMeleeFreeStrikeAbilities(token)
+    local result = {}
+    for _,ability in ipairs(token.properties:GetActivatedAbilities()) do
+        if ability.categorization == "Basic Attack" then
+            if ability.meleeAndRanged then
+                result[#result+1] = ability.meleeVariation
+            elseif ability.name == "Melee Free Strike" or ability:HasKeyword("Melee") then
+                result[#result+1] = ability
+            end
+        end
+    end
+    return result
+end
+
+--"One ally adjacent to the target can make a free strike against them"
+--(Swordplay, the Bandit Chief's longsword). The struck hero casts this
+--standard ability and so would also own the ally's Melee Free Strike prompt,
+--which the AI could never answer. Instead the handler picks the ally, drives
+--its free strike against the hero itself, and skips the rest of the chain.
+MonsterAI:RegisterPrompt{
+    id = "Adjacent Enemy Free Strike Me",
+    prompts = {"Adjacent Enemy Free Strike Me"},
+    resolvesInvokedAbility = true,
+    handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
+        local victim = casterToken
+        if victim == nil or not victim.valid or victim.properties == nil
+            or victim.properties:IsDead() then
+            return {targets = {}}
+        end
+
+        local range = abilityClone:GetRange(victim.properties)
+        local best = nil
+        for _,ally in ipairs(dmhub.allTokens) do
+            if LiveAIControlledCreature(ally) and IsActiveCombatant(ally)
+                and ally.charid ~= invokerToken.charid
+                and dmhub.TokensAreFriendly(invokerToken, ally)
+                and MonsterAI.TargetDistance(victim, ally) <= range
+                and abilityClone:TargetPassesFilter(victim, ally, symbols or {}) then
+                local plan = FindBestImmediateFreeStrike(ai, ally,
+                    CreatureMeleeFreeStrikeAbilities(ally), victim)
+                if plan ~= nil then
+                    --A minion's free strike hits for less, so a full monster goes first.
+                    local utility = plan.utility + cond(ally.properties.minion, 0, 0.5)
+                    if best == nil or utility > best.utility then
+                        best = {token = ally, plan = plan, utility = utility}
+                    end
+                end
+            end
+        end
+
+        if best == nil then
+            ai:LogDecision("GRANTED FREE STRIKE SKIPPED", {
+                ability = abilityClone.name,
+                reason = "no ally adjacent to the target can free strike it",
+            })
+            return {targets = {}}
+        end
+
+        --The strike is outside the ally's action economy and cannot charge.
+        local activation = best.plan.ability
+        activation.actionResourceId = "none"
+        if activation.keywords ~= nil then
+            activation.keywords.Charge = nil
+        end
+
+        --RunWithTokenControl clears the expected prompt; keep the outer move's.
+        local expected = ai:try_get("_tmp_expectedPromptTarget")
+        local ok, err = ai:RunWithTokenControl(best.token, function()
+            SpeakBeforeFreeStrike(ai, best.token)
+            ai:ExecuteAbility(best.token, activation, {{token = victim}}, {sleep = 0.5})
+        end)
+        ai._tmp_expectedPromptTarget = expected
+        if not ok then
+            ai:LogDecision("PROMPT ERROR", {
+                ability = abilityClone.name,
+                reason = "granted free strike failed: " .. tostring(err),
+            })
+        end
+        return {targets = {}}
     end,
 }
 
@@ -378,6 +464,65 @@ local function FindBestPullLocation(invokerToken, casterToken, abilityClone, sym
     return bestLoc
 end
 
+--Zone directive "Force Into": when an enemy can be moved so it ends inside a
+--Force Into zone, that landing beats every other consideration. Tested
+--against the real forced-movement path, so walls and creatures that would
+--stop it short are respected. Deeper landings (more of the zone around them)
+--are preferred, since they are harder to step out of. nil when none works.
+local function FindForceIntoLocation(invokerToken, casterToken, abilityClone, symbols, range, forcedMovement)
+    if verticalForcedMovementTypes[forcedMovement] or casterToken:IsFriend(invokerToken)
+        or not MonsterAI.AnyDirectiveZones("forceInto", invokerToken)
+        or MonsterAI.InDirectiveZone("forceInto", casterToken, nil, invokerToken) then
+        return nil
+    end
+    ---@type fun(loc: Loc): boolean
+    local filterTargetPredicate = abilityClone:TargetLocPassesFilterPredicate(casterToken, symbols)
+        or function() return true end
+
+    local bestLoc = nil
+    local bestScore = nil
+    local origin = casterToken.loc
+    for dx = -range,range do
+        for dy = -range,range do
+            local testLoc = origin:dir(dx, dy)
+            --cheap zone test first; the arrow is the expensive part.
+            if (dx ~= 0 or dy ~= 0) and MonsterAI.InDirectiveZone("forceInto", casterToken, testLoc, invokerToken)
+                and filterTargetPredicate(testLoc) then
+                --aim on the ground: a target altitude means "this high above it".
+                testLoc = testLoc:WithAltitude(0)
+                local movementInfo = casterToken:MarkMovementArrow(testLoc,
+                    ForcedMovementArrowOptions(forcedMovement, range))
+                local destination = movementInfo ~= nil and movementInfo.path.destination or nil
+                if destination ~= nil and destination:DistanceInTiles(origin) > 0
+                    and MonsterAI.InDirectiveZone("forceInto", casterToken, destination, invokerToken) then
+                    local depth = 0
+                    for ny = -1,1 do
+                        for nx = -1,1 do
+                            if MonsterAI.InDirectiveZone("forceInto", casterToken, destination:dir(nx, ny), invokerToken) then
+                                depth = depth + 1
+                            end
+                        end
+                    end
+                    local collideWithAllies = 0
+                    for _,collideToken in ipairs(movementInfo.collideWith or {}) do
+                        if not collideToken.isObject and collideToken:IsFriend(invokerToken) then
+                            collideWithAllies = collideWithAllies + 1
+                        end
+                    end
+                    local score = depth - collideWithAllies*4
+                    if bestScore == nil or score > bestScore then
+                        bestScore = score
+                        bestLoc = testLoc
+                    end
+                end
+            end
+        end
+    end
+
+    casterToken:ClearMovementArrow()
+    return bestLoc
+end
+
 MonsterAI:RegisterPrompt{
     prompts = {"Push!", "Pull!", "Slide!"},
 
@@ -390,7 +535,15 @@ MonsterAI:RegisterPrompt{
         if isVertical then
             altitudeCalculator = abilityClone:TargetLocMaxElevationChangeFunction(casterToken, movementSymbols)
         end
+        --The engine reads a forced-move target's altitude as height above the
+        --ground there, so a sideways move must aim at altitude 0. Candidate
+        --squares are built from the target's own loc, which carries its
+        --absolute altitude: on raised ground that turned a push into a lift
+        --and a fall.
         local preferAltitude = function(loc)
+            if not isVertical then
+                return loc:WithAltitude(0)
+            end
             if altitudeCalculator == nil then
                 return loc
             end
@@ -399,6 +552,22 @@ MonsterAI:RegisterPrompt{
                 return loc
             end
             return loc:WithAltitude(maxAltitude)
+        end
+
+        local forceIntoLoc = FindForceIntoLocation(invokerToken, casterToken, abilityClone,
+            movementSymbols, range, forcedMovement)
+        if forceIntoLoc ~= nil then
+            ai:LogDecision("FORCE INTO ZONE", {
+                targets = ai.TargetsLogName({{token = casterToken}}),
+                to = ai.LocLogName(forceIntoLoc),
+                plan = forcedMovement,
+            })
+            casterToken:MarkMovementArrow(forceIntoLoc, ForcedMovementArrowOptions(forcedMovement, range))
+            MonsterAI.Sleep(1)
+            casterToken:ClearMovementArrow()
+            return {
+                targets = {{loc = forceIntoLoc}},
+            }
         end
 
         if forcedMovement == "pull" or forcedMovement == "vertical_pull" then
@@ -641,5 +810,222 @@ MonsterAI:RegisterPrompt{
         return {
             targets = { {token = possibleTokens[math.random(#possibleTokens)] } }
         }
+    end,
+}
+
+--------------------------------------------------------------------------------
+-- Ending effects: End Effect and other "choose an effect to end" purges.
+--------------------------------------------------------------------------------
+
+--How much a condition hurts the creature carrying it, from 0 (harmless) to 5,
+--by lower-case condition name. A harmful condition missing from this table
+--counts as defaultHarmSeverity.
+MonsterAI.conditionSeverity = {
+    dazed = 5,
+    restrained = 5,
+    stoned = 5,
+    frightened = 4,
+    weakened = 4,
+    ["on fire"] = 4,
+    slowed = 3,
+    bleeding = 3,
+    taunted = 3,
+    grabbed = 3,
+    dazzled = 3,
+    prone = 1,
+}
+MonsterAI.defaultHarmSeverity = 2
+--End Effect is only worth its Stamina for a condition at least this bad...
+MonsterAI.endEffectMinimumSeverity = 3
+--...and only while the creature keeps this share of its Stamina (and at
+--least the cost again) after paying.
+MonsterAI.endEffectStaminaReserve = 0.15
+
+local function ConditionHarm(conditionid)
+    local condition = (dmhub.GetTable(CharacterCondition.tableName) or {})[conditionid]
+    if condition == nil then
+        return MonsterAI.defaultHarmSeverity
+    end
+    if condition:try_get("buffType", "debuff") == "buff" then
+        return 0
+    end
+    return MonsterAI.conditionSeverity[string.lower(condition.name or "")] or MonsterAI.defaultHarmSeverity
+end
+
+--How much ending this purge item helps the side choosing it: the harm taken
+--off a friend, or the benefit stripped from an enemy. Items come from
+--ActivatedAbilityPurgeEffectsBehavior:CollectPurgeItems.
+--- @param item table
+--- @param targetToken CharacterToken
+--- @param casterToken CharacterToken
+--- @return number
+function MonsterAI.PurgeItemValue(item, targetToken, casterToken)
+    local harm
+    if item.type == "condition" or item.type == "conditionOnly" then
+        harm = ConditionHarm(item.conditionId)
+    else
+        local effectInfo = (dmhub.GetTable("characterOngoingEffects") or {})[item.effectId]
+        if effectInfo == nil then
+            harm = MonsterAI.defaultHarmSeverity
+        elseif effectInfo:try_get("condition", "none") ~= "none" then
+            harm = ConditionHarm(effectInfo.condition)
+        elseif effectInfo:try_get("buffType", "debuff") == "buff" then
+            harm = -MonsterAI.defaultHarmSeverity
+        else
+            harm = MonsterAI.defaultHarmSeverity
+        end
+    end
+    if targetToken.charid == casterToken.charid or targetToken:IsFriend(casterToken) then
+        return harm
+    end
+    return -harm
+end
+
+--True when the AI makes this creature's choices right now: it is driving
+--the token, or it plays the creature while the AI runs.
+local function AIChoosesFor(token)
+    if token == nil or not token.valid or token.properties == nil then
+        return false
+    end
+    return creature.IsTokenAIControlled(token.charid) or MonsterAI.RollsForCreature(token.properties)
+end
+
+--Answers the purge selection dialog for an AI-driven caster: the worst
+--effects on friends (the best on enemies), one per creature for a "one"
+--purge, never more than the purge allows, and nothing of no value. With
+--nothing worth ending it passes, which also skips any Stamina cost.
+ActivatedAbilityPurgeEffectsBehavior.aiChooser = function(behavior, targetDataList, ability, casterToken, maxSelections)
+    if not AIChoosesFor(casterToken) then
+        return nil
+    end
+    local candidates = {}
+    for _,data in ipairs(targetDataList) do
+        local perTarget = {}
+        for _,item in ipairs(data.items or {}) do
+            local value = MonsterAI.PurgeItemValue(item, data.token, casterToken)
+            if value > 0 then
+                perTarget[#perTarget+1] = {data = data, item = item, value = value}
+            end
+        end
+        table.sort(perTarget, function(a, b) return a.value > b.value end)
+        if behavior.purgeType == "one" then
+            table.resize_array(perTarget, 1)
+        end
+        for _,entry in ipairs(perTarget) do
+            candidates[#candidates+1] = entry
+        end
+    end
+    table.sort(candidates, function(a, b) return a.value > b.value end)
+    if maxSelections ~= nil then
+        table.resize_array(candidates, math.max(0, maxSelections))
+    end
+
+    local selections = {}
+    local chosen = {}
+    for _,data in ipairs(targetDataList) do
+        selections[data.token.id] = {}
+    end
+    for _,entry in ipairs(candidates) do
+        local list = selections[entry.data.token.id]
+        list[#list+1] = entry.item
+        chosen[#chosen+1] = string.format("%s (%s)", tostring(entry.item.displayName), MonsterAI.TokenLogName(entry.data.token))
+    end
+
+    print(string.format("AI:: PURGE CHOSEN | ability=%q | caster=%q | chosen=%q",
+        tostring(ability ~= nil and ability.name or "?"), MonsterAI.TokenLogName(casterToken),
+        #chosen > 0 and table.concat(chosen, ", ") or "nothing worth ending"))
+    if #chosen == 0 then
+        return false
+    end
+    return true, selections
+end
+
+--The purge behind an End Effect trigger and its Stamina cost, or nil when the
+--trigger is not shaped like one.
+local function EndEffectPurge(token, triggerInfo)
+    local fallback = nil
+    for _,entry in ipairs(token.properties:GetTriggeredAbilities() or {}) do
+        local triggered = entry.ability
+        if triggered ~= nil then
+            local matches = triggered:try_get("guid") == triggerInfo.abilityGuid
+            if matches or (fallback == nil and triggered.name == triggerInfo.abilityName) then
+                for _,behavior in ipairs(triggered:try_get("behaviors", {})) do
+                    if behavior.typeName == "ActivatedAbilityPurgeEffectsBehavior" then
+                        local found = {
+                            behavior = behavior,
+                            cost = tonumber(behavior:EvalDamageToSelf(token.properties)) or 0,
+                        }
+                        if matches then
+                            return found
+                        end
+                        fallback = found
+                    end
+                end
+            end
+        end
+    end
+    return fallback
+end
+
+--- How bad the worst effect an End Effect trigger could end is (0-5, see
+--- MonsterAI.conditionSeverity), and the purge behind it with its Stamina cost.
+--- Both nil when the trigger is not shaped like an End Effect.
+--- @param token CharacterToken
+--- @param triggerInfo ActiveTrigger
+--- @return number|nil worst
+--- @return nil|{behavior: ActivatedAbilityPurgeEffectsBehavior, cost: number} purge
+function MonsterAI.EndEffectSeverity(token, triggerInfo)
+    local purge = EndEffectPurge(token, triggerInfo)
+    if purge == nil then
+        return nil, nil
+    end
+    local data = purge.behavior:CollectPurgeItems(token, nil)
+    local worst = 0
+    for _,item in ipairs(data ~= nil and data.items or {}) do
+        worst = math.max(worst, MonsterAI.PurgeItemValue(item, token, token))
+    end
+    return worst, purge
+end
+
+--Whether a monster should take its End Effect: only to end something nasty
+--(endEffectMinimumSeverity or worse), and only when it can afford the
+--Stamina with endEffectStaminaReserve to spare. Accepting it lets the purge
+--chooser above pick the worst effect.
+--- @param token CharacterToken
+--- @param triggerInfo ActiveTrigger
+--- @return nil|table decision {activate = true}, {dismiss = true}, or nil for the Director
+--- @return string reason
+function MonsterAI.EndEffectDecision(token, triggerInfo)
+    local worst, purge = MonsterAI.EndEffectSeverity(token, triggerInfo)
+    if purge == nil then
+        return nil, "no purge behind this End Effect; left to the Director"
+    end
+    if worst < MonsterAI.endEffectMinimumSeverity then
+        return {dismiss = true}, string.format("worst effect is only severity %d", worst)
+    end
+    local stamina = token.properties:CurrentHitpoints()
+    local reserve = math.max(purge.cost, token.properties:MaxHitpoints()*MonsterAI.endEffectStaminaReserve)
+    if stamina - purge.cost < reserve then
+        return {dismiss = true}, string.format("%d Stamina cannot spare %d", stamina, purge.cost)
+    end
+    return {activate = true}, string.format("ending severity %d for %d Stamina", worst, purge.cost)
+end
+
+MonsterAI:RegisterTrigger{
+    id = "End Effect",
+    abilities = {"End Effect"},
+    description = "Take End Effect's Stamina cost to end the nastiest save-ends effect, when it is bad enough and the monster can afford it.",
+    handler = function(ai, token, triggerInfo)
+        local decision, reason = MonsterAI.EndEffectDecision(token, triggerInfo)
+        local result = "Director decision"
+        if decision ~= nil then
+            result = cond(decision.activate, "activate", "dismiss")
+        end
+        ai:LogDecision("END EFFECT", {
+            ability = triggerInfo.abilityName,
+            result = result,
+            reason = reason,
+        })
+        return decision
     end,
 }

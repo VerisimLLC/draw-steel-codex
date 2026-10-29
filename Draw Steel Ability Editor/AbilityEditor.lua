@@ -3521,6 +3521,26 @@ local function _buildTargetingSection(ability, fireChange)
     }
 
     --------------------------------------------------------------------------
+    -- 7b. Finish Targets Later This Turn (target + multi): Double Strike.
+    --------------------------------------------------------------------------
+    children[#children + 1] = gui.Check{
+        classes = {"nae-toggle-check",
+                   cond(isMultiTarget(), nil, "collapsed-anim")},
+        text = "Finish Targets Later This Turn",
+        value = ability.finishTargetsLater,
+        change = function(element)
+            ability.finishTargetsLater = element.value
+            fireChange()
+        end,
+        refreshAbility = function(element)
+            element:SetClass("collapsed-anim", not isMultiTarget())
+        end,
+        linger = function(element)
+            return gui.Tooltip("If checked, using this on your turn against fewer targets than it allows saves the rest: until the turn ends, the remaining targets can be hit for free with the same dice (each target's own edges and banes still apply).")(element)
+        end,
+    }
+
+    --------------------------------------------------------------------------
     -- 8. Proximity Targeting (target + multi)
     --------------------------------------------------------------------------
     children[#children + 1] = gui.Check{
@@ -3657,6 +3677,25 @@ local function _buildTargetingSection(ability, fireChange)
         end,
         refreshAbility = function(element)
             element:SetClass("collapsed-anim", ability.targetType == "self")
+        end,
+    }
+
+    --------------------------------------------------------------------------
+    -- 10b. Always Targets Self: shown for abilities that pick creatures one
+    -- at a time. The caster is a target in addition to the number of targets.
+    --------------------------------------------------------------------------
+    children[#children + 1] = gui.Check{
+        classes = {"nae-toggle-check",
+                   cond(ability.targetType == "target", nil, "collapsed-anim")},
+        text = "Always Target Self",
+        value = ability.forceCasterTarget,
+        hover = gui.Tooltip("The caster is always a target, in addition to the number of targets. \"Self and three allies\" is 3 targets."),
+        change = function(element)
+            ability.forceCasterTarget = element.value
+            fireChange()
+        end,
+        refreshAbility = function(element)
+            element:SetClass("collapsed-anim", ability.targetType ~= "target")
         end,
     }
 

@@ -6348,6 +6348,44 @@ function CreateSettingsScreen(dialog, args)
 
 	end
 
+	--A heading over a section, hidden when nothing is registered in it (e.g. at the
+	--title screen, before the code mods that register its settings have loaded).
+	local SettingsHeadedSection = function(title, section)
+		local empty = true
+		for _,s in ipairs(SettingsOrdered) do
+			if s.section ~= nil and string.lower(s.section) == string.lower(section) then
+				empty = false
+				break
+			end
+		end
+
+		return gui.Panel{
+			classes = {cond(empty, "collapsed")},
+			flow = "vertical",
+			width = "100%",
+			height = "auto",
+			SettingsHeading(title),
+			SettingsSection(section),
+		}
+	end
+
+	--Discord Voice (Draw Steel V/DiscordVoice.lua), in the Audio tab: nil where
+	--that code mod is not loaded (the title screen) or voice is unavailable.
+	local DiscordVoiceSection = function()
+		local voice = rawget(_G, "DiscordVoice")
+		if voice == nil or not voice.SettingsAvailable() then
+			return nil
+		end
+		return gui.Panel{
+			flow = "vertical",
+			width = "100%",
+			height = "auto",
+			tmargin = 12,
+			SettingsHeading("Discord Voice"),
+			voice.CreateSettingsPanel(),
+		}
+	end
+
 	local CreateTab = function(args)
 		if args.dmonly and ((not dmhub.inGame) or (not dmhub.isDM)) then
 			return nil
@@ -7111,6 +7149,7 @@ function CreateSettingsScreen(dialog, args)
 							halign = "right",
 							hmargin = 20,
 						},
+						Setting('tabletop:surface'),
 
 						--Setting('dice:gravity'),
 						--Setting('dice:velocity'),
@@ -7127,6 +7166,8 @@ function CreateSettingsScreen(dialog, args)
 						CreateBetaBranchEditor(),
 
 						Setting("codemod:safemode"),
+
+						SettingsHeadedSection("Encounter of the Week", "EncounterOfTheWeek"),
 						} end,
 					},
 
@@ -7243,11 +7284,16 @@ function CreateSettingsScreen(dialog, args)
 
 					SettingGroup{
 						group = "Audio",
-						build = function() return {
-						SettingsSection("Audio"),
-						CreateGameWideMasterVolumeEditor(),
-						CreateNormalizeLoudnessToggle(),
-						} end,
+						build = function()
+							--the optional editors return nil, so append rather than leave holes.
+							local result = { SettingsSection("Audio") }
+							for _, panel in ipairs{ CreateGameWideMasterVolumeEditor() or false, CreateNormalizeLoudnessToggle() or false, DiscordVoiceSection() or false } do
+								if panel then
+									result[#result+1] = panel
+								end
+							end
+							return result
+						end,
 					},
 
 

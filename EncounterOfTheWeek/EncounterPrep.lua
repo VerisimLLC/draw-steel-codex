@@ -9,7 +9,8 @@
 --                     surprised". It OPENS on whatever the montage decided
 --                     (EncounterMontage.GetInitiativeOutcome), so a party
 --                     that got the jump starts higher up the bar.
---  * Traps         -- 0: nothing known. 1: how many traps are out there.
+--  * Traps         -- 0: nothing known. 1: two of the placed traps, drawn
+--                     at random, are marked (EncounterZones.BankPartialReveal).
 --                     2: every trap on the map is marked (the montage clause
 --                     "Reveal Traps", banked the same way).
 --  * Enemy Stamina -- 0: no bars at all. 1: bars with no numbers. 2: bars
@@ -50,6 +51,8 @@
 
 local mod = dmhub.GetModLoading()
 
+local T = UIText.T
+
 EncounterPrep = rawget(_G, "EncounterPrep") or {}
 
 local DOC_ID = "eotwscript"
@@ -61,38 +64,32 @@ local SPEND_COST = 1
 --the monsters spawn behind it either way.
 local RESOLVED_LINGER_SECONDS = 4
 
-EncounterPrep.TITLE = "Tactical Preparation"
-EncounterPrep.INSTRUCTIONS = "Combat is upon you! Spend your Intelligence wisely."
+EncounterPrep.TITLE = T("prep.title")
+EncounterPrep.INSTRUCTIONS = T("prep.instructions")
 
 --- the bars ------------------------------------------------------------------
 
 --The surprise bar's five rungs, worst to best. Index here is level + 1.
 local SURPRISE_LEVELS = {
-    "You are surprised.",
-    "You lose the initiative.",
-    "You roll for initiative.",
-    "You win the initiative.",
-    "The enemy is surprised.",
+    T("prep.surprise.level0"),
+    T("prep.surprise.level1"),
+    T("prep.surprise.level2"),
+    T("prep.surprise.level3"),
+    T("prep.surprise.level4"),
 }
 
 local STAMINA_LEVELS = {
-    "You have little awareness of the enemy's health.",
-    "You see enemy stamina bars.",
-    "You fully know the stamina of your enemies.",
+    T("prep.stamina.level0"),
+    T("prep.stamina.level1"),
+    T("prep.stamina.level2"),
 }
 
 --What the enemy stamina bar's level means to the game setting that draws
 --them: no bar, a bar with no number, or a bar with the exact Stamina.
 local STAMINA_SETTING = { [0] = "none", [1] = "bar", [2] = "val" }
 
---"4 Snare Traps" from an encounter beat's setup instruction.
-local function InstructionCount(ins)
-    local name = tostring(ins.object or "trap")
-    if (tonumber(ins.qty) or 0) ~= 1 then
-        name = name .. "s"
-    end
-    return string.format("%d %s", tonumber(ins.qty) or 0, name)
-end
+--How many of the placed traps level 1 of the traps bar marks.
+local PARTIAL_TRAP_REVEALS = 2
 
 --Every "place N objects in <zone> zones" instruction of the encounter beat.
 --These are what the traps bar is about: with none, the bar is not offered.
@@ -106,24 +103,14 @@ function EncounterPrep.TrapInstructions(beat)
     return result
 end
 
---Level 1 of the traps bar: what the party learns for their first point --
---"There are 4 Snare Traps hidden on the map."
+--Level 1 of the traps bar: for their first point the party learns where a
+--few of the traps are (PARTIAL_TRAP_REVEALS of them, marked when the zones
+--go down), but not how many there are in all.
 function EncounterPrep.TrapsDescription(beat)
-    local instructions = EncounterPrep.TrapInstructions(beat)
-    if #instructions == 0 then
-        return "There are no traps on the map."
+    if #EncounterPrep.TrapInstructions(beat) == 0 then
+        return T("prep.traps.level1_none")
     end
-    local parts = {}
-    local total = 0
-    for _, ins in ipairs(instructions) do
-        parts[#parts + 1] = InstructionCount(ins)
-        total = total + (tonumber(ins.qty) or 0)
-    end
-    local list = parts[1]
-    for i = 2, #parts do
-        list = cond(i == #parts, string.format("%s and %s", list, parts[i]), string.format("%s, %s", list, parts[i]))
-    end
-    return string.format("There %s %s hidden on the map.", cond(total == 1, "is", "are"), list)
+    return T("prep.traps.level1")
 end
 
 --The bar's display: its title and the text of every level, so the stage
@@ -132,17 +119,17 @@ end
 --the host has to be able to say what a spend bought.
 function EncounterPrep.BarInfo(beat, barId)
     if barId == "surprise" then
-        return { id = barId, title = "Surprise", levels = SURPRISE_LEVELS }
+        return { id = barId, title = T("prep.surprise.title"), levels = SURPRISE_LEVELS }
     end
     if barId == "traps" then
-        return { id = barId, title = "Traps", levels = {
-            "You are unaware of traps.",
+        return { id = barId, title = T("prep.traps.title"), levels = {
+            T("prep.traps.level0"),
             EncounterPrep.TrapsDescription(beat),
-            "All traps on the map are marked.",
+            T("prep.traps.level2"),
         } }
     end
     if barId == "stamina" then
-        return { id = barId, title = "Enemy Stamina", levels = STAMINA_LEVELS }
+        return { id = barId, title = T("prep.stamina.title"), levels = STAMINA_LEVELS }
     end
     return { id = tostring(barId), title = tostring(barId), levels = { "" } }
 end
@@ -247,8 +234,13 @@ local function StartingTrapsLevel(doc, beat)
     end
     local banked = doc.data.revealZones or {}
     local revealed = doc.data.zonesRevealed or {}
+    --a partial reveal (this bar's own level 1) only marks a few of the
+    --traps, so it does not count as the zone being revealed.
+    local function Full(entry)
+        return entry ~= nil and entry.partial == nil
+    end
     for _, ins in ipairs(instructions) do
-        if banked[ins.zone] == nil and revealed[ins.zone] == nil then
+        if not Full(banked[ins.zone]) and not Full(revealed[ins.zone]) then
             return 0
         end
     end
@@ -396,7 +388,7 @@ end
 
 local function DisplayName(userid)
     if userid == "PARTY" then
-        return "The party"
+        return T("prep.party_name")
     end
     local name = userid
     pcall(function() name = dmhub.GetDisplayName(userid) or userid end)
@@ -450,7 +442,17 @@ local function Resolve(m, doc, beat, heroes)
     local traps = EncounterPrep.Level(m, "traps")
     if traps ~= nil then
         local start = tonumber((m.start or {}).traps) or traps
-        if traps >= 1 and start < 1 then
+        --level 1 alone marks a couple of the traps; level 2 marks them all,
+        --so a party that bought both only needs the full reveal.
+        if traps == 1 and start < 1 then
+            local zones = {}
+            for _, ins in ipairs(EncounterPrep.TrapInstructions(beat)) do
+                zones[#zones + 1] = ins.zone
+            end
+            local zoneApi = rawget(_G, "EncounterZones")
+            if zoneApi ~= nil and zoneApi.BankPartialReveal ~= nil then
+                zoneApi.BankPartialReveal(doc, zones, PARTIAL_TRAP_REVEALS, EncounterPrep.TITLE)
+            end
             applied[#applied + 1] = EncounterPrep.TrapsDescription(beat)
         end
         if traps >= 2 and start < 2 then
@@ -480,7 +482,7 @@ local function Resolve(m, doc, beat, heroes)
             heroEntry = heroes[1],
             userid = heroes[1] ~= nil and heroes[1].ownerId or nil,
             entryName = EncounterPrep.TITLE,
-            source = "Preparation",
+            source = T("prep.effect_source"),
             doc = doc,
         })
         if not ok then
@@ -510,6 +512,11 @@ end
 
 --Validate and apply one player request. Returns a line to log, or nil.
 local function HandleRequest(m, doc, userid, req, beat, heroes)
+    --handing an item to another hero works at any point in the screen.
+    if req.kind == "giveItem" then
+        return EncounterMontage.GiveItem(doc, heroes, userid, req)
+    end
+
     if m.phase ~= "spending" then
         return nil
     end
@@ -553,8 +560,8 @@ local function HandleRequest(m, doc, userid, req, beat, heroes)
             value = tonumber(doc.data.intelligence) or 0,
             amount = -SPEND_COST,
             who = name,
-            note = string.format("%s: %s (%s)", EncounterPrep.TITLE, EncounterPrep.BarInfo(beat, bar.id).title,
-                table.concat(from or {}, ", ")),
+            note = T("prep.intelligence_log.spend", { screen = EncounterPrep.TITLE, bar = EncounterPrep.BarInfo(beat, bar.id).title,
+                heroes = table.concat(from or {}, ", ") }),
             at = dmhub.serverTime,
         }
         doc.data.intelligenceLog = log

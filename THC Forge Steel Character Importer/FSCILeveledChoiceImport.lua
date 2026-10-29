@@ -1,7 +1,6 @@
 --- FSCILeveledChoiceImporter handles importing choices made in a Forge Steel character
 --- into the complex Codex choices - when the available features are arrayed by level
 --- @class FSCILeveledChoiceImporter: GameType
---- @field new fun(o?: table): FSCILeveledChoiceImporter
 --- @field availableFeatures table The features available in the Codex
 --- @field levelChoices table The calculated list of selected features formatted for the character
 --- @field featureData table The full feature objects keyed by GUID

@@ -281,8 +281,13 @@ local CreateWallContextMenuItems = function(element)
                 element.popup = nil
             end,
         },
+    }
 
-        {
+    --The core "One-Direction See-Thru" wall is the base every Map Markup wall
+    --type is copied from (MapMarkup K.BASE_INVISIBLE_WALL_ID, which loads after
+    --this file), so it cannot be deleted: deleting it broke markup (T9FYM2HZ).
+    if element.data.wallid ~= "eae7f3fe-d278-455c-853a-ac43f948c743" then
+        entries[#entries+1] = {
             text = 'Delete Wall Asset',
             click = function()
                 gui.ModalMessage{
@@ -300,8 +305,8 @@ local CreateWallContextMenuItems = function(element)
                 }
                 element.popup = nil
             end,
-        },
-    }
+        }
+    end
 
     if devmode() then
         entries[#entries+1] = {

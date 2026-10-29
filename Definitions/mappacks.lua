@@ -28,6 +28,7 @@
 --- @field objectsTier integer Patreon pledge in cents that unlocks the object set on top of the map itself; 0 = no extra gate
 --- @field objectsTierName string the creator's name for that pledge level; "" when free or unnamed
 --- @field objectsOwned boolean whether the current account can use the map's object set
+--- @field defaultMarkup string id of the shared markup set the pack makes this map's default (added with the map unless AddMapToGame passes markupId = "none"); "" when the map has none
 ---
 --- @class MapPackObjectPreview One object of a map's "Objects for this map" set, for display.
 --- @field id string the object asset's guid
@@ -69,6 +70,10 @@
 --- @field packs MapPackInfo[] The synced packs: one record per /MapPackIndex pointer, with the module fullid as id. org is the creator organization whose Patreon unlocks tiered appearances; premium says the pack module is premium; prelaunch marks a hidden pre-launch pack, which only admin accounts receive. (Read-only)
 mappacks = {}
 
+--- Reads the "Objects for this map" set of one map-pack map for display, e.g. a preview in the map pack browser: options.success gets its objects in the set's order. Nothing is added to the asset tree. The set is downloaded once and cached; any account may read it, whether or not it has unlocked the set (see the entry's objectsOwned), so show locked images through dmhub.LoadTransientImage. options.error fires with a message when the map has no set or it could not be read.
+--- @param options {pack: string, mapid: string, success: nil|fun(objects: MapPackObjectPreview[]), error: nil|fun(message: string)}
+function mappacks.GetMapObjects(options) end
+
 --- Reads /MapPackIndex, downloads any pack index blob that changed since the local cache was written, and rebuilds the in-memory index. Calls options.success when done, or options.error with a message if the pointer node could not be read or some pack failed to load (the packs that did load are still searchable).
 --- @param options {success: nil|fun(), error: nil|fun(message: string)}
 function mappacks.Sync(options) end
@@ -78,16 +83,12 @@ function mappacks.Sync(options) end
 --- @return MapPackIndexEntry[]
 function mappacks.Search(options) end
 
---- Reads the "Objects for this map" set of one map-pack map for display, e.g. a preview in the map pack browser: options.success gets its objects in the set's order. Nothing is added to the asset tree. The set is downloaded once and cached; any account may read it, whether or not it has unlocked the set (see the entry's objectsOwned), so show locked images through dmhub.LoadTransientImage. options.error fires with a message when the map has no set or it could not be read.
---- @param options {pack: string, mapid: string, success: nil|fun(objects: MapPackObjectPreview[]), error: nil|fun(message: string)}
-function mappacks.GetMapObjects(options) end
-
 --- How this account stands with a pack's Patreon gating: org is the creator organization the pack's tiers are measured against; cents the account's current monthly pledge to it (0 if none or lapsed); linked whether a Patreon account is attached at all; entitled whether the org grants this account anything; full whether the whole pack is unlocked regardless of tiers (bought in the store, or included with the org's membership). Evaluated live, so poll it to notice a pledge landing.
 --- @param pack string The pack's module fullid.
 --- @return {org: string, cents: integer, linked: boolean, entitled: boolean, full: boolean}
 function mappacks.GetPackAccess(pack) end
 
---- Adds one map from a map pack to the current game without installing the pack's module: the map's manifest, floors and rasters plus the object and image asset records it references are copied into the game, and the appearance variant at options.variantIndex (default 0) is armed. options.name, when given, becomes the added map's name instead of the pack's. options.markupId, when given, is the id of a shared markup set (see ListMarkup) whose walls, zones, footstep regions, props and markup settings are laid over the map before it is written. Requires access to the chosen appearance (free, unlocked by the account's Patreon pledge to the pack's creator, or the whole pack owned); appearances of the map the account is NOT entitled to are left out of the added map. If the map is already in the game a fresh copy with new ids is added. Calls options.success with the new map id, or options.error with a message.
+--- Adds one map from a map pack to the current game without installing the pack's module: the map's manifest, floors and rasters plus the object and image asset records it references are copied into the game, and the appearance variant at options.variantIndex (default 0) is armed. options.name, when given, becomes the added map's name instead of the pack's. options.markupId, when given, is the id of a shared markup set (see ListMarkup) whose walls, zones, footstep regions, props and markup settings are laid over the map before it is written. When it is omitted the pack's default markup set for the map is used (the index entry's defaultMarkup), if it has one; pass markupId = "none" to add the plain map. Requires access to the chosen appearance (free, unlocked by the account's Patreon pledge to the pack's creator, or the whole pack owned); appearances of the map the account is NOT entitled to are left out of the added map. If the map is already in the game a fresh copy with new ids is added. Calls options.success with the new map id, or options.error with a message.
 --- @param options {pack: string, mapid: string, variantIndex: nil|integer, name: nil|string, markupId: nil|string, success: nil|fun(result: string), error: nil|fun(message: string)}
 function mappacks.AddMapToGame(options) end
 

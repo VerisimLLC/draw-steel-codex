@@ -90,6 +90,85 @@ CreatureFilter.Register{
     description = "This filter controls whether a creature has line of effect to a target. If any of the filters are false, the creature has no line of effect to that target: it cannot target it, and the target is greyed out with the reason why.",
 }
 
+--A hidden creature with a "Wall Meld Angle" custom attribute above zero (Shadowmeld) can still
+--be seen by creatures standing within that many degrees of straight in front of the wall it is
+--flattened against. See RuleUtils.WallMeldSeesTarget below.
+local g_wallMeldAttribute = "Wall Meld Angle"
+
+--Targeting filters run per candidate every frame, and the wall lookup walks every wall on the
+--floor, so each creature's wall normal is remembered by charid for this many seconds. The key
+--also includes its square and floor, so moving recomputes at once.
+local g_wallMeldCacheSeconds = 1
+local g_wallMeldCache = {}
+
+--A wall counts as "against" a creature when it is within this much of the creature's edge.
+--A wall on the edge of a 1-square creature's square is 0.5 from its centre.
+local g_wallMeldMargin = 0.25
+
+--The direction (unit x, y in world/floor space) pointing out of the wall a creature is
+--flattened against, towards the creature: the side from which it can be seen. Nil when no
+--drawn building-layer wall is next to it. Token positions (PosAtLoc) and wall points share
+--one space: 1 unit = 1 square, square centres on whole numbers.
+--- @param targetToken CharacterToken
+--- @return nil|{x: number, y: number}
+local function ComputeWallMeldNormal(targetToken)
+    local floor = game.GetFloor(targetToken.floorid)
+    if floor ~= nil and not floor.isPrimaryLayerOnFloor then
+        --walls live on the primary floor, not on its visual layers.
+        floor = game.GetFloor(floor.actualFloor)
+    end
+    if floor == nil then
+        return nil
+    end
+
+    local centre = targetToken:PosAtLoc()
+    local halfWidth = math.max(1, targetToken.creatureDimensions.x) / 2
+    local hit = floor:GetNearestWallSegment{
+        x = centre.x,
+        y = centre.y,
+        maxDistance = halfWidth + g_wallMeldMargin,
+    }
+    if hit == nil or hit.segment == nil or #hit.segment < 4 then
+        return nil
+    end
+
+    --closest point on the wall segment to the creature's centre.
+    local ax, ay, bx, by = hit.segment[1], hit.segment[2], hit.segment[3], hit.segment[4]
+    local abx, aby = bx - ax, by - ay
+    local lengthSquared = abx*abx + aby*aby
+    local t = 0
+    if lengthSquared > 1e-6 then
+        t = ((centre.x - ax)*abx + (centre.y - ay)*aby) / lengthSquared
+        t = math.max(0, math.min(1, t))
+    end
+
+    local nx = centre.x - (ax + abx*t)
+    local ny = centre.y - (ay + aby*t)
+    local len = math.sqrt(nx*nx + ny*ny)
+    if len < 0.01 then
+        --centre sits on the wall line: no meaningful front side.
+        return nil
+    end
+
+    return {x = nx/len, y = ny/len}
+end
+
+--Cached ComputeWallMeldNormal; see g_wallMeldCacheSeconds.
+--- @param targetToken CharacterToken
+--- @return nil|{x: number, y: number}
+local function WallMeldNormal(targetToken)
+    local key = string.format("%s|%s", targetToken.loc.str, tostring(targetToken.floorid))
+    local now = dmhub.Time()
+    local entry = g_wallMeldCache[targetToken.charid]
+    if entry ~= nil and entry.key == key and now - entry.time < g_wallMeldCacheSeconds then
+        return entry.normal
+    end
+
+    local normal = ComputeWallMeldNormal(targetToken)
+    g_wallMeldCache[targetToken.charid] = {key = key, time = now, normal = normal}
+    return normal
+end
+
 RuleUtils = {
     --- Finds an enemy creature standing between the source and the target that carries the
     --- "Block Enemy Line of Effect" custom attribute. Only enemies of the source block, and
@@ -280,6 +359,39 @@ RuleUtils = {
         local pierceWalls = (toka.properties ~= nil) and toka.properties:GetPierceWalls() or 0
         local coverInfo = dmhub.GetCoverInfo(toka, tokb, pierceWalls)
         return coverInfo == nil or coverInfo.coverModifier < 1
+    end,
+
+    --- True when `viewerToken` can see `targetToken` through its hiding because the target is
+    --- flattened against a wall (Shadowmeld) and the viewer stands in front of that wall. The
+    --- target's "Wall Meld Angle" custom attribute is the half-angle of that cone in degrees,
+    --- measured from straight out of the wall; 0 (the default) means no such trait. False when
+    --- no wall is next to the target or the viewer is on another floor, so normal Hidden applies.
+    --- Callers use it to skip a Hidden targeting refusal, so it only says "can see", not "can't".
+    --- @param viewerToken CharacterToken
+    --- @param targetToken CharacterToken
+    --- @return boolean
+    WallMeldSeesTarget = function(viewerToken, targetToken)
+        if viewerToken == nil or targetToken == nil then return false end
+        if not viewerToken.valid or not targetToken.valid then return false end
+        if targetToken.isObject or targetToken.properties == nil then return false end
+
+        local angle = targetToken.properties:CalculateNamedCustomAttribute(g_wallMeldAttribute)
+        if angle <= 0 then return false end
+        if viewerToken.floorIndex ~= targetToken.floorIndex then return false end
+
+        local normal = WallMeldNormal(targetToken)
+        if normal == nil then return false end
+
+        --compare the direction to the viewer with the wall's outward direction.
+        local centre = targetToken:PosAtLoc()
+        local viewer = viewerToken:PosAtLoc()
+        local dx = viewer.x - centre.x
+        local dy = viewer.y - centre.y
+        local len = math.sqrt(dx*dx + dy*dy)
+        if len < 1e-4 then return false end
+
+        local cosine = (dx*normal.x + dy*normal.y) / len
+        return cosine >= math.cos(math.rad(math.min(angle, 180)))
     end,
 
     --Prompt shown when a retarget picker (Goaded, Meat Shield) is limited to the

@@ -241,6 +241,9 @@ function monster:FillFreeStrikes(options, result)
         --Force per-target roll evaluation so Cast.NumAttackers(Target)
         --resolves against the actual target being damaged.
         ability.behaviors[1].separateRolls = true
+        --The damage the description shows. A Modify Ability that adds
+        --damage (directdamageroll) updates it and rewrites the description.
+        ability.behaviors[1].freeStrikeDamageText = freeStrikeDamage
         if damageType == "untyped" then
             ability.description = string.format("%s damage", freeStrikeDamage)
         else

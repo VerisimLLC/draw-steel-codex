@@ -55,6 +55,9 @@ compendium/*
 # Crowdex is its own git repository
 /Crowdex/
 
+# condemned is its own git repository (VerisimLLC/condemned)
+/condemned/
+
 # Content
 RedRoad/*
 Updatedcompendium/*

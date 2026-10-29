@@ -64,6 +64,23 @@ function DSVictoryScreen.RegisterProceedOverride(override)
     g_proceedOverride = override
 end
 
+-- The HUD's live (non-replay) screen, for DismissHeld.
+local g_liveScreen = nil
+
+-- Close a HELD screen (shown, outcome already gone from the queue, waiting for
+-- the local Proceed) without a Proceed press. Encounter of the Week uses it
+-- when the host takes the party straight on to the next part. Does nothing
+-- when no screen is held.
+function DSVictoryScreen.DismissHeld()
+    local screen = g_liveScreen
+    if screen == nil or not screen.valid or not screen.data.held then
+        return
+    end
+    screen.data.held = false
+    screen.data.shown = false
+    screen:FireEvent("hideVictory")
+end
+
 -- True when a shown screen must survive the outcome leaving the queue and
 -- wait for the local Proceed press instead (see holdUntilLocalProceed).
 local function HoldUntilLocalProceed()
@@ -218,7 +235,8 @@ local function ComputeHeroRolesInternal(live)
 
     --The qualifying heroes for a stat, best first. fn returns the hero's value
     --for the role (or nil to disqualify); values must also be > 0 and >=
-    --minValue. Ties keep party order.
+    --minValue. Ties keep data order, i.e. charid order (GetBattleHeroTokens
+    --sorts), so every client breaks them the same way.
     local function RankBy(fn, minValue)
         local list = {}
         for order, d in ipairs(data) do
@@ -958,8 +976,10 @@ local function ComputeHeroRolesInternal(live)
 
     --Soft-bias tuning weights (all integers; bigger = stronger pull). Selection
     --is deterministic -- every client computes the same roles from the same
-    --stats + history -- so these just shape which qualifying role a hero lands
-    --on, never introduce randomness:
+    --stats + history, because GetBattleHeroTokens returns heroes sorted by
+    --charid and every tie below falls back to that order or to charid -- so
+    --these just shape which qualifying role a hero lands on, never introduce
+    --randomness:
     --  INTEREST: each step down the (in-play) priority list a role sits costs
     --            this much, so a more interesting role still wins all else equal.
     --  FATIGUE : each past time THIS hero earned THIS role pushes it down by
@@ -1890,16 +1910,23 @@ DSVictoryScreen.ProceedEndCombat = ProceedEndCombat
 -- Week awards automatically this way, exempting heroes who already won the
 -- encounter and heroes who died. Writes other players' heroes, so run it with
 -- Director capability (a player host elevates first).
-function DSVictoryScreen.AwardVictories(live, amount, exemptions)
+--amounts (optional): { [charid] = n } for heroes who earn a different number
+--than `amount` (Encounter of the Week's Challenge Mode gives 1 or 2).
+function DSVictoryScreen.AwardVictories(live, amount, exemptions, amounts)
     amount = math.max(0, math.floor(tonumber(amount) or 1))
     exemptions = exemptions or {}
+    local perHero = {}
+    for charid, n in pairs(amounts or {}) do
+        perHero[charid] = math.max(0, math.floor(tonumber(n) or 0))
+    end
     for _, token in ipairs(live:GetBattleHeroTokens()) do
-        if exemptions[token.charid] == nil and amount > 0 then
+        local heroAmount = perHero[token.charid] or amount
+        if exemptions[token.charid] == nil and heroAmount > 0 then
             token:ModifyProperties{
                 description = "Award Victories",
                 combine = true,
                 execute = function()
-                    token.properties:SetVictories(token.properties:GetVictories() + amount)
+                    token.properties:SetVictories(token.properties:GetVictories() + heroAmount)
                 end,
             }
         end
@@ -1908,6 +1935,7 @@ function DSVictoryScreen.AwardVictories(live, amount, exemptions)
     --record the awarded amount + flag on the live encounter and network it so
     --every client plays the drop animation and shows the change.
     live.victories = amount
+    live.victoryAmounts = perHero
     live.victoryExemptions = exemptions
     live.victoriesAwarded = true
     dmhub:UploadInitiativeQueue()
@@ -1922,19 +1950,246 @@ function DSVictoryScreen.RegisterHeroCardNote(id, fn)
     g_heroCardNotes[id] = fn
 end
 
--- Build a single hero's card: portrait, name, Stamina bar, Recoveries change, the fun
--- role they earned (if any -- see ComputeHeroRoles; roleInfo may be nil and the role
--- lines render blank), and a DEAD marker for fallen heroes. Every visible element
--- carries the "victoryFade" class so the card-level "shown" class can fade the whole
--- card in via the descendant style rules on the card (opacity does not cascade in this
--- engine, so each leaf is faded individually).
-local function BuildHeroCard(live, token, roleInfo)
-    local props = token and token.properties
-    local name = (token and token.name) or "Hero"
+-- Panels other modules show above Proceed on a live screen (never a replay).
+-- id -> fn(outcome, pressProceed), returning a panel or nil; pressProceed()
+-- presses Proceed for the local user. Encounter of the Week invites the party
+-- on to a series' next part with one.
+local g_footerPanels = {}
 
-    local dead = props ~= nil and props:IsDead()
-    local curHp = (props ~= nil and props:CurrentHitpoints()) or 0
-    local maxHp = (props ~= nil and props:MaxHitpoints()) or 0
+function DSVictoryScreen.RegisterFooterPanel(id, fn)
+    g_footerPanels[id] = fn
+end
+
+----------------------------------------------------------------------
+-- Card data
+--
+-- Every card is drawn from a plain table, never straight from tokens, so the
+-- same screen can be drawn again later from a saved copy: Encounter of the
+-- Week's Hall of Heroes replays a party's victory screen in town, where there
+-- is no combat and none of its tokens. CaptureSnapshot builds the tables from
+-- the live encounter; SavedSnapshot strips a snapshot down to data that can be
+-- stored and loaded on any client; ShowReplay draws one.
+----------------------------------------------------------------------
+
+-- The most recent snapshot this client's screen showed (nil before any).
+local g_shownSnapshot = nil
+
+-- A portrait crop rect as a plain table (what imageRect accepts and JSON keeps).
+local function RectFields(rect)
+    if rect == nil then
+        return nil
+    end
+    return { x1 = rect.x1, y1 = rect.y1, x2 = rect.x2, y2 = rect.y2 }
+end
+
+-- Fill a card's portrait fields from its token. `portrait` / `portraitRect` /
+-- `spine` are what the live screen shows (the up-close inspect portrait, a live
+-- render for an animated token). `savedPortrait` / `savedPortraitRect` are for
+-- a saved copy: the token's still portrait, an image id other clients can load.
+local function SetPortraitFields(data, token)
+    if token == nil then
+        return
+    end
+    local aspect = Styles.portraitWidthPercentOfHeight * 0.01
+    pcall(function()
+        data.portrait = token.inspectPortrait
+        data.spine = token.hasSpineAnimation == true
+        if not data.spine then
+            data.portraitRect = token:GetPortraitRectForAspect(aspect, data.portrait)
+        end
+    end)
+    pcall(function()
+        --"#..." ids are live renders of this token, which a saved copy cannot show.
+        local still = token.offTokenPortrait
+        if type(still) ~= "string" or still == "" or string.sub(still, 1, 1) == "#" then
+            still = token.portrait
+        end
+        if type(still) ~= "string" or still == "" or string.sub(still, 1, 1) == "#" or string.sub(still, 1, 5) == "anim:" then
+            return
+        end
+        data.savedPortrait = still
+        data.savedPortraitRect = RectFields(token:GetPortraitRectForAspect(aspect, still))
+    end)
+end
+
+-- One hero card's data: name, portrait, Stamina, Recoveries, the role they earned
+-- (roleInfo may be nil), the lines other modules add, and Victories before any award.
+local function HeroCardData(live, token, roleInfo)
+    local props = token and token.properties
+    local data = {
+        charid = token and token.charid,
+        name = (token and token.name) or "Hero",
+        dead = props ~= nil and props:IsDead() or false,
+        curHp = (props ~= nil and props:CurrentHitpoints()) or 0,
+        maxHp = (props ~= nil and props:MaxHitpoints()) or 0,
+        victoriesOld = (props ~= nil and props:GetVictories()) or 0,
+    }
+
+    local onset, curRec, maxRec = live:GetHeroRecoveries(token)
+    data.recoveriesOnset = onset
+    data.recoveries = curRec
+    data.recoveriesMax = maxRec
+
+    if roleInfo ~= nil then
+        data.role = roleInfo.role
+        data.roleText = roleInfo.text
+        data.roleTooltip = roleInfo.tooltip
+    end
+
+    -- Lines registered by other modules (DSVictoryScreen.RegisterHeroCardNote).
+    local noteLines = {}
+    for _, fn in pairs(g_heroCardNotes) do
+        local ok, text = pcall(fn, live, token)
+        if ok and type(text) == "string" and text ~= "" then
+            noteLines[#noteLines + 1] = text
+        end
+    end
+    table.sort(noteLines)
+    data.notes = noteLines
+
+    SetPortraitFields(data, token)
+    return data
+end
+
+-- One monster group card's data: name, member counts, squad composition,
+-- portrait and the role the group earned (roleInfo may be nil).
+local function MonsterCardData(group, roleInfo)
+    local data = {
+        name = group.name or "Monsters",
+        memberCount = group.memberCount or 0,
+        aliveCount = group.aliveCount or 0,
+        deadCount = group.deadCount or 0,
+        allDead = group.allDead == true,
+    }
+
+    local composition = group.composition
+    if composition ~= nil then
+        local function CopyEntries(entries)
+            local result = {}
+            for _, e in ipairs(entries or {}) do
+                result[#result + 1] = { name = e.name, count = e.count }
+            end
+            return result
+        end
+        data.composition = { captains = CopyEntries(composition.captains), minions = CopyEntries(composition.minions) }
+    end
+
+    if roleInfo ~= nil then
+        data.role = roleInfo.role
+        data.roleText = roleInfo.text
+        data.roleTooltip = roleInfo.tooltip
+    end
+
+    if group.primaryToken ~= nil then
+        SetPortraitFields(data, group.primaryToken)
+    elseif group.fallbackInfo ~= nil and group.fallbackInfo.portrait ~= nil then
+        --every member token was deleted outright; draw the portrait snapshotted
+        --into the live encounter at combat onset (no crop rect is available).
+        data.portrait = group.fallbackInfo.portrait
+        data.savedPortrait = group.fallbackInfo.portrait
+    end
+    return data
+end
+
+--Everything the victory screen shows, as plain data: { outcome = "victory" |
+--"defeat", heroes = { card data... }, monsters = { card data... }, victories =
+--the Victories awarded each hero, exemptions = { [charid] = note } (heroes the
+--award skipped), awarded = whether the award has landed }.
+--options.afterAward: the award may already be on the heroes (the snapshot is
+--taken after it), so each awarded hero's Victories-before is worked back from
+--their current Victories.
+function DSVictoryScreen.CaptureSnapshot(live, outcome, options)
+    options = options or {}
+    local snapshot = {
+        outcome = cond(outcome == "defeat", "defeat", "victory"),
+        heroes = {},
+        monsters = {},
+        victories = live:try_get("victories", 1),
+        victoryAmounts = live:try_get("victoryAmounts") or {},
+        exemptions = live:try_get("victoryExemptions") or {},
+        awarded = live:try_get("victoriesAwarded", false) == true,
+    }
+
+    --compute every hero's fun role once for the whole party; heroes
+    --with no role get nil and their card renders the role lines blank.
+    local heroRoles = DSVictoryScreen.ComputeHeroRoles(live)
+    for _, token in ipairs(live:GetBattleHeroTokens()) do
+        local card = HeroCardData(live, token, heroRoles[token.charid])
+        if options.afterAward and snapshot.awarded and snapshot.exemptions[token.charid] == nil then
+            local awardedHere = snapshot.victoryAmounts[token.charid] or snapshot.victories
+            card.victoriesOld = math.max(0, card.victoriesOld - (tonumber(awardedHere) or 0))
+        end
+        snapshot.heroes[#snapshot.heroes + 1] = card
+    end
+
+    --a card per monster grouping for the Monsters tab (pcall: an old live
+    --encounter from before monster tracking simply shows no tab).
+    local okGroups, monsterGroups = pcall(function() return live:GetMonsterGroups() end)
+    if okGroups and type(monsterGroups) == "table" and #monsterGroups > 0 then
+        local monsterRoles = DSVictoryScreen.ComputeMonsterRoles(live)
+        for _, group in ipairs(monsterGroups) do
+            snapshot.monsters[#snapshot.monsters + 1] = MonsterCardData(group, monsterRoles[group.groupid])
+        end
+    end
+    return snapshot
+end
+
+--A copy of a snapshot that can be stored and drawn on any client: portraits
+--become the still images (see SetPortraitFields), and only plain data is kept.
+function DSVictoryScreen.SavedSnapshot(snapshot)
+    local function SavedCard(card)
+        local copy = {}
+        for k, v in pairs(card) do
+            if k ~= "portrait" and k ~= "portraitRect" and k ~= "spine" and k ~= "savedPortrait" and k ~= "savedPortraitRect" then
+                copy[k] = v
+            end
+        end
+        copy.portrait = card.savedPortrait
+        copy.portraitRect = card.savedPortraitRect
+        return copy
+    end
+    local saved = {
+        outcome = snapshot.outcome,
+        heroes = {},
+        monsters = {},
+        victories = snapshot.victories,
+        victoryAmounts = {},
+        exemptions = {},
+        awarded = snapshot.awarded,
+    }
+    for charid, n in pairs(snapshot.victoryAmounts or {}) do
+        saved.victoryAmounts[charid] = n
+    end
+    for _, card in ipairs(snapshot.heroes or {}) do
+        saved.heroes[#saved.heroes + 1] = SavedCard(card)
+    end
+    for _, card in ipairs(snapshot.monsters or {}) do
+        saved.monsters[#saved.monsters + 1] = SavedCard(card)
+    end
+    for charid, note in pairs(snapshot.exemptions or {}) do
+        saved.exemptions[charid] = note
+    end
+    return saved
+end
+
+--The snapshot this client's victory screen last showed, or nil. The award
+--fields follow the award once it plays.
+function DSVictoryScreen.GetShownSnapshot()
+    return g_shownSnapshot
+end
+
+-- Build a single hero's card from its data (see HeroCardData): portrait, name, Stamina
+-- bar, Recoveries change, the fun role they earned (blank when they earned none), and a
+-- DEAD marker for fallen heroes. Every visible element carries the "victoryFade" class
+-- so the card-level "shown" class can fade the whole card in via the descendant style
+-- rules on the card (opacity does not cascade in this engine, so each leaf is faded
+-- individually).
+local function BuildHeroCard(data)
+    local name = data.name or "Hero"
+
+    local dead = data.dead == true
+    local curHp = tonumber(data.curHp) or 0
+    local maxHp = tonumber(data.maxHp) or 0
     local fillPct = 0
     if maxHp > 0 and curHp > 0 then
         fillPct = math.min(1, curHp / maxHp) * 100
@@ -1995,13 +2250,12 @@ local function BuildHeroCard(live, token, roleInfo)
         cornerRadius = 4,
         children = deadChildren,
     }
-    if token ~= nil then
-        local portrait = token.inspectPortrait
-        portraitPanel.bgimage = portrait
-        if token.hasSpineAnimation then
+    if data.portrait ~= nil then
+        portraitPanel.bgimage = data.portrait
+        if data.spine then
             portraitPanel.selfStyle.imageRect = nil
         else
-            portraitPanel.selfStyle.imageRect = token:GetPortraitRectForAspect(Styles.portraitWidthPercentOfHeight * 0.01, portrait)
+            portraitPanel.selfStyle.imageRect = data.portraitRect
         end
     end
 
@@ -2059,7 +2313,9 @@ local function BuildHeroCard(live, token, roleInfo)
     }
 
     -- Recoveries: "Recoveries: onset -> current/max" (or just "current/max" if unchanged).
-    local onset, curRec, maxRec = live:GetHeroRecoveries(token)
+    local onset = tonumber(data.recoveriesOnset)
+    local curRec = tonumber(data.recoveries) or 0
+    local maxRec = tonumber(data.recoveriesMax) or 0
     local recText
     if onset ~= nil and onset ~= curRec then
         recText = string.format("Recoveries: %d -> %d/%d", onset, curRec, maxRec)
@@ -2089,8 +2345,8 @@ local function BuildHeroCard(live, token, roleInfo)
     -- can receive hover.
     local roleTitleLabel = gui.Label{
         classes = {"victoryFade", "info"},
-        interactable = roleInfo ~= nil,
-        text = (roleInfo ~= nil and roleInfo.role) or "",
+        interactable = data.role ~= nil,
+        text = data.role or "",
         width = "100%",
         height = "auto",
         halign = "center",
@@ -2101,13 +2357,13 @@ local function BuildHeroCard(live, token, roleInfo)
         fontSize = 16,
         fontWeight = "bold",
         uppercase = true,
-        hover = (roleInfo ~= nil and roleInfo.tooltip ~= nil) and gui.Tooltip(roleInfo.tooltip) or nil,
+        hover = (data.role ~= nil and data.roleTooltip ~= nil) and gui.Tooltip(data.roleTooltip) or nil,
     }
 
     local roleTextLabel = gui.Label{
         classes = {"victoryFade", "fg"},
         interactable = false,
-        text = (roleInfo ~= nil and roleInfo.text) or "",
+        text = data.roleText or "",
         width = "100%",
         height = "auto",
         halign = "center",
@@ -2119,14 +2375,7 @@ local function BuildHeroCard(live, token, roleInfo)
     }
 
     -- Lines registered by other modules (DSVictoryScreen.RegisterHeroCardNote).
-    local noteLines = {}
-    for _, fn in pairs(g_heroCardNotes) do
-        local ok, text = pcall(fn, live, token)
-        if ok and type(text) == "string" and text ~= "" then
-            noteLines[#noteLines + 1] = text
-        end
-    end
-    table.sort(noteLines)
+    local noteLines = data.notes or {}
     local notesLabel = gui.Label{
         classes = {"victoryFade", "info"},
         interactable = false,
@@ -2172,7 +2421,7 @@ local function BuildHeroCard(live, token, roleInfo)
         children = {},
     }
 
-    local victoriesOld = (props ~= nil and props:GetVictories()) or 0
+    local victoriesOld = tonumber(data.victoriesOld) or 0
 
     return gui.Panel{
         --"victoryFade" so the card's own gradient background fades in along with its
@@ -2198,7 +2447,7 @@ local function BuildHeroCard(live, token, roleInfo)
         vpad = 12,
         borderBox = true,
 
-        data = { token = token, victoriesOld = victoriesOld },
+        data = { charid = data.charid, victoriesOld = victoriesOld },
 
         styles = {
             -- Every leaf starts transparent and fades to full once the card gains the
@@ -2311,17 +2560,18 @@ local function BuildHeroCard(live, token, roleInfo)
     }
 end
 
--- Build a single monster grouping's card for the Monsters tab: the group's
--- portrait (its captain's, for a squad), name with an "xN" member count, a
--- survivors bar in place of the hero card's Stamina bar, and the fun role the
--- group earned (may be nil; the role lines render blank). Mirrors BuildHeroCard's
--- structure and fade classes so the two tabs read as one family; fully-wiped
--- groups get the red portrait wash with a DEFEATED marker where dead heroes
--- show DEAD.
-local function BuildMonsterCard(live, group, roleInfo)
-    local token = group.primaryToken
-    local name = group.name or "Monsters"
-    local allDead = group.allDead
+-- Build a single monster grouping's card for the Monsters tab from its data (see
+-- MonsterCardData): the group's portrait (its captain's, for a squad), name with an
+-- "xN" member count, a survivors bar in place of the hero card's Stamina bar, and the
+-- fun role the group earned (blank when none). Mirrors BuildHeroCard's structure and
+-- fade classes so the two tabs read as one family; fully-wiped groups get the red
+-- portrait wash with a DEFEATED marker where dead heroes show DEAD.
+local function BuildMonsterCard(data)
+    local name = data.name or "Monsters"
+    local allDead = data.allDead == true
+    local memberCount = tonumber(data.memberCount) or 0
+    local aliveCount = tonumber(data.aliveCount) or 0
+    local deadCount = tonumber(data.deadCount) or 0
 
     -- For wiped groups the portrait carries the death treatment, exactly like a
     -- fallen hero's card (bgcolor alpha wash so victoryFade can still animate).
@@ -2370,18 +2620,14 @@ local function BuildMonsterCard(live, group, roleInfo)
         cornerRadius = 4,
         children = deadChildren,
     }
-    if token ~= nil then
-        local portrait = token.inspectPortrait
-        portraitPanel.bgimage = portrait
-        if token.hasSpineAnimation then
+    if data.portrait ~= nil then
+        portraitPanel.bgimage = data.portrait
+        if data.spine then
             portraitPanel.selfStyle.imageRect = nil
         else
-            portraitPanel.selfStyle.imageRect = token:GetPortraitRectForAspect(Styles.portraitWidthPercentOfHeight * 0.01, portrait)
+            --nil for a fallback portrait (no crop rect is available).
+            portraitPanel.selfStyle.imageRect = data.portraitRect
         end
-    elseif group.fallbackInfo ~= nil and group.fallbackInfo.portrait ~= nil then
-        --every member token was deleted outright; draw the portrait snapshotted
-        --into the live encounter at combat onset (no crop rect is available).
-        portraitPanel.bgimage = group.fallbackInfo.portrait
     end
 
     -- Name line(s). A squad reads as its captain(s) on the main line with the
@@ -2391,31 +2637,34 @@ local function BuildMonsterCard(live, group, roleInfo)
     -- with no minions keeps the old "Name xN" (count only when more than one).
     local nameText = name
     local minionText = nil
-    local composition = group.composition
-    if composition ~= nil and (#composition.captains > 0 or #composition.minions > 0) then
+    local composition = data.composition or {}
+    local captains = composition.captains or {}
+    local minions = composition.minions or {}
+    if #captains > 0 or #minions > 0 then
         local function FormatLines(entries, alwaysCount)
             local lines = {}
             for _, e in ipairs(entries) do
-                if alwaysCount or e.count > 1 then
-                    lines[#lines+1] = string.format("%s x%d", e.name, e.count)
+                local count = tonumber(e.count) or 1
+                if alwaysCount or count > 1 then
+                    lines[#lines+1] = string.format("%s x%d", tostring(e.name), count)
                 else
-                    lines[#lines+1] = e.name
+                    lines[#lines+1] = tostring(e.name)
                 end
             end
             return table.concat(lines, "\n")
         end
-        local hasMinions = #composition.minions > 0
-        if #composition.captains > 0 then
-            nameText = FormatLines(composition.captains, hasMinions)
+        local hasMinions = #minions > 0
+        if #captains > 0 then
+            nameText = FormatLines(captains, hasMinions)
             if hasMinions then
-                minionText = FormatLines(composition.minions, true)
+                minionText = FormatLines(minions, true)
             end
         else
             --minion-only group: the minions are the headline.
-            nameText = FormatLines(composition.minions, false)
+            nameText = FormatLines(minions, false)
         end
-    elseif group.memberCount > 1 then
-        nameText = string.format("%s x%d", name, group.memberCount)
+    elseif memberCount > 1 then
+        nameText = string.format("%s x%d", name, memberCount)
     end
 
     local nameLabel = gui.Label{
@@ -2454,19 +2703,19 @@ local function BuildMonsterCard(live, group, roleInfo)
     -- Survivors bar: same chrome as the hero Stamina bar, filled by the fraction
     -- of the group still standing.
     local fillPct = 0
-    if group.memberCount > 0 then
-        fillPct = math.min(1, group.aliveCount / group.memberCount) * 100
+    if memberCount > 0 then
+        fillPct = math.min(1, aliveCount / memberCount) * 100
     end
 
     local statusText
-    if group.memberCount == 1 then
+    if memberCount == 1 then
         statusText = cond(allDead, "Defeated", "Survived")
     elseif allDead then
         statusText = "All Defeated"
-    elseif group.deadCount == 0 then
-        statusText = string.format("All %d Survived", group.memberCount)
+    elseif deadCount == 0 then
+        statusText = string.format("All %d Survived", memberCount)
     else
-        statusText = string.format("%d of %d Survived", group.aliveCount, group.memberCount)
+        statusText = string.format("%d of %d Survived", aliveCount, memberCount)
     end
 
     local survivorsFill = gui.Panel{
@@ -2510,8 +2759,8 @@ local function BuildMonsterCard(live, group, roleInfo)
     -- at textWrap = false.
     local roleTitleLabel = gui.Label{
         classes = {"victoryFade", "info"},
-        interactable = roleInfo ~= nil,
-        text = (roleInfo ~= nil and roleInfo.role) or "",
+        interactable = data.role ~= nil,
+        text = data.role or "",
         width = "100%",
         height = "auto",
         halign = "center",
@@ -2522,13 +2771,13 @@ local function BuildMonsterCard(live, group, roleInfo)
         fontSize = 16,
         fontWeight = "bold",
         uppercase = true,
-        hover = (roleInfo ~= nil and roleInfo.tooltip ~= nil) and gui.Tooltip(roleInfo.tooltip) or nil,
+        hover = (data.role ~= nil and data.roleTooltip ~= nil) and gui.Tooltip(data.roleTooltip) or nil,
     }
 
     local roleTextLabel = gui.Label{
         classes = {"victoryFade", "fg"},
         interactable = false,
-        text = (roleInfo ~= nil and roleInfo.text) or "",
+        text = data.roleText or "",
         width = "100%",
         height = "auto",
         halign = "center",
@@ -2555,7 +2804,7 @@ local function BuildMonsterCard(live, group, roleInfo)
         vpad = 12,
         borderBox = true,
 
-        data = { group = group },
+        data = {},
 
         styles = {
             { selectors = {"victoryFade"}, opacity = 0, transitionTime = 0.6 },
@@ -2572,7 +2821,16 @@ local function BuildMonsterCard(live, group, roleInfo)
 end
 
 -- Create the victory screen overlay. Mounted once by the game HUD.
-function DSVictoryScreen.Create()
+--
+-- options (optional), for a REPLAY of a saved screen instead (see ShowReplay):
+--   replay  = a saved snapshot (DSVictoryScreen.SavedSnapshot) to show at once.
+--             The screen then never looks at the initiative queue: Proceed reads
+--             "Close", Escape closes it too, and closing destroys the panel.
+--   caption = a line under the title (e.g. which encounter and when).
+--   onClose = called once the replay has closed.
+function DSVictoryScreen.Create(options)
+    options = options or {}
+    local replay = options.replay
     local heroRow
     local monsterRow
     local tabsPanel
@@ -2584,6 +2842,8 @@ function DSVictoryScreen.Create()
     local rootPanel
     local victoriesSection
     local victoryAmountInput
+    -- Holds the panels registered with RegisterFooterPanel, above Proceed.
+    local footerSection
 
     ------------------------------------------------------------------
     -- Full-screen dim. Interactable so it swallows clicks to the map
@@ -2594,7 +2854,7 @@ function DSVictoryScreen.Create()
     -- map blurs. The dim is kept light enough that the blur reads through.
     ------------------------------------------------------------------
     local dimPanel = gui.Panel{
-        classes = {"dim-out"},
+        classes = {"dim-out", cond(replay ~= nil, "replay", nil)},
         interactable = true,
         width = "100%",
         height = "100%",
@@ -2603,6 +2863,9 @@ function DSVictoryScreen.Create()
         styles = {
             { classes = {"dim-out"}, opacity = 0, transitionTime = 0.4 },
             { classes = {"dim-in"}, opacity = 0.55, transitionTime = 0.5 },
+            --a replay has no map behind it to blur, only whatever opened it:
+            --a near-solid dim keeps that from showing through the cards.
+            { classes = {"dim-in", "replay"}, opacity = 0.92, transitionTime = 0.5 },
         },
     }
 
@@ -2761,6 +3024,27 @@ function DSVictoryScreen.Create()
         children = { titleClip, leftSword, rightSword },
     }
 
+    -- A replay's caption, under the title (collapsed on the live screen).
+    local captionLabel = gui.Label{
+        classes = {"victoryCaption", cond(options.caption == nil, "collapsed", nil)},
+        interactable = false,
+        text = options.caption or "",
+        width = "auto",
+        height = "auto",
+        maxWidth = 1200,
+        halign = "center",
+        valign = "top",
+        y = 176,
+        textAlignment = "center",
+        fontFace = "Book",
+        fontSize = 18,
+        italics = true,
+        styles = {
+            { selectors = {"victoryCaption"}, opacity = 0, transitionTime = 0.7 },
+            { selectors = {"victoryCaption", "shown"}, opacity = 1, transitionTime = 0.7 },
+        },
+    }
+
     -- The cards rest at a stable top within this row (fixed height + valign top), so a
     -- card growing -- e.g. when its "Victories" line appears -- never shifts the others.
     heroRow = gui.Panel{
@@ -2853,7 +3137,7 @@ function DSVictoryScreen.Create()
     -- button rules supply rest/hover/press chrome from the active scheme).
     proceedButton = gui.Button{
         classes = {"sizeL", "victoryProceed"},
-        text = "Proceed",
+        text = cond(replay ~= nil, "Close", "Proceed"),
         interactable = true,
         width = 220,
         height = 56,
@@ -2868,13 +3152,25 @@ function DSVictoryScreen.Create()
 
         hover = function(element)
             local text = "End combat and dismiss the victory screen for everyone."
-            if rootPanel ~= nil and rootPanel.valid and rootPanel.data.held then
+            if replay ~= nil or (rootPanel ~= nil and rootPanel.valid and rootPanel.data.held) then
                 text = "Dismiss the victory screen."
             end
             gui.Tooltip{ text = text }(element)
         end,
 
         click = function(element)
+            element:FireEvent("press")
+        end,
+
+        -- The Proceed press itself, also fired by footer panels (RegisterFooterPanel).
+        press = function(element)
+            --a replay just closes; there is no combat behind it.
+            if replay ~= nil then
+                if rootPanel ~= nil and rootPanel.valid then
+                    rootPanel:FireEvent("closeReplay")
+                end
+                return
+            end
             --a HELD screen (combat already ended elsewhere; this client kept
             --the screen up until its own Proceed -- see checkVictory): tell
             --the override, then close locally. Nothing to tear down.
@@ -2980,7 +3276,22 @@ function DSVictoryScreen.Create()
         children = { victoriesTitleLabel, victoryAmountInput, awardVictoriesButton },
     }
 
-    rootPanel = gui.Panel{
+    footerSection = gui.Panel{
+        classes = {"victoryProceed", "collapsed"},
+        interactable = true,
+        flow = "vertical",
+        width = "auto",
+        height = "auto",
+        halign = "center",
+        valign = "bottom",
+        y = -140,
+        styles = {
+            { selectors = {"victoryProceed"}, opacity = 0, transitionTime = 0.5 },
+            { selectors = {"victoryProceed", "shown"}, opacity = 1, transitionTime = 0.5 },
+        },
+    }
+
+    local rootArgs = {
         -- This overlay owns its cascade root, so the theme classes applied to
         -- the dim, cards, buttons, and labels below resolve against the active
         -- scheme. Re-resolved on theme change via OnThemeChanged below.
@@ -2996,9 +3307,11 @@ function DSVictoryScreen.Create()
         -- with interactable=false would block its whole subtree from raycasts).
         interactable = true,
 
-        children = { dimPanel, defeatBackdrop, titleGroup, tabsPanel, heroRow, monsterRow, victoriesSection, proceedButton },
+        children = { dimPanel, defeatBackdrop, titleGroup, captionLabel, tabsPanel, heroRow, monsterRow, victoriesSection, footerSection, proceedButton },
 
         data = {
+            -- A replay of a saved screen (see options.replay above).
+            replay = replay ~= nil,
             -- Bumped on every show/hide so a stale scheduled callback can tell that a
             -- newer state change has superseded it.
             generation = 0,
@@ -3021,19 +3334,26 @@ function DSVictoryScreen.Create()
             backdropLoaded = false,
         },
 
-        -- Build + stagger the cards, then fade everything in. outcome is
-        -- "victory" (default) or "defeat"; defeat retitles the banner, opens on
-        -- the Monsters tab, and fades in the backdrop painting.
+        -- Capture the live encounter as a snapshot and show it. outcome is
+        -- "victory" (default) or "defeat".
         showVictory = function(element, live, outcome)
-            if outcome ~= "defeat" then
-                outcome = "victory"
-            end
+            local snapshot = DSVictoryScreen.CaptureSnapshot(live, outcome)
+            g_shownSnapshot = snapshot
+            element:FireEvent("showSnapshot", snapshot)
+        end,
+
+        -- Build + stagger the cards from a snapshot (live or saved), then fade
+        -- everything in. A defeat retitles the banner, opens on the Monsters
+        -- tab, and fades in the backdrop painting.
+        showSnapshot = function(element, snapshot)
+            local outcome = cond(snapshot.outcome == "defeat", "defeat", "victory")
             element.data.generation = element.data.generation + 1
             local g = element.data.generation
             element.data.outcome = outcome
 
             element:SetClass("hidden", false)
-            dimPanel.blurBackground = true
+            --a replay has no map to blur behind it (see the dim's replay style).
+            dimPanel.blurBackground = not element.data.replay
             dimPanel:SetClass("dim-out", false)
             dimPanel:SetClass("dim-in", true)
 
@@ -3052,38 +3372,49 @@ function DSVictoryScreen.Create()
             rightSword:SetClass("rsw-open", false)
             rightSword:SetClass("rsw-closed", true)
             proceedButton:SetClass("shown", false)
-            proceedButton:SetClass("collapsed", not CanLocalUserProceed())
+            proceedButton:SetClass("collapsed", not (element.data.replay or CanLocalUserProceed()))
+            captionLabel:SetClass("shown", false)
+
+            --panels other modules add above Proceed (RegisterFooterPanel); they
+            --fade in with it.
+            local footers = {}
+            if not element.data.replay and CanLocalUserProceed() then
+                local pressProceed = function()
+                    if proceedButton ~= nil and proceedButton.valid then
+                        proceedButton:FireEvent("press")
+                    end
+                end
+                for id, fn in pairs(g_footerPanels) do
+                    local ok, panel = pcall(fn, outcome, pressProceed)
+                    if not ok then
+                        print("VICTORY:: footer panel", id, "failed:", panel)
+                    elseif panel ~= nil then
+                        footers[#footers + 1] = panel
+                    end
+                end
+            end
+            footerSection.children = footers
+            footerSection:SetClass("shown", false)
+            footerSection:SetClass("collapsed", #footers == 0)
 
             --reset the Director victories controls for this showing.
             element.data.awardPlayed = false
-            victoryAmountInput.text = tostring(live:try_get("victories", 1))
+            victoryAmountInput.text = tostring(snapshot.victories or 1)
             victoriesSection:SetClass("collapsed", true)
 
-            --build a card per hero in the battle (enumerated live from the initiative
-            --queue, so heroes always appear; the onset snapshot is only used to show how
-            --their Recoveries changed).
-            local heroTokens = live:GetBattleHeroTokens()
-            print("VICTORY:: building cards for", #heroTokens, "heroes")
-
-            --compute every hero's fun role once for the whole party; heroes
-            --with no role get nil and their card renders the role lines blank.
-            local heroRoles = DSVictoryScreen.ComputeHeroRoles(live)
-
+            --a card per hero in the battle (enumerated live from the initiative
+            --queue when the snapshot was taken, so heroes always appear).
+            print("VICTORY:: building cards for", #(snapshot.heroes or {}), "heroes")
             local cards = {}
-            for _, token in ipairs(heroTokens) do
-                cards[#cards + 1] = BuildHeroCard(live, token, heroRoles[token.charid])
+            for _, data in ipairs(snapshot.heroes or {}) do
+                cards[#cards + 1] = BuildHeroCard(data)
             end
             heroRow.children = cards
 
-            --build a card per monster grouping for the Monsters tab (pcall: an old
-            --live encounter from before monster tracking simply shows no tab).
+            --a card per monster grouping for the Monsters tab.
             local monsterCards = {}
-            local okGroups, monsterGroups = pcall(function() return live:GetMonsterGroups() end)
-            if okGroups and type(monsterGroups) == "table" and #monsterGroups > 0 then
-                local monsterRoles = DSVictoryScreen.ComputeMonsterRoles(live)
-                for _, group in ipairs(monsterGroups) do
-                    monsterCards[#monsterCards + 1] = BuildMonsterCard(live, group, monsterRoles[group.groupid])
-                end
+            for _, data in ipairs(snapshot.monsters or {}) do
+                monsterCards[#monsterCards + 1] = BuildMonsterCard(data)
             end
             monsterRow.children = monsterCards
 
@@ -3141,6 +3472,27 @@ function DSVictoryScreen.Create()
             --finally the proceed button, after the last card.
             local proceedDelay = 0.4 + (#activeCards) * g_heroStagger + 0.2
             element:ScheduleEvent("showProceed", proceedDelay, g)
+
+            --a replay of a victory whose Victories were awarded plays the award
+            --again once the cards are in.
+            if element.data.replay and outcome == "victory" and snapshot.awarded then
+                element:ScheduleEvent("replayAward", proceedDelay + 0.3, g, snapshot)
+            end
+        end,
+
+        replayAward = function(element, g, snapshot)
+            if g ~= element.data.generation or element.data.awardPlayed then return end
+            element.data.awardPlayed = true
+            element:FireEvent("playAward", snapshot.victories or 1, snapshot.exemptions or {}, snapshot.victoryAmounts or {})
+        end,
+
+        --close a replay: fade out, then the panel removes itself.
+        closeReplay = function(element)
+            if not element.data.shown then
+                return
+            end
+            element.data.shown = false
+            element:FireEvent("hideVictory")
         end,
 
         showTabs = function(element, g)
@@ -3183,6 +3535,7 @@ function DSVictoryScreen.Create()
             audio.FireSoundEvent(cond(element.data.outcome == "defeat", "Notify.BigBanner_Neg", "Notify.BigBanner_Pos"))
             titleLabel:SetClass("shown", true)
             titleShadow:SetClass("shown", true)
+            captionLabel:SetClass("shown", true)
             titleClip:SetClass("titleClip-closed", false)
             titleClip:SetClass("titleClip-open", true)
             leftSword:SetClass("lsw-closed", false)
@@ -3205,6 +3558,10 @@ function DSVictoryScreen.Create()
         showProceed = function(element, g)
             if g ~= element.data.generation then return end
             proceedButton:SetClass("shown", true)
+            footerSection:SetClass("shown", true)
+            if element.data.replay then
+                return
+            end
             --reveal the Director victories controls alongside Proceed (unless already
             --awarded, this is a player, or the outcome is a defeat -- no Victories
             --are granted for losing). DirectorUIVisible rather than raw isDM: in
@@ -3219,6 +3576,7 @@ function DSVictoryScreen.Create()
             element.data.generation = element.data.generation + 1
             titleLabel:SetClass("shown", false)
             titleShadow:SetClass("shown", false)
+            captionLabel:SetClass("shown", false)
             titleClip:SetClass("titleClip-open", false)
             titleClip:SetClass("titleClip-closed", true)
             leftSword:SetClass("lsw-open", false)
@@ -3226,6 +3584,7 @@ function DSVictoryScreen.Create()
             rightSword:SetClass("rsw-open", false)
             rightSword:SetClass("rsw-closed", true)
             proceedButton:SetClass("shown", false)
+            footerSection:SetClass("shown", false)
             victoriesSection:SetClass("collapsed", true)
             tabsPanel:SetClass("shown", false)
             defeatBackdrop:SetClass("shown", false)
@@ -3249,12 +3608,21 @@ function DSVictoryScreen.Create()
 
         finishHide = function(element, g)
             if g ~= element.data.generation then return end
+            if element.data.replay then
+                --a replay is a one-off panel: remove it and tell its opener.
+                element:DestroySelf()
+                if options.onClose ~= nil then
+                    pcall(options.onClose)
+                end
+                return
+            end
             element:SetClass("hidden", true)
             --stop generating the full-screen blur texture now that the dim has
             --fully faded out; otherwise MainCamera keeps blurring every frame.
             dimPanel.blurBackground = false
             heroRow.children = {}
             monsterRow.children = {}
+            footerSection.children = {}
             defeatBackdrop:SetClass("hidden", true)
         end,
 
@@ -3294,15 +3662,28 @@ function DSVictoryScreen.Create()
             if live ~= nil and outcome == "victory" and element.data.shown and not element.data.awardPlayed
                 and live:try_get("victoriesAwarded", false) then
                 element.data.awardPlayed = true
-                element:FireEvent("playAward", live)
+                local n = live:try_get("victories", 1)
+                local amounts = live:try_get("victoryAmounts") or {}
+                local exemptions = live:try_get("victoryExemptions") or {}
+                --the shown snapshot follows the award, so a copy saved now
+                --(the Hall of Heroes) replays it too.
+                if g_shownSnapshot ~= nil then
+                    g_shownSnapshot.victories = n
+                    g_shownSnapshot.victoryAmounts = amounts
+                    g_shownSnapshot.exemptions = exemptions
+                    g_shownSnapshot.awarded = true
+                end
+                element:FireEvent("playAward", n, exemptions, amounts)
             end
         end,
 
-        -- Drop victory icons into each hero card in turn, one card after another.
-        playAward = function(element, live)
+        -- Drop `n` victory icons into each hero card in turn, one card after
+        -- another; heroes in `exemptions` ({ [charid] = note }) show the note,
+        -- and heroes in `amounts` ({ [charid] = n }) get their own count.
+        playAward = function(element, n, exemptions, amounts)
             local g = element.data.generation
-            local n = live:try_get("victories", 1)
-            local exemptions = live:try_get("victoryExemptions") or {}
+            exemptions = exemptions or {}
+            amounts = amounts or {}
             --the drop animation lands on the hero cards, so make sure this client
             --is looking at them.
             element:FireEvent("selectTab", "heroes")
@@ -3311,9 +3692,10 @@ function DSVictoryScreen.Create()
             local cards = heroRow.children
             local perCard = 0.7
             for i, card in ipairs(cards) do
-                local token = card.data.token
-                local note = token ~= nil and exemptions[token.charid] or nil
-                element:ScheduleEvent("awardCard", (i - 1) * perCard, g, card, n, note)
+                local charid = card.data.charid
+                local note = charid ~= nil and exemptions[charid] or nil
+                local cardAmount = charid ~= nil and amounts[charid] or n
+                element:ScheduleEvent("awardCard", (i - 1) * perCard, g, card, cardAmount, note)
             end
         end,
 
@@ -3330,24 +3712,61 @@ function DSVictoryScreen.Create()
             end
         end,
 
-        --Re-check whenever the initiative queue changes (victory awarded / combat ended).
-        monitorGame = "/initiativeQueue",
         refreshGame = function(element)
             element:FireEvent("checkVictory")
         end,
 
         create = function(element)
+            if element.data.replay then
+                element.data.shown = true
+                element:FireEvent("showSnapshot", replay)
+                return
+            end
             element:FireEvent("checkVictory")
         end,
     }
 
-    -- Re-resolve the cascade when the user switches theme / color scheme so the
-    -- whole victory screen recolors live.
-    ThemeEngine.OnThemeChanged(mod, function()
-        if rootPanel ~= nil and rootPanel.valid then
-            rootPanel.styles = ThemeEngine.GetStyles()
+    if replay ~= nil then
+        --a replay sits over whatever opened it; Escape closes it first.
+        rootArgs.captureEscape = true
+        rootArgs.escapePriority = EscapePriority.EXIT_MODAL_DIALOG
+        rootArgs.escape = function(element)
+            element:FireEvent("closeReplay")
         end
-    end)
+    else
+        --Re-check whenever the initiative queue changes (victory awarded / combat ended).
+        rootArgs.monitorGame = "/initiativeQueue"
+    end
+
+    rootPanel = gui.Panel(rootArgs)
+    if replay == nil then
+        g_liveScreen = rootPanel
+    end
+
+    -- Re-resolve the cascade when the user switches theme / color scheme so the
+    -- whole victory screen recolors live. (A short-lived replay keeps the theme
+    -- it opened with rather than registering a callback per showing.)
+    if replay == nil then
+        ThemeEngine.OnThemeChanged(mod, function()
+            if rootPanel ~= nil and rootPanel.valid then
+                rootPanel.styles = ThemeEngine.GetStyles()
+            end
+        end)
+    end
 
     return rootPanel
+end
+
+--Show a saved victory screen (DSVictoryScreen.SavedSnapshot) over `parent`,
+--e.g. a Hall of Heroes entry. options: caption (a line under the title),
+--onClose (called once it has closed). Returns the panel.
+function DSVictoryScreen.ShowReplay(parent, snapshot, options)
+    options = options or {}
+    local panel = DSVictoryScreen.Create{
+        replay = snapshot,
+        caption = options.caption,
+        onClose = options.onClose,
+    }
+    parent:AddChild(panel)
+    return panel
 end

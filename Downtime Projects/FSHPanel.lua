@@ -2114,6 +2114,123 @@ function FSHPanel.RespiteJournalSummary(args)
     return lines
 end
 
+--- Every hero on the Respite and the followers who fish with them
+--- @param roster nil|fun(): string[]
+--- @return string[] charids
+function FSHPanel._respiteHouseholds(roster)
+    local ids = {}
+    local session = rawget(_G, "RSPSession")
+    for _, heroId in ipairs(roster ~= nil and roster() or {}) do
+        ids[#ids + 1] = heroId
+        if session ~= nil then
+            for _, followerId in ipairs(session.FollowersOf(heroId)) do
+                ids[#ids + 1] = followerId
+            end
+        end
+    end
+    return ids
+end
+
+--- Everyone's fishing this Respite, as lines for the players' Watch view
+--- Read straight off each Trip document rather than through SessionTrips: the
+--- water can turn over mid-Respite, and a Trip carried in from earlier water
+--- still fishes in this one. The time window alone decides. A line from before
+--- casts were stamped falls back to its Trip's opening.
+--- @param args table roster accessor, and since as a server time or a function
+--- @return table[] entries {at, text, charid}
+function FSHPanel.RespitePartyRecord(args)
+    local since = args.since
+    if type(since) == "function" then
+        since = since()
+    end
+    since = since or 0
+
+    local entries = {}
+    local function Add(at, charid, text)
+        if (at or 0) >= since then
+            entries[#entries + 1] = {
+                at = at,
+                charid = charid,
+                text = text,
+            }
+        end
+    end
+
+    for _, id in ipairs(FSHPanel._respiteHouseholds(args.roster)) do
+        local document = FSHTrip.Get(id)
+        if document ~= nil then
+            local token = dmhub.GetCharacterById(id)
+            local name = (token ~= nil and token.name) or "Unnamed Hero"
+
+            local trips = {}
+            for _, entry in ipairs(document.history or {}) do
+                trips[#trips + 1] = entry
+            end
+            if document.status ~= FSHTrip.STATUS.CLOSED.key then
+                trips[#trips + 1] = document
+            end
+
+            for _, trip in ipairs(trips) do
+                local opened = trip.openedAt or 0
+                local catches = 0
+
+                local water = trip.waterName or ""
+                if water == "" then
+                    Add(opened, id, string.format("%s went fishing", name))
+                else
+                    Add(opened, id, string.format("%s went fishing at %s", name, water))
+                end
+
+                for _, cast in ipairs(trip.casts or {}) do
+                    local at = cast.at or opened
+                    if cast.result == FSHTrip.RESULT.CATCH.key then
+                        catches = catches + 1
+                        Add(at, id, string.format("%s landed a %d-point %s", name, cast.points or 0,
+                            cast.species ~= nil and cast.species.name or "fish"))
+                    elseif cast.result == FSHTrip.RESULT.GOTAWAY.key then
+                        Add(at, id, string.format("%s's catch got away", name))
+                    elseif cast.result == FSHTrip.RESULT.BREAKTHROUGH.key then
+                        Add(at, id, string.format("%s hit a breakthrough", name))
+                    end
+                end
+
+                for _, event in ipairs(trip.events or {}) do
+                    Add(event.at or opened, id, string.format("%s's breakthrough: <b>%s</b>", name,
+                        event.name or "an event"))
+                end
+
+                for _, purchase in ipairs(trip.purchases or {}) do
+                    if (purchase.cost or 0) > 0 then
+                        Add(purchase.at or opened, id, string.format("%s bought %s for %d points",
+                            name, purchase.name or "something", purchase.cost))
+                    else
+                        Add(purchase.at or opened, id, string.format("%s bought %s",
+                            name, purchase.name or "something"))
+                    end
+                end
+
+                if trip.closedAt ~= nil then
+                    Add(trip.closedAt, id, string.format("%s finished fishing with %d %s",
+                        name, catches, cond(catches == 1, "catch", "catches")))
+                end
+            end
+        end
+    end
+
+    return entries
+end
+
+--- The Trip documents the Party record reads
+--- @param args table roster accessor
+--- @return string[] paths
+function FSHPanel.RespitePartyWatch(args)
+    local paths = {}
+    for _, id in ipairs(FSHPanel._respiteHouseholds(args.roster)) do
+        paths[#paths + 1] = FSHTrip.GetDocumentPath(id)
+    end
+    return paths
+end
+
 --- Offers fishing to the Respite, if the Respite module is installed.
 --- Registering the same key twice is a replace, so running this more than
 --- once costs nothing.
@@ -2161,6 +2278,8 @@ local function RegisterWithRespite()
 
         journalDetail = FSHPanel.RespiteJournalDetail,
         journalSummary = FSHPanel.RespiteJournalSummary,
+        partyRecord = FSHPanel.RespitePartyRecord,
+        partyWatch = FSHPanel.RespitePartyWatch,
     }
 end
 

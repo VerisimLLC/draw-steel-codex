@@ -324,7 +324,11 @@ function InitiativeQueue:SelectTurn(initiativeid)
 	--Revert Turn's snapshot (and Turn Rewind's first entry) must be of the board
 	--before this turn starts.
 	TurnCheckpoint.BeforeSelectTurn(self)
-	TurnRewind.BeforeSelectTurn(self, initiativeid)
+	--Turn Rewind is a prototype: a failure in it must never stop the turn starting (76C77DP6).
+	local ok, err = pcall(TurnRewind.BeforeSelectTurn, self, initiativeid)
+	if not ok then
+		print("TurnRewind:: BeforeSelectTurn failed:", err)
+	end
 
 	entry.turn = self.turn
 	self.turn = self.turn + 1

@@ -1597,27 +1597,45 @@ function MM.BuildWallsMode()
                     --to the palette first when it is missing. Both paths end
                     --in SelectChip, which also drops the Picker back to the
                     --default drawing tool so the next stroke draws that type.
+                    if m.mapScope.pickerPending then
+                        return
+                    end
                     local hit = MM.FindWallTypeAtPoint(point)
                     if hit == nil then
                         return
                     end
                     MM.ClearDeleteHighlight()
                     m.mapScope.ClearPickerTooltip()
-                    for index,entry in ipairs(m.paletteEntries) do
-                        if entry.guid == hit.wallid then
-                            SelectChip(index)
+                    --Wait for the button to come up before switching tool.
+                    --Leaving the Picker drops map focus at once, and the
+                    --engine's token-select pass later in this same frame
+                    --would then take the press as a click on empty map -
+                    --which closed the Map Markup window.
+                    local wallid = hit.wallid
+                    m.mapScope.pickerPending = true
+                    dmhub.ScheduleWhen(function()
+                        return mod.unloaded or not element.valid or not element:GetMouseButton(0)
+                    end, function()
+                        m.mapScope.pickerPending = false
+                        if mod.unloaded or not element.valid or m.toolId ~= "picker" then
                             return
                         end
-                    end
-                    --FindWallTypeAtPoint only returns a missing-asset wall
-                    --when its guid is in the palette (handled above).
-                    if assets.walls[hit.wallid] == nil then
-                        return
-                    end
-                    AddPaletteEntry{
-                        kind = "wall",
-                        guid = hit.wallid,
-                    }
+                        for index,entry in ipairs(m.paletteEntries) do
+                            if entry.guid == wallid then
+                                SelectChip(index)
+                                return
+                            end
+                        end
+                        --FindWallTypeAtPoint only returns a missing-asset wall
+                        --when its guid is in the palette (handled above).
+                        if assets.walls[wallid] == nil then
+                            return
+                        end
+                        AddPaletteEntry{
+                            kind = "wall",
+                            guid = wallid,
+                        }
+                    end)
                     return
                 end
                 if m.toolId == "retype" then

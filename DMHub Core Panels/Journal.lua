@@ -415,6 +415,19 @@ local function RailCanTakeDocument(doc)
     return docs[doc.id] ~= nil
 end
 
+--A journal row dropped outside the journal, with no drag target under it.
+--Over the bare table (tabletop view) the entry goes on the table as an item
+--that opens it; over the map the Director gets an info bubble that opens it.
+--Anywhere else (over another panel) nothing happens.
+function JournalEntryDropped(entryid)
+    local surface = dmhub.panelDropSurface
+    if surface == "table" then
+        Tabletop.OpenDocItem(entryid, {screen = dmhub.mouseScreenPosition, placed = true})
+    elseif surface == "map" and dmhub.isDM then
+        InfoDocument.PlaceLinkedBubble(entryid)
+    end
+end
+
 local function RailAddMenuEntries(element, doc)
     local result = {}
     if doc == nil or rawget(_G, "IconRailDocAdd") == nil or not RailAvailable() then
@@ -651,8 +664,13 @@ local function CreateCharacterRow(charid)
             if rawget(_G, "IconRailDocDragging") ~= nil then
                 IconRailDocDragging(target)
             end
+            ChatItemLinks.Dragging(function() return {ChatItemLinks.CharacterItem(charid)} end)
         end,
         drag = function(element, target)
+            --dropped on the chat: a link to the character.
+            if ChatItemLinks.Dropped() then
+                return
+            end
             if target == nil then
                 return
             end
@@ -832,6 +850,79 @@ local function JournalFoldersWithMatches(journalPanel, searchText)
     return result
 end
 
+--Image and video files dragged in from the desktop become image entries
+--(an image asset of type "document", as Upload Document makes). The
+--Director's go into the folder they are dropped on; a player's always go
+--into the player's own folder.
+
+--The drag over the journal now: {element, ghost}, or nil.
+local g_fileDrag = nil
+
+--element: end only the drag over this panel (nil: any).
+local function EndJournalFileDrag(element)
+    local drag = g_fileDrag
+    if drag == nil or (element ~= nil and drag.element ~= element) then
+        return
+    end
+    g_fileDrag = nil
+    if drag.ghost ~= nil and drag.ghost.valid then
+        drag.ghost:DestroySelf()
+    end
+end
+
+--folderid: the folder under the mouse, or nil for the journal as a whole.
+local function JournalFileDropFolder(folderid)
+    if not dmhub.isDM then
+        return dmhub.loginUserid
+    end
+    return folderid or "private"
+end
+
+local function BeginJournalFileDrag(journalPanel, element, paths, folderid)
+    EndJournalFileDrag(nil)
+    local folder = journalPanel.data.documentFoldersTable[JournalFileDropFolder(folderid)]
+    local where = "the journal"
+    if folder ~= nil and folder.description ~= nil and folder.description ~= "" then
+        where = folder.description
+    end
+    local drag = {element = element}
+    drag.ghost = FileDrops.ShowGhost(string.format("Add %s to %s", FileDrops.Describe(paths), where), function()
+        return g_fileDrag == drag and element.valid
+    end)
+    g_fileDrag = drag
+end
+
+local function DropJournalFiles(element, paths, folderid)
+    EndJournalFileDrag(nil)
+    --PDFs, Markdown, text and .zip files are imported as documents
+    --(DocumentImport.lua); pictures and videos become picture entries.
+    local documents = {}
+    local media = {}
+    for _, path in ipairs(paths) do
+        if FileDrops.IsDocument(path) then
+            documents[#documents+1] = path
+        else
+            media[#media+1] = path
+        end
+    end
+    if #documents > 0 and rawget(_G, "DocumentImport") ~= nil then
+        DocumentImport.ImportFiles(documents, {parentFolder = JournalFileDropFolder(folderid)})
+    end
+    for _, path in ipairs(media) do
+        FileDrops.UploadImage(path, {
+            imageType = "document",
+            parentFolder = JournalFileDropFolder(folderid),
+            error = function(msg)
+                gui.ModalMessage{
+                    owner = element,
+                    title = "Error importing " .. FileDrops.BaseName(path),
+                    message = msg,
+                }
+            end,
+        })
+    end
+end
+
 local function CreateFolderPanel(journalPanel, folderid)
     local builtinFolder = folderid == "private" or folderid == "public" or folderid == "templates" or
         folderid == game.currentMapId or folderid == dmhub.loginUserid
@@ -848,6 +939,18 @@ local function CreateFolderPanel(journalPanel, folderid)
         data = {
             folderid = folderid,
         },
+
+        --files from the desktop dropped on this folder (or a row in it).
+        dragAndDropExtensions = cond(dmhub.isDM, FileDrops.JOURNAL_EXTENSIONS, nil),
+        dragfilesenter = function(element, paths)
+            BeginJournalFileDrag(journalPanel, element, paths, folderid)
+        end,
+        dragfilesleave = function(element)
+            EndJournalFileDrag(element)
+        end,
+        dropfiles = function(element, paths)
+            DropJournalFiles(element, paths, folderid)
+        end,
 
         expanded = builtinFolder,
         queryNode = function(element, info)
@@ -1352,9 +1455,26 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
                                     IconRailDocDragging(nil)
                                 end
                             end
+                            ChatItemLinks.Dragging(function() return {ChatItemLinks.DocItem(k)} end)
+                            --over the bare table the row shows as the
+                            --table item a drop there makes.
+                            if target == nil then
+                                Tabletop.JournalRowDragging(element, k)
+                            else
+                                Tabletop.JournalRowDragEnded(element)
+                            end
                         end,
                         drag = function(element, target)
+                            Tabletop.JournalRowDragEnded(element)
+                            --dropped on the chat: a link to the entry.
+                            if ChatItemLinks.Dropped() then
+                                return
+                            end
                             if target == nil then
+                                --dropped outside the journal: on the table it
+                                --becomes a table item, on the map (Director) an
+                                --info bubble that opens it.
+                                JournalEntryDropped(k)
                                 return
                             end
 
@@ -1899,6 +2019,25 @@ local function MakeRecentDocumentPanel(documentnumber)
             element.parent.tooltip = nil
         end,
 
+        --dragged out like a journal row: onto the table it becomes a table
+        --item, onto the map (Director) an info bubble (JournalEntryDropped).
+        --No canDragOnto, so there is never a drag target.
+        draggable = true,
+        beginDrag = function(element)
+            element.parent.tooltip = nil
+        end,
+        dragging = function(element)
+            ChatItemLinks.Dragging(function() return {ChatItemLinks.DocItem(documents[documentnumber].id)} end)
+            Tabletop.JournalRowDragging(element, documents[documentnumber].id)
+        end,
+        drag = function(element)
+            Tabletop.JournalRowDragEnded(element)
+            if ChatItemLinks.Dropped() then
+                return
+            end
+            JournalEntryDropped(documents[documentnumber].id)
+        end,
+
 
 
 
@@ -2073,6 +2212,18 @@ CreateJournalPanel = function(options)
         width = "100%",
         height = "100%",
         flow = "vertical",
+
+        --files from the desktop dropped anywhere else in the journal.
+        dragAndDropExtensions = FileDrops.JOURNAL_EXTENSIONS,
+        dragfilesenter = function(element, paths)
+            BeginJournalFileDrag(element, element, paths, nil)
+        end,
+        dragfilesleave = function(element)
+            EndJournalFileDrag(element)
+        end,
+        dropfiles = function(element, paths)
+            DropJournalFiles(element, paths, nil)
+        end,
 
         data = {
             foldersToMembers = {},
@@ -2535,9 +2686,9 @@ CreateJournalPanel = function(options)
 
                             dmhub.OpenFileDialog {
                                 id = "PDF",
-                                extensions = { "pdf", "png", "jpg", "jpeg", "webp" },
+                                extensions = { "pdf", "png", "jpg", "jpeg", "webp", "mp4", "webm" },
                                 multiFiles = false,
-                                prompt = "Choose an image or a PDF document file",
+                                prompt = "Choose an image, a video or a PDF document file",
                                 open = function(path)
                                     if path == nil then
                                         return

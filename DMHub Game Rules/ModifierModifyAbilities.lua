@@ -648,6 +648,33 @@ local function DirectDamageRollValueIsFlag(value)
 	return false
 end
 
+--A monster free strike shows its damage as a fixed description ("2 damage")
+--written before modifiers run (monster:FillFreeStrikes). Add the bonus to it
+--so the tooltip matches what the strike deals.
+local function AddToFreeStrikeDescription(modifier, creature, ability, behavior, value)
+	local shown = behavior:try_get("freeStrikeDamageText")
+	if shown == nil then
+		return
+	end
+
+	local symbols = creature:LookupSymbol(modifier:try_get("_tmp_symbols", {}))
+	local added = dmhub.NormalizeRoll(dmhub.EvalGoblinScript(value, symbols, string.format("Free strike damage for %s", ability.name)))
+
+	if tonumber(shown) ~= nil and tonumber(added) ~= nil then
+		shown = tostring(tonumber(shown) + tonumber(added))
+	else
+		--a dice bonus such as 1d6 can't be added up, so show it as "2 + 1d6".
+		shown = string.format("%s + %s", shown, added)
+	end
+	behavior.freeStrikeDamageText = shown
+
+	if string.lower(behavior.damageType) == "untyped" then
+		ability.description = string.format("%s damage", shown)
+	else
+		ability.description = string.format("%s %s damage", shown, behavior.damageType)
+	end
+end
+
 CharacterModifier.RegisterAbilityModifier
 	{
 		id = "directdamageroll",
@@ -662,6 +689,7 @@ CharacterModifier.RegisterAbilityModifier
 						behavior.roll = string.format("%s %s", behavior.roll, value)
 					else
 						behavior.roll = string.format("%s+(%s)", behavior.roll, value)
+						AddToFreeStrikeDescription(modifier, creature, ability, behavior, value)
 					end
 				end
 			end
@@ -848,10 +876,117 @@ local function ReplaceBehaviorToEnum(mode)
 	return mode
 end
 
+--"Add Mode" gives the ability a new mode the player can pick when using it.
+--The mode has its own list of attributes, which apply only while it is picked.
+--Its fields: text, rules, condition (GoblinScript, blank = always available)
+--and attributes (same shape as the modifier's own list). It has no set
+--function: AddModes applies it, and ApplyAttributes skips it.
+CharacterModifier.RegisterAbilityModifier
+	{
+		id = "addmode",
+		text = "Add Mode",
+		operations = { "addmode" },
+	}
+
+--- Applies a list of attributes to the ability. Add Mode entries are skipped;
+--- AddModes handles those.
+--- @param modifier CharacterModifier
+--- @param creature creature
+--- @param ability ActivatedAbility
+--- @param attributes table[]
+local function ApplyAttributes(modifier, creature, ability, attributes)
+	for i,attr in ipairs(attributes) do
+		local info = abilityModifierOptionsById[attr.id]
+		if info ~= nil and attr.id ~= "addmode" then
+			if attr.id == "targettype" or attr.id == "modkeywords" or attr.id == "reasonfilter" or attr.id == "modproperties" or attr.id == "linedimensions" then
+				info.set(modifier, creature, ability, attr)
+			elseif attr.id == "damagetype" and attr.operation == "Add" then
+				for _,damageType in ipairs(DamageTypesToAdd(attr)) do
+					info.set(modifier, creature, ability, attr.operation, damageType, attr.condition)
+				end
+			else
+				info.set(modifier, creature, ability, attr.operation, attr.value, attr.condition)
+			end
+		end
+	end
+end
+
+--- Adds this modifier's Add Mode entries to the ability. If the ability has no
+--- modes yet, mode 1 is the ability as normal, so the player can still use it
+--- without the new options. Each new mode holds its own copy of the ability
+--- with the mode's attributes applied; picking the mode swaps to that copy
+--- (ActivatedAbility:SwitchModes).
+--- @param modifier CharacterModifier
+--- @param creature creature
+--- @param ability ActivatedAbility
+local function AddModes(modifier, creature, ability)
+	local modeAttrs = {}
+	for _,attr in ipairs(modifier.attributes) do
+		if attr.id == "addmode" then
+			modeAttrs[#modeAttrs+1] = attr
+		end
+	end
+
+	--A mode's own copy of the ability gets every later modifier applied to it
+	--(CharacterModifier:ModifyAbility). Don't let that add modes inside a mode.
+	if #modeAttrs == 0 or ability:try_get("_tmp_addedModeCopy") then
+		return
+	end
+
+	local marker = CharacterModifier.AddedModeMarker(modifier)
+	local modeList = ability:try_get("modeList")
+	if ability.multipleModes and modeList ~= nil then
+		for _,mode in ipairs(modeList) do
+			if mode.addedBy == marker then
+				--already added.
+				return
+			end
+		end
+	else
+		modeList = {
+			{ text = ability.name, rules = "" },
+		}
+	end
+
+	--Take the mode list off while copying, so the copies don't contain it
+	--(or each other). The end of this function puts it back.
+	ability.modeList = nil
+
+	for _,attr in ipairs(modeAttrs) do
+		local copy = DeepCopy(ability)
+		copy.multipleModes = false
+		copy._tmp_addedModeCopy = true
+		--Not a temporary clone, so SwitchModes clones it instead of handing back
+		--this copy itself. Handing it back would let its mode list point at itself.
+		copy._tmp_temporaryClone = nil
+		ApplyAttributes(modifier, creature, copy, attr.attributes or {})
+
+		local text = attr.text or ""
+		if text == "" then
+			text = string.format("Mode %d", #modeList+1)
+		end
+
+		modeList[#modeList+1] = {
+			text = text,
+			rules = attr.rules or "",
+			condition = attr.condition,
+			hasAbility = true,
+			variation = copy,
+			addedBy = marker,
+		}
+	end
+
+	if not ability.multipleModes then
+		ability.multipleModes = true
+	end
+	ability.modeList = modeList
+end
+
 --a 'modifyability' modifier has the following properties:
 --modifyDescription (string): a string to add to the ability's description describing what was changed.
 --filterAbility (string) optional: GoblinScript to determine if an ability gets modified.
---attributes (list of { id = string, operation = string|nil, value = string}): List of attributes we modify
+--attributes (list of { id = string, operation = string|nil, value = string}): List of attributes we modify.
+--  An "addmode" entry instead has text, rules, condition and its own attributes list (see AddModes).
 --ability: ActivatedAbility -- we use it for the behaviors.
 --actionResourceId: (optional) -- if set, this overrides the action resource id.
 --cannotModifyAction: (optional) -- if set this modifier can't override actions. Used in ActivatedAbilityAugmentAbilityBehavior
@@ -906,20 +1041,7 @@ CharacterModifier.TypeInfo.modifyability = {
 			ability.actionResourceId = modifier.actionResourceId
 		end
 
-		for i,attr in ipairs(modifier.attributes) do
-			local info = abilityModifierOptionsById[attr.id]
-			if info ~= nil then
-				if attr.id == "targettype" or attr.id == "modkeywords" or attr.id == "reasonfilter" or attr.id == "modproperties" or attr.id == "linedimensions" then
-					info.set(modifier, creature, ability, attr)
-				elseif attr.id == "damagetype" and attr.operation == "Add" then
-					for _,damageType in ipairs(DamageTypesToAdd(attr)) do
-						info.set(modifier, creature, ability, attr.operation, damageType, attr.condition)
-					end
-				else
-					info.set(modifier, creature, ability, attr.operation, attr.value, attr.condition)
-				end
-			end
-		end
+		ApplyAttributes(modifier, creature, ability, modifier.attributes)
 
 		if modifier:has_key("ability") then
 			local replacementMode = ReplaceBehaviorToEnum(modifier:try_get("replaceBehaviors", false))
@@ -959,6 +1081,9 @@ CharacterModifier.TypeInfo.modifyability = {
 			local modifyDescriptions = ability:get_or_add("modifyDescriptions", {})
 			modifyDescriptions[#modifyDescriptions+1] = modifier.modifyDescription
 		end
+
+		--Last, so each mode starts from the ability with all of the above applied.
+		AddModes(modifier, creature, ability)
 
 		return ability
 	end,
@@ -1080,593 +1205,697 @@ CharacterModifier.TypeInfo.modifyability = {
 			end
 			
 
-			for i,attr in ipairs(modifier.attributes) do
-				local info = abilityModifierOptionsById[attr.id]
-				if info ~= nil then
-					children[#children+1] = gui.Panel{
-						classes = {"formPanel", "formPanel-inline"},
-						gui.Label{
-							classes = {"formLabel"},
-							width = 400,
-							text = info.text,
-						},
-						gui.Button{
-							classes = {"deleteButton", "sizeXs"},
-							valign = 'center',
-							halign = 'right',
-							click = function(element)
-								table.remove(modifier.attributes, i)
-								Refresh()
-							end,
-						},
-					}
-
-					if info.operations ~= nil then
-						if #info.operations > 1 then
-							children[#children+1] = gui.Panel{
-								classes = {"formPanel"},
-								gui.Label{
-									classes = {"formLabel"},
-									text = "Operation:",
-								},
-								gui.Dropdown{
-									styles = ThemeEngine.GetStyles(),
-									height = 30,
-									width = 260,
-									fontSize = 16,
-									optionChosen = attr.operation,
-									options = info.operations,
-									change = function(element)
-										---@cast element Dropdown
-										modifier.attributes[i].operation = element.optionChosen
-										Refresh()
-									end,
-								},
-							}
-						end
-
-						if attr.operation == "Bool" then
-							children[#children+1] = gui.Check{
-								styles = ThemeEngine.GetStyles(),
+			--Adds the editors for a list of attributes to children. An Add Mode
+			--entry calls this again for its own list.
+			local AddAttributeEditors
+			AddAttributeEditors = function(attributes, children, insideMode)
+				for i,attr in ipairs(attributes) do
+					local info = abilityModifierOptionsById[attr.id]
+					if info ~= nil then
+						children[#children+1] = gui.Panel{
+							classes = {"formPanel", "formPanel-inline"},
+							gui.Label{
+								classes = {"formLabel"},
+								width = 400,
 								text = info.text,
-								style = {
-									height = 30,
-									width = 260,
-									fontSize = 18,
-								},
-
-								value = cond(tonumber(attr.value), true, false),
-								change = function(element)
-									attr.value = cond(element.value, "1", "0")
+							},
+							gui.Button{
+								classes = {"deleteButton", "sizeXs"},
+								valign = 'center',
+								halign = 'right',
+								click = function(element)
+									table.remove(attributes, i)
 									Refresh()
 								end,
-							}
-						elseif attr.operation == "targeting" then
-							local dummyAbility = ActivatedAbility.Create{}
-							local radiusItems = {sphere = true, cylinder = true, line = true, cube = true}
-							children[#children+1] = gui.Panel{
-								classes = "formPanel",
-								gui.Label{
-									classes = "formLabel",
-									text = "Target Type:",
-								},
-								gui.Dropdown{
-									styles = ThemeEngine.GetStyles(),
-									classes = "formDropdown",
-									options = dummyAbility:GetDisplayedTargetTypeOptions(),
-									idChosen = attr.targeting or "self",
-									change = function(element)
-										---@cast element Dropdown
-										attr.targeting = element.idChosen
-										Refresh()
-									end,
-								},
-							}
-							children[#children+1] = gui.Panel{
-								classes = {"formPanel"},
-								gui.Label{
-									classes = "formLabel",
-									text = "Affects:",
-								},
-								gui.Dropdown{
-									styles = ThemeEngine.GetStyles(),
-									classes = "formDropdown",
-									options = {
-										{
-											id = "all",
-											text = "Creatures",
-										},
-										{
-											id = "all_and_objects",
-											text = "Creatures and Objects",
-										},
-										{
-											id = "ally",
-											text = "Allied Creatures",
-										},
-										{
-											id = "enemy",
-											text = "Enemy Creatures",
-										},
-									},
-									idChosen = attr.allegiance or "all",
-									change = function(element)
-										---@cast element Dropdown
-										attr.allegiance = element.idChosen
-										Refresh()
-									end,
-								},
-							}
-							children[#children+1] = gui.Panel{
-								classes = {"formPanel", cond(not radiusItems[attr.targeting], 'collapsed-anim')},
-								gui.Label{
-									classes = "formLabel",
-									text = "Radius:",
-									create = function(element)
-										if attr.targeting == 'line' then
-											element.text = 'Width:'
-										elseif attr.targeting == 'cube' then
-											element.text = 'Edge:'
-										else
-											element.text = 'Radius:'
-										end
-									end,
-								},
+							},
+						}
 
-								gui.GoblinScriptInput{
-									classes = "formInput",
-									value = attr.radius or "",
-									change = function(element)
-										attr.radius = element.value
-										Refresh()
-									end,
-									documentation = {
-										domains = modifier:Domains(),
-										help = " This GoblinScript is used to determine the radius of this <color=#00FFFF><link=ability>ability</link></color>. It produces a number which is used as the range of the ability, given in feet. If left empty, the ability will have a range of 5.",
-										output = "number",
-										examples = {
-											{
-												script = "2",
-												text = "The ability will have a radius of 2 squares.",
-											},
-											{
-												script = "2 + level",
-												text = "The ability will have a range of 2 squares plus 1 for each level of the caster.",
-											},
-										},
-
-										subject = creature.helpSymbols,
-										subjectDescription = "The creature using the ability",
-										symbols = table.union({
-											ability = {
-												name = "Ability",
-												type = "ability",
-												desc = "The ability being used.",
-											},
-										}, ActivatedAbility.helpCasting),
-									}
-								},
-							}
-						-- This creates both a condition and value input, both goblin script values
-						elseif attr.operation == "reasonfilter" then
-							local reasonedFilters = attr.reasonedFilters or {}
-							if not attr.reasonedFilters then
-								attr.reasonedFilters = reasonedFilters
-							end
-							children[#children+1] = gui.Button{
-								text = "Add Reasoned Filter",
-								width = "auto",
-								height = "auto",
-								pad = 4,
-								press = function(element)
-									reasonedFilters[#reasonedFilters+1] = {
-										formula = "",
-										reason = "",
-									}
-									attr.reasonedFilters = reasonedFilters
-									Refresh()
-								end,
-							}
-
-							for filterIndex,filter in ipairs(reasonedFilters) do
+						if info.operations ~= nil then
+							if #info.operations > 1 then
 								children[#children+1] = gui.Panel{
-									classes = {"formPanel", "formPanel-inline"},
+									classes = {"formPanel"},
 									gui.Label{
-										classes = "formLabel",
-										text = "Formula:",
+										classes = {"formLabel"},
+										text = "Operation:",
 									},
-									gui.GoblinScriptInput{
-										classes = "formInput",
-										value = filter.formula,
+									gui.Dropdown{
+										styles = ThemeEngine.GetStyles(),
+										height = 30,
+										width = 260,
+										fontSize = 16,
+										optionChosen = attr.operation,
+										options = info.operations,
 										change = function(element)
-											filter.formula = element.value
+											---@cast element Dropdown
+											attributes[i].operation = element.optionChosen
 											Refresh()
 										end,
-
-										documentation = {
-											domains = modifier:Domains(),
-											help = "This GoblinScript is used when you use an <color=#00FFFF><link=ability>ability</link></color>. It determines whether a creature included in the ability's area of effect should be affected by the ability. The script is evaluated once for each creature in the ability's area of effect. Creatures for whom the script produces a result of <b>true</b> are affected by the ability, while creatures for whom the script produces a result of <b>false</b> are not. If left empty, all creatures in the area of effect will be affected.",
-											output = "boolean",
-											examples = {
-												{
-													script = "enemy",
-													text = "Make the ability affect creatures that are enemies of the ability's caster.",
-												},
-												{
-													script = "(not enemy) and type is not undead",
-													text = "Make the ability affect creatures that are not enemies of the ability's caster. The ability won't affect undead creatures.",
-												},
-												{
-													script = "Target Number = 2",
-													text = "Make this behavior affect only the second target of the spell.",
-												},
-											},
-											subject = creature.helpSymbols,
-											subjectDescription = "A creature in the ability's area of effect ",
-											symbols = {
-												caster = {
-													name = "Caster",
-													type = "creature",
-													desc = "The caster of this spell.",
-												},
-												enemy = {
-													name = "Enemy",
-													type = "boolean",
-													desc = "True if the subject is an enemy of the creature casting the ability. Otherwise this is False.",
-												},
-												target = {
-													name = "Target",
-													type = "creature",
-													desc = "The target of this spell. This is the same as the subject of this GoblinScript.",
-												},
-												targetnumber = {
-													name = "Target Number",
-													type = "number",
-													desc = "1 for the first target, 2 for the second target, etc.",
-												},
-												numberoftargets = {
-													name = "Number of Targets",
-													type = "number",
-													desc = "The number of creatures this spell is targeting.",
-												},
-											},
-										},
 									},
+								}
+							end
 
-									gui.Button{
-										classes = {"deleteButton", "sizeS"},
-										halign = "right",
-										click = function(element)
-											table.remove(reasonedFilters, filterIndex)
+							if attr.operation == "addmode" then
+								children[#children+1] = gui.Panel{
+									classes = {"formPanel"},
+									gui.Label{
+										classes = {"formLabel"},
+										text = "Text:",
+									},
+									gui.Input{
+										classes = {"formInput"},
+										characterLimit = 60,
+										placeholderText = "Name shown on the mode button...",
+										text = attr.text or "",
+										change = function(element)
+											attr.text = element.text
 											Refresh()
-										end
-									}
+										end,
+									},
 								}
 
 								children[#children+1] = gui.Panel{
 									classes = {"formPanel"},
+									height = "auto",
+									gui.Label{
+										classes = {"formLabel"},
+										text = "Rules:",
+									},
 									gui.Input{
-										classes = "formInput",
-										width = 360,
-										text = filter.reason,
-										lmargin = 60,
+										classes = {"formInput"},
+										multiline = true,
+										textAlignment = "topleft",
+										width = 300,
+										height = "auto",
+										minHeight = 28,
+										characterLimit = 1000,
+										placeholderText = "Tooltip shown on the mode button...",
+										text = attr.rules or "",
 										change = function(element)
-											filter.reason = element.text
+											attr.rules = element.text
 											Refresh()
 										end,
-										placeholderText = "Enter reason for this filter...",
+									},
+								}
+
+								children[#children+1] = gui.Panel{
+									classes = {"formPanel"},
+									gui.Label{
+										classes = {"formLabel"},
+										text = "Mode Condition:",
+									},
+									gui.GoblinScriptInput{
+										value = attr.condition or "",
+										change = function(element)
+											attr.condition = element.value
+											Refresh()
+										end,
+										documentation = {
+											domains = modifier:Domains(),
+											help = "This GoblinScript determines whether this mode is available. Leave blank for always available.",
+											output = "boolean",
+											subject = creature.helpSymbols,
+											subjectDescription = "The creature using the ability.",
+										},
+									},
+								}
+
+								--The attributes that apply only while this mode is picked.
+								attr.attributes = attr.attributes or {}
+								local modeChildren = {}
+								AddAttributeEditors(attr.attributes, modeChildren, true)
+								--Indent them under the mode with an empty panel on the left.
+								children[#children+1] = gui.Panel{
+									flow = "horizontal",
+									width = "auto",
+									height = "auto",
+									halign = "left",
+									gui.Panel{
+										width = 24,
+										height = 1,
+									},
+									gui.Panel{
+										flow = "vertical",
+										width = "auto",
+										height = "auto",
+										children = modeChildren,
+									},
+								}
+							elseif attr.operation == "Bool" then
+								children[#children+1] = gui.Check{
+									styles = ThemeEngine.GetStyles(),
+									text = info.text,
+									style = {
+										height = 30,
+										width = 260,
+										fontSize = 18,
+									},
+
+									value = cond(tonumber(attr.value), true, false),
+									change = function(element)
+										attr.value = cond(element.value, "1", "0")
+										Refresh()
+									end,
+								}
+							elseif attr.operation == "targeting" then
+								local dummyAbility = ActivatedAbility.Create{}
+								local radiusItems = {sphere = true, cylinder = true, line = true, cube = true}
+								children[#children+1] = gui.Panel{
+									classes = "formPanel",
+									gui.Label{
+										classes = "formLabel",
+										text = "Target Type:",
+									},
+									gui.Dropdown{
+										styles = ThemeEngine.GetStyles(),
+										classes = "formDropdown",
+										options = dummyAbility:GetDisplayedTargetTypeOptions(),
+										idChosen = attr.targeting or "self",
+										change = function(element)
+											---@cast element Dropdown
+											attr.targeting = element.idChosen
+											Refresh()
+										end,
+									},
+								}
+								children[#children+1] = gui.Panel{
+									classes = {"formPanel"},
+									gui.Label{
+										classes = "formLabel",
+										text = "Affects:",
+									},
+									gui.Dropdown{
+										styles = ThemeEngine.GetStyles(),
+										classes = "formDropdown",
+										options = {
+											{
+												id = "all",
+												text = "Creatures",
+											},
+											{
+												id = "all_and_objects",
+												text = "Creatures and Objects",
+											},
+											{
+												id = "ally",
+												text = "Allied Creatures",
+											},
+											{
+												id = "enemy",
+												text = "Enemy Creatures",
+											},
+										},
+										idChosen = attr.allegiance or "all",
+										change = function(element)
+											---@cast element Dropdown
+											attr.allegiance = element.idChosen
+											Refresh()
+										end,
+									},
+								}
+								children[#children+1] = gui.Panel{
+									classes = {"formPanel", cond(not radiusItems[attr.targeting], 'collapsed-anim')},
+									gui.Label{
+										classes = "formLabel",
+										text = "Radius:",
+										create = function(element)
+											if attr.targeting == 'line' then
+												element.text = 'Width:'
+											elseif attr.targeting == 'cube' then
+												element.text = 'Edge:'
+											else
+												element.text = 'Radius:'
+											end
+										end,
+									},
+
+									gui.GoblinScriptInput{
+										classes = "formInput",
+										value = attr.radius or "",
+										change = function(element)
+											attr.radius = element.value
+											Refresh()
+										end,
+										documentation = {
+											domains = modifier:Domains(),
+											help = " This GoblinScript is used to determine the radius of this <color=#00FFFF><link=ability>ability</link></color>. It produces a number which is used as the range of the ability, given in feet. If left empty, the ability will have a range of 5.",
+											output = "number",
+											examples = {
+												{
+													script = "2",
+													text = "The ability will have a radius of 2 squares.",
+												},
+												{
+													script = "2 + level",
+													text = "The ability will have a range of 2 squares plus 1 for each level of the caster.",
+												},
+											},
+
+											subject = creature.helpSymbols,
+											subjectDescription = "The creature using the ability",
+											symbols = table.union({
+												ability = {
+													name = "Ability",
+													type = "ability",
+													desc = "The ability being used.",
+												},
+											}, ActivatedAbility.helpCasting),
+										}
+									},
+								}
+							-- This creates both a condition and value input, both goblin script values
+							elseif attr.operation == "reasonfilter" then
+								local reasonedFilters = attr.reasonedFilters or {}
+								if not attr.reasonedFilters then
+									attr.reasonedFilters = reasonedFilters
+								end
+								children[#children+1] = gui.Button{
+									text = "Add Reasoned Filter",
+									width = "auto",
+									height = "auto",
+									pad = 4,
+									press = function(element)
+										reasonedFilters[#reasonedFilters+1] = {
+											formula = "",
+											reason = "",
+										}
+										attr.reasonedFilters = reasonedFilters
+										Refresh()
+									end,
+								}
+
+								for filterIndex,filter in ipairs(reasonedFilters) do
+									children[#children+1] = gui.Panel{
+										classes = {"formPanel", "formPanel-inline"},
+										gui.Label{
+											classes = "formLabel",
+											text = "Formula:",
+										},
+										gui.GoblinScriptInput{
+											classes = "formInput",
+											value = filter.formula,
+											change = function(element)
+												filter.formula = element.value
+												Refresh()
+											end,
+
+											documentation = {
+												domains = modifier:Domains(),
+												help = "This GoblinScript is used when you use an <color=#00FFFF><link=ability>ability</link></color>. It determines whether a creature included in the ability's area of effect should be affected by the ability. The script is evaluated once for each creature in the ability's area of effect. Creatures for whom the script produces a result of <b>true</b> are affected by the ability, while creatures for whom the script produces a result of <b>false</b> are not. If left empty, all creatures in the area of effect will be affected.",
+												output = "boolean",
+												examples = {
+													{
+														script = "enemy",
+														text = "Make the ability affect creatures that are enemies of the ability's caster.",
+													},
+													{
+														script = "(not enemy) and type is not undead",
+														text = "Make the ability affect creatures that are not enemies of the ability's caster. The ability won't affect undead creatures.",
+													},
+													{
+														script = "Target Number = 2",
+														text = "Make this behavior affect only the second target of the spell.",
+													},
+												},
+												subject = creature.helpSymbols,
+												subjectDescription = "A creature in the ability's area of effect ",
+												symbols = {
+													caster = {
+														name = "Caster",
+														type = "creature",
+														desc = "The caster of this spell.",
+													},
+													enemy = {
+														name = "Enemy",
+														type = "boolean",
+														desc = "True if the subject is an enemy of the creature casting the ability. Otherwise this is False.",
+													},
+													target = {
+														name = "Target",
+														type = "creature",
+														desc = "The target of this spell. This is the same as the subject of this GoblinScript.",
+													},
+													targetnumber = {
+														name = "Target Number",
+														type = "number",
+														desc = "1 for the first target, 2 for the second target, etc.",
+													},
+													numberoftargets = {
+														name = "Number of Targets",
+														type = "number",
+														desc = "The number of creatures this spell is targeting.",
+													},
+												},
+											},
+										},
+
+										gui.Button{
+											classes = {"deleteButton", "sizeS"},
+											halign = "right",
+											click = function(element)
+												table.remove(reasonedFilters, filterIndex)
+												Refresh()
+											end
+										}
+									}
+
+									children[#children+1] = gui.Panel{
+										classes = {"formPanel"},
+										gui.Input{
+											classes = "formInput",
+											width = 360,
+											text = filter.reason,
+											lmargin = 60,
+											change = function(element)
+												filter.reason = element.text
+												Refresh()
+											end,
+											placeholderText = "Enter reason for this filter...",
+										}
+									}
+								end
+							elseif attr.operation == "Condition" then
+								children[#children+1] = gui.Panel{
+									classes = {"formPanel"},
+									gui.Label{
+										classes = {"formLabel"},
+										text = "Condition:",
+									},
+									gui.GoblinScriptInput{
+										height = 22,
+										width = 360,
+										fontSize = 16,
+										value = attr.condition,
+
+										change = function(element)
+											attributes[i].condition = element.value
+											Refresh()
+										end,
+										documentation = info.conditionDocumentation,
 									}
 								}
-							end
-						elseif attr.operation == "Condition" then
-							children[#children+1] = gui.Panel{
-								classes = {"formPanel"},
-								gui.Label{
-									classes = {"formLabel"},
-									text = "Condition:",
-								},
-								gui.GoblinScriptInput{
-									height = 22,
-									width = 360,
-									fontSize = 16,
-									value = attr.condition,
+								children[#children+1] = gui.Panel{
+									classes = {"formPanel"},
+									height = "auto",
+									gui.Label{
+										classes = {"formLabel"},
+										text = "Value:",
+									},
+									gui.GoblinScriptInput{
+										height = "auto",
+										width = 360,
+										fontSize = 16,
+										value = attr.value,
 
-									change = function(element)
-										modifier.attributes[i].condition = element.value
-										Refresh()
-									end,
-									documentation = info.conditionDocumentation,
+										change = function(element)
+											attributes[i].value = element.value
+											Refresh()
+										end,
+										documentation = info.documentation,
+									},
 								}
-							}
-							children[#children+1] = gui.Panel{
-								classes = {"formPanel"},
-								height = "auto",
-								gui.Label{
-									classes = {"formLabel"},
-									text = "Value:",
-								},
-								gui.GoblinScriptInput{
+							elseif info.documentation ~= nil then
+								children[#children+1] = gui.Panel{
+									classes = {"formPanel"},
 									height = "auto",
-									width = 360,
-									fontSize = 16,
-									value = attr.value,
+									gui.Label{
+										classes = {"formLabel"},
+										text = "Value:",
+									},
+									gui.GoblinScriptInput{
+										height = "auto",
+										width = 360,
+										fontSize = 16,
+										value = attr.value,
 
-									change = function(element)
-										modifier.attributes[i].value = element.value
-										Refresh()
-									end,
-									documentation = info.documentation,
-								},
-							}
-						elseif info.documentation ~= nil then
-							children[#children+1] = gui.Panel{
-								classes = {"formPanel"},
-								height = "auto",
-								gui.Label{
-									classes = {"formLabel"},
-									text = "Value:",
-								},
-								gui.GoblinScriptInput{
+										change = function(element)
+											attributes[i].value = element.value
+											Refresh()
+										end,
+										documentation = info.documentation,
+									},
+								}
+							elseif attr.id == "modkeywords" then
+								local keywords = attr and attr.keywords or {}
+
+								children[#children+1] = gui.Panel{
+									classes = {"formPanel"},
 									height = "auto",
-									width = 360,
-									fontSize = 16,
-									value = attr.value,
+									gui.KeywordSelector{
+										keywords = keywords,
+										change = function()
+											attr.keywords = keywords
+											Refresh()
+										end,
+									},
+								}
+							elseif attr.id == "modproperties" then
+								local properties = attr and attr.properties or {}
 
-									change = function(element)
-										modifier.attributes[i].value = element.value
-										Refresh()
-									end,
-									documentation = info.documentation,
-								},
-							}
-						elseif attr.id == "modkeywords" then
-							local keywords = attr and attr.keywords or {}
+								children[#children+1] = gui.Panel{
+									classes = {"formPanel"},
+									height = "auto",
+									gui.Multiselect{
+										styles = ThemeEngine.GetStyles(),
+										value = properties,
+										addItemText = "Add Special Property...",
+										options = ActivatedAbility.registeredProperties,
+										change = function(element, value)
+											attr.properties = value
+											Refresh()
+										end,
+									},
+								}
+							elseif attr.id == "damagetype" and attr.operation == "Add" then
+								local damageTypeOptions = {}
+								for _,damageType in ipairs(rules.damageTypesAvailable) do
+									damageTypeOptions[#damageTypeOptions+1] = { id = damageType, text = DamageTypeModeText(damageType) }
+								end
+								local chosen = {}
+								for _,damageType in ipairs(DamageTypesToAdd(attr)) do
+									chosen[damageType] = true
+								end
 
-							children[#children+1] = gui.Panel{
-								classes = {"formPanel"},
-								height = "auto",
-								gui.KeywordSelector{
-									keywords = keywords,
-									change = function()
-										attr.keywords = keywords
-										Refresh()
-									end,
-								},
-							}
-						elseif attr.id == "modproperties" then
-							local properties = attr and attr.properties or {}
+								children[#children+1] = gui.Panel{
+									classes = {"formPanel"},
+									height = "auto",
+									gui.Multiselect{
+										styles = ThemeEngine.GetStyles(),
+										value = chosen,
+										addItemText = "Add Damage Type...",
+										options = damageTypeOptions,
+										change = function(element, value)
+											attr.damageTypes = value
+											--the set now holds any legacy single type too.
+											attr.value = nil
+											Refresh()
+										end,
+									},
+								}
+							elseif attr.id == "damagetype" then
+								children[#children+1] = gui.Panel{
+									classes = {"formPanel"},
+									gui.Label{
+										classes = {"formLabel"},
+										text = "Damage Type:",
+									},
+									gui.Dropdown{
+										styles = ThemeEngine.GetStyles(),
+										classes = "formDropdown",
+										options = rules.damageTypesAvailable,
+										idChosen = attr.value,
+										change = function(element)
+											---@cast element Dropdown
+											attributes[i].value = element.idChosen
+											Refresh()
+										end,
+									},
+								}
+							elseif attr.id == "targetallegiance" then
+								children[#children+1] = gui.Panel{
+									classes = {"formPanel"},
+									gui.Label{
+										classes = {"formLabel"},
+										text = "Affects:",
+									},
+									gui.Dropdown{
+										styles = ThemeEngine.GetStyles(),
+										classes = "formDropdown",
+										options = {
+											{
+												id = "all",
+												text = "Any Creatures",
+											},
+											{
+												id = "ally",
+												text = "Allied Creatures",
+											},
+											{
+												id = "enemy",
+												text = "Enemy Creatures",
+											},
+										},
+										idChosen = attr.value or "all",
+										change = function(element)
+											---@cast element Dropdown
+											attributes[i].value = element.idChosen
+											Refresh()
+										end,
+									},
+								}
+							elseif attr.id == "linedimensions" then
+								local lineLengthDoc = {
+									domains = modifier:Domains(),
+									help = "This GoblinScript is applied to the length of line-type abilities this modifier affects.",
+									output = "number",
+									examples = {
+										{
+											script = "1",
+											text = "1 is added to the line length.",
+										},
+										{
+											script = "2 when level > 5",
+											text = "2 is added to the line length when the creature is above level 5.",
+										},
+									},
+									subject = creature.helpSymbols,
+									subjectDescription = "The creature that is affected by this modifier",
+									symbols = {
+										ability = {
+											name = "Ability",
+											type = "ability",
+											desc = "The ability being modified",
+										},
+									},
+								}
+								local lineWidthDoc = {
+									domains = modifier:Domains(),
+									help = "This GoblinScript is applied to the width of line-type abilities this modifier affects.",
+									output = "number",
+									examples = {
+										{
+											script = "1",
+											text = "1 is added to the line width.",
+										},
+										{
+											script = "2 when level > 5",
+											text = "2 is added to the line width when the creature is above level 5.",
+										},
+									},
+									subject = creature.helpSymbols,
+									subjectDescription = "The creature that is affected by this modifier",
+									symbols = {
+										ability = {
+											name = "Ability",
+											type = "ability",
+											desc = "The ability being modified",
+										},
+									},
+								}
+								children[#children+1] = gui.Panel{
+									classes = {"formPanel"},
+									height = "auto",
+									gui.Label{
+										classes = {"formLabel"},
+										text = "Length:",
+									},
+									gui.GoblinScriptInput{
+										height = "auto",
+										width = 360,
+										fontSize = 16,
+										value = attr.lengthValue or "",
+										change = function(element)
+											attributes[i].lengthValue = element.value
+											Refresh()
+										end,
+										documentation = lineLengthDoc,
+									},
+								}
+								children[#children+1] = gui.Panel{
+									classes = {"formPanel"},
+									height = "auto",
+									gui.Label{
+										classes = {"formLabel"},
+										text = "Width:",
+									},
+									gui.GoblinScriptInput{
+										height = "auto",
+										width = 360,
+										fontSize = 16,
+										value = attr.widthValue or "",
+										change = function(element)
+											attributes[i].widthValue = element.value
+											Refresh()
+										end,
+										documentation = lineWidthDoc,
+									},
+								}
+							else
+								children[#children+1] = gui.Panel{
+									classes = {"formPanel"},
+									height = "auto",
+									gui.Label{
+										classes = {"formLabel"},
+										text = "Value:",
+									},
+									gui.Input{
+										height = 22,
+										width = 360,
+										fontSize = 16,
+										text = attr.value,
 
-							children[#children+1] = gui.Panel{
-								classes = {"formPanel"},
-								height = "auto",
-								gui.Multiselect{
-									styles = ThemeEngine.GetStyles(),
-									value = properties,
-									addItemText = "Add Special Property...",
-									options = ActivatedAbility.registeredProperties,
-									change = function(element, value)
-										attr.properties = value
-										Refresh()
-									end,
-								},
-							}
-						elseif attr.id == "damagetype" and attr.operation == "Add" then
-							local damageTypeOptions = {}
-							for _,damageType in ipairs(rules.damageTypesAvailable) do
-								damageTypeOptions[#damageTypeOptions+1] = { id = damageType, text = DamageTypeModeText(damageType) }
+										change = function(element)
+											attributes[i].value = element.text
+											Refresh()
+										end,
+									},
+								}
 							end
-							local chosen = {}
-							for _,damageType in ipairs(DamageTypesToAdd(attr)) do
-								chosen[damageType] = true
-							end
-
-							children[#children+1] = gui.Panel{
-								classes = {"formPanel"},
-								height = "auto",
-								gui.Multiselect{
-									styles = ThemeEngine.GetStyles(),
-									value = chosen,
-									addItemText = "Add Damage Type...",
-									options = damageTypeOptions,
-									change = function(element, value)
-										attr.damageTypes = value
-										--the set now holds any legacy single type too.
-										attr.value = nil
-										Refresh()
-									end,
-								},
-							}
-						elseif attr.id == "damagetype" then
-							children[#children+1] = gui.Panel{
-								classes = {"formPanel"},
-								gui.Label{
-									classes = {"formLabel"},
-									text = "Damage Type:",
-								},
-								gui.Dropdown{
-									styles = ThemeEngine.GetStyles(),
-									classes = "formDropdown",
-									options = rules.damageTypesAvailable,
-									idChosen = attr.value,
-									change = function(element)
-										---@cast element Dropdown
-										modifier.attributes[i].value = element.idChosen
-										Refresh()
-									end,
-								},
-							}
-						elseif attr.id == "targetallegiance" then
-							children[#children+1] = gui.Panel{
-								classes = {"formPanel"},
-								gui.Label{
-									classes = {"formLabel"},
-									text = "Affects:",
-								},
-								gui.Dropdown{
-									styles = ThemeEngine.GetStyles(),
-									classes = "formDropdown",
-									options = {
-										{
-											id = "all",
-											text = "Any Creatures",
-										},
-										{
-											id = "ally",
-											text = "Allied Creatures",
-										},
-										{
-											id = "enemy",
-											text = "Enemy Creatures",
-										},
-									},
-									idChosen = attr.value or "all",
-									change = function(element)
-										---@cast element Dropdown
-										modifier.attributes[i].value = element.idChosen
-										Refresh()
-									end,
-								},
-							}
-						elseif attr.id == "linedimensions" then
-							local lineLengthDoc = {
-								domains = modifier:Domains(),
-								help = "This GoblinScript is applied to the length of line-type abilities this modifier affects.",
-								output = "number",
-								examples = {
-									{
-										script = "1",
-										text = "1 is added to the line length.",
-									},
-									{
-										script = "2 when level > 5",
-										text = "2 is added to the line length when the creature is above level 5.",
-									},
-								},
-								subject = creature.helpSymbols,
-								subjectDescription = "The creature that is affected by this modifier",
-								symbols = {
-									ability = {
-										name = "Ability",
-										type = "ability",
-										desc = "The ability being modified",
-									},
-								},
-							}
-							local lineWidthDoc = {
-								domains = modifier:Domains(),
-								help = "This GoblinScript is applied to the width of line-type abilities this modifier affects.",
-								output = "number",
-								examples = {
-									{
-										script = "1",
-										text = "1 is added to the line width.",
-									},
-									{
-										script = "2 when level > 5",
-										text = "2 is added to the line width when the creature is above level 5.",
-									},
-								},
-								subject = creature.helpSymbols,
-								subjectDescription = "The creature that is affected by this modifier",
-								symbols = {
-									ability = {
-										name = "Ability",
-										type = "ability",
-										desc = "The ability being modified",
-									},
-								},
-							}
-							children[#children+1] = gui.Panel{
-								classes = {"formPanel"},
-								height = "auto",
-								gui.Label{
-									classes = {"formLabel"},
-									text = "Length:",
-								},
-								gui.GoblinScriptInput{
-									height = "auto",
-									width = 360,
-									fontSize = 16,
-									value = attr.lengthValue or "",
-									change = function(element)
-										modifier.attributes[i].lengthValue = element.value
-										Refresh()
-									end,
-									documentation = lineLengthDoc,
-								},
-							}
-							children[#children+1] = gui.Panel{
-								classes = {"formPanel"},
-								height = "auto",
-								gui.Label{
-									classes = {"formLabel"},
-									text = "Width:",
-								},
-								gui.GoblinScriptInput{
-									height = "auto",
-									width = 360,
-									fontSize = 16,
-									value = attr.widthValue or "",
-									change = function(element)
-										modifier.attributes[i].widthValue = element.value
-										Refresh()
-									end,
-									documentation = lineWidthDoc,
-								},
-							}
-						else
-							children[#children+1] = gui.Panel{
-								classes = {"formPanel"},
-								height = "auto",
-								gui.Label{
-									classes = {"formLabel"},
-									text = "Value:",
-								},
-								gui.Input{
-									height = 22,
-									width = 360,
-									fontSize = 16,
-									text = attr.value,
-
-									change = function(element)
-										modifier.attributes[i].value = element.text
-										Refresh()
-									end,
-								},
-							}
 						end
 					end
 				end
+
+				--A mode can't add modes of its own.
+				local options = abilityModifierOptions
+				if insideMode then
+					options = {}
+					for _,option in ipairs(abilityModifierOptions) do
+						if option.id ~= "addmode" then
+							options[#options+1] = option
+						end
+					end
+				end
+
+				children[#children+1] = gui.Dropdown{
+					styles = ThemeEngine.GetStyles(),
+					options = options,
+					idChosen = "none",
+					height = 30,
+					width = 260,
+					fontSize = 16,
+
+					change = function(element)
+						---@cast element Dropdown
+						if element.idChosen == "none" then
+							return
+						end
+
+						local op = nil
+						local info = abilityModifierOptionsById[element.idChosen]
+						if info.operations ~= nil then
+							op = info.operations[1]
+						end
+
+						attributes[#attributes+1] = {
+							id = element.idChosen,
+							operation = op,
+							value = "",
+						}
+						Refresh()
+					end,
+				}
 			end
 
-			children[#children+1] = gui.Dropdown{
-				styles = ThemeEngine.GetStyles(),
-				options = abilityModifierOptions,
-				idChosen = "none",
-				height = 30,
-				width = 260,
-				fontSize = 16,
-
-				change = function(element)
-					---@cast element Dropdown
-					if element.idChosen == "none" then
-						return
-					end
-
-					local op = nil
-					local info = abilityModifierOptionsById[element.idChosen]
-					if info.operations ~= nil then
-						op = info.operations[1]
-					end
-
-					modifier.attributes[#modifier.attributes+1] = {
-						id = element.idChosen,
-						operation = op,
-						value = "",
-					}
-					Refresh()
-				end,
-			}
+			AddAttributeEditors(modifier.attributes, children, false)
 
 			if modifier:try_get("ability") ~= nil then
 				children[#children+1] = modifier.ability:BehaviorEditor{ behaviorOnly = true }

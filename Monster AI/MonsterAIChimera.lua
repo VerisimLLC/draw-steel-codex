@@ -419,20 +419,6 @@ MonsterAI:RegisterTrigger{
 }
 
 MonsterAI:RegisterTrigger{
-    id = "Chimera: End Effect",
-    monsters = chimeraMonster,
-    abilities = {"End Effect"},
-    triggers = {"End effect for 5"},
-    description = "Take 5 damage to end a save-ends effect unless doing so would reduce the chimera to 0 Stamina.",
-    handler = function(ai, token, triggerInfo)
-        if token.properties:CurrentHitpoints() > 5 then
-            return {activate = true}
-        end
-        return {dismiss = true}
-    end,
-}
-
-MonsterAI:RegisterTrigger{
     id = "Chimera: Defensive Snapping",
     monsters = chimeraMonster,
     abilities = {"Defensive Snapping"},

@@ -1,6 +1,6 @@
 ---
 name: eotw
-description: Build and publish an Encounter of the Week (EotW) encounter, guiding the author step by step in the running DMHub app -- name the encounter map, paint the hero Start zone (and hidden Trap zones), build and position the monsters, write the script document (narratives, montages with tests, riders, scenes, delves, traps, Town Gate / Conclusion / Defeat story text), validate and playtest it, then publish it as an "Encounter of the Week" module so it joins the encounter pool and plays in the town's Danger Rooms (where players vote on it and nominate the next Encounter of the Week). Use whenever the user invokes /eotw or asks to author, write, script, fix, playtest or publish an Encounter of the Week encounter, montage or narrative. NOT for developing the EotW game mode's own code (that is /week, in the dmhub engine repo).
+description: Build and publish an Encounter of the Week (EotW) encounter, guiding the author step by step in the running DMHub app -- name the encounter map, paint the hero Start zone (and hidden Trap zones), build and position the monsters, write the script document (narratives, montages with tests, riders, scenes, delves, traps, Town Gate / Conclusion / Defeat story text, multi-part series whose story carries from part to part), validate and playtest it, then publish it as an "Encounter of the Week" module so it joins the encounter pool and plays in the town's Proving Pits (where players vote on it and leave its author feedback). Use whenever the user invokes /eotw or asks to author, write, script, fix, playtest or publish an Encounter of the Week encounter, montage or narrative. NOT for developing the EotW game mode's own code (that is /week, in the dmhub engine repo).
 ---
 
 # /eotw -- authoring an Encounter of the Week encounter
@@ -9,11 +9,10 @@ You are an encounter-authoring partner. You guide the author through building on
 EotW encounter in their running DMHub app, check each step yourself through the
 DMHub MCP server (`execute_lua`), write script text with them, and finish by
 publishing it into the encounter pool. A newly published community encounter
-plays in the town's **Danger Rooms** (practice: no Victories or treasure;
-players vote, leave the author feedback and nominate next week's Encounter of
-the Week). It reaches the Town Gate only when an admin makes it the Encounter
+plays in the town's **Proving Pits** (practice: no Victories or treasure;
+players vote and leave the author feedback). It reaches the Town Gate only when an admin makes it the Encounter
 of the Week (`/eotw-rotate` in the dmhub repo). The author reads players'
-feedback in the Danger Rooms ("Feedback on Your Encounters").
+feedback in the Proving Pits ("Feedback on Your Encounters").
 
 Two companion files hold the detail. Load them when the phase needs them:
 - [`script-reference.md`](script-reference.md) -- the complete script language
@@ -78,6 +77,10 @@ Interview briefly (a few questions, not a form):
 - What the heroes can earn on the way (items, hero tokens, surges, allies,
   initiative / surprise, Intelligence for Tactical Preparation).
 - The story bookends: Town Gate backstory, Conclusion (win), Defeat.
+- One encounter, or a **series** (several parts unlocked one after another)?
+  For a series, also: what each part should remember for later parts (story
+  tracks, the montage outcome), and whether players should see it. See the
+  reference, "Series" and "Carrying the story forward".
 
 Facts that shape the design:
 - **Party: 4 to 6 heroes, always exactly level 1** (the game normalizes every
@@ -97,6 +100,8 @@ Summarize the plan back in a short outline and get a yes before building.
 1. The author creates or picks the map and **renames it `Encounter: <Title>`**
    (Maps panel). Rules: unique within the module, at most 80 characters, none
    of `. $ # [ ] / |`. A map named exactly `Encounter` is also valid.
+   For a series, give each part its own map named `Encounter: <Title> (Part N)`
+   (Part 1 included). The town lists them once, as `Encounter: <Title>`.
 2. Travel to it. Verify with the toolkit ("Current map").
 3. Map art, walls, floors and lighting are ordinary map editing -- help if
    asked, but they are not EotW-specific.
@@ -181,6 +186,17 @@ with the author, beat by beat, in the order the players will see it:
 4. Closing `# Narrative` (optional), e.g. the ambush is sprung.
 5. `# Encounter` -- setup lines (traps) and the `[[encounter]]` island.
 6. `# Conclusion` and `# Defeat` story text.
+7. An `Encounter Rules` document (optional; its own journal document in the
+   Map Documents folder, not part of the script) when the fight has rules the
+   players should be able to look up during combat: special terrain,
+   objectives, hazards. See "Encounter Rules" in the script reference.
+
+For a series, each part is its own script with a `# Part N: <Title>` heading,
+in its own map's documents. Add the story pieces the author wants (reference,
+"Carrying the story forward"): `Track:` lines under the part heading, clauses
+that change them, a `# Results` section, and `When` lines, `If ... Otherwise ...
+End` text or fight variants that read them in later parts. Every later part
+must also read well for a player who never played the earlier ones.
 
 **The Montage Builder** (Game menu > Montage Builder, or `/eotwbuilder`) edits
 a montage graphically: rounds, entries, tests, tiers, knacks, scenes, dice
@@ -204,9 +220,13 @@ Craft notes:
   `EncounterOfTheWeek/KNACKS_REFERENCE.md`: every test gets 1-2 edge riders keyed to
   hero intent (`you can teleport`, `you speak Zaliac`, `you were a Farmer`),
   every opportunity 1-2 secret options (`|Allow:`) or `#### If <requirement>`
-  knack versions, about half the threats a "trivialize" version with no roll.
-  Write intent, never a pregen's name; then check the validator's Knack
-  coverage (each pregen should meet 3 or more).
+  knack versions, and about half the threats a secret option or knack version.
+  A knack that wins something gets its OWN power roll, Better (gentler
+  tier 1, a bonus at tier 3) or Spicy (harsher tier 1, the entry's best
+  tier 3). It NEVER skips the roll to win: no-roll knacks are for flavour
+  only (no reward, no vanquish). See "Knack rolls: Better or Spicy" in
+  KNACKS_REFERENCE.md. Write intent, never a pregen's name; then check the
+  validator's Knack coverage (each pregen should meet 3 or more).
 - Scenes (`---` then cast lines) make entries come alive; cast names should be
   real bestiary monsters so the portraits resolve.
 - Scene art: a `[[scene:name]]` line plus its `RichScene` object, which you
@@ -276,12 +296,25 @@ give them to the party first):
 - A full end-to-end test (several players, the real host tick) still needs a
   real EotW game, which needs the module published (Phase 8).
 
+**Series.** Test Encounter shows a **Part** dropdown listing the parts on the
+current map (travel to a part's own map to test it). For Part 2 and later,
+its **Story so far** box sets how each earlier part went and each track's
+value, so every branch can be tried without playing the earlier parts. The
+part's result and every track change are printed in the console
+("EotW story: ...").
+
 ## Phase 8 -- publish
 
 1. Run the Full check once more; fix every error.
-2. Open the publish dialog: "Create Module..." (the module sharing command), or
-   run `Commands.sharecontent()` over MCP to open it for the author. Choose
-   "Create a New Module" (or the existing one to publish an update).
+2. Open the publish dialog. Quickest for a first publish: **Codex menu ->
+   Publish Encounter Update** (`Commands.quickpublishencounters()` over MCP).
+   With no Encounter of the Week module in this game yet it offers **Create
+   Encounter Module...**, which sets the type to Encounter of the Week and
+   Listing Status to Unlisted, ticks the encounter maps and their script
+   documents, and stops on page 2 (go to step 4; still do step 3's prose-name
+   check with Back). Otherwise use "Create Module..." (the module sharing
+   command), or `Commands.sharecontent()` over MCP, and choose "Create a New
+   Module" (or the existing one to publish an update).
 3. Page 1: **Module Type -> Encounter of the Week**. Tick the encounter map(s).
    The script documents tick themselves; dependencies (monsters, art, objects)
    follow automatically. Read the type's messages:
@@ -300,12 +333,29 @@ give them to the party first):
    browser -- it is found there only by typing its exact module ID), agree to
    the terms, **Create Module**. The status line should end "Its encounters are
    now in the Encounter of the Week pool."
-5. Verify: titlescreen -> Encounter of the Week (the town) -> Danger Rooms
+5. Verify: titlescreen -> Encounter of the Week (the town) -> Proving Pits
    (unlocked once the account has won an Encounter of the Week): the
    encounter is listed under "Encounters to Try" with "<module> by <author>"
-   and its backstory, and Form a Party works for it.
-6. To change the encounter later: edit, re-check, and publish again choosing the
-   same module ("Update Module"). New parties get the new version.
+   and its backstory, and Form a Party works for it. A series is one entry
+   with a button per part; later parts are locked until the one before is won.
+   To publish a series before every part is ready, put a `Coming soon` line
+   under the unfinished parts' headings (reference, "Series"): they show
+   locked in town with a "Coming soon." hover.
+   **Preview before republishing** (developer mode only): in the running app,
+   `EncounterOfTheWeek.StagePoolModule(moduleid, { maps = {<map names>},
+   eotwEncounters = {<as the publisher would send it>} })` makes the town show
+   that module as it would look after the next publish. Nothing is uploaded,
+   parties still play the published version, and it clears on restart or
+   reload (`nil` clears it sooner).
+6. To change the encounter later: edit, re-check, then **Codex menu -> Publish
+   Encounter Update** (`Commands.quickpublishencounters()` over MCP). It finds
+   the game's Encounter of the Week module, keeps last version's ticks, ticks
+   every encounter map plus its script documents and dependencies, and uploads
+   a new version with the same listing, cover and author -- no dialog pages. If
+   the type's checks fail it stops on page 1 with the errors shown. It does
+   NOT tick a new prose-named item or monster (step 3); for one of those,
+   publish through "Create Module..." choosing the same module instead. New
+   parties get the new version.
 
 Finish by summarizing what was built and published, and anything left open
 (e.g. untested branches, art still to set).

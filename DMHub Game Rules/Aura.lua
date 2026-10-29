@@ -197,6 +197,7 @@ end
 --- @field casterPartyId? string Party id of the caster token when cast ("" if none).
 --- @field spellcastingFeature? SpellcastingFeature Spellcasting feature of the ability that cast it, copied onto triggered abilities.
 --- @field persistenceId? string Guid of the caster's persistent ability this aura's lifetime follows; read with try_get.
+--- @field keywords? table<string, boolean> Keywords of the ability that cast this aura (e.g. {Fire = true, Magic = true}), passed with its move damage; read with try_get.
 AuraInstance = RegisterGameType("AuraInstance")
 
 Aura.Flags = {
@@ -394,11 +395,20 @@ function Aura:GetSimpleEntryEffectTrigger(options)
     }
 end
 
+--- Whether rules-engine rule text (an entry effect or power roll tier) deals
+--- damage. A rule that only applies a condition, like Deep Water's "wet (EoE)",
+--- does not make terrain damaging.
+--- @param rule string|nil
+--- @return boolean
+function Aura.RuleDealsDamage(rule)
+    return type(rule) == "string" and string.find(string.lower(rule), "damage", 1, true) ~= nil
+end
+
 --- Whether this aura is "damaging terrain" for movement advisories: it hurts
 --- creatures that enter it or move through it. True when the aura has an entry
---- power roll (Lava), a flat entry effect (Burning Oil), per-tile move damage, or
---- the explicit `damaging` flag (for hand-authored auras whose damage comes from
---- custom triggers).
+--- power roll (Lava) or flat entry effect (Burning Oil) that deals damage,
+--- per-tile move damage, or the explicit `damaging` flag (for hand-authored auras
+--- whose damage comes from custom triggers).
 --- @return boolean
 function Aura:IsDamaging()
     if self:try_get("damaging", false) == true then
@@ -409,7 +419,7 @@ function Aura:IsDamaging()
         return true
     end
 
-    if trim(self:try_get("entryEffectRule", "") or "") ~= "" then
+    if Aura.RuleDealsDamage(self:try_get("entryEffectRule")) then
         return true
     end
 
@@ -423,7 +433,7 @@ function Aura:IsDamaging()
     end
 
     for i = 1, 3 do
-        if trim(tiers[i] or "") ~= "" then
+        if Aura.RuleDealsDamage(tiers[i]) then
             return true
         end
     end
@@ -1020,23 +1030,27 @@ function Aura:GenerateEditor(options)
 
                 },
                 gui.Input {
-                    text = self:try_get("damage", 0),
+                    text = tostring(self:try_get("damage", 0)),
                     classes = { 'input', 'form-input' },
-                    width = 40,
+                    width = 120,
                     height = 22,
                     halign = "left",
                     hmargin = 10,
-                    characterLimit = 4,
+                    characterLimit = 64,
                     events = {
                         refreshAura = function(element)
                             element:SetClass("hidden", self:try_get("movedamage", "none") == "none")
                         end,
                         change = function(element)
-                            local num = tonumber(element.text)
-                            if num == nil then
-                                element.text = self:try_get("damage", 0)
-                            else
+                            --A number, or a formula about the caster such as "Reason".
+                            local text = trim(element.text)
+                            local num = tonumber(text)
+                            if num ~= nil then
                                 self.damage = num
+                            elseif text ~= "" then
+                                self.damage = text
+                            else
+                                element.text = tostring(self:try_get("damage", 0))
                             end
                             resultPanel:FireEventTree("refreshAura")
                         end,
@@ -1058,6 +1072,24 @@ function Aura:GenerateEditor(options)
                 change = function(element)
                     ---@cast element Dropdown
                     self.movementDamageFilter = element.idChosen
+                    resultPanel:FireEventTree("refreshAura")
+                end,
+                create = function(element)
+                    element:FireEvent("refreshAura")
+                end,
+                refreshAura = function(element)
+                    element:SetClass("collapsed", self:try_get("movedamage", "none") == "none")
+                end,
+            },
+
+            --Also deal the move damage once to a creature that starts its turn inside.
+            gui.Check{
+                styles = ThemeEngine.GetStyles(),
+                halign = "left",
+                text = "Also Damage on Start of Turn",
+                value = self:try_get("movedamageStartTurn", false),
+                change = function(element)
+                    self.movedamageStartTurn = element.value
                     resultPanel:FireEventTree("refreshAura")
                 end,
                 create = function(element)
@@ -1744,6 +1776,31 @@ function AuraInstance:IsHiddenFromAuraLists()
     return self:try_get("hideFromAuraLists", false) == true
 end
 
+--- True when the aura's only effect is granting activated abilities to creatures in it
+--- (e.g. the Angulotl Pollywog's Quick Snack): no triggers, entry power roll, entry
+--- effect or damage, and every modifier is an "activated" grant. Terrain flags (water,
+--- difficult terrain, cover...) are not checked here -- the engine reads its own copy.
+--- The movement and targeting cross-section diagrams use it to leave such auras out.
+--- @return boolean
+function AuraInstance:GrantsOnlyAbilities()
+    local aura = self.aura
+    if #aura:try_get("triggers", {}) > 0 or aura:IsDamaging() or aura:try_get("powerRollEnabled", false)
+        or trim(aura:try_get("entryEffectRule", "") or "") ~= "" then
+        return false
+    end
+
+    local modifiers = aura:try_get("modifiers", {})
+    if #modifiers == 0 then
+        return false
+    end
+    for _, modifier in ipairs(modifiers) do
+        if modifier.behavior ~= "activated" then
+            return false
+        end
+    end
+    return true
+end
+
 --The footstep sound family (AudioSurfaceTypes index) tiles in this aura use,
 --or nil for no override.
 function AuraInstance:GetSurfaceType()
@@ -1855,8 +1912,18 @@ function AuraInstance:GetDamageInfo()
         return nil
     end
 
+    --The damage may be a number or a GoblinScript formula, worked out against the
+    --caster (e.g. "Reason" for Wall of Fire). The engine reads it as a whole number.
+    local damage = self.aura:try_get("damage", 0)
+    if type(damage) == "string" then
+        local casterid = self:try_get("casterid")
+        local casterToken = casterid ~= nil and dmhub.GetTokenById(casterid) or nil
+        local caster = casterToken ~= nil and casterToken.properties or nil
+        damage = ExecuteGoblinScript(damage, GenerateSymbols(caster, self:try_get("symbols")), 0, string.format("%s move damage", self.aura.name))
+    end
+
     local result = {
-        damage = self.aura:try_get("damage", 0),
+        damage = math.floor(tonumber(damage) or 0),
         type = movedamage,
     }
 
@@ -2272,6 +2339,9 @@ function ActivatedAbilityAuraBehavior:CastOnArea(ability, casterToken, targets, 
             --find and remove this instance (see RemovePreviousAuras). Only read
             --when the behavior opts in via replacePrevious.
             sourceAbilityId = ability:try_get("guid"),
+            --The ability's keywords (Fire, Magic, ...), so the aura's move damage
+            --carries them like the ability's own damage does (see creature:AuraDamage).
+            keywords = abilityKeywords and DeepCopy(abilityKeywords) or nil,
             casterid = casterToken.charid,
             --snapshot the caster's party allegiance so an aura that persists past the
             --caster's death (aliveafterdeath) can still tell friend from foe after the
@@ -2384,6 +2454,40 @@ function ActivatedAbilityAuraBehavior:CastOnArea(ability, casterToken, targets, 
                                 objid = obj.objid,
                             }
                         end
+                    end
+                end
+
+                --An ability with joinsPersistence (e.g. Wall of Fire's extra squares) has no
+                --persistence of its own. Its aura joins the caster's persistent entry with
+                --the same name, so it ends when that entry ends.
+                if (persistence == nil or not persistence.enabled) and ability:try_get("joinsPersistence") == true then
+                    --Newest first, the same entry the normal persistence path above uses.
+                    local entries = casterToken.properties:try_get("persistentAbilities", {})
+                    local joined = nil
+                    for i = #entries, 1, -1 do
+                        if entries[i]:try_get("abilityName") == ability.name then
+                            joined = entries[i]
+                            break
+                        end
+                    end
+
+                    if joined == nil then
+                        --The entry already ended (e.g. persistence dropped while the recast
+                        --was open). Nothing would ever remove this aura, so don't place it.
+                        printf("AURA:: %s joinsPersistence found no persistent entry; extension not placed.", tostring(ability.name))
+                        if obj ~= nil then
+                            obj:Destroy()
+                        end
+                        return
+                    end
+
+                    auraInstance.persistenceId = joined.guid
+                    if obj ~= nil then
+                        local objects = joined:get_or_add("objects", {})
+                        objects[#objects + 1] = {
+                            floorid = obj.floorid,
+                            objid = obj.objid,
+                        }
                     end
                 end
 

@@ -177,7 +177,7 @@ local function InitParser()
     end
 end
 
-function trimTrailingWhitespace(str)
+local function trimTrailingWhitespace(str)
     return (string.gsub(str, "%s*$", ""))
 end
 
@@ -1335,7 +1335,7 @@ MCDMImporter.ParseCreatureAbilities = function(bestiaryEntry, inputLines, knownA
         local nameResourceMatch = regex.MatchGroups(ability.name, "^(?<name>[a-z][a-z!, -]+) +\\((?<resourceCost>[0-9]+) (?<resourceName>[a-z]+)\\)$")
     print("ABILITY:: PARSING", newAbility.name, "resource match", nameResourceMatch ~= nil, "WITH TIERS", json(ability.tiers))
         if nameResourceMatch ~= nil then
-            name = nameResourceMatch.name
+            local name = nameResourceMatch.name
             newAbility.name = name
             local resourceName = nameResourceMatch.resourceName
             local resourcesTable = dmhub.GetTable(CharacterResource.tableName)

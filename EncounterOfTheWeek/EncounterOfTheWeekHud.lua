@@ -19,6 +19,8 @@ local mod = dmhub.GetModLoading()
 --a normal Director game. (The old "/toggle eotw:forcecustomui" dev toggle
 --that forced it on anywhere was retired for the authoring test.)
 
+local T = UIText.T
+
 --- Hero cards ---------------------------------------------------------------
 
 --The hero card (and the helpers this file still uses) moved to the core
@@ -338,9 +340,9 @@ end
 
 --A strip above the roster showing the two encounter-wide pools everyone
 --cares about and which no card can carry: the monsters' Malice and the
---party's shared Hero Tokens. Read-only for everyone (strict rules: malice
---is spent by the Monster AI, hero tokens through the game's own flows);
---hovering a cell shows the pool's change history. Both pools live in the
+--party's shared Hero Tokens. Malice is read-only (the Monster AI spends
+--it); on a hero's turn its player can click Hero Tokens to spend them (see
+--CreatePoolCell). Hovering a cell shows the pool's change history. Both pools live in the
 --shared global-resource document, so that document is monitored for
 --prompt updates; the 1s think covers the combat-state gating (malice
 --reads as 0 outside combat without the document changing).
@@ -426,27 +428,17 @@ end
 --tooltip (MCDMCharacterPanel HERO_TOKEN_TOOLTIP), kept word for word so the
 --two never drift apart.
 local POOL_TITLE = {
-    malice = "Malice",
-    herotokens = "Hero Tokens",
-    intelligence = "Intelligence",
+    malice = T("hud.pool.malice.title"),
+    herotokens = T("hud.pool.herotokens.title"),
+    intelligence = T("hud.pool.intelligence.title"),
 }
 
 local POOL_EXPLANATION = {
-    malice = [==[**Malice**
+    malice = T("hud.pool.malice.explanation"),
 
-This is a power used by Monsters to charge their most powerful abilities. Beware that it will be used against you in battle!]==],
+    herotokens = T("hud.pool.herotokens.explanation"),
 
-    herotokens = [==[**Hero Tokens**
-* You can spend a hero token to gain two surges.
-* You can spend a hero token when you fail a saving throw to succeed instead.
-* You can reroll the result of a test. You must use the new result.
-* You can spend 2 hero tokens to regain Stamina equal to your Recovery value without spending a Recovery.]==],
-
-    intelligence = [==[**Intelligence**
-
-The amount of awareness you have of what you are up against. It can be used at the start of a fight to control how much you know about the encounter.
-
-Each hero keeps the Intelligence they earned (shown on their card), and each player spends their own heroes' Intelligence. This is the party's total.]==],
+    intelligence = T("hud.pool.intelligence.explanation"),
 }
 
 local POOL_TOOLTIP_WIDTH = 420
@@ -456,7 +448,7 @@ local POOL_TOOLTIP_WIDTH = 420
 --own `text` argument -- that is a bare auto-width label, so a paragraph handed
 --to it runs off the screen in a single line -- and the panel it returns paints
 --no background of its own here, so the card's chrome is this panel's.
-local function CreatePoolTooltip(kind, description)
+local function CreatePoolTooltip(kind, description, hint)
     --- @type Panel[]
     local children = {
         gui.Label{
@@ -469,6 +461,20 @@ local function CreatePoolTooltip(kind, description)
             color = "#ffffff",
         },
     }
+
+    --a call to action under the explanation (e.g. "click to spend").
+    if hint ~= nil then
+        children[#children+1] = gui.Label{
+            text = hint,
+            width = "auto",
+            height = "auto",
+            maxWidth = POOL_TOOLTIP_WIDTH,
+            fontSize = 18,
+            italics = true,
+            color = "#e0b84c",
+            tmargin = 8,
+        }
+    end
 
     local entries = PoolHistory(kind)
     if entries ~= nil and #entries > 0 then
@@ -495,6 +501,43 @@ local function CreatePoolTooltip(kind, description)
         valign = "bottom",
         children = children,
     }
+end
+
+--The hero the local player may spend Hero Tokens for from the pool cell: one
+--they control whose turn it is. nil between turns and on anyone else's turn.
+--- @return CharacterToken|nil
+local function SpendingHero()
+    local q = dmhub.initiativeQueue
+    if q == nil or q.hidden then
+        return nil
+    end
+    for _, tok in ipairs(dmhub.allTokens) do
+        local ok = false
+        pcall(function()
+            ok = tok.canControl and tok.properties:IsHero() and tok.properties:IsOurTurn()
+        end)
+        if ok then
+            return tok
+        end
+    end
+    return nil
+end
+
+--Whether the hero can buy anything from the pool right now. Under the strict
+--rules EotW forces, HeroTokenSpendOptions lists only what is affordable and
+--usable; the available check also covers a Director testing with them off.
+--- @param hero CharacterToken|nil
+--- @return boolean
+local function CanSpendHeroTokens(hero)
+    if hero == nil then
+        return false
+    end
+    for _, option in ipairs(CharacterResource.HeroTokenSpendOptions(hero)) do
+        if option.available then
+            return true
+        end
+    end
+    return false
 end
 
 local function CreatePoolCell(kind)
@@ -576,6 +619,8 @@ local function CreatePoolCell(kind)
         --the strip behind and neither the hover tint nor the tooltip fires.
         bgimage = "panels/square.png",
         bgcolor = "#00000000",
+        --the spend menu hangs off the cell, not wherever the pointer was.
+        popupPositioning = "panel",
         --the diamond is rotated, so give it a square slot of its own to
         --spin in rather than letting the flow measure its unrotated box.
         gui.Panel{
@@ -589,8 +634,46 @@ local function CreatePoolCell(kind)
         value,
         highlight,
 
+        --Hero Tokens only: on the local player's hero's turn, while they can
+        --afford something, the cell is outlined and a click opens the spend
+        --menu (CharacterResource.HeroTokenSpendOptions decides what is on it).
+        --Rides the strip's refreshPools tick, so it follows the turn and pool.
+        refreshPools = function(element)
+            if kind ~= "herotokens" then
+                return
+            end
+            local spendable = false
+            pcall(function() spendable = CanSpendHeroTokens(SpendingHero()) end)
+            if spendable ~= element:HasClass("spendable") then
+                element:SetClass("spendable", spendable)
+                if not spendable then
+                    element.popup = nil
+                end
+            end
+        end,
+
+        press = function(element)
+            if kind ~= "herotokens" or not element:HasClass("spendable") then
+                return
+            end
+            local entries = CharacterResource.HeroTokenSpendMenuEntries(SpendingHero(), function()
+                element.popup = nil
+            end)
+            --the hover tooltip would sit on top of the menu.
+            element.tooltip = nil
+            element.popup = gui.ContextMenu{
+                entries = entries,
+                halign = "left",
+                valign = "bottom",
+            }
+        end,
+
         hover = function(element)
-            element.tooltip = CreatePoolTooltip(kind, description)
+            local hint = nil
+            if element:HasClass("spendable") then
+                hint = T("hud.pool.herotokens.spend_hint")
+            end
+            element.tooltip = CreatePoolTooltip(kind, description, hint)
         end,
     }
 end
@@ -665,6 +748,13 @@ local function CreateEncounterPoolsPanel()
                 selectors = {"eotwPoolCell", "hover"},
                 brightness = 1.3,
             },
+            --the Hero Tokens cell when a click opens the spend menu.
+            {
+                selectors = {"eotwPoolCell", "spendable"},
+                border = 1,
+                borderColor = "#e0b84cff",
+                cornerRadius = 6,
+            },
             {
                 selectors = {"eotwPoolIcon"},
                 width = 20,
@@ -717,6 +807,10 @@ local function CreateEncounterPoolsPanel()
     return strip
 end
 
+--Defined with the map creator watermark, below; the rail's think keeps it up.
+--- @type fun(hidden: boolean)
+local UpdateMapWatermark
+
 --The whole right-rail widget: the pools strip above the hero roster. Both
 --pack against the right edge; the roster's own fit-to-screen shrink
 --pivots on its top-right corner so the strip above it is untouched.
@@ -747,6 +841,12 @@ local function CreateRightRailPanel()
                 montagePresented = EncounterMontage.IsPresented()
             end)
             roster:SetClass("collapsed", montagePresented)
+            --the montage stage covers the map; its scenes credit their own art.
+            UpdateMapWatermark(montagePresented)
+        end,
+        --the interface is going away (e.g. the Director-UI hatch).
+        destroy = function(element)
+            UpdateMapWatermark(true)
         end,
     }
 end
@@ -843,7 +943,17 @@ local function CreatePanelButton(panelName)
 
         press = function(element)
             audio.FireSoundEvent("Mouse.Click")
-            DockablePanel.LaunchPanelByName(panelName, "toggle")
+            --a folder window (Measuring Tool + Whiteboard share one) sitting
+            --on another member's tab: switch to this tab rather than closing
+            --the window, as the real rail button does.
+            local operation = "toggle"
+            pcall(function()
+                if PanelDocument.IsPanelShown(panelKey) and not PanelDocument.IsPanelActive(panelKey)
+                    and not PanelDocument.IsPoppedOut(panelKey) then
+                    operation = "show"
+                end
+            end)
+            DockablePanel.LaunchPanelByName(panelName, operation)
         end,
 
         hover = function(element)
@@ -853,8 +963,12 @@ local function CreatePanelButton(panelName)
         --lit state while the panel's window is up (the underline below
         --reveals on the "active" class, and the icon brightens).
         refreshRail = function(element)
+            --IsPanelActive, not IsPanelShown: in a folder window only the
+            --tab on screen lights, not every member filed in it.
             local shown = false
-            pcall(function() shown = PanelDocument.IsPanelShown(panelKey) end)
+            pcall(function()
+                shown = PanelDocument.IsPanelActive(panelKey) or PanelDocument.IsPoppedOut(panelKey)
+            end)
             element:SetClass("active", shown)
         end,
 
@@ -883,18 +997,241 @@ local function CreatePanelButton(panelName)
     }
 end
 
+--- Encounter Rules (bottom-left corner) --------------------------------------
+
+--An encounter may ship an "Encounter Rules" journal document (filed in its
+--map's journal folder; see EncounterMontage.FindRulesDocument). Once combat
+--begins a book button joins the corner strip and opens it in a read-only
+--reading window.
+local RULES_ICON = "phosphor/book-bookmark.png"
+local RULES_WINDOW_WIDTH = 760
+local RULES_WINDOW_HEIGHT = 860
+
+---@type Panel?
+local m_rulesDialog = nil
+--the read-only copy last shown, so a reopened window keeps where the
+--player dragged it (_tmp_location lives on the document).
+---@type MarkdownDocument?
+local m_rulesCopy = nil
+--documents opened this session: the button's "new" badge goes once read.
+local m_rulesSeen = {}
+--the live corner button, if any (a rail rebuild replaces it).
+---@type Panel?
+local m_rulesButton = nil
+
+--The Encounter Rules document to offer now, or nil: only once combat has
+--begun, and only when the map (or this series part) has one.
+local function CurrentRulesDocument()
+    local montage = rawget(_G, "EncounterMontage")
+    local eotw = rawget(_G, "EncounterOfTheWeekGame")
+    if montage == nil or eotw == nil or montage.FindRulesDocument == nil or eotw.CombatStarted == nil then
+        return nil
+    end
+    local doc = nil
+    pcall(function()
+        if eotw.CombatStarted() then
+            doc = montage.FindRulesDocument()
+        end
+    end)
+    return doc
+end
+
+local function IsRulesOpen()
+    return m_rulesDialog ~= nil and m_rulesDialog.valid
+end
+
+local function CloseRules()
+    local dialog = m_rulesDialog
+    if dialog ~= nil and dialog.valid then
+        dialog:DestroySelf()
+    end
+    m_rulesDialog = nil
+end
+
+local function ShowRules(doc)
+    CloseRules()
+    m_rulesSeen[doc.id] = true
+    --a local read-only copy: nothing in the window can edit or upload the
+    --encounter's document, even for a Director running an authoring test
+    --or the author playing their own module.
+    local copy = DeepCopy(doc)
+    copy.readonly = true
+    if m_rulesCopy ~= nil and m_rulesCopy.id == doc.id and m_rulesCopy:has_key("_tmp_location") then
+        copy._tmp_location = m_rulesCopy._tmp_location
+    end
+    m_rulesCopy = copy
+    m_rulesDialog = copy:PresentDocument{
+        --no editing, presenting or journal breadcrumb; the reader keeps
+        --the close button.
+        presentationMode = true,
+        presentationAllowClose = true,
+        width = RULES_WINDOW_WIDTH,
+        height = RULES_WINDOW_HEIGHT,
+    }
+    GameHud.instance.documentsPanel:AddChild(m_rulesDialog)
+    --the rail-mode Font Size zoom needs the window attached.
+    m_rulesDialog:FireEvent("setWindowScale")
+end
+
+local function CreateRulesButton()
+    local m_doc = nil
+    local m_badgeShown = false
+
+    local badge = gui.Panel{
+        floating = true,
+        halign = "left",
+        valign = "top",
+        x = RAIL_BUTTON_SIZE - 3,
+        y = 2,
+        width = 1,
+        height = 1,
+        flow = "none",
+        interactable = false,
+    }
+
+    --shows/hides the button, lights it while the window is up, and keeps
+    --the "new" badge until the rules are first read.
+    local function Sync(button)
+        local doc = CurrentRulesDocument()
+        m_doc = doc
+        button:SetClass("collapsed", doc == nil)
+        if doc == nil then
+            --combat reset (an authoring test restarted or ended): the
+            --window goes with the button.
+            CloseRules()
+            return
+        end
+        button:SetClass("active", IsRulesOpen())
+        local showBadge = not m_rulesSeen[doc.id]
+        if showBadge ~= m_badgeShown then
+            m_badgeShown = showBadge
+            if showBadge then
+                badge.children = {
+                    gui.NewContentAlert{
+                        count = 1,
+                        size = 16,
+                        halign = "center",
+                        valign = "center",
+                        x = 0,
+                        y = 0,
+                        interactable = false,
+                    },
+                }
+            else
+                badge.children = {}
+            end
+        end
+    end
+
+    local button
+    button = gui.Panel{
+        classes = {"iconRailButton", "collapsed"},
+        width = RAIL_BUTTON_SIZE,
+        height = RAIL_BUTTON_SIZE,
+        vmargin = 4,
+        bgimage = "panels/square.png",
+        blurBackground = true,
+        swallowPress = true,
+
+        press = function(element)
+            audio.FireSoundEvent("Mouse.Click")
+            if IsRulesOpen() then
+                CloseRules()
+            elseif m_doc ~= nil then
+                ShowRules(m_doc)
+            end
+            Sync(element)
+        end,
+
+        hover = function(element)
+            gui.Tooltip(T("hud.rules_button.tooltip"))(element)
+        end,
+
+        gui.Panel{
+            classes = {"iconRailIcon"},
+            bgimage = RULES_ICON,
+            width = 20,
+            height = 20,
+            halign = "center",
+            valign = "center",
+            interactable = false,
+        },
+
+        gui.Panel{
+            classes = {"iconRailActiveMark"},
+            bgimage = true,
+            width = 16,
+            height = 2,
+            halign = "center",
+            valign = "bottom",
+            y = -3,
+            interactable = false,
+        },
+
+        badge,
+    }
+
+    --the thinking wrapper never collapses (a collapsed panel's think
+    --never runs); it shrinks to nothing while the button is collapsed.
+    return gui.Panel{
+        width = "auto",
+        height = "auto",
+        halign = "center",
+        flow = "vertical",
+        thinkTime = 0.25,
+        create = function(element)
+            m_rulesButton = element
+            Sync(button)
+        end,
+        think = function(element)
+            Sync(button)
+        end,
+        destroy = function(element)
+            --the interface going away (End Test, the Director-UI hatch)
+            --takes the window with it; a rail rebuild that remounts the
+            --button within a moment keeps it.
+            dmhub.Schedule(0.5, function()
+                if mod.unloaded or m_rulesButton == nil or not m_rulesButton.valid then
+                    CloseRules()
+                end
+            end)
+        end,
+        button,
+    }
+end
+
 --The bottom-left corner strip: the Journal, Chat and Action Log buttons
 --survive the takeover (user direction 2026-08-28 for chat/log,
 --2026-08-30 for the journal) so players keep the encounter's briefing
 --documents, chat, and the roll history. Journal sits ABOVE the other two
 --(vertical flow, so first in the list is the topmost button).
+--The map tools (playtest 2026-10-19 N4) sit above those, behind a short
+--rule: the EotW takeover hides the map rail that normally carries them.
+--The Encounter Rules book sits directly above Journal, collapsed until
+--combat begins in an encounter that has rules.
 local function CreateCornerButtonsPanel()
     local buttons = {}
+    for _, name in ipairs({"Measuring Tool", "Whiteboard"}) do
+        buttons[#buttons+1] = CreatePanelButton(name)
+    end
+    local toolCount = #buttons
+    buttons[#buttons+1] = CreateRulesButton()
     for _, name in ipairs({"Journal", "Chat", "Action Log"}) do
         buttons[#buttons+1] = CreatePanelButton(name)
     end
     if #buttons == 0 then
         return nil
+    end
+    if toolCount > 0 and #buttons > toolCount then
+        table.insert(buttons, toolCount + 1, gui.Panel{
+            classes = {"iconRailMapDivider"},
+            bgimage = true,
+            interactable = false,
+            width = RAIL_BUTTON_SIZE - 12,
+            height = 2,
+            halign = "center",
+            vmargin = 6,
+        })
     end
     return gui.Panel{
         id = "eotwCornerButtons",
@@ -938,24 +1275,26 @@ local function HeroSheetFor(token)
     return sheet
 end
 
+--Is the EotW interface up on this client: a real EotW game or an authoring
+--test, unless the Director-UI escape hatch (or a --director debug window)
+--restores the whole normal interface for debugging/manual recovery.
+local function IsInterfaceActive()
+    local eotw = rawget(_G, "EncounterOfTheWeekGame")
+    if eotw == nil or not eotw.IsEotwGame() then
+        return false
+    end
+    if eotw.ShowDirectorUI ~= nil then
+        return not eotw.ShowDirectorUI()
+    end
+    return dmhub.GetSettingValue("eotw:showdirectorui") ~= true
+end
+
 --pcall: an older core codex without the hook just shows the normal hud.
 pcall(function()
     GameHud.RegisterCustomInterface{
         id = "eotw",
 
-        active = function()
-            local eotw = rawget(_G, "EncounterOfTheWeekGame")
-            if eotw == nil or not eotw.IsEotwGame() then
-                return false
-            end
-            --the Director-UI escape hatch (or a --director debug window)
-            --restores the whole normal interface for debugging/manual
-            --recovery.
-            if eotw.ShowDirectorUI ~= nil then
-                return not eotw.ShowDirectorUI()
-            end
-            return dmhub.GetSettingValue("eotw:showdirectorui") ~= true
-        end,
+        active = IsInterfaceActive,
 
         suppressRails = true,
 
@@ -1009,6 +1348,13 @@ pcall(function()
             return presence.ConfirmExit(kind, proceed)
         end,
 
+        --the encounter's map is held maximized for the whole game, test
+        --included: no restore, minimize or close, the same as a player whose
+        --Director holds a shared map maximized (Tabletop.lua).
+        forcedMap = function()
+            return game.currentMapId
+        end,
+
         suppressPanel = { ["Compendium"] = true },
 
         suppressSearchBucket = { ["compendium"] = true },
@@ -1046,3 +1392,555 @@ pcall(function()
         end,
     }
 end)
+
+--- About Encounter of the Week (Codex menu) ----------------------------------
+--Codex > About Encounter of the Week, in any EotW game (an authoring test
+--too): the mode's credits, then the encounter being played -- who wrote it
+--(its module's author) and, when its map came from a map pack, who made the
+--map (the pack's creator organization).
+
+--The banner is the Town Gate's art (GATE_ART in Codex Titlescreen/
+--EncounterOfTheWeek.lua), which that file tags as Czepeku's, so the banner
+--carries the watermark their licence asks for.
+local ABOUT_ART = "db5bcf88-00fc-4e0b-89c9-5ddb98d1a772"
+local ABOUT_WIDTH = 720
+local ABOUT_ART_HEIGHT = 240
+local ABOUT_THUMB_WIDTH = 168
+local ABOUT_THUMB_HEIGHT = 108
+
+--The mode's credits, in order: the line (TextMeshPro rich text) given the
+--name as it is shown, the name, and optionally a site the name links to.
+--- @type {line: (fun(name: string): string), name: string, url: nil|string}[]
+local ABOUT_CREDITS = {
+    { line = function(name) return T("hud.about.credit.draw_steel", { name = name }) end, name = "MCDM" },
+    { line = function(name) return T("hud.about.credit.eotw", { name = name }) end, name = T("hud.about.credit.eotw_name") },
+    { line = function(name) return T("hud.about.credit.cartography", { name = name }) end, name = "Czepeku", url = "https://czepeku.com" },
+}
+
+--Map packs whose maps are credited to someone other than the pack's
+--publishing organization: pack module fullid -> {name, url}.
+--- @type table<string, {name: string, url: nil|string}>
+local ABOUT_MAP_PACK_CREATORS = {
+    ["mcdm-encountermaps"] = { name = "MAD Cartographer", url = "https://themad.network/the-mad-cartographer" },
+}
+
+--A name as rich text, bold if asked, and when it has a url a link: accent
+--colored and underlined (some schemes' accent is close to the body text),
+--which an AboutLinkLabel opens on press.
+--- @param name string
+--- @param url nil|string
+--- @param bold nil|boolean
+--- @return string
+local function AboutName(name, url, bold)
+    if bold then
+        name = string.format("<b>%s</b>", name)
+    end
+    if url == nil or url == "" then
+        return name
+    end
+    return ThemeEngine.ResolveTokens(string.format("<color=@accent><u><link=%s>%s</link></u></color>", url, name))
+end
+
+--A gui.Label whose <link=url> spans open their url when pressed.
+--- @param options table
+--- @return Panel
+local function AboutLinkLabel(options)
+    options.links = true
+    options.press = function(element)
+        if element.linkHovered ~= nil then
+            dmhub.OpenURL(element.linkHovered)
+        end
+    end
+    return gui.Label(options)
+end
+
+local ABOUT_STYLES = {
+    {
+        selectors = {"label", "eotwAboutTitle"},
+        fontSize = 30,
+        bold = true,
+        color = "@fgStrong",
+        width = "100%-48",
+        height = "auto",
+        halign = "center",
+        textAlignment = "center",
+    },
+    {
+        selectors = {"label", "eotwAboutCredit"},
+        fontSize = 18,
+        color = "@fg",
+        width = "100%-24",
+        height = "auto",
+        halign = "center",
+        textAlignment = "center",
+        textWrap = true,
+        vmargin = 5,
+    },
+    {
+        selectors = {"label", "eotwAboutHeading"},
+        fontSize = 22,
+        bold = true,
+        color = "@fgStrong",
+        width = "100%",
+        height = "auto",
+        textWrap = true,
+    },
+    {
+        selectors = {"label", "eotwAboutLine"},
+        fontSize = 17,
+        color = "@fg",
+        width = "100%",
+        height = "auto",
+        textWrap = true,
+        tmargin = 6,
+    },
+    {
+        selectors = {"eotwAboutRule"},
+        width = "100%-64",
+        height = 1,
+        halign = "center",
+        bgimage = "panels/square.png",
+        bgcolor = "@border",
+        vmargin = 16,
+    },
+}
+
+--- @alias AboutCredit {name: string, url: nil|string}
+
+--Creator organization id -> {name, url}, or false when the lookup failed.
+--- @type table<string, AboutCredit|false>
+local g_aboutOrgNames = {}
+
+--Calls back with an organization's display name and website, or nil when
+--it has no name or the lookup fails. Answers at once from the cache.
+--- @param orgid nil|string
+--- @param callback fun(credit: nil|AboutCredit)
+local function AboutOrgName(orgid, callback)
+    if orgid == nil or orgid == "" then
+        callback(nil)
+        return
+    end
+    local cached = g_aboutOrgNames[orgid]
+    if cached ~= nil then
+        callback(cached or nil)
+        return
+    end
+    module.GetOrganizationInfo{
+        orgid = orgid,
+        success = function(info)
+            local credit = nil
+            local name = type(info) == "table" and info.displayName or nil
+            if type(name) == "string" and name ~= "" then
+                local url = info.url
+                credit = { name = name, url = cond(type(url) == "string" and url ~= "", url, nil) }
+            end
+            g_aboutOrgNames[orgid] = credit or false
+            if not mod.unloaded then
+                callback(credit)
+            end
+        end,
+        failure = function()
+            g_aboutOrgNames[orgid] = false
+            if not mod.unloaded then
+                callback(nil)
+            end
+        end,
+    }
+end
+
+--Calls back with the name of whoever published an encounter module: its
+--creator organization's name, else the organization its author id names
+--(author ids are often organization ids: "mcdm"), else the author id. nil
+--when the module is not known here.
+--- @param moduleid nil|string
+--- @param callback fun(credit: nil|AboutCredit)
+local function AboutEncounterAuthor(moduleid, callback)
+    local info = moduleid ~= nil and module.GetModule(moduleid) or nil
+    if info == nil then
+        callback(nil)
+        return
+    end
+    local org, authorid = nil, nil
+    pcall(function() org = info.org end)
+    pcall(function() authorid = info.authorid end)
+    if authorid == "" then
+        authorid = nil
+    end
+    if org == nil or org == "" then
+        org = authorid
+    end
+    AboutOrgName(org, function(credit)
+        if credit == nil and authorid ~= nil then
+            credit = { name = authorid }
+        end
+        callback(credit)
+    end)
+end
+
+--The map pack a map was added from (its module fullid), or nil.
+--- @param mapid string
+--- @return nil|string
+local function AboutMapPack(mapid)
+    local pack = nil
+    pcall(function()
+        local source = game.GetMap(mapid).packSource
+        if source ~= nil and type(source.pack) == "string" and source.pack ~= "" then
+            pack = source.pack
+        end
+    end)
+    return pack
+end
+
+--The creator organization that publishes a map pack, or nil.
+--- @param pack string
+--- @return nil|string
+local function MapPackOrg(pack)
+    local org = nil
+    for _,p in ipairs(mappacks.packs or {}) do
+        if p.id == pack then
+            org = p.org
+        end
+    end
+    if org == nil or org == "" then
+        pcall(function() org = module.GetModule(pack).org end)
+    end
+    if org == "" then
+        return nil
+    end
+    return org
+end
+
+--Calls back with the map pack a map came from, or nil. A map added before
+--provenance was recorded is only recognised once the pack index has synced,
+--so an unsynced index is synced first.
+--- @param mapid string
+--- @param callback fun(pack: nil|string)
+local function MapPackOf(mapid, callback)
+    local pack = AboutMapPack(mapid)
+    if pack ~= nil or mappacks.synced then
+        callback(pack)
+        return
+    end
+    mappacks.Sync{
+        success = function()
+            if not mod.unloaded then
+                callback(AboutMapPack(mapid))
+            end
+        end,
+        error = function()
+            if not mod.unloaded then
+                callback(nil)
+            end
+        end,
+    }
+end
+
+--Calls back with the creator of a map that came from a map pack (the pack's
+--entry in ABOUT_MAP_PACK_CREATORS, else its creator organization), or nil
+--for any other map.
+--- @param mapid string
+--- @param callback fun(credit: nil|AboutCredit)
+local function AboutMapCreator(mapid, callback)
+    MapPackOf(mapid, function(pack)
+        if pack == nil then
+            callback(nil)
+        elseif ABOUT_MAP_PACK_CREATORS[pack] ~= nil then
+            callback(ABOUT_MAP_PACK_CREATORS[pack])
+        else
+            AboutOrgName(MapPackOrg(pack), callback)
+        end
+    end)
+end
+
+--- Map creator watermark -----------------------------------------------------
+
+--(user direction 2026-10-19) While a map from a map pack is on screen, its
+--creator's logo sits in the bottom-right corner of the map window; clicking
+--it opens their Patreon (CreatorCredit.ForOrganization). EotW games only: the
+--whole interface, this included, is up only there (IsInterfaceActive).
+
+--Creator organizations whose maps carry no watermark: MCDM's own.
+local MAP_WATERMARK_EXEMPT_ORGS = { mcdm = true }
+
+local MAP_WATERMARK_HEIGHT = 36
+
+--mapid -> its watermark credit, false for none, or true while looking it up.
+--- @type table<string, CreatorCreditInfo|boolean>
+local g_mapWatermarkCredits = {}
+
+--The badge on screen, and the map window overlay and creator it is for.
+local m_mapWatermark = nil
+local m_mapWatermarkHost = nil
+local m_mapWatermarkCreator = nil
+
+--The watermark credit for a map: nil when it has none, or until its lookup
+--(started here on first ask) comes back.
+--- @param mapid string
+--- @return nil|CreatorCreditInfo
+local function MapWatermarkCredit(mapid)
+    local cached = g_mapWatermarkCredits[mapid]
+    if type(cached) == "table" then
+        return cached
+    end
+    if cached ~= nil then
+        return nil
+    end
+    g_mapWatermarkCredits[mapid] = true
+    MapPackOf(mapid, function(pack)
+        local org = pack ~= nil and MapPackOrg(pack) or nil
+        if org == nil or MAP_WATERMARK_EXEMPT_ORGS[org] then
+            g_mapWatermarkCredits[mapid] = false
+            return
+        end
+        CreatorCredit.ForOrganization(org, function(info)
+            g_mapWatermarkCredits[mapid] = info or false
+        end)
+    end)
+    return nil
+end
+
+local function RemoveMapWatermark()
+    if m_mapWatermark ~= nil and m_mapWatermark.valid then
+        m_mapWatermark:DestroySelf()
+    end
+    m_mapWatermark = nil
+    m_mapWatermarkHost = nil
+    m_mapWatermarkCreator = nil
+end
+
+--Keeps the watermark on the live map window: added, moved to a new window,
+--or taken down as the map, its window or the montage changes. Called from
+--the right rail's think (CreateRightRailPanel), and with hidden = true when
+--the rail goes away.
+--- @param hidden boolean
+UpdateMapWatermark = function(hidden)
+    --- @type nil|Panel
+    local host = nil
+    local credit = nil
+    if not hidden then
+        pcall(function() host = Tabletop.MapOverlayHost() end)
+        local mapid = game.currentMapId
+        if host ~= nil and mapid ~= nil then
+            credit = MapWatermarkCredit(mapid)
+        end
+    end
+    if host == nil or credit == nil then
+        RemoveMapWatermark()
+        return
+    end
+    if m_mapWatermark ~= nil and m_mapWatermark.valid and m_mapWatermarkHost == host and m_mapWatermarkCreator == credit.id then
+        return
+    end
+    RemoveMapWatermark()
+    local badge = CreatorCredit.Badge{
+        creator = credit.id,
+        height = MAP_WATERMARK_HEIGHT,
+        light = true,
+        backing = true,
+        label = T("hud.map_credit.lead"),
+        hmargin = 16,
+        vmargin = 16,
+    }
+    if badge == nil then
+        return
+    end
+    host:AddChild(badge)
+    --under the map's own HUD and dialogs (the Draw Steel banner).
+    badge:SetAsFirstSibling()
+    m_mapWatermark = badge
+    m_mapWatermarkHost = host
+    m_mapWatermarkCreator = credit.id
+end
+
+local m_aboutDialog = nil
+
+local function CloseAbout()
+    if m_aboutDialog ~= nil and m_aboutDialog.valid then
+        local hud = rawget(_G, "gamehud")
+        if hud ~= nil then
+            hud:CloseModal()
+        end
+    end
+    m_aboutDialog = nil
+end
+
+--The "About <encounter>" part of the dialog: heading, author and map
+--creator (filled in as their lookups come back), beside the map's thumbnail
+--when it has one.
+--- @param info {title: string, mapid: string, moduleid: nil|string}
+--- @return Panel
+local function AboutEncounterSection(info)
+    --hidden until its lookup comes back with a name.
+    local function PendingLine()
+        return AboutLinkLabel{
+            classes = {"eotwAboutLine", "collapsed"},
+            text = "",
+            fill = function(element, text)
+                element.text = text
+                element:SetClass("collapsed", false)
+            end,
+        }
+    end
+
+    local authorLabel = PendingLine()
+    local mapLabel = PendingLine()
+
+    local function Fill(label, line)
+        return function(credit)
+            if credit ~= nil and label.valid then
+                label:FireEvent("fill", line(AboutName(credit.name, credit.url, true)))
+            end
+        end
+    end
+    AboutEncounterAuthor(info.moduleid, Fill(authorLabel, function(name) return T("hud.about.written_by", { name = name }) end))
+    AboutMapCreator(info.mapid, Fill(mapLabel, function(name) return T("hud.about.map_by", { name = name }) end))
+
+    local thumb = nil
+    pcall(function() thumb = game.GetMap(info.mapid).thumbnailImage end)
+    local thumbPanel = nil
+    if type(thumb) == "string" and thumb ~= "" then
+        thumbPanel = gui.Panel{
+            width = ABOUT_THUMB_WIDTH,
+            height = ABOUT_THUMB_HEIGHT,
+            valign = "top",
+            rmargin = 20,
+            flow = "none",
+            CreatorCredit.Backdrop{
+                width = ABOUT_THUMB_WIDTH,
+                height = ABOUT_THUMB_HEIGHT,
+                image = thumb,
+                badge = false,
+            },
+        }
+    end
+
+    return gui.Panel{
+        width = "100%-64",
+        height = "auto",
+        halign = "center",
+        flow = "horizontal",
+        thumbPanel,
+        gui.Panel{
+            width = cond(thumbPanel ~= nil, string.format("100%%-%d", ABOUT_THUMB_WIDTH + 20), "100%"),
+            height = "auto",
+            valign = "center",
+            flow = "vertical",
+            gui.Label{
+                classes = {"eotwAboutHeading"},
+                text = T("hud.about.encounter_heading", { title = info.title }),
+            },
+            authorLabel,
+            mapLabel,
+        },
+    }
+end
+
+--Opens the About Encounter of the Week dialog (or leaves it up if it is).
+function EncounterOfTheWeekHud.ShowAbout()
+    local hud = rawget(_G, "gamehud")
+    if hud == nil then
+        return
+    end
+    if m_aboutDialog ~= nil and m_aboutDialog.valid then
+        return
+    end
+
+    local info = nil
+    local eotw = rawget(_G, "EncounterOfTheWeekGame")
+    if eotw ~= nil and eotw.EncounterInfo ~= nil then
+        pcall(function() info = eotw.EncounterInfo() end)
+    end
+
+    local credits = {}
+    for _,credit in ipairs(ABOUT_CREDITS) do
+        credits[#credits+1] = AboutLinkLabel{
+            classes = {"eotwAboutCredit"},
+            text = credit.line(AboutName(credit.name, credit.url)),
+        }
+    end
+
+    local encounterChildren = {}
+    if info ~= nil then
+        encounterChildren[#encounterChildren+1] = gui.Panel{ classes = {"eotwAboutRule"} }
+        encounterChildren[#encounterChildren+1] = AboutEncounterSection(info)
+    end
+
+    m_aboutDialog = gui.Panel{
+        classes = {"framedPanel"},
+        styles = ThemeEngine.MergeStyles(ABOUT_STYLES),
+        width = ABOUT_WIDTH,
+        height = "auto",
+        flow = "vertical",
+        escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+        captureEscape = true,
+        escape = function(element)
+            CloseAbout()
+        end,
+
+        --the banner: the art, cover-fitted, with Czepeku's watermark.
+        gui.Panel{
+            width = ABOUT_WIDTH,
+            height = ABOUT_ART_HEIGHT,
+            halign = "center",
+            flow = "none",
+            CreatorCredit.Backdrop{
+                width = ABOUT_WIDTH,
+                height = ABOUT_ART_HEIGHT,
+                image = ABOUT_ART,
+                creator = "czepeku",
+                badge = { hmargin = 16, vmargin = 12, light = true },
+            },
+        },
+
+        gui.Label{
+            classes = {"eotwAboutTitle"},
+            text = T("hud.about.title"),
+            tmargin = 18,
+            bmargin = 12,
+        },
+
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            children = credits,
+        },
+
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            children = encounterChildren,
+        },
+
+        gui.Button{
+            classes = {"sizeL"},
+            text = T("hud.about.close"),
+            halign = "center",
+            tmargin = 22,
+            bmargin = 18,
+            click = function()
+                CloseAbout()
+            end,
+        },
+    }
+    hud:ShowModal(m_aboutDialog)
+end
+
+Commands.Register{
+    name = "About Encounter of the Week",
+    --name is also the command's key (its keybinding); this is what the menu shows.
+    gettext = function() return T("hud.about.menu_item") end,
+    identifier = "eotwabout",
+    icon = "phosphor/info.png",
+    menu = "codex",
+    --its own group, so the menu sets it apart from the rows above it.
+    group = "zzeotwabout",
+    filtered = function()
+        local eotw = rawget(_G, "EncounterOfTheWeekGame")
+        return eotw == nil or not eotw.IsEotwGame()
+    end,
+    execute = function()
+        EncounterOfTheWeekHud.ShowAbout()
+    end,
+}

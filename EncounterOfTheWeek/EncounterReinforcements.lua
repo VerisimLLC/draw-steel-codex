@@ -75,11 +75,14 @@ local function ZoneLocs(zone)
     local free, taken = {}, {}
     for _, z in ipairs(EncounterZones.ZoneRecords(zone)) do
         for _, l in ipairs(z.record.locs or {}) do
-            local loc = core.Loc{ x = math.floor(l.x), y = math.floor(l.y), floorIndex = z.floorIndex }
-            if game.GetTokensAtLoc(loc) == nil then
-                free[#free + 1] = loc
-            else
-                taken[#taken + 1] = loc
+            --a series' part arrives only inside its own region.
+            if EncounterZones.InPlayRegion(l.x, l.y) then
+                local loc = core.Loc{ x = math.floor(l.x), y = math.floor(l.y), floorIndex = z.floorIndex }
+                if game.GetTokensAtLoc(loc) == nil then
+                    free[#free + 1] = loc
+                else
+                    taken[#taken + 1] = loc
+                end
             end
         end
     end
@@ -125,7 +128,8 @@ local function Arrive(script, section, ordinal, queue, live)
         return {}, index
     end
 
-    local numHeroes = tonumber(dmhub.GetSettingValue("numheroes")) or 5
+    --Challenge Mode balances a wave like the opening fight (ChallengeBalance).
+    local numHeroes, levelUp = EncounterOfTheWeekGame.ChallengeBalance(tonumber(dmhub.GetSettingValue("numheroes")) or 5)
     local zoneLocs = section.zone ~= nil and ZoneLocs(section.zone) or {}
     if section.zone ~= nil and #zoneLocs == 0 then
         printf("EotW reinforcements: the map has no '%s' zone; '%s' arrive at their saved positions", tostring(section.zone), tostring(section.name))
@@ -146,6 +150,7 @@ local function Arrive(script, section, ordinal, queue, live)
                 copy.spawnmonsters = nil
                 copy.appearances = nil
                 copy.invisibleToPlayers = nil
+                copy.startsHidden = nil
                 anchor = copy.spawnlocs[1]
             end
             local groupid, charids = Encounter.SpawnGroupForReal(copy, numHeroes, anchor)
@@ -167,6 +172,9 @@ local function Arrive(script, section, ordinal, queue, live)
                 queue:SetInitiative(groupid, 0, 0)
             end
         end
+    end
+    if levelUp and #spawned > 0 then
+        EncounterOfTheWeekGame.LevelUpStrongestHalf(spawned)
     end
     game.UpdateCharacterTokens()
 
@@ -215,8 +223,16 @@ end
 --The arrivals due at the start of `round` that have not come yet.
 local function DueArrivals(beat, round, arrived)
     local due = {}
+    local story = nil
     for _, section in ipairs(beat.reinforcements or {}) do
-        if section.schedule ~= nil and #(section.islands or {}) > 0 then
+        --"When <condition>:" above the heading: a series part's story
+        --decides whether these come at all.
+        local gateOpen = true
+        if section.gate ~= nil then
+            story = story or EncounterMontage.Story()
+            gateOpen = EncounterScript.EvalStoryCondition(section.gate.cond, story)
+        end
+        if gateOpen and section.schedule ~= nil and #(section.islands or {}) > 0 then
             local ordinal = EncounterScript.ScheduleOrdinal(section.schedule, round)
             if ordinal > 0 then
                 local key = string.format("%s-r%d", section.id, round)

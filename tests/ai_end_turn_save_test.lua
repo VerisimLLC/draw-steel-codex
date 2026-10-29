@@ -77,7 +77,7 @@ assert(load(section(invokePath, "function AbilityInvocation.PromptStandardAbilit
 --Typed invocation instances dispatch the production Invoke method.
 AbilityInvocation.new = function(t) t = typed(t); t.Invoke = AbilityInvocation.Invoke; return t end
 local findPending = assert(load(section("Monster AI/MonsterAIPanel.lua",
-    "local function FindPendingPlayerSave(queue)", "local g_playerTurnClaimAbilities") .. "\nreturn FindPendingPlayerSave"))()
+    "local function FindPendingPlayerSave(queue)", "local g_relayedTriggerWaitSeconds") .. "\nreturn FindPendingPlayerSave"))()
 local queue = {entries = {hero = {}}}
 local function prompt()
     return AbilityInvocation.PromptStandardAbility{
@@ -129,6 +129,8 @@ check(findPending(queue) == nil, "dismissed legacy card must not block")
 
 --Drive the real background loop: a remote save holds an already selected
 --monster turn, resumes after completion, and remains stoppable while waiting.
+--The loop under test reads the module handle as a global here.
+---@diagnostic disable-next-line: lowercase-global
 mod = {}
 ElevateToHostPermissions = noop
 creature = {SetAIActivityInProgress = noop, ClearAIControl = noop}

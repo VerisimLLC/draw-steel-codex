@@ -193,7 +193,7 @@ end
 --- @field attributeIds string[] Ordered list of registered attribute ids.
 --- @field attributeDropdownOptions {id: string, text: string}[] Attribute options for use in dropdowns.
 --- @field attributeDropdownOptionsWithNone {id: string, text: string}[] Attribute options including a leading "None" entry.
---- @field savingThrowInfo table<string, {id: string, attrid?: string, description: string, order: number}> Registered saving throw metadata keyed by id.
+--- @field savingThrowInfo table<string, SavingThrowInfo> Registered saving throw metadata keyed by id.
 --- @field savingThrowIds string[] Ordered list of registered saving throw ids.
 --- @field savingThrowDropdownOptions {id: string, text: string, order: number}[] Saving throw options for use in dropdowns.
 --- @field SavingThrowMod fun(self: creature, saveid: string): number Total saving throw modifier. Implemented by character and monster (not TargetableObject).
@@ -224,11 +224,12 @@ end
 --- @field encounterSpawnMonster? string Encounter builder: bestiary id spawned into this slot.
 --- @field encounterStaged? boolean Encounter builder: true while the token is a staged (not yet started) placement.
 --- @field encounterStagedBy? string Encounter builder: userid of the Director who staged it.
+--- @field encounterSourceId? string Encounter prep: id of the saved encounter whose play spawned this token.
 --- @field encounterWaveId? string Encounter waves: id of the wave that spawned this token.
 --- @field encounterGroupIndex? integer Encounter waves: index of the group within the authored encounter.
 --- @field isDuplicate? boolean Set on tokens created by the Duplicate summon behavior.
 --- @field duplicateSourceId? string Duplicates: charid of the token that was duplicated.
---- @field hiddenInvisibilityApplied? boolean True when invisibleToPlayers was applied by the Hidden condition sync.
+--- @field hiddenInvisibilityApplied? boolean Legacy: true when the old Hidden sync set invisibleToPlayers; cleared (and the token revealed) by the host on refresh.
 --- @field eotwAllyOf? string Encounter of the Week: charid of the hero this ally belongs to.
 --- @field eotwReinforcement? string Encounter of the Week: id of the reinforcements section this monster arrived with.
 --- @field eotwMarket? table|false Encounter of the Week town heroes: the hero's Arcane Market visit since their last encounter (EotwMarket.lua).
@@ -256,11 +257,13 @@ end
 --- @field actionbar? table<string, table<string, integer>> Action bar ordering: tab -> ability id -> slot index.
 --- @field languageSpeaking? string Language id the creature is currently speaking in chat.
 --- @field gold? number Legacy gold amount; read via GetGold (0 when absent).
+--- @field pendingFinishLater? table<string, FinishLaterRecord> Abilities used this turn with targets left to finish (Double Strike), keyed by ability guid. See "Finish targets later" in MCDMActivatedAbility.lua.
 --- @field _tmp_freeMovement? boolean Transient: movement in progress is not charged against speed.
 --- @field _tmp_suppressTeleportEvent? boolean Transient: suppress the teleport event for the next teleport.
 --- @field _tmp_portalForcedMoveDest? string Transient: loc string a forced move is taking this creature to through a portal.
 --- @field _tmp_forcedMovementCast? ActivatedAbilityCast Transient: the cast forcing this creature's current movement.
 --- @field _tmp_squadParticipants? table<string, boolean> Transient: charids of squad members joining the current squad invoke.
+--- @field _tmp_hiddenFromPlayers? boolean Transient: read by the engine; players (not the Director or its controllers) do not see the token (CharacterToken.hiddenFromLocalViewer).
 --- @field _tmp_squadParticipantsTurn? string Transient: turn key _tmp_squadParticipants was stamped on.
 --- @field _tmp_aiReactionOutbox? table<string, string> Transient: AI reaction requests awaiting delivery, id -> JSON.
 --- @field _tmp_runawayStacks? integer Transient: Runaway Expansion growth stacks.
@@ -406,8 +409,9 @@ end
 --- @return string[]
 function creature:GetMonsterCategoryList(base_only)
 	local cat = self:try_get("monster_category")
+	local result
 	if cat == nil or (type(cat) == "table" and #cat == 0) then
-		local result = {"monster"}
+		result = {"monster"}
 	elseif type(cat) == "string" then
 		result = {cat}
 	else
@@ -547,6 +551,11 @@ end
 --- If the creature has a fly speed.
 --- @return boolean
 function creature:CanFly()
+	--Set for the moment of a voluntary drop (Drop to Ground): the engine turns
+	--any fall into flight for a creature that can fly.
+	if self:try_get("_tmp_droppingToGround", false) then
+		return false
+	end
 	return self:GetSpeed("fly") > 0
 end
 
@@ -1088,8 +1097,17 @@ creature.savingThrowInfo = {}
 creature.savingThrowIds = {}
 creature.savingThrowDropdownOptions = {}
 
+--- One registered saving throw. A named class rather than an inline table type: with
+--- the inline shape LuaLS sometimes compared registrations against a caller's literal
+--- (attrid required) instead, depending on which file it diagnosed first.
+--- @class SavingThrowInfo
+--- @field id string
+--- @field attrid? string Characteristic the save rolls with, when it has one.
+--- @field description string
+--- @field order number
+
 --- Register a saving throw.
---- @param info {id: string, attrid?: string, description: string, order: number}
+--- @param info SavingThrowInfo
 function creature.RegisterSavingThrow(info)
 	local index = #creature.savingThrowIds+1
 	for i,existing in ipairs(creature.savingThrowIds) do
@@ -1753,7 +1771,7 @@ end
 
 
 function creature.GetEquipmentAttackActions(self, options)
-	result = {}
+	local result = {}
 	local gearTable = GetTableCached('tbl_Gear')
 
 	for k,itemid in pairs(self:Equipment()) do
@@ -2466,6 +2484,8 @@ function creature:ConsumeResourcesForD20Roll(rollid, options)
 	if resourceConsumed then
 		local ourToken = dmhub.LookupToken(self)
 		if ourToken ~= nil then
+			--D&D 5e d20 resource use, outside any ModifyProperties; kept until 5e's future is decided.
+			---@diagnostic disable-next-line: deprecated
 			ourToken:Upload("used resource")
 		end
 	end
@@ -2925,6 +2945,8 @@ function creature:RollDeathSavingThrow(args)
 
 		local token = dmhub.LookupToken(thisCreature)
 		if token ~= nil then
+			--D&D 5e death saves, outside any ModifyProperties; kept until 5e's future is decided.
+			---@diagnostic disable-next-line: deprecated
 			token:Upload('Death saving throw result')
 		end
 
@@ -3372,6 +3394,8 @@ function creature.RollAttackHit(self, attack, target, options)
 	if attackRanged and target ~= nil then
 		--only ActivatedAbility passes a target, and it calls this on a live caster token's properties.
 		---@cast selfToken -nil
+		--D&D 5e long-range check in feet: Distance counts a diagonal as 7 under 5e's 5 units per square.
+		---@diagnostic disable-next-line: deprecated
 		local range = selfToken:DistanceInFeet(target) - 2.5
 
 		if range > attack:RangeNormal() then
@@ -3894,11 +3918,11 @@ function creature:CalculateSpellcastingFeatures()
 
 	local modifiers = self:GetActiveModifiers()
 	for _,mod in ipairs(modifiers) do
-		proficiencyBonus = mod.mod:AccumulateSpellcastingFeatures(self, result)
+		mod.mod:AccumulateSpellcastingFeatures(self, result)
 	end
 
 	for _,mod in ipairs(modifiers) do
-		proficiencyBonus = mod.mod:ModifySpellcastingFeatures(self, result)
+		mod.mod:ModifySpellcastingFeatures(self, result)
 	end
 
 	self._tmp_spellcastingFeaturesCache = {
@@ -5072,6 +5096,15 @@ function creature:RefreshToken(token)
     self._tmp_tokenOpacity = self:CalculateAttribute("tokenopacity", 1)
     self._tmp_tokenBrightness = self:CalculateAttribute("tokenbrightness", 1)
 
+    --a summon waiting for its arrival animation stays unseen (see "Summon
+    --arrival animation" in AbilitySummon.lua). Looked up at call time.
+    if self:try_get("summonEmergeHide", false) then
+        local summonBehavior = rawget(_G, "ActivatedAbilitySummonBehavior")
+        if summonBehavior ~= nil then
+            summonBehavior.RefreshEmergeHide(self, token)
+        end
+    end
+
 	--check if any inflicted conditions or ongoing effects no longer sustain.
 	if token.activeControllerId == nil then
         if self:has_key("inflictedConditions") then
@@ -5080,7 +5113,21 @@ function creature:RefreshToken(token)
             for k,v in pairs(self.inflictedConditions) do
                 local conditionInfo = conditionsTable[k]
                 if conditionInfo ~= nil and conditionInfo.sustainFormula ~= "" then
-                    local result = ExecuteGoblinScript(conditionInfo.sustainFormula, GenerateSymbols(self), 1, "Test ongoing effect sustains")
+                    --A caster deleted from the game would make ConditionCaster() return
+                    --nil, the formula error, and the error default keep the condition
+                    --forever (a grab outliving its grabber). End it instead. A despawned
+                    --caster counts as gone too: a killed squad minion is despawned but
+                    --still found, and its IsDead() reads the squad's pooled Stamina.
+                    local casterInfo = v.casterInfo
+                    local casterGone = false
+                    if casterInfo ~= nil and type(casterInfo.tokenid) == "string" then
+                        local casterToken = dmhub.GetCharacterById(casterInfo.tokenid)
+                        casterGone = casterToken == nil or casterToken.despawned == true
+                    end
+                    local result = 0
+                    if not casterGone then
+                        result = ExecuteGoblinScript(conditionInfo.sustainFormula, GenerateSymbols(self), 1, "Test ongoing effect sustains")
+                    end
                     if not GoblinScriptTrue(result) then
                         removes = removes or {}
                         removes[#removes+1] = k
@@ -5210,6 +5257,14 @@ function creature:PumpRemoteInvokes()
 			dmhub.Coroutine(function()
 				invoke:Invoke()
 			end)
+		else
+			--Dropped as stale: release any Monster AI reaction marker waiting on
+			--it, or the AI would sit on the marker until it expired.
+			local activityId = invoke:try_get("aiActivityId")
+			local reactionId = invoke:try_get("aiReactionId")
+			if type(activityId) == "string" and type(reactionId) == "string" then
+				self:CompletePendingAIActivityReaction(activityId, reactionId)
+			end
 		end
 	end
 end
@@ -6881,11 +6936,14 @@ function creature:OnMove(path)
             occupyingLocationMap[#allTokensFiltered] = occupying
             altitudeMap[#allTokensFiltered] = otherTokenAltitude
             tileSizeMap[#allTokensFiltered] = otherTokenTileSize
+            --adj is the creature's cached array (AdjacentLocations): extend a
+            --copy, or every move check grows the cache.
+            local adjAndOccupied = table.shallow_copy(adj)
             for _,loc in ipairs(occupying) do
-                adj[#adj+1] = loc
+                adjAndOccupied[#adjAndOccupied+1] = loc
             end
 
-            adjacentLocationMap[#allTokensFiltered] = adj
+            adjacentLocationMap[#allTokensFiltered] = adjAndOccupied
         end
     end
 
@@ -8693,12 +8751,26 @@ creature.helpSymbols = {
 		desc = "The names of any ongoing effects affecting the creature.",
 		examples = {'Ongoing Effects has "Rage"'},
 	},
+
+	abilitiesusedthisround = {
+		name = "Abilities Used This Round",
+		type = "set",
+		desc = "The names of the abilities the creature has used in the current combat round. Empty outside combat.",
+		examples = {'Abilities Used This Round has Ability.Name'},
+	},
 	
 	stacks = {
 		name = "Stacks",
 		type = "function",
 		desc = "Given the name of an ongoing effect, provides the number of stacks of that effect.",
 		examples = {},
+	},
+
+	itemcount = {
+		name = "ItemCount",
+		type = "function",
+		desc = "Given the name of an item, provides how many of it the creature carries, counting equipped copies.",
+		examples = {'ItemCount("Bluepowder Barrel") < Might'},
 	},
 
     casterset = {
@@ -9336,6 +9408,9 @@ creature.lookupSymbols = {
         end
     end,
 
+	--Casters are looked up with GetCharacterById, not GetTokenById: a dead
+	--creature is a despawned corpse, which GetTokenById cannot see, and
+	--formulas like "not Grabber.dead" need the dead caster to be found.
 	conditioncaster = function(c)
 		return function(condname)
 			condname = string.lower(condname)
@@ -9352,7 +9427,7 @@ creature.lookupSymbols = {
 					local cond = conditionsTable[ongoingEffectInfo.condition]
 					if (cond ~= nil and string.lower(cond.name) == condname) or string.lower(ongoingEffectInfo.name) == condname then
 						seqFound = effectInfo.seq
-						local casterTok = dmhub.GetTokenById(effectInfo.casterInfo.tokenid)
+						local casterTok = dmhub.GetCharacterById(effectInfo.casterInfo.tokenid)
 						if casterTok ~= nil then
 							result = GenerateSymbols(casterTok.properties)
 						end
@@ -9367,7 +9442,7 @@ creature.lookupSymbols = {
 			for key,entry in pairs(c:try_get("inflictedConditions") or {}) do
 				local cond = conditionsTable[key]
 				if cond ~= nil and string.lower(cond.name) == condname  and entry.casterInfo ~= nil then
-					local casterTok = dmhub.GetTokenById(entry.casterInfo.tokenid)
+					local casterTok = dmhub.GetCharacterById(entry.casterInfo.tokenid)
 					if casterTok ~= nil then
 						result = GenerateSymbols(casterTok.properties)
 					end
@@ -9468,6 +9543,17 @@ creature.lookupSymbols = {
 		}
 	end,
 
+	abilitiesusedthisround = function(c)
+		local strings = {}
+		for name,_ in pairs(c:AbilitiesUsedThisRound()) do
+			strings[#strings+1] = name
+		end
+
+		return StringSet.new{
+			strings = strings,
+		}
+	end,
+
 	stacks = function(c)
 		return function(name)
 			name = string.lower(name)
@@ -9482,6 +9568,36 @@ creature.lookupSymbols = {
 			end	
 
 			return 0
+		end
+	end,
+
+	--Counts carried and equipped items whose name matches, ignoring case.
+	itemcount = function(c)
+		return function(name)
+			if type(name) ~= "string" then
+				return 0
+			end
+			name = string.lower(name)
+			local gearTable = GetTableCached(equipment.tableName)
+
+			local itemids = {}
+			for itemid,_ in pairs(c:try_get("inventory", {})) do
+				itemids[itemid] = true
+			end
+			for _,equipid in pairs(c:try_get("equipment", {})) do
+				if type(equipid) == "string" then
+					itemids[equipid] = true
+				end
+			end
+
+			local total = 0
+			for itemid,_ in pairs(itemids) do
+				local item = gearTable[itemid]
+				if item ~= nil and type(item.name) == "string" and string.lower(item.name) == name then
+					total = total + c:GetItemQuantityIncludingEquipment(itemid)
+				end
+			end
+			return total
 		end
 	end,
 
@@ -9909,7 +10025,23 @@ function creature:BeginTurn()
             local auras = self:GetAurasAffecting(token, {includeAdjacentOnly = true})
             if auras ~= nil then
                 for i,auraInfo in ipairs(auras) do
-                    self:EnterAura(auraInfo, creature.AuraTokenOnlyAdjacent(auraInfo, token), true)
+                    local adjacentOnly = creature.AuraTokenOnlyAdjacent(auraInfo, token)
+                    self:EnterAura(auraInfo, adjacentOnly, true)
+
+                    --Move damage that also hits a creature starting its turn inside
+                    --(e.g. Wall of Fire). One instance, credited to the aura's caster.
+                    local auraInstance = auraInfo.auraInstance
+                    if not adjacentOnly and auraInstance.aura:try_get("movedamageStartTurn", false) then
+                        local damageInfo = auraInstance:GetDamageInfo()
+                        if damageInfo ~= nil and damageInfo.damage > 0 then
+                            self:AuraDamage(token, {
+                                type = damageInfo.type,
+                                amount = damageInfo.damage,
+                                instances = 1,
+                                aura = auraInstance,
+                            })
+                        end
+                    end
                 end
             end
         end
@@ -10213,6 +10345,10 @@ function creature:EndTurn(token)
 end
 
 function creature:EndRound(token)
+
+    --"At the end of each round" triggers see the round as it ended, before
+    --round-scoped effects and auras expire below.
+    self:DispatchEvent("endround")
 
     --remove ongoing effects.
 	if self:has_key("ongoingEffects") then
@@ -11307,7 +11443,16 @@ ActiveTrigger.expiryTimestamp = 0
 --clients without keeping the prompt card alive after the player has made a
 --choice. The activity is a monster move (opportunity attacks) or an ability
 --cast (Repulsive Ward and other prompts its damage or effects provoke).
-function creature:BeginPendingAIActivityReaction(activityId, reactionId, abilityName)
+--state defaults to "awaiting_choice", which expects a prompt card keyed by
+--reactionId in availableTriggers. Pass "resolving" for a reaction the player
+--already chose without one -- a power-roll trigger accepted on the monster's
+--roll whose effect resolves after the roll -- so the AI does not report the
+--marker as having no matching prompt.
+--- @param activityId string
+--- @param reactionId string
+--- @param abilityName string|nil
+--- @param state nil|"awaiting_choice"|"resolving"
+function creature:BeginPendingAIActivityReaction(activityId, reactionId, abilityName, state)
     if type(activityId) ~= "string" or activityId == "" or type(reactionId) ~= "string" or reactionId == "" then
         return
     end
@@ -11322,20 +11467,30 @@ function creature:BeginPendingAIActivityReaction(activityId, reactionId, ability
         undoable = false,
         combine = true,
         execute = function()
-            local pendingReactions = self:get_or_add("pendingAIActivityReactions", {})
-            for id,entry in pairs(pendingReactions) do
-                if type(entry) == "table" and entry.state == "completed" and entry.timestamp ~= nil
-                    and TimestampAgeInSeconds(entry.timestamp) > g_aiActivityReactionExpirySeconds then
-                    pendingReactions[id] = nil
-                end
-            end
-            pendingReactions[reactionId] = {
-                activityId = activityId,
-                timestamp = ServerTimestamp(),
-                state = "awaiting_choice",
-                ability = abilityName,
-            }
+            self:AddPendingAIActivityReaction(activityId, reactionId, abilityName, state)
         end,
+    }
+end
+
+--The marker write BeginPendingAIActivityReaction makes, for a caller already
+--inside a ModifyProperties that needs the marker in the same write.
+--- @param activityId string
+--- @param reactionId string
+--- @param abilityName string|nil
+--- @param state nil|"awaiting_choice"|"resolving"
+function creature:AddPendingAIActivityReaction(activityId, reactionId, abilityName, state)
+    local pendingReactions = self:get_or_add("pendingAIActivityReactions", {})
+    for id,entry in pairs(pendingReactions) do
+        if type(entry) == "table" and entry.state == "completed" and entry.timestamp ~= nil
+            and TimestampAgeInSeconds(entry.timestamp) > g_aiActivityReactionExpirySeconds then
+            pendingReactions[id] = nil
+        end
+    end
+    pendingReactions[reactionId] = {
+        activityId = activityId,
+        timestamp = ServerTimestamp(),
+        state = state or "awaiting_choice",
+        ability = abilityName,
     }
 end
 
@@ -11363,7 +11518,7 @@ function creature:CompletePendingAIActivityReaction(activityId, reactionId)
             --Retain completion so late callbacks can see that this reaction
             --already ended. A later Begin call collects old terminal records.
             pendingReactions[reactionId] = {activityId = entry.activityId,
-                timestamp = ServerTimestamp(), state = "completed"}
+                timestamp = ServerTimestamp(), state = "completed", ability = entry.ability}
         end,
     }
 end
@@ -12058,9 +12213,35 @@ local function RouteMergedTriggerAccept(availableTriggers, triggerInfo)
 	triggerInfo.dismissed = true
 end
 
+--Dismissing any prompt of a merged group declines the whole group: its members
+--share the one triggered action. Dismissing only the front prompt promoted the
+--next member to a fresh card, and the Monster AI kept waiting on it (W5VTYKV7).
+local function RouteMergedTriggerDismiss(availableTriggers, triggerInfo)
+	if (not triggerInfo.dismissed) or triggerInfo.triggered then
+		return
+	end
+
+	local front = triggerInfo
+	if triggerInfo.mergedInto ~= false then
+		front = availableTriggers[triggerInfo.mergedInto] or triggerInfo
+	end
+	if front.mergeMembers == false then
+		return
+	end
+
+	for _,id in pairs(front.mergeMembers) do
+		local other = availableTriggers[id]
+		if other ~= nil and other.id ~= triggerInfo.id and (not other.triggered) then
+			other.dismissed = true
+		end
+	end
+end
+
 --- @param triggerInfo ActiveTrigger
 function creature:DispatchAvailableTrigger(triggerInfo)
     print("RECALCULATE:: DISPATCH TRIGGER:", triggerInfo)
+    --Before the clearOnDismiss early-out, whose clear would promote a member.
+    RouteMergedTriggerDismiss(self:get_or_add("availableTriggers", {}), triggerInfo)
     if triggerInfo.clearOnDismiss and (triggerInfo.dismissed or (self:get_or_add("_tmp_clearedTriggers", {})[triggerInfo.id] == true)) then
         self:ClearAvailableTrigger(triggerInfo)
         return
@@ -12219,6 +12400,37 @@ function creature:LegacyAuraEntryAvailable(info, level)
 	end
 
 	return true
+end
+
+--- The names of the abilities this creature has used in the current combat
+--- round, as {[ability name] = true}. Keyed by name because separate abilities
+--- can share a guid (Melee and Ranged Free Strike). Recorded by
+--- ActivatedAbility:FireUseAbility and read by rules like the Talent's Flashback
+--- ("an ability they've previously used this round"). Empty outside combat.
+--- @return table<string, boolean>
+function creature:AbilitiesUsedThisRound()
+    local q = dmhub.initiativeQueue
+    local roundId = q and q:GetRoundId()
+    if roundId == nil or self:try_get("abilitiesUsedRoundId") ~= roundId then
+        return {}
+    end
+    return self:try_get("abilitiesUsedThisRound", {})
+end
+
+--- Records that this creature used an ability this round. Call inside
+--- ModifyProperties. Does nothing outside combat.
+--- @param ability ActivatedAbility
+function creature:RecordAbilityUsedThisRound(ability)
+    local q = dmhub.initiativeQueue
+    local roundId = q and q:GetRoundId()
+    if roundId == nil then
+        return
+    end
+    if self:try_get("abilitiesUsedRoundId") ~= roundId then
+        self.abilitiesUsedRoundId = roundId
+        self.abilitiesUsedThisRound = {}
+    end
+    self.abilitiesUsedThisRound[ability.name] = true
 end
 
 --These opt-in triggers keep movement entry independent from turn start.
@@ -13297,7 +13509,6 @@ function creature:EventPaste()
 			}
 		end,
 		upload = function(imageid)
-			uploadComplete = true
 			dmhub.AddAndUploadImageToLibrary("Avatar", imageid)
 
 			token.portrait = imageid

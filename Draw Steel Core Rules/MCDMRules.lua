@@ -713,6 +713,37 @@ GameSystem.RegisterGoblinScriptField{
     end,
 }
 
+--Counterpart of Count Friends Of Within. Plain Count Nearby Enemies judges "enemy" from this creature's
+--side, which means nothing for an object, so an object filter needs the acting creature passed in.
+GameSystem.RegisterGoblinScriptField{
+    name = "Count Enemies Of Within",
+
+	type = "function",
+	desc = "Given a distance in squares and a creature, counts the living creatures within that distance of this creature who are enemies of the given creature, not counting the given creature or this creature. Distance is horizontal (only this creature's floor counts), the same measure the nearest-enemy movement anchor uses.",
+	examples = {"CountEnemiesOfWithin(3, Caster) > 0"},
+
+    calculate = function(targetCreature)
+        return function(distance, us)
+            local targetToken = dmhub.LookupToken(targetCreature)
+            local ourToken = dmhub.LookupToken(us)
+            if targetToken == nil or ourToken == nil then
+                return 0
+            end
+
+            local count = 0
+            for _,tok in ipairs(dmhub.allTokens) do
+                --same enemy test the nearest-enemy movement anchor uses (tri-state: neutral is not an enemy).
+                if tok.charid ~= ourToken.charid and tok.charid ~= targetToken.charid and tok.floorid == targetToken.floorid
+                   and IsFriendForTargeting(ourToken, tok) == false and (not tok.properties:IsDead())
+                   and targetToken:Distance(tok) <= (tonumber(distance) or 1) then
+                    count = count + 1
+                end
+            end
+            return count
+        end
+    end,
+}
+
 GameSystem.RegisterGoblinScriptField{
     name = "Count Friends Of Within",
 
@@ -1513,6 +1544,32 @@ end
 
 local g_hiddenConditionId = "31daf7f6-f77c-4f73-8eab-43e2d0f123c0"
 
+-- "Hidden Creatures are Invisible": using an ability reveals the user as it begins, so
+-- players see who acts. Without the setting, the Hidden condition's own triggers remove
+-- it at the attack or when the ability finishes. Priority 10 lets Turn Rewind
+-- checkpoint the still-hidden board first.
+ActivatedAbility.RegisterCastStartHandler(function(ability, casterToken, options)
+	if casterToken == nil or not casterToken.valid or casterToken.isObject or casterToken.properties == nil then
+		return
+	end
+	if (options ~= nil and options.dismiss) or not creature.HiddenCreaturesInvisible() then
+		return
+	end
+	if not ability:CountsAsRegularAbilityCast() or ability:HasProperty("remainhidden") then
+		return
+	end
+	if casterToken.properties:HasCondition(g_hiddenConditionId) == false then
+		return
+	end
+
+	casterToken:ModifyProperties{
+		description = "Revealed by acting",
+		execute = function()
+			casterToken.properties:LoseHidden()
+		end,
+	}
+end, 10)
+
 function GameSystem.AllowTargeting(casterToken, targetToken, ability)
 	-- Hidden: "While you are hidden from another creature, the creature can't
 	-- target you with abilities that don't have the Area keyword." A creature
@@ -1524,10 +1581,13 @@ function GameSystem.AllowTargeting(casterToken, targetToken, ability)
 	-- area effects that carry no keywords in their stat block, so the Area
 	-- keyword alone does not recognise them. They affect everyone on the map
 	-- and target no one in particular, so Hidden must not exempt a creature.
+	-- Exception: a creature melded against a wall (Shadowmeld's "Wall Meld Angle") can
+	-- still be seen, and so targeted, by creatures standing in front of that wall.
 	local isAreaAbility = ability:HasKeyword("Area") or ability.targetType == "map"
 	if (not targetToken.isObject) and (not isAreaAbility)
 		and (not casterToken:IsFriend(targetToken))
-		and targetToken.properties:HasCondition(g_hiddenConditionId) ~= false then
+		and targetToken.properties:HasCondition(g_hiddenConditionId) ~= false
+		and not RuleUtils.WallMeldSeesTarget(casterToken, targetToken) then
 		return false
 	end
 

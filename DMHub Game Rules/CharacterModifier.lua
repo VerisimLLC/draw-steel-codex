@@ -1723,7 +1723,7 @@ CharacterModifier.TypeInfo.rollsattacking = {
 
 			local children = {}
 
-			documentation = {
+			local documentation = {
 				domains = modifier:Domains(),
 				help = string.format("This GoblinScript is used to determine whether or not this modifier will be used. If this GoblinScript produces a False result, this modifier will not even appear as an option in dialogs in which this modifier might be used."),
 				output = "boolean",
@@ -3686,6 +3686,15 @@ end
 function CharacterModifier:ConsumeResource(creature, modContext)
 	local result = self:ConsumeResourceInternal(creature, modContext)
 
+	--A trigger augmentation (an additional cost modifier) replaces its trigger's
+	--modifier in the roll, carrying it as baseModifier. The base's own cost (e.g. a
+	--Malice cost) is still owed, so charge it too. Only its resourceCostType cost: the
+	--triggered action itself is paid by TriggerPayCost. Its triggerOnUse runs below.
+	local baseModifier = self:try_get("baseModifier") --[[@as CharacterModifier|nil]]
+	if baseModifier ~= nil and not self:try_get("overrideBase", false) then
+		baseModifier:ConsumeResourceCost(creature, modContext)
+	end
+
 	local typeInfo = CharacterModifier.TypeInfo[self.behavior] or {}
 	if typeInfo.triggerOnUse ~= nil then
 		typeInfo.triggerOnUse(self, creature, modContext)
@@ -3694,8 +3703,11 @@ function CharacterModifier:ConsumeResource(creature, modContext)
 	return result
 end
 
-function CharacterModifier:ConsumeResourceInternal(creature, modContext)
-
+--- Charges only the modifier's resourceCostType cost (surges, epic, or the creature's
+--- Heroic resource / Malice). Split out so a trigger augmentation can bill its base.
+--- @param creature creature
+--- @param modContext nil|table
+function CharacterModifier:ConsumeResourceCost(creature, modContext)
     local costType = self:try_get("resourceCostType", "none")
     print("CONSUME:: IN INTERNAL CONSUME", costType, self:try_get("overrideCost", false))
     if costType == "surges" then
@@ -3719,6 +3731,12 @@ function CharacterModifier:ConsumeResourceInternal(creature, modContext)
         print("CONSUME:: ConsumeResources:", creature.resourceid, cost, creature.resourceRefresh)
         creature:ConsumeResource(creature.resourceid, creature.resourceRefresh, cost, string.format("%s", self.name))
     end
+end
+
+function CharacterModifier:ConsumeResourceInternal(creature, modContext)
+
+    local costType = self:try_get("resourceCostType", "none")
+    self:ConsumeResourceCost(creature, modContext)
 
 
 	local result = false
@@ -4251,12 +4269,41 @@ function CharacterModifier:FillConditionImmunities(modContext, creature, result)
 	end
 end
 
+--- Marks the modes a Modify Abilities "Add Mode" adds, so we can tell which
+--- modifier added them.
+--- @param modifier CharacterModifier
+--- @return string
+function CharacterModifier.AddedModeMarker(modifier)
+	return tostring(modifier:try_get("guid", modifier.behavior))
+end
+
 function CharacterModifier:ModifyAbility(modContext, creature, ability)
 	local typeInfo = CharacterModifier.TypeInfo[self.behavior] or {}
 	local fn = typeInfo.modifyAbility
 	if fn ~= nil then
 		self:InstallSymbolsFromContext(modContext)
-		return fn(self, creature, ability)
+		local result = fn(self, creature, ability)
+
+		--A mode added by an earlier modifier holds its own copy of the ability.
+		--Modify that copy too, or picking the mode would lose this modifier.
+		if result ~= nil and result.multipleModes then
+			local marker = CharacterModifier.AddedModeMarker(self)
+			for _,mode in ipairs(result:try_get("modeList", {})) do
+				if mode.addedBy ~= nil and mode.addedBy ~= marker and mode.variation ~= nil then
+					--The copy belongs to this result alone, so mark it temporary
+					--while fn runs and fn changes it in place instead of copying it.
+					--Then unmark it again (see AddModes for why it must not stay marked).
+					local variation = mode.variation
+					variation._tmp_temporaryClone = true
+					variation = fn(self, creature, variation) or variation
+					variation._tmp_temporaryClone = nil
+					mode.variation._tmp_temporaryClone = nil
+					mode.variation = variation
+				end
+			end
+		end
+
+		return result
 	end
 
 	return ability

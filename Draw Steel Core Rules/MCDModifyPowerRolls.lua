@@ -1,5 +1,10 @@
 local mod = dmhub.GetModLoading()
 
+--Regex for the optional damage type between a tier's amount and "damage":
+--one type ("5 fire damage") or a choice of types ("23 cold, fire, or sonic
+--damage", an "or" choice group; see ParseOrGroups). One capture group.
+local g_tierDamageTypes = "([a-zA-Z]+(?:(?:,\\s*[a-zA-Z]+)*,?\\s+or\\s+[a-zA-Z]+)?\\s+)?"
+
 CharacterModifier.DeregisterType("d20")
 
 CharacterModifier.displayCondition = ""
@@ -98,6 +103,26 @@ function CharacterModifier:ResolveDamageMappingDestination(source, value)
     end
 
     return dests[1]
+end
+
+--- Stores the roll-time pick for a modifier with addTextChoices (a method so the field is declared on the class).
+--- @param chosen string
+function CharacterModifier:SetAddTextChoice(chosen)
+    self._tmp_addTextChoice = chosen
+end
+
+--- The addText option currently picked for a modifier that has addTextChoices (first choice by default).
+--- @param modifier CharacterModifier
+--- @return string
+function CharacterModifier.ResolveAddTextChoice(modifier)
+    local choices = modifier:try_get("addTextChoices", {})
+    local picked = modifier:try_get("_tmp_addTextChoice")
+    for _,c in ipairs(choices) do
+        if c == picked then
+            return c
+        end
+    end
+    return choices[1] or ""
 end
 
 local function RollTypeMatches(modifier, rollType, options)
@@ -268,6 +293,47 @@ function CharacterModifier:CheckRollRequirement(rollInfo, enabledModifiers, roll
     return true
 end
 
+--A test that names no skill (a characteristic clicked on the character panel, or
+--a Director's request with no skill picked) cannot know whether a skill applies,
+--so its Skilled chip is the roller's call. Flag it so the Timeline roller still
+--offers it as a toggle under Strictly Enforce Rolls instead of hiding it.
+--- @param modifiers table[] entries as creature:GetModifiersForPowerRoll returns them.
+function CharacterModifier.MarkSkilledRollerDecides(modifiers)
+    for _,entry in ipairs(modifiers) do
+        if entry.modifier ~= nil and entry.modifier.name == "Skilled" then
+            entry.rollerDecides = true
+        end
+    end
+end
+
+--A hero's power-roll trigger accepted on a Monster AI roll (e.g. In All This
+--Confusion on a monster's strike) resolves its custom trigger only after the
+--monster's cast ends, so no event marks it as a reaction the AI must wait on.
+--This marks it at roll-confirm, while the AI's activity is still in flight on
+--this client (only the AI host has one), and returns the ids, or nil when no
+--AI is acting or the trigger's owner is not a player's hero.
+--- @param token CharacterToken|nil The trigger's owner.
+--- @param modifier CharacterModifier The power modifier carrying the custom trigger.
+--- @return string|nil activityId
+--- @return string|nil reactionId
+local function BeginRollTriggerAIReaction(token, modifier)
+    local activityId = creature.GetAIActivityInProgress()
+    if activityId == nil or token == nil or not token.valid or not token.playerControlled then
+        return nil, nil
+    end
+
+    local reactionId = dmhub.GenerateGuid()
+    local abilityName = modifier:try_get("name")
+    if type(abilityName) ~= "string" or abilityName == "" then
+        local customTrigger = modifier:try_get("customTrigger")
+        abilityName = customTrigger ~= nil and customTrigger.name or nil
+    end
+    --"resolving": the player already chose on the roll, so there is no prompt
+    --card for the AI to match the marker to.
+    token.properties:BeginPendingAIActivityReaction(activityId, reactionId, abilityName, "resolving")
+    return activityId, reactionId
+end
+
 CharacterModifier.TypeInfo.power = {
 
     init = function(modifier)
@@ -298,6 +364,7 @@ CharacterModifier.TypeInfo.power = {
             --going through the (already deferred) remoteInvokes queue. It also
             --lifts the trigger's cast out of the ModifyProperties execute
             --block this runs inside (see ConsumeResource in DSRollDialog).
+            local aiActivityId, aiReactionId = BeginRollTriggerAIReaction(token, modifier)
             ActivatedAbility.RunWhenCastsComplete(function()
                 if token == nil or not token.valid then
                     return
@@ -305,7 +372,25 @@ CharacterModifier.TypeInfo.power = {
                 --The contextual target types (abilitycaster / abilitytarget /
                 --triggerer) resolve inside Trigger's targeting from the
                 --symbols appended here; no subject resolution is needed.
-                modifier.customTrigger:Trigger(modifier, creature, modifier:AppendSymbols{}, nil, modContext)
+                local symbols = modifier:AppendSymbols{}
+                local argOptions = {}
+                if aiActivityId ~= nil then
+                    --The trigger's cast completes the marker when it finishes, and
+                    --symbols.aiActivityId hands it on to anything that resolves on
+                    --another machine (a runOnController invoke, a custom trigger).
+                    symbols.aiActivityId = aiActivityId
+                    argOptions.aiActivityId = aiActivityId
+                    argOptions.aiReactionId = aiReactionId
+                end
+                modifier.customTrigger:Trigger(modifier, creature, symbols, nil, modContext, argOptions)
+
+                --Release the marker when the trigger's cast never took it over:
+                --a gate in Trigger stopped it, or a prompted trigger replaced it
+                --with a marker of its own (the prompt card then holds the AI).
+                if aiActivityId ~= nil and (argOptions.aiReactionId ~= aiReactionId
+                        or not argOptions.aiReactionHandedOff) then
+                    token.properties:CompletePendingAIActivityReaction(aiActivityId, aiReactionId)
+                end
             end)
 		end
 
@@ -932,7 +1017,7 @@ CharacterModifier.TypeInfo.power = {
                 for i,tier in ipairs(rollProperties.tiers) do
                     if damageModifierType == "none" then
                         --add to existing damage
-                        local match = regex.MatchGroups(tier, "(?<damage>\\d+)\\s+([a-zA-Z]+\\s+)?damage", {indexes = true})
+                        local match = regex.MatchGroups(tier, "(?<damage>\\d+)\\s+" .. g_tierDamageTypes .. "damage", {indexes = true})
                         if match ~= nil then
                             local index = match.damage.index
                             local length = match.damage.length
@@ -955,7 +1040,7 @@ CharacterModifier.TypeInfo.power = {
                         local extraDamage = string.format("%s %s damage", damage, damageModifierType)
 
                         --try to find existing damage and place after it if possible.
-                        local match = regex.MatchGroups(tier, "^(?<prefix>.*?)(?<damage>\\d+\\s+([a-zA-Z]+\\s+)?damage)(?<suffix>.*)$")
+                        local match = regex.MatchGroups(tier, "^(?<prefix>.*?)(?<damage>\\d+\\s+" .. g_tierDamageTypes .. "damage)(?<suffix>.*)$")
                         if match ~= nil then
                             tier = string.format("%s%s; %s %s", match.prefix, match.damage, extraDamage, match.suffix)
                         else
@@ -972,7 +1057,7 @@ CharacterModifier.TypeInfo.power = {
         local damageMultiplier = self:try_get("damageMultiplier", "full")
         if damageMultiplier ~= "full" then
             for i,tier in ipairs(rollProperties.tiers) do
-                local match = regex.MatchGroups(tier, "(?<damage>\\d+\\s+([a-zA-Z]+\\s+)?damage)", {indexes = true})
+                local match = regex.MatchGroups(tier, "(?<damage>\\d+\\s+" .. g_tierDamageTypes .. "damage)", {indexes = true})
                 if match ~= nil then
                     local index = match.damage.index
                     local length = match.damage.length
@@ -995,7 +1080,7 @@ CharacterModifier.TypeInfo.power = {
             reduction = tonumber(reduction) or 0
             if reduction > 0 then
                 for i,tier in ipairs(rollProperties.tiers) do
-                    local match = regex.MatchGroups(tier, "(?<damage>\\d+)\\s+(\\+\\s*\\d+d\\d+\\s+)?([a-zA-Z]+\\s+)?damage", {indexes = true})
+                    local match = regex.MatchGroups(tier, "(?<damage>\\d+)\\s+(\\+\\s*\\d+d\\d+\\s+)?" .. g_tierDamageTypes .. "damage", {indexes = true})
                     if match ~= nil then
                         local index = match.damage.index
                         local length = match.damage.length
@@ -1149,8 +1234,23 @@ CharacterModifier.TypeInfo.power = {
             rollProperties.tierSuppressed = true
         end
 
-        if self:has_key("addText") and trim(self.addText) ~= "" then
-            local tieredText = BreakTextIntoTiers(StringInterpolateGoblinScript(self.addText, lookupFunction))
+        --addTextChoices (optional list of addText strings) turns "Add to Table" into a
+        --roll-time pick: the roll dialog shows a dropdown and stores the pick in
+        --_tmp_addTextChoice. With no pick yet, the first choice is used.
+        local addTextValue = self:try_get("addText", "")
+        local addTextChoices = self:try_get("addTextChoices")
+        if addTextChoices ~= nil and #addTextChoices > 0 then
+            addTextValue = CharacterModifier.ResolveAddTextChoice(self)
+        end
+
+        if trim(addTextValue) ~= "" then
+            local tieredText = BreakTextIntoTiers(StringInterpolateGoblinScript(addTextValue, lookupFunction))
+            --addTextChoiceTier: the picked choice applies to that tier only.
+            local choiceTier = self:try_get("addTextChoiceTier")
+            if addTextChoices ~= nil and choiceTier ~= nil then
+                tieredText = {"", "", ""}
+                tieredText[choiceTier] = StringInterpolateGoblinScript(addTextValue, lookupFunction)
+            end
             for i,tier in ipairs(rollProperties.tiers) do
                 rollProperties.tiers[i] = AppendTieredText(tier, tieredText[i])
             end

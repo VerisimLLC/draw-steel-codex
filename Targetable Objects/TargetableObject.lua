@@ -30,10 +30,84 @@ function TargetableObject.TokenSuppressesCollisionDamage(token)
     return token.properties:try_get("no_collision_damage", false) == true
 end
 
+--Custom banner text for hidden traps, keyed by the object's lower-cased
+--name; any other hidden object with "trap" in its name gets "<Name>!".
+--Only a trap the players cannot see gets one: a visible trap was walked
+--into knowingly. bannerType defaults to "malice", the Director's menace.
+TargetableObject.hiddenTrapBanners = {
+    ["snare trap"] = { text = "Snare Trap!", subtitle = "You have stepped into a trap!" },
+}
+
+--The engine dispatches "pressureplate" on the mover's own client only, so
+--each springing shows the (game-wide) banner once.
+local function ShowHiddenTrapBanner(self, args)
+    local token = dmhub.LookupToken(self)
+    if token == nil or not token.objectInvisibleToPlayers then
+        return
+    end
+    local name = nil
+    pcall(function() name = token.objectInstance.description end)
+    if type(name) ~= "string" or name == "" then
+        name = token.name
+    end
+    local banner = TargetableObject.hiddenTrapBanners[string.lower(tostring(name or ""))]
+    if banner == nil then
+        --an unlisted hidden trap still announces itself, by its own name.
+        --Objects have no trap flag, and hidden teleporters and switches are
+        --pressure plates too, so only a name with "trap" in it counts.
+        if type(name) ~= "string" or not string.find(string.lower(name), "trap", 1, true) then
+            return
+        end
+        banner = { text = name .. "!", subtitle = "You have stepped into a trap!" }
+    end
+    local victim = args ~= nil and args.target ~= nil and dmhub.LookupToken(args.target) or nil
+    DramaticBanner.Show{
+        tokenid = victim ~= nil and victim.charid or nil,
+        text = banner.text,
+        subtitle = banner.subtitle,
+        bannerType = banner.bannerType or "malice",
+    }
+end
+
+--Hooked on creature.DispatchEvent, not TargetableObject:DispatchEvent: the
+--engine's pressure plate looks DispatchEvent up on the MOVER's properties and
+--calls it with the object's properties as self, so the object's own
+--override never runs. Chained like every other DispatchEvent wrapper.
+local g_baseDispatchEvent = creature.DispatchEvent
+function creature:DispatchEvent(eventName, args)
+    if eventName == "pressureplate" and self.isMapObject then
+        local ok, err = pcall(ShowHiddenTrapBanner, self, args)
+        if not ok then
+            printf("TargetableObject: hidden trap banner failed: %s", tostring(err))
+        end
+    end
+    return g_baseDispatchEvent(self, eventName, args)
+end
+
 function TargetableObject:DispatchEvent(eventName, args)
     creature.DispatchEvent(self, eventName, args)
 end
 
+--Lets the shared creature damage path tell objects apart (see creature.isMapObject).
+TargetableObject.isMapObject = true
+
+--True if any of this object's modifiers has a triggered ability for eventName.
+--- @param eventName string
+--- @return boolean
+function TargetableObject:HasTriggerFor(eventName)
+    for _, entry in ipairs(self:GetActiveModifiers()) do
+        if entry.mod:HasTriggeredEvent(self, eventName) then
+            return true
+        end
+    end
+    return false
+end
+
+--At 0 Stamina the object fires "objectdestroyed" (the Destroyed trigger), and only
+--then runs the engine's onDeath (delete/disable/open). With a Destroyed trigger the
+--onDeath waits until that cast has finished, so a pillar is still on the map while
+--its Toppling Pillar resolves. The wait is a detached coroutine: the attack that
+--broke the object carries on without waiting for the object's own ability.
 function TargetableObject.TakeDamage(self, amount, note, info)
     local staminaBefore = self:CurrentHitpoints()
     creature.TakeDamage(self, amount, note, info)
@@ -42,7 +116,30 @@ function TargetableObject.TakeDamage(self, amount, note, info)
         local token = dmhub.LookupToken(self)
         --Damage is only dealt to properties that belong to a live object token.
         ---@cast token -nil
-        token.objectComponent:OnDeath()
+
+        if not self:HasTriggerFor("objectdestroyed") then
+            token.objectComponent:OnDeath()
+            return
+        end
+
+        info = info or {}
+        local args = {
+            damage = cond(type(amount) == "number", amount, staminaBefore - staminaAfter),
+            damagetype = info.damagetype or "untyped",
+            attacker = info.attacker,
+            hasattacker = info.attacker ~= nil,
+        }
+
+        local charid = token.charid
+        dmhub.Coroutine(function()
+            self:DispatchEventAndWait("objectdestroyed", args, {ignoreTurn = true})
+
+            --Re-resolve: the token may have been replaced by a synced write while we waited.
+            local tok = dmhub.GetTokenById(charid) or dmhub.LookupToken(self)
+            if tok ~= nil and tok.valid and tok.objectComponent ~= nil then
+                tok.objectComponent:OnDeath()
+            end
+        end)
     end
 end
 
@@ -164,6 +261,33 @@ GameSystem.RegisterGoblinScriptField{
     end,
 }
 
+--The creature whose ability made this object, or nil if none did.
+local function GetObjectCreator(c)
+    local creatorid = c:try_get("objectcreator") or c:try_get("wallcreator")
+    if creatorid == nil then
+        return nil
+    end
+
+    local creatorToken = dmhub.GetCharacterById(creatorid)
+    if creatorToken == nil then
+        return nil
+    end
+
+    return creatorToken.properties
+end
+
+--Lets an object's formulas use its creator's stats, such as
+--Caster.Creator.Reason for extra damage when something hits a wall.
+GameSystem.RegisterGoblinScriptField{
+    name = "Creator",
+
+    type = "creature",
+    desc = "The creature that created this object with an ability.\n\n<color=#ffaaaa><i>This field is only available for objects created by a creature's ability.</i></color>",
+    examples = {"Caster.Creator.Reason", "Target.Creator.ID = Caster.ID"},
+
+    calculate = GetObjectCreator,
+}
+
 --True for the topmost wall voxel of its tile's column. Wall abilities that
 --detach/topple "a square of wall" (e.g. the Wallmaster's Wall Slam) use this
 --to only offer the exposed top cube of a stacked column as a target.
@@ -205,7 +329,12 @@ function TargetableObject:OnCollide(collidingToken, symbols)
     end
 
     if self:has_key("custom_collision") then
-        self.custom_collision:Cast(token, { { token = collidingToken } }, symbols)
+        --Collision formulas can write Creator as a short form of Caster.Creator.
+        local castSymbols = {
+            creator = GetObjectCreator(self),
+        }
+
+        self.custom_collision:Cast(token, { { token = collidingToken } }, { symbols = castSymbols })
     end
 
     if symbols.speed and not self:try_get("no_collision_damage", false) then

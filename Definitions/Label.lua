@@ -24,6 +24,10 @@ function Label:BeginEditing() end
 --- (Undocumented: engine-internal, not part of the modding API.)
 function Label:RefreshText() end
 
+--- Returns the logical line of the rendered text nearest the mouse. Lines are split at line breaks only, not word wrap, so a wrapped paragraph is one line. line is 1-based. lineCount is the number of line breaks in the rendered text plus one, so a trailing break counts an empty last line. top and bottom bound every row the line wraps onto, measured down from this label's top edge in panel units (the same units as renderedHeight). It counts what was actually laid out, after markdown and rich-text processing, so compare lineCount against the text you set before mapping lines back to it. Returns nil when nothing is laid out.
+--- @return {line: integer, lineCount: integer, top: number, bottom: number}|nil
+function Label:GetLineAtMouse() end
+
 --- CalculatePreferredSize
 --- Vector2
 --- @return any

@@ -116,7 +116,17 @@ local function CreateCombatQueue(heroesWin)
     --tracked and awarded -- it uses the Encounter defaults (1 Victory reward
     --and the "all monsters defeated" victory condition).
     if g_selectedEncounterOpenInitiative ~= nil then
-        info.initiativeQueue.liveEncounter = LiveEncounter.Create(g_selectedEncounterOpenInitiative)
+        local live = LiveEncounter.Create(g_selectedEncounterOpenInitiative)
+        --an encounter prepared on the map fights the roster that is there
+        --(the prep re-balances it and the Director adds or deletes monsters),
+        --not the plan's count for the default party size.
+        if Encounter.GetPrep(game.currentMapId) ~= nil then
+            live.onsetMonsterCount = Encounter.PrepOnsetMonsterCount(g_selectedEncounterOpenInitiative, g_monsterTokensOpenInitiative or {})
+            if live:try_get("victoryCondition") == "nonminions_defeated" then
+                live.onsetNonMinionCount = Encounter.PrepOnsetMonsterCount(g_selectedEncounterOpenInitiative, g_monsterTokensOpenInitiative or {}, true)
+            end
+        end
+        info.initiativeQueue.liveEncounter = live
     else
         local live = LiveEncounter.Create(Encounter.new())
         --CountVictoryUnits (called in Create) reads the authored monster
@@ -144,6 +154,8 @@ local function CreateCombatQueue(heroesWin)
     --both branches above just assigned a LiveEncounter.
     local onsetEncounter = info.initiativeQueue.liveEncounter --[[@as LiveEncounter]]
     onsetEncounter:RecordOnsetHeroes(g_playerTokensOpenInitiative)
+    --the map shrinks to the encounter's region and its start zone comes down.
+    Encounter.OnCombatStarting(onsetEncounter)
     g_selectedEncounterOpenInitiative = nil
 
     --Combat has started: the readied encounter is consumed.
@@ -407,7 +419,7 @@ local function createDrawSteelBanner(options)
                     elseif roll ~= nil then
                         --a caller may hold the start of combat once the winner
                         --is known (Encounter of the Week lets the heroes arrange
-                        --themselves when they win): it gets the result and a
+                        --themselves, whichever side won): it gets the result and a
                         --begin function to call when it is ready.
                         local heroesWin = m_heroesWin
                         local begun = false
@@ -1005,7 +1017,9 @@ end
 --holdBeforeQueue (optional): see Encounter.StartCombatWithTokens.
 function showDrawSteelBanner(result, holdBeforeQueue)
     local banner = createDrawSteelBanner{ controller = true, immediateResult = result, holdBeforeQueue = holdBeforeQueue }
-    GameHud.instance.parentPanel:AddChild(banner)
+    --combat belongs to the map: in the tabletop view the banner shows inside its map window.
+    local host = Tabletop.MapOverlayHost() or GameHud.instance.parentPanel
+    host:AddChild(banner)
 end
 
 --Show the per-round "who goes first" reroll banner (used by Crows, which rolls
@@ -1019,7 +1033,8 @@ function showDrawSteelRerollBanner()
         return
     end
     local banner = createDrawSteelBanner{ controller = true, reroll = true }
-    GameHud.instance.parentPanel:AddChild(banner)
+    local host = Tabletop.MapOverlayHost() or GameHud.instance.parentPanel
+    host:AddChild(banner)
 end
 
 --- @class Encounter: GameType
@@ -2741,7 +2756,14 @@ Commands.RegisterMacro{
     command = function(str)
     local args = string.split(str or "", " ")
 
-    local tokens = dmhub.selectedTokens
+    --only tokens on this map join its combat, not creatures selected off the
+    --board (a tabletop card's).
+    local tokens = {}
+    for _, tok in ipairs(dmhub.selectedTokens) do
+        if tok.onBoard then
+            tokens[#tokens+1] = tok
+        end
+    end
 
     print("ARGS::", #args)
     if #args == 4 then

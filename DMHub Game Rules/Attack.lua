@@ -128,6 +128,8 @@ end
 --- @return boolean
 function Attack:IsRanged(attackerToken, defenderToken)
 	if self:has_key("melee") then
+		--D&D 5e reach in feet: Distance counts a diagonal as 7 under 5e's 5 units per square.
+		---@diagnostic disable-next-line: deprecated
 		if self:has_key("meleeRange") and attackerToken ~= nil and defenderToken ~= nil and attackerToken:DistanceInFeet(defenderToken) > self.meleeRange then
 			--outside of melee range so this becomes a ranged attack.
 			return true

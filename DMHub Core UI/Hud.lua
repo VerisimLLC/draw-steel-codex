@@ -33,20 +33,6 @@ function Hud.SetFocus(self, newFocus)
 	gui.SetFocus(newFocus)
 end
 
-function Hud.CreateShapesLayer(self)
-	if dmhub.isDM then
-		return gui.Panel{
-			interactable = false,
-			bgcolor = "white",
-			bgimage = "#Shapes",
-			width = "100%",
-			height = "100%",
-		}
-	else
-		return nil
-	end
-end
-
 local g_screenArea = core.Vector4(0,0,0,0)
 
 --function called by dmhub to see what area of the screen is occupied by the hud.
@@ -794,6 +780,7 @@ end
 --- @field tokenInfo SheetHud The engine's token/selection interface, passed to dmhub.CreateGameHud.
 --- @field parentPanel Panel Root panel of the hud (dialog.sheet); set by dmhub.CreateGameHud.
 --- @field actionBarPanel Panel Set by the action bar when it is created.
+--- @field bannerLayer? Panel Layer over the floating windows for mode banners; set by GameHud:CreateBannerLayer (nil on the lobby hud).
 --- @field rollDialog Panel Set by dmhub.CreateGameHud (GameHud:CreateRollDialog).
 --- @field inventoryDialog Panel
 --- @field basicInventoryDialog Panel
@@ -919,6 +906,10 @@ end
 --                                       --your own confirmation, which calls
 --                                       --proceed() to really go; false or
 --                                       --nil lets the exit happen as normal
+--      forcedMap = function() end,      --a mapid to hold maximized on the
+--                                       --table (no restore, minimize or
+--                                       --close), like a Director-forced
+--                                       --map; nil for none (Tabletop.lua)
 --  }
 --
 --Everything but id/active is optional. The FIRST registered provider whose
@@ -1117,6 +1108,15 @@ GameHud.CustomInterfacePlayersPopout = function()
 	local ok, panel = pcall(provider.playersPopout)
 	if ok and panel ~= nil then
 		return panel
+	end
+	return nil
+end
+
+--The map the active interface holds maximized on the table, or nil.
+GameHud.CustomInterfaceForcedMap = function()
+	local mapid = CustomInterfaceField("forcedMap")
+	if type(mapid) == "string" and mapid ~= "" then
+		return mapid
 	end
 	return nil
 end

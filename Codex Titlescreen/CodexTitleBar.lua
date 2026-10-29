@@ -1107,7 +1107,7 @@ local function CreatePresentationBar()
                 element.selfStyle.hidden = 1
             else
                 element.selfStyle.hidden = 0
-                element.children = {
+                local children = {
                     gui.Label{
                         fontSize = 16,
                         color = Styles.textColor,
@@ -1125,8 +1125,21 @@ local function CreatePresentationBar()
                         change = function(element)
                             presentationInfo.onchange(element.value)
                         end,
-                    }
+                    },
                 }
+                --optional: whether it shows over all the game's UI or among its windows.
+                if presentationInfo.onaboveui ~= nil then
+                    children[#children+1] = gui.Check{
+                        valign = "center",
+                        lmargin = 10,
+                        text = "Above UI",
+                        value = presentationInfo.aboveui == true,
+                        change = function(element)
+                            presentationInfo.onaboveui(element.value)
+                        end,
+                    }
+                end
+                element.children = children
             end
         end,
     }
@@ -1375,6 +1388,132 @@ local function CreateConnectivityPanel()
         --the glyph itself carries the sync state).
     }
 
+    --Discord voice (Draw Steel V/DiscordVoice.lua): a microphone beside the
+    --wifi glyph while voice is on in this game. Click to mute or unmute once
+    --in the call; right-click (or click before joining) opens the voice menu.
+    local m_micIcon
+
+    --Opens (or dismisses) the voice menu, hung from the left edge of the
+    --whole connectivity plate (the title bar's below-bar popup recipe; see
+    --ShowOverlayMenu).
+    local function ToggleVoiceMenu()
+        local voice = rawget(_G, "DiscordVoice")
+        if voice == nil then
+            return
+        end
+        if m_micIcon.popup ~= nil then
+            m_micIcon.popup = nil
+            return
+        end
+        local plate = g_connectivityPanel or m_micIcon
+        m_micIcon.popupsInheritStyles = true
+        m_micIcon.popupPositioning = plate
+        m_micIcon.popup = gui.Panel{
+            width = "auto",
+            height = "auto",
+            halign = "right",
+            valign = "bottom",
+            gui.Panel{
+                classes = {"bg"},
+                cornerRadius = 10,
+                margin = 4,
+                x = -plate.renderedWidth,
+                width = 340,
+                height = "auto",
+                pad = 12,
+                borderBox = true,
+                valign = "bottom",
+                flow = "vertical",
+                voice.CreateMenu(function()
+                    if m_micIcon.valid then
+                        m_micIcon.popup = nil
+                    end
+                end),
+            },
+        }
+    end
+
+    m_micIcon = gui.Panel{
+        classes = {"collapsed"},
+        width = 20,
+        height = 20,
+        halign = "left",
+        valign = "center",
+        rmargin = 6,
+        bgimage = "phosphor/microphone-slash-fill.png",
+        bgcolor = "#c8c8c8",
+        data = { tooltip = nil },
+        hover = function(element)
+            gui.Tooltip(element.data.tooltip or "")(element)
+        end,
+        click = function(element)
+            local voice = rawget(_G, "DiscordVoice")
+            if voice == nil then
+                return
+            end
+            if voice.Status().voice == "connected" then
+                voice.ToggleMuted()
+            else
+                ToggleVoiceMenu()
+            end
+        end,
+        rightClick = function(element)
+            ToggleVoiceMenu()
+        end,
+    }
+
+    --the microphone's wrapper never collapses: its think runs DiscordVoice.Tick
+    --(joining, leaving, speaking emotes), and a collapsed panel stops thinking.
+    local micWrapper = gui.Panel{
+        width = "auto",
+        height = "100%",
+        halign = "left",
+        valign = "center",
+        thinkTime = 0.1,
+        think = function(element)
+            local voice = rawget(_G, "DiscordVoice")
+            if voice == nil then
+                return
+            end
+            voice.Tick()
+            local available = voice.Available()
+            m_micIcon:SetClass("collapsed", not available)
+            if not available then
+                return
+            end
+
+            local colors = voice.colors
+            local s = voice.Status()
+            local status = voice.StatusText()
+            local icon, color = "phosphor/microphone-slash-fill.png", colors.idle
+            local opacity = 1
+            if s.account ~= "ready" then
+                color = (s.account == "notlinked" or s.account == "error") and colors.warn or colors.idle
+                m_micIcon.data.tooltip = string.format("Discord voice: %s\nClick to set up.", status)
+            elseif s.voice ~= "connected" then
+                m_micIcon.data.tooltip = string.format("Discord voice: %s\nClick for voice controls.", status)
+            else
+                local open = (not s.muted) or s.pushToTalk
+                if open then
+                    icon = "phosphor/microphone-fill.png"
+                    color = colors.icon
+                    if s.transmitting then
+                        --pulse while our voice is going out.
+                        color = colors.good
+                        opacity = 0.65 + 0.35 * math.abs(math.sin(dmhub.Time() * 6))
+                    end
+                else
+                    color = colors.bad
+                end
+                m_micIcon.data.tooltip = string.format("Discord voice: %s\nClick to %s. Right-click for voice controls.\nPush to talk: %s", status, s.muted and "unmute" or "mute", voice.BindingText("pushtotalk"))
+            end
+            m_micIcon.bgimage = icon
+            m_micIcon.selfStyle.bgcolor = color
+            m_micIcon.selfStyle.opacity = opacity
+        end,
+        m_micIcon,
+    }
+
     local playersRow = gui.Panel{
         flow = "horizontal",
         width = "auto",
@@ -1447,6 +1586,7 @@ local function CreateConnectivityPanel()
         halign = "left",
         valign = "center",
         m_wifiIcon,
+        micWrapper,
         playersRow,
     }
 
@@ -1848,6 +1988,37 @@ local function CreateInitiativeStatusHost()
     return g_initiativeStatusContainer
 end
 
+--The mounted Round panel, and the tabletop map window slot showing it
+--instead of the title bar (nil = the title bar).
+local g_initiativeStatusPanel = nil
+local g_initiativeStatusWindowHost = nil
+
+--Puts the Round panel in whichever host should show it. It is moved, not
+--rebuilt: it belongs to the current GameHud, which only mounts it once.
+local function PlaceInitiativeStatusPanel()
+    local host = g_initiativeStatusContainer
+    if g_initiativeStatusWindowHost ~= nil and g_initiativeStatusWindowHost.valid then
+        host = g_initiativeStatusWindowHost
+    end
+    if host == nil or not host.valid then
+        return
+    end
+
+    local panel = g_initiativeStatusPanel
+    if panel == nil or not panel.valid then
+        g_initiativeStatusPanel = nil
+        if host == g_initiativeStatusContainer then
+            host.children = {}
+        end
+        return
+    end
+
+    if panel.parent ~= host then
+        panel:Unparent()
+        host.children = {panel}
+    end
+end
+
 --Called by GameHud.CreateInitiativeBar. Pass nil to clear.
 function CodexTitleBar.MountInitiativeStatusPanel(panel)
     if g_initiativeStatusContainer == nil or (not g_initiativeStatusContainer.valid) then
@@ -1855,10 +2026,26 @@ function CodexTitleBar.MountInitiativeStatusPanel(panel)
     end
 
     if panel == nil then
+        g_initiativeStatusPanel = nil
         g_initiativeStatusContainer.children = {}
+        return
+    end
+
+    g_initiativeStatusPanel = panel
+    if g_initiativeStatusWindowHost ~= nil and g_initiativeStatusWindowHost.valid then
+        PlaceInitiativeStatusPanel()
     else
         g_initiativeStatusContainer.children = {panel}
     end
+end
+
+--Tabletop map windows (Tabletop.lua): show the Round panel in host, a
+--slot in the focused map window's titlebar, or pass nil to put it back in
+--the title bar. Call with nil BEFORE destroying the host, or the panel goes
+--with it.
+function CodexTitleBar.SetInitiativeStatusHost(host)
+    g_initiativeStatusWindowHost = host
+    PlaceInitiativeStatusPanel()
 end
 
 ----------------------------------------------------------------------
@@ -1886,6 +2073,8 @@ local g_tileIndicator = {
         void       = { tier = 1,  name = "Open Air (no floor)", color = "#000000", stripes = false },
         damaging   = { tier = 2,  name = "Damaging Terrain",    color = "#cc3333", stripes = true },
         water      = { tier = 3,  name = "Water",               color = "#3373d9", stripes = true },
+        --the map water level's shallow water (MapWaterLevel): not a tile rule, a depth.
+        shallow    = { tier = 3,  name = "Shallow Water",       color = "#73d9f2", stripes = true },
         difficult  = { tier = 4,  name = "Difficult Terrain",   color = "#8c5926", stripes = true },
         darkness   = { tier = 5,  name = "Darkness",            color = "#4b2a6b", stripes = true },
         sunlight   = { tier = 6,  name = "Sunlight",            color = "#e2c433", stripes = true },
@@ -2052,6 +2241,15 @@ function g_tileIndicator.Classify()
     if rules.difficultTerrain then
         Consider(kinds.difficult)
     end
+    --shallow water from the map water level reads as itself rather than as
+    --plain difficult terrain (it only slows creatures without a swim speed).
+    local floor = game.currentFloor
+    if floor ~= nil then
+        local water = floor:GetWaterAtLoc(loc)
+        if water ~= nil and water.state == "shallow" then
+            Consider(kinds.shallow)
+        end
+    end
     if rules.concealment then
         Consider(kinds.concealing)
     end
@@ -2157,11 +2355,21 @@ end
 --The four built-in terrain rule types, styled to match the engine's
 --overlay stripes exactly (TileHeightOverlay ZoneWater/Difficult/
 --Concealment/Climbable colors and alternating angles).
+--rules is the hover card text: the Draw Steel rule for that terrain
+--(Heroes p. 269-270 movement, p. 276 concealment).
 g_tileIndicator.BUILTINS = {
-    { id = "water",       name = "Water",       color = "#3373d9", angle = math.pi * 0.25 },
-    { id = "difficult",   name = "Difficult",   color = "#8c5926", angle = math.pi * 0.75 },
-    { id = "concealment", name = "Concealment", color = "#333333", angle = math.pi * 0.25 },
-    { id = "climbable",   name = "Climbable",   color = "#66cc66", angle = math.pi * 0.75 },
+    { id = "water",       name = "Water",       color = "#3373d9", angle = math.pi * 0.25,
+      rules = "Creatures in water swim. A creature with a swim speed swims at full speed. A creature without one uses 2 squares of movement for each square it swims." },
+    { id = "difficult",   name = "Difficult",   color = "#8c5926", angle = math.pi * 0.75,
+      rules = "It costs 1 additional square of movement to enter a square of difficult terrain. A creature can't shift into or out of difficult terrain, and can't jump out of it." },
+    { id = "concealment", name = "Concealment", color = "#333333", angle = math.pi * 0.25,
+      rules = "A creature here has concealment: strikes made against it take a bane. Concealment doesn't block line of effect." },
+    { id = "climbable",   name = "Climbable",   color = "#66cc66", angle = math.pi * 0.75,
+      rules = "Creatures can climb here. A creature with a climb speed climbs at full speed. A creature without one uses 2 squares of movement for each square it climbs." },
+    --the map water level's shallow water (Map Settings > Water): water less
+    --than a square deep. Listed only on a map with a water level.
+    { id = "shallowwater", name = "Shallow Water", color = "#73d9f2", angle = math.pi * 0.75,
+      rules = "Water less than 1 square deep. It is difficult terrain (Shallow Water) for a creature without a swim speed; creatures here are not in water and do not swim." },
 }
 
 --The shown-built-ins preference (';'-joined ids from BUILTINS) as a set.
@@ -2207,6 +2415,8 @@ function g_tileIndicator.BuiltinTypesOnMap()
             present = flags.difficultTerrain
         elseif entry.id == "concealment" then
             present = flags.concealment
+        elseif entry.id == "shallowwater" then
+            present = flags.shallowWater == true
         else
             present = flags.climbable
         end
@@ -2249,6 +2459,148 @@ function g_tileIndicator.HoleTypeOnMap()
     return nil
 end
 
+--Short rules lines built from a zone type's mechanical flags. Only used
+--when the keyword has no authored description, so the tooltip still says
+--something true about the zone.
+---@param kw EnvironmentalKeyword
+---@return string[]
+function g_tileIndicator.ZoneRulesFromFlags(kw)
+    local lines = {}
+    if kw:try_get("difficultTerrain", false) then
+        lines[#lines+1] = "Difficult terrain."
+    end
+    if kw:try_get("water", false) then
+        lines[#lines+1] = "Water."
+    end
+    if kw:try_get("concealment", false) then
+        lines[#lines+1] = "Creatures here have concealment."
+    end
+    if kw:try_get("climbable", false) then
+        if kw:try_get("climbersOnly", false) then
+            lines[#lines+1] = "Natural climbers can climb here."
+        else
+            lines[#lines+1] = "Creatures can climb here."
+        end
+    end
+    local movedamage = kw:try_get("movedamage", "none")
+    local damage = kw:try_get("damage", 0)
+    if movedamage ~= "none" and type(damage) == "number" and damage > 0 then
+        lines[#lines+1] = string.format("%d %s damage for each square moved through.", damage, movedamage)
+    end
+    local entryRule = kw:try_get("entryEffectRule")
+    if type(entryRule) == "string" and entryRule ~= "" then
+        lines[#lines+1] = string.format("Entering or starting a turn here: %s.", entryRule)
+    end
+    return lines
+end
+
+--Builds the overlay menu's hover card: a colored title, a rules text
+--block, and an optional power roll table (bonus + three tier texts).
+---@param title string
+---@param color string|nil "#rrggbb" for the title; nil = white
+---@param rulesText string
+---@param powerRoll {bonus: number, tiers: string[]}|nil
+---@return Panel
+function g_tileIndicator.RulesTooltip(title, color, rulesText, powerRoll)
+    local textWidth = 380
+    local children = {}
+
+    children[#children+1] = gui.Label{
+        classes = {"sizeM"},
+        fontSize = 18,
+        text = title,
+        bold = true,
+        color = color or "white",
+        width = textWidth,
+        height = "auto",
+        bmargin = 6,
+    }
+
+    children[#children+1] = gui.Label{
+        classes = {"sizeS"},
+        fontSize = 14,
+        text = rulesText,
+        color = "#dddddd",
+        width = textWidth,
+        height = "auto",
+    }
+
+    if powerRoll ~= nil then
+        children[#children+1] = gui.Label{
+            classes = {"sizeS"},
+            fontSize = 14,
+            text = string.format("Power Roll + %d", powerRoll.bonus),
+            bold = true,
+            color = "white",
+            width = textWidth,
+            height = "auto",
+            tmargin = 8,
+            bmargin = 2,
+        }
+        local tierLabels = {"11 or lower", "12-16", "17+"}
+        for i,tierLabel in ipairs(tierLabels) do
+            local tierText = powerRoll.tiers[i]
+            if type(tierText) == "string" and tierText ~= "" then
+                children[#children+1] = gui.Label{
+                    classes = {"sizeS"},
+                    fontSize = 14,
+                    text = string.format("<b>%s:</b> %s", tierLabel, tierText),
+                    color = "#dddddd",
+                    width = textWidth - 8,
+                    height = "auto",
+                    lmargin = 8,
+                }
+            end
+        end
+    end
+
+    return gui.TooltipFrame(gui.Panel{
+        width = "auto",
+        height = "auto",
+        flow = "vertical",
+        children = children,
+    }, { halign = "right", valign = "center" })
+end
+
+--Hover card for a zone type row in the overlay menu: the zone's name, its
+--authored rules text (EnvironmentalKeyword.description, the player-facing
+--text), and its power roll table when the zone has one. Returns nil when
+--the keyword cannot be found.
+---@param zoneType {keywordid: string, name: string, color: string|nil, angleRadians: number|nil}
+---@return Panel|nil
+function g_tileIndicator.ZoneTooltip(zoneType)
+    local keywordsTable = dmhub.GetTable("environmentalKeywords") or {}
+    local kw = keywordsTable[zoneType.keywordid]
+    if kw == nil then
+        return nil
+    end
+
+    local description = kw:try_get("description", "")
+    local paragraphs = {}
+    if type(description) == "string" and description ~= "" then
+        paragraphs[#paragraphs+1] = description
+    else
+        for _,line in ipairs(g_tileIndicator.ZoneRulesFromFlags(kw)) do
+            paragraphs[#paragraphs+1] = line
+        end
+    end
+    if #paragraphs == 0 then
+        paragraphs[1] = "No special rules."
+    end
+
+    --The power roll the zone makes against creatures entering it or
+    --starting their turn there (Lava's Liquid Hot Magma etc.). The
+    --description names the roll; the tiers live only here.
+    local powerRoll = nil
+    local tiers = kw:try_get("powerRollTiers")
+    if kw:try_get("powerRollEnabled", false) and type(tiers) == "table" then
+        powerRoll = { bonus = kw:try_get("powerRollBonus", 0) or 0, tiers = tiers }
+    end
+
+    return g_tileIndicator.RulesTooltip(kw.name or zoneType.name, zoneType.color,
+        table.concat(paragraphs, "\n"), powerRoll)
+end
+
 --The Map object on the floor we are on. A layer's map may live on the
 --layer or on its parent floor, so the whole top-level floor family is
 --searched (GetLayersForFloor returns the floor itself plus its layers).
@@ -2275,7 +2627,10 @@ end
 --switch the map's image. No adding or renaming here; that stays in the
 --Floors panel. Returns nil when there is nothing to choose between
 --(not a Director, no Map object, or only the base image).
-function g_tileIndicator.CreateAppearanceSection()
+--options.noHeader: leave off the "Map Appearance" title (Map Settings
+--draws its own section header).
+function g_tileIndicator.CreateAppearanceSection(options)
+    options = options or {}
     if not dmhub.isDM then
         return nil
     end
@@ -2394,22 +2749,32 @@ function g_tileIndicator.CreateAppearanceSection()
 
     RefreshTiles()
 
-    return gui.Panel{
-        width = "100%",
-        height = "auto",
-        flow = "vertical",
-        bmargin = 8,
-
-        gui.Label{
+    local children = {}
+    if not options.noHeader then
+        children[#children+1] = gui.Label{
             classes = {"bold"},
             text = "Map Appearance",
             width = "100%",
             height = "auto",
             bmargin = 4,
-        },
+        }
+    end
+    children[#children+1] = tilesPanel
 
-        tilesPanel,
+    return gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        bmargin = 8,
+        children = children,
     }
+end
+
+--- The current floor's map appearance gallery, headerless, for the Map
+--- Settings panel. nil when the map has no alternate appearances.
+--- @return Panel|nil
+function CodexTitleBar.CreateMapAppearancePicker()
+    return g_tileIndicator.CreateAppearanceSection{ noHeader = true }
 end
 
 function g_tileIndicator.CreateOverlayMenu()
@@ -2452,6 +2817,14 @@ function g_tileIndicator.CreateOverlayMenu()
             bg = "white"
         end
 
+        --hovering the swatch or the name shows what the zone does.
+        local function ShowZoneTip(element)
+            local tip = g_tileIndicator.ZoneTooltip(zoneType)
+            if tip ~= nil then
+                element.tooltip = tip
+            end
+        end
+
         return gui.Panel{
             width = "100%",
             height = 24,
@@ -2466,6 +2839,7 @@ function g_tileIndicator.CreateOverlayMenu()
                 gradient = gradient,
                 borderWidth = 1,
                 borderColor = "@border",
+                hover = ShowZoneTip,
             },
 
             gui.Check{
@@ -2474,6 +2848,7 @@ function g_tileIndicator.CreateOverlayMenu()
                 halign = "left",
                 lmargin = 6,
                 style = checkStyle,
+                hover = ShowZoneTip,
                 monitor = "mapoverlay:shownzones",
                 events = {
                     monitor = function(element)
@@ -2497,6 +2872,17 @@ function g_tileIndicator.CreateOverlayMenu()
     --tiles: same swatch+check shape as a zone row, driving the type's entry
     --in mapoverlay:shownbuiltins (built-ins default hidden).
     local function BuiltinRow(builtin)
+        --hovering the swatch or the name shows the terrain's rule.
+        local function ShowBuiltinTip(element)
+            if builtin.rules ~= nil then
+                local color = builtin.color
+                if color == "#333333" then
+                    color = nil --too dark to read on the black card
+                end
+                element.tooltip = g_tileIndicator.RulesTooltip(builtin.name, color, builtin.rules)
+            end
+        end
+
         return gui.Panel{
             width = "100%",
             height = 24,
@@ -2511,6 +2897,7 @@ function g_tileIndicator.CreateOverlayMenu()
                 gradient = g_tileIndicator.StripeGradient(builtin.color, builtin.angle),
                 borderWidth = 1,
                 borderColor = "@border",
+                hover = ShowBuiltinTip,
             },
 
             gui.Check{
@@ -2519,6 +2906,7 @@ function g_tileIndicator.CreateOverlayMenu()
                 halign = "left",
                 lmargin = 6,
                 style = checkStyle,
+                hover = ShowBuiltinTip,
                 monitor = "mapoverlay:shownbuiltins",
                 events = {
                     monitor = function(element)
@@ -2771,6 +3159,150 @@ function g_tileIndicator.CreatePanel()
     }
 end
 
+-- Map name + engine status. Long map descriptions used to eat the bar,
+-- so the box is capped (narrower than the old 420) and the text
+-- ellipsizes rather than wrapping or shrinking away to nothing;
+-- hovering shows the untruncated string (on the cluster's tooltip).
+-- On a narrow bar the fit pass (BarFitApply) narrows this width further,
+-- so BAR_FIT_MAPNAME_FULL must stay in step with the width below.
+local function CreateMapNameLabel(width)
+    return gui.Label{
+        --menuLabel is what flips the text to @bg when the plate fills on
+        --hover. It carries a 16px font for the main menu strip; this cluster
+        --runs at the default 14, so match the neighbours explicitly.
+        classes = {"menuLabel"},
+        fontSize = 14,
+        minFontSize = 10,
+        width = width or 380,
+        height = "100%",
+        hmargin = 0,
+        textAlignment = "left",
+        textWrap = false,
+        textOverflow = "ellipsis",
+        interactable = false,
+        text = "",
+        data = { fullText = "" },
+        thinkTime = 0.1,
+        think = function(element)
+            if (not dmhub.inGame) or dmhub.isLobbyGame then
+                element.data.fullText = ""
+                element.text = ""
+                return
+            end
+            local text
+            if dmhub.mouseOutsideMapView then
+                --Tabletop mode with the mouse off the live map window: there
+                --is no location under it to report, just the map.
+                text = game.currentMap.description
+            elseif g_tileIndicator.ShowsTileInfo() then
+                text = string.format("%s %s", game.currentMap.description, dmhub.status)
+            else
+                --The floor the player is ON, not the one under the mouse
+                --(which is what dmhub.status names), so it holds still.
+                local floor = game.currentFloor
+                local floorName = floor ~= nil and floor.description or nil
+                if type(floorName) == "string" and floorName ~= "" then
+                    text = string.format("%s, %s", game.currentMap.description, floorName)
+                else
+                    text = game.currentMap.description
+                end
+            end
+            if text == element.data.fullText then
+                return
+            end
+            element.data.fullText = text
+            element.text = text
+        end,
+    }
+end
+
+--The shared plate. Structure follows the title bar's other menu items
+--(and the initiative readout): the fill and the click live on the
+--wrapper, both children are interactable = false so the hover lands
+--here rather than on a half. hpad is inline rather than left to the
+--menuItem style so the cluster does not shift sideways on the frames
+--where the class is dropped.
+local function CreateMapClusterPanel(classes, tileChip, mapNameLabel)
+    return gui.Panel{
+        classes = classes,
+        flow = "horizontal",
+        width = "auto",
+        height = "100%",
+        valign = "center",
+        hpad = 8,
+
+        --No hover tooltip (Venla 2026-08-25: bar items are self evident).
+        --Note this also drops the untruncated-map-name hover that the
+        --narrow-bar fit pass relied on for ellipsized names, and the
+        --"tile under cursor" readout.
+
+        click = function(element)
+            g_tileIndicator.ShowOverlayMenu(element)
+        end,
+
+        tileChip,
+        mapNameLabel,
+    }
+end
+
+--Where the mouse is on the live map, for the titlebar of a tabletop map
+--window and its maximized strip (Tabletop.lua), which show the map's name
+--on its own: the terrain chip and the tile's coordinates, on one plate that
+--opens the map overlay menu. With the mouse off the map it keeps the last
+--position, dimmed, so the bar does not jump; with tile info turned off it
+--is empty. While a window shows it, the title bar's own cluster is
+--collapsed (SetMapStatusInWindow).
+--options.width: the readout's width, fixed so the bar does not shift as the
+--mouse moves (default 96).
+function CodexTitleBar.CreateMapPosition(options)
+    options = options or {}
+    local chip = g_tileIndicator.CreatePanel()
+    local label = gui.Label{
+        classes = {"menuLabel"},
+        fontSize = 13,
+        minFontSize = 10,
+        width = options.width or 96,
+        height = "100%",
+        hmargin = 0,
+        textAlignment = "left",
+        textWrap = false,
+        textOverflow = "ellipsis",
+        interactable = false,
+        text = "--",
+        data = {offMap = nil},
+        thinkTime = 0.1,
+        think = function(element)
+            local text = element.text
+            local offMap = dmhub.mouseOutsideMapView == true
+            if (not dmhub.inGame) or dmhub.isLobbyGame or not g_tileIndicator.ShowsTileInfo() then
+                text = ""
+            elseif not offMap then
+                text = dmhub.status or ""
+            end
+            if element.text ~= text then
+                element.text = text
+            end
+            --opacity is per panel, so the chip is dimmed on its own. (A
+            --selfStyle value cannot be read back, hence data.offMap.)
+            if element.data.offMap ~= offMap then
+                element.data.offMap = offMap
+                local opacity = cond(offMap, 0.4, 1)
+                element.selfStyle.opacity = opacity
+                chip.selfStyle.opacity = opacity
+            end
+        end,
+    }
+    return CreateMapClusterPanel({"menuItem"}, chip, label)
+end
+
+--True while a tabletop map window shows the live map's status in its own
+--titlebar; the title bar then collapses its copy (CreateStatusBar's think).
+local g_mapStatusInWindow = false
+
+function CodexTitleBar.SetMapStatusInWindow(inWindow)
+    g_mapStatusInWindow = inWindow == true
+end
+
 local function CreateStatusBar()
     local resultPanel
 
@@ -2781,6 +3313,7 @@ local function CreateStatusBar()
     local m_tileChip
     local m_mapNameLabel
     local m_mapCluster
+    local m_initiativeHost
 
     local function MapClusterAvailable()
         return dmhub.inGame and (not dmhub.isLobbyGame)
@@ -2804,10 +3337,16 @@ local function CreateStatusBar()
     --Driven from the status bar's own think (see resultPanel below), NOT from
     --anything inside the cluster: a collapsed panel's think does not run, so
     --a driver inside it could collapse the cluster but never bring it back.
+    --A tabletop map window showing the live map's status (SetMapStatusInWindow)
+    --also collapses the cluster and the Round host: the window's titlebar
+    --has them instead.
     local function RefreshMapClusterAffordance()
         if m_mapCluster ~= nil and m_mapCluster.valid then
             m_mapCluster:SetClass("menuItem", MapClusterAvailable())
-            m_mapCluster:SetClass("collapsed", ScriptStageCoversMap())
+            m_mapCluster:SetClass("collapsed", ScriptStageCoversMap() or g_mapStatusInWindow)
+        end
+        if m_initiativeHost ~= nil and m_initiativeHost.valid then
+            m_initiativeHost:SetClass("collapsed", g_mapStatusInWindow)
         end
     end
 
@@ -2815,63 +3354,8 @@ local function CreateStatusBar()
     -- characterizing the tile under the mouse (see g_tileIndicator).
     m_tileChip = g_tileIndicator.CreatePanel()
 
-    -- Map name + engine status. Long map descriptions used to eat the bar,
-    -- so the box is capped (narrower than the old 420) and the text
-    -- ellipsizes rather than wrapping or shrinking away to nothing;
-    -- hovering shows the untruncated string (on the cluster's tooltip).
-    -- On a narrow bar the fit pass (BarFitApply) narrows this width further,
-    -- so BAR_FIT_MAPNAME_FULL must stay in step with the width below.
-    m_mapNameLabel = gui.Label{
-        --menuLabel is what flips the text to @bg when the plate fills on
-        --hover. It carries a 16px font for the main menu strip; this cluster
-        --runs at the default 14, so match the neighbours explicitly.
-        classes = {"menuLabel"},
-        fontSize = 14,
-        minFontSize = 10,
-        width = 380,
-        height = "100%",
-        hmargin = 0,
-        textAlignment = "left",
-        textWrap = false,
-        textOverflow = "ellipsis",
-        interactable = false,
-        text = "",
-        data = { fullText = "" },
-        thinkTime = 0.1,
-        think = function(element)
-            if (not dmhub.inGame) or dmhub.isLobbyGame then
-                element.data.fullText = ""
-                element.text = ""
-                return
-            end
-            local text
-            if g_tileIndicator.ShowsTileInfo() then
-                text = string.format("%s %s", game.currentMap.description, dmhub.status)
-            else
-                --The floor the player is ON, not the one under the mouse
-                --(which is what dmhub.status names), so it holds still.
-                local floor = game.currentFloor
-                local floorName = floor ~= nil and floor.description or nil
-                if type(floorName) == "string" and floorName ~= "" then
-                    text = string.format("%s, %s", game.currentMap.description, floorName)
-                else
-                    text = game.currentMap.description
-                end
-            end
-            if text == element.data.fullText then
-                return
-            end
-            element.data.fullText = text
-            element.text = text
-        end,
-    }
+    m_mapNameLabel = CreateMapNameLabel(BAR_FIT_MAPNAME_FULL)
 
-    --The shared plate. Structure follows the title bar's other menu items
-    --(and the initiative readout): the fill and the click live on the
-    --wrapper, both children are interactable = false so the hover lands
-    --here rather than on a half. hpad is inline rather than left to the
-    --menuItem style so the cluster does not shift sideways on the frames
-    --where the class is dropped.
     --(A nil from cond() cannot simply be listed here -- it would truncate
     --the class list -- so the list is assembled.)
     local mapClusterClasses = {}
@@ -2882,26 +3366,7 @@ local function CreateStatusBar()
         mapClusterClasses[#mapClusterClasses+1] = "collapsed"
     end
 
-    m_mapCluster = gui.Panel{
-        classes = mapClusterClasses,
-        flow = "horizontal",
-        width = "auto",
-        height = "100%",
-        valign = "center",
-        hpad = 8,
-
-        --No hover tooltip (Venla 2026-08-25: bar items are self evident).
-        --Note this also drops the untruncated-map-name hover that the
-        --narrow-bar fit pass relied on for ellipsized names, and the
-        --"tile under cursor" readout.
-
-        click = function(element)
-            g_tileIndicator.ShowOverlayMenu(element)
-        end,
-
-        m_tileChip,
-        m_mapNameLabel,
-    }
+    m_mapCluster = CreateMapClusterPanel(mapClusterClasses, m_tileChip, m_mapNameLabel)
 
     --First to go on a narrow bar: the label narrows (stage 2 of the fit
     --pass) and then the whole cluster collapses -- name first, terrain chip
@@ -2910,7 +3375,7 @@ local function CreateStatusBar()
     BarFitRegister("mapName", m_mapNameLabel)
     BarFitRegister("mapChip", m_tileChip)
 
-    local m_initiativeHost = CreateInitiativeStatusHost()
+    m_initiativeHost = CreateInitiativeStatusHost()
     BarFitRegister("initiative", m_initiativeHost)
 
     -- While a CommandBuilder session is active, a floating recorder dialog
@@ -4129,82 +4594,250 @@ local function CreateAudioIndicator()
         return audio.muted or IsLocalMuted()
     end
 
+    --The mixer popover (redesign 2026-10-23): a now-playing card, "Your mix"
+    --(every role: the personal master + personal mute), then for the
+    --Director or a DJ "Table mix" (the broadcast levels and the game-wide
+    --mute), and a footer with Stop all audio / Audio Studio. Sliders keep
+    --the app's diamond handle, quieted to the muted tokens.
     local function BuildPopover()
         local bar = rawget(_G, "g_drawSteelAudioBar")
         if bar == nil then
             return nil
         end
 
+        local canControl = bar.CanControlAudio ~= nil and bar.CanControlAudio()
+
         -- Now-playing line is a snapshot at open time -- this is a transient
         -- popover (same accepted pattern as the Studio's bindings popover),
         -- not a live-refreshing panel.
         local nowPlayingName = bar.PrimaryPlayingName()
 
-        --Muted-cause line (DJ delegation decision 4): the popover top tier is
-        --now PERSONAL for every role, so when the glyph shows muted the cause
-        --may be either layer - name it. Snapshot popover, but both mute
-        --toggles below refresh this line on press so it never contradicts an
-        --action taken inside the popover itself.
-        local mutedCauseLine
+        --A small round icon button (mute toggles, stop).
+        local function IconButton(args)
+            local t = {
+                classes = {"apIconButton"},
+                width = 24,
+                height = 24,
+                valign = "center",
+                gui.Panel{
+                    classes = {"apIcon"},
+                    width = 16,
+                    height = 16,
+                    halign = "center",
+                    valign = "center",
+                    interactable = false,
+                    bgimage = args.icon,
+                },
+            }
+            for k, v in pairs(args) do
+                if k ~= "icon" then
+                    t[k] = v
+                end
+            end
+            return gui.Panel(t)
+        end
+
+        --Swaps a mute button's glyph to match a muted flag.
+        local function SetMuteGlyph(button, muted)
+            button.children[1].bgimage = cond(muted, "phosphor/speaker-slash-fill.png", "phosphor/speaker-high-fill.png")
+        end
+
+        --Muted-cause notice (DJ delegation decision 4): the glyph can read muted
+        --for either of two layers, so name which one. Both mute controls below
+        --refresh it so it never contradicts an action taken in the popover.
+        local mutedCauseLabel = gui.Label{
+            classes = {"sizeXs"},
+            width = "100%-24",
+            height = "auto",
+            valign = "center",
+            textWrap = true,
+            color = "#d8b23a",
+        }
+        local mutedCause = gui.Panel{
+            classes = {"apNotice", "collapsed"},
+            width = "100%-16",
+            height = "auto",
+            halign = "center",
+            flow = "horizontal",
+            hpad = 10,
+            vpad = 6,
+            borderBox = true,
+            tmargin = 6,
+            gui.Panel{
+                width = 14,
+                height = 14,
+                valign = "center",
+                rmargin = 8,
+                bgimage = "phosphor/speaker-slash-fill.png",
+                bgcolor = "#d8b23a",
+            },
+            mutedCauseLabel,
+        }
         local function RefreshMutedCause()
             if audio.muted then
-                mutedCauseLine.text = "The table is muted for everyone."
-                mutedCauseLine:SetClass("collapsed", false)
+                mutedCauseLabel.text = "The table is muted for everyone"
+                mutedCause:SetClass("collapsed", false)
             elseif IsLocalMuted() then
-                mutedCauseLine.text = "Your personal mute is on."
-                mutedCauseLine:SetClass("collapsed", false)
+                mutedCauseLabel.text = "Your personal mute is on"
+                mutedCause:SetClass("collapsed", false)
             else
-                mutedCauseLine:SetClass("collapsed", true)
+                mutedCause:SetClass("collapsed", true)
             end
         end
-        mutedCauseLine = gui.Label{
-            classes = {"sizeXxs", "fgMuted", "collapsed"},
-            width = "100%",
-            height = "auto",
-            textWrap = true,
+
+        --Section heading with a quiet note on the right and the hairline under it.
+        local function SectionHeader(text, note)
+            return gui.Panel{
+                flow = "vertical",
+                width = "100%",
+                height = "auto",
+                tmargin = 10,
+                gui.Panel{
+                    width = "100%",
+                    height = 18,
+                    hpad = 14,
+                    borderBox = true,
+                    gui.Label{
+                        classes = {"sizeXs", "bold", "fgMuted"},
+                        text = text,
+                        width = "auto",
+                        height = "auto",
+                        halign = "left",
+                        valign = "center",
+                    },
+                    gui.Label{
+                        classes = {"sizeXxs", "fgMuted"},
+                        text = note,
+                        width = "auto",
+                        height = "auto",
+                        halign = "right",
+                        valign = "center",
+                        opacity = 0.7,
+                    },
+                },
+                gui.Panel{
+                    classes = {"audioPopoverHairline"},
+                    width = "100%",
+                    height = 1,
+                    tmargin = 2,
+                    bmargin = 2,
+                },
+            }
+        end
+
+        --One mixer row: label, the fader (which carries its own % readout),
+        --and an optional control in a fixed right-hand slot so every slider
+        --lines up.
+        local function MixRow(text, slider, extra)
+            return gui.Panel{
+                classes = {"apRow"},
+                flow = "horizontal",
+                width = "100%",
+                height = 28,
+                hpad = 14,
+                borderBox = true,
+                styles = {
+                    { selectors = {"sliderLabel"}, fontSize = 11, color = "@fgMuted", lmargin = 9, priority = 6 },
+                },
+                gui.Label{
+                    classes = {"sizeXs"},
+                    text = text,
+                    width = 74,
+                    height = "auto",
+                    valign = "center",
+                },
+                slider,
+                extra or gui.Panel{ width = 24, height = 24 },
+            }
+        end
+
+        local stopButton = nil
+        if canControl then
+            stopButton = IconButton{
+                icon = "ui-icons/ph-stop-fill.png",
+                linger = function(element)
+                    gui.Tooltip("Stop all audio")(element)
+                end,
+                press = function()
+                    bar.StopAll()
+                    resultPanel.popup = nil
+                end,
+            }
+        end
+
+        --Now playing: an icon tile, the track, and (Director/DJ) a stop button.
+        local nowPlayingCard = gui.Panel{
+            classes = {"apCard"},
+            flow = "horizontal",
+            width = "100%-16",
+            height = 56,
+            halign = "center",
+            hpad = 10,
+            borderBox = true,
+            gui.Panel{
+                classes = {"apTile"},
+                width = 36,
+                height = 36,
+                valign = "center",
+                rmargin = 10,
+                gui.Panel{
+                    width = 18,
+                    height = 18,
+                    halign = "center",
+                    valign = "center",
+                    classes = {"apTileIcon", cond(nowPlayingName ~= nil, "playing", nil)},
+                    bgimage = "phosphor/music-notes.png",
+                },
+            },
+            gui.Panel{
+                flow = "vertical",
+                width = cond(canControl, "100%-78", "100%-46"),
+                height = "auto",
+                valign = "center",
+                gui.Label{
+                    classes = {"sizeS", cond(nowPlayingName == nil, "fgMuted", nil)},
+                    width = "100%",
+                    height = "auto",
+                    textWrap = false,
+                    textOverflow = "ellipsis",
+                    text = nowPlayingName or "Nothing playing",
+                },
+                gui.Label{
+                    classes = {"sizeXxs", "fgMuted"},
+                    width = "100%",
+                    height = "auto",
+                    textWrap = false,
+                    textOverflow = "ellipsis",
+                    text = cond(nowPlayingName == nil,
+                        cond(canControl, "Pick something in the Audio Studio", "The Director picks the music"),
+                        "Playing for the table"),
+                },
+            },
+            stopButton,
         }
 
         --Personal tier (DJ delegation decision 4): EVERY role, including the
         --Director, gets the personal master + personal mute here - reflex
-        --control keeps reflex semantics for every human. The game-wide mute
-        --moved into the broadcast block below as a labeled control (PR-note
-        --obligation: this repurposes the DM's trained mute-glyph behavior).
-        local muteToggle = gui.Panel{
-            bgcolor = "white",
-            width = 16,
-            height = 16,
-            valign = "center",
-            hmargin = 4,
+        --control keeps reflex semantics for every human.
+        local muteToggle = IconButton{
+            icon = "phosphor/speaker-high-fill.png",
             press = function(element)
                 dmhub.SetSettingValue("localmuted", not IsLocalMuted())
                 -- The bar glyph self-heals on its 0.5s think, but this copy
                 -- lives in a snapshot popover -- swap it now or it reads
                 -- stale until the popover is reopened.
-                element:SetClass("muted", IsClientMuted())
+                SetMuteGlyph(element, IsClientMuted())
                 RefreshMutedCause()
             end,
             linger = function(element)
                 gui.Tooltip("Mute (only you)")(element)
             end,
-            styles = {
-                { bgimage = "phosphor/speaker-high-fill.png" },
-                { selectors = {"muted"}, bgimage = "phosphor/speaker-slash-fill.png" },
-                { selectors = {"hover"}, brightness = 2 },
-            },
-            create = function(element)
-                element:SetClass("muted", IsClientMuted())
-            end,
         }
-        muteToggle:SetClass("muted", IsClientMuted())
+        SetMuteGlyph(muteToggle, IsClientMuted())
 
-        -- Mute rides the RIGHT end of the Master row (its own row read as
-        -- orphaned chrome -- James field report, 2026-07-03). Master keeps the
-        -- left slot so its slider stays column-aligned with the Levels sliders
-        -- below; MakeFaderRow hardcodes width 100%, so the fader row is
-        -- narrowed post-construction to make room for the toggle.
         --Personal per-user master for every role - the same "volume" setting
         --as Settings->Audio's Master Volume. (The game-wide master lives in
-        --the dock/Studio/Settings; it is no longer in this popover.)
+        --the dock/Studio/Settings; it is not in this popover.)
         local masterSlider
         if bar.MakePersonalFader == nil then
             --Fallback for a stale export during partial reloads.
@@ -4212,135 +4845,96 @@ local function CreateAudioIndicator()
         else
             masterSlider = bar.MakePersonalFader("volume")
         end
-        local masterFaderRow = bar.MakeFaderRow("Master", masterSlider, false)
-        masterFaderRow.selfStyle.width = "100%-26"
-        local masterRow = gui.Panel{
-            flow = "horizontal",
-            width = "100%",
-            height = 22,
-            valign = "center",
-            masterFaderRow,
-            muteToggle,
-        }
 
         local children = {
-            -- "Now Playing" header (bold @fgStrong -- the popover inherits
-            -- themed styles via popupsInheritStyles, so it tracks the theme
-            -- like the menus do) with the track title on its own line
-            -- beneath, mirroring the Studio's Now Playing card.
-            gui.Label{
-                classes = {"sizeXs", "bold", "fgStrong"},
-                width = "100%",
-                height = "auto",
-                text = "Now Playing",
-            },
-            gui.Label{
-                classes = {"sizeXs", cond(nowPlayingName == nil, "fgMuted", nil)},
-                width = "100%",
-                height = "auto",
-                textWrap = false,
-                textOverflow = "ellipsis",
-                text = nowPlayingName or "Nothing playing",
-            },
-            masterRow,
-            mutedCauseLine,
-            --Personal-tier caption for EVERY role now (decision 4): the tier
-            --above is personal regardless of who you are; the broadcast block
-            --below is what plays to the table.
-            gui.Label{
-                classes = {"sizeXxs", "fgMuted"},
-                width = "100%",
-                height = "auto",
-                textWrap = true,
-                text = "These change your mix only.",
-            },
+            nowPlayingCard,
+            SectionHeader("Your mix", "only you hear this"),
+            MixRow("Master", masterSlider, muteToggle),
         }
-        RefreshMutedCause()
 
-        --Broadcast tier: Director or DJ only (DJ delegation decision 4). All
-        --game-wide controls live here, including the game-wide mute as a
-        --labeled control (promoted from the old master-row glyph tooltip).
-        if bar.CanControlAudio ~= nil and bar.CanControlAudio() then
-            --Section header per the panel design language: label + full-width
-            --hairline underline. The underline doubles as the seam between
-            --the personal tier above and the broadcast tier below, so no
-            --separate divider (the style guide bans a hairline directly
-            --above a header -- they double up).
-            children[#children+1] = gui.Panel{
-                flow = "vertical",
-                width = "100%",
-                height = "auto",
-                tmargin = 6,
-                gui.Label{
-                    classes = {"sizeXs", "fgMuted"},
-                    width = "100%",
-                    height = "auto",
-                    text = "Levels",
-                    bmargin = 2,
-                },
-                gui.Panel{
-                    classes = {"audioPopoverHairline"},
-                    width = "100%",
-                    height = 1,
-                },
-            }
-            children[#children+1] = bar.MakeFaderRow("Music", bar.MakeBroadcastFader("music"), false)
-            children[#children+1] = bar.MakeFaderRow("Ambience", bar.MakeBroadcastFader("ambience"), false)
-            children[#children+1] = bar.MakeFaderRow("Effects", bar.MakeBroadcastFader("effects"), false)
-            children[#children+1] = bar.MakeFaderRow("UI Sounds", bar.MakeBroadcastFader("uisounds"), false)
-            children[#children+1] = bar.MakeFaderRow("Anthem", bar.MakeBroadcastFader("anthem"), false)
+        --Broadcast tier: Director or DJ only (DJ delegation decision 4).
+        if canControl then
+            children[#children+1] = SectionHeader("Table mix", "everyone hears this")
+            children[#children+1] = MixRow("Music", bar.MakeBroadcastFader("music"))
+            children[#children+1] = MixRow("Ambience", bar.MakeBroadcastFader("ambience"))
+            children[#children+1] = MixRow("Effects", bar.MakeBroadcastFader("effects"))
+            children[#children+1] = MixRow("UI sounds", bar.MakeBroadcastFader("uisounds"))
+            children[#children+1] = MixRow("Anthem", bar.MakeBroadcastFader("anthem"))
 
-            local gameMuteToggle = gui.Panel{
-                bgcolor = "white",
-                width = 16,
-                height = 16,
+            --Game-wide mute as a switch: track plus a knob that slides right when on.
+            local knob = gui.Panel{
+                classes = {"apKnob"},
+                width = 12,
+                height = 12,
+                halign = "left",
                 valign = "center",
-                hmargin = 4,
+                hmargin = 2,
+                interactable = false,
+            }
+            local function SyncSwitch(element)
+                element:SetClass("on", audio.muted)
+                knob.selfStyle.halign = cond(audio.muted, "right", "left")
+            end
+            children[#children+1] = gui.Panel{
+                classes = {"apRow"},
+                flow = "horizontal",
+                width = "100%",
+                height = 28,
+                hpad = 14,
+                borderBox = true,
+                tmargin = 2,
                 press = function(element)
                     audio.muted = not audio.muted
                     audio.UploadMuted()
-                    element:SetClass("muted", audio.muted)
-                    muteToggle:SetClass("muted", IsClientMuted())
+                    element:FireEventTree("syncSwitch")
+                    SetMuteGlyph(muteToggle, IsClientMuted())
                     RefreshMutedCause()
                 end,
-                styles = {
-                    { bgimage = "phosphor/speaker-high-fill.png" },
-                    { selectors = {"muted"}, bgimage = "phosphor/speaker-slash-fill.png" },
-                    { selectors = {"hover"}, brightness = 2 },
-                },
-                create = function(element)
-                    element:SetClass("muted", audio.muted)
-                end,
-            }
-            children[#children+1] = gui.Panel{
-                flow = "horizontal",
-                width = "100%",
-                height = 22,
-                valign = "center",
-                tmargin = 4,
                 gui.Label{
                     classes = {"sizeXs"},
                     text = "Mute for everyone",
-                    width = "100%-26",
+                    width = "100%-32",
                     height = "auto",
                     valign = "center",
                 },
-                gameMuteToggle,
+                gui.Panel{
+                    classes = {"apSwitch"},
+                    width = 30,
+                    height = 16,
+                    valign = "center",
+                    halign = "right",
+                    interactable = false,
+                    create = SyncSwitch,
+                    syncSwitch = SyncSwitch,
+                    knob,
+                },
             }
+        end
 
+        children[#children+1] = mutedCause
+
+        if canControl then
             children[#children+1] = gui.Panel{
-                flow = "horizontal",
+                classes = {"audioPopoverHairline"},
                 width = "100%",
-                height = "auto",
-                tmargin = 4,
-                gui.Button{
-                    classes = {"sizeXs"},
+                height = 1,
+                tmargin = 8,
+            }
+            children[#children+1] = gui.Panel{
+                width = "100%",
+                height = 34,
+                hpad = 14,
+                borderBox = true,
+                gui.Label{
+                    classes = {"sizeXs", "apLink"},
                     text = "Stop all audio",
                     width = "auto",
-                    height = 22,
-                    hpad = 8,
-                    borderBox = true,
-                    hmargin = 3,
+                    height = "auto",
+                    bgimage = true,
+                    bgcolor = "clear",
+                    vpad = 4,
+                    halign = "left",
+                    valign = "center",
                     linger = function(element)
                         gui.Tooltip("Stop all audio. Also cancels auto game-mode music.")(element)
                     end,
@@ -4349,21 +4943,45 @@ local function CreateAudioIndicator()
                         resultPanel.popup = nil
                     end,
                 },
-                gui.Button{
-                    classes = {"sizeXs"},
-                    text = "Open Audio Studio",
+                gui.Panel{
+                    flow = "horizontal",
                     width = "auto",
-                    height = 22,
-                    hpad = 8,
-                    borderBox = true,
-                    hmargin = 3,
+                    height = "auto",
+                    halign = "right",
+                    valign = "center",
+                    --a panel only takes the mouse when it has a bgimage; its
+                    --children are non-interactable, so this one must.
+                    bgimage = true,
+                    bgcolor = "clear",
+                    vpad = 4,
                     press = function()
                         resultPanel.popup = nil
                         LaunchablePanel.LaunchPanelByName("Audio Studio")
                     end,
+                    gui.Label{
+                        classes = {"sizeXs", "apLink", "apLinkPart"},
+                        text = "Audio Studio",
+                        width = "auto",
+                        height = "auto",
+                        valign = "center",
+                        interactable = false,
+                    },
+                    gui.Panel{
+                        classes = {"apLinkIcon"},
+                        width = 12,
+                        height = 12,
+                        lmargin = 4,
+                        valign = "center",
+                        interactable = false,
+                        bgimage = "phosphor/caret-right-bold.png",
+                    },
                 },
             }
+        else
+            children[#children+1] = gui.Panel{ width = 1, height = 10 }
         end
+
+        RefreshMutedCause()
 
         --Frameless flat chrome matching the title bar's context menus
         --(Venla 2026-08-24 menu rework): @bg fill continuing the bar, no
@@ -4375,17 +4993,17 @@ local function CreateAudioIndicator()
             cornerRadius = 10,
             margin = 4,
             flow = "vertical",
-            width = 340,
+            width = 320,
             height = "auto",
-            pad = 8,
+            tpad = 8,
             borderBox = true,
             halign = "right",
             valign = "bottom",
             --Muted slider recipe, scoped to this popover: the shared fader
             --rows ship the app-wide bright track/fill/handle, which is six
             --loud sliders in a small panel. Quiet them to the border/muted
-            --tokens so the section text reads first. priority beats the
-            --equal-specificity DefaultStyles base rules.
+            --tokens (the handle keeps its diamond) so the names read first.
+            --priority beats the equal-specificity DefaultStyles base rules.
             styles = ThemeEngine.MergeTokens{
                 --opacity keeps the unfilled track clearly dimmer than the
                 --@fgMuted fill; at full brightness the two grays are close
@@ -4394,6 +5012,28 @@ local function CreateAudioIndicator()
                 { selectors = {"sliderFill"}, bgcolor = "@fgMuted", priority = 10 },
                 { selectors = {"sliderHandleInner"}, bgcolor = "@fgMuted", priority = 10 },
                 { selectors = {"audioPopoverHairline"}, bgimage = true, bgcolor = "@border", opacity = 0.35 },
+                { selectors = {"apRow"}, bgimage = true, bgcolor = "clear" },
+                { selectors = {"apRow", "hover"}, bgcolor = "@bgAlt", transitionTime = 0.1 },
+                { selectors = {"apCard"}, bgimage = true, bgcolor = "@bgAlt", cornerRadius = 8 },
+                { selectors = {"apTile"}, bgimage = true, bgcolor = "@bg", cornerRadius = 6 },
+                { selectors = {"apTileIcon"}, bgcolor = "@fgMuted", opacity = 0.6 },
+                { selectors = {"apTileIcon", "playing"}, bgcolor = "@fg", opacity = 1 },
+                { selectors = {"apNotice"}, bgimage = true, bgcolor = "#2a2414", cornerRadius = 6 },
+                { selectors = {"apIconButton"}, bgimage = true, bgcolor = "clear", cornerRadius = 5 },
+                { selectors = {"apIconButton", "hover"}, bgcolor = "@bgAlt" },
+                { selectors = {"apIcon"}, bgcolor = "@fgMuted" },
+                { selectors = {"apIcon", "parent:hover"}, bgcolor = "@fg" },
+                { selectors = {"apSwitch"}, bgimage = true, bgcolor = "@border", cornerRadius = 8 },
+                { selectors = {"apSwitch", "on"}, bgcolor = "@accent" },
+                { selectors = {"apKnob"}, bgimage = true, bgcolor = "@fgMuted", cornerRadius = 6 },
+                { selectors = {"apKnob", "parent:on"}, bgcolor = "@fgStrong" },
+                { selectors = {"apLink"}, color = "@fgMuted" },
+                { selectors = {"apLink", "hover"}, color = "@fg" },
+                --only the Studio link's own label: "parent:hover" on every apLink
+                --also lit Stop all audio, whose parent (the footer) hovers too.
+                { selectors = {"apLinkPart", "parent:hover"}, color = "@fg" },
+                { selectors = {"apLinkIcon"}, bgcolor = "@fgMuted" },
+                { selectors = {"apLinkIcon", "parent:hover"}, bgcolor = "@fg" },
             },
             children = children,
         }
@@ -4678,7 +5318,7 @@ local function CreateTopBar()
                 thanks = "Your bug report has been submitted. Thank you!",
                 --shown alongside thanks when the ticket bridge exists: a bug
                 --report also opens a ticket the user can follow up on.
-                ticketInfo = "A ticket has been opened for your report. You can find it under Feedback > Your Tickets, where you can add details at any time. When a developer responds, a marker will appear on that menu.",
+                ticketInfo = "A ticket has been opened for your report. You can find it under Feedback -> Your Tickets. We find feedback very helpful in developing the app and our developers will review it soon. We may respond to your ticket if we need more information or when we close it, but not every report will be responded to. If your issue is urgent or you would like a response, then joining our Discord and asking about the issue is the best way to guarantee a human response. You can safely post your ticket ID in the Discord.",
             },
             feature = {
                 title = "Request a Feature",
@@ -4714,7 +5354,6 @@ local function CreateTopBar()
         local m_includeLog = isBugReport
         local m_includeScreenshot = false
         local m_allowGameEntry = true
-        local m_contactOnDiscord = true
         local m_mood = nil
 
         --the dialog is hosted in the gamehud modal stack in-game, or as a
@@ -4802,33 +5441,6 @@ local function CreateTopBar()
                 m_allowGameEntry = element.value
             end,
         }
-
-        --Discord follow-up: if the Discord desktop client is running we know the
-        --user's Discord handle and can offer to contact them about the report.
-        --Otherwise explain that we cannot follow up.
-        local discordSection
-        if report.discordUsername ~= nil then
-            discordSection = gui.Check{
-                text = "Contact me on Discord (" .. report.discordUsername .. ") to follow up on this report",
-                tooltip = "If checked, your Discord username is included with the report so a Codex developer can reach out to you about it. Leave unchecked to keep your Discord username private.",
-                value = m_contactOnDiscord,
-                halign = "left",
-                tmargin = 12,
-                change = function(element)
-                    m_contactOnDiscord = element.value
-                end,
-            }
-        else
-            discordSection = gui.Label{
-                fontSize = 15,
-                width = 880,
-                height = "auto",
-                textWrap = true,
-                halign = "left",
-                tmargin = 12,
-                text = "Discord isn't linked, so we won't be able to follow up with you about this report. Run the Discord app alongside Codex if you would like us to be able to reach out.",
-            }
-        end
 
         local m_attachmentsList = gui.Panel{
             width = "100%",
@@ -5049,7 +5661,6 @@ local function CreateTopBar()
                     includeLog = m_includeLog,
                     includeScreenshot = m_includeScreenshot,
                     allowGameEntry = m_allowGameEntry,
-                    contactOnDiscord = m_contactOnDiscord,
                     mood = m_mood,
                     attachments = m_attachments,
                     progress = function(ratio)
@@ -5200,7 +5811,6 @@ local function CreateTopBar()
         end
 
         formChildren[#formChildren + 1] = gameEntryCheck
-        formChildren[#formChildren + 1] = discordSection
 
         if screenshotSection ~= nil then
             formChildren[#formChildren + 1] = screenshotSection
@@ -7477,6 +8087,49 @@ local function CreateTopBar()
             end,
         },
 
+        --Every window on the table, checked while open; a player's also
+        --lists what the Director shared and has open, which they closed
+        --(Tabletop.WindowsMenuEntries).
+        CreateCodexMenuItem{
+            name = "Windows",
+            --a ping for a window this user has closed waits here: the dot
+            --shows, and the item rings as each ping arrives (Tabletop.lua,
+            --DefinePings).
+            data = {pingWaiting = false},
+            newContentCheck = function()
+                local tabletop = rawget(_G, "Tabletop")
+                return tabletop ~= nil and tabletop.HasWindowsMenuPing ~= nil and tabletop.HasWindowsMenuPing()
+            end,
+            calculateVisibility = function(element)
+                --only where there is a table (not the lobby). BarFitMenuDropped:
+                --this item owns its selfStyle.collapsed, as Developer below does.
+                --Audio.lua makes a bare Tabletop table before Tabletop.lua
+                --loads, so check for the function, not just the table.
+                local tabletop = rawget(_G, "Tabletop")
+                local active = tabletop ~= nil and tabletop.IsActive ~= nil and tabletop.IsActive()
+                element.selfStyle.collapsed = cond(active and not BarFitMenuDropped(element), 0, 1)
+                if active and tabletop.HasWindowsMenuPing ~= nil then
+                    tabletop.UpdateWindowsMenuPing(element)
+                    local waiting = tabletop.HasWindowsMenuPing()
+                    if waiting ~= element.data.pingWaiting then
+                        element.data.pingWaiting = waiting
+                        element:FireEventTree("refreshAlert")
+                    end
+                end
+            end,
+            menuItems = function()
+                local tabletop = rawget(_G, "Tabletop")
+                local items = {}
+                if tabletop ~= nil and tabletop.WindowsMenuEntries ~= nil then
+                    items = tabletop.WindowsMenuEntries()
+                end
+                if #items == 0 then
+                    items = {{text = "No windows on the table", disabled = true}}
+                end
+                return items
+            end,
+        },
+
         m_adventureDocumentsBar,
 
         CreateCodexMenuItem{
@@ -7560,12 +8213,14 @@ local function CreateTopBar()
                     }
                 end
 
-                items[#items+1] = {
-                    text = "Survey",
-                    click = function()
-                        CreateSurveyDialog()
-                    end,
-                }
+                --Survey is disabled for now. CreateSurveyDialog is kept for
+                --a future survey; re-add this item to bring it back:
+                --  items[#items+1] = {
+                --      text = "Survey",
+                --      click = function()
+                --          CreateSurveyDialog()
+                --      end,
+                --  }
 
                 return items
             end,

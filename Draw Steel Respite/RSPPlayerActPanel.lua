@@ -136,7 +136,7 @@ local function BuildActivityPane(selection)
             end
 
             element.children = {
-                paint{charid = entry.charid, owner = entry.owner},
+                paint{charid = entry.charid, owner = entry.owner, roster = RSPSession.Roster},
             }
         end,
     }
@@ -200,6 +200,33 @@ local function BuildActivityPane(selection)
         end,
     }
 
+    -- Every registered activity's own buttons, beside the sheet button and always there like it.
+    local actions = {}
+    local registry = rawget(_G, "RSPActivity")
+    if registry ~= nil then
+        for _, activity in ipairs(registry.All()) do
+            local paint = activity:try_get("playerActions")
+            if paint ~= nil then
+                actions[#actions + 1] = paint{
+                    selection = selection,
+                    host = function()
+                        return body:FindParentWithClass("rspShell")
+                    end,
+                }
+            end
+        end
+    end
+
+    local actionSlot = gui.Panel{
+        width = "auto",
+        height = "auto",
+        flow = "horizontal",
+        halign = "right",
+        valign = "center",
+        rmargin = RSPConstants.activityActionGap,
+        children = actions,
+    }
+
     picker = gui.Panel{
         classes = {"formRow"},
         width = "96%",
@@ -218,6 +245,7 @@ local function BuildActivityPane(selection)
         },
 
         dropdown,
+        actionSlot,
         sheetButton,
     }
 
@@ -249,6 +277,7 @@ local function BuildActivityPane(selection)
         -- for whoever that is now.
         selectionChanged = function()
             body:FireEventTree("showActivity", dropdown.idChosen)
+            actionSlot:FireEventTree("rspSelectionChanged")
         end,
 
         picker,
@@ -257,7 +286,7 @@ local function BuildActivityPane(selection)
 end
 
 --- @return Panel
-local function BuildWorkingArea()
+local function BuildMineArea()
     -- Which row the player is looking at. This is one player's view of their
     -- own window, not part of the Respite, so it never reaches the document.
     local list
@@ -352,6 +381,312 @@ local function BuildWorkingArea()
         },
 
         pane,
+    }
+end
+
+--- One line of the Watch record, built empty and handed its entry by position.
+--- @return Panel
+local function BuildRecordRow()
+    local size = RSPConstants.recordPortraitSize
+
+    -- A slot rather than the portrait itself: the image is remade only when the actor changes.
+    local portrait = gui.Panel{
+        width = size,
+        height = size,
+        halign = "left",
+        valign = "center",
+        rmargin = 6,
+        data = {
+            charid = nil,
+        },
+    }
+
+    local label = gui.Label{
+        classes = {"sizeS", "noBold", "fg"},
+        width = "100%-" .. tostring(size + RSPConstants.eventIconSize + 12),
+        height = "auto",
+        halign = "left",
+        valign = "center",
+        textWrap = true,
+        text = "",
+    }
+
+    local icon = gui.Panel{
+        classes = {"hidden"},
+        bgimage = RSPConstants.iconAttention,
+        width = RSPConstants.eventIconSize,
+        height = RSPConstants.eventIconSize,
+        halign = "left",
+        valign = "center",
+        lmargin = 6,
+        data = {
+            image = RSPConstants.iconAttention,
+        },
+    }
+
+    return gui.Panel{
+        classes = {"collapsed"},
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        halign = "left",
+        vmargin = 2,
+
+        setEntry = function(element, entry)
+            element:SetClass("collapsed", entry == nil)
+            if entry == nil then
+                return
+            end
+
+            if portrait.data.charid ~= entry.charid then
+                portrait.data.charid = entry.charid
+                local token = entry.charid ~= nil and dmhub.GetCharacterById(entry.charid) or nil
+                portrait.children = token == nil and {} or {
+                    gui.CreateTokenImage(token, {
+                        width = size,
+                        height = size,
+                        halign = "center",
+                        valign = "center",
+                    }),
+                }
+            end
+
+            local good = entry.tone == RSPConstants.toneGood
+            local alert = entry.tone == RSPConstants.toneAlert
+
+            icon:SetClass("hidden", not (good or alert))
+            icon:SetClass("rspEventGood", good)
+            icon:SetClass("rspEventAlert", alert)
+            local image = good and RSPConstants.iconComplete or RSPConstants.iconAttention
+            if icon.data.image ~= image then
+                icon.data.image = image
+                icon.bgimage = image
+            end
+
+            label:SetClass("success", good)
+            label:SetClass("warning", alert)
+            label:SetClass("fg", not (good or alert))
+            if label.text ~= entry.text then
+                label.text = entry.text
+            end
+        end,
+
+        portrait,
+        label,
+        icon,
+    }
+end
+
+--- The Watch view: everything the players on the Respite have done, newest first.
+--- Each activity reports its own lines; the Respite only merges them by time.
+--- @return Panel
+local function BuildPartyRecord()
+    local m_shown = false
+    local rows
+    local empty
+    local watchers
+
+    --- @return table[] entries newest first
+    local function RecordEntries()
+        local entries = {}
+        local args = {
+            roster = RSPSession.Roster,
+            since = RSPSession.StartedAt,
+        }
+
+        for _, activity in ipairs(AvailableActivities()) do
+            local record = activity:try_get("partyRecord")
+            if record ~= nil then
+                for _, entry in ipairs(record(args) or {}) do
+                    entries[#entries + 1] = {
+                        at = entry.at or 0,
+                        text = string.format("%s: %s", activity.name, entry.text or ""),
+                        charid = entry.charid,
+                        tone = entry.tone,
+                        order = #entries + 1,
+                    }
+                end
+            end
+        end
+
+        -- Lines stamped together keep the order their activity gave them.
+        table.sort(entries, function(a, b)
+            if a.at ~= b.at then
+                return a.at > b.at
+            end
+            return a.order > b.order
+        end)
+
+        return entries
+    end
+
+    --- @return string[] paths
+    local function WatchPaths()
+        local paths = {}
+        local args = {
+            roster = RSPSession.Roster,
+        }
+
+        for _, activity in ipairs(AvailableActivities()) do
+            local watch = activity:try_get("partyWatch")
+            if watch ~= nil then
+                for _, path in ipairs(watch(args) or {}) do
+                    paths[#paths + 1] = path
+                end
+            end
+        end
+
+        return paths
+    end
+
+    local function Bind()
+        if not m_shown or rows == nil or not rows.valid then
+            return
+        end
+
+        local entries = RecordEntries()
+        local pool = rows.children
+
+        if #pool < #entries then
+            local grown = {}
+            for i, row in ipairs(pool) do
+                grown[i] = row
+            end
+            for i = #pool + 1, #entries do
+                grown[i] = BuildRecordRow()
+            end
+            rows.children = grown
+            pool = grown
+        end
+
+        for i, row in ipairs(pool) do
+            row:FireEvent("setEntry", entries[i])
+        end
+
+        empty:SetClass("collapsed", #entries > 0)
+        watchers:FireEvent("rewatch")
+    end
+
+    rows = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        halign = "left",
+        valign = "top",
+    }
+
+    empty = gui.Label{
+        classes = {"sizeS", "noBold", "fgMuted", "collapsed"},
+        width = "100%",
+        height = "auto",
+        halign = "left",
+        tmargin = 4,
+        text = "Nothing yet this Respite.",
+    }
+
+    watchers = RSPWidgets.Watchers{
+        paths = WatchPaths,
+        changed = Bind,
+    }
+
+    -- Scrolls inside the bordered pane for the same reason the Director's feed does.
+    local scroller = gui.Panel{
+        width = RSPConstants.feedScrollWidth,
+        height = RSPConstants.feedScrollHeight,
+        flow = "vertical",
+        halign = "left",
+        valign = "center",
+        vscroll = true,
+
+        gui.Panel{
+            width = RSPConstants.feedSectionWidth,
+            height = "auto",
+            flow = "vertical",
+            halign = "left",
+            lmargin = RSPConstants.feedSectionInset,
+            vmargin = 6,
+
+            empty,
+            rows,
+        },
+    }
+
+    return gui.Panel{
+        classes = {"bordered", "collapsed"},
+        width = "100%",
+        height = RSPConstants.feedPaneHeight,
+        flow = "vertical",
+        halign = "left",
+        valign = "top",
+
+        showRecord = function(element, shown)
+            m_shown = shown
+            element:SetClass("collapsed", not shown)
+            Bind()
+        end,
+
+        respiteChanged = function()
+            Bind()
+        end,
+
+        watchers,
+        scroller,
+    }
+end
+
+local VIEW_ACT = "act"
+local VIEW_WATCH = "watch"
+
+--- The step's working area: the Act | Watch toggle over whichever view it picks.
+--- Both views are built once and the toggle collapses one, as the shell does steps.
+--- @return Panel
+local function BuildWorkingArea()
+    local mine = BuildMineArea()
+    local record = BuildPartyRecord()
+
+    local selector = gui.EnumeratedSliderControl{
+        width = RSPConstants.viewSelectorWidth,
+        halign = "left",
+        valign = "center",
+        options = {
+            {id = VIEW_ACT, text = "Act"},
+            {id = VIEW_WATCH, text = "Watch"},
+        },
+        value = VIEW_ACT,
+        change = function(element)
+            local watching = element.value == VIEW_WATCH
+            mine:SetClass("collapsed", watching)
+            record:FireEvent("showRecord", watching)
+        end,
+    }
+
+    return gui.Panel{
+        width = "100%",
+        height = "100%",
+        flow = "vertical",
+        halign = "left",
+        valign = "top",
+
+        gui.Panel{
+            width = "100%",
+            height = RSPConstants.viewSelectorRowHeight,
+            flow = "horizontal",
+            halign = "left",
+            valign = "top",
+
+            selector,
+        },
+
+        gui.Panel{
+            width = "100%",
+            height = RSPConstants.viewBodyHeight,
+            flow = "vertical",
+            halign = "left",
+            valign = "top",
+
+            mine,
+            record,
+        },
     }
 end
 

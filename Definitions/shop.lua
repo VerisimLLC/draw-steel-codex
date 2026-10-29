@@ -52,6 +52,17 @@ function shop:AdminSetGiftCodeNote(code, note) end
 --- @param data {itemid: string, [string]: any} Table containing at least an itemid field.
 function shop:AdminCreateGiftCode(code, data) end
 
+--- ADMIN TESTING AID. Grants the current account one instance of the given shop item, written straight into its inventory with no purchase. The instance carries adminGrant = true so it can be told apart from a real purchase. Admin accounts only. onComplete(ok, error) is called when the write finishes or is refused.
+--- @param itemid string The shop item id to grant.
+--- @param onComplete nil|fun(ok: boolean, error: nil|string)
+function shop:AdminGrantItem(itemid, onComplete) end
+
+--- ADMIN TESTING AID. Removes from the current account's inventory every instance of the given shop item that is recorded there directly (bought, redeemed, granted). Admin accounts only. Returns how many instances are being deleted: 0 when the item is not held directly, e.g. when it is owned only through a bundle (remove the bundle instead). onComplete() is called once every delete has finished; the inventory refresh that follows shows the result.
+--- @param itemid string The shop item id to remove.
+--- @param onComplete nil|fun()
+--- @return number
+function shop:AdminRemoveItem(itemid, onComplete) end
+
 --- Creates and returns an AdminCouponMonitor that watches for gift codes associated with the given item ID.
 --- @param itemid string The item ID to monitor gift codes for.
 --- @return AdminCouponMonitor

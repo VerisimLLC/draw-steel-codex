@@ -1153,6 +1153,7 @@ GoblinScriptProse.eventProse = {
     fallenon          = "when a creature lands on {subject}",
     creaturedeath     = "when {subject} die{s}",
     zerohitpoints     = "when {subject} drop{s} to 0 stamina",
+    objectdestroyed   = "when {subject} {is} destroyed",
     gaintempstamina   = "when {subject} gain{s} temporary stamina",
     kill              = "when {subject} kill{s} a creature",
     saveagainstdamage = "when {subject} make{s} a reactive roll against damage",
@@ -1191,6 +1192,7 @@ GoblinScriptProse.eventProse = {
     endrespite        = "when {subject} end{s} a respite",
     endturn           = "at the end of {subject-possessive} turn",
     beginround        = "at the start of each round",
+    endround          = "at the end of each round",
     startrespite      = "when {subject} start{s} a respite",
 
     -- Custom band

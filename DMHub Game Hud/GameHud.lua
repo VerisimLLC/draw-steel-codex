@@ -1584,6 +1584,11 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 	local m_presentDialogParentElement = nil
 	local m_presentDialogUpdateTime = nil
 
+	--A map dialog this client presented, until its echo brings the server
+	--timestamp: then it is noted shown, so the tabletop late-dialog path
+	--never replays this client's own presentation (the "Draw Steel" banner).
+	local m_ownMapPresentation = nil
+
     local m_recordedPopup = nil
 
 	local parentPanel = gui.Panel({
@@ -1619,6 +1624,10 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 				m_presentedDialogArgs = {dialog = dialog, args = args}
 
                 local args = DeepCopy(m_presentedDialogArgs)
+                m_ownMapPresentation = nil
+                if type(args.args) == "table" and args.args.mapid ~= nil then
+                    m_ownMapPresentation = DeepCopy(args)
+                end
 
                 local dialogInfo = g_presentableDialogs[dialog]
                 if dialogInfo ~= nil and not dialogInfo.keeplocal then
@@ -1663,7 +1672,18 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 				end
 
 				if data.dialog ~= nil then
-                    if data.dialog.args.ttl ~= nil and TimestampAgeInSeconds(data.timestamp) > data.dialog.args.ttl then
+                    --the timestamp is a placeholder string until the server echo.
+                    if m_ownMapPresentation ~= nil and type(data.timestamp) == "number"
+                            and dmhub.DeepEqual(m_ownMapPresentation, data.dialog) then
+                        Tabletop.NoteMapDialogShown(data)
+                        m_ownMapPresentation = nil
+                    end
+
+                    --past its ttl a dialog is dropped -- unless it is one for a map
+                    --this client never showed because no window showed the map
+                    --(the tabletop view): it waits for that map's window instead.
+                    if data.dialog.args.ttl ~= nil and TimestampAgeInSeconds(data.timestamp) > data.dialog.args.ttl
+                            and not Tabletop.ShowLateMapDialog(data) then
                         return
 					end
 
@@ -1671,19 +1691,45 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
                         return
                     end
 
+                    --A dialog presented for one map (the "Draw Steel" banner) opens
+                    --over that map, inside its map window; with no window
+                    --showing the map, wait for one.
+                    local mapHost = nil
+                    if data.dialog.args.mapid ~= nil then
+                        mapHost = Tabletop.MapOverlayHost()
+                        if mapHost == nil then
+                            return
+                        end
+                    end
+
 					if m_presentedDialog ~= nil and m_presentedDialog.valid and dmhub.DeepEqual(m_presentedDialogArgs, data.dialog) then
 						return
 					end
 
 					m_presentedDialogArgs = DeepCopy(data.dialog)
+                    if data.dialog.args.mapid ~= nil then
+                        Tabletop.NoteMapDialogShown(data)
+                    end
                     local dialogInfo = g_presentableDialogs[m_presentedDialogArgs.dialog]
                     if dialogInfo ~= nil then
                         m_presentedDialog = dialogInfo.create(m_presentedDialogArgs.args)
                         if m_presentedDialog ~= nil then
-                            GameHud.instance.documentsPanel:AddChild(m_presentedDialog)
+                            --on the documents layer it shares the layer with the map
+                            --windows; the class keeps it above a maximized map, which
+                            --can be built after it (PanelDocument.ABOVE_MAP_WINDOWS).
+                            if mapHost == nil then
+                                m_presentedDialog:SetClass("presentedDialog", true)
+                            end
+                            (mapHost or GameHud.instance.documentsPanel):AddChild(m_presentedDialog)
                         end
 					elseif LaunchablePanel.LaunchPanelByName(data.dialog.dialog, data.dialog.args) then
 						m_presentedDialog = gui.GetFocus()
+						--a launched panel opens over the screen; one presented for a map
+						--(the "Draw Steel" banner) moves into that map's window.
+						if mapHost ~= nil and m_presentedDialog ~= nil and m_presentedDialog.valid then
+							m_presentedDialog:Unparent()
+							mapHost:AddChild(m_presentedDialog)
+						end
 					else
 						--panels that used to be launchable are dockable now;
 						--a remote request to present one by name still has to
@@ -1820,12 +1866,19 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 		},
 
 		children = {
+			--bottom of the stack: the table (Tabletop.lua).
+			Tabletop.CreateLayer(),
+
             gamehud:CreateAdventureDocumentsManager(),
-		    gamehud:CreateInitiativeBar(tokenInfo),
-			gamehud:CreateShapesLayer(),
+			--initiative is per map: the bar moves into the live map window
+			--(Tabletop.MapHudSlot). The Director's Shapes overlay is drawn in
+			--that window too (#ShapesView), not over the whole screen.
+		    Tabletop.MapHudSlot(gamehud:CreateInitiativeBar(tokenInfo)),
+			--the Director's pre-combat bar for an encounter in prep, in the
+			--initiative bar's place until Draw Steel (EncounterPrep.lua).
+		    Tabletop.MapHudSlot(gamehud:CreateEncounterPrepBar()),
 
 			gamehud:RequireRollListenerPanel(),
-			FullscreenDisplay.Create{belowui = true},
 			--gamehud:CreateSidePanel(),
 			--gamehud:CreateSessionsPanel(),
 			--gamehud:CreateChatPanel(),
@@ -1844,7 +1897,21 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 			--Documents now come first, putting the roll UI above floating windows
 			--while still leaving it below mainDialog / modal / popup / rollDialog,
 			--so modals and the dice dialog continue to win.
+			--the Director's Screen: a band down the right of the table, under
+			--the windows that lie on it (DirectorScreen.lua).
+			DirectorScreen.CreateLayer(),
 			gamehud:CreateDocumentsPanel(),
+			--minimized tabletop map windows float on the table over the
+			--windows and journals (Tabletop.lua).
+			Tabletop.CreateButtonLayer(),
+			--the Director's Screen's tab and drop hint, over the windows.
+			DirectorScreen.CreateTabLayer(),
+			--3D dice resting on the table: the Director's dice button and the
+			--dice sync (TableDice.lua; the dice themselves draw in the engine).
+			(rawget(_G, "TableDice") ~= nil and TableDice.CreateLayer()) or gui.Panel{width = 1, height = 1, interactable = false},
+			--mode banners (e.g. the encounter builder's staging banner) sit over
+			--every window, so click-to-front on a map window cannot bury them.
+			gamehud:CreateBannerLayer(),
 
 			--The action bar sits ABOVE the documents layer for the same reason.
 			--Everything the bar floats out of its strip -- the drawer menus, the
@@ -1872,6 +1939,7 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 			gamehud:CreateReactionBar(dialog, tokenInfo),
             gamehud:CreateAbilityDisplayPanel(),
             gamehud:CreateStandaloneRollHost(),
+            gamehud:CreateGroupRollBoardLayer(),
 			mainDialogPanel,
 			gamehud.shopPanel,
 			gamehud:ModalDialogPanel(),
@@ -1879,7 +1947,12 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 			gamehud:CreateRollResultPanel(),
 			gamehud.rollDialog,
 
-			FullscreenDisplay.Create{belowui = false},
+			FullscreenDisplay.Create{aboveui = true},
+			--a maximized map or scene window's strip under the app title bar:
+			--chrome, so it is over everything the windows can be under.
+			Tabletop.CreateChromeLayer(),
+			--the Ctrl+Tab window switcher's cards, over every window and the strip.
+			WindowSwitcher.CreateLayer(),
 
 			DramaticBanner.Create(),
 
@@ -1896,6 +1969,10 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 	})
 
 	gamehud.parentPanel = parentPanel
+
+	--the scene display not shown over all the UI lies among the windows, as a
+	--maximized map does (FullscreenDisplay.Create).
+	gamehud.documentsPanel:AddChild(FullscreenDisplay.Create{aboveui = false})
 
 	dialog.sheet = parentPanel
 
@@ -2055,6 +2132,12 @@ end
 
 --Stub overridden by Timeline\AbilitySidebar.lua.
 function GameHud:InitStandaloneRollHost(panel)
+end
+
+--The board everyone sees while a group of creatures rolls against one ability
+--(e.g. resistance rolls). Stub overridden by Draw Steel UI\DSRequestRollsDialog.lua.
+function GameHud:CreateGroupRollBoardLayer()
+    return gui.Panel{width = 1, height = 1, interactable = false}
 end
 
 --return the presented dialog doc, if it exists and matches the given dialogid.
@@ -2297,6 +2380,21 @@ function GameHud:CreatePopupPanel()
 	}
 
 	return self.popupPanel
+end
+
+--The layer just above the documents (window) layer, for banners that show
+--a mode the user is in. Windows raise themselves within their own layer on
+--press, so a banner in the documents layer could end up under a map window;
+--one here cannot. It has no image, so it takes no mouse when empty.
+function GameHud:CreateBannerLayer()
+	self.bannerLayer = gui.Panel{
+		id = "hudBannerLayer",
+		width = "100%",
+		height = "100%",
+		interactable = false,
+	}
+
+	return self.bannerLayer
 end
 
 function GameHud:CreateFrozenLabel()
@@ -2580,6 +2678,8 @@ Tip.Register{
 		if q ~= nil and not q.hidden then return false end
 		local sel = dmhub.selectedTokens
 		if sel == nil or #sel ~= 1 then return false end
+		--(a creature selected off the board, a tabletop card's, has no token here.)
+		if not sel[1].onBoard then return false end
 		return true
 	end,
 	whenShown = function(state)
@@ -2631,6 +2731,7 @@ Tip.Register{
 		if dmhub.frozen then return false end
 		local sel = dmhub.selectedTokens
 		if sel == nil or #sel ~= 1 then return false end
+		if not sel[1].onBoard then return false end
 		local tok = sel[1]
 		local lightId = tok.properties:GetEquippedLightSource()
 		if lightId == nil then return false end
@@ -2705,6 +2806,7 @@ Tip.Register{
 	eligible = function()
 		local sel = dmhub.selectedTokens
 		if sel == nil or #sel ~= 1 then return false end
+		if not sel[1].onBoard then return false end
 		local tok = sel[1]
 		if tok.properties == nil then return false end
 		if tok.properties:GetCompanionType() == nil then return false end
@@ -2757,30 +2859,14 @@ function GameHud:CreateTipBanner()
 	}
 
 	--Floating so it pins to the right edge regardless of sibling layout.
-	local dismissButton = gui.Label{
+	local dismissButton = gui.Button{
 		id = "tipBannerDismiss",
-		classes = {"tipBannerContent", "sizeS"},
+		classes = {"tipBannerContent", "sizeM"},
 		text = "Dismiss",
-		color = "white",
-		fontSize = 14,
-		bold = true,
-		width = "auto",
-		height = "auto",
 		floating = true,
 		halign = "right",
 		valign = "center",
 		hmargin = 24,
-		styles = {
-			{
-				selectors = {"hover"},
-				color = "#ffe39a",
-				brightness = 1.1,
-			},
-			{
-				selectors = {"press"},
-				brightness = 0.7,
-			},
-		},
 		press = function(element)
 			GameHud.instance:HideTip()
 		end,
@@ -2788,34 +2874,16 @@ function GameHud:CreateTipBanner()
 
 	--A notice's extra button (e.g. "Select Shadow"), pinned to the left edge
 	--opposite Dismiss. Collapsed unless the notice's controls ask for it.
-	local actionButton = gui.Label{
+	local actionButton = gui.Button{
 		id = "tipBannerAction",
-		classes = {"tipBannerContent", "sizeS", "collapsed"},
+		classes = {"tipBannerContent", "sizeM", "collapsed"},
 		text = "",
-		color = "white",
-		fontSize = 14,
-		bold = true,
-		width = "auto",
-		height = "auto",
-		maxWidth = 150,
-		textWrap = true,
 		floating = true,
 		halign = "left",
 		valign = "center",
 		hmargin = 24,
 		--action: the {text, press} currently shown, set by _ApplyTipControls.
 		data = {},
-		styles = {
-			{
-				selectors = {"hover"},
-				color = "#ffe39a",
-				brightness = 1.1,
-			},
-			{
-				selectors = {"press"},
-				brightness = 0.7,
-			},
-		},
 		press = function(element)
 			local action = element.data.action
 			if action ~= nil then
@@ -3024,7 +3092,7 @@ function GameHud:_TipFindNotice()
 end
 
 --Notice half of the driver tick. Returns true when a notice owns the
---banner this tick (shown, dismissed, or blocked by a dialog), in which case
+--banner this tick (shown or dismissed), in which case
 --the tip half must not run.
 function GameHud:_TipDriverNoticeTick()
 	local notice, noticeText, noticeControls = self:_TipFindNotice()
@@ -3043,10 +3111,13 @@ function GameHud:_TipDriverNoticeTick()
 		self._tipLastScan = nil
 	end
 
+	--Unlike tips, an open dialog does not hold a notice back: it is live game
+	--status ("Waiting for Shadow's ..."), and an open character window (a
+	--journalViewer, often covered by the maximized map) once hid it.
 	local dismissed = self:try_get("_noticeDismissed")
 	local isDismissed = dismissed ~= nil and dismissed.id == notice.id
 		and dismissed.text == noticeText
-	if isDismissed or self:_TipIsBlockedByDialog() then
+	if isDismissed then
 		if activeNotice ~= nil then
 			self:_HideNoticeBanner()
 		end

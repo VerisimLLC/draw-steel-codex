@@ -97,14 +97,17 @@ AudioDevPanel = function()
         width = "100%",
         height = "100%",
 
+        --Refreshes at once, then once a second. This used to compare against
+        --audio.nUpdateSeq, but that is a static C# field the binder never
+        --exposes, so it always read nil and this polling was all that ran.
         data = {
-            seq = -1,
+            refreshed = false,
         },
 
         thinkTime = 0.1,
         think = function(element)
             m_count = m_count + 1
-            if element.data.seq == audio.nUpdateSeq and (m_count < 10) then
+            if element.data.refreshed and (m_count < 10) then
                 return
             end
 
@@ -113,7 +116,7 @@ AudioDevPanel = function()
         end,
 
         refreshAudioDev = function(element)
-            element.data.seq = audio.nUpdateSeq
+            element.data.refreshed = true
             print("AudioDev: REFRESH")
         end,
 

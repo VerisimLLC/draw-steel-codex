@@ -557,6 +557,13 @@ local CreateBestiaryNode
 --character panels selected beyond the focused one.
 local characterPanelsSelected = {}
 
+--While a party header is dragged, the party's members ARE the selection:
+--the engine (map placement, table cards) and the chat read them through
+--dmhub.GetSelectedCharacters. Members of a collapsed party have no row
+--panels, so this cannot be done by selecting rows.
+---@type string[]|nil
+local g_draggedPartyCharids = nil
+
 dmhub.GetSelectedMonster = function()
     if gui.GetFocus() == nil or (not gui.GetFocus().data.monsterid) then
         return nil
@@ -576,12 +583,22 @@ dmhub.GetSelectedMonster = function()
 end
 
 dmhub.GetSelectedCharacters = function()
+    if g_draggedPartyCharids ~= nil then
+        return g_draggedPartyCharids
+    end
+
     if gui.GetFocus() == nil or (not gui.GetFocus().data.charid) then
         return {}
     end
 
     local result = {}
     result[#result + 1] = gui.GetFocus().data.charid
+
+    --a tabletop card being dragged onto a map places just its own character,
+    --not the rows selected in this panel (Tabletop.lua).
+    if gui.GetFocus().data.tabletopCard then
+        return result
+    end
 
     for _, p in ipairs(characterPanelsSelected) do
         if p.valid and p.data.charid then
@@ -632,13 +649,108 @@ local BestiaryPanelHeight = 24
 --bestiary in one frame.
 local MaxBestiarySearchResults = 40
 
+--Bestiary extensions: other modules add to the bestiary's monster rows
+--without the bestiary knowing about them (the Encounter of the Week
+--monster assessment is one). Each part is optional:
+--  visible()                 -> boolean; the extension is skipped while false
+--  rowBadge(monsterid)       -> Panel|nil; a small (10x10) panel shown left of
+--                               the automation diamond. Built once with the
+--                               row; it keeps itself current on refreshAssets.
+--  entryHeader(monsterid)    -> Panel|nil; shown above the stat block in the
+--                               row's hover view
+--  menuItems(monsterid)      -> {text, click}[] for the row's right-click menu
+--  searchPrefix, searchMatches(value, monsterid) -> boolean; a search word
+--                               "<searchPrefix><value>" (e.g. "ai:avoid")
+--                               keeps only the monsters it accepts
+--- @class BestiaryExtension
+--- @field id string
+--- @field visible? fun(): boolean
+--- @field rowBadge? fun(monsterid: string): Panel|nil
+--- @field entryHeader? fun(monsterid: string): Panel|nil
+--- @field menuItems? fun(monsterid: string): {text: string, click: fun()}[]
+--- @field searchPrefix? string
+--- @field searchMatches? fun(value: string, monsterid: string): boolean
+
+---@type BestiaryExtension[]
+local g_bestiaryExtensions = {}
+
+--- Add (or, with the same id, replace) a bestiary extension. See above.
+--- @param args BestiaryExtension
+function CharacterPanel.RegisterBestiaryExtension(args)
+    for i, existing in ipairs(g_bestiaryExtensions) do
+        if existing.id == args.id then
+            g_bestiaryExtensions[i] = args
+            return
+        end
+    end
+    g_bestiaryExtensions[#g_bestiaryExtensions + 1] = args
+end
+
+--- @return BestiaryExtension[]
+local function ActiveBestiaryExtensions()
+    local result = {}
+    for _, ext in ipairs(g_bestiaryExtensions) do
+        local ok, visible = pcall(function() return ext.visible == nil or ext.visible() end)
+        if ok and visible then
+            result[#result + 1] = ext
+        end
+    end
+    return result
+end
+
+--A node's search match, honoring extension search words: "ai:avoid goblin"
+--hands "avoid" to the extension registered for "ai:" and matches "goblin"
+--as usual. Folders never match on their own while such a word is present,
+--so a search shows only the monsters inside them that qualify.
+local function NodeMatchesSearch(node, text)
+    if not string.find(text, ":", 1, true) then
+        return node:MatchesSearch(text)
+    end
+
+    local filters = {}
+    local rest = {}
+    local extensions = ActiveBestiaryExtensions()
+    for word in string.gmatch(text, "%S+") do
+        local claimed = false
+        for _, ext in ipairs(extensions) do
+            local prefix = ext.searchPrefix
+            if prefix ~= nil and ext.searchMatches ~= nil
+                and string.lower(string.sub(word, 1, #prefix)) == string.lower(prefix) then
+                filters[#filters + 1] = { ext = ext, value = string.sub(word, #prefix + 1) }
+                claimed = true
+                break
+            end
+        end
+        if not claimed then
+            rest[#rest + 1] = word
+        end
+    end
+
+    if #filters == 0 then
+        return node:MatchesSearch(text)
+    end
+    if node.folder ~= nil or node.monster == nil then
+        return false
+    end
+    if #rest > 0 and not node:MatchesSearch(table.concat(rest, " ")) then
+        return false
+    end
+    for _, filter in ipairs(filters) do
+        local ok, matches = pcall(filter.ext.searchMatches, filter.value, node.id)
+        if not ok or not matches then
+            return false
+        end
+    end
+    return true
+end
+
 --Data-level search over a bestiary subtree: true if the node or any
 --non-hidden descendant matches. Lets a search decide whether a
 --collapsed, not-yet-built folder contains anything it needs to show
 --without building panels to find out.
 local NodeSubtreeMatchesSearch
 NodeSubtreeMatchesSearch = function(node, text)
-    if node:MatchesSearch(text) then
+    if NodeMatchesSearch(node, text) then
         return true
     end
 
@@ -702,6 +814,38 @@ IsMonsterNodeSelfOrChildOf = function(nodeid, childid)
     return IsMonsterNodeSelfOrChildOf(nodeid, node.parentNode)
 end
 
+--Files node into the folder targetNode (id targetId) at targetOrd, shifting
+--later siblings down. targetOrd nil = append after the folder's last child.
+local function MoveNodeInto(node, targetId, targetNode, targetOrd, refreshType)
+    if targetOrd == nil then
+        local maxOrd = 0
+        for i, v in ipairs(targetNode.children) do
+            if v ~= node and v.ord > maxOrd then
+                maxOrd = v.ord
+            end
+        end
+
+        targetOrd = maxOrd + 1
+    end
+
+    for i, v in ipairs(targetNode.children) do
+        local newOrd = v.ord
+        if newOrd >= targetOrd then
+            newOrd = newOrd + 1
+        end
+
+        if v ~= node and v.ord ~= newOrd then
+            v.ord = newOrd
+            v:Upload()
+        end
+    end
+
+    node.parentNode = targetId
+    node.ord = targetOrd
+    node:Upload()
+    assets:RefreshAssets(refreshType)
+end
+
 --function which is used when we drag monsters around the bestiary.
 mod.shared.CreateDragTargetFunction = function(node, getNodeFunction, refreshType)
     return function(element, target)
@@ -720,35 +864,7 @@ mod.shared.CreateDragTargetFunction = function(node, getNodeFunction, refreshTyp
             return
         end
 
-        local targetOrd = target.data.ord
-
-        if targetOrd == nil then
-            local maxOrd = 0
-            for i, v in ipairs(targetNode.children) do
-                if v ~= node and v.ord > maxOrd then
-                    maxOrd = v.ord
-                end
-            end
-
-            targetOrd = maxOrd + 1
-        end
-
-        for i, v in ipairs(targetNode.children) do
-            local newOrd = v.ord
-            if newOrd >= targetOrd then
-                newOrd = newOrd + 1
-            end
-
-            if v ~= node and v.ord ~= newOrd then
-                v.ord = newOrd
-                v:Upload()
-            end
-        end
-
-        node.parentNode = target.data.nodeid
-        node.ord = targetOrd
-        node:Upload()
-        assets:RefreshAssets(refreshType)
+        MoveNodeInto(node, target.data.nodeid, targetNode, target.data.ord, refreshType)
     end
 end
 
@@ -857,6 +973,7 @@ local function CharacterDetailsPanel(token)
 
     local m_characterPanel = CharacterPanel.CreateCharacterDetailsPanel(token)
 
+    local resultPanel
     resultPanel = gui.Panel {
         width = "100%",
         height = "auto",
@@ -966,6 +1083,10 @@ local function CreateMonsterEntry(nodeid, startHidden)
     ---@type Panel
     local resultPanel = nil
 
+    --a drop on a bestiary folder moves this entry into it.
+    local dropOnFolder = mod.shared.CreateDragTargetFunction(node, function(nodeid) return assets:GetMonsterNode(nodeid) end,
+        "Monsters")
+
     --novel-content pip: lit while this monster is recorded as novel
     --(added or updated by a module install). Viewing the monster --
     --focusing its row or lingering for the stat block -- dismisses the
@@ -986,6 +1107,79 @@ local function CreateMonsterEntry(nodeid, startHidden)
         end
         novelContentAlert = nil
         m_pipRetained = false
+    end
+
+    --The hover view: the monster's stat block, under any headers bestiary
+    --extensions add (RegisterBestiaryExtension).
+    local function BuildEntryView(monsterEntry)
+        local lockedHeight = math.floor(dmhub.screenDimensionsBelowTitlebar.y * 0.6)
+        --Reserved gutter: a vscroll panel lays its children out at the
+        --panel's FULL width, but once the content overflows the
+        --scrollbar appears and the scroll viewport shrinks by the
+        --scrollbar's width -- so the last few pixels of every child get
+        --masked off. The stat block right-aligns its header text
+        --("Level 6 Elite Controller", "EV 32", "Free Strike") to 100%
+        --width, so it was the visible casualty. borderBox keeps the
+        --padding inside the declared 800 rather than widening the panel.
+        local statBlock = monsterEntry:Render {
+            width = 800,
+            maxHeight = lockedHeight,
+            vscroll = true,
+            rpad = 12,
+            borderBox = true,
+        }
+        if statBlock == nil then
+            return nil
+        end
+
+        local children = {}
+        for _, ext in ipairs(ActiveBestiaryExtensions()) do
+            if ext.entryHeader ~= nil then
+                local ok, header = pcall(ext.entryHeader, nodeid)
+                if ok and header ~= nil then
+                    children[#children + 1] = header
+                elseif not ok then
+                    print("BESTIARY:: entry header failed for", ext.id, header)
+                end
+            end
+        end
+        if #children == 0 then
+            return statBlock
+        end
+        children[#children + 1] = statBlock
+        return gui.Panel {
+            flow = "vertical",
+            width = "auto",
+            height = "auto",
+            children = children,
+        }
+    end
+
+    --Badges from bestiary extensions, built once with the row; each keeps
+    --itself current.
+    local extensionBadges = {}
+    for _, ext in ipairs(ActiveBestiaryExtensions()) do
+        if ext.rowBadge ~= nil then
+            local ok, badge = pcall(ext.rowBadge, nodeid)
+            if ok and badge ~= nil then
+                badge:SetClass("bestiaryBadge", true)
+                extensionBadges[#extensionBadges + 1] = badge
+            end
+        end
+    end
+    --in a row just left of the implementation diamond.
+    local extensionBadgeRow = nil
+    if #extensionBadges > 0 then
+        extensionBadgeRow = gui.Panel {
+            floating = true,
+            halign = "right",
+            valign = "center",
+            x = -28,
+            width = "auto",
+            height = "auto",
+            flow = "horizontal",
+            children = extensionBadges,
+        }
     end
 
     --"Level 3 Elite Brute" style summary line: the monster's level plus its
@@ -1092,12 +1286,14 @@ local function CreateMonsterEntry(nodeid, startHidden)
 
             --render a tooltip of the monster.
             linger = function(element)
-                --If the cursor is on the implementation-status diamond, its own
-                --tooltip is showing; don't replace it with the stat block.
-                local diamond = element:FindChildRecursive(function(p)
-                    return p:HasClass("implementationDiamond")
+                --If the cursor is on the implementation-status diamond or an
+                --extension badge, its own tooltip is showing; don't replace it
+                --with the stat block.
+                local badge = element:FindChildRecursive(function(p)
+                    return (p:HasClass("implementationDiamond") or p:HasClass("bestiaryBadge"))
+                        and p:HasClass("hover")
                 end)
-                if diamond ~= nil and diamond:HasClass("hover") then
+                if badge ~= nil then
                     return
                 end
 
@@ -1110,22 +1306,7 @@ local function CreateMonsterEntry(nodeid, startHidden)
                     return
                 end
 
-                local lockedHeight = math.floor(dmhub.screenDimensionsBelowTitlebar.y * 0.6)
-                --Reserved gutter: a vscroll panel lays its children out at the
-                --panel's FULL width, but once the content overflows the
-                --scrollbar appears and the scroll viewport shrinks by the
-                --scrollbar's width -- so the last few pixels of every child get
-                --masked off. The stat block right-aligns its header text
-                --("Level 6 Elite Controller", "EV 32", "Free Strike") to 100%
-                --width, so it was the visible casualty. borderBox keeps the
-                --padding inside the declared 800 rather than widening the panel.
-                local panel = monsterEntry:Render {
-                    width = 800,
-                    maxHeight = lockedHeight,
-                    vscroll = true,
-                    rpad = 12,
-                    borderBox = true,
-                }
+                local panel = BuildEntryView(monsterEntry)
 
                 if panel ~= nil then
                     element.tooltip = gui.TooltipFrame(
@@ -1157,15 +1338,7 @@ local function CreateMonsterEntry(nodeid, startHidden)
                     return
                 end
 
-                local lockedHeight = math.floor(dmhub.screenDimensionsBelowTitlebar.y * 0.6)
-                --see the linger handler above for why the right gutter is reserved.
-                local panel = monsterEntry:Render {
-                    width = 800,
-                    maxHeight = lockedHeight,
-                    vscroll = true,
-                    rpad = 12,
-                    borderBox = true,
-                }
+                local panel = BuildEntryView(monsterEntry)
                 if panel == nil then
                     return
                 end
@@ -1193,12 +1366,32 @@ local function CreateMonsterEntry(nodeid, startHidden)
             beginDrag = function(element)
                 --element:FireEvent('click')
             end,
-            drag = mod.shared.CreateDragTargetFunction(node, function(nodeid) return assets:GetMonsterNode(nodeid) end,
-                "Monsters"),
+            drag = function(element, target)
+                Tabletop.BestiaryRowDragEnded(element)
+                --dropped on the chat: a link to the bestiary entry.
+                if ChatItemLinks.Dropped() then
+                    return
+                end
+                dropOnFolder(element, target)
+            end,
 
             dragging = function(element, target)
+                ChatItemLinks.Dragging(function()
+                    local selected = dmhub.GetSelectedMonster()
+                    if type(selected) == "table" then
+                        selected = selected.monsterid
+                    end
+                    return {ChatItemLinks.MonsterItem(selected)}
+                end)
                 if target == nil then
                     dmhub.SetDraggingMonster()
+                end
+                --tabletop view: over the table the row turns into the cards a
+                --drop makes; over the map only the placement ghost shows. The
+                --engine places what GetSelectedMonster reports.
+                local selected = dmhub.GetSelectedMonster()
+                if selected ~= nil then
+                    Tabletop.BestiaryRowDragging(element, selected.monsterid, selected.quantity)
                 end
             end,
 
@@ -1270,6 +1463,53 @@ local function CreateMonsterEntry(nodeid, startHidden)
                         end,
                     }
 
+                    --Move To: the drag-free way to refile an entry. Offers the
+                    --folders inside the entry's folder, then the folders beside it.
+                    local moveTargets = {}
+                    local function AddFolderTargets(parentId, group)
+                        local parentNode = assets:GetMonsterNode(parentId)
+                        if parentNode == nil then
+                            return
+                        end
+                        local folders = {}
+                        for _, child in ipairs(parentNode.children) do
+                            if child.folder ~= nil and not child.hidden and child.id ~= node.parentNode then
+                                folders[#folders + 1] = child
+                            end
+                        end
+                        table.sort(folders, function(a, b) return a.description < b.description end)
+                        for _, folder in ipairs(folders) do
+                            local folderId = folder.id
+                            moveTargets[#moveTargets + 1] = {
+                                text = folder.description,
+                                group = group,
+                                click = function()
+                                    parentElement.popup = nil
+                                    local target = assets:GetMonsterNode(folderId)
+                                    if target ~= nil then
+                                        MoveNodeInto(node, folderId, target, nil, "Monsters")
+                                    end
+                                end,
+                            }
+                        end
+                    end
+
+                    local currentFolderId = node.parentNode or ''
+                    AddFolderTargets(currentFolderId, "children")
+                    if currentFolderId ~= '' then
+                        local currentFolder = assets:GetMonsterNode(currentFolderId)
+                        if currentFolder ~= nil then
+                            AddFolderTargets(currentFolder.parentNode or '', "siblings")
+                        end
+                    end
+
+                    if #moveTargets > 0 then
+                        menuItems[#menuItems + 1] = {
+                            text = 'Move To',
+                            submenu = moveTargets,
+                        }
+                    end
+
                     menuItems[#menuItems + 1] = {
                         text = 'Delete Monster',
 
@@ -1291,6 +1531,21 @@ local function CreateMonsterEntry(nodeid, startHidden)
                                     parentElement.popup = nil
                                 end,
                             }
+                        end
+                    end
+
+                    for _, ext in ipairs(ActiveBestiaryExtensions()) do
+                        if ext.menuItems ~= nil then
+                            local ok, items = pcall(ext.menuItems, nodeid)
+                            for _, item in ipairs(ok and items or {}) do
+                                menuItems[#menuItems + 1] = {
+                                    text = item.text,
+                                    click = function(element)
+                                        parentElement.popup = nil
+                                        item.click()
+                                    end,
+                                }
+                            end
                         end
                     end
                 end
@@ -1331,7 +1586,7 @@ local function CreateMonsterEntry(nodeid, startHidden)
 
             search = function(text, matchedParent, budget)
                 searchActive = text ~= ''
-                matchesSearch = matchedParent or text == '' or node:MatchesSearch(text)
+                matchesSearch = matchedParent or text == '' or NodeMatchesSearch(node, text)
 
                 --Each entry a search shows spends from the shared result
                 --budget; entries past the cap hide and flag the search
@@ -1465,8 +1720,9 @@ local function CreateMonsterEntry(nodeid, startHidden)
             gui.Panel {
                 flow = "vertical",
                 --reserves the portrait column on the left and the
-                --implementation diamond's corner on the right.
-                width = "100%-60",
+                --implementation diamond's corner (plus any extension
+                --badges) on the right.
+                width = cond(#extensionBadges > 0, string.format("100%%-%d", 60 + 16 * #extensionBadges), "100%-60"),
                 height = "auto",
                 halign = "left",
                 valign = "top",
@@ -1540,6 +1796,8 @@ local function CreateMonsterEntry(nodeid, startHidden)
                     end,
                 },
             }),
+
+            extensionBadgeRow,
         }
     })
 
@@ -2127,7 +2385,7 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
                         el.data.search(text, false, budget)
                     end
                 else
-                    local selfMatches = matchedParent or node:MatchesSearch(text)
+                    local selfMatches = matchedParent or NodeMatchesSearch(node, text)
                     matchesSearch = selfMatches or (nodeid == '') --root node always matches searches.
 
                     --Walk the child NODES (not panels) in display order
@@ -2465,12 +2723,27 @@ CharacterPanel.CreateCharacterEntry = function(charid, party)
         events = {
 
             dragging = function(element, target)
+                ChatItemLinks.Dragging(function()
+                    local items = {}
+                    for _, charid in ipairs(dmhub.GetSelectedCharacters() or {}) do
+                        items[#items+1] = ChatItemLinks.CharacterItem(charid)
+                    end
+                    return items
+                end)
                 if target == nil then
                     dmhub.SetDraggingMonster()
                 end
+                --tabletop view: over the table the row turns into the card a
+                --drop makes; over the map only the placement ghost shows.
+                Tabletop.CharacterRowDragging(element, dmhub.GetSelectedCharacters() or {})
             end,
 
             drag = function(element, target)
+                Tabletop.CharacterRowDragEnded(element)
+                --dropped on the chat: links to the dragged characters.
+                if ChatItemLinks.Dropped() then
+                    return
+                end
                 if target ~= nil and target:HasClass("partyPanel") then
                     target = target.data.header
                 end
@@ -2599,8 +2872,32 @@ CharacterPanel.CreateCharacterEntry = function(charid, party)
 
                 clickTime = dmhub.Time()
 
+                --Pressing a row that is already part of a multi-selection
+                --keeps the selection, so a drag carries every selected
+                --hero. A plain click narrows to this row on release instead
+                --(the engine fires no click after a drag).
+                local modified = dmhub.modKeys['ctrl'] or dmhub.modKeys['shift']
+                element.data.narrowOnClick = (not modified) and #characterPanelsSelected > 0 and
+                    (gui.GetFocus() == element or element:HasClass("selected"))
+                if element.data.narrowOnClick then
+                    return
+                end
+
                 element:FireEvent("select", true)
 
+            end,
+
+            click = function(element)
+                if not element.data.narrowOnClick then
+                    return
+                end
+                element.data.narrowOnClick = false
+                if gui.GetFocus() == element then
+                    --"select" on the focused row would deselect it too.
+                    ClearCharacterPanelSelection()
+                else
+                    element:FireEvent("select", true)
+                end
             end,
 
             rightClick = function(element)
@@ -3093,14 +3390,8 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
             refresh = function(element)
                 element:SetClass('empty', #partyMembers < 1)
             end,
-            press = function(element)
-                if element:HasClass("collapsed") then
-                    --the triangle itself isn't usable.
-                    return
-                end
-
-                ToggleCollapsed()
-            end,
+            --no press handler: a click on the caret bubbles to the header,
+            --which toggles on click (a handler here too toggled twice).
         },
     })
 
@@ -3116,7 +3407,8 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
             partyid = party and party.id,
         },
 
-        draggable = false,
+        --a real party's band drags the whole party (see "dragging").
+        draggable = party ~= nil,
         canDragOnto = function(element, target)
             return false --target:HasClass('monster-drag-target') and not IsMonsterNodeSelfOrChildOf(element.data.nodeid, target.data.nodeid)
         end,
@@ -3147,11 +3439,43 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
 
             --The whole header band toggles the folder (the caret alone was
             --too small a target). Select-all-members, which used to be the
-            --header's press action, moved to the right-click menu.
-            press = function(element, synthetic)
-                if not synthetic then
-                    ToggleCollapsed()
+            --header's press action, moved to the right-click menu. It
+            --toggles on click, not press, so starting a drag of the band
+            --does not fold the party (the engine fires no click after a drag).
+            click = function(element)
+                ToggleCollapsed()
+            end,
+
+            --Dragging the band drags every member of the party, the same as
+            --dragging their multi-selected rows: onto a map, onto the table
+            --as cards, or into the chat as links.
+            dragging = function(element, target)
+                if #partyMembers == 0 then
+                    return
                 end
+                g_draggedPartyCharids = partyMembers
+                ChatItemLinks.Dragging(function()
+                    local items = {}
+                    for _, charid in ipairs(partyMembers) do
+                        items[#items+1] = ChatItemLinks.CharacterItem(charid)
+                    end
+                    return items
+                end)
+                dmhub.SetDraggingMonster()
+                Tabletop.CharacterRowDragging(element, partyMembers)
+            end,
+
+            drag = function(element, target)
+                Tabletop.CharacterRowDragEnded(element)
+                ChatItemLinks.Dropped()
+                --the engine places a map or table drop from the selection
+                --after this event, so the party stays the selection briefly.
+                local charids = g_draggedPartyCharids
+                dmhub.Schedule(0.2, function()
+                    if g_draggedPartyCharids == charids then
+                        g_draggedPartyCharids = nil
+                    end
+                end)
             end,
 
             rightClick = function(element)

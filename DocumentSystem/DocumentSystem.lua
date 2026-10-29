@@ -2668,7 +2668,16 @@ do
     end
 end
 
-local g_tabbedViewer = nil
+--The journal windows. `viewer` is the one new documents open into: the one
+--the user last brought to the front. Tabs can be torn off into more windows,
+--all listed in `viewers` (see CustomDocument.JournalViewers). One table, not
+--two locals: this chunk is at the 200-local ceiling.
+local g_journal = {
+    ---@type Panel?
+    viewer = nil,
+    ---@type Panel[]
+    viewers = {},
+}
 
 -- Tab system sizes
 local TAB_HEIGHT = 30
@@ -4278,14 +4287,18 @@ function CustomDocument:CreateInterface(args)
         end
     end
 
+    --presentationAllowClose: a presentation-mode window (no editing chrome)
+    --the reader may still close themselves -- e.g. the Encounter of the Week
+    --rules reader -- as opposed to one the Director holds open.
+    local m_presentationLocked = args.presentationMode and not args.presentationAllowClose
     local m_closeButton = gui.Button {
-        classes = { "closeButton", "sizeXs", cond(args.suppressCloseButton or args.presentationMode or (args.dialog == nil and args.close == nil), "collapsed") },
+        classes = { "closeButton", "sizeXs", cond(args.suppressCloseButton or m_presentationLocked or (args.dialog == nil and args.close == nil), "collapsed") },
         hmargin = 4,
         closedocuments = function(element)
             --a presented document is held open by the Director; the
             --/closedocuments macro (fired tree-wide, so it reaches this
             --button even collapsed) must not dismiss it.
-            if args.presentationMode then
+            if m_presentationLocked then
                 return
             end
             element:FireEvent("press")
@@ -4762,11 +4775,16 @@ function CustomDocument:CreateInterface(args)
         end,
     }
 
-    --Only documents you can edit accept drops. Drops are detected by overlap,
-    --so this panel needs no background to catch them.
+    --Dropping items. Anything that can be dragged into chat (a map, scene,
+    --journal entry, monster or character; ChatItemLinks.lua), an encounter
+    --card, or map tokens can be dropped on a document you can edit. In view
+    --mode the drop goes in front of the paragraph line or block at the mouse,
+    --shown by a bar, and is saved at once; while editing it goes in at the
+    --mouse, shown by a caret.
+    --RichItemLink.MarkupForDrop decides what each item becomes.
     local acceptsDrops = self.acceptsRichTagDrops and self:HaveEditPermissions()
 
-    --Outline shown while a card is dragged over the document. It never
+    --Outline shown while something is dragged over the document. It never
     --blocks clicks on the page.
     local m_dropOutline = nil
     if acceptsDrops then
@@ -4779,7 +4797,7 @@ function CustomDocument:CreateInterface(args)
                     borderWidth = 0,
                 },
                 {
-                    selectors = {"documentDropOutline", "parent:drag-target-hover"},
+                    selectors = {"documentDropOutline", "parent:itemLinkDropHover"},
                     borderWidth = 2,
                     borderColor = "@accent",
                     priority = 6,
@@ -4793,43 +4811,265 @@ function CustomDocument:CreateInterface(args)
         }
     end
 
+    --The drag over the document right now: {items, ghost, page}, or nil.
+    --page is the rendered page (view mode) or the editor (MarkdownDocument
+    --SeamlessEditPanel) the drop is placed on.
+    local m_drop = nil
+
+    --not while previewing as a player: the page then hides lines, so its
+    --blocks no longer line up with the text.
+    local function DropAllowed()
+        return acceptsDrops and resultPanel ~= nil and resultPanel.valid and not resultPanel:HasClass("playerPreview")
+    end
+
+    --What a drop is placed on: the rendered page in view mode (MarkdownDocument
+    --DisplayPanel), the editor while editing (MarkdownDocument
+    --SeamlessEditPanel), or nil (an editor that cannot place drops: they go
+    --in at its cursor).
+    local function FindDropPage()
+        local result = {}
+        if IsEditing() then
+            ---@cast writePanel -nil
+            writePanel:FireEventTree("itemLinkDropFindEditor", result)
+            return result.editor
+        end
+        readPanel:FireEventTree("itemLinkDropFind", result)
+        return result.page
+    end
+
+    --Where a drop at the mouse goes, shown by the page's drop bar or the
+    --editor's drop caret: {line = the source line it goes in front of (view
+    --mode; nil for the end)} or {pos = the byte offset it goes in at
+    --(editing; nil for the cursor)}.
+    local function DropPlaceOn(page, items)
+        local result = {items = items}
+        if page ~= nil and page.valid then
+            page:FireEvent("itemLinkDropPlace", result)
+        end
+        return result
+    end
+
+    local function EndDropHover()
+        local drop = m_drop
+        m_drop = nil
+        if resultPanel ~= nil and resultPanel.valid then
+            resultPanel:SetClass("itemLinkDropHover", false)
+        end
+        if drop ~= nil then
+            if drop.page ~= nil and drop.page.valid then
+                drop.page:FireEvent("itemLinkDropEnd")
+            end
+            if drop.ghost ~= nil and drop.ghost.valid then
+                drop.ghost:DestroySelf()
+            end
+        end
+    end
+
+    --The ghost by the mouse keeps the drop bar following it, and goes once
+    --the drag leaves (or ends without telling us).
+    local function BeginDropHover(items)
+        EndDropHover()
+        if not DropAllowed() or #items == 0 then
+            return
+        end
+        local drop = {items = items, page = FindDropPage()}
+        m_drop = drop
+        resultPanel:SetClass("itemLinkDropHover", true)
+        drop.ghost = RichItemLink.ShowDropGhost(items, function()
+            if m_drop ~= drop or not resultPanel.valid then
+                return false
+            end
+            if dmhub.tokenDropTargetUnderMouse ~= resultPanel then
+                EndDropHover()
+                return false
+            end
+            DropPlaceOn(drop.page, drop.items)
+            return true
+        end)
+    end
+
+    --Where a drop of items made now goes (see DropPlaceOn).
+    local function CurrentDropPlace(items)
+        local page = FindDropPage()
+        local place = DropPlaceOn(page, items)
+        if page ~= nil and page.valid then
+            page:FireEvent("itemLinkDropEnd")
+        end
+        return place
+    end
+
+    local function InsertDropped(items, place)
+        if not DropAllowed() or items == nil or #items == 0 then
+            return
+        end
+
+        --a card dragged within a document moves; one dragged out of a
+        --document embedded in this one is a copy here, like any other drop.
+        local move = nil
+        if items[1].kind == "move" then
+            local item = items[1] --[[@as ItemLinkMove]]
+            if item.docid == self.id then
+                move = item
+            else
+                items = {item.item}
+            end
+        end
+
+        if IsEditing() then
+            ---@cast writePanel -nil
+            if move ~= nil then
+                writePanel:FireEventTree("moveItemLink", move, place.pos)
+            else
+                writePanel:FireEventTree("insertItemLinks", items, place.pos)
+            end
+            return
+        end
+        local line = place.line
+
+        --use the latest saved copy so we don't overwrite someone else's
+        --recent changes.
+        local doc = (dmhub.GetTable(CustomDocument.tableName) or {})[self.id] or self
+        ---@cast doc MarkdownDocument
+        local original = DeepCopy(doc)
+
+        --split the way the page was when it rendered (so line means the same
+        --thing).
+        local lines = string.split_allow_duplicates((doc:GetTextContent():gsub("\v", "\n")), "\n")
+        if #lines == 0 then
+            lines = {""}
+        end
+        local at = line or (#lines + 1)
+        if at > #lines and lines[#lines] == "" then
+            --the text ends in a newline: go before it, not after a blank line.
+            at = #lines
+        end
+        at = math.max(1, math.min(at, #lines + 1))
+
+        if move ~= nil then
+            if RichItemLink.MoveTagLine(doc, lines, move, at) == nil then
+                return
+            end
+        else
+            --each item gets a line of its own.
+            local markup = RichItemLink.MarkupForDrop(doc, items)
+            if #markup == 0 then
+                return
+            end
+            for i, entry in ipairs(markup) do
+                table.insert(lines, at + i - 1, entry.text)
+            end
+        end
+        doc:SetTextContent(table.concat(lines, "\n"))
+        doc:Upload(original)
+        self = doc
+        resultPanel:FireEventTree("refreshDocument", doc)
+    end
+
+    --a map token drag's characters.
+    local function CharacterItems(charids)
+        local items = {}
+        for _, charid in ipairs(charids or {}) do
+            items[#items + 1] = ChatItemLinks.CharacterItem(charid)
+        end
+        return items
+    end
+
+    --Image and video files dragged in from the desktop: each becomes an
+    --image or video tag (RichImage, RichVideo) placed like a dropped card. While hovering
+    --the items have no tag yet (only a name for the card by the mouse); the
+    --drop uploads each file and makes its tag.
+    local function FileDropItems(paths)
+        local items = {}
+        for _, path in ipairs(paths or {}) do
+            items[#items + 1] = {kind = "richtag", name = FileDrops.BaseName(path), path = path}
+        end
+        return items
+    end
+
+    local function UploadFileDropItems(items)
+        local result = {}
+        for _, item in ipairs(items) do
+            local video = FileDrops.IsVideo(item.path)
+            --the library each tag's own image picker uses.
+            local imageid = FileDrops.UploadImage(item.path, {
+                library = cond(video, "journal", "Avatar"),
+                imageType = cond(video, nil, "Avatar"),
+            })
+            if imageid ~= nil then
+                local richTag
+                if video then
+                    richTag = RichVideo.new{image = imageid}
+                else
+                    richTag = RichImage.new{image = imageid}
+                end
+                result[#result + 1] = {kind = "richtag", name = item.name, richTag = richTag}
+            end
+        end
+        return result
+    end
+
+    local m_shellClasses = {"documentPanel"}
+    if acceptsDrops then
+        m_shellClasses[#m_shellClasses + 1] = ChatItemLinks.ITEM_DROP_TARGET_CLASS
+    end
+
     resultPanel = gui.Panel {
-        classes = {"documentPanel"},
+        classes = m_shellClasses,
         monitorGame = monitorGame,
         width = "100%",
         height = "100%",
         halign = "left",
         valign = "top",
         flow = "vertical",
-        dragTarget = acceptsDrops,
+        tokenDropTarget = acceptsDrops,
+        --drop targets are found by what is under the mouse, so the page's
+        --blank areas need a (clear) background to count as the document.
+        bgimage = cond(acceptsDrops, "panels/square.png", nil),
+        bgcolor = "clear",
 
-        --A card was dropped here with a tag to add. While editing it goes in
-        --at the cursor; otherwise it is added at the end and saved.
-        insertRichTag = function(element, richTag, name)
-            if not acceptsDrops then
+        --panel drags, through ChatItemLinks.Dragging / Dropped.
+        itemLinkDragHover = function(element, items)
+            if items == nil then
+                EndDropHover()
+            else
+                BeginDropHover(items)
+            end
+        end,
+        itemLinkDrop = function(element, items)
+            local place = CurrentDropPlace(items)
+            EndDropHover()
+            InsertDropped(items, place)
+        end,
+
+        --files dragged in from the desktop (see FileDropItems).
+        dragAndDropExtensions = cond(acceptsDrops, FileDrops.MEDIA_EXTENSIONS, nil),
+        dragfilesenter = function(element, paths)
+            BeginDropHover(FileDropItems(paths))
+        end,
+        dragfilesleave = function(element)
+            EndDropHover()
+        end,
+        dropfiles = function(element, paths)
+            local place = CurrentDropPlace(FileDropItems(paths))
+            EndDropHover()
+            if not DropAllowed() then
                 return
             end
+            InsertDropped(UploadFileDropItems(FileDropItems(paths)), place)
+        end,
 
-            if IsEditing() then
-                ---@cast writePanel -nil
-                writePanel:FireEventTree("insertRichTag", richTag, name)
-                return
-            end
-
-            --use the latest saved copy so we don't overwrite someone else's
-            --recent changes.
-            local doc = (dmhub.GetTable(CustomDocument.tableName) or {})[self.id] or self
-            ---@cast doc MarkdownDocument
-            local original = DeepCopy(doc)
-            local key = doc:AddRichTagAnnotation(richTag, name)
-            local text = doc:GetTextContent()
-            if text ~= "" and text:sub(-1) ~= "\n" then
-                text = text .. "\n"
-            end
-            doc:SetTextContent(text .. string.format("[[%s]]\n", key))
-            doc:Upload(original)
-            self = doc
-            element:FireEventTree("refreshDocument", doc)
+        --map tokens dragged off the board.
+        tokenDragEnter = function(element, info)
+            BeginDropHover(CharacterItems(info.charids))
+        end,
+        tokenDragLeave = function(element)
+            EndDropHover()
+        end,
+        dropTokens = function(element, info)
+            local items = CharacterItems(info.charids)
+            local place = CurrentDropPlace(items)
+            EndDropHover()
+            InsertDropped(items, place)
         end,
 
         closetab = function(element)
@@ -5264,6 +5504,17 @@ local function CreateTabButton(doc, tabbedViewer, tabId, bubbleIcon)
         hpad = 11,
         vpad = 4,
         data = { tabId = tabId, docId = doc.id },
+        --Dragging a tab reorders it, moves it to another journal window's
+        --strip, or tears it off into a new window. Only while the window has
+        --more than one tab (refreshTabVisibility keeps this in step): a lone
+        --tab leaves the drag to the window, which is how it gets moved.
+        draggable = false,
+        dragging = function(element)
+            tabbedViewer:FireEvent("tabDragging", element)
+        end,
+        drag = function(element)
+            tabbedViewer:FireEvent("tabDropped", element)
+        end,
         press = function(element)
             tabbedViewer:FireEvent("switchToTab", element.data.tabId)
         end,
@@ -5334,7 +5585,7 @@ end
 --viewer (its active tab), or nil if the viewer isn't open. Unlike
 --GetOrCreateTabbedViewer this never creates a viewer as a side effect.
 function CustomDocument.GetCurrentJournalDocId()
-    local viewer = g_tabbedViewer
+    local viewer = g_journal.viewer
     if viewer == nil or not viewer.valid then
         return nil
     end
@@ -5345,6 +5596,61 @@ function CustomDocument.GetCurrentJournalDocId()
         end
     end
 
+    return nil
+end
+
+--Every open tabbed journal window, oldest first (destroyed ones pruned).
+---@return Panel[]
+function CustomDocument.JournalViewers()
+    local live = {}
+    for _, v in ipairs(g_journal.viewers) do
+        if v.valid then
+            live[#live + 1] = v
+        end
+    end
+    g_journal.viewers = live
+    return live
+end
+
+--The journal window showing docId as one of its tabs, or nil.
+---@return Panel?
+function CustomDocument.JournalViewerWithDoc(docId)
+    for _, v in ipairs(CustomDocument.JournalViewers()) do
+        for _, tab in ipairs(v.data.tabs or {}) do
+            if tab.docId == docId then
+                return v
+            end
+        end
+    end
+    return nil
+end
+
+--Where a journal tab dragged from `source` would land if released now: the
+--first window whose tab strip is under the mouse answers. Returns
+--{viewer, index, markerX} (index = position in that window's tab list,
+--counting the dragged tab where it is now), or nil. Popped-out windows only answer for
+--their own tabs: the mouse is not in their OS window's coordinates.
+function g_journal.DropTarget(source, tabButton, includeSource)
+    --the focused window answers first: where windows overlap it is usually
+    --the one on top.
+    local viewers = {}
+    if g_journal.viewer ~= nil and g_journal.viewer.valid then
+        viewers[1] = g_journal.viewer
+    end
+    for _, v in ipairs(CustomDocument.JournalViewers()) do
+        if v ~= g_journal.viewer then
+            viewers[#viewers + 1] = v
+        end
+    end
+    for _, v in ipairs(viewers) do
+        if (v ~= source or includeSource) and (v == source or not v.data.poppedOut) then
+            local info = {}
+            v:FireEvent("tabDropQuery", info, tabButton)
+            if info.index ~= nil then
+                return {viewer = v, index = info.index, markerX = info.markerX}
+            end
+        end
+    end
     return nil
 end
 
@@ -5383,24 +5689,79 @@ local g_viewerCascadeDefaults = {
     },
 }
 
+--Journal and panel windows cast the same soft shadow as the tabletop's own
+--windows (Tabletop.shadows, the boxShadow style), lifted while dragged
+--("dragging" is set by the engine). None while maximized (nothing beside it
+--to fall on) or popped out (the panel IS the OS window). A function on
+--CustomDocument, not a local: this chunk is at Lua's 200-local ceiling.
+do
+    local cache = nil
+    ---@return table[]
+    function CustomDocument.WindowShadowRules()
+        if cache == nil then
+            local shadows = rawget(_G, "Tabletop") ~= nil and Tabletop.shadows or nil
+            if shadows == nil then
+                return {}
+            end
+            cache = {
+                gui.Style{classes = {"journalViewer"}, boxShadow = shadows.rest},
+                gui.Style{classes = {"journalViewer", "dragging"}, boxShadow = shadows.lifted, transitionTime = 0.15},
+                gui.Style{classes = {"journalViewer", "journalMaximized"}, boxShadow = false},
+                gui.Style{classes = {"journalViewer", "poppedOut"}, boxShadow = false},
+            }
+        end
+        return cache
+    end
+end
+
 local function TabbedViewerStyles()
     return {
         Styles.Default,
         g_viewerCascadeDefaults,
         ThemeEngine.MergeStyles(g_viewerPopoutRules),
+        CustomDocument.WindowShadowRules(),
     }
 end
 
+--The journal window to open a document into: the focused one, unless it is
+--minimized and another is showing. Creates the first window if none is open
+--(the caller parents it).
 function CustomDocument.GetOrCreateTabbedViewer()
-    if g_tabbedViewer ~= nil and g_tabbedViewer.valid then
-        return g_tabbedViewer
+    local focused = g_journal.viewer
+    if focused ~= nil and focused.valid then
+        if focused.data.minimized then
+            local viewers = CustomDocument.JournalViewers()
+            for i = #viewers, 1, -1 do
+                if not viewers[i].data.minimized then
+                    g_journal.viewer = viewers[i]
+                    return viewers[i]
+                end
+            end
+        end
+        return focused
     end
 
-    local dialogWidth = 1100
-    local dialogHeight = 940
+    local viewers = CustomDocument.JournalViewers()
+    if #viewers > 0 then
+        g_journal.viewer = viewers[#viewers]
+        return viewers[#viewers]
+    end
+
+    return CustomDocument.CreateTabbedViewer()
+end
+
+--Builds a new, empty journal window and makes it the focused one; the caller
+--parents it and adds its tabs. placement may give x/y/width/height (layout
+--units); the default is a centred 1100x940.
+---@param placement? {x: number?, y: number?, width: number?, height: number?}
+---@return Panel
+function CustomDocument.CreateTabbedViewer(placement)
+    placement = placement or {}
+    local dialogWidth = placement.width or 1100
+    local dialogHeight = placement.height or 940
     local loc = {
-        x = 1920 * 0.5 * ((dmhub.screenDimensionsBelowTitlebar.x / dmhub.screenDimensionsBelowTitlebar.y) / (1920 / 1080)) - dialogWidth / 2,
-        y = 1080 * 0.5 - dialogHeight / 2,
+        x = placement.x or (1920 * 0.5 * ((dmhub.screenDimensionsBelowTitlebar.x / dmhub.screenDimensionsBelowTitlebar.y) / (1920 / 1080)) - dialogWidth / 2),
+        y = placement.y or (1080 * 0.5 - dialogHeight / 2),
         width = dialogWidth,
         height = dialogHeight,
     }
@@ -5473,10 +5834,8 @@ function CustomDocument.GetOrCreateTabbedViewer()
         icon = "drawsteel/Icons_Nav_MaxWindow.png",
         borderWidth = 0,
         valign = "center",
-        --the close-all X to our right pulls itself 4px left (hmargin -4),
-        --so leave enough right margin that it lands beside, not on, us.
         lmargin = 4,
-        rmargin = 10,
+        rmargin = 4,
         linger = function(element)
             gui.Tooltip("Pop out into its own window")(element)
         end,
@@ -5492,9 +5851,8 @@ function CustomDocument.GetOrCreateTabbedViewer()
     }
 
     --"Pop in": only visible while popped out. Closes the OS window and
-    --reopens the same document tabs in-app. The viewer is destroyed and
-    --rebuilt through the normal ShowDocument path, so the relaunch must
-    --wait a tick for the destroy to land (DestroySelf is end-of-frame).
+    --reopens the same document tabs in a new in-app window. The relaunch
+    --waits a tick for the destroy to land (DestroySelf is end-of-frame).
     local popinButton = gui.Button{
         classes = {"sizeXs", "collapsed"},
         icon = "drawsteel/Icons_Nav_MinWindow.png",
@@ -5534,18 +5892,20 @@ function CustomDocument.GetOrCreateTabbedViewer()
             --engine sweeps native windows whose panel died).
             v.data.popoutTeardownReason = "popin"  --POPOUT-DIAG
             v:DestroySelf()
-            g_tabbedViewer = nil
+            if g_journal.viewer == v then
+                g_journal.viewer = nil
+            end
 
             dmhub.Schedule(0.1, function()
-                if mod.unloaded then
+                if mod.unloaded or not GameHud.instance or #reopen == 0 then
                     return
                 end
+                --its own window, not ShowDocument: that would fold these
+                --tabs into whichever other journal window is focused.
+                local nv = CustomDocument.CreateTabbedViewer()
+                GameHud.instance.documentsPanel:AddChild(nv)
                 for _, doc in ipairs(reopen) do
-                    doc:ShowDocument{skipRefresh = true}
-                end
-                local nv = g_tabbedViewer
-                if nv == nil or (not nv.valid) then
-                    return
+                    nv:FireEvent("addTab", doc, {skipRefresh = true})
                 end
                 local targetTabId = nil
                 for _, tab in ipairs(nv.data.tabs) do
@@ -5560,6 +5920,57 @@ function CustomDocument.GetOrCreateTabbedViewer()
         end,
     }
 
+    --Minimize: the window shrinks into a button on the table (like a
+    --minimized map window); clicking the button brings it back. Hidden while
+    --popped out, where the OS window has its own caption buttons.
+    local minimizeButton = gui.Button{
+        classes = {"sizeXs"},
+        icon = "window-chrome/chrome-minimize.png",
+        borderWidth = 0,
+        valign = "center",
+        lmargin = 4,
+        linger = function(element)
+            gui.Tooltip("Minimize")(element)
+        end,
+        popout = function(element)
+            element:SetClass("collapsed", true)
+        end,
+        click = function(element)
+            local v = element:FindParentWithClass("journalTabbedViewer")
+            if v ~= nil then
+                v:FireEvent("minimizeJournal")
+            end
+        end,
+    }
+
+    --Maximize / restore: fills the table between the icon rails.
+    local maximizeButton = gui.Button{
+        classes = {"sizeXs"},
+        icon = "window-chrome/chrome-maximize.png",
+        borderWidth = 0,
+        valign = "center",
+        lmargin = 4,
+        --the close-all X to our right pulls itself 4px left (hmargin -4),
+        --so leave enough right margin that it lands beside, not on, us.
+        rmargin = 10,
+        linger = function(element)
+            local v = element:FindParentWithClass("journalTabbedViewer")
+            gui.Tooltip(cond(v ~= nil and v.data.maximized, "Restore", "Maximize"))(element)
+        end,
+        popout = function(element)
+            element:SetClass("collapsed", true)
+        end,
+        journalMaximized = function(element, maximized)
+            element:FireEvent("setIcon", cond(maximized, "window-chrome/chrome-restore.png", "window-chrome/chrome-maximize.png"))
+        end,
+        click = function(element)
+            local v = element:FindParentWithClass("journalTabbedViewer")
+            if v ~= nil then
+                v:FireEvent("toggleMaximizeJournal")
+            end
+        end,
+    }
+
     local tabArrowsPanel = gui.Panel {
         width = "auto",
         height = TAB_BAR_HEIGHT,
@@ -5570,6 +5981,8 @@ function CustomDocument.GetOrCreateTabbedViewer()
         tabScrollRight,
         popoutButton,
         popinButton,
+        minimizeButton,
+        maximizeButton,
         closeAllButton,
     }
 
@@ -5769,9 +6182,28 @@ function CustomDocument.GetOrCreateTabbedViewer()
         tabArrowsPanel,
     }
 
+    --Where a dragged tab will land: a gold bar between two tabs, shown in
+    --whichever window's strip the mouse is over (see tabDragging).
+    local tabDropMarker = gui.Panel{
+        classes = {"collapsed"},
+        floating = true,
+        interactable = false,
+        width = 2,
+        height = TAB_HEIGHT,
+        halign = "left",
+        valign = "bottom",
+        bgimage = "panels/square.png",
+        bgcolor = "#d4a957",
+    }
+    tabBar:AddChild(tabDropMarker)
+
     refreshTabVisibility = function(element)
         local tabs = element.data.tabs
         local offset = element.data.scrollOffset
+
+        for _, tab in ipairs(tabs) do
+            tab.tabButton.draggable = #tabs > 1
+        end
 
         -- Active tab index and paging-arrow enable state (independent of measurement).
         local activeIdx = 0
@@ -6202,11 +6634,502 @@ function CustomDocument.GetOrCreateTabbedViewer()
         end
     end
 
+    --The width/height form of SetViewerHeight (maximize and restore).
+    local function SetViewerSize(element, newWidth, newHeight)
+        local oldWidth = element.selfStyle.width
+        if type(oldWidth) ~= "number" then
+            oldWidth = element.renderedWidth
+        end
+        local oldHeight = element.selfStyle.height
+        if type(oldHeight) ~= "number" then
+            oldHeight = element.renderedHeight
+        end
+        element.selfStyle.width = newWidth
+        element.selfStyle.height = newHeight
+        local delta = {}
+        if type(oldWidth) == "number" and math.abs(newWidth - oldWidth) > 0.5 then
+            delta.deltax = newWidth - oldWidth
+        end
+        if type(oldHeight) == "number" and math.abs(newHeight - oldHeight) > 0.5 then
+            delta.deltay = newHeight - oldHeight
+        end
+        if delta.deltax ~= nil or delta.deltay ~= nil then
+            resizePanel:FireEventTree("resize", nil, delta)
+        end
+    end
+
+    --The window's size as the user set it: under any shade or maximize.
+    local function RestingSize(element)
+        if element.data.maximized and element.data.restoreRect ~= nil then
+            return element.data.restoreRect.w, element.data.restoreRect.h
+        end
+        local w = element.selfStyle.width
+        if type(w) ~= "number" then
+            w = element.renderedWidth
+        end
+        local h = element.selfStyle.height
+        if element.data.shaded and element.data.unshadedHeight ~= nil then
+            h = element.data.unshadedHeight
+        end
+        if type(h) ~= "number" then
+            h = element.renderedHeight
+        end
+        return w, h
+    end
+
+    --The documents layer every in-app journal window lives in, or nil.
+    --GameHud.instance is FALSE, not nil, while the hud is down.
+    local function WindowLayer()
+        local hud = GameHud.instance
+        if not hud then
+            return nil
+        end
+        local layer = hud.documentsPanel
+        if layer == nil or not layer.valid then
+            return nil
+        end
+        return layer
+    end
+
+    local function LayerSize()
+        local layer = WindowLayer()
+        if layer ~= nil and layer.renderedWidth > 100 and layer.renderedHeight > 100 then
+            return layer.renderedWidth, layer.renderedHeight
+        end
+        return 1862, 1048
+    end
+
+    --What a maximized journal fills: the documents layer, clear of the icon
+    --rails (their 12-unit margin, 40-unit buttons and a gap) when they are on.
+    local function MaximizedRect()
+        local w, h = LayerSize()
+        local inset = 0
+        if dmhub.GetSettingValue("iconrail") == true then
+            inset = math.floor((12 + 40 + 8) * PanelDocument.WindowUIScale())
+        end
+        return {x = inset, y = 0, w = w - 2 * inset, h = h}
+    end
+
+    local function FitMaximized(element)
+        local r = MaximizedRect()
+        element.x = r.x
+        element.y = r.y
+        SetViewerSize(element, r.w, r.h)
+    end
+
+    --A minimized journal is a rail-style button on the table, in the layer
+    --minimized map windows use (so it shares their look), falling back to
+    --the documents layer.
+    local MIN_BUTTON_SIZE = 40
+
+    local function MinimizedLayer()
+        local layer = nil
+        if rawget(_G, "Tabletop") ~= nil and Tabletop.ButtonLayer ~= nil then
+            layer = Tabletop.ButtonLayer()
+        end
+        if layer == nil or not layer.valid then
+            layer = WindowLayer()
+        end
+        return layer
+    end
+
+    local function MinButtonSize()
+        return MIN_BUTTON_SIZE * PanelDocument.WindowUIScale()
+    end
+
+    --A window-shaped stand-in flying between two rectangles {x, y, w, h}
+    --(the minimize / restore animation), then done(). Ease in-out cubic.
+    local function FlyGhost(from, to, done)
+        local layer = MinimizedLayer()
+        if layer == nil then
+            done()
+            return
+        end
+        local start = dmhub.Time()
+        local seconds = 0.26
+        local function lerp(a, b, t)
+            return a + (b - a) * t
+        end
+        layer:AddChild(gui.Panel{
+            floating = true,
+            interactable = false,
+            halign = "left",
+            valign = "top",
+            x = from.x,
+            y = from.y,
+            width = from.w,
+            height = from.h,
+            bgimage = "panels/square.png",
+            bgcolor = "#1a1a1eee",
+            borderWidth = 2,
+            borderColor = "#b8925acc",
+            cornerRadius = 6,
+            thinkTime = 0.01,
+            think = function(element)
+                local t = math.min(1, (dmhub.Time() - start) / seconds)
+                local e
+                if t < 0.5 then
+                    e = 4 * t * t * t
+                else
+                    e = 1 - ((-2 * t + 2) ^ 3) / 2
+                end
+                element.x = lerp(from.x, to.x, e)
+                element.y = lerp(from.y, to.y, e)
+                element.selfStyle.width = math.max(1, lerp(from.w, to.w, e))
+                element.selfStyle.height = math.max(1, lerp(from.h, to.h, e))
+                if t >= 1 then
+                    element:DestroySelf()
+                    done()
+                end
+            end,
+        })
+    end
+
+    --The button a minimized journal window shrinks into. Click restores it;
+    --drag moves it; right-click offers restore / close.
+    local function BuildMinimizedButton(element)
+        local layer = MinimizedLayer()
+        if layer == nil then
+            return
+        end
+        local size = MinButtonSize()
+        local tabCount = #element.data.tabs
+        local button = gui.Panel{
+            classes = {"iconRailButton", "tabletopTableButton"},
+            bgimage = true,
+            blurBackground = true,
+            floating = true,
+            halign = "left",
+            valign = "top",
+            x = element.data.iconX or 0,
+            y = element.data.iconY or 0,
+            width = MIN_BUTTON_SIZE,
+            height = MIN_BUTTON_SIZE,
+            flow = "none",
+            swallowPress = true,
+            draggable = true,
+            drag = function(b)
+                local w, h = LayerSize()
+                element.data.iconX = math.max(0, math.min(b.xdrag, w - size))
+                element.data.iconY = math.max(0, math.min(b.ydrag, h - size))
+                b.x = element.data.iconX
+                b.y = element.data.iconY
+            end,
+            click = function(b)
+                if element.valid then
+                    element:FireEvent("restoreJournal")
+                end
+            end,
+            hover = function(b)
+                if not element.valid then
+                    return
+                end
+                local docs = dmhub.GetTable(CustomDocument.tableName) or {}
+                local lines = {"Journal"}
+                for _, tab in ipairs(element.data.tabs) do
+                    local doc = docs[tab.docId] or tab.doc
+                    lines[#lines + 1] = "  " .. ((doc ~= nil and doc.description) or "Untitled")
+                end
+                lines[#lines + 1] = "Click to restore"
+                gui.Tooltip(table.concat(lines, "\n"))(b)
+            end,
+            rightClick = function(b)
+                b.popup = gui.ContextMenu{
+                    entries = {
+                        {
+                            text = "Restore",
+                            click = function()
+                                b.popup = nil
+                                if element.valid then
+                                    element:FireEvent("restoreJournal")
+                                end
+                            end,
+                        },
+                        {
+                            text = "Close Journal Window",
+                            click = function()
+                                b.popup = nil
+                                if element.valid then
+                                    element:FireEvent("closeAllTabs")
+                                end
+                            end,
+                        },
+                    },
+                }
+            end,
+
+            gui.Panel{
+                classes = {"iconRailIcon"},
+                bgimage = "phosphor/book-open-text.png",
+                width = 20,
+                height = 20,
+                halign = "center",
+                valign = "center",
+                interactable = false,
+            },
+
+            --how many documents the window holds, when more than one.
+            gui.Label{
+                classes = {cond(tabCount > 1, "journalMinCount", "collapsed")},
+                floating = true,
+                interactable = false,
+                text = tostring(tabCount),
+                fontSize = 11,
+                bold = true,
+                color = "#e4ddd0",
+                width = "auto",
+                height = "auto",
+                halign = "right",
+                valign = "bottom",
+                hmargin = 3,
+                vmargin = 1,
+            },
+        }
+        layer:AddChild(button)
+        button.selfStyle.pivot = {x = 0, y = 1}
+        button.selfStyle.uiscale = PanelDocument.WindowUIScale()
+        element.data.minimizedButton = button
+    end
+
+    --On the tabletop a minimizing journal window becomes the table items for
+    --its documents (Tabletop.MinimizeToDocItem), the shown one placed last so
+    --it lies on top. Clicking one opens it, which restores this window
+    --(ShowDocument); taking one off the table closes its tab. False when no
+    --document could go there: the window then gets a button instead.
+    local function MinimizeOntoTable(element, from)
+        if rawget(_G, "Tabletop") == nil or Tabletop.MinimizeToDocItem == nil then
+            return false
+        end
+        local ordered = {}
+        local active = nil
+        for _, tab in ipairs(element.data.tabs) do
+            if tab.tabId == element.data.activeTabId then
+                active = tab
+            else
+                ordered[#ordered + 1] = tab
+            end
+        end
+        ordered[#ordered + 1] = active
+        local placed = 0
+        for _, tab in ipairs(ordered) do
+            local tabId = tab.tabId
+            local ok = Tabletop.MinimizeToDocItem(tab.docId, from, {
+                token = element,
+                index = placed,
+                still = function()
+                    return element.valid and element.data.minimized == true
+                end,
+                onTakenOff = function()
+                    if element.valid and element.data.minimized then
+                        element:FireEvent("closeTab", tabId)
+                    end
+                end,
+            })
+            if ok then
+                placed = placed + 1
+            end
+        end
+        return placed > 0
+    end
+
+    --The mouse's position in panel as 0..1 fractions, or nil when the mouse
+    --is not over it. mousePoint alone is no test: during a drag it can come
+    --back non-nil with the mouse far outside the panel (y = -10 for a tab
+    --strip 400 units above the mouse), so check the range.
+    local function MouseOver(panel)
+        local mp = panel.mousePoint
+        if mp == nil or mp.x < 0 or mp.x > 1 or mp.y < 0 or mp.y > 1 then
+            return nil
+        end
+        return mp
+    end
+
+    local function FindTab(element, tabId)
+        for i, tab in ipairs(element.data.tabs) do
+            if tab.tabId == tabId then
+                return tab, i
+            end
+        end
+        return nil, nil
+    end
+
+    --True when dropping the tab at target leaves it where it already is.
+    local function IsNoopDrop(element, tabButton, target)
+        if target.viewer ~= element then
+            return false
+        end
+        local _, idx = FindTab(element, tabButton.data.tabId)
+        return idx == nil or target.index == idx or target.index == idx + 1
+    end
+
+    local function HideDropMarkers()
+        for _, v in ipairs(CustomDocument.JournalViewers()) do
+            v:FireEvent("showTabDropMarker", nil)
+        end
+    end
+
+    --Interface args that belong to the window a tab was opened in, not to
+    --the document; a tab moving to another window leaves them behind.
+    local WINDOW_TAB_ARGS = {
+        dialog = true,
+        dialogPanel = true,
+        suppressCloseButton = true,
+        close = true,
+        skipRefresh = true,
+        edit = true,
+    }
+
+    --Moves a tab to another journal window at index (nil = the end): its
+    --document is saved, reopened there with its back/forward history, and
+    --the tab here closes (which closes this window if it was the last).
+    local function MoveTab(source, tab, target, index)
+        if tab.contentPanel ~= nil and tab.contentPanel.valid then
+            tab.contentPanel:FireEvent("saveDocument")
+        end
+        local docs = dmhub.GetTable(CustomDocument.tableName) or {}
+        local doc = docs[tab.docId] or tab.doc
+        if doc == nil then
+            return
+        end
+        local args = {}
+        for k, v in pairs(tab.tabArgs or {}) do
+            if not WINDOW_TAB_ARGS[k] then
+                args[k] = v
+            end
+        end
+        target:FireEvent("adoptTab", doc, args, tab.history, tab.forwardHistory, index)
+        tab.close()
+        g_journal.viewer = target
+        if not target.data.poppedOut then
+            target:SetAsLastSibling()
+        end
+    end
+
+    --Whether releasing a tab dragged dy units, with no tab strip under the
+    --mouse, tears it off: a small slip off the strip is not a tear-off; a
+    --pull clear of it, or out of the window altogether, is. Never while
+    --popped out: the mouse has left that OS window.
+    local function WouldTearOff(source, dy)
+        if source.data.poppedOut then
+            return false
+        end
+        return math.abs(dy) >= TAB_HEIGHT * 1.5 or MouseOver(source) == nil
+    end
+
+    --Where a tab torn off with this drag (dx/dy: how far it was dragged)
+    --opens: a window the size of this one, placed so its tab sits where the
+    --dragged tab is, kept on the table. {x, y, w, h}.
+    local function TearOffRect(source, tab, dx, dy)
+        local toggleWidth = treeToggleButton.renderedWidth or TAB_HEIGHT
+        local tabLeft = toggleWidth
+        for _, t in ipairs(source.data.tabs) do
+            if t == tab then
+                break
+            end
+            if not t.tabButton:HasClass("collapsed") then
+                tabLeft = tabLeft + (t.tabButton.renderedWidth or 0)
+            end
+        end
+        local w, h = RestingSize(source)
+        local lw, lh = LayerSize()
+        local x = source.x + tabLeft + dx - toggleWidth
+        local y = source.y + dy
+        x = math.max(120 - w, math.min(x, lw - 120))
+        y = math.max(0, math.min(y, lh - TAB_BAR_HEIGHT))
+        return {x = x, y = y, w = w, h = h}
+    end
+
+    --The tear-off preview: an outline of the window the dragged tab would
+    --open, with its tab strip, following the drag. Drawn in the layer over
+    --the windows so no journal covers it.
+    local function ShowTearOffGhost(source, tab, rect)
+        local ghost = source.data.tearOffGhost
+        if ghost == nil or not ghost.valid then
+            local layer = MinimizedLayer()
+            if layer == nil then
+                return
+            end
+            local docs = dmhub.GetTable(CustomDocument.tableName) or {}
+            local doc = docs[tab.docId] or tab.doc
+            local title = (doc ~= nil and doc.description) or "Untitled"
+            ghost = gui.Panel{
+                floating = true,
+                interactable = false,
+                halign = "left",
+                valign = "top",
+                x = rect.x,
+                y = rect.y,
+                width = rect.w,
+                height = rect.h,
+                flow = "vertical",
+                bgimage = "panels/square.png",
+                bgcolor = "#1a1a1e99",
+                borderWidth = 2,
+                borderColor = "#b8925acc",
+                cornerRadius = 6,
+                gui.Panel{
+                    interactable = false,
+                    width = "100%",
+                    height = TAB_BAR_HEIGHT,
+                    flow = "horizontal",
+                    bgimage = "panels/square.png",
+                    bgcolor = "#0a0a0bdd",
+                    gui.Label{
+                        interactable = false,
+                        text = title,
+                        width = "auto",
+                        height = TAB_HEIGHT,
+                        maxWidth = TAB_MAX_WIDTH,
+                        halign = "left",
+                        valign = "bottom",
+                        lmargin = treeToggleButton.renderedWidth or TAB_HEIGHT,
+                        hpad = 11,
+                        textWrap = false,
+                        textOverflow = "ellipsis",
+                        fontSize = 13.5,
+                        color = "#e4ddd0",
+                        bgimage = "panels/square.png",
+                        bgcolor = "#1a1a1e",
+                        border = 1,
+                        borderColor = "#ffffff99",
+                    },
+                },
+            }
+            layer:AddChild(ghost)
+            source.data.tearOffGhost = ghost
+        end
+        ghost.x = rect.x
+        ghost.y = rect.y
+    end
+
+    local function HideTearOffGhost(source)
+        local ghost = source.data.tearOffGhost
+        if ghost ~= nil and ghost.valid then
+            ghost:DestroySelf()
+        end
+        source.data.tearOffGhost = nil
+    end
+
+    --Tears a tab off into a new journal window at TearOffRect.
+    local function TearOff(source, tab, dx, dy)
+        local layer = WindowLayer()
+        if layer == nil then
+            return
+        end
+        local r = TearOffRect(source, tab, dx, dy)
+        local nv = CustomDocument.CreateTabbedViewer{x = r.x, y = r.y, width = r.w, height = r.h}
+        layer:AddChild(nv)
+        MoveTab(source, tab, nv, nil)
+    end
+
     -- Outer Journal Panel
     viewer = gui.Panel {
         styles = TabbedViewerStyles(),
         classes = {"framedPanel", "journalViewer", "journalTabbedViewer"},
         border = 0,
+        --click-to-front from a press anywhere in the window, even on
+        --content that swallows the press (the engine walks up to here).
+        raiseOnPress = true,
         -- bgimage = true,
         blurBackground = true,
         x = loc.x,
@@ -6219,8 +7142,18 @@ function CustomDocument.GetOrCreateTabbedViewer()
         drag = function(element)
             --while popped out the OS window is what moves; a release of a
             --(suppressed) drag must not teleport the panel inside it.
-            if element.data.poppedOut then
+            if element.data.poppedOut or element.data.maximized then
                 return
+            end
+            --a window with a single tab, released with the mouse on another
+            --journal window's tab strip, merges into it (its tab is not
+            --draggable on its own: dragging it moves the window instead).
+            if #element.data.tabs == 1 then
+                local target = g_journal.DropTarget(element, nil, false)
+                if target ~= nil then
+                    MoveTab(element, element.data.tabs[1], target.viewer, target.index)
+                    return
+                end
             end
             element.x = element.xdrag
             element.y = element.ydrag
@@ -6233,6 +7166,7 @@ function CustomDocument.GetOrCreateTabbedViewer()
                 return
             end
             element:SetAsLastSibling()
+            g_journal.viewer = element
         end,
 
         captureEscape = true,
@@ -6263,6 +7197,38 @@ function CustomDocument.GetOrCreateTabbedViewer()
             if element.data.shaded then
                 element:FireEvent("updateShadeHeight")
             end
+
+            if element.data.poppedOut or element.data.minimized then
+                element.data.wasTop = false
+                return
+            end
+
+            --a maximized window follows the app window's size.
+            if element.data.maximized and not element.data.shaded then
+                local r = MaximizedRect()
+                if math.abs(element.x - r.x) > 0.5 or math.abs(element.y - r.y) > 0.5 or element.selfStyle.width ~= r.w or element.selfStyle.height ~= r.h then
+                    FitMaximized(element)
+                end
+            end
+
+            --new documents open in the journal window the user last brought
+            --to the front. Click-to-front reorders siblings without telling
+            --Lua, so a window claims focus when it BECOMES the topmost one.
+            local top = true
+            if #g_journal.viewers > 1 and element.parent ~= nil then
+                local siblings = element.parent.children
+                for i = #siblings, 1, -1 do
+                    local sib = siblings[i]
+                    if sib:HasClass("journalTabbedViewer") and not sib:HasClass("collapsed") then
+                        top = (sib == element)
+                        break
+                    end
+                end
+            end
+            if top and not element.data.wasTop then
+                g_journal.viewer = element
+            end
+            element.data.wasTop = top
         end,
 
         data = {
@@ -6274,6 +7240,11 @@ function CustomDocument.GetOrCreateTabbedViewer()
             forwardHistory = {},
             shaded = false,
             poppedOut = false,
+            --minimized into a button on the table (minimizedButton, at
+            --iconX/iconY); maximized over the table (restoreRect = the
+            --{x, y, w, h} to go back to).
+            minimized = false,
+            maximized = false,
             --POPOUT-DIAG (report UCBSGXVW): dmhub.Time() at which the viewer
             --was popped out, and the name of the teardown path that is about
             --to destroy it. Every KNOWN way a popped-out viewer can die sets
@@ -6301,6 +7272,26 @@ function CustomDocument.GetOrCreateTabbedViewer()
         --    SheetPanel.DestroyPanel diagnostic).
         --Costs nothing until a popped-out viewer is destroyed.
         destroy = function(element)
+            if element.data.themeListener ~= nil then
+                element.data.themeListener:Deregister()
+                element.data.themeListener = nil
+            end
+            local button = element.data.minimizedButton
+            if button ~= nil and button.valid then
+                button:DestroySelf()
+            end
+            HideTearOffGhost(element)
+            local kept = {}
+            for _, v in ipairs(g_journal.viewers) do
+                if v ~= element and v.valid then
+                    kept[#kept + 1] = v
+                end
+            end
+            g_journal.viewers = kept
+            if g_journal.viewer == element then
+                g_journal.viewer = nil
+            end
+
             if not element.data.poppedOut then
                 return
             end
@@ -6336,6 +7327,11 @@ function CustomDocument.GetOrCreateTabbedViewer()
             --the OS window, and a shaded window is just the tab strip.
             if element.data.shaded then
                 element:FireEvent("toggleShade")
+            end
+            --likewise un-maximize, so the OS window opens at the window's
+            --own size.
+            if element.data.maximized then
+                element:FireEvent("toggleMaximizeJournal")
             end
 
             element.data.poppedOut = true
@@ -6526,7 +7522,9 @@ function CustomDocument.GetOrCreateTabbedViewer()
                         element.data.popoutTeardownReason = "lastTabClosed"
                     end
                     viewer:DestroySelf()
-                    g_tabbedViewer = nil
+                    if g_journal.viewer == viewer then
+                        g_journal.viewer = nil
+                    end
                     return
                 end
 
@@ -6615,6 +7613,253 @@ function CustomDocument.GetOrCreateTabbedViewer()
             if #tabs > 0 then
                 element:FireEvent("closeTab", tabs[1].tabId)
             end
+        end,
+
+        --A journal tab is being dragged: answer, into info, where it would
+        --land if released over this window's tab strip -- index (its slot in
+        --this window's tab list) and markerX (the slot's x in the strip).
+        --Leaves info alone when the mouse is not over the strip.
+        tabDropQuery = function(element, info, tabButton)
+            if element.data.minimized then
+                return
+            end
+            local mp = MouseOver(tabBar)
+            local barWidth = tabBar.renderedWidth or 0
+            if mp == nil or barWidth <= 1 then
+                return
+            end
+            local toggleWidth = treeToggleButton.renderedWidth or TAB_HEIGHT
+            local mouseX = mp.x * barWidth - toggleWidth
+            local pos = 0
+            local lastVisible = 0
+            for i, tab in ipairs(element.data.tabs) do
+                local b = tab.tabButton
+                if not b:HasClass("collapsed") then
+                    local w = b.renderedWidth or 0
+                    if info.index == nil and b ~= tabButton and mouseX < pos + w / 2 then
+                        info.index = i
+                        info.markerX = toggleWidth + pos
+                    end
+                    pos = pos + w
+                    lastVisible = i
+                end
+            end
+            if info.index == nil then
+                info.index = lastVisible + 1
+                info.markerX = toggleWidth + pos
+            end
+        end,
+
+        --x = the drop slot's position in the strip, or nil to hide.
+        showTabDropMarker = function(element, x)
+            if x == nil then
+                if not tabDropMarker:HasClass("collapsed") then
+                    tabDropMarker:SetClass("collapsed", true)
+                end
+                return
+            end
+            tabDropMarker.x = x - 1
+            tabDropMarker:SetClass("collapsed", false)
+        end,
+
+        --every frame of a tab drag: mark where it would land -- a slot in a
+        --tab strip, or the outline of the window a tear-off would open.
+        tabDragging = function(element, tabButton)
+            local target = g_journal.DropTarget(element, tabButton, true)
+            local shown = nil
+            local markerX = nil
+            if target ~= nil and not IsNoopDrop(element, tabButton, target) then
+                shown = target.viewer
+                markerX = target.markerX
+            end
+            for _, v in ipairs(CustomDocument.JournalViewers()) do
+                if v == shown then
+                    v:FireEvent("showTabDropMarker", markerX)
+                else
+                    v:FireEvent("showTabDropMarker", nil)
+                end
+            end
+
+            local tab = FindTab(element, tabButton.data.tabId)
+            local dx, dy = tabButton.xdrag, tabButton.ydrag
+            if target == nil and tab ~= nil and WouldTearOff(element, dy) then
+                ShowTearOffGhost(element, tab, TearOffRect(element, tab, dx, dy))
+            else
+                HideTearOffGhost(element)
+            end
+        end,
+
+        --a tab drag ended: reorder, move to another window's strip, or --
+        --pulled well away from any strip -- tear off into a new window.
+        tabDropped = function(element, tabButton)
+            HideDropMarkers()
+            HideTearOffGhost(element)
+            local dx, dy = tabButton.xdrag, tabButton.ydrag
+            tabButton.x = 0
+            tabButton.y = 0
+            local tab = FindTab(element, tabButton.data.tabId)
+            if tab == nil then
+                return
+            end
+            local target = g_journal.DropTarget(element, tabButton, true)
+            if target ~= nil then
+                if target.viewer ~= element then
+                    MoveTab(element, tab, target.viewer, target.index)
+                elseif not IsNoopDrop(element, tabButton, target) then
+                    element:FireEvent("reorderTab", tab.tabId, target.index)
+                end
+                return
+            end
+            if WouldTearOff(element, dy) then
+                TearOff(element, tab, dx, dy)
+            end
+        end,
+
+        --moves tab tabId to position index (counted with it still in place).
+        reorderTab = function(element, tabId, index)
+            local tabs = element.data.tabs
+            local tab, from = FindTab(element, tabId)
+            if tab == nil or from == nil then
+                return
+            end
+            table.remove(tabs, from)
+            if index > from then
+                index = index - 1
+            end
+            index = math.max(1, math.min(index, #tabs + 1))
+            table.insert(tabs, index, tab)
+            for _, t in ipairs(tabs) do
+                t.tabButton:SetAsLastSibling()
+            end
+            refreshTabVisibility(element)
+        end,
+
+        --a tab moved here from another journal window (see MoveTab).
+        adoptTab = function(element, doc, args, history, forwardHistory, index)
+            if element.data.minimized then
+                element:FireEvent("restoreJournal")
+            end
+            local before = #element.data.tabs
+            element:FireEvent("addTab", doc, args)
+            local tabs = element.data.tabs
+            if #tabs == before then
+                --already open here; addTab switched to it.
+                return
+            end
+            local tab = tabs[#tabs]
+            tab.history = history or {}
+            tab.forwardHistory = forwardHistory or {}
+            if index ~= nil then
+                element:FireEvent("reorderTab", tab.tabId, index)
+            end
+            syncNavState(element)
+            element:FireEventTree("refreshNavButtons")
+        end,
+
+        minimizeJournal = function(element)
+            if element.data.poppedOut or element.data.minimized then
+                return
+            end
+            local from = {x = element.x, y = element.y, w = element.renderedWidth, h = element.renderedHeight}
+            local size = MinButtonSize()
+            --first time: the button goes where the window's middle was;
+            --after that, wherever it was left.
+            if element.data.iconX == nil then
+                element.data.iconX = math.floor(from.x + from.w / 2 - size / 2)
+                element.data.iconY = math.floor(from.y + from.h / 2 - size / 2)
+            end
+            element.data.minimized = true
+            element:SetClass("collapsed", true)
+            if MinimizeOntoTable(element, from) then
+                element.data.minimizedOnTable = true
+                return
+            end
+            FlyGhost(from, {x = element.data.iconX, y = element.data.iconY, w = size, h = size}, function()
+                if element.valid and element.data.minimized then
+                    BuildMinimizedButton(element)
+                end
+            end)
+        end,
+
+        --fromDocId (optional): the document being opened, whose table item
+        --(when minimized onto the table) the window grows out of.
+        restoreJournal = function(element, fromDocId)
+            if not element.data.minimized then
+                return
+            end
+            if element.data.minimizedOnTable then
+                element.data.minimizedOnTable = false
+                element.data.minimized = false
+                g_journal.viewer = element
+                local w = element.selfStyle.width
+                local h = element.selfStyle.height
+                if type(w) ~= "number" or type(h) ~= "number" then
+                    w, h = RestingSize(element)
+                end
+                if fromDocId == nil then
+                    local active = FindTab(element, element.data.activeTabId)
+                    fromDocId = active ~= nil and active.docId or nil
+                end
+                Tabletop.RestoreFromDocItems(element, {x = element.x, y = element.y, w = w, h = h}, function()
+                    if element.valid and not element.data.minimized then
+                        element:SetClass("collapsed", false)
+                        element:SetAsLastSibling()
+                    end
+                end, fromDocId)
+                return
+            end
+            local size = MinButtonSize()
+            local from = {x = element.data.iconX or 0, y = element.data.iconY or 0, w = size, h = size}
+            local button = element.data.minimizedButton
+            if button ~= nil and button.valid then
+                button:DestroySelf()
+            end
+            element.data.minimizedButton = nil
+            element.data.minimized = false
+            g_journal.viewer = element
+            local w = element.selfStyle.width
+            local h = element.selfStyle.height
+            if type(w) ~= "number" or type(h) ~= "number" then
+                w, h = RestingSize(element)
+            end
+            FlyGhost(from, {x = element.x, y = element.y, w = w, h = h}, function()
+                if element.valid and not element.data.minimized then
+                    element:SetClass("collapsed", false)
+                    element:SetAsLastSibling()
+                end
+            end)
+        end,
+
+        --fill the table between the icon rails, or go back to the window's
+        --own size and spot. Not while popped out: the OS window has its own.
+        toggleMaximizeJournal = function(element)
+            if element.data.poppedOut then
+                return
+            end
+            if element.data.shaded then
+                element:FireEvent("toggleShade")
+            end
+            if not element.data.maximized then
+                local w, h = RestingSize(element)
+                element.data.restoreRect = {x = element.x, y = element.y, w = w, h = h}
+                element.data.maximized = true
+                FitMaximized(element)
+            else
+                element.data.maximized = false
+                local r = element.data.restoreRect
+                if r ~= nil then
+                    element.x = r.x
+                    element.y = r.y
+                    SetViewerSize(element, r.w, r.h)
+                end
+            end
+            --a maximized window stays put: no dragging it, no resize handles.
+            element.dragMove = not element.data.maximized
+            resizePanel:SetClass("collapsed", element.data.maximized)
+            element:SetClass("journalMaximized", element.data.maximized)
+            element:FireEventTree("journalMaximized", element.data.maximized)
+            element:SetAsLastSibling()
+            g_journal.viewer = element
         end,
 
         navigateToDocument = function(element, docId)
@@ -6707,15 +7952,17 @@ function CustomDocument.GetOrCreateTabbedViewer()
         innerPanel,
     }
 
-    g_tabbedViewer = viewer
+    g_journal.viewer = viewer
+    g_journal.viewers[#g_journal.viewers + 1] = viewer
 
-    ThemeEngine.OnThemeChanged(mod, function()
-        if g_tabbedViewer ~= nil and g_tabbedViewer.valid then
+    --per window, and dropped in its destroy handler.
+    viewer.data.themeListener = ThemeEngine.OnThemeChanged(mod, function()
+        if viewer.valid then
             --UpdateStyle: assigning styles alone never marks the tree
             --style-dirty, so the recolor would wait for an unrelated
             --event. See the panel-window listener for the full note.
-            g_tabbedViewer.styles = TabbedViewerStyles()
-            g_tabbedViewer:UpdateStyle()
+            viewer.styles = TabbedViewerStyles()
+            viewer:UpdateStyle()
         end
     end)
 
@@ -6776,6 +8023,9 @@ local function DocumentWindowStyles()
         opacity = 0,
         transitionTime = 0.15,
     }
+    for _, rule in ipairs(CustomDocument.WindowShadowRules()) do
+        dialogStyles[#dialogStyles + 1] = rule
+    end
     return dialogStyles
 end
 
@@ -6893,6 +8143,9 @@ function CustomDocument:PresentDocument(args)
         styles = DocumentWindowStyles(),
         classes = { "framedPanel", "journalViewer" },
         bgimage = true,
+        --click-to-front from a press anywhere in the window, even on
+        --content that swallows the press (the engine walks up to here).
+        raiseOnPress = true,
         blurBackground = true,
         x = loc.x,
         y = loc.y,
@@ -7125,6 +8378,9 @@ function CustomDocument:PresentDocument(args)
         --same event.
         refreshPanelPinned = function(element)
             element.dragMove = not DialogPinned()
+            --map windows stay under pinned windows; the engine looks for
+            --this on the window root (PanelDocument.ABOVE_MAP_WINDOWS).
+            element:SetClass("panelDocumentPinned", DialogPinned())
             local resize = element.data.resizePanel
             if resize ~= nil and resize.valid then
                 resize:SetClass("collapsed", DialogPinned())
@@ -7157,7 +8413,9 @@ function CustomDocument:ShowDocument(args)
     self = (dmhub.GetTable(self.tableName) or {})[self.id] or self --get the most up-to-date version.
     args = args or {}
 
-    local viewer = CustomDocument.GetOrCreateTabbedViewer()
+    --a document already open in some journal window shows there.
+    local viewer = CustomDocument.JournalViewerWithDoc(self.id) or CustomDocument.GetOrCreateTabbedViewer()
+    g_journal.viewer = viewer
 
     if viewer.data.poppedOut then
         --the viewer lives in its own native OS window; never re-adopt it
@@ -7166,6 +8424,11 @@ function CustomDocument:ShowDocument(args)
         pcall(function() viewer:RaiseNativeWindow() end)
     elseif viewer.parent == nil then
         GameHud.instance.documentsPanel:AddChild(viewer)
+    else
+        if viewer.data.minimized then
+            viewer:FireEvent("restoreJournal", self.id)
+        end
+        viewer:SetAsLastSibling()
     end
 
     viewer:FireEvent("addTab", self, args)
@@ -7394,6 +8657,20 @@ local g_onPanelPinnedChanged
 --adds a badge to one button and takes another off the rail entirely.
 local g_onPanelGroupChanged
 
+--The documents-layer panels every tabletop map or scene window stays under,
+--windowed or maximized (its raiseBelowClasses, Tabletop.lua): the rails and
+--what they float on the layer, the chat preview bubble, and rail panel
+--windows, pinned or not (panelDocumentWindow, PresentPanel; David,
+--2026-10-24/25). Journals and other windows stack with the maps by click
+--order. presentedDialog is a dialog presented to the players (GameHud),
+--such as the Encounter of the Week stage: a player whose client builds the
+--forced map after the stage would otherwise be left looking at the map.
+PanelDocument.ABOVE_MAP_WINDOWS = {
+    "iconRail", "iconRailGhost", "iconRailGhostLine", "iconRailCardGhost", "iconRailTrash",
+    "iconRailViewChip", "iconRailViewToast", "iconRailToolkitStrip", "chatSpeechBubble",
+    "panelDocumentWindow", "panelDocumentPinned", "presentedDialog",
+}
+
 function PanelDocument.IsPinned(key)
     if key == nil then
         return false
@@ -7428,13 +8705,120 @@ function PanelDocument.SetPinned(key, on)
     end
 end
 
+----------------------------------------------------------------------
+-- The map rail
+-- ------------
+-- Panels that only make sense with a map open (map editing, floors,
+-- lighting, measuring) live on the MAP RAIL instead of the user's icon
+-- rails: a column down the left edge of the live map window, appended to
+-- the left rail when that window is maximized. A second column on the
+-- window's right edge holds Map Settings (MapRail.RIGHT_SIDE) above the
+-- buttons a particular map or encounter provides (MapButtons). The map
+-- rail is hard-wired: these panels never
+-- go on the user's rails, and their folders below are fixed in code
+-- rather than read from "iconrailtabs". A GLOBAL table: the main chunk
+-- sits on the 200-locals ceiling.
+MapRail = rawget(_G, "MapRail") or {}
+
+--The map rail's panels, in rail order: each entry is a folder owner
+--followed by its members. A panel this user cannot see (dmonly, or not
+--registered here) is skipped; a folder whose owner is skipped leaves its
+--members as plain buttons.
+MapRail.FOLDERS = {
+    { "map markup", "building editor", "terrain editor", "effects editor", "objects", "editor settings", "clipboard" },
+    { "floors & layers", "time of day/lighting", "elevation editor", "weather" },
+    { "map settings" },
+    { "measuring tool", "whiteboard" },
+}
+
+--Map panels that sit at the top of the RIGHT column (above the map's own
+--buttons) instead of in the left one. Keys are lower-case panel names.
+MapRail.RIGHT_SIDE = {
+    ["map settings"] = true,
+}
+
+MapRail.isMapPanel = {}
+for _, folder in ipairs(MapRail.FOLDERS) do
+    for _, key in ipairs(folder) do
+        MapRail.isMapPanel[key] = true
+    end
+end
+
+--- Whether a panel key belongs to the map rail (never the user's rails).
+--- @param key string|nil
+--- @return boolean
+function MapRail.IsMapPanel(key)
+    return type(key) == "string" and MapRail.isMapPanel[string.lower(key)] == true
+end
+
+--a panel this user can open here.
+function MapRail.PanelAvailable(key)
+    local reg = DockablePanel.GetRegistration(key)
+    return reg ~= nil and reg.launch == nil and DockablePanel.PanelPermittedForUser(reg)
+end
+
+--- The map rail's folders as this user sees them: { [owner] = {owner, members...} },
+--- only folders with at least one available member.
+--- @return table<string, string[]>
+function MapRail.LiveFolders()
+    --every folder lookup (WindowOwner, StoredTabs) lands here, often many
+    --times a frame; the answer only changes with permissions, so reuse it
+    --within a frame. Callers must not modify the result.
+    local now = dmhub.Time()
+    if MapRail.liveFoldersTime == now and MapRail.liveFoldersCache ~= nil then
+        return MapRail.liveFoldersCache
+    end
+    local result = {}
+    for _, folder in ipairs(MapRail.FOLDERS) do
+        if MapRail.PanelAvailable(folder[1]) then
+            local tabs = {}
+            for _, key in ipairs(folder) do
+                if MapRail.PanelAvailable(key) then
+                    tabs[#tabs + 1] = key
+                end
+            end
+            if #tabs > 1 then
+                result[folder[1]] = tabs
+            end
+        end
+    end
+    MapRail.liveFoldersTime = now
+    MapRail.liveFoldersCache = result
+    return result
+end
+
+--- The folder table every reader uses: the stored "iconrailtabs" with map
+--- panels taken out of the user's folders, plus the map rail's own fixed ones.
+--- @return table<string, string[]>
+function MapRail.EffectiveTabs()
+    local result = {}
+    for owner, tabs in pairs(dmhub.GetSettingValue("iconrailtabs") or {}) do
+        if type(owner) == "string" and type(tabs) == "table" and not MapRail.IsMapPanel(owner) then
+            local kept = {}
+            for _, k in ipairs(tabs) do
+                if not MapRail.IsMapPanel(k) then
+                    kept[#kept + 1] = k
+                end
+            end
+            if #kept > 1 then
+                result[string.lower(owner)] = kept
+            end
+        end
+    end
+    for owner, tabs in pairs(MapRail.LiveFolders()) do
+        --a copy: callers may edit what they get, and LiveFolders is cached.
+        result[owner] = { table.unpack(tabs) }
+    end
+    return result
+end
+
 --The stored member list for a panel's folder (owner included), or nil
 --when the panel has no folder beyond itself.
 function PanelDocument.StoredTabs(key)
     if key == nil then
         return nil
     end
-    local tabs = (dmhub.GetSettingValue("iconrailtabs") or {})[string.lower(key)]
+    local tabs = MapRail.EffectiveTabs()[string.lower(key)]
     if type(tabs) ~= "table" or #tabs <= 1 then
         return nil
     end
@@ -7453,6 +8837,20 @@ function PanelDocument.SetStoredTabs(key, keys)
         return
     end
     key = string.lower(key)
+    --the map rail's folders are fixed (MapRail.FOLDERS), and its panels
+    --join no user folder.
+    if MapRail.IsMapPanel(key) then
+        return
+    end
+    if type(keys) == "table" then
+        local kept = {}
+        for _, k in ipairs(keys) do
+            if not MapRail.IsMapPanel(k) then
+                kept[#kept + 1] = k
+            end
+        end
+        keys = kept
+    end
     local stored = dmhub.GetSettingValue("iconrailtabs") or {}
     local changed = false
 
@@ -7525,7 +8923,7 @@ end
 --appear as members (SetStoredTabs enforces it), so this cannot chain.
 function PanelDocument.GroupOwners()
     local result = {}
-    for owner, tabs in pairs(dmhub.GetSettingValue("iconrailtabs") or {}) do
+    for owner, tabs in pairs(MapRail.EffectiveTabs()) do
         if type(tabs) == "table" and #tabs > 1 then
             for _, k in ipairs(tabs) do
                 if k ~= owner then
@@ -7628,6 +9026,8 @@ function PanelDocument:PresentPanel(args)
 
     local dialog = self:PresentDocument(args)
     self._tmp_dialog = dialog
+    --map windows stay under rail panel windows (PanelDocument.ABOVE_MAP_WINDOWS).
+    dialog:SetClass("panelDocumentWindow", true)
     GameHud.instance.documentsPanel:AddChild(dialog)
     --apply the rail-mode window zoom now that the window is attached
     --(pivot writes need an attached panel -- see setWindowScale).
@@ -7918,11 +9318,13 @@ mod.unloadHandlers[#mod.unloadHandlers + 1] = function()
     --the tabbed journal viewer, likewise, never survives a reload while
     --popped out: it is unparented from the hud tree, so the hud rebuild
     --cannot reach it. Destroy it and the engine closes its window.
-    if g_tabbedViewer ~= nil and g_tabbedViewer.valid and g_tabbedViewer.data.poppedOut then
-        g_tabbedViewer.data.popoutTeardownReason = "moduleUnload"  --POPOUT-DIAG
-        g_tabbedViewer:DestroySelf()
-        g_tabbedViewer = nil
+    for _, v in ipairs(CustomDocument.JournalViewers()) do
+        if v.data.poppedOut then
+            v.data.popoutTeardownReason = "moduleUnload"  --POPOUT-DIAG
+            v:DestroySelf()
+        end
     end
+    g_journal.viewer = nil
 end
 
 function PanelDocument.PopoutHost(key)
@@ -9983,8 +11385,145 @@ local function RailMigrateRenamedPanels()
     return anyChanged
 end
 
+--Remove map panels from a stored rail table ({[key] = {side, slot}}),
+--closing the gap each one leaves: buttons below it on the same side move
+--up a slot. Returns whether anything was removed.
+function MapRail.StripRail(rail)
+    if type(rail) ~= "table" then
+        return false
+    end
+    local removed = { left = {}, right = {} }
+    local any = false
+    for key, entry in pairs(rail) do
+        if MapRail.IsMapPanel(key) then
+            if type(entry) == "table" and type(entry.slot) == "number" and entry.side ~= "off" then
+                --RailLayout reads any side but right/off as left.
+                local side = cond(entry.side == "right", "right", "left")
+                removed[side][#removed[side] + 1] = entry.slot
+            end
+            rail[key] = nil
+            any = true
+        end
+    end
+    if not any then
+        return false
+    end
+    for _, entry in pairs(rail) do
+        if type(entry) == "table" and type(entry.slot) == "number" and entry.side ~= "off" then
+            local side = cond(entry.side == "right", "right", "left")
+            local shift = 0
+            for _, s in ipairs(removed[side]) do
+                if s < entry.slot then
+                    shift = shift + 1
+                end
+            end
+            entry.slot = entry.slot - shift
+        end
+    end
+    return true
+end
+
+--Remove map panels from a stored folder table ({[owner] = {keys}}): a
+--map panel's own folder goes, and map panels leave everyone else's.
+function MapRail.StripTabs(tabs)
+    if type(tabs) ~= "table" then
+        return false
+    end
+    local changed = false
+    for owner, list in pairs(tabs) do
+        if MapRail.IsMapPanel(owner) then
+            tabs[owner] = nil
+            changed = true
+        elseif type(list) == "table" then
+            local kept = {}
+            for _, k in ipairs(list) do
+                if not MapRail.IsMapPanel(k) then
+                    kept[#kept + 1] = k
+                end
+            end
+            if #kept ~= #list then
+                changed = true
+                tabs[owner] = cond(#kept > 1, kept, nil)
+            end
+        end
+    end
+    return changed
+end
+
+--A view layout payload (ViewsCaptureLayout's shape).
+function MapRail.StripLayout(layout)
+    if type(layout) ~= "table" then
+        return false
+    end
+    local railChanged = MapRail.StripRail(layout.rail)
+    local tabsChanged = MapRail.StripTabs(layout.tabs)
+    return railChanged or tabsChanged
+end
+
+--The one-time move to the map rail, run on every rail setup like the
+--rename repair above: take map panels out of this game's rail layout and
+--folders, its view stashes and update baselines, and the account-wide
+--view library. Writes only what changed, so it settles to a no-op.
+--Open-window records are left alone: a map panel that was open stays open.
+function MapRail.StripStoredLayouts()
+    local anyChanged = false
+
+    local layout = DeepCopy(dmhub.GetSettingValue("iconraillayout") or {})
+    if MapRail.StripRail(layout) then
+        dmhub.SetSettingValue("iconraillayout", layout)
+        anyChanged = true
+    end
+
+    local tabs = DeepCopy(dmhub.GetSettingValue("iconrailtabs") or {})
+    if MapRail.StripTabs(tabs) then
+        dmhub.SetSettingValue("iconrailtabs", tabs)
+        anyChanged = true
+    end
+
+    local stash = DeepCopy(dmhub.GetSettingValue("viewsstash") or {})
+    local stashChanged = false
+    for _, stashed in pairs(stash) do
+        stashChanged = MapRail.StripLayout(stashed) or stashChanged
+    end
+    if stashChanged then
+        dmhub.SetSettingValue("viewsstash", stash)
+        anyChanged = true
+    end
+
+    --baselines too, or the on-entry update check would read the strip
+    --as the user rearranging a built-in view (see the rename repair).
+    local stamps = DeepCopy(dmhub.GetSettingValue("viewsbuiltinversion") or {})
+    local stampsChanged = false
+    for _, rec in pairs(stamps) do
+        if type(rec) == "table" then
+            stampsChanged = MapRail.StripLayout(rec.layout) or stampsChanged
+        end
+    end
+    if stampsChanged then
+        dmhub.SetSettingValue("viewsbuiltinversion", stamps)
+        anyChanged = true
+    end
+
+    local lib = DeepCopy(dmhub.GetSettingValue("viewslibrary") or {})
+    local libChanged = false
+    for _, entry in pairs(lib) do
+        if type(entry) == "table" then
+            libChanged = MapRail.StripLayout(entry.layout) or libChanged
+        end
+    end
+    if libChanged then
+        dmhub.SetSettingValue("viewslibrary", lib)
+        anyChanged = true
+    end
+
+    return anyChanged
+end
+
 local ICON_RAIL_BUTTON = 40
 local ICON_RAIL_GAP = 8
+--the widest a rail button may be (a journal PDF's cover, sized to its
+--page shape); wider than this and it crowds the map.
+local ICON_RAIL_WIDE_MAX = 64
 local ICON_RAIL_LEFT = 12
 --The gap the rearrange-mode stop button leaves below itself (its own y
 --offset, in pre-scale rail units) AND above itself (in layer units) --
@@ -10614,6 +12153,31 @@ local function ScriptButtonCode(script)
     return script
 end
 
+--Rail entry types registered by other modules. A layout key "<type>:<id>"
+--whose type is registered here is drawn and driven by its callbacks; a
+--minimized tabletop map window ("mapwindow:<id>", Tabletop.lua) is the
+--first. A global, not a local: the main chunk sits on the 200-locals
+--ceiling, and the registrations come from other mods, which a reload of
+--this file does not re-run. Each def's callbacks take the id after the
+--prefix:
+--  available(id) -> boolean  false parks a stored entry inert (kept, not drawn)
+--  name(id) -> string        the button's name
+--  icon(id) -> string        the button's image
+--  span(id) -> integer       optional: rail slots the button spans (1-4, default 1)
+--  width(id, h) -> number    optional: button width given its height h (a little
+--                            wider than the rail, up to ICON_RAIL_WIDE_MAX); the
+--                            extra width grows away from the screen edge
+--  face(id, w, h) -> Panel   optional: draws the whole button face (w x h) in
+--                            place of the icon; nil falls back to the icon
+--  isActive(id) -> boolean   optional: lights the button (its window is open)
+--  activate(id, element)     the press
+--  hover(id, element)        optional: shows a tooltip; replaces the name label
+--  menu(id, element)         optional: context-menu entries above the move entries
+--  onRemove(id)              the entry left the rail (Remove from rail, the trash)
+--Entries of these types never group, and leaving the rail erases them
+--rather than parking them inert.
+RailEntryTypes = rawget(_G, "RailEntryTypes") or {}
+
 --The current button layout. Returns TWO values:
 --  sides: available panels partitioned onto the two rails -- each a list
 --    of {key, name, slot} sorted by slot (holes allowed = blank spots).
@@ -10637,6 +12201,10 @@ local function RailLayout()
             return
         end
         seen[key] = true
+        --map panels live on the map rail, never here (see MapRail).
+        if MapRail.IsMapPanel(key) then
+            return
+        end
 
         local side = "left"
         local slot = nil
@@ -10675,7 +12243,34 @@ local function RailLayout()
         local toolkitid = string.match(key, "^toolkit:(.+)$")
         local sbuttonid = string.match(key, "^button:(.+)$")
         local sbuttonSpan = 1
-        if docid ~= nil then
+        --a registered entry type's own width (nil = rail width).
+        local customWidth = nil
+        local customType, customId = string.match(key, "^([%w_]+):(.+)$")
+        local customDef = customType ~= nil and RailEntryTypes[customType] or nil
+        if customDef == nil then
+            customType, customId = nil, nil
+        end
+        if customDef ~= nil then
+            local ok, result = pcall(customDef.available, customId)
+            available = ok and result == true
+            if available then
+                local okName, name = pcall(customDef.name, customId)
+                displayName = (okName and type(name) == "string") and name or customType
+                if customDef.span ~= nil then
+                    local okSpan, n = pcall(customDef.span, customId)
+                    if okSpan and type(n) == "number" then
+                        sbuttonSpan = math.max(1, math.min(4, math.floor(n)))
+                    end
+                end
+                if customDef.width ~= nil then
+                    local h = sbuttonSpan * (ICON_RAIL_BUTTON + ICON_RAIL_GAP) - ICON_RAIL_GAP
+                    local okWidth, w = pcall(customDef.width, customId, h)
+                    if okWidth and type(w) == "number" and w > ICON_RAIL_BUTTON then
+                        customWidth = math.min(ICON_RAIL_WIDE_MAX, math.floor(w))
+                    end
+                end
+            end
+        elseif docid ~= nil then
             local docs = dmhub.GetTable(CustomDocument.tableName) or {}
             local doc = docs[docid]
             available = doc ~= nil and (not doc.hidden)
@@ -10728,7 +12323,8 @@ local function RailLayout()
         local list = sides[side]
         --character entries render as a CARD spanning two slots (portrait +
         --stamina + hero resources) rather than a one-slot icon button.
-        --script buttons can ask for extra slots via the @slots directive.
+        --script buttons can ask for extra slots via the @slots directive,
+        --and registered entry types via their span callback.
         --span is derived here, never persisted: the stored layout stays
         --{side, slot} for every entry.
         --a missing character has no card to draw, so it shrinks back to a
@@ -10736,10 +12332,10 @@ local function RailLayout()
         local span = 1
         if charid ~= nil and not missing then
             span = 2
-        elseif sbuttonid ~= nil then
+        elseif sbuttonid ~= nil or customDef ~= nil then
             span = sbuttonSpan
         end
-        list[#list + 1] = { key = key, name = displayName, slot = slot, ord = ord, docid = docid, charid = charid, toolkitid = toolkitid, sbuttonid = sbuttonid, span = span, missing = missing }
+        list[#list + 1] = { key = key, name = displayName, slot = slot, ord = ord, docid = docid, charid = charid, toolkitid = toolkitid, sbuttonid = sbuttonid, span = span, width = customWidth, missing = missing, customType = customType, customId = customId }
     end
 
     --curated panels first: they carry the first-run default ordering.
@@ -10892,6 +12488,13 @@ end
 local function RefreshRails()
     for _, rail in pairs(g_iconRails) do
         if rail ~= nil and rail.valid then
+            rail:FireEventTree("refreshRail")
+        end
+    end
+    --and the live map window's rail (MapRail), so its lit states follow
+    --a window opened or closed anywhere at once rather than on its think.
+    for _, rail in ipairs(MapRail.windowRails or {}) do
+        if rail.valid then
             rail:FireEventTree("refreshRail")
         end
     end
@@ -13255,6 +14858,24 @@ local function IconRailStyles()
             opacity = 1,
             priority = 20,
         },
+        --a map's own buttons (MapButtons, on the map rail) wear the
+        --accent on their glyph: "this map offers something", not more
+        --standing chrome. Two-class selectors out-rank iconRailIcon's.
+        {
+            selectors = {"iconRailIcon", "mapButtonIcon"},
+            bgcolor = "@accent",
+        },
+        {
+            selectors = {"iconRailIcon", "mapButtonIcon", "parent:hover"},
+            bgcolor = "@accentHover",
+        },
+        --the rule above a merged map rail section.
+        {
+            selectors = {"iconRailMapDivider"},
+            bgcolor = "@fg",
+            opacity = 0.35,
+            cornerRadius = 1,
+        },
     })
 end
 
@@ -13904,6 +15525,9 @@ end
 --Add a panel to a rail at the next free slot (the inverse of "Remove
 --from rail"; also how non-curated panels first reach the rail).
 local function RailAddPanel(name, side)
+    if MapRail.IsMapPanel(name) then
+        return
+    end
     side = PanelDocument.RailVisibleSide(side)
     local sides, inert = RailLayout()
     local key = string.lower(name)
@@ -14037,6 +15661,20 @@ function RailRightColumnWidth()
         end
     end
     return result
+end
+
+--Whether a rail side ("left" or "right") shows anything: panel buttons, or
+--a custom-interface widget (assumed present whenever one is active). An
+--empty rail still has a wrapper with a width, so RailRightColumnWidth alone
+--cannot tell.
+--- @param side string
+--- @return boolean
+function RailSideOccupied(side)
+    if GameHud.CustomInterface() ~= nil then
+        return true
+    end
+    local sides = RailLayout()
+    return #(sides[side] or {}) > 0
 end
 
 --Whether a registered panel currently has a rail button.
@@ -14256,6 +15894,66 @@ function IconRailCharacterAdd(charid, side)
     return RailAddKey("character:" .. charid, side)
 end
 
+--The same drop / add paths for any registered entry type's key
+--("<type>:<id>", see RailEntryTypes): a dragged panel's dragging handler
+--calls IconRailDocDragging(target) for the slot ghost, and its drop
+--calls IconRailKeyDrop(key, target).
+function IconRailKeyDrop(key, target)
+    HideRailGhost()
+    return RailKeyDrop(key, target)
+end
+
+function IconRailKeyAdd(key, side)
+    return RailAddKey(key, side)
+end
+
+--Takes a registered entry off the rail for good and tells its owner
+--(def.onRemove). Erasing it -- rather than parking it inert like a panel
+---- is the point: the owner put it there and decides what leaving means.
+function IconRailKeyRemove(key)
+    RailPurgeKey(key)
+    local customType, customId = string.match(key or "", "^([%w_]+):(.+)$")
+    local def = customType ~= nil and RailEntryTypes[customType] or nil
+    if def ~= nil and def.onRemove ~= nil then
+        def.onRemove(customId)
+    end
+end
+
+--Erases a registered entry without calling its onRemove (its owner is
+--already removing it).
+function IconRailKeyPurge(key)
+    RailPurgeKey(key)
+end
+
+--Whether key is on a rail now; returns its side and slot when it is.
+function IconRailKeySlot(key)
+    local sides = RailLayout()
+    for side, list in pairs(sides) do
+        for _, e in ipairs(list) do
+            if e.key == key then
+                return side, e.slot
+            end
+        end
+    end
+    return nil
+end
+
+--Rebuilds the rails on the next frame: a registered entry type's
+--availability, name or icon changed.
+function IconRailRebuildSoon()
+    if g_railRebuildPending then
+        return
+    end
+    g_railRebuildPending = true
+    dmhub.Schedule(0.01, function()
+        g_railRebuildPending = false
+        if mod.unloaded then
+            return
+        end
+        RebuildIconRails()
+    end)
+end
+
 --Closing a panel from a dock (its right-click > Close) also takes its
 --button off the rail and saves the layout. The dock and the rail are two
 --views of one workspace: without this the button stays, and the panel
@@ -14310,6 +16008,8 @@ local function RailIsGroupableKey(key)
         --an action registration has no window, so a folder tab for it
         --would be an inert chip; it stays a standalone button.
         and RailLaunchAction(key) == nil
+        --map panels keep the map rail's fixed folders.
+        and not MapRail.IsMapPanel(key)
 end
 
 --(Grouping edits reach open windows through g_onPanelGroupChanged,
@@ -14898,8 +16598,20 @@ end
 --it as an ordinary child of the documents layer -- the same layer the
 --rails, the windows and this bubble live on -- so it buries everything
 --built before it. Nothing presented, or a small centred dialog that
---leaves the rail corners alone, reads as no stage.
+--leaves the rail corners alone, reads as no stage. A maximized tabletop
+--window stacked with the windows is a stage too, when it is the higher.
 function PanelDocument.FullscreenStage()
+    local stage, depth = PanelDocument.PresentedStage()
+    local maximized = Tabletop.MaximizedWindowPanel()
+    local maximizedDepth = maximized ~= nil and PanelDocument.LayerDepth(maximized) or nil
+    if maximizedDepth ~= nil and (depth == nil or maximizedDepth > depth) then
+        return maximized, maximizedDepth
+    end
+    return stage, depth
+end
+
+--The presented dialog alone, when it is a full-screen stage (FullscreenStage).
+function PanelDocument.PresentedStage()
     local hud = GameHud and GameHud.instance
     if not hud then
         return nil
@@ -15602,7 +17314,7 @@ local function RailAddPanelEntries(element, side)
     table.sort(items, function(a, b) return (a.text or "") < (b.text or "") end)
     for _, item in ipairs(items) do
         local name = item.text
-        if name ~= nil and not onRail[string.lower(name)] and PanelDocument.Get(name) ~= nil then
+        if name ~= nil and not onRail[string.lower(name)] and not MapRail.IsMapPanel(name) and PanelDocument.Get(name) ~= nil then
             entries[#entries + 1] = {
                 text = "Add: " .. name,
                 click = function()
@@ -19691,6 +21403,10 @@ RailShowAddPicker = function(element, side)
     for memberKey in pairs(PanelDocument.GroupOwners()) do
         onRail[memberKey] = true
     end
+    --map panels are on the map rail and cannot be added here.
+    for mapKey in pairs(MapRail.isMapPanel) do
+        onRail[mapKey] = true
+    end
 
     --RECOMMENDED is the curated rail order filtered to what is not
     --already on a rail; ALL PANELS is every available panel (curated
@@ -20512,8 +22228,38 @@ local function CreateRailAddButton(side)
     return button
 end
 
-local function CreateIconRail(side, entries)
+--opts (optional), used by the map rail (see MapRail):
+--  fixed     true: not customizable -- no rearrange mode, no + button, no
+--            move/remove/group menus (entries can also be fixed one by one
+--            with entry.mapRail on an ordinary rail)
+--  windowed  true: the column sits inside a map window rather than on the
+--            screen edge; inset is its margin from the window's edges
+--  anchor    function(button, index) -> x, y: where a window opened from
+--            a button lands (layer units); nil falls back to RailAnchor
+local function CreateIconRail(side, entries, opts)
+    opts = opts or {}
+    local fixedRail = opts.fixed == true
+    local windowedRail = opts.windowed == true
     local buttons = {}
+
+    --A press inside a map window raises that window (raiseOnPress, an
+    --engine walk that runs AFTER the press handlers), burying the panel
+    --window the press just opened or raised. Raise it again next frame.
+    local function RaiseWindowSoon(key)
+        if not windowedRail then
+            return
+        end
+        dmhub.Schedule(0.01, function()
+            if mod.unloaded then
+                return
+            end
+            local doc = RailPanelDocument(PanelDocument.WindowOwner(key))
+            local d = doc ~= nil and doc:try_get("_tmp_dialog") or nil
+            if d ~= nil and d.valid then
+                d:SetAsLastSibling()
+            end
+        end)
+    end
 
     --halign is EXPLICIT on both sides. Without it the label defaults to
     --centred on its x anchor and grows in BOTH directions, so a long title
@@ -20537,7 +22283,7 @@ local function CreateIconRail(side, entries)
     --always clears the title bar; RAIL_STOP_GAP is the same gap on
     --both sides of it.
     --Escape exits the mode too: escapeActivates fires the click handler.
-    if g_railRearranging then
+    if g_railRearranging and not fixedRail then
         buttons[#buttons + 1] = gui.Panel{
             classes = {"iconRailButton", "iconRailStopButton"},
             bgimage = true,
@@ -20669,6 +22415,11 @@ local function CreateIconRail(side, entries)
         --button becomes a tombstone -- skull face, no window to open, and
         --a click that erases it from the layout.
         local missing = entry.missing == true
+        --a map rail button (see MapRail): no move, remove or group verbs.
+        local fixedEntry = fixedRail or entry.mapRail == true
+        --a registered entry type asking for the accent-colored glyph (the
+        --map's own buttons, so they read as "this map offers something").
+        local accentIcon = false
 
         --panel buttons draw their registration icon; document shortcuts
         --draw the doc's semantic-type icon; character shortcuts draw the
@@ -20688,7 +22439,14 @@ local function CreateIconRail(side, entries)
         --the @disabled condition's state at build time; refreshRail
         --keeps it live afterwards.
         local sbuttonDisabled = false
-        if toolkitid ~= nil then
+        if entry.customType ~= nil then
+            --a registered entry type (RailEntryTypes) draws its own icon.
+            pcall(function()
+                buttonIcon = RailEntryTypes[entry.customType].icon(entry.customId) or buttonIcon
+            end)
+            accentIcon = RailEntryTypes[entry.customType].accent == true
+            sbuttonAnimates = RailEntryTypes[entry.customType].clickAnim == true
+        elseif toolkitid ~= nil then
             --the user's chosen icon, falling back to the toolbox for
             --toolkits made before icons existed (and for anyone who left
             --the picker alone).
@@ -20763,6 +22521,9 @@ local function CreateIconRail(side, entries)
             buttonMargin = buttonTop - prevBottom
         end
         prevBottom = buttonTop + buttonHeight
+        --most buttons are the rail's width; a registered type may ask for
+        --a little more (a PDF cover keeps its page shape).
+        local buttonWidth = entry.width or ICON_RAIL_BUTTON
 
         --hover labels open toward the screen centre: right of the button
         --on the left rail, left of the button on the right rail. halign is
@@ -20772,9 +22533,9 @@ local function CreateIconRail(side, entries)
         --label grow away from the rail at any length.
         local labelArgs
         if side == "left" then
-            labelArgs = { halign = "left", x = ICON_RAIL_BUTTON + 10 }
+            labelArgs = { halign = "left", x = buttonWidth + 10 }
         else
-            labelArgs = { halign = "right", x = -(ICON_RAIL_BUTTON + 10) }
+            labelArgs = { halign = "right", x = -(buttonWidth + 10) }
         end
 
         --GROUP: the panels sharing this button's window as tabs. They have
@@ -20785,7 +22546,7 @@ local function CreateIconRail(side, entries)
         --whether this button's panel can host a group at all (document,
         --character and toolkit shortcuts cannot be folder members or
         --owners, either way round).
-        local groupCapable = docid == nil and charid == nil and toolkitid == nil
+        local groupCapable = docid == nil and charid == nil and toolkitid == nil and entry.customType == nil
         --forward-declared: ToggleGroupMember below closes the strip, and
         --a local declared after it would not be in that closure's scope.
         local groupFlyout
@@ -20850,6 +22611,18 @@ local function CreateIconRail(side, entries)
         --the owner's own button, captured on create so the members can
         --schedule the close on it.
         local ownerButton
+        --where a window opened from this button (or its folder's strip)
+        --lands: beside the button, via the rail's own anchor function when
+        --it has one (a map window's rail moves with its window).
+        local function EntryAnchor()
+            if opts.anchor ~= nil then
+                local ax, ay = opts.anchor(ownerButton, index)
+                if ax ~= nil then
+                    return ax, ay
+                end
+            end
+            return RailAnchor(side, index)
+        end
         --Fold the strip away, from any route: the deferred close, a press,
         --a member opening its tab, or another button taking over the rail.
         --Every route goes through here so the strip, the marker card and
@@ -20896,6 +22669,7 @@ local function CreateIconRail(side, entries)
         --member has no button of its own to anchor to.
         local function ToggleGroupMember(memberKey)
             memberKey = string.lower(memberKey)
+            RaiseWindowSoon(memberKey)
             --defensive: launch panels are not groupable, but a stored
             --group could predate the flag. Run the action, keep the strip.
             local launch = RailLaunchAction(memberKey)
@@ -20928,7 +22702,7 @@ local function CreateIconRail(side, entries)
             --the same one-transient-window rule the icon's own click
             --follows.
             RailSweepTransient(ownerKey)
-            local anchorX, anchorY = RailAnchor(side, index)
+            local anchorX, anchorY = EntryAnchor()
             OpenIconRailWindow(memberKey, { x = anchorX, y = anchorY, anchor = true, autoFocus = true })
             --the strip has done its job, and the window it just opened
             --lands on top of it.
@@ -20950,6 +22724,17 @@ local function CreateIconRail(side, entries)
             --button's only verb is "dismiss me".
             if missing then
                 return "REMOVED CHARACTER  (CLICK TO DISMISS)"
+            end
+            --a registered entry type's name is re-read live (it can change
+            --while the button is up, e.g. a map window switching maps).
+            if entry.customType ~= nil then
+                local ok, name = pcall(function()
+                    return RailEntryTypes[entry.customType].name(entry.customId)
+                end)
+                if ok and type(name) == "string" then
+                    return string.upper(name)
+                end
+                return string.upper(panelName)
             end
             --a script button's @tooltip replaces its name entirely --
             --live state text, re-read on the same refreshRail cadence
@@ -21233,13 +23018,20 @@ local function CreateIconRail(side, entries)
                                     ToggleGroupMember(memberKey)
                                 end,
                             },
-                            {
-                                text = "Make group owner",
-                                click = function()
-                                    element.popup = nil
-                                    RailGroupInvert(memberKey, key)
-                                end,
-                            },
+                        }
+                        --the map rail's folders are fixed: open/close only.
+                        if fixedEntry then
+                            element.popup = gui.ContextMenu{
+                                entries = entries,
+                            }
+                            return
+                        end
+                        entries[#entries + 1] = {
+                            text = "Make group owner",
+                            click = function()
+                                element.popup = nil
+                                RailGroupInvert(memberKey, key)
+                            end,
                         }
                         if mi > 1 then
                             entries[#entries + 1] = {
@@ -21566,6 +23358,11 @@ local function CreateIconRail(side, entries)
         local sbuttonFace = nil
         if sbuttonStyle ~= nil and sbuttonStyle.face then
             sbuttonFace = ToolkitCluster.ScriptButtonFace((dmhub.GetSettingValue("iconrailscriptbuttons") or {})[sbuttonid])
+        elseif entry.customType ~= nil and RailEntryTypes[entry.customType].face ~= nil then
+            --a registered entry type's own face (a journal PDF's cover).
+            pcall(function()
+                sbuttonFace = RailEntryTypes[entry.customType].face(entry.customId, buttonWidth, buttonHeight)
+            end)
         end
         --`not missing`: the card reads stamina and hero resources off the
         --token, so with the token gone there is nothing to draw. The
@@ -21653,7 +23450,7 @@ local function CreateIconRail(side, entries)
             }
         else
             buttonContent = gui.Panel{
-                classes = {"iconRailIcon"},
+                classes = {"iconRailIcon", cond(accentIcon, "mapButtonIcon")},
                 bgimage = buttonIcon,
                 width = 20,
                 height = 20,
@@ -21687,6 +23484,11 @@ local function CreateIconRail(side, entries)
         --rearrange mode: wiggle, with neighbours desynced from the
         --start (odd slots begin counter-tilted, alternating pairs
         --begin contracted).
+        --the chat's button springs the chat open when something shareable
+        --is dragged onto it (ChatItemLinks.lua).
+        if key == "chat" then
+            buttonClasses[#buttonClasses + 1] = "chatItemOpenTarget"
+        end
         if g_railRearranging then
             buttonClasses[#buttonClasses + 1] = "rearranging"
             if index % 2 == 1 then
@@ -21713,10 +23515,33 @@ local function CreateIconRail(side, entries)
         --Everything re-checks on the rail's refreshRail cadence, and the
         --marker hides while the panel itself is shown.
         local novelMarker = nil
-        if reg ~= nil and reg.hasNewContent ~= nil then
-            local hasNewContent = reg.hasNewContent
-            local newContentCount = reg.newContentCount
-            local markContentSeen = reg.markContentSeen
+        --a registered entry type's alert(id) drives the same marker: true
+        --or a count while it needs attention (a map button's alert).
+        local alertSource = reg
+        if entry.customType ~= nil and RailEntryTypes[entry.customType].alert ~= nil then
+            local alert = RailEntryTypes[entry.customType].alert
+            local customId = entry.customId
+            local function AlertCount()
+                local ok, n = pcall(alert, customId)
+                if ok and n == true then
+                    return 1
+                end
+                if ok and type(n) == "number" and n >= 1 then
+                    return math.floor(n)
+                end
+                return nil
+            end
+            alertSource = {
+                hasNewContent = function()
+                    return AlertCount() ~= nil
+                end,
+                newContentCount = AlertCount,
+            }
+        end
+        if alertSource ~= nil and alertSource.hasNewContent ~= nil then
+            local hasNewContent = alertSource.hasNewContent
+            local newContentCount = alertSource.newContentCount
+            local markContentSeen = alertSource.markContentSeen
             local m_shownCount = nil --count the marker currently displays; nil = hidden.
             --the container is a 1x1 anchor sitting ON the button's
             --top-right corner; the badge centers on it, so it pops out
@@ -21846,6 +23671,24 @@ local function CreateIconRail(side, entries)
             }
         end
 
+        --the first map rail button on a merged rail (MapRail.AppendMerged
+        --leaves one empty slot above it): a short rule across that slot
+        --marks where the map's own section begins. Floating at the slot's
+        --absolute position, like the group card below.
+        if entry.mapDivider then
+            buttons[#buttons + 1] = gui.Panel{
+                classes = {"iconRailMapDivider"},
+                bgimage = true,
+                floating = true,
+                interactable = false,
+                width = ICON_RAIL_BUTTON - 12,
+                height = 2,
+                halign = "center",
+                valign = "top",
+                y = buttonTop - math.floor((ICON_RAIL_BUTTON + 2 * ICON_RAIL_GAP) / 2) - 1,
+            }
+        end
+
         --GROUP marker: a second card peeking out from behind the button
         --(up and toward the screen centre), so a grouped button reads as
         --a small stack. A floating SIBLING appended before the button --
@@ -21901,7 +23744,10 @@ local function CreateIconRail(side, entries)
             --way), so a button whose author asked for @opacity drops
             --the blur -- otherwise the transparency never reads.
             blurBackground = not (sbuttonStyle ~= nil and sbuttonStyle.opacity ~= nil),
-            width = ICON_RAIL_BUTTON,
+            width = buttonWidth,
+            --a wide button keeps its edge on the rail's screen-edge line and
+            --grows toward the map, rather than centring past the rail.
+            halign = cond(buttonWidth > ICON_RAIL_BUTTON, side, nil),
             --a character card spans several slots; ordinary buttons are
             --one slot tall.
             height = buttonHeight,
@@ -21913,8 +23759,48 @@ local function CreateIconRail(side, entries)
             --journal documents can be dropped onto buttons (insert at
             --this slot); data.slot is how the drop finds it. key and
             --baseMargin are for the live drag reflow (ShowRailGhost).
-            dragTarget = true,
+            --(not on a map window's rail: its slots are not the user's.)
+            dragTarget = not windowedRail,
             data = { slot = index, key = key, baseMargin = buttonMargin },
+
+            --Chat only: hovering a shareable item here opens the chat so
+            --it can be dropped in (springOpen, fired by ChatItemLinks for
+            --panel drags; tokenDragEnter for map tokens). A drop on the
+            --button itself posts the link.
+            tokenDropTarget = key == "chat",
+            --Not the press path: that closes the other transient window
+            --(which may be the panel the drag started in, ending the drag)
+            --and moves the focus (which character and bestiary drags read
+            --their selection from).
+            springOpen = function(element)
+                local verb, _, _, dialog = RailActivation(key)
+                if verb == "open" then
+                    local anchorX, anchorY = EntryAnchor()
+                    OpenIconRailWindow(key, {x = anchorX, y = anchorY, anchor = true})
+                elseif dialog ~= nil and dialog.valid then
+                    dialog:SetAsLastSibling()
+                    if verb == "switch" then
+                        dialog:FireEventTree("focusPanelTab", key)
+                    end
+                end
+                RefreshRails()
+            end,
+            tokenDragEnter = function(element)
+                element.data.tokenDragOver = true
+                element:ScheduleEvent("tokenSpringOpen", ChatItemLinks.SPRING_OPEN_DELAY)
+            end,
+            tokenDragLeave = function(element)
+                element.data.tokenDragOver = false
+            end,
+            tokenSpringOpen = function(element)
+                if element.data.tokenDragOver then
+                    element:FireEvent("springOpen")
+                end
+            end,
+            dropTokens = function(element, info)
+                element.data.tokenDragOver = false
+                ChatItemLinks.SendCharacters(info.charids or {info.charid})
+            end,
 
             --The button's ONE refreshRail handler. A second `refreshRail =`
             --key later in this same constructor table silently overrides
@@ -21939,17 +23825,15 @@ local function CreateIconRail(side, entries)
                 --while its strip is up; anything else while its panel's
                 --window is open.
                 if docid ~= nil then
-                    local lit = false
-                    if g_tabbedViewer ~= nil and g_tabbedViewer.valid then
-                        for _, tab in ipairs(g_tabbedViewer.data.tabs or {}) do
-                            if tab.docId == docid then
-                                lit = true
-                            end
-                        end
-                    end
-                    element:SetClass("active", lit)
+                    element:SetClass("active", CustomDocument.JournalViewerWithDoc(docid) ~= nil)
                 elseif toolkitid ~= nil then
                     element:SetClass("active", RailToolkitStripOpen(toolkitid))
+                elseif entry.customType ~= nil then
+                    local ok, lit = pcall(function()
+                        local def = RailEntryTypes[entry.customType]
+                        return def.isActive ~= nil and def.isActive(entry.customId) == true
+                    end)
+                    element:SetClass("active", ok and lit == true)
                 else
                     element:SetClass("active", PanelDocument.IsPanelShown(key))
                 end
@@ -21985,6 +23869,19 @@ local function CreateIconRail(side, entries)
             --from the button into the strip never shuts it mid-reach.
             hover = function(element)
                 RailButtonSound("hover")
+                --a registered entry type may show its own tooltip (its
+                --name label is collapsed in that case); a document
+                --shortcut shows a preview of the document.
+                if entry.customType ~= nil then
+                    pcall(function()
+                        local def = RailEntryTypes[entry.customType]
+                        if def.hover ~= nil then
+                            def.hover(entry.customId, element)
+                        end
+                    end)
+                elseif docid ~= nil and not missing then
+                    CustomDocument.ShowJournalPreview(element, docid, CustomDocument.RailPreviewPlacement(element))
+                end
                 --A popped-out panel's OS window can be buried under other
                 --windows; arriving on its rail button surfaces it: bring
                 --the window to the top (without stealing focus -- the
@@ -22054,6 +23951,11 @@ local function CreateIconRail(side, entries)
                     sx1 = (dmhub.screenDimensionsBelowTitlebar.x - ICON_RAIL_LEFT - ICON_RAIL_BUTTON * railScale) - stripWidth
                 end
                 local overPanel = RailWindowIntersectsBand(sx1, sy, sx1 + stripWidth, sy + ICON_RAIL_BUTTON * railScale)
+                --a rail inside a map window opens its strip over the map
+                --(the band math above is for the screen-edge rails).
+                if windowedRail then
+                    overPanel = true
+                end
                 --docks are not panel-document windows, but a dock visible
                 --on this side always underlies the strip band -- the strip
                 --opens straight across it. Err toward the card: text and
@@ -22212,7 +24114,9 @@ local function CreateIconRail(side, entries)
             },
 
             gui.Label{
-                classes = {"iconRailLabel", cond(groupMembers ~= nil, "collapsed")},
+                classes = {"iconRailLabel", cond(groupMembers ~= nil or docid ~= nil
+                    or (entry.customType ~= nil and RailEntryTypes[entry.customType] ~= nil
+                        and RailEntryTypes[entry.customType].hover ~= nil), "collapsed")},
                 floating = true,
                 --see the tray label: rail windows left open sit over the rail,
                 --so without this the hover label drew behind them.
@@ -22291,7 +24195,7 @@ local function CreateIconRail(side, entries)
                     return
                 end
                 local px, py = RailButtonDragPointer(side, index, element)
-                if docid == nil and charid == nil then
+                if docid == nil and charid == nil and entry.customType == nil then
                     local zone = RailGroupZoneAt(px, py, key)
                     if zone ~= nil then
                         HideRailGhost()
@@ -22313,7 +24217,9 @@ local function CreateIconRail(side, entries)
                 --context menu's "Remove from rail"). A tombstone is
                 --erased instead -- there is nothing left to restore.
                 if target ~= nil and target.valid and target:HasClass("iconRailTrash") then
-                    if missing then
+                    if entry.customType ~= nil then
+                        IconRailKeyRemove(key)
+                    elseif missing then
                         RailPurgeKey(key)
                     else
                         RailMovePanel(key, "remove")
@@ -22328,7 +24234,7 @@ local function CreateIconRail(side, entries)
                 --panel becomes a tab of that window. Its own layout
                 --entry stays behind inert, so ungrouping later returns
                 --it home.
-                if docid == nil and charid == nil then
+                if docid == nil and charid == nil and entry.customType == nil then
                     local zone = RailGroupZoneAt(px, py, key)
                     if zone ~= nil then
                         RailGroupInsert(key, zone.ownerKey, zone.beforeKey)
@@ -22483,6 +24389,17 @@ local function CreateIconRail(side, entries)
             --Open/close this button's window. Fired by the press handler
             --and by the context menu's "Open" entry.
             activateRailButton = function(element)
+                --a registered entry type (RailEntryTypes) decides what
+                --its press means.
+                if entry.customType ~= nil then
+                    local def = RailEntryTypes[entry.customType]
+                    if def ~= nil and def.activate ~= nil then
+                        def.activate(entry.customId, element)
+                    end
+                    RefreshRails()
+                    return
+                end
+
                 --standalone script button: clicking IS the action --
                 --run the stored chunk (insulated + kill-checked when it
                 --came from a pack). A pack button of type "panel" is a
@@ -22524,7 +24441,7 @@ local function CreateIconRail(side, entries)
                 --this button on first open (it remembers its own spot
                 --thereafter).
                 if toolkitid ~= nil then
-                    local ax, ay = RailAnchor(side, index)
+                    local ax, ay = EntryAnchor()
                     ToggleToolkitStrip(toolkitid, ax, ay)
                     RefreshRails()
                     return
@@ -22613,7 +24530,7 @@ local function CreateIconRail(side, entries)
                     --the shared sweep restores it.)
                     RailSweepTransient(ownerKey)
 
-                    local anchorX, anchorY = RailAnchor(side, index)
+                    local anchorX, anchorY = EntryAnchor()
                     OpenIconRailWindow(key, {
                         x = anchorX,
                         y = anchorY,
@@ -22661,6 +24578,7 @@ local function CreateIconRail(side, entries)
                 end
 
                 element:FireEvent("activateRailButton")
+                RaiseWindowSoon(key)
             end,
 
             --right-click: context menu with the non-drag equivalents of
@@ -22705,14 +24623,18 @@ local function CreateIconRail(side, entries)
                     end
                     local pinning = not PanelDocument.IsPinned(key)
                     if pinning and not doc:PresentDocumentOpen() then
-                        local anchorX, anchorY = RailAnchor(side, index)
+                        local anchorX, anchorY = EntryAnchor()
                         OpenIconRailWindow(key, { x = anchorX, y = anchorY, anchor = true, autoFocus = true })
                     end
                     PanelDocument.SetPinned(key, pinning)
                 end
 
-                --the move/remove entries every rail button carries.
+                --the move/remove entries every rail button carries -- but
+                --a map rail button is not the user's to move.
                 local function moveEntries()
+                    if fixedEntry then
+                        return {}
+                    end
                     return {
                         {
                             text = "Rearrange...",
@@ -22750,6 +24672,40 @@ local function CreateIconRail(side, entries)
                             end,
                         },
                     }
+                end
+
+                --registered entry types: their own entries, then the
+                --moves. Leaving the rail erases the entry (never parked
+                --inert) and tells its owner, which decides what that means.
+                if entry.customType ~= nil then
+                    local def = RailEntryTypes[entry.customType]
+                    local entries = moveEntries()
+                    for i, e in ipairs(entries) do
+                        if e.text == "Remove from rail" then
+                            entries[i] = {
+                                text = "Remove from rail",
+                                click = function()
+                                    element.popup = nil
+                                    IconRailKeyRemove(key)
+                                end,
+                            }
+                        end
+                    end
+                    if def ~= nil and def.menu ~= nil then
+                        local ok, extra = pcall(def.menu, entry.customId, element)
+                        if ok and type(extra) == "table" then
+                            for i = #extra, 1, -1 do
+                                table.insert(entries, 1, extra[i])
+                            end
+                        end
+                    end
+                    if #entries == 0 then
+                        return
+                    end
+                    element.popup = gui.ContextMenu{
+                        entries = entries,
+                    }
+                    return
                 end
 
                 --standalone script buttons: run + edit + moves + delete.
@@ -22828,6 +24784,18 @@ local function CreateIconRail(side, entries)
                             end,
                         })
                     end
+                    --a document shortcut can leave the rail as an item on
+                    --the table (the reverse of docking one from there).
+                    if docid ~= nil and rawget(_G, "Tabletop") ~= nil and Tabletop.CanUndockDocItem ~= nil
+                            and Tabletop.CanUndockDocItem(docid) then
+                        table.insert(entries, 1, {
+                            text = "Move to the table",
+                            click = function()
+                                element.popup = nil
+                                Tabletop.UndockDocItem(docid, key, element)
+                            end,
+                        })
+                    end
                     table.insert(entries, 1, {
                         text = "Open",
                         click = function()
@@ -22856,7 +24824,7 @@ local function CreateIconRail(side, entries)
                             RailRememberWindow(key, d.x, d.y, doc)
                         end
                     else
-                        local anchorX, anchorY = RailAnchor(side, index)
+                        local anchorX, anchorY = EntryAnchor()
                         OpenIconRailWindow(key, {
                             x = anchorX,
                             y = anchorY,
@@ -22880,7 +24848,7 @@ local function CreateIconRail(side, entries)
 
                 --a grouped window's button can dissolve the whole group:
                 --every member returns to its own remembered rail slot.
-                if groupMembers ~= nil then
+                if groupMembers ~= nil and not fixedEntry then
                     entries[#entries + 1] = {
                         text = "Ungroup",
                         click = function()
@@ -23049,18 +25017,27 @@ local function CreateIconRail(side, entries)
     --Every later addButton reference is nil-guarded anyway, because
     --rearrange mode leaves it nil the same way.
     local addButton = nil
-    if not g_railRearranging then
+    if not g_railRearranging and not fixedRail then
         addButton = CreateRailAddButton(side)
         buttons[#buttons + 1] = addButton
     end
 
+    --a rail on the screen edge sits under the title bar; a map window's
+    --rail sits just inside the window's own edges.
+    local edgeInset = ICON_RAIL_LEFT
+    local topInset = IconRailTop()
+    if windowedRail then
+        edgeInset = opts.inset or ICON_RAIL_GAP
+        topInset = opts.inset or ICON_RAIL_GAP
+    end
+
     return gui.Panel{
-        classes = {"iconRail"},
+        classes = {"iconRail", cond(windowedRail, "iconRailWindowed")},
         halign = side,
         valign = "top",
-        lmargin = cond(side == "left", ICON_RAIL_LEFT, 0),
-        rmargin = cond(side == "right", ICON_RAIL_LEFT, 0),
-        tmargin = IconRailTop(),
+        lmargin = cond(side == "left", edgeInset, 0),
+        rmargin = cond(side == "right", edgeInset, 0),
+        tmargin = topInset,
         width = ICON_RAIL_BUTTON,
         --ALWAYS auto, never a fixed column height: the vertical flow
         --distributes children across a fixed height, spreading the
@@ -23073,8 +25050,9 @@ local function CreateIconRail(side, entries)
         --end of this side. The near-invisible surface gives the root a
         --hit area so drops between/around buttons resolve, not just
         --drops exactly on a button (field-tested: the bare container
-        --never resolved as a drag target).
-        dragTarget = true,
+        --never resolved as a drag target). A map window's rail takes no
+        --drops: its buttons are fixed.
+        dragTarget = not windowedRail,
         bgimage = true,
         bgcolor = "#00000001",
         --without this the right-click below ALSO reaches the map, and the
@@ -23105,9 +25083,13 @@ local function CreateIconRail(side, entries)
         --wrap (buttons that stop fitting move to the other column), so it
         --is a full rebuild. Deferred + deduped: a monitor must not
         --destroy the panel it is firing on, and both rails observe the
-        --same setting.
-        multimonitor = {"fontsize"},
+        --same setting. (A map window's rail is rebuilt by its window,
+        --which watches the zoom itself: MapRail.Signature.)
+        multimonitor = cond(windowedRail, nil, {"fontsize"}),
         monitor = function(element)
+            if windowedRail then
+                return
+            end
             if g_railRebuildPending then
                 return
             end
@@ -23213,7 +25195,7 @@ local function CreateIconRail(side, entries)
         --menu used to hang off the dock/tray button at the top of the
         --column, which no longer exists.
         rightClick = function(element)
-            if g_railRearranging then
+            if g_railRearranging or fixedRail then
                 return
             end
             local menuEntries = RailAddPanelEntries(element, side)
@@ -23247,6 +25229,10 @@ local function CreateIconRail(side, entries)
         --collapsed panels don't process events -- without this call the
         --map stays squeezed as if the docks were still on screen.
         syncDockMode = function(element)
+            --the docks are a screen-edge matter.
+            if windowedRail then
+                return
+            end
             local dockVisible = not dmhub.GetSettingValue(side .. "dockoffscreen")
             if element.data.lastDockVisible ~= dockVisible then
                 element.data.lastDockVisible = dockVisible
@@ -23314,6 +25300,17 @@ local function CreateIconRail(side, entries)
             if mod.unloaded then
                 element:DestroySelf()
                 return
+            end
+            --a map window's rail only keeps its own buttons current; the
+            --screen-edge rails below own the shared bookkeeping.
+            if windowedRail then
+                element:FireEventTree("refreshRail")
+                return
+            end
+            --one rail (whichever exists) watches whether the map rail's
+            --merged section is still the right one (MapRail.CheckMerged).
+            if element == (g_iconRails.left or g_iconRails.right) then
+                MapRail.CheckMerged()
             end
             --a custom interface took the rail surface over mid-session
             --(e.g. the game mode identified itself after the rails were
@@ -23675,6 +25672,8 @@ local function BuildIconRails()
         return
     end
     local sides = RailLayout()
+    --the maximized live map window's rail joins the bottom of these.
+    MapRail.AppendMerged(sides)
     WrapRailOverflow(sides)
     for _, side in ipairs({"left", "right"}) do
         --a hidden side is not built in normal mode: nothing to paint, no
@@ -23750,7 +25749,15 @@ end
 --Tear down and rebuild both rails from the saved layout (after a button
 --drag rearranges them). Open windows are untouched.
 RebuildIconRails = function()
+    --Diagnostic: a rebuild with no rails up is building the FIRST rails
+    --for a game, ahead of EnsureIconRail. Logs who, since that ordering is
+    --what once skipped the pinned-window restore (RailRestoreOpenWindows).
+    if g_iconRails.left == nil or not g_iconRails.left.valid then
+        print("RAILGEOM:: rebuild with no rails up\n" .. debug.traceback("", 2))
+    end
     DestroyIconRails()
+    --map windows' rails rebuild with these (MapRail.Signature).
+    MapRail.version = (MapRail.version or 0) + 1
     if RailModeActive() and DocumentsLayer() ~= nil then
         BuildIconRails()
     end
@@ -23822,14 +25829,16 @@ end)
 -- ---------------------------------------------------------------------------
 -- Map Buttons
 -- ---------------------------------------------------------------------------
---A short row of rail-styled buttons in the top-right corner of the map,
---supplied by whatever is running on the CURRENT map rather than by the
---user's layout -- Map Scripts are the first client: a script declares
---`buttons = {...}` and each attached instance registers them while it
---runs, so they come and go with the map (a uvtt import's settings
---button, an encounter's controls). They are deliberately NOT rail
---entries: nothing about them belongs in iconraillayout, and they must
---show even with the rail mode off. They reuse the rail's button/icon
+--Rail-styled buttons supplied by whatever is running on the CURRENT map
+--rather than by the user's layout -- Map Scripts are the first client: a
+--script declares `buttons = {...}` and each attached instance registers
+--them while it runs, so they come and go with the map (a uvtt import's
+--settings button, an encounter's controls). With the table up and the
+--rail mode on they show on the MAP RAIL's right column (MapRail below:
+--inside the live map window, or on the right screen rail when it is
+--maximized). Otherwise -- rail mode off, or a full-screen map -- they
+--show as the bar described here. Either way nothing about them belongs
+--in iconraillayout. They reuse the rail's button/icon
 --classes and styles so they look native, with one difference -- the
 --glyph wears the scheme's accent color, so the row reads as "this map
 --offers something" rather than as more standing chrome.
@@ -24098,6 +26107,14 @@ function MapButtons.Build()
         end
     end
 
+    --with the table up and the rail mode on, these buttons are on the map
+    --rail instead (MapRail); the bar is for the full-screen map and the
+    --dock UI.
+    local tabletop = rawget(_G, "Tabletop")
+    if RailModeActive() and tabletop ~= nil and tabletop.IsActive() then
+        return
+    end
+
     local entries = MapButtons.VisibleEntries()
     if #entries == 0 then
         return
@@ -24174,7 +26191,333 @@ ThemeEngine.OnThemeChanged(mod, function()
         bar.styles = MapButtons.Styles()
         bar:UpdateStyle()
     end
+    --map window rails carry styles resolved at build: rebuild them.
+    MapRail.version = (MapRail.version or 0) + 1
 end)
+
+-- ---------------------------------------------------------------------------
+-- Map rail: the columns themselves (the panel list and fixed folders are
+-- with PanelDocument.StoredTabs above)
+-- ---------------------------------------------------------------------------
+--
+--While the rail mode is on in a game with the table up, the map rail
+--replaces the MapButtons bar:
+--  * the live map window, windowed: a fixed rail column inside each of
+--    its edges -- map panels on the left, Map Settings and the map's own
+--    buttons (MapButtons: map scripts, encounter controls) on the right. Built by
+--    PanelDocument.CreateMapRails; Tabletop.lua hosts and rebuilds them.
+--  * the live map window, maximized: the same buttons appended to the
+--    screen rails below a divider (MapRail.AppendMerged, from
+--    BuildIconRails), left to left and right to right.
+--  * no live map window on screen: no map rail at all. The panels can
+--    still be opened from the Panels menu; they act on the current map.
+--Everything is rebuilt by polling a signature rather than by events: the
+--inputs (panel permissions, map scripts starting, the window being
+--maximized) come from several modules, and a string compare twice a
+--second is cheap.
+MapRail.version = MapRail.version or 0
+
+--how far a map window's rail sits in from the window's edges.
+MapRail.WINDOW_INSET = 8
+
+--A map button as a rail entry ("mapbutton:<id>"): drawn and driven from
+--the MapButtons registry, with the accent glyph and the registry's alert.
+RailEntryTypes.mapbutton = {
+    available = function(id)
+        return MapButtons.registry[id] ~= nil
+    end,
+    name = function(id)
+        local def = MapButtons.registry[id]
+        if def == nil then
+            return "Map Button"
+        end
+        return def.tooltip or def.name
+    end,
+    icon = function(id)
+        local def = MapButtons.registry[id]
+        if def == nil then
+            return "phosphor/lightning.png"
+        end
+        return def.icon
+    end,
+    accent = true,
+    clickAnim = true,
+    alert = function(id)
+        local def = MapButtons.registry[id]
+        if def == nil or type(def.alert) ~= "function" then
+            return nil
+        end
+        return def.alert()
+    end,
+    activate = function(id, element)
+        --a second press on a button whose popup is up closes it.
+        if element.popup ~= nil then
+            element.popup = nil
+            return
+        end
+        --re-read at press time so a replaced registration is live.
+        local def = MapButtons.registry[id]
+        if def == nil or type(def.click) ~= "function" then
+            return
+        end
+        element.popupPositioning = "panel"
+        element:PulseClass("clickPop")
+        def.click(element)
+    end,
+}
+
+--- The map panels' rail entries for this user, in rail order: folder
+--- owners and any panel no folder of theirs holds. Slots are unassigned.
+--- @param side? "left"|"right" only that column's panels (MapRail.RIGHT_SIDE); nil for both
+--- @return table[]
+function MapRail.PanelEntries(side)
+    local list = {}
+    local owners = PanelDocument.GroupOwners()
+    for _, folder in ipairs(MapRail.FOLDERS) do
+        for _, key in ipairs(folder) do
+            local reg = DockablePanel.GetRegistration(key)
+            local onSide = side == nil or (MapRail.RIGHT_SIDE[folder[1]] == true) == (side == "right")
+            if onSide and reg ~= nil and owners[key] == nil and MapRail.PanelAvailable(key) and PanelDocument.Get(key) ~= nil then
+                list[#list + 1] = { key = key, name = reg.name, span = 1, ord = #list, mapRail = true }
+            end
+        end
+    end
+    return list
+end
+
+--- The current map's own buttons (MapButtons) as rail entries.
+--- @return table[]
+function MapRail.ButtonEntries()
+    local list = {}
+    for _, def in ipairs(MapButtons.VisibleEntries()) do
+        list[#list + 1] = {
+            key = "mapbutton:" .. def.id,
+            name = def.tooltip or def.name,
+            span = 1,
+            ord = #list,
+            mapRail = true,
+            customType = "mapbutton",
+            customId = def.id,
+        }
+    end
+    return list
+end
+
+function MapRail.EntriesSignature(entries)
+    local keys = {}
+    for _, e in ipairs(entries) do
+        keys[#keys + 1] = e.key
+    end
+    return table.concat(keys, ",")
+end
+
+--how the live map window is on screen: "maximized", "window" or nil.
+function MapRail.LiveWindowState()
+    local tabletop = rawget(_G, "Tabletop")
+    if tabletop == nil or tabletop.LiveWindowState == nil then
+        return nil
+    end
+    return tabletop.LiveWindowState()
+end
+
+--the map rail exists only in rail mode, and steps aside for rearranging
+--(its buttons are not the user's to move).
+function MapRail.Active()
+    return RailModeActive() and not g_railRearranging and PanelDocument.RailCustomInterfaceId() == nil
+end
+
+--- What a map window's rails are built from; Tabletop rebuilds them when
+--- this changes. "off" when there are none to build.
+--- @return string
+function MapRail.Signature()
+    if not MapRail.Active() then
+        return "off"
+    end
+    return string.format("%s|%s|%s|%d", MapRail.EntriesSignature(MapRail.PanelEntries()),
+        MapRail.EntriesSignature(MapRail.ButtonEntries()), tostring(WindowUIScale()), MapRail.version)
+end
+
+--what the screen rails' merged section is built from.
+function MapRail.MergedSignature()
+    if not MapRail.Active() or MapRail.LiveWindowState() ~= "maximized" then
+        return "off"
+    end
+    return MapRail.EntriesSignature(MapRail.PanelEntries()) .. "|" .. MapRail.EntriesSignature(MapRail.ButtonEntries())
+end
+
+--Put entries at the end of a rail column (a side's RailLayout list),
+--one empty slot below its last button, with the divider over that gap.
+function MapRail.AppendSection(list, entries)
+    if #entries == 0 then
+        return
+    end
+    local last = -1
+    for _, e in ipairs(list) do
+        local bottom = e.slot + (e.span or 1) - 1
+        if bottom > last then
+            last = bottom
+        end
+    end
+    local slot = 0
+    if last >= 0 then
+        slot = last + 2
+    end
+    for i, e in ipairs(entries) do
+        e.slot = slot + i - 1
+        e.mapDivider = i == 1 and last >= 0
+        list[#list + 1] = e
+    end
+end
+
+--- BuildIconRails: add the merged map section to the screen rails' columns
+--- while the live map window is maximized. A hidden side's section goes to
+--- the other side rather than nowhere.
+--- @param sides {left: table[], right: table[]}
+function MapRail.AppendMerged(sides)
+    MapRail.mergedSig = MapRail.MergedSignature()
+    if MapRail.mergedSig == "off" then
+        return
+    end
+    local panelSide = cond(PanelDocument.RailSideHidden("left"), "right", "left")
+    local buttonSide = cond(PanelDocument.RailSideHidden("right"), "left", "right")
+    MapRail.AppendSection(sides[panelSide], MapRail.PanelEntries("left"))
+    MapRail.AppendSection(sides[buttonSide], MapRail.RightEntries())
+end
+
+--- The right column's entries: right-side map panels (Map Settings) on
+--- top, then the map's own buttons.
+--- @return table[]
+function MapRail.RightEntries()
+    local list = MapRail.PanelEntries("right")
+    for _, e in ipairs(MapRail.ButtonEntries()) do
+        e.ord = #list
+        list[#list + 1] = e
+    end
+    return list
+end
+
+--Polled by a screen rail's think: rebuild the rails when the merged
+--section they were built with is no longer the right one (the window was
+--maximized or restored, a map script added a button, ...).
+function MapRail.CheckMerged()
+    if g_railRebuildPending or MapRail.MergedSignature() == MapRail.mergedSig then
+        return
+    end
+    g_railRebuildPending = true
+    dmhub.Schedule(0.01, function()
+        g_railRebuildPending = false
+        if mod.unloaded then
+            return
+        end
+        RebuildIconRails()
+    end)
+end
+
+--- The live map window's rail columns (left: map panels, right: Map
+--- Settings and the map's own buttons), for Tabletop.lua to mount inside
+--- the window. Each needs setRailScale fired once attached. Empty when the
+--- map rail is off.
+--- @return Panel[]
+function PanelDocument.CreateMapRails()
+    local result = {}
+    if not MapRail.Active() then
+        return result
+    end
+    local columns = {
+        { side = "left", entries = MapRail.PanelEntries("left") },
+        { side = "right", entries = MapRail.RightEntries() },
+    }
+    for _, column in ipairs(columns) do
+        if #column.entries > 0 then
+            for i, e in ipairs(column.entries) do
+                e.slot = i - 1
+            end
+            result[#result + 1] = CreateIconRail(column.side, column.entries, {
+                fixed = true,
+                windowed = true,
+                inset = MapRail.WINDOW_INSET,
+                --beside the button, toward the middle of the screen.
+                anchor = function(button, index)
+                    local scale = WindowUIScale()
+                    local placement = PanelDocument.PanelWindowPlacement(button,
+                        PanelDocument.DefaultWidth * scale, PanelDocument.DefaultHeight * scale)
+                    if placement == nil then
+                        return nil
+                    end
+                    return placement.x, placement.y
+                end,
+            })
+        end
+    end
+    --RefreshRails reaches these too. Only the live window has rails, so
+    --the newest build replaces the last.
+    MapRail.windowRails = result
+    return result
+end
+
+--Reopen this game's popped-out panels and recorded/pinned rail windows.
+--The full rail build always calls it (force); the rails-already-up path
+--calls it unforced, which only does anything the first time per game id.
+--State lives in a do-block so it costs no top-level local (this chunk is
+--at Lua's 200-local limit).
+do
+    local restoredGameId = nil
+    PanelDocument.RailRestoreOpenWindows = function(force)
+        if not force and restoredGameId == dmhub.gameid then
+            return
+        end
+        restoredGameId = dmhub.gameid
+
+        --restore popped-out panels first: a panel living in its own OS
+        --window must not also restore an in-app rail window below. Only
+        --records stamped by THIS app run reopen -- that is what brings
+        --popouts back after a Lua reload (the unload sweep destroys the
+        --hosts; the records survive it) without windows from a previous
+        --launch reappearing at startup; stale records are pruned.
+        local session = PanelDocument.PopoutSessionId()
+        local popouts = DeepCopy(dmhub.GetSettingValue("popoutwindows") or {})
+        for key, p in pairs(popouts) do
+            if p.session ~= session then
+                PanelDocument.PopoutForgetWindow(key)
+            elseif not PanelDocument.IsPoppedOut(key) then
+                OpenPanelPopout(key, {
+                    x = p.x, y = p.y, width = p.width, height = p.height,
+                    --the scale the recorded size was measured at, so the
+                    --window comes back the same number of SCREEN pixels even
+                    --if Font Size moved while it was down.
+                    scale = p.scale,
+                })
+            end
+        end
+
+        --restore the recorded windows, plus any pinned panel that is not in
+        --the record (a pinned window is always meant to be up).
+        local restore = DeepCopy(RailRestoreWindows())
+        for key in pairs(dmhub.GetSettingValue("iconrailpanelpinned") or {}) do
+            if restore[key] == nil then
+                restore[key] = {}
+            end
+        end
+        for key, p in pairs(restore) do
+            --a panel already restored into its own OS window above must not
+            --also be opened as a rail window here.
+            if PanelDocument.FindHostDialog(key) == nil and not PanelDocument.IsPoppedOut(key) then
+                --come back on the tab the window was left on. A remembered
+                --tab that has since been refiled into some OTHER folder is
+                --ignored: opening it would restore that folder's window
+                --instead of this one.
+                local open = key
+                if p.tab ~= nil and PanelDocument.WindowOwner(p.tab) == key then
+                    open = p.tab
+                end
+                print(string.format("RAILGEOM:: restore key=%s x=%s y=%s w=%s h=%s | %s",
+                    tostring(key), tostring(p.x), tostring(p.y),
+                    tostring(p.width), tostring(p.height), PanelDocument.RailGeomEnv()))
+                OpenIconRailWindow(open, { x = p.x, y = p.y, width = p.width, height = p.height })
+            end
+        end
+    end
+end
 
 --Create or destroy the rails to match the setting; restore pinned windows
 --when they come up. Safe to call any time.
@@ -24259,12 +26602,22 @@ function EnsureIconRail()
     --call and costs a handful of settings reads once it is clean.
     local renamed = RailMigrateRenamedPanels()
 
+    --map panels moved to the map rail: take them out of stored layouts.
+    local mapStripped = MapRail.StripStoredLayouts()
+
     --push this game's authored buttons into the account-wide store
     --(one-time per game; a no-op costs one settings read + flag check).
     UserButtons.Migrate()
 
     local existing = g_iconRails.left
     if existing ~= nil and existing.valid then
+        --rails built by someone else first (entering a game from the title
+        --screen: the lobby game's module stays loaded and a rebuild beats
+        --EnterGame here) still owe this game its windows.
+        PanelDocument.RailRestoreOpenWindows(false)
+        if mapStripped and not renamed and RebuildIconRails ~= nil then
+            RebuildIconRails()
+        end
         --rails already up: they were built from the pre-rename state, so
         --the repair has to reach the screen on its own. A window still
         --open under an old key references a document the repaired state
@@ -24345,54 +26698,7 @@ function EnsureIconRail()
     --stale squeeze left from before the rail owned this.
     dmhub.UpdateScreenHudArea(1)
 
-    --restore popped-out panels first: a panel living in its own OS
-    --window must not also restore an in-app rail window below. Only
-    --records stamped by THIS app run reopen -- that is what brings
-    --popouts back after a Lua reload (the unload sweep destroys the
-    --hosts; the records survive it) without windows from a previous
-    --launch reappearing at startup; stale records are pruned.
-    local session = PanelDocument.PopoutSessionId()
-    local popouts = DeepCopy(dmhub.GetSettingValue("popoutwindows") or {})
-    for key, p in pairs(popouts) do
-        if p.session ~= session then
-            PanelDocument.PopoutForgetWindow(key)
-        elseif not PanelDocument.IsPoppedOut(key) then
-            OpenPanelPopout(key, {
-                x = p.x, y = p.y, width = p.width, height = p.height,
-                --the scale the recorded size was measured at, so the
-                --window comes back the same number of SCREEN pixels even
-                --if Font Size moved while it was down.
-                scale = p.scale,
-            })
-        end
-    end
-
-    --restore the recorded windows, plus any pinned panel that is not in
-    --the record (a pinned window is always meant to be up).
-    local restore = DeepCopy(RailRestoreWindows())
-    for key in pairs(dmhub.GetSettingValue("iconrailpanelpinned") or {}) do
-        if restore[key] == nil then
-            restore[key] = {}
-        end
-    end
-    for key, p in pairs(restore) do
-        --a panel already restored into its own OS window above must not
-        --also be opened as a rail window here.
-        if PanelDocument.FindHostDialog(key) == nil and not PanelDocument.IsPoppedOut(key) then
-            --come back on the tab the window was left on. A remembered
-            --tab that has since been refiled into some OTHER folder is
-            --ignored: opening it would restore that folder's window
-            --instead of this one.
-            local open = key
-            if p.tab ~= nil and PanelDocument.WindowOwner(p.tab) == key then
-                open = p.tab
-            end
-            print(string.format("RAILGEOM:: restore key=%s x=%s y=%s w=%s h=%s | %s",
-                tostring(key), tostring(p.x), tostring(p.y),
-                tostring(p.width), tostring(p.height), PanelDocument.RailGeomEnv()))
-            OpenIconRailWindow(open, { x = p.x, y = p.y, width = p.width, height = p.height })
-        end
-    end
+    PanelDocument.RailRestoreOpenWindows(true)
 end
 
 --A Lua reload starts a fresh module generation: the previous one's rails
@@ -24473,20 +26779,19 @@ dmhub.RegisterEventHandler("EnterGame", function()
         --chosen for them (Lisa+David review 2026-07-19 for players;
         --David 2026-08-08 extended it to Directors, whose default used
         --to be Custom). Only when the rail mode is on, no view is
-        --active, and there is no evidence they have ever used views (an
-        --empty per-game stash is the proxy -- Custom always stashes on
-        --the first switch away from it) -- so it applies once, and never
-        --tramples an arrangement they've built.
+        --active, and they have no saved views or window arrangement
+        --in this game yet. Players who had pinned windows used to lose
+        --them all when they came back into the game.
         if RailModeActive() and (dmhub.GetSettingValue("viewsactive") or "") == "" then
-            local stash = dmhub.GetSettingValue("viewsstash")
-            local stashEmpty = true
-            if type(stash) == "table" then
-                for _ in pairs(stash) do
-                    stashEmpty = false
+            local nothingOfTheirs = true
+            for _, id in ipairs({"viewsstash", "iconrailpins", "iconrailpanelpinned", "iconrailtabs", "iconraillayout"}) do
+                local value = dmhub.GetSettingValue(id)
+                if type(value) == "table" and next(value) ~= nil then
+                    nothingOfTheirs = false
                     break
                 end
             end
-            if stashEmpty and rawget(_G, "ViewsSwitchTo") ~= nil then
+            if nothingOfTheirs and rawget(_G, "ViewsSwitchTo") ~= nil then
                 if dmhub.isDM then
                     ViewsSwitchTo("builtin:director")
                 else
@@ -24589,32 +26894,26 @@ local g_viewBuiltins = {
         name = "Director",
         version = 6,
         dmonly = true,
+        --Floors & Layers, Measuring Tool, Map Markup and their folders
+        --(and Map Settings from the Maps folder) moved to the map rail
+        --(MapRail, 2026-10-15). The slots below are what
+        --MapRail.StripStoredLayouts leaves of the old layout, so baselines
+        --stamped from it still match and no version bump is needed.
         layout = {
             rail = {
                 ["character"] = { side = "left", slot = 0 },
-                --the two map-level groups sit directly under Character
-                --(David 2026-08-08): what map you are on, then how it is
-                --stacked and lit. Map *editing* stays down at "map
-                --markup" -- these are about picking and framing a map,
-                --not painting one.
                 ["maps"] = { side = "left", slot = 1 },
-                ["floors & layers"] = { side = "left", slot = 2 },
-                ["bestiary"] = { side = "left", slot = 3 },
-                ["journal"] = { side = "left", slot = 4 },
-                ["dice"] = { side = "left", slot = 5 },
-                ["measuring tool"] = { side = "left", slot = 6 },
-                ["chat"] = { side = "left", slot = 7 },
-                ["audio"] = { side = "left", slot = 8 },
-                ["map markup"] = { side = "left", slot = 9 },
+                ["bestiary"] = { side = "left", slot = 2 },
+                ["journal"] = { side = "left", slot = 3 },
+                ["dice"] = { side = "left", slot = 4 },
+                ["chat"] = { side = "left", slot = 5 },
+                ["audio"] = { side = "left", slot = 6 },
             },
             tabs = {
                 ["character"] = { "character", "triggers", "downtime projects" },
-                ["maps"] = { "maps", "map settings" },
-                ["floors & layers"] = { "floors & layers", "time of day/lighting" },
                 ["bestiary"] = { "bestiary", "encounters" },
                 ["journal"] = { "journal", "campaign tracker" },
                 ["dice"] = { "dice", "physical dice" },
-                ["measuring tool"] = { "measuring tool", "whiteboard" },
                 --every key here MUST be the full registered panel name:
                 --a dead key orphans that panel from the group, and a
                 --curated one then auto-places itself back onto the rail
@@ -24665,15 +26964,15 @@ local g_viewBuiltins = {
                 ["maps"] = { side = "left", slot = 1 },
                 ["journal"] = { side = "left", slot = 2 },
                 ["dice"] = { side = "left", slot = 3 },
-                ["measuring tool"] = { side = "left", slot = 4 },
-                ["chat"] = { side = "left", slot = 5 },
-                ["audio"] = { side = "left", slot = 6 },
+                --Measuring Tool (slot 4, with Whiteboard) moved to the map
+                --rail, 2026-10-15; see the Director view's note.
+                ["chat"] = { side = "left", slot = 4 },
+                ["audio"] = { side = "left", slot = 5 },
             },
             tabs = {
                 ["character"] = { "character", "triggers", "downtime projects" },
                 ["journal"] = { "journal", "campaign tracker" },
                 ["dice"] = { "dice", "physical dice" },
-                ["measuring tool"] = { "measuring tool", "whiteboard" },
                 --every key here MUST be the full registered panel name:
                 --a dead key orphans that panel from the group, and a
                 --curated one then auto-places itself back onto the rail

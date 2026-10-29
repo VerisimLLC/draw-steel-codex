@@ -136,6 +136,14 @@ ActivatedAbilityPurgeEffectsBehavior.value = ""
 ActivatedAbilityPurgeEffectsBehavior.conferTo = ""
 ActivatedAbilityPurgeEffectsBehavior.conferCasterIsInflicter = false
 
+--Hook for an automated caster (the Monster AI): consulted before the "chosen"
+--/ "one" selection dialog opens. Called as aiChooser(behavior, targetDataList,
+--ability, casterToken, maxSelections) and returns what ShowPurgeDialog would:
+--true plus the selections, or false to pass. Returning nil means the caster is
+--not automated and the dialog opens as usual. false when nothing is installed.
+--- @type false|fun(behavior: ActivatedAbilityPurgeEffectsBehavior, targetDataList: table[], ability: ActivatedAbility, casterToken: CharacterToken, maxSelections: nil|number): boolean?, table?
+ActivatedAbilityPurgeEffectsBehavior.aiChooser = false
+
 ActivatedAbilityPurgeEffectsBehavior.modeOptions = {
     {
         id = "conditions",
@@ -193,7 +201,23 @@ function ActivatedAbilityPurgeEffectsBehavior:EvalDamageToSelf(creatureProps)
     return dmhub.EvalGoblinScript(raw, creatureProps:LookupSymbol{}, "Purge effects damage to self")
 end
 
+--Runs the purge, then drops any pending end-of-turn save prompt card whose effect this purge just
+--ended (e.g. End Effect ending Weakened must not leave a "Saving Throw vs Weakened" card behind).
 function ActivatedAbilityPurgeEffectsBehavior:Cast(ability, casterToken, targets, options)
+    self:CastPurge(ability, casterToken, targets, options)
+
+    local sweep = ActivatedAbilitySaveBehavior ~= nil and ActivatedAbilitySaveBehavior.SweepStaleSavePrompts or nil
+    if sweep == nil then
+        return
+    end
+    for _,target in ipairs(targets or {}) do
+        if target.token ~= nil and target.token.valid then
+            sweep(target.token)
+        end
+    end
+end
+
+function ActivatedAbilityPurgeEffectsBehavior:CastPurge(ability, casterToken, targets, options)
     if #targets == 0 then
         return
     end
@@ -398,8 +422,16 @@ function ActivatedAbilityPurgeEffectsBehavior:Cast(ability, casterToken, targets
             end
         end
 
-        -- Phase 2: show the new unified selection panel.
-        local confirmed, selections = self:ShowPurgeDialog(targetDataList, ability, casterToken, maxSelections)
+        -- Phase 2: an automated caster chooses for itself; anyone else gets the
+        -- unified selection panel.
+        local confirmed, selections = nil, nil
+        local aiChooser = ActivatedAbilityPurgeEffectsBehavior.aiChooser
+        if aiChooser then
+            confirmed, selections = aiChooser(self, targetDataList, ability, casterToken, maxSelections)
+        end
+        if confirmed == nil then
+            confirmed, selections = self:ShowPurgeDialog(targetDataList, ability, casterToken, maxSelections)
+        end
         if not confirmed then
             return
         end

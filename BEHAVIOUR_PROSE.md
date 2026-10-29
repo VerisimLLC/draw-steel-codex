@@ -10,7 +10,7 @@ Companion to [TRIGGERED_ABILITY_EDITOR_DESIGN.md](TRIGGERED_ABILITY_EDITOR_DESIG
 - Where `SummarizeBehavior()` already exists in the behaviour file, flagged as **Existing method available** -- the prose engine should prefer that method and fall through to the template only if it's missing.
 
 **Codebase bugs flagged during enumeration** (fix alongside implementation):
-- `AbilityRoutineCast.lua` registers its type id as `rouitineControl` -- typo for `routineControl`. Existing content references this typo'd id, so renaming is a migration. Flag for dev team.
+- ~~`AbilityRoutineCast.lua` registers its type id as `rouitineControl` -- typo for `routineControl`.~~ **FIXED 2026-10-19:** renamed to `routineControl`. No migration was needed: saved content stores the behaviour by `__typeName`, never by this id.
 
 **Chaining convention:** when a trigger has multiple behaviours, their prose joins with `", then "` for the last two and `", "` for earlier ones. Example: *"Deals 2d6 damage, pushes the attacker 4 squares, then applies Prone."*
 
@@ -333,13 +333,13 @@ These behaviours drive interactive UI modals with no meaningful declarative conf
 - **Template:** `prompts for a recovery selection`
 - **Status:** `OK`
 
-### `rouitineControl` ("Routine Control") -- NOTE typo'd type id
+### `routineControl` ("Routine Control")
 - **File:** `Draw Steel Ability Behaviors\AbilityRoutineCast.lua`
 - **Fields:** none (UI-driven)
 - **Existing method:** none
 - **Template:** `prompts for a routine-cast selection`
 - **Status:** `OK`
-- **Note:** type id in the codebase is `rouitineControl` (misspelled). Renaming it is a data migration since existing content references the typo; flag for dev team separately.
+- **Note:** the type id was misspelled `rouitineControl` until 2026-10-19.
 
 ### `revertloc` ("Revert Location")
 - **File:** `Draw Steel Ability Behaviors\AbilityRevertLocation.lua`
@@ -431,4 +431,4 @@ These seven types were missing from the original enumeration but appear heavily 
 Once reviewed:
 1. Wire prose templates into a new `DMHub Utils\BehaviourProse.lua` module (or a method on each behaviour type, if the team prefers attaching them to the behaviour itself).
 2. Update `TRIGGERED_ABILITY_EDITOR_DESIGN.md` opt-in list to add opt-in #5 for behaviour prose (currently missing), marked landed for the shipped tier.
-3. File the `rouitineControl` typo for a separate migration ticket (data-carrying rename).
+3. ~~File the `rouitineControl` typo for a separate migration ticket (data-carrying rename).~~ **FIXED 2026-10-19**, no migration needed.

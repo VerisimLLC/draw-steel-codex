@@ -2193,6 +2193,23 @@ local function CancelCountdown(charid)
     end
 end
 
+--The collar operations other Condemned files use (the Campaign panel in
+--CondemnedCampaign.lua records who is still collared and runs the Medical station
+--through these). A global table, not locals: this chunk is at the 200-local limit.
+CondemnedCollars = {
+    IsCollared = IsCollared,
+    GetExploded = GetExploded,
+    --attach (true) or remove (false) a collar with the lock animation.
+    SetCollar = SetCollar,
+    --swaps the frame back with no animation; works on a hero on another map.
+    RemoveNow = RemoveCollar,
+    --the same 3-2-1 Explode the Loyalty Collars panel runs; the hero must be on this map.
+    Detonate = StartCountdown,
+    IsBusy = function(charid)
+        return g_busy[charid] == true or g_countdowns[charid] ~= nil
+    end,
+}
+
 --Row layout widths; the countdown view lines its Cancel button up with Explode.
 local STATUS_WIDTH = 76
 local MAIN_BUTTON_WIDTH = 112
@@ -2356,10 +2373,37 @@ local function CreateHeroRow(token, fallbackName)
         children = { countdownLabel, cancelButton },
     }
 
-    return gui.Panel{
+    --the campaign's line under the row (its collar record, the Medical station), from
+    --CondemnedCampaign.lua, which loads after this file.
+    local campaign = rawget(_G, "CondemnedCampaign")
+    local extras = nil
+    if campaign ~= nil and campaign.CollarRowExtras ~= nil then
+        extras = campaign.CollarRowExtras(charid)
+    end
+
+    local mainLine = gui.Panel{
         width = "100%",
         height = 52,
         flow = "horizontal",
+        children = {
+            portrait,
+            gui.Label{
+                classes = {"sizeS"},
+                width = 160,
+                height = "auto",
+                valign = "center",
+                lmargin = 8,
+                text = token.name or fallbackName or "(unnamed)",
+            },
+            controls,
+            countdownPanel,
+        },
+    }
+
+    return gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
         --fast enough that the countdown ticks over close to each second.
         thinkTime = 0.1,
         styles = g_rowStyles,
@@ -2426,19 +2470,7 @@ local function CreateHeroRow(token, fallbackName)
             end
         end,
 
-        children = {
-            portrait,
-            gui.Label{
-                classes = {"sizeS"},
-                width = 160,
-                height = "auto",
-                valign = "center",
-                lmargin = 8,
-                text = token.name or fallbackName or "(unnamed)",
-            },
-            controls,
-            countdownPanel,
-        },
+        children = { mainLine, extras },
     }
 end
 
@@ -2582,7 +2614,8 @@ local function CreateExplosiveRow(entry)
     }
 end
 
-local function CreateCollarPanel()
+---@param owner Panel|nil the rail button the popup hangs from
+local function CreateCollarPanel(owner)
     --keeps one row per listed hero, in name order, adding and removing rows as heroes
     --arrive, leave or are blown up. Existing rows are reused so they keep their state.
     local listPanel = gui.Panel{
@@ -2761,6 +2794,20 @@ local function CreateCollarPanel()
         },
     }
 
+    --the campaign's summary (counts, the ending, book links) and the Condemned on
+    --other maps, from CondemnedCampaign.lua (empty placeholders without it).
+    --reopen: a popup is placed only when it opens, and grows from its centre after
+    --that, so a big change in height (unfolding Elsewhere) reopens it to place it again.
+    local parts = {}
+    local campaign = rawget(_G, "CondemnedCampaign")
+    if campaign ~= nil and campaign.CollarPanelParts ~= nil then
+        parts = campaign.CollarPanelParts(owner, function()
+            if owner ~= nil and owner.valid and owner.popup ~= nil then
+                owner.popup = CreateCollarPanel(owner)
+            end
+        end)
+    end
+
     --the map button bar does not pass a themed cascade to its popups, so the popup
     --roots its own. A panel's styles only reach its descendants, so the framed
     --surface is a child of the styled root.
@@ -2787,8 +2834,10 @@ local function CreateCollarPanel()
                         bmargin = 6,
                         text = "Loyalty Collars",
                     },
+                    parts.summary or gui.Panel{ width = 1, height = 1 },
                     ledModeRow,
                     listPanel,
+                    parts.elsewhere or gui.Panel{ width = 1, height = 1 },
                     explosivesSection,
                 },
             },
@@ -2797,20 +2846,165 @@ local function CreateCollarPanel()
 end
 
 local mapButtons = rawget(_G, "MapButtons")
-if mapButtons ~= nil then
-    mapButtons.Register("condemned:collars", {
-        name = "Loyalty Collars",
-        icon = "phosphor/lock-simple-fill.png",
-        tooltip = "Loyalty Collars",
-        directorOnly = true,
-        click = function(element)
-            if mod.unloaded then
-                return
+
+--------------------------------------------------------------------------------
+-- Campaign buttons on the icon rail
+--------------------------------------------------------------------------------
+--The Condemned's Director tools belong to the campaign, not to a map, so they sit on
+--the Director's own icon rail (added to the right rail the first time) rather than the
+--live map window's rail. Each is a rail key "condemned:<id>" drawn by the rail entry
+--type below. With the rail mode off there is no icon rail, so the same buttons fall
+--back to the old MapButtons bar. A function scope keeps these locals off the main
+--chunk, which is near Lua's 200-local limit.
+;(function()
+    --id -> button. Add further campaign tools here and to ORDER.
+    local BUTTONS = {
+        --the Campaign panel lives in CondemnedCampaign.lua, which loads after this file.
+        campaign = {
+            name = "The Condemned: Campaign",
+            icon = "phosphor/scroll-fill.png",
+            popup = function(owner)
+                local campaign = rawget(_G, "CondemnedCampaign")
+                if campaign == nil or campaign.CreatePanel == nil then
+                    return nil
+                end
+                return campaign.CreatePanel(owner)
+            end,
+        },
+        collars = {
+            name = "Loyalty Collars",
+            icon = "phosphor/lock-simple-fill.png",
+            popup = CreateCollarPanel,
+        },
+    }
+    local ORDER = { "campaign", "collars" }
+    local RAIL_TYPE = "condemned"
+
+    --ids this Director took off the rail: never put back automatically (/condemnedbuttons does).
+    local removedSetting = setting{
+        id = "condemned:railremoved",
+        storage = "pergamepreference",
+        default = {},
+    }
+
+    local function OpenPopup(id, element)
+        if mod.unloaded then
+            return
+        end
+        local button = BUTTONS[id]
+        if button == nil then
+            return
+        end
+        element.popup = button.popup(element)
+    end
+
+    local railTypes = rawget(_G, "RailEntryTypes")
+    if railTypes ~= nil then
+        railTypes[RAIL_TYPE] = {
+            available = function(id)
+                return dmhub.isDM and BUTTONS[id] ~= nil
+            end,
+            name = function(id)
+                local button = BUTTONS[id]
+                return button ~= nil and button.name or "The Condemned"
+            end,
+            icon = function(id)
+                local button = BUTTONS[id]
+                return button ~= nil and button.icon or "phosphor/lightning.png"
+            end,
+            accent = true,
+            clickAnim = true,
+            activate = function(id, element)
+                --a second press while the popup is up closes it.
+                if element.popup ~= nil then
+                    element.popup = nil
+                    return
+                end
+                element.popupPositioning = "panel"
+                element:PulseClass("clickPop")
+                OpenPopup(id, element)
+            end,
+            onRemove = function(id)
+                local removed = DeepCopy(removedSetting:Get() or {})
+                removed[id] = true
+                removedSetting:Set(removed)
+            end,
+        }
+        local rebuild = rawget(_G, "IconRailRebuildSoon")
+        if rebuild ~= nil then
+            rebuild()
+        end
+    end
+
+    --Puts every button this Director has not removed onto the right rail.
+    local function SeedRail()
+        local slotOf = rawget(_G, "IconRailKeySlot")
+        local add = rawget(_G, "IconRailKeyAdd")
+        if slotOf == nil or add == nil then
+            return
+        end
+        local removed = removedSetting:Get() or {}
+        for _, id in ipairs(ORDER) do
+            local key = RAIL_TYPE .. ":" .. id
+            if not removed[id] and slotOf(key) == nil then
+                add(key, "right")
             end
-            element.popup = CreateCollarPanel()
-        end,
-    })
-end
+        end
+    end
+
+    local commands = rawget(_G, "Commands")
+    if commands ~= nil and commands.RegisterMacro ~= nil then
+        commands.RegisterMacro{
+            name = "condemnedbuttons",
+            summary = "put the Condemned buttons back on the rail",
+            doc = "Usage: /condemnedbuttons\nPuts the Condemned campaign buttons (Campaign, Loyalty Collars) back on your icon rail.",
+            command = function(str)
+                removedSetting:Set({})
+                SeedRail()
+            end,
+        }
+    end
+
+    --the MapButtons registry outlives a reload of this file, so drop the old registration
+    --first; the loop below registers the fallback only while the rail mode is off.
+    if mapButtons ~= nil then
+        for _, id in ipairs(ORDER) do
+            mapButtons.Unregister("condemned:" .. id)
+        end
+    end
+
+    dmhub.Coroutine(function()
+        local seeded = false
+        local fallback = false
+        while not mod.unloaded do
+            local railMode = rawget(_G, "RailModeActive") ~= nil and RailModeActive()
+            if dmhub.isDM and railMode and not seeded then
+                seeded = true
+                SeedRail()
+            end
+            local wantFallback = mapButtons ~= nil and not railMode
+            if wantFallback ~= fallback then
+                fallback = wantFallback
+                for _, id in ipairs(ORDER) do
+                    if fallback then
+                        mapButtons.Register("condemned:" .. id, {
+                            name = BUTTONS[id].name,
+                            icon = BUTTONS[id].icon,
+                            tooltip = BUTTONS[id].name,
+                            directorOnly = true,
+                            click = function(element)
+                                OpenPopup(id, element)
+                            end,
+                        })
+                    else
+                        mapButtons.Unregister("condemned:" .. id)
+                    end
+                end
+            end
+            coroutine.yield(1)
+        end
+    end)
+end)()
 
 --------------------------------------------------------------------------------
 -- The Cauldron's security doors

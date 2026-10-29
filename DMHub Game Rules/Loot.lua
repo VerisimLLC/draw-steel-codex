@@ -534,7 +534,7 @@ function loot:GetItemPrice(itemid)
 	local result = nil
 	if entry ~= nil and entry.price ~= nil then
 		if type(entry.price) == "number" then
-			result = Currency.CalculateSpend(nil, entry.price)
+			result = Currency.CalculatePayment(entry.price)
 		else
 			result = entry.price
 		end
@@ -563,7 +563,7 @@ function loot:GetItemPrice(itemid)
 			if builtinDiscount < 100 then
 				local multiplier = (1 - self.discount*0.01)/(1 - builtinDiscount*0.01)
 				price = price * multiplier
-				result = Currency.CalculateSpend(nil, price)
+				result = Currency.CalculatePayment(price)
 			end
 		end
 	end

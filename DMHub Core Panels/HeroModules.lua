@@ -301,7 +301,8 @@ end
 --- pasted in. Only installs, never uninstalls; a module already installed at a
 --- usable version is left alone. Calls done() once, after every install has
 --- finished or failed, or after timeoutSeconds (default 30) so a slow network
---- never holds the hero back.
+--- never holds the hero back. Installs still running at the timeout carry on,
+--- so their classes arrive late rather than never.
 --- @param done nil|fun()
 --- @param timeoutSeconds nil|number
 function HeroModules.InstallIntoGame(done, timeoutSeconds)
@@ -345,7 +346,10 @@ function HeroModules.InstallIntoGame(done, timeoutSeconds)
 		local index = 0
 		local RunNext
 		RunNext = function()
-			if mod.unloaded or finished then
+			--do not stop on `finished`: a timeout only releases the hero, and
+			--abandoning the queue would leave later modules (and their heroes'
+			--classes) missing from this game for good.
+			if mod.unloaded then
 				Finish()
 				return
 			end

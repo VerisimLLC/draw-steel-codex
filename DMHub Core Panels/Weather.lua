@@ -90,6 +90,7 @@ CreateWeatherSettings = function()
 		return assets.weatherEffects[key]
 	end
 
+	---@type Panel
 	local contentPanel = nil
 	contentPanel = gui.Panel{
 		id = "weatherContentPanel",

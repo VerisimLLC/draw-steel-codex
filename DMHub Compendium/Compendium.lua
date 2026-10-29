@@ -3270,7 +3270,6 @@ local ShowLanguagesPanel = function(parentPanel)
 					key = k,
 					select = element.aliveTime > 0.2,
 					click = function()
-						selectedLanguageId = k
 						languagesPanel.data.SetLanguage(Language.tableName, k)
 					end,
 				}
@@ -5461,6 +5460,9 @@ end
 
 
 local LibraryPanel = function()
+	--assigned below; declared first because the search handlers above it close over it.
+	---@type Panel
+	local resultPanel
 
 
 	local contentPanel = gui.Panel{

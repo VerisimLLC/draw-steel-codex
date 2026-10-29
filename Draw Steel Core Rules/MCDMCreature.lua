@@ -725,127 +725,178 @@ end
 
 local g_conditionHiddenId = "31daf7f6-f77c-4f73-8eab-43e2d0f123c0"
 
---While a director-controlled creature has the Hidden condition, its token can
---optionally be made invisible to players. Heroes never auto-vanish: their
---enemies are director-run and the director must always see everything, so for
---heroes the Hidden benefit is enforced at targeting time instead.
---(forward-declared: SyncHiddenInvisibility reads it, the setting's onchange
---calls SyncHiddenInvisibility)
-local g_settingHiddenInvisible
-
---charids with a deferred invisibility sync pending, so a burst of refreshes
---only schedules one write.
-local g_hiddenInvisPending = {}
-
---Keeps token.invisibleToPlayers in step with the Hidden condition for
---director-controlled creatures. We only act on TRANSITIONS, recorded in the
---serialized hiddenInvisibilityApplied field: invisibility we did not apply
---(e.g. encounter groups staged invisible by the director) is never touched,
---and a director who manually reveals a still-hidden monster is not fought.
---The write is deferred out of the refresh path to avoid re-entrant uploads.
-local function SyncHiddenInvisibility(token)
-    --Only the hosting client manages this (a player host included: it is
-    --the single writer for director-run creatures).
-    if not IsDMOrPlayerHost() then
-        return
-    end
-
-    local c = token.properties
-    if c == nil then
-        return
-    end
-
-    local shouldHide = g_settingHiddenInvisible:Get() and (not token.playerControlled)
-        and (c:HasCondition(g_conditionHiddenId) ~= false)
-    local applied = c:try_get("hiddenInvisibilityApplied", false)
-    if shouldHide == applied then
-        return
-    end
-
-    local charid = token.charid
-    if g_hiddenInvisPending[charid] then
-        return
-    end
-    g_hiddenInvisPending[charid] = true
-
-    --Vanishing is delayed so the "Hidden" float text and status animation get
-    --time to play over the still-visible token before it disappears; players
-    --need a beat to register what happened. Revealing is near-instant so
-    --players are never late seeing a monster that is no longer hidden.
-    local delay = 0.05
-    if shouldHide then
-        delay = 2.0
-    end
-
-    dmhub.Schedule(delay, function()
-        g_hiddenInvisPending[charid] = nil
-        if mod.unloaded then
-            return
-        end
-
-        local tok = dmhub.GetTokenById(charid)
-        if tok == nil or (not tok.valid) or tok.properties == nil then
-            return
-        end
-
-        local cr = tok.properties
-        local hideNow = g_settingHiddenInvisible:Get() and (not tok.playerControlled)
-            and (cr:HasCondition(g_conditionHiddenId) ~= false)
-        local appliedNow = cr:try_get("hiddenInvisibilityApplied", false)
-        if hideNow == appliedNow then
-            return
-        end
-
-        tok.invisibleToPlayers = hideNow
-        tok:ModifyProperties{
-            description = "Hidden condition visibility",
-            undoable = false,
-            execute = function()
-                cr.hiddenInvisibilityApplied = hideNow
-
-                if not hideNow then
-                    --On reveal, clients that couldn't see the token missed the
-                    --sheet's own local "crossed out Hidden" status float (it
-                    --fires from icon diffing at condition-removal time, while
-                    --the token was still invisible to them). Re-fire the same
-                    --visual through the networked animation channel now that
-                    --the token is visible again.
-                    local conditionsTable = dmhub.GetTable(CharacterCondition.tableName)
-                    local conditionInfo = conditionsTable[g_conditionHiddenId]
-                    if conditionInfo ~= nil then
-                        cr:AddAnimation{
-                            animType = "statusDestroy",
-                            info = {
-                                icon = conditionInfo.iconid,
-                                statusText = (string.gsub(conditionInfo.name, "%s+$", "")),
-                                --floatstatus mutates info.style, so pass a copy.
-                                style = DeepCopy(conditionInfo:try_get("display", {})),
-                            },
-                        }
-                    end
-                end
-            end,
-        }
-    end)
-end
-
-g_settingHiddenInvisible = setting{
+--"Hidden Creatures are Invisible": while a creature the Director runs has the Hidden
+--condition, players (a player host included) do not see it at all. Each client decides
+--for itself in the engine (CharacterToken.hiddenFromLocalViewer), so the token still
+--exists everywhere and the Monster AI can play it. Heroes never vanish: their enemies
+--are Director-run, so for them Hidden is enforced at targeting time instead.
+local g_settingHiddenInvisible = setting{
     id = "strict:hiddeninvisible",
-    description = "Hidden Monsters Invisible to Players",
-    help = "While a creature the director controls has the Hidden condition, its token is invisible to players. Heroes always remain visible.",
+    description = "Hidden Creatures are Invisible",
+    help = "While a creature the director controls has the Hidden condition, players do not see it at all: no token, HUD, auras or targeting. It reappears the moment it stops being Hidden, and acting reveals it as the ability begins. Heroes always remain visible.",
     storage = "game",
     editor = "check",
     default = false,
     section = "GameStrictRules",
     onchange = function()
-        --RefreshToken only runs on game-state changes, so re-evaluate every
-        --token directly when the setting flips (in particular, revealing
-        --monsters when it is toggled off).
+        --RefreshToken only runs on game-state changes, so re-run it for every token on
+        --this client. Other clients catch up at their next token refresh.
         for _, tok in ipairs(dmhub.allTokens) do
-            SyncHiddenInvisibility(tok)
+            tok:InvalidateObjects()
         end
     end,
 }
+
+--- True when "Hidden Creatures are Invisible" is on for this game.
+--- @return boolean
+function creature.HiddenCreaturesInvisible()
+    return g_settingHiddenInvisible:Get() == true
+end
+
+--- Removes the Hidden condition from this creature, keeping the "Hidden This Turn"
+--- edge for the rest of the current turn. Call inside token:ModifyProperties.
+function creature:LoseHidden()
+    if self:HasCondition(g_conditionHiddenId) == false then
+        return
+    end
+
+    --stamp the turn first: the stamp normally comes from a refresh while still hidden.
+    local q = dmhub.initiativeQueue
+    if q ~= nil and not q.hidden then
+        self._tmp_hiddenTurnId = q:GetTurnId()
+    end
+
+    self:InflictCondition(g_conditionHiddenId, {purge = true})
+end
+
+--- True when this creature has the Hidden condition, whatever applied it.
+--- @return boolean
+function creature:IsHidden()
+    return self:HasCondition(g_conditionHiddenId) ~= false
+end
+
+--- Gives this creature the Hidden condition, as the Hide maneuver does. Encounter
+--- spawns use it for monsters banked as starting the encounter hidden. Call it on a
+--- fresh token before its upload, or inside token:ModifyProperties.
+--- @param token CharacterToken this creature's token
+function creature:BecomeHidden(token)
+    self:InflictCondition(g_conditionHiddenId, {duration = "eoe", casterInfo = {tokenid = token.charid}})
+end
+
+--Ambush banner: with "Hidden Creatures are Invisible" on, a creature the Director runs
+--that has been Hidden since before combat began shows a Malice banner the first time it
+--comes out of hiding. Reveals a moment apart (an AI turn revealing a whole group) share
+--one banner, and a round shows at most one, whichever client does the revealing.
+local g_ambushBannerDocId = "hidden_ambush_banner"
+local g_ambushPending = nil --charids revealed in the current collection window.
+
+local function CombatActive()
+    local q = dmhub.initiativeQueue
+    return q ~= nil and not q.hidden
+end
+
+local function ShowAmbushBanner(charids)
+    local q = dmhub.initiativeQueue
+    if q == nil or q.hidden then
+        return
+    end
+
+    local first = nil
+    for _, charid in ipairs(charids) do
+        local tok = dmhub.GetTokenById(charid)
+        if tok ~= nil and tok.valid then
+            first = first or tok
+        end
+    end
+    if first == nil then
+        return
+    end
+
+    --the shared record of the last round that had one keeps it to one per round.
+    local roundKey = string.format("%s:%d", tostring(q.guid), q.round or 0)
+    local doc = mod:GetDocumentSnapshot(g_ambushBannerDocId)
+    if doc.data.roundKey == roundKey then
+        return
+    end
+    doc:BeginChange()
+    doc.data.roundKey = roundKey
+    doc:CompleteChange("Ambush banner", {undoable = false})
+
+    --no monster names: players may not know them yet (Monster Info).
+    local subtitle = "A hidden enemy reveals itself!"
+    if #charids > 1 then
+        subtitle = string.format("%d hidden enemies reveal themselves!", #charids)
+    end
+    DramaticBanner.Show{
+        tokenid = first.charid,
+        text = "Ambush!",
+        subtitle = subtitle,
+        bannerType = "malice",
+    }
+end
+
+--Called as Hidden is purged from a creature hidden since before combat.
+--- @param c creature
+local function NoteAmbushReveal(c)
+    if not g_settingHiddenInvisible:Get() or not CombatActive() then
+        return
+    end
+    local tok = dmhub.LookupToken(c)
+    if tok == nil or tok.playerControlled then
+        return
+    end
+
+    if g_ambushPending ~= nil then
+        g_ambushPending[#g_ambushPending + 1] = tok.charid
+        return
+    end
+    g_ambushPending = {tok.charid}
+    --deferred out of the ModifyProperties that is purging, and to collect a group.
+    dmhub.Schedule(0.4, function()
+        local charids = g_ambushPending or {}
+        g_ambushPending = nil
+        if mod.unloaded then
+            return
+        end
+        ShowAmbushBanner(charids)
+    end)
+end
+
+--Publishes _tmp_hiddenFromPlayers, which the engine reads to hide the token from every
+--client that is not the Director or its controller. Also undoes the old networked
+--version of this setting (invisibleToPlayers) on tokens it left invisible.
+local g_legacyHiddenClearPending = {}
+
+local function RefreshHiddenFromPlayers(c, token)
+    c._tmp_hiddenFromPlayers = g_settingHiddenInvisible:Get() == true and (not token.playerControlled)
+        and (not token.isObject) and c:HasCondition(g_conditionHiddenId) ~= false
+
+    if c:try_get("hiddenInvisibilityApplied", false) and IsDMOrPlayerHost()
+        and not g_legacyHiddenClearPending[token.charid] then
+        local charid = token.charid
+        g_legacyHiddenClearPending[charid] = true
+        --deferred out of the refresh path to avoid re-entrant uploads.
+        dmhub.Schedule(0.05, function()
+            g_legacyHiddenClearPending[charid] = nil
+            if mod.unloaded then
+                return
+            end
+            local tok = dmhub.GetTokenById(charid)
+            if tok == nil or (not tok.valid) or tok.properties == nil
+                or not tok.properties:try_get("hiddenInvisibilityApplied", false) then
+                return
+            end
+            tok.invisibleToPlayers = false
+            tok:ModifyProperties{
+                description = "Clear legacy Hidden visibility",
+                undoable = false,
+                execute = function()
+                    tok.properties.hiddenInvisibilityApplied = nil
+                end,
+            }
+        end)
+    end
+end
 
 function creature:RefreshToken(token)
     if (not mod.unloaded) and self.minion then
@@ -853,7 +904,7 @@ function creature:RefreshToken(token)
     end
 
     if not mod.unloaded then
-        SyncHiddenInvisibility(token)
+        RefreshHiddenFromPlayers(self, token)
     end
 
     if (not mod.unloaded) then
@@ -1451,29 +1502,44 @@ function character:IsHero()
     return true
 end
 
+--Where a token stands, as a cache key for the location caches below. Moving
+--(walking, forced movement, teleport) does not Invalidate the properties, so
+--these caches are keyed on the square instead: unkeyed, a pushed hero went on
+--provoking opportunity attacks from the squares around her old spot.
+--- @param token CharacterToken
+--- @return string
+local function TokenLocKey(token)
+    local loc = token.loc
+    return string.format("%d,%d,%d,%g,%d", loc.x, loc.y, loc.floor, token.floorAltitude, token.tileSize)
+end
+
+--The returned array is shared by every caller: copy it before changing it.
 --- @return Loc[]
 function creature:OccupiedLocs()
-    if rawget(self, "_tmp_occupiedLocs") == nil then
-        local token = dmhub.LookupToken(self)
-        if token ~= nil then
-            self._tmp_occupiedLocs = token.locsOccupying
-        else
-            self._tmp_occupiedLocs = {}
-        end
+    local token = dmhub.LookupToken(self)
+    if token == nil then
+        return {}
+    end
+    local key = TokenLocKey(token)
+    if rawget(self, "_tmp_occupiedLocs") == nil or rawget(self, "_tmp_occupiedLocsKey") ~= key then
+        self._tmp_occupiedLocs = token.locsOccupying
+        self._tmp_occupiedLocsKey = key
     end
 
     return self._tmp_occupiedLocs
 end
 
+--The returned array is shared by every caller: copy it before changing it.
 --- @return Loc[]
 function creature:AdjacentLocations()
-    if rawget(self, "_tmp_adjacentLocs") == nil then
-        local token = dmhub.LookupToken(self)
-        if token ~= nil then
-            self._tmp_adjacentLocs = MCDMLocUtils.GetTokenAdjacentLocsInOpposingPairs(token)
-        else
-            self._tmp_adjacentLocs = {}
-        end
+    local token = dmhub.LookupToken(self)
+    if token == nil then
+        return {}
+    end
+    local key = TokenLocKey(token)
+    if rawget(self, "_tmp_adjacentLocs") == nil or rawget(self, "_tmp_adjacentLocsKey") ~= key then
+        self._tmp_adjacentLocs = MCDMLocUtils.GetTokenAdjacentLocsInOpposingPairs(token)
+        self._tmp_adjacentLocsKey = key
     end
 
     return self._tmp_adjacentLocs
@@ -2260,100 +2326,54 @@ creature.RegisterSymbol {
 }
 
 
-local function GetEnemyCreaturesAtLoc(token, allowedTokenIds, loc, result)
+local function AddTokenOnce(list, token)
+    for _, existing in ipairs(list) do
+        if existing.charid == token.charid then
+            return
+        end
+    end
+    list[#list + 1] = token
+end
+
+local function GetEnemyCreaturesAtLoc(token, loc, result)
     local tokensAtLoc = dmhub.GetTokensAtLoc(loc)
     if tokensAtLoc ~= nil then
         for _, otherTok in ipairs(tokensAtLoc) do
-            if token.charid ~= otherTok.charid and (allowedTokenIds == nil or allowedTokenIds[otherTok.charid]) and token:IsFriend(otherTok) == false and otherTok:GetLineOfSight(token, otherTok.properties:GetPierceWalls(), "basic") > 0 and (not otherTok.properties:IsDead()) then
-                local alreadyFound = false
-                for _, existing in ipairs(result) do
-                    if existing.charid == otherTok.charid then
-                        alreadyFound = true
-                        break
-                    end
-                end
-
-                if not alreadyFound then
-                    result[#result + 1] = otherTok
-                end
+            --GetLineOfSight returns nil when a token stands on a floor whose data has not loaded (RD3WUFCR).
+            if token.charid ~= otherTok.charid and token:IsFriend(otherTok) == false and (otherTok:GetLineOfSight(token, otherTok.properties:GetPierceWalls(), "basic") or 0) > 0 and (not otherTok.properties:IsDead()) then
+                AddTokenOnce(result, otherTok)
             end
         end
     end
 end
 
-local function GetFlankingCreaturesFromOpposingSides(token, allowedTokenIds, locs_a, locs_b, result)
-    local enemies_a = {}
-    local enemies_b = {}
-    for _, loc in ipairs(locs_a) do
-        GetEnemyCreaturesAtLoc(token, allowedTokenIds, loc, enemies_a)
+--Bounding rectangle of a token's space in grid coordinates, or nil if it occupies no squares.
+local function GetTokenBounds(token)
+    local locs = token.locsOccupying
+    if locs == nil or #locs == 0 then
+        return nil
     end
-
-    if #enemies_a == 0 then
-        return
+    local x1, y1, x2, y2 = locs[1].x, locs[1].y, locs[1].x + 1, locs[1].y + 1
+    for _, loc in ipairs(locs) do
+        x1 = math.min(x1, loc.x)
+        y1 = math.min(y1, loc.y)
+        x2 = math.max(x2, loc.x + 1)
+        y2 = math.max(y2, loc.y + 1)
     end
-
-    for _, loc in ipairs(locs_b) do
-        GetEnemyCreaturesAtLoc(token, allowedTokenIds, loc, enemies_b)
-    end
-
-    if #enemies_b == 0 then
-        return
-    end
-
-    if #enemies_a == 1 and #enemies_b == 1 and enemies_a[1].charid == enemies_b[1].charid then
-        return
-    end
-
-    for _, a in ipairs(enemies_a) do
-        local alreadyFound = false
-        for _, b in ipairs(result) do
-            if a.charid == b.charid then
-                alreadyFound = true
-                break
-            end
-        end
-        if not alreadyFound then
-            result[#result + 1] = a
-        end
-    end
-
-    for _, a in ipairs(enemies_b) do
-        local alreadyFound = false
-        for _, b in ipairs(result) do
-            if a.charid == b.charid then
-                alreadyFound = true
-                break
-            end
-        end
-        if not alreadyFound then
-            result[#result + 1] = a
-        end
-    end
+    return { x1 = x1, y1 = y1, x2 = x2, y2 = y2, anchor = locs[1] }
 end
 
 local function GetLocsAdjacentToToken(token)
-    local locs = token.locsOccupying
-    if locs == nil or #locs == 0 then
+    local bounds = GetTokenBounds(token)
+    if bounds == nil then
         return {}
     end
-    local topLeft = locs[1]
-    local bottomRight = locs[1]
 
-    for _, loc in ipairs(locs) do
-        if loc.x < topLeft.x or loc.y < topLeft.y then
-            topLeft = loc
-        end
+    --start one square up and left of the token's space.
+    local topLeft = bounds.anchor:dir(bounds.x1 - 1 - bounds.anchor.x, bounds.y1 - 1 - bounds.anchor.y)
 
-        if loc.x > bottomRight.x or loc.y > bottomRight.y then
-            bottomRight = loc
-        end
-    end
-
-    topLeft = topLeft:dir(-1, -1)
-    bottomRight = bottomRight:dir(1, 1)
-
-    local w = bottomRight.x - topLeft.x
-    local h = bottomRight.y - topLeft.y
+    local w = bounds.x2 - bounds.x1 + 1
+    local h = bounds.y2 - bounds.y1 + 1
 
     local result = {}
 
@@ -2387,10 +2407,56 @@ local function GetEnemiesAdjacentToToken(token)
     local locs = GetLocsAdjacentToToken(token)
     local result = {}
     for _, loc in ipairs(locs) do
-        GetEnemyCreaturesAtLoc(token, nil, loc, result)
+        GetEnemyCreaturesAtLoc(token, loc, result)
     end
 
     return result
+end
+
+--True if the line between the centers of boxes a and b crosses target from one side/corner to the opposite one.
+local function LineCrossesOppositeSides(a, b, target)
+    local eps = 1e-6
+    local px, py = (a.x1 + a.x2) / 2, (a.y1 + a.y2) / 2
+    local dx, dy = (b.x1 + b.x2) / 2 - px, (b.y1 + b.y2) / 2 - py
+
+    --Clip the segment to the target rectangle (Liang-Barsky).
+    local t0, t1 = 0, 1
+    local p = { -dx, dx, -dy, dy }
+    local q = { px - target.x1, target.x2 - px, py - target.y1, target.y2 - py }
+    for k = 1, 4 do
+        if math.abs(p[k]) < eps then
+            if q[k] < 0 then
+                return false
+            end
+        else
+            local r = q[k] / p[k]
+            if p[k] < 0 then
+                t0 = math.max(t0, r)
+            else
+                t1 = math.min(t1, r)
+            end
+        end
+    end
+    if t1 - t0 < eps then
+        return false
+    end
+
+    --Reject lines that only run along an edge.
+    local tm = (t0 + t1) / 2
+    local mx, my = px + dx * tm, py + dy * tm
+    if mx <= target.x1 + eps or mx >= target.x2 - eps or my <= target.y1 + eps or my >= target.y2 - eps then
+        return false
+    end
+
+    local function sides(t)
+        local x, y = px + dx * t, py + dy * t
+        return {
+            left = math.abs(x - target.x1) < eps, right = math.abs(x - target.x2) < eps,
+            top = math.abs(y - target.y1) < eps, bottom = math.abs(y - target.y2) < eps,
+        }
+    end
+    local s0, s1 = sides(t0), sides(t1)
+    return (s0.left and s1.right) or (s0.right and s1.left) or (s0.top and s1.bottom) or (s0.bottom and s1.top)
 end
 
 function creature:GetFlankingTokens(tokensOverride)
@@ -2403,7 +2469,8 @@ function creature:GetFlankingTokens(tokensOverride)
         return {}
     end
 
-    local adjacentEnemies = tokensOverride or GetEnemiesAdjacentToToken(token)
+    --copy the override so filtering below doesn't change the caller's table.
+    local adjacentEnemies = tokensOverride and { table.unpack(tokensOverride) } or GetEnemiesAdjacentToToken(token)
     if #adjacentEnemies <= 1 then
         return {}
     end
@@ -2455,51 +2522,22 @@ function creature:GetFlankingTokens(tokensOverride)
         end
     end
 
-    local allowedTokenIds = {}
-    for _, enemy in ipairs(adjacentEnemies) do
-        allowedTokenIds[enemy.charid] = true
-    end
-
+    --Two enemies flank if the line between their centers passes through opposite sides of our space.
     local result = {}
-
-    local locs = token.locsOccupying
-    local topLeft = locs[1]
-    local bottomRight = locs[1]
-
-    for _, loc in ipairs(locs) do
-        if loc.x < topLeft.x or loc.y < topLeft.y then
-            topLeft = loc
+    local targetBox = GetTokenBounds(token)
+    local enemyBoxes = {}
+    for i, enemy in ipairs(adjacentEnemies) do
+        enemyBoxes[i] = GetTokenBounds(enemy)
+    end
+    for i = 1, #adjacentEnemies - 1 do
+        for j = i + 1, #adjacentEnemies do
+            local a, b = enemyBoxes[i], enemyBoxes[j]
+            if targetBox ~= nil and a ~= nil and b ~= nil and LineCrossesOppositeSides(a, b, targetBox) then
+                AddTokenOnce(result, adjacentEnemies[i])
+                AddTokenOnce(result, adjacentEnemies[j])
+            end
         end
-
-        if loc.x > bottomRight.x or loc.y > bottomRight.y then
-            bottomRight = loc
-        end
     end
-
-    topLeft = topLeft:dir(-1, -1)
-    bottomRight = bottomRight:dir(1, 1)
-
-    GetFlankingCreaturesFromOpposingSides(token, allowedTokenIds, { topLeft }, { bottomRight }, result)
-    GetFlankingCreaturesFromOpposingSides(token, allowedTokenIds, { topLeft:dir(bottomRight.x - topLeft.x, 0) },
-        { bottomRight:dir(topLeft.x - bottomRight.x, 0) }, result)
-
-    local topLocs = {}
-    local botLocs = {}
-    for i = 1, bottomRight.x - topLeft.x - 1 do
-        topLocs[#topLocs + 1] = topLeft:dir(i, 0)
-        botLocs[#botLocs + 1] = bottomRight:dir(-i, 0)
-    end
-
-    GetFlankingCreaturesFromOpposingSides(token, allowedTokenIds, topLocs, botLocs, result)
-
-    local leftLocs = {}
-    local rightLocs = {}
-    for i = 1, bottomRight.y - topLeft.y - 1 do
-        leftLocs[#leftLocs + 1] = topLeft:dir(0, i)
-        rightLocs[#rightLocs + 1] = bottomRight:dir(0, -i)
-    end
-
-    GetFlankingCreaturesFromOpposingSides(token, allowedTokenIds, leftLocs, rightLocs, result)
 
     for _, enemy in ipairs(grantedFlanking) do
         local found = false
@@ -3391,6 +3429,10 @@ function creature:GetActivatedAbilities(options)
             for _, ability in ipairs(ActivatedAbility.GetGrantedAbilities(dmhub.GetTokenById(charid))) do
                 result[#result + 1] = ability
             end
+            local dropToGround = ActivatedAbility.GetDropToGroundAbility(dmhub.GetTokenById(charid))
+            if dropToGround ~= nil then
+                result[#result + 1] = dropToGround
+            end
         end
     end
 
@@ -3412,7 +3454,7 @@ function creature:GetActivatedAbilities(options)
             end
         end
         if consumableAbility ~= nil then
-            ability = consumableAbility:MakeTemporaryClone()
+            local ability = consumableAbility:MakeTemporaryClone()
             ability._tmp_boundCaster = self
             result[#result + 1] = ability
         end
@@ -3510,6 +3552,11 @@ function creature:GetActivatedAbilities(options)
         else
             j = j + 1
         end
+    end
+
+    --a Double Strike used on one target this turn offers its free second strike.
+    if not options.characterSheet then
+        self:AddFinishLaterAbilities(result)
     end
 
     return result
@@ -3871,10 +3918,11 @@ local g_coverFromEnemiesCacheSeconds = 0.5
 --dmhub.GetCoverInfo(enemyToken, selfToken, pierce) is non-nil (nil means no
 --cover); the observing enemy is the attacker, and pierce follows the
 --RuleUtils.HasLineOfEffect idiom of using the attacker's PierceWalls.
-function creature:CalculateCoverFromEnemies()
+--Pass fresh = true to skip the cache, e.g. right after the creature moved.
+function creature:CalculateCoverFromEnemies(fresh)
     local now = dmhub.Time()
     local cached = self:try_get("_tmp_coverFromEnemies")
-    if cached ~= nil and (now - cached.time) < g_coverFromEnemiesCacheSeconds then
+    if (not fresh) and cached ~= nil and (now - cached.time) < g_coverFromEnemiesCacheSeconds then
         return cached
     end
 
@@ -3945,6 +3993,38 @@ creature.RegisterSymbol {
         desc = "True if at least one living enemy has cover to this creature (in combat, only enemies in the initiative queue count; out of combat, all enemy tokens on the map count), or if the creature has the Has Cover custom attribute. False when there are no relevant enemies and the attribute is absent.",
         seealso = {"Cover From All Enemies", "Concealed"},
         examples = {"Concealed or Cover From Any Enemy"},
+    }
+}
+
+--Concealed and CoverFromAllEnemies are cached (per game update / for half a
+--second), so straight after a teleport they can still describe the square the
+--creature left. This answers the same question measured at its current square.
+--Not for modifier filterConditions: IsConcealed reads the modifier list.
+creature.RegisterSymbol {
+    symbol = "canhidehere",
+    lookup = function(c)
+        return c:IsConcealed() or c:CalculateCoverFromEnemies(true).all
+    end,
+    help = {
+        name = "CanHideHere",
+        type = "boolean",
+        desc = "True if the creature has concealment, or cover from every relevant enemy, at the square it stands on right now -- the cover or concealment the Hide maneuver needs. Measured fresh, so it is correct straight after the creature moves or teleports. Use it in ability filters, not in modifier conditions.",
+        seealso = {"Concealed", "Cover From All Enemies", "Automatic Rule Adjudication"},
+        examples = {"AutomaticRuleAdjudication and CanHideHere"},
+    }
+}
+
+creature.RegisterSymbol {
+    symbol = "automaticruleadjudication",
+    lookup = function(c)
+        return AutomaticRuleAdjudication()
+    end,
+    help = {
+        name = "AutomaticRuleAdjudication",
+        type = "boolean",
+        desc = "True when the game's Automatic Rule Adjudication setting is on (always on in Encounter of the Week). Content uses it to decide a rules question automatically instead of prompting the player.",
+        seealso = {"CanHideHere"},
+        examples = {"AutomaticRuleAdjudication and CanHideHere"},
     }
 }
 
@@ -4312,6 +4392,11 @@ function creature:InflictCondition(conditionid, args)
     local entry = inflictedConditions[conditionid] or {}
     inflictedConditions[conditionid] = entry
 
+    --remembers a creature lying in wait from before the fight, for the ambush banner.
+    if conditionid == g_conditionHiddenId and not wasActive and not args.purge then
+        entry.hiddenBeforeCombat = (not CombatActive()) or nil
+    end
+
     if entry.duration ~= "eoe" or args.force then
         entry.stacks = 1
         entry.sourceDescription = args.sourceDescription
@@ -4426,6 +4511,9 @@ function creature:InflictCondition(conditionid, args)
         end
         if inflictedConditions[conditionid] ~= nil then
             audio.DispatchSoundEvent(conditionInfo:SoundEvent() .. "_End", { tokenid = dmhub.LookupTokenId(self) })
+        end
+        if conditionid == g_conditionHiddenId and entry ~= nil and entry.hiddenBeforeCombat then
+            NoteAmbushReveal(self)
         end
         inflictedConditions[conditionid] = nil
     end
@@ -4834,6 +4922,7 @@ creature.RegisterSymbol {
     },
 }
 
+--Creatures whose ability list is being built right now. Building the list runs
 --[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMMonster.lua:24
 function creature:PowerRollBonus()
     return 0
@@ -5023,6 +5112,7 @@ function creature:ShowCharacteristicRollDialog(attrid)
     local rollType = "test_power_roll"
     local roll = string.format("2d10 + %d", self:GetAttribute(attrid):Modifier())
     local modifiers = self:GetModifiersForPowerRoll(roll, rollType, { attribute = attrid })
+    CharacterModifier.MarkSkilledRollerDecides(modifiers)
 
     local syntheticAbility = ActivatedAbility.Create{ isTest = true, name = title }
 
@@ -6070,6 +6160,10 @@ local function AccumulateDamageThisTurn(self, amount)
     return self.damageTakenThisTurn
 end
 
+--True only on TargetableObject (a map object with a Targetable component). Lets the
+--damage path skip creature-only outcomes such as the hero "dying" branch.
+creature.isMapObject = false
+
 function creature.TakeDamage(self, amount, note, info)
     info = info or {}
     if type(amount) == 'string' then
@@ -6254,11 +6348,13 @@ function creature.TakeDamage(self, amount, note, info)
             self:DispatchEvent("losehitpoints", eventArg)
         end
 
+        --Forced movement can pass the pusher as an ability-symbols function. Unwrap it so
+        --the death skull can call methods on whoever is stored here.
         if eventArg.attacker == nil or dmhub.LookupTokenId(eventArg.attacker) == dmhub.LookupTokenId(self) then
-            self._tmp_lastattacker = eventArg.pusher
+            self._tmp_lastattacker = Utils.ResolveGoblinScriptObject(eventArg.pusher)
             print("ATTACKER::", dmhub.LookupTokenId(self:try_get("_tmp_lastattacker")))
         else
-            self._tmp_lastattacker = eventArg.attacker
+            self._tmp_lastattacker = Utils.ResolveGoblinScriptObject(eventArg.attacker)
             print("ATTACKER::", dmhub.LookupTokenId(self:try_get("_tmp_lastattacker")))
         end
         self._tmp_lastdamagetype = eventArg.damagetype
@@ -6523,7 +6619,10 @@ function creature.TakeDamage(self, amount, note, info)
                 audio.DispatchSoundEvent("Notify.Status_Dead_Enemy", soundArgs)
             end
         end
-    elseif isBelowZeroNow then
+    elseif isBelowZeroNow and not self.isMapObject then
+        --Map objects never die (creature:IsDead is false for them), so without the
+        --isMapObject gate a destroyed barrel played the hero-dying sting and fired
+        --"dying". Objects get "objectdestroyed" from TargetableObject.TakeDamage instead.
         if not isBelowZeroAtStart then
             audio.DispatchSoundEvent("Notify.Status_Dying_Hero", soundArgs)
 
@@ -6578,11 +6677,13 @@ function creature.TakeDamage(self, amount, note, info)
         print("DYING:: WINDED")
     end
 
+    --Forced movement can pass the pusher as an ability-symbols function. Unwrap it so
+    --the death skull can call methods on whoever is stored here.
     if eventArg.attacker == nil or dmhub.LookupTokenId(eventArg.attacker) == dmhub.LookupTokenId(self) then
-        self._tmp_lastattacker = eventArg.pusher
+        self._tmp_lastattacker = Utils.ResolveGoblinScriptObject(eventArg.pusher)
         print("ATTACKER::", dmhub.LookupTokenId(self:try_get("_tmp_lastattacker")))
     else
-        self._tmp_lastattacker = eventArg.attacker
+        self._tmp_lastattacker = Utils.ResolveGoblinScriptObject(eventArg.attacker)
         print("ATTACKER::", dmhub.LookupTokenId(self:try_get("_tmp_lastattacker")))
     end
 
@@ -6834,7 +6935,7 @@ function creature.SetStaminaDirect(self, amount, note)
         audio.DispatchSoundEvent("Condition.Winded", { tokenid = dmhub.LookupTokenId(self) })
     end
 
-    if isBelowZeroNow and not isBelowZeroAtStart then
+    if isBelowZeroNow and not isBelowZeroAtStart and not self.isMapObject then
         audio.DispatchSoundEvent("Notify.Status_Dying_Hero", { tokenid = dmhub.LookupTokenId(self) })
         self:DispatchEvent("dying", {})
     end
@@ -6906,11 +7007,23 @@ end
 --- @param token CharacterToken
 --- @param info {type: string, amount: number, instances: number, aura: AuraInstance}
 function creature:AuraDamage(token, info)
+    --Credit the damage to the aura's caster (e.g. Wall of Fire's elementalist), so
+    --their "deal damage" triggers and damage stats count it.
+    local attacker = nil
+    local casterid = info.aura:try_get("casterid")
+    local casterToken = casterid ~= nil and dmhub.GetTokenById(casterid) or nil
+    if casterToken ~= nil and casterToken.valid then
+        attacker = casterToken.properties
+    end
+
+    --Keywords of the ability that cast the aura (Fire, Magic, ...), if any.
+    local keywords = info.aura:try_get("keywords") or {}
+
     token:ModifyProperties {
         description = info.aura.aura.name,
         execute = function()
             for i = 1, info.instances do
-                self:InflictDamageInstance(info.amount, info.type, {}, info.aura.aura.name, { damagesound = "Attack.Enviro" })
+                self:InflictDamageInstance(info.amount, info.type, keywords, info.aura.aura.name, { damagesound = "Attack.Enviro", attacker = attacker })
             end
         end,
     }
@@ -6945,7 +7058,9 @@ end
 
 --- @param eventName string
 --- @param info table
-function creature:DispatchEventAndWait(eventName, info)
+--- @param opts? {ignoreTurn: boolean?} ignoreTurn: keep waiting even if the turn moves on or combat is not running (a destroyed map object waits for its trigger in or out of combat).
+function creature:DispatchEventAndWait(eventName, info, opts)
+    opts = opts or {}
     -- Check if there are any triggers for this event first
     local mods = self:GetActiveModifiers()
     local hasTrigger = false
@@ -6991,6 +7106,9 @@ function creature:DispatchEventAndWait(eventName, info)
     local startTurn = startQueue ~= nil and startQueue:try_get("currentTurn") or nil
     local startRound = startQueue ~= nil and startQueue.round or nil
     local function TurnStillCurrent()
+        if opts.ignoreTurn then
+            return true
+        end
         local q = dmhub.initiativeQueue
         if q == nil or q.hidden then
             return false
@@ -7068,7 +7186,7 @@ function creature:PersistentAbilities()
             break
         elseif (q.round or 0) > (a.round or 0) or ((q.round or 0) == (a.round or 0) and (q.turn or 0) > (a.turn or 0)) then
             if a.ability == nil or type(a.ability) ~= "table" or getmetatable(a.ability) == nil then
-                break
+                goto continue
             end
             local ability = a.ability:MakeTemporaryClone()
 
@@ -7076,7 +7194,7 @@ function creature:PersistentAbilities()
             local persistenceMode = persistence.mode
 
             if persistenceMode == "none" then
-                break
+                goto continue
             end
 
             if persistenceMode == "recast_new" and a.ability:try_get("recastNewAbility") then
@@ -7195,6 +7313,8 @@ function creature:PersistentAbilities()
             local customPrompt = persistence.promptText
             if type(customPrompt) == "string" and trim(customPrompt) ~= "" then
                 promptText = string.format("%s: %s; %s", tr("Persistence"), ability.name, customPrompt)
+                --The "!" trigger card shows triggerPrompt as its rules text.
+                newAbility.triggerPrompt = customPrompt
             else
                 promptText = string.format(tr("Persistence: Recast %s"), ability.name)
             end
@@ -7230,6 +7350,7 @@ function creature:PersistentAbilities()
                 result[#result + 1] = mod
             end
         end
+        ::continue::
     end
 
     return result
@@ -7289,7 +7410,11 @@ function creature:EndPersistentAbilityById(guid)
         end
     end
 
-    for _, objref in ipairs(persistentAbilities[persistentIndex]:try_get("objects") or {}) do
+    --No entry with this guid (e.g. already ended): still sweep up auras stamped with it below.
+    local entryObjects = persistentIndex ~= nil and persistentAbilities[persistentIndex]:try_get("objects") or {}
+    local entryObjectIds = {}
+    for _, objref in ipairs(entryObjects) do
+        entryObjectIds[objref.objid] = true
         local obj = game.LookupObject(objref.floorid, objref.objid)
         if obj ~= nil then
             obj:Destroy()
@@ -7300,7 +7425,11 @@ function creature:EndPersistentAbilityById(guid)
     --Persisting"). RemoveAura destroys the aura and drops it from self.auras.
     local linkedAuras = {}
     for _, aura in ipairs(self:try_get("auras", {})) do
-        if aura:try_get("persistenceId") == guid then
+        --Also match by object, for auras saved before they were stamped with
+        --persistenceId. Their object was destroyed above, so otherwise they would
+        --stay as invisible auras that still deal damage.
+        local auraObject = aura:try_get("object")
+        if aura:try_get("persistenceId") == guid or (auraObject ~= nil and entryObjectIds[auraObject.objid]) then
             linkedAuras[#linkedAuras + 1] = aura.guid
         end
     end
@@ -7568,6 +7697,27 @@ creature.RegisterSymbol {
     }
 }
 
+--Below the water's surface (diving), not just in water: the map water level's
+--deep water or painted water. Submerged creatures have cover, and others have
+--cover from them (globalrulemods/cover.yaml).
+creature.RegisterSymbol {
+    symbol = "underwater",
+
+    lookup = function(c)
+        if c:CurrentMoveType() ~= "swim" then
+            return false
+        end
+        local token = dmhub.LookupToken(c)
+        return token ~= nil and token.distanceBelowGround >= 1
+    end,
+    help = {
+        name = "Underwater",
+        type = "boolean",
+        desc = "True if this creature is swimming below the water's surface (at least 1 square under it). A creature floating on the surface is In Water but not Underwater.",
+        seealso = {"InWater", "Distance Below Ground"},
+    }
+}
+
 creature.RegisterSymbol {
     symbol = "onground",
 
@@ -7754,6 +7904,32 @@ creature.RegisterSymbol {
         type = "number",
         desc = "The number of players in the game, not counting followers.",
         seealso = {},
+    }
+}
+
+--"For each hero in the encounter": live heroes on the map, and in initiative when
+--combat is running. Unlike NumberOfPlayers this counts what is actually present.
+creature.RegisterSymbol {
+    symbol = "heroesinencounter",
+    lookup = function(c)
+        local q = dmhub.initiativeQueue
+        local entries = (q ~= nil and not q.hidden) and q.entries or nil
+        local count = 0
+        for _, tok in ipairs(dmhub.allTokens) do
+            local props = tok.properties
+            if tok.valid and props ~= nil and props:IsHero() and not props:IsDead() then
+                if entries == nil or entries[InitiativeQueue.GetInitiativeId(tok)] ~= nil then
+                    count = count + 1
+                end
+            end
+        end
+        return count
+    end,
+    help = {
+        name = "HeroesInEncounter",
+        type = "number",
+        desc = "The number of live heroes on the map; while combat runs, only those in initiative.",
+        seealso = {"NumberOfPlayers"},
     }
 }
 
@@ -8318,6 +8494,48 @@ GameSystem.RegisterGoblinScriptField{
 
         return false
     end,
+}
+
+--Distance in squares from this creature to the nearest live Targetable object whose
+--object keywords include the given keyword, on the same actual floor. Footprint to
+--footprint, like token:Distance. 999 when there is no such object, so a "within N"
+--test simply fails. Topaz Dragon spikes use it: "each enemy within 2 squares of a spike".
+creature.RegisterSymbol {
+    symbol = "distancetoobjectwithkeyword",
+    lookup = function(c)
+        return function(keyword)
+            local token = GetDeployedCreatureToken(c)
+            if token == nil or keyword == nil or keyword == "" then
+                return 999
+            end
+
+            local actualFloor = GetTokenActualFloor(token)
+            local best = 999
+            --GetTargetableObjectsWithKeyword only returns objects on the current map
+            --(object tokens report hasTokenOnThisMap = false, so it can't be used here).
+            for _,other in ipairs(Encounter.GetTargetableObjectsWithKeyword(string.lower(tostring(keyword)))) do
+                if other.charid ~= token.charid and GetTokenActualFloor(other) == actualFloor then
+                    local alive = true
+                    pcall(function()
+                        alive = other.properties:CurrentHitpoints() > 0
+                    end)
+                    if alive then
+                        local distance = tonumber(token:Distance(other)) or 999
+                        if distance < best then
+                            best = distance
+                        end
+                    end
+                end
+            end
+            return best
+        end
+    end,
+    help = {
+        name = "DistanceToObjectWithKeyword",
+        type = "function",
+        desc = "Given an object keyword, the distance in squares to the nearest live targetable object with that keyword on this creature's floor. 999 if there is none.",
+        examples = { 'DistanceToObjectWithKeyword("topaz spike") <= 2' },
+    },
 }
 
 

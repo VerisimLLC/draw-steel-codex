@@ -153,10 +153,14 @@ end
 
 --given an entry in the initiative queue, return 'ord', a number which is higher
 --the closer to the front of the initiative queue the entry is.
+--- @param entry InitiativeQueueEntry
+--- @return number
 function InitiativeQueue.GetEntryOrd(entry)
 	return -entry.round*1000 + InitiativeQueue.GetEntryOrdAbsolute(entry)
 end
 
+--- @param entry InitiativeQueueEntry
+--- @return number
 function InitiativeQueue.GetEntryOrdAbsolute(entry)
 	return entry.initiative*cond(GameSystem.LowerInitiativeIsFaster, -1, 1) + entry.dexterity*0.01
 end

@@ -29,6 +29,10 @@ end
 --- @field operatorTokenId nil|string Charid of the creature operating the object, stamped on an operated ability's clone; that creature pays the action.
 --- @field grantingObjectTokenId nil|string Charid of the object that granted this clone; the only token it can target.
 --- @field grantedToTokenId nil|string Charid of the creature a granted clone belongs to (its caster).
+--- @field finishTargetsLater boolean Used on your turn against fewer targets than it allows, the rest can be targeted later that turn, free, with the same dice (Dual Wielder's Double Strike). See "Finish targets later" in MCDMActivatedAbility.lua.
+--- @field followUpOf nil|string On the clone that finishes a finishTargetsLater ability: the guid of the ability it finishes.
+--- @field followUpDice nil|{numFaces: number, result: number}[] On that clone: the die faces its power roll lands on instead of rolling fresh.
+--- @field excludedTargetTokenIds nil|table<string, boolean> Charids this clone may not target (the creatures the first use already hit).
 --- @field aimCasterAtTarget boolean An object caster turns to face its target while this is aimed, and keeps that facing (a Field Ballista's Release Bolt).
 --- @field _tmp_boundCaster nil|creature The creature a temporary clone was generated for.
 --- @field forcedMovementStraightUp boolean A forced-movement clone that moves its creature straight up ("vertical push straight up N").
@@ -36,6 +40,7 @@ end
 --- @field lineDistance number|string Length for line-area targeting: a number or a GoblinScript formula.
 --- @field rangeDisadvantage string|number|table GoblinScript: if truthy, ranged attacks have disadvantage.
 --- @field selfTarget boolean If true, the ability always targets the caster.
+--- @field forceCasterTarget boolean If true, the caster is always a target, in addition to the number of targets ("Self and three allies").
 --- @field castImmediately boolean If true, auto-casts when there are no targeting choices.
 --- @field environmentalSource boolean|nil If true, the ability is the environment acting (a zone, a trap, terrain) rather than the creature casting it: effects it applies are attributed to the ability by name ("Applied by <b>Burning Oil</b>") instead of to the caster, who is only whoever the effect landed on. Set on abilities synthesized by Aura:GetSimplePowerRollTrigger and Aura:GetSimpleEntryEffectTrigger; set it in data on environmental triggers.
 --- @field environmentRoll boolean|nil If true, the ability's power roll is made by the environment: the caster only executes the roll and it counts as a roll made AGAINST them (their own modifiers are excluded; their defensive "rolls against you" modifiers apply even on a self-cast). Set on abilities synthesized by Aura:GetSimplePowerRollTrigger.
@@ -85,6 +90,7 @@ end
 --- @field OnFinishCast? fun(ability: ActivatedAbility, options: table) Runtime hook run when the cast finishes.
 --- @field invoker? creature Creature that invoked this ability clone (invoke-ability behavior).
 --- @field invokerActionResourceId? string Action resource of the invoking ability, on an invoked clone.
+--- @field baseActionResourceId? string The strike's own action resource, saved when an augment (e.g. Make Free Strike) replaces actionResourceId with its own cost.
 --- @field rangeUsesInvoker? boolean If true, an invoked clone measures range from the invoker.
 --- @field disableSquadCoordination? boolean If true, an invoked clone does not coordinate with the minion squad.
 --- @field promptOverride? string Prompt text shown instead of the default when an invoked clone targets.
@@ -217,6 +223,7 @@ ActivatedAbility.range = dmhub.unitsPerSquare
 ActivatedAbility.lineDistance = 1
 ActivatedAbility.rangeDisadvantage = ""
 ActivatedAbility.selfTarget = false
+ActivatedAbility.forceCasterTarget = false
 ActivatedAbility.castImmediately = false --auto-casts immediately if there are no targeting choices.
 ActivatedAbility.recharge = false --roll number for recharging this ability.
 
@@ -364,6 +371,8 @@ ActivatedAbility.proximityRange = "5"
 
 --default for abilities serialized before this field existed; Create() sets it explicitly.
 ActivatedAbility.repeatTargets = false
+
+ActivatedAbility.finishTargetsLater = false
 
 ActivatedAbility.sequentialTargeting = false
 
@@ -1658,7 +1667,7 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
 	local canTargetSelfOverride = false
 	if casterToken.properties == targetToken.properties then
 		canTargetSelfOverride = casterToken.properties:CalculateNamedCustomAttribute("Can Target Self") > 0
-		if (not self.selfTarget) and (not canTargetSelfOverride) then
+		if (not self.selfTarget) and (not self.forceCasterTarget) and (not canTargetSelfOverride) then
 			return false
 		end
 	end
@@ -1674,6 +1683,12 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
 		return false
 	end
 
+	--Finishing a Double Strike: the creatures the first strike hit are not new targets.
+	local excludedids = self:try_get("excludedTargetTokenIds")
+	if excludedids ~= nil and excludedids[targetToken.charid] then
+		return false
+	end
+
 	if targetToken.properties:CalculateNamedCustomAttribute("Untargetable") > 0 then
 		return false
 	end
@@ -1686,7 +1701,31 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
 	end
 
     if self.targetType == "all" and casterToken.floorIndex == targetToken.floorIndex and casterToken:GetLineOfSight(targetToken, casterToken.properties:GetPierceWalls()) <= 0 then
-        return false
+        --A sight-blocking object (a boulder, a solid block) hides its own square, so the engine reports no
+        --sight to it. It still counts as reached if the line to one of its squares is stopped only at that
+        --square's own edge (within 1 tile of its centre), not by something further out such as a wall.
+        --Limit: a wall flush against the object's near face stops the line in the same place, so it is not told apart.
+        local seen = false
+        if targetToken.isObject then
+            local pierce = casterToken.properties:GetPierceWalls()
+            local casterRadius = casterToken.tileSize * 0.5
+            for _,loc in ipairs(targetToken.locsOccupying) do
+                local info = casterToken:GetLineOfSightToSpaceInfo(loc, pierce)
+                --obstructionDist is a fraction of the sightline from the caster's EDGE to the square's centre,
+                --so scale it by that length. A square's own edge is at most ~0.71 tiles from its centre; a
+                --grid wall that does not touch the square is at least 1.5 away, so 1 tile splits the two.
+                local dx = loc.x - casterToken.loc.x
+                local dy = loc.y - casterToken.loc.y
+                local sightline = math.max(0, math.sqrt(dx*dx + dy*dy) - casterRadius)
+                if info.cover > 0 or sightline * (1 - info.obstructionDist) <= 1 then
+                    seen = true
+                    break
+                end
+            end
+        end
+        if not seen then
+            return false
+        end
     elseif self.targetType ~= "map" and symbols.targetArea ~= nil and targetToken:GetLineOfSight(symbols.targetArea.origin, targetToken.properties:GetPierceWalls()) <= 0 then
         return false
     end
@@ -1872,6 +1911,11 @@ function ActivatedAbility:CanCastAsIs(casterToken, targets, symbols)
 		return true
 	end
 	if self.targetType == 'self' then
+		return true
+	end
+	--The caster is always a target, so this can be cast with nobody else chosen.
+	--It used to be stuck when no ally was in range.
+	if self.forceCasterTarget and self.targetType == 'target' then
 		return true
 	end
 	local numTargets = self:GetNumTargets(casterToken, symbols)
@@ -2203,6 +2247,19 @@ function ActivatedAbility:FireUseAbility(casterToken, options)
 			}
 		end
 
+		--Remember the ability for "used this round" rules (Flashback). Skipped when
+		--it is already recorded, so repeat uses don't upload anything.
+		if casterToken.properties:AbilitiesUsedThisRound()[self.name] == nil
+			and dmhub.initiativeQueue ~= nil and not dmhub.initiativeQueue.hidden then
+			casterToken:ModifyProperties{
+				description = "Use Ability",
+				undoable = false,
+				execute = function()
+					casterToken.properties:RecordAbilityUsedThisRound(self)
+				end,
+			}
+		end
+
         casterToken.properties:DispatchEvent("useability", {usedability = self, cast = options.symbols and options.symbols.cast, partofanotherability = self:IsPartOfAnotherAbility(casterToken, options)})
 
         for _,target in ipairs(options.targets or {}) do
@@ -2286,8 +2343,10 @@ function ActivatedAbility:GetCost(casterToken, options)
 		result.canAfford = false
 	end
 
+	--An action count of 0 lists the ability under its action type but spends nothing
+	--(the free second strike of Double Strike sits in the Main Action drawer).
 	local actionResource = self:ActionResource()
-	if actionResource ~= nil and actionResource ~= "none" and resourcesTable[actionResource] ~= nil then
+	if actionResource ~= nil and actionResource ~= "none" and resourcesTable[actionResource] ~= nil and self:GetNumberOfActionsCost(creature, { mode = options.mode or 1 }) > 0 then
 		--An operated object's action (main action, maneuver...) comes out of the
 		--operator's action economy, not the object's.
 		local payerToken = self:GetOperatorToken()
@@ -3102,9 +3161,19 @@ local g_castStartHandlers = {}
 --- Registers fn(ability, casterToken, options) to run synchronously at the start of every
 --- ActivatedAbility:Cast, before any cost is paid or the cast's coroutine starts. It must
 --- not yield. Turn Rewind uses it to checkpoint the board before an ability.
+--- Handlers run in ascending priority (default 0), then registration order; a handler
+--- that changes the board should use a positive priority so checkpoints run first.
 --- @param fn fun(ability: ActivatedAbility, casterToken: CharacterToken, options: table|nil)
-function ActivatedAbility.RegisterCastStartHandler(fn)
-	g_castStartHandlers[#g_castStartHandlers+1] = fn
+--- @param priority? number
+function ActivatedAbility.RegisterCastStartHandler(fn, priority)
+	local entry = {fn = fn, priority = priority or 0, order = #g_castStartHandlers + 1}
+	g_castStartHandlers[#g_castStartHandlers+1] = entry
+	table.sort(g_castStartHandlers, function(a, b)
+		if a.priority ~= b.priority then
+			return a.priority < b.priority
+		end
+		return a.order < b.order
+	end)
 end
 
 --casterToken: a token representing the caster.
@@ -3119,12 +3188,22 @@ function ActivatedAbility:Cast(casterToken, targets, options)
 	--check: the Monster AI's casts on a player host must never be refused.
 	if dmhub.frozen and not IsDMOrPlayerHost() then
 		print("Cast:: refused; the game is frozen")
+		--The cast never starts, but its caller may be waiting on it: a triggered
+		--ability's finish handlers complete the Monster AI's reaction wait and
+		--release event waits (237AHPF5 hung on Judgment). Run them as an abort.
+		if options ~= nil and not options.executedFinish then
+			options.executedFinish = true
+			options.abort = true
+			for _,handler in ipairs(options.OnFinishCastHandlers or {}) do
+				handler(self, casterToken, options)
+			end
+		end
 		return
 	end
 
 	--a broken handler must never stop the cast itself.
 	for _,handler in ipairs(g_castStartHandlers) do
-		local ok, err = pcall(handler, self, casterToken, options)
+		local ok, err = pcall(handler.fn, self, casterToken, options)
 		if not ok then
 			print("Cast:: cast start handler failed:", err)
 		end
@@ -3457,8 +3536,27 @@ local function PlayerIsResolvingCast()
     if gamehud.rollDialog ~= nil and gamehud.rollDialog.valid and gamehud.rollDialog.data.IsShown() then
         return true
     end
-    if gamehud.actionBarPanel ~= nil and gamehud.actionBarPanel.valid and gamehud.actionBarPanel.data.IsCastingSpell() then
-        return true
+    if gamehud.actionBarPanel ~= nil and gamehud.actionBarPanel.valid then
+        local data = gamehud.actionBarPanel.data
+        if data.IsCastingSpell() then
+            return true
+        end
+        --A target chooser mid-cast (Lightfall's ally teleport, JY7WM9BQ).
+        if data.IsPrompting ~= nil and data.IsPrompting() then
+            return true
+        end
+    end
+    --Ability rolls show in the Timeline's embedded dialog, not gamehud.rollDialog
+    --(R79SNQ4Y). Only a SHOWN dialog counts: AnyRollDialogShown also reports a
+    --not-yet-shown roll owned by a live cast, which is exactly a stranded cast.
+    if CharacterPanel ~= nil and CharacterPanel.FindEmbeddedRollDialog ~= nil then
+        local embedded = CharacterPanel.FindEmbeddedRollDialog()
+        if embedded ~= nil and embedded.valid and embedded.data ~= nil and embedded.data.IsShown ~= nil and embedded.data.IsShown() then
+            return true
+        end
+        if CharacterPanel.StandaloneRollShown ~= nil and CharacterPanel.StandaloneRollShown() then
+            return true
+        end
     end
     return false
 end
@@ -3836,6 +3934,7 @@ function ActivatedAbility.CastCoroutine(self, casterToken, targets, options)
         end
 
         for _,behavior in ipairs(strainedAbility.behaviors) do
+            behavior._tmp_noCommit = true
             behavior:Cast(self, casterToken, {{ token = casterToken }}, options)
         end
     end
@@ -5976,6 +6075,7 @@ function ActivatedAbilityContestedAttackBehavior:CreateCheck(ability, casterToke
 		explanation = string.format("Contested roll against's %s's %s.", casterToken.description, ability.name)
 	end
 
+	local check
 	if creature.attributesInfo[attrid] then
 		check = RollCheck.new{
 			type = "attribute",

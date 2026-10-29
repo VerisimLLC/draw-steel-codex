@@ -42,6 +42,15 @@ function TextEditor:ScrollByWheel(delta) end
 --- @return any
 function TextEditor:GetCharWorldPosition(charIndex) end
 
+--- Returns the source position under the mouse: the byte offset a click there would put the caret at (0-based bytes before it, same space as @see caretPosition, so text:sub(1, pos) is the text before it). In rich display mode it is a position in the markdown source, mapped through the hidden syntax. Returns nil when no text is laid out. Cheap enough to call every frame, e.g. to follow the mouse while something is dragged over the editor.
+--- @return number|nil
+function TextEditor:SourcePositionAtMouse() end
+
+--- Returns where a caret placed at the given byte offset (0-based, same space as @see caretPosition) is drawn: x is its left edge and y the top of its rendered line, both measured from this editor's top-left corner in panel units (the same space as the islandLayout event), and height is the line's height. Use it to draw a marker over the text, e.g. a drop caret. Returns nil when no text is laid out.
+--- @param bytePosition number
+--- @return {x: number, y: number, height: number}|nil
+function TextEditor:GetCaretPanelPosition(bytePosition) end
+
 --- Undo the last edit.
 function TextEditor:Undo() end
 

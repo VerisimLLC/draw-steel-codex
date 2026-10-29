@@ -1886,11 +1886,9 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 
 	dialog.sheet = parentPanel
 
-	--The icon rails (and the map-button bar) live in the documents layer, so
-	--they went with the last hud. DocumentSystem builds them on entering a
-	--game and after its own reload; a hud rebuilt for the same game without
-	--that (scripts changed in another mod) left them gone for the session.
-	--Ask for them once this hud is up; both no-op when they already stand.
+	--A hud rebuilt for the same game (a reload of another mod's scripts) took
+	--the icon rails and map-button bar with it; DocumentSystem only builds them
+	--on game entry or its own reload. Ask again (both no-op if they exist).
 	local rebuilt = rawget(_G, "g_hudGameId") == dmhub.gameid
 	rawset(_G, "g_hudGameId", dmhub.gameid)
 	if rebuilt then

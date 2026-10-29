@@ -1813,10 +1813,9 @@ end
 local function BuildWindow(rec)
     local panel
 
-    --the new panels start from their defaults: forget what was applied to the
-    --old ones, or Refresh thinks the new body already carries "#MapView" and
-    --never gives it the map (a HUD rebuilt without this file reloading kept
-    --the record), and the new title keeps no width limit.
+    --the panels below are new, so drop what Refresh remembers applying to the
+    --old ones. A record kept across a hud rebuild otherwise leaves the window
+    --white instead of showing the map, and its title with no width limit.
     rec.liveImage = nil
     rec.titleNameMax = nil
 

@@ -6597,11 +6597,15 @@ local g_lastTeleportMove = { charid = nil, dest = nil, time = -1 }
 
 --- Resolve a creature teleporting as its own movement (Cinder Step, an innate teleport speed):
 --- spend movement equal to the teleport distance and fire the "teleportmove" trigger. Only
---- creatures that can teleport count; a Director Ctrl-dragging anything else is a free
---- reposition, as before.
+--- creatures that can teleport count. A Director's Ctrl-drag is always a free GM reposition
+--- outside the rules; an ability flagged "Teleport Counts as Movement" still pays.
 --- @param path LuaPath
 function creature:HandleTeleportMove(path)
     if not self:CanTeleport() or path.origin == nil or path.destination == nil then
+        return
+    end
+
+    if dmhub.isDM and not self:try_get("_tmp_teleportCountsAsMovement") then
         return
     end
 

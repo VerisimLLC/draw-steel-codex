@@ -158,8 +158,9 @@ function GameHud.TokenMoving(self, token, path)
 
         --A creature that can teleport is spending its own movement on this (see
         --creature:HandleTeleportMove), so quote the cost the way a walking move does.
+        --A Director's Ctrl-drag is a free reposition, so it has no cost to quote.
         local mover = token.properties
-        if mover ~= nil and mover:CanTeleport() and mover:IsOurTurn() then
+        if mover ~= nil and mover:CanTeleport() and mover:IsOurTurn() and not dmhub.isDM then
             local speed = mover:GetEffectiveSpeed(mover:CurrentMoveType())
             local alreadyMoved = mover:DistanceMovedThisTurn()
             text = string.format(tr("%s\nUses %s of %s's %s %s allowed by Advance Move Action"), text, MeasurementSystem.NativeToDisplayString(distance*dmhub.FeetPerTile), mover.GetTokenDescription(token), MeasurementSystem.NativeToDisplayString(speed), string.lower(MeasurementSystem.UnitName()))

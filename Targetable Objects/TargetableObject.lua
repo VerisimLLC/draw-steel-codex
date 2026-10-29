@@ -46,14 +46,10 @@ TargetableObject.isMapObject = true
 --- @param info nil|table event arguments (copied per object)
 function TargetableObject.DispatchToObjects(eventName, info)
     for _, tok in ipairs(dmhub.allObjectTokens or {}) do
-        local props = tok.valid and tok.properties or nil
-        if props ~= nil then
-            for _, entry in ipairs(props:GetActiveModifiers()) do
-                if entry.mod:HasTriggeredEvent(props, eventName, false) then
-                    props:DispatchEvent(eventName, info ~= nil and shallow_copy_table(info) or {})
-                    break
-                end
-            end
+        --An object only has properties when it has a Targetable component.
+        local props = tok.valid and tok.properties --[[@as TargetableObject|nil]] or nil
+        if props ~= nil and props:HasTriggerFor(eventName) then
+            props:DispatchEvent(eventName, info ~= nil and shallow_copy_table(info) or {})
         end
     end
 end

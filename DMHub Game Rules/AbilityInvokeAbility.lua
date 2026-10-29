@@ -952,7 +952,7 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                 elseif rangeOrigin == "parent_current_target" then
                     rangeOriginTokenId = GetParentCurrentTargetTokenId(options, target.token)
                 elseif rangeOrigin == "caster" and casterToken ~= nil and casterToken.valid then
-                    rangeOriginTokenId = casterToken.id
+                    rangeOriginTokenId = casterToken.charid
                 end
 
                 --ParentTarget follows this invocation's squad pairing without changing

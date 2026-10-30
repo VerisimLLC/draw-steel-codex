@@ -2731,13 +2731,17 @@ function DTProjectEditor._languageNames(project)
     return table.concat(names, ", ")
 end
 
---- A project's characteristics, languages and status as one unlabelled line
+--- A project's characteristics, languages and status, unlabelled: one line,
+--- or a line each when the separator is a newline
 --- @param project DTProject
+--- @param separator nil|string between the three; " | " by default
 --- @return string
-function DTProjectEditor._respiteSummaryLine(project)
-    return string.format("%s | %s | %s",
+function DTProjectEditor._respiteSummaryLine(project, separator)
+    return string.format("%s%s%s%s%s",
         DTProjectEditor._characteristicNames(project),
+        separator or " | ",
         DTProjectEditor._languageNames(project),
+        separator or " | ",
         DTConstants.GetDisplayText(DTConstants.STATUS, project:GetStatus()))
 end
 
@@ -2747,8 +2751,10 @@ end
 --- over the top. Reads its project through an accessor so a pooled card can
 --- hand it a different one.
 --- @param getProject fun(): DTProject|nil
+--- @param size nil|table width, height and the label's size class; a slim 70% bar by default
 --- @return Panel
-function DTProjectEditor._respiteProgressBar(getProject)
+function DTProjectEditor._respiteProgressBar(getProject, size)
+    size = size or {}
     local function Ratio()
         local project = getProject()
         local goal = project ~= nil and project:GetProjectGoal() or 0
@@ -2788,7 +2794,7 @@ function DTProjectEditor._respiteProgressBar(getProject)
     }
 
     local label = gui.Label{
-        classes = {"fg", "sizeXs", "number", "bold"},
+        classes = {"fg", size.labelClass or "sizeXs", "number", "bold"},
         width = "auto",
         height = "auto",
         halign = "center",
@@ -2806,8 +2812,8 @@ function DTProjectEditor._respiteProgressBar(getProject)
 
     return gui.Panel{
         classes = {"bordered"},
-        width = "70%",
-        height = 16,
+        width = size.width or "70%",
+        height = size.height or 16,
         flow = "horizontal",
         halign = "left",
         cornerRadius = 0,
@@ -2821,10 +2827,15 @@ end
 --- One project as the Respite shows it, built empty and bound later
 --- Pooled: a card is handed its project by position on every refresh rather
 --- than rebuilt, so a roll anywhere in the party creates nothing. A read-only
---- card has no roll button.
---- @param args table readOnly
+--- card has no roll button. A grid card is a near-square tile with larger
+--- type, for the Respite's full-screen work area.
+--- @param args table readOnly, grid
 --- @return Panel
 function DTProjectEditor._respiteProjectCard(args)
+    local grid = args.grid == true
+    local portraitSize = grid and 44 or 34
+    local rollSize = grid and 36 or 28
+
     -- What the card shows now; every handler reads it when it runs.
     local bound = {
         entry = nil,
@@ -2840,8 +2851,8 @@ function DTProjectEditor._respiteProjectCard(args)
         rollButton = gui.Button{
             classes = {"withInfo"},
             icon = "panels/initiative/initiative-dice.png",
-            width = 28,
-            height = 28,
+            width = rollSize,
+            height = rollSize,
             halign = "right",
             valign = "center",
             data = {
@@ -2919,10 +2930,10 @@ function DTProjectEditor._respiteProjectCard(args)
 
     -- A slot rather than the portrait itself: the image is remade only when the owner changes.
     local portrait = gui.Panel{
-        width = 34,
-        height = 34,
+        width = portraitSize,
+        height = portraitSize,
         halign = "left",
-        valign = "bottom",
+        valign = cond(grid, "top", "bottom"),
         data = {
             ownerId = nil,
         },
@@ -2934,8 +2945,8 @@ function DTProjectEditor._respiteProjectCard(args)
             element.data.ownerId = entry.ownerToken.charid
             element.children = {
                 gui.CreateTokenImage(entry.ownerToken, {
-                    width = 34,
-                    height = 34,
+                    width = portraitSize,
+                    height = portraitSize,
                     halign = "left",
                     valign = "bottom",
                 }),
@@ -2943,15 +2954,18 @@ function DTProjectEditor._respiteProjectCard(args)
         end,
     }
 
-    -- Short of the full width, and left-aligned, so the list's scroll bar does
-    -- not sit over the card's right border.
+    -- A row card stops short of the full width, left-aligned, so the list's
+    -- scroll bar does not sit over its right border; a grid card is a fixed
+    -- width and as tall as its content.
     return gui.Panel{
         classes = {"bordered", "collapsed"},
-        width = "100%-12",
+        width = cond(grid, 280, "100%-12"),
         height = "auto",
         flow = "vertical",
         halign = "left",
-        vmargin = 4,
+        valign = "top",
+        hmargin = cond(grid, 6, 0),
+        vmargin = cond(grid, 6, 4),
 
         setProject = function(element, entry, selection)
             bound.entry = entry
@@ -2967,18 +2981,21 @@ function DTProjectEditor._respiteProjectCard(args)
             height = "auto",
             flow = "horizontal",
             halign = "center",
-            vmargin = 6,
+            valign = "top",
+            vmargin = cond(grid, 10, 6),
 
             portrait,
 
+            -- A grid card's title wraps in the room the portrait and the roll
+            -- button leave it.
             gui.Label{
-                classes = {"sizeM", "bold"},
-                width = "auto",
+                classes = {cond(grid, "sizeL", "sizeM"), "bold"},
+                width = cond(grid, string.format("100%%-%d", portraitSize + rollSize + 20), "auto"),
                 height = "auto",
                 halign = "left",
-                valign = "bottom",
+                valign = cond(grid, "top", "bottom"),
                 hmargin = 8,
-                textWrap = false,
+                textWrap = grid,
                 text = "",
                 refreshProject = function(element)
                     local project = Project()
@@ -2997,23 +3014,28 @@ function DTProjectEditor._respiteProjectCard(args)
             height = "auto",
             flow = "vertical",
             halign = "center",
+            valign = "top",
             bmargin = 6,
 
-            DTProjectEditor._respiteProgressBar(Project),
+            DTProjectEditor._respiteProgressBar(Project, grid and {
+                width = "100%",
+                height = 24,
+                labelClass = "sizeS",
+            } or nil),
 
             -- One line, no labels: the Respite is tight for room and these
             -- three read fine as a run-on.
             gui.Label{
-                classes = {"sizeS", "noBold"},
+                classes = {cond(grid, "sizeM", "sizeS"), "noBold"},
                 width = "100%",
                 height = "auto",
                 halign = "left",
-                tmargin = 2,
+                tmargin = cond(grid, 8, 2),
                 textWrap = true,
                 text = "",
                 refreshProject = function(element)
                     local project = Project()
-                    local text = project ~= nil and DTProjectEditor._respiteSummaryLine(project) or ""
+                    local text = project ~= nil and DTProjectEditor._respiteSummaryLine(project, cond(grid, "\n", nil)) or ""
                     if element.text ~= text then
                         element.text = text
                     end
@@ -3084,7 +3106,8 @@ end
 --- The pooled card list both Respite surfaces show
 --- Bound on create and whenever the settings document or any roster hero's
 --- token moves: progress lives on the owner's token, rolls left on the roller's.
---- @param args table entries fun(), selection (nil when read only), readOnly, roster accessor
+--- @param args table entries fun(), selection (nil when read only), readOnly, roster accessor,
+--- grid to lay the cards out as wrapping tiles
 --- @return Panel
 function DTProjectEditor._respiteProjectList(args)
     local list
@@ -3105,7 +3128,7 @@ function DTProjectEditor._respiteProjectList(args)
                 grown[i] = card
             end
             for i = #pool + 1, #entries do
-                grown[i] = DTProjectEditor._respiteProjectCard{readOnly = args.readOnly}
+                grown[i] = DTProjectEditor._respiteProjectCard{readOnly = args.readOnly, grid = args.grid}
             end
             list.children = grown
             pool = grown
@@ -3122,7 +3145,8 @@ function DTProjectEditor._respiteProjectList(args)
     list = gui.Panel{
         width = "100%",
         height = "auto",
-        flow = "vertical",
+        flow = cond(args.grid == true, "horizontal", "vertical"),
+        wrap = args.grid == true,
         halign = "left",
         valign = "top",
     }
@@ -3134,7 +3158,7 @@ function DTProjectEditor._respiteProjectList(args)
         halign = "center",
         valign = "center",
         tmargin = 24,
-        text = "No projects under way.",
+        text = "No projects underway.",
     }
 
     watchers = RSPWidgets.Watchers{
@@ -3229,6 +3253,7 @@ function DTProjectEditor.PaintRespiteProjects(args)
             roster = args.roster,
             selection = selection,
             readOnly = false,
+            grid = true,
             entries = function()
                 if selection == nil then
                     return {}
@@ -3236,6 +3261,70 @@ function DTProjectEditor.PaintRespiteProjects(args)
                 return DTProjectEditor._respiteProjectEntries(args)
             end,
         },
+    }
+end
+
+--- The Downtime Projects tile on the player's Respite stage
+--- How much work the party has underway, kept current as projects move.
+--- @param args table roster accessor
+--- @return Panel
+function DTProjectEditor.PaintRespiteStation(args)
+    local count = gui.Label{
+        classes = {"sizeM", "fgMuted"},
+        width = "auto",
+        height = "auto",
+        halign = "center",
+        tmargin = 6,
+        text = "",
+    }
+
+    local function Refresh()
+        if not count.valid then
+            return
+        end
+        local n = #DTProjectEditor._respiteProjectEntries{roster = args.roster}
+        if n == 1 then
+            count.text = "1 project underway"
+        else
+            count.text = string.format("%d projects underway", n)
+        end
+    end
+
+    return gui.Panel{
+        width = "100%",
+        height = "100%",
+        flow = "vertical",
+        halign = "center",
+        valign = "center",
+
+        create = Refresh,
+        respiteChanged = Refresh,
+
+        RSPWidgets.Watchers{
+            paths = function()
+                return DTProjectEditor.RespitePartyWatch{roster = args.roster}
+            end,
+            changed = Refresh,
+        },
+
+        gui.Panel{
+            classes = {"rspStageIcon"},
+            bgimage = mod.images.downtimeProjects,
+            width = 64,
+            height = 64,
+            halign = "center",
+            bmargin = 12,
+        },
+
+        gui.Label{
+            classes = {"sizeXl", "bold", "fgStrong"},
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            text = "Downtime Projects",
+        },
+
+        count,
     }
 end
 

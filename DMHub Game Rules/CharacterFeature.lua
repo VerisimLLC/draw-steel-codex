@@ -1350,6 +1350,17 @@ function CharacterFeature.ListEditor(document, fieldName, options)
 		end,
 	}
 
+	--One row, built once and handed back on every rebuild: assigning children
+	--destroys any omitted, so a fresh row each time destroyed the old one and
+	--the two buttons inside it, leaving the next rebuild holding dead panels.
+	local buttonRow = gui.Panel{
+		width = "auto",
+		height = "auto",
+		flow = "horizontal",
+		addButton,
+		pasteButton,
+	}
+
 	CalculateChildren = function()
 		local children = {}
 		local items = document:try_get(fieldName, {})
@@ -1403,13 +1414,7 @@ function CharacterFeature.ListEditor(document, fieldName, options)
 			}
 		end
 
-		children[#children+1] = gui.Panel{
-			width = "auto",
-			height = "auto",
-			flow = "horizontal",
-			addButton,
-			pasteButton,
-		}
+		children[#children+1] = buttonRow
 		return children
 	end
 

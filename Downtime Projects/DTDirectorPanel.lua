@@ -568,6 +568,7 @@ local function RegisterWithRespite()
         paintIdle = DTProjectEditor.PaintRespiteIdle,
         idleTitle = "Party's Incomplete Downtime Projects",
         playerActions = DTProjectEditor.PaintRespiteActions,
+        paintStation = DTProjectEditor.PaintRespiteStation,
         needsAttention = DTProjectEditor.RespiteNeedsAttention,
         journalSummary = DTProjectEditor.RespiteJournalSummary,
         partyRecord = DTProjectEditor.RespitePartyRecord,

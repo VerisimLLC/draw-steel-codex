@@ -1389,7 +1389,7 @@ function g_chrome.SyncShown()
     if strip == nil or not strip.valid then
         return
     end
-    local hide = g_chrome.owner == nil or dmhub.inCharacterSheet
+    local hide = g_chrome.owner == nil or dmhub.inCharacterSheet or g_chrome.suppressed == true
     if strip:HasClass("collapsed") ~= hide then
         strip:SetClass("collapsed", hide)
     end
@@ -12077,6 +12077,18 @@ function Tabletop.CreateButtonLayer()
         interactable = false,
     }
     return g_buttonLayer
+end
+
+--- A custom interface hiding the table's windows (suppressWindows, applied by
+--- GameHud.SyncInterfaceSuppression): the maximized window's strip and the
+--- minimized windows' buttons go too. Window state is untouched.
+--- @param suppress boolean
+function Tabletop.SyncInterfaceSuppression(suppress)
+    g_chrome.suppressed = suppress == true
+    g_chrome.SyncShown()
+    if g_buttonLayer ~= nil and g_buttonLayer.valid then
+        g_buttonLayer:SetClass("collapsed", g_chrome.suppressed)
+    end
 end
 
 --The minimized-window button layer (nil before the hud builds it). Minimized

@@ -94,6 +94,58 @@ local function BuildActivityArea()
     }
 end
 
+--- The picture behind the players' stage, chosen the way Game Controls
+--- chooses its cover art: the game's own stands in until one is picked.
+--- @return Panel
+local function BuildBackdropPicker()
+    return gui.IconEditor{
+        library = "coverart",
+        captions = true,
+        classes = {"image"},
+        width = "auto",
+        height = "auto",
+        hideIcon = true,
+        allowNone = true,
+        aspect = 1080 / 1920,
+        noneImage = game.coverart,
+        hideButton = true,
+        maxWidth = RSPConstants.backdropPickerWidth,
+        maxHeight = RSPConstants.backdropPickerHeight,
+        autosizeimage = true,
+        halign = "right",
+        valign = "top",
+        value = RSPSession.Backdrop(),
+        hover = gui.Tooltip("The picture behind the players' Respite screen"),
+
+        -- The stage shows stills only, so a video is refused and the choice
+        -- stays what it was.
+        change = function(element)
+            local value = element.value
+            if value ~= nil and value ~= "" and FullscreenDisplay.IsVideo(value) then
+                element.value = RSPSession.Backdrop()
+                gui.ModalMessage{
+                    title = RSPConstants.panelName,
+                    message = "The Respite backdrop must be a still image.",
+                }
+                return
+            end
+            if value == "" then
+                value = nil
+            end
+            if value ~= RSPSession.Backdrop() then
+                RSPSession.SetBackdrop(value)
+            end
+        end,
+
+        respiteChanged = function(element)
+            local backdrop = RSPSession.Backdrop()
+            if element.value ~= backdrop then
+                element.value = backdrop
+            end
+        end,
+    }
+end
+
 --- @return Panel
 local function BuildWorkingArea()
     return gui.Panel{
@@ -103,86 +155,104 @@ local function BuildWorkingArea()
         halign = "left",
         valign = "top",
 
-        RSPWidgets.FormRow("Location", gui.Input{
-            classes = {"input", "form"},
-            width = RSPConstants.locationWidth,
-            height = 22,
-            halign = "left",
-            valign = "center",
-            editlag = 0.5,
-            text = RSPSession.Location(),
-
-            --Every step is built up front, so this only takes focus when Setup
-            --is the one on screen. Delayed because focus does not stick until
-            --the window has laid out.
-            create = function(element)
-                dmhub.Schedule(0.2, function()
-                    if not element.valid then
-                        return
-                    end
-
-                    local session = RSPSession.Active()
-                    local phase = session ~= nil and session.phase
-                        or RSPConstants.phaseSetup
-                    if phase == RSPConstants.phaseSetup then
-                        gui.SetFocus(element)
-                    end
-                end)
-            end,
-
-            edit = function(element)
-                element:FireEvent("change")
-            end,
-
-            change = function(element)
-                if element.text ~= RSPSession.Location() then
-                    RSPSession.SetLocation(element.text)
-                end
-            end,
-
-            --Left alone while it holds what the session holds, so a refresh
-            --mid-edit cannot take the caret out from under the Director.
-            respiteChanged = function(element)
-                local location = RSPSession.Location()
-                if element.text ~= location then
-                    element.text = location
-                end
-            end,
-        }),
-
-        RSPWidgets.FormRow("# Days Elapsed", RSPWidgets.Stepper{
-            get = RSPSession.DaysElapsed,
-            set = RSPSession.SetDaysElapsed,
-            min = RSPConstants.daysMin,
-            max = RSPConstants.daysMax,
-        }),
-
-        --Two allowances side by side. The linkage - followers tracks heroes
-        --while the two match - lives in the session setters, not here.
-        RSPWidgets.FormRow("# Downtime Activities", gui.Panel{
-            width = 261,
+        gui.Panel{
+            width = "100%",
             height = "auto",
             flow = "horizontal",
             halign = "left",
-            valign = "center",
+            valign = "top",
 
-            RSPWidgets.Stepper{
-                label = "HEROES",
-                get = RSPSession.ActivityCount,
-                set = RSPSession.SetActivityCount,
-                min = RSPConstants.activitiesMin,
-                max = RSPConstants.activitiesMax,
+            gui.Panel{
+                width = "100%-" .. tostring(RSPConstants.backdropPickerWidth + RSPConstants.backdropPickerGap),
+                height = "auto",
+                flow = "vertical",
+                halign = "left",
+                valign = "top",
+
+                RSPWidgets.FormRow("Location", gui.Input{
+                    classes = {"input", "form"},
+                    width = RSPConstants.locationWidth,
+                    height = 22,
+                    halign = "left",
+                    valign = "center",
+                    editlag = 0.5,
+                    text = RSPSession.Location(),
+
+                    --Every step is built up front, so this only takes focus when Setup
+                    --is the one on screen. Delayed because focus does not stick until
+                    --the window has laid out.
+                    create = function(element)
+                        dmhub.Schedule(0.2, function()
+                            if not element.valid then
+                                return
+                            end
+
+                            local session = RSPSession.Active()
+                            local phase = session ~= nil and session.phase
+                                or RSPConstants.phaseSetup
+                            if phase == RSPConstants.phaseSetup then
+                                gui.SetFocus(element)
+                            end
+                        end)
+                    end,
+
+                    edit = function(element)
+                        element:FireEvent("change")
+                    end,
+
+                    change = function(element)
+                        if element.text ~= RSPSession.Location() then
+                            RSPSession.SetLocation(element.text)
+                        end
+                    end,
+
+                    --Left alone while it holds what the session holds, so a refresh
+                    --mid-edit cannot take the caret out from under the Director.
+                    respiteChanged = function(element)
+                        local location = RSPSession.Location()
+                        if element.text ~= location then
+                            element.text = location
+                        end
+                    end,
+                }),
+
+                RSPWidgets.FormRow("# Days Elapsed", RSPWidgets.Stepper{
+                    get = RSPSession.DaysElapsed,
+                    set = RSPSession.SetDaysElapsed,
+                    min = RSPConstants.daysMin,
+                    max = RSPConstants.daysMax,
+                }),
+
+                --Two allowances side by side. The linkage - followers tracks heroes
+                --while the two match - lives in the session setters, not here.
+                RSPWidgets.FormRow("# Downtime Activities", gui.Panel{
+                    width = 261,
+                    height = "auto",
+                    flow = "horizontal",
+                    halign = "left",
+                    valign = "center",
+
+                    RSPWidgets.Stepper{
+                        label = "HEROES",
+                        get = RSPSession.ActivityCount,
+                        set = RSPSession.SetActivityCount,
+                        min = RSPConstants.activitiesMin,
+                        max = RSPConstants.activitiesMax,
+                    },
+
+                    RSPWidgets.Stepper{
+                        label = "FOLLOWERS",
+                        lmargin = 45,
+                        get = RSPSession.FollowerActivityCount,
+                        set = RSPSession.SetFollowerActivityCount,
+                        min = RSPConstants.activitiesMin,
+                        max = RSPConstants.activitiesMax,
+                    },
+                }),
             },
 
-            RSPWidgets.Stepper{
-                label = "FOLLOWERS",
-                lmargin = 45,
-                get = RSPSession.FollowerActivityCount,
-                set = RSPSession.SetFollowerActivityCount,
-                min = RSPConstants.activitiesMin,
-                max = RSPConstants.activitiesMax,
-            },
-        }),
+            BuildBackdropPicker(),
+        },
 
         gui.Panel{
             classes = {"formRow"},

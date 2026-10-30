@@ -1001,8 +1001,9 @@ end
 --buttons live in Tabletop's layers.
 GameHud.SyncInterfaceSuppression = function()
 	local suppress = GameHud.CustomInterfaceSuppressesWindows()
+	--false, not nil, until the hud is built.
 	local hud = GameHud.instance
-	if hud ~= nil and hud.documentsPanel ~= nil and hud.documentsPanel.valid then
+	if hud and hud.documentsPanel ~= nil and hud.documentsPanel.valid then
 		hud.documentsPanel:SetClass("interfaceSuppressing", suppress)
 	end
 	pcall(function()

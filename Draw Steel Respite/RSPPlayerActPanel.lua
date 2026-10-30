@@ -1330,8 +1330,9 @@ end
 
 --- @return Panel|nil
 local function Layer()
+    -- false, not nil, until the hud is built.
     local hud = GameHud.instance
-    if hud == nil then
+    if not hud then
         return nil
     end
     local layer = hud.documentsPanel

@@ -1350,9 +1350,9 @@ function CharacterFeature.ListEditor(document, fieldName, options)
 		end,
 	}
 
-	--Built once and kept across rebuilds. Wrapping the buttons in a fresh panel on every
-	--CalculateChildren orphaned the old wrapper while it still listed them as children,
-	--and under panel pooling its teardown recycled the live buttons (8CMXRYPW).
+	--One row, built once and handed back on every rebuild: assigning children
+	--destroys any omitted, so a fresh row each time destroyed the old one and
+	--the two buttons inside it, leaving the next rebuild holding dead panels.
 	local buttonRow = gui.Panel{
 		width = "auto",
 		height = "auto",

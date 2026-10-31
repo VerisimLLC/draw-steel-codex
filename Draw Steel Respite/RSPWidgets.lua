@@ -593,7 +593,7 @@ function RSPWidgets.RespiteSummary()
     end
 
     local summary = string.format(
-        "Days Elapsed: **%d** | Downtime Activities: %s | Non participants **%s** do downtime.",
+        "Days Elapsed: **%d** | Downtime Activities: %s | Non participants **%s** do activities.",
         RSPSession.DaysElapsed(),
         activitiesText,
         mayText)
@@ -768,6 +768,556 @@ function RSPWidgets.Watchers(args)
             Rewatch(element)
         end,
     }
+end
+
+--- "Level 3 Fury" from whichever parts the hero has.
+--- @param token any
+--- @return string
+local function HeroLine(token)
+    local className = nil
+    local level = nil
+
+    pcall(function()
+        local classes = dmhub.GetTable("classes")
+        for _, entry in ipairs(token.properties:try_get("classes") or {}) do
+            local info = classes[entry.classid]
+            if info ~= nil and info.name ~= nil then
+                className = info.name
+            end
+        end
+    end)
+
+    pcall(function()
+        local value = token.properties:CharacterLevel()
+        if type(value) == "number" and value >= 1 then
+            level = math.floor(value)
+        end
+    end)
+
+    if level ~= nil and className ~= nil then
+        return string.format("Level %d %s", level, className)
+    end
+    if className ~= nil then
+        return className
+    end
+    if level ~= nil then
+        return string.format("Level %d", level)
+    end
+    return ""
+end
+
+--- "Artisan · Kael": what the follower is, and whose.
+--- @param token any the follower
+--- @param ownerId string the hero they follow
+--- @return string
+local function FollowerLine(token, ownerId)
+    local kind = "Follower"
+    local followers = rawget(_G, "DTFollowers")
+    if followers ~= nil then
+        pcall(function()
+            local followerType = followers.FollowerType(token)
+            if type(followerType) == "string" and followerType ~= "" then
+                kind = followerType:sub(1, 1):upper() .. followerType:sub(2)
+            end
+        end)
+    end
+
+    local owner = dmhub.GetCharacterById(ownerId)
+    if owner == nil or owner.name == nil or owner.name == "" then
+        return kind
+    end
+    return string.format("%s · %s", kind, owner.name)
+end
+
+---@class RSPStageCardArgs
+---@field charid string
+---@field owner? string the hero a follower belongs to; nil on a hero
+---@field canAct fun(charid: string, owner: string|nil): boolean may this character go into an activity now
+---@field resting fun(charid: string): boolean false for a hero sitting the Respite out
+---@field selected fun(charid: string): boolean picked by a click, waiting for a station
+---@field working fun(charid: string): string|nil the activity's name while inside one
+---@field rolls fun(charid: string, owner: string|nil): number
+---@field click fun(charid: string, owner: string|nil)
+---@field beginDrag fun(charid: string, owner: string|nil)
+---@field canDragOnto fun(charid: string, owner: string|nil, target: Panel): boolean
+---@field drop fun(charid: string, owner: string|nil, target: Panel|nil)
+---@field sheet fun(charid: string)
+---@field actions? Panel[] buttons for the hero's top-right corner, under the sheet button
+
+--- A character on the player stage, laid out like the montage's hero card: the
+--- portrait is the card, with a plate over its foot. A follower's card is the
+--- same card drawn smaller. Built once; repaints on respiteChanged and
+--- stageChanged.
+--- @param args RSPStageCardArgs
+--- @return Panel|nil
+function RSPWidgets.StageCard(args)
+    local token = dmhub.GetCharacterById(args.charid)
+    if token == nil then
+        return nil
+    end
+
+    local isFollower = args.owner ~= nil
+    local scale = isFollower and RSPConstants.cardFollowerScale or 1
+    local width = math.floor(RSPConstants.cardWidth * scale)
+    local height = math.floor(RSPConstants.cardHeight * scale)
+
+    local nameLabel = gui.Label{
+        classes = {"rspCardName", isFollower and "sizeS" or "sizeM", "bold"},
+        width = "100%",
+        height = "auto",
+        halign = "left",
+        textWrap = false,
+        interactable = false,
+        text = token.name or "",
+    }
+
+    local lineLabel = gui.Label{
+        classes = {"rspCardLine", "sizeXs"},
+        width = "100%",
+        height = "auto",
+        halign = "left",
+        textWrap = false,
+        interactable = false,
+        text = "",
+    }
+
+    local plate = gui.Panel{
+        classes = {"rspCardPlate"},
+        floating = true,
+        width = "100%",
+        height = math.floor(RSPConstants.cardPlateHeight * scale),
+        halign = "center",
+        valign = "bottom",
+        flow = "vertical",
+        hpad = 6,
+        vpad = 4,
+        interactable = false,
+
+        nameLabel,
+        lineLabel,
+    }
+
+    -- Rolls live with the hero, and a fishing cast spends one by writing the
+    -- holder's token alone, so the chip watches that token; a project roll
+    -- pings the downtime settings document, watched on a delay.
+    local holder = dmhub.GetCharacterById(args.owner or args.charid)
+
+    local rollsLabel = gui.Label{
+        classes = {"rspCardChipText", "sizeS", "bold"},
+        width = "auto",
+        height = "auto",
+        valign = "center",
+        lmargin = 3,
+        textWrap = false,
+        interactable = false,
+        text = tostring(args.rolls(args.charid, args.owner)),
+        refreshGame = function(element)
+            element.parent:FireEvent("refreshRolls")
+        end,
+    }
+
+    local rollsChip = gui.Panel{
+        classes = {"rspCardChip"},
+        floating = true,
+        width = "auto",
+        height = RSPConstants.cardChipHeight,
+        halign = "left",
+        valign = "top",
+        x = 4,
+        y = 4,
+        flow = "horizontal",
+        hpad = 5,
+        monitorGame = holder ~= nil and holder.monitorPath or nil,
+        linger = gui.Tooltip("Downtime rolls left"),
+
+        create = function(element)
+            dmhub.Schedule(0.2, function()
+                local settings = rawget(_G, "DTSettings")
+                if element.valid and settings ~= nil then
+                    rollsLabel.monitorGame = settings.GetDocumentPath()
+                end
+            end)
+        end,
+        refreshGame = function(element)
+            element:FireEventTree("refreshRolls")
+        end,
+        refreshRolls = function(element)
+            local rolls = args.rolls(args.charid, args.owner)
+            rollsLabel.text = tostring(rolls)
+            element:SetClass("empty", rolls <= 0)
+        end,
+
+        gui.Panel{
+            classes = {"rspCardChipIcon"},
+            bgimage = RSPConstants.iconRolls,
+            width = 14,
+            height = 14,
+            valign = "center",
+            interactable = false,
+        },
+        rollsLabel,
+    }
+
+    -- The sheet and the hero's own buttons, down the top-right corner.
+    local corner = nil
+    if not isFollower then
+        local buttons = {
+            gui.Panel{
+                classes = {"rspCardButton"},
+                width = RSPConstants.cardCornerButton,
+                height = RSPConstants.cardCornerButton,
+                halign = "right",
+                bmargin = 4,
+                swallowPress = true,
+                linger = gui.Tooltip("Open character sheet"),
+                press = function()
+                    args.sheet(args.charid)
+                end,
+
+                gui.Panel{
+                    classes = {"rspCardButtonIcon"},
+                    bgimage = RSPConstants.iconCharacterSheet,
+                    width = "70%",
+                    height = "70%",
+                    halign = "center",
+                    valign = "center",
+                    interactable = false,
+                },
+            },
+        }
+
+        -- Each action wears the sheet button's backing, so it reads over any portrait.
+        for _, action in ipairs(args.actions or {}) do
+            action.selfStyle.width = RSPConstants.cardCornerButton
+            action.selfStyle.height = RSPConstants.cardCornerButton
+            action.selfStyle.halign = "center"
+            action.selfStyle.valign = "center"
+            buttons[#buttons + 1] = gui.Panel{
+                classes = {"rspCardButton"},
+                width = RSPConstants.cardCornerButton,
+                height = RSPConstants.cardCornerButton,
+                halign = "right",
+                bmargin = 4,
+
+                action,
+            }
+        end
+
+        corner = gui.Panel{
+            floating = true,
+            width = "auto",
+            height = "auto",
+            halign = "right",
+            valign = "top",
+            x = -4,
+            y = 4,
+            flow = "vertical",
+            children = buttons,
+        }
+    end
+
+    local function Repaint(element)
+        local working = args.working(args.charid)
+        local resting = isFollower or args.resting(args.charid)
+
+        local line
+        if working ~= nil then
+            line = working
+        elseif not resting then
+            line = "Not Resting"
+        elseif isFollower then
+            line = FollowerLine(token, args.owner)
+        else
+            line = HeroLine(token)
+        end
+        if lineLabel.text ~= line then
+            lineLabel.text = line
+        end
+        lineLabel:SetClass("working", working ~= nil)
+
+        local canAct = args.canAct(args.charid, args.owner)
+        element.draggable = canAct
+        element:SetClass("cannotAct", not resting)
+        element:SetClass("selected", args.selected(args.charid))
+        element:SetClass("working", working ~= nil)
+
+        if (token.name or "") ~= nameLabel.text then
+            nameLabel.text = token.name or ""
+        end
+
+        rollsChip:FireEvent("refreshRolls")
+    end
+
+    -- The portrait is the card. Without art the token image stands in.
+    local portraitApplied = false
+    local heroCard = rawget(_G, "EotwHeroCard")
+
+    local card
+    card = gui.Panel{
+        classes = {"rspCard"},
+        width = width,
+        height = height,
+        halign = "left",
+        valign = "bottom",
+        hmargin = math.floor(RSPConstants.cardGap / 2),
+        bgimage = "panels/square.png",
+        draggable = false,
+        swallowPress = true,
+
+        data = {
+            charid = args.charid,
+            owner = args.owner,
+        },
+
+        create = function(element)
+            if heroCard ~= nil then
+                portraitApplied = heroCard.ApplyPortrait(element, token, width / height) == true
+            end
+            if not portraitApplied then
+                element:AddChild(gui.CreateTokenImage(token, {
+                    width = width - 16,
+                    height = width - 16,
+                    halign = "center",
+                    valign = "top",
+                    tmargin = 8,
+                    interactable = false,
+                }))
+            end
+            Repaint(element)
+        end,
+
+        respiteChanged = Repaint,
+        stageChanged = Repaint,
+
+        click = function()
+            args.click(args.charid, args.owner)
+        end,
+
+        beginDrag = function(element)
+            element:SetClass("dragging", true)
+            args.beginDrag(args.charid, args.owner)
+        end,
+
+        canDragOnto = function(element, target)
+            return args.canDragOnto(args.charid, args.owner, target)
+        end,
+
+        drag = function(element, target)
+            element:SetClass("dragging", false)
+            args.drop(args.charid, args.owner, target)
+        end,
+
+        plate,
+        rollsChip,
+        corner,
+    }
+
+    return card
+end
+
+--- The player stage's own rules, in theme tokens so it follows the scheme.
+--- Shapes follow the montage's cards; colours are the theme's.
+--- @return table style rules
+function RSPWidgets.StageStyles()
+    local motion = 0.15
+    pcall(function()
+        if ThemeEngine.GetAccessibility().reduceMotion then
+            motion = 0
+        end
+    end)
+
+    local rules = RSPWidgets.CustomStyles()
+    local stage = {
+        {
+            selectors = {"rspStage"},
+            bgimage = true,
+            bgcolor = "@bg",
+        },
+        {
+            selectors = {"rspStageDim"},
+            bgimage = true,
+            bgcolor = "@bg",
+            opacity = RSPConstants.stageDimOpacity,
+        },
+        {
+            selectors = {"rspStageBand"},
+            bgimage = true,
+            bgcolor = "@bg",
+            opacity = 0.85,
+            borderColor = "@border",
+        },
+        {
+            selectors = {"rspStagePanel"},
+            bgimage = true,
+            bgcolor = "@bgAlt",
+            opacity = 0.92,
+            cornerRadius = 10,
+            border = 1,
+            borderColor = "@border",
+        },
+        {
+            selectors = {"rspStageIcon"},
+            bgcolor = "@fg",
+        },
+        -- Follows its button's caption: inverted on hover, greyed when disabled.
+        {
+            selectors = {"rspBackIcon"},
+            bgcolor = "@fg",
+        },
+        {
+            selectors = {"rspBackIcon", "parent:hover"},
+            bgcolor = "@fgInverse",
+        },
+        {
+            selectors = {"rspBackIcon", "parent:disabled"},
+            bgcolor = "@disabled",
+            priority = 5,
+        },
+        {
+            selectors = {"rspChip"},
+            bgimage = true,
+            bgcolor = "@bgAlt",
+            cornerRadius = 8,
+            border = 1,
+            borderColor = "@accent",
+        },
+        {
+            selectors = {"rspChip", "hover"},
+            bgcolor = "@bgRaised",
+        },
+        {
+            selectors = {"rspStation"},
+            bgimage = true,
+            bgcolor = "@bgAlt",
+            opacity = 0.94,
+            cornerRadius = 10,
+            border = 1,
+            borderColor = "@border",
+            transitionTime = motion,
+        },
+        {
+            selectors = {"rspStation", "hover"},
+            borderColor = "@accent",
+        },
+        {
+            selectors = {"rspStation", "droppable"},
+            border = 3,
+            borderColor = "@accent",
+            brightness = 1.1,
+        },
+        {
+            selectors = {"rspStationHint"},
+            color = "@accent",
+        },
+        {
+            selectors = {"rspHintPlate"},
+            bgimage = true,
+            bgcolor = "@bg",
+            opacity = 0.8,
+            cornerRadius = 8,
+            border = 1,
+            borderColor = "@border",
+        },
+        {
+            selectors = {"rspCard"},
+            bgcolor = "@bgAlt",
+            cornerRadius = 8,
+            border = 1,
+            borderColor = "@border",
+            transitionTime = motion,
+        },
+        {
+            selectors = {"rspCard", "hover"},
+            brightness = 1.15,
+        },
+        {
+            selectors = {"rspCard", "selected"},
+            border = 3,
+            borderColor = "@accent",
+            brightness = 1.15,
+        },
+        {
+            selectors = {"rspCard", "working"},
+            border = 3,
+            borderColor = "@accent",
+        },
+        {
+            selectors = {"rspCard", "cannotAct"},
+            saturation = 0.15,
+            brightness = 0.5,
+        },
+        {
+            selectors = {"rspCard", "dragging"},
+            opacity = 0.6,
+        },
+        {
+            selectors = {"rspCardPlate"},
+            bgimage = true,
+            bgcolor = "@bg",
+            opacity = 0.85,
+            cornerRadius = 8,
+        },
+        {
+            selectors = {"rspCardName"},
+            color = "@fgStrong",
+        },
+        {
+            selectors = {"rspCardLine"},
+            color = "@fgMuted",
+        },
+        {
+            selectors = {"rspCardLine", "working"},
+            color = "@accent",
+        },
+        {
+            selectors = {"rspCardChip"},
+            bgimage = true,
+            bgcolor = "@bg",
+            cornerRadius = 6,
+            border = 1,
+            borderColor = "@warning",
+        },
+        {
+            selectors = {"rspCardChipIcon"},
+            bgcolor = "@warning",
+        },
+        {
+            selectors = {"rspCardChipText"},
+            color = "@warning",
+        },
+        {
+            selectors = {"rspCardChip", "empty"},
+            borderColor = "@fgMuted",
+        },
+        {
+            selectors = {"rspCardChipIcon", "parent:empty"},
+            bgcolor = "@fgMuted",
+        },
+        {
+            selectors = {"rspCardChipText", "parent:empty"},
+            color = "@fgMuted",
+        },
+        {
+            selectors = {"rspCardButton"},
+            bgimage = true,
+            bgcolor = "@bg",
+            opacity = 0.85,
+            cornerRadius = 6,
+        },
+        {
+            selectors = {"rspCardButton", "hover"},
+            bgcolor = "@bgRaised",
+        },
+        {
+            selectors = {"rspCardButtonIcon"},
+            bgcolor = "@fg",
+        },
+    }
+
+    for _, rule in ipairs(stage) do
+        rules[#rules + 1] = rule
+    end
+    return rules
 end
 
 --- A label-left, control-right form row. Shared so a registered activity can

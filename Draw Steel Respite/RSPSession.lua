@@ -23,6 +23,7 @@ end
 --- @field phase string
 --- @field daysElapsed number
 --- @field location string optional, where the Respite is taken
+--- @field backdrop string|nil optional, the still behind the players' stage; nil for the game's own
 --- @field activityCount number the heroes' allowance
 --- @field followerActivityCount number followers' allowance; unset means it has always matched activityCount
 --- @field nonParticipantsMayAct boolean
@@ -96,6 +97,7 @@ function RSPSession.Ensure()
     doc.data = doc.data or {}
     doc.data.session = RSPSession.CreateNew{
         location = doc.data.lastLocation or "",
+        backdrop = doc.data.lastBackdrop,
     }
     doc:CompleteChange("Begin respite setup")
 
@@ -173,6 +175,24 @@ end
 function RSPSession.SetLocation(location)
     RSPSession.Mutate("Set respite location", function(session)
         session.location = location or ""
+    end)
+end
+
+--- The picture behind the players' Respite stage, or nil for the game's own.
+--- @return string|nil image asset id
+function RSPSession.Backdrop()
+    local session = RSPSession.Active()
+    local backdrop = session ~= nil and session:try_get("backdrop") or nil
+    if backdrop == nil or backdrop == "" then
+        return nil
+    end
+    return backdrop
+end
+
+--- @param backdrop string|nil image asset id; nil goes back to the game's own
+function RSPSession.SetBackdrop(backdrop)
+    RSPSession.Mutate("Set respite backdrop", function(session)
+        session.backdrop = backdrop
     end)
 end
 
@@ -386,6 +406,7 @@ local function RememberLocation(doc)
     local session = doc.data.session
     if session ~= nil then
         doc.data.lastLocation = session:try_get("location", "")
+        doc.data.lastBackdrop = session:try_get("backdrop")
     end
 end
 

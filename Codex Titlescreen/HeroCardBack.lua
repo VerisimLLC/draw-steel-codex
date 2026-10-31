@@ -1411,6 +1411,8 @@ local function CreateFlipButton(charid)
             --button the card loses it: without hidden = 0 here the button
             --hides, the card is hovered again, and it flickers.
             {
+                --hidden = 0 too: while the button itself is hovered the card
+                --may not be, and without this it would hide and flicker.
                 selectors = {"heroCardFlip", "hover"},
                 hidden = 0,
                 borderColor = COLOR_GOLD,

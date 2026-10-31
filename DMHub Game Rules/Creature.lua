@@ -6538,6 +6538,14 @@ function creature:OnTeleport(path)
 		return
 	end
 
+    if path ~= nil and path.origin ~= nil then
+        self:RecordTeleportOrigin(path.origin)
+    end
+
+    if path ~= nil and self:IsTeleportMove(path) then
+        self:HandleTeleportMove(path)
+    end
+
     local eventArgs = {}
     if path ~= nil then
         local ourToken = dmhub.LookupToken(self)
@@ -6552,6 +6560,155 @@ function creature:OnTeleport(path)
     end
 
 	self:DispatchEvent("teleport", eventArgs)
+end
+
+--- Remembers where this creature's latest teleport started, so effects that care about the
+--- departure square (Trail of Cinders' passenger, Burning Ash) can measure from it after the
+--- creature has already arrived. Local to this client, like other _tmp_ state; it is read
+--- by the casts and triggers that follow the teleport on the same client.
+--- @param originLoc Loc
+function creature:RecordTeleportOrigin(originLoc)
+    local tok = dmhub.LookupToken(self)
+    local q = dmhub.initiativeQueue
+    self._tmp_teleportOrigin = {
+        loc = originLoc,
+        size = tok ~= nil and tok.tileSize or 1,
+        turnId = (q ~= nil and not q.hidden) and q:GetTurnId() or nil,
+        time = dmhub.Time(),
+    }
+end
+
+--Out of combat a departure point stays meaningful for this many seconds.
+local g_teleportOriginLifetime = 300
+
+--- The footprint (one Loc per occupied square) this creature occupied before its latest
+--- teleport, or nil if there is none still current: in combat it lasts until the turn
+--- changes, so an old departure point never feeds a later Burning Ash.
+--- @return nil|Loc[]
+function creature:TeleportOriginFootprint()
+    local record = self:try_get("_tmp_teleportOrigin")
+    if record == nil or record.loc == nil then
+        return nil
+    end
+
+    local q = dmhub.initiativeQueue
+    if record.turnId ~= nil then
+        if q == nil or q.hidden or q:GetTurnId() ~= record.turnId then
+            return nil
+        end
+    elseif dmhub.Time() - (record.time or 0) > g_teleportOriginLifetime then
+        return nil
+    end
+
+    local result = {}
+    local size = math.max(1, record.size or 1)
+    for i=0,size-1 do
+        for j=0,size-1 do
+            result[#result+1] = record.loc:dir(i, j)
+        end
+    end
+    return result
+end
+
+--- Distance in squares from another creature's space to the space this creature teleported
+--- away from. 1 means the other creature was adjacent to the departure point. Returns 999
+--- when there is no recorded teleport or the other creature is this creature.
+--- @param other creature
+--- @return number
+function creature:DistanceToTeleportOrigin(other)
+    local footprint = self:TeleportOriginFootprint()
+    local otherToken = other ~= nil and dmhub.LookupToken(other) or nil
+    if footprint == nil or otherToken == nil or otherToken.properties == self then
+        return 999
+    end
+
+    local best = 999
+    for _,otherLoc in ipairs(otherToken.locsOccupying) do
+        for _,originLoc in ipairs(footprint) do
+            if otherLoc.floor == originLoc.floor then
+                best = math.min(best, originLoc:DistanceInTiles(otherLoc))
+            end
+        end
+    end
+    return best
+end
+
+--- A teleport that is the creature's own movement: a Ctrl-drag (the engine flags the path,
+--- or calls us outside any cast coroutine while Ctrl is still held for the drop), or a
+--- relocate flagged "Teleport Counts as Movement". Other ability teleports run inside a cast.
+--- @param path LuaPath
+--- @return boolean
+function creature:IsTeleportMove(path)
+    if path.teleport or self:try_get("_tmp_teleportCountsAsMovement") then
+        return true
+    end
+
+    local _, isMain = coroutine.running()
+    return isMain == true and dmhub.modKeys.ctrl == true
+end
+
+--The engine may report one drag-teleport through both OnTeleport and Moved; handle it once.
+local g_lastTeleportMove = { charid = nil, dest = nil, time = -1 }
+
+--- Resolve a creature teleporting as its own movement (Cinder Step, an innate teleport speed):
+--- spend movement equal to the teleport distance and fire the "teleportmove" trigger. Only
+--- creatures that can teleport count. A Director's Ctrl-drag is always a free GM reposition
+--- outside the rules; an ability flagged "Teleport Counts as Movement" still pays.
+--- @param path LuaPath
+function creature:HandleTeleportMove(path)
+    if not self:CanTeleport() or path.origin == nil or path.destination == nil then
+        return
+    end
+
+    if dmhub.isDM and not self:try_get("_tmp_teleportCountsAsMovement") then
+        return
+    end
+
+    local token = dmhub.LookupToken(self)
+    if token == nil then
+        return
+    end
+
+    local now = dmhub.Time()
+    local destKey = path.destination.str
+    if g_lastTeleportMove.charid == token.charid and g_lastTeleportMove.dest == destKey and now - g_lastTeleportMove.time < 1 then
+        return
+    end
+    g_lastTeleportMove.charid = token.charid
+    g_lastTeleportMove.dest = destKey
+    g_lastTeleportMove.time = now
+
+    self:RecordTeleportOrigin(path.origin)
+
+    local distance = creature.TeleportPathDistance(path)
+    --A relocate cast marks itself free movement; one flagged "Teleport Counts as Movement" still pays.
+    local paysForMovement = self:try_get("_tmp_teleportCountsAsMovement") or not self:try_get("_tmp_freeMovement")
+    if distance > 0 and self:IsOurTurn() and paysForMovement then
+        token:ModifyProperties{
+            description = "Move Cost",
+            execute = function()
+                self.moveDistance = self:DistanceMovedThisTurn() + distance
+                self.moveDistanceRoundId = dmhub.initiativeQueue:GetTurnId()
+            end,
+        }
+    end
+
+    self:DispatchEvent("teleportmove", {
+        path = PathMoved.new{
+            path = path,
+            size = token.tileSize,
+        },
+    })
+end
+
+--- Squares a teleport path covers: the largest single dimension, so a straight climb is
+--- charged for its height. Matches the "Teleport: N squares" line in the movement tooltip.
+--- @param path LuaPath
+--- @return number
+function creature.TeleportPathDistance(path)
+    local distance = path.origin:DistanceInTiles(path.destination)
+    local altitudeDelta = math.abs((path.destination.altitude or 0) - (path.origin.altitude or 0))
+    return math.max(distance, altitudeDelta)
 end
 
 --Teleport opportunity-attack support. A teleport places the token directly at its
@@ -7147,6 +7304,13 @@ function creature:Moved(path)
             size = token.tileSize,
         }
     })
+
+    --A Ctrl-drag teleport by a creature that can teleport is charged by its teleport
+    --distance in HandleTeleportMove, not by the walking cost of the path.
+    if self:IsTeleportMove(path) and self:CanTeleport() then
+        self:HandleTeleportMove(path)
+        return
+    end
 
 	if not self:IsOurTurn() then
 		return

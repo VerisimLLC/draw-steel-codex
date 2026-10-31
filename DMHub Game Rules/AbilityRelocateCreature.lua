@@ -144,6 +144,11 @@ ActivatedAbilityRelocateCreatureBehavior.targetPassedSquares = false
 ActivatedAbilityRelocateCreatureBehavior.movementType = "teleport"
 ActivatedAbilityRelocateCreatureBehavior.expendFullMovement = false
 
+--If set, a teleport made by this behavior is the creature's own movement (Cinder Step from
+--the Move drawer): it spends movement equal to the distance and fires the "Teleport as
+--Movement" trigger, exactly like a Ctrl-drag teleport (creature:HandleTeleportMove).
+ActivatedAbilityRelocateCreatureBehavior.teleportCountsAsMovement = false
+
 --A relocate never charges movement (see the _tmp_freeMovement flag in Cast), so
 --when "Expend Full Movement" is set we bill the creature's entire remaining
 --movement for the turn no matter how far it actually travelled. Only meaningful
@@ -519,9 +524,17 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                 teleportOAObservers = casterToken.properties:CaptureTeleportOpportunityAttackers(casterToken.loc)
             end
 
+            local countsAsMovement = movementType == "teleport" and self:try_get("teleportCountsAsMovement", false)
+            if countsAsMovement then
+                casterToken.properties._tmp_teleportCountsAsMovement = true
+            end
+
         	casterToken:Teleport(teleportLoc)
 
             casterToken.properties._tmp_suppressTeleportEvent = nil
+            if countsAsMovement then
+                casterToken.properties._tmp_teleportCountsAsMovement = nil
+            end
 
             --After the caster teleports, bring along any grabbed creatures.
             --Placement: closest legal adjacent square (within radius 1 of caster's
@@ -1137,6 +1150,15 @@ function ActivatedAbilityRelocateCreatureBehavior:EditorItems(parentPanel)
 		value = self.expendFullMovement,
 		change = function(element)
 			self.expendFullMovement = element.value
+		end,
+	}
+
+	result[#result+1] = gui.Check{
+		text = "Teleport Counts as Movement",
+		tooltip = "If set, a teleport spends the creature's movement equal to the distance and fires the Teleport as Movement trigger, as if it had held Ctrl while moving.",
+		value = self:try_get("teleportCountsAsMovement", false),
+		change = function(element)
+			self.teleportCountsAsMovement = element.value
 		end,
 	}
 

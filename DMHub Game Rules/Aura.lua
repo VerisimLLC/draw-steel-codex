@@ -743,6 +743,27 @@ function Aura:GenerateEditor(options)
         end
     end
 
+    --Keywords are defined in a Draw Steel module that loads after this file, so look the type up by
+    --name; games without Draw Steel have none and the keyword row stays hidden.
+    local environmentalKeywordType = rawget(_G, "EnvironmentalKeyword")
+    local chosenKeywordId = self:try_get("environmentalKeywordId")
+    local keywordChoices = { { id = "none", text = "None" } }
+    if environmentalKeywordType ~= nil then
+        environmentalKeywordType.FillDropdownOptions(keywordChoices)
+
+        --The list leaves out deleted keywords and other maps' zone types. Keep the saved one
+        --selectable anyway, so the editor shows what the aura is really set to.
+        local listedIds = map(keywordChoices, function(choice) return choice.id end)
+        if chosenKeywordId ~= nil and not table.contains(listedIds, chosenKeywordId) then
+            local keyword = (dmhub.GetTable(environmentalKeywordType.tableName) or {})[chosenKeywordId]
+            local keywordName = "(Deleted Keyword)"
+            if keyword ~= nil and not keyword:try_get("hidden", false) then
+                keywordName = keyword.name
+            end
+            keywordChoices[#keywordChoices + 1] = { id = chosenKeywordId, text = keywordName }
+        end
+    end
+
     local abilitiesPanel = gui.Panel {
         width = "100%",
         height = "auto",
@@ -992,6 +1013,30 @@ function Aura:GenerateEditor(options)
                     change = function(element)
                         ---@cast element Dropdown
                         self.applyto = element.idChosen --[[@as string]]
+                    end,
+                },
+            },
+
+            --Gives the aura an Environmental Keyword's effects (terrain, damage, modifiers) each time it is cast.
+            gui.Panel {
+                classes = { "formPanel", cond(environmentalKeywordType == nil, "collapsed") },
+                gui.Label {
+                    classes = "formLabel",
+                    text = "Environmental Keyword:",
+                },
+                gui.Dropdown {
+                    styles = ThemeEngine.GetStyles(),
+                    classes = "formDropdown",
+                    options = keywordChoices,
+                    hasSearch = true,
+                    idChosen = chosenKeywordId or "none",
+                    change = function(element)
+                        ---@cast element Dropdown
+                        local keywordid = element.idChosen
+                        if keywordid == "none" then
+                            keywordid = nil
+                        end
+                        self.environmentalKeywordId = keywordid --[[@as string|nil]]
                     end,
                 },
             },

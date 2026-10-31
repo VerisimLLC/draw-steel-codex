@@ -1888,6 +1888,27 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 
 	dialog.sheet = parentPanel
 
+	--A hud rebuilt for the same game (a reload of another mod's scripts) took
+	--the icon rails and map-button bar with it; DocumentSystem only builds them
+	--on game entry or its own reload, so ask for both again here.
+	local rebuilt = rawget(_G, "g_hudGameId") == dmhub.gameid
+	rawset(_G, "g_hudGameId", dmhub.gameid)
+	if rebuilt then
+		dmhub.Schedule(0.1, function()
+			if mod.unloaded or GameHud.instance ~= gamehud then
+				return
+			end
+			local ensureRails = rawget(_G, "EnsureIconRail")
+			if ensureRails ~= nil then
+				ensureRails()
+			end
+			local mapButtons = rawget(_G, "MapButtons")
+			if mapButtons ~= nil and mapButtons.Refresh ~= nil then
+				mapButtons.Refresh()
+			end
+		end)
+	end
+
 	--if a modding merge has occurred, display info about it here.
 	if dmhub.modMergeInfo ~= nil then
 		local msg = 'DMHub has been updated, including some lua files which you have changed in your mod.'

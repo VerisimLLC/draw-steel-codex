@@ -7679,12 +7679,7 @@ function CharSheet.KitPanel()
                         classes = { "valueLabel" },
                         refreshKit = function(element, info, kit)
                             print("KIT::", json(kit))
-                            local weapons = kit.weapons
-                            local weaponItems = {}
-                            for w, _ in pairs(weapons) do
-                                weaponItems[#weaponItems + 1] = w
-                            end
-                            table.sort(weaponItems)
+                            local weaponItems = kit:Weapons()
 
                             if #weaponItems == 0 then
                                 element.text = "None"

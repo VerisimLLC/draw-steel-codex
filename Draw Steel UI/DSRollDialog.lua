@@ -2352,6 +2352,17 @@ function GameHud.CreateRollDialog(self)
                                             return
                                         end
 
+                                        --At least 1, and no more than the roller can pay for.
+                                        num = math.max(1, math.floor(num))
+                                        local maxCharges = nil
+                                        if creature ~= nil then
+                                            maxCharges = mod.modifier:MaxAffordableCharges(creature, options.expectedCostOfCurrentCast)
+                                        end
+                                        if maxCharges ~= nil and maxCharges >= 1 then
+                                            num = math.min(num, maxCharges)
+                                        end
+                                        element.text = tostring(num)
+
                                         mod.context.charges = num
 
                                         resultPanel:FireEventTree('prepare', m_options)

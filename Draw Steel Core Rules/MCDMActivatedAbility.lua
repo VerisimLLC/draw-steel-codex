@@ -1834,7 +1834,8 @@ function ActivatedAbility:Render(options, params)
                     and behavior:IsFiltered(self, params.token, params) == false then
                 ---@cast behavior ActivatedAbilityModifyPowerRollBehavior
                 local filterCond = trim(behavior.modifier:try_get("filterCondition", ""))
-                if filterCond == "" or dmhub.EvalGoblinScript(filterCond, creatureProperties:LookupSymbol(), "Filter condition for power roll display") then
+                --Same test as the roll dialog (MCDMAbilityRollBehavior): numeric, failing open.
+                if filterCond == "" or ExecuteGoblinScript(filterCond, creatureProperties:LookupSymbol(), 1, "Filter condition for power roll display") ~= 0 then
                     tryApply(behavior.modifier, {mod = behavior.modifier})
                 end
             end

@@ -3834,6 +3834,44 @@ function CharacterModifier:HasResourcesAvailable(creature)
 	return creature:GetResourceUsage(self:GetResourceRefreshId(), refreshType) < self:GetNumberOfCharges(creature)
 end
 
+--- True when using this modifier spends something the roller chooses to pay: a positive
+--- Malice/Heroic, epic or surge cost. Cost overrides and reductions are not spends.
+--- @param creature creature
+--- @return boolean
+function CharacterModifier:IsPaidSpend(creature)
+    if self:try_get("resourceCostType", "none") == "none" or self:try_get("overrideCost", false) then
+        return false
+    end
+    local cost = self:ResolveResourceCostAmount(creature)
+    return type(cost) == "number" and cost > 0
+end
+
+--- How many times the creature can pay this modifier's cost (the most charges a "multicost"
+--- modifier can buy, e.g. To the Uttermost End's extra Ferocity), counting what the
+--- ability being cast has already committed to spend.
+--- @param creature creature
+--- @param expectedCostOfCurrentCast nil|table Resource id -> amount the ability itself costs.
+--- @return integer|nil nil when there is no positive cost to limit by.
+function CharacterModifier:MaxAffordableCharges(creature, expectedCostOfCurrentCast)
+    local costPerCharge = self:ResolveResourceCostAmount(creature)
+    if type(costPerCharge) ~= "number" or costPerCharge <= 0 then
+        return nil
+    end
+    local costType = self:try_get("resourceCostType", "none")
+    local available
+    if costType == "surges" then
+        available = creature:GetAvailableSurges()
+    elseif costType == "epic" then
+        available = creature:GetEpicResources()
+    else
+        available = tonumber(creature:GetHeroicOrMaliceResourcesAvailableToSpend()) or 0
+        if expectedCostOfCurrentCast ~= nil and not self:try_get("overrideCost", false) then
+            available = available - (expectedCostOfCurrentCast[creature:GetHeroicOrMaliceId()] or 0)
+        end
+    end
+    return math.max(0, math.floor((tonumber(available) or 0) / costPerCharge))
+end
+
 function CharacterModifier:DescribeResourceAvailability(creature, charges, expectedCostOfCurrentCast)
     charges = charges or 1
 

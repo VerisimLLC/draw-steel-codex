@@ -102,12 +102,13 @@ end
 --- @return number top the table's top, in screen pixels
 local function Mapping()
     local _, h = TableSize()
-    local screen = dmhub.screenDimensions
-    local below = dmhub.screenDimensionsBelowTitlebar
-    if below.y <= 0 then
+    --plain numbers: screenDimensions makes a new Vector2 per read, and this runs every frame.
+    local screenH = dmhub.screenHeight
+    local belowH = dmhub.screenHeightBelowTitlebar
+    if belowH <= 0 then
         return 1, 0
     end
-    return h / below.y, screen.y - below.y
+    return h / belowH, screenH - belowH
 end
 
 --- @return number fx, number fy
@@ -3557,24 +3558,23 @@ local function TrackerLayers()
         g.tableImage = image
         g.tableImageCrop = nil
     end
-    local sharedChildren = shared.children
-    if sharedChildren[#sharedChildren] ~= image then
+    --childCount/GetChild (0-based) rather than 'children', which builds a table per read:
+    --this runs every frame.
+    if shared:GetChild(shared.childCount - 1) ~= image then
         image:SetAsLastSibling()
     end
     --the image is the whole screen; the table is the part below the title bar
     --(imageRect's y counts up from the bottom).
-    local screen = dmhub.screenDimensions
-    local below = dmhub.screenDimensionsBelowTitlebar
-    local crop = screen.y > 0 and below.y / screen.y or 1
+    local screenH = dmhub.screenHeight
+    local crop = screenH > 0 and dmhub.screenHeightBelowTitlebar / screenH or 1
     if crop ~= g.tableImageCrop then
         g.tableImageCrop = crop
         image.selfStyle.imageRect = {x1 = 0, x2 = 1, y1 = 0, y2 = crop}
     end
-    local children = docs.children
-    if children[1] ~= shared then
+    if docs:GetChild(0) ~= shared then
         shared:SetAsFirstSibling()
     end
-    if children[#children] ~= private then
+    if docs:GetChild(docs.childCount - 1) ~= private then
         private:SetAsLastSibling()
     end
     return shared, private

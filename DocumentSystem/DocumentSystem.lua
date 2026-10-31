@@ -15663,6 +15663,12 @@ function RailRightColumnWidth()
     return result
 end
 
+--The tabletop asks this every tick (the Director's Screen measures the right
+--rail), and a full RailLayout() per call was most of the app's idle Lua
+--garbage. The answer is reused for up to a second; BuildIconRails clears it
+--so a rail edit shows at once. A global: the main chunk is at 200 locals.
+g_railOccupiedCache = { untilTime = 0, sides = {} }
+
 --Whether a rail side ("left" or "right") shows anything: panel buttons, or
 --a custom-interface widget (assumed present whenever one is active). An
 --empty rail still has a wrapper with a width, so RailRightColumnWidth alone
@@ -15673,8 +15679,14 @@ function RailSideOccupied(side)
     if GameHud.CustomInterface() ~= nil then
         return true
     end
-    local sides = RailLayout()
-    return #(sides[side] or {}) > 0
+    local cache = g_railOccupiedCache
+    local now = dmhub.Time()
+    if now >= cache.untilTime then
+        local sides = RailLayout()
+        cache.sides = { left = #(sides.left or {}) > 0, right = #(sides.right or {}) > 0 }
+        cache.untilTime = now + 1
+    end
+    return cache.sides[side] == true
 end
 
 --Whether a registered panel currently has a rail button.
@@ -22586,7 +22598,9 @@ local function CreateIconRail(side, entries, opts)
             end
             if GroupShadowHidden() then
                 groupShadow:SetClass("groupOpen", true)
-            else
+            elseif groupShadow:HasClass("groupOpen") then
+                --(nothing to clear otherwise: rails refresh many times a second,
+                --and an unneeded deferred clear is a scheduled call each time.)
                 --clears are deferred a frame and re-checked: a press that
                 --opens the group's window collapses the strip (clear) and
                 --refreshes the rails (set) in the same call stack, and the
@@ -25661,6 +25675,7 @@ PanelDocument.BuildCustomInterfaceRails = function(layer)
 end
 
 local function BuildIconRails()
+    g_railOccupiedCache.untilTime = 0
     local layer = DocumentsLayer()
     if layer == nil then
         return
@@ -25909,6 +25924,38 @@ function MapButtons.Unregister(id)
     end
     MapButtons.registry[id] = nil
     MapButtons.Refresh()
+end
+
+--- Press a registered map button from code, wherever it is drawn (the
+--- MapButtons bar or a map rail), e.g. to open its popup. Returns true when
+--- the drawn button was found (and pressed, unless its popup is already
+--- up); false while it is not on screen yet, so callers can retry.
+--- @param id string
+--- @return boolean
+function MapButtons.Open(id)
+    local layer = DocumentsLayer()
+    if layer == nil or MapButtons.registry[id] == nil then
+        return false
+    end
+    --bar buttons carry data.mapButtonId; rail buttons carry their rail
+    --entry key (RailEntryTypes.mapbutton) in data.key.
+    local railKey = "mapbutton:" .. id
+    local button = layer:FindChildRecursive(function(p)
+        local data = p.data
+        return data ~= nil and (data.mapButtonId == id or data.key == railKey)
+    end)
+    if button == nil then
+        return false
+    end
+    if button.popup ~= nil then
+        return true
+    end
+    if button.data.mapButtonId == id then
+        button:FireEvent("click")
+    else
+        button:FireEvent("activateRailButton")
+    end
+    return true
 end
 
 --the entries this client shows, in display order: explicit ord first,

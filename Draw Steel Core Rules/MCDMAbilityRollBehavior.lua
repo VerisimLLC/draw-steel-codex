@@ -1449,7 +1449,9 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
         if behavior.typeName == "ActivatedAbilityModifyPowerRollBehavior" and behavior:IsFiltered(ability, casterToken, options) == false then
             local modBehavior = behavior --[[@as ActivatedAbilityModifyPowerRollBehavior]]
             local filterCondition = trim(modBehavior.modifier:try_get("filterCondition", ""))
-            if filterCondition == "" or dmhub.EvalGoblinScript(filterCondition, caster:LookupSymbol(options.symbols), "Filter condition for power roll modifier") then
+            --EvalGoblinScript returns a string, and "0" is truthy in Lua, so it never filtered.
+            --A formula that fails to evaluate defaults to 1 and the option stays offered.
+            if filterCondition == "" or ExecuteGoblinScript(filterCondition, caster:LookupSymbol(options.symbols), 1, "Filter condition for power roll modifier") ~= 0 then
                 modifiersOnCaster[#modifiersOnCaster+1] = {
                     mod = modBehavior.modifier,
                 }

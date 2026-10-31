@@ -12,6 +12,7 @@
 --- @field havePrevious any
 --- @field tileDim any
 --- @field error any
+--- @field processingMessage string|nil What the panel is busy with before the image can be shown: 'Optimizing Image' while an over-size image is shrunk in the background, 'Optimizing Video' while a video is checked or converted. Nil when idle.
 --- @field zoom any
 --- @field tileType any
 --- @field lockDimensions boolean
@@ -19,6 +20,9 @@
 --- @field imageDim any
 --- @field imageWidth number
 --- @field imageHeight number
+--- @field showGrid boolean Whether the grid preview is drawn over the map: the grid lines (or hex overlay) and the calibration points. Set it to false to compare against the bare map. True by default.
+--- @field gridColor string|nil The grid preview's color as an HTML color string such as '#ffd21f', or nil for the default (cyan lines, white hex dots).
+--- @field gridThickness number The grid preview lines' thickness in screen pixels, centred on each line. 1 by default; hex dots grow with it.
 LuaSheetMapImport = {}
 
 --- Next

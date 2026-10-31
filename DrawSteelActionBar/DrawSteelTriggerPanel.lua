@@ -856,7 +856,8 @@ mod.shared.CreateTriggerPanel = function()
                                         dismiss = true
                                         waitingOnTriggerBefore = true
 
-                                        triggerBefore:Trigger(trigger.powerRollModifier.powerRollModifier, g_token.properties, trigger.powerRollModifier.powerRollModifier:AppendSymbols{}, nil, { mod = trigger.powerRollModifier }, {
+                                        --parenttriggerid lets the before-ability find the trigger that started it.
+                                        triggerBefore:Trigger(trigger.powerRollModifier.powerRollModifier, g_token.properties, trigger.powerRollModifier.powerRollModifier:AppendSymbols{ parenttriggerid = trigger.id }, nil, { mod = trigger.powerRollModifier }, {
                                             complete = function()
                                                 --set when resolution continues in the retarget picker,
                                                 --which then owns clearing the resolving flag.
@@ -1355,7 +1356,8 @@ mod.shared.CreateTriggerPanel = function()
                                         dismiss = true
                                         waitingOnTriggerBefore = true
 
-                                        triggerBefore:Trigger(trigger.powerRollModifier.powerRollModifier, g_token.properties, trigger.powerRollModifier.powerRollModifier:AppendSymbols{}, nil, { mod = trigger.powerRollModifier }, {
+                                        --parenttriggerid lets the before-ability find the trigger that started it.
+                                        triggerBefore:Trigger(trigger.powerRollModifier.powerRollModifier, g_token.properties, trigger.powerRollModifier.powerRollModifier:AppendSymbols{ parenttriggerid = trigger.id }, nil, { mod = trigger.powerRollModifier }, {
                                             complete = function()
                                                 --set when resolution continues in the retarget picker,
                                                 --which then owns clearing the resolving flag.

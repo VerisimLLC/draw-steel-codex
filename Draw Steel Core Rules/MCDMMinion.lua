@@ -1347,6 +1347,11 @@ DrawSteelMinion.SquadHud = function(floorid, squad)
         local m_tokensBlockingLastThink = 0
 
         local m_fillLast = nil
+        --the bar's width and label text as last assigned. m_UpdateHealth runs every
+        --frame and skips an unchanged value: each assignment crosses into the engine,
+        --and the width (a string) costs a wrapper object there.
+        local m_fillWidthSet = nil
+        local m_labelTextSet = nil
         local m_colorLast = nil
         local m_nameLast = squad.name
         local m_numTokens = nil
@@ -1462,10 +1467,15 @@ DrawSteelMinion.SquadHud = function(floorid, squad)
                 m_fillLast = m_fillLast + (percent - m_fillLast) * 0.1
             end
 
-            m_fill.selfStyle.width = string.format("%.02f%%", m_fillLast * 100)
+            local fillWidth = string.format("%.02f%%", m_fillLast * 100)
+            if fillWidth ~= m_fillWidthSet then
+                m_fillWidthSet = fillWidth
+                m_fill.selfStyle.width = fillWidth
+            end
 
+            local labelText = nil
             if squad.damage_taken >= squad.maximum_health then
-                m_label.text = "DEAD"
+                labelText = "DEAD"
             else
                 local display = dmhub.GetSettingValue("enemystambardisplay") or "none"
                 --Monster Info: a squad whose stamina the players know exactly
@@ -1476,10 +1486,14 @@ DrawSteelMinion.SquadHud = function(floorid, squad)
                     display = "val"
                 end
                 if dmhub.isDM or viewerControlsSquad() or display == "val" then
-                    m_label.text = string.format("%d/%d", round(squad.maximum_health - squad.damage_taken), squad.maximum_health)
+                    labelText = string.format("%d/%d", round(squad.maximum_health - squad.damage_taken), squad.maximum_health)
                 elseif display == "pct" then
-                    m_label.text = string.format("%d%%", 100 * round((squad.maximum_health - squad.damage_taken) / squad.maximum_health))
+                    labelText = string.format("%d%%", 100 * round((squad.maximum_health - squad.damage_taken) / squad.maximum_health))
                 end
+            end
+            if labelText ~= nil and labelText ~= m_labelTextSet then
+                m_labelTextSet = labelText
+                m_label.text = labelText
             end
 
             if #squad.tokens ~= m_numTokens then

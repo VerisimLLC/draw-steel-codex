@@ -11685,16 +11685,20 @@ local function TableFilesDropped(allPaths, screenPos)
 
     --audio files become audio widgets there (Audio.lua) with no question;
     --documents (PDF, Markdown, text, .zip) go into the journal and their
-    --main entry onto the table there (DocumentImport.lua); images and videos
-    --go on to the scene-or-map dialog.
+    --main entry onto the table there (DocumentImport.lua); Universal VTT
+    --files go to the map import wizard; images and videos go on to the
+    --scene-or-map dialog.
     local paths = {}
     local sounds = {}
     local documents = {}
+    local mapFiles = {}
     for _, path in ipairs(allPaths) do
         if FileDrops.IsAudio(path) then
             sounds[#sounds+1] = path
         elseif FileDrops.IsDocument(path) then
             documents[#documents+1] = path
+        elseif FileDrops.IsMapFile(path) then
+            mapFiles[#mapFiles+1] = path
         else
             paths[#paths+1] = path
         end
@@ -11741,7 +11745,17 @@ local function TableFilesDropped(allPaths, screenPos)
             end,
         })
     end
-    if not dmhub.isDM or #paths == 0 then
+    if not dmhub.isDM then
+        return
+    end
+    if #mapFiles > 0 then
+        --one new map, a floor per file, with the files' walls, doors and
+        --lights; its window opens at the drop. The wizard is modal, so any
+        --pictures dropped with them are left out (the drag card says so).
+        Tabletop.AddFilesAsMap(mapFiles, mx, my, {shared = shareState == "shared"})
+        return
+    end
+    if #paths == 0 then
         return
     end
     --the Add Image / Add Video dialog: map, scene, or a picture on the table.
@@ -12015,8 +12029,8 @@ function Tabletop.CreateLayer()
         end,
 
         --files dragged in from the desktop (see TableFilesDropped): documents
-        --for anyone, pictures and videos for the Director, audio for whoever
-        --controls the audio.
+        --for anyone, pictures, videos and Universal VTT maps for the
+        --Director, audio for whoever controls the audio.
         dragAndDropExtensions = (function()
             local exts = {}
             for _, ext in ipairs(FileDrops.DOCUMENT_EXTENSIONS) do
@@ -12024,6 +12038,9 @@ function Tabletop.CreateLayer()
             end
             if dmhub.isDM then
                 for _, ext in ipairs(FileDrops.MEDIA_EXTENSIONS) do
+                    exts[#exts+1] = ext
+                end
+                for _, ext in ipairs(FileDrops.MAP_EXTENSIONS) do
                     exts[#exts+1] = ext
                 end
             end

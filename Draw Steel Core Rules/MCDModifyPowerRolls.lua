@@ -474,6 +474,9 @@ CharacterModifier.TypeInfo.power = {
         --entirely (only the editor's init path sets it); treat missing
         --as false, matching the init default.
         local activationCondition = self:try_get("activationCondition", false)
+        if options.assumeActivated then
+            activationCondition = true
+        end
 
         if type(self:try_get("activationAfterRoll", false)) == "string" then
             return {
@@ -490,10 +493,23 @@ CharacterModifier.TypeInfo.power = {
         end
 
 
-        if (activationCondition == false) or (not RollTypeMatches(self, rollType, options)) then
+        if not RollTypeMatches(self, rollType, options) then
             return {
                 result = false,
                 justification = {}
+            }
+        end
+
+        --No activation formula: never ticked for the roller. If it is a paid spend that would
+        --otherwise apply to this roll (keywords, skills, affordable), flag it optIn so the roll
+        --dialog still lets the roller choose it under Strictly Enforce Rolls.
+        if activationCondition == false or activationCondition == "" then
+            local probeOptions = shallow_copy_table(options)
+            probeOptions.assumeActivated = true
+            return {
+                result = false,
+                justification = {},
+                optIn = self:IsPaidSpend(creature) and CharacterModifier.TypeInfo.power.hintPowerRoll(self, creature, rollType, probeOptions).result == true,
             }
         end
 

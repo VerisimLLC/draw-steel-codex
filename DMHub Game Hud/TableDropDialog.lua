@@ -1973,14 +1973,24 @@ function TableDropDialog.ShowDragCard(args)
     local mediaPaths = {}
     local sounds = {}
     local documents = {}
+    local mapFiles = {}
     for _, path in ipairs(args.paths) do
         if FileDrops.IsAudio(path) then
             sounds[#sounds+1] = path
         elseif FileDrops.IsDocument(path) then
             documents[#documents+1] = path
+        elseif FileDrops.IsMapFile(path) then
+            mapFiles[#mapFiles+1] = path
         else
             mediaPaths[#mediaPaths+1] = path
         end
+    end
+    --Universal VTT files open the map import wizard instead of this dialog
+    --(Tabletop's TableFilesDropped), so pictures dropped with them are not added.
+    local skippedMedia = 0
+    if #mapFiles > 0 then
+        skippedMedia = #mediaPaths
+        mediaPaths = {}
     end
     local files = ReadFiles(mediaPaths)
     local first = files[1]
@@ -2011,6 +2021,8 @@ function TableDropDialog.ShowDragCard(args)
     local glyph
     if first ~= nil then
         glyph = cond(first.video, "phosphor/film-strip.png", "phosphor/image.png")
+    elseif #mapFiles > 0 then
+        glyph = "phosphor/map-trifold.png"
     elseif #documents > 0 then
         glyph = cond(FileDrops.Extension(documents[1]) == ".pdf", "phosphor/file-pdf.png", "phosphor/file-text.png")
     else
@@ -2066,11 +2078,14 @@ function TableDropDialog.ShowDragCard(args)
 
     --what else the drop brings, beside the files shown.
     local extras = {}
-    if first ~= nil and #documents > 0 then
+    if (first ~= nil or #mapFiles > 0) and #documents > 0 then
         extras[#extras+1] = "+ " .. Count(#documents, "document", "documents") .. " for the journal"
     end
-    if (first ~= nil or #documents > 0) and #sounds > 0 then
+    if (first ~= nil or #documents > 0 or #mapFiles > 0) and #sounds > 0 then
         extras[#extras+1] = "+ " .. Count(#sounds, "sound", "sounds") .. " to play"
+    end
+    if skippedMedia > 0 then
+        extras[#extras+1] = Count(skippedMedia, "picture", "pictures") .. " not added: drop separately"
     end
     local extrasLabel = nil
     if #extras > 0 then
@@ -2087,6 +2102,8 @@ function TableDropDialog.ShowDragCard(args)
     local actionText
     if first ~= nil then
         actionText = cond(#files == 1, "Release to choose how to add it", "Release to choose how to add them")
+    elseif #mapFiles > 0 then
+        actionText = "Release to import as a map"
     elseif #documents > 0 then
         actionText = "Release to add to the journal and table"
     else
@@ -2128,7 +2145,7 @@ function TableDropDialog.ShowDragCard(args)
     --on the table play for everyone and have no share).
     local shareRow, shareIcon, shareLabel = nil, nil, nil
     local shareState = nil
-    if args.canShare and (first ~= nil or #documents > 0) then
+    if args.canShare and (first ~= nil or #documents > 0 or #mapFiles > 0) then
         shareRow, shareIcon, shareLabel = Row("tableDragShareIcon", "phosphor/share-network.png", "tableDragShare", "")
         shareRow.selfStyle.tmargin = 4
     end
@@ -2205,6 +2222,12 @@ function TableDropDialog.ShowDragCard(args)
             nameLabel.text = cond(#files == 1, first.name,
                 string.format("%d %s", #files, string.lower(KindWord(#files, analysis.videos, false))))
             metaLabel.text = MediaMeta(files, analysis)
+        elseif #mapFiles > 0 then
+            --the map is named after the first file; each file is a floor.
+            badgeText.text = "Map"
+            nameLabel.text = FileDrops.BaseName(mapFiles[1])
+            metaLabel.text = cond(#mapFiles == 1, "New map with its walls, doors and lights",
+                string.format("New map of %d floors, with walls, doors and lights", #mapFiles))
         elseif #documents > 0 then
             badgeText.text = cond(#documents == 1, string.upper(string.sub(FileDrops.Extension(documents[1]), 2)), "Documents")
             nameLabel.text = cond(#documents == 1, FileDrops.BaseName(documents[1]), Count(#documents, "document", "documents"))

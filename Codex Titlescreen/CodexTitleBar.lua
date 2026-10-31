@@ -331,8 +331,10 @@ end
 --lives inside the status bar, not on the bar itself.
 local function BarFitMenuItems(bar)
     local items = {}
-    for _,child in ipairs(bar.children) do
-        if child.valid and child:HasClass("menuItem") then
+    --childCount/GetChild (0-based): 'children' builds a new table per read.
+    for i = 0, bar.childCount - 1 do
+        local child = bar:GetChild(i)
+        if child ~= nil and child.valid and child:HasClass("menuItem") then
             items[#items+1] = child
         end
     end
@@ -387,8 +389,9 @@ end
 --layout reports enabled == false.
 local function BarFitMeasure(bar)
     local total = 0
-    for _,child in ipairs(bar.children) do
-        if child.valid and child.enabled
+    for i = 0, bar.childCount - 1 do
+        local child = bar:GetChild(i)
+        if child ~= nil and child.valid and child.enabled
                 and child.id ~= "titleBarDragSurface" then
             total = total + child.renderedWidth
         end
@@ -603,11 +606,12 @@ local function UpdateTitleBarHitRegions()
             return
         end
         local exclusions = {}
-        for _,child in ipairs(bar.children) do
+        for i = 0, bar.childCount - 1 do
+            local child = bar:GetChild(i)
             --skip the drag surface (it IS the draggable emptiness);
             --hidden/collapsed children are not interactive so they must
             --not eat caption either.
-            if child.valid and child.id ~= "titleBarDragSurface"
+            if child ~= nil and child.valid and child.id ~= "titleBarDragSurface"
                     and not child:HasClass("collapsed") and not child:HasClass("hidden") then
                 exclusions[#exclusions+1] = child
             end
@@ -2191,18 +2195,46 @@ end
 --string derives it: mouse world point snapped to the tile grid, on the
 --currently selected floor; rules == nil is exactly the status string's
 --"(void)" -- no terrain here, a creature would fall to the floor below.
-function g_tileIndicator.Classify()
-    local kinds = g_tileIndicator.kinds
+--The indicator's think calls this every 0.1 s. While the mouse stays on one tile the
+--last answer is reused for up to CLASSIFY_REUSE_SECONDS instead of rebuilding the Loc,
+--vision check and tile rules (several engine objects each) on every think; a change on
+--a tile the mouse is resting on shows within that time.
+g_tileIndicator.CLASSIFY_REUSE_SECONDS = 0.5
+--- @type {x: integer|nil, y: integer|nil, floorIndex: integer|nil, at: number, kind: any, color: any, name: any}
+g_tileIndicator.classifyCache = {x = nil, y = nil, floorIndex = nil, at = 0, kind = nil, color = nil, name = nil}
 
+function g_tileIndicator.Classify()
     local pt = dmhub.GetMouseWorldPoint()
     if pt == nil then
-        return kinds.void, nil, nil
+        return g_tileIndicator.kinds.void, nil, nil
     end
 
+    local x = math.floor(pt.x + 0.5)
+    local y = math.floor(pt.y + 0.5)
+    local floorIndex = game.currentFloorIndex
+    local cache = g_tileIndicator.classifyCache
+    local now = dmhub.Time()
+    if cache.x == x and cache.y == y and cache.floorIndex == floorIndex
+            and now - cache.at < g_tileIndicator.CLASSIFY_REUSE_SECONDS then
+        return cache.kind, cache.color, cache.name
+    end
+
+    local kind, color, name = g_tileIndicator.ClassifyAt(x, y, floorIndex)
+    cache.x, cache.y, cache.floorIndex, cache.at = x, y, floorIndex, now
+    cache.kind, cache.color, cache.name = kind, color, name
+    return kind, color, name
+end
+
+--- @param x integer
+--- @param y integer
+--- @param floorIndex integer
+function g_tileIndicator.ClassifyAt(x, y, floorIndex)
+    local kinds = g_tileIndicator.kinds
+
     local loc = core.Loc{
-        x = math.floor(pt.x + 0.5),
-        y = math.floor(pt.y + 0.5),
-        floorIndex = game.currentFloorIndex,
+        x = x,
+        y = y,
+        floorIndex = floorIndex,
     }
 
     --Non-DM viewers only get information about tiles currently inside their
@@ -7730,12 +7762,19 @@ local function CreateTopBar()
                 --reactive guard: geometry changes we did not initiate (edge
                 --snap, Win+arrow, external restores) also settle over several
                 --frames; catch them on the think cadence and hide until stable.
-                local d = dmhub.screenDimensions
+                --plain numbers, and the remembered size updated in place: this runs on
+                --every think, and screenDimensions makes a new Vector2 per read.
+                local w, h = dmhub.screenWidth, dmhub.screenHeight
                 local prev = element.data.lastScreenDims
-                if prev ~= nil and (d.x ~= prev.x or d.y ~= prev.y) and not g_transitionActive then
+                if prev ~= nil and (w ~= prev.x or h ~= prev.y) and not g_transitionActive then
                     StartWindowTransitionGuard(nil, nil, "external resize")
                 end
-                element.data.lastScreenDims = {x = d.x, y = d.y}
+                if prev == nil then
+                    element.data.lastScreenDims = {x = w, y = h}
+                else
+                    prev.x = w
+                    prev.y = h
+                end
 
                 --keep the engine's native hit-test in sync with the bar's
                 --real layout (rects are snapshotted engine-side at call time).

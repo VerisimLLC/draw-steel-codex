@@ -6565,6 +6565,24 @@ encounter fallback grids (`Encounter.SpawnGroupForReal`, the second grid in
 `EncounterPanel.lua`, `LiveEncounter:DeployWave`) and the montage's
 `SpawnAlly` pass it. Saved spawn positions keep their height (fliers).
 
+**Heroes still floated in a live run (2026-10-30, Dwarvish Bandits, 0.0.873):**
+the paste's ground snap was working, but it ran ~1s before the encounter
+map's heightmap arrived. Until a map's `/Maps/` record (rasters + heights)
+reaches the client, `MapMonitor.GetHeights` hands back an empty placeholder
+that reads altitude 0 everywhere, and the map switch waits only for the
+floors (`mapDetailsController`), never for that record. Fix (engine NEEDS
+BUILD, codex UNCOMMITTED): `MapMonitor.IsMapLoaded` / `map.terrainLoaded`
+(true once the record arrives from the cache or the server, or the server
+has none); `PlaceMyHeroes` waits for it
+(`EncounterOfTheWeekGame.WaitForMapTerrain`, 10s cap) before pasting; and
+`EncounterOfTheWeekGame.GroundTokens` re-grounds a token showing the race's
+signature only -- non-flying, unmounted, at altitude 0 over ground that is not
+at 0, not on a platform deck at 0 and not over water (`withGroundAltitude`
+ignores decks and the water surface, so a broader rule would drop heroes off
+bridges or to the bed at combat start; narrowed at release 0.0.874) -- each client's
+own heroes after arrival, and every player token at combat start (host,
+elevated), which also covers resumes and `MoveStrayHeroesIntoPlay`.
+
 **Known gaps:** a second Director in the authoring game could win the
 map-script election (the host tick still runs there, since it accepts
 `IsTestRunning()`, but that client does not see the test); a hero

@@ -1043,6 +1043,27 @@ local function RegisterInstanceButtons(instance)
     end
 end
 
+--- Press one of a running script's map buttons as if clicked, e.g. the
+--- importer opening a new map's UVTT Settings. Returns false while the
+--- script or its button is not up on this client yet (instances start on
+--- the next driver tick and the button is drawn a frame after), so callers
+--- retry.
+--- @param scriptid string the attached script's library or builtin id
+--- @param buttonid string the id of the button in its definition
+--- @return boolean
+function MapScript.OpenButton(scriptid, buttonid)
+    local mapButtons = rawget(_G, "MapButtons")
+    if mapButtons == nil or mapButtons.Open == nil then
+        return false
+    end
+    for key, instance in pairs(g_runtime.instances) do
+        if instance.rec.scriptid == scriptid and not instance.destroyed then
+            return mapButtons.Open("mapscript:" .. key .. "|" .. buttonid)
+        end
+    end
+    return false
+end
+
 local function UnregisterInstanceButtons(instance)
     local mapButtons = rawget(_G, "MapButtons")
     if mapButtons ~= nil then
@@ -1935,10 +1956,197 @@ return {
 ]==],
 }
 
+-- ---------------------------------------------------------------------------
+-- UVTT Settings panel
+-- ---------------------------------------------------------------------------
+--What the UVTT Settings map button opens. Light Brightness scales every
+--light on the map together. The script's shared state keeps the brightness
+--and each light's unscaled intensity (its "base", by object id), so the
+--slider can go down to 0% and back without losing any light's own setting.
+--A light whose intensity was changed by hand since the last slider move is
+--re-based from its new value, and lights added later join automatically.
+
+MapScript.UVTT = {}
+
+--- Every object with a Light component on the current map.
+--- @return {obj: LuaObjectInstance, light: LuaObjectComponent}[]
+function MapScript.UVTT.MapLights()
+    local result = {}
+    local map = game.currentMap
+    if map == nil then
+        return result
+    end
+    for _, floor in ipairs(map.floors) do
+        for _, obj in pairs(floor.objects) do
+            local light = obj:GetComponent("Light")
+            if light ~= nil then
+                result[#result + 1] = { obj = obj, light = light }
+            end
+        end
+    end
+    return result
+end
+
+--- A Light component's stored intensity (not its animated flicker value).
+--- @param light LuaObjectComponent
+--- @return number|nil
+local function UVTTLightIntensity(light)
+    for _, f in ipairs(light.fields) do
+        if f.id == "intensity" then
+            return tonumber(f.currentValue)
+        end
+    end
+    return nil
+end
+
+--- Set the map's light brightness (1 = every light at its own intensity)
+--- and rescale every light on the map to match. Returns how many lights
+--- are linked.
+--- @param ctx table the UVTT Settings script's handler context
+--- @param brightness number
+--- @return integer
+function MapScript.UVTT.SetBrightness(ctx, brightness)
+    local shared = ctx:GetShared()
+    local old = tonumber(shared.brightness) or 1
+    local bases = type(shared.bases) == "table" and shared.bases or {}
+    local newBases = {}
+    local lights = MapScript.UVTT.MapLights()
+    for _, entry in ipairs(lights) do
+        local current = UVTTLightIntensity(entry.light) or 0
+        local base = tonumber(bases[entry.obj.objid])
+        --no base yet, or changed by hand since the last move: re-base it.
+        --The tolerance absorbs the engine storing intensity as a float.
+        if base == nil or math.abs(base * old - current) > 0.002 then
+            base = cond(old > 0, current / old, current)
+        end
+        newBases[entry.obj.objid] = base
+        local target = base * brightness
+        if math.abs(target - current) > 0.0005 then
+            entry.light:SetAndUploadProperties{ intensity = target }
+        end
+    end
+    ctx:ModifyShared(function(s)
+        s.brightness = brightness
+        s.bases = newBases
+    end)
+    return #lights
+end
+
+--- The panel the UVTT Settings button opens, as an element.popup.
+--- @param ctx table the UVTT Settings script's handler context
+--- @param element Panel the map button
+--- @return Panel
+function MapScript.UVTT.CreatePopup(ctx, element)
+    local brightness = tonumber(ctx:GetShared().brightness) or 1
+
+    local function LinkedText(count)
+        if count == 0 then
+            return "This map has no lights yet. Lights added later are linked too."
+        elseif count == 1 then
+            return "1 light on this map is linked."
+        end
+        return string.format("%d lights on this map are linked.", count)
+    end
+
+    local countLabel = gui.Label{
+        text = LinkedText(#MapScript.UVTT.MapLights()),
+        width = "100%",
+        height = "auto",
+        fontSize = 12,
+        wrap = true,
+        tmargin = 6,
+    }
+
+    --a drag fires change every frame; uploading every light that often is
+    --wasted traffic, so drags apply at most every 0.1s and the release
+    --(confirm) always applies the final value.
+    local lastApply = 0
+    local function Apply(value, force)
+        local now = dmhub.Time()
+        if not force and now - lastApply < 0.1 then
+            return
+        end
+        lastApply = now
+        countLabel.text = LinkedText(MapScript.UVTT.SetBrightness(ctx, value))
+    end
+
+    return gui.Panel{
+        width = "auto",
+        height = "auto",
+        --a popup is a style-cascade root: without the theme,
+        --framedPanel/modalTitle/CloseButton render unstyled.
+        styles = ThemeEngine.GetStyles(),
+        gui.Panel{
+            classes = {"framedPanel"},
+            width = 360,
+            height = "auto",
+            flow = "vertical",
+            pad = 16,
+            borderBox = true,
+            bgimage = true,
+
+            gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+                bmargin = 12,
+                gui.Label{
+                    classes = {"modalTitle"},
+                    text = "UVTT Settings",
+                    width = "auto",
+                    height = "auto",
+                    halign = "left",
+                    valign = "center",
+                },
+                gui.CloseButton{
+                    halign = "right",
+                    valign = "center",
+                    click = function()
+                        if element.valid then
+                            element.popup = nil
+                        end
+                    end,
+                },
+            },
+
+            gui.Label{
+                text = "Light Brightness",
+                width = "100%",
+                height = "auto",
+                fontSize = 14,
+                bmargin = 4,
+            },
+
+            --double-click resets to 100%: every light at its own intensity.
+            gui.Slider{
+                minValue = 0,
+                maxValue = 3,
+                value = brightness,
+                defaultValue = 1,
+                labelFormat = "rawpercent",
+                sliderWidth = 260,
+                labelWidth = 52,
+                width = "100%",
+                height = 24,
+                fontSize = 14,
+                events = {
+                    change = function(slider)
+                        Apply(slider.data.getValue(), false)
+                    end,
+                    confirm = function(slider)
+                        Apply(slider.data.getValue(), true)
+                    end,
+                },
+            },
+
+            countLabel,
+        },
+    }
+end
+
 --Attached automatically by the map importer (CreateMapDialog's
---FinishMapImport) when the map came from a Universal VTT file. For now the
---button opens an empty framed panel anchored to itself; the uvtt controls
---land in it next.
+--FinishMapImport) when the map came from a Universal VTT file, which also
+--opens its panel once the import finishes (MapScript.OpenButton).
 MapScript.RegisterBuiltin{
     id = "builtin:uvtt-settings",
     name = "UVTT Settings",
@@ -1956,45 +2164,8 @@ return {
             click = function(ctx, element)
                 --anchored to the button: click-away and Escape dismiss it,
                 --and the bar's click handler closes it on a second press.
-                element.popup = gui.Panel{
-                    width = "auto",
-                    height = "auto",
-                    --a popup is a style-cascade root: without the theme,
-                    --framedPanel/modalTitle/CloseButton render unstyled.
-                    styles = ThemeEngine.GetStyles(),
-                    gui.Panel{
-                        classes = {"framedPanel"},
-                        width = 360,
-                        height = 240,
-                        flow = "vertical",
-                        pad = 16,
-                        borderBox = true,
-                        bgimage = true,
-
-                        gui.Panel{
-                            width = "100%",
-                            height = "auto",
-                            flow = "horizontal",
-                            gui.Label{
-                                classes = {"modalTitle"},
-                                text = "UVTT Settings",
-                                width = "auto",
-                                height = "auto",
-                                halign = "left",
-                                valign = "center",
-                            },
-                            gui.CloseButton{
-                                halign = "right",
-                                valign = "center",
-                                click = function()
-                                    if element.valid then
-                                        element.popup = nil
-                                    end
-                                end,
-                            },
-                        },
-                    },
-                }
+                --The panel itself (Light Brightness) is MapScript.UVTT.
+                element.popup = MapScript.UVTT.CreatePopup(ctx, element)
             end,
         },
     },

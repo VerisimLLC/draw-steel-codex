@@ -49,9 +49,9 @@
 MapFloorLua = {}
 
 --- AdjustParallaxPositionOnGround
---- @param x? any
---- @param y? any
---- @return any
+--- @param x number
+--- @param y number
+--- @return Vector2
 function MapFloorLua:AdjustParallaxPositionOnGround(x, y) end
 
 --- HasObject

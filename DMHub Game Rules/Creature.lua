@@ -6754,7 +6754,6 @@ function creature:OnMove(path)
         local otherTokenAltitude = otherToken.floorAltitude
 
         local adj = otherToken.properties:AdjacentLocations()
-        print("LOCS:: OTHER TOKEN ADJACENT", #adj)
 
         local moveNextTo = false
 
@@ -6836,7 +6835,6 @@ function creature:OnMove(path)
     for i,step in ipairs(steps) do
         local adjacentTokens = {}
         local locs = ourToken:LocsOccupyingWhenAt(step)
-        print("LOCS::", #locs, "checking tokens:", #allTokens)
 
         for j,otherToken in ipairs(allTokens) do
             local grabbedBy = otherToken.properties._tmp_grabbedby == ourCharid
@@ -6875,9 +6873,7 @@ function creature:OnMove(path)
                     end
                 end
 
-                print("LOCS:: TRYING FOR", otherToken.charid, ourToken.charid, otherToken.properties:CanUseTriggeredAbilities())
                 if otherToken.charid ~= ourToken.charid and otherToken.properties:CanUseTriggeredAbilities() then
-                    print("LOCS:: CHECK ADJACENCY", otherToken.charid)
                     local adjacent = false
                     local adj = adjacentLocationMap[j]
                     for _,adjLoc in ipairs(adj) do
@@ -6903,7 +6899,6 @@ function creature:OnMove(path)
                     end
 
                     if adjacent then
-                    print("LOCS:: IS ADJACENT", otherToken.charid)
                         adjacentTokens[otherToken.charid] = otherToken
                     end
                 end

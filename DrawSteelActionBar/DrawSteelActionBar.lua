@@ -11494,6 +11494,7 @@ CreateAbilityController = function()
 
     g_castModesPanel = gui.Panel {
         classes = { 'collapsed' },
+        halign = "center",
         width = "auto",
         height = "auto",
         bgimage = "panels/square.png",

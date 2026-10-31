@@ -2030,6 +2030,7 @@ function ActivatedAbility:Render(options, params)
 
     --if we have a specific token and there is an aura associated with this ability, add some information about the aura.
     local tokenDependentInfoPanel = nil
+    local oppositeWarningPanel = nil
     if params.token ~= nil and params.token.properties ~= nil then
         local tokenDependentChildren = {}
 
@@ -2128,6 +2129,45 @@ function ActivatedAbility:Render(options, params)
             end
         end
 
+        --Phase Inversion Strike style abilities: warn when the opposite square is
+        --occupied, since the target then can't be teleported or pushed. Kept out of
+        --tokenDependentInfoPanel because that panel collapses inside the roll dialog.
+        local rollBehaviorForWarning = nil
+        for _, b in ipairs(self:try_get("behaviors", {})) do
+            if b.typeName == "ActivatedAbilityPowerRollBehavior" then
+                rollBehaviorForWarning = b
+            end
+        end
+        if rollBehaviorForWarning ~= nil and table.concat(rollBehaviorForWarning.tiers or {}, " "):find("teleport to opposite side", 1, true) then
+            local cast = params.symbols ~= nil and params.symbols.cast or nil
+            local castTargets = cast ~= nil and cast:try_get("targets") or nil
+            for _, t in ipairs(castTargets or {}) do
+                if t.token ~= nil and ActivatedAbility.OppositeSquareOccupied(params.token, t.token) then
+                    oppositeWarningPanel = gui.Panel {
+                        width = "100%-16",
+                        height = "auto",
+                        flow = "vertical",
+                        halign = "center",
+                        tmargin = 6,
+                        borderBox = true,
+                        hpad = 6,
+                        vpad = 4,
+                        bgimage = "panels/square.png",
+                        bgcolor = "#C94040",
+                        gui.Label {
+                            width = "100%",
+                            height = "auto",
+                            fontSize = 14,
+                            color = "#FFFFFF",
+                            textWrap = true,
+                            text = "The opposite adjacent square is occupied, so you cannot push the target.",
+                        },
+                    }
+                    break
+                end
+            end
+        end
+
         self:RenderTokenDependent(params.token, tokenDependentChildren)
 
         if #tokenDependentChildren > 0 then
@@ -2143,6 +2183,20 @@ function ActivatedAbility:Render(options, params)
                 children = tokenDependentChildren,
             }
         end
+    end
+
+    --Always-visible wrapper (a single child avoids nil holes in the children list).
+    local infoAndWarningPanel = nil
+    if tokenDependentInfoPanel ~= nil or oppositeWarningPanel ~= nil then
+        local extras = {}
+        if tokenDependentInfoPanel ~= nil then extras[#extras + 1] = tokenDependentInfoPanel end
+        if oppositeWarningPanel ~= nil then extras[#extras + 1] = oppositeWarningPanel end
+        infoAndWarningPanel = gui.Panel {
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            children = extras,
+        }
     end
 
     local description = self.description
@@ -3437,7 +3491,7 @@ function ActivatedAbility:Render(options, params)
                 },
             },
 
-            tokenDependentInfoPanel,
+            infoAndWarningPanel,
 
 
             gui.Panel {

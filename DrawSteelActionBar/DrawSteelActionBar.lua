@@ -9744,6 +9744,13 @@ local function CreateTargetInfo(spell)
                 end
             end
 
+            --A burst hits everyone in its area, and the caster is the only token with a
+            --reticule, so clicking them confirms the cast the way the Confirm button does.
+            if g_currentAbility.targetType == 'all' and g_abilityController ~= nil then
+                g_abilityController:FireEvent("mappress")
+                return
+            end
+
             --The caster is added when the ability is cast, so clicking them does nothing.
             if g_currentAbility.forceCasterTarget and targetToken.id == g_token.charid then
                 return

@@ -6823,7 +6823,22 @@ function GameHud:NextInitiative(oncomplete)
 
 			local newRound = false
 			if info.initiativeQueue == initiativeQueue and initiativeQueue.entries[currentInitiativeId] ~= nil then
-				newRound = initiativeQueue:NextTurn(currentInitiativeId)
+				local claimedBy = initiativeQueue:try_get("currentTurn")
+				if claimedBy and claimedBy ~= currentInitiativeId then
+					--another entry took the turn while the handlers above held the
+					--handoff open (Hesitation is Weakness accepted during a villain
+					--action or an end-of-turn prompt). NextTurn would end that
+					--claimed turn and flip the side (KC6TUXEY), so only record that
+					--the ended entry has acted; the claimant's own End Turn advances.
+					local priorityids = initiativeQueue:try_get("priorityids")
+					if priorityids ~= nil and currentInitiativeId ~= nil then
+						priorityids[currentInitiativeId] = nil
+					end
+					InitiativeQueue.SetTurnTaken(initiativeQueue, initiativeQueue.entries[currentInitiativeId])
+					print(string.format("ENDTURN:: %s's turn was claimed by %s during the handoff; not advancing", tostring(currentInitiativeId), tostring(claimedBy)))
+				else
+					newRound = initiativeQueue:NextTurn(currentInitiativeId)
+				end
 			end
 
 			g_betweenTurnTransitionInProgress = false

@@ -2306,6 +2306,27 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
         end
     end
 
+    --Shared by every target of the cast, so a multi-target summon (the Angulotl
+    --Daybringer's New Dawn: four squares, one pollywog each) makes one squad and
+    --one initiative entry, not one per square (3C5UBHTR, NXJXN8UC).
+
+    --minions summoned with no squad-selection UI (non-summoner casters) join
+    --ONE fresh squad per creature type for this cast, so they never merge into
+    --an unrelated same-type squad's shared stamina pool.
+    local freshSquadNames = {}
+
+    --fresh-squad minion spawns with their evaluated initial damage
+    --({charid, damage, squad}); seeds each new squad's shared pool after the
+    --target loop, once the final member counts are known.
+    local freshSquadSpawns = {}
+
+    local initiativeGrouping = nil
+    if self.groupInitiativeWithCaster then
+        initiativeGrouping = InitiativeQueue.GetInitiativeId(casterToken)
+    elseif self.newInitiativeGroup then
+        initiativeGrouping = dmhub.GenerateGuid()
+    end
+
     for _,target in ipairs(targets) do
         --a cancelled cast (Revert Turn / Turn Rewind) summons nothing more.
         if args.abort then
@@ -2484,29 +2505,12 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
         --prompting, so the summons are never stranded.
         local autoPlaceSummons = false
 
-        --minions summoned with no squad-selection UI (non-summoner casters)
-        --all join ONE fresh squad opened for this cast, so they never merge
-        --into an unrelated same-type squad's shared stamina pool.
-        local freshSquadName = nil
-
-        --fresh-squad minion spawns with their evaluated initial damage; used
-        --to seed the new squad's shared pool after the spawn loop, once the
-        --final member count is known.
-        local freshSquadSpawns = {}
-
         -- For Summoner casters with manual placement, fold the creature-type choice
         -- into the inline placement picker so it can change per-summon.
         local creatureChoiceInline = isSummoner and manualPlacement and self.casterChoosesCreatures and #choices > 1 and self.changeCreatureWhileCasting
 
         --note: allSame is declared at pre-pick time above, so the pre-pick
         --dialog's "use this choice for all summons" carries into this loop.
-
-        local initiativeGrouping = nil
-        if self.groupInitiativeWithCaster then
-            initiativeGrouping = InitiativeQueue.GetInitiativeId(casterToken)
-        elseif self.newInitiativeGroup then
-            initiativeGrouping = dmhub.GenerateGuid()
-        end
 
         for j=1,numSummons do
 
@@ -2752,18 +2756,18 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                 --instead. Set joinExistingSquad on the behavior to restore
                 --the old merging for content that wants reinforcements to
                 --join an existing squad.
-                if freshSquadName == nil then
-                    local monsterType = token.properties:try_get("monster_type", "Minion")
+                local monsterType = token.properties:try_get("monster_type", "Minion")
+                if freshSquadNames[monsterType] == nil then
                     local findFresh = rawget(monster, "FindFreshSquadName")
                     if findFresh ~= nil then
-                        freshSquadName = findFresh(monsterType)
+                        freshSquadNames[monsterType] = findFresh(monsterType)
                     else
                         --game systems without squad-name bookkeeping still get
                         --a unique squad per cast.
-                        freshSquadName = string.format("%s Squad %s", monsterType, string.sub(dmhub.GenerateGuid(), 1, 8))
+                        freshSquadNames[monsterType] = string.format("%s Squad %s", monsterType, string.sub(dmhub.GenerateGuid(), 1, 8))
                     end
                 end
-                token.properties.minionSquad = freshSquadName
+                token.properties.minionSquad = freshSquadNames[monsterType]
             end
 
             if initiativeGrouping ~= nil then
@@ -2790,14 +2794,15 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                     end
                 end
                 if initialDamage > 0 then
-                    if freshSquadName ~= nil and token.properties.minion and token.properties:try_get("minionSquad") == freshSquadName then
+                    local squad = token.properties:try_get("minionSquad")
+                    if token.properties.minion and squad ~= nil and freshSquadNames[token.properties:try_get("monster_type", "Minion")] == squad then
                         --minions share a squad stamina pool derived from the
                         --damage_taken_seq fan-out (see RefreshSquadInfo), so
                         --a bare per-token damage_taken write is invisible to
                         --it. Collect the amount instead; the fresh squad's
-                        --pool is seeded after the spawn loop, once the final
+                        --pool is seeded after the target loop, once the final
                         --member count is known.
-                        freshSquadSpawns[#freshSquadSpawns+1] = { charid = token.charid, damage = initialDamage }
+                        freshSquadSpawns[#freshSquadSpawns+1] = { charid = token.charid, damage = initialDamage, squad = squad }
                     else
                         token.properties.damage_taken = token.properties.damage_taken + initialDamage
                     end
@@ -2855,53 +2860,6 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                     end
                 end
             end
-        end
-
-        --seed the fresh squad's shared stamina pool with the summons' initial
-        --damage. Squad stamina is derived from the member carrying the
-        --highest damage_taken_seq (see RefreshSquadInfo in MCDMCreature.lua),
-        --so every member gets the pool total, a seq of 1 and the member
-        --count -- exactly the shape real squad damage fans out.
-        if #freshSquadSpawns > 0 then
-            local poolDamage = 0
-            for _,entry in ipairs(freshSquadSpawns) do
-                poolDamage = poolDamage + entry.damage
-            end
-
-            local memberCount = 0
-            for _,tok in ipairs(summonedTokens) do
-                if tok.valid and tok.properties ~= nil and tok.properties.minion and tok.properties:try_get("minionSquad") == freshSquadName then
-                    memberCount = memberCount + 1
-                end
-            end
-
-            if poolDamage > 0 and memberCount > 0 then
-                for _,tok in ipairs(summonedTokens) do
-                    if tok.valid and tok.properties ~= nil and tok.properties.minion and tok.properties:try_get("minionSquad") == freshSquadName then
-                        tok:ModifyProperties{
-                            description = "Initial summon damage",
-                            undoable = false,
-                            combine = true,
-                            execute = function()
-                                tok.properties.damage_taken = poolDamage
-                                tok.properties.damage_taken_seq = 1
-                                tok.properties.damage_taken_minion_count = memberCount
-                            end,
-                        }
-                    end
-                end
-            end
-        end
-
-        --give the fresh group its entry, on the caster's side (hero or
-        --director), mirroring the add_to_initiative ability mode.
-        local q = dmhub.initiativeQueue
-        if self.newInitiativeGroup and (not self.groupInitiativeWithCaster) and #summonedTokens > 0 and q ~= nil and (not q.hidden) then
-            local entry = q:SetInitiative(initiativeGrouping, 0, 0)
-            if casterToken.valid and casterToken.properties ~= nil then
-                entry.player = q:IsEntryPlayer(InitiativeQueue.GetInitiativeId(casterToken))
-            end
-            dmhub:UploadInitiativeQueue()
         end
 
         --remember every token summoned for this outer target so we can inject them
@@ -3017,6 +2975,50 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                 }
             end
         end
+    end
+
+    --seed each fresh squad's shared stamina pool with its summons' initial
+    --damage. Squad stamina is derived from the member carrying the highest
+    --damage_taken_seq (see RefreshSquadInfo in MCDMCreature.lua), so every
+    --member gets the pool total, a seq of 1 and the member count -- exactly
+    --the shape real squad damage fans out.
+    local poolDamageBySquad = {}
+    for _,entry in ipairs(freshSquadSpawns) do
+        poolDamageBySquad[entry.squad] = (poolDamageBySquad[entry.squad] or 0) + entry.damage
+    end
+    for squad,poolDamage in pairs(poolDamageBySquad) do
+        local members = {}
+        for _,tok in ipairs(allSummonedTokens) do
+            if tok.valid and tok.properties ~= nil and tok.properties.minion and tok.properties:try_get("minionSquad") == squad then
+                members[#members+1] = tok
+            end
+        end
+
+        if poolDamage > 0 and #members > 0 then
+            for _,tok in ipairs(members) do
+                tok:ModifyProperties{
+                    description = "Initial summon damage",
+                    undoable = false,
+                    combine = true,
+                    execute = function()
+                        tok.properties.damage_taken = poolDamage
+                        tok.properties.damage_taken_seq = 1
+                        tok.properties.damage_taken_minion_count = #members
+                    end,
+                }
+            end
+        end
+    end
+
+    --give the fresh group its entry, on the caster's side (hero or director),
+    --mirroring the add_to_initiative ability mode.
+    local q = dmhub.initiativeQueue
+    if self.newInitiativeGroup and (not self.groupInitiativeWithCaster) and #allSummonedTokens > 0 and q ~= nil and (not q.hidden) then
+        local entry = q:SetInitiative(initiativeGrouping, 0, 0)
+        if casterToken.valid and casterToken.properties ~= nil then
+            entry.player = q:IsEntryPlayer(InitiativeQueue.GetInitiativeId(casterToken))
+        end
+        dmhub:UploadInitiativeQueue()
     end
 
     --summonAnimation "fromCaster": every summon is spawned (and hidden); now

@@ -733,7 +733,7 @@ local g_conditionHiddenId = "31daf7f6-f77c-4f73-8eab-43e2d0f123c0"
 local g_settingHiddenInvisible = setting{
     id = "strict:hiddeninvisible",
     description = "Hidden Creatures are Invisible",
-    help = "While a creature the director controls has the Hidden condition, players do not see it at all: no token, HUD, auras or targeting. It reappears the moment it stops being Hidden, and acting reveals it as the ability begins. Heroes always remain visible.",
+    help = "While a creature the director controls has the Hidden condition, players do not see it at all: no token, HUD, auras or targeting. It reappears the moment it stops being Hidden, and acting reveals it as the ability begins. It cannot stay Hidden adjacent to a hero: a hero moving next to it finds it. Heroes always remain visible.",
     storage = "game",
     editor = "check",
     default = false,
@@ -866,10 +866,62 @@ end
 --client that is not the Director or its controller. Also undoes the old networked
 --version of this setting (invisibleToPlayers) on tokens it left invisible.
 local g_legacyHiddenClearPending = {}
+local g_adjacentRevealPending = {}
+
+--True while a hero (a creature a player or party owns that is not this token's friend)
+--is adjacent to this token. A creature cannot stay Hidden next to one. Ownership, not
+--playerControlled: that reads false for heroes outside the default party.
+--- @param token CharacterToken
+--- @return boolean
+local function AdjacentToHero(token)
+    for _, nearby in ipairs(token:GetNearbyTokens(1) or {}) do
+        local ownerId = nearby.ownerId
+        if ownerId ~= nil and ownerId ~= "" and (not nearby.isObject) and (not nearby:IsFriend(token)) then
+            return true
+        end
+    end
+    return false
+end
 
 local function RefreshHiddenFromPlayers(c, token)
-    c._tmp_hiddenFromPlayers = g_settingHiddenInvisible:Get() == true and (not token.playerControlled)
+    local hiddenFromPlayers = g_settingHiddenInvisible:Get() == true and (not token.playerControlled)
         and (not token.isObject) and c:HasCondition(g_conditionHiddenId) ~= false
+
+    --Next to a hero: every client shows it at once, and the host strips Hidden for real
+    --(6JVBTDAJ: an invisible adjacent slink gave a hero's ranged strike a bane).
+    if hiddenFromPlayers and AdjacentToHero(token) then
+        hiddenFromPlayers = false
+        if IsDMOrPlayerHost() and not g_adjacentRevealPending[token.charid] then
+            local charid = token.charid
+            g_adjacentRevealPending[charid] = true
+            --deferred out of the refresh path to avoid re-entrant uploads.
+            dmhub.Schedule(0.05, function()
+                g_adjacentRevealPending[charid] = nil
+                if mod.unloaded then
+                    return
+                end
+                local tok = dmhub.GetTokenById(charid)
+                if tok == nil or (not tok.valid) or tok.properties == nil
+                    or (not tok.properties:IsHidden()) or (not AdjacentToHero(tok)) then
+                    return
+                end
+                tok:ModifyProperties{
+                    description = "Found by an adjacent hero",
+                    undoable = false,
+                    execute = function()
+                        --being found is not an ambush: no Ambush banner for this reveal.
+                        local entry = tok.properties:try_get("inflictedConditions", {})[g_conditionHiddenId]
+                        if entry ~= nil then
+                            entry.hiddenBeforeCombat = nil
+                        end
+                        tok.properties:LoseHidden()
+                    end,
+                }
+            end)
+        end
+    end
+
+    c._tmp_hiddenFromPlayers = hiddenFromPlayers
 
     if c:try_get("hiddenInvisibilityApplied", false) and IsDMOrPlayerHost()
         and not g_legacyHiddenClearPending[token.charid] then
@@ -2459,7 +2511,16 @@ local function LineCrossesOppositeSides(a, b, target)
     return (s0.left and s1.right) or (s0.right and s1.left) or (s0.top and s1.bottom) or (s0.bottom and s1.top)
 end
 
-function creature:GetFlankingTokens(tokensOverride)
+--Sets an adjacent enemy's _tmp_grantsFlanking and, when writes is given, records the write
+--so a cached flanking answer can make it again (see GetFlankingTokens).
+local function SetGrantsFlanking(props, value, writes)
+    props._tmp_grantsFlanking = value
+    if writes ~= nil then
+        writes[#writes+1] = { props = props, value = value }
+    end
+end
+
+local function ComputeFlankingTokens(self, tokensOverride, writes, adjacentOut)
     local token = dmhub.LookupToken(self)
     if token == nil or (not token.valid) then
         return {}
@@ -2471,6 +2532,11 @@ function creature:GetFlankingTokens(tokensOverride)
 
     --copy the override so filtering below doesn't change the caller's table.
     local adjacentEnemies = tokensOverride and { table.unpack(tokensOverride) } or GetEnemiesAdjacentToToken(token)
+    if adjacentOut ~= nil then
+        for _, enemy in ipairs(adjacentEnemies) do
+            adjacentOut[#adjacentOut+1] = enemy.properties
+        end
+    end
     if #adjacentEnemies <= 1 then
         return {}
     end
@@ -2515,9 +2581,9 @@ function creature:GetFlankingTokens(tokensOverride)
         grantedFlanking = adjacentEnemies
         for _, enemy in ipairs(adjacentEnemies) do
             if numGranters == 1 and granterIds[enemy.charid] then
-                enemy.properties._tmp_grantsFlanking = token.charid
+                SetGrantsFlanking(enemy.properties, token.charid, writes)
             else
-                enemy.properties._tmp_grantsFlanking = nil
+                SetGrantsFlanking(enemy.properties, nil, writes)
             end
         end
     end
@@ -2544,7 +2610,7 @@ function creature:GetFlankingTokens(tokensOverride)
         for _, tok in ipairs(result) do
             if tok.charid == enemy.charid then
                 found = true
-                enemy.properties._tmp_grantsFlanking = nil
+                SetGrantsFlanking(enemy.properties, nil, writes)
                 break
             end
         end
@@ -2554,6 +2620,56 @@ function creature:GetFlankingTokens(tokensOverride)
     end
 
     return result
+end
+
+--One game update asks for each creature's flankers several times (its token hud twice, free
+--strike banes, the "flanked" GoblinScript symbol): about 50 calls per move in a 17-creature
+--combat. Positions, walls and line of sight only change with a game update, so the answer
+--is kept for the rest of the update -- unless this creature or one of the adjacent enemies
+--it considered has its modifiers rebuilt in the meantime (CreatureCache serials), since
+--immunity and who can grant flanking come from modifiers. A call made while a creature's
+--modifiers are being built always computes, so that build records the token reads it
+--depends on.
+function creature:GetFlankingTokens(tokensOverride)
+    local top = CreatureCache.stack[#CreatureCache.stack]
+    if tokensOverride ~= nil or (top ~= nil and top.creature ~= false) then
+        return ComputeFlankingTokens(self, tokensOverride, nil, nil)
+    end
+
+    local cache = self:try_get("_tmp_flankingCache")
+    if cache ~= nil and cache.update == dmhub.ngameupdate and cache.epoch == CreatureCache.epoch then
+        local valid = true
+        for c, serial in pairs(cache.serials) do
+            if CreatureCache.SerialOf(c) ~= serial then
+                valid = false
+                break
+            end
+        end
+        if valid then
+            --make the _tmp_grantsFlanking writes a fresh computation would have made.
+            for _, write in ipairs(cache.writes) do
+                write.props._tmp_grantsFlanking = write.value
+            end
+            return { table.unpack(cache.result) }
+        end
+    end
+
+    local writes = {}
+    local adjacent = {}
+    local result = ComputeFlankingTokens(self, nil, writes, adjacent)
+    --read the serials afterwards: the computation itself may rebuild modifiers.
+    local serials = { [self] = CreatureCache.SerialOf(self) }
+    for _, c in ipairs(adjacent) do
+        serials[c] = CreatureCache.SerialOf(c)
+    end
+    self._tmp_flankingCache = {
+        update = dmhub.ngameupdate,
+        epoch = CreatureCache.epoch,
+        serials = serials,
+        result = result,
+        writes = writes,
+    }
+    return { table.unpack(result) }
 end
 
 function creature:FlankedBy(otherToken)
@@ -4735,6 +4851,7 @@ function creature:NotifyConditionCaster(token, conditionid)
     if conditionCasterSource[conditionid][token.charid] == nil then
         -- New condition caster data; invalidate modifier cache so it
         -- recalculates with the updated _tmp_conditionCasterSource.
+        self._tmp_ccKey = nil
         self._tmp_modifiersRefresh = nil
         self._tmp_modifiersRefreshExcludingAuras = nil
     end

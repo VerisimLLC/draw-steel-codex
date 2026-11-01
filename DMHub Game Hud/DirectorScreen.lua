@@ -246,8 +246,7 @@ end
 
 --The table's size, in documents-layer units.
 local function TableSize()
-    local rect = Tabletop.LayerRect()
-    return rect.w, rect.h
+    return Tabletop.LayerSize()
 end
 
 --How far in from the right the right icon rail reaches: 0 with no rail, or

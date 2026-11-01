@@ -230,6 +230,73 @@ local g_selectedTokens = {}
 if rawget(DrawSteelActionBar, "_operate") ~= nil and DrawSteelActionBar._operate.operation ~= nil then
     pcall(function() dmhub.tokenInfo:PopSelectedTokenOverride() end)
 end
+--The selected token's ability list, reused across bar refreshes while nothing it was built
+--from has changed. The bar refreshes on every game update that touches any character, and
+--GetActivatedAbilities clones and modifies every ability (~8 ms for a hero), so another
+--player moving used to rebuild your hero's list. The key: the token, its record revision,
+--its modifier serial (CreatureCache), game data other than characters, the objects that
+--grant abilities to adjacent creatures, plus any other token the build read (a token query
+--means no reuse). Kept on the global table: this file's main chunk is at Lua's 200-local
+--limit.
+DrawSteelActionBar._abilityList = { key = nil, list = nil, wildcard = true, deps = {} }
+
+--- @param token CharacterToken
+--- @return ActivatedAbility[]
+function DrawSteelActionBar._abilityList.Get(token)
+    local cache = DrawSteelActionBar._abilityList
+    local function Build()
+        return token.properties:GetActivatedAbilities { bindCaster = true, manualTriggers = true }
+    end
+    if not CreatureCache.enabled then
+        cache.list = nil
+        return Build()
+    end
+
+    local function DepState(charid)
+        local tok = dmhub.GetCharacterById(charid)
+        local props = tok and tok.properties
+        return string.format("%d:%d", dmhub.CharacterRecordRevision(charid), props and CreatureCache.SerialOf(props) or -1)
+    end
+
+    local key = string.format("%s|%d|%d|%s|%s|%s", token.charid, dmhub.CharacterRecordRevision(token.charid),
+        CreatureCache.SerialOf(token.properties), CreatureCache.GlobalKey(), tostring(dmhub.isDM),
+        ActivatedAbility.GrantingTokensSignature())
+    if cache.list ~= nil and cache.key == key and not cache.wildcard then
+        local unchanged = true
+        for charid, state in pairs(cache.deps) do
+            if DepState(charid) ~= state then
+                unchanged = false
+                break
+            end
+        end
+        if unchanged then
+            return cache.list
+        end
+    end
+
+    cache.list = nil
+    dmhub.BeginDependencyScope()
+    local ok, result = pcall(Build)
+    local rec = dmhub.EndDependencyScope()
+    if not ok then
+        error(result, 0)
+    end
+
+    local deps = {}
+    if rec ~= nil then
+        for charid, _ in pairs(rec.tokens) do
+            if charid ~= token.charid then
+                deps[charid] = DepState(charid)
+            end
+        end
+    end
+    cache.key = key
+    cache.list = result
+    cache.wildcard = rec == nil or rec.wildcard
+    cache.deps = deps
+    return result
+end
+
 --- @class ActionBarOperate
 --- @field operation nil|{operator: CharacterToken, object: CharacterToken}
 --- @field promptShown nil|boolean True while our "Operating X" prompt is up.
@@ -4063,7 +4130,7 @@ local function CreateActionBar()
                     end
                     return list
                 end
-                return g_token.properties:GetActivatedAbilities { bindCaster = true, manualTriggers = true }
+                return DrawSteelActionBar._abilityList.Get(g_token)
             end)
             g_abilities = (okAbilities and abilitiesOrErr) or {}
 
@@ -9675,6 +9742,13 @@ local function CreateTargetInfo(spell)
                     end
                     return
                 end
+            end
+
+            --A burst hits everyone in its area, and the caster is the only token with a
+            --reticule, so clicking them confirms the cast the way the Confirm button does.
+            if g_currentAbility.targetType == 'all' and g_abilityController ~= nil then
+                g_abilityController:FireEvent("mappress")
+                return
             end
 
             --The caster is added when the ability is cast, so clicking them does nothing.

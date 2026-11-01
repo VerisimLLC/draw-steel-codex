@@ -94,8 +94,7 @@ local g = {
 
 --- @return number w, number h the table's size (documents-layer units)
 local function TableSize()
-    local rect = Tabletop.LayerRect()
-    return rect.w, rect.h
+    return Tabletop.LayerSize()
 end
 
 --- @return number scale layer units per screen pixel

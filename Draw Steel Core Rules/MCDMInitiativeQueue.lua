@@ -151,11 +151,40 @@ function InitiativeQueue:ChoosingTurn()
 	return self.entries[self.currentTurn] == nil
 end
 
+local ComputeTokensForInitiativeId
+
+--Per-pass results for the whole-hud refresh: one pass asked ~170 times for 13 entries (each
+--initiative card, the objective strip's live-combatant counts, whose turn it is).
+local g_passTokens = {}
+local g_passTokensPass = -1
+
 function InitiativeQueue.GetTokensForInitiativeId(initiativeid, allTokens)
+    local allTokensNow = dmhub.allTokens
     if allTokens == nil then
-        allTokens = dmhub.allTokens
+        allTokens = allTokensNow
     end
 
+    --only inside a hud refresh pass (see GameHud.inRefreshPass), and only for the full token
+    --list: game logic changes initiativeGrouping and asks again within the same frame.
+    local hud = rawget(_G, "GameHud")
+    if hud ~= nil and hud.inRefreshPass and allTokens == allTokensNow then
+        if g_passTokensPass ~= hud.refreshPass then
+            g_passTokensPass = hud.refreshPass
+            g_passTokens = {}
+        end
+        local cached = g_passTokens[initiativeid]
+        if cached == nil then
+            cached = ComputeTokensForInitiativeId(initiativeid, allTokens)
+            g_passTokens[initiativeid] = cached
+        end
+        --a copy: callers may sort or trim the list they get.
+        return { table.unpack(cached) }
+    end
+
+    return ComputeTokensForInitiativeId(initiativeid, allTokens)
+end
+
+ComputeTokensForInitiativeId = function(initiativeid, allTokens)
 	local result = {}
 
 	if string.starts_with(initiativeid, 'MONSTER-') then

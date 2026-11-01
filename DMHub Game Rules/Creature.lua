@@ -4990,7 +4990,720 @@ function creature:SetAndUploadCeilingCling(cling)
     end
 end
 
+---------------------------------------------------------------------------------------
+--Per-creature modifier cache (CreatureCache). See CREATURE_CACHE_REFERENCE.md.
+--
+--A creature's modifier lists (_tmp_modifiers_excluding_auras, _tmp_modifiers) and its
+--attribute caches (_tmp_attr, _tmp_calculatedAttributes) used to be valid for one
+--dmhub.ngameupdate only, so ANY game update -- another creature moving, a session ping --
+--rebuilt every creature on the map. Now each creature keeps them across updates while
+--its validity key holds. The key records, when the lists were built:
+--  global   -- everything outside character records: initiative, documents, map objects,
+--              compendium tables, markup zones, tile rules, the current map.
+--  rev      -- this creature's own record revision (dmhub.CharacterRecordRevision).
+--  tokenSig -- token state read per update: squeezed, concealment, the auras touching it
+--              (with their casters), and the creatures it summoned.
+--  deps     -- every other creature read while building or computing an attribute: the
+--              engine records token reads (dmhub.BeginDependencyScope) and the accessors
+--              below record reads of another creature's modifiers or attributes. A dep is
+--              stale if its record changed or it was rebuilt since (its _tmp_ccSerial).
+--  wildcard -- a token query ran (all tokens, tokens at a loc, ...): the result can change
+--              when ANY character changes, so any character change rebuilds this creature.
+--Explicit Invalidate() still forces a rebuild. dev:creaturecacheverify checks every reuse
+--against a fresh rebuild and logs CREATURECACHE:: mismatches.
+---------------------------------------------------------------------------------------
+
+---@class CreatureCacheKey
+---@field charid string
+---@field rev integer
+---@field global string
+---@field charseq integer
+---@field wildcard boolean
+---@field tokenSig string
+---@field invis boolean
+---@field deps table<string, {rev: integer, serial: integer}>
+---@field hasFull boolean true once the full list (with auras) was built under this key
+
+---@class CreatureCacheFrame
+---@field creature creature|false false for a suspended (recording-off) frame
+---@field luaDeps table<table, boolean>
+
+local g_cc = {
+    enabled = true,
+    verify = false,
+    --bumped on every rebuild; each creature's _tmp_ccSerial is the value of its last one.
+    serial = 0,
+    --bumped by refreshTables-style events that no sequence number covers.
+    epoch = 0,
+    ---@type CreatureCacheFrame[]
+    stack = {},
+    --charid -> set of creatures whose key depends on that charid (weak keys).
+    ---@type table<string, table<table, boolean>>
+    dependents = {},
+    validating = {},
+    --creatures whose list is being built right now (nesting count).
+    building = {},
+    globalKeyUpdate = -1,
+    globalKey = "",
+    summonsUpdate = -1,
+    ---@type table<string, CharacterToken[]>
+    summons = {},
+    ---@type {name: string, fn: fun(token: CharacterToken): string}[]
+    signatures = {},
+    stats = { hits = 0, partial = 0, rebuilds = 0, uncacheable = 0, reasons = {}, verifyRuns = 0, verifyMismatches = 0 },
+}
+CreatureCache = g_cc
+
+local g_noSummons = {}
+
+local function CountReason(reason)
+    g_cc.stats.reasons[reason] = (g_cc.stats.reasons[reason] or 0) + 1
+end
+
+--Runs fn with recording switched off: reads made by cache bookkeeping belong to nobody.
+local function Suspended(fn, ...)
+    g_cc.stack[#g_cc.stack+1] = { creature = false, luaDeps = {} }
+    dmhub.BeginDependencyScope()
+    local ok, a, b = pcall(fn, ...)
+    dmhub.EndDependencyScope()
+    g_cc.stack[#g_cc.stack] = nil
+    if not ok then
+        error(a, 0)
+    end
+    return a, b
+end
+
+local function CharidOf(c)
+    local id = rawget(c, "_tmp_ccCharid")
+    if id == nil then
+        id = dmhub.LookupTokenId(c) or false
+        rawset(c, "_tmp_ccCharid", id)
+    end
+    return id or nil
+end
+
+--The creature table for a charid, on this map or elsewhere in the game.
+local function CreatureOf(charid)
+    local tok = dmhub.GetTokenById(charid) or dmhub.GetCharacterById(charid)
+    if tok == nil then
+        return nil
+    end
+    return tok.properties
+end
+
+local function SerialOf(c)
+    if c == nil then
+        return -1
+    end
+    return rawget(c, "_tmp_ccSerial") or 0
+end
+
+--The serial of c's last modifier rebuild: unchanged while its modifiers and attributes are.
+g_cc.SerialOf = SerialOf
+
+--Everything outside character records, sampled once per game update like every other
+--ngameupdate cache: a change that moves none of these and no update is as invisible as before.
+function g_cc.GlobalKey()
+    local u = dmhub.ngameupdate
+    if g_cc.globalKeyUpdate ~= u then
+        g_cc.globalKeyUpdate = u
+        g_cc.globalKey = string.format("%d|%d|%d|%d|%s|%s|%d", dmhub.nonCharacterUpdateSeq, dmhub.tablesUpdateId,
+            dmhub.markupZonesSeq, dmhub.terrainRulesSeq, tostring(game.currentMapId), tostring(game.currentFloorId), g_cc.epoch)
+    end
+    return g_cc.globalKey
+end
+
+--Tokens whose summonerid is charid, from one scan per game update. Replaces a scan over
+--every token inside each creature's build, which would make every creature wildcard.
+function g_cc.SummonsOf(charid)
+    local u = dmhub.ngameupdate
+    if g_cc.summonsUpdate ~= u then
+        local index = {}
+        Suspended(function()
+            for _,tok in ipairs(dmhub.GetTokens()) do
+                local summonerid = tok.valid and tok.summonerid or nil
+                if summonerid ~= nil and tok.properties ~= nil then
+                    local list = index[summonerid]
+                    if list == nil then
+                        list = {}
+                        index[summonerid] = list
+                    end
+                    list[#list+1] = tok
+                end
+            end
+        end)
+        g_cc.summons = index
+        g_cc.summonsUpdate = u
+    end
+    return g_cc.summons[charid] or g_noSummons
+end
+
+local function AuraKey(aura)
+    local inst = aura.auraInstance
+    if inst == nil then
+        return "?", nil
+    end
+    local casterid = inst:try_get("casterid")
+    --a child view (subaura) is rebuilt on demand and has no guid of its own: its identity
+    --changes every time, which only costs a rebuild.
+    local guid = rawget(inst, "guid") or tostring(inst)
+    return string.format("%s:%s", tostring(casterid), tostring(guid)), casterid
+end
+
+--Token state the build reads every update that is not (only) in this creature's record.
+--casters, if given, collects the charids of the casters of touching auras.
+function g_cc.TokenSignature(token, casters)
+    local auraParts = {}
+    local auras = token:GetAurasTouching()
+    if auras ~= nil then
+        for _,aura in ipairs(auras) do
+            local key, casterid = AuraKey(aura)
+            auraParts[#auraParts+1] = key
+            if casters ~= nil and casterid ~= nil then
+                casters[casterid] = true
+            end
+        end
+        table.sort(auraParts)
+    end
+
+    local summonParts = {}
+    for _,summon in ipairs(g_cc.SummonsOf(token.charid)) do
+        summonParts[#summonParts+1] = summon.charid
+    end
+
+    local extraParts = {}
+    for _,entry in ipairs(g_cc.signatures) do
+        local ok, sig = pcall(entry.fn, token)
+        extraParts[#extraParts+1] = ok and tostring(sig) or "?"
+    end
+
+    return string.format("%s%s|%s|%s|%s", token.squeezed and "s" or "-", token.hasConcealment and "c" or "-",
+        table.concat(auraParts, ","), table.concat(summonParts, ","), table.concat(extraParts, "|"))
+end
+
+--For a relationship found by scanning every token once per update (like g_cc.SummonsOf):
+--fn(token) returns a string naming the creatures related to this token (say, the
+--passengers it carries), and becomes part of every key, so a creature joining or
+--leaving the relationship rebuilds the creatures it relates to. Build the index with
+--g_cc.Untracked, or the scan makes whichever creature triggered it depend on every token.
+---@param name string
+---@param fn fun(token: CharacterToken): string
+function g_cc.RegisterSignature(name, fn)
+    for _,entry in ipairs(g_cc.signatures) do
+        if entry.name == name then
+            entry.fn = fn
+            return
+        end
+    end
+    g_cc.signatures[#g_cc.signatures+1] = { name = name, fn = fn }
+end
+
+--Runs fn(...) without recording what it reads into any creature's cache key.
+function g_cc.Untracked(fn, ...)
+    return Suspended(fn, ...)
+end
+
+--The build counts invisibility marked in the previous update toward "Concealed" (see
+--GetActiveModifiersExcludingAuras), so whether that mark is current is an input.
+function g_cc.InvisibleStamp(c)
+    return (rawget(c, "_tmp_concealedInvisibleUpdate") or -10) >= dmhub.ngameupdate - 1
+end
+
+--Another creature's computation is reading c's modifiers or attributes: it depends on c.
+function g_cc.NoteRead(c)
+    local top = g_cc.stack[#g_cc.stack]
+    if top ~= nil and top.creature ~= c then
+        top.luaDeps[c] = true
+    end
+end
+
+--Opens a recording scope for a computation of c. Returns nil when c's scope is already the
+--innermost one: its reads then go to that scope.
+---@return CreatureCacheFrame|nil
+function g_cc.BeginScope(c)
+    local top = g_cc.stack[#g_cc.stack]
+    if top ~= nil and top.creature == c then
+        return nil
+    end
+    ---@type CreatureCacheFrame
+    local frame = { creature = c, luaDeps = {} }
+    g_cc.stack[#g_cc.stack+1] = frame
+    dmhub.BeginDependencyScope()
+    return frame
+end
+
+local function AddDep(key, c, charid)
+    if charid == key.charid or key.deps[charid] ~= nil then
+        return
+    end
+    key.deps[charid] = { rev = dmhub.CharacterRecordRevision(charid), serial = SerialOf(CreatureOf(charid)) }
+    local set = g_cc.dependents[charid]
+    if set == nil then
+        set = setmetatable({}, {__mode = "k"})
+        g_cc.dependents[charid] = set
+    end
+    set[c] = true
+end
+
+--Closes frame and adds what it recorded to c's current key.
+function g_cc.EndScope(c, frame)
+    if frame == nil then
+        return
+    end
+    if g_cc.stack[#g_cc.stack] == frame then
+        g_cc.stack[#g_cc.stack] = nil
+    end
+    local rec = dmhub.EndDependencyScope()
+
+    local key = rawget(c, "_tmp_ccKey")
+    if key == nil then
+        return
+    end
+
+    if rec == nil then
+        --the engine discarded the scope: we do not know what was read.
+        rawset(c, "_tmp_ccKey", nil)
+        return
+    end
+
+    Suspended(function()
+        if rec.wildcard then
+            if g_cc.verify and not key.wildcard and rec.wildcardTrace ~= nil then
+                local tok = dmhub.GetTokenById(key.charid)
+                print(string.format("CREATURECACHE:: %s depends on every token (a token query ran):%s",
+                    tok ~= nil and tostring(tok.name) or key.charid, rec.wildcardTrace))
+            end
+            key.wildcard = true
+        end
+        for charid,_ in pairs(rec.tokens) do
+            AddDep(key, c, charid)
+        end
+        for other,_ in pairs(frame.luaDeps) do
+            local charid = CharidOf(other)
+            if charid ~= nil then
+                AddDep(key, c, charid)
+            else
+                --read a creature that is not a token we can watch: give up caching.
+                rawset(c, "_tmp_ccKey", nil)
+                return
+            end
+        end
+    end)
+end
+
+--c was rebuilt: give it a new serial, and make every creature that read it check again.
+local function NotifyRebuilt(c)
+    g_cc.serial = g_cc.serial + 1
+    rawset(c, "_tmp_ccSerial", g_cc.serial)
+    g_cc.stats.rebuilds = g_cc.stats.rebuilds + 1
+
+    local charid = CharidOf(c)
+    local set = nil
+    if charid ~= nil then
+        set = g_cc.dependents[charid]
+        g_cc.dependents[charid] = nil
+    end
+    if set ~= nil then
+        for d,_ in pairs(set) do
+            if d ~= c then
+                rawset(d, "_tmp_modifiersRefresh", nil)
+                rawset(d, "_tmp_modifiersRefreshExcludingAuras", nil)
+            end
+        end
+    end
+end
+
+--Starts a rebuild of c's modifiers excluding auras: snapshots the inputs into a new key
+--BEFORE anything is read, so a change during the build fails the next check.
+---@return CreatureCacheFrame|nil
+function g_cc.BeginBuild(c)
+    local key = nil
+    local charid = g_cc.enabled and CharidOf(c) or nil
+    if charid ~= nil then
+        key = Suspended(function()
+            local rev = dmhub.CharacterRecordRevision(charid)
+            local token = dmhub.GetTokenById(charid)
+            if rev < 0 or token == nil or not token.valid then
+                return nil
+            end
+            local casters = {}
+            ---@type CreatureCacheKey
+            local k = {
+                charid = charid,
+                rev = rev,
+                global = g_cc.GlobalKey(),
+                charseq = dmhub.characterUpdateSeq,
+                wildcard = false,
+                tokenSig = g_cc.TokenSignature(token, casters),
+                invis = g_cc.InvisibleStamp(c),
+                deps = {},
+                hasFull = false,
+            }
+            return k, casters
+        end)
+    end
+
+    if key == nil then
+        g_cc.stats.uncacheable = g_cc.stats.uncacheable + 1
+    end
+
+    rawset(c, "_tmp_ccKey", key)
+    rawset(c, "_tmp_modifiersRefresh", nil)
+    rawset(c, "_tmp_attr", nil)
+    rawset(c, "_tmp_calculatedAttributes", nil)
+    g_cc.building[c] = (g_cc.building[c] or 0) + 1
+    return g_cc.BeginScope(c)
+end
+
+local function EndBuilding(c)
+    local n = (g_cc.building[c] or 1) - 1
+    g_cc.building[c] = n > 0 and n or nil
+end
+
+--Ends a rebuild started by BeginBuild (ok = false if it errored).
+function g_cc.EndBuild(c, frame, ok)
+    EndBuilding(c)
+    g_cc.EndScope(c, frame)
+    local key = rawget(c, "_tmp_ccKey")
+    if key ~= nil then
+        if not ok then
+            rawset(c, "_tmp_ccKey", nil)
+        else
+            --the auras touching us come from their casters' modifiers.
+            Suspended(function()
+                local token = dmhub.GetTokenById(key.charid)
+                local casters = {}
+                if token ~= nil then
+                    g_cc.TokenSignature(token, casters)
+                end
+                for casterid,_ in pairs(casters) do
+                    AddDep(key, c, casterid)
+                end
+            end)
+        end
+    end
+    NotifyRebuilt(c)
+end
+
+--Starts a build of the full list (the aura part) in GetActiveModifiers.
+function g_cc.BeginFull(c)
+    g_cc.building[c] = (g_cc.building[c] or 0) + 1
+    return g_cc.BeginScope(c)
+end
+
+--Ends a build of the full list started by BeginFull.
+function g_cc.EndFull(c, frame, ok)
+    EndBuilding(c)
+    g_cc.EndScope(c, frame)
+    local key = rawget(c, "_tmp_ccKey")
+    if key ~= nil then
+        if ok then
+            key.hasFull = true
+        else
+            rawset(c, "_tmp_ccKey", nil)
+        end
+    end
+    NotifyRebuilt(c)
+end
+
+--Runs an attribute computation of c inside a recording scope, so what it reads joins c's key.
+function g_cc.Scoped(c, fn, ...)
+    if rawget(c, "_tmp_ccKey") == nil then
+        return fn(...)
+    end
+    local frame = g_cc.BeginScope(c)
+    if frame == nil then
+        return fn(...)
+    end
+    local ok, result = pcall(fn, ...)
+    g_cc.EndScope(c, frame)
+    if not ok then
+        error(result, 0)
+    end
+    return result
+end
+
+---@return integer state, string|nil reason
+local function RevalidateInner(c, key)
+    if key.global ~= g_cc.GlobalKey() then
+        return 0, "global"
+    end
+    if key.wildcard and key.charseq ~= dmhub.characterUpdateSeq then
+        return 0, "wildcard"
+    end
+    if dmhub.CharacterRecordRevision(key.charid) ~= key.rev then
+        return 0, "own"
+    end
+    local token = dmhub.GetTokenById(key.charid)
+    if token == nil or not token.valid then
+        return 0, "token"
+    end
+    if g_cc.TokenSignature(token) ~= key.tokenSig then
+        return 0, "tokensig"
+    end
+    if g_cc.InvisibleStamp(c) ~= key.invis then
+        return 0, "invisible"
+    end
+    for charid, dep in pairs(key.deps) do
+        if dmhub.CharacterRecordRevision(charid) ~= dep.rev then
+            return 0, "deprev"
+        end
+        local other = CreatureOf(charid)
+        if other ~= nil and other ~= c and not g_cc.validating[other] then
+            --bring the dependency up to date before comparing what we saw of it.
+            other:GetActiveModifiers()
+        end
+        if SerialOf(other) ~= dep.serial then
+            return 0, "depserial"
+        end
+    end
+
+    local u = dmhub.ngameupdate
+    rawset(c, "_tmp_ccRevalidated", u)
+    rawset(c, "_tmp_modifiersRefreshExcludingAuras", u)
+    if key.hasFull and rawget(c, "_tmp_modifiers") ~= nil then
+        rawset(c, "_tmp_modifiersRefresh", u)
+        local attr = rawget(c, "_tmp_attr")
+        if attr ~= nil then
+            attr.nupdate = u
+        end
+        return 2, nil
+    end
+    return 1, nil
+end
+
+local g_ccVerify --forward declaration: defined below.
+
+--Checks whether c's cached lists are still valid for this game update. Returns 2 if the
+--full list (and attribute caches) can be reused, 1 if only the list excluding auras can,
+--0 if c must be rebuilt. A valid result restamps the caches with dmhub.ngameupdate.
+function g_cc.Revalidate(c)
+    if not g_cc.enabled then
+        return 0
+    end
+    if g_cc.building[c] ~= nil or g_cc.validating[c] then
+        --asked again while its own list is being built or checked: no reuse.
+        return 0
+    end
+    local key = rawget(c, "_tmp_ccKey")
+    if key == nil or rawget(c, "_tmp_modifiers_excluding_auras") == nil then
+        CountReason("nokey")
+        return 0
+    end
+
+    g_cc.validating[c] = true
+    local ok, state, reason = pcall(Suspended, RevalidateInner, c, key)
+    g_cc.validating[c] = nil
+
+    if not ok then
+        dmhub.CloudError(string.format("CreatureCache: revalidate failed: %s", tostring(state)))
+        state, reason = 0, "error"
+    end
+
+    if state == 0 then
+        CountReason(reason or "?")
+        rawset(c, "_tmp_ccKey", nil)
+        rawset(c, "_tmp_modifiersRefresh", nil)
+        rawset(c, "_tmp_modifiersRefreshExcludingAuras", nil)
+        return 0
+    end
+
+    if state == 2 then
+        g_cc.stats.hits = g_cc.stats.hits + 1
+    else
+        g_cc.stats.partial = g_cc.stats.partial + 1
+    end
+
+    if g_cc.verify and #g_cc.stack == 0 then
+        return g_ccVerify(c, state)
+    end
+    return state
+end
+
+--Fields a still-valid creature keeps through the per-update Invalidate in RefreshToken.
+local g_ccKeep = {"_tmp_modifiers", "_tmp_modifiers_excluding_auras", "_tmp_attr", "_tmp_calculatedAttributes",
+    "_tmp_creaturesize", "_tmp_ccKey", "_tmp_ccSerial", "_tmp_modifiersRefresh", "_tmp_modifiersRefreshExcludingAuras"}
+
+--Invalidate() everything except the still-valid modifier and attribute caches.
+function g_cc.SoftInvalidate(c)
+    local saved = {}
+    for i,k in ipairs(g_ccKeep) do
+        saved[i] = rawget(c, k)
+    end
+    c:Invalidate()
+    for i,k in ipairs(g_ccKeep) do
+        rawset(c, k, saved[i])
+    end
+    rawset(c, "_tmp_ccRevalidated", nil)
+end
+
+function g_cc.Reset()
+    g_cc.epoch = g_cc.epoch + 1
+    g_cc.dependents = {}
+    g_cc.globalKeyUpdate = -1
+    g_cc.summonsUpdate = -1
+end
+
+function g_cc.ResetStats()
+    g_cc.stats = { hits = 0, partial = 0, rebuilds = 0, uncacheable = 0, reasons = {}, verifyRuns = 0, verifyMismatches = 0 }
+end
+
+--Verification ------------------------------------------------------------------------
+
+local function Field(t, k)
+    local ok, v = pcall(function() return rawget(t, k) or t[k] end)
+    return ok and v or nil
+end
+
+local function ModSig(list)
+    local parts = {}
+    for i,entry in ipairs(list or {}) do
+        local m = entry.mod
+        --name + behavior, not guid: some features generate their modifiers (with a new
+        --guid) on every build. What the modifiers do is checked through the attributes.
+        local id = m ~= nil and string.format("%s#%s", tostring(Field(m, "name")), tostring(Field(m, "behavior"))) or "?"
+        local effect = entry.ongoingEffect ~= nil and Field(entry.ongoingEffect, "ongoingEffectid") or ""
+        parts[i] = string.format("%s/%s/%s", tostring(id), tostring(entry.stacks or ""), tostring(effect))
+    end
+    return parts
+end
+
+local function DiffSig(a, b)
+    if #a ~= #b then
+        return string.format("count %d -> %d", #a, #b)
+    end
+    for i = 1, #a do
+        if a[i] ~= b[i] then
+            return string.format("#%d %s -> %s", i, a[i], b[i])
+        end
+    end
+    return nil
+end
+
+--Rebuilds c from scratch and compares with what the cache would have returned. Leaves the
+--fresh state in place, so verification never changes behaviour, only reports.
+g_ccVerify = function(c, state)
+    g_cc.stats.verifyRuns = g_cc.stats.verifyRuns + 1
+
+    local key = rawget(c, "_tmp_ccKey")
+    local oldExcluding = ModSig(rawget(c, "_tmp_modifiers_excluding_auras"))
+    local oldFull = state == 2 and ModSig(rawget(c, "_tmp_modifiers")) or nil
+    local oldAttr = {}
+    local attr = state == 2 and rawget(c, "_tmp_attr") or nil
+    local args = attr ~= nil and rawget(attr, "__args") or nil
+    if args ~= nil and attr ~= nil then
+        for k,v in pairs(args) do
+            oldAttr[k] = { name = v[1], base = v[2], value = attr[k] }
+        end
+    end
+
+    rawset(c, "_tmp_ccKey", nil)
+    c:Invalidate()
+    local okRebuild, err = pcall(function()
+        c:GetActiveModifiersExcludingAuras()
+        if state == 2 then
+            c:GetActiveModifiers()
+        end
+    end)
+    if not okRebuild then
+        print("CREATURECACHE:: verify rebuild failed:", err)
+        return state
+    end
+
+    local problems = {}
+    local d = DiffSig(oldExcluding, ModSig(rawget(c, "_tmp_modifiers_excluding_auras")))
+    if d ~= nil then
+        problems[#problems+1] = "excluding auras: " .. d
+    end
+    if oldFull ~= nil then
+        d = DiffSig(oldFull, ModSig(rawget(c, "_tmp_modifiers")))
+        if d ~= nil then
+            problems[#problems+1] = "full: " .. d
+        end
+        for k,entry in pairs(oldAttr) do
+            local okAttr, fresh = pcall(c.CalculateAttribute, c, entry.name, entry.base)
+            if okAttr and fresh ~= entry.value and not (type(fresh) == "table" and type(entry.value) == "table") then
+                problems[#problems+1] = string.format("attribute %s: %s -> %s", k, tostring(entry.value), tostring(fresh))
+            end
+        end
+    end
+
+    if #problems > 0 then
+        g_cc.stats.verifyMismatches = g_cc.stats.verifyMismatches + 1
+        local deps = {}
+        for charid,_ in pairs(key ~= nil and key.deps or {}) do
+            deps[#deps+1] = charid
+        end
+        local tok = dmhub.LookupToken(c)
+        print(string.format("CREATURECACHE:: MISMATCH %s (%s): %s || wildcard=%s deps=%s",
+            tok ~= nil and tostring(tok.name) or "?", tostring(key ~= nil and key.charid or "?"),
+            table.concat(problems, "; "), tostring(key ~= nil and key.wildcard), table.concat(deps, ",")))
+    end
+
+    return rawget(c, "_tmp_modifiersRefresh") == dmhub.ngameupdate and 2 or 1
+end
+
+local g_ccSetting
+g_ccSetting = setting{
+    id = "dev:creaturecache",
+    description = "Keep each creature's modifiers across game updates until something they depend on changes",
+    default = true,
+    storage = "preference",
+    onchange = function()
+        g_cc.enabled = g_ccSetting:Get() ~= false
+        g_cc.Reset()
+    end,
+}
+
+local g_ccVerifySetting
+g_ccVerifySetting = setting{
+    id = "dev:creaturecacheverify",
+    description = "Check every reused creature modifier cache against a fresh rebuild (CREATURECACHE:: lines)",
+    default = false,
+    storage = "preference",
+    onchange = function()
+        g_cc.verify = g_ccVerifySetting:Get() == true
+        dmhub.dependencyWildcardTrace = g_cc.verify
+    end,
+}
+
+pcall(function()
+    g_cc.enabled = g_ccSetting:Get() ~= false
+    g_cc.verify = g_ccVerifySetting:Get() == true
+    dmhub.dependencyWildcardTrace = g_cc.verify
+end)
+
+dmhub.RegisterEventHandler("refreshTables", function()
+    g_cc.Reset()
+end)
+
+Commands.RegisterMacro{
+    name = "creaturecache",
+    summary = "per-creature modifier cache",
+    doc = "Usage: /creaturecache on | off | verify on | verify off | stats | reset\nKeeps each creature's modifiers across game updates until something they depend on changes. verify checks every reuse against a fresh rebuild and prints CREATURECACHE:: mismatches.",
+    command = function(str)
+        local arg = string.lower(string.gsub(str or "", "^%s*(.-)%s*$", "%1"))
+        if arg == "on" or arg == "off" then
+            g_ccSetting:Set(arg == "on")
+        elseif arg == "verify on" or arg == "verify off" then
+            g_ccVerifySetting:Set(arg == "verify on")
+        elseif arg == "reset" then
+            g_cc.ResetStats()
+        end
+        local s = g_cc.stats
+        local reasons = {}
+        for k,v in pairs(s.reasons) do
+            reasons[#reasons+1] = string.format("%s=%d", k, v)
+        end
+        table.sort(reasons)
+        print(string.format("CREATURECACHE:: %s, verify %s; hits=%d partial=%d rebuilds=%d uncacheable=%d verify runs=%d mismatches=%d; rebuild reasons: %s",
+            g_cc.enabled and "on" or "off", g_cc.verify and "on" or "off", s.hits, s.partial, s.rebuilds, s.uncacheable,
+            s.verifyRuns, s.verifyMismatches, table.concat(reasons, " ")))
+    end,
+}
+
 function creature:Invalidate()
+	self._tmp_ccKey = nil
 	self._tmp_modifiers = nil
 	self._tmp_modifiersRefresh = nil
 	self._tmp_modifiersRefreshExcludingAuras = nil
@@ -5028,9 +5741,23 @@ function creature:RefreshToken(token)
     local _ = g_profileRefreshToken.Begin
 	self:ValidateAndRepair()
 
-	if self:try_get("_tmp_modifiersRefresh") ~= dmhub.ngameupdate then
-        --only invalidate if we haven't already refreshed this update.
-        self:Invalidate()
+	local refreshed = self:try_get("_tmp_modifiersRefresh") == dmhub.ngameupdate
+	if refreshed and rawget(self, "_tmp_ccRevalidated") == dmhub.ngameupdate then
+        --reused (not rebuilt) earlier this update. The engine polls every creature's
+        --auras BEFORE it rebuilds the aura index, so that check saw the old auras:
+        --check again now that the index is current.
+        refreshed = false
+        rawset(self, "_tmp_modifiersRefresh", nil)
+        rawset(self, "_tmp_modifiersRefreshExcludingAuras", nil)
+	end
+	if not refreshed then
+        --only invalidate if we haven't already refreshed this update. Modifier lists whose
+        --inputs did not change survive (see CreatureCache above).
+        if g_cc.Revalidate(self) > 0 then
+            g_cc.SoftInvalidate(self)
+        else
+            self:Invalidate()
+        end
 	end
 
 	local builtinEffects = {}
@@ -5288,17 +6015,7 @@ function creature:GetCalculatedCreatureSizeAsNumber()
 end
 
 
---gets a list of CharacterModifier objects which are currently active on this creature.
-function creature:GetActiveModifiers()
-	if self:try_get("_tmp_modifiersRefresh") == dmhub.ngameupdate then
-		return self._tmp_modifiers
-	end
-
-	--protect against recursion.
-	if rawget(self, "_tmp_calculatingActiveModifiers") then
-		return self._tmp_calculatingActiveModifiers
-	end
-
+local function BuildActiveModifiers(self)
 	self._tmp_appearance = nil
 	self._tmp_creaturesize = self:GetBaseCreatureSize()
  
@@ -5336,11 +6053,36 @@ function creature:GetActiveModifiers()
 	return result
 end
 
-function creature:GetActiveModifiersExcludingAuras(calculatingModifiers)
-	if self:try_get("_tmp_modifiersRefreshExcludingAuras") == dmhub.ngameupdate then
-		return self._tmp_modifiers_excluding_auras
+--gets a list of CharacterModifier objects which are currently active on this creature.
+function creature:GetActiveModifiers()
+	if self:try_get("_tmp_modifiersRefresh") == dmhub.ngameupdate then
+		g_cc.NoteRead(self)
+		return self._tmp_modifiers
 	end
 
+	--protect against recursion.
+	if rawget(self, "_tmp_calculatingActiveModifiers") then
+		return self._tmp_calculatingActiveModifiers
+	end
+
+	g_cc.NoteRead(self)
+	if g_cc.Revalidate(self) == 2 then
+		return self._tmp_modifiers
+	end
+
+	local frame = g_cc.BeginFull(self)
+	rawset(self, "_tmp_attr", nil)
+	rawset(self, "_tmp_calculatedAttributes", nil)
+	local ok, result = pcall(BuildActiveModifiers, self)
+	g_cc.EndFull(self, frame, ok)
+	if not ok then
+		self._tmp_calculatingActiveModifiers = nil
+		error(result, 0)
+	end
+	return result
+end
+
+local function BuildActiveModifiersExcludingAuras(self, calculatingModifiers)
 	--refresh concealment before modifiers are filtered: filterConditions using the
 	--"Concealed" symbol read _tmp_concealed, and it must reflect the token's current
 	--location rather than the previous game update's value, or concealment-gated
@@ -5379,6 +6121,26 @@ function creature:GetActiveModifiersExcludingAuras(calculatingModifiers)
 	self._tmp_modifiersRefreshExcludingAuras = dmhub.ngameupdate
 
 	return self._tmp_modifiers_excluding_auras
+end
+
+function creature:GetActiveModifiersExcludingAuras(calculatingModifiers)
+	if self:try_get("_tmp_modifiersRefreshExcludingAuras") == dmhub.ngameupdate then
+		g_cc.NoteRead(self)
+		return rawget(self, "_tmp_modifiers_excluding_auras")
+	end
+
+	g_cc.NoteRead(self)
+	if g_cc.Revalidate(self) > 0 then
+		return rawget(self, "_tmp_modifiers_excluding_auras")
+	end
+
+	local frame = g_cc.BeginBuild(self)
+	local ok, result = pcall(BuildActiveModifiersExcludingAuras, self, calculatingModifiers)
+	g_cc.EndBuild(self, frame, ok)
+	if not ok then
+		error(result, 0)
+	end
+	return result
 end
 
 function creature:FillModifiersFromAuras(result)
@@ -5792,7 +6554,9 @@ function creature:FillTemporalActiveModifiers(result)
     --mid-calculation (e.g., beastheart <-> companion via modcompanion/modsummoner).
     if tok ~= nil and tok.valid and tok.charid ~= nil and CharacterModifier.FillSummonerModifiers ~= nil then
         local myCharId = tok.charid
-        for _,summonTok in ipairs(dmhub.GetTokens()) do
+        --g_cc.SummonsOf scans the tokens once per update; scanning them here would make
+        --every creature's cached modifiers depend on every token.
+        for _,summonTok in ipairs(g_cc.SummonsOf(myCharId)) do
             if summonTok.valid and summonTok.summonerid == myCharId and summonTok.properties ~= nil then
                 local summonCreature = summonTok.properties
                 for _,summonMod in ipairs(summonCreature:GetActiveModifiers()) do
@@ -6012,12 +6776,16 @@ function creature:FillTemporalActiveModifiers(result)
 end
 
 
+local ComputeAttribute --forward declaration: defined below.
+
 --given the name of an attribute and its base value, calculates all modifiers and provides a final value.
 function creature:CalculateAttribute(attributeName, baseValue, mods)
 
 	local cache = nil
 	local key = nil
-	
+
+	g_cc.NoteRead(self)
+
 	if mods == nil then
         if not rawget(self, "_tmp_calculatingActiveModifiers") then
             --if we aren't already calculating modifiers, then we can get the modifiers early, here.
@@ -6035,8 +6803,16 @@ function creature:CalculateAttribute(attributeName, baseValue, mods)
 			cache = {nupdate = dmhub.ngameupdate}
 			self._tmp_attr = cache
 		end
+
+		--the value is cached as long as the modifiers are, so what computing it reads
+		--joins this creature's cache key.
+		return g_cc.Scoped(self, ComputeAttribute, self, attributeName, baseValue, mods, cache, key)
 	end
 
+	return ComputeAttribute(self, attributeName, baseValue, mods, cache, key)
+end
+
+ComputeAttribute = function(self, attributeName, baseValue, mods, cache, key)
 	if baseValue == nil then
 		baseValue = 0
 	end
@@ -6085,6 +6861,15 @@ function creature:CalculateAttribute(attributeName, baseValue, mods)
 		--cache and key are assigned together in the mods == nil branch above.
 		---@cast key -nil
 		cache[key] = result
+		if g_cc.verify then
+			--what verification needs to recompute this entry.
+			local args = rawget(cache, "__args")
+			if args == nil then
+				args = {}
+				cache.__args = args
+			end
+			args[key] = { attributeName, baseValue }
+		end
 	end
 
 	return result
@@ -6754,7 +7539,6 @@ function creature:OnMove(path)
         local otherTokenAltitude = otherToken.floorAltitude
 
         local adj = otherToken.properties:AdjacentLocations()
-        print("LOCS:: OTHER TOKEN ADJACENT", #adj)
 
         local moveNextTo = false
 
@@ -6836,7 +7620,6 @@ function creature:OnMove(path)
     for i,step in ipairs(steps) do
         local adjacentTokens = {}
         local locs = ourToken:LocsOccupyingWhenAt(step)
-        print("LOCS::", #locs, "checking tokens:", #allTokens)
 
         for j,otherToken in ipairs(allTokens) do
             local grabbedBy = otherToken.properties._tmp_grabbedby == ourCharid
@@ -6875,9 +7658,7 @@ function creature:OnMove(path)
                     end
                 end
 
-                print("LOCS:: TRYING FOR", otherToken.charid, ourToken.charid, otherToken.properties:CanUseTriggeredAbilities())
                 if otherToken.charid ~= ourToken.charid and otherToken.properties:CanUseTriggeredAbilities() then
-                    print("LOCS:: CHECK ADJACENCY", otherToken.charid)
                     local adjacent = false
                     local adj = adjacentLocationMap[j]
                     for _,adjLoc in ipairs(adj) do
@@ -6903,7 +7684,6 @@ function creature:OnMove(path)
                     end
 
                     if adjacent then
-                    print("LOCS:: IS ADJACENT", otherToken.charid)
                         adjacentTokens[otherToken.charid] = otherToken
                     end
                 end
@@ -8463,7 +9243,7 @@ creature.helpSymbols = {
 	countnearbycreatures = {
 		name = "Count Nearby Creatures",
 		type = "function",
-		desc = "A function which is shown a distance in squares and tells us the number of live creatures within that distance of this creature. This can be given additional parameters after the distance to filter the criteria. 'ally' and 'enemy' work, as do monster groups, the names of features and ongoing effects, condition names such as \"Prone\", and states such as \"Winded\". Put a ~ in front of a criteria to invert it. Creatures can also be provided as parameters and those specific creatures will be excluded from the match. Additional parameters can also include a number, which acts as a maximum altitude difference in tiles between this creature and the nearby creature.",
+		desc = "A function which is shown a distance in squares and tells us the number of live creatures within that distance of this creature, counting height too (a creature far above or below is not nearby). This can be given additional parameters after the distance to filter the criteria. 'ally' and 'enemy' work, as do monster groups, the names of features and ongoing effects, condition names such as \"Prone\", and states such as \"Winded\". Put a ~ in front of a criteria to invert it. Creatures can also be provided as parameters and those specific creatures will be excluded from the match. Additional parameters can also include a number, which acts as a maximum altitude difference in tiles between this creature and the nearby creature.",
 		examples = {"OBJ.Count Nearby Creatures(5)", "OBJ.Count Nearby Creatures(1, \"Enemy\", \"Goblin\") > 2", "OBJ.Count Nearby Creatures(1, 1, \"Enemy\")", "OBJ.Count Nearby Creatures(2, \"Enemy\", \"Winded\")", "OBJ.Count Nearby Creatures(5, \"Judged\")"},
 	},
 

@@ -40,8 +40,22 @@ function GameHud.ToggleInventory(self, token)
 	self.inventoryDialog.data.toggleOpen(token)
 end
 
+--Counts whole-hud refresh passes; inRefreshPass is true during one. Panel refresh handlers
+--only read game state, so lookups they repeat across many panels can cache per pass
+--(InitiativeQueue.GetTokensForInitiativeId does).
+GameHud.refreshPass = 0
+GameHud.inRefreshPass = false
+
 function GameHud.Refresh(self)
-	self.dialog.sheet:FireEventTree('refresh')
+	GameHud.refreshPass = GameHud.refreshPass + 1
+	GameHud.inRefreshPass = true
+	local ok, err = pcall(function()
+		self.dialog.sheet:FireEventTree('refresh')
+	end)
+	GameHud.inRefreshPass = false
+	if not ok then
+		error(err, 0)
+	end
 
 	--panels popped out into native OS windows are unparented from the hud
 	--tree, so the broadcast above never reaches them; extend it to each

@@ -133,6 +133,20 @@ Tip.notices = Tip.notices or {}
 local m_noticeText = nil
 local m_noticeSince = 0
 
+--Which ability a trigger prompt is for: its guid when it carries one, else
+--its ability name, else the card's text.
+--- @param trigger ActiveTrigger
+--- @return string
+local function AbilityKeyOfTrigger(trigger)
+    if trigger.abilityGuid then
+        return "guid:" .. tostring(trigger.abilityGuid)
+    end
+    if trigger.abilityName then
+        return "name:" .. tostring(trigger.abilityName)
+    end
+    return "text:" .. tostring(trigger:GetText())
+end
+
 --The banner buttons (see the notice channel in GameHud.lua). Only the player
 --who answers the waited-on hero's prompts gets any: "Select <hero>" while the
 --hero is not selected, and Dismiss when the wait is on a prompt they can
@@ -177,11 +191,29 @@ local function WaitingNoticeControls(doc)
                 undoable = false,
                 description = "Trigger",
                 execute = function()
-                    local live = token.properties:try_get("availableTriggers", {})[triggerid]
-                    if live ~= nil and not live.dismissed and not live.triggered then
-                        live.triggered = false
-                        live.dismissed = true
-                        token.properties:DispatchAvailableTrigger(live)
+                    local triggers = token.properties:try_get("availableTriggers", {})
+                    local live = triggers[triggerid]
+                    if live == nil or live.dismissed or live.triggered then
+                        return
+                    end
+                    live.triggered = false
+                    live.dismissed = true
+                    token.properties:DispatchAvailableTrigger(live)
+
+                    --one event can stack several prompts of the same ability on a
+                    --hero (4x The Breath of Dawn Remembered); the AI waits on each
+                    --in turn, so Dismiss clears them all, not just the one named
+                    --in the banner (ERRA5PCR). Hidden members of a merged prompt
+                    --are left to their front card.
+                    local key = AbilityKeyOfTrigger(live)
+                    for id,other in pairs(triggers) do
+                        if id ~= triggerid and not other.dismissed and not other.triggered
+                            and not other.mergedInto and other:CanDismiss()
+                            and AbilityKeyOfTrigger(other) == key then
+                            other.triggered = false
+                            other.dismissed = true
+                            token.properties:DispatchAvailableTrigger(other)
+                        end
                     end
                 end,
             }

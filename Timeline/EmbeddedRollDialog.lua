@@ -4125,6 +4125,82 @@ function GameHud.CreateEmbeddedRollDialog()
         return mappingContent
     end
 
+    --A modifier badge's hover text. Built when the tooltip opens rather than on
+    --every badge rebuild (prepare runs several times per roll), which also keeps
+    --it current: the checked state and spoiler reveal are read at hover time.
+    local function ModifierTooltipText(mod, ischecked)
+        local rawName = mod.modifier.name or ""
+        local tooltip = mod.modifier:GetSummaryText()
+        if creature ~= nil then
+            --nil only for a nil input, and GetSummaryText returns a string.
+            tooltip = StringInterpolateGoblinScript(tooltip, creature) --[[@as string]]
+        end
+        tooltip = CharacterModifier.AppendSourceText(tooltip, mod.context)
+        for i, justification in ipairs(mod.hint.justification) do
+            tooltip = string.format("%s\n<color=%s>%s", tooltip, cond(ischecked, '#aaffaa', '#ffaaaa'),
+                justification)
+        end
+        if PowerRollSpoilers.HasSpoiler(rawName) then
+            local spoilerRevealed = PowerRollSpoilers.IsRevealed(PowerRollSpoilers.Key(rawName), PowerRollSpoilers.DefaultRevealed(rawName))
+            if dmhub.isDM or spoilerRevealed then
+                tooltip = PowerRollSpoilers.Format(tooltip, spoilerRevealed)
+            else
+                --Show players only the redacted name: passing the full
+                --summary through would let its embedded color tags
+                --defeat the redaction bar.
+                tooltip = PowerRollSpoilers.Format(rawName, false)
+            end
+        end
+        return tooltip
+    end
+
+    --Badge rebuild skipping. prepare fires several times per roll (ShowDialog,
+    --CalculateRollText, once per target in RecalculateMultiTargets), usually with
+    --nothing changed. Each pass records a flat key of everything the badges are
+    --built from -- including each mod entry's identity, so the handlers the
+    --badges captured always belong to the entries being shown -- and when the
+    --key matches the last build and those panels are still alive, the rebuild
+    --is skipped.
+    local function SameBadgeKey(a, b)
+        if a == nil or b == nil or #a ~= #b then
+            return false
+        end
+        for i = 1, #a do
+            if a[i] ~= b[i] then
+                return false
+            end
+        end
+        return true
+    end
+
+    local function BadgePanelsValid(panels)
+        if panels == nil then
+            return false
+        end
+        for _, panel in ipairs(panels) do
+            if not panel.valid then
+                return false
+            end
+        end
+        return true
+    end
+
+    --Content dropdowns (damage type mapping, text choices) show choices the key
+    --does not track, so a badge that has one always rebuilds.
+    local function HasChoiceContent(mod, ischecked)
+        if not ischecked then
+            return false
+        end
+        local addTextChoices = mod.modifier:try_get("addTextChoices")
+        return mod.modifier:try_get("damageTypeMappings") ~= nil
+            or (addTextChoices ~= nil and #addTextChoices > 1)
+    end
+
+    local m_badgeKey = nil
+    local m_badgePanels = nil
+    local m_afterBadgeKey = nil
+    local m_afterBadgePanels = nil
+
     local modifiersPanel = gui.Panel {
         classes = { "hideWhenMinimized", "modifiers-panel" },
         width = "100%", --take up no space so the multi-target panel can be centered.
@@ -4165,9 +4241,11 @@ function GameHud.CreateEmbeddedRollDialog()
             end,
 
             prepare = function(element, options)
-                modifierChecks = {}
-                modifierDropdowns = {}
                 if creature == nil or options.modifiers == nil then
+                    modifierChecks = {}
+                    modifierDropdowns = {}
+                    m_badgeKey = nil
+                    m_badgePanels = nil
                     element.children = {}
                     element:SetClass('collapsed-anim', true)
                     return
@@ -4175,9 +4253,11 @@ function GameHud.CreateEmbeddedRollDialog()
 
                 element:SetClass('collapsed-anim', false)
 
-                local addedCritical = false
-
-                local children = {}
+                --First pass: decide what each badge shows and record it in the
+                --key; the panels themselves are made by the builders, which only
+                --run when the key differs from the last build.
+                local key = {}
+                local builders = {}
 
                 for modifierIndex, mod in ipairs(options.modifiers) do
                     if mod.isAfterRoll then
@@ -4188,7 +4268,7 @@ function GameHud.CreateEmbeddedRollDialog()
                         if mod.failsRequirement then
                             goto continue
                         end
-                        
+
                         mod.context = mod.context or {}
                         local ischecked = false
                         local force = mod.modifier:try_get("force", false)
@@ -4217,51 +4297,11 @@ function GameHud.CreateEmbeddedRollDialog()
                             goto continue
                         end
 
-                        local check --gui.Check that will come out of this.
-
                         local rawName = mod.modifier.name or ""
                         local spoiler = PowerRollSpoilers.HasSpoiler(rawName)
                         local spoilerRevealed = false
-                        local spoilerEye = nil
                         if spoiler then
-                            local spoilerKey = PowerRollSpoilers.Key(rawName)
-                            local defaultRevealed = PowerRollSpoilers.DefaultRevealed(rawName)
-                            spoilerRevealed = PowerRollSpoilers.IsRevealed(spoilerKey, defaultRevealed)
-                            if dmhub.isDM then
-                                local ownerCreature = cond(mod.modFromTarget, targetCreature, creature)
-                                local tokenid = nil
-                                if ownerCreature ~= nil then
-                                    tokenid = dmhub.LookupTokenId(ownerCreature)
-                                end
-                                spoilerEye = PowerRollSpoilers.CreateEyeButton{
-                                    key = spoilerKey,
-                                    name = rawName,
-                                    description = mod.modifier:try_get("description", ""),
-                                    tokenid = tokenid,
-                                    defaultRevealed = defaultRevealed,
-                                }
-                            end
-                        end
-
-                        local tooltip = mod.modifier:GetSummaryText()
-                        if creature ~= nil then
-                            --nil only for a nil input, and GetSummaryText returns a string.
-                            tooltip = StringInterpolateGoblinScript(tooltip, creature) --[[@as string]]
-                        end
-                        tooltip = CharacterModifier.AppendSourceText(tooltip, mod.context)
-                        for i, justification in ipairs(mod.hint.justification) do
-                            tooltip = string.format("%s\n<color=%s>%s", tooltip, cond(ischecked, '#aaffaa', '#ffaaaa'),
-                                justification)
-                        end
-                        if spoiler then
-                            if dmhub.isDM or spoilerRevealed then
-                                tooltip = PowerRollSpoilers.Format(tooltip, spoilerRevealed)
-                            else
-                                --Show players only the redacted name: passing the full
-                                --summary through would let its embedded color tags
-                                --defeat the redaction bar.
-                                tooltip = PowerRollSpoilers.Format(rawName, false)
-                            end
+                            spoilerRevealed = PowerRollSpoilers.IsRevealed(PowerRollSpoilers.Key(rawName), PowerRollSpoilers.DefaultRevealed(rawName))
                         end
 
                         local text = rawName
@@ -4296,172 +4336,232 @@ function GameHud.CreateEmbeddedRollDialog()
                             end
                         end
 
-                        local classes = nil
-
-                        if force then
-                            classes = { "collapsed-anim" }
+                        local multicost = mod.modifier:try_get("resourceCostType", "none") == "multicost" and ischecked
+                        if multicost then
+                            mod.context.charges = mod.context.charges or 1
                         end
 
-                        local mappingContent = BuildModifierChoiceContent(mod, ischecked)
+                        key[#key + 1] = mod
+                        key[#key + 1] = ischecked
+                        key[#key + 1] = force
+                        key[#key + 1] = strictChip
+                        key[#key + 1] = spoilerRevealed
+                        key[#key + 1] = text
+                        key[#key + 1] = multicost and mod.context.charges or false
+                        if HasChoiceContent(mod, ischecked) then
+                            key[#key + 1] = {} --never equal: always rebuild
+                        end
 
-                        check = ModifierPanel{
-                            classes = classes,
-                            text = text,
-                            value = ischecked,
-                            readOnly = strictChip,
-                            hmargin = 2,
-                            mod = mod,
-                            eye = spoilerEye,
-                            content = mappingContent,
-                            data = {
+                        builders[#builders + 1] = function(children)
+                            local spoilerEye = nil
+                            if spoiler and dmhub.isDM then
+                                local ownerCreature = cond(mod.modFromTarget, targetCreature, creature)
+                                local tokenid = nil
+                                if ownerCreature ~= nil then
+                                    tokenid = dmhub.LookupTokenId(ownerCreature)
+                                end
+                                spoilerEye = PowerRollSpoilers.CreateEyeButton{
+                                    key = PowerRollSpoilers.Key(rawName),
+                                    name = rawName,
+                                    description = mod.modifier:try_get("description", ""),
+                                    tokenid = tokenid,
+                                    defaultRevealed = PowerRollSpoilers.DefaultRevealed(rawName),
+                                }
+                            end
+
+                            local classes = nil
+
+                            if force then
+                                classes = { "collapsed-anim" }
+                            end
+
+                            local mappingContent = BuildModifierChoiceContent(mod, ischecked)
+
+                            local check = ModifierPanel{
+                                classes = classes,
+                                text = text,
+                                value = ischecked,
+                                readOnly = strictChip,
+                                hmargin = 2,
                                 mod = mod,
-                                modifierIndex = modifierIndex,
-                            },
-                            change = function(element)
-                                mod.override = element.value
+                                eye = spoilerEye,
+                                content = mappingContent,
+                                data = {
+                                    mod = mod,
+                                    modifierIndex = modifierIndex,
+                                },
+                                change = function(element)
+                                    mod.override = element.value
 
-                                -- A named after-roll group is a single choice,
-                                -- not a set of independent checkboxes. Enabling
-                                -- one member clears every peer before the roll
-                                -- is recalculated.
-                                local group = mod.modifier:try_get("afterRollExclusiveGroup", "")
-                                if element.value and group ~= "" then
-                                    for _, peer in ipairs(m_options.modifiers or {}) do
-                                        if peer ~= mod and peer.isAfterRoll and peer.modifier ~= nil
-                                                and peer.modifier:try_get("afterRollExclusiveGroup", "") == group then
-                                            peer.override = false
+                                    -- A named after-roll group is a single choice,
+                                    -- not a set of independent checkboxes. Enabling
+                                    -- one member clears every peer before the roll
+                                    -- is recalculated.
+                                    local group = mod.modifier:try_get("afterRollExclusiveGroup", "")
+                                    if element.value and group ~= "" then
+                                        for _, peer in ipairs(m_options.modifiers or {}) do
+                                            if peer ~= mod and peer.isAfterRoll and peer.modifier ~= nil
+                                                    and peer.modifier:try_get("afterRollExclusiveGroup", "") == group then
+                                                peer.override = false
+                                            end
                                         end
                                     end
-                                end
 
-                                resultPanel:FireEventTree('prepare', m_options)
-                                CalculateRollText()
-                                RecalculateMultiTargets()
-                            end,
-                            linger = gui.Tooltip {
-                                text = tooltip,
-                                maxWidth = 600,
-                            },
-                        }
-
-                        children[#children + 1] = check
-                        modifierChecks[#modifierChecks + 1] = check
-
-                        if mod.modifier:try_get("resourceCostType", "none") == "multicost" and ischecked then
-                            mod.context.charges = mod.context.charges or 1
-                            local panel = gui.Panel {
-                                flow = "horizontal",
-                                width = 160,
-                                height = 18,
-                                gui.Label {
-                                    text = "Charges:",
-                                    fontSize = 16,
-                                    width = 70,
-                                    height = "auto",
-                                    valign = "center",
-                                },
-                                gui.Input {
-                                    text = tostring(mod.context.charges),
-                                    characterLimit = 2,
-                                    width = 24,
-                                    height = 14,
-                                    fontSize = 14,
-                                    selectAllOnFocus = true,
-                                    change = function(element)
-                                        local num = tonumber(element.text)
-                                        if num == nil then
-                                            element.text = tostring(mod.context.charges)
-                                            return
-                                        end
-
-                                        --At least 1, and no more than the roller can pay for.
-                                        num = math.max(1, math.floor(num))
-                                        local maxCharges = nil
-                                        if creature ~= nil then
-                                            maxCharges = mod.modifier:MaxAffordableCharges(creature, options.expectedCostOfCurrentCast)
-                                        end
-                                        if maxCharges ~= nil and maxCharges >= 1 then
-                                            num = math.min(num, maxCharges)
-                                        end
-                                        element.text = tostring(num)
-
-                                        mod.context.charges = num
-
-                                        resultPanel:FireEventTree('prepare', m_options)
-                                        CalculateRollText()
-                                        RecalculateMultiTargets()
-                                    end,
-                                }
+                                    resultPanel:FireEventTree('prepare', m_options)
+                                    CalculateRollText()
+                                    RecalculateMultiTargets()
+                                end,
+                                linger = function(element)
+                                    gui.Tooltip {
+                                        text = ModifierTooltipText(mod, element.value == true),
+                                        maxWidth = 600,
+                                    } (element)
+                                end,
                             }
 
-                            children[#children + 1] = panel
+                            children[#children + 1] = check
+                            modifierChecks[#modifierChecks + 1] = check
+
+                            if multicost then
+                                local panel = gui.Panel {
+                                    flow = "horizontal",
+                                    width = 160,
+                                    height = 18,
+                                    gui.Label {
+                                        text = "Charges:",
+                                        fontSize = 16,
+                                        width = 70,
+                                        height = "auto",
+                                        valign = "center",
+                                    },
+                                    gui.Input {
+                                        text = tostring(mod.context.charges),
+                                        characterLimit = 2,
+                                        width = 24,
+                                        height = 14,
+                                        fontSize = 14,
+                                        selectAllOnFocus = true,
+                                        change = function(element)
+                                            local num = tonumber(element.text)
+                                            if num == nil then
+                                                element.text = tostring(mod.context.charges)
+                                                return
+                                            end
+
+                                            --At least 1, and no more than the roller can pay for.
+                                            num = math.max(1, math.floor(num))
+                                            local maxCharges = nil
+                                            if creature ~= nil then
+                                                maxCharges = mod.modifier:MaxAffordableCharges(creature, options.expectedCostOfCurrentCast)
+                                            end
+                                            if maxCharges ~= nil and maxCharges >= 1 then
+                                                num = math.min(num, maxCharges)
+                                            end
+                                            element.text = tostring(num)
+
+                                            mod.context.charges = num
+
+                                            resultPanel:FireEventTree('prepare', m_options)
+                                            CalculateRollText()
+                                            RecalculateMultiTargets()
+                                        end,
+                                    }
+                                }
+
+                                children[#children + 1] = panel
+                            end
                         end
                     elseif mod.check then
                         --this is a checkbox that is passed in that we will pass the results of straight out.
+                        key[#key + 1] = mod
+                        key[#key + 1] = mod.value
+                        key[#key + 1] = mod.text
 
-                        local check = gui.Check {
-                            text = mod.text,
-                            value = mod.value,
-                            data = {
-                                mod = mod,
-                            },
-                            events = {
-                                change = function(element)
-                                    element.data.mod.change(element.value)
-                                end,
-                                linger = function(element)
-                                    if mod.tooltip ~= nil then
-                                        gui.Tooltip {
-                                            text = element.data.mod.tooltip,
-                                            maxWidth = 600,
-                                        } (element)
-                                    end
-                                end,
-                            },
-                        }
+                        builders[#builders + 1] = function(children)
+                            local check = gui.Check {
+                                text = mod.text,
+                                value = mod.value,
+                                data = {
+                                    mod = mod,
+                                },
+                                events = {
+                                    change = function(element)
+                                        element.data.mod.change(element.value)
+                                    end,
+                                    linger = function(element)
+                                        if mod.tooltip ~= nil then
+                                            gui.Tooltip {
+                                                text = element.data.mod.tooltip,
+                                                maxWidth = 600,
+                                            } (element)
+                                        end
+                                    end,
+                                },
+                            }
 
-                        children[#children + 1] = check
+                            children[#children + 1] = check
+                        end
                     elseif mod.modifierOptions then
-                        local dropdown = gui.Dropdown {
-                            width = 300,
-                            height = 26,
-                            valign = "center",
-                            fontSize = 18,
-                            idChosen = mod.hint.result,
-                            options = mod.modifierOptions,
-                            data = {
-                                mod = mod,
-                            },
-                            change = function(element)
-                                CalculateRollText()
-                            end,
-                        }
+                        key[#key + 1] = mod
+                        key[#key + 1] = mod.hint.result
+                        key[#key + 1] = mod.modifierOptions
+                        key[#key + 1] = mod.text
+                        key[#key + 1] = mod.tooltip
 
-                        local panel = gui.Panel {
-                            flow = "horizontal",
-                            height = 36,
-                            width = "80%",
-                            gui.Label {
-                                text = mod.text .. ":",
-                                classes = "explanation",
-                                halign = "left",
+                        builders[#builders + 1] = function(children)
+                            local dropdown = gui.Dropdown {
+                                width = 300,
+                                height = 26,
                                 valign = "center",
-                                width = 120,
-                            },
-                            linger = gui.Tooltip {
-                                text = mod.tooltip,
-                                maxWidth = 600,
-                            },
-                            dropdown,
-                        }
+                                fontSize = 18,
+                                idChosen = mod.hint.result,
+                                options = mod.modifierOptions,
+                                data = {
+                                    mod = mod,
+                                },
+                                change = function(element)
+                                    CalculateRollText()
+                                end,
+                            }
 
-                        modifierDropdowns[#modifierDropdowns + 1] = dropdown
-                        children[#children + 1] = panel
+                            local panel = gui.Panel {
+                                flow = "horizontal",
+                                height = 36,
+                                width = "80%",
+                                gui.Label {
+                                    text = mod.text .. ":",
+                                    classes = "explanation",
+                                    halign = "left",
+                                    valign = "center",
+                                    width = 120,
+                                },
+                                linger = gui.Tooltip {
+                                    text = mod.tooltip,
+                                    maxWidth = 600,
+                                },
+                                dropdown,
+                            }
+
+                            modifierDropdowns[#modifierDropdowns + 1] = dropdown
+                            children[#children + 1] = panel
+                        end
                     end
-                    
+
                     ::continue::
                 end
 
+                if SameBadgeKey(key, m_badgeKey) and BadgePanelsValid(m_badgePanels) then
+                    return
+                end
+
+                modifierChecks = {}
+                modifierDropdowns = {}
+                local children = {}
+                for _, build in ipairs(builders) do
+                    build(children)
+                end
+                m_badgeKey = key
+                m_badgePanels = children
                 element.children = children
             end,
         },
@@ -4486,12 +4586,17 @@ function GameHud.CreateEmbeddedRollDialog()
 
             prepare = function(element, options)
                 if creature == nil or options.modifiers == nil then
+                    m_afterBadgeKey = nil
+                    m_afterBadgePanels = nil
                     element.children = {}
                     element:SetClass('collapsed-anim', true)
                     return
                 end
 
-                local children = {}
+                --Same two passes as the pre-roll badges: key first, panels only
+                --when the key changed (see SameBadgeKey).
+                local key = {}
+                local builders = {}
 
                 for modifierIndex, mod in ipairs(options.modifiers) do
                     if not mod.isAfterRoll then
@@ -4516,46 +4621,8 @@ function GameHud.CreateEmbeddedRollDialog()
                         local rawName = mod.modifier.name or ""
                         local spoiler = PowerRollSpoilers.HasSpoiler(rawName)
                         local spoilerRevealed = false
-                        local spoilerEye = nil
                         if spoiler then
-                            local spoilerKey = PowerRollSpoilers.Key(rawName)
-                            local defaultRevealed = PowerRollSpoilers.DefaultRevealed(rawName)
-                            spoilerRevealed = PowerRollSpoilers.IsRevealed(spoilerKey, defaultRevealed)
-                            if dmhub.isDM then
-                                local ownerCreature = cond(mod.modFromTarget, targetCreature, creature)
-                                local tokenid = nil
-                                if ownerCreature ~= nil then
-                                    tokenid = dmhub.LookupTokenId(ownerCreature)
-                                end
-                                spoilerEye = PowerRollSpoilers.CreateEyeButton{
-                                    key = spoilerKey,
-                                    name = rawName,
-                                    description = mod.modifier:try_get("description", ""),
-                                    tokenid = tokenid,
-                                    defaultRevealed = defaultRevealed,
-                                }
-                            end
-                        end
-
-                        local tooltip = mod.modifier:GetSummaryText()
-                        if creature ~= nil then
-                            --nil only for a nil input, and GetSummaryText returns a string.
-                            tooltip = StringInterpolateGoblinScript(tooltip, creature) --[[@as string]]
-                        end
-                        tooltip = CharacterModifier.AppendSourceText(tooltip, mod.context)
-                        for i, justification in ipairs(mod.hint.justification) do
-                            tooltip = string.format("%s\n<color=%s>%s", tooltip, cond(ischecked, '#aaffaa', '#ffaaaa'),
-                                justification)
-                        end
-                        if spoiler then
-                            if dmhub.isDM or spoilerRevealed then
-                                tooltip = PowerRollSpoilers.Format(tooltip, spoilerRevealed)
-                            else
-                                --Show players only the redacted name: passing the full
-                                --summary through would let its embedded color tags
-                                --defeat the redaction bar.
-                                tooltip = PowerRollSpoilers.Format(rawName, false)
-                            end
+                            spoilerRevealed = PowerRollSpoilers.IsRevealed(PowerRollSpoilers.Key(rawName), PowerRollSpoilers.DefaultRevealed(rawName))
                         end
 
                         local text = rawName
@@ -4589,60 +4656,100 @@ function GameHud.CreateEmbeddedRollDialog()
                             end
                         end
 
-                        local classes = nil
-
-                        if force then
-                            classes = { "collapsed-anim" }
+                        key[#key + 1] = mod
+                        key[#key + 1] = ischecked
+                        key[#key + 1] = force
+                        key[#key + 1] = spoilerRevealed
+                        key[#key + 1] = text
+                        if HasChoiceContent(mod, ischecked) then
+                            key[#key + 1] = {} --never equal: always rebuild
                         end
 
-                        local check = ModifierPanel{
-                            classes = classes,
-                            text = text,
-                            value = ischecked,
-                            hmargin = 2,
-                            mod = mod,
-                            eye = spoilerEye,
-                            content = BuildModifierChoiceContent(mod, ischecked),
-                            data = {
-                                mod = mod,
-                                modifierIndex = modifierIndex,
-                            },
-                            change = function(element)
-                                mod.override = element.value
+                        builders[#builders + 1] = function(children)
+                            local spoilerEye = nil
+                            if spoiler and dmhub.isDM then
+                                local ownerCreature = cond(mod.modFromTarget, targetCreature, creature)
+                                local tokenid = nil
+                                if ownerCreature ~= nil then
+                                    tokenid = dmhub.LookupTokenId(ownerCreature)
+                                end
+                                spoilerEye = PowerRollSpoilers.CreateEyeButton{
+                                    key = PowerRollSpoilers.Key(rawName),
+                                    name = rawName,
+                                    description = mod.modifier:try_get("description", ""),
+                                    tokenid = tokenid,
+                                    defaultRevealed = PowerRollSpoilers.DefaultRevealed(rawName),
+                                }
+                            end
 
-                                -- A named after-roll group is a single choice: enabling
-                                -- one member clears every peer.
-                                local group = mod.modifier:try_get("afterRollExclusiveGroup", "")
-                                if element.value and group ~= "" then
-                                    for _, peer in ipairs(m_options.modifiers or {}) do
-                                        if peer ~= mod and peer.isAfterRoll and peer.modifier ~= nil
-                                                and peer.modifier:try_get("afterRollExclusiveGroup", "") == group then
-                                            peer.override = false
+                            local classes = nil
+
+                            if force then
+                                classes = { "collapsed-anim" }
+                            end
+
+                            local check = ModifierPanel{
+                                classes = classes,
+                                text = text,
+                                value = ischecked,
+                                hmargin = 2,
+                                mod = mod,
+                                eye = spoilerEye,
+                                content = BuildModifierChoiceContent(mod, ischecked),
+                                data = {
+                                    mod = mod,
+                                    modifierIndex = modifierIndex,
+                                },
+                                change = function(element)
+                                    mod.override = element.value
+
+                                    -- A named after-roll group is a single choice: enabling
+                                    -- one member clears every peer.
+                                    local group = mod.modifier:try_get("afterRollExclusiveGroup", "")
+                                    if element.value and group ~= "" then
+                                        for _, peer in ipairs(m_options.modifiers or {}) do
+                                            if peer ~= mod and peer.isAfterRoll and peer.modifier ~= nil
+                                                    and peer.modifier:try_get("afterRollExclusiveGroup", "") == group then
+                                                peer.override = false
+                                            end
                                         end
                                     end
-                                end
 
-                                resultPanel:FireEventTree('prepare', m_options)
-                                CalculateRollText()
-                                RecalculateMultiTargets()
-                            end,
-                            linger = gui.Tooltip {
-                                text = tooltip,
-                                maxWidth = 600,
-                            },
-                        }
+                                    resultPanel:FireEventTree('prepare', m_options)
+                                    CalculateRollText()
+                                    RecalculateMultiTargets()
+                                end,
+                                linger = function(element)
+                                    gui.Tooltip {
+                                        text = ModifierTooltipText(mod, element.value == true),
+                                        maxWidth = 600,
+                                    } (element)
+                                end,
+                            }
 
-                        children[#children + 1] = check
+                            children[#children + 1] = check
+                        end
                     end
 
                     ::continue::
                 end
 
-                if #children > 0 then
+                if #builders > 0 then
                     element:SetClass('collapsed-anim', false)
                 else
                     element:SetClass('collapsed-anim', true)
                 end
+
+                if SameBadgeKey(key, m_afterBadgeKey) and BadgePanelsValid(m_afterBadgePanels) then
+                    return
+                end
+
+                local children = {}
+                for _, build in ipairs(builders) do
+                    build(children)
+                end
+                m_afterBadgeKey = key
+                m_afterBadgePanels = children
                 element.children = children
             end,
         },

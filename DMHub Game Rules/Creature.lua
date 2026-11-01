@@ -10322,12 +10322,16 @@ function creature:RemoveOngoingEffectsOnTrigger(eventName, info)
         return false
     end
 
+	--ids of effects the event must not end, e.g. the ones a strike applied to its own target.
+	local keepOngoingEffects = info ~= nil and info.keepOngoingEffects or nil
+
 	if self:has_key("ongoingEffects") then
 		local ongoingEffectsTable = GetTableCached(CharacterOngoingEffect.tableName)
 		local removeIndexes = nil
 		for i,effectInstance in ipairs(self.ongoingEffects) do
 			local ongoingEffect = ongoingEffectsTable[effectInstance.ongoingEffectid]
-			if ongoingEffect ~= nil and ongoingEffect.endTrigger == eventName then
+			if ongoingEffect ~= nil and ongoingEffect.endTrigger == eventName
+				and not (keepOngoingEffects ~= nil and keepOngoingEffects[effectInstance.id]) then
 				if removeIndexes == nil then
 					removeIndexes = {}
 				end

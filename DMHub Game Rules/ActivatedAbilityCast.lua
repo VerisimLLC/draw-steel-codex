@@ -21,6 +21,7 @@ local mod = dmhub.GetModLoading()
 --- @field damageTable table
 --- @field tokenToTier table
 --- @field inflictedConditions table
+--- @field appliedOngoingEffects table<string, boolean> ids of the ongoing effect instances this cast applied or refreshed.
 --- @field retargets table
 --- @field forcedMovementDamageDealt number
 --- @field forcedMovementPaths table
@@ -955,6 +956,16 @@ function ActivatedAbilityCast:RecordInflictedCondition(conditionid, charid)
     local list = inflictedConditions[conditionid] or {}
     list[#list+1] = charid
     inflictedConditions[conditionid] = list
+end
+
+--- Remember an ongoing effect instance this cast applied or refreshed.
+--- @param effectInstance CharacterOngoingEffectInstance
+function ActivatedAbilityCast:RecordAppliedOngoingEffect(effectInstance)
+    --older effects have no id of their own: they all share "deprecated", so skip them.
+    if effectInstance.id == "deprecated" then
+        return
+    end
+    self:get_or_add("appliedOngoingEffects", {})[effectInstance.id] = true
 end
 
 function ActivatedAbilityCast:CountDamage(targetToken, damageDealt, damageRaw, isRolledDamage, patrondamage)

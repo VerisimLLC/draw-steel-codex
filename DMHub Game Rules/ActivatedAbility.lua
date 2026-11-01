@@ -4090,6 +4090,9 @@ function ActivatedAbility.CastCoroutine(self, casterToken, targets, options)
                         outcome = tier,
                         roll = castInfo:try_get("total", 0),
                         attacker = GenerateSymbols(attackerProperties),
+                        --effects this strike applied stay on. Without this, a strike that
+                        --gives "the next attack against the target has an edge" ended it at once.
+                        keepOngoingEffects = castInfo:try_get("appliedOngoingEffects"),
                     })
                 end
 			end
@@ -5836,6 +5839,10 @@ function ActivatedAbilityApplyOngoingEffectBehavior:Cast(ability, casterToken, t
                             sourceDescription = sourceDescription,
 						})
 						if newEffect ~= nil then
+							if options.symbols.cast ~= nil then
+								options.symbols.cast:RecordAppliedOngoingEffect(newEffect)
+							end
+
 							if ongoingDC ~= nil then
 								newEffect.ongoingDC = ongoingDC
 							end
@@ -5999,12 +6006,15 @@ function ActivatedAbilityApplyOngoingEffectBehavior:CastFromFormula(ability, cas
                     target.token:ModifyProperties{
                         description = "Applied Ongoing Effect",
                         execute = function()
-                            targetCreature:ApplyOngoingEffect(effectId, applyDuration, casterInfo, {
+                            local newEffect = targetCreature:ApplyOngoingEffect(effectId, applyDuration, casterInfo, {
                                 guid = dmhub.GenerateGuid(),
                                 untilEndOfTurn = applyUntilEot,
                                 stacks = stacks,
                                 sourceDescription = sourceDescription,
                             })
+                            if newEffect ~= nil and options.symbols.cast ~= nil then
+                                options.symbols.cast:RecordAppliedOngoingEffect(newEffect)
+                            end
                         end
                     }
                 end

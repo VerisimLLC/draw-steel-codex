@@ -733,7 +733,7 @@ local g_conditionHiddenId = "31daf7f6-f77c-4f73-8eab-43e2d0f123c0"
 local g_settingHiddenInvisible = setting{
     id = "strict:hiddeninvisible",
     description = "Hidden Creatures are Invisible",
-    help = "While a creature the director controls has the Hidden condition, players do not see it at all: no token, HUD, auras or targeting. It reappears the moment it stops being Hidden, and acting reveals it as the ability begins. Heroes always remain visible.",
+    help = "While a creature the director controls has the Hidden condition, players do not see it at all: no token, HUD, auras or targeting. It reappears the moment it stops being Hidden, and acting reveals it as the ability begins. It cannot stay Hidden adjacent to a hero: a hero moving next to it finds it. Heroes always remain visible.",
     storage = "game",
     editor = "check",
     default = false,
@@ -866,10 +866,62 @@ end
 --client that is not the Director or its controller. Also undoes the old networked
 --version of this setting (invisibleToPlayers) on tokens it left invisible.
 local g_legacyHiddenClearPending = {}
+local g_adjacentRevealPending = {}
+
+--True while a hero (a creature a player or party owns that is not this token's friend)
+--is adjacent to this token. A creature cannot stay Hidden next to one. Ownership, not
+--playerControlled: that reads false for heroes outside the default party.
+--- @param token CharacterToken
+--- @return boolean
+local function AdjacentToHero(token)
+    for _, nearby in ipairs(token:GetNearbyTokens(1) or {}) do
+        local ownerId = nearby.ownerId
+        if ownerId ~= nil and ownerId ~= "" and (not nearby.isObject) and (not nearby:IsFriend(token)) then
+            return true
+        end
+    end
+    return false
+end
 
 local function RefreshHiddenFromPlayers(c, token)
-    c._tmp_hiddenFromPlayers = g_settingHiddenInvisible:Get() == true and (not token.playerControlled)
+    local hiddenFromPlayers = g_settingHiddenInvisible:Get() == true and (not token.playerControlled)
         and (not token.isObject) and c:HasCondition(g_conditionHiddenId) ~= false
+
+    --Next to a hero: every client shows it at once, and the host strips Hidden for real
+    --(6JVBTDAJ: an invisible adjacent slink gave a hero's ranged strike a bane).
+    if hiddenFromPlayers and AdjacentToHero(token) then
+        hiddenFromPlayers = false
+        if IsDMOrPlayerHost() and not g_adjacentRevealPending[token.charid] then
+            local charid = token.charid
+            g_adjacentRevealPending[charid] = true
+            --deferred out of the refresh path to avoid re-entrant uploads.
+            dmhub.Schedule(0.05, function()
+                g_adjacentRevealPending[charid] = nil
+                if mod.unloaded then
+                    return
+                end
+                local tok = dmhub.GetTokenById(charid)
+                if tok == nil or (not tok.valid) or tok.properties == nil
+                    or (not tok.properties:IsHidden()) or (not AdjacentToHero(tok)) then
+                    return
+                end
+                tok:ModifyProperties{
+                    description = "Found by an adjacent hero",
+                    undoable = false,
+                    execute = function()
+                        --being found is not an ambush: no Ambush banner for this reveal.
+                        local entry = tok.properties:try_get("inflictedConditions", {})[g_conditionHiddenId]
+                        if entry ~= nil then
+                            entry.hiddenBeforeCombat = nil
+                        end
+                        tok.properties:LoseHidden()
+                    end,
+                }
+            end)
+        end
+    end
+
+    c._tmp_hiddenFromPlayers = hiddenFromPlayers
 
     if c:try_get("hiddenInvisibilityApplied", false) and IsDMOrPlayerHost()
         and not g_legacyHiddenClearPending[token.charid] then

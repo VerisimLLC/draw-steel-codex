@@ -579,8 +579,6 @@ CharacterModifier.TypeInfo.power = {
 
 		local lookupFunction = creature:LookupSymbol(powerRollSymbols)
 
-        print("POWER ROLL:: OPTIONS:", options)
-
         return {
             result = GoblinScriptTrue(ExecuteGoblinScript(activationCondition, lookupFunction, 0, "Power Roll Activation Condition")),
             justification = {},

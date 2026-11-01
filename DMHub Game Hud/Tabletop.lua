@@ -2953,6 +2953,13 @@ function Tabletop.LayerRect()
     return {x = 0, y = 0, w = w, h = h}
 end
 
+--- The documents layer's size, without building a rect table (for callers
+--- that run every tick).
+--- @return number w, number h
+function Tabletop.LayerSize()
+    return LayerSize()
+end
+
 --- Whether minimized buttons can be drawn here (the tabletop is up).
 --- @return boolean
 function Tabletop.CanMinimizeExternal()
@@ -4648,12 +4655,22 @@ end
 --active custom interface's forcedMap (GameHud.RegisterCustomInterface) is
 --held the way a Director's maximized, shared map is held on a player's
 --table, but for a Director too, and with no share or token needed.
+--The one map the active custom interface forces, or nil. (A named pcall
+--target rather than a closure: SyncLocalForced asks every tick.)
+local function CustomInterfaceForcedMap()
+    return GameHud.CustomInterfaceForcedMap()
+end
+g_sharing.LocalForcedMapId = function()
+    local ok, mapid = pcall(CustomInterfaceForcedMap)
+    if ok then
+        return mapid
+    end
+    return nil
+end
+
 g_sharing.LocalForcedMaps = function()
     local result = {}
-    local mapid = nil
-    pcall(function()
-        mapid = GameHud.CustomInterfaceForcedMap()
-    end)
+    local mapid = g_sharing.LocalForcedMapId()
     if mapid ~= nil then
         result[mapid] = true
     end
@@ -4896,14 +4913,13 @@ end
 
 --Every frame: re-applies when what the interface forces has changed.
 g_sharing.SyncLocalForced = function()
-    local ids = {}
-    for mapid, _ in pairs(g_sharing.LocalForcedMaps()) do
-        if MapExists(mapid) then
-            ids[#ids+1] = mapid
-        end
+    --An interface forces at most one map, so the signature is just its id
+    --(no per-tick tables, sort or concat).
+    local mapid = g_sharing.LocalForcedMapId()
+    local signature = ""
+    if mapid ~= nil and MapExists(mapid) then
+        signature = mapid
     end
-    table.sort(ids)
-    local signature = table.concat(ids, ",")
     if signature ~= g_sharing.localForcedSignature then
         g_sharing.localForcedSignature = signature
         RecheckForced()

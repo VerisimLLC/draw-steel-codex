@@ -294,6 +294,12 @@ local g_barFit = {
     appliedMapName = nil,
     appliedMenuHpad = nil,
     appliedMenuMargin = nil,
+
+    --Inputs of the last pass that changed nothing (see BarFitApply's early
+    --out). nil = the next pass must run in full.
+    settledBarWidth = nil,
+    settledMeasure = nil,
+    settledSearchWidth = nil,
 }
 
 --The collapse ladder, most expendable first: the map info, then the search
@@ -460,6 +466,19 @@ function BarFitApply()
         return
     end
 
+    --Early out: the last pass changed nothing, and the bar width, its flow and
+    --the search box's natural width are where they were then, so this pass
+    --would decide exactly the same. (The thinks call this 5 times a second;
+    --building the step lists below every time was steady Lua garbage.)
+    local measureBefore = BarFitMeasure(bar)
+    local searchNatural = SearchBoxWidth()
+    if barWidth == g_barFit.settledBarWidth and measureBefore == g_barFit.settledMeasure
+            and searchNatural == g_barFit.settledSearchWidth then
+        return
+    end
+    local depthBefore = g_barFit.depth
+    local withheldBefore = g_barFit.withheld
+
     local items = BarFitMenuItems(bar)
     local steps = BarFitSteps(items)
     BarFitLatchNaturals(steps)
@@ -581,6 +600,16 @@ function BarFitApply()
     if depth ~= g_barFit.depth then
         g_barFit.depth = depth
         BarFitApplyLadder(steps, depth)
+    end
+
+    --Settled only if this pass moved nothing; otherwise the layout it caused
+    --is measured by the next pass.
+    if g_barFit.depth == depthBefore and g_barFit.withheld == withheldBefore then
+        g_barFit.settledBarWidth = barWidth
+        g_barFit.settledMeasure = measureBefore
+        g_barFit.settledSearchWidth = searchNatural
+    else
+        g_barFit.settledBarWidth = nil
     end
 end
 
@@ -888,6 +917,12 @@ local function WindowMenuItems(menuName)
     return result
 end
 
+--pcall target for the custom-interface check in calculateVisibility, which every
+--title-bar item runs 5 times a second (a named function, so no closure per call).
+local function TitlebarItemSuppressed(name)
+    return GameHud.CustomInterfaceSuppressesTitlebarItem(name) == true
+end
+
 local function CreateCodexMenuItem(args)
     local iconPanel
 
@@ -1063,8 +1098,8 @@ local function CreateCodexMenuItem(args)
     --charge whenever no custom interface is active.
     local baseCalculateVisibility = resultPanel.calculateVisibility
     resultPanel.calculateVisibility = function(element)
-        local suppressed = false
-        pcall(function() suppressed = GameHud.CustomInterfaceSuppressesTitlebarItem(name) == true end)
+        local ok, suppressed = pcall(TitlebarItemSuppressed, name)
+        suppressed = ok and suppressed
         if baseCalculateVisibility ~= nil then
             baseCalculateVisibility(element)
             if suppressed then

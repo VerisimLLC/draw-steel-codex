@@ -1467,15 +1467,21 @@ DrawSteelMinion.SquadHud = function(floorid, squad)
                 m_fillLast = m_fillLast + (percent - m_fillLast) * 0.1
             end
 
-            local fillWidth = string.format("%.02f%%", m_fillLast * 100)
-            if fillWidth ~= m_fillWidthSet then
-                m_fillWidthSet = fillWidth
-                m_fill.selfStyle.width = fillWidth
+            --Compare in hundredths of a percent and only format the string on a change:
+            --this runs every frame, and the eased fill is usually at rest.
+            local fillKey = math.floor(m_fillLast * 10000 + 0.5)
+            if fillKey ~= m_fillWidthSet then
+                m_fillWidthSet = fillKey
+                m_fill.selfStyle.width = string.format("%.02f%%", fillKey / 100)
             end
 
             local labelText = nil
             if squad.damage_taken >= squad.maximum_health then
                 labelText = "DEAD"
+            elseif dmhub.isDM or viewerControlsSquad() then
+                --Checked first: this runs every frame, and the Monster Info lookup
+                --below allocates while its answer only matters to other viewers.
+                labelText = string.format("%d/%d", round(squad.maximum_health - squad.damage_taken), squad.maximum_health)
             else
                 local display = dmhub.GetSettingValue("enemystambardisplay") or "none"
                 --Monster Info: a squad whose stamina the players know exactly
@@ -1485,7 +1491,7 @@ DrawSteelMinion.SquadHud = function(floorid, squad)
                     and MonsterKnowledge.PlayersKnowStaminaExactly(squad.tokens[1].properties, squad.tokens[1]) then
                     display = "val"
                 end
-                if dmhub.isDM or viewerControlsSquad() or display == "val" then
+                if display == "val" then
                     labelText = string.format("%d/%d", round(squad.maximum_health - squad.damage_taken), squad.maximum_health)
                 elseif display == "pct" then
                     labelText = string.format("%d%%", 100 * round((squad.maximum_health - squad.damage_taken) / squad.maximum_health))

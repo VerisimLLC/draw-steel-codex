@@ -681,6 +681,7 @@ function GameHud.CreateRollDialog(self)
     --- @field rollProperties nil|RollProperties
     --- @field targetCreature nil|creature
     --- @field noCancelOnceThrown nil|boolean once the dice are thrown, no close (X) or ESC back to the options.
+    --- @field noCancel nil|boolean no Cancel, close (X) or ESC at all: the roll must be made.
     --- @field aiRoll nil|boolean the running Monster AI rolls and accepts this roll itself.
 
     --- @type DSRollDialogOptions
@@ -3288,12 +3289,14 @@ function GameHud.CreateRollDialog(self)
                 m_options = options
                 m_forceDiceTower = options.dicetower or false
 
-                --this dialog is reused: a fresh roll can always be backed out
-                --of until its dice are thrown (see submit).
-                resultPanel.data.cancelWithdrawn = false
-                cancelButton:SetClass("collapsed", false)
+                --this dialog is reused: a fresh roll can be backed out of
+                --until its dice are thrown (see submit), unless it was shown
+                --with noCancel.
+                local noCancel = options.noCancel == true
+                resultPanel.data.cancelWithdrawn = noCancel
+                cancelButton:SetClass("collapsed", noCancel)
                 if closeButton ~= nil and closeButton.valid then
-                    closeButton:SetClass("collapsed", false)
+                    closeButton:SetClass("collapsed", noCancel)
                 end
 
                 targetHints = options.targetHints

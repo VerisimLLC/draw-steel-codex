@@ -107,7 +107,9 @@ end
 --- for a Director.
 --- A roll shown with `noCancelOnceThrown` (Encounter of the Week's montage
 --- tests) also withdraws it, for everyone, once its dice are thrown: the
---- dialog sets data.cancelWithdrawn on submit.
+--- dialog sets data.cancelWithdrawn on submit. A roll shown with `noCancel`
+--- (a monster's roll request to a player under "Strictly Enforce Rolls")
+--- has it set from the start.
 --- Deliberately NOT applied to dialog.data.Cancel() itself: system teardown
 --- paths -- restoreFromBackup, the request-rolls and roll-table cleanups --
 --- call that directly and must always work.

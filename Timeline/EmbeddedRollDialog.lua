@@ -6548,6 +6548,12 @@ function GameHud.CreateEmbeddedRollDialog()
                     end
                 end
 
+                --Set before the delay below, so the card's close (X) is not
+                --shown while a roll that cannot be cancelled waits to appear.
+                if options.noCancel == true then
+                    resultPanel.data.cancelWithdrawn = true
+                end
+
                 if options.delay ~= nil then
                     local a, b = coroutine.running()
                     local delay = options.delay
@@ -6744,9 +6750,10 @@ function GameHud.CreateEmbeddedRollDialog()
 
                 m_options = options
 
-                --this dialog is reused: a fresh roll can always be backed out
-                --of until its dice are thrown (see submit).
-                resultPanel.data.cancelWithdrawn = false
+                --this dialog is reused: a fresh roll can be backed out of
+                --until its dice are thrown (see submit), unless it was shown
+                --with noCancel.
+                resultPanel.data.cancelWithdrawn = options.noCancel == true
 
                 targetHints = options.targetHints
 

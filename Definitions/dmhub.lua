@@ -132,6 +132,11 @@
 --- @field ngameupdate integer (read-only) A sequential integer that is unique to the game being updated from the cloud. Anytime this value changes we have new data from the cloud and the game is in a different state.
 --- @field gameContentUpdateSeq number (read-only) Like ngameupdate, but not advanced by session pings (the periodic /usersToSessions writes every connected client makes). It changes whenever game data that matters to play changes -- characters, initiative, shared documents, map objects -- so poll it to tell whether anything has happened since a value was last seen.
 --- @field checkpointContentSeq number (read-only) Like gameContentUpdateSeq, but only advanced by game updates that touch what a combat checkpoint captures: characters, map objects, initiative, and the documents registered with RegisterDocumentForCheckpointBackups. Background writes to other shared documents (presence heartbeats, settings) leave it alone, so poll it to tell whether the board has changed since a checkpoint was taken.
+--- @field characterUpdateSeq number (read-only) Changes whenever a game update touches any character record (including a character being added or removed). Compare against a saved value to tell whether any character has changed since then.
+--- @field nonCharacterUpdateSeq number (read-only) Changes whenever a game update touches anything other than character records: initiative, shared documents, map objects, map manifests, settings, and so on. Session pings do not count. A value computed only from character records stays valid while this is unchanged and those records are (see CharacterRecordRevision).
+--- @field recentNonCharacterPaths string[] (read-only) Diagnostics: the most recent game update paths (up to 16, newest last, each prefixed with its update number) that advanced nonCharacterUpdateSeq. Each of them makes every creature rebuild its cached modifiers, so look here when they rebuild more often than expected.
+--- @field dependencyWildcardTrace boolean Diagnostics: when true, each dependency scope records the Lua stack of the first token query that made it wildcard, returned by EndDependencyScope as wildcardTrace. Slower; for finding what makes a cached value depend on every token.
+--- @field terrainRulesSeq number Like tileRulesSeq, but not moved by rebuilds of the aura index, which happen on every game update that touches a character. Creature auras on a tile are per-token state (see CharacterToken.GetAurasTouching); poll this for everything else that feeds the tile rules -- floor data, walls and solids, tilesheet assets, the logical map, the water level. Only equality is meaningful; it is not monotonic.
 --- @field gameupdateid string (read-only) A guid that is unique to the game being updated from the cloud. Anytime this value changes we have new data from the cloud and the game is in a different state.
 --- @field tooltipsSuppressed boolean Tooltip Suppression Mode: while true, no tooltip is displayed anywhere on this client -- panel hover tooltips, map/tile tooltips, and the token-drag movement tooltip (and with it the movement cross-section diagram it carries). Any tooltip already on screen is dismissed the moment this is set. Client-only and session-scoped: it lives on the game session, so leaving the game always restores tooltips even if a mod forgets to clear it. Intended for a mod that needs an uncluttered phase of play; prefer the core codex wrapper GameHud.SetTooltipsSuppressed(key, value), which also stops the movement cross-section diagram from being rendered at all and lets several mods hold the suppression independently.
 --- @field currentRollGuid nil|string (Read-only) The guid that has been assigned to the current roll that is being previewed.
@@ -1595,6 +1600,18 @@ function dmhub.GetAllCharacters() end
 --- @param tokenid string
 --- @return nil|CharacterToken
 function dmhub.GetCharacterById(tokenid) end
+
+--- Returns a number that changes whenever a game update touches the given character's record (its properties, location, appearance, ...). Equal values mean the record has not changed in between.
+--- @param charid string
+--- @return number
+function dmhub.CharacterRecordRevision(charid) end
+
+--- Starts recording which tokens Lua reads, for caching a computed value until one of them changes. Every property read or method call on a CharacterToken records its charid, and every query over a set of tokens (all tokens, tokens at a location or in a radius, all characters) marks the scope as depending on every token. Scopes nest, each recording only its own reads. Always pair with EndDependencyScope, even when the computation errors.
+function dmhub.BeginDependencyScope() end
+
+--- Ends the innermost scope started by BeginDependencyScope and returns what it recorded: tokens is a set of the charids read, and wildcard is true if a token query ran, so the result may change when any token moves, appears or disappears. Returns nil if no scope is open (for example because a game update discarded a scope left open by an error).
+--- @return nil|{wildcard: boolean, tokens: table<string, boolean>, wildcardTrace: nil|string}
+function dmhub.EndDependencyScope() end
 
 --- Converts a creature size string (e.g. 'medium', 'large') to the corresponding token visual scale.
 --- @param creatureSize string

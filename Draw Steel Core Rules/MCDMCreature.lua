@@ -4735,6 +4735,7 @@ function creature:NotifyConditionCaster(token, conditionid)
     if conditionCasterSource[conditionid][token.charid] == nil then
         -- New condition caster data; invalidate modifier cache so it
         -- recalculates with the updated _tmp_conditionCasterSource.
+        self._tmp_ccKey = nil
         self._tmp_modifiersRefresh = nil
         self._tmp_modifiersRefreshExcludingAuras = nil
     end

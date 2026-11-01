@@ -76,6 +76,9 @@ local function PerformEndCombat()
 			tok.properties:DispatchEvent("endcombat", {})
 		end
 	end
+
+	--map objects have no initiative entry, so the loop above misses them.
+	TargetableObject.DispatchToObjects("endcombat")
 end
 
 --Flip the networked victory flag so the full-screen victory screen takes over on
@@ -6981,6 +6984,10 @@ function GameHud:NewRound()
             tok.properties:EndRound(tok)
 		end
 	end
+
+    --Map objects (a ticking grenade) get the same Begin Round moment, which
+    --fires as the previous round ends.
+    TargetableObject.DispatchToObjects("beginround")
 
     Aura.CheckObjectAuraExpirationEndOfRound()
 

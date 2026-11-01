@@ -2094,15 +2094,24 @@ local function PortraitWarmupSettled()
 end
 
 --Eagerly warm the cache shortly after the titlescreen loads (deferred so
---boot-time systems are up), and whenever the dev gate turns on.
-dmhub.Schedule(5, function()
+--boot-time systems are up), and whenever the dev gate turns on. Waits until
+--the titlescreen's lobby game has loaded (isLobbyGame stays false until its
+--details download): when a real game is loading instead (direct launch, a fast
+--join) the pregen art fetch would parse multi-MB module payloads mid-entry,
+--one of them again by the game's own module load. Polling is a flag check.
+local function WarmPregensOnTitlescreen()
     if mod.unloaded then
+        return
+    end
+    if not dmhub.isLobbyGame then
+        dmhub.Schedule(2, WarmPregensOnTitlescreen)
         return
     end
     if EncounterOfTheWeek.Enabled() then
         EncounterOfTheWeek.CachePregens()
     end
-end)
+end
+dmhub.Schedule(5, WarmPregensOnTitlescreen)
 
 --The currently mounted EotW screen, if any (nil or destroyed when closed).
 local m_screen = nil

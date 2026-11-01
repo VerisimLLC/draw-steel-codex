@@ -1813,6 +1813,12 @@ end
 local function BuildWindow(rec)
     local panel
 
+    --the panels below are new, so drop what Refresh remembers applying to the
+    --old ones. A record kept across a hud rebuild otherwise leaves the window
+    --white instead of showing the map, and its title with no width limit.
+    rec.liveImage = nil
+    rec.titleNameMax = nil
+
     --the Director's shape overlay, cropped the same way as the map.
     local liveChildren = {}
     if dmhub.isDM then

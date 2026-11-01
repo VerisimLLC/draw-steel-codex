@@ -1366,6 +1366,45 @@ end
 local g_grantingTokensFrame = nil
 local g_grantingTokens = {}
 
+local function RefreshGrantingTokens()
+    local frame = dmhub.FrameCount()
+    if g_grantingTokensFrame == frame then
+        return
+    end
+    g_grantingTokensFrame = frame
+    g_grantingTokens = {}
+    local function Scan()
+        for _, tok in ipairs(dmhub.allTokensIncludingObjects or {}) do
+            if OnThisMap(tok) and HasAbilityWithFlag(tok, "grantedToAdjacentCreatures") then
+                g_grantingTokens[#g_grantingTokens+1] = tok
+            end
+        end
+    end
+    --The scan reads every token, which would make any cached result built on it (the
+    --action bar's ability list) depend on every token. Those caches key on
+    --GrantingTokensSignature instead, so the scan runs untracked -- except inside a
+    --creature's modifier build, which has no such key.
+    local top = CreatureCache.stack[#CreatureCache.stack]
+    if top ~= nil and top.creature ~= false then
+        Scan()
+    else
+        CreatureCache.Untracked(Scan)
+    end
+end
+
+--- Identifies the set of tokens on this map that grant abilities to adjacent creatures, for
+--- caches of ability lists: GetGrantedAbilities' answer can only change when this does, a
+--- granting token moves, or the creature moves.
+--- @return string
+function ActivatedAbility.GrantingTokensSignature()
+    RefreshGrantingTokens()
+    local ids = {}
+    for _, tok in ipairs(g_grantingTokens) do
+        ids[#ids+1] = tostring(tok.charid)
+    end
+    return table.concat(ids, ",")
+end
+
 --- Every ability granted to creatureToken by the objects it is adjacent to.
 --- @param creatureToken nil|CharacterToken
 --- @return ActivatedAbility[]
@@ -1375,16 +1414,7 @@ function ActivatedAbility.GetGrantedAbilities(creatureToken)
         return result
     end
 
-    local frame = dmhub.FrameCount()
-    if g_grantingTokensFrame ~= frame then
-        g_grantingTokensFrame = frame
-        g_grantingTokens = {}
-        for _, tok in ipairs(dmhub.allTokensIncludingObjects or {}) do
-            if OnThisMap(tok) and HasAbilityWithFlag(tok, "grantedToAdjacentCreatures") then
-                g_grantingTokens[#g_grantingTokens+1] = tok
-            end
-        end
-    end
+    RefreshGrantingTokens()
 
     for _, tok in ipairs(g_grantingTokens) do
         if IsAdjacentUser(creatureToken, tok) then

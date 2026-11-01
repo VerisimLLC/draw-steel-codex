@@ -237,10 +237,17 @@ setting{
 
 --initial is true only for the one-time seed pass that runs when the dialog opens
 --on an existing module. Every other pass comes from the dependency recompute.
+--Whether a dependency on this row ships with the module: only content this
+--game created. A core (or base module) entry this game edited or deleted is
+--already provided by core, and shipping the copy would freeze it over core in
+--every game that installs the module; the author ticks it to ship it anyway.
+--Rows without an op (maps, characters, code, modules) always ship.
+local ShipsAsDependency = function(data)
+	return data.op == nil or data.op == "create"
+end
+
 local includedAssets = function(element, includedAssets, dependencyAssets, signal, initial)
-    --note dependents only include if the element is not a modify, since we don't
-    --have to ship the dependent if we only modified it rather than created it.
-	local dependents = (not element:HasClass("modify")) and dependencyAssets[element.data.assetid]
+	local dependents = ShipsAsDependency(element.data) and dependencyAssets[element.data.assetid]
 
 	local canOverride = not dmhub.GetSettingValue("module:exportignoredependencies")
 
@@ -835,6 +842,7 @@ local CreateObjectTableView = function(tableName, knownAssetsInCore)
 							displayName = entry.name or "(unknown object)",
 							ord = string.lower(entry.name),
 							type = string.format("object:%s", tableName),
+							op = op,
 						},
 					}
 
@@ -1007,6 +1015,7 @@ local function GatherAllAssetsChildren(children, knownAssetsInCore)
 								folderid = entry.folderid,
 								ord = string.lower(description or "(unnamed)"),
 								type = t,
+								op = op,
 							},
 						}
 
@@ -1861,6 +1870,13 @@ local CheckEncounterModule = function(ctx)
 			local comingSoonParts = {}
 			for _,entry in ipairs(scripts) do
 				local script = entry.script
+
+				--what the script names (items, monsters, objects, zone
+				--types) ships too: the runtime finds them by name.
+				for id,_ in pairs(montage.ReferencedContentIds(script.parse)) do
+					ctx.include(id, true)
+				end
+
 				local hasEncounter = false
 				for _,beat in ipairs(script.parse.beats or {}) do
 					if beat.kind == "encounter" then
@@ -1962,7 +1978,9 @@ local g_heroOptionTables = {
 --                     searcher, covering the checked entries and everything
 --                     they pull in,
 --  assetInfo       = {guid -> {type, displayName}} for every entry shown,
---  include         = function(guid) ticks that entry, if the dialog lists it }.
+--  include         = function(guid, createdOnly) ticks that entry, if the
+--                     dialog lists it (and, with createdOnly, if this game
+--                     created it rather than modifying a core one) }.
 --
 --available (optional) returns false to leave the type out of the dropdown
 --(a module that already has the type still shows it).
@@ -2228,6 +2246,18 @@ local showShareModuleDialog = function(options)
 	local addressableAssets = {}
 	local m_dependencyAssets = {}
 
+	--made on the first dependency pass. It downloads the floors of selected
+	--maps this session has not loaded; m_searcherRevision is the revision the
+	--last pass saw, so a finished download triggers another pass.
+	local m_dependencySearcher = nil
+	local m_searcherRevision = 0
+
+	--true while the searcher is still downloading map data, so what the
+	--selected maps use is not all known yet.
+	local SearcherPending = function()
+		return m_dependencySearcher ~= nil and m_dependencySearcher.pending > 0
+	end
+
 	--guid -> {type, displayName} for every entry in the dialog, addressable
 	--or not, so module type validators can tell maps from everything else.
 	local assetInfo = {}
@@ -2239,18 +2269,23 @@ local showShareModuleDialog = function(options)
 	--the ctx a module type's validate / publishingProperties receive (see
 	--g_moduleTypes). include ticks an entry the way the author would, so the
 	--dependency pass then runs over it; entries the dialog does not list
-	--(content another module owns) are skipped.
+	--(content another module owns) are skipped. With createdOnly, an entry
+	--this game only modifies or deletes (a core one) is skipped too, as the
+	--dependency pass does.
 	local ModuleTypeContext = function()
 		return {
 			includedAssets = includedAssets,
 			dependencyAssets = m_dependencyAssets,
 			assetInfo = assetInfo,
-			include = function(guid)
+			include = function(guid, createdOnly)
 				if includedAssets[guid] or m_dependencyAssets[guid] then
 					return
 				end
 				local entry = allAssets[guid]
 				if entry == nil or entry.check == nil or not entry.check.valid then
+					return
+				end
+				if createdOnly and entry.check.data.op ~= "create" then
 					return
 				end
 				entry.check.value = true
@@ -2501,7 +2536,10 @@ local showShareModuleDialog = function(options)
 
 					if not dmhub.GetSettingValue("module:exportignoredependencies") then
 						for k,_ in pairs(m_dependencyAssets) do
-							assetsIncludingDependencies[k] = true
+							local entry = allAssets[k]
+							if entry == nil or entry.check == nil or ShipsAsDependency(entry.check.data) then
+								assetsIncludingDependencies[k] = true
+							end
 						end
 					end
 
@@ -3577,6 +3615,10 @@ local showShareModuleDialog = function(options)
 		if typeInfo.validate ~= nil then
 			errors, warnings = typeInfo.validate(ModuleTypeContext())
 		end
+		--holds Proceed until every selected map's content is known.
+		if SearcherPending() then
+			errors[#errors+1] = "Reading the selected maps to find everything they use..."
+		end
 		m_moduleTypeErrors = errors
 
 		local children = {}
@@ -3660,8 +3702,6 @@ local showShareModuleDialog = function(options)
 
 	local m_dependenciesDirty = true
 
-	local m_dependencySearcher = nil
-
 	--One step of m_autoPublish, run by the think handler once the dependency
 	--pass is up to date. "select" ticks every encounter map not claimed by
 	--another of this game's Encounter of the Week modules; after that each
@@ -3688,6 +3728,11 @@ local showShareModuleDialog = function(options)
 					ctx.include(guid)
 				end
 			end
+			return
+		end
+
+		if SearcherPending() then
+			--map data is still downloading; a pass runs when it lands.
 			return
 		end
 
@@ -3914,6 +3959,11 @@ local showShareModuleDialog = function(options)
 		end,
 
 		think = function(element)
+			if m_dependencySearcher ~= nil and m_dependencySearcher.revision ~= m_searcherRevision then
+				m_searcherRevision = m_dependencySearcher.revision
+				m_dependenciesDirty = true
+			end
+
 			if m_dependenciesDirty then
 				local count = 0
 				for k,item in pairs(addressableAssets) do

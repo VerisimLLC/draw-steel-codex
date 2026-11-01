@@ -1985,6 +1985,27 @@ function EncounterMontage.FindMonster(name)
     return nil
 end
 
+--The ids of the compendium entries a script names
+--(EncounterScript.ReferencedContent), found the way the runtime finds them.
+--A name that matches nothing is left out. Publishing ships these.
+function EncounterMontage.ReferencedContentIds(parse)
+    local content = EncounterScript.ReferencedContent(parse)
+    local ids = {}
+    local function AddAll(find, names)
+        for name in pairs(names) do
+            local id = find(name)
+            if id ~= nil then
+                ids[id] = true
+            end
+        end
+    end
+    AddAll(EncounterMontage.FindGear, content.items)
+    AddAll(EncounterMontage.FindMonster, content.monsters)
+    AddAll(EncounterZones.FindObjectAsset, content.objects)
+    AddAll(EncounterZones.FindKeyword, content.zones)
+    return ids
+end
+
 --A free tile for a new ally next to its hero: the nearest free Start-zone
 --tile (the party is confined there before combat), else a ring search
 --around the hero.

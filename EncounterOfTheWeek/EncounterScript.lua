@@ -5782,6 +5782,48 @@ function EncounterScript.ReferencedNames(parse)
     return items, monsters
 end
 
+--Every compendium entry the script names, for publishing: the runtime finds
+--these by name in the game the encounter is played in, so they must ship
+--with the module. Returns { items, monsters, objects, zones }, each a set of
+--names: item and ally rewards, the monster behind a scene actor or a
+--negotiation NPC ("monster" / "playedBy"), objects placed by setup lines,
+--and every zone type named anywhere ("zone": setup lines, reinforcement
+--"Enter:" zones, reveal and start-zone clauses). It walks the whole parse
+--rather than listing beat kinds, so a new feature that names one of these
+--with the same fields is covered. Names that match nothing are harmless.
+function EncounterScript.ReferencedContent(parse)
+    local content = { items = {}, monsters = {}, objects = {}, zones = {} }
+    local function Add(set, name)
+        if type(name) == "string" and trim(name) ~= "" then
+            set[name] = true
+        end
+    end
+    local visited = {}
+    local function Walk(node)
+        if type(node) ~= "table" or visited[node] then
+            return
+        end
+        visited[node] = true
+        --rawget: a game-typed table raises on a field it does not have.
+        local kind = rawget(node, "kind")
+        if kind == "item" then
+            Add(content.items, rawget(node, "name"))
+        elseif kind == "ally" then
+            Add(content.monsters, rawget(node, "name"))
+        elseif kind == "placeobjects" then
+            Add(content.objects, rawget(node, "object"))
+        end
+        Add(content.zones, rawget(node, "zone"))
+        Add(content.monsters, rawget(node, "monster"))
+        Add(content.monsters, rawget(node, "playedBy"))
+        for _, v in pairs(node) do
+            Walk(v)
+        end
+    end
+    Walk(parse.beats)
+    return content
+end
+
 --Plain-text dump of a parse, for the /eotwscript command and tests.
 function EncounterScript.Describe(parse)
     local out = {}

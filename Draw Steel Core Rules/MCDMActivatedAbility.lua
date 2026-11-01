@@ -816,9 +816,11 @@ end
 --- True if a natural roll at or above the Critical Threshold on this ability is a Critical Hit.
 --- Only main action abilities can crit, but they still can when used off-turn or as a
 --- granted free strike that pays a different cost (e.g. Gunshot through Make Free Strike).
+--- A free roll the caster makes as part of a main action can crit too (invokerCanCriticalHit).
 --- @return boolean
 function ActivatedAbility:CanCriticalHit()
     return IsMainActionAbility(self) or self:try_get("baseActionResourceId") == CharacterResource.actionResourceId
+        or self:try_get("invokerCanCriticalHit", false)
 end
 
 RegisterGoblinScriptSymbol(ActivatedAbility, {

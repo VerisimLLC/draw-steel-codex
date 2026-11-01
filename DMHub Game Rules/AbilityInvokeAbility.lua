@@ -1181,7 +1181,7 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                         --The invoker's action type is kept so rules keyed on it still see the
                         --real action: Critical Hit needs Ability.Action on the roll this clone makes.
                         if self:try_get("suppressInvokedActionCost", false) then
-                            abilityClone.invokerActionResourceId = ability:ActionResource()
+                            abilityClone.invokerActionResourceId = ability:try_get("invokerActionResourceId") or ability:ActionResource()
                             abilityClone.actionResourceId = "none"
                         end
 
@@ -1438,6 +1438,17 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                         else
                             invokerToken = target.token
                         end
+
+                        --The caster's own free follow-up (like A Squad Unto Myself's attack) is part
+                        --of the action that invoked it, so its roll can be that action's Critical Hit.
+                        --Not when the action already made its own power roll: one action, one crit.
+                        if not self:try_get("suppressInvokedActionCost", false) and abilityClone:ActionResource() == nil
+                            and invokerToken ~= nil and invokerToken.charid == casterToken.charid
+                            and ability:CanCriticalHit()
+                            and options.symbols.cast ~= nil and options.symbols.cast:try_get("naturalRoll") == nil then
+                            abilityClone.invokerCanCriticalHit = true
+                        end
+
                         local squadParticipants = nil
                         if squadParticipantsByLead ~= nil and invokerToken ~= nil then
                             squadParticipants = squadParticipantsByLead[invokerToken.charid]

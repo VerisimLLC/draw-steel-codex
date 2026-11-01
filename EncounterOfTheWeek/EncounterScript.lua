@@ -503,6 +503,13 @@ local function ParseClause(clause)
         return { kind = "immunityboon", target = immunityTarget, qty = immunityQty, damageType = immunityType, text = clause }
     end
 
+    --"the undead gain damage immunity 2" / "the undead have holy weakness 3":
+    --a resistance on every monster with the keyword for the next combat.
+    local foeKind, foeKeyword, foeDamageType, foeQty = EncounterScript.ParseFoeResistanceClause(lower(clause))
+    if foeKind ~= nil then
+        return { kind = cond(foeKind == "weakness", "foeweakness", "foeimmunity"), keyword = foeKeyword, damageType = foeDamageType, qty = foeQty, text = clause }
+    end
+
     --"you lose a consumable": one consumable item, picked at random from the
     --hero's inventory. A hero with none loses a Recovery instead, quietly.
     local consumableQty, consumableTarget = EncounterScript.ParseLoseConsumableClause(lower(clause))
@@ -1074,6 +1081,50 @@ function EncounterScript.ParseDamageImmunityClause(lc)
         local n, damageType = Read(rest)
         if n ~= nil then
             return n, damageType, "party"
+        end
+    end
+    return nil
+end
+
+--"The undead gain damage immunity 2" / "the undead have holy weakness 3":
+--every monster with that keyword gets the resistance for the next combat.
+--"damage" means all damage. Returns "immunity" or "weakness", the keyword
+--(lower case, singular), the damage type and the amount, or nil.
+--  "the undead gain holy immunity 2" / "every goblin gains damage immunity 1"
+--  "the undead have fire weakness 3" / "the undead gain fire weakness 3"
+function EncounterScript.ParseFoeResistanceClause(lc)
+    lc = StripEncounterTiming(lc)
+    --it always lasts for the next combat, so saying so is allowed.
+    for _, suffix in ipairs({ "%s+during the next combat$", "%s+in the next combat$", "%s+for the next combat$",
+        "%s+during the next encounter$", "%s+in the next encounter$", "%s+for the next encounter$" }) do
+        lc = string.gsub(lc, suffix, "")
+    end
+    lc = string.gsub(lc, "^at the start of the next combat,?%s+", "")
+    local who, verb, rest = string.match(lc, "^the (%a+) (%a+) (.+)$")
+    if who == nil then
+        who, verb, rest = string.match(lc, "^every (%a+) (%a+) (.+)$")
+    end
+    if who == nil or (verb ~= "gain" and verb ~= "gains" and verb ~= "have" and verb ~= "has") then
+        return nil
+    end
+    local keyword = SingularKeyword(who)
+    if keyword == nil or keyword == "party" or keyword == "threat" then
+        return nil
+    end
+    local damageType, kind, n = string.match(rest, "^(%a+) (%a+) (%S+)$")
+    if kind ~= "immunity" and kind ~= "weakness" then
+        return nil
+    end
+    n = SignedQuantity(n)
+    if n == nil or n <= 0 then
+        return nil
+    end
+    if damageType == "damage" then
+        return kind, keyword, damageType, n
+    end
+    for _, known in ipairs(EncounterScript.DAMAGE_TYPES) do
+        if damageType == known then
+            return kind, keyword, damageType, n
         end
     end
     return nil
@@ -5964,6 +6015,8 @@ function EncounterScript.DescribeEffect(effect)
     elseif effect.kind == "immunityboon" then
         local args = { damage_type = tostring(effect.damageType), qty = qty }
         return cond(party, T("script.effect.immunity.party", args), T("script.effect.immunity.self", args))
+    elseif effect.kind == "foeimmunity" or effect.kind == "foeweakness" then
+        return EncounterScript.DescribeFoeResistance(effect)
     elseif effect.kind == "maxstamina" then
         return cond(party, T("script.effect.max_stamina.party", { qty = qty }), T("script.effect.max_stamina.self", { qty = qty }))
     elseif effect.kind == "loseconsumable" then
@@ -5985,6 +6038,21 @@ function EncounterScript.DescribeKnowStamina(keyword)
     keyword = tostring(keyword or "")
     local shown = string.upper(string.sub(keyword, 1, 1)) .. string.sub(keyword, 2) .. "s"
     return T("script.know_stamina", { monsters = shown })
+end
+
+--The player-facing line for "the undead gain damage immunity 2" (also what
+--the stage shows in the applied-effects list).
+function EncounterScript.DescribeFoeResistance(effect)
+    local keyword = tostring(effect.keyword or "")
+    local args = {
+        monsters = string.upper(string.sub(keyword, 1, 1)) .. string.sub(keyword, 2),
+        damage_type = tostring(effect.damageType or "damage"),
+        qty = tostring(effect.qty or 1),
+    }
+    if effect.kind == "foeweakness" then
+        return T("script.effect.foe_weakness", args)
+    end
+    return T("script.effect.foe_immunity", args)
 end
 
 --The player-facing line for an initiative outcome (also what the stage
@@ -6054,6 +6122,8 @@ EncounterScript.CLAUSES = {
     { kind = "nosurprise", group = T("author.script.clause_group.next_encounter"), label = T("author.script.clause.nosurprise"), params = {}, defaults = {} },
     { kind = "fairinitiative", group = T("author.script.clause_group.next_encounter"), label = T("author.script.clause.fairinitiative"), params = {}, defaults = {} },
     { kind = "knowstamina", group = T("author.script.clause_group.next_encounter"), label = T("author.script.clause.knowstamina"), params = { "keyword" }, defaults = { keyword = "goblin" } },
+    { kind = "foeimmunity", group = T("author.script.clause_group.next_encounter"), label = T("author.script.clause.foeimmunity"), params = { "keyword", "foeDamageType", "qty" }, defaults = { keyword = "undead", damageType = "damage", qty = 1 } },
+    { kind = "foeweakness", group = T("author.script.clause_group.next_encounter"), label = T("author.script.clause.foeweakness"), params = { "keyword", "foeDamageType", "qty" }, defaults = { keyword = "undead", damageType = "holy", qty = 3 } },
     { kind = "revealzones", group = T("author.script.clause_group.next_encounter"), label = T("author.script.clause.revealzones"), params = { "zone" }, defaults = { zone = "trap" } },
     { kind = "startzone", group = T("author.script.clause_group.next_encounter"), label = T("author.script.clause.startzone"), params = { "zone" }, defaults = { zone = "start2" } },
     { kind = "revealobject", group = T("author.script.clause_group.next_encounter"), label = T("author.script.clause.revealobject"), params = { "object" }, defaults = { object = "Treasure Chest" } },
@@ -6123,6 +6193,10 @@ function EncounterScript.ClauseText(e)
         return string.format("%s rolled damage is increased by %d", cond(party, "Each party member's", "Your"), qty)
     elseif kind == "immunityboon" then
         return string.format("%s %s immunity %d", Who("gain", "gains"), lower(e.damageType or "poison"), qty)
+    elseif kind == "foeimmunity" then
+        return string.format("Every %s gains %s immunity %d", Capitalized(e.keyword), lower(e.damageType or "damage"), qty)
+    elseif kind == "foeweakness" then
+        return string.format("Every %s has %s weakness %d", Capitalized(e.keyword), lower(e.damageType or "damage"), qty)
     elseif kind == "ally" then
         local name = trim(e.name or "")
         return string.format("%s %s joins you", cond(string.match(lower(name), "^[aeiou]") ~= nil, "An", "A"), name)

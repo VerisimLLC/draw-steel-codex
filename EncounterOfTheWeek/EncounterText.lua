@@ -859,6 +859,9 @@ text("montage.boon.damage_modifier_description", [[+{amount} to rolled damage.]]
 text("montage.curse.max_stamina_description", [[Your Stamina maximum is reduced by {amount}.]])
 --{damage_type} is the damage type ("fire", "poison").
 text("montage.boon.immunity_description", [[You have {damage_type} immunity {amount}.]])
+--{damage_type} is a damage type, or "damage" for all damage.
+text("montage.foe.immunity_description", [[A montage result: {damage_type} immunity {amount} for this combat.]])
+text("montage.foe.weakness_description", [[A montage result: {damage_type} weakness {amount} for this combat.]])
 
 ----------------------------------------------------------------------------
 -- NARRATIVE SCENES: the party choosing together
@@ -1272,6 +1275,9 @@ text("script.effect.rolled_damage.party", [[every hero's rolled damage +{qty} un
 --{damage_type} is a damage type (e.g. poison).
 text("script.effect.immunity.self", [[the hero gains {damage_type} immunity {qty} until the next respite]])
 text("script.effect.immunity.party", [[every hero gains {damage_type} immunity {qty} until the next respite]])
+--{monsters} is a monster keyword (e.g. Undead); {damage_type} is a damage type or "damage" (all damage).
+text("script.effect.foe_immunity", [[every {monsters} has {damage_type} immunity {qty} in the next combat]])
+text("script.effect.foe_weakness", [[every {monsters} has {damage_type} weakness {qty} in the next combat]])
 text("script.effect.max_stamina.self", [[the hero's maximum stamina -{qty} until the next respite]])
 text("script.effect.max_stamina.party", [[every hero's maximum stamina -{qty} until the next respite]])
 text("script.effect.lose_consumables.self.one", [[the hero loses {count} consumable (a recovery if none)]])

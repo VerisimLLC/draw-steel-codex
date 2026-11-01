@@ -2087,6 +2087,13 @@ function B.CreateWindow(session, close)
                 return PickDropdown(OUTCOME_OPTIONS, effect.outcome or "win", function(id) Set("outcome", id) end, { width = 250 })
             elseif param == "damageType" then
                 return PickDropdown(NameOptions(lists.damageTypes, effect.damageType), effect.damageType, function(id) Set("damageType", id) end, { width = 110 })
+            elseif param == "foeDamageType" then
+                --"damage" (all damage) first, then the damage types.
+                local foeTypes = { "damage" }
+                for _, damageType in ipairs(lists.damageTypes) do
+                    foeTypes[#foeTypes + 1] = damageType
+                end
+                return PickDropdown(NameOptions(foeTypes, effect.damageType), effect.damageType, function(id) Set("damageType", id) end, { width = 110 })
             end
             --keyword / zone / object: a dropdown of what exists, or a text box when there is nothing to list.
             local field = cond(param == "object", "object", cond(param == "zone", "zone", "keyword"))

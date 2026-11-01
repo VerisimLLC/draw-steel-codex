@@ -134,6 +134,10 @@
 --                  -- surges banked by "at the start of the next combat you
 --                     gain N surges", paid out (and cleared) by
 --                     ApplyPendingCombatBoons when combat starts.
+--  data.foeResistances = nil | { { kind, keyword, damageType, qty, entryName } }
+--                  -- "the undead gain damage immunity 2" / "the undead have
+--                     holy weakness 3", banked; ApplyPendingCombatBoons puts
+--                     them on the matching monsters when combat starts.
 --  data.chestSeen = nil | { [delve MatchKey or "table:<entry id>:<table key>"] = { ["lo-hi"] = true } }
 --                  -- the rows of each delve's chest table (and each montage
 --                     "(Mystery)" table) the party has landed on; the rest
@@ -2343,6 +2347,44 @@ local function EnsureImmunityBoonEffect(damageType, amount)
     return dmhub.SetAndUploadTableItem("characterOngoingEffects", effect)
 end
 
+--The ongoing effect behind "the undead gain damage immunity 2" and "the
+--undead have holy weakness 3": a resistance on the monsters for one combat.
+--A weakness is a negative damage reduction. "damage" means all damage.
+local function EnsureFoeResistanceEffect(kind, damageType, amount)
+    local typeName = cond(damageType == "damage", "Damage", damageType:sub(1, 1):upper() .. damageType:sub(2))
+    local word = cond(kind == "foeweakness", "Weakness", "Immunity")
+    local name = string.format("Montage: %s %s %d", typeName, word, amount)
+    local t = dmhub.GetTable("characterOngoingEffects") or {}
+    for id, effect in pairs(t) do
+        if NameMatches(effect.name, name) then
+            return id
+        end
+    end
+    local effect = CharacterOngoingEffect.Create{
+        name = name,
+        source = "Montage",
+        description = T(cond(kind == "foeweakness", "montage.foe.weakness_description", "montage.foe.immunity_description"),
+            { damage_type = damageType, amount = amount }),
+        custom = true,
+    }
+    effect.modifiers = {
+        CharacterModifier.new{
+            behavior = "resistance",
+            name = name,
+            source = "Montage",
+            guid = dmhub.GenerateGuid(),
+            resistances = {
+                ResistanceEntry.new{
+                    apply = "Damage Reduction",
+                    damageType = cond(damageType == "damage", "all", damageType),
+                    dr = cond(kind == "foeweakness", -amount, amount),
+                },
+            },
+        },
+    }
+    return dmhub.SetAndUploadTableItem("characterOngoingEffects", effect)
+end
+
 --Put one of the montage's ongoing effects on a hero until the next respite.
 --Same cache caveat as the Recovery Value boon (see GrantRecoveryBoon).
 local function ApplyMontageEffect(token, effectid, description)
@@ -2445,6 +2487,7 @@ function EncounterMontage.PrepareBoonAssets(beat)
     local damageAmounts = {}
     local staminaAmounts = {}
     local immunities = {}
+    local foeResistances = {}
     local any = false
     local function Collect(effects)
         for _, effect in ipairs(effects or {}) do
@@ -2459,6 +2502,9 @@ function EncounterMontage.PrepareBoonAssets(beat)
                 any = true
             elseif effect.kind == "immunityboon" then
                 immunities[effect.damageType .. ":" .. tostring(effect.qty)] = effect
+                any = true
+            elseif effect.kind == "foeimmunity" or effect.kind == "foeweakness" then
+                foeResistances[effect.kind .. ":" .. effect.damageType .. ":" .. tostring(effect.qty)] = effect
                 any = true
             end
         end
@@ -2497,6 +2543,9 @@ function EncounterMontage.PrepareBoonAssets(beat)
         end
         for _, effect in pairs(immunities) do
             EnsureImmunityBoonEffect(effect.damageType, effect.qty)
+        end
+        for _, effect in pairs(foeResistances) do
+            EnsureFoeResistanceEffect(effect.kind, effect.damageType, effect.qty)
         end
     end)
     DropHostPermissions()
@@ -3017,6 +3066,21 @@ function EncounterMontage.ApplyEffects(effects, ctx)
                 else
                     printf("EotW montage: MonsterKnowledge is unavailable; %s not applied", tostring(effect.text))
                 end
+            elseif effect.kind == "foeimmunity" or effect.kind == "foeweakness" then
+                --banked on the document like surges: the monsters only get
+                --it once the fight has begun (ApplyPendingCombatBoons).
+                if ctx.doc ~= nil then
+                    ctx.doc.data.foeResistances = ctx.doc.data.foeResistances or {}
+                    table.insert(ctx.doc.data.foeResistances, {
+                        kind = effect.kind,
+                        keyword = effect.keyword,
+                        damageType = effect.damageType,
+                        qty = effect.qty,
+                        entryName = ctx.entryName,
+                    })
+                    local line = EncounterScript.DescribeFoeResistance(effect)
+                    applied[#applied + 1] = line:sub(1, 1):upper() .. line:sub(2)
+                end
             elseif effect.kind == "revealzones" then
                 --"Reveal Traps during the next combat": banked on the
                 --document, applied by the encounter beat right before the
@@ -3276,7 +3340,10 @@ function EncounterMontage.ApplyPendingCombatBoons()
 
     local doc = EncounterMontage.GetDoc()
     local pending = doc.data.surges
-    if type(pending) ~= "table" or next(pending) == nil then
+    local foes = doc.data.foeResistances
+    local hasSurges = type(pending) == "table" and next(pending) ~= nil
+    local hasFoes = type(foes) == "table" and #foes > 0
+    if not hasSurges and not hasFoes then
         return
     end
     local queue = dmhub.initiativeQueue
@@ -3286,7 +3353,7 @@ function EncounterMontage.ApplyPendingCombatBoons()
 
     ElevateToHostPermissions()
     local ok, err = pcall(function()
-        for charid, amount in pairs(pending) do
+        for charid, amount in pairs(hasSurges and pending or {}) do
             local token = dmhub.GetCharacterById(charid)
             if token ~= nil and token.valid and (tonumber(amount) or 0) > 0 then
                 if GrantSurges(token, tonumber(amount), T("montage.effect.surge_note")) then
@@ -3294,15 +3361,56 @@ function EncounterMontage.ApplyPendingCombatBoons()
                 end
             end
         end
+        if hasFoes then
+            EncounterMontage.ApplyFoeResistances(foes)
+        end
     end)
     DropHostPermissions()
     if not ok then
-        printf("EotW montage: surge payout failed: %s", tostring(err))
+        printf("EotW montage: combat boon payout failed: %s", tostring(err))
     end
 
     doc:BeginChange()
     doc.data.surges = nil
-    doc:CompleteChange("Montage: surges paid out", { undoable = false })
+    doc.data.foeResistances = nil
+    doc:CompleteChange("Montage: combat boons paid out", { undoable = false })
+end
+
+--"The undead gain damage immunity 2": put the resistance on every monster
+--on the map with the keyword, for this combat only. Monsters that arrive
+--later (reinforcements, summons) do not get it.
+function EncounterMontage.ApplyFoeResistances(foes)
+    for _, foe in ipairs(foes) do
+        local effectid = EnsureFoeResistanceEffect(foe.kind, foe.damageType, foe.qty)
+        local keyword = string.lower(tostring(foe.keyword or ""))
+        local count = 0
+        if effectid ~= nil and GetTableCached("characterOngoingEffects")[effectid] ~= nil then
+            for _, token in ipairs(dmhub.allTokens or {}) do
+                local props = token.properties
+                if token.valid and props ~= nil and not token.playerControlled and not props:IsHero() then
+                    local match = false
+                    for name, present in pairs(props:try_get("keywords") or {}) do
+                        if present and string.lower(tostring(name)) == keyword then
+                            match = true
+                        end
+                    end
+                    if match then
+                        token:ModifyProperties{
+                            description = "Montage: " .. tostring(foe.entryName or "monster resistance"),
+                            undoable = false,
+                            execute = function()
+                                token.properties:ApplyOngoingEffect(effectid, "eoe", nil, {})
+                            end,
+                        }
+                        count = count + 1
+                    end
+                end
+            end
+        else
+            printf("EotW montage: the resistance effect for '%s' is not visible to the rules engine yet; not applied", keyword)
+        end
+        printf("EotW montage: %s %s %s %d on %d monsters", keyword, tostring(foe.damageType), foe.kind, foe.qty or 0, count)
+    end
 end
 
 --The initiative outcome a montage decided for the next encounter, or nil
@@ -7143,6 +7251,7 @@ function EncounterMontage.ResetTest(options)
     doc.data.beat = nil
     doc.data.initiative = nil
     doc.data.surges = nil
+    doc.data.foeResistances = nil
     doc.data.noSurprise = nil
     doc.data.surprised = nil
     doc.data.zoneSetup = nil

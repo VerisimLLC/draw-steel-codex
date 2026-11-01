@@ -3704,17 +3704,7 @@ local function MakeGamePanel(gameIndex)
                         hpad = 5,
                         gui.Label {
                             refreshGames = function(element)
-                                local t = m_game.timePlayed
-                                if t < 60 then
-                                    element.text = "00:00"
-                                    return
-                                end
-
-                                local minutes = math.floor(t / 60)
-                                local hours = math.floor(minutes / 60)
-                                minutes = minutes - hours * 60
-
-                                element.text = string.format("%02d:%02d", hours, minutes)
+                                element.text = CampaignRearrange.FormatTimePlayed(m_game.timePlayed)
                             end,
                             hmargin = 4,
                             fontSize = 25,
@@ -9470,9 +9460,9 @@ function CreateTitlescreen(dialog, options)
 
                             print("REFRESH WITH DIRECTOR =", directorMode)
 
-                            for i, game in ipairs(lobby.games or {}) do
-                                local owner = (game.owner == dmhub.loginUserid)
-                                if owner == directorMode and (m_currentSearch == nil or game:MatchesSearch(m_currentSearch)) then
+                            local viewGames = CampaignRearrange.OrderGames(CampaignRearrange.ViewGames(directorMode), directorMode)
+                            for _, game in ipairs(viewGames) do
+                                if m_currentSearch == nil or game:MatchesSearch(m_currentSearch) then
                                     orderedGames[#orderedGames + 1] = game
                                 end
                             end
@@ -9502,12 +9492,12 @@ function CreateTitlescreen(dialog, options)
                                 valign = "center",
                                 textAlignment = "center",
 
-                                -- Complement width leaving room for the two
-                                -- 48px buttons, which are now SIBLINGS rather
+                                -- Complement width leaving room for the three
+                                -- 48px buttons, which are SIBLINGS rather
                                 -- than children: as children they sat inside
                                 -- the text area, so the autoshrink measurement
                                 -- could not see them and the title ran under.
-                                width = "100%-110",
+                                width = "100%-165",
                                 height = "100%",
                             },
 
@@ -9577,6 +9567,42 @@ function CreateTitlescreen(dialog, options)
                                         halign = "center",
                                         valign = "center",
                                         bgimage = "icons/icon_tool/icon_tool_42.png",
+                                    },
+
+                                },
+
+                                --rearrange campaigns button.
+                                gui.Button {
+                                    width = 48,
+                                    height = 48,
+                                    halign = "right",
+                                    valign = "center",
+                                    beveledcorners = true,
+                                    cornerRadius = 8,
+                                    y = -10,
+                                    tooltip = "Rearrange Campaigns",
+
+                                    refreshGames = function(element)
+                                        element:SetClass("collapsed", #CampaignRearrange.ViewGames(DirectorMode()) < 2)
+                                    end,
+
+                                    press = function(element)
+                                        CampaignRearrange.Show {
+                                            parent = titlescreen,
+                                            directorMode = DirectorMode(),
+                                            saved = function()
+                                                titlescreen:FireEventTree("refreshLobby")
+                                            end,
+                                        }
+                                    end,
+
+                                    gui.Panel {
+                                        classes = { "headerActionIcon" },
+                                        width = "80%",
+                                        height = "80%",
+                                        halign = "center",
+                                        valign = "center",
+                                        bgimage = "phosphor/squares-four-light.png",
                                     },
 
                                 },

@@ -1428,6 +1428,19 @@ TokenHud.RegisterPanel{
     end,
 }
 
+--The flanking indicator depends on where other creatures stand, so who flanks this token
+--joins the token hud's refresh key (see RefreshHud in TokenUI.lua).
+TokenUI.RegisterHudKeyPart("flanking", function(c, token)
+    if token.isObject then
+        return ""
+    end
+    local ids = {}
+    for _, tok in ipairs(c:GetFlankingTokens()) do
+        ids[#ids+1] = tok.charid
+    end
+    return table.concat(ids, ",")
+end)
+
 TokenHud.RegisterPanel{
 	id = "flankingPanel",
 	create = function(token, sharedInfo)

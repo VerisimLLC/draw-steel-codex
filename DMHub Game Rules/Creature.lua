@@ -5098,6 +5098,9 @@ local function SerialOf(c)
     return rawget(c, "_tmp_ccSerial") or 0
 end
 
+--The serial of c's last modifier rebuild: unchanged while its modifiers and attributes are.
+g_cc.SerialOf = SerialOf
+
 --Everything outside character records, sampled once per game update like every other
 --ngameupdate cache: a change that moves none of these and no update is as invisible as before.
 function g_cc.GlobalKey()

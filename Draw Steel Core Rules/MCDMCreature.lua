@@ -2459,7 +2459,16 @@ local function LineCrossesOppositeSides(a, b, target)
     return (s0.left and s1.right) or (s0.right and s1.left) or (s0.top and s1.bottom) or (s0.bottom and s1.top)
 end
 
-function creature:GetFlankingTokens(tokensOverride)
+--Sets an adjacent enemy's _tmp_grantsFlanking and, when writes is given, records the write
+--so a cached flanking answer can make it again (see GetFlankingTokens).
+local function SetGrantsFlanking(props, value, writes)
+    props._tmp_grantsFlanking = value
+    if writes ~= nil then
+        writes[#writes+1] = { props = props, value = value }
+    end
+end
+
+local function ComputeFlankingTokens(self, tokensOverride, writes, adjacentOut)
     local token = dmhub.LookupToken(self)
     if token == nil or (not token.valid) then
         return {}
@@ -2471,6 +2480,11 @@ function creature:GetFlankingTokens(tokensOverride)
 
     --copy the override so filtering below doesn't change the caller's table.
     local adjacentEnemies = tokensOverride and { table.unpack(tokensOverride) } or GetEnemiesAdjacentToToken(token)
+    if adjacentOut ~= nil then
+        for _, enemy in ipairs(adjacentEnemies) do
+            adjacentOut[#adjacentOut+1] = enemy.properties
+        end
+    end
     if #adjacentEnemies <= 1 then
         return {}
     end
@@ -2515,9 +2529,9 @@ function creature:GetFlankingTokens(tokensOverride)
         grantedFlanking = adjacentEnemies
         for _, enemy in ipairs(adjacentEnemies) do
             if numGranters == 1 and granterIds[enemy.charid] then
-                enemy.properties._tmp_grantsFlanking = token.charid
+                SetGrantsFlanking(enemy.properties, token.charid, writes)
             else
-                enemy.properties._tmp_grantsFlanking = nil
+                SetGrantsFlanking(enemy.properties, nil, writes)
             end
         end
     end
@@ -2544,7 +2558,7 @@ function creature:GetFlankingTokens(tokensOverride)
         for _, tok in ipairs(result) do
             if tok.charid == enemy.charid then
                 found = true
-                enemy.properties._tmp_grantsFlanking = nil
+                SetGrantsFlanking(enemy.properties, nil, writes)
                 break
             end
         end
@@ -2554,6 +2568,56 @@ function creature:GetFlankingTokens(tokensOverride)
     end
 
     return result
+end
+
+--One game update asks for each creature's flankers several times (its token hud twice, free
+--strike banes, the "flanked" GoblinScript symbol): about 50 calls per move in a 17-creature
+--combat. Positions, walls and line of sight only change with a game update, so the answer
+--is kept for the rest of the update -- unless this creature or one of the adjacent enemies
+--it considered has its modifiers rebuilt in the meantime (CreatureCache serials), since
+--immunity and who can grant flanking come from modifiers. A call made while a creature's
+--modifiers are being built always computes, so that build records the token reads it
+--depends on.
+function creature:GetFlankingTokens(tokensOverride)
+    local top = CreatureCache.stack[#CreatureCache.stack]
+    if tokensOverride ~= nil or (top ~= nil and top.creature ~= false) then
+        return ComputeFlankingTokens(self, tokensOverride, nil, nil)
+    end
+
+    local cache = self:try_get("_tmp_flankingCache")
+    if cache ~= nil and cache.update == dmhub.ngameupdate and cache.epoch == CreatureCache.epoch then
+        local valid = true
+        for c, serial in pairs(cache.serials) do
+            if CreatureCache.SerialOf(c) ~= serial then
+                valid = false
+                break
+            end
+        end
+        if valid then
+            --make the _tmp_grantsFlanking writes a fresh computation would have made.
+            for _, write in ipairs(cache.writes) do
+                write.props._tmp_grantsFlanking = write.value
+            end
+            return { table.unpack(cache.result) }
+        end
+    end
+
+    local writes = {}
+    local adjacent = {}
+    local result = ComputeFlankingTokens(self, nil, writes, adjacent)
+    --read the serials afterwards: the computation itself may rebuild modifiers.
+    local serials = { [self] = CreatureCache.SerialOf(self) }
+    for _, c in ipairs(adjacent) do
+        serials[c] = CreatureCache.SerialOf(c)
+    end
+    self._tmp_flankingCache = {
+        update = dmhub.ngameupdate,
+        epoch = CreatureCache.epoch,
+        serials = serials,
+        result = result,
+        writes = writes,
+    }
+    return { table.unpack(result) }
 end
 
 function creature:FlankedBy(otherToken)

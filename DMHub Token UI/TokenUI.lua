@@ -3191,6 +3191,96 @@ function creature:RefreshReactionAlerts(token)
 	end
 end
 
+--Token hud refresh gating. The engine runs RefreshToken for EVERY token on every game update
+--that touches a character, so refreshing every hud tree each time cost ~6 ms per move in a
+--17-creature combat. A hud shows its own token's state, so its tree is refreshed only when
+--one of its inputs can have changed: game data other than character records, this token's
+--record, its modifiers (CreatureCache serial), the viewer's relationship to it, any other
+--token the last refresh read, and the parts registered below. A refresh that ran a token
+--query (a wildcard read) makes the next update refresh again.
+local g_hudKeyParts = {}
+
+--Adds fn(creature, token) -> string to every token hud's refresh key. For hud content that
+--depends on something outside the token's own state, e.g. Draw Steel's flanking indicator.
+TokenUI.RegisterHudKeyPart = function(id, fn)
+	for i, part in ipairs(g_hudKeyParts) do
+		if part.id == id then
+			g_hudKeyParts[i].fn = fn
+			return
+		end
+	end
+	g_hudKeyParts[#g_hudKeyParts+1] = { id = id, fn = fn }
+end
+
+local function HudKey(self, token)
+	local parts = {
+		CreatureCache.GlobalKey(),
+		tostring(dmhub.CharacterRecordRevision(token.charid)),
+		tostring(CreatureCache.SerialOf(self)),
+		tostring(dmhub.isDM), tostring(token.canControl), tostring(token.isFriendOfPlayer),
+	}
+	for _, part in ipairs(g_hudKeyParts) do
+		parts[#parts+1] = part.fn(self, token) or ""
+	end
+	return table.concat(parts, "|")
+end
+
+--{charid -> "revision:serial"} for the other tokens a hud refresh read.
+local function HudDepState(charid)
+	local tok = dmhub.GetCharacterById(charid)
+	local props = tok and tok.properties
+	return string.format("%d:%d", dmhub.CharacterRecordRevision(charid), props and CreatureCache.SerialOf(props) or -1)
+end
+
+local function RefreshHud(self, token)
+	local sheet = token.sheet
+	if sheet == nil then
+		return
+	end
+
+	--/creaturecache off restores the old always-refresh behavior.
+	if not CreatureCache.enabled then
+		sheet.data.hudRefresh = nil
+		sheet:FireEventTree("refresh")
+		return
+	end
+
+	--the key is computed first: its parts also warm caches the tree reads (flanking), so the
+	--refresh below does not see their token queries.
+	local key = HudKey(self, token)
+	local last = sheet.data.hudRefresh
+	if last ~= nil and last.key == key and not last.wildcard then
+		local unchanged = true
+		for charid, state in pairs(last.deps) do
+			if HudDepState(charid) ~= state then
+				unchanged = false
+				break
+			end
+		end
+		if unchanged then
+			return
+		end
+	end
+
+	dmhub.BeginDependencyScope()
+	local ok, err = pcall(sheet.FireEventTree, sheet, "refresh")
+	local rec = dmhub.EndDependencyScope()
+
+	local deps = {}
+	if rec ~= nil then
+		for charid, _ in pairs(rec.tokens) do
+			if charid ~= token.charid then
+				deps[charid] = HudDepState(charid)
+			end
+		end
+	end
+	sheet.data.hudRefresh = { key = key, wildcard = rec == nil or rec.wildcard, deps = deps }
+
+	if not ok then
+		error(err, 0)
+	end
+end
+
 --creature animation management.
 function creature:RefreshAnimations(token)
 	if token.canControl then
@@ -3202,12 +3292,9 @@ function creature:RefreshAnimations(token)
 	--panels like StatusPanel. RefreshToken is called by the engine on actual state
 	--changes (not every frame), so firing FireEventTree here ensures sub-tree
 	--state - damage flash, stamina bar, status icons - reflects the change
-	--immediately. Descendant refresh handlers short-circuit when their data hasn't
-	--changed (e.g. StatusPanel's DeepEqual check on bar values), so the cost is
-	--bounded by what actually needs redrawing.
-	if token.sheet ~= nil then
-		token.sheet:FireEventTree("refresh")
-	end
+	--immediately. It is skipped when nothing the hud shows can have changed (see
+	--RefreshHud above).
+	RefreshHud(self, token)
 
 	local animations = self:try_get("animations")
 	if animations == nil then

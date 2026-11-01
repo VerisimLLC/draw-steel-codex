@@ -35,6 +35,10 @@ MonsterAI.log = {}
 MonsterAI.active = false
 MonsterAI.reactionStatus = false
 MonsterAI.reactionFailure = false
+--When the AI started waiting on nothing but minion deaths (nil when it isn't).
+--The token HUD reads it.
+---@type number|nil
+MonsterAI.minionDeathWaitSince = nil
 
 --"The AI is waiting on a player" notice ----------------------------------
 --
@@ -2725,6 +2729,8 @@ function MonsterAI:WaitForActivityReactions(activityId)
     local ok, err = self:RunYieldingFunction(function()
         completed, reason = self:WaitForActivityReactionsUnguarded(activityId)
     end)
+    --Cleared here so every way out of the wait, error or not, clears it.
+    MonsterAI.minionDeathWaitSince = nil
     if not ok then
         MonsterAI.reactionStatus = false
         MonsterAI.ClearWaiting()
@@ -2811,6 +2817,7 @@ function MonsterAI:WaitForActivityReactionsUnguarded(activityId)
 
     local startedAt = dmhub.Time()
     local idleSince = nil
+    local deathsOnlySince = nil
     local answeredTriggers = {}
     local isAIRunning = rawget(MonsterAI, "IsAIRunning")
     local cancelWhenAIStops = MonsterAI.active and isAIRunning ~= nil
@@ -2850,8 +2857,17 @@ function MonsterAI:WaitForActivityReactionsUnguarded(activityId)
             idleSince = nil
             if pending == 0 then
                 self:AnswerMinionTriggersDuringWait(answeredTriggers)
+                --Choose which minions our attacks killed now: this wait can't end
+                --until someone chooses them.
+                self:ResolvePendingMinionDeaths(0)
+                deathsOnlySince = deathsOnlySince or dmhub.Time()
+            else
+                deathsOnlySince = nil
             end
         end
+        --After a few seconds of waiting only on minion deaths, the token HUD
+        --offers "Choose for me".
+        MonsterAI.minionDeathWaitSince = deathsOnlySince
         coroutine.yield(0.1)
     end
 

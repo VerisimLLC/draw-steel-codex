@@ -165,15 +165,23 @@ local function OwedDeathSquads()
     return result
 end
 
+--Seconds the Monster AI may wait on minion deaths alone before the client
+--running it is offered "Choose for me" for its own kills.
+local g_aiDeathWaitGrace = 3
+
 --True if this client is the one that should choose the squad's deaths: the
 --attacker's controller, or everyone when the attacker is unknown. AI attackers
---are skipped: the Monster AI picks their kills itself.
+--are skipped: the Monster AI picks their kills itself, unless it is stuck.
 local function ShouldChooseSquadDeaths(attacker)
     if attacker == nil then
         return true
     end
     if attacker:IsAIControlled() then
-        return false
+        --Only when the Monster AI on this client is stuck waiting on deaths it
+        --could not choose itself, e.g. minions held by a trigger.
+        local monsterAI = rawget(_G, "MonsterAI")
+        local since = monsterAI ~= nil and monsterAI.minionDeathWaitSince or nil
+        return since ~= nil and dmhub.Time() - since >= g_aiDeathWaitGrace
     end
     local attackerToken = dmhub.LookupToken(attacker)
     if attackerToken == nil or not attackerToken.valid then

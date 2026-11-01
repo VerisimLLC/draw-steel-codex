@@ -2445,10 +2445,49 @@ end
 -- to cycle between them.
 -- =====================================================================
 
+local function HasVillainActionKey(abilities)
+    for _, ab in ipairs(abilities or {}) do
+        local key = ab:try_get("villainAction")
+        if key ~= nil and key ~= "" then
+            return true
+        end
+    end
+    return false
+end
+
+-- Cheap check before the full scan: GetActivatedAbilities clones and modifies
+-- every ability (~2 ms per creature) and the strip rescans on every game update,
+-- so only creatures whose own ability sources carry a villainAction slot pay for
+-- it. Stat block, kit and stolen abilities are seen; a villain action granted
+-- only through a modifier is not.
+local function MayOwnVillainActions(props)
+    if HasVillainActionKey(props:try_get("innateActivatedAbilities")) then
+        return true
+    end
+
+    local ok, kitHasVA = pcall(function()
+        local kit = props:Kit()
+        return kit ~= nil and HasVillainActionKey(kit:SignatureAbilities())
+    end)
+    if ok and kitHasVA then
+        return true
+    end
+
+    for _, cond in ipairs(props:try_get("ongoingEffects") or {}) do
+        local stolen = cond:try_get("stolenAbility")
+        if stolen ~= nil and HasVillainActionKey({stolen}) and not cond:Expired() then
+            return true
+        end
+    end
+
+    return false
+end
+
 -- Return { ["Villain Action 1"] = ability, ... } for a token, or nil.
 local g_reportedVillainActionScanError = false
 local function GetVillainActionAbilities(token)
     if token == nil or token.properties == nil then return nil end
+    if not MayOwnVillainActions(token.properties) then return nil end
     --Containment: GetActivatedAbilities runs a huge pass over authored data
     --(modifiers, items, triggers, module content). A throw here used to
     --propagate out of the refreshGame dispatch and abort the refresh of every

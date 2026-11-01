@@ -9147,8 +9147,18 @@ function CreateTitlescreen(dialog, options)
 
                                     monitorGame = "/characters",
                                     refreshGame = function(element)
+                                        --In a campaign /characters is the campaign's
+                                        --roster: sorting it on every token change is
+                                        --wasted work, and the count would be wrong.
+                                        if dmhub.inGame and not dmhub.isLobbyGame then
+                                            return
+                                        end
                                         local _, nheroes = LobbyHeroes()
                                         element:SetClass("hidden", nheroes >= 8)
+                                    end,
+
+                                    returnFromGameComplete = function(element)
+                                        element:FireEvent("refreshGame")
                                     end,
 
                                     press = CreateHero,
@@ -9186,8 +9196,18 @@ function CreateTitlescreen(dialog, options)
 
                                     monitorGame = "/characters",
                                     refreshGame = function(element)
+                                        --In a campaign /characters is the campaign's
+                                        --roster: sorting it on every token change is
+                                        --wasted work, and the count would be wrong.
+                                        if dmhub.inGame and not dmhub.isLobbyGame then
+                                            return
+                                        end
                                         local _, nheroes = LobbyHeroes()
                                         element:SetClass("hidden", nheroes >= 8)
+                                    end,
+
+                                    returnFromGameComplete = function(element)
+                                        element:FireEvent("refreshGame")
                                     end,
 
                                     press = ImportForgeSteel,
@@ -9209,8 +9229,18 @@ function CreateTitlescreen(dialog, options)
 
                                     monitorGame = "/characters",
                                     refreshGame = function(element)
+                                        --In a campaign /characters is the campaign's
+                                        --roster: sorting it on every token change is
+                                        --wasted work, and the count would be wrong.
+                                        if dmhub.inGame and not dmhub.isLobbyGame then
+                                            return
+                                        end
                                         local _, nheroes = LobbyHeroes()
                                         element:SetClass("hidden", nheroes >= 8)
+                                    end,
+
+                                    returnFromGameComplete = function(element)
+                                        element:FireEvent("refreshGame")
                                     end,
 
                                     press = ImportCodexJson,

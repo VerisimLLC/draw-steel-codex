@@ -6,7 +6,10 @@ MonsterAI:RegisterTactic{
     score = function(self, token, tokenLoc, enemy, ability)
         local flanking = false
         for _,ally in ipairs(self.allyTokens) do
-            if ally.charid ~= token.charid and MonsterAI.TargetDistance(ally, enemy) <= 1 then
+            --allyTokens is only rebuilt by RefreshCombatants, so an ally deleted
+            --earlier in this turn (killed during a plan preview) is still listed;
+            --measuring from it errors (HUJUSEJG), and the dead don't flank.
+            if ally.charid ~= token.charid and MonsterAI.TokenIsLiveCombatant(ally) and MonsterAI.TargetDistance(ally, enemy) <= 1 then
                 if (enemy.loc.y - tokenLoc.y) == (ally.loc.y - enemy.loc.y) and (enemy.loc.x - tokenLoc.x) == (ally.loc.x - enemy.loc.x) then
                     flanking = true
                     break

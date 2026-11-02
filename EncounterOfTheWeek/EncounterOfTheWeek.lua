@@ -2448,7 +2448,8 @@ end
 
 --Leave a survey invitation for the town after this game. outcome is
 --"victory", "defeat" or "abandoned". Skipped in tests, outside EotW, and
---for games shorter than SURVEY_MIN_SECONDS. A later game replaces it.
+--for games shorter than SURVEY_MIN_SECONDS. A later game replaces it, and
+--the town drops it if the app is restarted before it is shown.
 function EncounterOfTheWeekGame.RecordPendingSurvey(outcome)
     if not EOTW_BETA_SURVEY or not EncounterOfTheWeekGame.IsEotwGame() or EncounterOfTheWeekGame.IsTestPlayer() then
         return
@@ -2495,6 +2496,9 @@ function EncounterOfTheWeekGame.RecordPendingSurvey(outcome)
         minutes = math.floor(seconds / 60 + 0.5),
         players = players,
         heroes = heroes,
+        --when this run of the app started (unix seconds): the town only
+        --invites in the same run, never after a restart.
+        appStart = math.floor(os.time() - dmhub.Time()),
     }
     dmhub.SetSettingValue("eotw:pendingSurvey", dmhub.ToJson(all))
     printf("EotW: beta survey (%s, %d min) waiting for the town", outcome, math.floor(seconds / 60))

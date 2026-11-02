@@ -2079,80 +2079,89 @@ end
 --level 1 with no items), then every pregenerated hero of the week's module,
 --then the pregens of the player's Hero modules, one section per module.
 local function ShowRecruitPicker(host, onDone)
-    local pregens = EncounterOfTheWeek.GetPregens()
     local dlg
 
-    local ownCards = {}
-    for _,tok in ipairs(TitlescreenHeroes.List()) do
-        local className, ancestry, level = EotwRoster.HeroDetails(tok)
-        local name = tok.name
-        if name == nil or name == "" then
-            name = T("guild.picker.unnamed_hero")
-        end
-        local blocked = nil
-        if EotwRoster.FindCopyOf(tok.charid) ~= nil then
-            blocked = T("guild.picker.already_in_roster")
-        end
-        ownCards[#ownCards+1] = RecruitCard(PortraitOf(tok), name, EotwRoster.FormatDetails(level, ancestry, className), function()
-            dlg:DestroySelf()
-            ShowRecruitNamePrompt(host, {
-                initialName = name,
-                rollName = function()
-                    return EotwBuild.GenerateName(tok.properties --[[@as character]]) or name
-                end,
-                prompt = T("guild.name_prompt.copy", { name = name, details = EotwRoster.FormatDetails(1, ancestry, className) }),
-                confirm = function(newName, done)
-                    EotwRoster.RecruitTitlescreenHero(tok, newName, done)
-                end,
-            }, onDone)
-        end, blocked)
-    end
-
-    local pregenCards = {}
-    --Hero module name -> its pregens' cards, and the names in first-seen order.
-    local heroModuleCards = {}
-    local heroModuleNames = {}
-    for _,pregen in ipairs(pregens or {}) do
-        local tok = EncounterOfTheWeek.GetPregenToken(pregen.id)
-        local cards = pregenCards
-        if pregen.source ~= nil then
-            cards = heroModuleCards[pregen.source]
-            if cards == nil then
-                cards = {}
-                heroModuleCards[pregen.source] = cards
-                heroModuleNames[#heroModuleNames+1] = pregen.source
+    --Every section's cards, built from the pregen lists as they stand now.
+    --Rebuilt whole when a list still downloading arrives (see the body's think).
+    local BuildSections = function(pregens)
+        local ownCards = {}
+        for _,tok in ipairs(TitlescreenHeroes.List()) do
+            local className, ancestry, level = EotwRoster.HeroDetails(tok)
+            local name = tok.name
+            if name == nil or name == "" then
+                name = T("guild.picker.unnamed_hero")
             end
+            local blocked = nil
+            if EotwRoster.FindCopyOf(tok.charid) ~= nil then
+                blocked = T("guild.picker.already_in_roster")
+            end
+            ownCards[#ownCards+1] = RecruitCard(PortraitOf(tok), name, EotwRoster.FormatDetails(level, ancestry, className), function()
+                dlg:DestroySelf()
+                ShowRecruitNamePrompt(host, {
+                    initialName = name,
+                    rollName = function()
+                        return EotwBuild.GenerateName(tok.properties --[[@as character]]) or name
+                    end,
+                    prompt = T("guild.name_prompt.copy", { name = name, details = EotwRoster.FormatDetails(1, ancestry, className) }),
+                    confirm = function(newName, done)
+                        EotwRoster.RecruitTitlescreenHero(tok, newName, done)
+                    end,
+                }, onDone)
+            end, blocked)
         end
-        cards[#cards+1] = RecruitCard(PortraitOf(tok), pregen.name, EotwRoster.FormatDetails(pregen.level, pregen.ancestry, pregen.className), function()
-            dlg:DestroySelf()
-            ShowRecruitNamePrompt(host, {
-                initialName = RecruitName(pregen),
-                rollName = function()
-                    return RecruitName(pregen)
-                end,
-                prompt = T("guild.name_prompt.pregen", { details = EotwRoster.FormatDetails(pregen.level, pregen.ancestry, pregen.className) }),
-                confirm = function(name, done)
-                    EotwRoster.RecruitPregen(pregen.id, name, done)
-                end,
-            }, onDone)
-        end)
+
+        local pregenCards = {}
+        --Hero module name -> its pregens' cards, and the names in first-seen order.
+        local heroModuleCards = {}
+        local heroModuleNames = {}
+        for _,pregen in ipairs(pregens or {}) do
+            local tok = EncounterOfTheWeek.GetPregenToken(pregen.id)
+            local cards = pregenCards
+            if pregen.source ~= nil then
+                cards = heroModuleCards[pregen.source]
+                if cards == nil then
+                    cards = {}
+                    heroModuleCards[pregen.source] = cards
+                    heroModuleNames[#heroModuleNames+1] = pregen.source
+                end
+            end
+            cards[#cards+1] = RecruitCard(PortraitOf(tok), pregen.name, EotwRoster.FormatDetails(pregen.level, pregen.ancestry, pregen.className), function()
+                dlg:DestroySelf()
+                ShowRecruitNamePrompt(host, {
+                    initialName = RecruitName(pregen),
+                    rollName = function()
+                        return RecruitName(pregen)
+                    end,
+                    prompt = T("guild.name_prompt.pregen", { details = EotwRoster.FormatDetails(pregen.level, pregen.ancestry, pregen.className) }),
+                    confirm = function(name, done)
+                        EotwRoster.RecruitPregen(pregen.id, name, done)
+                    end,
+                }, onDone)
+            end)
+        end
+
+        local sections = {}
+        if #ownCards > 0 then
+            sections[#sections+1] = PickerHeading(T("guild.picker.own_heading"), T("guild.picker.own_subtitle"))
+            sections[#sections+1] = CardGrid(ownCards)
+        end
+        sections[#sections+1] = PickerHeading(T("guild.picker.hire_heading"), T("guild.picker.hire_subtitle"))
+        if pregens == nil then
+            sections[#sections+1] = gui.Label{ text = T("guild.picker.pregens_loading"), fontSize = 18, color = DIM, width = "90%", height = "auto", halign = "center", textAlignment = "center", vmargin = 40 }
+        else
+            sections[#sections+1] = CardGrid(pregenCards)
+        end
+        for _,source in ipairs(heroModuleNames) do
+            sections[#sections+1] = PickerHeading(source, T("guild.picker.module_subtitle"))
+            sections[#sections+1] = CardGrid(heroModuleCards[source])
+        end
+        return sections
     end
 
-    local sections = {}
-    if #ownCards > 0 then
-        sections[#sections+1] = PickerHeading(T("guild.picker.own_heading"), T("guild.picker.own_subtitle"))
-        sections[#sections+1] = CardGrid(ownCards)
-    end
-    sections[#sections+1] = PickerHeading(T("guild.picker.hire_heading"), T("guild.picker.hire_subtitle"))
-    if pregens == nil then
-        sections[#sections+1] = gui.Label{ text = T("guild.picker.pregens_loading"), fontSize = 18, color = DIM, width = "90%", height = "auto", halign = "center", textAlignment = "center", vmargin = 40 }
-    else
-        sections[#sections+1] = CardGrid(pregenCards)
-    end
-    for _,source in ipairs(heroModuleNames) do
-        sections[#sections+1] = PickerHeading(source, T("guild.picker.module_subtitle"))
-        sections[#sections+1] = CardGrid(heroModuleCards[source])
-    end
+    --Seconds left to wait for pregen lists still downloading. The Hero
+    --module pregens are fetched on first use, so the first open can come
+    --before they arrive.
+    local waitLeft = 30
 
     local body = gui.Panel{
         width = "96%",
@@ -2166,7 +2175,20 @@ local function ShowRecruitPicker(host, onDone)
             width = "100%",
             height = "auto",
             flow = "vertical",
-            children = sections,
+            children = BuildSections(EncounterOfTheWeek.GetPregens()),
+            thinkTime = cond(EncounterOfTheWeek.PregensSettled(), nil, 1),
+            think = function(element)
+                waitLeft = waitLeft - 1
+                --GetPregens also re-kicks a fetch that failed or a Hero module
+                --set that changed while the picker was open.
+                local pregens = EncounterOfTheWeek.GetPregens()
+                if EncounterOfTheWeek.PregensSettled() then
+                    element.thinkTime = nil
+                    element.children = BuildSections(pregens)
+                elseif waitLeft <= 0 then
+                    element.thinkTime = nil
+                end
+            end,
         },
     }
     local titleParts = Title(T("guild.picker.title"), T("guild.picker.subtitle"))

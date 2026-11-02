@@ -597,9 +597,51 @@ local function ShowZoneType(keywordid)
     return true
 end
 
+--The keyword ids the map overlay files a zone type's zones under, for a
+--revealed zone name. The overlay's filter (mapoverlay:shownzones) is keyed
+--by the id it resolved for each record, and that is not always a keyword in
+--this game's table: a module that paints zones with a zone type it does not
+--ship (4MJ3HMCC: the official module's "Trap") leaves the records on a dead
+--id, which the overlay keeps using, with the record's stored name. So ask the
+--overlay (MapMarkup.GetZoneTypesOnMap) which ids carry the name, plus the
+--table's own keyword of that name. A player only gets the types it can see,
+--so this is empty until the host's playerVisible writes arrive.
+local function RevealedZoneTypeIds(zone, info)
+    local ids = {}
+    local seen = {}
+    local function Add(id)
+        if type(id) == "string" and id ~= "" and not seen[id] then
+            seen[id] = true
+            ids[#ids + 1] = id
+        end
+    end
+    Add(info.keywordid)
+    Add(EncounterZones.FindKeyword(zone))
+    local markup = rawget(_G, "MapMarkup")
+    if markup ~= nil and markup.GetZoneTypesOnMap ~= nil then
+        local ok, types = pcall(markup.GetZoneTypesOnMap)
+        if ok and type(types) == "table" then
+            local name = lower(zone)
+            for _, t in ipairs(types) do
+                local n = lower(t.name)
+                if n == name or n .. "s" == name or n == name .. "s" then
+                    Add(t.keywordid)
+                end
+            end
+        end
+    end
+    return ids
+end
+
 --each reveal stamp is applied to this client's preference once, so a user
---who turns the type back off afterwards is not fought.
+--who turns the type back off afterwards is not fought. Keyed by zone name;
+--a stamp only counts as applied once some id was found for it, since the
+--zone records can arrive a tick after the document.
 local m_appliedReveals = {}
+--{ [zone] = { stamp, misses } }: ticks a reveal has found no id, so a reveal
+--that can never be shown says so once instead of failing silently.
+local m_revealMisses = {}
+local REVEAL_MISSES_BEFORE_WARNING = 5
 
 function EncounterZones.ClientTick()
     local revealed = nil
@@ -608,12 +650,31 @@ function EncounterZones.ClientTick()
         return
     end
     for zone, info in pairs(revealed) do
-        local keywordid = info.keywordid or EncounterZones.FindKeyword(zone)
         local stamp = tostring(info.at)
-        if keywordid ~= nil and m_appliedReveals[keywordid] ~= stamp then
-            m_appliedReveals[keywordid] = stamp
-            if ShowZoneType(keywordid) then
-                printf("EotW zones: showing %s zones on the map overlay", tostring(zone))
+        if m_appliedReveals[zone] ~= stamp then
+            local ids = RevealedZoneTypeIds(zone, info)
+            if #ids > 0 then
+                m_appliedReveals[zone] = stamp
+                m_revealMisses[zone] = nil
+                local changed = false
+                for _, id in ipairs(ids) do
+                    if ShowZoneType(id) then
+                        changed = true
+                    end
+                end
+                if changed then
+                    printf("EotW zones: showing %s zones on the map overlay (%s)", tostring(zone), table.concat(ids, ", "))
+                end
+            else
+                local misses = m_revealMisses[zone]
+                if misses == nil or misses.stamp ~= stamp then
+                    misses = { stamp = stamp, misses = 0 }
+                    m_revealMisses[zone] = misses
+                end
+                misses.misses = misses.misses + 1
+                if misses.misses == REVEAL_MISSES_BEFORE_WARNING then
+                    printf("EotW zones: cannot show the revealed %s zones: no zone type of that name on the map overlay", tostring(zone))
+                end
             end
         end
     end
@@ -680,6 +741,7 @@ function EncounterZones.ResetMap(doc)
         end
     end
     m_appliedReveals = {}
+    m_revealMisses = {}
 end
 
 function EncounterZones.ClearDocState(doc)

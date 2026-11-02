@@ -6779,8 +6779,8 @@ CreateScreen = function(args)
                 local rows = {}
                 for _,key in ipairs(keys) do
                     local stats = (result.stats or {})[key]
-                    rows[#rows+1] = ListSectionTitle(titles[key])
-                    rows[#rows+1] = gui.Label{
+                    local entries = {}
+                    entries[#entries+1] = gui.Label{
                         text = cond(stats == nil, T("eotw.feedback.not_tried"),
                             TP("eotw.feedback.stats", stats ~= nil and stats.plays or 0, { up = stats ~= nil and stats.up or 0,
                                 down = stats ~= nil and stats.down or 0 })),
@@ -6792,7 +6792,7 @@ CreateScreen = function(args)
                     for _,f in ipairs(result.feedback or {}) do
                         if f.encounter == key then
                             local vote = cond((f.vote or 0) > 0, T("eotw.feedback.vote_up"), cond((f.vote or 0) < 0, T("eotw.feedback.vote_down"), T("eotw.feedback.no_vote")))
-                            rows[#rows+1] = gui.Label{
+                            entries[#entries+1] = gui.Label{
                                 text = (f.feedback ~= nil and f.feedback ~= "") and T("eotw.feedback.entry", { player = f.name or "?", vote = vote, feedback = tostring(f.feedback) })
                                     or T("eotw.feedback.entry_no_text", { player = f.name or "?", vote = vote }),
                                 fontSize = 16,
@@ -6804,6 +6804,63 @@ CreateScreen = function(args)
                             }
                         end
                     end
+                    local entriesPanel = gui.Panel{
+                        width = "100%",
+                        height = "auto",
+                        flow = "vertical",
+                        children = entries,
+                    }
+                    --Clicking an encounter's heading folds its feedback away,
+                    --so a long list doesn't bury the encounters below it.
+                    local collapsed = false
+                    --Points right when folded, down when open. Keep these styles on the
+                    --arrow: the rotation did not apply when they were on the row.
+                    local arrow = gui.Panel{
+                        classes = { "expanded" },
+                        bgimage = "panels/triangle.png",
+                        styles = {
+                            gui.Style{
+                                bgcolor = "#d9b56a",
+                                width = 8,
+                                height = 8,
+                                rmargin = 10,
+                                valign = "center",
+                                rotate = 90,
+                            },
+                            gui.Style{
+                                selectors = { "expanded" },
+                                rotate = 0,
+                                transitionTime = 0.2,
+                            },
+                            gui.Style{
+                                selectors = { "parent:hover" },
+                                bgcolor = "#f2dca0",
+                            },
+                        },
+                    }
+                    local heading = ListSectionTitle(titles[key])
+                    --Leave room for the arrow (8 wide + 10 margin), and move the heading's
+                    --margins onto the row so the arrow sits level with the text.
+                    heading.selfStyle.width = "100%-18"
+                    heading.selfStyle.tmargin = 0
+                    heading.selfStyle.bmargin = 0
+                    rows[#rows+1] = gui.Panel{
+                        width = "100%",
+                        height = "auto",
+                        flow = "horizontal",
+                        tmargin = 14,
+                        bmargin = 6,
+                        bgimage = "panels/square.png",
+                        bgcolor = "clear",
+                        press = function()
+                            collapsed = not collapsed
+                            entriesPanel:SetClass("collapsed", collapsed)
+                            arrow:SetClass("expanded", not collapsed)
+                        end,
+                        arrow,
+                        heading,
+                    }
+                    rows[#rows+1] = entriesPanel
                 end
                 body.children = rows
             end,

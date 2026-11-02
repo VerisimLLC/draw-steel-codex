@@ -8073,7 +8073,8 @@ function HeroBuilder.Create(args)
         Engine().Cached(PaintNow)
         --the picture shows the class's art (the ancestry's before a class)
         --until the player picks their own; written after the paint, outside
-        --its cache, and marked as the Builder's so a new class moves it on.
+        --its cache. The mark keeps the picture written, so a new class moves
+        --it on but a picture set anywhere else is left alone.
         --Not an undo step: the next paint would only put it back.
         local token = Host().token()
         if token == nil or token.properties == nil or levelUp or not Host().canWrite() then
@@ -8085,12 +8086,12 @@ function HeroBuilder.Create(args)
             token.portrait = art
             token:UploadAppearance()
             token:RefreshAppearanceLocally()
-            if token.properties:try_get(field) ~= true then
+            if token.properties:try_get(field) ~= art then
                 Host().save{
                     description = "Portrait",
                     undoable = false,
                     execute = function(props)
-                        props[field] = true
+                        props[field] = art
                     end,
                 }
             end

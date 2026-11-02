@@ -224,6 +224,21 @@ function Actions.Count(entry)
     return math.max(1, entry.quantity or 1)
 end
 
+--- Run a move's two writes (the Hero and the stash, a floor or another
+--- token) as one undo step. Undo used to put the item back on only one side,
+--- so it ended up in both places.
+--- @param fn fun(): boolean
+--- @return boolean
+local function AsOneUndo(fn)
+    dmhub.BeginTransaction()
+    local ok, result = pcall(fn)
+    dmhub.EndTransaction()
+    if not ok then
+        error(result, 0)
+    end
+    return result
+end
+
 --- Put a row in the party stash.
 --- @param entry HeroInventoryEntry
 --- @param count nil|integer how many; the whole row when nil
@@ -234,21 +249,23 @@ function Actions.PutInStash(entry, count)
         return false
     end
     local description = string.format("Put %s in the party stash", entry.name)
-    local taken = 0
-    local ok = HeroSheetWrite.Save{
-        description = description,
-        execute = function(hero)
-            taken = TakeOff(hero, entry, count or Actions.Count(entry), true)
-        end,
-    }
-    if not ok or taken <= 0 then
-        return false
-    end
-    party:BeginChanges()
-    party.properties:GiveItem(entry.itemid, taken)
-    party:CompleteChanges(description)
-    audio.FireSoundEvent("UI.Inv_Place")
-    return true
+    return AsOneUndo(function()
+        local taken = 0
+        local ok = HeroSheetWrite.Save{
+            description = description,
+            execute = function(hero)
+                taken = TakeOff(hero, entry, count or Actions.Count(entry), true)
+            end,
+        }
+        if not ok or taken <= 0 then
+            return false
+        end
+        party:BeginChanges()
+        party.properties:GiveItem(entry.itemid, taken)
+        party:CompleteChanges(description)
+        audio.FireSoundEvent("UI.Inv_Place")
+        return true
+    end)
 end
 
 --- Give some of a row to another token (a Hero, retainer or follower).
@@ -261,26 +278,28 @@ function Actions.GiveTo(entry, target, count)
         return false
     end
     local description = string.format("Give %s", entry.name)
-    local taken = 0
-    local ok = SaveHolder(entry, description, function(holder)
-        taken = TakeOff(holder, entry, count, false)
+    return AsOneUndo(function()
+        local taken = 0
+        local ok = SaveHolder(entry, description, function(holder)
+            taken = TakeOff(holder, entry, count, false)
+        end)
+        if not ok or taken <= 0 then
+            return false
+        end
+        target:ModifyProperties{
+            description = description,
+            execute = function()
+                target.properties:GiveItem(entry.itemid, taken)
+            end,
+        }
+        audio.FireSoundEvent("UI.Inv_Place")
+        return true
     end)
-    if not ok or taken <= 0 then
-        return false
-    end
-    target:ModifyProperties{
-        description = description,
-        execute = function()
-            target.properties:GiveItem(entry.itemid, taken)
-        end,
-    }
-    audio.FireSoundEvent("UI.Inv_Place")
-    return true
 end
 
 --- Take a stash item into the Hero's inventory, all of it. The stash is read
---- again at the click: if someone took it meanwhile, nothing moves and a
---- toast says so. A slot that remembers the item equips it again.
+--- again at the click: if another player's Take has already arrived, nothing
+--- moves and a toast says so. A slot that remembers the item equips it again.
 --- @param itemid string
 --- @return boolean
 function Actions.Take(itemid)
@@ -296,15 +315,17 @@ function Actions.Take(itemid)
         return false
     end
     local description = string.format("Take %s from the party stash", item.name)
-    party:BeginChanges()
-    party.properties:SetItemQuantity(itemid, 0)
-    party:CompleteChanges(description)
-    HeroSheetWrite.Save{
-        description = description,
-        execute = function(hero)
-            hero:GiveItem(itemid, have)
-        end,
-    }
+    AsOneUndo(function()
+        party:BeginChanges()
+        party.properties:SetItemQuantity(itemid, 0)
+        party:CompleteChanges(description)
+        return HeroSheetWrite.Save{
+            description = description,
+            execute = function(hero)
+                hero:GiveItem(itemid, have)
+            end,
+        }
+    end)
     audio.FireSoundEvent("UI.Inv_Grab")
     --at Narrow the inventory is on the other tab: say where it went.
     if HeroSheet.Tier() == "narrow" then
@@ -328,19 +349,21 @@ function Actions.TakeAll()
         return false
     end
     local description = "Take all from the party stash"
-    party:BeginChanges()
-    for _, move in ipairs(moving) do
-        party.properties:SetItemQuantity(move.itemid, 0)
-    end
-    party:CompleteChanges(description)
-    HeroSheetWrite.Save{
-        description = description,
-        execute = function(hero)
-            for _, move in ipairs(moving) do
-                hero:GiveItem(move.itemid, move.quantity)
-            end
-        end,
-    }
+    AsOneUndo(function()
+        party:BeginChanges()
+        for _, move in ipairs(moving) do
+            party.properties:SetItemQuantity(move.itemid, 0)
+        end
+        party:CompleteChanges(description)
+        return HeroSheetWrite.Save{
+            description = description,
+            execute = function(hero)
+                for _, move in ipairs(moving) do
+                    hero:GiveItem(move.itemid, move.quantity)
+                end
+            end,
+        }
+    end)
     audio.FireSoundEvent("UI.Inv_Grab")
     return true
 end
@@ -355,19 +378,21 @@ function Actions.Drop(entry, count)
     if token == nil or not Actions.OnMap(token) then
         return false
     end
-    local taken = 0
-    local ok = HeroSheetWrite.Save{
-        description = string.format("Drop %s", entry.name),
-        execute = function(hero)
-            taken = TakeOff(hero, entry, count, false)
-        end,
-    }
-    if not ok or taken <= 0 then
-        return false
-    end
-    loot.SpawnDroppedItem(token, entry.itemid, taken)
-    audio.FireSoundEvent("UI.Inv_Place")
-    return true
+    return AsOneUndo(function()
+        local taken = 0
+        local ok = HeroSheetWrite.Save{
+            description = string.format("Drop %s", entry.name),
+            execute = function(hero)
+                taken = TakeOff(hero, entry, count, false)
+            end,
+        }
+        if not ok or taken <= 0 then
+            return false
+        end
+        loot.SpawnDroppedItem(token, entry.itemid, taken)
+        audio.FireSoundEvent("UI.Inv_Place")
+        return true
+    end)
 end
 
 --- Destroy some of a row.

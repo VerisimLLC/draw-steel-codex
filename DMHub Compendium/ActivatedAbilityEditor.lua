@@ -3941,8 +3941,8 @@ function ActivatedAbility:ShowEditActivatedAbilityDialog(options)
 	end
 	options.hide = nil
 
-	--{title=, message=}: Delete asks first (the sheet passes it); without it
-	--Delete acts at once, as before. Taken out because leftover options go to the panel.
+	--options.deleteConfirm = {title, message}: Delete asks first; without it Delete
+	--acts at once. Removed from options because leftover options become panel fields.
 	local deleteConfirm = options.deleteConfirm
 	options.deleteConfirm = nil
 
@@ -3995,8 +3995,8 @@ function ActivatedAbility:ShowEditActivatedAbilityDialog(options)
 					},
 					children = {
 						gui.Label{
-							--fixed width: the body panel sizes to its content, so
-							--"100%" collapsed and wrapped every word.
+							--fixed width: the dialog body sizes to its content, so a %
+							--width has nothing to fill.
 							width = 500,
 							height = "auto",
 							halign = "center",

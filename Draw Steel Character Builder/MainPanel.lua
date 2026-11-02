@@ -467,9 +467,9 @@ function CharacterBuilder.CreatePanel()
                     title = "Confirm Change Ancestry",
                     message = "Click Confirm to remove your Ancestry and all related selections.",
                     onConfirm = function()
-                        --Clear the step's picks first (EotW's rule; it needs the old
-                        --ancestry to find them), so "all related selections" holds.
-                        EotwBuild.hero.ClearStepChoices(hero, "ancestry")
+                        --Clear the ancestry's picks before raceid: finding them needs the old
+                        --ancestry. The dialog promises to remove all related selections.
+                        HeroBuild.main.hero.ClearStepChoices(hero, "ancestry")
                         hero.raceid = nil
                         hero.subraceid = nil
                         state:Set{ key = SEL.ANCESTRY .. ".blockFeatureSelection", value = true }
@@ -487,7 +487,7 @@ function CharacterBuilder.CreatePanel()
                     title = "Confirm Change Career",
                     message = "Click Confirm to remove your Career and all related selections.",
                     onConfirm = function()
-                        EotwBuild.hero.ClearStepChoices(hero, "career")
+                        HeroBuild.main.hero.ClearStepChoices(hero, "career")
                         hero.backgroundid = nil
                         state:Set{ key = SEL.CAREER .. ".blockFeatureSelection", value = true }
                         element:FireEvent("tokenDataChanged")
@@ -504,7 +504,7 @@ function CharacterBuilder.CreatePanel()
                     title = "Confirm Change Class",
                     message = "Click Confirm to remove your Class and all related selections.",
                     onConfirm = function()
-                        EotwBuild.hero.ClearStepChoices(hero, "class")
+                        HeroBuild.main.hero.ClearStepChoices(hero, "class")
                         hero.classes = {}
                         for _,attr in pairs(hero:try_get("attributes") or {}) do
                             attr.baseValue = 0
@@ -615,8 +615,9 @@ function CharacterBuilder.CreatePanel()
                                 levelChoice[#levelChoice+1] = note.rowid
                             end
                         end
-                        --This mirror runs on every refresh, including when a sheet opens, and the
-                        --harness uploads any change. Write only a real change, never an empty entry.
+                        --This copies the inciting incident picks (kept as notes) into levelChoices on
+                        --every refresh, even when a sheet only opens, and any change uploads: write
+                        --only a real change.
                         local current = levelChoices[feature.guid]
                         if current == nil then
                             if #levelChoice > 0 then

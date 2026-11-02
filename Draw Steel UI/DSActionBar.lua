@@ -5596,6 +5596,13 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 			end,
 
 			refresh = function(element)
+				--With a custom action bar (the Draw Steel one) this bar is collapsed under it
+				--(collapseIfCustomActionBar) and never seen, but it still rebuilt the selected
+				--creature's whole ability list and its spell panels on every refresh and game
+				--update -- ~30 ms after each move. Like invokeAbility, do nothing then.
+				if g_customActionBarFunction ~= nil then
+					return
+				end
 				if tokenInfo.selectedToken == nil or tokenInfo.selectedToken.properties == nil then
 					token = nil
 					element.monitorGame = nil
@@ -5618,6 +5625,9 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 
 			--fired whenever the monitored path in the game changes. In this case any character data.
 			refreshGame = function(element)
+				if g_customActionBarFunction ~= nil then
+					return
+				end
 				if self.castingSpell then
 					gameUpdateCameWhileCastingSpell = true
 				else
@@ -5636,7 +5646,7 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 		data = {
 			recalculate = function(element)
 
-                if token == nil then
+                if token == nil or g_customActionBarFunction ~= nil then
                     return
                 end
 

@@ -77,7 +77,6 @@ TriggeredAbility.mandatoryTriggerSettings = {
 --- Returns true if this triggered ability should fire automatically without prompting the player.
 --- @return boolean
 function TriggeredAbility:IsMandatory(token)
-    print("MANDATORY:: IS =", self.mandatory, json(token ~= nil and token.charid), json(token ~= nil and token.activeControllerId == nil))
     if self.mandatory == true or self.mandatory == "local" or (self.mandatory == "prompt_remote" and token ~= nil and token.activeControllerId == nil) then
         return true
     elseif self.mandatory == "prompt_remote" or self.mandatory == false then

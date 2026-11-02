@@ -60,7 +60,24 @@ UnitTest(function()
     UnitTestEq(result["day"], "19")
 end)
 
+--CreateMatchPattern results by monster name and pattern. It only depends on its two
+--strings, and executing an ability's effect text tries every importable effect's pattern,
+--each a dozen regex passes (~11 ms in one Accept Result).
+local g_matchPatternCache = {}
+
+local CreateMatchPatternUncached
+
 local function CreateMatchPattern(monsterName, pattern)
+    local key = tostring(monsterName or "monster") .. "\0" .. pattern
+    local result = g_matchPatternCache[key]
+    if result == nil then
+        result = CreateMatchPatternUncached(monsterName, pattern)
+        g_matchPatternCache[key] = result
+    end
+    return result
+end
+
+CreateMatchPatternUncached = function(monsterName, pattern)
     monsterName = monsterName or "monster"
     pattern = string.lower(pattern)
 

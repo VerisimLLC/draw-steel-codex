@@ -44,6 +44,13 @@ end
 -- Shared document for broadcasting the active ability timeline to other players.
 local g_abilityShareDocId = "abilityTimelineShare"
 
+-- Only UI reads this document (the remote ability card, the EotW montage stage), each
+-- watching its path. Rules-neutral, so its writes -- a heartbeat, the section and dialog
+-- state, several times per ability use -- no longer rebuild every creature's modifiers.
+if CreatureCache ~= nil and CreatureCache.RegisterRulesNeutralDocument ~= nil then
+    CreatureCache.RegisterRulesNeutralDocument(g_abilityShareDocId)
+end
+
 -- Current sharing state: nil when not sharing, otherwise a table of shared data.
 local g_sharingData = nil
 
@@ -2964,6 +2971,13 @@ function CharacterPanel.AcquireAbilityRollDialog(token, ability, symbols, displa
     acquireDisplayOptions.lockCoroutine = coid
 
     local displayed, lockId = CharacterPanel.DisplayAbility(token, ability, symbols, acquireDisplayOptions)
+
+    --Rebuilding the card, building the roll dialog and filling it ran in one frame
+    --(~70 ms when a target is clicked). Inside the cast coroutine, which already yields
+    --while the dice roll, let the card's frame end before the dialog is built.
+    if coid ~= nil and coroutine.isyieldable() then
+        coroutine.yield()
+    end
 
     --True while the Monster AI holds the token (MonsterAI:BeginTokenControl).
     --The dialog itself asks options.creature the same thing to hide its own

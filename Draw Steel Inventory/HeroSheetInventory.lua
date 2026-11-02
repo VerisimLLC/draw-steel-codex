@@ -10,22 +10,6 @@ local mod = dmhub.GetModLoading()
 
 HeroSheetInventory = rawget(_G, "HeroSheetInventory") or {}
 
-----------------------------------------------------------------------
---A Hero can equip any number of leveled treasures and trinkets, so add
---slots well past the 5 and 10 the base rules define. Every client adds them
---at load. The old inventory grid still draws only the first 5 and 10.
-
-local LEVELED_SLOTS = 20
-local TRINKET_SLOTS = 30
-for i = 6, LEVELED_SLOTS do
-    local key = string.format("leveled%d", i)
-    creature.EquipmentSlots[key] = creature.EquipmentSlots[key] or { type = "leveled", leveled = true, tooltip = "Slot for leveled treasures", slotid = key }
-end
-for i = 11, TRINKET_SLOTS do
-    local key = string.format("trinket%d", i)
-    creature.EquipmentSlots[key] = creature.EquipmentSlots[key] or { type = "trinket", trinket = true, tooltip = "Trinket slot", slotid = key }
-end
-
 --The token radial's Inventory button opens this tab for a Hero, as the
 --inventory keybind does; other tokens keep the old grid. If ShowInventory is
 --still this wrapper (only this file was reloaded), wrap the stored original;

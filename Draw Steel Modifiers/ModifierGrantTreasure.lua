@@ -760,8 +760,7 @@ local function FreeSlotForItem(creature, item)
             slotids[#slotids+1] = slotid
         end
     end
-    --by the slot's number: leveled2 before leveled10 (the Hero sheet adds
-    --slots past the base rules' 5 and 10, HeroSheetInventory.lua).
+    --by the slot's number: trinket2 before trinket10.
     table.sort(slotids, function(left, right)
         local leftNumber = tonumber(string.match(left, "%d+$")) or 0
         local rightNumber = tonumber(string.match(right, "%d+$")) or 0

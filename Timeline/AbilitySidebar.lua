@@ -41,6 +41,40 @@ local function AbilityOwnsDisplayedCard(ability)
     return false
 end
 
+--- Trigger roll stack. When an accepted trigger's before-action has to roll
+--- while the roll it is reacting to is still open on this same client (one
+--- player running both creatures), the interrupted card is collapsed and the
+--- trigger's card gets a fresh slot on top. Popping restores the card below.
+--- With two players each has their own sidebar, so nothing is ever stacked.
+---@class AbilityCardFrame
+---@field frozen Panel[] the panels collapsed for this frame, uncollapsed on pop.
+---@field slot Panel the panel the stacked card mounts into.
+---@field prevSlot Panel|nil the slot below (nil = the sidebar itself).
+---@field coid any the stacked cast's coroutine id; popping is tied to it.
+---@field dialog Panel the interrupted roll dialog.
+---@field displayedAbility any
+---@field aliases table
+---@field deferredCard Panel|nil
+---@field lock table|nil the interrupted cast's display lock.
+
+---@type AbilityCardFrame[]
+local g_cardStack = {}
+
+--The top stacked slot, nil when nothing is stacked.
+---@type Panel|nil
+local g_cardSlot = nil
+
+--Where cards and their roll dialogs live right now: the top stacked slot, or
+--the sidebar panel itself.
+---@param host Panel
+---@return Panel
+local function CardSlot(host)
+    if g_cardSlot ~= nil and g_cardSlot.valid then
+        return g_cardSlot
+    end
+    return host
+end
+
 -- Shared document for broadcasting the active ability timeline to other players.
 local g_abilityShareDocId = "abilityTimelineShare"
 
@@ -2154,18 +2188,25 @@ function GameHud:InitAbilityDisplayPanel(abilityDisplayPanel)
             print(string.format("AbilityCard:: BUILD ability=%s deferred=%s",
                 tostring(diagName), tostring(displayOptions.deferReveal == true)))
 
-            element.children = { cardWrapper }
+            CardSlot(element).children = { cardWrapper }
 
         end,
 
         hideAbility = function(element)
-            element.children = {}
+            CardSlot(element).children = {}
 
             -- The local ability was hidden; re-evaluate whether a remote
             -- display should appear.
             g_deferredCard = nil
             g_displayedAbility = nil
             ClearDisplayedAbilityAliases()
+
+            --A stacked card going away leaves the interrupted card (and its
+            --share, which other players are still watching) underneath.
+            if #g_cardStack > 0 then
+                return
+            end
+
             local doc = mod:GetDocumentSnapshot(g_abilityShareDocId)
             RefreshRemoteAbilityDisplay(remoteDisplayPanel, doc.data)
 
@@ -2243,7 +2284,9 @@ function CharacterPanel.FindEmbeddedRollDialog()
         return nil
     end
 
-    local embedded = panel:FindChildRecursive(function(p)
+    --While a trigger roll is stacked, the dialog that counts is the top one;
+    --the interrupted dialog underneath is not to be reused, queued on or shown.
+    local embedded = CardSlot(panel):FindChildRecursive(function(p)
         return p:HasClass("embeddedRollDialog")
     end)
     return embedded
@@ -2287,6 +2330,12 @@ end
 --player-side overlap. This mirrors the "queue behind it" classification in
 --AcquireAbilityRollDialog so the gap is treated as occupied.
 function CharacterPanel.EmbeddedRollInFlight()
+    --A stacked trigger roll is in flight from the moment its slot exists, and
+    --the interrupted roll under it is still open too.
+    if #g_cardStack > 0 then
+        return true
+    end
+
     local embedded = CharacterPanel.FindEmbeddedRollDialog()
     if embedded == nil or not embedded.valid or embedded.data == nil then
         return false
@@ -2388,8 +2437,11 @@ function CharacterPanel.EmbedDialogInAbility(aiDriven)
 
     local dialog = GameHud.CreateEmbeddedRollDialog()
 
-    panel:FireEventTree("embedRollDialog", dialog)
-    panel:FireEventTree("rollDialogAIDriven", aiDriven or false)
+    --Only into the top card: a card collapsed under a stacked trigger roll still
+    --has its embedRollDialog handler and would swap its own dialog out.
+    local slot = CardSlot(panel)
+    slot:FireEventTree("embedRollDialog", dialog)
+    slot:FireEventTree("rollDialogAIDriven", aiDriven or false)
     return ClaimEmbeddedDialog(dialog, "ability")
 end
 
@@ -2743,6 +2795,134 @@ function CharacterPanel.LockDisplayAbility(coid)
     return g_abilityLock.id
 end
 
+--Pop `frame` off the trigger roll stack, along with anything stacked above it,
+--and bring the interrupted card back exactly as it was. Safe to call twice.
+---@param frame AbilityCardFrame
+local function PopCardFrame(frame)
+    local index = nil
+    for i, candidate in ipairs(g_cardStack) do
+        if candidate == frame then
+            index = i
+            break
+        end
+    end
+    if index == nil then
+        return
+    end
+
+    while #g_cardStack >= index do
+        local top = table.remove(g_cardStack)
+        if top.slot.valid then
+            top.slot:DestroySelf()
+        end
+        for _, panel in ipairs(top.frozen) do
+            if panel.valid then
+                panel:SetClass("collapsed", false)
+            end
+        end
+        if top.dialog.valid and top.dialog.data ~= nil then
+            top.dialog.data.suspended = false
+            if top.dialog.data.Resume ~= nil then
+                top.dialog.data.Resume()
+            end
+        end
+        g_cardSlot = top.prevSlot
+        g_displayedAbility = top.displayedAbility
+        g_displayedAbilityAliases = top.aliases
+        g_deferredCard = top.deferredCard
+        g_abilityLock = top.lock
+    end
+
+    local host = LiveHostPanel("abilityDisplay")
+    if host ~= nil then
+        local kept = {}
+        for _, child in ipairs(host.children) do
+            if child.valid then
+                kept[#kept+1] = child
+            end
+        end
+        host.children = kept
+    end
+
+    print(string.format("AcquireRollDialog:: UNSTACK depth=%d", #g_cardStack))
+end
+
+--Push a frame for a trigger roll that must go on top of `interrupted`, the
+--still-open roll dialog it is reacting to. Collapses everything on the sidebar,
+--adds an empty slot for the trigger's card, and parks the interrupted card's
+--state in the frame. Returns nil if there is no sidebar to stack on.
+---@param coid any the stacked cast's coroutine id.
+---@param interrupted Panel
+---@return AbilityCardFrame|nil
+local function PushCardFrame(coid, interrupted)
+    local host = LiveHostPanel("abilityDisplay")
+    if host == nil then
+        return nil
+    end
+
+    local frozen = {}
+    local children = {}
+    for _, child in ipairs(host.children) do
+        if child.valid then
+            if not child:HasClass("collapsed") then
+                child:SetClass("collapsed", true)
+                frozen[#frozen+1] = child
+            end
+            children[#children+1] = child
+        end
+    end
+
+    ---@type AbilityCardFrame
+    local frame
+    local slot = gui.Panel{
+        width = "100%",
+        height = "100%",
+        flow = "vertical",
+        interactable = false,
+
+        --Backstop for a stacked cast that dies without reaching FinishCast:
+        --the interrupted card must not stay buried under an empty slot.
+        thinkTime = 0.25,
+        think = function(element)
+            if not coroutine.IsCoroutineWithIdStillRunning(frame.coid) then
+                PopCardFrame(frame)
+            end
+        end,
+    }
+
+    frame = {
+        frozen = frozen,
+        slot = slot,
+        prevSlot = g_cardSlot,
+        coid = coid,
+        dialog = interrupted,
+        displayedAbility = g_displayedAbility,
+        aliases = g_displayedAbilityAliases,
+        deferredCard = g_deferredCard,
+        lock = g_abilityLock,
+    }
+
+    children[#children+1] = slot
+    host.children = children
+
+    g_cardStack[#g_cardStack+1] = frame
+    g_cardSlot = slot
+    if interrupted.data ~= nil then
+        interrupted.data.suspended = true
+    end
+
+    --The stacked card starts from nothing; the interrupted one's state comes
+    --back on pop.
+    g_displayedAbility = nil
+    ClearDisplayedAbilityAliases()
+    g_deferredCard = nil
+    g_abilityLock = nil
+
+    print(string.format("AcquireRollDialog:: STACK depth=%d castCoroutine=%s over castCoroutine=%s",
+        #g_cardStack, tostring(coid), tostring(interrupted.data ~= nil and interrupted.data.castCoroutine)))
+    return frame
+end
+
 function CharacterPanel.DisplayAbility(token, ability, symbols, options)
     local panel = LiveHostPanel("abilityDisplay")
     if panel == nil then
@@ -2801,7 +2981,8 @@ function CharacterPanel.DisplayAbility(token, ability, symbols, options)
         return true, lockId
     end
 
-    local embeddedRoll = panel:FindChildRecursive(function(p)
+    local slot = CardSlot(panel)
+    local embeddedRoll = slot:FindChildRecursive(function(p)
         return p:HasClass("embeddedRollDialog")
     end)
     if embeddedRoll ~= nil then
@@ -2816,7 +2997,7 @@ function CharacterPanel.DisplayAbility(token, ability, symbols, options)
         -- player clicked a target). Sharing should continue
         -- uninterrupted -- showAbility is about to fire next and will
         -- repopulate the panel.
-        panel.children = {}
+        slot.children = {}
     end
 
     local displayOptions = {}
@@ -2859,6 +3040,9 @@ local g_acquiringRollDialogCoid = nil
 --                                         includes the not-yet-shown window
 --                                         right after creation)
 --   * relinquished / owner dead / untracked -> displace the lingering panel
+--   * owner alive, held open on a trigger this token accepted and is still
+--     resolving -> stack on top of it (see PushCardFrame). Queueing there
+--     deadlocks: the held roll waits on the trigger, the trigger on the dialog.
 --Before any of that, a live cast holding g_acquiringRollDialogCoid (card shown,
 --dialog not yet embedded) is queued behind as well.
 --
@@ -2888,6 +3072,8 @@ function CharacterPanel.AcquireAbilityRollDialog(token, ability, symbols, displa
         tostring(coid), tostring(ability ~= nil and ability.name)))
 
     local waited = false
+    ---@type AbilityCardFrame|nil
+    local stackFrame = nil
     while true do
         --Queue behind a roll mounted in the standalone host (table rolls etc.).
         --It carries no cast-coroutine ownership, so we simply wait for it to
@@ -2970,6 +3156,17 @@ function CharacterPanel.AcquireAbilityRollDialog(token, ability, symbols, displa
             break
         end
 
+        --The roll on screen is held open for a trigger our caster accepted, and
+        --this roll is that trigger's before-action (a free strike, say):
+        --one player controls both, so roll on top of it instead of waiting.
+        if token ~= nil and token.valid and existing.data ~= nil and existing.data.ResolvingTriggerOwnedBy ~= nil
+            and existing.data.ResolvingTriggerOwnedBy(token.charid) then
+            stackFrame = PushCardFrame(coid, existing)
+            if stackFrame ~= nil then
+                break
+            end
+        end
+
         if not waited then
             waited = true
             print(string.format("AcquireRollDialog:: QUEUE behind dialog castCoroutine=%s", tostring(ownerco)))
@@ -2983,7 +3180,8 @@ function CharacterPanel.AcquireAbilityRollDialog(token, ability, symbols, displa
     --the previous dialog's roll is finished, its owner is dead, or it is
     --untracked, so whatever lock remains is stale. Force is correct here and
     --ONLY here -- it is what lets behaviors that never unlock (damage, save,
-    --replenish) hand the card on.
+    --replenish) hand the card on. A stacked roll also gets here, but its frame
+    --has already saved the interrupted cast's lock.
     CharacterPanel.ForceUnlockDisplayAbility()
 
     --Do not raise a *visible* card for a roll that may never show one: build it
@@ -2997,7 +3195,7 @@ function CharacterPanel.AcquireAbilityRollDialog(token, ability, symbols, displa
     --and DisplayAbility rebuilds it unconditionally, so deferring there would blink
     --a card the player is already looking at out of existence.
     local hostPanel = LiveHostPanel("abilityDisplay")
-    local cardAlreadyUp = hostPanel ~= nil and #hostPanel.children > 0
+    local cardAlreadyUp = hostPanel ~= nil and #CardSlot(hostPanel).children > 0
         and AbilityOwnsDisplayedCard(ability)
 
     local acquireDisplayOptions = {}
@@ -3036,6 +3234,7 @@ function CharacterPanel.AcquireAbilityRollDialog(token, ability, symbols, displa
     --this cast coroutine does not inherit the AI turn's host elevation past
     --its first yield, so on a player host it reads false for the monster.
     if aiDriven and displayed and g_sharingData == nil and g_displayedAbility ~= nil
+        and #g_cardStack == 0
         and IsDMOrPlayerHost()
         and GetRollVisibility() ~= "dm"
         and IsTokenOnCurrentTurn(token)
@@ -3058,6 +3257,7 @@ function CharacterPanel.AcquireAbilityRollDialog(token, ability, symbols, displa
             --cast has committed to paying (options.pay). Under "Strictly
             --Enforce Rolls" a paid-for cast can no longer be backed out of.
             dialog.data.castOptions = castOptions
+            dialog.data.stacked = stackFrame ~= nil
         end
 
         --give a few cycles for the dialog to init.
@@ -3091,6 +3291,15 @@ function CharacterPanel.AcquireAbilityRollDialog(token, ability, symbols, displa
                 return
             end
             CharacterPanel.HideAbility(ability)
+        end
+    end
+
+    --The trigger's cast is done: bring back the roll it interrupted. The slot also
+    --checks for this, in case the cast dies before it gets here.
+    if stackFrame ~= nil and castOptions ~= nil then
+        castOptions.OnFinishCastHandlers = castOptions.OnFinishCastHandlers or {}
+        castOptions.OnFinishCastHandlers[#castOptions.OnFinishCastHandlers+1] = function()
+            PopCardFrame(stackFrame)
         end
     end
 
@@ -3143,7 +3352,13 @@ function CharacterPanel.HighlightAbilitySection(options)
         return
     end
 
-    panel:FireEventTree("showAbilitySection", options)
+    CardSlot(panel):FireEventTree("showAbilitySection", options)
+
+    --Other players keep watching the interrupted card while a trigger roll is
+    --stacked on top; the stacked card is not shared.
+    if #g_cardStack > 0 then
+        return
+    end
 
     -- Begin sharing if we haven't already. HighlightAbilitySection is
     -- the definitive signal that the ability is being actively used
@@ -3233,7 +3448,9 @@ end
 -- Called from ability cast code after the roll dialog is configured.
 -- data fields: targetTokenIds (string[]), modifiers ({name, guid, enabled}[])
 function CharacterPanel.UpdateAbilitySharing(data)
-    if g_sharingData == nil then
+    --A stacked trigger roll's targets and modifiers must not overwrite the
+    --interrupted card other players are watching.
+    if g_sharingData == nil or #g_cardStack > 0 then
         return
     end
 
@@ -3285,6 +3502,19 @@ end
 --clicks the cancel button. Cast coroutines blocked in AcquireAbilityRollDialog's
 --queue loop wake up via the relinquish flag.
 dmhub.RegisterEventHandler("restoreFromBackup", function()
+    --Unwind any trigger roll stack top-down first, cancelling each stacked roll,
+    --so the interrupted dialog underneath is the one the code below cancels.
+    while #g_cardStack > 0 do
+        local top = g_cardStack[#g_cardStack]
+        local stacked = CharacterPanel.FindEmbeddedRollDialog()
+        if stacked ~= nil and stacked.valid and stacked.data ~= nil
+           and stacked.data.Cancel ~= nil and stacked.data.IsShown ~= nil
+           and stacked.data.IsShown() then
+            stacked.data.Cancel()
+        end
+        PopCardFrame(top)
+    end
+
     local dialog = CharacterPanel.FindEmbeddedRollDialog()
     --Guard on IsShown: dialog.data.Cancel does not self-check the hidden state,
     --and the captured cancelRoll closure is not cleared after a normal close,

@@ -22,8 +22,9 @@ function backup.Update() end
 --- @return table|nil
 function backup.GetEntryInfo(fname) end
 
---- Creates a full backup of the current game state and writes it to disk.
-function backup.BackupGame() end
+--- Creates a full backup of the current game state and writes it to disk. With no options the backup is taken and written before this returns, which stalls that frame in a large game (about 300 ms for 4 MB of game data). With options.background = true it is taken the way the automatic backup is: a few milliseconds of serializing per frame and the files written on a worker thread, so no frame stalls; the file is identical to the one a synchronous backup would write at the moment it finishes. options.complete, if given, is called once the game and map backups are on disk, with the game backup's file name, or with nil and an error message.
+--- @param options nil|{background: nil|boolean, complete: nil|fun(fname: string|nil, error: string|nil)}
+function backup.BackupGame(options) end
 
 --- Creates a combat checkpoint that captures the current combat state for later restoration.
 --- @return CombatCheckpoint

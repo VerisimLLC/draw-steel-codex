@@ -6330,8 +6330,6 @@ function EncounterMontage.SyncTurnToOwners(away)
     return true
 end
 
---Run the montage beat from the host tick. Returns "running" while the
---montage plays and "done" once every round and consequence has played.
 --Dev skip: end the montage where it stands. Whatever turn or dice are in
 --flight are dropped and unvanquished threats deliver NO consequences (user
 --direction 2026-11-01); the "over" card lingers as usual, then the next beat
@@ -6368,6 +6366,8 @@ function EncounterMontage.GameMenuItems()
     }
 end
 
+--Run the montage beat from the host tick. Returns "running" while the
+--montage plays and "done" once every round and consequence has played.
 function EncounterMontage.HostTick(script, beat, beatIndex)
     local doc = EncounterMontage.GetDoc()
     local m = doc.data.montage

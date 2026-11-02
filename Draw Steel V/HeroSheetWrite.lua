@@ -320,6 +320,13 @@ function HeroSheetWrite.Equip(itemid)
     end
     local slot, reason = HeroSheetWrite.EquipSlot(token.properties, itemid)
     if slot == nil then
+        --every slot of its kind is taken: say so, as the error sound alone
+        --does not tell the player why.
+        if reason == "full" then
+            local item = (dmhub.GetTable("tbl_Gear") or {})[itemid]
+            HeroSheetWindow.Toast(item ~= nil and EquipmentCategory.IsTrinket(item)
+                and "All 10 trinket slots are full." or "All 5 leveled treasure slots are full.")
+        end
         return false, reason
     end
     HeroSheetWrite.Save{

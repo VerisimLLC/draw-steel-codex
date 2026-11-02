@@ -6332,6 +6332,42 @@ end
 
 --Run the montage beat from the host tick. Returns "running" while the
 --montage plays and "done" once every round and consequence has played.
+--Dev skip: end the montage where it stands. Whatever turn or dice are in
+--flight are dropped and unvanquished threats deliver NO consequences (user
+--direction 2026-11-01); the "over" card lingers as usual, then the next beat
+--starts. What was already resolved still counts toward the part's totals.
+local function DevSkipToEnd(m)
+    m.turn = nil
+    m.dice = nil
+    m.consequences = {}
+    m.consequenceIndex = 1
+    m.lastApplied = LastTurnResult(m)
+    m.phase = "done"
+    m.doneAt = dmhub.serverTime
+end
+
+--Game menu rows for the montage (CodexTitleBar's Game menu): "(Dev) Skip
+--Montage" for anyone with the dev setting while a montage is running. Any
+--client may click it; it is a request, so the host applies it.
+function EncounterMontage.GameMenuItems()
+    if not dmhub.GetSettingValue("dev") then
+        return {}
+    end
+    local m = EncounterMontage.GetState()
+    if m == nil or m.phase == "done" then
+        return {}
+    end
+    return {
+        {
+            text = "(Dev) Skip Montage",
+            icon = "phosphor/fast-forward-fill.png",
+            click = function()
+                EncounterMontage.SendRequest("devskip")
+            end,
+        },
+    }
+end
+
 function EncounterMontage.HostTick(script, beat, beatIndex)
     local doc = EncounterMontage.GetDoc()
     local m = doc.data.montage
@@ -6400,6 +6436,13 @@ function EncounterMontage.HostTick(script, beat, beatIndex)
         m.handled[p.userid] = p.req.seq
         if p.req.kind == "reset" then
             resetRequested = true
+        elseif p.req.kind == "devskip" then
+            --Game > (Dev) Skip Montage. The host cannot see the sender's dev
+            --setting, so this trusts the request like any other.
+            if m.phase == "rounds" or m.phase == "consequences" then
+                DevSkipToEnd(m)
+                printf("EotW montage: %s skipped to the end of the montage (dev)", tostring(p.userid))
+            end
         else
             local ok, result = pcall(HandleRequest, m, doc, p.userid, p.req, beat, heroes)
             if not ok then

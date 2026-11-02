@@ -7953,7 +7953,18 @@ local function CreateTopBar()
         CreateCodexMenuItem{
             name = "Game",
             menuItems = function()
-			    return WindowMenuItems("game")
+			    local items = WindowMenuItems("game")
+
+                --Encounter of the Week's dev rows (dev setting, montage
+                --running). rawget: the EotW codemod is absent outside EotW.
+                local montage = rawget(_G, "EncounterMontage")
+                if montage ~= nil and montage.GameMenuItems ~= nil then
+                    for _,montageItem in ipairs(montage.GameMenuItems()) do
+                        items[#items+1] = montageItem
+                    end
+                end
+
+                return items
             end,
         },
 

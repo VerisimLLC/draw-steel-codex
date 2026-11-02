@@ -1039,7 +1039,7 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                 --squad is only set up around the local cast further down.
                 if skipInvoke then
                     print("INVOKE:: No valid movement constraint anchor; skipping", ability.name)
-                elseif self.runOnController and target.token.activeControllerId ~= nil and self.abilityType ~= "custom" and self.abilityType ~= "chooseClassAbility" and overrideSquadMembers == nil then
+                elseif self.runOnController and TokenPromptControllerId(target.token) ~= nil and self.abilityType ~= "custom" and self.abilityType ~= "chooseClassAbility" and overrideSquadMembers == nil then
 
                     --Clean out the ability so we don't copy too much, and make the
                     --cast serialization-safe: it holds live objects (targets[].token
@@ -1074,7 +1074,7 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                     --dispatch this to run on the controller.
                     local invocation = AbilityInvocation.new{
                         timestamp = ServerTimestamp(),
-                        userid = target.token.activeControllerId,
+                        userid = TokenPromptControllerId(target.token),
                         abilityType = self.abilityType,
                         namedAbility = self.namedAbility,
                         standardAbility = self.standardAbility,

@@ -39,6 +39,32 @@ local function GameHasNoLocalData(game)
     return game ~= nil and game.storage == 3 and not game.hasLocalData
 end
 
+--Horizontal alpha mask for the loading-quote banner: opaque middle, fading to
+--clear over the outer 20% each side. UI blending happens in linear color space,
+--so a linear alpha ramp looks like a hard edge over bright art. Each stop's
+--alpha is chosen so the visible darkening follows a smoothstep instead.
+local function LoadingQuoteFadeGradient()
+    local fadeWidth = 0.2
+    local steps = 8
+    local stops = {}
+    local function AddStop(position, t)
+        local darkening = t * t * (3 - 2 * t)
+        local alpha = 1 - (1 - darkening) ^ 2.2
+        stops[#stops + 1] = {position = position, color = core.Color{r = 1, g = 1, b = 1, a = alpha}}
+    end
+    for i = 0, steps do
+        AddStop(fadeWidth * i / steps, i / steps)
+    end
+    for i = steps, 0, -1 do
+        AddStop(1 - fadeWidth * i / steps, i / steps)
+    end
+    return gui.Gradient{
+        point_a = {x = 0, y = 0},
+        point_b = {x = 1, y = 0},
+        stops = stops,
+    }
+end
+
 local function FindLobbyGame(gameid)
     if gameid == nil then
         return nil
@@ -7684,25 +7710,28 @@ function CreateTitlescreen(dialog, options)
                         valign = "bottom",
                         bmargin = 80,
 
+                        -- Sits just above the banner's dark fill, mirroring the
+                        -- bottom divider. Overlapping it hides the line under
+                        -- the banner, which draws later.
                         gui.Divider {
                             vmargin = 0,
                             height = 2,
-                            y = 3.5,
+                            y = -0.5,
                         },
 
                         gui.Panel {
                             classes = { "loadingQuoteBanner" },
                             -- Theme-aware banner: the scheme's @bg paints in the
                             -- middle of a horizontal alpha mask, darkening the
-                            -- cover art behind the quote and fading to clear at
-                            -- the edges. Label color falls through to the theme
+                            -- cover art behind the quote and fading smoothly to
+                            -- clear at the edges. Label color falls through to the theme
                             -- default ({label} -> @fgStrong) for legibility.
                             styles = ThemeEngine.MergeStyles{
                                 {
                                     selectors = { "loadingQuoteBanner" },
                                     bgimage = "panels/square.png",
                                     bgcolor = "@bg",
-                                    gradient = "@maskHorizontal",
+                                    gradient = LoadingQuoteFadeGradient(),
                                 },
                             },
 

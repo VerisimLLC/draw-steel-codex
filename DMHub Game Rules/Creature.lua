@@ -12094,7 +12094,7 @@ function creature:DispatchEvent(eventName, info)
 
 	local token = dmhub.LookupToken(self)
 	---@cast token -nil
-	local activecontroller = token.activeControllerId
+	local activecontroller = TokenPromptControllerId(token)
 
 	--we are the best choice to handle this event.
 	if activecontroller == nil then

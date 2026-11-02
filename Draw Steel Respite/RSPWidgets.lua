@@ -842,6 +842,7 @@ end
 ---@field canDragOnto fun(charid: string, owner: string|nil, target: Panel): boolean
 ---@field drop fun(charid: string, owner: string|nil, target: Panel|nil)
 ---@field sheet fun(charid: string)
+---@field sheetTip? string the sheet button's tooltip, when it does more than open the sheet
 ---@field actions? Panel[] buttons for the hero's top-right corner, under the sheet button
 
 --- A character on the player stage, laid out like the montage's hero card: the
@@ -969,7 +970,7 @@ function RSPWidgets.StageCard(args)
                 halign = "right",
                 bmargin = 4,
                 swallowPress = true,
-                linger = gui.Tooltip("Open character sheet"),
+                linger = gui.Tooltip(args.sheetTip or "Open character sheet"),
                 press = function()
                     args.sheet(args.charid)
                 end,

@@ -146,8 +146,9 @@ end
 --- @param characterInfo table Object with {id, name} for the character
 --- @param contentPanel table The content panel this header will toggle
 --- @param tabType string The tab type for preference key
+--- @param characterProjects nil|table The project entries listed under this character in this tab
 --- @return table panel The character header panel
-function DTDirectorPanel:_buildCharacterHeader(characterInfo, contentPanel, tabType)
+function DTDirectorPanel:_buildCharacterHeader(characterInfo, contentPanel, tabType, characterProjects)
     local characterId = characterInfo.id
     local characterName = characterInfo.name
     local prefKey = string.format("dt_char_expanded:%s:%s:%s", tabType, characterId, dmhub.gameid or "default")
@@ -222,9 +223,30 @@ function DTDirectorPanel:_buildCharacterHeader(characterInfo, contentPanel, tabT
             end,
             press = function()
                 local character = dmhub.GetCharacterById(characterId)
-                if character then
-                    character:ShowSheet("Downtime")
+                if character == nil then
+                    return
                 end
+                -- The Hero sheet opens on the first of this tab's projects for
+                -- the Hero, in the order the sheet lists them. The old character
+                -- sheet (when the Hero sheet is off) opens on Downtime as before.
+                local sheet = rawget(_G, "HeroSheetDowntime")
+                if sheet ~= nil then
+                    local listed = {}
+                    for _, entry in ipairs(characterProjects or {}) do
+                        listed[entry.projectId] = true
+                    end
+                    local first = nil
+                    for _, id in ipairs(sheet.ListOrder(character)) do
+                        if listed[id] then
+                            first = id
+                            break
+                        end
+                    end
+                    if sheet.OpenOn(character, first) then
+                        return
+                    end
+                end
+                character:ShowSheet("Downtime")
             end
         },
     }
@@ -308,7 +330,7 @@ function DTDirectorPanel:_buildCharacterSection(characterInfo, characterProjects
     }
 
     -- Build header with reference to content panel
-    local headerPanel = self:_buildCharacterHeader(characterInfo, contentPanel, tabType)
+    local headerPanel = self:_buildCharacterHeader(characterInfo, contentPanel, tabType, characterProjects)
 
     return gui.Panel{
         width = "100%",

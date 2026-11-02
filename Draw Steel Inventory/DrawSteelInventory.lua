@@ -21,78 +21,14 @@ local function GetTradeInventoryDialog(element)
 end
 
 
-local function _duplicateItem(sourceItem)
-    local itemCopy = DeepCopy(sourceItem)
-    itemCopy.id = dmhub.GenerateGuid()
-
-    if itemCopy:has_key("itemObjectId") then
-        local asset = assets:GetObjectNode(itemCopy.itemObjectId)
-        if asset ~= nil then
-            itemCopy.itemObjectId = asset:Duplicate()
-        end
-    end
-
-    if itemCopy:has_key("consumable") and itemCopy.consumable:has_key("consumables") then
-        itemCopy.consumable.consumables[sourceItem.id] = nil
-        itemCopy.consumable.consumables[itemCopy.id] = 1
-    end
-
-    return itemCopy
-end
-
 --A small modal asking before a slot-menu action (Destroy). Esc cancels.
+--The modal's look is shared with the Hero sheet (HeroSheetInventoryActions.lua).
 ---@param args {title: string, message: string, confirmText: string, confirm: function}
 local function ConfirmInventoryAction(args)
-    gamehud:ModalDialog{
-        title = args.title,
-        width = 560,
-        height = 240,
-        flow = "vertical",
-        buttonsHalign = "center",
-        buttons = {
-            { text = args.confirmText, click = args.confirm },
-            { text = "Cancel", escapeActivates = true },
-        },
-        children = {
-            --fixed width: the body panel sizes to its content, so "100%" would wrap every word.
-            gui.Label{
-                width = 500,
-                height = "auto",
-                halign = "center",
-                valign = "center",
-                textAlignment = "center",
-                text = args.message,
-            },
-        },
-    }
-end
-
---Shows why an imbue failed; nil (success) shows nothing.
----@param message string|nil the reason DSImbuement gave
-local function ShowImbueFailure(message)
-    if message == nil then
-        return
-    end
-    gamehud:ModalDialog{
-        title = "Imbuement Failed",
-        width = 560,
-        height = 240,
-        flow = "vertical",
-        buttonsHalign = "center",
-        buttons = {
-            { text = "Close", escapeActivates = true },
-        },
-        children = {
-            gui.Label{
-                width = 500,
-                height = "auto",
-                halign = "center",
-                valign = "center",
-                textAlignment = "center",
-                text = message,
-            },
-        },
-    }
+    HeroSheetInventoryActions.MessageModal(args.title, args.message, {
+        { text = args.confirmText, click = args.confirm },
+        { text = "Cancel", escapeActivates = true },
+    })
 end
 
 local SlotDim = 72
@@ -538,7 +474,7 @@ local CreateInventorySlot = function(dmhud, options)
 							if parentDialog ~= nil then
 								parentDialog.data.close()
 							end
-							token:DestroyObject()
+							GameHud.DestroyEmptiedLoot(token)
                         elseif token.type == "component" and token.properties:Empty() then
                             local obj = token.levelObject
                             if obj ~= nil then
@@ -615,11 +551,11 @@ local CreateInventorySlot = function(dmhud, options)
 				if item ~= nil and item:try_get("consumable") and item:try_get("consumableCharges", 1) > 1 then
 					--an item with charges.
 					--compare as numbers: as text "10" sorts before "9", so "9/10" was refused.
-					local a,b = string.match(element.text, "(%d+)/(%d+)")
-					a, b = tonumber(a), tonumber(b)
-					if a ~= nil and b ~= nil and b >= a then
-						item.consumableCharges = b
-						item.consumableChargesConsumed = b - a
+					local leftText, totalText = string.match(element.text, "(%d+)/(%d+)")
+					local left, total = tonumber(leftText), tonumber(totalText)
+					if left ~= nil and total ~= nil and total >= left then
+						item.consumableCharges = total
+						item.consumableChargesConsumed = total - left
 					else
 						local a = string.match(element.text, "(%d+)")
 						if a ~= nil then
@@ -1063,7 +999,7 @@ local CreateInventorySlot = function(dmhud, options)
 									click = function()
 										element.popup = nil
 
-										local itemCopy = _duplicateItem(item)
+										local itemCopy = HeroSheetInventoryActions.CopyItem(item)
 										if not string.starts_with(item.name, "Unique") then
 											itemCopy.name = string.format("Unique %s", item.name)
 										end
@@ -1305,7 +1241,7 @@ local CreateInventorySlot = function(dmhud, options)
 									click = function()
 										element.popup = nil
 										local imbueTarget = DSImbuement.CreateMundaneItem(targetType)
-										ShowImbueFailure(attemptImbueMundane(item, imbueTarget))
+										HeroSheetInventoryActions.ShowImbueFailure(attemptImbueMundane(item, imbueTarget))
 									end,
 								}
 							end
@@ -1330,7 +1266,7 @@ local CreateInventorySlot = function(dmhud, options)
 									text = invItem.name,
 									click = function()
 										element.popup = nil
-										ShowImbueFailure(attemptImbueItem(item, invItem))
+										HeroSheetInventoryActions.ShowImbueFailure(attemptImbueItem(item, invItem))
 									end
 								}								
 							end
@@ -2706,7 +2642,7 @@ function GameHud.CreateInventoryDialog(self, options)
 					if token.type == "component" and token.destroyOnEmpty then
 						---@cast token LuaObjectComponentLoot
 						resultPanel.data.close()
-						token:DestroyObject()
+						GameHud.DestroyEmptiedLoot(token)
                     elseif token.type == "component" and token.properties:Empty() then
                         local obj = token.levelObject
                         if obj ~= nil then

@@ -5292,10 +5292,18 @@ function g_cc.EndScope(c, frame)
 end
 
 --c was rebuilt: give it a new serial, and make every creature that read it check again.
+--A dependent already rebuilt in this game update keeps its lists until the next one (it
+--stays registered, and its key still holds the old serial): creatures that read each other
+--(Angulotl "count nearby enemies" and the heroes, ZQ6SMF8D) would otherwise unstamp each
+--other on every rebuild and never settle, rebuilding every creature on every read. Before
+--the cache every creature was built at most once per update, so this is no staler than that.
 local function NotifyRebuilt(c)
     g_cc.serial = g_cc.serial + 1
     rawset(c, "_tmp_ccSerial", g_cc.serial)
     g_cc.stats.rebuilds = g_cc.stats.rebuilds + 1
+
+    local u = dmhub.ngameupdate
+    rawset(c, "_tmp_ccRebuiltUpdate", u)
 
     local charid = CharidOf(c)
     local set = nil
@@ -5304,11 +5312,20 @@ local function NotifyRebuilt(c)
         g_cc.dependents[charid] = nil
     end
     if set ~= nil then
+        local kept = nil
         for d,_ in pairs(set) do
             if d ~= c then
-                rawset(d, "_tmp_modifiersRefresh", nil)
-                rawset(d, "_tmp_modifiersRefreshExcludingAuras", nil)
+                if rawget(d, "_tmp_ccRebuiltUpdate") == u then
+                    kept = kept or setmetatable({}, { __mode = "k" })
+                    kept[d] = true
+                else
+                    rawset(d, "_tmp_modifiersRefresh", nil)
+                    rawset(d, "_tmp_modifiersRefreshExcludingAuras", nil)
+                end
             end
+        end
+        if kept ~= nil and charid ~= nil then
+            g_cc.dependents[charid] = kept
         end
     end
 end

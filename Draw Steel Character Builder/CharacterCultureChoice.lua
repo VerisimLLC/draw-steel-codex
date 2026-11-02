@@ -153,7 +153,10 @@ function CharacterCultureAggregateChoice.CreateAll(hero)
         if aspects.upbringing ~= nil and #aspects.upbringing > 0 then return {} end
     end
 
-    culture.aggregate = ""
+    --only when set: writing it on a Hero's own culture would be a change on open.
+    if culture:try_get("aggregate", "") ~= "" then
+        culture.aggregate = ""
+    end
 
     -- Split the items in the Culture table up by group
     local items = {}

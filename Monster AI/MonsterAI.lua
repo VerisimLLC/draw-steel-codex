@@ -402,6 +402,12 @@ local PREVIEW_DOC = "monsterAIPreview"
 --each session. (Games from before this held {queue = guid}; that is ignored.)
 local PREVIEW_OFF_DOC = "monsterAIPreviewOff"
 
+--These four documents are read only by the AI and its UI, never by a creature's modifiers,
+--so their frequent writes must not rebuild every creature (ZQ6SMF8D).
+for _,docid in ipairs{WAITING_DOC, STATUS_DOC, PREVIEW_DOC, PREVIEW_OFF_DOC} do
+    CreatureCache.RegisterRulesNeutralDocument(docid)
+end
+
 --Tells this run of the app apart from earlier ones (a Lua reload makes a new one too).
 local g_runId = dmhub.GenerateGuid()
 

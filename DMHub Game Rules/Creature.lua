@@ -5019,14 +5019,16 @@ end
 ---@field global string
 ---@field charseq integer
 ---@field wildcard boolean
+---@field attrWildcard boolean|nil the token query ran while computing an attribute
 ---@field tokenSig string
 ---@field invis boolean
----@field deps table<string, {rev: integer, serial: integer}>
+---@field deps table<string, {rev: integer, serial: integer, attr: boolean|nil}> attr: read while computing an attribute
 ---@field hasFull boolean true once the full list (with auras) was built under this key
 
 ---@class CreatureCacheFrame
 ---@field creature creature|false false for a suspended (recording-off) frame
 ---@field luaDeps table<table, boolean>
+---@field attr boolean|nil an attribute computation's scope (g_cc.BeginScope)
 
 local g_cc = {
     enabled = true,
@@ -5035,6 +5037,10 @@ local g_cc = {
     serial = 0,
     --bumped by refreshTables-style events that no sequence number covers.
     epoch = 0,
+    --NonCharacterSeq: the last dmhub.nonCharacterUpdateSeq sampled, and the value keyed on.
+    ---@type integer|nil
+    ncSeen = nil,
+    ncEffective = 0,
     ---@type CreatureCacheFrame[]
     stack = {},
     --charid -> set of creatures whose key depends on that charid (weak keys).
@@ -5050,7 +5056,7 @@ local g_cc = {
     summons = {},
     ---@type {name: string, fn: fun(token: CharacterToken): string}[]
     signatures = {},
-    stats = { hits = 0, partial = 0, rebuilds = 0, uncacheable = 0, reasons = {}, verifyRuns = 0, verifyMismatches = 0 },
+    stats = { hits = 0, partial = 0, rebuilds = 0, kept = 0, uncacheable = 0, reasons = {}, verifyRuns = 0, verifyMismatches = 0 },
 }
 CreatureCache = g_cc
 
@@ -5101,13 +5107,100 @@ end
 --The serial of c's last modifier rebuild: unchanged while its modifiers and attributes are.
 g_cc.SerialOf = SerialOf
 
+--Shared-document writes that no creature's modifiers or attributes read: docid prefix ->
+--set of first fields under the document (nil = any). See g_cc.RegisterRulesNeutralDocument.
+---@type {prefix: string, fields: table<string, boolean>|nil}[]
+local g_neutralDocs = {}
+
+--Declares writes to some fields of a shared document rules-neutral: a heartbeat or a
+--status line that only UI and scripts read. Without this, every write rebuilds every
+--creature's modifiers on the next update. docidPrefix matches the document id from its
+--start ("mapscripts-" covers every map's document); each entry of fields names a top-level
+--field of the document, and nil means any field (a write replacing the whole document never
+--counts as neutral). Only register what NO modifier build, attribute or token hud reads:
+--verify mode cannot see a change it was told to ignore.
+---@param docidPrefix string
+---@param fields string[]|nil
+function g_cc.RegisterRulesNeutralDocument(docidPrefix, fields)
+    local set = nil
+    if fields ~= nil then
+        set = {}
+        for _,f in ipairs(fields) do
+            set[f] = true
+        end
+    end
+    for _,entry in ipairs(g_neutralDocs) do
+        if entry.prefix == docidPrefix then
+            entry.fields = set
+            return
+        end
+    end
+    g_neutralDocs[#g_neutralDocs+1] = { prefix = docidPrefix, fields = set }
+end
+
+--path is a game update path like /modDocuments/{modguid}/documents/{docid}/{field}/...
+local function IsNeutralPath(path)
+    local docid, field = string.match(path, "^/modDocuments/[^/]+/documents/([^/]+)/([^/]+)")
+    if docid == nil then
+        return false
+    end
+    for _,entry in ipairs(g_neutralDocs) do
+        if (entry.fields == nil or entry.fields[field]) and string.sub(docid, 1, #entry.prefix) == entry.prefix then
+            return true
+        end
+    end
+    return false
+end
+
+--dmhub.nonCharacterUpdateSeq, minus the updates that only wrote rules-neutral document
+--fields. The engine lists the paths behind its last 16 advances; when every advance since
+--the last sample is listed and neutral, the value we key on does not move.
+local function NonCharacterSeq()
+    local seq = dmhub.nonCharacterUpdateSeq
+    if seq == g_cc.ncSeen then
+        return g_cc.ncEffective
+    end
+
+    local neutral = false
+    if #g_neutralDocs > 0 and g_cc.ncSeen ~= nil and seq > g_cc.ncSeen then
+        local paths = dmhub.recentNonCharacterPaths or {}
+        --the list holds every advance after ncSeen if it is not full yet, or if it still
+        --reaches back to an update at or before ncSeen.
+        local covered = #paths < 16
+        local seenAny = false
+        neutral = true
+        for _,entry in ipairs(paths) do
+            local n, path = string.match(entry, "^(%d+):(.*)$")
+            n = tonumber(n)
+            if n == nil then
+                neutral = false
+                break
+            elseif n <= g_cc.ncSeen then
+                covered = true
+            elseif IsNeutralPath(path) then
+                seenAny = true
+            else
+                neutral = false
+                break
+            end
+        end
+        neutral = neutral and covered and seenAny
+    end
+
+    if not neutral then
+        g_cc.ncEffective = g_cc.ncEffective + 1
+    end
+    g_cc.ncSeen = seq
+    return g_cc.ncEffective
+end
+
 --Everything outside character records, sampled once per game update like every other
 --ngameupdate cache: a change that moves none of these and no update is as invisible as before.
 function g_cc.GlobalKey()
     local u = dmhub.ngameupdate
     if g_cc.globalKeyUpdate ~= u then
         g_cc.globalKeyUpdate = u
-        g_cc.globalKey = string.format("%d|%d|%d|%d|%s|%s|%d", dmhub.nonCharacterUpdateSeq, dmhub.tablesUpdateId,
+        g_cc.globalKey = string.format("%d|%d|%d|%d|%s|%s|%d", NonCharacterSeq(), dmhub.tablesUpdateId,
             dmhub.markupZonesSeq, dmhub.terrainRulesSeq, tostring(game.currentMapId), tostring(game.currentFloorId), g_cc.epoch)
     end
     return g_cc.globalKey
@@ -5218,25 +5311,35 @@ function g_cc.NoteRead(c)
 end
 
 --Opens a recording scope for a computation of c. Returns nil when c's scope is already the
---innermost one: its reads then go to that scope.
+--innermost one: its reads then go to that scope. An attribute scope (attr) always opens, so
+--what attribute formulas read is told apart from what the list build read (see KeepSerial).
+---@param attr boolean|nil
 ---@return CreatureCacheFrame|nil
-function g_cc.BeginScope(c)
+function g_cc.BeginScope(c, attr)
     local top = g_cc.stack[#g_cc.stack]
-    if top ~= nil and top.creature == c then
+    if top ~= nil and top.creature == c and not attr then
         return nil
     end
     ---@type CreatureCacheFrame
-    local frame = { creature = c, luaDeps = {} }
+    local frame = { creature = c, luaDeps = {}, attr = attr or nil }
     g_cc.stack[#g_cc.stack+1] = frame
     dmhub.BeginDependencyScope()
     return frame
 end
 
-local function AddDep(key, c, charid)
-    if charid == key.charid or key.deps[charid] ~= nil then
+--attr: the read happened while computing an attribute (see g_cc.BeginScope).
+local function AddDep(key, c, charid, attr)
+    if charid == key.charid then
         return
     end
-    key.deps[charid] = { rev = dmhub.CharacterRecordRevision(charid), serial = SerialOf(CreatureOf(charid)) }
+    local existing = key.deps[charid]
+    if existing ~= nil then
+        if attr then
+            existing.attr = true
+        end
+        return
+    end
+    key.deps[charid] = { rev = dmhub.CharacterRecordRevision(charid), serial = SerialOf(CreatureOf(charid)), attr = attr or nil }
     local set = g_cc.dependents[charid]
     if set == nil then
         set = setmetatable({}, {__mode = "k"})
@@ -5274,14 +5377,17 @@ function g_cc.EndScope(c, frame)
                     tok ~= nil and tostring(tok.name) or key.charid, rec.wildcardTrace))
             end
             key.wildcard = true
+            if frame.attr then
+                key.attrWildcard = true
+            end
         end
         for charid,_ in pairs(rec.tokens) do
-            AddDep(key, c, charid)
+            AddDep(key, c, charid, frame.attr)
         end
         for other,_ in pairs(frame.luaDeps) do
             local charid = CharidOf(other)
             if charid ~= nil then
-                AddDep(key, c, charid)
+                AddDep(key, c, charid, frame.attr)
             else
                 --read a creature that is not a token we can watch: give up caching.
                 rawset(c, "_tmp_ccKey", nil)
@@ -5289,6 +5395,59 @@ function g_cc.EndScope(c, frame)
             end
         end
     end)
+end
+
+--State a build leaves on the creature outside its lists, which other creatures can read.
+local function DerivedState(c)
+    return string.format("%s|%s|%s", tostring(rawget(c, "_tmp_concealed")), tostring(rawget(c, "_tmp_creaturesize")),
+        tostring(rawget(c, "_tmp_disguised")))
+end
+
+--True if two modifier lists hold the same entries: each pair is one table, or two tables
+--whose fields are the same values (modifiers compared by identity, never by content).
+local function SameList(a, b)
+    if a == nil or b == nil or #a ~= #b then
+        return false
+    end
+    for i = 1, #a do
+        local ea, eb = a[i], b[i]
+        if not rawequal(ea, eb) then
+            if type(ea) ~= "table" or type(eb) ~= "table" then
+                return false
+            end
+            local n = 0
+            for k,v in pairs(ea) do
+                if not rawequal(v, rawget(eb, k)) then
+                    return false
+                end
+                n = n + 1
+            end
+            for _ in pairs(eb) do
+                n = n - 1
+            end
+            if n ~= 0 then
+                return false
+            end
+        end
+    end
+    return true
+end
+
+--Whether a rebuild of c may keep its serial, so nothing that read c rebuilds. Only when the
+--rebuild was caused by nothing but changes to creatures read in the list build (their record
+--or their rebuild) or a list-build token query possibly seeing new tokens (Revalidate stashed
+--_tmp_ccPrev this update), and it
+--reproduced the same entries and derived state. Its record,
+--token, global state and attribute inputs are then unchanged too, so everything readable of
+--c is. This is what lets creatures that read each other settle. which: "excl" or "full".
+local function KeepSerial(c, prev, which)
+    if prev == nil or prev.update ~= dmhub.ngameupdate or rawget(c, "_tmp_ccKey") == nil then
+        return false
+    end
+    if which == "excl" then
+        return SameList(prev.excl, rawget(c, "_tmp_modifiers_excluding_auras"))
+    end
+    return prev.exclSame == true and SameList(prev.full, rawget(c, "_tmp_modifiers")) and prev.derived == DerivedState(c)
 end
 
 --c was rebuilt: give it a new serial, and make every creature that read it check again.
@@ -5328,6 +5487,14 @@ local function NotifyRebuilt(c)
             g_cc.dependents[charid] = kept
         end
     end
+end
+
+--c was rebuilt and came out the same (KeepSerial): its serial stands, so nothing that read it
+--has to check again. It still counts as rebuilt this update for NotifyRebuilt.
+local function NoteKept(c)
+    g_cc.stats.rebuilds = g_cc.stats.rebuilds + 1
+    g_cc.stats.kept = g_cc.stats.kept + 1
+    rawset(c, "_tmp_ccRebuiltUpdate", dmhub.ngameupdate)
 end
 
 --Starts a rebuild of c's modifiers excluding auras: snapshots the inputs into a new key
@@ -5399,7 +5566,15 @@ function g_cc.EndBuild(c, frame, ok)
             end)
         end
     end
-    NotifyRebuilt(c)
+    local prev = rawget(c, "_tmp_ccPrev")
+    if ok and KeepSerial(c, prev, "excl") then
+        ---@cast prev -nil
+        prev.exclSame = true
+        NoteKept(c)
+    else
+        rawset(c, "_tmp_ccPrev", nil)
+        NotifyRebuilt(c)
+    end
 end
 
 --Starts a build of the full list (the aura part) in GetActiveModifiers.
@@ -5420,7 +5595,13 @@ function g_cc.EndFull(c, frame, ok)
             rawset(c, "_tmp_ccKey", nil)
         end
     end
-    NotifyRebuilt(c)
+    local prev = rawget(c, "_tmp_ccPrev")
+    rawset(c, "_tmp_ccPrev", nil)
+    if ok and KeepSerial(c, prev, "full") then
+        NoteKept(c)
+    else
+        NotifyRebuilt(c)
+    end
 end
 
 --Runs an attribute computation of c inside a recording scope, so what it reads joins c's key.
@@ -5428,7 +5609,7 @@ function g_cc.Scoped(c, fn, ...)
     if rawget(c, "_tmp_ccKey") == nil then
         return fn(...)
     end
-    local frame = g_cc.BeginScope(c)
+    local frame = g_cc.BeginScope(c, true)
     if frame == nil then
         return fn(...)
     end
@@ -5445,8 +5626,11 @@ local function RevalidateInner(c, key)
     if key.global ~= g_cc.GlobalKey() then
         return 0, "global"
     end
-    if key.wildcard and key.charseq ~= dmhub.characterUpdateSeq then
-        return 0, "wildcard"
+    --some character changed and we ran a token query. Like a moved list-build dependency,
+    --the rebuild may come out the same, so the other causes are ruled out first.
+    local wildcardMoved = key.wildcard and key.charseq ~= dmhub.characterUpdateSeq
+    if wildcardMoved and key.attrWildcard then
+        return 0, "wildcardattr"
     end
     if dmhub.CharacterRecordRevision(key.charid) ~= key.rev then
         return 0, "own"
@@ -5461,18 +5645,35 @@ local function RevalidateInner(c, key)
     if g_cc.InvisibleStamp(c) ~= key.invis then
         return 0, "invisible"
     end
+    --a dependency that changed but was read only in the list build is the case where the
+    --rebuild may come out the same (see KeepSerial), so the scan goes on to rule out every
+    --other cause. One read while computing an attribute always rebuilds in full.
+    local depRevChanged, depSerialChanged = false, false
     for charid, dep in pairs(key.deps) do
-        if dmhub.CharacterRecordRevision(charid) ~= dep.rev then
-            return 0, "deprev"
+        local revChanged = dmhub.CharacterRecordRevision(charid) ~= dep.rev
+        if revChanged and dep.attr then
+            return 0, "deprevattr"
         end
         local other = CreatureOf(charid)
         if other ~= nil and other ~= c and not g_cc.validating[other] then
             --bring the dependency up to date before comparing what we saw of it.
             other:GetActiveModifiers()
         end
-        if SerialOf(other) ~= dep.serial then
-            return 0, "depserial"
+        local serialChanged = SerialOf(other) ~= dep.serial
+        if serialChanged and dep.attr then
+            return 0, "depserialattr"
         end
+        depRevChanged = depRevChanged or revChanged
+        depSerialChanged = depSerialChanged or serialChanged
+    end
+    if depRevChanged then
+        return 0, "deprev"
+    end
+    if depSerialChanged then
+        return 0, "depserial"
+    end
+    if wildcardMoved then
+        return 0, "wildcard"
     end
 
     local u = dmhub.ngameupdate
@@ -5496,14 +5697,18 @@ local g_ccVerify --forward declaration: defined below.
 --0 if c must be rebuilt. A valid result restamps the caches with dmhub.ngameupdate.
 function g_cc.Revalidate(c)
     if not g_cc.enabled then
+        rawset(c, "_tmp_ccPrev", nil)
         return 0
     end
     if g_cc.building[c] ~= nil or g_cc.validating[c] then
-        --asked again while its own list is being built or checked: no reuse.
+        --asked again while its own list is being built or checked: no reuse. (The full
+        --build asks for the list excluding auras this way; _tmp_ccPrev is for that build.)
         return 0
     end
     local key = rawget(c, "_tmp_ccKey")
     if key == nil or rawget(c, "_tmp_modifiers_excluding_auras") == nil then
+        --leaves _tmp_ccPrev alone: RefreshToken clears the key between the failed check
+        --that stashed it and the rebuild that uses it.
         CountReason("nokey")
         return 0
     end
@@ -5519,6 +5724,18 @@ function g_cc.Revalidate(c)
 
     if state == 0 then
         CountReason(reason or "?")
+        --only a list-build dependency or token query moved: keep what the rebuild must reproduce for the
+        --serial to stay (see KeepSerial).
+        local prev = nil
+        if reason == "depserial" or reason == "deprev" or reason == "wildcard" then
+            prev = {
+                update = dmhub.ngameupdate,
+                excl = rawget(c, "_tmp_modifiers_excluding_auras"),
+                full = key.hasFull and rawget(c, "_tmp_modifiers") or nil,
+                derived = DerivedState(c),
+            }
+        end
+        rawset(c, "_tmp_ccPrev", prev)
         rawset(c, "_tmp_ccKey", nil)
         rawset(c, "_tmp_modifiersRefresh", nil)
         rawset(c, "_tmp_modifiersRefreshExcludingAuras", nil)
@@ -5562,7 +5779,7 @@ function g_cc.Reset()
 end
 
 function g_cc.ResetStats()
-    g_cc.stats = { hits = 0, partial = 0, rebuilds = 0, uncacheable = 0, reasons = {}, verifyRuns = 0, verifyMismatches = 0 }
+    g_cc.stats = { hits = 0, partial = 0, rebuilds = 0, kept = 0, uncacheable = 0, reasons = {}, verifyRuns = 0, verifyMismatches = 0 }
 end
 
 --Verification ------------------------------------------------------------------------
@@ -5713,14 +5930,15 @@ Commands.RegisterMacro{
             reasons[#reasons+1] = string.format("%s=%d", k, v)
         end
         table.sort(reasons)
-        print(string.format("CREATURECACHE:: %s, verify %s; hits=%d partial=%d rebuilds=%d uncacheable=%d verify runs=%d mismatches=%d; rebuild reasons: %s",
-            g_cc.enabled and "on" or "off", g_cc.verify and "on" or "off", s.hits, s.partial, s.rebuilds, s.uncacheable,
+        print(string.format("CREATURECACHE:: %s, verify %s; hits=%d partial=%d rebuilds=%d (kept serial %d) uncacheable=%d verify runs=%d mismatches=%d; rebuild reasons: %s",
+            g_cc.enabled and "on" or "off", g_cc.verify and "on" or "off", s.hits, s.partial, s.rebuilds, s.kept, s.uncacheable,
             s.verifyRuns, s.verifyMismatches, table.concat(reasons, " ")))
     end,
 }
 
 function creature:Invalidate()
 	self._tmp_ccKey = nil
+	self._tmp_ccPrev = nil
 	self._tmp_modifiers = nil
 	self._tmp_modifiersRefresh = nil
 	self._tmp_modifiersRefreshExcludingAuras = nil
@@ -5773,7 +5991,10 @@ function creature:RefreshToken(token)
         if g_cc.Revalidate(self) > 0 then
             g_cc.SoftInvalidate(self)
         else
+            --keep what Revalidate stashed for the rebuild (see KeepSerial).
+            local prev = rawget(self, "_tmp_ccPrev")
             self:Invalidate()
+            rawset(self, "_tmp_ccPrev", prev)
         end
 	end
 

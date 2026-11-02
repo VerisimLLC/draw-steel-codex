@@ -729,6 +729,10 @@ local function MapDoc(mapid)
     return mod:GetDocumentSnapshot("mapscripts-" .. tostring(mapid))
 end
 
+--The presence heartbeat is read only by host election, so it must not rebuild every
+--creature's modifiers each time it is renewed (ZQ6SMF8D).
+CreatureCache.RegisterRulesNeutralDocument("mapscripts-", {"hosts"})
+
 --Presence per the director-election reference: dmhub.GetSessionInfo(uid).dm is
 --the authoritative live director flag (dmhub.IsUserDM reflects the persisted
 --roster and lies); ghost sessions report loggedOut == false with a huge

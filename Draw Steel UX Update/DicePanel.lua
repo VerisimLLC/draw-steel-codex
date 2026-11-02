@@ -232,6 +232,8 @@ CreateDicePanel = function()
 							element.dicePreviewRestSpacing = 0.58
 							element.dicePreviewRestScale = 0.7
 						end)
+						-- Hovered, the pair grows to full size; 0.78 makes them overlap at that size.
+						pcall(function() element.dicePreviewSpacing = 0.88 end)
 					end
 					element:FireEvent("seedDie")
 				end,
@@ -609,22 +611,53 @@ CreateDicePanel = function()
 		end,
 
 		rightClick = function(element)
-			--its only entry is the Director-only toggle, which a directorless game does not offer.
-			if not RollPrivacyAllowed() then
+			local entries = {}
+
+			--a directorless game does not offer the Director-only toggle.
+			if RollPrivacyAllowed() then
+				entries[#entries+1] = {
+					text = "Rolls Visible Only to Director",
+					check = dmhub.GetSettingValue("privaterolls") == "dm",
+					click = function()
+						dmhub.SetSettingValue("privaterolls", cond(dmhub.GetSettingValue("privaterolls") == "dm", "visible", "dm"))
+						element.popup = nil
+					end,
+				}
+			end
+
+			-- The dice sets this account owns, the same list as the Settings "Dice Set"
+			-- dropdown. Picking one equips it; the strip's diceequipped monitor redraws the dice.
+			local sets = {}
+			pcall(function() sets = dice.GetAvailableDice() end)
+			table.sort(sets, function(a,b) return tostring(a.text) < tostring(b.text) end)
+
+			local current = dmhub.GetSettingValue("diceequipped")
+			local setEntries = {}
+			for _,set in ipairs(sets) do
+				local setid = set.value
+				setEntries[#setEntries+1] = {
+					text = set.text,
+					check = setid == current,
+					click = function()
+						dmhub.SetSettingValue("diceequipped", setid)
+						element.popup = nil
+					end,
+				}
+			end
+
+			if #setEntries > 0 then
+				entries[#entries+1] = {
+					text = "Dice Set",
+					submenu = setEntries,
+				}
+			end
+
+			if #entries == 0 then
 				return
 			end
-			element.popup = gui.ContextMenu{
-				entries = {
-					{
-						text = "Rolls Visible Only to Director",
-						check = dmhub.GetSettingValue("privaterolls") == "dm",
-						click = function()
-							dmhub.SetSettingValue("privaterolls", cond(dmhub.GetSettingValue("privaterolls") == "dm", "visible", "dm"))
-							element.popup = nil
-						end,
-					},
-				}
 
+			element.popup = gui.ContextMenu{
+				entries = entries,
 			}
 		end,
 

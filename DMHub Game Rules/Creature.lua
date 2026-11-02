@@ -11344,10 +11344,14 @@ function creature:GetTriggeredAbilities()
 		mod.mod:FillTriggeredAbilities(mod, self, result)
 	end
 
+	--only the modifiers that can change an ability: the rest would hand every trigger back
+	--untouched, and running all ~100 of a hero's over each of its ~25 triggers was most of the cost.
+	local abilityMods = CharacterModifier.AbilityModifiers(mods)
+
 	local j = 1
 	for i = 1,#result do
 		local entry = result[i]
-		local modified = self:ApplyAbilityModifiers(entry.ability, mods, "triggered")
+		local modified = self:ApplyAbilityModifiers(entry.ability, abilityMods, "triggered")
 		if modified ~= nil then
 			entry.ability = modified
 			result[j] = entry

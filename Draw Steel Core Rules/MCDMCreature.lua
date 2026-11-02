@@ -3616,25 +3616,25 @@ function creature:GetActivatedAbilities(options)
     --the companion when it pulls abilities from its summoner -- the companion
     --doesn't get the kit's full bonus pile, only a chosen melee-damage bonus
     --that gets applied on the companion side instead.
+    --Only the modifiers that can change an ability run (CharacterModifier.AbilityModifiers):
+    --for a hero that is 1-3 of ~100, and calling the rest on every ability cost more than
+    --cloning the abilities did.
+    local abilityModifiers = CharacterModifier.AbilityModifiers(modifiers, options.excludeKitModifications)
     local j = 1
     local nitems = #result
     for i = 1, #result do
         local ability = result[i]
         if ability._tmp_temporaryClone or (not options.characterSheet) then
-            for i, mod in ipairs(modifiers) do
-                if options.excludeKitModifications and mod.mod.behavior == "kitmodifyability" then
-                    --skip
-                else
-                    ability = mod.mod:ModifyAbility(mod, self, ability)
-                    if ability == nil then
-                        break
-                    end
+            for _, mod in ipairs(abilityModifiers) do
+                ability = mod.mod:ModifyAbility(mod, self, ability)
+                if ability == nil then
+                    break
+                end
 
-                    local variations = ability:GetVariations()
-                    if variations ~= nil then
-                        for i = 1, #variations do
-                            mod.mod:ModifyAbility(mod, self, variations[i])
-                        end
+                local variations = ability:GetVariations()
+                if variations ~= nil then
+                    for v = 1, #variations do
+                        mod.mod:ModifyAbility(mod, self, variations[v])
                     end
                 end
             end

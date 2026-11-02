@@ -1619,10 +1619,15 @@ local function DeepCopyInternal(t, visited)
     local copy = {}
     visited[t] = copy
     for k, v in next, t do
-	    if type(k) ~= "string" or string.sub(k,1,5) ~= "_tmp_" then
-            copy[k] = DeepCopyInternal(v, visited)
-        else
+        local vtype = type(v)
+        --Most fields are plain values, which copy as they are; only tables and userdata
+        --need the _tmp_ test (byte 95 is "_", checked first because string.sub is slow).
+        if vtype ~= "table" and vtype ~= "userdata" then
             copy[k] = v
+        elseif type(k) == "string" and string.byte(k, 1) == 95 and string.sub(k,1,5) == "_tmp_" then
+            copy[k] = v
+        else
+            copy[k] = DeepCopyInternal(v, visited)
         end
     end
 

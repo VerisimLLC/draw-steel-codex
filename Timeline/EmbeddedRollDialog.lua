@@ -7046,8 +7046,11 @@ function GameHud.CreateEmbeddedRollDialog()
                 --The dice are being thrown (Roll Dice and a hurl from the cage
                 --both land here). A roll that must stand once thrown loses its
                 --close (X) and ESC now (RollDialogCancelOffered), so a landed
-                --result can only be accepted.
-                if m_options ~= nil and m_options.noCancelOnceThrown then
+                --result can only be accepted. A Monster AI roll always stands
+                --once thrown: cancelling it aborted the cast unpaid and the AI
+                --cast again with fresh dice, a free reroll (6JTC7RYJ).
+                local aiDriven = (creature ~= nil and creature:IsAIControlled()) or (m_options ~= nil and m_options.aiRoll == true)
+                if (m_options ~= nil and m_options.noCancelOnceThrown) or aiDriven then
                     resultPanel.data.cancelWithdrawn = true
                 end
 

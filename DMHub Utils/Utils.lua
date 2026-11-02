@@ -106,8 +106,9 @@ end
 --- and table rolls carry no castOptions) stays cancellable, as does every roll
 --- for a Director.
 --- A roll shown with `noCancelOnceThrown` (Encounter of the Week's montage
---- tests) also withdraws it, for everyone, once its dice are thrown: the
---- dialog sets data.cancelWithdrawn on submit. A roll shown with `noCancel`
+--- tests), and every roll the Monster AI drives, also withdraws it, for
+--- everyone, once its dice are thrown: the dialog sets data.cancelWithdrawn
+--- on submit. A roll shown with `noCancel`
 --- (a monster's roll request to a player under "Strictly Enforce Rolls")
 --- has it set from the start.
 --- Deliberately NOT applied to dialog.data.Cancel() itself: system teardown

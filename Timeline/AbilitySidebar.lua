@@ -2353,7 +2353,8 @@ end
 --aiDriven: true when the roller is under Monster AI control. The AI drives and
 --completes its own rolls, so the card must not offer a cancel affordance for
 --one (the close X). Fired as a second event AFTER embedRollDialog, which is
---what reveals the button -- order matters. ESC still cancels.
+--what reveals the button -- order matters. ESC still cancels until the dice
+--are thrown (the roll dialog's submit withdraws it for an AI roll).
 function CharacterPanel.EmbedDialogInAbility(aiDriven)
     local panel = LiveHostPanel("abilityDisplay")
     if panel == nil then

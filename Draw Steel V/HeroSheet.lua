@@ -97,7 +97,16 @@ function HeroSheet.Routes(token)
     end
     local isHero = false
     pcall(function() isHero = token.valid and token.properties ~= nil and token.properties:IsHero() end)
-    return isHero
+    if not isHero then
+        return false
+    end
+    --a game mode with its own Hero sheet (EotW) keeps it: callers that get
+    --false open the classic route, which hands the token to that mode.
+    local hud = rawget(_G, "GameHud")
+    if hud ~= nil and hud.CustomInterfaceOwnsSheet ~= nil and hud.CustomInterfaceOwnsSheet(token) then
+        return false
+    end
+    return true
 end
 
 --- True while the window shows this Hero (any Hero when charid is nil),

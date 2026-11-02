@@ -191,7 +191,7 @@ local function InvokeAbilityRemote(standardAbilityName, targetToken, casterToken
 
     local invocation = AbilityInvocation.new{
         timestamp = ServerTimestamp(),
-        userid = casterToken.activeControllerId,
+        userid = TokenPromptControllerId(casterToken),
         abilityType = "standard",
         standardAbility = standardAbilityName,
         targeting = "prompt",
@@ -738,7 +738,7 @@ local g_rulePatterns = {
                 }
                 InvokeAbility(ability, abilityClone, targetToken, casterToken, options)
                 options.targetArgs = nil
-            elseif executeOnRemote and casterToken.activeControllerId then
+            elseif executeOnRemote and TokenPromptControllerId(casterToken) then
                 ability:CommitToPaying(casterToken, options)
                 InvokeAbilityRemote(abilityName, targetToken, casterToken, abilityAttr, options)
             else

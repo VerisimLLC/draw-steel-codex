@@ -187,7 +187,7 @@ local function ShouldChooseSquadDeaths(attacker)
     if attackerToken == nil or not attackerToken.valid then
         return true
     end
-    return attackerToken.activeControllerId == nil
+    return TokenPromptControllerId(attackerToken) == nil
 end
 
 --"Choose for me": kill as many of the squad's skull minions as its damage owes,
@@ -515,7 +515,7 @@ TokenHud.RegisterPanel{
                     element:SetClass("free", (not anyHostile) and allfree)
                 end
 
-                if m_haveTrigger == false and notrigger == false and token.canControl and token.activeControllerId == nil then
+                if m_haveTrigger == false and notrigger == false and token.canControl and TokenPromptControllerId(token) == nil then
                     audio.FireSoundEvent("Notify.Trigger", { tokenid = token.charid })
                 end
                 

@@ -790,6 +790,319 @@ local function ModifierPanel(args)
 end
 
 
+--Dice slots: the activated-slot rules the roll dialog and the Hero sheet's Dice
+--window share (see the diceslotsequipped and diceslotextras settings). The
+--shop's equip panel (CodexShopScreen.lua) keeps its own SlotKey / SlotLabel,
+--which must mirror these keys.
+DiceSlots = rawget(_G, "DiceSlots") or {}
+
+--Slot-activated dice: dice sets can be activated for a purpose ("slot") from the
+--shop inventory's equip panel -- e.g. fire-damage dice, Shadow dice, Undead-monster
+--dice (see the diceslotsequipped setting and the Dice Studio Slots section).
+--Resolves which activated slot set (if any) should skin the roll this dialog is
+--showing. Builds candidate slot keys in most-specific-first order and returns the
+--first one the player has an activation for:
+--  1. "damage:<type>"                -- a power roll whose tiers deal that damage
+--                                       type (e.g. "4 fire damage"); a plain
+--                                       "4 damage" clause matches a "damage:untyped"
+--                                       activation, which is tried after any typed
+--                                       match.
+--  2. "class:<classid>:<subclassid>" -- the rolling hero's class + chosen subclass.
+--  3. "class:<classid>"              -- the rolling hero's class.
+--  4. "monster:<groupid>"            -- the rolling monster's type (MonsterGroup),
+--                                       then the groups it inherits from,
+--                                       breadth-first, so a direct match beats an
+--                                       inherited one.
+--- @param creatureArg nil|creature
+--- @param rollProps any
+--- @return nil|string set the activated set
+--- @return nil|string key the slot key it came from
+function DiceSlots.Resolve(creatureArg, rollProps)
+    local slotsEquipped = dmhub.GetSettingValue("diceslotsequipped")
+    if type(slotsEquipped) ~= "table" or next(slotsEquipped) == nil then
+        return nil
+    end
+
+    local candidates = {}
+
+    --Damage types featured in the power roll tiers.
+    if rollProps ~= nil and rollProps.typeName == "RollPropertiesPowerTable" then
+        local ok, damageTypes = pcall(function() return rollProps:GetDamageTypes() end)
+        if ok and damageTypes ~= nil then
+            local hasUntyped = false
+            for _,damageType in ipairs(damageTypes) do
+                if damageType == "untyped" then
+                    hasUntyped = true
+                else
+                    candidates[#candidates+1] = "damage:" .. damageType
+                end
+            end
+
+            --Untyped comes last within the damage group. GetDamageTypes reports a
+            --tier's clauses in text order, and in a tier like "8 damage; 4 corruption
+            --damage" the untyped clause comes first, so keeping that order would let
+            --it outrank the corruption activation.
+            if hasUntyped then
+                candidates[#candidates+1] = "damage:untyped"
+            end
+        end
+    end
+
+    if creatureArg ~= nil then
+        --Hero class/subclass. GetClassesAndSubClasses interleaves each class with
+        --its chosen subclasses; collect subclass keys ahead of class keys so the
+        --subclass activation wins.
+        local classKeys = {}
+        local ok, classEntries = pcall(function() return creatureArg:GetClassesAndSubClasses() end)
+        if ok and classEntries ~= nil then
+            for _,entry in ipairs(classEntries) do
+                local info = entry.class
+                local id = info ~= nil and info:try_get("id") or nil
+                if id ~= nil then
+                    if info:try_get("isSubclass", false) then
+                        local primary = info:try_get("primaryClassId", "")
+                        if primary ~= "" then
+                            candidates[#candidates+1] = string.format("class:%s:%s", primary, id)
+                        end
+                    else
+                        classKeys[#classKeys+1] = "class:" .. id
+                    end
+                end
+            end
+        end
+        for _,key in ipairs(classKeys) do
+            candidates[#candidates+1] = key
+        end
+
+        --Monster type: the monster's own group, then inherited groups
+        --breadth-first. The seen guard also protects against inheritance cycles.
+        local okGroup, group = pcall(function() return creatureArg:MonsterGroup() end)
+        if okGroup and group ~= nil then
+            local groupsTable = dmhub.GetTable("MonsterGroup") or {}
+            local seen = {}
+            local queue = { group }
+            while #queue > 0 do
+                local g = table.remove(queue, 1)
+                local gid = g:try_get("id")
+                if gid ~= nil and not seen[gid] then
+                    seen[gid] = true
+                    candidates[#candidates+1] = "monster:" .. gid
+                    for _,inheritid in ipairs(g:try_get("inherits") or {}) do
+                        if not seen[inheritid] and groupsTable[inheritid] ~= nil then
+                            queue[#queue+1] = groupsTable[inheritid]
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    for _,key in ipairs(candidates) do
+        local assetid = slotsEquipped[key]
+        if assetid ~= nil and assetid ~= "" then
+            return assetid, key
+        end
+    end
+
+    return nil
+end
+
+--- The extras saved for a slot, or nil when there are none or they were chosen
+--- with a different main set (the slot was re-activated since).
+--- @param key string a slot key
+--- @param main string the slot's activated set
+--- @return nil|{main: string, model2: nil|string, modelD6: nil|string}
+function DiceSlots.Extras(key, main)
+    local all = dmhub.GetSettingValue("diceslotextras")
+    if type(all) ~= "table" then
+        return nil
+    end
+    local extras = all[key]
+    if type(extras) ~= "table" or extras.main ~= main then
+        return nil
+    end
+    return extras
+end
+
+--The dice loadout a roll should be skinned with, or nil to leave the rolling
+--player's own equipped dice alone. Two sources, most specific first:
+--  1. an activated dice slot matching this roll (DiceSlots.Resolve). That is a
+--     choice about THIS roll -- "when I deal fire damage, use my fire dice" -- so it
+--     beats the standing per-token preference below. Its set skins every die unless
+--     the slot has extras (a second power die, d3/d6 dice) the player owns.
+--  2. the rolled token's own customized dice (creature:ResolveDiceLoadout), which
+--     can differ per die and has already dropped any set this player does not own.
+--- @param creatureArg nil|creature
+--- @param rollProps any
+--- @return nil|{model: string, model2: string, modelD6: string}
+function DiceSlots.RollLoadout(creatureArg, rollProps)
+    local slotSet, key = DiceSlots.Resolve(creatureArg, rollProps)
+    if slotSet ~= nil and slotSet ~= "" then
+        local loadout = { model = slotSet, model2 = "", modelD6 = "" }
+        local extras = nil
+        if key ~= nil then
+            extras = DiceSlots.Extras(key, slotSet)
+        end
+        if extras ~= nil then
+            --an extra set the player no longer owns falls back to the main set.
+            local owned = {}
+            pcall(function() owned = creature.OwnedDiceSets() end)
+            if extras.model2 ~= nil and owned[extras.model2] then
+                loadout.model2 = extras.model2
+            end
+            if extras.modelD6 ~= nil and owned[extras.modelD6] then
+                loadout.modelD6 = extras.modelD6
+            end
+        end
+        return loadout
+    end
+
+    if creatureArg == nil then
+        return nil
+    end
+
+    --pcall: creature:ResolveDiceLoadout is codex Lua, but the roll dialog can be
+    --shown for objects that are not full creatures.
+    local ok, loadout = pcall(function() return creatureArg:ResolveDiceLoadout() end)
+    if ok then
+        return loadout
+    end
+
+    return nil
+end
+
+--- The class slot a Hero's dice live in for the local player: the subclass key
+--- when that slot is activated, else the class key. nil for a creature with no
+--- class (a monster, or a Hero before the Class step).
+--- @param creatureArg creature
+--- @return nil|string key
+function DiceSlots.ClassKey(creatureArg)
+    local slotsEquipped = dmhub.GetSettingValue("diceslotsequipped")
+    if type(slotsEquipped) ~= "table" then
+        slotsEquipped = {}
+    end
+    local ok, classEntries = pcall(function() return creatureArg:GetClassesAndSubClasses() end)
+    if not ok or classEntries == nil then
+        return nil
+    end
+    local classKey = nil
+    for _,entry in ipairs(classEntries) do
+        local info = entry.class
+        local id = info ~= nil and info:try_get("id") or nil
+        if id ~= nil then
+            if info:try_get("isSubclass", false) then
+                local primary = info:try_get("primaryClassId", "")
+                local subKey = string.format("class:%s:%s", primary, id)
+                if primary ~= "" and (slotsEquipped[subKey] or "") ~= "" then
+                    return subKey
+                end
+            elseif classKey == nil then
+                classKey = "class:" .. id
+            end
+        end
+    end
+    return classKey
+end
+
+--- A slot's dice as the three-part loadout a roll would use ("" = same as
+--- model), or nil when the slot is not activated.
+--- @param key string
+--- @return nil|{model: string, model2: string, modelD6: string}
+function DiceSlots.Loadout(key)
+    local slotsEquipped = dmhub.GetSettingValue("diceslotsequipped")
+    local main = nil
+    if type(slotsEquipped) == "table" then
+        main = slotsEquipped[key]
+    end
+    if main == nil or main == "" then
+        return nil
+    end
+    local extras = DiceSlots.Extras(key, main)
+    return {
+        model = main,
+        model2 = extras ~= nil and extras.model2 or "",
+        modelD6 = extras ~= nil and extras.modelD6 or "",
+    }
+end
+
+--- Activate a set for a slot, with its extras, or clear the slot (model nil).
+--- Copies, changes and sets both settings, as the shop does.
+--- @param key string
+--- @param model nil|string the set for every die not given below
+--- @param model2 nil|string the second power die's set
+--- @param modelD6 nil|string the d3 and d6 dice's set
+function DiceSlots.Set(key, model, model2, modelD6)
+    if model == "" then
+        model = nil
+    end
+    if model2 == "" then
+        model2 = nil
+    end
+    if modelD6 == "" then
+        modelD6 = nil
+    end
+    local slots = {}
+    for k,v in pairs(dmhub.GetSettingValue("diceslotsequipped") or {}) do
+        slots[k] = v
+    end
+    slots[key] = model
+    dmhub.SetSettingValue("diceslotsequipped", slots)
+
+    local extras = {}
+    for k,v in pairs(dmhub.GetSettingValue("diceslotextras") or {}) do
+        extras[k] = v
+    end
+    if model ~= nil and (model2 ~= nil or modelD6 ~= nil) then
+        extras[key] = { main = model, model2 = model2, modelD6 = modelD6 }
+    else
+        extras[key] = nil
+    end
+    dmhub.SetSettingValue("diceslotextras", extras)
+end
+
+--- A slot key back as the slot record the shop and the Dice Studio use:
+--- {slotType = "damage"|"class"|"monster", damageType, classid, subclassid, groupid}.
+--- @param key string
+--- @return nil|table
+function DiceSlots.RecordFromKey(key)
+    local slotType, rest = string.match(key or "", "^(%a+):(.*)$")
+    if slotType == "damage" then
+        return { slotType = "damage", damageType = rest }
+    end
+    if slotType == "monster" then
+        return { slotType = "monster", groupid = rest }
+    end
+    if slotType == "class" then
+        local classid, subclassid = string.match(rest, "^([^:]+):(.+)$")
+        if classid ~= nil then
+            return { slotType = "class", classid = classid, subclassid = subclassid }
+        end
+        return { slotType = "class", classid = rest }
+    end
+    return nil
+end
+
+--- A class slot's name as the shop shows it: "Summoner", or
+--- "Summoner: Circle of Graves" for a subclass slot.
+--- @param key string
+--- @return string
+function DiceSlots.ClassLabel(key)
+    local record = DiceSlots.RecordFromKey(key) or {}
+    local classInfo = (dmhub.GetTable("classes") or {})[record.classid or ""]
+    local className = "Unknown Class"
+    if classInfo ~= nil then
+        className = classInfo:try_get("name", className)
+    end
+    if record.subclassid ~= nil then
+        local sub = (dmhub.GetTable("subclasses") or {})[record.subclassid]
+        if sub ~= nil then
+            return string.format("%s: %s", className, sub:try_get("name", "Subclass"))
+        end
+    end
+    return className
+end
+
+
 function GameHud.CreateEmbeddedRollDialog()
     --"Strictly Enforce Rolls" (strict:rolls), sampled once here: a fresh dialog
     --is built for every roll (CharacterPanel.EmbedDialogInAbility /
@@ -1010,140 +1323,7 @@ function GameHud.CreateEmbeddedRollDialog()
         end
     end
 
-    --Slot-activated dice: dice sets can be activated for a purpose ("slot") from the
-    --shop inventory's equip panel -- e.g. fire-damage dice, Shadow dice, Undead-monster
-    --dice (see the diceslotsequipped setting and the Dice Studio Slots section).
-    --Resolves which activated slot set (if any) should skin the roll this dialog is
-    --showing. Builds candidate slot keys in most-specific-first order and returns the
-    --first one the player has an activation for:
-    --  1. "damage:<type>"                -- a power roll whose tiers deal that damage
-    --                                       type (e.g. "4 fire damage"); a plain
-    --                                       "4 damage" clause matches a "damage:untyped"
-    --                                       activation, which is tried after any typed
-    --                                       match.
-    --  2. "class:<classid>:<subclassid>" -- the rolling hero's class + chosen subclass.
-    --  3. "class:<classid>"              -- the rolling hero's class.
-    --  4. "monster:<groupid>"            -- the rolling monster's type (MonsterGroup),
-    --                                       then the groups it inherits from,
-    --                                       breadth-first, so a direct match beats an
-    --                                       inherited one.
-    local ComputeSlotDiceForRoll = function(creatureArg, rollProps)
-        local slotsEquipped = dmhub.GetSettingValue("diceslotsequipped")
-        if type(slotsEquipped) ~= "table" or next(slotsEquipped) == nil then
-            return nil
-        end
-
-        local candidates = {}
-
-        --Damage types featured in the power roll tiers.
-        if rollProps ~= nil and rollProps.typeName == "RollPropertiesPowerTable" then
-            local ok, damageTypes = pcall(function() return rollProps:GetDamageTypes() end)
-            if ok and damageTypes ~= nil then
-                local hasUntyped = false
-                for _,damageType in ipairs(damageTypes) do
-                    if damageType == "untyped" then
-                        hasUntyped = true
-                    else
-                        candidates[#candidates+1] = "damage:" .. damageType
-                    end
-                end
-
-                --Untyped comes last within the damage group. GetDamageTypes reports a
-                --tier's clauses in text order, and in a tier like "8 damage; 4 corruption
-                --damage" the untyped clause comes first, so keeping that order would let
-                --it outrank the corruption activation.
-                if hasUntyped then
-                    candidates[#candidates+1] = "damage:untyped"
-                end
-            end
-        end
-
-        if creatureArg ~= nil then
-            --Hero class/subclass. GetClassesAndSubClasses interleaves each class with
-            --its chosen subclasses; collect subclass keys ahead of class keys so the
-            --subclass activation wins.
-            local classKeys = {}
-            local ok, classEntries = pcall(function() return creatureArg:GetClassesAndSubClasses() end)
-            if ok and classEntries ~= nil then
-                for _,entry in ipairs(classEntries) do
-                    local info = entry.class
-                    local id = info ~= nil and info:try_get("id") or nil
-                    if id ~= nil then
-                        if info:try_get("isSubclass", false) then
-                            local primary = info:try_get("primaryClassId", "")
-                            if primary ~= "" then
-                                candidates[#candidates+1] = string.format("class:%s:%s", primary, id)
-                            end
-                        else
-                            classKeys[#classKeys+1] = "class:" .. id
-                        end
-                    end
-                end
-            end
-            for _,key in ipairs(classKeys) do
-                candidates[#candidates+1] = key
-            end
-
-            --Monster type: the monster's own group, then inherited groups
-            --breadth-first. The seen guard also protects against inheritance cycles.
-            local okGroup, group = pcall(function() return creatureArg:MonsterGroup() end)
-            if okGroup and group ~= nil then
-                local groupsTable = dmhub.GetTable("MonsterGroup") or {}
-                local seen = {}
-                local queue = { group }
-                while #queue > 0 do
-                    local g = table.remove(queue, 1)
-                    local gid = g:try_get("id")
-                    if gid ~= nil and not seen[gid] then
-                        seen[gid] = true
-                        candidates[#candidates+1] = "monster:" .. gid
-                        for _,inheritid in ipairs(g:try_get("inherits") or {}) do
-                            if not seen[inheritid] and groupsTable[inheritid] ~= nil then
-                                queue[#queue+1] = groupsTable[inheritid]
-                            end
-                        end
-                    end
-                end
-            end
-        end
-
-        for _,key in ipairs(candidates) do
-            local assetid = slotsEquipped[key]
-            if assetid ~= nil and assetid ~= "" then
-                return assetid
-            end
-        end
-
-        return nil
-    end
-
-    --The dice loadout this dialog's roll should be skinned with, or nil to leave the
-    --rolling player's own equipped dice alone. Two sources, most specific first:
-    --  1. an activated dice slot matching this roll (ComputeSlotDiceForRoll). That is a
-    --     choice about THIS roll -- "when I deal fire damage, use my fire dice" -- so it
-    --     beats the standing per-token preference below. It skins every die with the
-    --     one activated set (model2/modelD6 empty = "same as model").
-    --  2. the rolled token's own customized dice (creature:ResolveDiceLoadout), which
-    --     can differ per die and has already dropped any set this player does not own.
-    local ComputeRollDiceOverride = function(creatureArg, rollProps)
-        local slotSet = ComputeSlotDiceForRoll(creatureArg, rollProps)
-        if slotSet ~= nil and slotSet ~= "" then
-            return { model = slotSet, model2 = "", modelD6 = "" }
-        end
-
-        if creatureArg == nil then
-            return nil
-        end
-
-        --pcall: creature:ResolveDiceLoadout is codex Lua, but the roll dialog can be
-        --shown for objects that are not full creatures.
-        local ok, loadout = pcall(function() return creatureArg:ResolveDiceLoadout() end)
-        if ok then
-            return loadout
-        end
-
-        return nil
-    end
+    local ComputeRollDiceOverride = DiceSlots.RollLoadout
 
 
     local styles = {

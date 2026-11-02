@@ -15047,7 +15047,7 @@ local function CreateCharacterCardVisual(charid)
             portraitIcon = portrait
             portraitTint = "white"
             pcall(function()
-                portraitRect = charToken:GetPortraitRectForAspect(1, portrait)
+                portraitRect = CardPortraitRect(charToken, 1, portrait)
             end)
         end
     end
@@ -22497,7 +22497,7 @@ local function CreateIconRail(side, entries, opts)
                     buttonIcon = portrait
                     buttonIconTint = "white"
                     pcall(function()
-                        buttonIconRect = token:GetPortraitRectForAspect(1, portrait)
+                        buttonIconRect = CardPortraitRect(token, 1, portrait)
                     end)
                 end
             end

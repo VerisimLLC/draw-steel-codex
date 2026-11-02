@@ -1507,7 +1507,7 @@ ApplyPortrait = function(element, tok, aspect)
     element.bgimage = portrait
     element.selfStyle.bgcolor = "white"
     local rect = nil
-    pcall(function() rect = tok:GetPortraitRectForAspect(aspect, portrait) end)
+    pcall(function() rect = CardPortraitRect(tok, aspect, portrait) end)
     element.selfStyle.imageRect = rect
     return true
 end

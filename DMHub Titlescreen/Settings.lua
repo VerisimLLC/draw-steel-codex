@@ -1440,12 +1440,24 @@ setting{
 --  "class:<classid>:<subclassid>"   playing that subclass
 --  "monster:<groupid>"              controlling a monster of that MonsterGroup
 --                                   (or one inheriting from it)
---Written by the shop inventory's dice equip panel. Consumed by the embedded roll
---dialog: when a roll it shows matches an activation (most specific key first --
---damage type, then subclass, class, monster type), the whole roll is skinned
---with the activated set via dice.SetRollSlotDice.
+--Written by the shop inventory's dice equip panel and by a Hero sheet's Dice
+--window (a class or subclass slot). Consumed by the embedded roll dialog: when a
+--roll it shows matches an activation (most specific key first -- damage type,
+--then subclass, class, monster type), the roll is skinned with the activated set
+--via dice.SetRollLoadout, every die unless diceslotextras gives others.
 setting{
 	id = "diceslotsequipped",
+	storage = "account",
+	default = {},
+}
+
+--Per-die choices for an activated slot: slot key -> {main = <the slot's set when
+--these were chosen>, model2 = <set for the second power d10>, modelD6 = <set for
+--d3 and d6 dice>}. A roll uses them only while main is still the slot's set in
+--diceslotsequipped, so activating another set (in the shop, or on an older build)
+--quietly drops them. Written by a Hero sheet's Dice window.
+setting{
+	id = "diceslotextras",
 	storage = "account",
 	default = {},
 }

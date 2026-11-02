@@ -2087,7 +2087,7 @@ local function CreateEntryHeroSlot(entry, top)
             local heroTok = tok
             pcall(function()
                 portrait = heroTok.offTokenPortrait
-                rect = heroTok:GetPortraitRectForAspect(ENTRY_HERO_SLOT_WIDTH / ENTRY_HERO_SLOT_HEIGHT, portrait)
+                rect = CardPortraitRect(heroTok, ENTRY_HERO_SLOT_WIDTH / ENTRY_HERO_SLOT_HEIGHT, portrait)
             end)
         end
         if portrait ~= nil and portrait ~= "" then
@@ -3024,7 +3024,7 @@ local function SetPortraitFrom(element, tok, aspect, keepBottom)
         return
     end
     element.bgimage = portrait
-    --GetPortraitRectForAspect answers the whole image (0,0,1,1) until the
+    --CardPortraitRect answers the whole image (0,0,1,1) until the
     --image is loaded, which would stretch it into the panel. Stay invisible
     --and crop once the panel has the image (bgimageWidth is -1 until then).
     element.selfStyle.bgcolor = "#00000000"
@@ -3033,7 +3033,7 @@ local function SetPortraitFrom(element, tok, aspect, keepBottom)
         if keepBottom ~= nil then
             --frame a taller crop, then trim its bottom band so the shown part
             --keeps the panel's aspect.
-            pcall(function() rect = tok:GetPortraitRectForAspect(aspect * (1 - keepBottom), portrait) end)
+            pcall(function() rect = CardPortraitRect(tok, aspect * (1 - keepBottom), portrait) end)
             if rect ~= nil then
                 local y1 = rect.y1 + (rect.y2 - rect.y1) * keepBottom
                 local y2 = rect.y2
@@ -3047,7 +3047,7 @@ local function SetPortraitFrom(element, tok, aspect, keepBottom)
                 rect = { x1 = rect.x1, y1 = y1, x2 = rect.x2, y2 = y2 }
             end
         else
-            pcall(function() rect = tok:GetPortraitRectForAspect(aspect, portrait) end)
+            pcall(function() rect = CardPortraitRect(tok, aspect, portrait) end)
         end
         element.selfStyle.imageRect = rect
         element.selfStyle.bgcolor = "white"

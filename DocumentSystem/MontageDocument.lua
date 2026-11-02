@@ -850,7 +850,7 @@ local CreateMontageTestUI = function(args)
                             token = function(element, token)
                                 local portrait = token.offTokenPortrait
                                 element.selfStyle.bgimage = portrait
-                                element.selfStyle.imageRect = token:GetPortraitRectForAspect(78 * 0.01, portrait)
+                                element.selfStyle.imageRect = CardPortraitRect(token, 78 * 0.01, portrait)
                             end,
 
                             rightClick = function(element)

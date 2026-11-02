@@ -3423,9 +3423,10 @@ function HeroBuild.Create(options)
         return Build.hero.HasDependentPicks(token.properties --[[@as character]], stepid)
     end
 
-    --Marks a portrait the builder chose (the class's or ancestry's default art)
-    --rather than one the player picked; nil means a hero from before the flag
-    --existed. The sheet clears it when the player picks a portrait.
+    --The picture the builder last set (the class's or ancestry's default art),
+    --so it only ever replaces its own picture: any other portrait is the
+    --player's. true is the older mark, which did not keep the picture; false or
+    --nil: the player picked one, or a Hero from before the mark.
     Build.AUTO_PORTRAIT_FIELD = "eotwAutoPortrait"
 
     --Set the hero's portrait. auto: the builder is applying a default, not the
@@ -3439,19 +3440,20 @@ function HeroBuild.Create(options)
         token.offTokenPortrait = ""
         token:UploadAppearance()
         local hero = token.properties --[[@as character]]
-        if hero:try_get(Build.AUTO_PORTRAIT_FIELD) ~= (auto == true) then
-            Modify(token, "Portrait", function(h) h[Build.AUTO_PORTRAIT_FIELD] = auto == true end)
+        local mark = auto == true and imageid or false
+        if hero:try_get(Build.AUTO_PORTRAIT_FIELD) ~= mark then
+            Modify(token, "Portrait", function(h) h[Build.AUTO_PORTRAIT_FIELD] = mark end)
         end
     end
 
-    --Portraits already checked against every class's and ancestry's art (the
-    --guess for Heroes from before the mark): true when one of them uses it.
+    --Portraits already checked against every class's and ancestry's art (for
+    --the older true mark): true when one of them uses it.
     local isDefaultArt = {}
 
     --The class's art (the ancestry's before a class) when the Hero's portrait
-    --should follow it, else nil. It follows while the portrait is unset or the
-    --builder set it; an older Hero without the mark counts when its portrait is
-    --some class's or ancestry's art. A player's own pick never follows.
+    --should follow it, else nil. It follows while the portrait is unset or is
+    --still the picture the builder set. Any other picture is the player's,
+    --however it was picked, and a Hero with no mark is never changed.
     ---@param token CharacterToken
     ---@return nil|string
     function Build.FollowedPortrait(token)
@@ -3471,10 +3473,15 @@ function HeroBuild.Create(options)
         if not Build.PortraitIsSet(current) then
             return art
         end
-        local auto = hero:try_get(Build.AUTO_PORTRAIT_FIELD)
-        if auto ~= nil then
-            return auto == true and art or nil
+        local mark = hero:try_get(Build.AUTO_PORTRAIT_FIELD)
+        if mark == current then
+            return art
         end
+        if mark ~= true then
+            return nil
+        end
+        --the older mark kept no picture: follow only while the portrait is
+        --still some class's or ancestry's art, not one the player chose since.
         if isDefaultArt[current] == nil then
             isDefaultArt[current] = false
             for _,tableName in ipairs({ Class.tableName, Race.tableName }) do

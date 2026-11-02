@@ -962,6 +962,7 @@ function GameHud.CreateEmbeddedRollDialog()
         m_richStatus = dmhub.PushUserRichStatus(richStatus)
 
         m_shown = m_shown + 1
+        RollDialog.NoteShown()
     end
 
     local OnHide = function()
@@ -974,6 +975,7 @@ function GameHud.CreateEmbeddedRollDialog()
         if m_shown > 0 then
             chat.events:Pop()
             m_shown = m_shown - 1
+            RollDialog.NoteHidden()
         end
     end
 
@@ -4827,6 +4829,8 @@ function GameHud.CreateEmbeddedRollDialog()
         SetRollDiceOverride(nil)
         OnHide()
         RelinquishPanel()
+        --The scoped clear above misses dice stranded on another cage (MYWPRZ28).
+        RollDialog.ClearStrandedPreviewDice()
     end
 
     if g_settingTriggerDelay:Get() > 0.1 then
@@ -7016,6 +7020,16 @@ function GameHud.CreateEmbeddedRollDialog()
                     end
                 end
 
+                --Destroyed without OnHide: release this dialog's place in the shown
+                --count, or the stranded-dice clear would never run again this session.
+                if m_shown > 0 then
+                    while m_shown > 0 do
+                        m_shown = m_shown - 1
+                        RollDialog.NoteHidden()
+                    end
+                    RollDialog.ClearStrandedPreviewDice()
+                end
+
                 --Backstop: if this dialog dies mid-roll, the cast that normally
                 --removes the targeting arrows can get stuck waiting forever, so
                 --remove them here too. Destroying twice is safe.
@@ -7892,6 +7906,7 @@ function GameHud.CreateEmbeddedRollDialog()
                 end
 
                 chat.PreviewChat('')
+                RollDialog.ClearStrandedPreviewDice()
             end,
         },
     }

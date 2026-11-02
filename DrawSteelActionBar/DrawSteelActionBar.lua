@@ -12881,8 +12881,16 @@ CreateAbilityController = function()
             --instantCast means the invoke already resolved its targets (AI prompt
             --handler or scripted resolution): cast as soon as targeting is satisfied
             --instead of waiting for a manual press of the cast button.
+            --A choice of several abilities (Melee or Ranged Free Strike) waits for the player
+            --to pick: casting the choice itself does nothing and ends the invoke as cancelled.
+            --Only the option buttons get the targets, or having them would cast the choice.
+            local awaitsChoice = false
             if options.instantCast then
-                ability.castImmediately = true
+                local choices = ability:SynthesizeAbilities(casterToken.properties)
+                awaitsChoice = choices ~= nil and #choices > 1
+                if not awaitsChoice then
+                    ability.castImmediately = true
+                end
             end
             CharacterPanel.DisplayAbility(casterToken, ability)
             CharacterPanel.HighlightAbilitySection{
@@ -12890,7 +12898,7 @@ CreateAbilityController = function()
                 caster = casterToken,
                 section = "target",
             }
-            element:FireEvent("beginCasting", ability, { symbols = symbols, targets = options.targets })
+            element:FireEvent("beginCasting", ability, { symbols = symbols, targets = (not awaitsChoice) and options.targets or nil })
 
             --[[
             local spellPanel = GetSpellPanel(nil, nil, ability,

@@ -156,6 +156,35 @@ function TokenControlledByUser(tok)
     return tok.canControl
 end
 
+-- The userid that should answer this token's prompts, or nil if this client should.
+-- Use this instead of tok.activeControllerId when routing prompts. They differ only for
+-- a party-owned follower (a retainer or mount): the engine leaves its prompts with
+-- whichever client raised them, often the Director's. Here they go to the player who
+-- owns its mentor hero, while that player is online.
+--- @param tok CharacterToken
+--- @return string|nil
+function TokenPromptControllerId(tok)
+    local props = tok.properties
+    if tok.ownerId == "PARTY" and props ~= nil then
+        local mentor = props:GetMentor()
+        local mentorToken = mentor ~= nil and dmhub.LookupToken(mentor) or nil
+        local ownerId = mentorToken ~= nil and mentorToken.ownerId or nil
+        if ownerId ~= nil and ownerId ~= "" and ownerId ~= "PARTY" then
+            --We are the mentor's player, so we answer.
+            if ownerId == dmhub.userid then
+                return nil
+            end
+            --The mentor's controller is its owner only while that player is online (or the
+            --Director is playing them in a second window). Otherwise use the usual routing.
+            ---@cast mentorToken -nil
+            if mentorToken.activeControllerId == ownerId then
+                return ownerId
+            end
+        end
+    end
+    return tok.activeControllerId
+end
+
 -- Macro registration infrastructure. Defined here in Utils so it is available
 -- to every module (Utils loads first in main.lua).
 Commands._macros = Commands._macros or {}

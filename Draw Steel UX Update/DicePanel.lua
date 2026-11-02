@@ -13,14 +13,20 @@ end
 
 local CreateDicePanel
 
+-- Content height of the panel: the dice strip, a hairline, and the last-roll line. The panel
+-- is pinned to it (min == max) so the window never shows empty space under the dice.
+local STRIP_HEIGHT = 96
+local READOUT_HEIGHT = 30
+local PANEL_HEIGHT = STRIP_HEIGHT + 1 + READOUT_HEIGHT
+
 DockablePanel.Register{
 	name = "Dice",
 	icon = "ui-icons/dsdice/djordice-d10.png",
 	notitle = true,
 	vscroll = false,
     dmonly = false,
-	minHeight = 160,
-	maxHeight = 160,
+	minHeight = PANEL_HEIGHT,
+	maxHeight = PANEL_HEIGHT,
 	content = function()
 		track("panel_open", {
 			panel = "Dice",
@@ -30,43 +36,73 @@ DockablePanel.Register{
 	end,
 }
 
-local styles = {
+-- The panel's own rules. @tokens resolve through ThemeEngine.MergeTokens (see the panel root),
+-- so the captions, seams and tier pips follow the user's color scheme.
+local function BuildDicePanelStyles()
+	return {
 
-	{
-		classes = "dice",
-		bgcolor = "white",
-		width = 40,
-		height = 40,
-		valign = "center",
-		halign = "center",
-		uiscale = 0.95,
-		saturation = 0.7,
-		brightness = 0.4,
-	},
+		{
+			classes = "dice",
+			bgcolor = "white",
+			width = 40,
+			height = 40,
+			valign = "center",
+			halign = "center",
+			uiscale = 0.95,
+			saturation = 0.7,
+			brightness = 0.4,
+		},
 
-	{
-		classes = {"dice", "gmonly"},
-		saturation = 0.3,
-		brightness = 0.2,
-	},
-	
-	{
-	
-		classes = {"dice", "hover"},
-		scale = 1.2,
-		brightness = 1.2,
-	},
+		{
+			classes = {"dice", "gmonly"},
+			saturation = 0.3,
+			brightness = 0.2,
+		},
 
-	{
-		classes = {"diceLines", "gmonly"},
-		saturation = 0.5,
-		brightness = 0.5,
-	},
-}
+		{
+			classes = {"dice", "hover"},
+			scale = 1.2,
+			brightness = 1.2,
+		},
+
+		{
+			classes = {"diceLines", "gmonly"},
+			saturation = 0.5,
+			brightness = 0.5,
+		},
+
+		-- Hairlines between the Power Roll tile and the small dice, and above the readout.
+		{
+			classes = {"diceSeam"},
+			bgcolor = "@border",
+			opacity = 0.6,
+		},
+
+		-- Tier pips in the readout: three dots, the first <tier> of them lit.
+		{
+			classes = {"diceTierPip"},
+			bgcolor = "@border",
+			cornerRadius = 3,
+		},
+		{
+			classes = {"diceTierPip", "lit"},
+			bgcolor = "@fgStrong",
+		},
+	}
+end
 
 CreateDicePanel = function()
 
 	local amendableRoll = nil
+
+	-- The last-roll line under the strip. Forward-declared so every die tile can report its
+	-- finished roll to it (kind is "power", "d3", "d6", "d10" or "custom" for a mixed roll).
+	local readoutPanel
+	local function recordRoll(kind, rollInfo)
+		if readoutPanel ~= nil and readoutPanel.valid and rollInfo ~= nil then
+			readoutPanel:FireEvent("showRoll", kind, rollInfo)
+		end
+	end
 
 	local diceStyle = dmhub.GetDiceStyling(dmhub.GetSettingValue("diceequipped"), dmhub.GetSettingValue("playercolor"))
 
@@ -79,81 +115,58 @@ CreateDicePanel = function()
 	-- params applies to whichever tile we build; params2D is merged over it for the flat-icon
 	-- (Default set) path only. The two need different sizes: a 3D cage rests its die well inside
 	-- the tile (see dicePreviewRestScale below), whereas the flat PNG fills the tile edge to edge,
-	-- so the scales the cages want blow the icon up past its bounds -- the Power Roll icon at the
-	-- cage's 2.65 spills over the divider. params2D restores the sizes the flat icons had before
-	-- the 3D dice landed.
+	-- so the scale a cage wants blows the flat icon up past its cell.
 	local CreateDice = function(faces, params, params2D)
 
-		local imageFaces = faces
 		local selectedDie = nil
 		local selectedDieFilled = nil
 		local selectedNum = nil
 		local selectedFaces = nil
-		local selectedString = nil
+		-- What recordRoll calls a roll from this tile ("power" for the 2d10 pair).
+		local selectedKind = nil
 		-- Which 3D die geometry this tile renders when use3D (d3 uses the d6 model; the d20
 		-- "Power Roll" renders as the two-d10 pair). nil = fall back to the whitelabel default.
 		local selectedGeo = nil
-		local selectedFontSize = nil
-		local selectedYAdjust = nil
 
-		if imageFaces == 3 then
+		if faces == 3 then
 			selectedDie = "ui-icons/dsdice/djordice-d6.png"
 			selectedDieFilled = "ui-icons/dsdice/djordice-d6-filled.png"
 			selectedNum = 1
 			selectedFaces = 3
-			selectedString = "3"
-			selectedFontSize = 18
-			selectedYAdjust = 2
+			selectedKind = "d3"
 			selectedGeo = "d6"
-		elseif imageFaces == 6 then
+		elseif faces == 6 then
 			selectedDie = "ui-icons/dsdice/djordice-d6.png"
 			selectedDieFilled = "ui-icons/dsdice/djordice-d6-filled.png"
 			selectedNum = 1
 			selectedFaces = 6
-			selectedString = "6"
-			selectedFontSize = 18
-			selectedYAdjust = 2
+			selectedKind = "d6"
 			selectedGeo = "d6"
-		elseif imageFaces == 10 then
+		elseif faces == 10 then
 			selectedDie = "ui-icons/dsdice/djordice-d10.png"
 			selectedDieFilled = "ui-icons/dsdice/djordice-d10-filled.png"
 			selectedNum = 1
 			selectedFaces = 10
-			selectedString = "10"
-			selectedFontSize = 14
-			selectedYAdjust = 0
+			selectedKind = "d10"
 			selectedGeo = "d10"
-		elseif imageFaces == 20 then
+		elseif faces == 20 then
 			selectedDie = "ui-icons/dsdice/djordice-2d10.png"
 			selectedDieFilled = "ui-icons/dsdice/djordice-2d10-filled.png"
 			selectedNum = 2
 			selectedFaces = 10
-			selectedString = "Power Roll"
-			selectedFontSize = 10
-			selectedYAdjust = 0
+			selectedKind = "power"
 			selectedGeo = "power"
 		end
 
 		-- 3D mode: replace the static #DiceIcon tile with a LIVE cage, like the shop's "try dice"
-		-- (see MakeTryDiceCage in CodexShopScreen.lua). A real, numberless die rests on the tile,
-		-- spins on hover, and rolls seamlessly on click/drag as a real (chat, networked) roll -- the
-		-- same resting die tumbles into the result, its text label vanishes and its numbers fade in.
+		-- (see MakeTryDiceCage in CodexShopScreen.lua). A real die, numbers showing, rests on the tile,
+		-- spins on hover, and rolls seamlessly on click/drag as a real (chat, networked) roll. The
+		-- tile's name is the caption under it (built by the panel), so nothing is drawn over the die.
 		-- The non-3D (Default set) path below is unchanged.
 		if use3D then
-			-- shadowLabel/faceLabel are the "Power Roll"/"3"/"6"/"10" text drawn on top of the
-			-- resting die; forward-declared so the roll handlers can hide/show them.
-			local shadowLabel
-			local faceLabel
-
-			local function setLabelsHidden(hidden)
-				if shadowLabel ~= nil and shadowLabel.valid then shadowLabel:SetClass("hidden", hidden) end
-				if faceLabel ~= nil and faceLabel.valid then faceLabel:SetClass("hidden", hidden) end
-			end
-
-			-- Invisible-but-hittable cage filling the tile. The die anchors to its world centre; the
-			-- labels are SIBLINGS drawn on top, so hiding a label never touches the cage and the
-			-- cage's opacity-0 invisibility never touches the labels. All engine calls are
-			-- pcall-guarded so a Lua-only reload against an older binary degrades gracefully.
+			-- Invisible-but-hittable cage filling the tile. The die anchors to its world centre.
+			-- All engine calls are pcall-guarded so a Lua-only reload against an older binary
+			-- degrades gracefully.
 			-- gui.DicePreview is a dedicated dice-preview cage panel type. Fall back to a plain
 			-- gui.Panel on an older binary (Lua-only reload) that predates it; the dice field/
 			-- method calls below are already pcall-guarded so they no-op on the fallback.
@@ -163,10 +176,7 @@ CreateDicePanel = function()
 			-- The cage stays FULL-TILE but is inert to the mouse: its rect is the
 			-- resting-dice image area (DiceEmbeddedImage shows the cage's screen
 			-- region of the dice RT, so shrinking it would clip the resting dice)
-			-- and the dice anchor. The HIT box is the separate hitPanel sibling
-			-- below -- the Power Roll tile's 2.65x-scaled full-tile rect reached
-			-- over the titlebar of the panel window hosting this content and
-			-- stole its clicks.
+			-- and the dice anchor. The HIT box is the separate hitPanel sibling below.
 			local cage = diceCageCtor{
 				width = "100%",
 				height = "100%",
@@ -177,9 +187,7 @@ CreateDicePanel = function()
 				bgimage = true,
 				bgcolor = "white",
 				styles = { gui.Style{ opacity = 0 } },
-				-- rolling: true from the moment a click/drag launches a roll until the next
-				-- seedDie, so the dehover handler knows not to restore the labels mid-roll.
-				data = { reseedPending = false, rolling = false },
+				data = { reseedPending = false },
 
 				create = function(element)
 					--the cage (see the cast after its constructor).
@@ -221,9 +229,11 @@ CreateDicePanel = function()
 						-- it the pcall aborts before touching RestScale, leaving the
 						-- tile on the standard tuning above instead of half-applied.
 						pcall(function()
-							element.dicePreviewRestSpacing = 0.7
+							element.dicePreviewRestSpacing = 0.58
 							element.dicePreviewRestScale = 0.7
 						end)
+						-- Hovered, the pair grows to full size; 0.78 makes them overlap at that size.
+						pcall(function() element.dicePreviewSpacing = 0.88 end)
 					end
 					element:FireEvent("seedDie")
 				end,
@@ -232,7 +242,7 @@ CreateDicePanel = function()
 					pcall(function() element:SetAsDicePreviewPanel(false) end)
 				end,
 
-				-- Seed a resting, numberless die in the equipped set, armed so a click/drag throws it
+				-- Seed a resting die (face numbers showing) in the equipped set, armed so a click/drag throws it
 				-- as a real roll. Unlike the shop we OMIT ["local"]/silent (the shop titlescreen has
 				-- no chat/network) and amendable (each tile rolls standalone). Re-seed after the roll
 				-- finishes or a too-weak drag cancels, so a fresh die is always resting here.
@@ -241,14 +251,13 @@ CreateDicePanel = function()
 						return
 					end
 					element.data.reseedPending = false
-					element.data.rolling = false
 					pcall(function() element:CancelDicePreviewRoll() end)
-					setLabelsHidden(false)
 					dmhub.Roll{
-						preview = true, previewPanel = element, hideNumbers = true,
+						preview = true, previewPanel = element, hideNumbers = false,
 						numDice = selectedNum, numFaces = selectedFaces, numKeep = 0,
 						description = "Custom Roll",
-						complete = function()
+						complete = function(rollInfo)
+							recordRoll(selectedKind, rollInfo)
 							if element.valid then element:FireEvent("requestReseed") end
 						end,
 						cancel = function()
@@ -273,28 +282,12 @@ CreateDicePanel = function()
 			-- scoped to the cage's dice. The engine preview calls are made ON the
 			-- cage (they are mouse/scope-based, so which panel received the input
 			-- does not matter). Hovering fades the die's real numbers in
-			-- (engine-side, keyed off the same mouseover state), so the text label
-			-- hides while the mouse is on the tile and returns on dehover --
-			-- unless a roll is in flight, in which case the label stays hidden
-			-- until the reseed shows it again.
-			--
-			-- The Power Roll tile's hit box is bottom-anchored with the top pulled
-			-- in: at uiscale 2.65 (x1.2 more on hover) a full-tile hit box reaches
-			-- past the top of the dice row, over the hosting window's titlebar.
-			-- The DICE may visually overhang the titlebar (hover growth); the hit
-			-- box must not. 75% keeps the hovered rect below the titlebar while
-			-- leaving the bottom edge of the old hit area unchanged.
-			local hitHeight = "100%"
-			local hitValign = "center"
-			if selectedGeo == "power" then
-				hitHeight = "75%"
-				hitValign = "bottom"
-			end
+			-- (engine-side, keyed off the same mouseover state).
 			local hitPanel = gui.Panel{
 				width = "100%",
-				height = hitHeight,
+				height = "100%",
 				halign = "center",
-				valign = hitValign,
+				valign = "center",
 				floating = true,
 				bgimage = true,
 				bgcolor = "clear",
@@ -302,62 +295,20 @@ CreateDicePanel = function()
 				dragMove = false,
 
 				hover = function(element)
-					setLabelsHidden(true)
 					pcall(function() cage:DicePreviewMouseEnter() end)
 				end,
 				dehover = function(element)
-					if not cage.data.rolling then
-						setLabelsHidden(false)
-					end
 					pcall(function() cage:DicePreviewMouseLeave() end)
 				end,
 				dragging = function(element)
 					pcall(function() cage:DicePreviewDragThink() end)
 				end,
 				drag = function(element)
-					cage.data.rolling = true
-					setLabelsHidden(true)
 					pcall(function() cage:DicePreviewDragEnd() end)
 				end,
 				click = function(element)
-					cage.data.rolling = true
-					setLabelsHidden(true)
 					pcall(function() cage:DicePreviewClick() end)
 				end,
-			}
-
-			-- Drop-shadow + foreground roll-type label, floating (overlaid) and non-interactable so
-			-- clicks fall through to the cage below. As LATER SIBLINGS of the cage they draw above
-			-- the virtual die's embedded image; while the die is hovered or rolling it becomes a
-			-- real 3D die compositing over the whole UI (and the labels hide during rolls).
-			shadowLabel = gui.Label{
-				floating = true,
-				interactable = false,
-				width = "100%",
-				height = "auto",
-				fontFace = "Book",
-				fontSize = selectedFontSize,
-				color = "black",
-				halign = "center",
-				valign = "center",
-				textAlignment = "center",
-				text = selectedString,
-				y = selectedYAdjust + 1,
-				x = 1,
-			}
-			faceLabel = gui.Label{
-				floating = true,
-				interactable = false,
-				width = "100%",
-				height = "auto",
-				fontFace = "Book",
-				fontSize = selectedFontSize,
-				color = "white",
-				halign = "center",
-				valign = "center",
-				textAlignment = "center",
-				text = selectedString,
-				y = selectedYAdjust,
 			}
 
 			-- The visible tile is just a transparent container (the resting die is the cage's
@@ -369,8 +320,6 @@ CreateDicePanel = function()
 				brightness = 1,
 				cage,
 				hitPanel,
-				shadowLabel,
-				faceLabel,
 			}
 
 			if params ~= nil then
@@ -396,6 +345,13 @@ CreateDicePanel = function()
 			dieBgColor = "white"
 		end
 
+		-- Amended rolls mix dice from several tiles, so the readout labels them "custom".
+		local function onComplete(kind)
+			return function(rollInfo)
+				recordRoll(kind, rollInfo)
+			end
+		end
+
 		local args = {
 
 			classes = "dice",
@@ -411,6 +367,7 @@ CreateDicePanel = function()
                     numFaces = selectedFaces,
 					numKeep = 0,
                     description = "Custom Roll",
+					complete = onComplete(selectedKind),
                 }
             end,
 
@@ -422,6 +379,7 @@ CreateDicePanel = function()
 						numKeep = 0,
 						description = "Custom Roll",
 						amendable = true,
+						complete = onComplete("custom"),
 					}
 
 					return
@@ -435,44 +393,13 @@ CreateDicePanel = function()
 					numKeep = 0,
                     description = "Custom Roll",
 					amendable = true,
+					complete = onComplete(selectedKind),
                 }
             end,
-
-			--hover = gui.Tooltip(string.format("D%d", faces)),
-
-			-- Drop Shadow for the Die Face Number
-			gui.Label{
-				width = "100%",
-				height = "auto",
-				fontFace = "Book",
-				fontSize = selectedFontSize,
-				color = "black",
-				halign = "center",
-				valign = "center",			
-				textAlignment = "center",				
-				text = selectedString,
-				y = selectedYAdjust + 1,
-				x = 1
-			},			
-
-			-- Text for the Die Face Number
-			gui.Label{
-				width = "100%",
-				height = "auto",
-				fontFace = "Book",
-				fontSize = selectedFontSize,
-				color = "white",
-				halign = "center",
-				valign = "center",			
-				textAlignment = "center",				
-				text = selectedString,
-				y = selectedYAdjust
-			}
-
 		}
 
 		-- The flat colored die outline only makes sense for the 2D icon; in 3D mode the model
-		-- replaces it. Insert it as the first (bottom) child so the labels still sit on top.
+		-- replaces it.
 		if not use3D then
 			table.insert(args, 1, gui.Panel{
 				classes = {"diceLines"},
@@ -503,14 +430,174 @@ CreateDicePanel = function()
 		local result = gui.Panel(args)
 		return result
 	end
-	
-	
+
+	-- One tile of the strip: the die centred in a fixed-height well, its name underneath.
+	-- Fixed wells keep every caption on one baseline whatever size each die is drawn at.
+	local function DiceCell(width, die, captionText, bold)
+		return gui.Panel{
+			width = width,
+			height = "100%",
+			flow = "vertical",
+			gui.Panel{
+				width = "100%",
+				height = STRIP_HEIGHT - 28,
+				flow = "none",
+				valign = "top",
+				die,
+			},
+			gui.Label{
+				classes = cond(bold, {"label", "sizeXs", "bold"}, {"label", "sizeXs", "fgMuted"}),
+				width = "auto",
+				height = "auto",
+				halign = "center",
+				valign = "top",
+				text = captionText,
+			},
+		}
+	end
+
+	local function VerticalSeam()
+		return gui.Panel{
+			classes = {"diceSeam"},
+			bgimage = true,
+			width = 1,
+			height = "60%",
+			valign = "center",
+		}
+	end
+
+	-- Tier pips for a Power Roll result; "lit" is toggled by showRoll.
+	local tierPips = {}
+	for i = 1, 3 do
+		tierPips[i] = gui.Panel{
+			classes = {"diceTierPip"},
+			bgimage = true,
+			width = 6,
+			height = 6,
+			valign = "center",
+			rmargin = 3,
+		}
+	end
+
+	local hintLabel = gui.Label{
+		classes = {"label", "sizeXs", "fgMuted"},
+		width = "auto",
+		height = "auto",
+		halign = "left",
+		valign = "center",
+		text = "Click a die to roll it. Drag to throw it.",
+	}
+	local lastLabel = gui.Label{
+		classes = {"label", "sizeXxs", "fgMuted", "collapsed"},
+		width = "auto",
+		height = "auto",
+		halign = "left",
+		valign = "center",
+		rmargin = 8,
+		text = "LAST",
+	}
+	local totalLabel = gui.Label{
+		classes = {"label", "sizeL", "bold", "collapsed"},
+		width = "auto",
+		height = "auto",
+		halign = "left",
+		valign = "center",
+		rmargin = 8,
+		text = "",
+	}
+	local tierPanel = gui.Panel{
+		classes = {"collapsed"},
+		width = "auto",
+		height = "auto",
+		flow = "horizontal",
+		halign = "left",
+		valign = "center",
+		tierPips[1],
+		tierPips[2],
+		tierPips[3],
+		gui.Label{
+			classes = {"label", "sizeXs"},
+			width = "auto",
+			height = "auto",
+			valign = "center",
+			lmargin = 3,
+			text = "",
+			showTier = function(element, tier)
+				element.text = string.format("Tier %d", tier)
+			end,
+		},
+	}
+	local detailLabel = gui.Label{
+		classes = {"label", "sizeXs", "fgMuted", "collapsed"},
+		width = "auto",
+		height = "auto",
+		halign = "right",
+		valign = "center",
+		text = "",
+	}
+
+	readoutPanel = gui.Panel{
+		width = "100%",
+		height = READOUT_HEIGHT,
+		flow = "horizontal",
+		hpad = 12,
+		borderBox = true,
+		hintLabel,
+		lastLabel,
+		totalLabel,
+		tierPanel,
+		detailLabel,
+
+		-- Swap the hint for the result of the roll that just finished.
+		showRoll = function(element, kind, rollInfo)
+			local faces = {}
+			pcall(function()
+				for _, r in ipairs(rollInfo.rolls or {}) do
+					if not r.dropped then
+						faces[#faces+1] = tostring(r.result)
+					end
+				end
+			end)
+
+			local total = rollInfo.total
+			if total == nil then
+				return
+			end
+
+			hintLabel:SetClass("collapsed", true)
+			lastLabel:SetClass("collapsed", false)
+			totalLabel:SetClass("collapsed", false)
+			detailLabel:SetClass("collapsed", false)
+			totalLabel.text = tostring(math.tointeger(total) or total)
+
+			-- Only a Power Roll has a tier; RollUtils is the codex's shared tier rule.
+			local tier = nil
+			if kind == "power" then
+				pcall(function() tier = RollUtils.DiceResultToTier(rollInfo) end)
+			end
+			tierPanel:SetClass("collapsed", tier == nil)
+			if tier ~= nil then
+				for i = 1, 3 do
+					tierPips[i]:SetClass("lit", i <= tier)
+				end
+				tierPanel:FireEventTree("showTier", tier)
+			end
+
+			if kind == "power" or kind == "custom" then
+				detailLabel.text = table.concat(faces, " + ")
+			else
+				detailLabel.text = kind
+			end
+		end,
+	}
+
     local resultPanel
 	resultPanel = gui.Panel{
-	
+
 		width = "100%",
 		height = "100%",
-		styles = styles,
+		flow = "vertical",
+		styles = ThemeEngine.MergeTokens(BuildDicePanelStyles()),
 
 		bgimage = "panels/square.png",
 		bgcolor = "clear",
@@ -524,37 +611,65 @@ CreateDicePanel = function()
 		end,
 
 		rightClick = function(element)
-			--its only entry is the Director-only toggle, which a directorless game does not offer.
-			if not RollPrivacyAllowed() then
+			local entries = {}
+
+			--a directorless game does not offer the Director-only toggle.
+			if RollPrivacyAllowed() then
+				entries[#entries+1] = {
+					text = "Rolls Visible Only to Director",
+					check = dmhub.GetSettingValue("privaterolls") == "dm",
+					click = function()
+						dmhub.SetSettingValue("privaterolls", cond(dmhub.GetSettingValue("privaterolls") == "dm", "visible", "dm"))
+						element.popup = nil
+					end,
+				}
+			end
+
+			-- The dice sets this account owns, the same list as the Settings "Dice Set"
+			-- dropdown. Picking one equips it; the strip's diceequipped monitor redraws the dice.
+			local sets = {}
+			pcall(function() sets = dice.GetAvailableDice() end)
+			table.sort(sets, function(a,b) return tostring(a.text) < tostring(b.text) end)
+
+			local current = dmhub.GetSettingValue("diceequipped")
+			local setEntries = {}
+			for _,set in ipairs(sets) do
+				local setid = set.value
+				setEntries[#setEntries+1] = {
+					text = set.text,
+					check = setid == current,
+					click = function()
+						dmhub.SetSettingValue("diceequipped", setid)
+						element.popup = nil
+					end,
+				}
+			end
+
+			if #setEntries > 0 then
+				entries[#entries+1] = {
+					text = "Dice Set",
+					submenu = setEntries,
+				}
+			end
+
+			if #entries == 0 then
 				return
 			end
-			element.popup = gui.ContextMenu{
-				entries = {
-					{
-						text = "Rolls Visible Only to Director",
-						check = dmhub.GetSettingValue("privaterolls") == "dm",
-						click = function()
-							dmhub.SetSettingValue("privaterolls", cond(dmhub.GetSettingValue("privaterolls") == "dm", "visible", "dm"))
-							element.popup = nil
-						end,
-					},
-				}
 
+			element.popup = gui.ContextMenu{
+				entries = entries,
 			}
 		end,
-		
-		
-		gui.Panel{
-		
-			width = "105%",
-			height = "100%",
-			valign = "top",
-			halign = "center",
-			bgimage = "panels/square.png",
-			bgcolor = "clear",
-			flow = "vertical",
-			y = -1,
 
+		-- The dice strip: four equal-height tiles, Power Roll first and wider. Rebuilt when the
+		-- equipped dice set or player color changes; the readout below survives the rebuild.
+		gui.Panel{
+
+			width = "100%",
+			height = STRIP_HEIGHT,
+			flow = "horizontal",
+			vpad = 6,
+			borderBox = true,
 
 			multimonitor = {"diceequipped", "playercolor"},
 
@@ -568,47 +683,40 @@ CreateDicePanel = function()
 
 				create = function(element)
 					element.children = {
-                        gui.Panel{
-                            width = "100%",
-                            -- Pinned rather than auto so the divider and the row under it stay
-                            -- where the 3D cage puts them: the flat Power Roll icon is drawn at
-                            -- the smaller 2D scale below, and an auto height would drag
-                            -- everything beneath it up by the difference.
-                            height = 40*2.65,
-                            flow = "none",
-                            y = -16,
-                            -- Only the scale differs in 2D: the shared y and the "dice" class's
-                            -- valign = "center" then land the (shorter) flat icon centred on the
-                            -- same line the 3D pair rests on.
-						    CreateDice(20, {uiscale = 2.65, y = 2, width = 60}, {uiscale = 1.65}),
-                        },
-                        gui.Divider{ y = -26, brightness = 0.1},
-                        gui.Panel{
-                            width = "70%",
-                            height = "auto",
-                            halign = "center",
-                            flow = "horizontal",
-                            y = -27,
-                            CreateDice(3, {uiscale = 1.3}, {uiscale = 1.1}),
-                            CreateDice(6, {uiscale = 1.3}, {uiscale = 1.2}),
-                            --CreateDice(8),
-                            --CreateDice(20, {uiscale = 1.65, y = 2}),
-                            CreateDice(10, {uiscale = 1.5, y = 2}),
-                            --CreateDice(12),
-                            --CreateDice(100, {rotate = 180}),
-                        },
+						-- Wide tile: the resting pair is drawn only inside the tile's rect, so it must
+						-- span both dice and the gap between them or their outer edges get cut off.
+						DiceCell("34%-1", CreateDice(20, {uiscale = 1.35, width = 84}, {uiscale = 1.0, width = 60}), "POWER ROLL", true),
+						VerticalSeam(),
+						DiceCell("22%", CreateDice(3, {uiscale = 1.1}, {uiscale = 0.95}), "d3"),
+						DiceCell("22%", CreateDice(6, {uiscale = 1.1}, {uiscale = 0.95}), "d6"),
+						DiceCell("22%", CreateDice(10, {uiscale = 1.2}), "d10"),
 					}
-			        resultPanel:SetClassTree("gmonly", GetRollVisibility() == "dm")
+					resultPanel:SetClassTree("gmonly", GetRollVisibility() == "dm")
 
-						-- The screen-bounds/spacing/rest-scale tuning is set PER-CAGE in each
-						-- tile's cage create handler (dicePreviewScreenBounds / Spacing /
-						-- RestScale in CreateDice above), not via the dice.SetPreview* globals:
-						-- the dock coexists with the shop and the in-game roll dialog, and the
-						-- globals leaked this panel's tuning into their cages.
-					end,
-				}
-			},
+					-- The screen-bounds/spacing/rest-scale tuning is set PER-CAGE in each
+					-- tile's cage create handler (dicePreviewScreenBounds / Spacing /
+					-- RestScale in CreateDice above), not via the dice.SetPreview* globals:
+					-- the dock coexists with the shop and the in-game roll dialog, and the
+					-- globals leaked this panel's tuning into their cages.
+				end,
+			}
+		},
+
+		gui.Panel{
+			classes = {"diceSeam"},
+			bgimage = true,
+			width = "100%",
+			height = 1,
+		},
+
+		readoutPanel,
 	}
+
+	ThemeEngine.OnThemeChanged(mod, function()
+		if resultPanel ~= nil and resultPanel.valid then
+			resultPanel.styles = ThemeEngine.MergeTokens(BuildDicePanelStyles()) --[[@as StyleArgs[] ]]
+		end
+	end)
 
 	resultPanel:SetClassTree("gmonly", GetRollVisibility() == "dm")
 

@@ -77,7 +77,8 @@ TriggeredAbility.mandatoryTriggerSettings = {
 --- Returns true if this triggered ability should fire automatically without prompting the player.
 --- @return boolean
 function TriggeredAbility:IsMandatory(token)
-    if self.mandatory == true or self.mandatory == "local" or (self.mandatory == "prompt_remote" and token ~= nil and token.activeControllerId == nil) then
+    local controlledHere = token ~= nil and TokenPromptControllerId(token) == nil
+    if self.mandatory == true or self.mandatory == "local" or (self.mandatory == "prompt_remote" and controlledHere) then
         return true
     elseif self.mandatory == "prompt_remote" or self.mandatory == false then
         return false
@@ -2070,12 +2071,12 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 				--machine happened to process the trigger event (e.g. the
 				--Director's client raising creaturedeath locally when confirming
 				--a minion death). When another connected client is better suited
-				--to respond (activeControllerId ~= nil), ship the execution there
+				--to respond (TokenPromptControllerId returns a userid), ship the execution there
 				--via the remoteInvokes queue. Run locally when we are the
 				--controller, when the ability has no guid for the remote side to
 				--look it up by, or when the caller is waiting on a completion
 				--callback (the triggerBefore flows), which cannot cross machines.
-				local controllerid = casterToken.activeControllerId
+				local controllerid = TokenPromptControllerId(casterToken)
 				if controllerid ~= nil and self:try_get("guid") ~= nil and argOptions.complete == nil then
 					self:SendTriggerCastToController(controllerid, {
 						dismiss = isDismiss,

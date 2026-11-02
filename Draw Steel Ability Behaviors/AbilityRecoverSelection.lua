@@ -79,16 +79,31 @@ function ActivatedAbilityRecoverySelectionBehavior:Cast(ability, casterToken, ta
     local conditionsTable = dmhub.GetTable(CharacterCondition.tableName)
     local ongoingEffectsTable = dmhub.GetTable(CharacterOngoingEffect.tableName)
 
-    -- Reference to the cost label element for refreshing.
+    -- References to the cost label and Submit button for refreshing.
     local costLabelElement = nil
+    local submitElement = nil
+
+    local function cannotAfford()
+        return calcCost() > casterToken.properties:GetHeroicOrMaliceResourcesAvailableToSpend()
+    end
+
+    --Under "Strictly Enforce Action Economy and Resource Costs" a player cannot
+    --submit choices costing more than they can spend (the spend would clamp at 0,
+    --making the extras free). Otherwise the red cost label is only a warning.
+    local function submitBlocked()
+        return StrictActionEconomyEnforced() and cannotAfford()
+    end
 
     local function refreshCostLabel()
+        if submitElement ~= nil then
+            submitElement:SetClass("recovery-submit-disabled", submitBlocked())
+        end
         if costLabelElement == nil then
             return
         end
         local cost = calcCost()
         costLabelElement.text = string.format("%s Cost: %s", casterToken.properties:GetHeroicResourceName(), cost)
-        costLabelElement:SetClass("recovery-cannot-afford", cost > casterToken.properties:GetHeroicOrMaliceResourcesAvailableToSpend())
+        costLabelElement:SetClass("recovery-cannot-afford", cannotAfford())
     end
 
     --- @param token CharacterToken
@@ -307,7 +322,19 @@ function ActivatedAbilityRecoverySelectionBehavior:Cast(ability, casterToken, ta
         classes = {"recovery-button-row"},
         gui.Panel{
             classes = {"recovery-submit"},
+            create = function(element)
+                submitElement = element
+                refreshCostLabel()
+            end,
+            hover = function(element)
+                if submitBlocked() then
+                    gui.Tooltip(string.format("Not enough %s", casterToken.properties:GetHeroicResourceName()))(element)
+                end
+            end,
             press = function(element)
+                if submitBlocked() then
+                    return
+                end
                 finished = true
                 gui.CloseModal()
             end,
@@ -549,9 +576,17 @@ function ActivatedAbilityRecoverySelectionBehavior:Cast(ability, casterToken, ta
                 cornerRadius = 4,
             },
             {
-                selectors = {"panel", "recovery-submit", "hover"},
+                selectors = {"panel", "recovery-submit", "~recovery-submit-disabled", "hover"},
                 brightness = 1.25,
                 transitionTime = 0.1,
+            },
+            {
+                selectors = {"panel", "recovery-submit", "recovery-submit-disabled"},
+                opacity = 0.4,
+            },
+            {
+                selectors = {"label", "recovery-button-label", "parent:recovery-submit-disabled"},
+                opacity = 0.4,
             },
             {
                 selectors = {"panel", "recovery-cancel"},

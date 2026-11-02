@@ -9,21 +9,46 @@ function character:KitID()
     return self:try_get("kitid")
 end
 
+--Kit.CombineKits depends only on the two kits, the hero's kitBonusChoices and the compendium.
+--Reusing its result while those hold gives the same kit object on every call, as a single kit
+--already is, so the modifiers built from it stay the same objects and the creature cache can
+--tell a rebuild changed nothing (ZQ6SMF8D). Callers must not modify the returned kit.
+local function CombinedKit(self, kit, kit2)
+	local parts = {}
+	local levelChoices = self:GetLevelChoices()
+	local bonusChoices = levelChoices ~= nil and levelChoices["kitBonusChoices"] or nil
+	if bonusChoices ~= nil then
+		for bonusid,choice in pairs(bonusChoices) do
+			parts[#parts+1] = string.format("%s=%s", tostring(bonusid), tostring(choice))
+		end
+		table.sort(parts)
+	end
+	local key = string.format("%d|%s", dmhub.tablesUpdateId, table.concat(parts, ","))
+
+	local memo = rawget(self, "_tmp_combinedKit")
+	if memo ~= nil and memo.a == kit and memo.b == kit2 and memo.key == key then
+		return memo.kit
+	end
+	local result = Kit.CombineKits(self, kit, kit2)
+	rawset(self, "_tmp_combinedKit", { a = kit, b = kit2, key = key, kit = result })
+	return result
+end
+
 function character:Kit()
-	local table = GetTableCached(Kit.tableName)
-	local kit = table[self:KitID()]
+	local kitsTable = GetTableCached(Kit.tableName)
+	local kit = kitsTable[self:KitID()]
 	if kit ~= nil then
 
 		if self:has_key("kitid2") and self:GetNumberOfKits() > 1 then
-			local kit2 = table[self.kitid2]
+			local kit2 = kitsTable[self.kitid2]
 			if kit2 ~= nil then
-				kit = Kit.CombineKits(self, kit, kit2)
+				kit = CombinedKit(self, kit, kit2)
 			end
 		end
 
 		return kit
 	elseif self:has_key("kitid2") and self:GetNumberOfKits() > 1 then
-		return table[self.kitid2]
+		return kitsTable[self.kitid2]
 	end
 
 	return nil

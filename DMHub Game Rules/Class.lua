@@ -176,14 +176,24 @@ function Class:FillPrimaryModifiers(modifiers)
 end
 
 --- Returns a CharacterFeature containing the class's primary saving throw modifiers.
+--- The same feature is returned while the class's name and saving throws are unchanged, so
+--- every build of a hero sees the same modifier objects (the creature cache relies on it to
+--- tell a rebuild changed nothing, ZQ6SMF8D). Callers must not modify it.
 --- @return CharacterFeature
 function Class:GetPrimaryFeature()
+	local key = string.format("%s|%s", tostring(self.name), table.concat(self.savingThrows, ","))
+	local cached = self:try_get("_tmp_primaryFeature")
+	if cached ~= nil and cached.key == key then
+		return cached.feature
+	end
+
 	local result = CharacterFeature.Create{
 		name = self.name,
 		source = self.name,
 	}
 
 	self:FillPrimaryModifiers(result.modifiers)
+	self._tmp_primaryFeature = { key = key, feature = result }
 	return result
 end
 

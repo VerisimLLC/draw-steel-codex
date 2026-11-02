@@ -5138,8 +5138,35 @@ function g_cc.RegisterRulesNeutralDocument(docidPrefix, fields)
     g_neutralDocs[#g_neutralDocs+1] = { prefix = docidPrefix, fields = set }
 end
 
---path is a game update path like /modDocuments/{modguid}/documents/{docid}/{field}/...
+--Game data paths that no creature's modifiers or attributes read, as prefixes ending in "/".
+---@type string[]
+local g_neutralPaths = {}
+
+--Declares every write under a game data path rules-neutral, like RegisterRulesNeutralDocument
+--for data outside shared documents. prefix ends in "/" and names a folder, so a write replacing
+--the folder itself still counts as a change. Same rule: only what nothing a creature's modifiers,
+--attributes or token hud read.
+---@param prefix string
+function g_cc.RegisterRulesNeutralPath(prefix)
+    for _,p in ipairs(g_neutralPaths) do
+        if p == prefix then
+            return
+        end
+    end
+    g_neutralPaths[#g_neutralPaths+1] = prefix
+end
+
+--Audio assets: sound files the table plays, never read by rules. They arrive in bursts while a
+--game loads, each one rebuilding every creature.
+g_cc.RegisterRulesNeutralPath("/assets/audio/")
+
+--path is a game update path, e.g. /modDocuments/{modguid}/documents/{docid}/{field}/...
 local function IsNeutralPath(path)
+    for _,prefix in ipairs(g_neutralPaths) do
+        if #path > #prefix and string.sub(path, 1, #prefix) == prefix then
+            return true
+        end
+    end
     local docid, field = string.match(path, "^/modDocuments/[^/]+/documents/([^/]+)/([^/]+)")
     if docid == nil then
         return false

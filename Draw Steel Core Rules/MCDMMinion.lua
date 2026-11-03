@@ -1325,6 +1325,31 @@ DrawSteelMinion.SquadHud = function(floorid, squad)
         return false
     end
 
+    --True when this client may show the token: players must not learn where
+    --fogged or hidden minions are from the squad bar sitting over them.
+    local function memberVisible(tok)
+        return tok ~= nil and tok.valid and (dmhub.isDM or (tok.canSee and not tok.hiddenFromLocalViewer))
+    end
+
+    local function anyMemberVisible()
+        for _, tok in ipairs(squad.tokens or {}) do
+            if memberVisible(tok) then
+                return true
+            end
+        end
+        return false
+    end
+
+    --The squad still has a live token bound to it on this floor.
+    local function squadValidOnFloor()
+        for _,tok in ipairs(squad.tokens) do
+            if tok.valid and tok.floorid == floorid and tok.properties:has_key("_tmp_minionSquad") and tok.properties._tmp_minionSquad == squad then
+                return true
+            end
+        end
+        return false
+    end
+
     if dmhub.isDM == false and not viewerControlsSquad() then
         if dmhub.initiativeQueue == nil or dmhub.initiativeQueue.hidden or (dmhub.GetSettingValue("enemystambardisplay") == "none") then
             return
@@ -1347,6 +1372,11 @@ DrawSteelMinion.SquadHud = function(floorid, squad)
         local m_tokensBlockingLastThink = 0
 
         local m_fillLast = nil
+        --the bar's width and label text as last assigned. m_UpdateHealth runs every
+        --frame and skips an unchanged value: each assignment crosses into the engine,
+        --and the width (a string) costs a wrapper object there.
+        local m_fillWidthSet = nil
+        local m_labelTextSet = nil
         local m_colorLast = nil
         local m_nameLast = squad.name
         local m_numTokens = nil
@@ -1355,6 +1385,11 @@ DrawSteelMinion.SquadHud = function(floorid, squad)
         local m_panelHovered = false
         local m_panelDragging = false
         local m_hoverState = false
+
+        --nil until the root's first think decides whether any member is visible.
+        local m_shown = nil
+        --set when the bar reappears, so it snaps to the visible members at once.
+        local m_forceCalculate = false
 
         local m_fill = gui.Panel{
             interactable = false,
@@ -1462,10 +1497,21 @@ DrawSteelMinion.SquadHud = function(floorid, squad)
                 m_fillLast = m_fillLast + (percent - m_fillLast) * 0.1
             end
 
-            m_fill.selfStyle.width = string.format("%.02f%%", m_fillLast * 100)
+            --Compare in hundredths of a percent and only format the string on a change:
+            --this runs every frame, and the eased fill is usually at rest.
+            local fillKey = math.floor(m_fillLast * 10000 + 0.5)
+            if fillKey ~= m_fillWidthSet then
+                m_fillWidthSet = fillKey
+                m_fill.selfStyle.width = string.format("%.02f%%", fillKey / 100)
+            end
 
+            local labelText = nil
             if squad.damage_taken >= squad.maximum_health then
-                m_label.text = "DEAD"
+                labelText = "DEAD"
+            elseif dmhub.isDM or viewerControlsSquad() then
+                --Checked first: this runs every frame, and the Monster Info lookup
+                --below allocates while its answer only matters to other viewers.
+                labelText = string.format("%d/%d", round(squad.maximum_health - squad.damage_taken), squad.maximum_health)
             else
                 local display = dmhub.GetSettingValue("enemystambardisplay") or "none"
                 --Monster Info: a squad whose stamina the players know exactly
@@ -1475,11 +1521,15 @@ DrawSteelMinion.SquadHud = function(floorid, squad)
                     and MonsterKnowledge.PlayersKnowStaminaExactly(squad.tokens[1].properties, squad.tokens[1]) then
                     display = "val"
                 end
-                if dmhub.isDM or viewerControlsSquad() or display == "val" then
-                    m_label.text = string.format("%d/%d", round(squad.maximum_health - squad.damage_taken), squad.maximum_health)
+                if display == "val" then
+                    labelText = string.format("%d/%d", round(squad.maximum_health - squad.damage_taken), squad.maximum_health)
                 elseif display == "pct" then
-                    m_label.text = string.format("%d%%", 100 * round((squad.maximum_health - squad.damage_taken) / squad.maximum_health))
+                    labelText = string.format("%d%%", 100 * round((squad.maximum_health - squad.damage_taken) / squad.maximum_health))
                 end
+            end
+            if labelText ~= nil and labelText ~= m_labelTextSet then
+                m_labelTextSet = labelText
+                m_label.text = labelText
             end
 
             if #squad.tokens ~= m_numTokens then
@@ -1578,7 +1628,7 @@ DrawSteelMinion.SquadHud = function(floorid, squad)
                     tokens[#tokens+1] = squad.captain
                 end
                 for _,tok in ipairs(tokens) do
-                    if tok.valid then
+                    if memberVisible(tok) then
                         local link = gui.Panel{
                             interactable = false,
                             width = 3,
@@ -1799,14 +1849,7 @@ DrawSteelMinion.SquadHud = function(floorid, squad)
                             return
                         end
 
-                        local valid = false
-                        for _,tok in ipairs(squad.tokens) do
-                            if tok.valid and tok.floorid == floorid and tok.properties:has_key("_tmp_minionSquad") and tok.properties._tmp_minionSquad == squad then
-                                valid = true
-                            end
-                        end
-
-                        if not valid then
+                        if not squadValidOnFloor() then
                             sheetParent:Destroy()
                             return
                         end
@@ -1829,7 +1872,8 @@ DrawSteelMinion.SquadHud = function(floorid, squad)
                             end
                         end
 
-                        if element.data.lastCalculate == nil or element.data.lastCalculate < dmhub.Time() - 0.5 then
+                        if m_forceCalculate or element.data.lastCalculate == nil or element.data.lastCalculate < dmhub.Time() - 0.5 then
+                            m_forceCalculate = false
                             element.data.lastCalculate = dmhub.Time()
                             element:FireEvent("calculate")
                         end
@@ -1873,9 +1917,11 @@ DrawSteelMinion.SquadHud = function(floorid, squad)
                             ypos = squad.pos.y
                         else
 
+                            --place over the members this viewer can see; the root
+                            --hides the whole hud while there are none.
                             local count = 0
                             for _,tok in ipairs(squad.tokens) do
-                                if tok.valid then
+                                if memberVisible(tok) then
                                     local pos = tok.pos
                                     xpos = xpos + pos.x
                                     ypos = ypos + pos.y
@@ -1995,7 +2041,7 @@ DrawSteelMinion.SquadHud = function(floorid, squad)
                             local squadSpread = 0
                             local validTokens = 0
                             for _,tok in ipairs(squad.tokens) do
-                                if tok.valid then
+                                if memberVisible(tok) then
                                     squadSpread = squadSpread + math.sqrt(math.abs(tok.pos.x - squadCenterPoint.x) + math.abs(tok.pos.y - squadCenterPoint.y))
                                     oldDistance = oldDistance + math.sqrt(math.abs(tok.pos.x - m_targetPos.x) + math.abs(tok.pos.y - m_targetPos.y))
                                     newDistance = newDistance + math.sqrt(math.abs(tok.pos.x - squadCenterPoint.x) + math.abs(tok.pos.y - squadCenterPoint.y))
@@ -2085,7 +2131,40 @@ DrawSteelMinion.SquadHud = function(floorid, squad)
                     transitionTime = 0.2,
                     opacity = 0.9,
                 },
+                gui.Style{
+                    selectors = {"squadHidden"},
+                    hidden = 1,
+                },
             },
+
+            --Hides the hud while the viewer can see no squad member. This lives on the
+            --root because a hidden panel's think stops: the bar could not unhide itself.
+            thinkTime = 0.2,
+            think = function(element)
+                --the bar runs these checks too, but not while it is hidden.
+                if floorid ~= dmhub.floorid or not squadValidOnFloor() then
+                    sheetParent:Destroy()
+                    return
+                end
+
+                local shown = anyMemberVisible()
+                if shown ~= m_shown then
+                    if shown and m_shown == false then
+                        --forget the old placement so the bar does not slide in from
+                        --where the squad was last seen.
+                        m_pos = nil
+                        m_targetPos = nil
+                        m_currentPos = nil
+                        m_squadEstablishedPos = nil
+                        m_squadLastPos = nil
+                        m_squadLastPosTime = nil
+                        m_forceCalculate = true
+                    end
+                    m_shown = shown
+                    m_squadHud:SetClass("squadHidden", not shown)
+                    m_linksPanel:SetClass("squadHidden", not shown)
+                end
+            end,
 
             m_linksPanel,
 
@@ -2093,6 +2172,7 @@ DrawSteelMinion.SquadHud = function(floorid, squad)
 
         }
 
+        sheetParent.sheet:FireEvent("think")
         m_fill:FireEvent("think")
 	end
 end

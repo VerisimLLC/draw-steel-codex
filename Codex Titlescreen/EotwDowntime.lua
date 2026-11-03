@@ -591,6 +591,11 @@ local function RollSecretTwin(tok)
     end
 end
 
+--Whether a respite only banks XP and leaves the Level-up to the Training
+--Grounds. Off until the Training Grounds opens: until then a
+--respite raises the Level itself, so no Hero is left with no way to level.
+local RESPITE_BANKS_XP = false
+
 --Rest one hero's working copy for this respite, unless it already has.
 local function RestHero(tok, respiteid, victories)
     local done = false
@@ -607,7 +612,7 @@ local function RestHero(tok, respiteid, victories)
         execute = function()
             local props = tok.properties
             --heals, turns Victories into XP and refreshes Recoveries.
-            props:Rest("long")
+            props:Rest("long", false, RESPITE_BANKS_XP)
             RollSecretTwin(tok)
             local stamps = {}
             local old = rawget(props, "eotwRespites")
@@ -1337,7 +1342,7 @@ local function Portrait(tok, width, height)
         }
     end
     local rect = nil
-    pcall(function() rect = tok:GetPortraitRectForAspect(width / height, portrait) end)
+    pcall(function() rect = CardPortraitRect(tok, width / height, portrait) end)
     return gui.Panel{
         interactable = false,
         width = width,
@@ -2886,11 +2891,11 @@ end
 function EotwDowntime.TributeButton(host, projectid)
     return gui.Button{
         text = T("tribute.button"),
-        fontSize = 15,
-        width = 240,
-        height = 32,
-        halign = "center",
-        tmargin = 10,
+        fontSize = 12,
+        width = 160,
+        height = 22,
+        halign = "right",
+        tmargin = 8,
         click = function()
             audio.FireSoundEvent("Mouse.Click")
             EotwDowntime.ShowTribute(host, projectid)

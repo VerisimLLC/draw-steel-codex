@@ -587,6 +587,11 @@ end
 
 --Validate and apply one player request. Returns a line to log, or nil.
 local function HandleRequest(m, doc, userid, req, beat, heroes)
+    --handing an item to another hero works at any point in the beat.
+    if req.kind == "giveItem" then
+        return EncounterMontage.GiveItem(doc, heroes, userid, req)
+    end
+
     local sections = SectionsOf(beat)
     local section = sections[tonumber(m.sectionIndex) or 1]
     if section == nil then

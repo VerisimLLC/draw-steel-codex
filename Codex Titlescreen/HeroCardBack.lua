@@ -11,6 +11,9 @@ local mod = dmhub.GetModLoading()
 local BACK_WIDTH = 350
 local PAD = 18
 local INNER_WIDTH = BACK_WIDTH - PAD * 2
+--the back's rows scroll: they are laid out this much clear of the scrollbar.
+local SCROLLBAR_ROOM = 14
+local CONTENT_WIDTH = INNER_WIDTH - SCROLLBAR_ROOM
 
 local COLOR_TEXT = "#eef1f4"
 local COLOR_SOFT = "#c6d0da"
@@ -120,7 +123,7 @@ local function Header(tok, c)
         interactable = false,
         portrait,
         gui.Panel{
-            width = INNER_WIDTH - 50 - 11 - 44,
+            width = CONTENT_WIDTH - 50 - 11 - 44,
             height = "auto",
             lmargin = 11,
             valign = "center",
@@ -175,7 +178,7 @@ local function StaminaStrip(c)
     local victories = Try(function() return c:GetVictories() end, 0)
     local heroTokens = Try(function() return c:GetHeroTokens() end, 0)
 
-    local barWidth = INNER_WIDTH - 30
+    local barWidth = CONTENT_WIDTH - 20
     local function Px(value)
         if max <= 0 then
             return 0
@@ -290,7 +293,7 @@ local function Characteristics(c)
     end
 
     local cells = {}
-    local cellWidth = math.floor(INNER_WIDTH / math.max(1, #attrs))
+    local cellWidth = math.floor(CONTENT_WIDTH / math.max(1, #attrs))
     for i, attr in ipairs(attrs) do
         local top = values[i] == best and best > 0
         cells[#cells+1] = gui.Panel{
@@ -566,7 +569,7 @@ local function TwoColumnRow(left, right, rightColor, dim)
         flow = "horizontal",
         opacity = cond(dim, 0.45, 1),
         interactable = false,
-        Text{ text = left, fontSize = 12, width = INNER_WIDTH - 90 },
+        Text{ text = left, fontSize = 12, width = CONTENT_WIDTH - 90 },
         Text{ text = right, fontSize = 12, bold = true, color = rightColor or COLOR_TEXT, width = 90, textAlignment = "right" },
     }
 end
@@ -587,12 +590,29 @@ local function ResourceGains(c)
         --quantities are GoblinScript ("Victories", "1 + 1 when level >= 4"):
         --evaluate them as the tac panel does. A dice expression stays as
         --written, so the card reads "+1d3" rather than one random roll.
-        local quantity = tostring(entry.quantity or 1)
-        local amount = tonumber(quantity)
-        if amount == nil and not string.find(quantity, "%d+d%d+") then
-            amount = Try(function() return dmhub.EvalGoblinScript(quantity, c:LookupSymbol()) end)
+        --a number, a GoblinScript string or a level table (turned into a string just below).
+        ---@type number|string|table
+        local quantity = entry.quantity or 1
+        --a level table (the Beastheart's "1d3, +1 from level 7"): the row for
+        --the hero's level, its symbols resolved ("1d Heroic Resource Gain at
+        --Start" reads 1d3).
+        if type(quantity) == "table" then
+            local level = Try(function() return c:CharacterLevel() end, 1)
+            local row = nil
+            for _, candidate in ipairs(quantity.entries or {}) do
+                if (candidate.threshold or 1) <= level and (row == nil or (candidate.threshold or 1) > (row.threshold or 1)) then
+                    row = candidate
+                end
+            end
+            local script = row and row.script or ""
+            quantity = Try(function() return dmhub.NormalizeRoll(script, c:LookupSymbol()) end, script)
         end
-        local amountText = "+" .. quantity
+        local quantityText = tostring(quantity)
+        local amount = tonumber(quantityText)
+        if amount == nil and not string.find(quantityText, "%d+d%d+") then
+            amount = Try(function() return dmhub.EvalGoblinScript(quantityText, c:LookupSymbol()) end)
+        end
+        local amountText = "+" .. quantityText
         if tonumber(amount) ~= nil then
             amountText = string.format("+%d", tonumber(amount))
         end
@@ -807,7 +827,7 @@ local function MonsterHeader(tok, c)
         interactable = false,
         portrait,
         gui.Panel{
-            width = INNER_WIDTH - 50 - 11 - 44,
+            width = CONTENT_WIDTH - 50 - 11 - 44,
             height = "auto",
             lmargin = 11,
             valign = "center",
@@ -1196,7 +1216,7 @@ local TURNED_RISE = 0.25
 --than by a style transition so it runs on the card itself, whose styles
 --belong to the host. The card grows from fromScale to toScale as it turns,
 --rising so the growth goes upward (scale is around the card's centre).
-local function AnimateFlip(card, cardHeight, fromScale, toScale, onMidpoint)
+local function AnimateFlip(card, cardHeight, fromScale, toScale, onMidpoint, onDone)
     if card.data.heroCardFlipping then
         return
     end
@@ -1228,6 +1248,7 @@ local function AnimateFlip(card, cardHeight, fromScale, toScale, onMidpoint)
             card.selfStyle.y = Lift(toScale)
             card.constrainToScreen = toScale ~= 1
             card.data.heroCardFlipping = false
+            onDone()
             return
         end
         local eased = 0.5 - 0.5 * math.cos(p * math.pi)
@@ -1303,9 +1324,8 @@ local function CreateBackFace(charid, cardWidth, cardHeight)
             --monsters wear the enemy red the mockup gave them.
             element.parent.selfStyle.borderColor = cond(IsHeroProps(tok.properties), "#6fa8ffcc", "#b0444acc")
             sections, info = BuildSections(tok)
-            --keep clear of the scrollbar along the right edge.
             for _, section in ipairs(sections) do
-                section.selfStyle.width = "100%-10"
+                section.selfStyle.width = CONTENT_WIDTH
             end
             scroller.children = sections
             ApplyFolds()
@@ -1389,13 +1409,29 @@ local function CreateFlipButton(charid)
                 selectors = {"heroCardFlip", "parent:hover"},
                 hidden = 0,
             },
+            --"hover" sits only on the panel under the pointer, so on the
+            --button the card loses it: without hidden = 0 here the button
+            --hides, the card is hovered again, and it flickers.
             {
                 selectors = {"heroCardFlip", "hover"},
+                hidden = 0,
                 borderColor = COLOR_GOLD,
                 scale = 1.15,
             },
             {
                 selectors = {"heroCardFlipIcon", "parent:hover"},
+                bgcolor = COLOR_GOLD,
+            },
+            --edge-on, the card slips out from under the mouse: while it
+            --turns the button holds its hovered look instead of blinking.
+            {
+                selectors = {"heroCardFlip", "turning"},
+                hidden = 0,
+                borderColor = COLOR_GOLD,
+                scale = 1.15,
+            },
+            {
+                selectors = {"heroCardFlipIcon", "parent:turning"},
                 bgcolor = COLOR_GOLD,
             },
         },
@@ -1409,10 +1445,18 @@ local function CreateFlipButton(charid)
             bgcolor = "#ffffffee",
             interactable = false,
         },
-        hover = gui.Tooltip("Turn the card over"),
+        --no tooltip mid-turn: the mouse leaving and re-entering the edge-on
+        --card would pop it away and back.
+        hover = function(element)
+            if element:HasClass("turning") then
+                return
+            end
+            element.tooltip = "Turn the card over"
+        end,
         --on click, as the card's dismiss X does: a handled click stops
         --here instead of bubbling up to open the hero's sheet.
         click = function(element)
+            element.tooltip = nil
             audio.FireSoundEvent("Mouse.Click")
             element.parent:FireEvent("turnCard")
         end,
@@ -1440,11 +1484,15 @@ local function Decorate(cardArgs, charid, cardWidth, cardHeight)
         end
     end
     cardArgs[#cardArgs+1] = backFace
-    cardArgs[#cardArgs+1] = CreateFlipButton(charid)
+    local flipButton = CreateFlipButton(charid)
+    cardArgs[#cardArgs+1] = flipButton
     cardArgs.turnCard = function(element)
         local turned = not backFace:HasClass("turned")
+        flipButton:SetClass("turning", true)
         AnimateFlip(element, cardHeight, cond(turned, 1, TURNED_SCALE), cond(turned, TURNED_SCALE, 1), function()
             backFace:FireEvent("showBack", turned)
+        end, function()
+            flipButton:SetClass("turning", false)
         end)
     end
 end

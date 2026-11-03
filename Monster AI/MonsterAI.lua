@@ -35,6 +35,10 @@ MonsterAI.log = {}
 MonsterAI.active = false
 MonsterAI.reactionStatus = false
 MonsterAI.reactionFailure = false
+--When the AI started waiting on nothing but minion deaths (nil when it isn't).
+--The token HUD reads it.
+---@type number|nil
+MonsterAI.minionDeathWaitSince = nil
 
 --"The AI is waiting on a player" notice ----------------------------------
 --
@@ -115,7 +119,7 @@ local function FindPlayerTriggerPromptNotice()
             for key,trigger in pairs(token.properties:GetAvailableTriggers(true) or {}) do
                 if not trigger.dismissed and not trigger.triggered
                     and type(trigger.abilityName) == "string" then
-                    return string.format("Waiting for %s's %s", token.name, trigger.abilityName),
+                    return string.format("Waiting for %s's %s", token.name or "a hero", trigger.abilityName),
                         {charid = token.charid, triggerid = key}
                 end
             end
@@ -132,6 +136,20 @@ Tip = rawget(_G, "Tip") or {}
 Tip.notices = Tip.notices or {}
 local m_noticeText = nil
 local m_noticeSince = 0
+
+--Which ability a trigger prompt is for: its guid when it carries one, else
+--its ability name, else the card's text.
+--- @param trigger ActiveTrigger
+--- @return string
+local function AbilityKeyOfTrigger(trigger)
+    if trigger.abilityGuid then
+        return "guid:" .. tostring(trigger.abilityGuid)
+    end
+    if trigger.abilityName then
+        return "name:" .. tostring(trigger.abilityName)
+    end
+    return "text:" .. tostring(trigger:GetText())
+end
 
 --The banner buttons (see the notice channel in GameHud.lua). Only the player
 --who answers the waited-on hero's prompts gets any: "Select <hero>" while the
@@ -177,11 +195,29 @@ local function WaitingNoticeControls(doc)
                 undoable = false,
                 description = "Trigger",
                 execute = function()
-                    local live = token.properties:try_get("availableTriggers", {})[triggerid]
-                    if live ~= nil and not live.dismissed and not live.triggered then
-                        live.triggered = false
-                        live.dismissed = true
-                        token.properties:DispatchAvailableTrigger(live)
+                    local triggers = token.properties:try_get("availableTriggers", {})
+                    local live = triggers[triggerid]
+                    if live == nil or live.dismissed or live.triggered then
+                        return
+                    end
+                    live.triggered = false
+                    live.dismissed = true
+                    token.properties:DispatchAvailableTrigger(live)
+
+                    --one event can stack several prompts of the same ability on a
+                    --hero (4x The Breath of Dawn Remembered); the AI waits on each
+                    --in turn, so Dismiss clears them all, not just the one named
+                    --in the banner (ERRA5PCR). Hidden members of a merged prompt
+                    --are left to their front card.
+                    local key = AbilityKeyOfTrigger(live)
+                    for id,other in pairs(triggers) do
+                        if id ~= triggerid and not other.dismissed and not other.triggered
+                            and not other.mergedInto and other:CanDismiss()
+                            and AbilityKeyOfTrigger(other) == key then
+                            other.triggered = false
+                            other.dismissed = true
+                            token.properties:DispatchAvailableTrigger(other)
+                        end
                     end
                 end,
             }
@@ -365,6 +401,12 @@ local PREVIEW_DOC = "monsterAIPreview"
 --It lapses when that user leaves or restarts the app, so pauses come back on
 --each session. (Games from before this held {queue = guid}; that is ignored.)
 local PREVIEW_OFF_DOC = "monsterAIPreviewOff"
+
+--These four documents are read only by the AI and its UI, never by a creature's modifiers,
+--so their frequent writes must not rebuild every creature (ZQ6SMF8D).
+for _,docid in ipairs{WAITING_DOC, STATUS_DOC, PREVIEW_DOC, PREVIEW_OFF_DOC} do
+    CreatureCache.RegisterRulesNeutralDocument(docid)
+end
 
 --Tells this run of the app apart from earlier ones (a Lua reload makes a new one too).
 local g_runId = dmhub.GenerateGuid()
@@ -1970,8 +2012,17 @@ function MonsterAI:MovementLocOverlapsCreature(token, loc)
         return false
     end
 
+    --Altitude 0 is ambiguous: absolute 0, or "on the ground" (charge segments and
+    --straight-line walks pass that). Span both readings. Reading it only as absolute
+    --missed a hero down in a pit at -1, and a charge ended on them (PJFTCBSE).
     local ourBottom = loc.altitude
-    local ourTop = ourBottom + movementToken.tileSize - 1
+    local ourTop = loc.altitude
+    if loc.altitude == 0 then
+        local groundAltitude = loc.withGroundAltitude.altitude
+        ourBottom = math.min(0, groundAltitude)
+        ourTop = math.max(0, groundAltitude)
+    end
+    ourTop = ourTop + movementToken.tileSize - 1
     for _,occupiedLoc in ipairs(movementToken:LocsOccupyingWhenAt(loc)) do
         for _,other in ipairs(dmhub.GetTokensAtLoc(occupiedLoc) or {}) do
             if other.valid and not other.isObject and other.properties ~= nil
@@ -2612,11 +2663,17 @@ function MonsterAI:CountPendingActivityReactions(activityId)
             local ok, pending, description, err, reactionId = pcall(token.properties.GetAIActivityReactionStatus, token.properties, activityId)
             if not ok then err = "could not inspect reaction state: " .. tostring(pending); pending = 1; reactionId = nil end
             result = result + pending
+            --A disguised hero (Fury's Hybrid Form: Corven) has no token name.
+            --A nil concat here once killed the wait and stranded its banner (PWGUJAAP).
+            local name = token.name
+            if type(name) ~= "string" or name == "" then
+                name = "a hero"
+            end
             if pending > 0 then
-                status = "Waiting for " .. token.name .. "'s " .. (description or "reaction")
+                status = "Waiting for " .. name .. "'s " .. (description or "reaction")
                 subject = {charid = token.charid, triggerid = reactionId}
             end
-            if err ~= nil then failure = token.name .. ": " .. tostring(err) end
+            if err ~= nil then failure = name .. ": " .. tostring(err) end
         end
     end
     return result, status, failure, subject
@@ -2671,7 +2728,86 @@ end
 --(opportunity attacks) or an ability cast (Repulsive Ward on the damage it
 --dealt). Returns true when clear; false plus a reason when the AI was stopped
 --or a reaction could not be confirmed (the AI is stopped with a modal).
+--An error inside the wait is re-raised after the shared "Waiting for ..."
+--notice is cleared, so a failed wait can never leave its banner up (PWGUJAAP).
 function MonsterAI:WaitForActivityReactions(activityId)
+    local completed, reason
+    local ok, err = self:RunYieldingFunction(function()
+        completed, reason = self:WaitForActivityReactionsUnguarded(activityId)
+    end)
+    --Cleared here so every way out of the wait, error or not, clears it.
+    MonsterAI.minionDeathWaitSince = nil
+    if not ok then
+        MonsterAI.reactionStatus = false
+        MonsterAI.ClearWaiting()
+        error(err, 0)
+    end
+    return completed, reason
+end
+
+--Answer the trigger prompts of AI-run minions while a squad owes deaths. A
+--minion offered a trigger (an angulotl's Leapfrog) shows no death skull, and
+--the panel's trigger poll cannot answer it until this turn ends, so the wait
+--below could never finish (QNT42FK4). Each prompt is tried once per wait; one
+--with no AI handler is left to the "Choose for me" banner in DrawSteelTokenHud.
+--Minions are matched by minionDead, not IsDead: a doomed minion's squad pool
+--may already read as dead.
+---@param answered table<string, boolean> prompts already tried this wait
+function MonsterAI:AnswerMinionTriggersDuringWait(answered)
+    local work = {}
+    for _,token in ipairs(dmhub.allTokens) do
+        local props = token.valid and token.properties or nil
+        if props ~= nil and props.minion and not props.minionDead
+            and not token.playerControlled then
+            for _,trigger in pairs(props:GetAvailableTriggers(true) or {}) do
+                local key = string.format("%s:%s", tostring(token.charid), tostring(trigger.id))
+                if not answered[key] and not trigger.triggered and not trigger.dismissed then
+                    answered[key] = true
+                    work[#work+1] = {token = token, trigger = trigger}
+                end
+            end
+        end
+    end
+
+    --Answered after the scan: answering one rewrites availableTriggers.
+    for _,item in ipairs(work) do
+        local token, trigger = item.token, item.trigger
+        if token.valid and token.properties ~= nil then
+            local responder = MonsterAI.new{token = token}
+            local ok, err = responder:RunYieldingFunction(function()
+                responder:HandleAvailableTrigger(token, trigger)
+            end)
+            if not ok then
+                --Same recovery as the panel's trigger poll: dismiss it so the
+                --skull comes back instead of the wait hanging on it.
+                pcall(function()
+                    token:ModifyProperties{
+                        description = "AI Trigger Recovery",
+                        undoable = false,
+                        execute = function()
+                            local liveTrigger = (token.properties:GetAvailableTriggers() or {})[trigger.id]
+                            if liveTrigger ~= nil and not liveTrigger.triggered
+                                and not liveTrigger.dismissed then
+                                liveTrigger.dismissed = true
+                                token.properties:DispatchAvailableTrigger(liveTrigger)
+                            end
+                        end,
+                    }
+                end)
+                pcall(function()
+                    responder:LogDecision("TRIGGER ERROR", {
+                        category = "Triggered Action",
+                        ability = trigger.abilityName,
+                        reason = tostring(err),
+                        result = "trigger dismissed while waiting for minion deaths",
+                    })
+                end)
+            end
+        end
+    end
+end
+
+function MonsterAI:WaitForActivityReactionsUnguarded(activityId)
     local pending, status, failure = self:CountPendingActivityReactions(activityId)
     local pendingMinionDeaths = self:CountPendingMinionDeathConfirmations()
     if pending == 0 and pendingMinionDeaths == 0 and failure == nil then
@@ -2687,6 +2823,8 @@ function MonsterAI:WaitForActivityReactions(activityId)
 
     local startedAt = dmhub.Time()
     local idleSince = nil
+    local deathsOnlySince = nil
+    local answeredTriggers = {}
     local isAIRunning = rawget(MonsterAI, "IsAIRunning")
     local cancelWhenAIStops = MonsterAI.active and isAIRunning ~= nil
         and isAIRunning()
@@ -2723,7 +2861,19 @@ function MonsterAI:WaitForActivityReactions(activityId)
             end
         else
             idleSince = nil
+            if pending == 0 then
+                self:AnswerMinionTriggersDuringWait(answeredTriggers)
+                --Choose which minions our attacks killed now: this wait can't end
+                --until someone chooses them.
+                self:ResolvePendingMinionDeaths(0)
+                deathsOnlySince = deathsOnlySince or dmhub.Time()
+            else
+                deathsOnlySince = nil
+            end
         end
+        --After a few seconds of waiting only on minion deaths, the token HUD
+        --offers "Choose for me".
+        MonsterAI.minionDeathWaitSince = deathsOnlySince
         coroutine.yield(0.1)
     end
 
@@ -2819,6 +2969,12 @@ function MonsterAI:MoveToken(token, loc, options, continueIfActorDies)
     if not continueIfActorDies and (options == nil or not options.straightline)
         and not self:MovementTokenIsAtLoc(token, loc) then
         self._tmp_moveFailure = "movement did not reach the planned destination"
+        --It moved but was stopped early (a trap, a reaction), so the move may
+        --still work from where it stands: HandleMoveExecutionFailure re-plans it.
+        local mover = self:GetMovementToken(token)
+        if fromLoc ~= nil and mover ~= nil and mover.loc.str ~= fromLoc.str then
+            self._tmp_moveFellShort = true
+        end
     end
     return result, true
 end
@@ -3456,6 +3612,25 @@ local function TurnStillCurrent(initiativeid)
     return q ~= nil and not q.hidden and q:CurrentInitiativeId() == initiativeid
 end
 
+--Checked just before a chosen move executes. Choosing yields for a while, and
+--a hero who takes the turn meanwhile must stop the move, not watch it happen
+--on their turn (9RF3TMVV). Sets _tmp_abortTurn, so the turn pauses after.
+---@return boolean
+function MonsterAI:TurnTakenBeforeMove()
+    local initiativeid = self:try_get("_tmp_turnInitiativeId")
+    if initiativeid == nil or TurnStillCurrent(initiativeid) then
+        return false
+    end
+    if self:try_get("_tmp_abortTurn") == nil then
+        self._tmp_abortTurn = g_abortTurnTaken
+    end
+    self:LogDecision("MOVE ABORTED", {
+        reason = self._tmp_abortTurn,
+        result = "move not executed",
+    })
+    return true
+end
+
 --A monster that sat out a turn hidden is dull to play against, so every hidden monster
 --the AI is about to play reveals itself first and then acts. Hidden This Turn still gives
 --it the edge for the rest of the turn. Hiding again later in the turn works as usual.
@@ -3492,6 +3667,7 @@ end
 function MonsterAI:PlayTurnCoroutine(initiativeid)
     local queue = dmhub.initiativeQueue
 	self._tmp_abortTurn = nil
+    self._tmp_turnInitiativeId = initiativeid
     self._tmp_rangedStrikers = {}
 
     self.log.analysis = self:Analysis()
@@ -3615,6 +3791,7 @@ function MonsterAI:PlayTurnCoroutine(initiativeid)
                     self._tmp_synthesizedAbilitiesUsed = {}
                     self._tmp_synthesizedPlanningFailed = false
                     self._tmp_failedMoves = {}
+                    self._tmp_shortMoveRetries = {}
                     self._tmp_failedChargePlans = {}
 					self._tmp_actorInterrupted = nil
 
@@ -3887,6 +4064,79 @@ function MonsterAI:WaitForAbilityIdle(timeout)
     end
     if waitingSet then MonsterAI.ClearWaiting() end
     return false
+end
+
+--A hero's cast still running on this client (its coroutineStorage record), or
+--nil. A trigger chained off a hero's reaction (Metakinetic Mastery's Knockback
+--after Inertial Shield) runs as the hero's own cast with no reaction marker, so
+--WaitForActivityReactions cannot see it (C7YTDXC6). Only player heroes count:
+--an outer AI cast held open by nested casts must not stall the AI.
+function MonsterAI.LiveHeroCast()
+    for co,info in pairs(ActivatedAbility.coroutineStorage) do
+        local caster = info.casterToken
+        if coroutine.status(co) ~= "dead" and caster ~= nil and caster.valid
+            and caster.playerControlled and not creature.IsTokenAIControlled(caster.charid) then
+            return info
+        end
+    end
+    return nil
+end
+
+--After an AI cast, wait while a hero's cast it set off is still running here,
+--so the next monster does not act, and roll dice, under the hero's target
+--prompt or roll. A player can take their time, so the limit is generous, as
+--for end-of-turn casts. Returns false, reason when the AI is stopped meanwhile.
+function MonsterAI:WaitForHeroCasts(timeout)
+    if MonsterAI.LiveHeroCast() == nil then
+        return true
+    end
+
+    local startedAt = dmhub.Time()
+    local deadline = startedAt + (timeout or 600)
+    self:LogDecision("HERO CAST WAIT START", {
+        result = "waiting for a hero's cast to finish before acting again",
+    })
+
+    local idleSince = nil
+    local isAIRunning = rawget(MonsterAI, "IsAIRunning")
+    local cancelWhenAIStops = MonsterAI.active and isAIRunning ~= nil
+        and isAIRunning()
+    while true do
+        if mod.unloaded or (cancelWhenAIStops and not MonsterAI.active) then
+            MonsterAI.ClearWaiting()
+            return false, mod.unloaded and "Monster AI module unloaded"
+                or "Monster AI stop requested"
+        end
+
+        local info = MonsterAI.LiveHeroCast()
+        if info == nil then
+            idleSince = idleSince or dmhub.Time()
+            if dmhub.Time() - idleSince >= 0.3 then
+                break
+            end
+        else
+            idleSince = nil
+            if dmhub.Time() >= deadline then
+                self:LogDecision("HERO CAST WAIT TIMEOUT", {
+                    ability = info.ability ~= nil and info.ability.name or nil,
+                    result = "continuing the turn with the hero's cast still open",
+                    duration = dmhub.Time() - startedAt,
+                })
+                break
+            end
+            local caster = info.casterToken
+            MonsterAI.SetWaiting("cast", string.format("Waiting for %s's %s",
+                caster.name or "a hero", info.ability ~= nil and info.ability.name or "ability"),
+                {charid = caster.charid})
+        end
+        coroutine.yield(0.1)
+    end
+
+    MonsterAI.ClearWaiting()
+    self:LogDecision("HERO CAST WAIT FINISHED", {
+        duration = dmhub.Time() - startedAt,
+    })
+    return true
 end
 
 local g_aiMinionDeathPendingTimeout = 125
@@ -5426,6 +5676,7 @@ function MonsterAI:ExecuteSquadStrike(ability)
     --slot a fallen squad-mate freed), a second chance to join the same volley
     --rather than save their action for a later one.
     local announced = false
+    local turnTaken = false
     for round=1,2 do
         RefreshAssignments()
         local reserved = self.NewSquadReservations()
@@ -5446,6 +5697,12 @@ function MonsterAI:ExecuteSquadStrike(ability)
             if not self:AwaitPlanPreview(self:BuildSquadPreview(plans, advancers, ability)) then
                 return false
             end
+        end
+
+        --Planning the squad yields; a hero may have taken the turn meanwhile.
+        if self:TurnTakenBeforeMove() then
+            turnTaken = true
+            break
         end
 
         if #plans > 0 then
@@ -5480,7 +5737,9 @@ function MonsterAI:ExecuteSquadStrike(ability)
     end
 
     local executed = false
-    if #targetPairs > 0 and casterToken ~= nil then
+    if turnTaken or self:TurnTakenBeforeMove() then
+        logMessage = "Stopped: " .. g_abortTurnTaken
+    elseif #targetPairs > 0 and casterToken ~= nil then
         --casterToken is only set once castAbility was found non-nil, and the loop then breaks.
         ---@cast castAbility -nil
         --The battle cry was called before the squad moved (AnnounceSquadStrike).
@@ -6600,9 +6859,19 @@ function MonsterAI:CanStrikeThisTurn(token)
     return false, "no square it can move to has an enemy in reach"
 end
 
-function MonsterAI:HandleMoveExecutionFailure(moveid, abilityName, err)
+--fellShort: the creature moved but stopped before its planned square. The
+--move then gets one more try, re-scored from where it stands next cycle; a
+--second shortfall quarantines it like any other failure.
+function MonsterAI:HandleMoveExecutionFailure(moveid, abilityName, err, fellShort)
     self._tmp_failedMoves = self:try_get("_tmp_failedMoves", {})
-    self._tmp_failedMoves[moveid] = true
+    local retried = self:try_get("_tmp_shortMoveRetries", {})
+    self._tmp_shortMoveRetries = retried
+    local replan = fellShort == true and not retried[moveid]
+    if replan then
+        retried[moveid] = true
+    else
+        self._tmp_failedMoves[moveid] = true
+    end
     self._tmp_expectedPromptTarget = nil
 
 	if self:try_get("_tmp_abortTurn") ~= nil then
@@ -6633,7 +6902,8 @@ function MonsterAI:HandleMoveExecutionFailure(moveid, abilityName, err)
         self:LogDecision("MOVE ERROR", {
             ability = abilityName,
             reason = "execution failed: " .. tostring(err),
-            result = "move quarantined for this actor",
+            result = replan and "move re-planned from where the actor stopped"
+                or "move quarantined for this actor",
         })
     end)
 
@@ -7473,6 +7743,7 @@ function MonsterAI:FindAndExecuteMove()
     --before each RunYieldingFunction below (ProfEnd is safe to repeat).
     local chooseProf = ProfBegin("choose move")
     self._tmp_moveFailure = nil
+    self._tmp_moveFellShort = nil
     self._tmp_oaSafeOnly = nil
     local token = self.token
     local searchContext = {}
@@ -7744,6 +8015,9 @@ function MonsterAI:FindAndExecuteMove()
                 return g_moveResultNone
             end
         end
+        if self:TurnTakenBeforeMove() then
+            return g_moveResultUnsafe
+        end
         local executePhase = ProfPhaseBegin("execute: " .. moveid)
         local ok, err = RunYieldingFunction(function()
             executed = self:ExecuteSynthesizedAbilityPlan(token, synthesizedMove)
@@ -7798,6 +8072,9 @@ function MonsterAI:FindAndExecuteMove()
             and not self:AwaitPlanPreview(self:BuildPlanPreview(token, bestScore.usingAbilities, bestScore)) then
             return g_moveResultNone
         end
+        if self:TurnTakenBeforeMove() then
+            return g_moveResultUnsafe
+        end
         local executePhase = ProfPhaseBegin("execute: " .. bestMove.id)
         local ok, err = RunYieldingFunction(function()
             executeResult = bestMove.execute(bestMove, self, token, bestScore,
@@ -7812,7 +8089,8 @@ function MonsterAI:FindAndExecuteMove()
         if executeResult == false or self:try_get("_tmp_moveFailure") ~= nil then
             return self:HandleMoveExecutionFailure(bestMove.id,
                 self.AbilitiesLogName(bestScore.usingAbilities),
-                self:try_get("_tmp_moveFailure", "execution returned false"))
+                self:try_get("_tmp_moveFailure", "execution returned false"),
+                self:try_get("_tmp_moveFellShort") == true)
         end
         self:LogMove(self.token.properties.monster_type, bestMove.id, "Executed move")
         self:LogDecision("MOVE FINISHED", {
@@ -7829,6 +8107,9 @@ function MonsterAI:FindAndExecuteMove()
         self:SetMoveLogContext(token, {id = returnId, category = "Movement"})
         local returned = false
         ProfEnd(chooseProf)
+        if self:TurnTakenBeforeMove() then
+            return g_moveResultUnsafe
+        end
         local executePhase = ProfPhaseBegin("execute: " .. returnId)
         local ok, err = RunYieldingFunction(function()
             returned = self:ExecuteReturnToHoldZone(token)
@@ -7853,6 +8134,9 @@ function MonsterAI:FindAndExecuteMove()
         self:SetMoveLogContext(token, {id = advanceId, category = "Movement"})
         local advanced = false
         ProfEnd(chooseProf)
+        if self:TurnTakenBeforeMove() then
+            return g_moveResultUnsafe
+        end
         local executePhase = ProfPhaseBegin("execute: " .. advanceId)
         local ok, err = RunYieldingFunction(function()
             advanced = self:ExecuteAdvanceFallback(token)
@@ -7869,6 +8153,9 @@ function MonsterAI:FindAndExecuteMove()
     if not failedMoves[leaveId] and MonsterAI.InDirectiveZone("avoid", self:GetMovementToken(token)) then
         self:SetMoveLogContext(token, {id = leaveId, category = "Movement"})
         local left = false
+        if self:TurnTakenBeforeMove() then
+            return g_moveResultUnsafe
+        end
         local executePhase = ProfPhaseBegin("execute: " .. leaveId)
         local ok, err = RunYieldingFunction(function()
             left = self:ExecuteLeaveAvoidZone(token)
@@ -8123,6 +8410,14 @@ function MonsterAI:ExecuteAbility(casterToken, ability, targets, options)
             end
         end
     end
+    --Every exit below must call this, errors included: an error that skipped
+    --it left Dread March's arrows on the map for good (B9NKW8HF).
+    local function DestroyRays()
+        for _,ray in ipairs(rays) do
+            ray:DestroyLineOfSight()
+        end
+        rays = {}
+    end
 
     --A strike at a target past melee reach (or one with no melee use) is a
     --ranged attack. Checked here, before the cast moves anyone.
@@ -8209,6 +8504,7 @@ function MonsterAI:ExecuteAbility(casterToken, ability, targets, options)
     creature.SetAIActivityInProgress(previousInProgress)
     creature.SetTokenAIActivity(casterToken.charid, previousActivityId)
     if not castOk then
+        DestroyRays()
         error(castErr)
     end
 
@@ -8228,18 +8524,28 @@ function MonsterAI:ExecuteAbility(casterToken, ability, targets, options)
         duration = dmhub.Time() - startedAt,
     })
 
-    local completed, reason = self:WaitForActivityReactions(activityId)
+    local completed, reason
+    local waitOk, waitErr = RunYieldingFunction(function()
+        completed, reason = self:WaitForActivityReactions(activityId)
+        --A hero's cast this one set off may still be resolving (C7YTDXC6).
+        if completed then
+            completed, reason = self:WaitForHeroCasts()
+        end
+    end)
+    if not waitOk then
+        DestroyRays()
+        error(waitErr, 0)
+    end
     if not completed then
         self._tmp_abortTurn = reason
+        DestroyRays()
         error(reason)
     end
     self.Sleep(options.sleep or 1.0)
 
     self:ResolvePendingMinionDeaths()
 
-    for _,ray in ipairs(rays) do
-        ray:DestroyLineOfSight()
-    end
+    DestroyRays()
 end
 
 function MonsterAI:FindReachableConcealment()

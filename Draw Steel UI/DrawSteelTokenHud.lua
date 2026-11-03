@@ -79,10 +79,12 @@ end
 --death it may take. Returns eligible, isDirectTarget, squadHasDirectTargets.
 --Shared by the token HUD (which only runs for tokens this client can see) and
 --the choose-deaths notice (which must also cover minions out of sight).
+--ignoreTriggers counts a minion whose skull is hidden only by an offered trigger.
+--- @param ignoreTriggers? boolean
 --- @return boolean eligible
 --- @return boolean isDirectTarget
 --- @return boolean squadHasDirectTargets
-local function MinionSkullState(token)
+local function MinionSkullState(token, ignoreTriggers)
     local props = token.properties
     if props == nil or not props.minion or not props:has_key("_tmp_minionSquad") then
         return false, false, false
@@ -108,7 +110,7 @@ local function MinionSkullState(token)
     end
 
     --suppress the skull while a death trigger is being offered so it does not cover the trigger icon.
-    if props:GetAvailableTriggers(true) ~= nil then
+    if not ignoreTriggers and props:GetAvailableTriggers(true) ~= nil then
         return false, false, false
     end
 
@@ -131,24 +133,28 @@ end
 local g_clickableSkulls = {}
 
 --Group every minion owing an unconfirmed death by squad, including minions
---this client cannot see (fog of war), which show no skull to click. Each
---entry: {squad, tokens, attacker, hidden}, where attacker is the creature that
---damaged the squad (nil if unknown) and hidden counts tokens out of sight.
+--this client cannot see (fog of war) or whose skull is hidden while it is
+--offered a trigger: neither shows a skull to click. Each entry: {squad,
+--tokens, attacker, hidden, held}, where attacker is the creature that
+--damaged the squad (nil if unknown), hidden counts tokens out of sight and
+--held counts visible tokens whose skull a trigger hides (QNT42FK4).
 local function OwedDeathSquads()
     local result = {}
     for _, token in ipairs(dmhub.GetTokens{haveProperties = true}) do
         local props = token.valid and token.properties or nil
         if props ~= nil and props.minion and not props.minionDead
-            and not MinionDeathPending(props) and MinionSkullState(token) then
+            and not MinionDeathPending(props) and MinionSkullState(token, true) then
             local squad = props._tmp_minionSquad
             local group = result[squad]
             if group == nil then
-                group = {squad = squad, tokens = {}, attacker = nil, hidden = 0}
+                group = {squad = squad, tokens = {}, attacker = nil, hidden = 0, held = 0}
                 result[squad] = group
             end
             group.tokens[#group.tokens+1] = token
             if not token.canSee then
                 group.hidden = group.hidden + 1
+            elseif props:GetAvailableTriggers(true) ~= nil then
+                group.held = group.held + 1
             end
             local isDirect = props.minionDamageTime == squad.damage_time
             if group.attacker == nil or isDirect then
@@ -159,21 +165,29 @@ local function OwedDeathSquads()
     return result
 end
 
+--Seconds the Monster AI may wait on minion deaths alone before the client
+--running it is offered "Choose for me" for its own kills.
+local g_aiDeathWaitGrace = 3
+
 --True if this client is the one that should choose the squad's deaths: the
 --attacker's controller, or everyone when the attacker is unknown. AI attackers
---are skipped: the Monster AI picks their kills itself.
+--are skipped: the Monster AI picks their kills itself, unless it is stuck.
 local function ShouldChooseSquadDeaths(attacker)
     if attacker == nil then
         return true
     end
     if attacker:IsAIControlled() then
-        return false
+        --Only when the Monster AI on this client is stuck waiting on deaths it
+        --could not choose itself, e.g. minions held by a trigger.
+        local monsterAI = rawget(_G, "MonsterAI")
+        local since = monsterAI ~= nil and monsterAI.minionDeathWaitSince or nil
+        return since ~= nil and dmhub.Time() - since >= g_aiDeathWaitGrace
     end
     local attackerToken = dmhub.LookupToken(attacker)
     if attackerToken == nil or not attackerToken.valid then
         return true
     end
-    return attackerToken.activeControllerId == nil
+    return TokenPromptControllerId(attackerToken) == nil
 end
 
 --"Choose for me": kill as many of the squad's skull minions as its damage owes,
@@ -246,18 +260,22 @@ Tip.notices["choose-minion-deaths"] = {
             return nil
         end
 
-        --Minions in fog of war show no skull here, so "Choose for me" is the
-        --only way to resolve them (there may be no Director to click them).
-        local total, hidden = 0, 0
+        --Minions in fog of war, or held by a trigger nobody has answered, show
+        --no skull here, so "Choose for me" is the only way to resolve them
+        --(there may be no Director to click them).
+        local total, hidden, held = 0, 0, 0
         for _, group in ipairs(squads) do
             total = total + #group.tokens
             hidden = hidden + group.hidden
+            held = held + group.held
         end
         local text = "Choose which minions should die by clicking the skulls"
         if hidden == total then
             text = "Minions you can't see must die"
-        elseif hidden > 0 then
-            text = text .. " (some are out of sight)"
+        elseif hidden + held == total then
+            text = "Minions must die (a trigger is hiding their skulls)"
+        elseif hidden + held > 0 then
+            text = text .. " (some have no skull)"
         end
 
         return text, {
@@ -497,7 +515,7 @@ TokenHud.RegisterPanel{
                     element:SetClass("free", (not anyHostile) and allfree)
                 end
 
-                if m_haveTrigger == false and notrigger == false and token.canControl and token.activeControllerId == nil then
+                if m_haveTrigger == false and notrigger == false and token.canControl and TokenPromptControllerId(token) == nil then
                     audio.FireSoundEvent("Notify.Trigger", { tokenid = token.charid })
                 end
                 
@@ -889,10 +907,18 @@ TokenHud.RegisterPanel{
                         return
                     end
                     if token.canControl then
+                        --The initiative bubble's Claim Turn also fires this press, for
+                        --whichever token is selected or primary. Never re-open the turn
+                        --of an entry that has already gone this round (QM6XE5YN); only
+                        --the Director may do that deliberately.
+                        local initiativeid = dmhub.initiativeQueue.GetInitiativeId(token)
+                        if dmhub.initiativeQueue:HasHadTurn(initiativeid) and not dmhub.isDM then
+                            return
+                        end
+
                         element.data.clickTime = dmhub.Time()
                         audio.FireSoundEvent("Mouse.Click")
                         element:SetClass("hidden", true)
-                        local initiativeid = dmhub.initiativeQueue.GetInitiativeId(token)
                         dmhub.initiativeQueue:SelectTurn(initiativeid)
                         dmhub:UploadInitiativeQueue()
 
@@ -1409,6 +1435,19 @@ TokenHud.RegisterPanel{
         }
     end,
 }
+
+--The flanking indicator depends on where other creatures stand, so who flanks this token
+--joins the token hud's refresh key (see RefreshHud in TokenUI.lua).
+TokenUI.RegisterHudKeyPart("flanking", function(c, token)
+    if token.isObject then
+        return ""
+    end
+    local ids = {}
+    for _, tok in ipairs(c:GetFlankingTokens()) do
+        ids[#ids+1] = tok.charid
+    end
+    return table.concat(ids, ",")
+end)
 
 TokenHud.RegisterPanel{
 	id = "flankingPanel",

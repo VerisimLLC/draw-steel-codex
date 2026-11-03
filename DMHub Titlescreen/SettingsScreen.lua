@@ -4319,6 +4319,547 @@ local function CreateCreatorOrganizationsSection()
 		}
 	end
 
+	--Most gallery images a premium module's store entry may have. Matches
+	--MODULE_ITEM_IMAGES_MAX in the moduleKeysUpdateItem cloud function.
+	local PREMIUM_MODULE_MAX_IMAGES = 12
+
+	--The gallery of a listing as moduleKeysList/moduleKeysUpdateItem return
+	--it. A server from before the gallery editor sends only `image`.
+	local function ListingImages(listing)
+		if listing == nil then
+			return {}
+		end
+		if type(listing.images) == "table" then
+			return listing.images
+		end
+		if type(listing.image) == "string" and listing.image ~= "" then
+			return {listing.image}
+		end
+		return {}
+	end
+
+	--The image a store surface actually shows: the role field
+	--("tileImage"/"heroImage") when it names a gallery image, else the first
+	--image -- the same fallback as the shop's ItemImageForRole.
+	local function ListingRoleImage(listing, field)
+		local images = ListingImages(listing)
+		local chosen = listing ~= nil and listing[field] or nil
+		if type(chosen) == "string" and chosen ~= "" then
+			for _,imageid in ipairs(images) do
+				if imageid == chosen then
+					return chosen
+				end
+			end
+		end
+		return images[1]
+	end
+
+	--The Store Appearance editor for one premium module's store entry: the
+	--image gallery, which image the inventory card and the item page show,
+	--and the description, over a live preview built by the real shop code.
+	--Every change saves at once through moduleKeysUpdateItem: the store entry
+	--is admin-only, so that cloud function writes it after checking we manage
+	--the module. args: {owner: Panel, fullid: string, name: string,
+	--itemid: string, listing: table, onSaved: fun(listing: table)}.
+	local function ShowStoreAppearanceEditor(args)
+		local fullid = args.fullid
+
+		--The listing the server last confirmed, and the editor's working copy
+		--of it. A refused save puts the working copy back to m_saved.
+		local m_saved = args.listing
+		local m_images = {}
+		local m_tileImage = ""
+		local m_heroImage = ""
+
+		---@type Panel
+		local modal = nil
+		---@type Panel
+		local statusLabel = nil
+		---@type Panel
+		local galleryPanel = nil
+		---@type Panel
+		local previewPanel = nil
+		---@type Panel
+		local descriptionInput = nil
+
+		local function LoadWorkingCopy(listing)
+			m_images = {}
+			for _,imageid in ipairs(ListingImages(listing)) do
+				m_images[#m_images+1] = imageid
+			end
+			m_tileImage = listing.tileImage or ""
+			m_heroImage = listing.heroImage or ""
+		end
+
+		local function WorkingListing()
+			return {
+				images = m_images,
+				tileImage = m_tileImage,
+				heroImage = m_heroImage,
+				details = descriptionInput ~= nil and descriptionInput.text or (m_saved.details or ""),
+			}
+		end
+
+		--The store entry as the shop would draw it with the editor's changes:
+		--the real catalog item with our gallery, roles and description laid
+		--over it. nil when the catalog doesn't have the item (yet).
+		local function PreviewItem()
+			local real = nil
+			pcall(function() real = assets.shopItems[args.itemid] end)
+			if real == nil then
+				return nil
+			end
+			local overrides = WorkingListing()
+			return setmetatable(overrides, {
+				__index = function(_, key)
+					return real[key]
+				end,
+			})
+		end
+
+		---@type fun()
+		local RefreshAll = nil
+
+		local function Save(fields)
+			statusLabel.text = "Saving..."
+			local data = { moduleid = fullid }
+			for k,v in pairs(fields) do
+				data[k] = v
+			end
+
+			net.Post{
+				url = dmhub.cloudFunctionsBaseUrl .. "/moduleKeysUpdateItem",
+				data = data,
+				success = function(result)
+					if modal == nil or (not modal.valid) then
+						return
+					end
+					if type(result) == "table" and result.ok and type(result.item) == "table" then
+						m_saved = result.item
+						statusLabel.text = "Saved."
+						if args.onSaved ~= nil then
+							args.onSaved(result.item)
+						end
+					else
+						local err = "Could not save. Please try again."
+						if type(result) == "table" and result.error ~= nil then
+							err = result.error
+						end
+						statusLabel.text = err
+					end
+					--Redraw from what the server holds now, so a refused or
+					--adjusted change (e.g. a role cleared with its image)
+					--shows as it really is.
+					LoadWorkingCopy(m_saved)
+					RefreshAll()
+				end,
+				error = function(msg)
+					if modal == nil or (not modal.valid) then
+						return
+					end
+					statusLabel.text = "Could not contact the server. Please try again."
+					LoadWorkingCopy(m_saved)
+					RefreshAll()
+				end,
+			}
+		end
+
+		--Sends the whole gallery and both roles together, so saves that land
+		--out of order still leave a consistent listing.
+		local function SaveGallery()
+			RefreshAll()
+			Save{
+				images = m_images,
+				tileImage = m_tileImage,
+				heroImage = m_heroImage,
+			}
+		end
+
+		--Image picks arrive one open() per file; gather a multi-file pick into
+		--one save.
+		local m_gallerySavePending = false
+		local function SaveGallerySoon()
+			if m_gallerySavePending then
+				return
+			end
+			m_gallerySavePending = true
+			dmhub.Schedule(0.1, function()
+				m_gallerySavePending = false
+				if modal ~= nil and modal.valid then
+					SaveGallery()
+				end
+			end)
+		end
+
+		local function AddImages()
+			dmhub.OpenFileDialog{
+				id = "PremiumModuleShopImage",
+				extensions = {"jpeg", "jpg", "png", "webm", "webp", "mp4"},
+				prompt = "Choose images for this module's store appearance",
+				multiFiles = true,
+				open = function(path)
+					if modal == nil or (not modal.valid) then
+						return
+					end
+					if #m_images >= PREMIUM_MODULE_MAX_IMAGES then
+						statusLabel.text = string.format("A store listing can have at most %d images.", PREMIUM_MODULE_MAX_IMAGES)
+						return
+					end
+					local art = assets:LoadImageOrVideoFileLocally(path)
+					if art == nil then
+						statusLabel.text = "The file you chose could not be loaded."
+						return
+					end
+					if art.error ~= nil then
+						--over the user's bandwidth allowance; art.error says so.
+						statusLabel.text = art.error
+						return
+					end
+					for _,imageid in ipairs(m_images) do
+						if imageid == art.image then
+							return
+						end
+					end
+
+					--Upload the bytes to the global image store; the save only
+					--records the content-addressed id.
+					art:Upload()
+					m_images[#m_images+1] = art.image
+					SaveGallerySoon()
+				end,
+			}
+		end
+
+		--One gallery image: thumbnail, its pixel size, the two role checks and
+		--move/remove buttons. The role checks show which image each surface
+		--really uses (an unset role falls back to the first image), so exactly
+		--one image is ticked for each.
+		local function GalleryCell(index, imageid)
+			local sizeLabel = gui.Label{
+				width = "auto",
+				height = "auto",
+				halign = "center",
+				fontSize = 12,
+				color = "#aaaaaaff",
+				text = "",
+			}
+
+			local working = WorkingListing()
+
+			local function RoleCheck(text, tooltip, field)
+				return gui.Check{
+					text = text,
+					tooltip = tooltip,
+					value = ListingRoleImage(working, field) == imageid,
+					change = function(element)
+						local value = imageid
+						if not element.value then
+							--Unticking the image in use hands the role back to
+							--the first image.
+							value = ""
+						end
+						if field == "tileImage" then
+							m_tileImage = value
+						else
+							m_heroImage = value
+						end
+						SaveGallery()
+					end,
+				}
+			end
+
+			return gui.Panel{
+				flow = "vertical",
+				width = 220,
+				height = "auto",
+				hmargin = 6,
+				vmargin = 6,
+				pad = 6,
+				borderBox = true,
+				bgimage = "panels/square.png",
+				bgcolor = "#00000066",
+
+				gui.Panel{
+					width = 208,
+					height = 130,
+					halign = "center",
+
+					gui.Panel{
+						bgimage = imageid,
+						bgcolor = "white",
+						autosizeimage = true,
+						width = "auto",
+						height = "auto",
+						maxWidth = 208,
+						maxHeight = 130,
+						halign = "center",
+						valign = "center",
+						imageLoaded = function(element)
+							local w = element.bgimageWidth
+							local h = element.bgimageHeight
+							if w ~= nil and h ~= nil and w > 0 and h > 0 then
+								sizeLabel.text = string.format("%d x %d", w, h)
+							end
+						end,
+					},
+				},
+
+				sizeLabel,
+
+				RoleCheck("Shop tile", "Show this image on the module's card in the inventory.", "tileImage"),
+				RoleCheck("Full view", "Show this image as the large banner on the module's page.", "heroImage"),
+
+				gui.Panel{
+					flow = "horizontal",
+					width = "100%",
+					height = "auto",
+					vmargin = 4,
+
+					gui.Button{
+						width = 36,
+						height = 24,
+						fontSize = 14,
+						text = "<",
+						tooltip = "Move earlier",
+						classes = {cond(index == 1, "hidden")},
+						click = function(element)
+							m_images[index], m_images[index-1] = m_images[index-1], m_images[index]
+							SaveGallery()
+						end,
+					},
+
+					gui.Button{
+						width = 36,
+						height = 24,
+						fontSize = 14,
+						hmargin = 4,
+						text = ">",
+						tooltip = "Move later",
+						classes = {cond(index == #m_images, "hidden")},
+						click = function(element)
+							m_images[index], m_images[index+1] = m_images[index+1], m_images[index]
+							SaveGallery()
+						end,
+					},
+
+					gui.Button{
+						width = 90,
+						height = 24,
+						fontSize = 14,
+						halign = "right",
+						text = "Remove",
+						click = function(element)
+							table.remove(m_images, index)
+							--The server clears a role whose image is gone too;
+							--doing it here keeps the redraw honest meanwhile.
+							if m_tileImage == imageid then
+								m_tileImage = ""
+							end
+							if m_heroImage == imageid then
+								m_heroImage = ""
+							end
+							SaveGallery()
+						end,
+					},
+				},
+			}
+		end
+
+		RefreshAll = function()
+			local cells = {}
+			for i,imageid in ipairs(m_images) do
+				cells[#cells+1] = GalleryCell(i, imageid)
+			end
+			if #cells == 0 then
+				cells[1] = gui.Label{
+					width = "auto",
+					height = "auto",
+					fontSize = 14,
+					italics = true,
+					vmargin = 8,
+					text = "No images yet. Add a square-ish image for the card and a wide banner for the page.",
+				}
+			end
+			galleryPanel.children = cells
+
+			local item = PreviewItem()
+			if item ~= nil then
+				previewPanel:SetClass("collapsed", false)
+				previewPanel:FireEvent("previewItem", item)
+			end
+		end
+
+		--The shop's own card + item page (CodexShopScreen). Falls back to a
+		--note on a build or white label without the Codex shop.
+		local preview = nil
+		pcall(function()
+			if CodexShop ~= nil and CodexShop.CreateItemPreview ~= nil then
+				preview = CodexShop.CreateItemPreview()
+			end
+		end)
+
+		if preview ~= nil then
+			previewPanel = preview
+			previewPanel:SetClass("collapsed", true)
+		else
+			previewPanel = gui.Label{
+				width = "auto",
+				height = "auto",
+				fontSize = 14,
+				italics = true,
+				text = "The preview is not available in this version.",
+				previewItem = function(element, item)
+				end,
+			}
+		end
+
+		statusLabel = gui.Label{
+			width = "auto",
+			height = "auto",
+			fontSize = 14,
+			color = "#aaaaaaff",
+			valign = "center",
+			hmargin = 12,
+			text = "",
+		}
+
+		galleryPanel = gui.Panel{
+			flow = "horizontal",
+			wrap = true,
+			width = "100%",
+			height = "auto",
+		}
+
+		descriptionInput = gui.Input{
+			width = "100%",
+			height = "auto",
+			minHeight = 60,
+			multiline = true,
+			fontSize = 14,
+			vmargin = 4,
+			characterLimit = 1024,
+			placeholderText = "Describe this module in the store...",
+			text = m_saved.details or "",
+			change = function(element)
+				Save{ details = element.text }
+			end,
+		}
+
+		local function Heading(text)
+			return gui.Label{
+				width = "100%",
+				height = "auto",
+				fontSize = 18,
+				bold = true,
+				tmargin = 12,
+				bmargin = 2,
+				text = text,
+			}
+		end
+
+		local function Note(text)
+			return gui.Label{
+				width = "100%",
+				height = "auto",
+				fontSize = 14,
+				color = "#aaaaaaff",
+				bmargin = 4,
+				text = text,
+			}
+		end
+
+		modal = gui.Panel{
+			floating = true,
+			width = "100%",
+			height = "100%",
+			bgimage = "panels/square.png",
+			bgcolor = "#000000b0",
+
+			gui.Panel{
+				classes = {"framedPanel"},
+				styles = ThemeEngine.GetStyles(),
+				halign = "center",
+				valign = "center",
+				width = 1640,
+				height = "92%",
+				flow = "vertical",
+				pad = 20,
+				borderBox = true,
+
+				gui.Label{
+					width = "100%",
+					height = "auto",
+					fontSize = 26,
+					bold = true,
+					text = string.format("Store Appearance: %s", args.name),
+				},
+
+				gui.Panel{
+					width = "100%",
+					height = "100%-96",
+					flow = "vertical",
+					vscroll = true,
+
+					gui.Panel{
+						width = "100%-16",
+						height = "auto",
+						flow = "vertical",
+
+						Heading("Images"),
+						Note("Shop tile is the card in the inventory grid: about 325 x 355, a little taller than square. Full view is the banner across the top of the module's page: 1232 x 706, or the same shape larger such as 2464 x 1412. A Full view image of another shape is shown whole, with empty space beside or below it. Every image also appears as a thumbnail under the banner."),
+						galleryPanel,
+
+						gui.Button{
+							width = 160,
+							height = 30,
+							fontSize = 14,
+							halign = "left",
+							vmargin = 4,
+							text = "Add Images...",
+							click = function(element)
+								AddImages()
+							end,
+						},
+
+						Heading("Description"),
+						descriptionInput,
+
+						Heading("Preview"),
+						Note("How players who own this module see it in their inventory."),
+						previewPanel,
+					},
+				},
+
+				gui.Panel{
+					flow = "horizontal",
+					width = "100%",
+					height = 44,
+					valign = "bottom",
+
+					statusLabel,
+
+					gui.Button{
+						width = 140,
+						height = 34,
+						fontSize = 16,
+						halign = "right",
+						valign = "center",
+						text = "Done",
+						escapeActivates = true,
+						click = function(element)
+							modal:DestroySelf()
+						end,
+					},
+				},
+			},
+		}
+
+		LoadWorkingCopy(m_saved)
+		RefreshAll()
+
+		args.owner.root:AddChild(modal)
+	end
+
 	local function ModuleKeysCard(entry)
 		local fullid = entry.fullid
 
@@ -4352,27 +4893,31 @@ local function CreateCreatorOrganizationsSection()
 			text = string.format("This module has the maximum of %d keys. Contact admin@dmhub.info if you need more keys.", PREMIUM_MODULE_MAX_KEYS),
 		}
 
-		--Store Listing editor: the image and description shown for this module
-		--in the store. Only revealed once keys have been generated (the first
-		--batch is what creates the store entry). The image uploads through the
-		--same global content-addressed image system module cover art uses;
-		--the moduleKeysUpdateItem cloud function stamps the resulting id (and
-		--the description) onto the admin-only store entry for us.
-		local listingStatusLabel = gui.Label{
-			width = "100%",
-			height = "auto",
-			fontSize = 13,
-			vmargin = 2,
-			text = "",
-		}
+		--Store Appearance: how this module's store entry looks in a player's
+		--inventory. Only revealed once keys have been generated (the first
+		--batch is what creates the store entry). The card shows the tile image
+		--and opens ShowStoreAppearanceEditor, which edits the whole gallery.
+		--m_listing is the latest listing the server returned (see
+		--ModuleItemListing in cloud-functions/functions/index.js).
+		local m_listing = nil
 
 		---@type Panel
 		local listingThumb = nil
-		local ChooseListingImage = nil
 
-		local function SetListingImage(imageid)
-			if imageid ~= nil and imageid ~= "" then
-				listingThumb.bgimage = imageid
+		local listingSummaryLabel = gui.Label{
+			width = "100%",
+			height = "auto",
+			fontSize = 13,
+			color = "#aaaaaaff",
+			vmargin = 4,
+			text = "",
+		}
+
+		local function RefreshListingSummary()
+			local images = ListingImages(m_listing)
+			local tileImage = ListingRoleImage(m_listing, "tileImage")
+			if tileImage ~= nil then
+				listingThumb.bgimage = tileImage
 				listingThumb.selfStyle.bgcolor = "white"
 				listingThumb:FireEventTree("hasimage", true)
 			else
@@ -4380,70 +4925,33 @@ local function CreateCreatorOrganizationsSection()
 				listingThumb.selfStyle.bgcolor = "#111111ff"
 				listingThumb:FireEventTree("hasimage", false)
 			end
+
+			listingSummaryLabel.text = string.format("%d image%s in the gallery.", #images, cond(#images == 1, "", "s"))
 		end
 
-		local function SaveListing(fields)
-			listingStatusLabel.text = "Saving..."
-			net.Post{
-				url = dmhub.cloudFunctionsBaseUrl .. "/moduleKeysUpdateItem",
-				data = {
-					moduleid = fullid,
-					details = fields.details,
-					image = fields.image,
-				},
-				success = function(data)
+		local function OpenAppearanceEditor(element)
+			if m_keys == nil or m_listing == nil then
+				return
+			end
+			ShowStoreAppearanceEditor{
+				owner = element,
+				fullid = fullid,
+				name = entry.name or fullid,
+				itemid = m_keys.itemid,
+				listing = m_listing,
+				onSaved = function(listing)
 					if card == nil or (not card.valid) then
 						return
 					end
-					if type(data) == "table" and data.ok then
-						listingStatusLabel.text = "Saved."
-					else
-						local err = "Could not save. Please try again."
-						if type(data) == "table" and data.error ~= nil then
-							err = data.error
-						end
-						listingStatusLabel.text = err
-					end
-				end,
-				error = function(msg)
-					if card == nil or (not card.valid) then
-						return
-					end
-					listingStatusLabel.text = "Could not contact the server. Please try again."
-				end,
-			}
-		end
-
-		ChooseListingImage = function()
-			dmhub.OpenFileDialog{
-				id = "PremiumModuleShopImage",
-				extensions = {"jpeg", "jpg", "png", "webm", "webp", "mp4"},
-				prompt = "Choose the image shown for this module in the store",
-				multiFiles = false,
-				open = function(path)
-					local art = assets:LoadImageOrVideoFileLocally(path)
-					if art == nil then
-						listingStatusLabel.text = "The file you chose could not be loaded."
-						return
-					end
-					if art.error ~= nil then
-						--over the user's bandwidth allowance; art.error says so.
-						listingStatusLabel.text = art.error
-						return
-					end
-
-					--preview instantly from the local cache, upload the bytes
-					--to the global image store, and stamp the id on the entry.
-					SetListingImage(art.image)
-					art:Upload()
-					SaveListing{ image = art.image }
+					m_listing = listing
+					RefreshListingSummary()
 				end,
 			}
 		end
 
 		listingThumb = gui.Panel{
-			width = 200,
-			height = 120,
+			width = 120,
+			height = 132,
 			halign = "left",
 			valign = "top",
 			borderWidth = 1,
@@ -4451,7 +4959,7 @@ local function CreateCreatorOrganizationsSection()
 			bgimage = "panels/square.png",
 			bgcolor = "#111111ff",
 			click = function(element)
-				ChooseListingImage()
+				OpenAppearanceEditor(element)
 			end,
 
 			gui.Label{
@@ -4463,25 +4971,11 @@ local function CreateCreatorOrganizationsSection()
 				fontSize = 12,
 				textAlignment = "center",
 				color = "#999999ff",
-				text = "No image.\nClick to upload.",
+				text = "No image.",
 				hasimage = function(element, val)
 					element:SetClass("hidden", val)
 				end,
 			},
-		}
-
-		local descriptionInput = gui.Input{
-			width = "100%",
-			height = "auto",
-			minHeight = 60,
-			multiline = true,
-			fontSize = 14,
-			vmargin = 4,
-			characterLimit = 1024,
-			placeholderText = "Describe this module in the store...",
-			change = function(element)
-				SaveListing{ details = element.text }
-			end,
 		}
 
 		local listingPanel = gui.Panel{
@@ -4496,7 +4990,7 @@ local function CreateCreatorOrganizationsSection()
 				fontSize = 14,
 				bold = true,
 				vmargin = 2,
-				text = "Store Listing:",
+				text = "Store Appearance:",
 			},
 
 			gui.Label{
@@ -4504,7 +4998,7 @@ local function CreateCreatorOrganizationsSection()
 				height = "auto",
 				fontSize = 13,
 				color = "#aaaaaaff",
-				text = "The image and description shown for this module in the store.",
+				text = "The images and description players see for this module in their inventory.",
 			},
 
 			gui.Panel{
@@ -4517,27 +5011,25 @@ local function CreateCreatorOrganizationsSection()
 
 				gui.Panel{
 					flow = "vertical",
-					width = "100%-212",
+					width = "100%-132",
 					height = "auto",
 					lmargin = 12,
 					valign = "top",
 
 					gui.Button{
-						width = 150,
+						width = 220,
 						height = 26,
 						fontSize = 14,
 						halign = "left",
-						text = "Upload Image...",
+						text = "Edit Store Appearance...",
 						click = function(element)
-							ChooseListingImage()
+							OpenAppearanceEditor(element)
 						end,
 					},
 
-					descriptionInput,
+					listingSummaryLabel,
 				},
 			},
-
-			listingStatusLabel,
 		}
 
 		local function RebuildAllocations()
@@ -4595,14 +5087,11 @@ local function CreateCreatorOrganizationsSection()
 
 			--the store listing becomes editable once keys exist (generating
 			--the first batch is what creates the store entry).
-			local hasKeys = total > 0 and data.itemid ~= nil and data.itemid ~= ""
+			local hasKeys = total > 0 and data.itemid ~= nil and data.itemid ~= "" and data.item ~= nil
 			listingPanel:SetClass("collapsed", not hasKeys)
-			if hasKeys and data.item ~= nil then
-				SetListingImage(data.item.image)
-				local details = data.item.details or ""
-				if descriptionInput.text ~= details then
-					descriptionInput.text = details
-				end
+			if hasKeys then
+				m_listing = data.item
+				RefreshListingSummary()
 			end
 
 			RebuildAllocations()

@@ -90,11 +90,36 @@ local function HasRelayedTriggerInFlight(token)
     return false
 end
 
+--An accepted prompt's cast holds the monsters too: its card is gone, but a
+--turn-claim cast (Hesitation Is Weakness) has not moved initiative yet. The
+--move lands just after the cast completes, hence the settle time. The limit
+--stops a completion lost in transit from holding the table for good.
+local g_acceptedTriggerWaitSeconds = 60
+local g_acceptedTriggerSettleSeconds = 2
+
+--The name of the hero's accepted trigger whose cast still holds the monsters
+--(see the "turn-claim" marker in TriggeredAbility.lua), or nil.
+---@param token CharacterToken
+---@return string|nil
+local function AcceptedTriggerResolving(token)
+    for _,entry in pairs(token.properties:try_get("pendingAIActivityReactions", {})) do
+        if type(entry) == "table" and entry.activityId == "turn-claim" then
+            local age = EventTimestampAge(entry.timestamp)
+            local limit = entry.state == "completed" and g_acceptedTriggerSettleSeconds or g_acceptedTriggerWaitSeconds
+            if age ~= nil and age < limit then
+                return type(entry.ability) == "string" and entry.ability or "trigger"
+            end
+        end
+    end
+    return nil
+end
+
 --A hero's trigger the monsters wait for before choosing their next turn: a
 --hero may use it to claim the turn or to act before the monsters do. Returns
---the token and its prompt, or the token and nil while a relayed event is still
---being evaluated on its player's client. Data-driven, so custom classes work.
----@return CharacterToken|nil, ActiveTrigger|nil
+--the token and its prompt; the token, nil and the ability's name while an
+--accepted trigger is resolving; or the token and nil while a relayed event is
+--still being evaluated on its player's client. Data-driven, so custom classes work.
+---@return CharacterToken|nil, ActiveTrigger|nil, string|nil
 local function FindPendingPlayerTrigger(queue)
     local relayToken = nil
     for _,token in ipairs(dmhub.allTokens) do
@@ -105,6 +130,10 @@ local function FindPendingPlayerTrigger(queue)
                     if PromptHoldsMonsterTurn(trigger) then
                         return token, trigger
                     end
+                end
+                local resolving = AcceptedTriggerResolving(token)
+                if resolving ~= nil then
+                    return token, nil, resolving
                 end
                 if relayToken == nil and HasRelayedTriggerInFlight(token) then
                     relayToken = token
@@ -119,7 +148,11 @@ end
 --The banner text for a FindPendingPlayerTrigger result.
 ---@param token CharacterToken
 ---@param trigger ActiveTrigger|nil
-local function PendingPlayerTriggerText(token, trigger)
+---@param resolving string|nil
+local function PendingPlayerTriggerText(token, trigger, resolving)
+    if resolving ~= nil then
+        return string.format("Waiting for %s's %s to finish", token.name or "a hero", resolving)
+    end
     if trigger == nil then
         return string.format("Waiting for %s's triggers", token.name or "a hero")
     end
@@ -318,11 +351,11 @@ local function MonsterAIThread(process)
             and not GameHud.BetweenTurnTransitionInProgress() and (not queue:IsPlayersTurn()) then
             local initiativeid = queue:CurrentInitiativeId()
             if initiativeid == nil then
-                local claimToken, claimTrigger = FindPendingPlayerTrigger(queue)
+                local claimToken, claimTrigger, claimResolving = FindPendingPlayerTrigger(queue)
                 if claimToken ~= nil then
                     --Tell the table why the monsters are not moving. The banner's
                     --Dismiss (offered when there is a prompt) releases the wait.
-                    local text = PendingPlayerTriggerText(claimToken, claimTrigger)
+                    local text = PendingPlayerTriggerText(claimToken, claimTrigger, claimResolving)
                     if not turnClaimWaiting then
                         lifecycleAI:LogDecision("INITIATIVE WAITING", {
                             actor = MonsterAI.TokenLogName(claimToken),

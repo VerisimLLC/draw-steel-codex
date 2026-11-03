@@ -105,8 +105,11 @@ ActivatedAbilitySummonBehavior.duplicateTargetOrigin = "duplicate"
 --(several bestiary entries can share one monster_type; monsters without one
 --fall back to their bestiary id). In each entry, nil means "not customized":
 --the summon keeps its bestiary value, except portraitFrame where nil means
---"copy the caster's frame" and "" means "no frame".
---Map of look key -> { portrait, portraitFrame, portraitFrameHueShift, tokenScale, portraitZoom, portraitOffset }
+--"copy the caster's frame" and "" means "no frame". A copied frame brings the
+--caster's tint too, unless the look has a tint of its own (portraitFrameHueShift).
+--Map of look key -> { portrait, portraitFrame, portraitFrameHueShift,
+--portraitFrameSaturation, portraitFrameBrightness, tokenScale, portraitZoom,
+--portraitOffset, popoutMode, popoutScale, portraitBackground }
 ---@type table<string, table>
 creature.summonAppearances = {}
 
@@ -174,10 +177,40 @@ function ActivatedAbilitySummonBehavior.ResolveSummonLookMonster(lookKey)
     return nil, nil
 end
 
---- Applies the caster's custom look to a summoned token. With no custom look,
---- falls back to copying the caster's frame. Does not upload the token.
+--- True when this engine stores Pop out of the frame on a look. Older engines
+--- read the field as nil, and writing it there would fail mid-summon.
+--- @param token CharacterToken|table
+--- @return boolean
+local function HasPopoutMode(token)
+    return token.popoutMode ~= nil
+end
+
+--- Puts a token's look back to its bestiary entry's, before a custom look
+--- goes on top. Works on a plain table too (the Hero sheet's previews).
+--- @param token CharacterToken|table
+--- @param monster any Entry of assets.monsters.
+function ActivatedAbilitySummonBehavior.ResetToBestiaryLook(token, monster)
+    local info = monster.info
+    token.portrait = info.portrait
+    token.portraitFrame = info.portraitFrame
+    token.portraitFrameHueShift = info.portraitFrameHueShift
+    token.portraitFrameSaturation = info.portraitFrameSaturation or 1
+    token.portraitFrameBrightness = info.portraitFrameBrightness or 1
+    token.tokenScale = info.tokenScale
+    token.portraitZoom = info.portraitZoom
+    token.portraitOffset = info.portraitOffset
+    token.popoutScale = info.popoutScale or 1
+    token.portraitBackground = info.portraitBackground
+    if HasPopoutMode(token) and info.popoutMode ~= nil then
+        token.popoutMode = info.popoutMode
+    end
+end
+
+--- Applies the caster's custom look to a summoned token. A summon with no
+--- frame of its own follows the caster's frame and tint. Does not upload the
+--- token.
 --- @param casterToken CharacterToken
---- @param token CharacterToken
+--- @param token CharacterToken|table
 --- @param lookKey string
 function ActivatedAbilitySummonBehavior.ApplySummonLook(casterToken, token, lookKey)
     --A summon cast by a since-removed caster: a defunct token handle still
@@ -200,6 +233,12 @@ function ActivatedAbilitySummonBehavior.ApplySummonLook(casterToken, token, look
         if custom.portraitFrameHueShift ~= nil then
             token.portraitFrameHueShift = custom.portraitFrameHueShift
         end
+        if custom.portraitFrameSaturation ~= nil then
+            token.portraitFrameSaturation = custom.portraitFrameSaturation
+        end
+        if custom.portraitFrameBrightness ~= nil then
+            token.portraitFrameBrightness = custom.portraitFrameBrightness
+        end
         if custom.tokenScale ~= nil then
             token.tokenScale = custom.tokenScale
         end
@@ -207,19 +246,46 @@ function ActivatedAbilitySummonBehavior.ApplySummonLook(casterToken, token, look
             token.portraitZoom = custom.portraitZoom
         end
         if custom.portraitOffset ~= nil then
-            token.portraitOffset = custom.portraitOffset
+            --saved as a plain {x, y} table; the token takes a Vector2.
+            token.portraitOffset = core.Vector2(custom.portraitOffset.x or 0, custom.portraitOffset.y or 0)
         end
+        if custom.popoutScale ~= nil then
+            token.popoutScale = custom.popoutScale
+        end
+        if custom.portraitBackground ~= nil then
+            token.portraitBackground = cond(custom.portraitBackground == "", nil, custom.portraitBackground)
+        end
+        if custom.popoutMode ~= nil and HasPopoutMode(token) then
+            token.popoutMode = custom.popoutMode
+        end
+    end
+
+    if custom ~= nil and custom.portraitFrame ~= nil then
         return
     end
 
-    --if the caster controls the summoned tokens then they mimic its appearance.
+    --no frame of its own: the summon mimics the caster's frame, when both
+    --have one or neither does (a frame is never forced onto unframed art).
     local summonerHasFrame = casterToken.portraitFrame ~= nil and casterToken.portraitFrame ~= ""
     local tokenHasFrame = token.portraitFrame ~= nil and token.portraitFrame ~= ""
 
     if summonerHasFrame == tokenHasFrame then
         token.portraitFrame = casterToken.portraitFrame
-        token.portraitFrameHueShift = casterToken.portraitFrameHueShift
+        if custom == nil or custom.portraitFrameHueShift == nil then
+            token.portraitFrameHueShift = casterToken.portraitFrameHueShift
+            token.portraitFrameSaturation = casterToken.portraitFrameSaturation or 1
+            token.portraitFrameBrightness = casterToken.portraitFrameBrightness or 1
+        end
     end
+end
+
+--- True when the summon follows the caster's frame: its look picks none.
+--- @param casterToken CharacterToken
+--- @param lookKey string
+--- @return boolean
+function ActivatedAbilitySummonBehavior.FollowsCasterFrame(casterToken, lookKey)
+    local custom = casterToken.properties:GetSummonAppearance(lookKey)
+    return custom == nil or custom.portraitFrame == nil
 end
 
 --- Returns the creatures this caster can customize, as a sorted list of
@@ -295,14 +361,31 @@ function ActivatedAbilitySummonBehavior.RestyleLiveSummons(casterToken, lookKey)
 
     for _,tok in ipairs(dmhub.GetTokens()) do
         if tok.valid and tok.summonerid == casterToken.charid and tok.properties ~= nil and tok.properties:try_get("monster_type") == monsterType then
-            tok.portrait = monster.info.portrait
-            tok.portraitFrame = monster.info.portraitFrame
-            tok.portraitFrameHueShift = monster.info.portraitFrameHueShift
-            tok.tokenScale = monster.info.tokenScale
-            tok.portraitZoom = monster.info.portraitZoom
-            tok.portraitOffset = monster.info.portraitOffset
+            ActivatedAbilitySummonBehavior.ResetToBestiaryLook(tok, monster)
             ActivatedAbilitySummonBehavior.ApplySummonLook(casterToken, tok, lookKey)
             tok:UploadAppearance()
+        end
+    end
+end
+
+--- Restyles the caster's live summons that follow its frame, after the
+--- caster's frame, tint or look changed. Summons with a frame of their own
+--- are left alone, so nothing uploads for them.
+--- @param casterToken CharacterToken
+function ActivatedAbilitySummonBehavior.RestyleFollowingSummons(casterToken)
+    if casterToken == nil or casterToken.properties == nil then
+        return
+    end
+    local done = {}
+    for _,tok in ipairs(dmhub.GetTokens()) do
+        if tok.valid and tok.summonerid == casterToken.charid and tok.properties ~= nil then
+            local lookKey = tok.properties:try_get("monster_type")
+            if lookKey ~= nil and done[lookKey] == nil then
+                done[lookKey] = true
+                if ActivatedAbilitySummonBehavior.FollowsCasterFrame(casterToken, lookKey) then
+                    ActivatedAbilitySummonBehavior.RestyleLiveSummons(casterToken, lookKey)
+                end
+            end
         end
     end
 end
@@ -2306,6 +2389,27 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
         end
     end
 
+    --Shared by every target of the cast, so a multi-target summon (the Angulotl
+    --Daybringer's New Dawn: four squares, one pollywog each) makes one squad and
+    --one initiative entry, not one per square (3C5UBHTR, NXJXN8UC).
+
+    --minions summoned with no squad-selection UI (non-summoner casters) join
+    --ONE fresh squad per creature type for this cast, so they never merge into
+    --an unrelated same-type squad's shared stamina pool.
+    local freshSquadNames = {}
+
+    --fresh-squad minion spawns with their evaluated initial damage
+    --({charid, damage, squad}); seeds each new squad's shared pool after the
+    --target loop, once the final member counts are known.
+    local freshSquadSpawns = {}
+
+    local initiativeGrouping = nil
+    if self.groupInitiativeWithCaster then
+        initiativeGrouping = InitiativeQueue.GetInitiativeId(casterToken)
+    elseif self.newInitiativeGroup then
+        initiativeGrouping = dmhub.GenerateGuid()
+    end
+
     for _,target in ipairs(targets) do
         --a cancelled cast (Revert Turn / Turn Rewind) summons nothing more.
         if args.abort then
@@ -2484,29 +2588,12 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
         --prompting, so the summons are never stranded.
         local autoPlaceSummons = false
 
-        --minions summoned with no squad-selection UI (non-summoner casters)
-        --all join ONE fresh squad opened for this cast, so they never merge
-        --into an unrelated same-type squad's shared stamina pool.
-        local freshSquadName = nil
-
-        --fresh-squad minion spawns with their evaluated initial damage; used
-        --to seed the new squad's shared pool after the spawn loop, once the
-        --final member count is known.
-        local freshSquadSpawns = {}
-
         -- For Summoner casters with manual placement, fold the creature-type choice
         -- into the inline placement picker so it can change per-summon.
         local creatureChoiceInline = isSummoner and manualPlacement and self.casterChoosesCreatures and #choices > 1 and self.changeCreatureWhileCasting
 
         --note: allSame is declared at pre-pick time above, so the pre-pick
         --dialog's "use this choice for all summons" carries into this loop.
-
-        local initiativeGrouping = nil
-        if self.groupInitiativeWithCaster then
-            initiativeGrouping = InitiativeQueue.GetInitiativeId(casterToken)
-        elseif self.newInitiativeGroup then
-            initiativeGrouping = dmhub.GenerateGuid()
-        end
 
         for j=1,numSummons do
 
@@ -2752,18 +2839,18 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                 --instead. Set joinExistingSquad on the behavior to restore
                 --the old merging for content that wants reinforcements to
                 --join an existing squad.
-                if freshSquadName == nil then
-                    local monsterType = token.properties:try_get("monster_type", "Minion")
+                local monsterType = token.properties:try_get("monster_type", "Minion")
+                if freshSquadNames[monsterType] == nil then
                     local findFresh = rawget(monster, "FindFreshSquadName")
                     if findFresh ~= nil then
-                        freshSquadName = findFresh(monsterType)
+                        freshSquadNames[monsterType] = findFresh(monsterType)
                     else
                         --game systems without squad-name bookkeeping still get
                         --a unique squad per cast.
-                        freshSquadName = string.format("%s Squad %s", monsterType, string.sub(dmhub.GenerateGuid(), 1, 8))
+                        freshSquadNames[monsterType] = string.format("%s Squad %s", monsterType, string.sub(dmhub.GenerateGuid(), 1, 8))
                     end
                 end
-                token.properties.minionSquad = freshSquadName
+                token.properties.minionSquad = freshSquadNames[monsterType]
             end
 
             if initiativeGrouping ~= nil then
@@ -2790,14 +2877,15 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                     end
                 end
                 if initialDamage > 0 then
-                    if freshSquadName ~= nil and token.properties.minion and token.properties:try_get("minionSquad") == freshSquadName then
+                    local squad = token.properties:try_get("minionSquad")
+                    if token.properties.minion and squad ~= nil and freshSquadNames[token.properties:try_get("monster_type", "Minion")] == squad then
                         --minions share a squad stamina pool derived from the
                         --damage_taken_seq fan-out (see RefreshSquadInfo), so
                         --a bare per-token damage_taken write is invisible to
                         --it. Collect the amount instead; the fresh squad's
-                        --pool is seeded after the spawn loop, once the final
+                        --pool is seeded after the target loop, once the final
                         --member count is known.
-                        freshSquadSpawns[#freshSquadSpawns+1] = { charid = token.charid, damage = initialDamage }
+                        freshSquadSpawns[#freshSquadSpawns+1] = { charid = token.charid, damage = initialDamage, squad = squad }
                     else
                         token.properties.damage_taken = token.properties.damage_taken + initialDamage
                     end
@@ -2855,53 +2943,6 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                     end
                 end
             end
-        end
-
-        --seed the fresh squad's shared stamina pool with the summons' initial
-        --damage. Squad stamina is derived from the member carrying the
-        --highest damage_taken_seq (see RefreshSquadInfo in MCDMCreature.lua),
-        --so every member gets the pool total, a seq of 1 and the member
-        --count -- exactly the shape real squad damage fans out.
-        if #freshSquadSpawns > 0 then
-            local poolDamage = 0
-            for _,entry in ipairs(freshSquadSpawns) do
-                poolDamage = poolDamage + entry.damage
-            end
-
-            local memberCount = 0
-            for _,tok in ipairs(summonedTokens) do
-                if tok.valid and tok.properties ~= nil and tok.properties.minion and tok.properties:try_get("minionSquad") == freshSquadName then
-                    memberCount = memberCount + 1
-                end
-            end
-
-            if poolDamage > 0 and memberCount > 0 then
-                for _,tok in ipairs(summonedTokens) do
-                    if tok.valid and tok.properties ~= nil and tok.properties.minion and tok.properties:try_get("minionSquad") == freshSquadName then
-                        tok:ModifyProperties{
-                            description = "Initial summon damage",
-                            undoable = false,
-                            combine = true,
-                            execute = function()
-                                tok.properties.damage_taken = poolDamage
-                                tok.properties.damage_taken_seq = 1
-                                tok.properties.damage_taken_minion_count = memberCount
-                            end,
-                        }
-                    end
-                end
-            end
-        end
-
-        --give the fresh group its entry, on the caster's side (hero or
-        --director), mirroring the add_to_initiative ability mode.
-        local q = dmhub.initiativeQueue
-        if self.newInitiativeGroup and (not self.groupInitiativeWithCaster) and #summonedTokens > 0 and q ~= nil and (not q.hidden) then
-            local entry = q:SetInitiative(initiativeGrouping, 0, 0)
-            if casterToken.valid and casterToken.properties ~= nil then
-                entry.player = q:IsEntryPlayer(InitiativeQueue.GetInitiativeId(casterToken))
-            end
-            dmhub:UploadInitiativeQueue()
         end
 
         --remember every token summoned for this outer target so we can inject them
@@ -3017,6 +3058,50 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                 }
             end
         end
+    end
+
+    --seed each fresh squad's shared stamina pool with its summons' initial
+    --damage. Squad stamina is derived from the member carrying the highest
+    --damage_taken_seq (see RefreshSquadInfo in MCDMCreature.lua), so every
+    --member gets the pool total, a seq of 1 and the member count -- exactly
+    --the shape real squad damage fans out.
+    local poolDamageBySquad = {}
+    for _,entry in ipairs(freshSquadSpawns) do
+        poolDamageBySquad[entry.squad] = (poolDamageBySquad[entry.squad] or 0) + entry.damage
+    end
+    for squad,poolDamage in pairs(poolDamageBySquad) do
+        local members = {}
+        for _,tok in ipairs(allSummonedTokens) do
+            if tok.valid and tok.properties ~= nil and tok.properties.minion and tok.properties:try_get("minionSquad") == squad then
+                members[#members+1] = tok
+            end
+        end
+
+        if poolDamage > 0 and #members > 0 then
+            for _,tok in ipairs(members) do
+                tok:ModifyProperties{
+                    description = "Initial summon damage",
+                    undoable = false,
+                    combine = true,
+                    execute = function()
+                        tok.properties.damage_taken = poolDamage
+                        tok.properties.damage_taken_seq = 1
+                        tok.properties.damage_taken_minion_count = #members
+                    end,
+                }
+            end
+        end
+    end
+
+    --give the fresh group its entry, on the caster's side (hero or director),
+    --mirroring the add_to_initiative ability mode.
+    local q = dmhub.initiativeQueue
+    if self.newInitiativeGroup and (not self.groupInitiativeWithCaster) and #allSummonedTokens > 0 and q ~= nil and (not q.hidden) then
+        local entry = q:SetInitiative(initiativeGrouping, 0, 0)
+        if casterToken.valid and casterToken.properties ~= nil then
+            entry.player = q:IsEntryPlayer(InitiativeQueue.GetInitiativeId(casterToken))
+        end
+        dmhub:UploadInitiativeQueue()
     end
 
     --summonAnimation "fromCaster": every summon is spawned (and hidden); now

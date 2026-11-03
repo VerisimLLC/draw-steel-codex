@@ -31,6 +31,124 @@ local function check(condition, message)
     passed = passed + 1
 end
 
+--- negotiation beats -------------------------------------------------------
+
+do
+    local doc = "script"
+    local function Parse(text)
+        local parse = EncounterScript.Parse(text)
+        parse.rootId = doc
+        return parse
+    end
+    local function Run(text, patches)
+        assert(patches ~= nil)
+        return E.Apply({ [doc] = text }, patches)[doc]
+    end
+    local function Beat(text)
+        return Parse(text).beats[1]
+    end
+
+    local starter = table.concat(E.NegotiationBeatBlock(), "\n") .. "\n"
+    local parsed = Parse(starter)
+    check(#parsed.warnings == 0, "the starter parses clean: " .. tostring(parsed.warnings[1]))
+    local beat = parsed.beats[1]
+    check(beat.kind == "negotiation" and #EncounterScript.NegotiationProblems(beat, parsed) == 0,
+        "the starter is clean under the validator: " .. tostring(EncounterScript.NegotiationProblems(beat, parsed)[1]))
+    check(#beat.arguments == 4 and #beat.traits == 3, "the starter has arguments and traits")
+    for i = 1, 6 do
+        check(beat.offers[i] ~= nil and beat.offers[i].text ~= "", "the starter has offer " .. i)
+    end
+
+    local text = [==[
+# Negotiation: Hask
+
+Attitude: Suspicious
+Want: Across the bridge.
+
+## Motivation: Greed
+Clue: Strongbox.
+
+## Pitfall: Justice
+
+## Argument: Cut
+Appeals: Greed
+PC: A share.
+|Test: Presence (Persuade)
+|Edge: you speak Zaliac
+Lands: Go on.
+
+## Argument: Theft
+Appeals: Justice
+Fails: Walls.
+
+## Offer: Yes, but
+You may cross.
+
+Mind the toll.
+|+1 hero token
+]==]
+    local p = Parse(text)
+    check(#p.warnings == 0, "the sample is clean: " .. tostring(p.warnings[1]))
+    local b = p.beats[1]
+    check(b.fieldLines.attitude == 3 and b.fieldLines.want == 4, "beat fields record their lines")
+    check(b.traits[1].fieldLines.clue == 7, "a trait field records its line")
+    local cut, theft = b.arguments[1], b.arguments[2]
+    check(cut.fieldLines.appeals == 12 and cut.fieldLines.pc == 13 and cut.fieldLines.lands == 16, "argument fields record their lines")
+    check(theft.fieldLines.backfires == 20, "Fails: is the backfires field")
+    check(cut.roll.line == 14 and cut.roll.lastLine == 15, "the test's block ends at its last rider")
+    local offer = b.offers[4]
+    check(#offer.textLines == 2 and offer.textLines[1][1] == 23 and offer.textLines[2][2] == 25, "an offer records its paragraphs")
+    check(offer.ruleLines[1] == 26, "an offer records its rules")
+
+    --a field: replaced, added below the others, added under a bare heading, removed.
+    local t2 = Run(text, E.SetNegotiationField(p, { [doc] = text }, b, "want", "Want", "The far bank."))
+    check(Beat(t2).want == "The far bank." and t2 ~= text, "set a field")
+    t2 = Run(text, E.SetNegotiationField(p, { [doc] = text }, b, "language", "Language", "Zaliac"))
+    check(Beat(t2).language == "Zaliac" and Beat(t2).want == "Across the bridge.", "add a field below the others")
+    t2 = Run(text, E.SetNegotiationField(p, { [doc] = text }, b.traits[2], "clue", "Clue", "He flinches."))
+    check(Beat(t2).traits[2].clue == "He flinches." and #Parse(t2).warnings == 0, "add a field under a bare heading")
+    t2 = Run(text, E.SetNegotiationField(p, { [doc] = text }, b.traits[1], "clue", "Clue", ""))
+    check(Beat(t2).traits[1].clue == "", "an empty value removes the field")
+    check(#E.SetNegotiationField(p, { [doc] = text }, b.traits[2], "clue", "Clue", "") == 0, "removing what is not there changes nothing")
+
+    --the rest of the document is untouched by a field edit.
+    local before = E.Split(text).lines
+    local after = E.Split(Run(text, E.SetNegotiationField(p, { [doc] = text }, b, "want", "Want", "X"))).lines
+    check(#before == #after, "a field edit keeps the line count")
+    for i, l in ipairs(before) do
+        check(i == 4 or l == after[i], "line kept: " .. i)
+    end
+
+    --an offer's text and a rule through the shared writers.
+    t2 = Run(text, E.SetProse(p, { [doc] = text }, offer.textLines, offer.line, "Free passage."))
+    check(Beat(t2).offers[4].text == "Free passage." and #Beat(t2).offers[4].effects == 1, "offer text keeps its rules")
+
+    --a test: added to a pitfall argument, riders go in its block.
+    t2 = Run(text, E.AddNegotiationTest(p, theft, "Presence (Brag)"))
+    check(Beat(t2).arguments[2].roll.attr == "Presence (Brag)" and #Parse(t2).warnings == 0, "add a test")
+    t2 = Run(text, E.AddRider(p, { [doc] = text }, cut, "bane", nil, "you have cold weakness"))
+    check(#Beat(t2).arguments[1].riders == 2 and Beat(t2).arguments[1].riders[2].effect == "bane", "a rider joins the test's block")
+    t2 = Run(text, E.SetRollHeader(p, cut.roll, cut.roll.name, "Reason (Lead)"))
+    check(Beat(t2).arguments[1].roll.attr == "Reason (Lead)", "rewrite the test")
+
+    --new elements.
+    t2 = Run(text, E.InsertAfterElement(p, { [doc] = text }, b.traits[2].line, 2, E.NegotiationTraitBlock("motivation", "Power", "A clue.")))
+    check(Beat(t2).traits[3].name == "Power" and Beat(t2).traits[3].clue == "A clue." and #Parse(t2).warnings == 0, "add a trait")
+    t2 = Run(text, E.InsertAfterElement(p, { [doc] = text }, theft.line, 2, E.NegotiationArgumentBlock{ name = "Song", appeals = "Nothing", say = "La.", attr = "Intuition (Brag)" }))
+    check(Beat(t2).arguments[3].roll.attr == "Intuition (Brag)" and Beat(t2).arguments[3].say == "La." and #Parse(t2).warnings == 0, "add an argument")
+    t2 = Run(text, E.InsertAfterElement(p, { [doc] = text }, b.line, 1, E.NegotiationOfferBlock(5, "Guides.")))
+    check(Beat(t2).offers[6].text == "Guides." and #Parse(t2).warnings == 0, "add an offer")
+
+    --an "Unlocked by" needs something to unlock it.
+    local unlocked = "# Negotiation: Hask\n\n## Motivation: Greed\nStart: Unlocked by the ledger\n"
+    local up = Parse(unlocked)
+    local said = table.concat(EncounterScript.NegotiationProblems(up.beats[1], up), "\n")
+    check(string.find(said, "You uncover the ledger", 1, true) ~= nil, "a missing uncover is a problem")
+    local found = Parse(unlocked .. "\n## Offer: Yes\nFine.\n|You uncover The Ledger\n")
+    said = table.concat(EncounterScript.NegotiationProblems(found.beats[1], found), "\n")
+    check(string.find(said, "You uncover", 1, true) == nil, "any uncover in the script answers it")
+end
+
 --- Split / Join / Replace ---------------------------------------------------
 
 for _, text in ipairs({ "", "a", "a\n", "a\nb", "a\n\nb\n", "a\vb\nc", "x\r\ny\rz\n", "\n\n", "# T\v\v|x\n" }) do
@@ -282,6 +400,14 @@ local tableEntry = ParseOne({ "## Opportunity: Tinkerer", "", "### Browse", "", 
     table.unpack(E.TableLines({ name = "Wares", dice = "1d6", rows = { { lo = 1, hi = 2, text = "You gain 1 Healing Potion" }, { lo = 3, hi = 6, text = "+1 hero token" } } })) })
 local wares = (tableEntry.tables or {})[EncounterScript.MatchKey("Wares")]
 check(wares ~= nil and #wares.rows == 2 and wares.rows[2].lo == 3 and wares.rows[2].hi == 6, "table lines round trip")
+check(not wares.mystery, "a plain table is not a mystery")
+
+local hoardLines = E.TableLines({ name = "Hoard", dice = "1d3", mystery = true, rows = { { lo = 1, hi = 3, text = "You gain 1 Healing Potion" } } })
+check(hoardLines[1] == "|Hoard: 1d3 (Mystery)", "a mystery table's header keeps its tag")
+local hoardEntry = ParseOne({ "## Opportunity: Statues", "", "### Search", "", "|You roll on Hoard", "", table.unpack(hoardLines) })
+local hoard = (hoardEntry.tables or {})[EncounterScript.MatchKey("Hoard")]
+check(hoard ~= nil and hoard.mystery == true and hoard.dice == "1d3" and #hoard.rows == 1, "mystery table lines round trip")
+check(E.TableHeaderValue("2d6", false) == "2d6" and E.TableHeaderValue("2d6", true) == "2d6 (Mystery)", "table header value")
 
 --- scene step forms ------------------------------------------------------------------
 

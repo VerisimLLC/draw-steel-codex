@@ -255,6 +255,12 @@ local shopStyles = {
 		selectors = {"collapsedWhenInventory", "inventory"},
 		collapsed = 1,
 	},
+	--CodexShop.CreateItemPreview sets itemPreview tree-wide: page controls
+	--that navigate the store or act on a real inventory don't belong there.
+	{
+		selectors = {"collapsedWhenPreview", "itemPreview"},
+		collapsed = 1,
+	},
 	{
 		selectors = {"collapsedWhenRedeeming", "redeemingCoupon"},
 		collapsed = 1,
@@ -2196,6 +2202,22 @@ ShopDicePreview = {
 	artHeight = g_tileBaseHeight * 2,
 }
 
+--Sizes a loaded hero image to the largest box with the art's own aspect that
+--fits inside boxW x boxH (unscaled; the panel's uiscale applies on top).
+--Leaves the panel filling the box when the size isn't known (e.g. a video
+--that reports no texture size).
+local function FitHeroToImage(element, boxW, boxH)
+	local imgW = element.bgimageWidth
+	local imgH = element.bgimageHeight
+	if imgW == nil or imgH == nil or imgW <= 0 or imgH <= 0 then
+		return
+	end
+
+	local scale = math.min(boxW/imgW, boxH/imgH)
+	element.selfStyle.width = math.floor(imgW*scale)
+	element.selfStyle.height = math.floor(imgH*scale)
+end
+
 local MakeShopImageDisplay = function(options)
 	options = options or {}
 	local uiscale = options.uiscale or 1
@@ -2210,11 +2232,12 @@ local MakeShopImageDisplay = function(options)
 	--      have.
 	--  "hero" -- the details page's main image. Uses item.heroImage, and on
 	--      the details page is handed the full banner box (baseWidth/Height)
-	--      instead of the tile's nearly-square one, so an adventure's wide
-	--      shot fills it the way the dice banner's art does.
-	--Footer thumbnails are fed their image directly (see refreshItem) and are
-	--the one surface that fits rather than fills: the strip mixes both shapes
-	--at a fixed thumbnail size.
+	--      instead of the tile's nearly-square one. The art keeps its own
+	--      shape inside that box (see FitHeroToImage): a 1232x706 banner fills
+	--      it, anything else is centred with empty space beside or below it.
+	--Footer thumbnails are fed their image directly (see refreshItem) and
+	--also fit rather than fill: the strip mixes both shapes at a fixed
+	--thumbnail size.
 	local imageRole = options.imageRole or "tile"
 	options.imageRole = nil
 
@@ -2314,6 +2337,16 @@ local MakeShopImageDisplay = function(options)
 				iconArgs.maxHeight = baseH
 				iconArgs.minWidth = baseW
 				iconArgs.minHeight = math.floor(baseW*9/16)
+			elseif imageRole == "hero" then
+				--The hero holds the whole box until its texture arrives (so the
+				--page doesn't jump), then shrinks to the art's own shape. The
+				--min* route above can't do this: the engine clamps an auto size
+				--to min/max afterwards, which would stretch it back out.
+				iconArgs.halign = "center"
+				iconArgs.valign = "center"
+				iconArgs.imageLoaded = function(element)
+					FitHeroToImage(element, baseW, baseH)
+				end
 			end
 
 			--Track/fade only when there is a real image; a nil bgimage never
@@ -2918,6 +2951,11 @@ local function SlotLabel(slot)
 		return groupName .. " Monsters"
 	end
 
+	--the Hero sheet's Dice window names class slots the same way.
+	local diceSlots = rawget(_G, "DiceSlots")
+	if diceSlots ~= nil then
+		return diceSlots.ClassLabel(SlotKey(slot))
+	end
 	local classInfo = (dmhub.GetTable("classes") or {})[slot.classid or ""]
 	local className = "Unknown Class"
 	if classInfo ~= nil then
@@ -2948,6 +2986,13 @@ end
 --set, so activating here replaces any other set previously activated for the
 --same slot.
 local function SetSlotActivation(key, assetid)
+	--DiceSlots.Set also drops the per-die choices a Hero sheet saved for the
+	--slot: they belong to the activation they were made with.
+	local diceSlots = rawget(_G, "DiceSlots")
+	if diceSlots ~= nil then
+		diceSlots.Set(key, assetid)
+		return
+	end
 	local result = {}
 	for k,v in pairs(dmhub.GetSettingValue("diceslotsequipped") or {}) do
 		result[k] = v
@@ -4027,6 +4072,7 @@ local ShowItemDetailsInternal = function(args)
 		}
 
 		m_adminInventoryControls = gui.Panel{
+			classes = {"collapsedWhenPreview"},
 			floating = true,
 			halign = "right",
 			valign = "top",
@@ -4134,7 +4180,7 @@ local ShowItemDetailsInternal = function(args)
 		--Not in the gift view. (and/or rather than cond, which would build it
 		--there too.)
 		(not args.gift) and gui.Label{
-			classes = {"itemButton"},
+			classes = {"itemButton", "collapsedWhenPreview"},
 			floating = true,
 			halign = "left",
 			valign = "top",
@@ -4543,6 +4589,26 @@ local ShowItemDetailsInternal = function(args)
 								displaySlots[#displaySlots+1] = { slot = slot, custom = true }
 							end
 						end
+						--Slots this set was activated for from a Hero sheet's Dice
+						--window, which adds no use: listed so they can be seen and
+						--turned off here.
+						local diceSlots = rawget(_G, "DiceSlots")
+						if diceSlots ~= nil then
+							local activeKeys = {}
+							for key,assetid in pairs(dmhub.GetSettingValue("diceslotsequipped") or {}) do
+								if assetid == item.assetid and not seenKeys[key] then
+									activeKeys[#activeKeys+1] = key
+								end
+							end
+							table.sort(activeKeys)
+							for _,key in ipairs(activeKeys) do
+								local slot = diceSlots.RecordFromKey(key)
+								if slot ~= nil and SlotIsComplete(slot) then
+									seenKeys[key] = true
+									displaySlots[#displaySlots+1] = { slot = slot, custom = false, fromSheet = true }
+								end
+							end
+						end
 
 						local slotsEquipped = dmhub.GetSettingValue("diceslotsequipped") or {}
 
@@ -4568,6 +4634,8 @@ local ShowItemDetailsInternal = function(args)
 								local description = SlotDescription(slot, label)
 								if entry.custom then
 									description = description .. "\n\nA custom use you added (manage in Add Uses...)."
+								elseif entry.fromSheet then
+									description = description .. "\n\nSet from a Hero sheet."
 								end
 								slotButtons[#slotButtons+1] = MakeEquipButton{
 									text = label,
@@ -4787,6 +4855,54 @@ function ShowShopItemDetails(args)
 	params.gift = nil
 
 	return gui.Panel(params)
+end
+
+--A preview of how a shop item looks in a player's inventory: its grid card
+--beside its details page, both built by the real shop code so the preview
+--can't drift from the store. The premium-module Store Appearance editor
+--(SettingsScreen) uses it so creators can see their art without owning their
+--own module. Fire "previewItem" with a ShopItemLua, or a table that reads
+--like one, to draw or redraw it.
+--- @return Panel
+function CodexShop.CreateItemPreview()
+	local m_tile = MakeShopItem()
+	local m_details = ShowItemDetailsInternal{}
+
+	return gui.Panel{
+		styles = shopStyles,
+		flow = "horizontal",
+		width = "auto",
+		height = "auto",
+
+		previewItem = function(element, item)
+			m_tile:FireEventTree("refreshItem", item)
+			m_details:FireEventTree("refreshItem", item)
+			m_details:FireEventTree("showProductDetails", item)
+			--An empty cart, so the card's cart-only controls (Remove) hide.
+			element:FireEventTree("refreshCart", {})
+			--"inventory" is the class the store sets tree-wide while showing
+			--the inventory: it collapses the price and cart controls a player
+			--who owns the item never sees. "itemPreview" also drops Go Back
+			--and the admin Grant/Remove column (collapsedWhenPreview).
+			element:SetClassTree("inventory", true)
+			element:SetClassTree("itemPreview", true)
+		end,
+
+		--Pressing the card or the hero asks the store to open the item's page.
+		--There is no store here and the page is already showing, so swallow it.
+		showItemDetails = function(element, item, source)
+		end,
+
+		gui.Panel{
+			width = "auto",
+			height = "auto",
+			valign = "top",
+			rmargin = 32,
+			m_tile,
+		},
+
+		m_details,
+	}
 end
 
 --One free Hero module (a module of classes, ancestries and other hero options,

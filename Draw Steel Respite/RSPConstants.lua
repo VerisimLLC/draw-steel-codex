@@ -19,6 +19,10 @@ RSPConstants.phaseActive = "active"
 -- Window
 RSPConstants.windowWidth = 900
 RSPConstants.windowHeight = 620
+RSPConstants.directorWindowWidth = 1180   -- Setup's backdrop picker sits beside the fields at their old width
+RSPConstants.backdropPickerWidth = 192     -- 16:9, as tall as the three rows beside it
+RSPConstants.backdropPickerHeight = 108
+RSPConstants.backdropPickerGap = 16
 
 -- Footer cells. The band, its rule and the window's padding are the
 -- DialogShell's; only the split inside the band is ours.
@@ -106,6 +110,36 @@ RSPConstants.viewBodyHeight = "100%-30"
 RSPConstants.toneGood = "good"              -- a party record line that went well
 RSPConstants.toneAlert = "alert"            -- a party record line someone should look at
 RSPConstants.recordPortraitSize = 24        -- whoever acted, at the left of a Watch line
+RSPConstants.recordArtSize = 30             -- the activity's picture for a line, after the portrait
+
+-- Player stage: the full-screen view of a running Respite. Pixels are logical,
+-- laid out for a 1600x900 floor and scaled down below it.
+RSPConstants.stageMinWidth = 1600
+RSPConstants.stageMinHeight = 900
+RSPConstants.stageHeaderHeight = 64
+RSPConstants.stageStripHeight = 232
+RSPConstants.stageWatchWidth = 380
+RSPConstants.stageGutter = 16
+RSPConstants.stageFallbackArt = "panels/backgrounds/delian-tomb-bg.png"
+RSPConstants.stageDimOpacity = 0.6
+RSPConstants.stageChipWidth = 220
+RSPConstants.stageChipHeight = 40
+RSPConstants.stationWidth = 320
+RSPConstants.stationHeight = 220
+RSPConstants.stationGap = 24
+RSPConstants.workHeaderHeight = 44
+RSPConstants.cardWidth = 132
+RSPConstants.cardHeight = 188
+RSPConstants.cardFollowerScale = 0.75
+RSPConstants.cardGap = 10
+RSPConstants.cardHouseholdGap = 28
+RSPConstants.cardPlateHeight = 48
+RSPConstants.cardCornerButton = 24
+RSPConstants.cardChipHeight = 22
+RSPConstants.iconRolls = "phosphor/hammer-fill.png"
+RSPConstants.iconBack = "phosphor/arrow-fat-left-light.png"
+RSPConstants.workActorTokenSize = 36      -- whoever is doing the activity, at the right of its title bar
+RSPConstants.iconHelp = "phosphor/question.png"
 
 -- Activities step, Director: wider roster, it carries markers and roll counts
 RSPConstants.directorListWidth = "40%"

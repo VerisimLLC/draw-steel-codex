@@ -114,7 +114,15 @@ gradients = {
 
 Spec fields: `point_a` / `point_b` (`{x,y}` direction), `stops`
 (`{position, color}` array), and `type = "radial"` for radial gradients
-(linear is the default when `type` is omitted).
+(linear is the default when `type` is omitted). `type = "conic"` sweeps
+clockwise around `point_a`, starting in the direction of `point_b`, like CSS
+`conic-gradient`; hard stops on a round panel draw a pie or segmented clock
+(the encounter-script status timer in `MCDMInitiativeBar.lua` does this).
+Points are 0..1 across the panel with y running **up**, so `{x=0.5, y=1}` is
+the top edge. Conic edges are smoothed over one pixel, and a conic gradient
+can add `dividers = { count = 3, width = 1.5, color = "#000000" }`: evenly
+spaced lines out from `point_a` (the first toward `point_b`), drawn by the
+shader with smooth edges. Width is in layout pixels, like border widths.
 
 ---
 

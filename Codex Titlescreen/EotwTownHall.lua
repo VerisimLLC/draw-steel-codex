@@ -474,7 +474,10 @@ end
 --The Town Hall location's card: the Town Votes and Petitions boards (the
 --scene above it carries the title). host mounts the dialogs.
 function EotwTownHall.Panel(host)
-    local isAdmin = dmhub.isAdminAccount == true
+    --May this account run the Town Hall (post, close and delete votes, answer
+    --petitions)? The City decides (its CITY_ADMINS list, not
+    --dmhub.isAdminAccount) and says so with each board; false until it does.
+    local isAdmin = false
     --"votes" or "petitions".
     local tab = "votes"
     --nil while loading.
@@ -522,6 +525,7 @@ function EotwTownHall.Panel(host)
             end
             issues = result.issues or {}
             canTakePart = result.canTakePart == true
+            isAdmin = result.isAdmin == true
             Rebuild()
         end, SetError)
     end
@@ -551,6 +555,7 @@ function EotwTownHall.Panel(host)
             myOpen = tonumber(result.myOpen) or 0
             maxOpen = tonumber(result.maxOpen) or maxOpen
             canTakePart = result.canTakePart == true
+            isAdmin = result.isAdmin == true
             Rebuild()
         end, SetError)
     end

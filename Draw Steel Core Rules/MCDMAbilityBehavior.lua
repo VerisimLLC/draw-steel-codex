@@ -191,7 +191,7 @@ local function InvokeAbilityRemote(standardAbilityName, targetToken, casterToken
 
     local invocation = AbilityInvocation.new{
         timestamp = ServerTimestamp(),
-        userid = casterToken.activeControllerId,
+        userid = TokenPromptControllerId(casterToken),
         abilityType = "standard",
         standardAbility = standardAbilityName,
         targeting = "prompt",
@@ -520,7 +520,7 @@ local g_rulePatterns = {
     },
 
     {
-        pattern = "^(?<vertical>vertical )?(?<movement>pull|push|slide) +(?<straightup>straight up +)?(?<distance>[0-9]+)(?<ignorestabilityifcompanion>[,;]? ignoring stability if (your )?companion is adjacent( to the target)?)?(?<ignorestabilityifally>[,;]? (allies ignore stability|ignoring stability if the target is (an|your) ally|ignoring (the )?stability of allies))?(?<ignorestability>[,;]? (ignoring stability|this (push|pull|slide) ignores the target.s stability))?",
+        pattern = "^(?<vertical>vertical )?(?<movement>pull|push|slide) +(?<straightup>straight up +)?(?<distance>[0-9]+)(?<negated> \\(negated\\))?(?<ignorestabilityifcompanion>[,;]? ignoring stability if (your )?companion is adjacent( to the target)?)?(?<ignorestabilityifally>[,;]? (allies ignore stability|ignoring stability if the target is (an|your) ally|ignoring (the )?stability of allies))?(?<ignorestability>[,;]? (ignoring stability|this (push|pull|slide) ignores the target.s stability))?",
         execute = function(behavior, ability, casterToken, targetToken, options, match)
 
             print("INVOKE:: EXECUTE FORCE MOVE", match.movement, match.distance)
@@ -560,6 +560,10 @@ local g_rulePatterns = {
                 end
             end
 
+
+            --Remember who was targeted before any retargeting below. The
+            --negation belongs to them.
+            local negatedTargetCharid = targetToken.charid
 
             local executeOnRemote = false
             if options.symbols.cast ~= nil then
@@ -638,6 +642,20 @@ local g_rulePatterns = {
             end
 
             local range = math.max(0, tonumber(match.distance) - stability + sizeDifferenceBonus + forcedMovementIncrease + forcedMovementBonus)
+
+            --"(negated)" is added by a power roll modifier with Negate Forced
+            --Movement (e.g. a triggered action). Record how far the target would
+            --have moved for that modifier's custom trigger, and don't move it.
+            --Immune or grabbed targets stopped above, so their follow-up sees 0.
+            if match.negated then
+                local movementType = match.movement
+                if match.vertical then
+                    movementType = "vertical_" .. movementType
+                end
+                CharacterModifier.RecordNegatedForcedMovement(negatedTargetCharid, range, movementType)
+                ShowFailMessage("Forced Movement Negated")
+                return
+            end
 
             if range <= 0 then
                 --don't execute forced movement of 0?
@@ -738,7 +756,7 @@ local g_rulePatterns = {
                 }
                 InvokeAbility(ability, abilityClone, targetToken, casterToken, options)
                 options.targetArgs = nil
-            elseif executeOnRemote and casterToken.activeControllerId then
+            elseif executeOnRemote and TokenPromptControllerId(casterToken) then
                 ability:CommitToPaying(casterToken, options)
                 InvokeAbilityRemote(abilityName, targetToken, casterToken, abilityAttr, options)
             else

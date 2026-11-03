@@ -445,6 +445,49 @@ function RollUtils.DiceResultToTier(result)
     return tier
 end
 
+--- One target's effective roll: the roll as rolled, plus that target's post-roll
+--- edge/bane/tier deltas (a multitarget row from the roll dialog, whose boons,
+--- banes and tiersDelta are relative to the roll). A single net edge/bane moves
+--- the total by 2; a double one shifts the tier instead (DiceResultToTier).
+--- Resolution, the action log and the roll dialog all read tiers through this.
+--- @param rollResult table {total, naturalRoll, boons, banes, tiers, autosuccess, autofailure, nottierone, nottierthree}
+--- @param target nil|{boons: nil|number, banes: nil|number, tiersDelta: nil|number}
+--- @return table rollInfo A new table, ready for DiceResultToTier
+function RollUtils.EffectiveRollForTarget(rollResult, target)
+    local rollInfo = {
+        total = rollResult.total,
+        naturalRoll = rollResult.naturalRoll,
+        boons = rollResult.boons,
+        banes = rollResult.banes,
+        autosuccess = rollResult.autosuccess,
+        autofailure = rollResult.autofailure,
+        nottierone = rollResult.nottierone,
+        nottierthree = rollResult.nottierthree,
+        tiers = rollResult.tiers,
+    }
+
+    if target == nil then
+        return rollInfo
+    end
+
+    if (target.boons or 0) ~= 0 or (target.banes or 0) ~= 0 then
+        local baseBonus = ActivatedAbilityPowerRollBehavior.GetRollModFromEdgesAndBanes(rollInfo.boons, rollInfo.banes)
+
+        rollInfo.boons = math.min((rollInfo.boons or 0) + (target.boons or 0), 2)
+        rollInfo.banes = math.min((rollInfo.banes or 0) + (target.banes or 0), 2)
+
+        local targetBonus = ActivatedAbilityPowerRollBehavior.GetRollModFromEdgesAndBanes(rollInfo.boons, rollInfo.banes)
+
+        rollInfo.total = (rollInfo.total or 0) + (targetBonus - baseBonus)
+    end
+
+    if (target.tiersDelta or 0) ~= 0 then
+        rollInfo.tiers = (rollInfo.tiers or 0) + target.tiersDelta
+    end
+
+    return rollInfo
+end
+
 -- Local alias so existing call sites in this file keep working.
 local DiceResultToTier = RollUtils.DiceResultToTier
 
@@ -658,34 +701,8 @@ local function CalculateMultitargetsFromRollProperties(rollMessage, rollResult)
     local multitargets = {}
     for i,target in ipairs(rollMessage.properties.multitargets) do
         if target.tokenid then
-            local rollInfo = {
-                total = rollResult.total,
-                naturalRoll = rollResult.naturalRoll,
-                boons = rollResult.boons,
-                banes = rollResult.banes,
-                autosuccess = rollResult.autosuccess,
-                autofailure = rollResult.autofailure,
-                nottierone = rollResult.nottierone,
-                nottierthree = rollResult.nottierthree,
-                tiers = rollResult.tiers,
-            }
-
             --the multitargets give boons relative to the base roll, so we apply any different in boons.
-            if (target.boons or 0) ~= 0 or (target.banes or 0) ~= 0 then
-
-                local baseBonusFromBoonsAndBanes = ActivatedAbilityPowerRollBehavior.GetRollModFromEdgesAndBanes(rollInfo.boons, rollInfo.banes)
-
-                rollInfo.boons = math.min(rollInfo.boons + target.boons, 2)
-                rollInfo.banes = math.min(rollInfo.banes + (target.banes or 0), 2)
-
-                local targetBonusFromBoonsAndBanes = ActivatedAbilityPowerRollBehavior.GetRollModFromEdgesAndBanes(rollInfo.boons, rollInfo.banes)
-
-                rollInfo.total = rollInfo.total + (targetBonusFromBoonsAndBanes - baseBonusFromBoonsAndBanes)
-            end
-
-            if (target.tiersDelta or 0) ~= 0 then
-                rollInfo.tiers = (rollInfo.tiers or 0) + target.tiersDelta
-            end
+            local rollInfo = RollUtils.EffectiveRollForTarget(rollResult, target)
 
             local tier = rollMessage.properties:try_get("overrideTier") or DiceResultToTier(rollInfo)
 
@@ -1333,6 +1350,11 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
         roll = regex.ReplaceAll(roll, "\\d+d\\d+", tostring(forcedroll))
     end
 
+    --The free second strike of a Double Strike (see "Finish targets later" in
+    --MCDMActivatedAbility.lua): the dice land on the first strike's faces, and the
+    --new target's edges and banes apply to them. It is not a new power roll.
+    local followUpDice = ability:try_get("followUpDice")
+
 	local modifiersApplied = nil
     local appliedTargetCreature = nil
 
@@ -1444,7 +1466,9 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
         if behavior.typeName == "ActivatedAbilityModifyPowerRollBehavior" and behavior:IsFiltered(ability, casterToken, options) == false then
             local modBehavior = behavior --[[@as ActivatedAbilityModifyPowerRollBehavior]]
             local filterCondition = trim(modBehavior.modifier:try_get("filterCondition", ""))
-            if filterCondition == "" or dmhub.EvalGoblinScript(filterCondition, caster:LookupSymbol(options.symbols), "Filter condition for power roll modifier") then
+            --EvalGoblinScript returns a string, and "0" is truthy in Lua, so it never filtered.
+            --A formula that fails to evaluate defaults to 1 and the option stays offered.
+            if filterCondition == "" or ExecuteGoblinScript(filterCondition, caster:LookupSymbol(options.symbols), 1, "Filter condition for power roll modifier") ~= 0 then
                 modifiersOnCaster[#modifiersOnCaster+1] = {
                     mod = modBehavior.modifier,
                 }
@@ -1675,6 +1699,7 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
             --Squad maneuvers: replace the power roll with the rule's deterministic
             --formula. Result = 8 + caster's highest characteristic + the number of
             --squad members within range of the target (counting the caster).
+            --Members that could not pay for the maneuver are not counted.
             if ability:UsesSquadManeuver(casterToken) then
                 local maneuverRange = ability:GetRange(casterToken.properties) or 1
                 local squad = casterToken.properties._tmp_minionSquad
@@ -1682,6 +1707,7 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
                 for _,tok in ipairs(squad.tokens or {}) do
                     if tok ~= nil and tok.valid and (not tok.properties:IsDead())
                         and tok.properties:IsActiveInSquad()
+                        and ability:SquadMemberCanPay(casterToken, tok, options)
                         and tok:Distance(target.token) <= maneuverRange then
                         inRangeCount = inRangeCount + 1
                     end
@@ -1874,14 +1900,16 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
         return
     end
     rollKey = dialog.data.ShowDialog{
-        description = ability.name .. ": Power Roll",
+        description = ability.name .. cond(followUpDice ~= nil, ": Power Roll (same dice)", ": Power Roll"),
         title = ability.name,
         type = "ability_power_roll",
         ability = ability,
         roll = roll,
+        forcedDice = followUpDice,
         --Only set autoroll when forcing -- the dialog's autoroll branch treats
         --any non-nil value (including false) as a table-with-.id and crashes.
-        autoroll = forcedroll ~= nil and true or nil,
+        --A Double Strike's second strike reuses dice already rolled, so it rolls itself.
+        autoroll = (forcedroll ~= nil or followUpDice ~= nil) and true or nil,
         showDialogDuringRoll = true,
         amendable = true,
         modifiers = modifiersApplied,
@@ -2017,8 +2045,9 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
         --If the dialog is gone or now showing a different roll, our callbacks
         --will never fire and this loop would spin forever, leaving the red
         --targeting arrows stuck on the map. Bail out as a cancel so the cast
-        --finishes and cleans them up.
-        if (not dialog.valid) or rollKey == nil or dialog.data.rollid ~= rollKey then
+        --finishes and cleans them up. A roll that completed during the yield is
+        --not a cancel even if its dialog was displaced in the same frame (JF4Q6EJZ).
+        if m_result.total == nil and ((not dialog.valid) or rollKey == nil or dialog.data.rollid ~= rollKey) then
             m_canceled = true
         end
 
@@ -2062,7 +2091,7 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
     --of Cast applies (manual amend / test overrideTier wins over the natural
     --dice tier).
     local rolledTier = rollProperties:try_get("overrideTier") or DiceResultToTier(m_result)
-    if rolledTier == 1 or rolledTier == 2 or rolledTier == 3 then
+    if followUpDice == nil and (rolledTier == 1 or rolledTier == 2 or rolledTier == 3) then
         LiveEncounter.TrackHeroStats(casterToken.charid, string.format("tierRolls/tier%d", rolledTier))
 
         local edges = m_result.boons or 0
@@ -2343,7 +2372,15 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
         triggerInfo.squadparticipantids = participantIds
     end
 
-    casterToken.properties:DispatchEvent("rollpower", triggerInfo)
+    if followUpDice ~= nil then
+        --Double Strike's second strike reuses the first roll: "made a power roll"
+        --triggers (a crit's extra main action among them) already fired for it.
+        ActivatedAbility.ConsumeTargetsForLater(ability, casterToken)
+    else
+        --multitargets, not targets: it holds every creature hit, after any redirects.
+        ActivatedAbility.SaveTargetsForLater(ability, casterToken, multitargets, m_rollInfo)
+        casterToken.properties:DispatchEvent("rollpower", triggerInfo)
+    end
 
     casterToken.properties:ClearMomentaryOngoingEffects()
     for _,target in ipairs(multitargets) do

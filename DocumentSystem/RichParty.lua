@@ -263,7 +263,7 @@ function RichParty.CreateDisplay(self)
                         token = function(element, token)
                             local portrait = token.offTokenPortrait
                             element.bgimage = portrait
-                            element.selfStyle.imageRect = token:GetPortraitRectForAspect(78 * 0.01, portrait)
+                            element.selfStyle.imageRect = CardPortraitRect(token, 78 * 0.01, portrait)
                         end,
 
                         gui.Button {

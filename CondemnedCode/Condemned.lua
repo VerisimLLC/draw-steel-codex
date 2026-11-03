@@ -1791,8 +1791,12 @@ local function PlayExplosiveBlast(info)
         if mod.unloaded or info.mapid ~= game.currentMapId then
             return
         end
-        g_explosiveMarksPending[info.objid] = dmhub.Time()
-        g_explosiveMarks[info.objid] = info.floorid
+        --A bust's marks are tracked so they clear when it is restored. A barrel blast
+        --(CondemnedExplosives.Blast) has no bust to restore, so its marks just stay.
+        if info.kind ~= "blast" then
+            g_explosiveMarksPending[info.objid] = dmhub.Time()
+            g_explosiveMarks[info.objid] = info.floorid
+        end
         DrawCharMarks{ charid = ExplosiveMarkKey(info.objid), floorid = info.floorid, px = info.px, py = info.py, seed = info.objid }
     end)
 end
@@ -1885,7 +1889,7 @@ dmhub.RegisterRemoteEvent(EXPLOSIVE_EVENT, function(info)
     if mod.unloaded or type(info) ~= "table" or info.objid == nil then
         return
     end
-    if info.kind == "detonate" then
+    if info.kind == "detonate" or info.kind == "blast" then
         PlayExplosiveBlast(info)
     elseif info.kind == "restore" then
         ClearExplosiveMarks(info.objid)
@@ -1951,6 +1955,36 @@ end
 --square. Sets off the intact explosive next to it once the creature gets there; any
 --client may call it.
 CondemnedExplosives = {
+    --- The collar fireball, boom and char marks at a token's square, on every client.
+    --- Called by The Condemned's barrel objects when they explode; the barrels deal their
+    --- own damage, so this is only the spectacle.
+    ---@param token CharacterToken
+    Blast = function(token)
+        if mod.unloaded or token == nil or not token.valid or game.currentMap == nil then
+            return
+        end
+        local loc = token.loc
+        local floor = game.currentMap:GetFloorFromLoc(loc)
+        if floor == nil then
+            return
+        end
+        --pos is the token's on-screen centre; the marks centre on it like a hero's (BlowUp).
+        local pos = token.pos
+        local info = {
+            kind = "blast",
+            objid = token.charid,
+            x = loc.x,
+            y = loc.y,
+            floor = loc.floor,
+            floorid = floor.floorid,
+            px = pos.x,
+            py = pos.y,
+            mapid = game.currentMapId,
+        }
+        dmhub.BroadcastRemoteEvent(EXPLOSIVE_EVENT, dmhub.GenerateGuid(), info, true)
+        PlayExplosiveBlast(info)
+    end,
+
     ---@param token CharacterToken
     TriggerNear = function(token)
         if mod.unloaded or token == nil or not token.valid then

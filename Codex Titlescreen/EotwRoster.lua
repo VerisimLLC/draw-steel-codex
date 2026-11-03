@@ -1620,6 +1620,124 @@ function EotwRoster.EditHero(heroid, host)
     EotwHeroSheet.Show{ charid = heroid, context = "town" }
 end
 
+---@class EotwLevelUpState
+---@field ready boolean the XP covers the next Level and the Hero can level now
+---@field level integer the Hero's Level (0 when not loaded)
+---@field xp integer the Hero's total XP
+---@field xpIntoLevel integer XP earned since reaching this Level
+---@field xpPerLevel integer XP a Level takes (the game's xpperlevel setting)
+---@field choicesLeft integer choices still open on the Builder's Level up pages (Level up left partway)
+---@field reason nil|string why the Hero cannot level now: "notonroster", "notloaded", "away", "maxlevel", "xp"
+
+--Where a roster Hero stands for the Training Grounds. A place listing
+--Heroes reads this for each row: ready shows a Level up; choicesLeft > 0 on a
+--Hero who is not ready means they left the builder with choices unmade, and
+--EotwRoster.LevelUpHero reopens it for them.
+---@param heroid string
+---@return EotwLevelUpState
+function EotwRoster.LevelUpState(heroid)
+    local result = { ready = false, level = 0, xp = 0, xpIntoLevel = 0, xpPerLevel = 16, choicesLeft = 0, reason = nil }
+    local tok = dmhub.GetCharacterById(heroid)
+    if EotwRoster.FindHero(heroid) == nil then
+        result.reason = "notonroster"
+        return result
+    end
+    if tok == nil or tok.properties == nil then
+        result.reason = "notloaded"
+        return result
+    end
+    local hero = tok.properties --[[@as character]]
+    --the same XP sums as the Hero sheet's progress bar.
+    local xpState = EotwHeroSheet.XpProgress(hero)
+    result.level = xpState.level
+    result.xp = xpState.xp
+    result.xpIntoLevel = xpState.xpIntoLevel
+    result.xpPerLevel = xpState.xpPerLevel
+    --the open choices on the pages Level up would show: the same list the
+    --Builder checks to decide that Level up is finished.
+    pcall(function()
+        for _,page in ipairs(EotwBuild.LevelsWaiting(tok)) do
+            result.choicesLeft = result.choicesLeft + page.left
+        end
+    end)
+    if not EotwRoster.CanRebuildHero(heroid) then
+        result.reason = "away"
+    elseif xpState.maxLevel then
+        result.reason = "maxlevel"
+    elseif not xpState.readyToLevel then
+        result.reason = "xp"
+    else
+        result.ready = true
+    end
+    return result
+end
+
+--The Training Grounds' Level up: a ready Hero goes up ONE Level (XP for
+--more keeps them ready for another press), is saved to the City, and the EotW
+--builder opens on its Level up page, with the new Level's choices. A Hero
+--who left the builder with choices unmade (not ready, choicesLeft > 0) gets
+--the builder again without a new Level. The player may close it at any time.
+--Returns false, opening nothing, when the Hero can do neither (LevelUpState
+--says why). Pair with RESPITE_BANKS_XP in EotwDowntime.lua: turn it on when
+--the Training Grounds opens, so a respite stops raising the Level itself.
+--args:
+--  heroid  the roster Hero
+--  host    the panel to mount the builder on (the town screen)
+--  onDone  optional function(finished): the builder closed, finished true when
+--          every choice was made; the Hero has been pushed to the City
+---@param args {heroid: string, host: Panel, onDone: nil|fun(finished: boolean)}
+---@return boolean
+function EotwRoster.LevelUpHero(args)
+    local heroid = args.heroid
+    local state = EotwRoster.LevelUpState(heroid)
+    local tok = dmhub.GetCharacterById(heroid)
+    if tok == nil or args.host == nil or not args.host.valid then
+        return false
+    end
+    if not state.ready and (state.choicesLeft == 0 or state.reason == "away") then
+        return false
+    end
+    local level = state.level
+    if state.ready then
+        level = state.level + 1
+        tok:ModifyProperties{
+            description = "Encounter of the Week: level up",
+            undoable = false,
+            execute = function()
+                local hero = tok.properties --[[@as character]]
+                EotwBuild.hero.SetLevel(hero, level)
+                --the Builder's Level up shows a page for each Level above
+                --this one, choices or not. An older mark (a respite raised
+                --the Level before) is kept, so those Levels' pages show too.
+                local seen = tonumber(hero:try_get("levelUpSeen")) or (level - 1)
+                hero.levelUpSeen = math.min(seen, level - 1)
+            end,
+        }
+        --as in JoinRoster: let the write land before the export.
+        dmhub.Schedule(0.3, function()
+            if not mod.unloaded then
+                EotwRoster.PushHero(heroid)
+            end
+        end)
+        printf("EotW town: %s levelled up to %d", tostring(tok.name), level)
+    end
+    local function Done(finished)
+        EotwRoster.PushHero(heroid)
+        if args.onDone ~= nil then
+            args.onDone(finished)
+        end
+    end
+    --the main game's Level up page.
+    EotwBuilder.Open{
+        host = args.host,
+        token = tok,
+        levelUp = true,
+        onFinish = function() Done(true) end,
+        onClose = function() Done(false) end,
+    }
+    return true
+end
+
 --Dismiss a hero: gone from the city, then from this machine.
 function EotwRoster.DismissHero(heroid, onDone)
     if m_conn == nil then
@@ -2079,80 +2197,89 @@ end
 --level 1 with no items), then every pregenerated hero of the week's module,
 --then the pregens of the player's Hero modules, one section per module.
 local function ShowRecruitPicker(host, onDone)
-    local pregens = EncounterOfTheWeek.GetPregens()
     local dlg
 
-    local ownCards = {}
-    for _,tok in ipairs(TitlescreenHeroes.List()) do
-        local className, ancestry, level = EotwRoster.HeroDetails(tok)
-        local name = tok.name
-        if name == nil or name == "" then
-            name = T("guild.picker.unnamed_hero")
-        end
-        local blocked = nil
-        if EotwRoster.FindCopyOf(tok.charid) ~= nil then
-            blocked = T("guild.picker.already_in_roster")
-        end
-        ownCards[#ownCards+1] = RecruitCard(PortraitOf(tok), name, EotwRoster.FormatDetails(level, ancestry, className), function()
-            dlg:DestroySelf()
-            ShowRecruitNamePrompt(host, {
-                initialName = name,
-                rollName = function()
-                    return EotwBuild.GenerateName(tok.properties --[[@as character]]) or name
-                end,
-                prompt = T("guild.name_prompt.copy", { name = name, details = EotwRoster.FormatDetails(1, ancestry, className) }),
-                confirm = function(newName, done)
-                    EotwRoster.RecruitTitlescreenHero(tok, newName, done)
-                end,
-            }, onDone)
-        end, blocked)
-    end
-
-    local pregenCards = {}
-    --Hero module name -> its pregens' cards, and the names in first-seen order.
-    local heroModuleCards = {}
-    local heroModuleNames = {}
-    for _,pregen in ipairs(pregens or {}) do
-        local tok = EncounterOfTheWeek.GetPregenToken(pregen.id)
-        local cards = pregenCards
-        if pregen.source ~= nil then
-            cards = heroModuleCards[pregen.source]
-            if cards == nil then
-                cards = {}
-                heroModuleCards[pregen.source] = cards
-                heroModuleNames[#heroModuleNames+1] = pregen.source
+    --Every section's cards, built from the pregen lists as they stand now.
+    --Rebuilt whole when a list still downloading arrives (see the body's think).
+    local BuildSections = function(pregens)
+        local ownCards = {}
+        for _,tok in ipairs(TitlescreenHeroes.List()) do
+            local className, ancestry, level = EotwRoster.HeroDetails(tok)
+            local name = tok.name
+            if name == nil or name == "" then
+                name = T("guild.picker.unnamed_hero")
             end
+            local blocked = nil
+            if EotwRoster.FindCopyOf(tok.charid) ~= nil then
+                blocked = T("guild.picker.already_in_roster")
+            end
+            ownCards[#ownCards+1] = RecruitCard(PortraitOf(tok), name, EotwRoster.FormatDetails(level, ancestry, className), function()
+                dlg:DestroySelf()
+                ShowRecruitNamePrompt(host, {
+                    initialName = name,
+                    rollName = function()
+                        return EotwBuild.GenerateName(tok.properties --[[@as character]]) or name
+                    end,
+                    prompt = T("guild.name_prompt.copy", { name = name, details = EotwRoster.FormatDetails(1, ancestry, className) }),
+                    confirm = function(newName, done)
+                        EotwRoster.RecruitTitlescreenHero(tok, newName, done)
+                    end,
+                }, onDone)
+            end, blocked)
         end
-        cards[#cards+1] = RecruitCard(PortraitOf(tok), pregen.name, EotwRoster.FormatDetails(pregen.level, pregen.ancestry, pregen.className), function()
-            dlg:DestroySelf()
-            ShowRecruitNamePrompt(host, {
-                initialName = RecruitName(pregen),
-                rollName = function()
-                    return RecruitName(pregen)
-                end,
-                prompt = T("guild.name_prompt.pregen", { details = EotwRoster.FormatDetails(pregen.level, pregen.ancestry, pregen.className) }),
-                confirm = function(name, done)
-                    EotwRoster.RecruitPregen(pregen.id, name, done)
-                end,
-            }, onDone)
-        end)
+
+        local pregenCards = {}
+        --Hero module name -> its pregens' cards, and the names in first-seen order.
+        local heroModuleCards = {}
+        local heroModuleNames = {}
+        for _,pregen in ipairs(pregens or {}) do
+            local tok = EncounterOfTheWeek.GetPregenToken(pregen.id)
+            local cards = pregenCards
+            if pregen.source ~= nil then
+                cards = heroModuleCards[pregen.source]
+                if cards == nil then
+                    cards = {}
+                    heroModuleCards[pregen.source] = cards
+                    heroModuleNames[#heroModuleNames+1] = pregen.source
+                end
+            end
+            cards[#cards+1] = RecruitCard(PortraitOf(tok), pregen.name, EotwRoster.FormatDetails(pregen.level, pregen.ancestry, pregen.className), function()
+                dlg:DestroySelf()
+                ShowRecruitNamePrompt(host, {
+                    initialName = RecruitName(pregen),
+                    rollName = function()
+                        return RecruitName(pregen)
+                    end,
+                    prompt = T("guild.name_prompt.pregen", { details = EotwRoster.FormatDetails(pregen.level, pregen.ancestry, pregen.className) }),
+                    confirm = function(name, done)
+                        EotwRoster.RecruitPregen(pregen.id, name, done)
+                    end,
+                }, onDone)
+            end)
+        end
+
+        local sections = {}
+        if #ownCards > 0 then
+            sections[#sections+1] = PickerHeading(T("guild.picker.own_heading"), T("guild.picker.own_subtitle"))
+            sections[#sections+1] = CardGrid(ownCards)
+        end
+        sections[#sections+1] = PickerHeading(T("guild.picker.hire_heading"), T("guild.picker.hire_subtitle"))
+        if pregens == nil then
+            sections[#sections+1] = gui.Label{ text = T("guild.picker.pregens_loading"), fontSize = 18, color = DIM, width = "90%", height = "auto", halign = "center", textAlignment = "center", vmargin = 40 }
+        else
+            sections[#sections+1] = CardGrid(pregenCards)
+        end
+        for _,source in ipairs(heroModuleNames) do
+            sections[#sections+1] = PickerHeading(source, T("guild.picker.module_subtitle"))
+            sections[#sections+1] = CardGrid(heroModuleCards[source])
+        end
+        return sections
     end
 
-    local sections = {}
-    if #ownCards > 0 then
-        sections[#sections+1] = PickerHeading(T("guild.picker.own_heading"), T("guild.picker.own_subtitle"))
-        sections[#sections+1] = CardGrid(ownCards)
-    end
-    sections[#sections+1] = PickerHeading(T("guild.picker.hire_heading"), T("guild.picker.hire_subtitle"))
-    if pregens == nil then
-        sections[#sections+1] = gui.Label{ text = T("guild.picker.pregens_loading"), fontSize = 18, color = DIM, width = "90%", height = "auto", halign = "center", textAlignment = "center", vmargin = 40 }
-    else
-        sections[#sections+1] = CardGrid(pregenCards)
-    end
-    for _,source in ipairs(heroModuleNames) do
-        sections[#sections+1] = PickerHeading(source, T("guild.picker.module_subtitle"))
-        sections[#sections+1] = CardGrid(heroModuleCards[source])
-    end
+    --Seconds left to wait for pregen lists still downloading. The Hero
+    --module pregens are fetched on first use, so the first open can come
+    --before they arrive.
+    local waitLeft = 30
 
     local body = gui.Panel{
         width = "96%",
@@ -2166,7 +2293,20 @@ local function ShowRecruitPicker(host, onDone)
             width = "100%",
             height = "auto",
             flow = "vertical",
-            children = sections,
+            children = BuildSections(EncounterOfTheWeek.GetPregens()),
+            thinkTime = cond(EncounterOfTheWeek.PregensSettled(), nil, 1),
+            think = function(element)
+                waitLeft = waitLeft - 1
+                --GetPregens also re-kicks a fetch that failed or a Hero module
+                --set that changed while the picker was open.
+                local pregens = EncounterOfTheWeek.GetPregens()
+                if EncounterOfTheWeek.PregensSettled() then
+                    element.thinkTime = nil
+                    element.children = BuildSections(pregens)
+                elseif waitLeft <= 0 then
+                    element.thinkTime = nil
+                end
+            end,
         },
     }
     local titleParts = Title(T("guild.picker.title"), T("guild.picker.subtitle"))
@@ -2477,7 +2617,7 @@ local function GuildRow(hero, away, host)
             --Needs the character, so it lands once the hero has loaded.
             if portrait ~= nil and tok ~= nil then
                 local rect = nil
-                pcall(function() rect = tok:GetPortraitRectForAspect(72 / 96, portrait) end)
+                pcall(function() rect = CardPortraitRect(tok, 72 / 96, portrait) end)
                 portraitPanel.selfStyle.imageRect = rect
             end
         end,

@@ -515,6 +515,24 @@ RuleUtils = {
         end
         return powerMod:try_get("changeTargetAllowOriginal", false) == true
     end,
+
+    --- Squares of height between two creatures, counting how tall each one is: 0 when
+    --- their heights overlap, 1 when one stands right on top of the other. A Size 2
+    --- creature on the ground is in melee reach of one standing 2 squares up (PEK8NNCT).
+    --- Objects count as one square tall, as targeting always treated them.
+    --- @param a CharacterToken
+    --- @param b CharacterToken
+    --- @return integer
+    VerticalGapInTiles = function(a, b)
+        local function top(tok)
+            local height = 1
+            if not tok.isObject then
+                height = math.max(1, tok.tileSize or 1)
+            end
+            return tok.altitude + height - 1
+        end
+        return math.max(0, b.altitude - top(a), a.altitude - top(b))
+    end,
 }
 
 --Lets a square-targeting ability (Empty Space / Any Space) refuse squares the

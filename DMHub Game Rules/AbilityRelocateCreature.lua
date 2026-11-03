@@ -624,6 +624,15 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 			local throughCreatures = ability:try_get("forcedMovementThroughCreatures", false)
 			local forcedPushOptions = casterToken.properties:GetForcedPushOptions()
 			local abilityDist = ability:GetRange(casterToken.properties)/dmhub.unitsPerSquare
+			--A vertical push/pull/slide target carries an absolute altitude; the engine wants
+			--it as height above the destination ground (see VerticalForcedMovementEngineLoc).
+			local isVerticalForcedMove = ActivatedAbility.IsVerticalForcedMovement(options.symbols.forcedmovement or ability:try_get("forcedMovement", "slide"))
+			local function EngineLoc(targetLoc)
+				if isVerticalForcedMove and targetLoc ~= nil then
+					return ActivatedAbility.VerticalForcedMovementEngineLoc(targetLoc)
+				end
+				return targetLoc
+			end
 			if ability.targeting == "straightline" or ability.targetType == "line" then
 				local abilityDistForArrow = abilityDist
 				--A path straight up has no sideways part, and the engine only paths a forced move
@@ -631,7 +640,7 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 				--reported as the push it is.
 				local isVerticalSlide = (options.symbols.forcedmovement or ability:try_get("forcedMovement", "slide")) == "vertical_slide"
 					or ability.forcedMovementStraightUp
-				local movementInfo = casterToken:MarkMovementArrow(targets[1].loc, {waypoints = options.symbols.waypoints, straightline = true, ignorecreatures = (ability.targetType == "line" or throughCreatures), forcedMovementDistance = abilityDistForArrow, rebound = forcedPushOptions.rebound, maxBounces = forcedPushOptions.maxBounces, slide = isVerticalSlide})
+				local movementInfo = casterToken:MarkMovementArrow(EngineLoc(targets[1].loc), {waypoints = options.symbols.waypoints, straightline = true, ignorecreatures = (ability.targetType == "line" or throughCreatures), forcedMovementDistance = abilityDistForArrow, rebound = forcedPushOptions.rebound, maxBounces = forcedPushOptions.maxBounces, slide = isVerticalSlide})
 				if movementInfo ~= nil then
 
 					local loc = targets[1].loc
@@ -735,7 +744,7 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 			--forced tells the engine the creature is being pushed, pulled or slid. The engine
 			--already spots a straight-line shove on its own; this covers a forced move aimed
 			--around a corner, which walks its path like any other move.
-			local path = casterToken:Move(targets[#targets].loc, { waypoints = waypoints, straightline = (ability.targeting == "straightline" or ability.targeting == "straightpath" or ability.targeting == "straightpathignorecreatures" or ability.targetType == "line"), moveThroughFriends = (ability.targeting ~= "straightline"), ignorecreatures = (ability.targeting == "straightpathignorecreatures" or ability.targetType == "line" or throughCreatures), maxCost = 30000, movementType = movementType, forcedMovementDistance = abilityDist, rebound = forcedPushOptions.rebound, maxBounces = forcedPushOptions.maxBounces, slide = isVerticalSlideCast, freeMovement = true, forced = (options.symbols.forcedmovement ~= nil or ability:try_get("forcedMovement") ~= nil) })
+			local path = casterToken:Move(EngineLoc(targets[#targets].loc), { waypoints = waypoints, straightline = (ability.targeting == "straightline" or ability.targeting == "straightpath" or ability.targeting == "straightpathignorecreatures" or ability.targetType == "line"), moveThroughFriends = (ability.targeting ~= "straightline"), ignorecreatures = (ability.targeting == "straightpathignorecreatures" or ability.targetType == "line" or throughCreatures), maxCost = 30000, movementType = movementType, forcedMovementDistance = abilityDist, rebound = forcedPushOptions.rebound, maxBounces = forcedPushOptions.maxBounces, slide = isVerticalSlideCast, freeMovement = true, forced = (options.symbols.forcedmovement ~= nil or ability:try_get("forcedMovement") ~= nil) })
 
             --A nil path means the engine refused the move outright (no route, or a budget/legality
             --clamp). There is nothing to fall back on here, but the cast used to continue in total

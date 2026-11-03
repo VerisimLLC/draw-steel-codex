@@ -150,6 +150,14 @@ function GameHud:CreateDocumentsPanel()
                 halign = 'center',
                 bgcolor = 'clear',
             },
+            --a custom interface hiding the table's windows (suppressWindows,
+            --GameHud.SyncInterfaceSuppression): everything on this layer but
+            --presented dialogs and the rails it put up.
+            {
+                selectors = { 'panel', 'parent:interfaceSuppressing', '~presentedDialog', '~iconRail' },
+                priority = 10,
+                collapsed = 1,
+            },
             {
                 selectors = { 'document-dialog' },
                 priority = 5,

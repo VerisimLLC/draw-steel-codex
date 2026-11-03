@@ -122,11 +122,15 @@ function gui.GoblinScriptInput(options)
 				data = {
 					changePending = false,
 					focusPending = false,
+					completionMenu = nil, --the open suggestion list; Tab is sent to it.
 				},
 
 				tab = function(element)
-					if element.popup ~= nil then
-						element.popup:FireEventTree("tab")
+					-- Send Tab only to the suggestion list. Sending it to every panel in the popup
+					-- errored, because accepting a suggestion closes the popup partway through.
+					local menu = element.data.completionMenu
+					if element.popup ~= nil and menu ~= nil and menu.valid then
+						menu:FireEvent("tab")
 					end
 				end,
 
@@ -145,6 +149,9 @@ function gui.GoblinScriptInput(options)
 				thinkTime = 0.1,
 				think = function(element)
 					---@cast element Input
+					-- Tab accepts a suggestion while the popup is open; otherwise it moves
+					-- to the next field as usual. Turned on in edit when the popup opens.
+					element.consumeTab = element.popup ~= nil
 					if element.data.focusPending then
 						printf("GOBLINSCRIPT:: FOCUS PEND")
 						element.hasInputFocus = true
@@ -286,6 +293,7 @@ function gui.GoblinScriptInput(options)
 								refreshCompletions()
 							end,
 						}
+						element.data.completionMenu = menu
 
 						-- Find the start of the word being completed for anchor positioning.
 						-- Walk backwards from caret to find where the current identifier starts.
@@ -314,6 +322,7 @@ function gui.GoblinScriptInput(options)
 							halign = "right",
 							menu,
 						}
+						element.consumeTab = true
 						printf("GOBLINSCRIPT:: POPUP: %d", #children)
 					end
 					printf("GOBLINSCRIPT:: COMPLETIONS:: %s", json(completions))

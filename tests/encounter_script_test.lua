@@ -1729,6 +1729,7 @@ do
     local tinkerer = montage.rounds[1].entries[1]
     local wares = tinkerer.tables["tinkerer's wares"]
     check(wares ~= nil and wares.dice == "1d6" and #wares.rows == 2, "an entry's own dice table")
+    check(not wares.mystery, "a table without (Mystery) shows its rows")
     check(#tinkerer.options[1].roll.tiers == 4 and #tinkerer.options[1].roll.riders == 1, "the table header ends the roll block")
     check(script.beats[2].setup[1].kind == "bystanders", "bystander instruction on the encounter beat")
 
@@ -1740,6 +1741,39 @@ do
         end
     end
     check(warned, "rolling on a missing table warns")
+end
+
+do
+    local mystery = EncounterScript.Parse(table.concat({
+        "# Montage", "", "## Opportunity: The Riddle Statues", "", "### Search the statues", "",
+        "|Search Test: Reason (Search)",
+        "|You fail",
+        "|Roll on Statue Hoard",
+        "|Roll twice on Statue Hoard",
+        "|Statue Hoard: 1d3 (Mystery)",
+        "|1: You gain 1 Healing Potion",
+        "|2-3: +1 hero token",
+        "",
+        "|Hard Labour: 1d6",
+        "|1-6: You lose 2 stamina",
+        "",
+    }, "\n"))
+    check(#mystery.warnings == 0, "a mystery table parses clean: " .. table.concat(mystery.warnings, " | "))
+    local statues = mystery.beats[1].rounds[1].entries[1]
+    local hoard = statues.tables["statue hoard"]
+    check(hoard ~= nil and hoard.mystery == true and hoard.dice == "1d3" and hoard.name == "Statue Hoard" and #hoard.rows == 2, "a mystery table")
+    --3 written tiers plus the automatic critical.
+    check(#statues.options[1].roll.tiers == 4 and statues.options[1].roll.critAuto, "a mystery table header ends the roll block")
+    local labour = statues.tables["hard labour"]
+    check(labour ~= nil and not labour.mystery, "a plain table beside it stays plain")
+
+    local anyCaseDice, anyCaseMystery = EncounterScript.TableHeaderDice("1D6 (mystery)")
+    check(anyCaseDice == "1d6" and anyCaseMystery == true, "the tag is not case sensitive")
+    local plainDice, plainMystery = EncounterScript.TableHeaderDice(" 2d6 ")
+    check(plainDice == "2d6" and plainMystery == false, "plain dice")
+    check(EncounterScript.TableHeaderDice("1d6 (Secret)") == nil, "an unknown tag is not a table")
+    check(EncounterScript.TableHeaderDice("Might (Lift)") == nil, "a test's characteristic is not a table")
+    check(EncounterScript.TableHeaderDice(nil) == nil, "no value")
 end
 
 --- knacks: secret options, free options, knack versions, the vocabulary ------
@@ -2468,6 +2502,149 @@ Monster AI: be scary
 [[encounter]]
 ]==])
     check(#unknown.warnings > 0 and unknown.beats[1].setup[1].kind == "unknown", "a Monster AI line with no on/off warns")
+end)()
+
+--A negotiation beat: its fields, traits, arguments, riders and offers.
+;(function()
+    local parsed = EncounterScript.Parse([==[
+# Negotiation: Hask, Toll Captain
+
+[[scene]]
+
+Played by: Human Bandit Chief
+Pronouns: he
+Attitude: Suspicious
+Language: Zaliac
+Impression: 2
+Renown: Famous
+Want: Get the party across.
+Opening: Bridge is closed.
+
+## Motivation: Greed
+Clue: He never takes his hand off the strongbox.
+
+## Pitfall: Higher Authority
+Start: Known
+
+## Pitfall: Justice
+Start: Unlocked by the ledger
+
+## Argument: Offer him a cut
+Appeals: Greed
+PC: There is more in this road.
+|Test: Presence (Persuade)
+|Edge: you speak Zaliac
+Lands: Now that is a sound I know.
+Falls short: Show me coin.
+
+## Argument: Show the writ
+Appeals: Higher Authority
+PC: By order of the baron.
+Fails: Mention him again and you can swim.
+
+## Argument: Share a drink
+Appeals: Nothing
+|Test: Presence (Flirt)
+Lands: Ha!
+Falls short: I am working.
+Backfires: Bought with bad wine?
+
+## Argument: Swear on the old road
+Appeals: Greed
+|Allow: you speak Zaliac
+|Test: Intuition (Persuade)
+
+## Offer: Yes, but...
+You may cross, for 20 gold a head.
+|+2 malice
+
+## Offer: No
+Nobody crosses tonight.
+]==])
+    check(#parsed.warnings == 0, "a clean negotiation has no warnings: " .. tostring(parsed.warnings[1]))
+    local b = parsed.beats[1]
+    check(b.kind == "negotiation" and b.name == "Hask, Toll Captain", "the beat and its name")
+    check(b.sceneTag == "scene", "its backdrop")
+    check(b.playedBy == "Human Bandit Chief" and b.pronouns == "he" and b.attitude == "suspicious", "NPC fields")
+    check(b.language == "Zaliac" and b.impression == 2 and b.renown == "famous", "more NPC fields")
+    check(b.want == "Get the party across." and b.opening == "Bridge is closed.", "want and opening")
+    check(#b.traits == 3 and b.traits[1].clue ~= "" and b.traits[1].start == "hidden", "a hidden motivation with a clue")
+    check(b.traits[2].start == "known", "a known pitfall")
+    check(b.traits[3].start == "unlock" and b.traits[3].unlock == "the ledger", "an unlockable pitfall")
+    local cut, writ, drink, oath = b.arguments[1], b.arguments[2], b.arguments[3], b.arguments[4]
+    check(cut.kind == "motivation" and cut.traitId == b.traits[1].id, "an argument ties to its motivation")
+    check(cut.roll.attr == "Presence (Persuade)" and cut.say ~= "" and cut.lands ~= "" and cut.fallsShort ~= "", "argument fields")
+    check(#cut.riders == 2 and cut.riders[1].effect == "edge" and cut.riders[2].renown, "an edge rider, and the Renown edge on Persuade")
+    check(writ.kind == "pitfall" and writ.roll == nil and writ.backfires ~= "", "a pitfall argument needs no test")
+    check(drink.kind == "neutral" and drink.traitId == nil and drink.backfires ~= "", "a neutral argument")
+    check(oath.riders[1].effect == "allow", "a secret argument")
+    check(b.offers[4].text ~= "" and #b.offers[4].effects == 1 and b.offers[4].effects[1].kind == "malice", "an offer and its rules")
+    check(b.offers[2].text == "Nobody crosses tonight." and b.offers[1] == nil, "offers sit at interest + 1")
+
+    local bad = EncounterScript.Parse([==[
+# Negotiation: Hask
+
+Attitude: Grumpy
+Nonsense: here
+
+## Argument: One
+Appeals: Vanity
+
+## Offer: Maybe
+
+## Round 1
+]==])
+    local text = table.concat(bad.warnings, "\n")
+    check(string.find(text, "attitude 'Grumpy'", 1, true) ~= nil, "a bad attitude warns")
+    check(bad.beats[1].attitude == "suspicious", "and the default stands")
+    check(string.find(text, "'Vanity'", 1, true) ~= nil and bad.beats[1].arguments[1].kind == "neutral", "an unknown appeal warns and is neutral")
+    check(string.find(text, "no test line", 1, true) ~= nil, "a missing test warns")
+    check(string.find(text, "'## Offer: Maybe'", 1, true) ~= nil, "an unknown offer warns")
+    check(string.find(text, "'## Round 1'", 1, true) ~= nil, "a foreign heading warns")
+    check(string.find(text, "Unknown beat", 1, true) == nil, "the heading is a known beat")
+
+    --the Renown rule is an edge rider on arguments of the right kind
+    local famous = EncounterScript.Parse([==[
+# Negotiation: Hask
+
+Impression: 2
+Renown: Famous
+
+## Argument: Charm
+Appeals: Nothing
+|Test: Presence (Flirt)
+
+## Argument: Threaten
+Appeals: Nothing
+|Test: Presence (Intimidate)
+]==])
+    local charm, threaten = famous.beats[1].arguments[1], famous.beats[1].arguments[2]
+    check(#charm.riders == 1 and charm.riders[1].effect == "edge" and charm.riders[1].renown, "famous: an edge on Flirt")
+    check(#threaten.riders == 0, "famous: no edge on Intimidate")
+
+    --the validator's checks
+    local thin = EncounterScript.Parse([==[
+# Negotiation: Hask
+
+## Motivation: Greed
+
+## Argument: Cut
+Appeals: Nothing
+|Test: Presence (Persuade)
+]==]).beats[1]
+    local said = table.concat(EncounterScript.NegotiationProblems(thin), "\n")
+    check(string.find(said, "no argument appeals to Greed", 1, true) ~= nil, "a motivation with no argument")
+    check(string.find(said, "Greed has no clue", 1, true) ~= nil, "a motivation with no clue")
+    check(string.find(said, "at least two motivations", 1, true) ~= nil, "too few motivations")
+    check(string.find(said, "no 'Opening:' line", 1, true) ~= nil, "no opening")
+    check(string.find(said, "'## Offer: yes, but'", 1, true) ~= nil, "a missing offer")
+
+    local uncover = EncounterScript.ParseEffects("You uncover the ledger")[1]
+    check(uncover.kind == "uncover" and uncover.name == "the ledger", "the uncover clause")
+
+    check(EncounterScript.NegotiationOfferInterest("Yes but") == 3, "'Yes but' reads as 'Yes, but'")
+    check(EncounterScript.NegotiationOfferInterest("No, and...") == 0, "the ellipsis is dropped")
+    check(EncounterScript.NegotiationOfferInterest("Perhaps") == nil, "an unknown offer")
 end)()
 
 print(string.format("encounter_script_test: %d checks passed", passed))

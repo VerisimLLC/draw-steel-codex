@@ -135,6 +135,14 @@ Scene conditions accept the same vocabulary:
 `PC has X` now means anything the hero has by that name: a skill, perk,
 ability, trait, item and so on. Use `PC is skilled in X` for skills only.
 
+### In negotiations
+
+Knacks work the same way on a `# Negotiation` beat's arguments: `Edge` and `Bane`
+riders, and `Allow` to make an argument secret. A secret argument appears once
+the player picks a hero who qualifies. The knack that matters most there is one
+that reveals something, so prefer `You uncover <label>` on an earlier test when
+a hero's background would plausibly tell them about the NPC.
+
 ## 2. The requirement vocabulary
 
 A requirement is a list of alternatives joined by `or`, commas or

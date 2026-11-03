@@ -40,8 +40,22 @@ function GameHud.ToggleInventory(self, token)
 	self.inventoryDialog.data.toggleOpen(token)
 end
 
+--Counts whole-hud refresh passes; inRefreshPass is true during one. Panel refresh handlers
+--only read game state, so lookups they repeat across many panels can cache per pass
+--(InitiativeQueue.GetTokensForInitiativeId does).
+GameHud.refreshPass = 0
+GameHud.inRefreshPass = false
+
 function GameHud.Refresh(self)
-	self.dialog.sheet:FireEventTree('refresh')
+	GameHud.refreshPass = GameHud.refreshPass + 1
+	GameHud.inRefreshPass = true
+	local ok, err = pcall(function()
+		self.dialog.sheet:FireEventTree('refresh')
+	end)
+	GameHud.inRefreshPass = false
+	if not ok then
+		error(err, 0)
+	end
 
 	--panels popped out into native OS windows are unparented from the hud
 	--tree, so the broadcast above never reaches them; extend it to each
@@ -817,6 +831,32 @@ function GameHud.EditLoot(self, object)
 	self.inventoryDialog.data.open(lootobj, { isobject = true, isshop = lootobj.shop, showBasic = true })
 end
 
+--- Delete a loot container that has just been emptied (destroy on empty).
+--- The emptying is a queued change, sent on the next frame, but a delete is
+--- sent at once; deleting in the same frame let that late change re-create
+--- the object's loot part, leaving the item on the map. So this waits two
+--- frames, and skips an object already gone (a second click, another player).
+--- @param lootobj LuaObjectComponentLoot
+function GameHud.DestroyEmptiedLoot(lootobj)
+	local floorid, objid = lootobj.floorid, lootobj.objid
+	local target = dmhub.FrameCount() + 2
+	local function Check()
+		if mod.unloaded then
+			return
+		end
+		if dmhub.FrameCount() < target then
+			dmhub.Schedule(0.01, Check)
+			return
+		end
+		local floor = game.GetFloor(floorid)
+		if floor == nil or floor.objects[objid] == nil then
+			return
+		end
+		lootobj:DestroyObject()
+	end
+	dmhub.Schedule(0.01, Check)
+end
+
 --function called by DMHub to indicate that a Loot object is being looted by a player.
 function GameHud.LootContainer(self, token, object)
 	local lootobj = object:GetComponent("Loot")
@@ -828,7 +868,7 @@ function GameHud.LootContainer(self, token, object)
 	if lootobj.instantLoot then
 		GameHud.LootAll(lootobj, token)
 		if lootobj.destroyOnEmpty then
-			lootobj:DestroyObject()
+			GameHud.DestroyEmptiedLoot(lootobj)
 		end
 		return
 	end
@@ -1792,7 +1832,6 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 			--gamehud:CreateSidePanel(),
 			--gamehud:CreateSessionsPanel(),
 			--gamehud:CreateChatPanel(),
-			gamehud:CreateFrozenLabel(),
 			gamehud:CreateDocks(),
 
 			--ORDER IS Z-ORDER: panels have no z-index, so a later sibling draws
@@ -1822,6 +1861,9 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 			--mode banners (e.g. the encounter builder's staging banner) sit over
 			--every window, so click-to-front on a map window cannot bury them.
 			gamehud:CreateBannerLayer(),
+			--the FROZEN label too: map windows live in the documents layer, so
+			--anywhere before it the live map window draws over the label.
+			gamehud:CreateFrozenLabel(),
 
 			--The action bar sits ABOVE the documents layer for the same reason.
 			--Everything the bar floats out of its strip -- the drawer menus, the
@@ -1847,10 +1889,14 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 			--entirely when no token is selected.
 			gamehud:CreateActionBar(dialog, tokenInfo),
 			gamehud:CreateReactionBar(dialog, tokenInfo),
+			mainDialogPanel,
+            --The roll surfaces (the ability sidebar, where rolls embed, the roll
+            --host and the group roll board) sit above the main dialog layer, so a
+            --roll started from a dialog there, such as a maximized Hero sheet,
+            --shows on top of it. All are side panels, not full screen.
             gamehud:CreateAbilityDisplayPanel(),
             gamehud:CreateStandaloneRollHost(),
             gamehud:CreateGroupRollBoardLayer(),
-			mainDialogPanel,
 			gamehud.shopPanel,
 			gamehud:ModalDialogPanel(),
 			gamehud:CreatePopupPanel(),
@@ -1885,6 +1931,27 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 	gamehud.documentsPanel:AddChild(FullscreenDisplay.Create{aboveui = false})
 
 	dialog.sheet = parentPanel
+
+	--A hud rebuilt for the same game (a reload of another mod's scripts) took
+	--the icon rails and map-button bar with it; DocumentSystem only builds them
+	--on game entry or its own reload, so ask for both again here.
+	local rebuilt = rawget(_G, "g_hudGameId") == dmhub.gameid
+	rawset(_G, "g_hudGameId", dmhub.gameid)
+	if rebuilt then
+		dmhub.Schedule(0.1, function()
+			if mod.unloaded or GameHud.instance ~= gamehud then
+				return
+			end
+			local ensureRails = rawget(_G, "EnsureIconRail")
+			if ensureRails ~= nil then
+				ensureRails()
+			end
+			local mapButtons = rawget(_G, "MapButtons")
+			if mapButtons ~= nil and mapButtons.Refresh ~= nil then
+				mapButtons.Refresh()
+			end
+		end)
+	end
 
 	--if a modding merge has occurred, display info about it here.
 	if dmhub.modMergeInfo ~= nil then

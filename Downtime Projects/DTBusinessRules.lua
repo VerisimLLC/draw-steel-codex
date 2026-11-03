@@ -298,6 +298,21 @@ function DTBusinessRules.ExtractLanguagesToIds(text)
     return langIds
 end
 
+--- Can a project craft this item? The book's four crafting fields must all be
+--- filled (the source dialog, the Hero sheet's New project and the
+--- Inventory's craft link share this rule).
+--- @param item table a tbl_Gear row
+--- @return boolean
+function DTBusinessRules.IsCraftable(item)
+    local function Filled(field)
+        local value = item:try_get(field)
+        return type(value) == "string" and #value > 0
+    end
+    local chars = item:try_get("projectRollCharacteristic")
+    return Filled("projectGoal") and Filled("projectSource") and Filled("itemPrerequisite")
+        and type(chars) == "table" and next(chars) ~= nil
+end
+
 --- Applies a selected source (crafting item or downtime activity) onto a project,
 --- populating the project's fields. The caller is responsible for wrapping this in
 --- token:ModifyProperties and for refreshing the UI afterward.

@@ -3187,56 +3187,61 @@ mod.shared.ImportMapToFloorCo = function(info)
     end
 
     local data = info.uvttData
+
+    --What a UVTT import creates. There is no import dialog: every import
+    --uses these stock assets and behaviors. Code that imports
+    --programmatically can still override any of them through
+    --info.assetChoices (same keys).
+    local defaults = {
+        wallAssetId = "-MGADhKw0vw30yXNF2-e",
+        objectWallAssetId = "eae7f3fe-d278-455c-853a-ac43f948c743",
+        terrainWallAssetId = "eae7f3fe-d278-455c-853a-ac43f948c743",
+        invisibleWallAssetId = "eae7f3fe-d278-455c-853a-ac43f948c743",
+        transparentWindowWallAssetId = "eae7f3fe-d278-455c-853a-ac43f948c743",
+        unrecognizedWallAssetId = "-MGADhKw0vw30yXNF2-e",
+        --"door41": a real door object (Door component, hinged at one end).
+        doorObjectId = "-MfWx0b2IlyApLQwasYg",
+        windowObjectId = "-MDd3Knydcq2WsjStef2",
+        secretDoorObjectId = "-MfWx0b2IlyApLQwasYg",
+        lightObjectId = "2339211c-c35a-4e0a-a5fa-79d2e446bd3b",
+        structuralWallMode = "wall",
+        objectWallMode = "wall",
+        terrainWallMode = "wall",
+        invisibleWallMode = "wall",
+        unrecognizedWallMode = "none",
+        doorMode = "asset",
+        windowMode = "asset",
+        secretDoorMode = "asset",
+        lightMode = "asset",
+        --90 suits assets drawn with their long axis along Y; use 0 for X.
+        portalRotationOffset = 90,
+    }
     local choices = info.assetChoices or {}
-    local function importAsset(choiceValue, settingId, fallback)
-        local value = choiceValue
+    local function importAsset(key)
+        local value = choices[key]
         if value == nil or value == "" then
-            value = dmhub.GetSettingValue(settingId)
-        end
-        if value == nil or value == "" then
-            value = fallback
+            value = defaults[key]
         end
         return value
     end
 
-    local wallAsset       = choices.wallAssetId        or dmhub.GetSettingValue("mapimport:wall_asset_id")
-    local objectWallAsset = choices.objectWallAssetId  or dmhub.GetSettingValue("mapimport:object_wall_asset_id")
-    local terrainWallAsset = importAsset(choices.terrainWallAssetId, "mapimport:terrain_wall_asset_id", objectWallAsset)
-    local invisibleWallAsset = importAsset(choices.invisibleWallAssetId, "mapimport:invisible_wall_asset_id", objectWallAsset)
-    local transparentWindowWallAsset = importAsset(choices.transparentWindowWallAssetId, "mapimport:transparent_window_wall_asset_id", objectWallAsset)
-    local unrecognizedWallAsset = choices.unrecognizedWallAssetId or dmhub.GetSettingValue("mapimport:unrecognized_wall_asset_id") or wallAsset
-    local doornode        = choices.doorObjectId       or dmhub.GetSettingValue("mapimport:door_object_id")
-    local windownode      = choices.windowObjectId     or dmhub.GetSettingValue("mapimport:window_object_id")
-    local secretDoorNode  = choices.secretDoorObjectId or dmhub.GetSettingValue("mapimport:secret_door_object_id")
-    local lightnodeChoice = choices.lightObjectId      or dmhub.GetSettingValue("mapimport:light_object_id")
-    local function normalizeMode(value, defaultValue, allowed)
-        local mode = tostring(value or defaultValue)
+    local wallAsset       = importAsset("wallAssetId")
+    local objectWallAsset = importAsset("objectWallAssetId")
+    local terrainWallAsset = importAsset("terrainWallAssetId")
+    local invisibleWallAsset = importAsset("invisibleWallAssetId")
+    local transparentWindowWallAsset = importAsset("transparentWindowWallAssetId")
+    local unrecognizedWallAsset = importAsset("unrecognizedWallAssetId")
+    local doornode        = importAsset("doorObjectId")
+    local windownode      = importAsset("windowObjectId")
+    local secretDoorNode  = importAsset("secretDoorObjectId")
+    local lightnodeChoice = importAsset("lightObjectId")
+
+    local function importMode(key, allowed)
+        local mode = tostring(choices[key] or defaults[key])
         if allowed[mode] == true then
             return mode
         end
-        return defaultValue
-    end
-
-    local function importMode(choiceKey, settingId, defaultValue, allowed)
-        local mode = choices[choiceKey]
-        if mode == nil then
-            mode = dmhub.GetSettingValue(settingId)
-        end
-        return normalizeMode(mode, defaultValue, allowed)
-    end
-
-    local function legacyImportMode(choiceKey, legacyChoiceKey, settingId, legacySettingId, defaultValue, allowed)
-        local mode = choices[choiceKey]
-        if mode == nil then
-            mode = choices[legacyChoiceKey]
-        end
-        if mode == nil then
-            mode = dmhub.GetSettingValue(settingId)
-        end
-        if mode == nil or mode == "" then
-            mode = dmhub.GetSettingValue(legacySettingId)
-        end
-        return normalizeMode(mode, defaultValue, allowed)
+        return defaults[key]
     end
 
     local function appendList(result, source)
@@ -3268,22 +3273,17 @@ mod.shared.ImportMapToFloorCo = function(info)
     local wallModeAllowed = {wall = true, none = true}
     local assetModeAllowed = {asset = true, none = true}
     local windowModeAllowed = {asset = true, movement_wall = true, none = true}
-    local structuralWallMode = importMode("structuralWallMode", "mapimport:structural_wall_mode", "wall", wallModeAllowed)
-    local objectWallMode = importMode("objectWallMode", "mapimport:object_wall_mode", "wall", wallModeAllowed)
-    local terrainWallMode = importMode("terrainWallMode", "mapimport:terrain_wall_mode", "wall", wallModeAllowed)
-    local invisibleWallMode = legacyImportMode("invisibleWallMode", "movementWallMode", "mapimport:invisible_wall_mode", "mapimport:movement_wall_mode", "wall", wallModeAllowed)
-    local unrecognizedWallMode = importMode("unrecognizedWallMode", "mapimport:unrecognized_wall_mode", "none", wallModeAllowed)
-    local doorMode = importMode("doorMode", "mapimport:door_mode", "asset", assetModeAllowed)
-    local windowMode = importMode("windowMode", "mapimport:window_mode", "asset", windowModeAllowed)
-    local secretDoorMode = importMode("secretDoorMode", "mapimport:secret_door_mode", "asset", assetModeAllowed)
-    local lightMode = importMode("lightMode", "mapimport:light_mode", "asset", assetModeAllowed)
-    if choices.unrecognizedWallMode == nil and choices.includeUnrecognizedWalls ~= nil then
-        unrecognizedWallMode = cond(choices.includeUnrecognizedWalls == true, "wall", "none")
-    end
+    local structuralWallMode = importMode("structuralWallMode", wallModeAllowed)
+    local objectWallMode = importMode("objectWallMode", wallModeAllowed)
+    local terrainWallMode = importMode("terrainWallMode", wallModeAllowed)
+    local invisibleWallMode = importMode("invisibleWallMode", wallModeAllowed)
+    local unrecognizedWallMode = importMode("unrecognizedWallMode", wallModeAllowed)
+    local doorMode = importMode("doorMode", assetModeAllowed)
+    local windowMode = importMode("windowMode", windowModeAllowed)
+    local secretDoorMode = importMode("secretDoorMode", assetModeAllowed)
+    local lightMode = importMode("lightMode", assetModeAllowed)
     local flipFoundryTerrainWalls = choices.flipFoundryTerrainWalls == true
-    if choices.flipFoundryTerrainWalls == nil then
-        flipFoundryTerrainWalls = dmhub.GetSettingValue("mapimport:flip_foundry_terrain_walls") == true
-    end
+    local portalRotationOffset = tonumber(choices.portalRotationOffset) or defaults.portalRotationOffset
     local nudgeX = tonumber(choices.alignmentOffsetX) or 0
     local nudgeY = tonumber(choices.alignmentOffsetY) or 0
     if nudgeX ~= 0 or nudgeY ~= 0 then
@@ -3936,7 +3936,7 @@ mod.shared.ImportMapToFloorCo = function(info)
                             -- so anchor it at the first endpoint of the portal segment.
                             portalObj.x = area.x1 + x1
                             portalObj.y = area.y2 - y1
-                            portalObj.rotation = delta.angle + (tonumber(dmhub.GetSettingValue("mapimport:portal_rotation_offset")) or 90)
+                            portalObj.rotation = delta.angle + portalRotationOffset
                             portalObj.scale = portalObjectScale(nodeId, delta.length)
                             portalObj:Upload()
                         end
@@ -4128,6 +4128,18 @@ mod.shared.FinishMapImport = function(mapName, info, created, extra)
 
         if extra.done ~= nil then
             extra.done(guid)
+        end
+
+        --open the new map's UVTT Settings so the lighting can be tuned
+        --straight away. Its script starts on the map-script driver's next
+        --tick, so keep trying for a few seconds.
+        if info.uvttData ~= nil and rawget(_G, "MapScript") ~= nil then
+            for i = 1, 40 do
+                if game.currentMapId ~= guid or MapScript.OpenButton("builtin:uvtt-settings", "settings") then
+                    break
+                end
+                coroutine.yield(0.25)
+            end
         end
     end)
 end

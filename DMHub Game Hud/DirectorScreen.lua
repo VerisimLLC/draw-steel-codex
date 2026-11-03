@@ -246,8 +246,7 @@ end
 
 --The table's size, in documents-layer units.
 local function TableSize()
-    local rect = Tabletop.LayerRect()
-    return rect.w, rect.h
+    return Tabletop.LayerSize()
 end
 
 --How far in from the right the right icon rail reaches: 0 with no rail, or
@@ -1654,9 +1653,13 @@ local function KeepOnTop()
         return child:HasClass("journalViewer") and not child:HasClass("journalMaximized")
     end
 
-    local children = docs.children
+    --childCount/GetChild (0-based) rather than 'children', which builds a new table
+    --per read: this runs 20 times a second. Nothing reorders the children until after
+    --the loops below.
+    local nchildren = docs.childCount
     local bandIndex = nil
-    for i, child in ipairs(children) do
+    for i = 1, nchildren do
+        local child = docs:GetChild(i - 1) --[[@as Panel]] --i is within childCount
         if child == band then
             bandIndex = i
             break
@@ -1666,7 +1669,8 @@ local function KeepOnTop()
         return
     end
     local wrong = false
-    for i, child in ipairs(children) do
+    for i = 1, nchildren do
+        local child = docs:GetChild(i - 1) --[[@as Panel]] --i is within childCount
         if own[child] then
             wrong = wrong or i < bandIndex
         elseif OnTable(child) then
@@ -1681,7 +1685,8 @@ local function KeepOnTop()
     end
 
     local rails, mine, above = {}, {}, {}
-    for i, child in ipairs(children) do
+    for i = 1, nchildren do
+        local child = docs:GetChild(i - 1) --[[@as Panel]] --i is within childCount
         if own[child] then
             mine[#mine+1] = child
         elseif child:HasClass("iconRail") then

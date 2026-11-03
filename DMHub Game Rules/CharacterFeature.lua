@@ -1109,7 +1109,10 @@ function CharacterFeature:PopupEditor(options)
 	--options.commit: called with the edited feature on every change
 	--notification (including Confirm/Cancel) BEFORE the notify element is
 	--told to refresh.
+	--options.cancel: called with the feature after Cancel has restored it, so
+	--a caller that added the feature just to edit it can take it back out.
 	local commit = options.commit
+	local cancel = options.cancel
 
 	local backup = DeepCopy(self)
 
@@ -1244,6 +1247,10 @@ function CharacterFeature:PopupEditor(options)
 					-- the list would persist until the sheet was reopened.
 					contentPanel:FireEventTree('modifierRefreshed')
 
+					if cancel ~= nil then
+						cancel(self)
+					end
+
 					resultPanel:DestroySelf()
 				end,
 			},
@@ -1350,6 +1357,17 @@ function CharacterFeature.ListEditor(document, fieldName, options)
 		end,
 	}
 
+	--One row, built once and handed back on every rebuild: assigning children
+	--destroys any omitted, so a fresh row each time destroyed the old one and
+	--the two buttons inside it, leaving the next rebuild holding dead panels.
+	local buttonRow = gui.Panel{
+		width = "auto",
+		height = "auto",
+		flow = "horizontal",
+		addButton,
+		pasteButton,
+	}
+
 	CalculateChildren = function()
 		local children = {}
 		local items = document:try_get(fieldName, {})
@@ -1403,13 +1421,7 @@ function CharacterFeature.ListEditor(document, fieldName, options)
 			}
 		end
 
-		children[#children+1] = gui.Panel{
-			width = "auto",
-			height = "auto",
-			flow = "horizontal",
-			addButton,
-			pasteButton,
-		}
+		children[#children+1] = buttonRow
 		return children
 	end
 

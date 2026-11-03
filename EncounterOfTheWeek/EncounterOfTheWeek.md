@@ -2065,7 +2065,7 @@ Events (fields beyond the run fields):
 | `eotw_town_open` / `eotw_town_close` | client | `seconds`, `reason` (enter_game / close) |
 | `eotw_welcome` | client | `action` shown (first visit on this machine) / discord |
 | `eotw_location_open` / `_close` | client | `location`, `seconds` |
-| `eotw_party_create` / `_join` / `_launch` / `_leave` | client | `encounter`, `board`, `public`; `members`, `slotsFilled`/`slotsTotal`; leave `how` leave / disband |
+| `eotw_party_create` / `_join` / `_launch` / `_leave` | client | `runid` (create: from 2026-10-28, sent once the game exists), `encounter`, `board`, `public`; `members`, `slotsFilled`/`slotsTotal`; leave `how` leave / disband |
 | `eotw_enter_game` | client | `resume`, `members`, `slotsFilled`, `myHeroes`, `host`, `fastLaunch` |
 | `eotw_run_start` / `_resume` | client | `host`, `sittings`, `players`, `partyHeroes`, `heroCount`, `heroClasses`/`heroAncestries`/`heroLevels` (comma lists), `combatStarted`, `lastPhase` (resume) |
 | `eotw_run_end` | client | `outcome`, `how`, `lastPhase`, `lastPhaseSeconds`, `minutes`/`seconds` (this machine's play time, all sittings), `heroesDied`/`heroesSurvived`, `victoriesEarned`, `treasuresEarned`, `rounds`, `combatStarted` |
@@ -2210,7 +2210,16 @@ per part and what the Gate's unlock reads.
   (`m_arrivalKey`, for a member placing heroes before the host's stamp), else 1.
 - `EncounterOfTheWeekGame.PlayArea()` (cached 2 s, keyed by map + part):
   `{region, startLocs, encounter}` from the active island's encounter.
-  `InPlayRegion(x, y)`.
+  `InPlayRegion(x, y)`. Only the host can read the encounter (its script
+  documents live in the map's journal folder, a Director/host root), so
+  `ApplyPlayRegion` first calls `Series.SharePlayArea`, which copies the
+  region and raw start tiles into `eotwstate.playArea = {mapid, part, region,
+  startLocs}`; a member's `PlayArea()` uses that copy (no `encounter`) when it
+  finds no encounter itself. Before 2026-10-26 members had no start tiles, so
+  on a map with no painted Start zone (Aixco Hollow) their heroes were pasted
+  at the camera, with no outline or confinement. Backstop: the host's
+  pre-combat tick runs `MoveStrayHeroesIntoPlay` once per part, 5 s after the
+  whole party has arrived (`Series.strayRepairKey`).
 - The host's setup calls `ApplyPlayRegion()` right after `RecordEncounterMap`
   and before any hero lands: `Encounter.ApplyRegion(encounter, {hold = true,
   anyMap = true})`. **Core change** (`MCDMEncounter.lua`): `ApplyRegion` takes
@@ -4972,8 +4981,12 @@ From arrival until the initiative queue first goes live (latched by
 `combatStarted`), each client's 1s driver:
 
 - installs the engine **movement restriction** (`dmhub.SetMovementRestriction{
-  locs}`): steps outside the Start zone are impassable for pathing, arrows,
-  and drags (forced movement exempt), with a commit backstop;
+  locs, teleportBetweenAreas = true}`): steps outside the Start zone are
+  impassable for pathing, arrows, and drags (forced movement exempt), with a
+  commit backstop. When the start area is several separate zones (Start plus
+  an unlocked Start2, or builder start tiles in two places), dragging a hero
+  onto a zone no walk reaches teleports it there (purple arrow, no teleport
+  events) -- added 2026-10-29 at David's ask, engine NB, UT;
 - outlines the zone with `dmhub.MarkLocs{locs, color, style = "dashed"}`;
 - holds `GameHud.SetTooltipsSuppressed("eotw", true)`: no tooltips and no
   movement cross-section anywhere -- **except while a stage beat is up**, so
@@ -5006,14 +5019,12 @@ Start zone, or a full one, the companion lands beside the hero (possibly
 outside the confinement). The authoring test does the same, and End Test
 removes the companions with the hero copies.
 
-**Arranging the heroes (BUILT 2026-10-04, untested).** The phase only
-happens when there is **no initiative roll**: a montage outcome hands the
-heroes the initiative ("you win initiative", "you surprise the enemy"). When
-the die is rolled there is no phase: the banner waits for a player to roll, and
-the heroes arrange themselves (inside the start area) before rolling.
-`StartEncounterCombat` passes `holdBeforeQueue` only when `immediateResult ==
-"heroes"` (decided 2026-10-05). In the no-roll case the Draw Steel banner still
-announces the win, but the initiative queue is not created yet. Core hook:
+**Arranging the heroes (BUILT 2026-10-04, untested).** The phase happens
+once the initiative is decided, won or lost: by a montage outcome ("you win
+initiative", "you surprise the enemy") or, since 2026-10-26 (David's ask), by
+the Draw Steel roll. `StartEncounterCombat` passes `holdBeforeQueue` unless
+`noArrange` (only the lost-`begin` restart sets it). The Draw Steel banner
+announces the result, but the initiative queue is not created yet. Core hook:
 `Encounter.StartCombatWithTokens{ holdBeforeQueue = fn(heroesWin, begin) }`
 (`DSInitiativeRoll.lua`; the banner's queue creation is now the local
 `CreateCombatQueue(heroesWin)`, and `begin()` runs it once). EotW passes
@@ -5125,11 +5136,21 @@ all three, appended at the end (text-storage keys `zA`..`zF`). The user's
 Town Gate text said "sort"; it was written as "sought".
 
 **The Victory award.**
-- One Victory per won encounter (`ENCOUNTER_VICTORIES`), awarded by the host
-  through the core `DSVictoryScreen.AwardVictories(live, amount,
-  exemptions)` -- the same code the Director's Award button now runs --
-  elevated, so it can write every player's heroes. Every client plays the
-  usual icon drop.
+- A won encounter is worth the opening fight's **"Victories awarded"**
+  (encounter builder, `Encounter.victories`, default 1; read from
+  `live.victories` by `EncounterVictories`). Until 2026-10-27 this was a
+  hard-coded 1 (`ENCOUNTER_VICTORIES`). An Encounter Script can change it
+  mid-fight with `ctx:SetVictories(n)` (e.g. 2 for the better ending); it
+  must do so before the victory condition is met. Challenge Mode adds one.
+  The validator panel shows the number and warns (only warns) when a
+  Challenge Mode win would be worth more than 3: Proving Pits wins never
+  reach a hero, so a module is looked at before it joins the Town Gate.
+  A hero who already won the encounter still gets 0, whatever ending they
+  reach this time (the City records completion, not the amount).
+- Awarded by the host through the core `DSVictoryScreen.AwardVictories(live,
+  amount, exemptions)` -- the same code the Director's Award button now
+  runs -- elevated, so it can write every player's heroes. Every client
+  plays the usual icon drop.
 - **Exemptions** (`live.victoryExemptions = {[charid] = note}`): a hero who
   died gets nothing and no note (user decision: no Victory for the dead);
   a hero who already won this encounter gets "Already Completed" in grey
@@ -5913,6 +5934,42 @@ safe-zone tile (elevated `token:Move`, freeMovement); a hostage on a
 safe-zone tile is rescued. Victory: every living hostage rescued; defeat:
 every hostage dead.
 
+## Negotiation beats (BUILT 2026-10-30; two players tested)
+
+User direction 2026-10-30 (Lisa, with David): a negotiation that plays with no
+Director, as a montage does, to fix the empty feeling of the journal stage. The
+plan and its decisions are `NEGOTIATION_SCRIPTED_PLAN.md` at the dmhub repo root;
+the grammar is in `.claude/skills/eotw/script-reference.md`.
+
+- `EncounterNegotiation.lua` is the runtime, on the montage's authority model:
+  host-written `data.negotiation`, player requests, and the acting player's
+  client rolls. The book's numbers stay in `NegotiationRules`, which it calls.
+- The body is `CreateNegotiationStage` in `EncounterMontageStage.lua`, swapped in
+  by the script stage like the narrative and prep bodies.
+- A roll reuses the montage's dialog through `EncounterMontage.BuildTestRoll` and
+  `ShowTestRoll`. Edge-style perks apply; the perks that rescue a failed test do
+  not.
+- Stopping and accepting use one vote per player. A split is settled by a random
+  player, with no flash yet.
+- `You uncover <label>` writes `data.negotiationClues`, read at `Begin`.
+- A negotiation in a Director game is not this: that is `NegotiationRules`'s own
+  stage and rail.
+
+**Dev limit:** after `reload_lua`, the stage does not mount until a full app
+start. Cause not found; not known whether it is specific to negotiation.
+
+**The builder** is `S.NegotiationEditor` in `EncounterScriptBuilder.lua`, in the
+Encounter Builder's script view: one scrolling form (the NPC, traits, arguments,
+offers) rather than the mockup's list and detail panes, like the narrative editor.
+The parser records `fieldLines` on the beat, traits and arguments, and `textLines`
+and `ruleLines` on offers; `EncounterScriptEdit` has the writers. The test and
+knack rows are the montage builder's, as `ctx.AttrEditor` and `ctx.RiderRows`.
+"Test this negotiation" is `EncounterNegotiation.StartPreview(beat)`, a rehearsal:
+`m.rehearsal` makes `Finish` apply nothing. Not built: the mockup's quick odds,
+and knack coverage does not count negotiation arguments yet. To try the builder
+in a Director-less game, use a `--director` window on a throwaway document not
+filed under the map.
+
 ## Narrative beats
 
 ```
@@ -6031,7 +6088,7 @@ montage.consumeSeq                     -- bumped by every item use (see "Consuma
 initiative, surprised = {party, enemy}, noSurprise, surges = { [heroCharid] = n }
 zoneSetup, revealZones, zonesRevealed, unlocked, intelligence, intelligenceByHero,
 intelligenceLog,
-chestSeen, stageDismissAt
+chestSeen, stageDismissAt        -- chestSeen also holds "(Mystery)" tables ("table:<entry id>:<table key>")
 reinforcements = { arrived = { ["<sectionId>-r<round>"] = {round, at, island, count} },
                    spawned = { charid, ... } }
 ```
@@ -6101,13 +6158,21 @@ immediately via `SetHeroesSurprised`, duration end-of-encounter). `ctx.heroEntri
 gives a multi-target apply (narratives). Hidden effects are applied and then
 removed from the `applied` list.
 
-**Haul hand-over**: a hero's player can drag a haul icon onto another hero's
-card to give one unit (`giveItem {heroid, targetId, itemid}`; the host
-re-checks ownership, the haul record and what the hero really holds, worn
-items included: a treasure found is auto-equipped, and the give takes it off
-first via `GiveItem`). The icon
-decrements optimistically. Only montage finds can be handed over; consumables
-the hero carried in show on the strip but stay with them.
+**Haul hand-over**: a hero's player can drag an icon from the item strip onto
+another hero's card to give one unit (`giveItem {heroid, targetId, itemid}`,
+host-side `EncounterMontage.GiveItem`; the host re-checks ownership, the haul
+record and what the hero really holds, worn items included: a treasure found
+is auto-equipped, and the give takes it off first via `GiveItem`). The icon
+decrements optimistically. Since 2026-10-28 (user direction) every strip item
+can be handed over: a find (its haul record moves with it) or any consumable
+the hero carries -- brought from town, or found in an earlier series part
+(`montage.ResetTest` clears the haul records between parts), which stays
+unrecorded so it is still "carried" for the receiver. The strip and the
+hand-over work on the montage, narrative and Tactical Preparation stages
+alike: each stage's strip sends through its own beat's `SendRequest`, and the
+narrative and preparation hosts route `giveItem` to `GiveItem` in any phase.
+The narrative strip used to stay empty (only the montage stage fires
+`refreshMontage`); a strip now fills itself at create.
 
 **Consumables in a montage** (BUILT 2026-10-09, user direction; untested in
 the app). Heroes can use their consumables during the montage rounds:
@@ -6245,6 +6310,23 @@ The grammar is in the /eotw skill's `script-reference.md`; in short:
   and landed count. Hidden clauses, delve obstacles, chest rows and
   narratives still roll silently on the host. Verified live 2026-10-17
   (Flotsam x2, Rising Waters 1d3 x4, the 45s fallback).
+- **Mystery tables (2026-10-27, dev-approved).** `|Grave Goods: 1d6 (Mystery)`
+  (`EncounterScript.TableHeaderDice`, case-insensitive; the name and key stay
+  "Grave Goods") sets `tableRoll.mystery`. Its rows read `???` on the
+  `DiceCard` until the party first lands on them, like a delve chest; damage
+  tables simply leave the tag off. Seen rows share `data.chestSeen`, under
+  `EncounterMontage.MysteryTableSeenKey(entryId, tableKey)` =
+  `"table:<entry id>:<table key>"` (kept by the dev reset). The host marks a
+  row in `LandMysteryRoll` as each die lands (`diceRolled` and the 45 s
+  fallback), setting `r.newReveal` / `r.landedAt`; the stage then holds `???`
+  for `CHEST_REVEAL_DELAY` and types the row in (`TableRowPanel`, shared with
+  `ChestCard`). Because `m.dice` normally closes the moment the last die
+  lands, `DiceAllIn` keeps it up until `d.holdUntil`
+  (`MYSTERY_REVEAL_HOLD_SECONDS` = 4 after a new reveal, the stage's reveal window) and `HostTick`
+  resumes it then; tables without a new reveal resume at once as before.
+  Hidden `{roll on ...}` clauses roll on the host with no card and mark
+  nothing. The montage builder shows a "Mystery" tick box on entry tables and
+  keeps the tag when the table is renamed or its dice change.
 - **Riders**: `movement` (climb = `IsClimber`, fly/swim/burrow speed > 0,
   teleport) and `wealth` (`CalculateNamedCustomAttribute("Wealth") >= N`)
   requirement kinds; `(Round N)` in a rider label (`rider.round`) gates it on
@@ -6483,6 +6565,24 @@ encounter fallback grids (`Encounter.SpawnGroupForReal`, the second grid in
 `EncounterPanel.lua`, `LiveEncounter:DeployWave`) and the montage's
 `SpawnAlly` pass it. Saved spawn positions keep their height (fliers).
 
+**Heroes still floated in a live run (2026-10-30, Dwarvish Bandits, 0.0.873):**
+the paste's ground snap was working, but it ran ~1s before the encounter
+map's heightmap arrived. Until a map's `/Maps/` record (rasters + heights)
+reaches the client, `MapMonitor.GetHeights` hands back an empty placeholder
+that reads altitude 0 everywhere, and the map switch waits only for the
+floors (`mapDetailsController`), never for that record. Fix (engine NEEDS
+BUILD, codex UNCOMMITTED): `MapMonitor.IsMapLoaded` / `map.terrainLoaded`
+(true once the record arrives from the cache or the server, or the server
+has none); `PlaceMyHeroes` waits for it
+(`EncounterOfTheWeekGame.WaitForMapTerrain`, 10s cap) before pasting; and
+`EncounterOfTheWeekGame.GroundTokens` re-grounds a token showing the race's
+signature only -- non-flying, unmounted, at altitude 0 over ground that is not
+at 0, not on a platform deck at 0 and not over water (`withGroundAltitude`
+ignores decks and the water surface, so a broader rule would drop heroes off
+bridges or to the bed at combat start; narrowed at release 0.0.874) -- each client's
+own heroes after arrival, and every player token at combat start (host,
+elevated), which also covers resumes and `MoveStrayHeroesIntoPlay`.
+
 **Known gaps:** a second Director in the authoring game could win the
 map-script election (the host tick still runs there, since it accepts
 `IsTestRunning()`, but that client does not see the test); a hero
@@ -6505,6 +6605,7 @@ the start's reset heals it first, so the snapshot holds it healed).
 | `EncounterOfTheWeekGame.DebugGetState()` | the `eotwstate` doc |
 | Codex menu > New Player Window (titlescreen, town open, admin) | a second window as the secondary account, opened into the town; see "Debug New Player Window" |
 | Game menu > Test Encounter: From the Start / Montage / Combat, End Encounter Test; `/eotwtest start\|montage\|combat\|end\|state` | the authoring test: play the map's encounter as a player host with copies of chosen pregens; see "The authoring test" |
+| Game menu > (Dev) Skip Montage (dev setting on, a montage running and not yet done) | ends the montage where it stands: any turn and dice in flight are dropped, unvanquished threats deliver **no** consequences (user direction 2026-11-01), the "over" card lingers as usual and the next beat starts. Already-resolved turns still count toward the part's totals. Any client can click it: it sends a `devskip` request that the host's tick applies (`DevSkipToEnd` in `EncounterMontage.lua`; the row comes from `EncounterMontage.GameMenuItems`, which `CodexTitleBar.lua`'s Game menu reads via rawget). Added 2026-11-01; luac + typing clean; live-tested 2026-11-01 (row hidden when done, shown while running; the click sends the request, the host tick ends the montage with turn/dice cleared and no consequences, then "done" after the linger). Not yet seen on a real montage in progress from beat start |
 
 **Dev-driver trap**: outside an EotW game nothing stamps `doc.data.beat`, and
 the stage chooses its body from it, so set it to the beat you are testing.

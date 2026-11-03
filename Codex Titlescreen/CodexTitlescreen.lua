@@ -39,6 +39,32 @@ local function GameHasNoLocalData(game)
     return game ~= nil and game.storage == 3 and not game.hasLocalData
 end
 
+--Horizontal alpha mask for the loading-quote banner: opaque middle, fading to
+--clear over the outer 20% each side. UI blending happens in linear color space,
+--so a linear alpha ramp looks like a hard edge over bright art. Each stop's
+--alpha is chosen so the visible darkening follows a smoothstep instead.
+local function LoadingQuoteFadeGradient()
+    local fadeWidth = 0.2
+    local steps = 8
+    local stops = {}
+    local function AddStop(position, t)
+        local darkening = t * t * (3 - 2 * t)
+        local alpha = 1 - (1 - darkening) ^ 2.2
+        stops[#stops + 1] = {position = position, color = core.Color{r = 1, g = 1, b = 1, a = alpha}}
+    end
+    for i = 0, steps do
+        AddStop(fadeWidth * i / steps, i / steps)
+    end
+    for i = steps, 0, -1 do
+        AddStop(1 - fadeWidth * i / steps, i / steps)
+    end
+    return gui.Gradient{
+        point_a = {x = 0, y = 0},
+        point_b = {x = 1, y = 0},
+        stops = stops,
+    }
+end
+
 local function FindLobbyGame(gameid)
     if gameid == nil then
         return nil
@@ -3704,17 +3730,7 @@ local function MakeGamePanel(gameIndex)
                         hpad = 5,
                         gui.Label {
                             refreshGames = function(element)
-                                local t = m_game.timePlayed
-                                if t < 60 then
-                                    element.text = "00:00"
-                                    return
-                                end
-
-                                local minutes = math.floor(t / 60)
-                                local hours = math.floor(minutes / 60)
-                                minutes = minutes - hours * 60
-
-                                element.text = string.format("%02d:%02d", hours, minutes)
+                                element.text = CampaignRearrange.FormatTimePlayed(m_game.timePlayed)
                             end,
                             hmargin = 4,
                             fontSize = 25,
@@ -5570,7 +5586,7 @@ local function MakeHeroPanel(heroIndex)
         refreshCharacter = function(element, character)
             local portrait = character.offTokenPortrait
             element.bgimage = portrait
-            element.selfStyle.imageRect = character:GetPortraitRectForAspect(Styles.portraitWidthPercentOfHeight * 0.01,
+            element.selfStyle.imageRect = CardPortraitRect(character, Styles.portraitWidthPercentOfHeight * 0.01,
                 portrait)
         end,
 
@@ -7694,25 +7710,28 @@ function CreateTitlescreen(dialog, options)
                         valign = "bottom",
                         bmargin = 80,
 
+                        -- Sits just above the banner's dark fill, mirroring the
+                        -- bottom divider. Overlapping it hides the line under
+                        -- the banner, which draws later.
                         gui.Divider {
                             vmargin = 0,
                             height = 2,
-                            y = 3.5,
+                            y = -0.5,
                         },
 
                         gui.Panel {
                             classes = { "loadingQuoteBanner" },
                             -- Theme-aware banner: the scheme's @bg paints in the
                             -- middle of a horizontal alpha mask, darkening the
-                            -- cover art behind the quote and fading to clear at
-                            -- the edges. Label color falls through to the theme
+                            -- cover art behind the quote and fading smoothly to
+                            -- clear at the edges. Label color falls through to the theme
                             -- default ({label} -> @fgStrong) for legibility.
                             styles = ThemeEngine.MergeStyles{
                                 {
                                     selectors = { "loadingQuoteBanner" },
                                     bgimage = "panels/square.png",
                                     bgcolor = "@bg",
-                                    gradient = "@maskHorizontal",
+                                    gradient = LoadingQuoteFadeGradient(),
                                 },
                             },
 
@@ -9147,8 +9166,18 @@ function CreateTitlescreen(dialog, options)
 
                                     monitorGame = "/characters",
                                     refreshGame = function(element)
+                                        --In a campaign /characters is the campaign's
+                                        --roster: sorting it on every token change is
+                                        --wasted work, and the count would be wrong.
+                                        if dmhub.inGame and not dmhub.isLobbyGame then
+                                            return
+                                        end
                                         local _, nheroes = LobbyHeroes()
                                         element:SetClass("hidden", nheroes >= 8)
+                                    end,
+
+                                    returnFromGameComplete = function(element)
+                                        element:FireEvent("refreshGame")
                                     end,
 
                                     press = CreateHero,
@@ -9186,8 +9215,18 @@ function CreateTitlescreen(dialog, options)
 
                                     monitorGame = "/characters",
                                     refreshGame = function(element)
+                                        --In a campaign /characters is the campaign's
+                                        --roster: sorting it on every token change is
+                                        --wasted work, and the count would be wrong.
+                                        if dmhub.inGame and not dmhub.isLobbyGame then
+                                            return
+                                        end
                                         local _, nheroes = LobbyHeroes()
                                         element:SetClass("hidden", nheroes >= 8)
+                                    end,
+
+                                    returnFromGameComplete = function(element)
+                                        element:FireEvent("refreshGame")
                                     end,
 
                                     press = ImportForgeSteel,
@@ -9209,8 +9248,18 @@ function CreateTitlescreen(dialog, options)
 
                                     monitorGame = "/characters",
                                     refreshGame = function(element)
+                                        --In a campaign /characters is the campaign's
+                                        --roster: sorting it on every token change is
+                                        --wasted work, and the count would be wrong.
+                                        if dmhub.inGame and not dmhub.isLobbyGame then
+                                            return
+                                        end
                                         local _, nheroes = LobbyHeroes()
                                         element:SetClass("hidden", nheroes >= 8)
+                                    end,
+
+                                    returnFromGameComplete = function(element)
+                                        element:FireEvent("refreshGame")
                                     end,
 
                                     press = ImportCodexJson,
@@ -9271,8 +9320,9 @@ function CreateTitlescreen(dialog, options)
                             end,
 
                             returnFromGame = function(element)
-                                --start monitoring, but give it a second to allow the game to exit.
-                                element:ScheduleEvent("startMonitoring", 1)
+                                --start the lobby game now: the engine holds it until the
+                                --game being left has been torn down.
+                                element:FireEvent("startMonitoring")
                             end,
 
                             startMonitoring = function(element)
@@ -9439,9 +9489,9 @@ function CreateTitlescreen(dialog, options)
 
                             print("REFRESH WITH DIRECTOR =", directorMode)
 
-                            for i, game in ipairs(lobby.games or {}) do
-                                local owner = (game.owner == dmhub.loginUserid)
-                                if owner == directorMode and (m_currentSearch == nil or game:MatchesSearch(m_currentSearch)) then
+                            local viewGames = CampaignRearrange.OrderGames(CampaignRearrange.ViewGames(directorMode), directorMode)
+                            for _, game in ipairs(viewGames) do
+                                if m_currentSearch == nil or game:MatchesSearch(m_currentSearch) then
                                     orderedGames[#orderedGames + 1] = game
                                 end
                             end
@@ -9471,12 +9521,12 @@ function CreateTitlescreen(dialog, options)
                                 valign = "center",
                                 textAlignment = "center",
 
-                                -- Complement width leaving room for the two
-                                -- 48px buttons, which are now SIBLINGS rather
+                                -- Complement width leaving room for the three
+                                -- 48px buttons, which are SIBLINGS rather
                                 -- than children: as children they sat inside
                                 -- the text area, so the autoshrink measurement
                                 -- could not see them and the title ran under.
-                                width = "100%-110",
+                                width = "100%-165",
                                 height = "100%",
                             },
 
@@ -9546,6 +9596,42 @@ function CreateTitlescreen(dialog, options)
                                         halign = "center",
                                         valign = "center",
                                         bgimage = "icons/icon_tool/icon_tool_42.png",
+                                    },
+
+                                },
+
+                                --rearrange campaigns button.
+                                gui.Button {
+                                    width = 48,
+                                    height = 48,
+                                    halign = "right",
+                                    valign = "center",
+                                    beveledcorners = true,
+                                    cornerRadius = 8,
+                                    y = -10,
+                                    tooltip = "Rearrange Campaigns",
+
+                                    refreshGames = function(element)
+                                        element:SetClass("collapsed", #CampaignRearrange.ViewGames(DirectorMode()) < 2)
+                                    end,
+
+                                    press = function(element)
+                                        CampaignRearrange.Show {
+                                            parent = titlescreen,
+                                            directorMode = DirectorMode(),
+                                            saved = function()
+                                                titlescreen:FireEventTree("refreshLobby")
+                                            end,
+                                        }
+                                    end,
+
+                                    gui.Panel {
+                                        classes = { "headerActionIcon" },
+                                        width = "80%",
+                                        height = "80%",
+                                        halign = "center",
+                                        valign = "center",
+                                        bgimage = "phosphor/squares-four-light.png",
                                     },
 
                                 },

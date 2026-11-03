@@ -156,4 +156,24 @@ function mino:Move() error("Move must not be called for the square the creature 
 local path, survived = moveAi:MoveToken(mino, at(0), {maxCost = 10000})
 assert(path == nil and survived == true and moveAi._tmp_moveFailure == nil, "a cost-0 plan is not a failed move")
 assert(logged[1] == "MOVEMENT SKIPPED")
+
+--Stopped short of the destination: only a creature that actually moved is
+--marked as falling short (so the move is re-planned rather than quarantined).
+dmhub.GenerateGuid = function() return "activity" end
+creature = {SetTokenAIActivity = function() return nil end}
+MonsterAI.TokenIsLiveCombatant = function() return true end
+function moveAi:MovementLocOverlapsCreature() return false end
+function moveAi:WaitForMovementActivity() return true end
+local stopAt = at(0)
+function mino:Move() self.loc = stopAt; return {} end
+mino.loc = at(0)
+moveAi._tmp_moveFailure, moveAi._tmp_moveFellShort = nil, nil
+moveAi:MoveToken(mino, at(5), {maxCost = 10000})
+assert(moveAi._tmp_moveFailure ~= nil and moveAi._tmp_moveFellShort == nil,
+    "a creature that did not move at all is a plain failure")
+stopAt = at(3)
+moveAi._tmp_moveFailure = nil
+moveAi:MoveToken(mino, at(5), {maxCost = 10000})
+assert(moveAi._tmp_moveFailure ~= nil and moveAi._tmp_moveFellShort == true,
+    "a creature stopped partway is marked as falling short")
 print("AI charge altitude, validation, failed-route, shared landing and no-op move tests passed")

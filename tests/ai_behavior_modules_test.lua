@@ -64,6 +64,16 @@ check(not MonsterAI.HasBehavior(gnoll, "Bully") and MonsterAI.HasBehavior(gnoll,
     "the panel's per-type switch, unless includeDisabled")
 MonsterAI.behaviors["Bully"].disabledForMonsters = nil
 
+--allMonsters: on for every type, and only an explicit switch turns it off.
+MonsterAI:RegisterBehavior{id = "Everyone", description = "test", allMonsters = true}
+check(MonsterAI.HasBehavior(gnoll, "Everyone") and MonsterAI.HasBehavior(goblin, "Everyone"), "allMonsters is on for every type")
+switches["Everyone"] = false
+MonsterAI.RegisterBehaviorSource("test", function(token, id) return switches[id] end)
+check(not MonsterAI.HasBehavior(gnoll, "Everyone"), "a source switches an allMonsters behavior off")
+MonsterAI.RegisterBehaviorSource("test", function() return nil end)
+MonsterAI.behaviors["Everyone"].disabledForMonsters = {Goblin = true}
+check(MonsterAI.HasBehavior(gnoll, "Everyone") and not MonsterAI.HasBehavior(goblin, "Everyone"), "the panel switch turns one type off")
+
 --- Avoid Opportunity Attacks: the two-pass choice ---------------------------
 local here = {str = "here"}
 local away = {str = "away"}

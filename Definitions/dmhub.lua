@@ -132,6 +132,11 @@
 --- @field ngameupdate integer (read-only) A sequential integer that is unique to the game being updated from the cloud. Anytime this value changes we have new data from the cloud and the game is in a different state.
 --- @field gameContentUpdateSeq number (read-only) Like ngameupdate, but not advanced by session pings (the periodic /usersToSessions writes every connected client makes). It changes whenever game data that matters to play changes -- characters, initiative, shared documents, map objects -- so poll it to tell whether anything has happened since a value was last seen.
 --- @field checkpointContentSeq number (read-only) Like gameContentUpdateSeq, but only advanced by game updates that touch what a combat checkpoint captures: characters, map objects, initiative, and the documents registered with RegisterDocumentForCheckpointBackups. Background writes to other shared documents (presence heartbeats, settings) leave it alone, so poll it to tell whether the board has changed since a checkpoint was taken.
+--- @field characterUpdateSeq number (read-only) Changes whenever a game update touches any character record (including a character being added or removed). Compare against a saved value to tell whether any character has changed since then.
+--- @field nonCharacterUpdateSeq number (read-only) Changes whenever a game update touches anything other than character records: initiative, shared documents, map objects, map manifests, settings, and so on. Session pings do not count. A value computed only from character records stays valid while this is unchanged and those records are (see CharacterRecordRevision).
+--- @field recentNonCharacterPaths string[] (read-only) Diagnostics: the most recent game update paths (up to 16, newest last, each prefixed with its update number) that advanced nonCharacterUpdateSeq. Each of them makes every creature rebuild its cached modifiers, so look here when they rebuild more often than expected.
+--- @field dependencyWildcardTrace boolean Diagnostics: when true, each dependency scope records the Lua stack of the first token query that made it wildcard, returned by EndDependencyScope as wildcardTrace. Slower; for finding what makes a cached value depend on every token.
+--- @field terrainRulesSeq number Like tileRulesSeq, but not moved by rebuilds of the aura index, which happen on every game update that touches a character. Creature auras on a tile are per-token state (see CharacterToken.GetAurasTouching); poll this for everything else that feeds the tile rules -- floor data, walls and solids, tilesheet assets, the logical map, the water level. Only equality is meaningful; it is not monotonic.
 --- @field gameupdateid string (read-only) A guid that is unique to the game being updated from the cloud. Anytime this value changes we have new data from the cloud and the game is in a different state.
 --- @field tooltipsSuppressed boolean Tooltip Suppression Mode: while true, no tooltip is displayed anywhere on this client -- panel hover tooltips, map/tile tooltips, and the token-drag movement tooltip (and with it the movement cross-section diagram it carries). Any tooltip already on screen is dismissed the moment this is set. Client-only and session-scoped: it lives on the game session, so leaving the game always restores tooltips even if a mod forgets to clear it. Intended for a mod that needs an uncluttered phase of play; prefer the core codex wrapper GameHud.SetTooltipsSuppressed(key, value), which also stops the movement cross-section diagram from being rendered at all and lets several mods hold the suppression independently.
 --- @field currentRollGuid nil|string (Read-only) The guid that has been assigned to the current roll that is being previewed.
@@ -159,6 +164,7 @@
 --- @field screenSpaceCursorSurface nil|string Switches shared mouse cursors between world space and screen space. nil (the default) is normal map sharing: everyone's cursor is shared as a position on the current map. Set it to a surface id (any string, e.g. "eotwstage") while a full-screen UI surface is up and this client's cursor is shared as a position on the screen instead, and only other players' cursors on the same surface id are shown, drawn above the UI. Set it back to nil when the surface goes away. Honours the same settings as map cursors (Player/Director Mouse Cursors Shared, Hide Other Player's Cursors). Clients on an engine without this mode do not show screen-space cursors.
 --- @field editorMode boolean (Read-only) returns true if the user is doing some kind of map/game editing, rather than in normal play mode.
 --- @field undoState table (Read-only) Returns a table describing the current undo/redo state for user editing actions.
+--- @field undoDisabled boolean True turns off the ordinary undo/redo stack for the rest of this game: no edit is recorded, and Ctrl+Z / Ctrl+Y, dmhub.Undo() and dmhub.Redo() reach nothing. Setting it true drops anything already on the stacks. Panels that listen for the undo/redo input events (such as Turn Rewind) still receive the keys. Resets when the game is left.
 --- @field connectionErrorStatus ConnectionErrorStatus The current connection error status, if any. Used to display connection issues to the user.
 --- @field writeErrors WriteReceipt[] A list of failed and unconfirmed write receipts that haven't been acknowledged. Each entry is a WriteReceipt with path, method, failureReason, isFailed, isUnconfirmed, and acknowledged fields.
 --- @field pendingWriteCount number The number of writes currently pending (in-flight to the cloud).
@@ -190,12 +196,15 @@
 --- @field primaryCharacter CharacterToken|nil (Read-only) the primary character for the current player. This can be an off-map token.
 --- @field tokenHovered nil|CharacterToken (Read-only) Gets the currently hovered token, or nil if there is none.
 --- @field modMergeInfo nil|{numFiles: number, conflicts: nil|string[]} (Undocumented: engine-internal, not part of the modding API.)
---- @field modKeys {ctrl: nil|boolean, alt: nil|boolean, shift: nil|boolean} Returns which mod keys are currently depressed.
+--- @field modKeys {ctrl: nil|boolean, alt: nil|boolean, shift: nil|boolean} Returns which mod keys are currently depressed. While files dragged in from the operating system are over the window (and in their dropfiles handler) the keys are read from the OS, since the drag source has the keyboard focus.
 --- @field mouseWheel number Returns a positive or negative number if the mousewheel has been moved this frame, based on the direction. Returns 0 if the mousewheel has not been moved this frame.
 --- @field harnessMode nil|string (Read-only) The test-harness name passed via --harness on the command line, or nil when not launched in harness mode. Dev builds only. See TEST_HARNESS_PLAN.md.
 --- @field harnessArgs nil|string (Read-only) The raw string passed via --harness-args on the command line, or nil. Interpretation (typically JSON) is up to the Lua harness.
---- @field screenDimensions Vector2 (Read-only) The current screen dimensions in pixels as a Vector2 (width, height).
---- @field screenDimensionsBelowTitlebar Vector2 (Read-only) The screen dimensions in pixels below the title bar as a Vector2 (width, height).
+--- @field screenDimensions Vector2 (Read-only) The current screen dimensions in pixels as a Vector2 (width, height). Each read makes a new Vector2; per-frame code should read screenWidth and screenHeight instead.
+--- @field screenDimensionsBelowTitlebar Vector2 (Read-only) The screen dimensions in pixels below the title bar as a Vector2 (width, height). Each read makes a new Vector2; per-frame code should read screenWidth and screenHeightBelowTitlebar instead.
+--- @field screenWidth number (Read-only) The screen width in pixels. Unlike screenDimensions, reading it allocates nothing.
+--- @field screenHeight number (Read-only) The screen height in pixels. Unlike screenDimensions, reading it allocates nothing.
+--- @field screenHeightBelowTitlebar number (Read-only) The screen height in pixels below the title bar (screenDimensionsBelowTitlebar.y). Reading it allocates nothing.
 --- @field cursorIds string[] (Read-only) The ids of the registered mouse cursors, as an array of strings. Useful to feature-detect a cursor id before using it in hoverCursor: assigning an id not in this list silently falls back to the default cursor.
 --- @field cameraPosition Vector2 (Read-only) The camera's center position in world coordinates as a Vector2 (x, y). This is the point in the game world that the camera is looking at.
 --- @field cameraZoom number (Read-only) The camera's orthographic size (half the visible height in world units). Smaller values mean more zoomed in. The full visible height is cameraZoom * 2.
@@ -755,6 +764,14 @@ function dmhub.LocalAssetsRevertFile(dirIndex, path, state) end
 --- @param path string The directory or file to reveal.
 function dmhub.RevealInFileBrowser(path) end
 
+--- Opens Explorer / Finder with this session's log file (Player.log) selected, the same as pressing F1. Available outside dev mode and before login, so the titlescreen can offer it when login fails and the user needs to send the log to support.
+--- @return string|nil # The log file's path, or nil when there is no log file.
+function dmhub.RevealLogFile() end
+
+--- The path of this session's log file (Player.log). The previous session's log is Player-prev.log in the same folder.
+--- @return string|nil # The log file's path, or nil when there is no log file.
+function dmhub.GetLogFilePath() end
+
 --- Imports a single object table from YAML files on disk into memory. Reads _table.yaml from the table's subdirectory. Does NOT upload to the cloud -- use UploadAllTables for that. Returns nil if no import source was found.
 --- @param tableName string The name of the table to import into.
 --- @param options nil|{ directory: string }
@@ -848,8 +865,8 @@ function dmhub.SetAttackCrossSection(args) end
 --- Hides the attack cross-section diagram (see dmhub.SetAttackCrossSection) and releases its render texture. Safe to call when nothing is active.
 function dmhub.ClearAttackCrossSection() end
 
---- Installs a Movement Restriction Mode on this client: while installed, tokens can only be moved within the given tiles. Pathfinding treats any step ending outside the set as impassable, so the drag preview and movement-radius markers clip to the allowed area, and drops outside it are refused -- including for the DM (the dmillegalmoves setting does not bypass it). Forced movement (pushes/slides) is exempt. The restriction applies to all tokens on this client until dmhub.ClearMovementRestriction is called or the game session ends. Calling again replaces the previous set.
---- @param args {locs: Loc[]}
+--- Installs a Movement Restriction Mode on this client: while installed, tokens can only be moved within the given tiles. Pathfinding treats any step ending outside the set as impassable, so the drag preview and movement-radius markers clip to the allowed area, and drops outside it are refused -- including for the DM (the dmillegalmoves setting does not bypass it). Forced movement (pushes/slides) is exempt. With teleportBetweenAreas = true, a token dragged onto an allowed tile that no walk inside the set reaches (the set can be several separate areas) teleports there instead of the drop being refused; no teleport events fire. The restriction applies to all tokens on this client until dmhub.ClearMovementRestriction is called or the game session ends. Calling again replaces the previous set.
+--- @param args {locs: Loc[], teleportBetweenAreas?: boolean}
 function dmhub.SetMovementRestriction(args) end
 
 --- Clears the Movement Restriction Mode installed by dmhub.SetMovementRestriction, restoring normal token movement. Safe to call when no restriction is active.
@@ -1384,7 +1401,7 @@ function dmhub.SetSteamJoinTarget(kind, payload, group, groupSize) end
 --- @return any
 function dmhub.TakeSteamInvite() end
 
---- (PROTOTYPE) Starts linking the user's Discord account: Discord's approval screen opens (in the Discord app or a browser). Watch dmhub.discordStatus.account for the result. Returns false when linking cannot start (unsupported, or already in progress).
+--- (PROTOTYPE) Starts linking the user's Discord account: Discord's approval screen opens (in the Discord app or a browser). Watch dmhub.discordStatus.account for the result. Calling it while still waiting for approval abandons that attempt and starts again. Returns false when linking cannot start (unsupported, or the approved link is being set up).
 --- @return boolean
 function dmhub.DiscordLink() end
 
@@ -1583,6 +1600,18 @@ function dmhub.GetAllCharacters() end
 --- @param tokenid string
 --- @return nil|CharacterToken
 function dmhub.GetCharacterById(tokenid) end
+
+--- Returns a number that changes whenever a game update touches the given character's record (its properties, location, appearance, ...). Equal values mean the record has not changed in between.
+--- @param charid string
+--- @return number
+function dmhub.CharacterRecordRevision(charid) end
+
+--- Starts recording which tokens Lua reads, for caching a computed value until one of them changes. Every property read or method call on a CharacterToken records its charid, and every query over a set of tokens (all tokens, tokens at a location or in a radius, all characters) marks the scope as depending on every token. Scopes nest, each recording only its own reads. Always pair with EndDependencyScope, even when the computation errors.
+function dmhub.BeginDependencyScope() end
+
+--- Ends the innermost scope started by BeginDependencyScope and returns what it recorded: tokens is a set of the charids read, and wildcard is true if a token query ran, so the result may change when any token moves, appears or disappears. Returns nil if no scope is open (for example because a game update discarded a scope left open by an error).
+--- @return nil|{wildcard: boolean, tokens: table<string, boolean>, wildcardTrace: nil|string}
+function dmhub.EndDependencyScope() end
 
 --- Converts a creature size string (e.g. 'medium', 'large') to the corresponding token visual scale.
 --- @param creatureSize string
@@ -2074,6 +2103,10 @@ function dmhub.GetDiceStyling(diceset, colorStr) end
 --- @return string
 function dmhub.GetRawImageId(iconid) end
 
+--- Change the properties of several tokens and parties as one write that another client cannot race, such as moving items between a Hero and the party stash. execute changes the holders' properties in place, as in @see CharacterToken.ModifyProperties. Every holder's change is sent in one conditional write together with the values the change replaced: the game server applies all of it only if none of those values has changed meanwhile, otherwise none of it, and the local data is put back to the server's. onSuccess runs when the server accepts the change; onFail(error, step) when it refuses one, where error is "precondition" when another client changed the data first and step is "do", "undo" or "redo". Undo is refused the same way once someone has changed the data since. Firebase games apply the change without the check. Do not call ModifyProperties on the holders inside execute.
+--- @param options {holders: (CharacterToken|LuaPartyInfo)[], execute: (fun():nil), description: nil|string, undoable: nil|boolean, onSuccess: nil|(fun():nil), onFail: nil|(fun(error: string, step: string):nil)}
+function dmhub.AtomicChange(options) end
+
 --- When called, all network changes will be delayed until @see EndTransaction is called and then all changes will be made at once.
 function dmhub.BeginTransaction() end
 
@@ -2153,6 +2186,10 @@ function dmhub.PanelInitProfileCalibrate() end
 --- Diagnostic: turns SheetPanel recycling on or off at runtime (same switch as the --pool-panels command line flag). Safe to flip mid-session: already-parked panels stay parked and untagged panels simply never enter the pool.
 --- @param enabled? boolean
 function dmhub.PoolSetEnabled(enabled) end
+
+--- Diagnostic: turns the Lua bridge's typed call stubs on or off at runtime. On (the default), calls from Lua into engine methods, property setters and fields read and write their values straight from the Lua stack without boxing; off, every call takes the general object[] path. For A/B measurement, and as an escape hatch if a stub ever behaves differently from the general path.
+--- @param enabled? boolean
+function dmhub.LuaTypedStubsSetEnabled(enabled) end
 
 --- DebugUserDataReport
 --- (Undocumented: engine-internal, not part of the modding API.)

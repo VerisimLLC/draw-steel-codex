@@ -700,7 +700,7 @@ local function CreateCharacterRow(charid)
                 iconPanel.bgimage = portrait
                 iconPanel.selfStyle.bgcolor = "white"
                 pcall(function()
-                    iconPanel.selfStyle.imageRect = token:GetPortraitRectForAspect(1, portrait)
+                    iconPanel.selfStyle.imageRect = CardPortraitRect(token, 1, portrait)
                 end)
             else
                 iconPanel.bgimage = "icons/standard/Icon_App_Character.png"

@@ -230,6 +230,73 @@ local g_selectedTokens = {}
 if rawget(DrawSteelActionBar, "_operate") ~= nil and DrawSteelActionBar._operate.operation ~= nil then
     pcall(function() dmhub.tokenInfo:PopSelectedTokenOverride() end)
 end
+--The selected token's ability list, reused across bar refreshes while nothing it was built
+--from has changed. The bar refreshes on every game update that touches any character, and
+--GetActivatedAbilities clones and modifies every ability (~8 ms for a hero), so another
+--player moving used to rebuild your hero's list. The key: the token, its record revision,
+--its modifier serial (CreatureCache), game data other than characters, the objects that
+--grant abilities to adjacent creatures, plus any other token the build read (a token query
+--means no reuse). Kept on the global table: this file's main chunk is at Lua's 200-local
+--limit.
+DrawSteelActionBar._abilityList = { key = nil, list = nil, wildcard = true, deps = {} }
+
+--- @param token CharacterToken
+--- @return ActivatedAbility[]
+function DrawSteelActionBar._abilityList.Get(token)
+    local cache = DrawSteelActionBar._abilityList
+    local function Build()
+        return token.properties:GetActivatedAbilities { bindCaster = true, manualTriggers = true }
+    end
+    if not CreatureCache.enabled then
+        cache.list = nil
+        return Build()
+    end
+
+    local function DepState(charid)
+        local tok = dmhub.GetCharacterById(charid)
+        local props = tok and tok.properties
+        return string.format("%d:%d", dmhub.CharacterRecordRevision(charid), props and CreatureCache.SerialOf(props) or -1)
+    end
+
+    local key = string.format("%s|%d|%d|%s|%s|%s", token.charid, dmhub.CharacterRecordRevision(token.charid),
+        CreatureCache.SerialOf(token.properties), CreatureCache.GlobalKey(), tostring(dmhub.isDM),
+        ActivatedAbility.GrantingTokensSignature())
+    if cache.list ~= nil and cache.key == key and not cache.wildcard then
+        local unchanged = true
+        for charid, state in pairs(cache.deps) do
+            if DepState(charid) ~= state then
+                unchanged = false
+                break
+            end
+        end
+        if unchanged then
+            return cache.list
+        end
+    end
+
+    cache.list = nil
+    dmhub.BeginDependencyScope()
+    local ok, result = pcall(Build)
+    local rec = dmhub.EndDependencyScope()
+    if not ok then
+        error(result, 0)
+    end
+
+    local deps = {}
+    if rec ~= nil then
+        for charid, _ in pairs(rec.tokens) do
+            if charid ~= token.charid then
+                deps[charid] = DepState(charid)
+            end
+        end
+    end
+    cache.key = key
+    cache.list = result
+    cache.wildcard = rec == nil or rec.wildcard
+    cache.deps = deps
+    return result
+end
+
 --- @class ActionBarOperate
 --- @field operation nil|{operator: CharacterToken, object: CharacterToken}
 --- @field promptShown nil|boolean True while our "Operating X" prompt is up.
@@ -4063,7 +4130,7 @@ local function CreateActionBar()
                     end
                     return list
                 end
-                return g_token.properties:GetActivatedAbilities { bindCaster = true, manualTriggers = true }
+                return DrawSteelActionBar._abilityList.Get(g_token)
             end)
             g_abilities = (okAbilities and abilitiesOrErr) or {}
 
@@ -9205,7 +9272,7 @@ local function EffectiveArrowRange(sourceToken, targetToken, range, ability)
     if range ~= nil and ability ~= nil and sourceToken ~= nil and targetToken ~= nil then
         local measureToken = ability:GetRangeSource(sourceToken)
         if measureToken ~= sourceToken then
-            local altDiffUnits = math.abs(measureToken.altitude - targetToken.altitude) * dmhub.unitsPerSquare
+            local altDiffUnits = RuleUtils.VerticalGapInTiles(measureToken, targetToken) * dmhub.unitsPerSquare
             if math.max(targetToken:Distance(measureToken), altDiffUnits) >= range + dmhub.unitsPerSquare then
                 return 0
             end
@@ -9230,7 +9297,7 @@ local function EffectiveArrowRange(sourceToken, targetToken, range, ability)
         effective = targetUnits
     end
     if effective ~= nil and sourceToken ~= nil and targetToken ~= nil then
-        local altDiffUnits = math.abs(sourceToken.altitude - targetToken.altitude) * dmhub.unitsPerSquare
+        local altDiffUnits = RuleUtils.VerticalGapInTiles(sourceToken, targetToken) * dmhub.unitsPerSquare
         if altDiffUnits >= effective + dmhub.unitsPerSquare then
             effective = 0
         end
@@ -9304,9 +9371,10 @@ local function AddModifierLabelsToMarker(markers, sourceToken, targetToken, abil
     -- max(horizDist, altDiff). A target on the same floor-plan tile but well
     -- above/below is out of range only when the altitude separation alone
     -- exceeds range; otherwise the horizontal distance is what matters.
+    -- altDiff counts how tall each creature is (RuleUtils.VerticalGapInTiles).
     if range ~= nil then
         local horizDist = targetToken:Distance(originToken)
-        local altDiffUnits = math.abs(originToken.altitude - targetToken.altitude) * dmhub.unitsPerSquare
+        local altDiffUnits = RuleUtils.VerticalGapInTiles(originToken, targetToken) * dmhub.unitsPerSquare
         if math.max(horizDist, altDiffUnits) >= range + dmhub.unitsPerSquare
             and (skipRelays or not CastingOriginCoversTarget(ability, sourceToken, targetToken, range)) then
             markers:AddLabel("Out of Range", "forbidden")
@@ -9675,6 +9743,13 @@ local function CreateTargetInfo(spell)
                     end
                     return
                 end
+            end
+
+            --A burst hits everyone in its area, and the caster is the only token with a
+            --reticule, so clicking them confirms the cast the way the Confirm button does.
+            if g_currentAbility.targetType == 'all' and g_abilityController ~= nil then
+                g_abilityController:FireEvent("mappress")
+                return
             end
 
             --The caster is added when the ability is cast, so clicking them does nothing.
@@ -10694,14 +10769,30 @@ local function CreateSynthesizedSpellsPanel()
                 if g_currentSymbols ~= nil and g_currentSymbols.invoked and a:try_get("_tmp_temporaryClone", false) then
                     a._tmp_invokedChoice = true
                 end
+                --A picked choice replaces the prompt as the current cast, so it must
+                --keep the prompt's Skip: Overwatch's free strike may have no legal
+                --target, and without Skip the player was stuck in it.
+                if g_currentSymbols ~= nil and g_currentSymbols.invoked and g_currentAbility:try_get("skippable", false) then
+                    a.skippable = true
+                end
+
+                --Forward the current symbol table so flags like `forcedroll` (set by
+                --InvokeAbility with inheritRoll=true) survive the chip-pick handoff.
+                local symbols = g_currentSymbols
+                --A chip that channels its own resource starts at its own default
+                --charges, not the parent's: Practical Magic's default 1 otherwise
+                --pre-spent 1 essence on its Teleport option (report JF7SAVWU).
+                if symbols ~= nil and symbols.charges ~= nil and a:try_get("channeledResource", "none") ~= "none" then
+                    --Copy so the parent cast's own charges are left alone.
+                    symbols = table.shallow_copy(symbols)
+                    symbols.charges = a:DefaultCharges()
+                end
 
                 local spellOptions = {
                     synthesized = true,
                     cast = cast,
                     ability = a,
-                    --Forward the current symbol table so flags like `forcedroll` (set by
-                    --InvokeAbility with inheritRoll=true) survive the chip-pick handoff.
-                    symbols = g_currentSymbols,
+                    symbols = symbols,
                 }
                 for k, v in pairs(addedSpellOptions or {}) do
                     spellOptions[k] = v
@@ -10744,15 +10835,55 @@ local function CreateTokenSelectionContainer()
     --hovered portrait never strands a ring on the map.
     local m_locatedCharid = nil
 
-    local function SetLocateRing(charid, on)
-        local tok = charid ~= nil and dmhub.GetTokenById(charid) or nil
-        if tok == nil or not tok.valid or tok.bottomsheet == nil or not tok.bottomsheet.valid then
-            return
+    --A static tint over the hovered candidate (the sprite redrawn in yellow). Objects have no locate
+    --ring, and two identical objects are otherwise impossible to tell apart.
+    local m_tintCanvas = nil
+
+    local function ClearTint()
+        if m_tintCanvas ~= nil then
+            m_tintCanvas:Destroy()
+            m_tintCanvas = nil
         end
-        tok.bottomsheet:SetClassTree("locate", on)
     end
 
+    local function SetLocateRing(charid, on)
+        ClearTint()
+
+        local tok = charid ~= nil and dmhub.GetTokenById(charid) or nil
+        if tok == nil or not tok.valid then
+            return
+        end
+
+        local instance = on and tok.isObject and tok.objectInstance or nil
+        --area is nil when the object's map instance has gone.
+        local area = instance ~= nil and instance.area or nil
+        if instance ~= nil and area ~= nil then
+            --Redraw the object's own sprite as a flat tint on top of it, so the highlight has its exact shape.
+            m_tintCanvas = dmhub.CreateCanvasOnMap{
+                point = core.Vector3((area.x1 + area.x2) / 2, (area.y1 + area.y2) / 2, 0),
+                floorIndex = tok.loc.floor,
+                sheet = gui.Panel{
+                    interactable = false,
+                    halign = "center",
+                    valign = "center",
+                    width = area.x2 - area.x1,
+                    height = area.y2 - area.y1,
+                    rotate = instance.rotation,
+                    bgimage = instance.displayImageId,
+                    bgcolor = "#ffe066",
+                    opacity = 0.6,
+                },
+            }
+        end
+
+        if tok.bottomsheet ~= nil and tok.bottomsheet.valid then
+            tok.bottomsheet:SetClassTree("locate", on)
+        end
+    end
+
+    --Always drops the tint, even with no located token, so nothing can strand it on the map.
     local function ClearLocate()
+        ClearTint()
         if m_locatedCharid ~= nil then
             SetLocateRing(m_locatedCharid, false)
             m_locatedCharid = nil
@@ -10877,7 +11008,12 @@ local function CreateTokenSelectionContainer()
                     --ring is no use when the token is off the edge of the screen.
                     rightClick = function(element)
                         if tok.valid then
-                            dmhub.CenterOnToken(tok.charid, { smooth = true })
+                            --CenterOnToken only knows creatures; a map object is centred through its instance.
+                            if tok.isObject and tok.objectInstance ~= nil then
+                                tok.objectInstance:CenterCamera{ smooth = true }
+                            else
+                                dmhub.CenterOnToken(tok.charid, { smooth = true })
+                            end
                         end
                     end,
                     --The engine's own pulse is a brief white flash that is easy to
@@ -11940,6 +12076,16 @@ CreateAbilityController = function()
                 return g_currentAbility
             end
             gamehud.actionBarPanel.data.IsCastingSpell = element.data.isCasting
+
+            --A target prompt on screen (Lightfall's ally chooser) means a cast is
+            --waiting on the player. The cast watchdog reads this so it does not
+            --abandon a cast the player is still choosing for (JY7WM9BQ).
+            element.data.oldIsPrompting = gamehud.actionBarPanel.data.IsPrompting
+            element.data.isPrompting = function()
+                local prompt = DrawSteelActionBar._openPrompt
+                return prompt ~= nil and prompt.valid
+            end
+            gamehud.actionBarPanel.data.IsPrompting = element.data.isPrompting
         end,
 
         destroy = function(element)
@@ -11948,6 +12094,10 @@ CreateAbilityController = function()
             if gamehud and gamehud.actionBarPanel and gamehud.actionBarPanel.valid
                 and gamehud.actionBarPanel.data.IsCastingSpell == element.data.isCasting then
                 gamehud.actionBarPanel.data.IsCastingSpell = element.data.oldIsCasting
+            end
+            if gamehud and gamehud.actionBarPanel and gamehud.actionBarPanel.valid
+                and gamehud.actionBarPanel.data.IsPrompting == element.data.isPrompting then
+                gamehud.actionBarPanel.data.IsPrompting = element.data.oldIsPrompting
             end
         end,
 
@@ -11958,6 +12108,13 @@ CreateAbilityController = function()
             --Never cancel a cast that claimed the controller after the hide was
             --asked for: this event arrives too late to tell them apart itself.
             if DrawSteelActionBar.HideShouldSkipCancel() then
+                return
+            end
+            --Rolling dice (an AI monster's, on a host who also plays a hero)
+            --hides the whole bar. That is not the player leaving the cast: an
+            --open target prompt comes back with the bar (C7YTDXC6).
+            local prompt = DrawSteelActionBar._openPrompt
+            if dmhub.GetSettingValue("__previewdice") and prompt ~= nil and prompt.valid then
                 return
             end
             element:FireEvent("cancelCasting")
@@ -12482,6 +12639,13 @@ CreateAbilityController = function()
 
             local targets = options.targets or {}
             local promptText = options.prompt or "Choose a target"
+            --Clicking an unlocked object on the map opens it for editing, so point at the portraits instead.
+            for _, candidate in ipairs(targets) do
+                if candidate.valid and candidate.isObject then
+                    promptText = promptText .. " (click the portrait below)"
+                    break
+                end
+            end
             local choose = options.choose or function(target) end
             local cancel = options.cancel or function() end
 
@@ -13250,7 +13414,11 @@ CreateAbilityController = function()
                                 markOptions[key] = value
                             end
                         end
-                        movementInfo = g_token:MarkMovementArrow(loc, markOptions)
+                        --A vertical move's dialed altitude is absolute; the engine wants it above the ground.
+                        movementInfo = g_token:MarkMovementArrow(
+                            cond(ActivatedAbility.IsVerticalForcedMovement(g_currentSymbols.forcedmovement or g_currentAbility:try_get("forcedMovement")),
+                                ActivatedAbility.VerticalForcedMovementEngineLoc(loc), loc),
+                            markOptions)
                         --MarkMovementArrow's declared return omits the charge-jump fields the engine
                         --adds when charge options are passed (CharacterToken.cs MarkMovementArrow).
                         ---@cast movementInfo nil|{path: LuaPath, collideWith: nil|CharacterToken[], bounceCollisions: nil|{speed: number, collideWith: CharacterToken[], destination: Loc}[], validCharge: nil|boolean, requiresRoll: nil|boolean, requiredTier: nil|integer, guaranteedTier: nil|integer, jumpLabelLoc: nil|Loc, tierOutcomes: nil|table<integer, table>}
@@ -13937,6 +14105,21 @@ CreateAbilityController = function()
 
             local selfTarget = g_currentAbility.selfTarget
             local targetTokens = dmhub.tokenInfo.TokensInShape(g_pointTargeting.shape)
+
+            --The engine's line-of-sight shape drops sight-blocking objects (they hide their own
+            --square). Re-add objects in range; TargetPassesFilter then checks where the line to them stops.
+            --Only for a burst centred on the caster: a casterLocOverride moves the burst elsewhere.
+            if g_currentAbility.targetType == "all" and g_currentAbility.objectTarget == true and g_token ~= nil and g_token.valid
+                and g_currentAbility:try_get("casterLocOverride") == nil then
+                local burstRange = g_currentAbility:GetRange(g_token.properties, g_currentSymbols)
+                for _, tok in ipairs(dmhub.allTokensIncludingObjects) do
+                    --objectTarget abilities only take attackable objects, so skip the rest before the sight test.
+                    if tok.valid and tok.isObject and tok.isAttackableObject and targetTokens[tok.charid] == nil
+                        and tok.floorIndex == g_token.floorIndex and g_token:Distance(tok) <= burstRange then
+                        targetTokens[tok.charid] = tok
+                    end
+                end
+            end
 
             -- Partner burst: union tokens from the partner shape into the target dict.
             -- Same-key entries dedupe automatically -- "An enemy in both areas is
@@ -14840,7 +15023,9 @@ local function CalculateSpellTargetFocusing(symbols)
                     --AddModifierLabelsToMarker so arrow greying, the "Out of Range" label, and
                     --the strict-targeting block all agree.
                     if failReason == nil and spell.targetType ~= "areatemplate" and checkStrictRange then
-                        local altDiff = math.abs(rangeSource.altitude - targetToken.altitude)
+                        --The gap between the creatures' heights, so a Size 2 caster
+                        --reaches a target standing 2 squares up (PEK8NNCT).
+                        local altDiff = RuleUtils.VerticalGapInTiles(rangeSource, targetToken)
                         if altDiff > 0 then
                             local horizDist = targetToken:Distance(directRangeSource)
                             local altDiffUnits = altDiff * dmhub.unitsPerSquare
@@ -15008,7 +15193,17 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
             and #g_currentAbility:try_get("modeList", {}) > 1
         local hasPromptOverride = (g_currentAbility:try_get("promptOverride") ~= nil or awaitsModeChoice)
             and not g_manualTargetChosen
-        if forceCast or ((not g_currentAbility:CanSelectMoreTargets(g_token, targets, g_currentSymbols)) and not hasPromptOverride) then --temporarily disabled -David -- and not initialSetup then
+        --A chooser shell (e.g. "Make Melee Free Strike") is targetType self, so one
+        --pre-selected target (an Opportunity Attack's mover) already fills it. Casting
+        --the shell does nothing and cancels silently (5NBZASN4): wait for the player to
+        --pick one of its abilities. Exactly one choice is swapped in by the invoke before
+        --it gets here, and an ability with no choices returns nil and is unaffected.
+        local awaitsSynthChoice = false
+        if (not forceCast) and g_currentAbility:RequiresPromptWhenCast() then
+            local synth = g_currentAbility:SynthesizeAbilities(g_creature)
+            awaitsSynthChoice = synth ~= nil and #synth > 0
+        end
+        if forceCast or ((not g_currentAbility:CanSelectMoreTargets(g_token, targets, g_currentSymbols)) and not hasPromptOverride and not awaitsSynthChoice) then --temporarily disabled -David -- and not initialSetup then
             --we can't select more targets, so cast the spell in here.
             g_token.lookAtMouse = false
             if g_castingEmoteSet and g_token.valid then

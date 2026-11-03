@@ -549,6 +549,18 @@ local g_heroCardRules = {
         transitionTime = 0.45,
         easing = "easeOutCubic",
     },
+    --the speech balloon hanging off the card's left edge while the hero's
+    --player talks on Discord voice (CreateVoiceBalloon).
+    {
+        selectors = {"eotwVoiceBalloon"},
+        bgcolor = "@bg",
+        border = 1,
+        borderColor = "@accent",
+    },
+    {
+        selectors = {"eotwVoiceBalloonIcon"},
+        bgcolor = "@fgStrong",
+    },
 }
 
 
@@ -1297,6 +1309,49 @@ local function CreateTriggerCorner(charid)
     }
 end
 
+--A speech balloon on the card's left edge, half outside it, while this
+--hero's player is talking on Discord voice, and for the same short linger
+--after as the token's Talk emote (DiscordVoice.IsTokenSpeaking). It polls
+--on its own think because the card's refreshCard comes only about once a
+--second, far too slow to follow speech. The think sits on an invisible
+--holder because a collapsed or hidden panel does not think.
+local function CreateVoiceBalloon(charid)
+    local balloon = gui.Panel{
+        classes = {"eotwVoiceBalloon", "collapsed"},
+        width = 26,
+        height = 26,
+        cornerRadius = 13,
+        bgimage = "panels/square.png",
+        interactable = false,
+        gui.Panel{
+            classes = {"eotwVoiceBalloonIcon"},
+            width = 16,
+            height = 16,
+            halign = "center",
+            valign = "center",
+            bgimage = "phosphor/chat-circle-dots-fill.png",
+            interactable = false,
+        },
+    }
+    return gui.Panel{
+        floating = true,
+        halign = "left",
+        valign = "top",
+        x = -12,
+        y = 30,
+        width = 26,
+        height = 26,
+        interactable = false,
+        thinkTime = 0.1,
+        think = function(element)
+            local voice = rawget(_G, "DiscordVoice")
+            local speaking = voice ~= nil and voice.IsTokenSpeaking(charid)
+            balloon:SetClass("collapsed", not speaking)
+        end,
+        balloon,
+    }
+end
+
 --MONTAGE ONLY (opts.showStats). The five characteristics down the card's
 --right edge, one chip each, initial + score ("M +2") so the whole set fits
 --in the artwork's margin. Ordered by the attribute's own `order` (Might,
@@ -1507,7 +1562,7 @@ ApplyPortrait = function(element, tok, aspect)
     element.bgimage = portrait
     element.selfStyle.bgcolor = "white"
     local rect = nil
-    pcall(function() rect = tok:GetPortraitRectForAspect(aspect, portrait) end)
+    pcall(function() rect = CardPortraitRect(tok, aspect, portrait) end)
     element.selfStyle.imageRect = rect
     return true
 end
@@ -1796,6 +1851,8 @@ local function CreateHeroCard(entry, opts)
     cardArgs[#cardArgs+1] = deadMark
     cardArgs[#cardArgs+1] = hurtFlash
     cardArgs[#cardArgs+1] = healFlash
+    --after the washes too, so a hurt flash does not tint the balloon.
+    cardArgs[#cardArgs+1] = CreateVoiceBalloon(charid)
     --opts.dismiss = {tooltip=, click=}: an X in the top-right corner that
     --shows only while the card is hovered. A direct child of the card so
     --"parent:hover" reaches it; after the washes so it sits on top.

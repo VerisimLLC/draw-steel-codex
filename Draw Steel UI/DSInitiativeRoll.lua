@@ -1208,7 +1208,7 @@ function RollInitiativeChatMessage.Render(selfInput, message)
         local portrait = tok.offTokenPortrait
         local imageRect = nil
         if portrait == tok.portrait or tok.popoutPortrait then
-            imageRect = tok:GetPortraitRectForAspect(portraitAspect, portrait)
+            imageRect = CardPortraitRect(tok, portraitAspect, portrait)
         end
 
         local quantityLabel = nil
@@ -2857,8 +2857,13 @@ Commands.RegisterMacro{
     end
 
 
-    for _,tok in ipairs(dmhub.allObjectTokens) do
-        tok.properties:DispatchEvent("beginround")
+    --Objects get round 1's Begin Round here; later rounds reach them from
+    --GameHud:NewRound. Not when creatures join a running combat, or every
+    --object would get an extra Begin Round (a ticking grenade going off early).
+    if isNewCombat then
+        for _,tok in ipairs(dmhub.allObjectTokens) do
+            tok.properties:DispatchEvent("beginround")
+        end
     end
 
     local averageVictories = 0

@@ -77,8 +77,8 @@ TriggeredAbility.mandatoryTriggerSettings = {
 --- Returns true if this triggered ability should fire automatically without prompting the player.
 --- @return boolean
 function TriggeredAbility:IsMandatory(token)
-    print("MANDATORY:: IS =", self.mandatory, json(token ~= nil and token.charid), json(token ~= nil and token.activeControllerId == nil))
-    if self.mandatory == true or self.mandatory == "local" or (self.mandatory == "prompt_remote" and token ~= nil and token.activeControllerId == nil) then
+    local controlledHere = token ~= nil and TokenPromptControllerId(token) == nil
+    if self.mandatory == true or self.mandatory == "local" or (self.mandatory == "prompt_remote" and controlledHere) then
         return true
     elseif self.mandatory == "prompt_remote" or self.mandatory == false then
         return false
@@ -422,7 +422,7 @@ TriggeredAbility.triggers = {
 			type = {
 				name = "Type",
 				type = "string",
-				desc = "The type of forced movement. May be 'push', 'pull', or 'slide'",
+				desc = "The type of forced movement. May be 'push', 'pull', 'slide', or 'throw' (an object thrown with Throw Object)",
 			},
 			hasattacker = {
 				name = "Has Attacker",
@@ -1023,6 +1023,14 @@ local g_liveTriggerWatchers = {}
 --on another machine: GenerateSymbols function wrappers are unwrapped to their
 --underlying creatures, and SerializeEventValue converts live tokens/creatures
 --into string refs which DeserializeEventValue resolves back to live objects.
+--While the Director has the game frozen, ActivatedAbility:Cast refuses this
+--client's casts (the same test). An accepted prompt that executed then would
+--be consumed and lost (237AHPF5: Judgment accepted, never cast), so the prompt
+--watcher holds an accepted answer until the game is unfrozen.
+local function CastsRefusedByFreeze()
+	return dmhub.frozen and not IsDMOrPlayerHost()
+end
+
 local function SerializeTriggerContext(symbols, targets)
 	local visited = {}
 	local serializedSymbols = {}
@@ -1360,7 +1368,11 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 	if self.targetType == 'all' then
 		targets = {}
 		local range = self:GetRange(creature)
-		for i,tok in ipairs(dmhub.allTokens) do
+		--allTokens leaves out map objects; a trigger that can target objects
+		--("each creature and object in the area") has to look at them too.
+		--TargetPassesFilter still decides which objects it can actually hit.
+		local candidates = cond(self.objectTarget, dmhub.allTokensIncludingObjects, dmhub.allTokens)
+		for i,tok in ipairs(candidates) do
 			if (tok.id ~= casterToken.charid or self:try_get("selfTarget", false)) and self:TargetPassesFilter(casterToken, tok, symbols) and range >= tok:Distance(casterToken) then
 				targets[#targets+1] = {
 					loc = tok.loc,
@@ -1833,7 +1845,12 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
             --were undiagnosable because every exit path looked the same.
             local exitReason = nil
 
-			while trigger ~= nil and (not trigger.triggered) and (not trigger.dismissed) and sustain do
+			local heldByFreeze = false
+			while trigger ~= nil and ((not trigger.triggered) or CastsRefusedByFreeze()) and (not trigger.dismissed) and sustain do
+				if trigger.triggered and not heldByFreeze then
+					heldByFreeze = true
+					printf("TRIGGERGUARD:: prompt %s (%s) accepted while frozen; held until unfrozen", tostring(guid), tostring(self.name))
+				end
 				coroutine.yield()
 
 				trigger = nil
@@ -1969,12 +1986,31 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 			--with no coroutine watching it -- clickable but unresponsive. Clear by
 			--guid rather than by the (possibly nil) trigger reference, since some
 			--exits leave trigger nil while the entry is still present.
+			--
+			--A hero's accepted prompt held the Monster AI's next turn choice while
+			--it was open; the cast runs after the card is gone and may claim the
+			--turn itself (Hesitation Is Weakness), so a "turn-claim" marker keeps
+			--holding the AI until the cast completes (BR8M9Z2W). It rides in the
+			--card's removal write, so the AI never sees the card gone without it.
+			local turnClaimMarker = aiActivityId == nil and trigger ~= nil and trigger.triggered
+				and casterToken ~= nil and casterToken.valid and casterToken.playerControlled
+				and dmhub.initiativeQueue ~= nil and not dmhub.initiativeQueue.hidden
+				and not trigger:try_get("hostile", false)
+				and trigger:try_get("powerRollModifier", false) == false
+			if turnClaimMarker then
+				aiActivityId = "turn-claim"
+				argOptions.aiActivityId = aiActivityId
+				argOptions.aiReactionId = guid
+			end
 			if casterToken ~= nil and casterToken.valid then
 				casterToken:ModifyProperties{
 					description = "Clear Trigger",
 					undoable = false,
 					execute = function()
 						casterToken.properties:ClearAvailableTrigger({id = guid})
+						if turnClaimMarker then
+							casterToken.properties:AddPendingAIActivityReaction("turn-claim", guid, self.name, "resolving")
+						end
 					end,
 				}
 			end
@@ -2035,12 +2071,12 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 				--machine happened to process the trigger event (e.g. the
 				--Director's client raising creaturedeath locally when confirming
 				--a minion death). When another connected client is better suited
-				--to respond (activeControllerId ~= nil), ship the execution there
+				--to respond (TokenPromptControllerId returns a userid), ship the execution there
 				--via the remoteInvokes queue. Run locally when we are the
 				--controller, when the ability has no guid for the remote side to
 				--look it up by, or when the caller is waiting on a completion
 				--callback (the triggerBefore flows), which cannot cross machines.
-				local controllerid = casterToken.activeControllerId
+				local controllerid = TokenPromptControllerId(casterToken)
 				if controllerid ~= nil and self:try_get("guid") ~= nil and argOptions.complete == nil then
 					self:SendTriggerCastToController(controllerid, {
 						dismiss = isDismiss,

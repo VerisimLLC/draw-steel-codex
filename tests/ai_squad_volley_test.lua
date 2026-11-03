@@ -53,6 +53,8 @@ MonsterAI = {
 }
 --Plan previews (Continue to go on) are off in these tests.
 MonsterAI.PlanPreviewsOn = function() return false end
+--No hero takes the turn mid-move in these tests.
+MonsterAI.TurnTakenBeforeMove = function() return false end
 assert(load(section("MonsterAI.squadCallLines = {", "MonsterAI.abilities = {}")))()
 assert(load(section("function MonsterAI.TargetDistance", "-- Use the real token volume")))()
 assert(load(section("function MonsterAI:RunConcurrently", "--The control is kept in Creature.lua")))()

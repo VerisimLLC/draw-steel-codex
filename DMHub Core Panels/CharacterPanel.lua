@@ -814,6 +814,38 @@ IsMonsterNodeSelfOrChildOf = function(nodeid, childid)
     return IsMonsterNodeSelfOrChildOf(nodeid, node.parentNode)
 end
 
+--Files node into the folder targetNode (id targetId) at targetOrd, shifting
+--later siblings down. targetOrd nil = append after the folder's last child.
+local function MoveNodeInto(node, targetId, targetNode, targetOrd, refreshType)
+    if targetOrd == nil then
+        local maxOrd = 0
+        for i, v in ipairs(targetNode.children) do
+            if v ~= node and v.ord > maxOrd then
+                maxOrd = v.ord
+            end
+        end
+
+        targetOrd = maxOrd + 1
+    end
+
+    for i, v in ipairs(targetNode.children) do
+        local newOrd = v.ord
+        if newOrd >= targetOrd then
+            newOrd = newOrd + 1
+        end
+
+        if v ~= node and v.ord ~= newOrd then
+            v.ord = newOrd
+            v:Upload()
+        end
+    end
+
+    node.parentNode = targetId
+    node.ord = targetOrd
+    node:Upload()
+    assets:RefreshAssets(refreshType)
+end
+
 --function which is used when we drag monsters around the bestiary.
 mod.shared.CreateDragTargetFunction = function(node, getNodeFunction, refreshType)
     return function(element, target)
@@ -832,35 +864,7 @@ mod.shared.CreateDragTargetFunction = function(node, getNodeFunction, refreshTyp
             return
         end
 
-        local targetOrd = target.data.ord
-
-        if targetOrd == nil then
-            local maxOrd = 0
-            for i, v in ipairs(targetNode.children) do
-                if v ~= node and v.ord > maxOrd then
-                    maxOrd = v.ord
-                end
-            end
-
-            targetOrd = maxOrd + 1
-        end
-
-        for i, v in ipairs(targetNode.children) do
-            local newOrd = v.ord
-            if newOrd >= targetOrd then
-                newOrd = newOrd + 1
-            end
-
-            if v ~= node and v.ord ~= newOrd then
-                v.ord = newOrd
-                v:Upload()
-            end
-        end
-
-        node.parentNode = target.data.nodeid
-        node.ord = targetOrd
-        node:Upload()
-        assets:RefreshAssets(refreshType)
+        MoveNodeInto(node, target.data.nodeid, targetNode, target.data.ord, refreshType)
     end
 end
 
@@ -1458,6 +1462,53 @@ local function CreateMonsterEntry(nodeid, startHidden)
                             parentElement.popup = nil
                         end,
                     }
+
+                    --Move To: the drag-free way to refile an entry. Offers the
+                    --folders inside the entry's folder, then the folders beside it.
+                    local moveTargets = {}
+                    local function AddFolderTargets(parentId, group)
+                        local parentNode = assets:GetMonsterNode(parentId)
+                        if parentNode == nil then
+                            return
+                        end
+                        local folders = {}
+                        for _, child in ipairs(parentNode.children) do
+                            if child.folder ~= nil and not child.hidden and child.id ~= node.parentNode then
+                                folders[#folders + 1] = child
+                            end
+                        end
+                        table.sort(folders, function(a, b) return a.description < b.description end)
+                        for _, folder in ipairs(folders) do
+                            local folderId = folder.id
+                            moveTargets[#moveTargets + 1] = {
+                                text = folder.description,
+                                group = group,
+                                click = function()
+                                    parentElement.popup = nil
+                                    local target = assets:GetMonsterNode(folderId)
+                                    if target ~= nil then
+                                        MoveNodeInto(node, folderId, target, nil, "Monsters")
+                                    end
+                                end,
+                            }
+                        end
+                    end
+
+                    local currentFolderId = node.parentNode or ''
+                    AddFolderTargets(currentFolderId, "children")
+                    if currentFolderId ~= '' then
+                        local currentFolder = assets:GetMonsterNode(currentFolderId)
+                        if currentFolder ~= nil then
+                            AddFolderTargets(currentFolder.parentNode or '', "siblings")
+                        end
+                    end
+
+                    if #moveTargets > 0 then
+                        menuItems[#menuItems + 1] = {
+                            text = 'Move To',
+                            submenu = moveTargets,
+                        }
+                    end
 
                     menuItems[#menuItems + 1] = {
                         text = 'Delete Monster',

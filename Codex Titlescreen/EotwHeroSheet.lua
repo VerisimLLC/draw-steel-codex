@@ -361,6 +361,15 @@ local function RefreshPalette()
     return true
 end
 
+--- The palette for the active colour scheme, worked out afresh, for the main
+--- game's Hero sheet so both sheets follow schemes the same way. It leaves
+--- this sheet's own palette and its change check alone.
+---@return EotwSheetPalette
+function EotwHeroSheet.Palette()
+    local colors = ThemeEngine.GetColorSchemeColors(ThemeEngine.GetActiveColorScheme()) or {}
+    return BuildPalette(colors, ThemeEngine.GetColorSchemeColors(nil) or {})
+end
+
 --The card's sections a live refresh re-reads (any character change): cheap,
 --with no feature index. Titles and the rest are read once when the Hero loads.
 local LIVE_SECTIONS = { "identity", "progress", "vitals", "resource" }
@@ -1986,6 +1995,13 @@ local function ClosePin()
     return false
 end
 
+--- Close a pinned card; true if there was one. The Builder's Review calls it
+--- first on Escape, since the sheet leaves Escape to the Builder there.
+--- @return boolean
+function EotwHeroSheet.ClosePin()
+    return ClosePin()
+end
+
 --Redraws a pinned card that is still open (after a colour scheme switch:
 --cards are built with the palette as it was).
 local function RefreshPin()
@@ -2673,7 +2689,7 @@ local function CardRegion(ctx)
             --left and Stamina below its maximum
             local s = d.stamina
             local dead = ctx.fallen ~= nil or (s ~= nil and s.state == "dead")
-            local spendable = not ctx.inGame and d.mine == true and not dead and ctx.AwayParty() == nil
+            local spendable = not ctx.inGame and not ctx.review and d.mine == true and not dead and ctx.AwayParty() == nil
                 and r.current > 0 and s ~= nil and s.current < s.max
             ring:SetClass("spendable", spendable)
             ring.data.spendable = spendable
@@ -2839,7 +2855,7 @@ local function CardRegion(ctx)
                     portrait = nil
                 end
                 if portrait ~= nil then
-                    pcall(function() rect = tok:GetPortraitRectForAspect(LEFT_WIDTH / CARD_HEIGHT, portrait) end)
+                    pcall(function() rect = CardPortraitRect(tok, LEFT_WIDTH / CARD_HEIGHT, portrait) end)
                 end
             end
             --Immediate: a plain SetClass(false) animates the removal too, which
@@ -3155,6 +3171,8 @@ local function NoBenefitText(reason, gear)
     end
     return T("herosheet.treasures.no_benefit.armor", { armor = string.lower(table.concat(gear.armor, T("herosheet.kit.gear_or"))) })
 end
+--the main game's Hero sheet shows the same warning (HeroSheetCard.lua).
+EotwHeroSheet.NoBenefitText = NoBenefitText
 
 --The codex's own item card (CreateItemTooltip), plus the R6 warning on a
 --weapon or armor treasure the kit cannot use.
@@ -3312,7 +3330,7 @@ local function TreasuresRegion(ctx)
         local dead = d.stamina ~= nil and d.stamina.state == "dead"
         --equipping happens in town only (James 2026-10-10): a change in a game
         --would land on the game's copy of the Hero, not the roster's
-        local ownerActs = d.mine and not dead and ctx.fallen == nil and not ctx.inGame
+        local ownerActs = d.mine and not dead and ctx.fallen == nil and not ctx.inGame and not ctx.review
         local away = ctx.AwayParty()
         local awayTip = T("herosheet.treasures.away_tip")
         todoRow = nil
@@ -3588,69 +3606,9 @@ end
 --- top bar (main column) ---------------------------------------------------------
 
 --How often the top bar re-asks whether the player is needed (in a game).
---Triggers expire by time without any write, so this is a poll.
+--Triggers expire by time without any write, so this is a poll. The checks
+--themselves are shared with the Hero sheet's needed bar (HeroNeeds).
 local SIGNAL_POLL_SECONDS = 0.5
-
---Has this Hero a trigger waiting to be used (non-hostile, not dismissed)?
---The hero card's test, plus the dismissed check GetAvailableTriggers can skip.
----@param p creature
----@return boolean
-local function HasTrigger(p)
-    for _,t in pairs(p:GetAvailableTriggers(true) or {}) do
-        if not t.hostile and not t.dismissed and not t.triggered then
-            return true
-        end
-    end
-    return false
-end
-
---Has this Hero an end-of-turn saving throw waiting (the card is up, or it was
---accepted and is still rolling)?
----@param p creature
----@return boolean
-local function HasSave(p)
-    for _,t in pairs(p:GetAvailableTriggers(true) or {}) do
-        local inv = t.invocation
-        if not t.dismissed and inv ~= nil and inv ~= false and inv:try_get("standardAbility") == "End Turn Saving Throw" then
-            return true
-        end
-    end
-    for _,e in pairs(p:try_get("pendingAIActivityReactions", {})) do
-        if type(e) == "table" and e.activityId == "end-turn-save" and e.state ~= "completed" then
-            return true
-        end
-    end
-    return false
-end
-
---Is the game waiting on this Hero for a roll: a roll request not yet done,
---or the montage stage's test in this Hero's hands?
----@param charid string
----@return boolean
-local function HasRoll(charid)
-    for _,req in pairs(dmhub.GetPlayerActionRequests() or {}) do
-        local info = req.info
-        if info ~= nil and info.typeName == "RollRequest" and info.tokens ~= nil then
-            local entry = info.tokens[charid]
-            if entry ~= nil and entry.status ~= "complete" then
-                return true
-            end
-        end
-    end
-    local montage = rawget(_G, "EncounterMontage")
-    if montage ~= nil then
-        local turn = nil
-        pcall(function() turn = montage.GetState().turn end)
-        if type(turn) == "table" then
-            if turn.status == "rolling" and turn.heroid == charid then
-                return true
-            elseif turn.status == "pardon" and turn.pardon ~= nil and turn.pardon.heroid == charid then
-                return true
-            end
-        end
-    end
-    return false
-end
 
 --Where the encounter's story is (beat, montage round, narrative section): a
 --change while the sheet is open means the story moved on.
@@ -3666,24 +3624,6 @@ local function StorySignature()
             tostring(n and n.beatIndex), tostring(n and n.sectionIndex))
     end)
     return sig
-end
-
---Can the Heroes' side claim the next turn, with one of this player's Heroes
---able to take it?
----@param charid string
----@return boolean
-local function CanAct(charid)
-    local result = false
-    pcall(function()
-        local q = dmhub.initiativeQueue
-        if q == nil or q.hidden or not q:ChoosingTurn() or not q:IsPlayersTurn() then
-            return
-        end
-        local tok = dmhub.GetCharacterById(charid)
-        local id = tok ~= nil and InitiativeQueue.GetInitiativeId(tok) or nil
-        result = id ~= nil and InitiativeQueue.CanClaimTurn(id, { canControlInitiative = false })
-    end)
-    return result
 end
 
 --Why the player is needed right now, as the top bar's line (T9-T12, N7), or
@@ -3714,13 +3654,13 @@ local function NeededLine(ctx)
         local p = tok ~= nil and tok.properties or nil
         if p ~= nil then
             local trigger, save = false, false
-            pcall(function() trigger = HasTrigger(p) end)
-            pcall(function() save = HasSave(p) end)
+            pcall(function() trigger = HeroNeeds.HasTrigger(p) end)
+            pcall(function() save = HeroNeeds.HasSave(p) end)
             if trigger then
                 return T("herosheet.topbar.needed_trigger", { hero = tostring(entry.name) })
             elseif save then
                 return T("herosheet.topbar.needed_save", { hero = tostring(entry.name) })
-            elseif HasRoll(entry.charid) then
+            elseif HeroNeeds.HasRoll(entry.charid) then
                 return T("herosheet.topbar.needed_roll", { hero = tostring(entry.name) })
             end
         end
@@ -3729,7 +3669,7 @@ local function NeededLine(ctx)
         return T("herosheet.topbar.needed_story")
     end
     for _,entry in ipairs(mine) do
-        if CanAct(entry.charid) then
+        if HeroNeeds.CanAct(entry.charid) then
             return T("herosheet.topbar.needed_act")
         end
     end
@@ -5323,6 +5263,10 @@ end
 ---            the backdrop, the mount point and the switcher's label.
 ---   switching  true when moving between Heroes from the switcher: no open
 ---            sound or motion, only the card's art fades in.
+---   host     the panel to mount in, in place of the town or the game's dialog
+---            layer: the Builder's Review step.
+---   review   true for the Builder's Review: read only, with no top bar
+---            (switcher, owner buttons, Close), backdrop or Escape of its own.
 ---   fallen   for a fallen Hero opened from the Graveyard: { encounter =
 ---            where they fell, week = n, playedBy = player name }. Greys the
 ---            art and shows the epitaph in place of the vitals.
@@ -5342,7 +5286,8 @@ function EotwHeroSheet.Show(args)
     if context == nil then
         context = cond(dmhub.inGame and not dmhub.isLobbyGame, "game", "town")
     end
-    if not args.switching then
+    --the Builder's Review step shows the sheet on every visit: not an open.
+    if not args.switching and not args.review then
         EotwAnalytics.Track("eotw_hero_sheet_open", { heroid = charid, where = context, fallen = args.fallen ~= nil })
     end
 
@@ -5353,6 +5298,8 @@ function EotwHeroSheet.Show(args)
         charid = charid,
         context = context,
         inGame = context == "game",
+        --the Builder's Review: read only, inside the Builder
+        review = args.review == true,
         --"loading", "ready" or "failed"
         state = "loading",
         --whether the regions build their loading placeholders. Off when the
@@ -5579,7 +5526,7 @@ function EotwHeroSheet.Show(args)
     ctx.frost = ctx.transparent and FrostSupported() and FullResolution()
     m_fontScale = ctx.fontScale
 
-    local host = FindHost(ctx)
+    local host = args.host or FindHost(ctx)
     --the builder opens on the same host when the sheet hands over to it
     ctx.host = host
     if host == nil then
@@ -5599,23 +5546,30 @@ function EotwHeroSheet.Show(args)
         TreasuresRegion(ctx),
     }
 
+    --Review has nothing to switch to, act on or close: no top bar.
+    local mainChildren = {}
+    if not ctx.review then
+        mainChildren[#mainChildren+1] = TopBarRegion(ctx)
+    end
+    mainChildren[#mainChildren+1] = StatsRegion(ctx)
+    mainChildren[#mainChildren+1] = ListsRegion(ctx)
     local mainColumn = gui.Panel{
         width = string.format("100%%-%d", LEFT_WIDTH + COLUMN_GAP),
         height = "100%",
         lmargin = COLUMN_GAP,
         flow = "vertical",
-        TopBarRegion(ctx),
-        StatsRegion(ctx),
-        ListsRegion(ctx),
+        children = mainChildren,
     }
 
-    local animate = not args.switching and not ThemeEngine.GetAccessibility().reduceMotion
+    local animate = not args.switching and not ctx.review and not ThemeEngine.GetAccessibility().reduceMotion
     local layout = gui.Panel{
         floating = true,
         width = "100%",
         height = "100%",
         hpad = PAD,
-        tpad = PAD + LAYOUT_DROP,
+        --Review has no top bar to clear: the sheet starts under the
+        --Builder's banner, which leaves the lists more room.
+        tpad = cond(ctx.review, 0, PAD + LAYOUT_DROP),
         bpad = PAD - LAYOUT_DROP,
         borderBox = true,
         flow = "horizontal",
@@ -5635,6 +5589,13 @@ function EotwHeroSheet.Show(args)
         }
     end
 
+    --Review sits on the Builder's own backdrop.
+    local rootChildren = {}
+    if not ctx.review then
+        rootChildren[#rootChildren+1] = Backdrop(ctx)
+    end
+    rootChildren[#rootChildren+1] = layout
+
     root = gui.Panel{
         id = "eotwHeroSheet",
         floating = true,
@@ -5649,7 +5610,8 @@ function EotwHeroSheet.Show(args)
         bgcolor = "#00000000",
         styles = ThemeEngine.MergeStyles(ScaledRules(ctx.fontScale)),
 
-        captureEscape = true,
+        --Review leaves Escape to the Builder around it.
+        captureEscape = not ctx.review,
         --EXIT_DIALOG: roll dialogs, modals, popups and dropdowns above it
         --take Escape first; the town, the full sheet and the action bar's
         --targeting sit below it and wait until the sheet is closed.
@@ -5707,8 +5669,7 @@ function EotwHeroSheet.Show(args)
             end
         end,
 
-        Backdrop(ctx),
-        layout,
+        children = rootChildren,
     }
     if opener ~= nil then
         root:AddChild(opener)
@@ -5746,8 +5707,9 @@ function EotwHeroSheet.Show(args)
         RefreshPin()
     end
 
-    --open: fade (not on a switch between Heroes, not under Reduce Motion)
-    if not args.switching then
+    --open: fade (not on a switch between Heroes, not under Reduce Motion);
+    --no open sound on a switch or in the Builder's Review step.
+    if not args.switching and not args.review then
         audio.FireSoundEvent("UI.WindowOpen")
     end
     if animate then

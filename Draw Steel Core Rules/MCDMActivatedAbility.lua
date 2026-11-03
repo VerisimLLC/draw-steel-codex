@@ -816,9 +816,11 @@ end
 --- True if a natural roll at or above the Critical Threshold on this ability is a Critical Hit.
 --- Only main action abilities can crit, but they still can when used off-turn or as a
 --- granted free strike that pays a different cost (e.g. Gunshot through Make Free Strike).
+--- A free roll the caster makes as part of a main action can crit too (invokerCanCriticalHit).
 --- @return boolean
 function ActivatedAbility:CanCriticalHit()
     return IsMainActionAbility(self) or self:try_get("baseActionResourceId") == CharacterResource.actionResourceId
+        or self:try_get("invokerCanCriticalHit", false)
 end
 
 RegisterGoblinScriptSymbol(ActivatedAbility, {
@@ -1364,6 +1366,45 @@ end
 local g_grantingTokensFrame = nil
 local g_grantingTokens = {}
 
+local function RefreshGrantingTokens()
+    local frame = dmhub.FrameCount()
+    if g_grantingTokensFrame == frame then
+        return
+    end
+    g_grantingTokensFrame = frame
+    g_grantingTokens = {}
+    local function Scan()
+        for _, tok in ipairs(dmhub.allTokensIncludingObjects or {}) do
+            if OnThisMap(tok) and HasAbilityWithFlag(tok, "grantedToAdjacentCreatures") then
+                g_grantingTokens[#g_grantingTokens+1] = tok
+            end
+        end
+    end
+    --The scan reads every token, which would make any cached result built on it (the
+    --action bar's ability list) depend on every token. Those caches key on
+    --GrantingTokensSignature instead, so the scan runs untracked -- except inside a
+    --creature's modifier build, which has no such key.
+    local top = CreatureCache.stack[#CreatureCache.stack]
+    if top ~= nil and top.creature ~= false then
+        Scan()
+    else
+        CreatureCache.Untracked(Scan)
+    end
+end
+
+--- Identifies the set of tokens on this map that grant abilities to adjacent creatures, for
+--- caches of ability lists: GetGrantedAbilities' answer can only change when this does, a
+--- granting token moves, or the creature moves.
+--- @return string
+function ActivatedAbility.GrantingTokensSignature()
+    RefreshGrantingTokens()
+    local ids = {}
+    for _, tok in ipairs(g_grantingTokens) do
+        ids[#ids+1] = tostring(tok.charid)
+    end
+    return table.concat(ids, ",")
+end
+
 --- Every ability granted to creatureToken by the objects it is adjacent to.
 --- @param creatureToken nil|CharacterToken
 --- @return ActivatedAbility[]
@@ -1373,16 +1414,7 @@ function ActivatedAbility.GetGrantedAbilities(creatureToken)
         return result
     end
 
-    local frame = dmhub.FrameCount()
-    if g_grantingTokensFrame ~= frame then
-        g_grantingTokensFrame = frame
-        g_grantingTokens = {}
-        for _, tok in ipairs(dmhub.allTokensIncludingObjects or {}) do
-            if OnThisMap(tok) and HasAbilityWithFlag(tok, "grantedToAdjacentCreatures") then
-                g_grantingTokens[#g_grantingTokens+1] = tok
-            end
-        end
-    end
+    RefreshGrantingTokens()
 
     for _, tok in ipairs(g_grantingTokens) do
         if IsAdjacentUser(creatureToken, tok) then
@@ -1834,7 +1866,8 @@ function ActivatedAbility:Render(options, params)
                     and behavior:IsFiltered(self, params.token, params) == false then
                 ---@cast behavior ActivatedAbilityModifyPowerRollBehavior
                 local filterCond = trim(behavior.modifier:try_get("filterCondition", ""))
-                if filterCond == "" or dmhub.EvalGoblinScript(filterCond, creatureProperties:LookupSymbol(), "Filter condition for power roll display") then
+                --Same test as the roll dialog (MCDMAbilityRollBehavior): numeric, failing open.
+                if filterCond == "" or ExecuteGoblinScript(filterCond, creatureProperties:LookupSymbol(), 1, "Filter condition for power roll display") ~= 0 then
                     tryApply(behavior.modifier, {mod = behavior.modifier})
                 end
             end
@@ -2223,7 +2256,8 @@ function ActivatedAbility:Render(options, params)
     if trim(description) ~= "" then
         descriptionLabel = gui.Label {
             markdown = true,
-            text = string.format("<b>Effect: </b> %s", description),
+            --A description that already opens with "Special:" is its own label, not an Effect.
+            text = cond(string.starts_with(string.lower(trim(description)), "special:"), description, string.format("<b>Effect: </b> %s", description)),
         }
     end
 
@@ -2471,6 +2505,9 @@ function ActivatedAbility:Render(options, params)
         descriptionString = ""
     elseif isMaliceAbility then
         --Malice abilities are all effect; the "Effect:" prefix is noise.
+        descriptionString = description
+    elseif string.starts_with(string.lower(description), "special:") then
+        --A description that already opens with "Special:" is its own label, not an Effect.
         descriptionString = description
     else
         descriptionString = "<b>Effect: </b>" .. description
@@ -3792,6 +3829,92 @@ function ActivatedAbility.SquadMemberParticipates(casterToken, memberToken)
     return selected[memberToken.charid] == true
 end
 
+--- The running cast of this ability by this caster, if the current code is
+--- inside one.
+--- @param casterToken CharacterToken
+--- @return table|nil
+function ActivatedAbility:RunningSquadCast(casterToken)
+    local info = ActivatedAbility.CurrentCastInfo()
+    if info == nil or info.casterToken == nil or info.ability == nil then
+        return nil
+    end
+    if info.casterToken.charid ~= casterToken.charid or info.ability.name ~= self.name then
+        return nil
+    end
+    return info
+end
+
+--- True when a cost includes the action or the maneuver.
+--- @param cost table a cost as GetCost returns it
+--- @return boolean
+local function CostUsesActionOrManeuver(cost)
+    for _,entry in ipairs(cost.details or {}) do
+        for _,payment in ipairs(entry.paymentOptions or {}) do
+            if payment.resourceid == CharacterResource.actionResourceId
+                or payment.resourceid == CharacterResource.maneuverResourceId then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+--- True when a squad member can still pay for this ability, so it joins the
+--- squad cast. A member that already spent its action this turn sits out.
+--- The lead minion always counts: the normal cast check covers what it can pay.
+--- @param casterToken CharacterToken the minion leading the cast
+--- @param memberToken CharacterToken the squad member being considered
+--- @param castOptions? table the cast's options; found from the running cast when left out
+--- @return boolean
+function ActivatedAbility:SquadMemberCanPay(casterToken, memberToken, castOptions)
+    if casterToken == nil or memberToken == nil or memberToken.properties == nil then
+        return true
+    end
+    if memberToken.charid == casterToken.charid then
+        return true
+    end
+
+    if castOptions == nil then
+        local castInfo = self:RunningSquadCast(casterToken)
+        castOptions = castInfo ~= nil and castInfo.options or nil
+    end
+
+    --Once the cast has paid, every member looks spent. Use the list of
+    --members who could pay, saved just before paying.
+    local joiners = castOptions ~= nil and castOptions.squadJoiners or nil
+    if joiners ~= nil then
+        return joiners[memberToken.charid] == true
+    end
+
+    --Targeting refreshes often, so skip the full cost check for a member
+    --that has used neither its action nor its maneuver.
+    local properties = memberToken.properties
+    if (properties:GetResourceUsage(CharacterResource.actionResourceId, "turn") or 0) == 0
+        and (properties:GetResourceUsage(CharacterResource.maneuverResourceId, "turn") or 0) == 0 then
+        return true
+    end
+
+    --A cast can pay a different cost than the ability lists, such as a
+    --triggered free strike. If that cost needs no action or maneuver, a
+    --member who spent them can still join.
+    local costOverride = castOptions ~= nil and castOptions.costOverride or nil
+    if costOverride ~= nil and not CostUsesActionOrManeuver(costOverride) then
+        return true
+    end
+
+    return self:CanAfford(memberToken)
+end
+
+--- A squad member joins this cast when no invoke left it out and it can
+--- still pay for the ability.
+--- @param casterToken CharacterToken the minion leading the cast
+--- @param memberToken CharacterToken the squad member being considered
+--- @return boolean
+function ActivatedAbility:SquadMemberJoins(casterToken, memberToken)
+    return ActivatedAbility.SquadMemberParticipates(casterToken, memberToken)
+        and self:SquadMemberCanPay(casterToken, memberToken)
+end
+
 --True for squad-coordinated strikes (signature abilities and free strikes). Excludes
 --maneuvers because their target-stacking and target-multiplicity differs.
 function ActivatedAbility:UsesSquadStrike(casterToken)
@@ -3807,6 +3930,29 @@ end
 --function wrapper for Summoner Minion Main Action and Maneuver usage support
 local g_consumeResources_base = ActivatedAbility.ConsumeResources
 function ActivatedAbility:ConsumeResources(casterToken, options)
+    --Note who can pay before anyone does, so later squad counts in this cast
+    --(like the squad maneuver roll) still include them. Some casts pay with
+    --their own options table, so the running cast keeps a copy too.
+    if casterToken ~= nil and casterToken.valid and options.squadJoiners == nil
+        and self:UsesSquadCoordination(casterToken) then
+        local castInfo = self:RunningSquadCast(casterToken)
+        local joiners = castInfo ~= nil and castInfo.options.squadJoiners or nil
+        if joiners == nil then
+            local squad = casterToken.properties:try_get("_tmp_minionSquad")
+            joiners = {}
+            for _,tok in ipairs(squad and squad.tokens or {}) do
+                if tok ~= nil and tok.valid and tok.properties ~= nil
+                    and self:SquadMemberCanPay(casterToken, tok, options) then
+                    joiners[tok.charid] = true
+                end
+            end
+        end
+        options.squadJoiners = joiners
+        if castInfo ~= nil and castInfo.options.squadJoiners == nil then
+            castInfo.options.squadJoiners = joiners
+        end
+    end
+
     g_consumeResources_base(self, casterToken, options)
 
     if casterToken == nil or not casterToken.valid then
@@ -4126,7 +4272,7 @@ function ActivatedAbility:GetTargetingRays(casterToken, range, symbols, targets)
         local squadTokens = {}
         for _, tok in ipairs(squad.tokens) do
             if tok ~= nil and tok.valid and tok.properties:IsActiveInSquad()
-                and ActivatedAbility.SquadMemberParticipates(casterToken, tok) then
+                and self:SquadMemberJoins(casterToken, tok) then
                 squadTokens[#squadTokens + 1] = tok
             end
         end
@@ -4550,7 +4696,7 @@ function ActivatedAbility:CustomTargetShape(casterToken, range, symbols, targets
         local squadTokens = {}
         for _, tok in ipairs(squad.tokens) do
             if tok ~= nil and tok.valid and tok.properties:IsActiveInSquad()
-                and ActivatedAbility.SquadMemberParticipates(casterToken, tok) then
+                and self:SquadMemberJoins(casterToken, tok) then
                 squadTokens[#squadTokens + 1] = tok
             end
         end
@@ -4656,103 +4802,75 @@ end
 
 local g_numTargetsFunction = ActivatedAbility.GetNumTargets
 
---- Returns nil when no invoke narrowed the squad, so callers keep their
---- existing whole-squad count. Dead and broken-off picks are left out so a
---- stale selection cannot inflate the strike.
+--GetNumTargets re-runs on every targeting recompute, so throttle its diagnostic
+--below to one line per caster/squad/game update instead of flooding the log.
+local g_lastNoSquadAttackerDiag = nil
+
+--- Counts the squad members that join this cast: alive, not skipping their
+--- turn, not broken off for an individual maneuver, able to pay, and, when an
+--- invoke picked only some minions, one of those.
+--- @param ability ActivatedAbility
 --- @param casterToken CharacterToken
 --- @param squad SquadInfo
---- @return number|nil
-local function SelectedSquadMemberCount(casterToken, squad)
-    if casterToken == nil or casterToken.properties == nil then
-        return nil
-    end
-    if casterToken.properties:try_get("_tmp_squadParticipants") == nil then
-        return nil
-    end
-
+--- @return number
+local function JoiningSquadMemberCount(ability, casterToken, squad)
     local count = 0
-    for _, tok in ipairs(squad.tokens or {}) do
-        if tok ~= nil and tok.valid and tok.properties ~= nil
-            and (not tok.properties:IsDead())
-            and tok.properties:IsActiveInSquad()
-            and ActivatedAbility.SquadMemberParticipates(casterToken, tok) then
+    local rejectInvalid, rejectDead, rejectSkipped, rejectInactive = 0, 0, 0, 0
+    local rejectNotSelected, rejectSpent = 0, 0
+    for _, tok in ipairs(squad.tokens) do
+        if tok == nil or not tok.valid or tok.properties == nil then
+            rejectInvalid = rejectInvalid + 1
+        elseif tok.properties:IsDead() then
+            rejectDead = rejectDead + 1
+        elseif tok.properties:IsTurnSkipped(tok) then
+            rejectSkipped = rejectSkipped + 1
+        elseif not tok.properties:IsActiveInSquad() then
+            rejectInactive = rejectInactive + 1
+        elseif not ActivatedAbility.SquadMemberParticipates(casterToken, tok) then
+            rejectNotSelected = rejectNotSelected + 1
+        elseif not ability:SquadMemberCanPay(casterToken, tok) then
+            rejectSpent = rejectSpent + 1
+        else
             count = count + 1
         end
     end
 
-    --Never zero: the lead minion is always one of the selection, and a zero
-    --here would silently cancel the strike's targeting.
     if count < 1 then
+        --An empty squad here strikes as one minion while ConsumeResources still
+        --charges all of them, which on screen looks like a normal solo strike.
+        --Fall back to 1 so the cast works, but log what emptied the squad.
+        local diagKey = string.format("%s/%s/%s", tostring(casterToken.charid),
+            tostring(squad.name), tostring(dmhub.gameupdateid))
+        if g_lastNoSquadAttackerDiag ~= diagKey then
+            g_lastNoSquadAttackerDiag = diagKey
+            print(string.format(
+                "SQUADDIAG:: no squad attackers for %s ability=%s squad=%s tokens=%d invalid=%d dead=%d turnskipped=%d inactive=%d notselected=%d spent=%d; falling back to 1 attacker",
+                tostring(casterToken.name or casterToken.charid),
+                tostring(ability.name),
+                tostring(squad.name),
+                #squad.tokens, rejectInvalid, rejectDead, rejectSkipped, rejectInactive, rejectNotSelected, rejectSpent))
+        end
         count = 1
     end
 
     return count
 end
 
---GetNumTargets re-runs on every targeting recompute, so throttle its diagnostic
---below to one line per caster/squad/game update instead of flooding the log.
-local g_lastNoSquadAttackerDiag = nil
-
 function ActivatedAbility:GetNumTargets(casterToken, symbols)
     local result = g_numTargetsFunction(self, casterToken, symbols) or 0
 
     if (not mod.unloaded) and casterToken ~= nil and result >= 1 and self:UsesSquadStrike(casterToken) then
-        --minion signature abilities and free strikes can target one enemy per active
-        --(non-skipped) squad member, multiplied by the ability's own per-minion
-        --target count. For Maneuver-or-Action squads, also exclude minions that
-        --have already broken off for an individual maneuver this turn.
+        --minion signature abilities and free strikes can target one enemy per
+        --squad member that joins, multiplied by the ability's own per-minion
+        --target count.
         local squad = casterToken.properties._tmp_minionSquad
-        if casterToken.properties:HasManeuverOrActionRule() and squad ~= nil and squad.tokens ~= nil then
-            local count = 0
-            local rejectInvalid, rejectDead, rejectSkipped, rejectInactive = 0, 0, 0, 0
-            local rejectNotSelected = 0
-            for _, tok in ipairs(squad.tokens) do
-                if tok == nil or not tok.valid or tok.properties == nil then
-                    rejectInvalid = rejectInvalid + 1
-                elseif tok.properties:IsDead() then
-                    rejectDead = rejectDead + 1
-                elseif tok.properties:IsTurnSkipped(tok) then
-                    rejectSkipped = rejectSkipped + 1
-                elseif not tok.properties:IsActiveInSquad() then
-                    rejectInactive = rejectInactive + 1
-                elseif not ActivatedAbility.SquadMemberParticipates(casterToken, tok) then
-                    rejectNotSelected = rejectNotSelected + 1
-                else
-                    count = count + 1
-                end
-            end
-
-            if count < 1 then
-                --An empty squad here strikes as one minion while ConsumeResources still
-                --charges all of them, which on screen looks like a normal solo strike.
-                --Fall back to 1 so the cast works, but log what emptied the squad.
-                local diagKey = string.format("%s/%s/%s", tostring(casterToken.charid),
-                    tostring(squad.name), tostring(dmhub.gameupdateid))
-                if g_lastNoSquadAttackerDiag ~= diagKey then
-                    g_lastNoSquadAttackerDiag = diagKey
-                    print(string.format(
-                        "SQUADDIAG:: no squad attackers for %s ability=%s squad=%s tokens=%d invalid=%d dead=%d turnskipped=%d inactive=%d notselected=%d; falling back to 1 attacker",
-                        tostring(casterToken.name or casterToken.charid),
-                        tostring(self.name),
-                        tostring(squad.name),
-                        #squad.tokens, rejectInvalid, rejectDead, rejectSkipped, rejectInactive, rejectNotSelected))
-                end
-                count = 1
-            end
-
-            return count * result
+        if squad == nil then
+            return result
         end
-
-        --Squads without the Maneuver-or-Action rule size the strike off the
-        --squad's own live count, so narrow that the same way when an invoke
-        --selected only some of the minions.
-        local activeCount = (squad.activeMinions or squad.liveMinions) or 1
-        local selectedCount = SelectedSquadMemberCount(casterToken, squad)
-        if selectedCount ~= nil then
-            activeCount = selectedCount
+        if squad.tokens == nil then
+            return ((squad.activeMinions or squad.liveMinions) or 1) * result
         end
-
-        return activeCount * result
+        return JoiningSquadMemberCount(self, casterToken, squad) * result
     end
 
     return result
@@ -5408,4 +5526,168 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
     end
 
     return false, string.format("%s blocks line of effect to this creature.", RuleUtils.LineOfEffectBlockerName(blocker))
+end
+
+--------------------------------------------------------------------------------
+-- Finish targets later (Dual Wielder's Double Strike).
+--
+-- An ability flagged finishTargetsLater that is used on your turn, in combat,
+-- against fewer targets than it allows does not lose the rest. The power roll
+-- records its dice on the caster (creature.pendingFinishLater), and until that
+-- turn ends GetActivatedAbilities adds a clone for the remaining targets: free
+-- (actionNumber 0, so it sits in its own drawer but spends nothing), unable to
+-- target the creatures already hit, and landing on the same dice. Each new
+-- target's own edges and banes still apply to those dice.
+--------------------------------------------------------------------------------
+
+--- @class FinishLaterRecord
+--- @field turnid string The turn (creature:GetTurnId) the first use happened on; the record is dead after it.
+--- @field dice {numFaces: number, result: number}[] The die faces the first power roll landed on.
+--- @field naturalRoll number The first roll's natural result, for display.
+--- @field targetIds table<string, boolean> Charids the first use already hit.
+--- @field remaining number How many targets are left.
+
+--- Called by the power roll once it resolves. Records the dice when this was the
+--- first use of a finishTargetsLater ability and targets are left over.
+--- @param ability ActivatedAbility
+--- @param casterToken CharacterToken
+--- @param targets table[] The cast's targets ({token = CharacterToken}).
+--- @param rollInfo table The completed roll (its rolls list carries the dice).
+function ActivatedAbility.SaveTargetsForLater(ability, casterToken, targets, rollInfo)
+    if (not ability:try_get("finishTargetsLater", false)) or ability:try_get("followUpOf") ~= nil then
+        return
+    end
+
+    local caster = casterToken.properties
+    if caster == nil or rollInfo == nil or not caster:IsOurTurn() then
+        return
+    end
+
+    local turnid = caster:GetTurnId()
+    if turnid == nil then
+        return
+    end
+
+    local hit = {}
+    local hitCount = 0
+    for _,target in ipairs(targets or {}) do
+        if target.token ~= nil and not hit[target.token.charid] then
+            hit[target.token.charid] = true
+            hitCount = hitCount + 1
+        end
+    end
+
+    local remaining = ability:GetNumTargets(casterToken, {}) - hitCount
+    if hitCount == 0 or remaining <= 0 then
+        return
+    end
+
+    local dice = {}
+    for _,roll in ipairs(rollInfo.rolls or {}) do
+        if (not roll.dropped) and roll.numFaces ~= nil and roll.result ~= nil then
+            dice[#dice+1] = { numFaces = roll.numFaces, result = roll.result }
+        end
+    end
+
+    if #dice == 0 then
+        return
+    end
+
+    casterToken:ModifyProperties{
+        description = string.format("Save %s for later", ability.name),
+        execute = function()
+            local pending = caster:try_get("pendingFinishLater") or {}
+
+            --records from earlier turns can never be used again.
+            for guid,entry in pairs(pending) do
+                if entry.turnid ~= turnid then
+                    pending[guid] = nil
+                end
+            end
+
+            pending[ability.guid] = {
+                turnid = turnid,
+                dice = dice,
+                naturalRoll = rollInfo.naturalRoll or 0,
+                targetIds = hit,
+                remaining = remaining,
+            }
+            caster.pendingFinishLater = pending
+        end,
+    }
+end
+
+--- Called by the power roll when the follow-up clone resolves: the saved targets are used up.
+--- @param ability ActivatedAbility The follow-up clone.
+--- @param casterToken CharacterToken
+function ActivatedAbility.ConsumeTargetsForLater(ability, casterToken)
+    local sourceGuid = ability:try_get("followUpOf")
+    local caster = casterToken.properties
+    if sourceGuid == nil or caster == nil or caster:try_get("pendingFinishLater") == nil then
+        return
+    end
+
+    casterToken:ModifyProperties{
+        description = string.format("Finish %s", ability.name),
+        execute = function()
+            caster.pendingFinishLater[sourceGuid] = nil
+        end,
+    }
+end
+
+--- The free clone that finishes a saved ability.
+--- @param ability ActivatedAbility The ability as the caster has it now (kit bonuses applied).
+--- @param entry FinishLaterRecord
+--- @return ActivatedAbility
+function ActivatedAbility.MakeFinishLaterClone(ability, entry)
+    local clone = DeepCopy(ability)
+    clone._tmp_temporaryClone = true
+
+    --its own guid, so the action bar flags it as a newly available ability.
+    clone.guid = ability.guid .. "-finish"
+    clone.followUpOf = ability.guid
+    clone.followUpDice = DeepCopy(entry.dice)
+    clone.excludedTargetTokenIds = DeepCopy(entry.targetIds)
+    clone.numTargets = entry.remaining
+    clone.actionNumber = 0
+    clone.finishTargetsLater = false
+
+    local hitCount = 0
+    for _,_ in pairs(entry.targetIds) do
+        hitCount = hitCount + 1
+    end
+
+    if hitCount == 1 and entry.remaining == 1 then
+        clone.name = string.format("%s (Second Target)", ability.name)
+    else
+        clone.name = string.format("%s (Remaining Targets)", ability.name)
+    end
+
+    return clone
+end
+
+--- Appends the follow-up clones for this turn's saved abilities. Called at the
+--- end of creature:GetActivatedAbilities, once kit and modifier changes are in.
+--- @param result ActivatedAbility[]
+function creature:AddFinishLaterAbilities(result)
+    local pending = self:try_get("pendingFinishLater")
+    if pending == nil or next(pending) == nil then
+        return
+    end
+
+    local turnid = self:GetTurnId()
+    if turnid == nil then
+        return
+    end
+
+    for guid,entry in pairs(pending) do
+        if entry.turnid == turnid then
+            for _,ability in ipairs(result) do
+                if ability.guid == guid and ability:try_get("followUpOf") == nil then
+                    result[#result+1] = ActivatedAbility.MakeFinishLaterClone(ability, entry)
+                    break
+                end
+            end
+        end
+    end
 end

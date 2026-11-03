@@ -548,6 +548,13 @@ function EncounterPresence.HostTick()
         if not ok then
             printf("EotW presence: montage turn sync failed: %s", tostring(err))
         end
+        local negotiation = rawget(_G, "EncounterNegotiation")
+        if negotiation ~= nil then
+            ok, err = pcall(negotiation.SyncTurnToOwners, awaySet)
+            if not ok then
+                printf("EotW presence: negotiation turn sync failed: %s", tostring(err))
+            end
+        end
     end
 end
 

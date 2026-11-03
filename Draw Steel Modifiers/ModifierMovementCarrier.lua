@@ -166,49 +166,66 @@ local function MovementCarrierIndex()
     local result = {}
     g_movementCarrierIndex = result
     g_movementCarrierIndexBuilding = true
-    local effectsTable = dmhub.GetTable(CharacterOngoingEffect.tableName) or {}
-    --Includes object tokens: a passenger can be a map object (a hitched Field Ballista).
-    for _, targetToken in ipairs(dmhub.allTokensIncludingObjects) do
-        if targetToken.valid and targetToken.properties ~= nil and
-           ActualGrabCarrierId(targetToken.properties) == nil then
-            local foundCarrier = false
-            for _, effect in ipairs(targetToken.properties:ActiveOngoingEffects()) do
-                local effectInfo = effectsTable[effect.ongoingEffectid]
-                if effectInfo ~= nil then
-                    for _, modifier in ipairs(effectInfo:try_get("modifiers", {})) do
-                        if modifier.behavior == "movementcarrier" then
-                            local context = {
-                                mod = modifier,
-                                ongoingEffect = effect,
-                                stacks = effect.stacks,
-                            }
-                            if not modifier:HasFilter() or modifier:PassesFilter(targetToken.properties, context) then
-                                local carrierId = modifier:ResolveMovementCarrier(context, targetToken.properties, nil)
-                                if carrierId ~= nil then
-                                    result[carrierId] = result[carrierId] or {}
-                                    result[carrierId][#result[carrierId]+1] = {
-                                        token = targetToken,
-                                        modifier = modifier,
-                                        context = context,
-                                    }
-                                    foundCarrier = true
-                                    break
+    --Untracked: this scan reads every token, and it runs inside whichever creature's
+    --modifier build asks first. Each carrier's passengers join its cache key instead
+    --(the "movementcarrier" signature below).
+    CreatureCache.Untracked(function()
+        local effectsTable = dmhub.GetTable(CharacterOngoingEffect.tableName) or {}
+        --Includes object tokens: a passenger can be a map object (a hitched Field Ballista).
+        for _, targetToken in ipairs(dmhub.allTokensIncludingObjects) do
+            if targetToken.valid and targetToken.properties ~= nil and
+               ActualGrabCarrierId(targetToken.properties) == nil then
+                local foundCarrier = false
+                for _, effect in ipairs(targetToken.properties:ActiveOngoingEffects()) do
+                    local effectInfo = effectsTable[effect.ongoingEffectid]
+                    if effectInfo ~= nil then
+                        for _, modifier in ipairs(effectInfo:try_get("modifiers", {})) do
+                            if modifier.behavior == "movementcarrier" then
+                                local context = {
+                                    mod = modifier,
+                                    ongoingEffect = effect,
+                                    stacks = effect.stacks,
+                                }
+                                if not modifier:HasFilter() or modifier:PassesFilter(targetToken.properties, context) then
+                                    local carrierId = modifier:ResolveMovementCarrier(context, targetToken.properties, nil)
+                                    if carrierId ~= nil then
+                                        result[carrierId] = result[carrierId] or {}
+                                        result[carrierId][#result[carrierId]+1] = {
+                                            token = targetToken,
+                                            modifier = modifier,
+                                            context = context,
+                                        }
+                                        foundCarrier = true
+                                        break
+                                    end
                                 end
                             end
                         end
                     end
-                end
-                if foundCarrier then
-                    break
+                    if foundCarrier then
+                        break
+                    end
                 end
             end
         end
-    end
+    end)
 
     g_movementCarrierIndexUpdate = dmhub.ngameupdate
     g_movementCarrierIndexBuilding = false
     return result
 end
+
+CreatureCache.RegisterSignature("movementcarrier", function(token)
+    local entries = MovementCarrierIndex()[token.charid]
+    if entries == nil then
+        return ""
+    end
+    local ids = {}
+    for _, entry in ipairs(entries) do
+        ids[#ids+1] = entry.token.charid
+    end
+    return table.concat(ids, ",")
+end)
 
 function CharacterModifier.VisitMovementCarrierPassengers(carrier, visitor)
     local carrierToken = dmhub.LookupToken(carrier)

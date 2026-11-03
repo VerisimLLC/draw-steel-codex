@@ -6,7 +6,10 @@ MonsterAI:RegisterTactic{
     score = function(self, token, tokenLoc, enemy, ability)
         local flanking = false
         for _,ally in ipairs(self.allyTokens) do
-            if ally.charid ~= token.charid and MonsterAI.TargetDistance(ally, enemy) <= 1 then
+            --allyTokens is only rebuilt by RefreshCombatants, so an ally deleted
+            --earlier in this turn (killed during a plan preview) is still listed;
+            --measuring from it errors (HUJUSEJG), and the dead don't flank.
+            if ally.charid ~= token.charid and MonsterAI.TokenIsLiveCombatant(ally) and MonsterAI.TargetDistance(ally, enemy) <= 1 then
                 if (enemy.loc.y - tokenLoc.y) == (ally.loc.y - enemy.loc.y) and (enemy.loc.x - tokenLoc.x) == (ally.loc.x - enemy.loc.x) then
                     flanking = true
                     break
@@ -181,10 +184,11 @@ MonsterAI:RegisterBehavior{
 
 --Avoid Opportunity Attacks: the work is in MonsterAI.lua (OpportunityAttackers,
 --ChooseAvoidingOpportunityAttacks); the size of the penalty is
---MonsterAI.opportunityAttackPenalty.
+--MonsterAI.opportunityAttackPenalty. On for every monster; turn it off per type
+--in the Monster AI panel, with SetMoveEnabledForMonster, or in an EotW script.
 MonsterAI:RegisterBehavior{
     id = MonsterAI.avoidOpportunityAttacksBehavior,
     aliases = {"Avoids Opportunity Attacks", "Avoid OAs", "Avoids OAs"},
     description = "Will not walk away from an adjacent enemy who could make an opportunity attack, unless the plan that does is worth far more than any that does not.",
-    monsters = {},
+    allMonsters = true,
 }

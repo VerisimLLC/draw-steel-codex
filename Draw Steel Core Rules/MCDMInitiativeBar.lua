@@ -76,6 +76,9 @@ local function PerformEndCombat()
 			tok.properties:DispatchEvent("endcombat", {})
 		end
 	end
+
+	--map objects have no initiative entry, so the loop above misses them.
+	TargetableObject.DispatchToObjects("endcombat")
 end
 
 --Flip the networked victory flag so the full-screen victory screen takes over on
@@ -293,6 +296,24 @@ local CanControlInitiative = function()
 	return dmhub.isDM or playersControlInitiativeSetting:Get()
 end
 
+--True in Encounter of the Week games. pcall-guarded: the EotW codemod may not be
+--loaded in this game.
+--- @return boolean
+local function IsEotwGame()
+	local eotw = false
+	pcall(function() eotw = EncounterOfTheWeekGame.IsEotwGame() end)
+	return eotw
+end
+
+--Manual overrides of the initiative bar: moving cards between sides, switching
+--the acting side, picking who goes first, skipping rounds, ending combat, removing
+--cards or marking them moved. EotW turns players-run-initiative on so they can
+--claim turns, but the game runs everything else, so none of this is offered there.
+--- @return boolean
+local function CanRearrangeInitiative()
+	return CanControlInitiative() and not IsEotwGame()
+end
+
 --Revert Turn. While the queue is between turns, a client showing the Director UI keeps a
 --snapshot of the board (backup.CreateCombatCheckpoint); the Revert Turn buttons restore it
 --to undo everything the current turn did. One snapshot, held in memory on that client.
@@ -389,9 +410,7 @@ end
 --pcall-guarded: the EotW codemod may not be loaded in this game.
 --- @return boolean
 function TurnCheckpoint.RevertAllowed()
-	local eotw = false
-	pcall(function() eotw = EncounterOfTheWeekGame.IsEotwGame() end)
-	return not eotw
+	return not IsEotwGame()
 end
 
 --Restores checkpoint, telling the user when it could not be done.
@@ -1545,7 +1564,7 @@ local function CreateDrawSteelBubble()
         classes = "arrow",
 
         press = function(element)
-            if not element:HasClass("selected") and CanControlInitiative() and dmhub.initiativeQueue:ChoosingTurn() then
+            if not element:HasClass("selected") and CanRearrangeInitiative() and dmhub.initiativeQueue:ChoosingTurn() then
                 dmhub.initiativeQueue.playersTurn = true
                 dmhub:UploadInitiativeQueue()
                 bubblePanel:FireEventTree("refresh")
@@ -1583,7 +1602,7 @@ local function CreateDrawSteelBubble()
         classes = { "arrow", "selected" },
 
         press = function(element)
-            if not element:HasClass("selected") and CanControlInitiative() and dmhub.initiativeQueue:ChoosingTurn() then
+            if not element:HasClass("selected") and CanRearrangeInitiative() and dmhub.initiativeQueue:ChoosingTurn() then
                 dmhub.initiativeQueue.playersTurn = false
                 dmhub:UploadInitiativeQueue()
                 bubblePanel:FireEventTree("refresh")
@@ -1692,7 +1711,7 @@ local function CreateDrawSteelBubble()
             local token = dmhub.selectedOrPrimaryTokens[1]
             if token ~= nil and token.onBoard and TokenControlledByUser(token) then
                 local initiativeid = InitiativeQueue.GetInitiativeId(token)
-                if initiativeid ~= nil and dmhub.initiativeQueue:IsEntryPlayer(initiativeid) and token.topsheet ~= nil then
+                if initiativeid ~= nil and dmhub.initiativeQueue:IsEntryPlayer(initiativeid) and dmhub.initiativeQueue:HasHadTurn(initiativeid) == false and token.topsheet ~= nil then
                     canSelectToken = true
                 end
             end
@@ -1754,7 +1773,9 @@ local function CreateDrawSteelBubble()
             local token = dmhub.selectedOrPrimaryTokens[1]
             if token ~= nil and token.onBoard and TokenControlledByUser(token) then
                 local initiativeid = InitiativeQueue.GetInitiativeId(token)
-                if initiativeid ~= nil and (dmhub.initiativeQueue:IsEntryPlayer(initiativeid) == dmhub.initiativeQueue:IsPlayersTurn()) and token.topsheet ~= nil then
+                --HasHadTurn: with nothing selected, selectedOrPrimaryTokens falls back to
+                --the last hero used, who may already have gone this round (QM6XE5YN).
+                if initiativeid ~= nil and (dmhub.initiativeQueue:IsEntryPlayer(initiativeid) == dmhub.initiativeQueue:IsPlayersTurn()) and dmhub.initiativeQueue:HasHadTurn(initiativeid) == false and token.topsheet ~= nil then
                     local nameplate = token.topsheet:GetChildrenWithClassRecursive("nameplate")[1]
                     if nameplate ~= nil then
                         nameplate:FireEvent("press")
@@ -1766,7 +1787,7 @@ local function CreateDrawSteelBubble()
 
 		rightClick = function (self)
 
-			if not CanControlInitiative() then
+			if not CanRearrangeInitiative() then
 				return
 			end
 
@@ -1988,7 +2009,7 @@ local function CreateDrawSteelBubble()
                 local token = dmhub.selectedOrPrimaryTokens[1]
                 if token ~= nil and token.onBoard and TokenControlledByUser(token) then
                     local initiativeid = InitiativeQueue.GetInitiativeId(token)
-                    if initiativeid ~= nil and (dmhub.initiativeQueue:IsEntryPlayer(initiativeid) == dmhub.initiativeQueue:IsPlayersTurn()) then
+                    if initiativeid ~= nil and (dmhub.initiativeQueue:IsEntryPlayer(initiativeid) == dmhub.initiativeQueue:IsPlayersTurn()) and dmhub.initiativeQueue:HasHadTurn(initiativeid) == false then
                         element.parent:FireEventTree("claiming", true)
                         return
                     end
@@ -2424,10 +2445,49 @@ end
 -- to cycle between them.
 -- =====================================================================
 
+local function HasVillainActionKey(abilities)
+    for _, ab in ipairs(abilities or {}) do
+        local key = ab:try_get("villainAction")
+        if key ~= nil and key ~= "" then
+            return true
+        end
+    end
+    return false
+end
+
+-- Cheap check before the full scan: GetActivatedAbilities clones and modifies
+-- every ability (~2 ms per creature) and the strip rescans on every game update,
+-- so only creatures whose own ability sources carry a villainAction slot pay for
+-- it. Stat block, kit and stolen abilities are seen; a villain action granted
+-- only through a modifier is not.
+local function MayOwnVillainActions(props)
+    if HasVillainActionKey(props:try_get("innateActivatedAbilities")) then
+        return true
+    end
+
+    local ok, kitHasVA = pcall(function()
+        local kit = props:Kit()
+        return kit ~= nil and HasVillainActionKey(kit:SignatureAbilities())
+    end)
+    if ok and kitHasVA then
+        return true
+    end
+
+    for _, cond in ipairs(props:try_get("ongoingEffects") or {}) do
+        local stolen = cond:try_get("stolenAbility")
+        if stolen ~= nil and HasVillainActionKey({stolen}) and not cond:Expired() then
+            return true
+        end
+    end
+
+    return false
+end
+
 -- Return { ["Villain Action 1"] = ability, ... } for a token, or nil.
 local g_reportedVillainActionScanError = false
 local function GetVillainActionAbilities(token)
     if token == nil or token.properties == nil then return nil end
+    if not MayOwnVillainActions(token.properties) then return nil end
     --Containment: GetActivatedAbilities runs a huge pass over authored data
     --(modifiers, items, triggers, module content). A throw here used to
     --propagate out of the refreshGame dispatch and abort the refresh of every
@@ -2940,7 +3000,7 @@ local function CreateVillainActionStrip(self, info)
                 if portrait ~= token.portrait and not token.popoutPortrait then
                     element.selfStyle.imageRect = nil
                 else
-                    element.selfStyle.imageRect = token:GetPortraitRectForAspect(1.0, portrait)
+                    element.selfStyle.imageRect = CardPortraitRect(token, 1.0, portrait)
                 end
             end
             element:SetClass("cyclable", isMulti)
@@ -4017,6 +4077,96 @@ local g_bossBarStyles = {
     },
 }
 
+-- Encounter-script status rows under the objective (LiveEncounter:GetScriptStatus):
+-- a title, a hover tooltip and an optional segmented clock countdown.
+local g_scriptStatusStyles = {
+    {
+        selectors = {"scriptStatusTimer"},
+        width = 20,
+        height = 20,
+        valign = "center",
+        rmargin = 6,
+        bgimage = "panels/square.png",
+        bgcolor = "@accent",
+        cornerRadius = 10,
+        borderWidth = 1,
+        borderColor = "@accent",
+    },
+}
+
+--Conic gradients for the clock, cached by "remaining/total". Lit segments are
+--white and spent ones dark grey; the panel's bgcolor tints both, so a spent
+--segment is a dark shade of the clock's colour. Spent turns darken clockwise
+--from twelve o'clock, like a clock hand sweeping round. The shader smooths the
+--segment edges and draws the dividers between segments.
+local g_timerGradients = {}
+
+--- @param remaining integer
+--- @param total integer
+local function TimerGradient(remaining, total)
+    local key = string.format("%d/%d", remaining, total)
+    local cached = g_timerGradients[key]
+    if cached ~= nil then
+        return cached
+    end
+    local lit = "#ffffffff"
+    local spent = "#2e2e2eff"
+    local edge = 0.0005
+    local stops = {}
+    for i = 0, total - 1 do
+        local color = (i >= total - remaining) and lit or spent
+        stops[#stops + 1] = { position = i / total + edge, color = color }
+        stops[#stops + 1] = { position = (i + 1) / total - edge, color = color }
+    end
+    local result = gui.Gradient{
+        type = "conic",
+        --clockwise from twelve o'clock (gradient y runs up: y = 1 is the top).
+        point_a = { x = 0.5, y = 0.5 },
+        point_b = { x = 0.5, y = 1 },
+        stops = stops,
+        dividers = (total > 1) and { count = total, width = 1.5, color = "#0b0f14" } or nil,
+    }
+    g_timerGradients[key] = result
+    return result
+end
+
+--One status row: the clock (collapsed when the entry has no timer) and the title.
+local function CreateScriptStatusRow()
+    local timer = gui.Panel{
+        classes = {"scriptStatusTimer"},
+        interactable = false,
+    }
+    local title = gui.Label{
+        classes = {"vaStripSubHeader"},
+        interactable = false,
+        text = "",
+    }
+    return gui.Panel{
+        classes = {"vaStripLabelRow"},
+        data = { tooltip = nil },
+        timer,
+        title,
+        setStatus = function(element, entry)
+            element.data.tooltip = entry.tooltip
+            title.text = entry.title
+            local t = entry.timer
+            timer:SetClass("collapsed", t == nil)
+            if t == nil then
+                return
+            end
+            timer.selfStyle.gradient = TimerGradient(t.remaining, t.total)
+            --nil falls back to the theme accent in g_scriptStatusStyles.
+            timer.selfStyle.bgcolor = t.color
+            timer.selfStyle.borderColor = t.color
+        end,
+        hover = function(element)
+            if element.data.tooltip ~= nil then
+                gui.Tooltip{ text = element.data.tooltip }(element)
+            end
+        end,
+    }
+end
+
 -- Award Victory strip: a band on the player side, analogous to the Reinforcements
 -- strip on the monster side and sharing its drawer styling. While the encounter is in
 -- progress it shows a short "Objective: Defeat X/Y monsters to win" label (full
@@ -4032,7 +4182,7 @@ local g_bossBarStyles = {
 -- (after a confirm) announces the outcome in chat and ends combat.
 local function CreateAwardVictoryStrip(self, info)
     local function strFor()
-        return { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(g_vaStripStyles), ThemeEngine.MergeTokens(g_victoryIconStyles) }
+        return { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(g_vaStripStyles), ThemeEngine.MergeTokens(g_victoryIconStyles), ThemeEngine.MergeTokens(g_scriptStatusStyles) }
     end
 
     local awardButton = gui.Panel{
@@ -4097,6 +4247,33 @@ local function CreateAwardVictoryStrip(self, info)
         classes = {"vaStripLabelRow"},
         defeatLabel,
     }
+
+    -- Rules and countdowns the encounter's scripts report (a script
+    -- definition's status function), one row per entry.
+    local statusRows = {}
+    local statusPanel = gui.Panel{
+        flow = "vertical",
+        width = "auto",
+        height = "auto",
+        halign = "left",
+    }
+
+    local function RefreshStatus(entries)
+        for i, entry in ipairs(entries) do
+            local row = statusRows[i]
+            if row == nil then
+                row = CreateScriptStatusRow()
+                statusRows[i] = row
+                statusPanel:AddChild(row)
+            end
+            row:SetClass("collapsed", false)
+            row:FireEvent("setStatus", entry)
+        end
+        for i = #entries + 1, #statusRows do
+            statusRows[i]:SetClass("collapsed", true)
+        end
+        statusPanel:SetClass("collapsed", #entries == 0)
+    end
 
     -- Eye icon: director-only; toggles objectiveVisible on the live encounter so the
     -- objective also shows on the players' bars.
@@ -4228,6 +4405,7 @@ local function CreateAwardVictoryStrip(self, info)
 
         objectivePanel,
         defeatRow,
+        statusPanel,
         victoryPanel,
         defeatPanel,
 
@@ -4241,23 +4419,31 @@ local function CreateAwardVictoryStrip(self, info)
             end
 
             local liveEncounter = q:try_get("liveEncounter")
+            if type(liveEncounter) ~= "table" then
+                element:SetClass("collapsed", true)
+                return
+            end
+            local status = liveEncounter:GetScriptStatus()
             --the objective strip is relevant when there are monsters to track, for the
             --"Destroy the Thing!" objective (which tracks objects, not monsters, so it can
             --have no onset monsters at all), or when an encounter script sets a
-            --victory/defeat condition (which need not involve monsters at all).
-            local hasObjective = type(liveEncounter) == "table" and (
+            --victory/defeat condition or a status (which need not involve monsters at all).
+            local hasObjective =
                 liveEncounter:try_get("onsetMonsterCount", 0) > 0 or
                 (liveEncounter:try_get("victoryCondition") == "destroy_thing" and
                  liveEncounter:try_get("onsetDestroyObjectCount", 0) > 0) or
                 liveEncounter:ScriptVictoryText() ~= nil or
-                liveEncounter:ScriptDefeatText() ~= nil)
+                liveEncounter:ScriptDefeatText() ~= nil or
+                #status > 0
             if not hasObjective then
                 element:SetClass("collapsed", true)
                 return
             end
 
             local isDM = GameHud.DirectorUIVisible()
-            local visible = liveEncounter:try_get("objectiveVisible", false)
+            --EotW has no Director to reveal the objective, so players always see it.
+            local eotw = IsEotwGame()
+            local visible = eotw or liveEncounter:try_get("objectiveVisible", false)
             local won = liveEncounter:CheckVictory()
             local lost = (not won) and liveEncounter:CheckDefeat()
             local defeatText = liveEncounter:GetDefeatText()
@@ -4272,6 +4458,7 @@ local function CreateAwardVictoryStrip(self, info)
                 element:SetClass("collapsed", false)
                 objectivePanel:SetClass("collapsed", false)
                 defeatRow:SetClass("collapsed", defeatText == nil)
+                RefreshStatus(status)
                 victoryPanel:SetClass("collapsed", true)
                 defeatPanel:SetClass("collapsed", true)
                 visibilityIcon:SetClass("collapsed", true)
@@ -4287,9 +4474,10 @@ local function CreateAwardVictoryStrip(self, info)
             element:SetClass("collapsed", false)
             objectivePanel:SetClass("collapsed", won)
             defeatRow:SetClass("collapsed", won or lost or defeatText == nil)
+            RefreshStatus(won and {} or status)
             victoryPanel:SetClass("collapsed", not won)
             defeatPanel:SetClass("collapsed", not lost or won)
-            visibilityIcon:SetClass("collapsed", won)
+            visibilityIcon:SetClass("collapsed", won or eotw)
             visibilityIcon:SetClass("shown", visible)
             if not won then
                 objectiveLabel.text = liveEncounter:GetObjectiveText()
@@ -5147,7 +5335,7 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 			},
 
 			press = function(element)
-				if element:HasClass("inactive") and CanControlInitiative() then
+				if element:HasClass("inactive") and CanRearrangeInitiative() then
 					info.initiativeQueue.playersTurn = not info.initiativeQueue.playersTurn
 					info.UploadInitiative()
 				end
@@ -5176,7 +5364,7 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 			end,
 
 			press = function(element)
-				if CanControlInitiative() and (not element:HasClass("won")) then
+				if CanRearrangeInitiative() and (not element:HasClass("won")) then
 					info.initiativeQueue.playersGoFirst = playerside
 					info.UploadInitiative()
 
@@ -5932,7 +6120,9 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 							--InitiativeQueue.ClaimTurn so other surfaces can reuse it. It
 							--reads the LIVE queue and uses the loop key k as the initiative
 							--id (group entries do not populate v.initiativeid).
-							InitiativeQueue.ClaimTurn(k, {canControlInitiative = CanControlInitiative()})
+							--In EotW only the players' normal claim applies (no monster or
+							--out-of-turn claims), as on the EotW hero sheet.
+							InitiativeQueue.ClaimTurn(k, {canControlInitiative = CanRearrangeInitiative()})
 						end,
 					})
 					newEntries[k]:SetClass("player", isplayer)
@@ -6672,7 +6862,22 @@ function GameHud:NextInitiative(oncomplete)
 
 			local newRound = false
 			if info.initiativeQueue == initiativeQueue and initiativeQueue.entries[currentInitiativeId] ~= nil then
-				newRound = initiativeQueue:NextTurn(currentInitiativeId)
+				local claimedBy = initiativeQueue:try_get("currentTurn")
+				if claimedBy and claimedBy ~= currentInitiativeId then
+					--another entry took the turn while the handlers above held the
+					--handoff open (Hesitation is Weakness accepted during a villain
+					--action or an end-of-turn prompt). NextTurn would end that
+					--claimed turn and flip the side (KC6TUXEY), so only record that
+					--the ended entry has acted; the claimant's own End Turn advances.
+					local priorityids = initiativeQueue:try_get("priorityids")
+					if priorityids ~= nil and currentInitiativeId ~= nil then
+						priorityids[currentInitiativeId] = nil
+					end
+					InitiativeQueue.SetTurnTaken(initiativeQueue, initiativeQueue.entries[currentInitiativeId])
+					print(string.format("ENDTURN:: %s's turn was claimed by %s during the handoff; not advancing", tostring(currentInitiativeId), tostring(claimedBy)))
+				else
+					newRound = initiativeQueue:NextTurn(currentInitiativeId)
+				end
 			end
 
 			g_betweenTurnTransitionInProgress = false
@@ -6833,6 +7038,10 @@ function GameHud:NewRound()
             tok.properties:EndRound(tok)
 		end
 	end
+
+    --Map objects (a ticking grenade) get the same Begin Round moment, which
+    --fires as the previous round ends.
+    TargetableObject.DispatchToObjects("beginround")
 
     Aura.CheckObjectAuraExpirationEndOfRound()
 
@@ -7210,7 +7419,7 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
 	--the initiative bar (the DM, or the "players control initiative" setting). As a
 	--special case we also let a non-DM player drag a hero card onto the center
 	--"Drag Hero Here" slot to claim that hero's turn. Reassigning an entry between
-	--containers stays DM-only.
+	--containers stays DM-only, and is never allowed in EotW (CanRearrangeInitiative).
 	--
 	--We make the card draggable under EXACTLY the conditions selectinitiative accepts
 	--the drop (heroes' choose-a-turn phase, an unmoved hero entry) -- NOT token
@@ -7222,7 +7431,7 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
 	--created then cached across refreshes, and eligibility changes as the initiative
 	--phase changes, so a value frozen at creation would be wrong.
 	local CanDragEntry = function()
-		if CanControlInitiative() then
+		if CanRearrangeInitiative() then
 			return true
 		end
 
@@ -7260,7 +7469,7 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
 			end
 
 			--Reassigning an entry between containers is a DM-only reorganization.
-			if not CanControlInitiative() then
+			if not CanRearrangeInitiative() then
 				return
 			end
 
@@ -7286,7 +7495,7 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
 
 			--Only DMs (or when players control initiative) may move an entry between
 			--containers by dropping on another entry container.
-			if CanControlInitiative() and target:HasClass("initiativeEntryContainer") then
+			if CanRearrangeInitiative() and target:HasClass("initiativeEntryContainer") then
 				return true
 			end
 
@@ -7311,7 +7520,7 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
 
             rightClick = function(element)
                 local q = info.initiativeQueue
-                if q == nil or q.hidden then
+                if q == nil or q.hidden or IsEotwGame() then
                     return
                 end
 
@@ -7344,7 +7553,7 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
                 --the acting entry would orphan currentTurn) and to whoever may
                 --reorganize the bar, the same gate as dragging cards between
                 --sides. A minion squad counts as a single creature.
-                if q.currentTurn ~= initiativeid and CanControlInitiative() then
+                if q.currentTurn ~= initiativeid and CanRearrangeInitiative() then
                     local groupTokens = self:GetTokensForInitiativeId(info, initiativeid)
                     if CountInitiativeUnits(groupTokens) > 1 then
                         entries[#entries+1] = {
@@ -7589,7 +7798,7 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
                                 if portrait ~= token.portrait and not token.popoutPortrait then
                                     element.selfStyle.imageRect = nil
                                 else
-								    element.selfStyle.imageRect = token:GetPortraitRectForAspect(CardWidthPercent*0.01, portrait)
+								    element.selfStyle.imageRect = CardPortraitRect(token, CardWidthPercent*0.01, portrait)
                                 end
 								found = true
 							end

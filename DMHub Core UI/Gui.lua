@@ -6,11 +6,107 @@ local _gui = gui
 gui = {
 }
 
+--a table, not a function: every gui.X lookup falls through here.
 setmetatable(gui, {
-	__index = function(t, n)
-		return _gui[n]
-	end
+	__index = _gui,
 })
+
+--Style conversion cache. A panel's `styles` arg is usually a list of plain tables, often a
+--module-level list shared by many panels, and the engine converted every table into a new
+--style object on every panel built (~285 us per styles arg, a quarter of a panel's cost
+--when building an ability card). Each plain table is now converted once with gui.Style,
+--keyed by the table itself (weakly, so it can still be collected), and reused while its
+--fields hold the same values; a table changed after use is converted again. Nested
+--tables (selectors, gradients) are compared by identity, so editing one in place after a
+--panel used it is not noticed -- build a new table instead. The engine already shares
+--gui.Style objects between panels, so a reused style behaves as before.
+local g_convertedStyles = setmetatable({}, { __mode = "k" })
+
+local function CachedStyle(tbl)
+	local entry = g_convertedStyles[tbl]
+	if entry ~= nil then
+		local snapshot = entry.snapshot
+		local n = 0
+		local same = true
+		for k,v in pairs(tbl) do
+			if snapshot[k] ~= v then
+				same = false
+				break
+			end
+			n = n + 1
+		end
+		if same and n == entry.count then
+			return entry.style
+		end
+	end
+
+	local snapshot = {}
+	local n = 0
+	for k,v in pairs(tbl) do
+		snapshot[k] = v
+		n = n + 1
+	end
+	local style = _gui.Style(tbl)
+	--A bgimage still loading converts to no image. Keeping that style would leave every later
+	--panel built from this table without the image for the session, so convert it again next time.
+	if style.bgimagePending then
+		return style
+	end
+	g_convertedStyles[tbl] = { style = style, snapshot = snapshot, count = n }
+	return style
+end
+
+--The engine's reading of a styles value (SheetPanel.ParseStyles): a style object is used as
+--is, a table with a list part is a list (nils skipped, nesting allowed), any other table is
+--one style. Returns false for anything else, which is left for the engine to handle.
+local function AppendCachedStyles(s, out)
+	local t = type(s)
+	if t == "userdata" then
+		out[#out+1] = s
+		return true
+	elseif t == "table" then
+		local len = rawlen(s)
+		if len > 0 then
+			for i=1,len do
+				local item = s[i]
+				if item ~= nil and not AppendCachedStyles(item, out) then
+					return false
+				end
+			end
+			return true
+		end
+		out[#out+1] = CachedStyle(s)
+		return true
+	end
+	return false
+end
+
+--The engine constructors, unwrapped: a reload runs this file again with gui already the
+--wrapped proxy, and must not wrap a wrapper.
+local g_rawConstructors = rawget(_G, "g_guiRawConstructors") or {}
+g_guiRawConstructors = g_rawConstructors
+
+for _,name in ipairs{"Panel", "Label", "Input", "Table", "TableRow", "Carousel", "TextEditor", "Icon", "MapPreview", "DicePreview", "Checkbox"} do
+	local ctor = g_rawConstructors[name] or _gui[name]
+	if type(ctor) == "function" then
+		g_rawConstructors[name] = ctor
+		gui[name] = function(args)
+			local styles = type(args) == "table" and rawget(args, "styles") or nil
+			if type(styles) ~= "table" then
+				return ctor(args)
+			end
+			local converted = {}
+			if not AppendCachedStyles(styles, converted) then
+				return ctor(args)
+			end
+			--the args table is the caller's: put their styles back once the engine has read it.
+			rawset(args, "styles", converted)
+			local result = ctor(args)
+			rawset(args, "styles", styles)
+			return result
+		end
+	end
+end
 
 local m_focus = nil
 

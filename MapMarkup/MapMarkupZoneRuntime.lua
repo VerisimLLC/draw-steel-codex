@@ -1378,6 +1378,42 @@ end
 --fails to draw one just cast. The signature is sorted so it identifies the SET
 --of painted tiles: were it order-sensitive, any reshuffle of area.locations
 --would bump the revision every frame and re-mesh the overlay continuously.
+--pcall targets for the walk below. Named functions passed to pcall with their
+--arguments, not closures: the walk runs on the every-frame overlay feed, once
+--per token and aura.
+local g_noAuras = {}
+
+local function CallGetAuras(props)
+    if type(props.GetAuras) == "function" then
+        return props:GetAuras()
+    end
+end
+
+local function CollectOneAura(auraInstance, keywordsTable, zones, signature, footprints, dispelSignature, ruleSources)
+    if not auraInstance:try_get("isChildAura", false) then
+        CollectKeywordAuraZones(auraInstance, keywordsTable, zones, signature, footprints, dispelSignature, ruleSources)
+    end
+end
+
+local function WalkKeywordAuras(zones, signature, footprints, dispelSignature, ruleSources)
+    local keywordsTable = dmhub.GetTable(K.ENVIRONMENTAL_KEYWORDS_TABLE) or {}
+    for _,token in ipairs(dmhub.allTokensIncludingObjects) do
+        local props = token.properties
+        if props ~= nil then
+            local auras = props:try_get("auras", g_noAuras)
+            local ok, generatedAuras = pcall(CallGetAuras, props)
+            if ok and generatedAuras ~= nil then
+                auras = generatedAuras
+            end
+
+            --one bad aura shouldn't cost the whole overlay.
+            for _,auraInstance in ipairs(auras) do
+                pcall(CollectOneAura, auraInstance, keywordsTable, zones, signature, footprints, dispelSignature, ruleSources)
+            end
+        end
+    end
+end
+
 local function EnsureKeywordAuraZones(suppressAuraRefresh)
     local zones = {}
     local signature = {}
@@ -1385,32 +1421,7 @@ local function EnsureKeywordAuraZones(suppressAuraRefresh)
     local dispelSignature = {}
     local ruleSources = {}
 
-    pcall(function()
-        local keywordsTable = dmhub.GetTable(K.ENVIRONMENTAL_KEYWORDS_TABLE) or {}
-        for _,token in ipairs(dmhub.allTokensIncludingObjects) do
-            local props = token.properties
-            if props ~= nil then
-                local auras = props:try_get("auras", {})
-                local ok, generatedAuras = pcall(function()
-                    if type(props.GetAuras) == "function" then
-                        return props:GetAuras()
-                    end
-                end)
-                if ok and generatedAuras ~= nil then
-                    auras = generatedAuras
-                end
-
-                --one bad aura shouldn't cost the whole overlay.
-                for _,auraInstance in ipairs(auras) do
-                    pcall(function()
-                        if not auraInstance:try_get("isChildAura", false) then
-                            CollectKeywordAuraZones(auraInstance, keywordsTable, zones, signature, footprints, dispelSignature, ruleSources)
-                        end
-                    end)
-                end
-            end
-        end
-    end)
+    pcall(WalkKeywordAuras, zones, signature, footprints, dispelSignature, ruleSources)
 
     table.sort(signature)
     local newSignature = table.concat(signature, "|")
@@ -1530,6 +1541,20 @@ pcall(function()
     end
 end)
 
+--GetMarkupZones is polled every frame. The parsed mapoverlay:shownzones set and
+--the filtered zone list are kept until their inputs change, instead of being
+--rebuilt per poll.
+--(Both tables start empty and are only read after the nil string/source
+--checks below have filled them.)
+local g_shownZonesStr = nil
+---@type table<string, boolean>
+local g_shownZonesSet = {}
+local g_filterSource = nil
+local g_filterStr = nil
+local g_filterRevision = nil
+---@type table
+local g_filterResult = {}
+
 pcall(function()
     dmhub.GetMarkupZones = function()
         EnsureZoneCache()
@@ -1614,17 +1639,30 @@ pcall(function()
             m.zoneRevision = m.zoneRevision + 1
         end
         if shownStr ~= "*" then
-            local shown = {}
-            for id in string.gmatch(shownStr, "[^;]+") do
-                shown[id] = true
-            end
-            local filtered = {}
-            for _,zone in ipairs(zones) do
-                if zone.zonegroup == nil or shown[zone.keywordid] ~= nil then
-                    filtered[#filtered+1] = zone
+            if shownStr ~= g_shownZonesStr then
+                g_shownZonesStr = shownStr
+                g_shownZonesSet = {}
+                for id in string.gmatch(shownStr, "[^;]+") do
+                    g_shownZonesSet[id] = true
                 end
             end
-            zones = filtered
+            --The source list is a cached table unless keyword auras were just
+            --merged into a fresh one; same list + same filter + same revision
+            --gives the same result.
+            if zones ~= g_filterSource or shownStr ~= g_filterStr or m.zoneRevision ~= g_filterRevision then
+                local shown = g_shownZonesSet
+                local filtered = {}
+                for _,zone in ipairs(zones) do
+                    if zone.zonegroup == nil or shown[zone.keywordid] ~= nil then
+                        filtered[#filtered+1] = zone
+                    end
+                end
+                g_filterSource = zones
+                g_filterStr = shownStr
+                g_filterRevision = m.zoneRevision
+                g_filterResult = filtered
+            end
+            zones = g_filterResult
         end
 
         --Per-zone-type fade: the opacity slider on each group in the Zones

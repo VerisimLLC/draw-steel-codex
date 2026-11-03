@@ -40,6 +40,7 @@ Everything is case-insensitive unless noted. A journal soft break
 |---|---|
 | `# Narrative` | a story beat on the stage: sections, choices, votes |
 | `# Montage` | a montage of rounds: opportunities and threats, tests |
+| `# Negotiation: <NPC>` | a negotiation on the stage: arguments, clues, a deal |
 | `# Encounter` | the fight: setup instructions (traps, bystanders, an extra `Victory:`), then the `[[encounter]]` island, then any `## Reinforcements: <Name>` sections |
 
 Not beats (can sit anywhere, including in a sub-document):
@@ -257,6 +258,21 @@ roll nobody makes within 45 seconds is rolled by the host. A hidden
 roll block (a blank line between them is still tidier). A `roll on` that
 names no table of its entry warns.
 
+**Mystery tables.** Add `(Mystery)` after the dice to hide a treasure table's
+rows until they are won, like a delve chest:
+
+```
+|Grave Goods: 1d6 (Mystery)
+|1-3: You gain 1 Healing Potion
+|4-6: +1 hero token
+```
+
+Rows the party has never landed on read `???` on the dice card; when the dice
+land on a new row, it types its prize in. Rows stay known for the rest of the
+game. The name stays `Grave Goods`, so `roll on Grave Goods` still finds it.
+Leave the tag off tables the players should read before rolling, such as
+damage tables. In the montage builder it is the "Mystery" tick box on a table.
+
 **Knacks: riders, secret options, knack versions.** Reward what makes each hero
 different. The full vocabulary, the perks the montage plays by their real
 rules, and the authoring STANDARD are in `EncounterOfTheWeek/KNACKS_REFERENCE.md`
@@ -465,6 +481,93 @@ Arrows hiss from the trees. Draw steel!
   with no enemy Stamina display and can buy it, surprise and trap knowledge
   with Intelligence before the fight.
 
+## Negotiation beats
+
+A `# Negotiation: <NPC>` beat runs with no Director. The party picks who speaks
+and which authored argument they make, and the book's rules work out interest
+and patience. You write what people say, not the numbers.
+
+```
+# Negotiation: Hask
+
+[[scene]]
+
+Played by: Human Bandit Chief
+Pronouns: he
+Attitude: Suspicious
+Language: Zaliac
+Impression: 1
+Renown: Unknown
+Want: Get the party across before the Golden Hand arrives.
+Opening: Bridge is closed. Toll is what I say it is.
+
+## Motivation: Greed
+Clue: He never takes his hand off the strongbox.
+
+## Pitfall: Higher Authority
+Start: Known
+
+## Pitfall: Justice
+Start: Unlocked by the ledger
+
+## Argument: Offer him a cut of what the road earns
+Appeals: Greed
+PC: There is more in this road than you are collecting.
+|Test: Presence (Persuade)
+|Edge: you speak Zaliac
+Lands: Now that is a sound I know.
+Falls short: Show me coin, not promises.
+
+## Argument: Show him the baron's writ
+Appeals: Higher Authority
+PC: By order of the baron.
+Fails: The baron is three days away and I am standing right here.
+
+## Argument: Share a drink with his crew
+Appeals: Nothing
+|Test: Presence (Flirt)
+Lands: Ha! That earns you a hearing.
+Falls short: Drink your own.
+Backfires: You think I can be bought with bad wine?
+
+## Offer: Yes, but
+You may cross, for 20 gold a head.
+|The encounter begins with a fair roll
+```
+
+- **NPC fields:** `Attitude` is Hostile, Suspicious, Neutral, Open, Friendly or
+  Trusting. `Played by` is the bestiary monster that gives the portrait.
+  `Language` is the NPC's native language: one speaker in the party adds 1
+  patience, three add 2, and Caelian never counts. `Renown` says whether the NPC
+  knows the heroes: `Famous` gives a hero whose Renown reaches `Impression` an
+  edge on Flirt, Lead and Persuade arguments, `Infamous` on Brag, Interrogate and
+  Intimidate.
+- **Traits:** `Clue:` is the hint players see before they have confirmed
+  anything. `Start:` is `Hidden`, `Known` or `Unlocked by <label>`; a montage or
+  narrative clause `You uncover <label>` unlocks it.
+- **Arguments:** `Appeals:` names a motivation, a pitfall or `Nothing`, and is
+  never shown. Every argument needs a test except a pitfall, which fails
+  whatever is rolled. Riders work as in montages, and `|Allow:` makes an argument
+  secret to the heroes who qualify. Replies are `Lands:`, `Falls short:` and
+  `Backfires:` (`Fails:` is the same line on a pitfall). A missing reply uses a
+  stock line.
+- **Offers:** `## Offer: No, and`, `No`, `No, but`, `Yes, but`, `Yes`, `Yes, and`,
+  for interest 0 to 5. `|` lines are effect clauses, applied to the whole party
+  if the party takes that deal. `No, and` applies when interest reaches 0.
+- **Intelligence:** if the feature is unlocked, a player may spend 1 before the
+  first argument to reveal a trait, motivations first.
+- **Writing it well:** knowing the NPC matters more than anything else. Simulated
+  with 4 motivations, 4 pitfalls and 4 neutral arguments, a Suspicious NPC reaches
+  interest 3 about 1 time in 5 when the party knows nothing, and about 4 in 5 when
+  it knows two of each and reads them. Give every motivation a clue, and let
+  earlier beats uncover something.
+- **The builder:** Game > Encounter Builder has "+ Negotiation" and a form for
+  all of the above, with stock arguments and "Test this negotiation" (a rehearsal:
+  its deal applies nothing). The validator also checks that every `Unlocked by`
+  label has a `You uncover` somewhere in the script.
+- **Testing:** `/eotwnegotiation preview` plays a built-in scene on the real
+  stage, and `endpreview` closes it.
+
 ## The encounter beat
 
 ```
@@ -510,6 +613,13 @@ Trap: Place 4 Snare Trap objects in Trap zones and delete the other Trap zones.
 - **Encounter Scripts** on the `[[encounter]]` (the encounter builder's
   Scripts section, or `EncounterScriptInstance` in Lua) run on the EotW host
   and may replace the victory condition and add a defeat condition.
+- **Victories**: a win is worth the encounter builder's "Victories awarded"
+  on the opening `[[encounter]]` (default 1; Challenge Mode adds one; a hero
+  who already won the encounter gets none). To make an ending worth more, an
+  Encounter Script calls `ctx:SetVictories(2)` BEFORE its victory condition
+  is met (the award reads the number a few seconds after the victory screen
+  appears). The validator shows the number and warns when a Challenge Mode
+  win would be worth more than 3.
 - The **first** `[[encounter]]` island is the start-of-combat fight; its monsters
   spawn behind the stage at their saved positions, scaled to the party size,
   then the stage dissolves and Draw Steel begins.

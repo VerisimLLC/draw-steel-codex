@@ -33,8 +33,9 @@ local mod = dmhub.GetModLoading()
 --- receives args.since like paintDirector does
 --- @field partyRecord fun(args: table): table[] what the players did, for the Watch
 --- view: entries of {at = server time, text, charid = who acted, tone = nil|
---- RSPConstants.toneGood|toneAlert}; the Respite puts the activity's name in front of
---- the text. Receives args.since like paintDirector does
+--- RSPConstants.toneGood|toneAlert, icon = nil|image beside the text, iconColor = nil|
+--- its tint, the theme's text colour when nil}; the Respite puts the activity's name in
+--- front of the text. Receives args.since like paintDirector does
 --- @field partyWatch fun(args: table): string[] document paths whose changes move
 --- that record
 --- @field paintIdle fun(args: table): Panel what a player sees of it between Respites
@@ -43,6 +44,10 @@ local mod = dmhub.GetModLoading()
 --- shown like the sheet button; args.selection() is the selected {charid, owner} entry or
 --- nil, args.host() the Respite window. The Respite fires rspSelectionChanged down the
 --- panel when the selection moves
+--- @field paintStation fun(args: table): Panel the activity's tile on the player stage, which
+--- characters are dropped onto; the Respite draws a plain one from the name when nil
+--- @field busy fun(args: table): boolean, string|nil whether args.charid (args.owner for a
+--- follower) is part way through this activity and may not leave it yet, and why
 --- Every painter, summary and record also receives args.roster: an accessor for the
 --- heroes on the Respite's Participants page, participating or not.
 RSPActivity = RegisterGameType("RSPActivity")
@@ -70,6 +75,8 @@ local m_activities = {}
 ---@field paintIdle? fun(args: table): Panel
 ---@field idleTitle? string
 ---@field playerActions? fun(args: table): Panel
+---@field paintStation? fun(args: table): Panel
+---@field busy? fun(args: table): boolean, string|nil
 
 --- Offer an activity to the Respite.
 --- Registering a key twice replaces the earlier entry, so a code reload
@@ -97,6 +104,8 @@ function RSPActivity.Register(args)
         paintIdle = args.paintIdle,
         idleTitle = args.idleTitle,
         playerActions = args.playerActions,
+        paintStation = args.paintStation,
+        busy = args.busy,
     }
 end
 

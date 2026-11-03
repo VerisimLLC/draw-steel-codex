@@ -911,6 +911,24 @@ ThemeEngine.OnThemeChanged(mod, function()
     g_chrome.themed = list
 end)
 
+--- A caption control as map and scene windows draw them (WindowControl), for
+--- a window another module builds, so its title bar matches theirs. args:
+--- icon, click, hover, danger, width, iconSize. Its colours come from
+--- Tabletop.CaptionStyles on a panel around it.
+--- @param args table
+--- @return Panel
+function Tabletop.WindowControl(args)
+    return WindowControl(args)
+end
+
+--- The titlebar rules (caption controls included) resolved for the current
+--- colour scheme, without the base theme: for a title bar under a panel that
+--- already roots the theme. Read them again when the scheme changes.
+--- @return table[]
+function Tabletop.CaptionStyles()
+    return ThemeEngine.MergeTokens(g_titleStyles) or {}
+end
+
 --A horizontal white fade for a panel's gradient: alpha only, so the panel's
 --bgcolor (a themed colour, from its class) tints it.
 --- @param stops {position: number, alpha: string}[] alpha as two hex digits
@@ -1389,7 +1407,7 @@ function g_chrome.SyncShown()
     if strip == nil or not strip.valid then
         return
     end
-    local hide = g_chrome.owner == nil or dmhub.inCharacterSheet
+    local hide = g_chrome.owner == nil or dmhub.inCharacterSheet or g_chrome.suppressed == true
     if strip:HasClass("collapsed") ~= hide then
         strip:SetClass("collapsed", hide)
     end
@@ -1813,6 +1831,12 @@ end
 local function BuildWindow(rec)
     local panel
 
+    --the panels below are new, so drop what Refresh remembers applying to the
+    --old ones. A record kept across a hud rebuild otherwise leaves the window
+    --white instead of showing the map, and its title with no width limit.
+    rec.liveImage = nil
+    rec.titleNameMax = nil
+
     --the Director's shape overlay, cropped the same way as the map.
     local liveChildren = {}
     if dmhub.isDM then
@@ -2039,7 +2063,11 @@ local function BuildWindow(rec)
     local share = nil
     if dmhub.isDM then
         share = ShareControl{
-            store = g_sharing.MapStore(rec.mapid),
+            --read each time: the window's map changes when the Maps panel
+            --opens another map in it.
+            store = g_sharing.MapStore(function()
+                return rec.mapid
+            end),
             what = "this map",
             iconSize = 15,
             changed = function()
@@ -2929,6 +2957,22 @@ end
 --{x, y, w, h} in documents-layer units, origin top-left. Nothing here is
 --saved with the layout: the owner's window does not outlive the session.
 
+--- Windows another file owns, listed in the title bar's Windows menu after
+--- the table's own (Tabletop.WindowsMenuEntries). fn returns the rows:
+--- {text, open (checked while open and not minimized), activate, icon?,
+--- submenu? (a folder row: its own list of context menu entries), sortKey?
+--- (orders the section; the text otherwise)}. The same id replaces an
+--- earlier source.
+--- @type table<string, fun(): table[]>
+Tabletop.windowsMenuSources = Tabletop.windowsMenuSources or {}
+
+--- Add (or with nil, remove) a source of Windows menu rows.
+--- @param id string
+--- @param fn nil|fun(): table[]
+function Tabletop.RegisterWindowsMenuSource(id, fn)
+    Tabletop.windowsMenuSources[id] = fn
+end
+
 --- A panel's rectangle in documents-layer units, or nil.
 --- @param panel Panel
 --- @return nil|{x: number, y: number, w: number, h: number}
@@ -2941,6 +2985,13 @@ end
 function Tabletop.LayerRect()
     local w, h = LayerSize()
     return {x = 0, y = 0, w = w, h = h}
+end
+
+--- The documents layer's size, without building a rect table (for callers
+--- that run every tick).
+--- @return number w, number h
+function Tabletop.LayerSize()
+    return LayerSize()
 end
 
 --- Whether minimized buttons can be drawn here (the tabletop is up).
@@ -4075,11 +4126,17 @@ end
 
 --A map's share is its Player Viewable setting: on for every player
 --(players joining later too), or for the players picked one by one.
---- @param mapid string
+--mapid may be a function returning the id, for a map window, which takes a
+--new map when the Maps panel opens one in it (WVBUPTCZ).
+--- @param mapid string|fun(): string
 --- @return TabletopShareStore
 g_sharing.MapStore = function(mapid)
     local function Map()
-        local map = game.GetMap(mapid)
+        local id = mapid
+        if type(id) == "function" then
+            id = id()
+        end
+        local map = game.GetMap(id)
         if map == nil or not map.valid then
             return nil
         end
@@ -4632,12 +4689,22 @@ end
 --active custom interface's forcedMap (GameHud.RegisterCustomInterface) is
 --held the way a Director's maximized, shared map is held on a player's
 --table, but for a Director too, and with no share or token needed.
+--The one map the active custom interface forces, or nil. (A named pcall
+--target rather than a closure: SyncLocalForced asks every tick.)
+local function CustomInterfaceForcedMap()
+    return GameHud.CustomInterfaceForcedMap()
+end
+g_sharing.LocalForcedMapId = function()
+    local ok, mapid = pcall(CustomInterfaceForcedMap)
+    if ok then
+        return mapid
+    end
+    return nil
+end
+
 g_sharing.LocalForcedMaps = function()
     local result = {}
-    local mapid = nil
-    pcall(function()
-        mapid = GameHud.CustomInterfaceForcedMap()
-    end)
+    local mapid = g_sharing.LocalForcedMapId()
     if mapid ~= nil then
         result[mapid] = true
     end
@@ -4880,14 +4947,13 @@ end
 
 --Every frame: re-applies when what the interface forces has changed.
 g_sharing.SyncLocalForced = function()
-    local ids = {}
-    for mapid, _ in pairs(g_sharing.LocalForcedMaps()) do
-        if MapExists(mapid) then
-            ids[#ids+1] = mapid
-        end
+    --An interface forces at most one map, so the signature is just its id
+    --(no per-tick tables, sort or concat).
+    local mapid = g_sharing.LocalForcedMapId()
+    local signature = ""
+    if mapid ~= nil and MapExists(mapid) then
+        signature = mapid
     end
-    table.sort(ids)
-    local signature = table.concat(ids, ",")
     if signature ~= g_sharing.localForcedSignature then
         g_sharing.localForcedSignature = signature
         RecheckForced()
@@ -5018,7 +5084,6 @@ local function CardStyles()
             selectors = {"tabletopCardSelectRing"},
             bgcolor = "clear",
             borderColor = "@accent",
-            border = 3,
         },
         {
             selectors = {"tabletopCardSheet"},
@@ -5030,6 +5095,12 @@ local function CardStyles()
             selectors = {"tabletopCardSheet", "shown"},
             opacity = 1,
             transitionTime = 0.1,
+        },
+        --the Hero sheet button stays up while the sheet is minimized into
+        --its card (Tabletop.MinimizeToCard), so the sheet can be found.
+        {
+            selectors = {"tabletopCardSheet", "pinned"},
+            opacity = 1,
         },
         {
             selectors = {"tabletopCardSheet", "hover"},
@@ -5057,6 +5128,15 @@ local function ScreenToLayer(px, py)
     end
     local scale = layer.renderedHeight / below.y
     return px * scale, (py - (screen.y - below.y)) * scale
+end
+
+--- Screen pixels (top-left origin) to the table's own units, where its
+--- windows and items are placed.
+--- @param px number
+--- @param py number
+--- @return number, number
+function Tabletop.ScreenToTable(px, py)
+    return ScreenToLayer(px, py)
 end
 
 local function IsHeroToken(tok)
@@ -5101,6 +5181,10 @@ end
 Tabletop.CardFace = CardFace
 Tabletop.CardSize = CardSize
 Tabletop.CardStyles = CardStyles
+
+--The documents layer (where map, scene and journal windows sit), for windows
+--other files place there (the Hero sheet). Its size is Tabletop.LayerSize.
+Tabletop.DocumentsLayer = DocumentsLayer
 
 local CloseCard
 
@@ -5248,11 +5332,13 @@ function Tabletop.ClearCardSelection()
     g_cs.made = nil
 end
 
---- The ring a selected card wears. Put it on the card's frame and call
---- Tabletop.ShowCardSelected(ring, on) as the selection changes.
---- @param cornerRadius number
+--- The ring a selected card wears. Add it to the card's face (CardFace) as
+--- its last child, so it grows and turns over with the face when the card is
+--- turned to its back (HeroCardBack). Call Tabletop.FitCardSelectRing as the
+--- card's scale changes and Tabletop.ShowCardSelected(ring, on) as the
+--- selection changes.
 --- @return Panel
-function Tabletop.CardSelectRing(cornerRadius)
+function Tabletop.CardSelectRing()
     return gui.Panel{
         classes = {"tabletopCardSelectRing", "collapsed"},
         floating = true,
@@ -5260,10 +5346,29 @@ function Tabletop.CardSelectRing(cornerRadius)
         valign = "center",
         width = "100%+6",
         height = "100%+6",
-        cornerRadius = cornerRadius + 3,
+        --the face's corners (EotwHeroCard draws it with cornerRadius 8).
+        cornerRadius = 8 + 3,
+        borderWidth = 3,
         bgimage = "panels/square.png",
         interactable = false,
     }
+end
+
+--- Keeps a card's ring 3 pixels wide on screen while its face is drawn at
+--- scale s (the ring is inside the face, so it is scaled with it).
+--- @param ring Panel
+--- @param s number
+function Tabletop.FitCardSelectRing(ring, s)
+    --scene cards reposition every frame they move; restyle only on a change.
+    if ring == nil or not ring.valid or ring.data.fitScale == s then
+        return
+    end
+    ring.data.fitScale = s
+    local w, h = CardSize()
+    ring.selfStyle.width = w + 6 / s
+    ring.selfStyle.height = h + 6 / s
+    ring.selfStyle.cornerRadius = 8 + 3 / s
+    ring.selfStyle.borderWidth = 3 / s
 end
 
 --- @param ring Panel
@@ -5296,7 +5401,7 @@ function Tabletop.CardSheetButton(charid, args)
         --the press reaches the card, so hovering here keeps it hovered and a
         --drag from here still moves the card.
         swallowPress = false,
-        hover = gui.Tooltip("Open the character sheet"),
+        hover = gui.Tooltip("Open the Character panel"),
         click = function(element)
             audio.FireSoundEvent("Mouse.Click")
             local toggle = rawget(_G, "ToggleCharacterPanelDocument")
@@ -5317,11 +5422,81 @@ function Tabletop.CardSheetButton(charid, args)
     }
 end
 
---- @param button Panel
+--- @param button nil|Panel
 --- @param on boolean
 function Tabletop.ShowCardSheetButton(button, on)
     if button ~= nil and button.valid then
         button:SetClassTree("shown", on)
+    end
+end
+
+--Helpers for the Hero sheet's card button and for minimizing the sheet into
+--its Hero's card (a table, not locals: this file is at Lua's local limit).
+local g_heroCards = {}
+
+--- The button on a Hero's card for its Hero sheet (HeroSheet.lua), beside
+--- the Character panel button: it opens the sheet, brings a covered one to
+--- the front, and restores one minimized into this card. Shown like the
+--- Character panel button (Tabletop.ShowCardSheetButton), and kept up while
+--- the card holds the minimized sheet.
+--- @param charid string
+--- @param args nil|{x: nil|number, y: nil|number}
+--- @return Panel
+function Tabletop.CardHeroSheetButton(charid, args)
+    args = args or {}
+    local function Holds()
+        local card = CardById(charid)
+        return card ~= nil and card.holdsSheet == true
+    end
+    return gui.Panel{
+        classes = {"tabletopCardSheet", cond(Holds(), "pinned", nil)},
+        floating = true,
+        halign = "right",
+        valign = "top",
+        x = args.x or -32,
+        y = args.y or 6,
+        width = 22,
+        height = 22,
+        cornerRadius = 11,
+        bgimage = "panels/square.png",
+        swallowPress = false,
+        --resting on it warms the Hero's sheet so it opens quickly.
+        hover = function(element)
+            local heroSheet = rawget(_G, "HeroSheet")
+            if heroSheet ~= nil then
+                heroSheet.Warm(charid)
+            end
+        end,
+        linger = function(element)
+            gui.Tooltip(cond(Holds(), "Restore the Hero sheet", "Open the Hero sheet"))(element)
+        end,
+        click = function(element)
+            audio.FireSoundEvent("Mouse.Click")
+            local heroSheet = rawget(_G, "HeroSheet")
+            if heroSheet ~= nil then
+                heroSheet.CardButton(charid)
+            end
+        end,
+        gui.Panel{
+            classes = {"tabletopCardSheet", "tabletopCardSheetIcon"},
+            width = 14,
+            height = 14,
+            halign = "center",
+            valign = "center",
+            bgimage = "phosphor/file-text.png",
+            interactable = false,
+        },
+    }
+end
+
+--Marks a card as holding (or no longer holding) a minimized Hero sheet: its
+--Hero sheet button stays up while it does.
+--- @param card table
+--- @param holds boolean
+function g_heroCards.SetHoldsSheet(card, holds)
+    card.holdsSheet = holds or nil
+    if card.heroSheetButton ~= nil and card.heroSheetButton.valid then
+        card.heroSheetButton:SetClassTree("pinned", holds)
     end
 end
 
@@ -5563,8 +5738,11 @@ local function ApplyCardScale(card, except)
     panel.selfStyle.height = math.floor(h * s)
     --the frame draws nothing itself; its corners shape the face's shadow.
     panel.selfStyle.cornerRadius = (card.shadowRadius or 0) * s
-    if card.selectRing ~= nil and card.selectRing.valid then
-        card.selectRing.selfStyle.cornerRadius = (card.shadowRadius or 0) * s + 3
+    --the ring and the unshared frame are on the face, inside the scaler:
+    --keep their lines as thick on screen at any scale.
+    Tabletop.FitCardSelectRing(card.selectRing, s)
+    if card.share ~= nil and card.share.frame.valid then
+        card.share.frame.selfStyle.borderWidth = 2 / s
     end
     card.scaler.selfStyle.scale = s
     --the titlebar is at least as wide as the card (see BuildCard).
@@ -5885,13 +6063,14 @@ local function BuildCard(card)
     --what the resize grips report a player's resize under (TookControl).
     card.layoutKey = CardItemId(card.charid)
 
+    local face = CardFace(card.charid, tok)
     card.scaler = gui.Panel{
         halign = "center",
         valign = "center",
         width = w,
         height = h,
         scale = card.scale,
-        CardFace(card.charid, tok),
+        face,
     }
 
     --the ping, left of the share button (DefinePings).
@@ -5966,14 +6145,26 @@ local function BuildCard(card)
     card.titlebar = titlebar
     card.grips = CardGrips(card)
 
-    --over the face: the ring a selected card wears, and the sheet button.
-    card.selectRing = Tabletop.CardSelectRing(card.shadowRadius * card.scale)
-    Tabletop.ShowCardSelected(card.selectRing, Tabletop.SelectedCharids()[card.charid] == true)
-    card.sheetButton = Tabletop.CardSheetButton(card.charid)
-
-    local children = {card.scaler, card.selectRing, card.sheetButton, titlebar}
+    --on the face, over everything else on it, so they grow and turn over
+    --with it when the card is turned to its back: the frame of an unshared
+    --card, and the ring a selected card wears.
     if share ~= nil then
-        children[#children+1] = share.frame
+        face:AddChild(share.frame)
+    end
+    card.selectRing = Tabletop.CardSelectRing()
+    Tabletop.ShowCardSelected(card.selectRing, Tabletop.SelectedCharids()[card.charid] == true)
+    face:AddChild(card.selectRing)
+    card.sheetButton = Tabletop.CardSheetButton(card.charid)
+    card.heroSheetButton = nil
+    --a Hero the Hero sheet opens for gets its button on the card.
+    local heroSheet = rawget(_G, "HeroSheet")
+    if heroSheet ~= nil and heroSheet.Routes(tok) then
+        card.heroSheetButton = Tabletop.CardHeroSheetButton(card.charid)
+    end
+
+    local children = {card.scaler, card.sheetButton, titlebar}
+    if card.heroSheetButton ~= nil then
+        children[#children+1] = card.heroSheetButton
     end
     for _, grip in ipairs(card.grips) do
         children[#children+1] = grip
@@ -6102,11 +6293,13 @@ local function BuildCard(card)
             card.cardHovered = true
             titlebar:SetClassTree("shown", true)
             Tabletop.ShowCardSheetButton(card.sheetButton, true)
+            Tabletop.ShowCardSheetButton(card.heroSheetButton, true)
         end,
         dehover = function(element)
             card.cardHovered = false
             titlebar:SetClassTree("shown", card.gripHovered == true)
             Tabletop.ShowCardSheetButton(card.sheetButton, false)
+            Tabletop.ShowCardSheetButton(card.heroSheetButton, false)
         end,
         rightClick = function(element)
             if dmhub.isDM then
@@ -6211,9 +6404,8 @@ local function BuildCard(card)
     }
     layer:AddChild(panel)
     card.panel = panel
-    for _, grip in ipairs(card.grips) do
-        PlaceGrip(card, grip)
-    end
+    --places the grips and fits the ring and frame to a card made at a scale.
+    ApplyCardScale(card)
 end
 
 --Puts a character's card on this user's table (or brings its card
@@ -6262,7 +6454,214 @@ function Tabletop.OpenCard(charid, options)
     end
 end
 
+--- The Hero sheet's colours for the stand-in that flies between it and its
+--- card (HeroSheetWindow passes them: this layer does not know the sheet).
+--- @class HeroSheetGhostLook
+--- @field bg string the window's backdrop
+--- @field bar string its title bar
+--- @field barHeight number the title bar's height on screen
+
+--How long the Hero sheet takes to grow out of its card or shrink into it.
+g_heroCards.ANIM_SECONDS = 0.24
+
+--- The Hero sheet flying out of its card (growing) or into it, then done().
+--- The stand-in has the sheet's shape and colours, with the Hero's portrait
+--- over it cropped to the stand-in's shape (never stretched); the portrait
+--- fades out early as the sheet grows and in late as it shrinks. Eases out:
+--- fast, then settles.
+--- @param charid string
+--- @param from {x: number, y: number, w: number, h: number}
+--- @param to {x: number, y: number, w: number, h: number}
+--- @param growing boolean
+--- @param look nil|HeroSheetGhostLook
+--- @param done fun()
+function g_heroCards.Animate(charid, from, to, growing, look, done)
+    local layer = g_buttonLayer
+    if layer == nil or not layer.valid then
+        done()
+        return
+    end
+    look = look or {bg = "#1b1814f2", bar = "#1b1814ff", barHeight = 30}
+    local portrait = nil
+    local tok = dmhub.GetCharacterById(charid)
+    if tok ~= nil then
+        pcall(function()
+            portrait = tok.portrait
+        end)
+    end
+    --the portrait's width over its height; it stays hidden until known, as
+    --it would draw stretched without it.
+    --- @type nil|number
+    local aspect = nil
+    --- @type nil|Panel
+    local picture = nil
+    if type(portrait) == "string" and portrait ~= "" then
+        picture = gui.Panel{
+            floating = true,
+            interactable = false,
+            width = "100%",
+            height = "100%",
+            bgimage = portrait,
+            bgcolor = "white",
+            opacity = 0,
+        }
+        gui.GetImageDimensionsCallback(portrait, function(dims)
+            if dims ~= nil and (dims.width or 0) > 0 and (dims.height or 0) > 0 then
+                aspect = dims.width / dims.height
+            end
+        end)
+    end
+    local bar = gui.Panel{
+        floating = true,
+        interactable = false,
+        valign = "top",
+        width = "100%",
+        height = look.barHeight,
+        bgimage = "panels/square.png",
+        bgcolor = look.bar,
+    }
+    local start = dmhub.Time()
+    local ghost = gui.Panel{
+        floating = true,
+        interactable = false,
+        halign = "left",
+        valign = "top",
+        x = from.x,
+        y = from.y,
+        width = from.w,
+        height = from.h,
+        bgimage = "panels/square.png",
+        bgcolor = look.bg,
+        --the sheet window's frame (HeroSheetWindow's heroSheetWindow rule).
+        borderWidth = 2,
+        borderColor = "#00000099",
+        children = {bar, picture},
+        thinkTime = 0.01,
+        think = function(element)
+            local progress = math.min(1, (dmhub.Time() - start) / g_heroCards.ANIM_SECONDS)
+            local eased = 1 - (1 - progress) ^ 3
+            local w = math.max(1, lerp(from.w, to.w, eased))
+            local h = math.max(1, lerp(from.h, to.h, eased))
+            element.x = lerp(from.x, to.x, eased)
+            element.y = lerp(from.y, to.y, eased)
+            element.selfStyle.width = w
+            element.selfStyle.height = h
+            --how much of the card still shows: the portrait over the sheet.
+            local cardness
+            if growing then
+                cardness = 1 - math.min(1, eased / 0.55)
+            else
+                cardness = math.max(0, (eased - 0.45) / 0.55)
+            end
+            bar.selfStyle.opacity = 1 - cardness
+            if picture ~= nil then
+                if aspect == nil then
+                    picture.selfStyle.opacity = 0
+                else
+                    --cover the stand-in, keeping the top (the face); imageRect
+                    --counts up from the bottom.
+                    local box = w / h
+                    local cropW, cropH = 1, 1
+                    if aspect > box then
+                        cropW = box / aspect
+                    else
+                        cropH = aspect / box
+                    end
+                    picture.selfStyle.imageRect = {x1 = (1 - cropW) / 2, y1 = 1 - cropH, x2 = (1 + cropW) / 2, y2 = 1}
+                    picture.selfStyle.opacity = cardness
+                end
+            end
+            if progress >= 1 then
+                element:DestroySelf()
+                done()
+            end
+        end,
+    }
+    layer:AddChild(ghost)
+end
+
+--A card's rect in documents-layer units, or nil when it is not on the table.
+--- @param card nil|table
+--- @return nil|{x: number, y: number, w: number, h: number}
+function g_heroCards.Rect(card)
+    if card == nil then
+        return nil
+    end
+    local w, h = ItemSize(card)
+    local scale = card.scale or 1
+    return {x = card.x, y = card.y, w = w * scale, h = h * scale}
+end
+
+--- Minimizes the Hero sheet window (HeroSheetWindow.lua) into its Hero's
+--- card: a ghost flies from `from` (the window's rect) to the card, which is
+--- put on the table where the window's middle was if it is not there already.
+--- The card stays on the table when the sheet is restored, so the next
+--- minimize flies to wherever the player moved it. False, with
+--- nothing done, when the table cannot take it. options: still() (false once
+--- the window is back: then no card is placed), onTakenOff() (the card left
+--- the table while holding it), look (the sheet's colours for the ghost).
+--- @param charid string
+--- @param from {x: number, y: number, w: number, h: number}
+--- @param options {still?: (fun(): boolean), onTakenOff?: fun(), look?: HeroSheetGhostLook}
+--- @return boolean
+function Tabletop.MinimizeToCard(charid, from, options)
+    if not Tabletop.IsActive() or DocumentsLayer() == nil or from == nil or dmhub.GetCharacterById(charid) == nil then
+        return false
+    end
+    local existing = CardById(charid)
+    local at = nil
+    local to = g_heroCards.Rect(existing)
+    if to == nil then
+        local cw, ch = CardSize()
+        at = {x = math.floor(from.x + from.w / 2 - cw / 2), y = math.floor(from.y + from.h / 2 - ch / 2)}
+        to = {x = at.x, y = at.y, w = cw, h = ch}
+    end
+    g_heroCards.Animate(charid, from, to, false, options.look, function()
+        if options.still ~= nil and not options.still() then
+            return
+        end
+        if CardById(charid) == nil then
+            Tabletop.OpenCard(charid, at)
+        end
+        local card = CardById(charid)
+        if card ~= nil then
+            card.standsFor = {onTakenOff = options.onTakenOff}
+            g_heroCards.SetHoldsSheet(card, true)
+        end
+    end)
+    return true
+end
+
+--- The Hero sheet minimized with MinimizeToCard comes back: a ghost flies
+--- from the card to `to`, then done(). The card stays on the table. With no
+--- `to`, the card just lets the sheet go (the sheet closed or moved on),
+--- with no ghost. look: the sheet's colours for the ghost.
+--- @param charid string
+--- @param to nil|{x: number, y: number, w: number, h: number}
+--- @param done fun()
+--- @param look nil|HeroSheetGhostLook
+function Tabletop.RestoreFromCard(charid, to, done, look)
+    local card = CardById(charid)
+    local from = g_heroCards.Rect(card)
+    if card ~= nil then
+        card.standsFor = nil
+        g_heroCards.SetHoldsSheet(card, false)
+    end
+    if from == nil or to == nil then
+        done()
+        return
+    end
+    g_heroCards.Animate(charid, from, to, true, look, done)
+end
+
 CloseCard = function(card)
+    --taken off the table while it held a minimized Hero sheet: the sheet
+    --closes with it (see Tabletop.MinimizeToCard).
+    local standsFor = card.standsFor
+    card.standsFor = nil
+    if standsFor ~= nil and standsFor.onTakenOff ~= nil then
+        standsFor.onTakenOff()
+    end
     if g_cardDrag ~= nil and g_cardDrag.card == card then
         DestroyCardGhost(g_cardDrag)
     end
@@ -8264,6 +8663,145 @@ do
         end
     end
 
+    --- Shares a journal entry's table item with every player (a drop made
+    --- with Ctrl held).
+    --- @param entryid string
+    function Tabletop.ShareDocItem(entryid)
+        ShareItem(DocItemId(entryid), {kind = "doc", entryid = entryid})
+    end
+
+    --- @class TabletopPendingDoc
+    --- @field progress fun(fraction: number) moves the upload bar (0 to 1)
+    --- @field center fun(): {x: number, y: number} where the real item should go
+    --- @field remove fun() takes the stand-in away
+
+    --- A stand-in on the table for a document still uploading (a dropped PDF):
+    --- a tile with its name and an upload bar centred at `at` (table units),
+    --- which can be moved meanwhile. It is not saved with the layout.
+    --- @param args {name: string, icon: nil|string, at: {x: number, y: number}}
+    --- @return nil|TabletopPendingDoc
+    function Tabletop.ShowPendingDocItem(args)
+        local layer = DocumentsLayer()
+        if layer == nil or not Tabletop.IsActive() then
+            return nil
+        end
+        local w, h = DOC_TILE_WIDTH, DOC_TILE_HEIGHT
+        local barW = w - DOC.pad * 2
+        local lw, lh = LayerSize()
+        local fraction = 0
+        local fill = gui.Panel{
+            bgimage = "panels/square.png",
+            bgcolor = "#d9b56a",
+            cornerRadius = 1,
+            width = 0,
+            height = "100%",
+            halign = "left",
+            interactable = false,
+        }
+        local kind = gui.Label{
+            classes = {"tabletopDocKind"},
+            width = "100%",
+            height = "auto",
+            text = "Uploading...",
+            interactable = false,
+        }
+        local panel
+        panel = gui.Panel{
+            classes = {"tabletopDoc"},
+            styles = DocStyles(),
+            x = math.max(0, math.min(math.floor(args.at.x - w / 2), lw - w)),
+            y = math.max(CARD_TITLE_HEIGHT, math.min(math.floor(args.at.y - h / 2), lh - h)),
+            width = w,
+            height = h,
+            flow = "none",
+            draggable = true,
+            dragInPlace = true,
+            swallowPress = true,
+            drag = function(element)
+                element.x = math.max(0, math.min(element.xdrag, lw - 60))
+                element.y = math.max(CARD_TITLE_HEIGHT, math.min(element.ydrag, lh - 60))
+            end,
+            thinkTime = 0.1,
+            think = function(element)
+                fill.selfStyle.width = math.floor(barW * fraction)
+                if fraction >= 1 then
+                    kind.text = "Finishing..."
+                else
+                    kind.text = string.format("Uploading %d%%", math.floor(fraction * 100))
+                end
+            end,
+            gui.Panel{
+                classes = {"tabletopDocFace"},
+                bgimage = "panels/square.png",
+                width = w,
+                height = h,
+                flow = "horizontal",
+                hpad = DOC.pad,
+                borderBox = true,
+                interactable = false,
+                gui.Panel{
+                    classes = {"tabletopDocIcon"},
+                    bgimage = args.icon or "phosphor/file-pdf.png",
+                    width = DOC.icon,
+                    height = DOC.icon,
+                    valign = "center",
+                    rmargin = DOC.iconGap,
+                    interactable = false,
+                },
+                gui.Panel{
+                    width = w - DOC.pad * 2 - DOC.icon - DOC.iconGap,
+                    height = "auto",
+                    valign = "center",
+                    flow = "vertical",
+                    interactable = false,
+                    gui.Label{
+                        classes = {"tabletopDocTitle"},
+                        width = "100%",
+                        height = "auto",
+                        maxHeight = 30,
+                        fontSize = 13,
+                        textWrap = true,
+                        textOverflow = "ellipsis",
+                        text = args.name,
+                        interactable = false,
+                    },
+                    kind,
+                },
+                gui.Panel{
+                    floating = true,
+                    bgimage = "panels/square.png",
+                    bgcolor = "#00000066",
+                    cornerRadius = 1,
+                    width = barW,
+                    height = 3,
+                    halign = "center",
+                    valign = "bottom",
+                    y = -5,
+                    interactable = false,
+                    fill,
+                },
+            },
+        }
+        layer:AddChild(panel)
+        panel:SetAsLastSibling()
+        return {
+            progress = function(f)
+                fraction = math.max(0, math.min(1, tonumber(f) or 0))
+            end,
+            center = function()
+                if not panel.valid then
+                    return {x = args.at.x, y = args.at.y}
+                end
+                return {x = panel.x + w / 2, y = panel.y + h / 2}
+            end,
+            remove = function()
+                if panel.valid then
+                    panel:DestroySelf()
+                end
+            end,
+        }
+    end
+
     --Minimized journal and PDF windows. A window minimizing on the table
     --becomes the table items for its entries, and a click on one opens the
     --entry, which brings the window back (CustomDocument.ShowDocument and
@@ -10135,6 +10673,20 @@ local function DefineSceneWindows()
         end
     end
 
+    --- The size a scene window opens at, in the table's units.
+    --- @return number width
+    --- @return number height
+    function Tabletop.SceneWindowSize()
+        local _, _, width, height = ScenePlacement()
+        return width, height
+    end
+
+    --- Shares a scene with every player (a drop made with Ctrl held).
+    --- @param sceneid string
+    function Tabletop.ShareScene(sceneid)
+        ShareItem(SceneItemId(sceneid), {kind = "scene", sceneid = sceneid})
+    end
+
     ----------------------------------------------------------------------
     --Lifecycle and saving.
 
@@ -10301,9 +10853,11 @@ g_sharing.DefineWindowsMenu = function()
         journal = "phosphor/book-open-text.png",
         doc = "phosphor/file-text.png",
         card = "phosphor/user.png",
+        --rows other files add (Tabletop.RegisterWindowsMenuSource).
+        other = "phosphor/file-text.png",
     }
     --the menu's sections, top to bottom; a divider goes between them.
-    local GROUP_ORDER = {"map", "scene", "journal", "doc", "card"}
+    local GROUP_ORDER = {"map", "scene", "journal", "doc", "card", "other"}
 
     local state = {signature = nil, nextCheck = 0}
 
@@ -10500,6 +11054,32 @@ g_sharing.DefineWindowsMenu = function()
                 Tabletop.OpenCard(charid)
             end)
         end
+        --windows other files own (the Hero sheet...), in their own section.
+        for id, source in pairs(Tabletop.windowsMenuSources) do
+            local ok, rows = pcall(source)
+            if ok and type(rows) == "table" then
+                for _, row in ipairs(rows) do
+                    Add("other", nil, row.text, row.open == true, row.activate or function() end)
+                    local added = groups.other[#groups.other]
+                    if row.icon ~= nil then
+                        added.icon = row.icon
+                    end
+                    --a folder row opens its own list instead of a window.
+                    if row.submenu ~= nil then
+                        local entries = {}
+                        for _, entry in ipairs(row.submenu) do
+                            entries[#entries+1] = GuardedEntry(entry.text, entry.click)
+                        end
+                        added.submenu = entries
+                        added.check = nil
+                        added.click = nil
+                    end
+                    added.sortKey = row.sortKey
+                end
+            elseif not ok then
+                dmhub.Error(string.format("Windows menu source %s failed: %s", tostring(id), tostring(rows)))
+            end
+        end
 
         --a player's: what the Director shares with them and has open, but
         --is not on their own table.
@@ -10517,9 +11097,10 @@ g_sharing.DefineWindowsMenu = function()
         for _, group in ipairs(GROUP_ORDER) do
             local list = groups[group]
             table.sort(list, function(a, b)
-                return string.lower(a.text or "") < string.lower(b.text or "")
+                return string.lower(a.sortKey or a.text or "") < string.lower(b.sortKey or b.text or "")
             end)
             for _, entry in ipairs(list) do
+                entry.sortKey = nil
                 result[#result+1] = entry
             end
         end
@@ -11365,37 +11946,26 @@ end
 
 local function BeginTableFileDrag(paths)
     EndTableFileDrag()
-    local media = {}
-    local sounds = {}
-    for _, path in ipairs(paths) do
-        if FileDrops.IsAudio(path) then
-            sounds[#sounds+1] = path
-        else
-            media[#media+1] = path
-        end
-    end
-    local text
-    if #media == 0 then
-        text = string.format("Put %s on the table to play", FileDrops.Describe(sounds))
-    elseif #sounds == 0 then
-        text = string.format("Add %s to the table", FileDrops.Describe(media))
-    else
-        text = string.format("Add %s to the table, and %s to play",
-            FileDrops.Describe(media), FileDrops.Describe(sounds))
-    end
     local ghost
-    ghost = FileDrops.ShowGhost(text, function()
-        return g_fileDragGhost == ghost
-    end)
+    ghost = TableDropDialog.ShowDragCard{
+        paths = paths,
+        canShare = dmhub.isDM,
+        isActive = function()
+            return g_fileDragGhost == ghost
+        end,
+    }
     g_fileDragGhost = ghost
 end
 
 --- Each file becomes a scene (in the Scenes library) opened at (mx, my) on
---- the table, stepping down-right for each further file.
+--- the table, stepping down-right for each further file. options.shared
+--- shares each with every player.
 --- @param paths string[]
 --- @param mx number
 --- @param my number
-function Tabletop.AddFilesAsScenes(paths, mx, my)
+--- @param options nil|{shared: nil|boolean}
+function Tabletop.AddFilesAsScenes(paths, mx, my, options)
+    options = options or {}
     for i, path in ipairs(paths) do
         local imageid = FileDrops.UploadImage(path, {library = "coverart"})
         if imageid ~= nil then
@@ -11405,6 +11975,9 @@ function Tabletop.AddFilesAsScenes(paths, mx, my)
             }
             local step = 28 * (i - 1)
             Tabletop.OpenSceneCentredAt(sceneid, mx + step, my + step)
+            if options.shared then
+                Tabletop.ShareScene(sceneid)
+            end
         end
     end
 end
@@ -11415,11 +11988,12 @@ end
 --- takes that shape and frames the whole map once it is placed; variations,
 --- more files that become the map's alternate appearances (paths is then
 --- the one base image); name, the map's name (else the first file's);
---- created(mapid), called once the map exists.
+--- created(mapid), called once the map exists; shared, make the map
+--- viewable by every player once it exists.
 --- @param paths string[]
 --- @param mx number
 --- @param my number
---- @param options nil|{aspect: nil|number, variations: nil|string[], name: nil|string, created: nil|fun(mapid: string)}
+--- @param options nil|{aspect: nil|number, variations: nil|string[], name: nil|string, created: nil|fun(mapid: string), shared: nil|boolean}
 function Tabletop.AddFilesAsMap(paths, mx, my, options)
     options = options or {}
     local rec = nil
@@ -11447,6 +12021,9 @@ function Tabletop.AddFilesAsMap(paths, mx, my, options)
             SaveSoon()
             --a drop: private if it lands on the Director's Screen.
             DirectorScreen.ItemPlaced(g_sharing.ScreenKey(rec))
+            if options.shared then
+                g_sharing.MapStore(mapid).share()
+            end
             if options.created ~= nil then
                 options.created(mapid)
             end
@@ -11484,19 +12061,27 @@ local function TableFilesDropped(allPaths, screenPos)
     --is elsewhere.
     local mouse = screenPos or dmhub.mouseScreenPosition
     local mx, my = ScreenToLayer(mouse.x, mouse.y)
+    --what the Director drops stays private unless Ctrl is held (a paste
+    --from the table menu has no Ctrl); behind the Director's Screen it is
+    --always private.
+    local shareState = cond(dmhub.isDM and screenPos == nil, TableDropDialog.DropShareState(), "private")
 
     --audio files become audio widgets there (Audio.lua) with no question;
     --documents (PDF, Markdown, text, .zip) go into the journal and their
-    --main entry onto the table there (DocumentImport.lua); images and videos
-    --go on to the scene-or-map dialog.
+    --main entry onto the table there (DocumentImport.lua); Universal VTT
+    --files go to the map import wizard; images and videos go on to the
+    --scene-or-map dialog.
     local paths = {}
     local sounds = {}
     local documents = {}
+    local mapFiles = {}
     for _, path in ipairs(allPaths) do
         if FileDrops.IsAudio(path) then
             sounds[#sounds+1] = path
         elseif FileDrops.IsDocument(path) then
             documents[#documents+1] = path
+        elseif FileDrops.IsMapFile(path) then
+            mapFiles[#mapFiles+1] = path
         else
             paths[#paths+1] = path
         end
@@ -11505,20 +12090,59 @@ local function TableFilesDropped(allPaths, screenPos)
         AudioDroppedOnTable(sounds, mouse.x, mouse.y)
     end
     if #documents > 0 and rawget(_G, "DocumentImport") ~= nil then
+        --a PDF's stand-in tile while it uploads, by its file's index; its item
+        --goes wherever the stand-in was moved to.
+        --- @type table<integer, TabletopPendingDoc>
+        local pending = {}
         DocumentImport.ImportFiles(documents, {
+            uploading = function(index, name)
+                local step = (index - 1) * 24
+                local handle = Tabletop.ShowPendingDocItem{name = name, at = {x = mx + step, y = my + step}}
+                if handle == nil then
+                    return nil
+                end
+                pending[index] = handle
+                return {
+                    progress = handle.progress,
+                    failed = function()
+                        handle.remove()
+                        pending[index] = nil
+                    end,
+                }
+            end,
             ready = function(entryid, index)
                 --several files step down-right from the drop point (the
                 --documents block's DOC.cascade).
                 local step = (index - 1) * 24
-                Tabletop.OpenDocItem(entryid, {at = {x = mx + step, y = my + step}, placed = true})
+                local at = {x = mx + step, y = my + step}
+                local handle = pending[index]
+                if handle ~= nil then
+                    at = handle.center()
+                    handle.remove()
+                    pending[index] = nil
+                end
+                Tabletop.OpenDocItem(entryid, {at = at, placed = true})
+                if shareState == "shared" then
+                    Tabletop.ShareDocItem(entryid)
+                end
             end,
         })
     end
-    if not dmhub.isDM or #paths == 0 then
+    if not dmhub.isDM then
+        return
+    end
+    if #mapFiles > 0 then
+        --one new map, a floor per file, with the files' walls, doors and
+        --lights; its window opens at the drop. The wizard is modal, so any
+        --pictures dropped with them are left out (the drag card says so).
+        Tabletop.AddFilesAsMap(mapFiles, mx, my, {shared = shareState == "shared"})
+        return
+    end
+    if #paths == 0 then
         return
     end
     --the Add Image / Add Video dialog: map, scene, or a picture on the table.
-    TableDropDialog.Show(paths, mx, my)
+    TableDropDialog.Show(paths, mx, my, {shared = shareState == "shared", behindScreen = shareState == "screen"})
 end
 
 --Owns the table's right-click menu. The engine keeps a popup open while its
@@ -11788,8 +12412,8 @@ function Tabletop.CreateLayer()
         end,
 
         --files dragged in from the desktop (see TableFilesDropped): documents
-        --for anyone, pictures and videos for the Director, audio for whoever
-        --controls the audio.
+        --for anyone, pictures, videos and Universal VTT maps for the
+        --Director, audio for whoever controls the audio.
         dragAndDropExtensions = (function()
             local exts = {}
             for _, ext in ipairs(FileDrops.DOCUMENT_EXTENSIONS) do
@@ -11797,6 +12421,9 @@ function Tabletop.CreateLayer()
             end
             if dmhub.isDM then
                 for _, ext in ipairs(FileDrops.MEDIA_EXTENSIONS) do
+                    exts[#exts+1] = ext
+                end
+                for _, ext in ipairs(FileDrops.MAP_EXTENSIONS) do
                     exts[#exts+1] = ext
                 end
             end
@@ -11850,6 +12477,18 @@ function Tabletop.CreateButtonLayer()
         interactable = false,
     }
     return g_buttonLayer
+end
+
+--- A custom interface hiding the table's windows (suppressWindows, applied by
+--- GameHud.SyncInterfaceSuppression): the maximized window's strip and the
+--- minimized windows' buttons go too. Window state is untouched.
+--- @param suppress boolean
+function Tabletop.SyncInterfaceSuppression(suppress)
+    g_chrome.suppressed = suppress == true
+    g_chrome.SyncShown()
+    if g_buttonLayer ~= nil and g_buttonLayer.valid then
+        g_buttonLayer:SetClass("collapsed", g_chrome.suppressed)
+    end
 end
 
 --The minimized-window button layer (nil before the hud builds it). Minimized

@@ -296,6 +296,22 @@ local function Report(parse)
         if beat.intro ~= nil and trim(beat.intro) ~= "" then
             Row(1, "note", "%s", T("author.validator.report.intro", { intro = beat.intro }))
         end
+        if beat.kind == "negotiation" then
+            for _, trait in ipairs(beat.traits) do
+                Row(1, "note", "%s", T("author.validator.negotiation.trait", { kind = trait.kind, trait = trait.name, start = trait.start }))
+            end
+            for _, argument in ipairs(beat.arguments) do
+                counts.options = counts.options + 1
+                Row(1, "note", "%s", T("author.validator.negotiation.argument", { argument = argument.name, kind = argument.kind }))
+            end
+            for _, problem in ipairs(EncounterScript.NegotiationProblems(beat, parse)) do
+                Problem("%s", T("author.validator.negotiation.problem", { npc = beat.name, problem = problem }))
+            end
+            local found = beat.playedBy ~= "" and EncounterMontage.FindMonster(beat.playedBy) or nil
+            if beat.playedBy ~= "" and found == nil then
+                Problem("%s", T("author.validator.negotiation.no_monster", { npc = beat.name, monster = beat.playedBy }))
+            end
+        end
         for _, u in ipairs(beat.unlocks or {}) do
             Row(1, "rule", "%s", T("author.validator.report.unlocks_beat", { feature = tostring(u.name) }))
         end
@@ -700,6 +716,33 @@ end
 --Build the report body for one document id. Returns the list of children.
 local g_coverageParty = nil
 
+--Only a warning: Proving Pits wins never reach a hero, so a module is reviewed before it joins the Town Gate.
+local CHALLENGE_LIMIT = 3
+
+--The largest if the fight has several [[encounter]] islands; a script's mid-fight ctx:SetVictories can't be seen from here.
+---@param docid string
+---@return integer|nil
+local function OpeningFightVictories(docid)
+    local victories = nil
+    pcall(function()
+        local doc = (dmhub.GetTable("documents") or {})[docid]
+        local script = EncounterMontage.LoadScript(docid, DocumentMap(doc))
+        if script == nil or script.parse == nil then
+            return
+        end
+        for _, beat in ipairs(script.parse.beats or {}) do
+            for _, island in ipairs(beat.islands or {}) do
+                local encounter = EncounterReinforcements.IslandEncounter(script, island)
+                if encounter ~= nil then
+                    local islandVictories = math.max(0, math.floor(tonumber(encounter:try_get("victories", 1)) or 1))
+                    victories = math.max(victories or 0, islandVictories)
+                end
+            end
+        end
+    end)
+    return victories
+end
+
 function EncounterScriptValidator.BuildReport(docid, partyid)
     local children = {}
     local parse = LoadDocument(docid)
@@ -714,6 +757,15 @@ function EncounterScriptValidator.BuildReport(docid, partyid)
         if not check.ok then
             problems[#problems + 1] = check.text
         end
+    end
+    local docMap = DocumentMap((dmhub.GetTable("documents") or {})[docid])
+    if docMap ~= nil and CreatorCredit.MapWatermarkUnset(docMap) then
+        problems[#problems + 1] = T("author.validator.report.no_watermark")
+    end
+    local victories = OpeningFightVictories(docid)
+    local challengeVictories = victories ~= nil and victories + EncounterOfTheWeekGame.CHALLENGE_VICTORIES or nil
+    if challengeVictories ~= nil and challengeVictories > CHALLENGE_LIMIT then
+        problems[#problems + 1] = T("author.validator.report.victories_high", { challenge = challengeVictories, limit = CHALLENGE_LIMIT })
     end
 
     children[#children + 1] = gui.Label{
@@ -737,6 +789,11 @@ function EncounterScriptValidator.BuildReport(docid, partyid)
     if not parse.hasEncounterTag then
         children[#children + 1] = RowLabel{ depth = 0, class = "problem",
             text = T("author.validator.report.no_encounter_island") }
+    end
+
+    if victories ~= nil then
+        children[#children + 1] = RowLabel{ depth = 0, class = "note",
+            text = TP("author.validator.report.victories", victories, { challenge = challengeVictories }) }
     end
 
     --one part of a series ("# Part N"): played after the part before it,

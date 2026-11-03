@@ -28,6 +28,7 @@ local KIND_COLOR = {
     narrative = "#7fb7d9",
     montage = "#6fae7a",
     encounter = "#c46a6a",
+    negotiation = "#d9a05b",
     story = "#c9a96a",
     features = "#d9b3ff",
 }
@@ -84,6 +85,8 @@ local function BeatKindName(kind)
         return T("author.script_builder.outline.kind_montage")
     elseif kind == "encounter" then
         return T("author.script_builder.outline.kind_encounter")
+    elseif kind == "negotiation" then
+        return T("author.script_builder.outline.kind_negotiation")
     elseif kind == "unknown" then
         return T("author.script_builder.outline.kind_unknown")
     end
@@ -104,6 +107,8 @@ function S.BeatLabel(beat)
         return T("author.script_builder.beat.label_montage")
     elseif beat.kind == "encounter" then
         return T("author.script_builder.beat.label_encounter")
+    elseif beat.kind == "negotiation" then
+        return T("author.script_builder.beat.label_negotiation", { npc = beat.name })
     end
     return beat.title or T("author.script_builder.beat.label_other")
 end
@@ -133,6 +138,9 @@ function S.BeatSummary(beat)
             parts[#parts + 1] = TP("author.script_builder.beat.reinforcement_groups", #beat.reinforcements)
         end
         return table.concat(parts, ", ")
+    elseif beat.kind == "negotiation" then
+        return T("author.script_builder.beat.summary_negotiation", { traits = TP("author.script_builder.beat.traits", #beat.traits),
+            arguments = TP("author.script_builder.beat.arguments", #beat.arguments) })
     elseif beat.kind == "unknown" then
         return T("author.script_builder.beat.summary_unknown")
     end
@@ -220,30 +228,13 @@ end
 --How many outcomes in the script grant Intelligence.
 function S.IntelligenceGrants(session)
     local n = 0
-    local function Scan(effects)
-        for _, e in ipairs(effects or {}) do
+    EncounterScript.EachEffectList(session.parse, function(effects)
+        for _, e in ipairs(effects) do
             if e.kind == "intelligence" then
                 n = n + 1
             end
         end
-    end
-    for _, b in ipairs(session.parse.beats or {}) do
-        for _, sec in ipairs(b.sections or {}) do
-            for _, o in ipairs(sec.options or {}) do
-                Scan(o.effects)
-            end
-        end
-        for _, e in ipairs(EncounterScript.MontageEntries(b)) do
-            if e.consequence ~= nil then
-                Scan(e.consequence.effects)
-            end
-            for _, o in ipairs(e.options or {}) do
-                for _, effects in ipairs(EncounterScript.OptionEffectLists(o)) do
-                    Scan(effects)
-                end
-            end
-        end
-    end
+    end)
     return n
 end
 
@@ -327,8 +318,8 @@ function S.DeleteBeat(ctx, index)
     ctx.Commit(T("author.script_builder.status.deleted_beat", { beat = S.BeatLabel(beat) }), { E.Patch(session.rootId, span.first, last, {}) }, nil, { keepTags = true })
 end
 
---Add a new beat of `kind`: a narrative or montage goes in front of the
---encounter (the fight comes last), an encounter at the end.
+--Add a new beat of `kind`: a narrative, montage or negotiation goes in front of
+--the encounter (the fight comes last), an encounter at the end.
 function S.AddBeat(ctx, kind)
     local session = ctx.session
     local beats = session.parse.beats or {}
@@ -356,11 +347,14 @@ function S.AddBeat(ctx, kind)
         end
         anchor = anchor or LastTextLine(session)
     end
-    local block = kind == "narrative" and E.NarrativeBeatBlock() or (kind == "montage" and E.MontageBeatBlock() or E.EncounterBeatBlock())
+    local block = kind == "narrative" and E.NarrativeBeatBlock() or (kind == "montage" and E.MontageBeatBlock()
+        or (kind == "negotiation" and E.NegotiationBeatBlock() or E.EncounterBeatBlock()))
+    local status = kind == "narrative" and T("author.script_builder.status.added_narrative") or (kind == "montage" and T("author.script_builder.status.added_montage")
+        or (kind == "negotiation" and T("author.script_builder.status.added_negotiation") or T("author.script_builder.status.added_encounter")))
     local patch = E.InsertBlockAfterDocLine(session.texts, session.rootId, anchor, block)
     local before = #beats
     ctx.Do(function()
-        if EncounterMontageBuilder.Commit(session, (kind == "narrative" and T("author.script_builder.status.added_narrative") or (kind == "montage" and T("author.script_builder.status.added_montage") or T("author.script_builder.status.added_encounter"))), { patch }, nil, { keepTags = true }) then
+        if EncounterMontageBuilder.Commit(session, status, { patch }, nil, { keepTags = true }) then
             --select the new beat: the first of that kind starting below the anchor.
             local newBeats = session.parse.beats
             local newSpans = S.RootSpans(session)
@@ -532,6 +526,9 @@ function S.Outline(ctx)
         if (beat.line or 0) > 0 then
             problems = #Problems(session, beat.line, 1)
         end
+        if beat.kind == "negotiation" then
+            problems = problems + #EncounterScript.NegotiationProblems(beat, parse)
+        end
         children[#children + 1] = Card(ctx, { kind = "beat", index = index }, KIND_COLOR[beat.kind] or "#b0b0b0",
             string.format("%d. %s", i, string.upper(BeatKindName(beat.kind))), S.BeatLabel(beat), S.BeatSummary(beat), problems, tools)
     end
@@ -541,6 +538,7 @@ function S.Outline(ctx)
     local addRow = {
         ctx.SmallButton(T("author.script_builder.outline.add_narrative"), function() S.AddBeat(ctx, "narrative") end),
         ctx.SmallButton(T("author.script_builder.outline.add_montage"), function() S.AddBeat(ctx, "montage") end),
+        ctx.SmallButton(T("author.script_builder.outline.add_negotiation"), function() S.AddBeat(ctx, "negotiation") end),
     }
     if not hasEncounter then
         addRow[#addRow + 1] = ctx.SmallButton(T("author.script_builder.outline.add_encounter"), function() S.AddBeat(ctx, "encounter") end)
@@ -799,17 +797,25 @@ function S.StoryEditor(ctx, key)
     return children
 end
 
---A narrative option's rules: one outcome editor per "|" line.
-local function NarrativeRules(ctx, o, children)
+--A narrative option's rules: one outcome editor per "|" line. `opts` says what
+--to call them on anything else with `ruleLines` (a negotiation's offer).
+local function NarrativeRules(ctx, o, children, opts)
     local session = ctx.session
     local parse = session.parse
     local lines = o.ruleLines or {}
+    opts = opts or {
+        level = 3,
+        added = T("author.script_builder.status.added_choice_rule"),
+        removed = T("author.script_builder.status.removed_choice_rule"),
+        edited = T("author.script_builder.status.edited_choice_rule"),
+        placeholder = T("author.script_builder.narrative.choice_rule_placeholder"),
+    }
     if #lines == 0 then
         children[#children + 1] = ctx.OutcomeEditor("", function(text)
             if trim(text) ~= "" then
-                ctx.Commit(T("author.script_builder.status.added_choice_rule"), E.InsertAfterElement(parse, session.texts, o.line, 3, { "|" .. E.LineText(text) }))
+                ctx.Commit(opts.added, E.InsertAfterElement(parse, session.texts, o.line, opts.level, { "|" .. E.LineText(text) }))
             end
-        end, nil, { placeholder = T("author.script_builder.narrative.choice_rule_placeholder") })
+        end, nil, { placeholder = opts.placeholder })
         return
     end
     for _, l in ipairs(lines) do
@@ -820,11 +826,11 @@ local function NarrativeRules(ctx, o, children)
         local text = trim((string.gsub(string.gsub(raw, "^%s*|", ""), "|%s*$", "")))
         children[#children + 1] = ctx.OutcomeEditor(text, function(newText)
             if trim(newText) == "" then
-                ctx.Commit(T("author.script_builder.status.removed_choice_rule"), E.DeleteLine(parse, lineNo))
+                ctx.Commit(opts.removed, E.DeleteLine(parse, lineNo))
             else
-                ctx.Commit(T("author.script_builder.status.edited_choice_rule"), E.SetLine(parse, lineNo, lead .. "|" .. E.LineText(newText)))
+                ctx.Commit(opts.edited, E.SetLine(parse, lineNo, lead .. "|" .. E.LineText(newText)))
             end
-        end, nil, { placeholder = T("author.script_builder.narrative.choice_rule_placeholder") })
+        end, nil, { placeholder = opts.placeholder })
     end
 end
 
@@ -1358,6 +1364,356 @@ function S.EncounterEditor(ctx, beat, index)
     return children
 end
 
+--- the negotiation ---------------------------------------------------------------------
+
+--Stock arguments: a starting point an author edits, never a shared line. One
+--for each of the book's motivations (which double as its pitfalls), offered
+--when the NPC has that trait, and neutral ones that always fit.
+local STOCK_ARGUMENTS = {
+    { trait = "Benevolence", attr = "Presence (Persuade)", name = T("author.negotiation_builder.stock.benevolence.name"), say = T("author.negotiation_builder.stock.benevolence.say") },
+    { trait = "Discovery", attr = "Reason (Persuade)", name = T("author.negotiation_builder.stock.discovery.name"), say = T("author.negotiation_builder.stock.discovery.say") },
+    { trait = "Freedom", attr = "Presence (Lead)", name = T("author.negotiation_builder.stock.freedom.name"), say = T("author.negotiation_builder.stock.freedom.say") },
+    { trait = "Greed", attr = "Presence (Persuade)", name = T("author.negotiation_builder.stock.greed.name"), say = T("author.negotiation_builder.stock.greed.say") },
+    { trait = "Higher Authority", attr = "Presence (Lead)", name = T("author.negotiation_builder.stock.authority.name"), say = T("author.negotiation_builder.stock.authority.say") },
+    { trait = "Justice", attr = "Reason (Persuade)", name = T("author.negotiation_builder.stock.justice.name"), say = T("author.negotiation_builder.stock.justice.say") },
+    { trait = "Legacy", attr = "Presence (Brag)", name = T("author.negotiation_builder.stock.legacy.name"), say = T("author.negotiation_builder.stock.legacy.say") },
+    { trait = "Peace", attr = "Presence (Persuade)", name = T("author.negotiation_builder.stock.peace.name"), say = T("author.negotiation_builder.stock.peace.say") },
+    { trait = "Power", attr = "Presence (Persuade)", name = T("author.negotiation_builder.stock.power.name"), say = T("author.negotiation_builder.stock.power.say") },
+    { trait = "Protection", attr = "Reason (Lead)", name = T("author.negotiation_builder.stock.protection.name"), say = T("author.negotiation_builder.stock.protection.say") },
+    { trait = "Revelry", attr = "Presence (Flirt)", name = T("author.negotiation_builder.stock.revelry.name"), say = T("author.negotiation_builder.stock.revelry.say") },
+    { trait = "Vengeance", attr = "Presence (Intimidate)", name = T("author.negotiation_builder.stock.vengeance.name"), say = T("author.negotiation_builder.stock.vengeance.say") },
+    { attr = "Presence (Flirt)", name = T("author.negotiation_builder.stock.drink.name"), say = T("author.negotiation_builder.stock.drink.say") },
+    { attr = "Intuition (Brag)", name = T("author.negotiation_builder.stock.reputation.name"), say = T("author.negotiation_builder.stock.reputation.say") },
+    { attr = "Reason (Persuade)", name = T("author.negotiation_builder.stock.reason.name"), say = T("author.negotiation_builder.stock.reason.say") },
+}
+
+--Several patch lists as one, or nil + why if any failed.
+local function Patches(lists)
+    local result = {}
+    for _, list in ipairs(lists) do
+        if list[1] == nil and list.why ~= nil then
+            return nil, list.why
+        end
+        for _, patch in ipairs(list) do
+            result[#result + 1] = patch
+        end
+    end
+    return result
+end
+
+local function PatchList(patches, why)
+    return patches or { why = why or "" }
+end
+
+--The Appeals lines that name trait `name`, rewritten to `newName`.
+local function AppealPatches(ctx, beat, name, newName)
+    local session = ctx.session
+    local key = EncounterScript.MatchKey(name)
+    local lists = {}
+    for _, argument in ipairs(beat.arguments) do
+        if argument.appeals ~= nil and EncounterScript.MatchKey(argument.appeals) == key then
+            lists[#lists + 1] = PatchList(E.SetNegotiationField(session.parse, session.texts, argument, "appeals", "Appeals", newName))
+        end
+    end
+    return lists
+end
+
+--A patch putting `block` below the last element of `list`, else below the
+--last of `others`, else under the beat's own fields.
+local function InsertBelow(ctx, beat, list, others, block)
+    local session = ctx.session
+    local last = list[#list] or others[#others]
+    if last ~= nil then
+        return E.InsertAfterElement(session.parse, session.texts, last.line, 2, block)
+    end
+    local after = beat.line
+    for _, l in pairs(beat.fieldLines) do
+        after = math.max(after, l)
+    end
+    return One(E.InsertBlockAfter(session.parse, session.texts, after, block))
+end
+
+local function NegotiationField(ctx, holder, key, label, title, value, children, opts)
+    local session = ctx.session
+    children[#children + 1] = ctx.Label(title, { "mbFieldLabel" })
+    children[#children + 1] = ctx.TextBox(value, function(text)
+        ctx.Commit(T("author.negotiation_builder.status.edited_field", { field = title }), E.SetNegotiationField(session.parse, session.texts, holder, key, label, text))
+    end, opts)
+end
+
+local function NegotiationPick(ctx, beat, key, label, title, options, chosen, width, children)
+    local session = ctx.session
+    children[#children + 1] = ctx.Row({
+        gui.Label{ classes = { "mbSub" }, width = 190, height = "auto", valign = "center", text = title },
+        ctx.PickDropdown(options, chosen, function(id)
+            ctx.Commit(T("author.negotiation_builder.status.edited_field", { field = title }), E.SetNegotiationField(session.parse, session.texts, beat, key, label, id))
+        end, { width = width, lmargin = 0, search = false }),
+    }, { fit = true })
+end
+
+local function NegotiationNpc(ctx, beat, children)
+    local session = ctx.session
+    local c = { ctx.Label(T("author.negotiation_builder.npc.heading"), { "mbHeading" }) }
+    c[#c + 1] = ctx.Label(T("author.negotiation_builder.npc.name"), { "mbFieldLabel" })
+    c[#c + 1] = ctx.TextBox(beat.name, function(text)
+        if trim(text) ~= "" then
+            ctx.Commit(T("author.negotiation_builder.status.renamed"), E.SetLine(session.parse, beat.line, E.NegotiationHeading(text)))
+        end
+    end)
+    NegotiationField(ctx, beat, "played by", "Played by", T("author.negotiation_builder.npc.played_by"), beat.playedBy, c)
+    if beat.playedBy ~= "" and EncounterMontage.FindMonster(beat.playedBy) == nil then
+        c[#c + 1] = ctx.Label(T("author.validator.negotiation.no_monster", { npc = beat.name, monster = beat.playedBy }), { "mbProblem" })
+    end
+
+    local attitudes = {}
+    for _, a in ipairs(NegotiationRules.attitudes) do
+        attitudes[#attitudes + 1] = { id = a.name, text = T("author.negotiation_builder.npc.attitude_option", { attitude = a.name, interest = a.interest, patience = a.patience }) }
+    end
+    NegotiationPick(ctx, beat, "attitude", "Attitude", T("author.negotiation_builder.npc.attitude"), attitudes, NegotiationRules.AttitudeById(beat.attitude).name, 300, c)
+    NegotiationPick(ctx, beat, "pronouns", "Pronouns", T("author.negotiation_builder.npc.pronouns"), {
+        { id = "he", text = "he" }, { id = "she", text = "she" }, { id = "they", text = "they" }, { id = "it", text = "it" },
+    }, beat.pronouns, 120, c)
+    NegotiationPick(ctx, beat, "renown", "Renown", T("author.negotiation_builder.npc.renown"), {
+        { id = "Unknown", text = T("author.negotiation_builder.npc.renown_unknown") },
+        { id = "Famous", text = T("author.negotiation_builder.npc.renown_famous") },
+        { id = "Infamous", text = T("author.negotiation_builder.npc.renown_infamous") },
+    }, string.upper(string.sub(beat.renown, 1, 1)) .. string.sub(beat.renown, 2), 300, c)
+    if beat.renown ~= "unknown" then
+        NegotiationPick(ctx, beat, "impression", "Impression", T("author.negotiation_builder.npc.impression"), Numbers(1, 12), tostring(beat.impression), 80, c)
+    end
+    NegotiationField(ctx, beat, "language", "Language", T("author.negotiation_builder.npc.language"), beat.language, c)
+    c[#c + 1] = ctx.Label(T("author.negotiation_builder.npc.language_help"), { "mbSub" })
+    NegotiationField(ctx, beat, "want", "Want", T("author.negotiation_builder.npc.want"), beat.want, c)
+    NegotiationField(ctx, beat, "opening", "Opening", T("author.negotiation_builder.npc.opening"), beat.opening, c)
+    children[#children + 1] = gui.Panel{ classes = { "mbSection" }, children = c }
+end
+
+local function NegotiationTrait(ctx, beat, trait, c)
+    local session = ctx.session
+    local word = cond(trait.kind == "motivation", T("author.negotiation_builder.traits.motivation"), T("author.negotiation_builder.traits.pitfall"))
+    local tc = {}
+    tc[#tc + 1] = ctx.Row({
+        gui.Label{ classes = { "mbSub" }, bold = true, width = 90, height = "auto", valign = "center", text = word },
+        ctx.TextBox(trait.name, function(text)
+            if trim(text) == "" then
+                return
+            end
+            local lists = AppealPatches(ctx, beat, trait.name, text)
+            lists[#lists + 1] = PatchList(E.SetLine(session.parse, trait.line, E.NegotiationTraitHeading(trait.kind, text)))
+            ctx.Commit(T("author.negotiation_builder.status.renamed_trait"), Patches(lists))
+        end, { width = 260 }),
+        ctx.ConfirmButton(T("author.negotiation_builder.traits.delete"), function()
+            local lists = AppealPatches(ctx, beat, trait.name, "Nothing")
+            lists[#lists + 1] = PatchList(E.DeleteElement(session.parse, session.texts, trait.line, 2))
+            ctx.Commit(T("author.negotiation_builder.status.deleted", { name = trait.name }), Patches(lists))
+        end),
+    }, { fit = true })
+    NegotiationField(ctx, trait, "clue", "Clue", T("author.negotiation_builder.traits.clue"), trait.clue, tc)
+
+    local function WriteStart(id, label)
+        local value = ""
+        if id == "known" then
+            value = "Known"
+        elseif id == "unlock" then
+            value = "Unlocked by " .. label
+        end
+        ctx.Commit(T("author.negotiation_builder.status.edited_field", { field = T("author.negotiation_builder.traits.start") }),
+            E.SetNegotiationField(session.parse, session.texts, trait, "start", "Start", value))
+    end
+    local row = {
+        gui.Label{ classes = { "mbSub" }, width = 90, height = "auto", valign = "center", text = T("author.negotiation_builder.traits.start") },
+        ctx.PickDropdown({
+            { id = "hidden", text = T("author.negotiation_builder.traits.start_hidden") },
+            { id = "known", text = T("author.negotiation_builder.traits.start_known") },
+            { id = "unlock", text = T("author.negotiation_builder.traits.start_unlock") },
+        }, trait.start, function(id)
+            WriteStart(id, trait.unlock or T("author.negotiation_builder.traits.unlock_starter"))
+        end, { width = 190, lmargin = 0, search = false }),
+    }
+    if trait.start == "unlock" then
+        row[#row + 1] = ctx.TextBox(trait.unlock, function(text)
+            if trim(text) ~= "" then
+                WriteStart("unlock", text)
+            end
+        end, { width = 220 })
+    end
+    tc[#tc + 1] = ctx.Row(row, { fit = true })
+    c[#c + 1] = gui.Panel{ classes = { "mbSection" }, children = tc }
+end
+
+local function NegotiationArgument(ctx, beat, argument, c)
+    local session = ctx.session
+    local parse = session.parse
+    local ac = {}
+    ac[#ac + 1] = ctx.Row({
+        ctx.TextBox(argument.name, function(text)
+            if trim(text) ~= "" then
+                ctx.Commit(T("author.negotiation_builder.status.renamed_argument"), E.SetLine(parse, argument.line, E.NegotiationArgumentHeading(text)))
+            end
+        end, { width = 400 }),
+        ctx.ConfirmButton(T("author.negotiation_builder.arguments.delete"), function()
+            ctx.Commit(T("author.negotiation_builder.status.deleted", { name = argument.name }), E.DeleteElement(parse, session.texts, argument.line, 2))
+        end),
+    }, { fit = true })
+
+    local appeals = { { id = "Nothing", text = T("author.negotiation_builder.arguments.appeals_nothing") } }
+    local chosen = "Nothing"
+    for _, trait in ipairs(beat.traits) do
+        appeals[#appeals + 1] = { id = trait.name, text = cond(trait.kind == "motivation",
+            T("author.negotiation_builder.arguments.appeals_motivation", { trait = trait.name }),
+            T("author.negotiation_builder.arguments.appeals_pitfall", { trait = trait.name })) }
+        if argument.traitId == trait.id then
+            chosen = trait.name
+        end
+    end
+    ac[#ac + 1] = ctx.Row({
+        gui.Label{ classes = { "mbSub" }, width = 150, height = "auto", valign = "center", text = T("author.negotiation_builder.arguments.appeals") },
+        ctx.PickDropdown(appeals, chosen, function(id)
+            ctx.Commit(T("author.negotiation_builder.status.edited_field", { field = T("author.negotiation_builder.arguments.appeals") }),
+                E.SetNegotiationField(parse, session.texts, argument, "appeals", "Appeals", id))
+        end, { width = 260, lmargin = 0, search = false }),
+    }, { fit = true })
+
+    local pitfall = argument.kind == "pitfall"
+    NegotiationField(ctx, argument, "pc", "PC", T("author.negotiation_builder.arguments.say"), argument.say, ac)
+    if pitfall then
+        NegotiationField(ctx, argument, "backfires", "Fails", T("author.negotiation_builder.arguments.fails", { npc = beat.name }), argument.backfires, ac)
+        ac[#ac + 1] = ctx.Label(T("author.negotiation_builder.arguments.pitfall_help"), { "mbSub" })
+    else
+        NegotiationField(ctx, argument, "lands", "Lands", T("author.negotiation_builder.arguments.lands", { npc = beat.name }), argument.lands, ac)
+        NegotiationField(ctx, argument, "falls short", "Falls short", T("author.negotiation_builder.arguments.falls_short", { npc = beat.name }), argument.fallsShort, ac)
+        if argument.kind == "neutral" then
+            NegotiationField(ctx, argument, "backfires", "Backfires", T("author.negotiation_builder.arguments.backfires", { npc = beat.name }), argument.backfires, ac)
+        end
+    end
+
+    local roll = argument.roll
+    if roll ~= nil and not pitfall then
+        ac[#ac + 1] = ctx.Label(T("author.negotiation_builder.arguments.test"), { "mbFieldLabel" })
+        ctx.AttrEditor(roll.attr, function(chars, skills)
+            ctx.Commit(T("author.negotiation_builder.status.edited_test"), E.SetRollHeader(parse, roll, roll.name, E.AttrText(chars, skills)))
+        end, ac)
+    elseif roll == nil and not pitfall then
+        ac[#ac + 1] = ctx.Row({ ctx.SmallButton(T("author.negotiation_builder.arguments.add_test"), function()
+            ctx.Commit(T("author.negotiation_builder.status.edited_test"), E.AddNegotiationTest(parse, argument, "Presence (Persuade)"))
+        end) }, { fit = true })
+    end
+
+    --the Renown rule's edge is not written in the script.
+    local riders = {}
+    for _, r in ipairs(argument.riders) do
+        if not r.renown then
+            riders[#riders + 1] = r
+        end
+    end
+    ac[#ac + 1] = ctx.Label(T("author.negotiation_builder.arguments.knacks"), { "mbFieldLabel" })
+    ctx.RiderRows(argument, riders, roll ~= nil and not pitfall, ac, true)
+    c[#c + 1] = gui.Panel{ classes = { "mbSection" }, children = ac }
+end
+
+local function NegotiationOffer(ctx, beat, interest, c)
+    local session = ctx.session
+    local parse = session.parse
+    local offer = beat.offers[interest + 1]
+    local shape = NegotiationRules.offerLabels[interest] or E.NegotiationOfferName(interest)
+    if offer == nil then
+        c[#c + 1] = ctx.Row({ ctx.SmallButton(T("author.negotiation_builder.offers.add", { offer = shape }), function()
+            ctx.Commit(T("author.negotiation_builder.status.added_offer"), E.InsertAfterElement(parse, session.texts, beat.line, 1,
+                E.NegotiationOfferBlock(interest, T("author.script_edit.starter.negotiation.offer"))))
+        end) }, { fit = true })
+        return
+    end
+    local oc = { ctx.Label(T("author.negotiation_builder.offers.heading", { interest = interest, offer = shape }), { "mbFieldLabel" }) }
+    oc[#oc + 1] = ctx.TextBox(offer.text, function(text)
+        ctx.Commit(T("author.negotiation_builder.status.edited_offer"), E.SetProse(parse, session.texts, offer.textLines, offer.line, text))
+    end, { multiline = true, minHeight = 26 })
+    NarrativeRules(ctx, offer, oc, {
+        level = 2,
+        added = T("author.negotiation_builder.status.added_offer_rule"),
+        removed = T("author.negotiation_builder.status.removed_offer_rule"),
+        edited = T("author.negotiation_builder.status.edited_offer_rule"),
+        placeholder = T("author.negotiation_builder.offers.rule_placeholder"),
+    })
+    c[#c + 1] = gui.Panel{ classes = { "mbSection" }, children = oc }
+end
+
+function S.NegotiationEditor(ctx, beat, index)
+    local session = ctx.session
+    local parse = session.parse
+    local children = { ctx.Label(string.upper(S.BeatLabel(beat)), { "mbHeading" }, { color = KIND_COLOR.negotiation }) }
+    children[#children + 1] = ctx.Label(T("author.negotiation_builder.intro"), { "mbSub" })
+    for _, problem in ipairs(EncounterScript.NegotiationProblems(beat, parse)) do
+        children[#children + 1] = ctx.Label(problem, { "mbProblem" })
+    end
+    ProblemLabels(ctx, beat.line, 1, children)
+
+    NegotiationNpc(ctx, beat, children)
+
+    local tc = { ctx.Label(T("author.negotiation_builder.traits.heading"), { "mbHeading" }) }
+    tc[#tc + 1] = ctx.Label(T("author.negotiation_builder.traits.help"), { "mbSub" })
+    for _, trait in ipairs(beat.traits) do
+        NegotiationTrait(ctx, beat, trait, tc)
+    end
+    local function AddTrait(kind, name, status)
+        ctx.Commit(status, InsertBelow(ctx, beat, beat.traits, {}, E.NegotiationTraitBlock(kind, name, T("author.negotiation_builder.traits.clue_starter"))))
+    end
+    tc[#tc + 1] = ctx.Row({
+        ctx.SmallButton(T("author.negotiation_builder.traits.add_motivation"), function() AddTrait("motivation", T("author.negotiation_builder.traits.new_motivation"), T("author.negotiation_builder.status.added_motivation")) end),
+        ctx.SmallButton(T("author.negotiation_builder.traits.add_pitfall"), function() AddTrait("pitfall", T("author.negotiation_builder.traits.new_pitfall"), T("author.negotiation_builder.status.added_pitfall")) end),
+    }, { fit = true, tmargin = 4 })
+    children[#children + 1] = gui.Panel{ classes = { "mbSection" }, children = tc }
+
+    local ac = { ctx.Label(T("author.negotiation_builder.arguments.heading"), { "mbHeading" }) }
+    ac[#ac + 1] = ctx.Label(T("author.negotiation_builder.arguments.help"), { "mbSub" })
+    for _, argument in ipairs(beat.arguments) do
+        NegotiationArgument(ctx, beat, argument, ac)
+    end
+    local function AddArgument(a)
+        ctx.Commit(T("author.negotiation_builder.status.added_argument"), InsertBelow(ctx, beat, beat.arguments, beat.traits, E.NegotiationArgumentBlock(a)))
+    end
+    local stock = { { id = "", text = T("author.negotiation_builder.arguments.add_stock") } }
+    local traitNames = {}
+    for _, trait in ipairs(beat.traits) do
+        traitNames[EncounterScript.MatchKey(trait.name)] = trait.name
+    end
+    for i, s in ipairs(STOCK_ARGUMENTS) do
+        if s.trait == nil or traitNames[EncounterScript.MatchKey(s.trait)] ~= nil then
+            stock[#stock + 1] = { id = tostring(i), text = cond(s.trait ~= nil, string.format("%s: %s", s.trait or "", s.name), s.name) }
+        end
+    end
+    ac[#ac + 1] = ctx.Row({
+        ctx.SmallButton(T("author.negotiation_builder.arguments.add"), function()
+            AddArgument{ name = T("author.negotiation_builder.arguments.new_name"), appeals = "Nothing" }
+        end),
+        ctx.PickDropdown(stock, "", function(id)
+            local s = STOCK_ARGUMENTS[tonumber(id) or 0]
+            if s ~= nil then
+                AddArgument{ name = s.name, say = s.say, attr = s.attr,
+                    appeals = s.trait ~= nil and traitNames[EncounterScript.MatchKey(s.trait)] or "Nothing" }
+            end
+        end, { width = 320, search = false }),
+    }, { fit = true, tmargin = 4 })
+    children[#children + 1] = gui.Panel{ classes = { "mbSection" }, children = ac }
+
+    local oc = { ctx.Label(T("author.negotiation_builder.offers.title"), { "mbHeading" }) }
+    oc[#oc + 1] = ctx.Label(T("author.negotiation_builder.offers.help"), { "mbSub" })
+    for interest = 0, #EncounterScript.NEGOTIATION_OFFERS - 1 do
+        NegotiationOffer(ctx, beat, interest, oc)
+    end
+    children[#children + 1] = gui.Panel{ classes = { "mbSection" }, children = oc }
+
+    children[#children + 1] = ctx.Row({
+        ctx.SmallButton(T("author.negotiation_builder.test_button"), function()
+            ctx.close()
+            EncounterNegotiation.StartPreview(beat)
+        end),
+        ctx.SmallButton(T("author.negotiation_builder.open_in_journal"), function() OpenInJournal(ctx, beat.line) end),
+        ctx.ConfirmButton(T("author.negotiation_builder.delete_button"), function() ctx.Do(function() S.DeleteBeat(ctx, index) end) end),
+    }, { fit = true, tmargin = 8 })
+    children[#children + 1] = ctx.Label(T("author.negotiation_builder.test_help"), { "mbSub" })
+    return children
+end
+
 --A top-level heading the parser does not know ("# Notes"): the game skips
 --it, so all the builder offers is why and a way to delete it.
 function S.UnknownBeatEditor(ctx, beat, index)
@@ -1394,6 +1750,8 @@ function S.Editor(ctx)
                     return { ctx.Label(T("author.script_builder.encounter.implicit"), { "mbSub" }) }
                 end
                 return S.EncounterEditor(ctx, beat, sel.index)
+            elseif beat.kind == "negotiation" then
+                return S.NegotiationEditor(ctx, beat, sel.index)
             elseif beat.kind == "unknown" then
                 return S.UnknownBeatEditor(ctx, beat, sel.index)
             end

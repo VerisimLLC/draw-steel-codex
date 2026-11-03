@@ -104,7 +104,7 @@ local function CreateAllyCard(charid)
                 element.bgimage = portrait
                 element.selfStyle.bgcolor = "white"
                 local rect = nil
-                pcall(function() rect = tok:GetPortraitRectForAspect(ALLY_CARD_WIDTH / ALLY_CARD_HEIGHT, portrait) end)
+                pcall(function() rect = CardPortraitRect(tok, ALLY_CARD_WIDTH / ALLY_CARD_HEIGHT, portrait) end)
                 element.selfStyle.imageRect = rect
             end
         end,
@@ -1658,13 +1658,14 @@ end
 --creator's logo sits in the bottom-right corner of the map window; clicking
 --it opens their Patreon (CreatorCredit.ForOrganization). EotW games only: the
 --whole interface, this included, is up only there (IsInterfaceActive).
-
---Creator organizations whose maps carry no watermark: MCDM's own.
-local MAP_WATERMARK_EXEMPT_ORGS = { mcdm = true }
+--(2026-11-01) The map's Watermark setting (Map Settings > Display) comes
+--first, so a partner's map imported by hand can be credited too; left at
+--Map Pack Default, the map pack it came from decides.
 
 local MAP_WATERMARK_HEIGHT = 36
 
---mapid -> its watermark credit, false for none, or true while looking it up.
+--mapid -> its map pack's watermark credit, false for none, or true while
+--looking it up.
 --- @type table<string, CreatorCreditInfo|boolean>
 local g_mapWatermarkCredits = {}
 
@@ -1673,11 +1674,20 @@ local m_mapWatermark = nil
 local m_mapWatermarkHost = nil
 local m_mapWatermarkCreator = nil
 
---The watermark credit for a map: nil when it has none, or until its lookup
---(started here on first ask) comes back.
+--The watermark credit for the current map: nil when it has none, or until
+--its lookup (started here on first ask) comes back.
 --- @param mapid string
 --- @return nil|CreatorCreditInfo
 local function MapWatermarkCredit(mapid)
+    --the setting is read for the current map, which mapid always is here.
+    local choice = dmhub.GetSettingValue(CreatorCredit.MAP_SETTING)
+    if choice == "none" then
+        return nil
+    end
+    if type(choice) == "string" and choice ~= "" and choice ~= "default" then
+        return CreatorCredit.Resolve(choice)
+    end
+
     local cached = g_mapWatermarkCredits[mapid]
     if type(cached) == "table" then
         return cached
@@ -1688,7 +1698,7 @@ local function MapWatermarkCredit(mapid)
     g_mapWatermarkCredits[mapid] = true
     MapPackOf(mapid, function(pack)
         local org = pack ~= nil and MapPackOrg(pack) or nil
-        if org == nil or MAP_WATERMARK_EXEMPT_ORGS[org] then
+        if org == nil or CreatorCredit.MAP_EXEMPT_ORGS[org] then
             g_mapWatermarkCredits[mapid] = false
             return
         end

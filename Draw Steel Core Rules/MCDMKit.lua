@@ -24,6 +24,7 @@ local mod = dmhub.GetModLoading()
 --- @field signatureAbilities? ActivatedAbility[] Signature abilities of a combined (two-kit) kit; plain kits use signatureAbility.
 --- @field additionalSignatureAbilities? ActivatedAbility[] Extra signature abilities returned by Kit:SignatureAbilities after signatureAbility.
 --- @field imported? string Import guid stamped by the rules importer.
+--- @field _tmp_combinedType? string Both kit type ids of a combined (two-kit) kit, e.g. "martial/caster".
 Kit = RegisterGameType("Kit")
 
 local ApplyBonusesFromKit
@@ -285,6 +286,20 @@ function Kit:HasWeapons()
 	return false
 end
 
+--- Returns the weapon type ids this kit uses (ids from Kit.weaponTypes, e.g. "Bow",
+--- "Medium", "Shield"), sorted by name. A combined kit has both kits' weapons.
+--- @return string[]
+function Kit:Weapons()
+	local result = {}
+	for weaponid,hasWeapon in pairs(self.weapons) do
+		if hasWeapon then
+			result[#result+1] = weaponid
+		end
+	end
+	table.sort(result)
+	return result
+end
+
 function Kit.DamageBonusPreferred(a, b)
 	if b == nil then
 		return true
@@ -407,6 +422,14 @@ function Kit.CombineKits(creature, a, b)
 		signatureAbilities = abilities,
         modifierInfo = modifierInfo
 	}
+
+    -- The combined kit's own type is left at the "martial" default, so record both
+    -- kits' types for GoblinScript's Kit.Type.
+    if a.type == b.type then
+        result._tmp_combinedType = a.type
+    else
+        result._tmp_combinedType = string.format("%s/%s", a.type, b.type)
+    end
 
     result.weapons = {}
     for k,v in pairs(a.weapons) do
@@ -1092,6 +1115,24 @@ Kit.helpSymbols = {
 		type = "string",
 		desc = "The name of the kit.",
 	},
+	type = {
+		name = "Type",
+		type = "string",
+		desc = "The kit's type, e.g. martial or caster. A combined kit lists both, e.g. martial/caster, so check it with has.",
+		examples = {'kit.type is "martial"', 'kit.type has "caster"'},
+	},
+	armor = {
+		name = "Armor",
+		type = "string",
+		desc = "The armor the kit uses: None, Light, Medium or Heavy (the kit editor shows these as No Armor, Light Armor, and so on). A combined kit lists both, e.g. Medium/Heavy, so check it with has.",
+		examples = {'kit.armor is "Heavy"', 'kit.armor has "Light"'},
+	},
+	weapons = {
+		name = "Weapons",
+		type = "set",
+		desc = "The weapons the current kit uses, e.g. Bow, Medium or Shield.",
+		examples = {'kit.weapons has "Bow"'},
+	},
 	stamina = {
         name = "Stamina",
         type = "number",
@@ -1142,6 +1183,15 @@ Kit.lookupSymbols = {
 	name = function(c)
 		return c.name
 	end,
+	type = function(kit)
+		return kit:try_get("_tmp_combinedType") or kit.type
+	end,
+	armor = function(kit)
+		return kit.armor
+	end,
+	weapons = function(kit)
+		return StringSet.new{ strings = kit:Weapons() }
+	end,
 	stamina = function(c)
 		return c.health
 	end,
@@ -1187,15 +1237,28 @@ Kit.lookupSymbols = {
 	end,
 }
 
+--- Stand-in for a creature with no kit: every bonus is 0, it has no weapons and
+--- armor None. Its type is "none" so that Kit.Type is "martial" is false.
+--- @type Kit|nil
+local g_emptyKit = nil
+
 creature.RegisterSymbol {
     symbol = "kit",
     lookup = function(c)
-        return c:Kit()
+        -- Without a kit, a formula like Kit.Speed would error; an empty kit gives 0 instead.
+        local kit = c:Kit()
+        if kit == nil then
+            if g_emptyKit == nil then
+                g_emptyKit = Kit.new{ id = "none", name = "", type = "none" }
+            end
+            kit = g_emptyKit
+        end
+        return kit
     end,
     help = {
         name = "Kit",
         type = "kit",
-        desc = "The current kit of this creature, if any.",
+        desc = "The current kit of this creature. A creature with no kit has an empty kit: every bonus is 0, Weapons is empty, Armor is None and Type is none.",
         example = "Kit.speed <= 5",
     },
 }

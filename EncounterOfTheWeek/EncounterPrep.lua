@@ -512,6 +512,11 @@ end
 
 --Validate and apply one player request. Returns a line to log, or nil.
 local function HandleRequest(m, doc, userid, req, beat, heroes)
+    --handing an item to another hero works at any point in the screen.
+    if req.kind == "giveItem" then
+        return EncounterMontage.GiveItem(doc, heroes, userid, req)
+    end
+
     if m.phase ~= "spending" then
         return nil
     end

@@ -160,15 +160,18 @@ local g_hit = 0
 local g_miss = 0
 
 function CharacterSkillChoice:GetSkillFeatures()
-    if self:try_get("_tmp_skillFeatures") ~= nil and (dmhub.DeepEqual(self:try_get("_tmp_skillFeaturesKey"), self.categories)) then
+    --keyed on both lists. The key used to merge individualSkills into a copy of categories
+    --and then compare it with categories alone, so any choice naming individual skills
+    --missed every time and rebuilt its features on every modifier rebuild.
+    if self:try_get("_tmp_skillFeatures") ~= nil
+        and dmhub.DeepEqual(self:try_get("_tmp_skillFeaturesKey"), self.categories)
+        and dmhub.DeepEqual(self:try_get("_tmp_skillFeaturesIndividualKey"), self.individualSkills) then
         g_hit = g_hit + 1
         return self._tmp_skillFeatures
     end
 
     self._tmp_skillFeaturesKey = table.shallow_copy(self.categories)
-    for k,v in pairs(self.individualSkills) do
-        self._tmp_skillFeaturesKey[k] = true
-    end
+    self._tmp_skillFeaturesIndividualKey = table.shallow_copy(self.individualSkills)
 
     local skillFeatureIndex = 1
     if not self:has_key("_tmp_skillFeatures") then

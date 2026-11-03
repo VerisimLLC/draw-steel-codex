@@ -159,9 +159,10 @@ local CONTINUE_SERIES_SECONDS = 600
 
 --Set by the game-side EotW codemod after a finished game while EotW is in
 --beta: the survey invitation this player has waiting, { [userid] = {gameid,
---encounter, kind, outcome, minutes, players, heroes} } as JSON. The town
---invites them (ShowSurveyDialog) and clears it, answered or declined. Same
---id as the game codemod's declaration.
+--encounter, kind, outcome, minutes, players, heroes, appStart} } as JSON.
+--The town invites them once (ShowSurveyDialog clears it as it opens), and
+--drops one left by an earlier run of the app. Same id as the game
+--codemod's declaration.
 setting{
     id = "eotw:pendingSurvey",
     default = "",
@@ -1659,6 +1660,8 @@ end
 --a completed cache still re-checks that the pregen ART is registered --
 --see EnsurePregenArt).
 function EncounterOfTheWeek.CachePregens()
+    --Warm the Hero module pregens too, so the recruit picker has them on its first open.
+    CacheHeroModulePregens()
     if m_pregens ~= nil then
         EnsurePregenArt()
         return
@@ -1840,6 +1843,19 @@ CacheHeroModulePregens = function()
         end
     end
     Finish()
+end
+
+--True once GetPregens has nothing left to add: the official list is loaded
+--and the Hero module pregens match the modules installed in the lobby now.
+--Does not start any download (GetPregens does).
+function EncounterOfTheWeek.PregensSettled()
+    if m_pregens == nil then
+        return false
+    end
+    if not dmhub.isLobbyGame or module.DownloadModuleSnapshot == nil then
+        return true
+    end
+    return not m_heroPregensFetching and m_heroPregensKey == InstalledHeroModulesKey()
 end
 
 --The snapshot token for a pregen id, official or from a Hero module (nil
@@ -2094,15 +2110,24 @@ local function PortraitWarmupSettled()
 end
 
 --Eagerly warm the cache shortly after the titlescreen loads (deferred so
---boot-time systems are up), and whenever the dev gate turns on.
-dmhub.Schedule(5, function()
+--boot-time systems are up), and whenever the dev gate turns on. Waits until
+--the titlescreen's lobby game has loaded (isLobbyGame stays false until its
+--details download): when a real game is loading instead (direct launch, a fast
+--join) the pregen art fetch would parse multi-MB module payloads mid-entry,
+--one of them again by the game's own module load. Polling is a flag check.
+local function WarmPregensOnTitlescreen()
     if mod.unloaded then
+        return
+    end
+    if not dmhub.isLobbyGame then
+        dmhub.Schedule(2, WarmPregensOnTitlescreen)
         return
     end
     if EncounterOfTheWeek.Enabled() then
         EncounterOfTheWeek.CachePregens()
     end
-end)
+end
+dmhub.Schedule(5, WarmPregensOnTitlescreen)
 
 --The currently mounted EotW screen, if any (nil or destroyed when closed).
 local m_screen = nil
@@ -4283,7 +4308,7 @@ CreateScreen = function(args)
                 if p ~= nil then
                     portrait = p
                     if not p.hasSpineAnimation then
-                        portraitRect = tok:GetPortraitRectForAspect(HERO_CARD_ASPECT, p)
+                        portraitRect = CardPortraitRect(tok, HERO_CARD_ASPECT, p)
                     end
                 end
             end)
@@ -6295,12 +6320,14 @@ CreateScreen = function(args)
                 action = "create-game",
                 args = { name = name, public = m_public, encounter = m_encounter, challenge = m_challenge and challengeOffered },
                 success = function()
-                    EotwAnalytics.Track("eotw_party_create", {
+                    --sent once the game exists, so it carries the party's
+                    --runid like the join and launch events.
+                    local createEvent = {
                         encounter = m_encounter,
                         board = cond(m_encounter ~= nil and EncounterOfTheWeek.IsDangerRoomEncounter(m_encounter), "pits", "gate"),
                         public = m_public,
                         challenge = m_challenge and challengeOffered,
-                    })
+                    }
                     SetDialogStatus(T("eotw.create.creating"))
                     --one EotW game per account: capture the current slot
                     --value now -- creating the new game overwrites it --
@@ -6321,6 +6348,8 @@ CreateScreen = function(args)
                         --in-game Director-UI filter.
                         directorless = true,
                         create = function(gameid)
+                            createEvent.runid = gameid
+                            EotwAnalytics.Track("eotw_party_create", createEvent)
                             MarkSlotGame(gameid, false)
                             if prev ~= nil and prev ~= gameid then
                                 DestroyPreviousGame(prev, { abandon = true })
@@ -7390,6 +7419,21 @@ CreateScreen = function(args)
         },
     }
 
+    local ClearPendingSurvey = function(gameid)
+        local text = dmhub.GetSettingValue("eotw:pendingSurvey")
+        local parsed = type(text) == "string" and text ~= "" and dmhub.FromJson(text) or nil
+        if type(parsed) ~= "table" or not parsed.success or type(parsed.result) ~= "table" then
+            dmhub.SetSettingValue("eotw:pendingSurvey", "")
+            return
+        end
+        local all = parsed.result
+        local entry = all[dmhub.loginUserid]
+        if type(entry) == "table" and entry.gameid == gameid then
+            all[dmhub.loginUserid] = nil
+            dmhub.SetSettingValue("eotw:pendingSurvey", dmhub.ToJson(all))
+        end
+    end
+
     local ReadPendingSurvey = function()
         local text = dmhub.GetSettingValue("eotw:pendingSurvey")
         if type(text) ~= "string" or text == "" then
@@ -7404,22 +7448,17 @@ CreateScreen = function(args)
         if type(entry) ~= "table" or type(entry.gameid) ~= "string" or type(entry.outcome) ~= "string" then
             return nil
         end
+        --the survey belongs to leaving the encounter: one left by an earlier
+        --run of the app (or by a build before appStart) is dropped unseen.
+        --Launches are always minutes apart (a game must run ten), so a few
+        --seconds of clock slack cannot mistake one run for another.
+        local appStart = os.time() - dmhub.Time()
+        if type(entry.appStart) ~= "number" or math.abs(entry.appStart - appStart) > 30 then
+            printf("EotW: dropping the survey invitation for %s from an earlier run", entry.gameid)
+            ClearPendingSurvey(entry.gameid)
+            return nil
+        end
         return entry
-    end
-
-    local ClearPendingSurvey = function(gameid)
-        local text = dmhub.GetSettingValue("eotw:pendingSurvey")
-        local parsed = type(text) == "string" and text ~= "" and dmhub.FromJson(text) or nil
-        if type(parsed) ~= "table" or not parsed.success or type(parsed.result) ~= "table" then
-            dmhub.SetSettingValue("eotw:pendingSurvey", "")
-            return
-        end
-        local all = parsed.result
-        local entry = all[dmhub.loginUserid]
-        if type(entry) == "table" and entry.gameid == gameid then
-            all[dmhub.loginUserid] = nil
-            dmhub.SetSettingValue("eotw:pendingSurvey", dmhub.ToJson(all))
-        end
     end
 
     local m_surveyOpen = false
@@ -7766,6 +7805,10 @@ CreateScreen = function(args)
         }
         if dlg == nil then
             m_surveyOpen = false
+        else
+            --offered once: closing the town or the app with it unanswered
+            --does not bring it back.
+            ClearPendingSurvey(entry.gameid)
         end
     end
 
@@ -8210,7 +8253,7 @@ CreateScreen = function(args)
                 element.bgimage = portrait
                 element.selfStyle.bgcolor = "white"
                 local rect = nil
-                pcall(function() rect = tok:GetPortraitRectForAspect(aspect * (1 - INN_PORTRAIT_FADE), portrait) end)
+                pcall(function() rect = CardPortraitRect(tok, aspect * (1 - INN_PORTRAIT_FADE), portrait) end)
                 if rect ~= nil then
                     local y1 = math.max(INN_PORTRAIT_FADE, rect.y1 + (rect.y2 - rect.y1) * INN_PORTRAIT_FADE)
                     rect = { x1 = rect.x1, y1 = y1, x2 = rect.x2, y2 = rect.y2 }

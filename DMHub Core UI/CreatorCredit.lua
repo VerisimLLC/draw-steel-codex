@@ -194,6 +194,19 @@ function CreatorCredit.ForOrganization(orgid, callback)
     }
 end
 
+--- A creator's credit if it is ready, else nil. An "org:<orgid>" credit is
+--- looked up (ForOrganization, once) the first time it is asked for, so a
+--- caller that polls, such as a think, gets it a little later.
+--- @param id string
+--- @return nil|CreatorCreditInfo
+function CreatorCredit.Resolve(id)
+    local info = CreatorCredit.Get(id)
+    if info == nil and id:sub(1, 4) == "org:" and g_orgCredits[id:sub(5)] == nil then
+        CreatorCredit.ForOrganization(id:sub(5), function() end)
+    end
+    return info
+end
+
 --- Dropdown options for picking a creator: "None" (id "none") then every
 --- registered creator by name.
 --- @return {id: string, text: string}[]
@@ -208,6 +221,92 @@ function CreatorCredit.DropdownOptions()
     table.sort(result, function(a, b) return a.text < b.text end)
     table.insert(result, 1, { id = "none", text = "None" })
     return result
+end
+
+--- Map watermarks ----------------------------------------------------------
+
+--The per-map "Watermark" choice (Map Settings > Display): a creator id, or
+--"default" to credit the map pack the map was added from (its packSource),
+--or "none" for no watermark. Encounter of the Week shows the watermark on
+--the map window (EncounterOfTheWeekHud UpdateMapWatermark).
+CreatorCredit.MAP_SETTING = "map:creatorcredit"
+
+--Creator organizations whose maps carry no watermark: MCDM's own.
+CreatorCredit.MAP_EXEMPT_ORGS = { mcdm = true }
+
+--- The creator organizations that publish map packs (from the synced map
+--- pack index), less the exempt ones, in index order.
+--- @return string[]
+function CreatorCredit.MapPackOrgs()
+    local result = {}
+    local seen = {}
+    for _,pack in ipairs(mappacks.packs or {}) do
+        local org = pack.org
+        if type(org) == "string" and org ~= "" and not seen[org] and not CreatorCredit.MAP_EXEMPT_ORGS[org] then
+            seen[org] = true
+            result[#result+1] = org
+        end
+    end
+    return result
+end
+
+--- Dropdown options for a map's watermark: Map Pack Default, None, the
+--- built-in creators, then the map pack organizations. An organization is
+--- named once its credit has been built (ForOrganization) and shown by id
+--- until then; one with no logo is left out, since it has nothing to show.
+--- @return {id: string, text: string}[]
+function CreatorCredit.MapWatermarkOptions()
+    local result = {}
+    for _,option in ipairs(CreatorCredit.DropdownOptions()) do
+        if option.id ~= "none" then
+            result[#result+1] = option
+        end
+    end
+    local orgs = {}
+    for _,org in ipairs(CreatorCredit.MapPackOrgs()) do
+        local cached = g_orgCredits[org]
+        if cached ~= false then
+            local info = CreatorCredit.Get("org:" .. org)
+            orgs[#orgs+1] = { id = "org:" .. org, text = info ~= nil and info.name or org }
+        end
+    end
+    table.sort(orgs, function(a, b) return a.text < b.text end)
+    for _,option in ipairs(orgs) do
+        result[#result+1] = option
+    end
+    table.insert(result, 1, { id = "none", text = "None" })
+    table.insert(result, 1, { id = "default", text = "Map Pack Default" })
+    return result
+end
+
+--- The watermark a map was given in Map Settings: a creator id, "none", or
+--- nil when it was left at Map Pack Default.
+--- @param mapid string
+--- @return nil|string
+function CreatorCredit.MapWatermarkChoice(mapid)
+    local value = nil
+    local map = game.GetMap(mapid)
+    if map ~= nil then
+        value = map:GetSetting(CreatorCredit.MAP_SETTING)
+    end
+    if type(value) ~= "string" or value == "" or value == "default" then
+        return nil
+    end
+    return value
+end
+
+--- True when nothing says who a map's art is by: its watermark is left at
+--- Map Pack Default and it did not come from a map pack. Publishing an
+--- Encounter of the Week map like that warns, since a partner's art must
+--- carry their credit.
+--- @param mapid string
+--- @return boolean
+function CreatorCredit.MapWatermarkUnset(mapid)
+    if CreatorCredit.MapWatermarkChoice(mapid) ~= nil then
+        return false
+    end
+    local map = game.GetMap(mapid)
+    return map == nil or map.packSource == nil
 end
 
 --"https://www.czepeku.com/" -> "czepeku.com", for the tooltip.

@@ -987,6 +987,37 @@ local function BuilderStyles()
     })
 end
 
+--The builder window's styles. Popped out into its own OS window the builder
+--is its own style-cascade root, so it must carry Styles.Default itself (the
+--hud root no longer supplies it), and its frame goes square: rounded corners
+--would show the window's black clear color.
+local function EditorWindowStyles(poppedOut)
+    if not poppedOut then
+        return BuilderStyles()
+    end
+    return {
+        Styles.Default,
+        BuilderStyles(),
+        ThemeEngine.MergeTokens({
+            {
+                selectors = { "dialog", "parent:poppedOut" },
+                priority = 6,
+                cornerRadius = 0,
+                borderWidth = 0,
+            },
+        }),
+    }
+end
+
+--The builder steps aside (hides) while the Director works on the map. One
+--popped out into its own OS window is already off the map, so it stays put.
+local function HideBuilderForMapWork(editorPanel)
+    if editorPanel.data.poppedOut then
+        return
+    end
+    editorPanel:SetClass("hidden", true)
+end
+
 -- ===========================================================================
 -- Widgets
 -- ===========================================================================
@@ -3139,7 +3170,7 @@ local function CreateGroupCard(args)
             if GroupHasUsableStaging(encounter, group) then
                 local tokens = StageGroupAtSavedLocations(encounter, groupIndex, group, party.numHeroes, placementid)
                 if #tokens > 0 then
-                    editorPanel:SetClass("hidden", true)
+                    HideBuilderForMapWork(editorPanel)
 
                     local firstCharid = tokens[1].charid
                     dmhub.Schedule(0.2, function()
@@ -3164,7 +3195,7 @@ local function CreateGroupCard(args)
             placeEncounter.groups = { groupCopy }
             placeEncounter.waves = {}
 
-            editorPanel:SetClass("hidden", true)
+            HideBuilderForMapWork(editorPanel)
 
             local stageMessage = string.format("Click on the map to stage %s", GroupName(encounter, group, groupIndex))
             if GroupStagedOnOtherMap(group) and not GroupStagedOffEncounterMap(encounter, group) then
@@ -7063,6 +7094,7 @@ function Encounter.Editor(self, options)
                 width = string.format("100%%-%d", MAP_CARD_WIDTH + 12),
                 height = "auto",
                 minHeight = MAP_CARD_HEIGHT,
+                maxHeight = 180,
                 valign = "top",
                 borderBox = true,
                 fontSize = 13,
@@ -7199,7 +7231,7 @@ function Encounter.Editor(self, options)
 
                         SavePlan()
                         local editorPanel = button:FindParentWithClass("editorPanel")
-                        editorPanel:SetClass("hidden", true)
+                        HideBuilderForMapWork(editorPanel)
                         PlaceEncounterForReal(self, party, {
                             persist = PersistPlan,
                             onComplete = function()
@@ -7302,7 +7334,7 @@ function Encounter.Editor(self, options)
 
                         SavePlan()
                         local editorPanel = button:FindParentWithClass("editorPanel")
-                        editorPanel:SetClass("hidden", true)
+                        HideBuilderForMapWork(editorPanel)
                         Encounter.StartEncounterOnItsMap(self, party, {
                             start = true,
                             persist = PersistPlan,
@@ -7388,10 +7420,44 @@ function Encounter.CreateEditorDialog(encounter, options)
         y = math.max(0, math.min(loc.y, screen.y - height))
     end
 
+    --resize handles on every edge and corner; must stay the last child so
+    --they sit above the content (sibling order is z-order). Collapsed once
+    --popped out: the OS window's own frame resizes it then.
+    local resizePanel = gui.WindowResizePanel(g_editorLocation, width, height, {
+        minWidth = EDITOR_MIN_WIDTH,
+        minHeight = EDITOR_MIN_HEIGHT,
+        maxWidth = maxWidth,
+        maxHeight = maxHeight,
+    })
+
+    --Pop the builder out into its own OS window (the mechanism the Compendium
+    --and character sheet use), freeing the map for staging while the builder
+    --stays open. One way: closing that window closes the builder.
+    local popoutButton = gui.Button {
+        classes = { "sizeXs" },
+        icon = "drawsteel/Icons_Nav_MaxWindow.png",
+        borderWidth = 0,
+        floating = true,
+        halign = "right",
+        valign = "top",
+        tmargin = 6,
+        hmargin = 28,
+        linger = function(element)
+            gui.Tooltip("Pop out into its own window")(element)
+        end,
+        click = function(element)
+            editorPanel:FireEvent("popoutBuilder")
+        end,
+    }
+
     editorPanel = gui.Panel {
 
         classes = { "editorPanel" },
-        styles = BuilderStyles(),
+        styles = EditorWindowStyles(false),
+
+        data = {
+            poppedOut = false,
+        },
 
         --gui.WindowResizePanel's contract: anchored top-left with numeric x/y
         --and a numeric selfStyle width/height it can rewrite while dragging.
@@ -7414,6 +7480,9 @@ function Encounter.CreateEditorDialog(encounter, options)
         swallowPress = true,
         draggable = true,
         drag = function(element)
+            if element.data.poppedOut then
+                return
+            end
             element.x = element.xdrag
             element.y = element.ydrag
             element:SetAsLastSibling()
@@ -7426,6 +7495,62 @@ function Encounter.CreateEditorDialog(encounter, options)
                 screenx = dmhub.screenDimensionsBelowTitlebar.x,
                 screeny = dmhub.screenDimensionsBelowTitlebar.y,
             }
+        end,
+
+        popoutBuilder = function(element)
+            if element.data.poppedOut then
+                return
+            end
+            element.data.poppedOut = true
+            --owner-routed modals fired from inside the builder (the close
+            --button's staged-tokens question) land in this window's own
+            --modal layer rather than the main window.
+            element.data.nativeWindowRoot = true
+            element.draggable = false
+            element:SetClass("poppedOut", true)
+            element.styles = EditorWindowStyles(true)
+            popoutButton:SetClass("collapsed", true)
+            resizePanel:SetClass("collapsed", true)
+
+            --park off-screen for the layout passes before the move: it
+            --measures the panel's rect to size the OS window, but the
+            --builder must not flash at the corner of the app meanwhile.
+            element.x = -30000
+            element:FireEventTree("popout")
+            element:ScheduleEvent("popoutToNativeWindow", 0.15)
+        end,
+
+        popoutToNativeWindow = function(element)
+            if mod.unloaded or (not element.valid) or (not element.data.poppedOut) then
+                return
+            end
+            element:MoveToNativeWindow {
+                resizeable = true,
+                title = "Encounter Builder",
+            }
+        end,
+
+        --fired by the native-window canvas when the popped-out window is
+        --created and whenever the user resizes it. The content is all
+        --percentages, so adopting the window's size reflows it.
+        resize = function(element, w, h)
+            if not element.data.poppedOut then
+                return
+            end
+            element.x = 0
+            element.y = 0
+            element.selfStyle.width = w
+            element.selfStyle.height = h
+        end,
+
+        --the user closed the OS window; the engine destroys this panel right
+        --after, so there is no chance to ask about staged tokens. Do what
+        --"Leave Them on the Map" does: bank their positions and save, so the
+        --staging is never orphaned from the plan that owns it.
+        nativeWindowClosed = function(element)
+            if #editorContent.data.stagedGroupNames() > 0 then
+                editorContent.data.collectAndSave(false)
+            end
         end,
 
         gui.Panel {
@@ -7500,22 +7625,17 @@ function Encounter.CreateEditorDialog(encounter, options)
                 end,
             },
 
+            popoutButton,
+
         },
 
-        --resize handles on every edge and corner; must stay the last child so
-        --they sit above the content (sibling order is z-order).
-        gui.WindowResizePanel(g_editorLocation, width, height, {
-            minWidth = EDITOR_MIN_WIDTH,
-            minHeight = EDITOR_MIN_HEIGHT,
-            maxWidth = maxWidth,
-            maxHeight = maxHeight,
-        }),
+        resizePanel,
 
     }
 
     ThemeEngine.OnThemeChanged(mod, function()
         if editorPanel ~= nil and editorPanel.valid then
-            editorPanel.styles = BuilderStyles()
+            editorPanel.styles = EditorWindowStyles(editorPanel.data.poppedOut)
         end
     end)
 
@@ -7867,16 +7987,16 @@ CreateEncounterPanel = function()
                                     --proportions rather than letting it stretch to
                                     --fill. The panel is a tall slice of the card, so
                                     --an uncropped portrait came out visibly squashed.
-                                    --GetPortraitRectForAspect wants width as a
-                                    --fraction of height, and lives on the token view
-                                    --of the asset (MonsterAsset.info), not on the
-                                    --asset itself. Measured from the rendered size so
+                                    --CardPortraitRect takes width as a fraction of
+                                    --height, and the token view of the asset
+                                    --(MonsterAsset.info), not the asset itself.
+                                    --Measured from the rendered size so
                                     --the crop stays right at any dock width.
                                     local token = mainmonster.info
                                     local w = panel.renderedWidth
                                     local h = panel.renderedHeight
                                     if token ~= nil and w ~= nil and h ~= nil and w > 0 and h > 0 then
-                                        panel.selfStyle.imageRect = token:GetPortraitRectForAspect(w/h, portrait)
+                                        panel.selfStyle.imageRect = CardPortraitRect(token, w/h, portrait)
                                     end
                                 end
 

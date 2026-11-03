@@ -184,6 +184,54 @@ function ActivatedAbilitySaveBehavior:EndBondedSaveItem(targetToken, item)
     end
 end
 
+-- Splits the end-of-turn save prompt cards on a token into those whose effect is still wanted
+-- (returned as pending[effectName] = true) and stale ones (a list of trigger guids to clear).
+function ActivatedAbilitySaveBehavior.FindPendingSavePrompts(targetToken, abilityName, wanted)
+    local pending = {}
+    local stale = {}
+    for guid, trigger in pairs(targetToken.properties:GetAvailableTriggers() or {}) do
+        local invocation = trigger.invocation
+        if invocation ~= nil and invocation ~= false and invocation:try_get("standardAbility") == abilityName then
+            local effectName = invocation:try_get("symbols", {}).effectname
+            if type(effectName) == "string" then
+                if wanted[effectName] then
+                    pending[effectName] = true
+                else
+                    stale[#stale+1] = guid
+                end
+            end
+        end
+    end
+    return pending, stale
+end
+
+function ActivatedAbilitySaveBehavior.ClearSavePrompts(targetToken, guids)
+    if #guids == 0 then
+        return
+    end
+    targetToken:ModifyProperties{
+        description = "Clear stale save prompts",
+        undoable = false,
+        execute = function()
+            for _, guid in ipairs(guids) do
+                targetToken.properties:ClearAvailableTrigger({id = guid})
+            end
+        end,
+    }
+end
+
+-- Drops save prompt cards for effects the creature no longer has. Called after a purge so a card
+-- does not linger for an effect that was just ended by something other than the save.
+function ActivatedAbilitySaveBehavior.SweepStaleSavePrompts(targetToken)
+    local items = ActivatedAbilitySaveBehavior.new{ durationScope = "save" }:GetSaveItems(targetToken.properties)
+    local wanted = {}
+    for _, item in ipairs(items) do
+        wanted[item.name] = true
+    end
+    local _, stale = ActivatedAbilitySaveBehavior.FindPendingSavePrompts(targetToken, "End Turn Saving Throw", wanted)
+    ActivatedAbilitySaveBehavior.ClearSavePrompts(targetToken, stale)
+end
+
 -- Post one prompt card per save item, so each effect is named on its own card
 -- and can be resolved independently, and sweep away cards left from earlier
 -- turns whose effect is gone.
@@ -202,33 +250,9 @@ function ActivatedAbilitySaveBehavior:PromptSaveItems(targetToken, items)
         wanted[item.name] = true
     end
 
-    local pending = {}
-    local stale = {}
-    for guid, trigger in pairs(targetToken.properties:GetAvailableTriggers() or {}) do
-        local invocation = trigger.invocation
-        if invocation ~= nil and invocation ~= false and invocation:try_get("standardAbility") == abilityName then
-            local effectName = invocation:try_get("symbols", {}).effectname
-            if type(effectName) == "string" then
-                if wanted[effectName] then
-                    pending[effectName] = true
-                else
-                    stale[#stale+1] = guid
-                end
-            end
-        end
-    end
+    local pending, stale = ActivatedAbilitySaveBehavior.FindPendingSavePrompts(targetToken, abilityName, wanted)
 
-    if #stale > 0 then
-        targetToken:ModifyProperties{
-            description = "Clear stale save prompts",
-            undoable = false,
-            execute = function()
-                for _, guid in ipairs(stale) do
-                    targetToken.properties:ClearAvailableTrigger({id = guid})
-                end
-            end,
-        }
-    end
+    ActivatedAbilitySaveBehavior.ClearSavePrompts(targetToken, stale)
 
     for _, item in ipairs(items) do
         if not pending[item.name] then
@@ -1102,4 +1126,4 @@ function ActivatedAbilitySaveEndsToEotBehavior:EditorItems(parentPanel)
     }
 
     return result
-end
+end

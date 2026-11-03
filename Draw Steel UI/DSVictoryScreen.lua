@@ -1895,6 +1895,9 @@ local function ProceedEndCombat()
             end
         end
     end
+
+    --map objects have no initiative entry, so the loop above misses them.
+    TargetableObject.DispatchToObjects("endcombat")
 end
 
 -- Exported for automation (e.g. Encounter of the Week's host runs the teardown
@@ -1995,7 +1998,7 @@ local function SetPortraitFields(data, token)
         data.portrait = token.inspectPortrait
         data.spine = token.hasSpineAnimation == true
         if not data.spine then
-            data.portraitRect = token:GetPortraitRectForAspect(aspect, data.portrait)
+            data.portraitRect = CardPortraitRect(token, aspect, data.portrait)
         end
     end)
     pcall(function()
@@ -2008,7 +2011,7 @@ local function SetPortraitFields(data, token)
             return
         end
         data.savedPortrait = still
-        data.savedPortraitRect = RectFields(token:GetPortraitRectForAspect(aspect, still))
+        data.savedPortraitRect = RectFields(CardPortraitRect(token, aspect, still))
     end)
 end
 

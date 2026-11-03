@@ -45,7 +45,7 @@ end
 --- @return table|nil projects The list of projects shared by the token
 function DTShares:GetSharedBy(tokenId)
     if tokenId == nil or type(tokenId) ~= "string" or #tokenId == 0 then return nil end
-    local doc = self:_safeDoc()
+    local doc = self:_readDoc()
     if doc then
         return doc.data.senders[tokenId]
     end
@@ -57,7 +57,7 @@ end
 --- @return table|nil projects The list of projects shared with the token
 function DTShares:GetSharedWith(tokenId)
     if tokenId == nil or type(tokenId) ~= "string" or #tokenId == 0 then return nil end
-    local doc = self:_safeDoc()
+    local doc = self:_readDoc()
     if doc then
         return doc.data.recipients[tokenId]
     end
@@ -67,7 +67,7 @@ end
 --- Return the list of all shares
 --- @return table|nil shares The list of all shares
 function DTShares:GetShares()
-    local doc = self:_safeDoc()
+    local doc = self:_readDoc()
     if doc then
         return doc.data
     end
@@ -82,7 +82,7 @@ function DTShares:GetProjectSharedWith(tokenId, projectId)
     if not tokenId or type(tokenId) ~= "string" or #tokenId == 0 then return {} end
     if not projectId or type(projectId) ~= "string" or #projectId == 0 then return {} end
 
-    local doc = self:_safeDoc()
+    local doc = self:_readDoc()
     if not doc then return {} end
 
     local recipients = {}
@@ -263,6 +263,19 @@ end
 --- @return table|nil doc The doc if it's valid
 function DTShares:_safeDoc()
     local doc = self:_ensureDocInitialized()
+    if DTShares._validDoc(doc) then
+        return doc
+    end
+    return nil
+end
+
+--- The document for reading only, or nil while it holds nothing. Reads never
+--- create it: a read can come while the game is still loading, when the
+--- document reads empty before its cloud copy arrives, and creating it then
+--- would overwrite the real shares. Writes (Share, Revoke, Touch) create it.
+--- @return table|nil doc
+function DTShares:_readDoc()
+    local doc = self.mod:GetDocumentSnapshot(self.documentName)
     if DTShares._validDoc(doc) then
         return doc
     end

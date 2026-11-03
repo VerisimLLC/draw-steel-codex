@@ -1390,6 +1390,17 @@ function HeroSheet.Open(token, tabid, options)
 
     local viewOnly = access == "view"
     local tab = ResolveTab(tabid)
+    --a tab another mod shows for some Heroes only: one without it opens on Character.
+    local shown = false
+    for _,visible in ipairs(VisibleTabs(token.properties)) do
+        if visible.id == tab then
+            shown = true
+            break
+        end
+    end
+    if not shown then
+        tab = "CharacterSheet"
+    end
     if viewOnly then
         tab = "CharacterSheet"
     end

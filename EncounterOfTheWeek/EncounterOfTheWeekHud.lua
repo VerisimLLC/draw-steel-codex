@@ -104,7 +104,7 @@ local function CreateAllyCard(charid)
                 element.bgimage = portrait
                 element.selfStyle.bgcolor = "white"
                 local rect = nil
-                pcall(function() rect = tok:GetPortraitRectForAspect(ALLY_CARD_WIDTH / ALLY_CARD_HEIGHT, portrait) end)
+                pcall(function() rect = CardPortraitRect(tok, ALLY_CARD_WIDTH / ALLY_CARD_HEIGHT, portrait) end)
                 element.selfStyle.imageRect = rect
             end
         end,

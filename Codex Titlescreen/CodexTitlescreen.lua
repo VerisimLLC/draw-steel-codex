@@ -5586,7 +5586,7 @@ local function MakeHeroPanel(heroIndex)
         refreshCharacter = function(element, character)
             local portrait = character.offTokenPortrait
             element.bgimage = portrait
-            element.selfStyle.imageRect = character:GetPortraitRectForAspect(Styles.portraitWidthPercentOfHeight * 0.01,
+            element.selfStyle.imageRect = CardPortraitRect(character, Styles.portraitWidthPercentOfHeight * 0.01,
                 portrait)
         end,
 

@@ -2988,7 +2988,7 @@ function TacPanel.Portrait()
                 if portrait.hasSpineAnimation or (portrait ~= token.portrait and not token.popoutPortrait) then
                     element.selfStyle.imageRect = nil
                 else
-                    element.selfStyle.imageRect = token:GetPortraitRectForAspect(Styles.portraitWidthPercentOfHeight*0.01, portrait)
+                    element.selfStyle.imageRect = CardPortraitRect(token, Styles.portraitWidthPercentOfHeight*0.01, portrait)
                 end
             end,
         },

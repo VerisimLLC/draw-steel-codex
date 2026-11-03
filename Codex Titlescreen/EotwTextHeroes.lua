@@ -26,7 +26,7 @@ local text = UIText.Define("EotwTextHeroes")
 
 ----------------------------------------------------------------------------
 -- THE HERO BUILDER: the header and the steps
--- (Codex Titlescreen/EotwBuilder.lua, Codex Titlescreen/EotwBuild.lua)
+-- (Codex Titlescreen/EotwBuilder.lua, Draw Steel V/HeroBuildPools.lua)
 ----------------------------------------------------------------------------
 
 --The big heading at the top left of the builder, when the screen that opens
@@ -41,11 +41,19 @@ text("builder.header.finish_button", [[Finish]])
 --Its tooltip while the hero is unfinished, and once it is complete.
 text("builder.header.save_close_tooltip", [[Keep this hero as a draft and come back to it later from the Hero's Guild.]])
 text("builder.header.finish_tooltip", [[Your hero is complete. Finish and add them to your roster.]])
+--Level up (the Training Grounds): the builder shows the new Level's page.
+--The top-right button's tooltip once every choice is made, and before then.
+text("builder.levelup.finish_tooltip", [[Finish levelling up.]])
+text("builder.levelup.save_close_tooltip", [[Keep your choices so far and come back to them later.]])
+--Review, the last step: the banner over the Hero's sheet, read only.
+--{hero} is the Hero's name (or "your Hero").
+text("builder.review.banner", [[This is {hero}'s Sheet. Hover anything to check it, click Finish to exit the Builder.]])
 
 --The names of the seven steps, in order. Each is the step's tab along the
 --top and the big heading of its page. Short: a tab title.
---The step names also appear in lower case inside other lines (for example
---"your current ancestry"), so keep them plain nouns.
+--The step names also appear inside other lines (for example "Still to do:
+--Class, Appearance", or in lower case "your career (Agent)"), so keep them
+--plain nouns.
 text("builder.steps.ancestry.title", [[Ancestry]])
 text("builder.steps.culture.title", [[Culture]])
 text("builder.steps.career.title", [[Career]])
@@ -54,153 +62,34 @@ text("builder.steps.skills.title", [[Skills & Languages]])
 text("builder.steps.complication.title", [[Complication]])
 text("builder.steps.appearance.title", [[Appearance]])
 
---The name of the main pick on the steps that have one. It is shown in
---lower case in "Choose your {pick}" and "Your {pick}" below.
+--Skills & Languages also gathers choices from places that are not steps,
+--named the same way (headings, and "your kit").
+text("builder.skills.pool.kit", [[Kit]])
+text("builder.skills.pool.titles", [[Titles]])
+text("builder.skills.pool.other", [[Other choices]])
+
+--The name of the main pick on the steps that have one (the Ancestry,
+--Career, Class or Complication itself).
 text("builder.steps.ancestry.base", [[Ancestry]])
 text("builder.steps.career.base", [[Career]])
 text("builder.steps.class.base", [[Class]])
 text("builder.steps.complication.base", [[Complication]])
 
---The small coloured line under each step's tab. Short: a few words.
-text("builder.stepper.needs_attention", [[Needs attention]])
-text("builder.stepper.optional", [[Optional]])
-text("builder.stepper.done", [[Done]])
-text("builder.stepper.not_started", [[Not started]])
---{count} is how many of the step's choices are still to make.
-text("builder.stepper.left", [[{count} left]])
-
-----------------------------------------------------------------------------
--- THE HERO BUILDER: the hero so far (the column on the left)
-----------------------------------------------------------------------------
-
---The labels of the lines under the hero card. Short: a label.
-text("builder.summary.culture", [[Culture]])
-text("builder.summary.career", [[Career]])
-text("builder.summary.kit", [[Kit]])
-text("builder.summary.complication", [[Complication]])
---The Complication line when the player chose to take none.
-text("builder.summary.no_complication", [[None]])
-
-----------------------------------------------------------------------------
--- THE HERO BUILDER: a step's main pick (Ancestry, Career, Class, Complication)
-----------------------------------------------------------------------------
-
---The heading over the main pick cards. {pick} is the step's main pick in
---lower case, such as "ancestry".
-text("builder.base.heading", [[Choose your {pick}]])
---The same heading once the pick is fixed (a hero being rebuilt keeps its
---ancestry and class).
-text("builder.base.heading_locked", [[Your {pick}]])
---The note under that heading when the pick is fixed. {pick} as above.
-text("builder.base.locked_note", [[Your {pick} is chosen when the hero is created and can't be changed.]])
---The small coloured word beside the heading. Short.
-text("builder.base.status.optional", [[Optional]])
-text("builder.base.status.done", [[Done]])
-text("builder.base.status.choose_one", [[Choose one]])
-
---The dialog when the player picks a different main pick after making
---choices under the old one. {step} is the step's name; in the message it is
---in lower case.
-text("builder.change_confirm.title", [[Change {step}?]])
-text("builder.change_confirm.message", [[This clears the choices you made for your current {step}.]])
---Its confirm button. Short: a button.
-text("builder.change_confirm.button", [[Change]])
-
---The buttons of every small confirm dialog in the builder. Short: buttons.
-text("builder.confirm.confirm_button", [[Confirm]])
-text("builder.confirm.cancel_button", [[Cancel]])
-
-----------------------------------------------------------------------------
--- THE HERO BUILDER: the picks pane (the column on the right), listing what
--- the player has chosen on the current step
-----------------------------------------------------------------------------
-
---The pane's heading. {step} is the step's name, such as "Class".
-text("builder.picks.heading", [[Your {step}]])
---Under a choice that has nothing picked yet. Short.
-text("builder.picks.not_chosen", [[Not chosen yet]])
---Skills & Languages: the headings over what the player picked on that
---step, and over what the hero already has from other steps. Short.
-text("builder.picks.skills_chosen", [[Skills you chose]])
-text("builder.picks.languages_chosen", [[Languages you chose]])
-text("builder.picks.skills_known", [[Skills you already have]])
-text("builder.picks.languages_known", [[Languages you already speak]])
---How many more skills (or languages) are still to choose. {count} is the number.
-text("builder.picks.left_to_choose", [[{count} more to choose]])
---The hero's native language in that list. {language} is its name.
-text("builder.picks.native", [[{language} (native)]])
---Appearance: the labels, and what they show. Short.
-text("builder.picks.name", [[Name]])
-text("builder.picks.portrait", [[Portrait]])
-text("builder.picks.anthem", [[Anthem]])
-text("builder.picks.chosen", [[Chosen]])
-text("builder.picks.none", [[None]])
-
-----------------------------------------------------------------------------
--- THE HERO BUILDER: the (i) popups showing an item in full
-----------------------------------------------------------------------------
-
---A section heading in a subclass's (or a Conduit domain's) details, over
---what it grants at 1st level.
-text("builder.detail.subclass_first_level", [[At 1st level]])
---The name of a feature that has none.
-text("builder.detail.feature_fallback", [[Feature]])
-
-----------------------------------------------------------------------------
--- THE HERO BUILDER: the Culture step
-----------------------------------------------------------------------------
-
---The heading over the aspect choices, under the typical cultures.
-text("builder.culture.own_culture_heading", [[Or build your own culture from three aspects]])
---In a typical culture's details: the line before its three aspects.
-text("builder.culture.detail.sets", [[Taking this culture sets:]])
---The last line of those details. {language} is the culture's language.
-text("builder.culture.detail.language", [[**Language:** {language}]])
-
 ----------------------------------------------------------------------------
 -- THE HERO BUILDER: the choices on a step's page
 ----------------------------------------------------------------------------
 
---The heading over a step's choice blocks.
-text("builder.choice.heading", [[Your choices]])
---The small coloured line beside a choice's name.
-text("builder.choice.status.stale", [[A pick here is no longer valid. Choose again, or use Fill in the rest.]])
-text("builder.choice.status.exhausted", [[Nothing left to choose]])
-text("builder.choice.status.done", [[Done]])
---{count} is the points left, {points} what they are called (from the rules).
-text("builder.choice.status.points_to_spend", [[{count} {points} to spend]])
---Before any pick: one, or {count} picks to make.
-text("builder.choice.status.choose.one", [[Choose one]])
-text("builder.choice.status.choose.other", [[Choose {count}]])
---After some picks: {count} is how many are left.
-text("builder.choice.status.choose_more", [[Choose {count} more]])
 --The description of a treasure choice (a complication's "a trinket of your
 --choice"). {prompt} is the rules' own wording, without a full stop.
 text("builder.choice.treasure_grant_prompt", [[{prompt}. It goes straight into your hero's gear.]])
---Shown when a hero with two kits (a Tactician) clicks a third kit.
-text("builder.choice.kits_full", [[Deselect one of your kits first]])
-
-----------------------------------------------------------------------------
--- THE HERO BUILDER: the Class step's characteristics
-----------------------------------------------------------------------------
-
---The name under a characteristic set by the class, which cannot be swapped.
---{name} is the characteristic, such as Might.
-text("builder.class.characteristic_fixed", [[{name} (fixed)]])
---The hint under the characteristic boxes.
-text("builder.class.characteristics_hint", [[Drag one characteristic onto another to swap their values. Characteristics marked fixed are set by your class.]])
 
 ----------------------------------------------------------------------------
 -- THE HERO BUILDER: what a step grants in skills and languages (the info box
 -- on the Ancestry, Culture, Career, Class and Complication pages)
 ----------------------------------------------------------------------------
 
---The box's heading. Short.
-text("builder.grants.heading", [[Skills & Languages]])
---The line listing what the step gives outright. {list} is the names, such as
---"Sneak (skill), Caelian (language)".
-text("builder.grants.you_gain", [[**You gain:** {list}]])
---One name in that list. {name} is the skill or language.
+--A skill or language the step gives outright, in the step's grants box.
+--{name} is the skill or language.
 text("builder.grants.fixed_skill", [[{name} (skill)]])
 text("builder.grants.fixed_language", [[{name} (language)]])
 --The name of a skill or language choice that has none.
@@ -210,89 +99,20 @@ text("builder.grants.choice_fallback", [[Choice]])
 -- THE HERO BUILDER: the Skills & Languages step
 ----------------------------------------------------------------------------
 
---The page's introduction, under its heading.
-text("builder.skills.intro", [[Pick your skills. We'll let you know which ones your ancestry, culture, career, and class allow.]])
-
---The list of choices at the top of the page. Each row names where the
---choice comes from: {step} is the step's name.
-text("builder.skills.summary.source_skill", [[{step} (skill)]])
-text("builder.skills.summary.source_language", [[{step} (language)]])
---The coloured word at the end of a row. Short. {count} is the picks left.
-text("builder.skills.summary.done", [[Done]])
-text("builder.skills.summary.left", [[{count} left]])
---Shown instead of the list when there is nothing to pick.
-text("builder.skills.summary.none", [[You have no skills or languages to pick yet. They come from your ancestry, culture, career and class.]])
-
---The section headings over the cards.
-text("builder.skills.skills_heading", [[Skills]])
-text("builder.skills.languages_heading", [[Languages]])
---The line under the Languages heading. {language} is the native language.
-text("builder.skills.native_language", [[Your native language is **{language}**, from your culture.]])
-text("builder.skills.native_language_missing", [[Choose your native language on the Culture step.]])
-
---Added to a dead language's card, as in "Low Rhyvian (Sky elf; dead)".
---Short: one word.
-text("builder.skills.card.dead", [[dead]])
-
---The details in a skill or language card's (i) popup.
---{category} is the skill's group, such as Exploration.
-text("builder.skills.detail.category", [[*{category} skill*]])
-text("builder.skills.detail.dead", [[*A dead language: no one speaks it any more, but its writing can still be read.*]])
---{speakers} is who speaks it, such as "Goblins, Radenwights".
-text("builder.skills.detail.spoken_by", [[**Spoken by:** {speakers}]])
-text("builder.skills.detail.once_spoken_by", [[**Once spoken by:** {speakers}]])
-text("builder.skills.detail.native", [[**Your native language** (chosen with your culture).]])
---For one the hero already has. {source} is where from, such as "your career
---(Agent)" (see below).
-text("builder.skills.detail.known_skill", [[**You know this skill already** from {source}.]])
-text("builder.skills.detail.known_language", [[**You know this language already** from {source}.]])
---{source} when the game cannot tell where it comes from.
-text("builder.skills.detail.source_fallback", [[another of your features]])
-text("builder.skills.detail.picked", [[**Picked.** Click to drop it.]])
-text("builder.skills.detail.available", [[**Available.** Click to pick it.]])
-text("builder.skills.detail.unavailable", [[**Not available:** none of your remaining choices can take it.]])
---{choices} is the names of the choices it could fill.
-text("builder.skills.detail.pools", [[Can be picked for: {choices}]])
---{features} is the names of the abilities that give a benefit with it.
-text("builder.skills.detail.special", [[**Special:** your {features} gives you a benefit with this skill.]])
---One of those names when the ability has none.
+--The name used when an ability that gives a skill benefit has none.
 text("builder.skills.special_fallback", [[A special ability]])
 
---Where a skill or language the hero already has comes from: the {source}
---above. {step} is the step's name in lower case, {item} the pick made
---there, as in "your career (Agent)".
+--Where a skill or language the hero already has comes from. {step} is the
+--step's name in lower case, {item} the pick made there, as in
+--"your career (Agent)".
 text("builder.skills.source.step", [[your {step}]])
 text("builder.skills.source.step_item", [[your {step} ({item})]])
 text("builder.skills.source.culture", [[your culture]])
 
 ----------------------------------------------------------------------------
--- THE HERO BUILDER: the Complication step
-----------------------------------------------------------------------------
-
---The first card on the page, for taking no complication. Short: a card.
-text("builder.complication.none.card", [[No Complication]])
---Its heading, in its (i) popup and in the picks pane.
-text("builder.complication.none.title", [[No Complication]])
---The picks pane while it is the hero's choice.
-text("builder.complication.none.detail", [[Your hero takes no complication.]])
---Its (i) popup on the card.
-text("builder.complication.none.preview", [[Take no complication. Complications are optional: each gives a benefit and a drawback.]])
-
-----------------------------------------------------------------------------
 -- THE HERO BUILDER: the Appearance step
 ----------------------------------------------------------------------------
 
---The page's introduction, under its heading.
-text("builder.appearance.intro", [[Give your hero a name and a face, and if you like a frame for their token and an anthem.]])
-
---Name.
-text("builder.appearance.name_heading", [[Name]])
---The grey text in the empty name box.
-text("builder.appearance.name_placeholder", [[Your hero's name]])
---The button beside the name box. Short: a button.
-text("builder.appearance.suggest_name_button", [[Suggest a Name]])
---Shown at the bottom of the screen when the ancestry has no names to suggest.
-text("builder.appearance.no_name_list", [[This ancestry has no name list. Type a name instead.]])
 --The name "Fill in the Rest" gives a hero when the ancestry has no names
 --to suggest. {ancestry} and {class} are the hero's (or the two words below
 --when not chosen yet), as in "Dwarf Fury".
@@ -300,65 +120,13 @@ text("builder.appearance.fallback_name", [[{ancestry} {class}]])
 text("builder.appearance.fallback_ancestry", [[Nameless]])
 text("builder.appearance.fallback_class", [[Hero]])
 
---Portrait.
-text("builder.appearance.portrait_heading", [[Portrait]])
---The tooltip on the framed portrait preview.
-text("builder.appearance.preview_tooltip", [[Drag to move the portrait within its frame. Scroll to zoom.]])
-text("builder.appearance.portrait_hint", [[Your class's art is your portrait until you choose another. Click the image to the right to pick or upload your own.]])
---The art buttons. Short: buttons.
-text("builder.appearance.class_art_button", [[Use Class Art]])
-text("builder.appearance.ancestry_art_button", [[Use Ancestry Art]])
---Shown at the bottom of the screen when a button has no art to use.
-text("builder.appearance.class_art_missing", [[Choose a class first: its art is the default portrait.]])
-text("builder.appearance.ancestry_art_missing", [[Choose an ancestry with art first.]])
---The tooltip on the image to pick a portrait.
-text("builder.appearance.portrait_picker_tooltip", [[Choose a portrait from the library, or upload your own.]])
---The label over the zoom slider. Short: a label.
-text("builder.appearance.zoom_label", [[Zoom]])
---Short: a button.
-text("builder.appearance.reset_placement_button", [[Reset Placement]])
-
---Frame.
-text("builder.appearance.frame_heading", [[Frame]])
-text("builder.appearance.frame_hint", [[The frame around your hero's token.]])
-
---Anthem.
-text("builder.appearance.anthem_heading", [[Anthem]])
---The label over the volume slider. Short: a label.
-text("builder.appearance.volume_label", [[Volume]])
-text("builder.appearance.anthem_hint", [[Music that plays when your hero takes their turn.]])
-
 ----------------------------------------------------------------------------
 -- THE HERO BUILDER: the footer
 ----------------------------------------------------------------------------
 
---The buttons at the bottom right. Short: buttons.
-text("builder.footer.back_button", [[Back]])
-text("builder.footer.fill_button", [[Fill in the Rest]])
---The same button after one click, offering to fill every other step too.
-text("builder.footer.fill_all_button", [[For All Tabs?]])
---Its tooltips, before and after that first click.
-text("builder.footer.fill_tooltip", [[Fill every choice on this page you have not made yet automatically. Your own choices are kept.]])
-text("builder.footer.fill_all_tooltip", [[Fill every choice you have not made yet on all tabs too, completing the hero. Your own choices are kept.]])
---The last button: "Next" when the step is done, "Skip for Now" when not,
---"Finish" on the last step.
-text("builder.footer.next_button", [[Next]])
-text("builder.footer.skip_button", [[Skip for Now]])
-text("builder.footer.finish_button", [[Finish]])
-
---Messages at the bottom left.
---After Fill in the Rest. {count} is the number of choices filled.
-text("builder.footer.filled.one", [[Filled {count} choice.]])
-text("builder.footer.filled.other", [[Filled {count} choices.]])
-text("builder.footer.filled_all.one", [[Filled {count} choice across all tabs.]])
-text("builder.footer.filled_all.other", [[Filled {count} choices across all tabs.]])
-text("builder.footer.nothing_to_fill", [[Nothing left to fill on this page.]])
-text("builder.footer.nothing_to_fill_all", [[Nothing left to fill.]])
 --On Finish with steps unfinished. {steps} is their names, such as
 --"Class, Appearance".
 text("builder.footer.still_to_do", [[Still to do: {steps}.]])
---When something fails. {error} is the technical error.
-text("builder.footer.error", [[Something went wrong: {error}]])
 
 ----------------------------------------------------------------------------
 -- THE HERO SHEET: the card while the Hero loads

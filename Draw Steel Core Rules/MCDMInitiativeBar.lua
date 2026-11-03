@@ -3000,7 +3000,7 @@ local function CreateVillainActionStrip(self, info)
                 if portrait ~= token.portrait and not token.popoutPortrait then
                     element.selfStyle.imageRect = nil
                 else
-                    element.selfStyle.imageRect = token:GetPortraitRectForAspect(1.0, portrait)
+                    element.selfStyle.imageRect = CardPortraitRect(token, 1.0, portrait)
                 end
             end
             element:SetClass("cyclable", isMulti)
@@ -7798,7 +7798,7 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
                                 if portrait ~= token.portrait and not token.popoutPortrait then
                                     element.selfStyle.imageRect = nil
                                 else
-								    element.selfStyle.imageRect = token:GetPortraitRectForAspect(CardWidthPercent*0.01, portrait)
+								    element.selfStyle.imageRect = CardPortraitRect(token, CardWidthPercent*0.01, portrait)
                                 end
 								found = true
 							end

@@ -896,27 +896,12 @@ function creature:ConsumeResource(key, refreshType, quantity, note)
         end
     end
 
-	local globalDoc = nil
-
-	if refreshType == "global" then
-		globalDoc = mod:GetDocumentSnapshot(g_sharedGlobalResourceDoc)
-		globalDoc:BeginChange()
-	end
-
-	if resourceTable[key] == nil then
-		resourceTable[key] = CharacterResource.new{
-			refreshid = '',
-			used = 0,
-		}
-	end
-
 	if quantity == nil then
 		quantity = 1
 	end
 
-	local resource = resourceTable[key]
-
-
+	--Global resources (Malice) live in the shared document, and SetGlobalResource
+	--opens and completes its own change on it, so this branch must not open one too.
     if refreshType == "global" then
         local newAmount = CharacterResource.GetGlobalResource(key) - quantity
         if resourceInfo ~= nil and resourceInfo.mayBeNegative and self:AllowNegativeResources() > 0 then
@@ -934,7 +919,18 @@ function creature:ConsumeResource(key, refreshType, quantity, note)
         end
 
         return
-	elseif refreshType == "unbounded" then
+	end
+
+	if resourceTable[key] == nil then
+		resourceTable[key] = CharacterResource.new{
+			refreshid = '',
+			used = 0,
+		}
+	end
+
+	local resource = resourceTable[key]
+
+	if refreshType == "unbounded" then
         local before = resource.unbounded
 
         if resource.clearOutsideOfCombat then
@@ -998,10 +994,6 @@ function creature:ConsumeResource(key, refreshType, quantity, note)
 	local quantity = totalResources
 	if refreshType ~= "unbounded" and refreshType ~= "global" then
 		quantity = string.format("%d/%d", totalResources - usage, quantity)
-	end
-
-	if globalDoc ~= nil then
-		globalDoc:CompleteChange("Consume Resource")
 	end
 
     if type(note) == "table" then

@@ -64,6 +64,12 @@ local g_cardStack = {}
 ---@type Panel|nil
 local g_cardSlot = nil
 
+--True while a trigger's roll is stacked on top of the roll it interrupted.
+---@return boolean
+function CharacterPanel.IsRollStacked()
+    return #g_cardStack > 0
+end
+
 --Where cards and their roll dialogs live right now: the top stacked slot, or
 --the sidebar panel itself.
 ---@param host Panel
@@ -2203,7 +2209,7 @@ function GameHud:InitAbilityDisplayPanel(abilityDisplayPanel)
 
             --A stacked card going away leaves the interrupted card (and its
             --share, which other players are still watching) underneath.
-            if #g_cardStack > 0 then
+            if CharacterPanel.IsRollStacked() then
                 return
             end
 
@@ -2332,7 +2338,7 @@ end
 function CharacterPanel.EmbeddedRollInFlight()
     --A stacked trigger roll is in flight from the moment its slot exists, and
     --the interrupted roll under it is still open too.
-    if #g_cardStack > 0 then
+    if CharacterPanel.IsRollStacked() then
         return true
     end
 
@@ -3234,7 +3240,7 @@ function CharacterPanel.AcquireAbilityRollDialog(token, ability, symbols, displa
     --this cast coroutine does not inherit the AI turn's host elevation past
     --its first yield, so on a player host it reads false for the monster.
     if aiDriven and displayed and g_sharingData == nil and g_displayedAbility ~= nil
-        and #g_cardStack == 0
+        and not CharacterPanel.IsRollStacked()
         and IsDMOrPlayerHost()
         and GetRollVisibility() ~= "dm"
         and IsTokenOnCurrentTurn(token)
@@ -3257,7 +3263,10 @@ function CharacterPanel.AcquireAbilityRollDialog(token, ability, symbols, displa
             --cast has committed to paying (options.pay). Under "Strictly
             --Enforce Rolls" a paid-for cast can no longer be backed out of.
             dialog.data.castOptions = castOptions
-            dialog.data.stacked = stackFrame ~= nil
+            --Any roll put up while a stack exists sits on top of the held roll,
+            --including a later roll from another cast the trigger set off (an
+            --invoked ability), so it must not be amendable either.
+            dialog.data.stacked = CharacterPanel.IsRollStacked()
         end
 
         --give a few cycles for the dialog to init.
@@ -3356,7 +3365,7 @@ function CharacterPanel.HighlightAbilitySection(options)
 
     --Other players keep watching the interrupted card while a trigger roll is
     --stacked on top; the stacked card is not shared.
-    if #g_cardStack > 0 then
+    if CharacterPanel.IsRollStacked() then
         return
     end
 
@@ -3450,7 +3459,7 @@ end
 function CharacterPanel.UpdateAbilitySharing(data)
     --A stacked trigger roll's targets and modifiers must not overwrite the
     --interrupted card other players are watching.
-    if g_sharingData == nil or #g_cardStack > 0 then
+    if g_sharingData == nil or CharacterPanel.IsRollStacked() then
         return
     end
 
@@ -3504,7 +3513,7 @@ end
 dmhub.RegisterEventHandler("restoreFromBackup", function()
     --Unwind any trigger roll stack top-down first, cancelling each stacked roll,
     --so the interrupted dialog underneath is the one the code below cancels.
-    while #g_cardStack > 0 do
+    while CharacterPanel.IsRollStacked() do
         local top = g_cardStack[#g_cardStack]
         local stacked = CharacterPanel.FindEmbeddedRollDialog()
         if stacked ~= nil and stacked.valid and stacked.data ~= nil

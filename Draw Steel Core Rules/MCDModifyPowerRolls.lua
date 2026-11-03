@@ -406,6 +406,50 @@ local function BeginRollTriggerAIReaction(token, modifier)
     return activityId, reactionId
 end
 
+--How far each creature would have been force moved before a modifier
+--negated it, by charid. Filled in during the cast and handed to the
+--modifier's custom trigger once the cast is done.
+local g_negatedForcedMovement = {}
+
+--- Called by the forced movement rule when it skips a negated push, pull or slide.
+--- @param targetCharid string The creature that was not moved.
+--- @param distance number How many squares it would have moved.
+--- @param movementType string push, pull, slide, vertical_push, ...
+function CharacterModifier.RecordNegatedForcedMovement(targetCharid, distance, movementType)
+    local entry = g_negatedForcedMovement[targetCharid]
+    if entry == nil then
+        g_negatedForcedMovement[targetCharid] = { distance = distance, type = movementType }
+    else
+        --a second negated push, pull or slide in the same roll adds on.
+        entry.distance = entry.distance + distance
+    end
+end
+
+--- Removes and returns what RecordNegatedForcedMovement stored for this creature.
+--- @param targetCharid nil|string
+--- @return nil|{distance: number, type: string}
+local function TakeNegatedForcedMovement(targetCharid)
+    if targetCharid == nil then
+        return nil
+    end
+    local entry = g_negatedForcedMovement[targetCharid]
+    g_negatedForcedMovement[targetCharid] = nil
+    return entry
+end
+
+--- The creature this roll modifier was applied to, or nil.
+--- @param modifier CharacterModifier
+--- @return nil|creature
+local function AbilityTarget(modifier)
+    local abilityTarget = modifier:try_get("_tmp_symbols", {}).abilitytarget
+    --The roll dialog stores symbol lookup functions; calling one with "self"
+    --gives back the creature.
+    if type(abilityTarget) == "function" then
+        abilityTarget = abilityTarget("self")
+    end
+    return abilityTarget
+end
+
 CharacterModifier.TypeInfo.power = {
 
     init = function(modifier)
@@ -420,6 +464,22 @@ CharacterModifier.TypeInfo.power = {
             print("TRIGGER:: BASE GOES FIRST")
             CharacterModifier.TypeInfo.power.triggerOnUse(modifier.baseModifier, creature, modContext)
         end
+
+        --Read the target now: the roll dialog installs it just before this runs.
+        local negatedTargetCharid = nil
+        if modifier:try_get("negateForcedMovement", false) then
+            local abilityTarget = AbilityTarget(modifier)
+            local targetToken = nil
+            if abilityTarget ~= nil then
+                targetToken = dmhub.LookupToken(abilityTarget)
+            end
+            if targetToken ~= nil then
+                negatedTargetCharid = targetToken.charid
+            end
+            --forget anything left from an earlier roll before this push resolves.
+            TakeNegatedForcedMovement(negatedTargetCharid)
+        end
+
 		if modifier:try_get("hasCustomTrigger", false) and modifier:has_key("customTrigger") then
             local token = dmhub.LookupToken(creature)
 
@@ -438,6 +498,7 @@ CharacterModifier.TypeInfo.power = {
             --block this runs inside (see ConsumeResource in DSRollDialog).
             local aiActivityId, aiReactionId = BeginRollTriggerAIReaction(token, modifier)
             ActivatedAbility.RunWhenCastsComplete(function()
+                local negated = TakeNegatedForcedMovement(negatedTargetCharid)
                 if token == nil or not token.valid then
                     return
                 end
@@ -445,6 +506,11 @@ CharacterModifier.TypeInfo.power = {
                 --triggerer) resolve inside Trigger's targeting from the
                 --symbols appended here; no subject resolution is needed.
                 local symbols = modifier:AppendSymbols{}
+                if negatedTargetCharid ~= nil then
+                    --read by the new cast; see Cast.Negated Forced Movement.
+                    symbols.negatedforcedmovement = negated ~= nil and negated.distance or 0
+                    symbols.negatedforcedmovementtype = negated ~= nil and negated.type or ""
+                end
                 local argOptions = {}
                 if aiActivityId ~= nil then
                     --The trigger's cast completes the marker when it finishes, and
@@ -463,6 +529,11 @@ CharacterModifier.TypeInfo.power = {
                         or not argOptions.aiReactionHandedOff) then
                     token.properties:CompletePendingAIActivityReaction(aiActivityId, aiReactionId)
                 end
+            end)
+		elseif negatedTargetCharid ~= nil then
+            --no custom trigger to pass it to; just clear it.
+            ActivatedAbility.RunWhenCastsComplete(function()
+                TakeNegatedForcedMovement(negatedTargetCharid)
             end)
 		end
 
@@ -485,15 +556,7 @@ CharacterModifier.TypeInfo.power = {
 		if armEffect ~= nil then
 			local armSubject = creature
 			if modifier:try_get("armEffectApplyTo", "self") == "target" then
-				--symbol contexts are installed as GenerateSymbols lookup
-				--functions (see CharacterModifier:InstallSymbolsFromContext);
-				--calling with "self" unwraps back to the creature. Same idiom
-				--as the "subject" applyto in ActivatedAbility:GetTargets.
-				local abilityTarget = modifier:try_get("_tmp_symbols", {}).abilitytarget
-				if type(abilityTarget) == "function" then
-					abilityTarget = abilityTarget("self")
-				end
-
+				local abilityTarget = AbilityTarget(modifier)
 				if abilityTarget ~= nil then
 					armSubject = abilityTarget
 				end
@@ -1228,6 +1291,24 @@ CharacterModifier.TypeInfo.power = {
                 local match = regex.MatchGroups(rest, pattern)
                 while match ~= nil do
                     output = output .. match.prefix .. (match.vert or "") .. replaceForcedMovement.to .. match.gap
+                    rest = match.postfix
+                    match = regex.MatchGroups(rest, pattern)
+                end
+                rollProperties.tiers[j] = output .. rest
+            end
+        end
+
+        --Mark each push, pull and slide "(negated)": the forced movement rule then
+        --records how far the target would have moved instead of moving it. The
+        --lookahead skips moves already marked and keeps a number like 12 whole.
+        if self:try_get("negateForcedMovement", false) then
+            local pattern = "^(?<prefix>.*?)(?<move>(vertical\\s+)?(push|pull|slide)\\s+(straight up\\s+)?\\d+)(?![0-9]| \\(negated\\))(?<postfix>.*)$"
+            for j,tier in ipairs(rollProperties.tiers) do
+                local output = ""
+                local rest = tier
+                local match = regex.MatchGroups(rest, pattern)
+                while match ~= nil do
+                    output = output .. match.prefix .. match.move .. " (negated)"
                     rest = match.postfix
                     match = regex.MatchGroups(rest, pattern)
                 end
@@ -2907,6 +2988,24 @@ CharacterModifier.TypeInfo.power = {
                         end,
                     },
                 },
+            }
+
+            children[#children+1] = gui.Check{
+                styles = ThemeEngine.GetStyles(),
+                classes = {cond(modifier.rollType == "project_roll", "collapsed-anim")},
+                style = {
+                    height = 30,
+                    width = 260,
+                    fontSize = 18,
+                    halign = "left",
+                },
+                text = "Negate Forced Movement",
+                hover = gui.Tooltip("The target is not pushed, pulled or slid. The custom trigger gets the distance it would have moved as Cast.Negated Forced Movement."),
+                value = modifier:try_get("negateForcedMovement", false),
+                change = function(element)
+                    modifier.negateForcedMovement = element.value
+                    Refresh()
+                end,
             }
 
             local hasVerticalAdjustment = false

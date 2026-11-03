@@ -3301,6 +3301,10 @@ function ActivatedAbility:Cast(casterToken, targets, options)
             --serialized form and let WithinArea silently return false on the
             --receiving side.
             _tmp_targetArea = options.targetArea,
+            --How far a negated push, pull or slide would have moved its target.
+            --Only set for the follow-up of a trigger that negates forced movement.
+            negatedForcedMovement = options.symbols.negatedforcedmovement,
+            negatedForcedMovementType = options.symbols.negatedforcedmovementtype,
 		}
 	end
 

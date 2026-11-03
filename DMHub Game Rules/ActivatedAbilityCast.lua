@@ -265,6 +265,18 @@ ActivatedAbilityCast.helpSymbols = {
         desc = "True if any forced movement caused by this ability collided with a creature or object.",
     },
 
+    negatedforcedmovement = {
+        name = "Negated Forced Movement",
+        type = "number",
+        desc = "In the custom trigger of a power roll modifier with Negate Forced Movement: how many squares the target would have been force moved, after stability and bonuses. 0 otherwise.",
+    },
+
+    negatedforcedmovementtype = {
+        name = "Negated Forced Movement Type",
+        type = "text",
+        desc = "In the custom trigger of a power roll modifier with Negate Forced Movement: the type of forced movement that was negated (push, pull, slide, vertical_push, vertical_pull or vertical_slide). Empty otherwise.",
+    },
+
     forcedmovementcreaturecollision = {
         name = "Forced Movement Creature Collision",
         type = "boolean",
@@ -713,6 +725,14 @@ ActivatedAbilityCast.lookupSymbols = {
 
     forcedmovementcollision = function(c)
         return c.forcedMovementCollision
+    end,
+
+    negatedforcedmovement = function(cast)
+        return cast:try_get("negatedForcedMovement", 0)
+    end,
+
+    negatedforcedmovementtype = function(cast)
+        return cast:try_get("negatedForcedMovementType", "")
     end,
 
     forcedmovementcreaturecollision = function(c)

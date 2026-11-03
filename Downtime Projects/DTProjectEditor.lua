@@ -704,6 +704,7 @@ function DTProjectEditor:_createProjectForm()
                             modifyTokenProps{
                                 execute = function()
                                     project:SetStatus(element.idChosen)
+                                    project.reviewed = true
                                 end,
                             }
                             dmhub.Schedule(0.1, function()
@@ -2657,17 +2658,19 @@ function DTProjectEditor.RecordProjectRolls(args)
     end)
 end
 
---- Gives back the activity a deleted roll spent: the opposite of the spend in
---- RecordProjectRolls. The roll names the Hero who paid (rolledById) and the
+--- Who gets back the activity a deleted roll spent: the opposite of the spend
+--- in RecordProjectRolls. The roll names the Hero who paid (rolledById) and the
 --- follower who rolled, if one did; on a shared project that is not the
 --- project's owner. A breakthrough came free with the roll before it, so it
---- refunds nothing. A roll that names no payer refunds the fallback.
+--- refunds nothing (nil). A roll that names no payer refunds the fallback.
 --- @param roll DTRoll
 --- @param fallbackToken any The Hero to refund when the roll names no payer
 --- @param fallbackKey string|nil The roller id to refund under in that case; nil means the Hero
-function DTProjectEditor.RefundProjectRoll(roll, fallbackToken, fallbackKey)
+--- @return any holder The Hero whose counters move, or nil for no refund
+--- @return string|nil key The Hero's own id or the follower's
+function DTProjectEditor.RefundTarget(roll, fallbackToken, fallbackKey)
     if roll:GetBreakthrough() then
-        return
+        return nil, nil
     end
 
     local holder = nil
@@ -2681,7 +2684,7 @@ function DTProjectEditor.RefundProjectRoll(roll, fallbackToken, fallbackKey)
         key = fallbackKey
     end
     if holder == nil then
-        return
+        return nil, nil
     end
 
     --A follower who is gone, or no longer rolls on projects, has no count
@@ -2696,7 +2699,18 @@ function DTProjectEditor.RefundProjectRoll(roll, fallbackToken, fallbackKey)
         key = holder.charid
     end
 
-    DTProjectEditor.AdjustDowntimeRolls(holder, key, 1)
+    return holder, key
+end
+
+--- Gives back the activity a deleted roll spent (see RefundTarget).
+--- @param roll DTRoll
+--- @param fallbackToken any The Hero to refund when the roll names no payer
+--- @param fallbackKey string|nil The roller id to refund under in that case; nil means the Hero
+function DTProjectEditor.RefundProjectRoll(roll, fallbackToken, fallbackKey)
+    local holder, key = DTProjectEditor.RefundTarget(roll, fallbackToken, fallbackKey)
+    if holder ~= nil and key ~= nil then
+        DTProjectEditor.AdjustDowntimeRolls(holder, key, 1)
+    end
 end
 
 --- Comma-separated display names for a project's test characteristics
@@ -2882,7 +2896,10 @@ function DTProjectEditor._respiteProjectCard(args)
                     element.data.tip = string.format(
                         "%s has no downtime rolls left.", selection.roller:GetName())
                 elseif not valid then
-                    element.data.tip = table.concat(reasons or {}, "\n")
+                    --the Hero sheet's words for why: what the project
+                    --waits for, or what its setup is missing.
+                    element.data.tip = entry.project:GetStatusLine() or entry.project:GetSetupLine()
+                        or table.concat(reasons or {}, "\n")
                 else
                     element.data.tip = string.format(
                         "Roll for %s", selection.roller:GetName())
@@ -3342,10 +3359,47 @@ function DTProjectEditor.PaintRespiteIdle(args)
     }
 end
 
+--- Add a project to a Hero's downtime record, from an activity, a
+--- craftable item, or a custom one: its name, and any details given with it
+--- (the Hero sheet's Custom tab). Whoever manages projects (the Director, or
+--- players the game hands the controls) starts it approved: Active with the
+--- book's next milestone. Anyone else's waits for the Director. The Respite
+--- and the Hero sheet both start projects here.
+--- Call it inside ModifyProperties on the Hero.
+--- @param info DTInfo the Hero's downtime record
+--- @param ownerId string the Hero's charid
+--- @param args {projectId: string, sourceType: string, selectedId: nil|string, name: nil|string, custom: nil|{goal: nil|integer, chars: string[], prereq: string, source: string, langIds: string[]}} sourceType "crafting", "activity" or "custom" (name, custom); a custom goal left out keeps the default of 1
+--- @return DTProject
+function DTProjectEditor.StartProject(info, ownerId, args)
+    local project = info:AddProject(ownerId, args.projectId)
+    if args.sourceType == "custom" then
+        project:SetTitle(args.name or "")
+        local custom = args.custom
+        if custom ~= nil then
+            if custom.goal ~= nil then
+                project:SetProjectGoal(custom.goal)
+            end
+            project:SetTestCharacteristics(custom.chars)
+                :SetItemPrerequisite(custom.prereq)
+                :SetProjectSource(custom.source)
+                :SetProjectSourceLanguages(custom.langIds)
+        end
+    else
+        DTBusinessRules.ApplySourceToProject(project, args.sourceType, args.selectedId)
+    end
+    if DTCharSheetTab.CanManageProjects() then
+        project:Approve()
+    else
+        project.reviewed = false
+    end
+    return project
+end
+
 --- Starts a project on a hero from the Respite
 --- Created only once a source is confirmed, so walking away leaves nothing
---- behind. Where the game hands players the project controls, the project
---- also takes the Director's suggested milestone and starts Active.
+--- behind. Starts approved for whoever manages projects (StartProject): a
+--- Director's project starts Active even with the players-manage setting off,
+--- since asking them to approve a project they just started is a wasted step.
 --- @param heroToken any
 --- @param sourceType string "crafting" or "activity"
 --- @param selectedId string
@@ -3359,22 +3413,17 @@ function DTProjectEditor.RespiteStartProject(heroToken, sourceType, selectedId)
         return
     end
 
-    local activate = DTCharSheetTab.RollingFromSheetEnabled()
     local projectId = dmhub.GenerateGuid()
 
     heroToken:ModifyProperties{
         description = "Start downtime project",
         undoable = false,
         execute = function()
-            local project = downtimeInfo:AddProject(heroToken.charid, projectId)
-            DTBusinessRules.ApplySourceToProject(project, sourceType, selectedId)
-            if activate then
-                local milestone = DTBusinessRules.CalcNextMilestone(project)
-                if milestone ~= nil then
-                    project:SetMilestoneThreshold(milestone)
-                end
-                project:SetStatus(DTConstants.STATUS.ACTIVE.key)
-            end
+            DTProjectEditor.StartProject(downtimeInfo, heroToken.charid, {
+                projectId = projectId,
+                sourceType = sourceType,
+                selectedId = selectedId,
+            })
         end,
     }
 
@@ -3488,6 +3537,7 @@ end
 --- The milestone and the completion are not recorded anywhere: they are the
 --- moments the running total crossed a threshold, so the timeline is replayed
 --- to find them. Nothing is stored, and nothing can disagree with the project.
+--- Event rolls are the exception: they are stored on the project and read as they are.
 --- @param project DTProject
 --- @param since number server time to report from
 --- @return table[] events {kind, item, total, project}
@@ -3526,6 +3576,18 @@ function DTProjectEditor._projectEvents(project, since)
                 kind = "complete",
                 item = item,
                 total = total,
+                project = project,
+            }
+        end
+    end
+
+    --the Director's event rolls: stored, not replayed; total is the roll.
+    for _, item in ipairs(project:GetProjectEvents()) do
+        if item:GetKind() == DTProjectEvent.KIND_EVENT and (item.serverTime or 0) >= since then
+            events[#events + 1] = {
+                kind = "event",
+                item = item,
+                total = item:GetTotal(),
                 project = project,
             }
         end
@@ -3573,7 +3635,8 @@ function DTProjectEditor.RespiteNeedsAttention(args)
 
     for _, project in ipairs(DTProjectEditor._ownedProjects(heroToken)) do
         for _, event in ipairs(DTProjectEditor._projectEvents(project, ResolveSince(args.since))) do
-            if event.kind ~= "roll" then
+            --an event roll is the Director's answer to a milestone, not a new ask.
+            if event.kind ~= "roll" and event.kind ~= "event" then
                 return true
             end
         end
@@ -3616,6 +3679,8 @@ function DTProjectEditor._respiteEventText(event)
     if event.kind == "milestone" then
         return string.format("%s milestone %d/%d", title, event.total, goal),
             RSPConstants.toneAlert
+    elseif event.kind == "event" then
+        return string.format("%s event %d", title, event.total), nil
     elseif event.kind == "complete" then
         return string.format("%s complete", title), RSPConstants.toneGood
     end
@@ -3648,7 +3713,8 @@ function DTProjectEditor._respiteEventRow(event, charid)
 
     -- A milestone is the one event that asks the Director to go and do
     -- something, so it is the only one that carries the way there. The sheet
-    -- opens on Downtime, which is where the project is.
+    -- opens on Downtime with the project picked (the old character sheet opens
+    -- on its Downtime tab).
     local sheetButton = nil
     if event.kind == "milestone" and charid ~= nil then
         sheetButton = gui.Button{
@@ -3661,9 +3727,14 @@ function DTProjectEditor._respiteEventRow(event, charid)
             end,
             press = function()
                 local character = dmhub.GetCharacterById(charid)
-                if character ~= nil then
-                    character:ShowSheet("Downtime")
+                if character == nil then
+                    return
                 end
+                local sheet = rawget(_G, "HeroSheetDowntime")
+                if sheet ~= nil and event.project ~= nil and sheet.OpenOn(character, event.project:GetID()) then
+                    return
+                end
+                character:ShowSheet("Downtime")
             end,
         }
     end
@@ -3849,7 +3920,8 @@ end
 --- Everything the players did to a project on the Respite, for the Watch view
 --- A Director adjustment is not something a player did, so it is left out, and
 --- so is a milestone or completion that only an adjustment carried the project
---- past.
+--- past. The Director's event rolls are included: they answer a milestone the
+--- players reached.
 --- @param args table roster accessor, and since as a server time or a function
 --- @return table[] entries {at, text, charid, tone}
 function DTProjectEditor.RespitePartyRecord(args)
@@ -3868,7 +3940,13 @@ function DTProjectEditor.RespitePartyRecord(args)
                 local item = event.item
                 -- Only a roll names who rolled; an adjustment has no such field.
                 local rollerId = item:try_get("rolledById")
-                if rollerId ~= nil then
+                if event.kind == "event" then
+                    entries[#entries + 1] = {
+                        at = item.serverTime or 0,
+                        charid = ownerId,
+                        text = string.format("%s's %s had an event (%d)", owner, title, event.total),
+                    }
+                elseif rollerId ~= nil then
                     local entry = {
                         at = item.serverTime or 0,
                         charid = ownerId,

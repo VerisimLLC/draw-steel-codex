@@ -2951,6 +2951,11 @@ local function SlotLabel(slot)
 		return groupName .. " Monsters"
 	end
 
+	--the Hero sheet's Dice window names class slots the same way.
+	local diceSlots = rawget(_G, "DiceSlots")
+	if diceSlots ~= nil then
+		return diceSlots.ClassLabel(SlotKey(slot))
+	end
 	local classInfo = (dmhub.GetTable("classes") or {})[slot.classid or ""]
 	local className = "Unknown Class"
 	if classInfo ~= nil then
@@ -2981,6 +2986,13 @@ end
 --set, so activating here replaces any other set previously activated for the
 --same slot.
 local function SetSlotActivation(key, assetid)
+	--DiceSlots.Set also drops the per-die choices a Hero sheet saved for the
+	--slot: they belong to the activation they were made with.
+	local diceSlots = rawget(_G, "DiceSlots")
+	if diceSlots ~= nil then
+		diceSlots.Set(key, assetid)
+		return
+	end
 	local result = {}
 	for k,v in pairs(dmhub.GetSettingValue("diceslotsequipped") or {}) do
 		result[k] = v
@@ -4577,6 +4589,26 @@ local ShowItemDetailsInternal = function(args)
 								displaySlots[#displaySlots+1] = { slot = slot, custom = true }
 							end
 						end
+						--Slots this set was activated for from a Hero sheet's Dice
+						--window, which adds no use: listed so they can be seen and
+						--turned off here.
+						local diceSlots = rawget(_G, "DiceSlots")
+						if diceSlots ~= nil then
+							local activeKeys = {}
+							for key,assetid in pairs(dmhub.GetSettingValue("diceslotsequipped") or {}) do
+								if assetid == item.assetid and not seenKeys[key] then
+									activeKeys[#activeKeys+1] = key
+								end
+							end
+							table.sort(activeKeys)
+							for _,key in ipairs(activeKeys) do
+								local slot = diceSlots.RecordFromKey(key)
+								if slot ~= nil and SlotIsComplete(slot) then
+									seenKeys[key] = true
+									displaySlots[#displaySlots+1] = { slot = slot, custom = false, fromSheet = true }
+								end
+							end
+						end
 
 						local slotsEquipped = dmhub.GetSettingValue("diceslotsequipped") or {}
 
@@ -4602,6 +4634,8 @@ local ShowItemDetailsInternal = function(args)
 								local description = SlotDescription(slot, label)
 								if entry.custom then
 									description = description .. "\n\nA custom use you added (manage in Add Uses...)."
+								elseif entry.fromSheet then
+									description = description .. "\n\nSet from a Hero sheet."
 								end
 								slotButtons[#slotButtons+1] = MakeEquipButton{
 									text = label,

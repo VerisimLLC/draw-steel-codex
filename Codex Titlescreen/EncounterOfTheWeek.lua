@@ -4308,7 +4308,7 @@ CreateScreen = function(args)
                 if p ~= nil then
                     portrait = p
                     if not p.hasSpineAnimation then
-                        portraitRect = tok:GetPortraitRectForAspect(HERO_CARD_ASPECT, p)
+                        portraitRect = CardPortraitRect(tok, HERO_CARD_ASPECT, p)
                     end
                 end
             end)
@@ -8253,7 +8253,7 @@ CreateScreen = function(args)
                 element.bgimage = portrait
                 element.selfStyle.bgcolor = "white"
                 local rect = nil
-                pcall(function() rect = tok:GetPortraitRectForAspect(aspect * (1 - INN_PORTRAIT_FADE), portrait) end)
+                pcall(function() rect = CardPortraitRect(tok, aspect * (1 - INN_PORTRAIT_FADE), portrait) end)
                 if rect ~= nil then
                     local y1 = math.max(INN_PORTRAIT_FADE, rect.y1 + (rect.y2 - rect.y1) * INN_PORTRAIT_FADE)
                     rect = { x1 = rect.x1, y1 = y1, x2 = rect.x2, y2 = rect.y2 }

@@ -7987,16 +7987,16 @@ CreateEncounterPanel = function()
                                     --proportions rather than letting it stretch to
                                     --fill. The panel is a tall slice of the card, so
                                     --an uncropped portrait came out visibly squashed.
-                                    --GetPortraitRectForAspect wants width as a
-                                    --fraction of height, and lives on the token view
-                                    --of the asset (MonsterAsset.info), not on the
-                                    --asset itself. Measured from the rendered size so
+                                    --CardPortraitRect takes width as a fraction of
+                                    --height, and the token view of the asset
+                                    --(MonsterAsset.info), not the asset itself.
+                                    --Measured from the rendered size so
                                     --the crop stays right at any dock width.
                                     local token = mainmonster.info
                                     local w = panel.renderedWidth
                                     local h = panel.renderedHeight
                                     if token ~= nil and w ~= nil and h ~= nil and w > 0 and h > 0 then
-                                        panel.selfStyle.imageRect = token:GetPortraitRectForAspect(w/h, portrait)
+                                        panel.selfStyle.imageRect = CardPortraitRect(token, w/h, portrait)
                                     end
                                 end
 

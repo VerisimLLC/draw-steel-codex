@@ -590,6 +590,8 @@ local function ResourceGains(c)
         --quantities are GoblinScript ("Victories", "1 + 1 when level >= 4"):
         --evaluate them as the tac panel does. A dice expression stays as
         --written, so the card reads "+1d3" rather than one random roll.
+        --a number, a GoblinScript string or a level table (turned into a string just below).
+        ---@type number|string|table
         local quantity = entry.quantity or 1
         --a level table (the Beastheart's "1d3, +1 from level 7"): the row for
         --the hero's level, its symbols resolved ("1d Heroic Resource Gain at

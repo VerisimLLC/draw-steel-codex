@@ -1208,7 +1208,7 @@ function RollInitiativeChatMessage.Render(selfInput, message)
         local portrait = tok.offTokenPortrait
         local imageRect = nil
         if portrait == tok.portrait or tok.popoutPortrait then
-            imageRect = tok:GetPortraitRectForAspect(portraitAspect, portrait)
+            imageRect = CardPortraitRect(tok, portraitAspect, portrait)
         end
 
         local quantityLabel = nil

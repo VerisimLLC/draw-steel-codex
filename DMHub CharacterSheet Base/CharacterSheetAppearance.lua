@@ -654,7 +654,7 @@ function CharSheet.FramePreviewPanel()
 
                                     local fields = { "portraitFrame", "portrait", "portraitBackground", "portraitRibbon",
                                         "portraitFrameHueShift", "name", "ownerId", "portraitZoom", "portraitOffset",
-                                        "saddles", "saddleSize", "saddlePositions", "popoutScale", "tokenScale" }
+                                        "saddles", "saddleSize", "saddlePositions", "popoutScale", "tokenScale", "popoutMode" }
                                     for i, field in ipairs(fields) do
                                         if g_previewToken[field] ~= info.token[field] then
                                             g_previewToken[field] = info.token[field]
@@ -2190,12 +2190,7 @@ function CharSheet.SummonPreviewPanel()
         m_token.properties = DeepCopy(monster.properties)
 
         --bestiary defaults first, then the custom look, same as a real spawn.
-        m_token.portrait = monster.info.portrait
-        m_token.portraitFrame = monster.info.portraitFrame
-        m_token.portraitFrameHueShift = monster.info.portraitFrameHueShift
-        m_token.tokenScale = monster.info.tokenScale
-        m_token.portraitZoom = monster.info.portraitZoom
-        m_token.portraitOffset = monster.info.portraitOffset
+        ActivatedAbilitySummonBehavior.ResetToBestiaryLook(m_token, monster)
         ActivatedAbilitySummonBehavior.ApplySummonLook(CharacterSheet.instance.data.info.token, m_token, g_summonSelectedKey)
 
         game.Refresh {

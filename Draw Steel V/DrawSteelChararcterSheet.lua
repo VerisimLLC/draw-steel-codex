@@ -583,6 +583,10 @@ local function CreateAbilityPanel()
                         delete = function(element)
                             CharacterSheet.instance.data.info.token.properties:RemoveInnateActivatedAbility(ability)
                         end,
+                        deleteConfirm = {
+                            title = "Delete Ability",
+                            message = string.format("Delete %s? This can't be undone.", ability.name),
+                        },
                     })
                 end,
             },
@@ -7389,13 +7393,8 @@ local function CharacterSheetEditLanguagesPopup(element)
                 text = "Add Language...",
             })
 
-            if creature:try_get("customInnateLanguage") == nil then
-                options[#options + 1] = {
-                    id = "custom",
-                    text = "Custom Language...",
-                }
-            end
-
+            --No "Custom Language..." entry: nothing in Draw Steel names or reads
+            --customInnateLanguage (only the 5e sheet does), so it saved nothing.
             element.options = options
 
             element.idChosen = "none"
@@ -7404,11 +7403,7 @@ local function CharacterSheetEditLanguagesPopup(element)
         change = function(element)
             ---@cast element Dropdown
             if element.idChosen ~= "none" then
-                if element.idChosen == "custom" then
-                    creature.customInnateLanguage = ""
-                else
-                    creature:get_or_add("innateLanguages", {})[element.idChosen] = true
-                end
+                creature:get_or_add("innateLanguages", {})[element.idChosen] = true
                 resultPanel:FireEventTree("refreshPanel")
                 CharacterSheet.instance:FireEvent('refreshAll')
             end
@@ -8995,7 +8990,23 @@ local function FeaturesIndexPanel()
                 c.characterFeatures = items
                 element.popup = nil
                 CharacterSheet.instance:FireEvent("refreshAll")
-                local editor = feature:PopupEditor{ commit = CommitCustomFeature }
+                local editor = feature:PopupEditor{
+                    commit = CommitCustomFeature,
+                    --The row was added so the editor had something to edit;
+                    --cancelling the new feature takes it back out.
+                    cancel = function(cancelled)
+                        local creature = CharacterSheet.instance.data.info.token.properties
+                        local list = creature:try_get("characterFeatures", {})
+                        local guid = cancelled:try_get("guid")
+                        for i = #list, 1, -1 do
+                            if list[i] == cancelled or (guid ~= nil and list[i]:try_get("guid") == guid) then
+                                table.remove(list, i)
+                            end
+                        end
+                        creature.characterFeatures = list
+                        CharacterSheet.instance:FireEvent("refreshAll")
+                    end,
+                }
                 editor.data.notifyElement = resultPanel
                 CharacterSheet.instance:AddChild(editor)
             end,

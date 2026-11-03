@@ -831,6 +831,32 @@ function GameHud.EditLoot(self, object)
 	self.inventoryDialog.data.open(lootobj, { isobject = true, isshop = lootobj.shop, showBasic = true })
 end
 
+--- Delete a loot container that has just been emptied (destroy on empty).
+--- The emptying is a queued change, sent on the next frame, but a delete is
+--- sent at once; deleting in the same frame let that late change re-create
+--- the object's loot part, leaving the item on the map. So this waits two
+--- frames, and skips an object already gone (a second click, another player).
+--- @param lootobj LuaObjectComponentLoot
+function GameHud.DestroyEmptiedLoot(lootobj)
+	local floorid, objid = lootobj.floorid, lootobj.objid
+	local target = dmhub.FrameCount() + 2
+	local function Check()
+		if mod.unloaded then
+			return
+		end
+		if dmhub.FrameCount() < target then
+			dmhub.Schedule(0.01, Check)
+			return
+		end
+		local floor = game.GetFloor(floorid)
+		if floor == nil or floor.objects[objid] == nil then
+			return
+		end
+		lootobj:DestroyObject()
+	end
+	dmhub.Schedule(0.01, Check)
+end
+
 --function called by DMHub to indicate that a Loot object is being looted by a player.
 function GameHud.LootContainer(self, token, object)
 	local lootobj = object:GetComponent("Loot")
@@ -842,7 +868,7 @@ function GameHud.LootContainer(self, token, object)
 	if lootobj.instantLoot then
 		GameHud.LootAll(lootobj, token)
 		if lootobj.destroyOnEmpty then
-			lootobj:DestroyObject()
+			GameHud.DestroyEmptiedLoot(lootobj)
 		end
 		return
 	end
@@ -1863,10 +1889,14 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 			--entirely when no token is selected.
 			gamehud:CreateActionBar(dialog, tokenInfo),
 			gamehud:CreateReactionBar(dialog, tokenInfo),
+			mainDialogPanel,
+            --The roll surfaces (the ability sidebar, where rolls embed, the roll
+            --host and the group roll board) sit above the main dialog layer, so a
+            --roll started from a dialog there, such as a maximized Hero sheet,
+            --shows on top of it. All are side panels, not full screen.
             gamehud:CreateAbilityDisplayPanel(),
             gamehud:CreateStandaloneRollHost(),
             gamehud:CreateGroupRollBoardLayer(),
-			mainDialogPanel,
 			gamehud.shopPanel,
 			gamehud:ModalDialogPanel(),
 			gamehud:CreatePopupPanel(),

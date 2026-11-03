@@ -1469,6 +1469,13 @@ function CharSheet.CreateCharacterSheet(params)
 				end)
 				return
 			end
+			--Heroes open the Hero sheet window on the table instead (HeroSheet.lua,
+			--Draw Steel V); it closes this harness itself. Other tokens carry on.
+			local heroSheet = rawget(_G, "HeroSheet")
+			if token ~= nil and heroSheet ~= nil and heroSheet.OpenFromHarness(token, tabid) then
+				element:SetClass("collapsed", true)
+				return
+			end
 			if element.data.refreshDeferred then
 				element:FireEvent("refreshAll")
 			end
@@ -1556,6 +1563,14 @@ function CharSheet.CreateCharacterSheet(params)
 					element.data.refreshDeferred = true
 					return
 				end
+			end
+
+			--a Hero shows in the Hero sheet window (see show): skip building
+			--this old sheet for it, also on a remote update while hidden.
+			local heroSheet = rawget(_G, "HeroSheet")
+			if contextInfo ~= nil and heroSheet ~= nil and heroSheet.OwnsSheet(contextInfo.token) then
+				element.data.refreshDeferred = true
+				return
 			end
 			element.data.refreshDeferred = false
 

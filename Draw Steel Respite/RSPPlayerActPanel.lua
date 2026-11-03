@@ -974,9 +974,16 @@ local function BuildStage()
                 sheet = function(charid)
                     local token = dmhub.GetCharacterById(charid)
                     if token ~= nil then
-                        token:ShowSheet(RSPConstants.sheetTabBuilder)
+                        -- The Hero sheet opens its Builder at the kit; when it does not
+                        -- take the Hero, the classic sheet opens its Builder tab.
+                        local heroSheet = rawget(_G, "HeroSheet")
+                        if heroSheet == nil or not heroSheet.OpenBuilderAt("class", "kit", token) then
+                            token:ShowSheet(RSPConstants.sheetTabBuilder)
+                        end
                     end
                 end,
+                --The tooltip says where the button goes: the Builder, at the kit.
+                sheetTip = "Change this hero's kit in the Builder",
                 actions = entry.owner == nil and HeroActions(entry.charid) or nil,
             }
 

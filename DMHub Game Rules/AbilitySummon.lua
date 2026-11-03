@@ -105,8 +105,11 @@ ActivatedAbilitySummonBehavior.duplicateTargetOrigin = "duplicate"
 --(several bestiary entries can share one monster_type; monsters without one
 --fall back to their bestiary id). In each entry, nil means "not customized":
 --the summon keeps its bestiary value, except portraitFrame where nil means
---"copy the caster's frame" and "" means "no frame".
---Map of look key -> { portrait, portraitFrame, portraitFrameHueShift, tokenScale, portraitZoom, portraitOffset }
+--"copy the caster's frame" and "" means "no frame". A copied frame brings the
+--caster's tint too, unless the look has a tint of its own (portraitFrameHueShift).
+--Map of look key -> { portrait, portraitFrame, portraitFrameHueShift,
+--portraitFrameSaturation, portraitFrameBrightness, tokenScale, portraitZoom,
+--portraitOffset, popoutMode, popoutScale, portraitBackground }
 ---@type table<string, table>
 creature.summonAppearances = {}
 
@@ -174,10 +177,40 @@ function ActivatedAbilitySummonBehavior.ResolveSummonLookMonster(lookKey)
     return nil, nil
 end
 
---- Applies the caster's custom look to a summoned token. With no custom look,
---- falls back to copying the caster's frame. Does not upload the token.
+--- True when this engine stores Pop out of the frame on a look. Older engines
+--- read the field as nil, and writing it there would fail mid-summon.
+--- @param token CharacterToken|table
+--- @return boolean
+local function HasPopoutMode(token)
+    return token.popoutMode ~= nil
+end
+
+--- Puts a token's look back to its bestiary entry's, before a custom look
+--- goes on top. Works on a plain table too (the Hero sheet's previews).
+--- @param token CharacterToken|table
+--- @param monster any Entry of assets.monsters.
+function ActivatedAbilitySummonBehavior.ResetToBestiaryLook(token, monster)
+    local info = monster.info
+    token.portrait = info.portrait
+    token.portraitFrame = info.portraitFrame
+    token.portraitFrameHueShift = info.portraitFrameHueShift
+    token.portraitFrameSaturation = info.portraitFrameSaturation or 1
+    token.portraitFrameBrightness = info.portraitFrameBrightness or 1
+    token.tokenScale = info.tokenScale
+    token.portraitZoom = info.portraitZoom
+    token.portraitOffset = info.portraitOffset
+    token.popoutScale = info.popoutScale or 1
+    token.portraitBackground = info.portraitBackground
+    if HasPopoutMode(token) and info.popoutMode ~= nil then
+        token.popoutMode = info.popoutMode
+    end
+end
+
+--- Applies the caster's custom look to a summoned token. A summon with no
+--- frame of its own follows the caster's frame and tint. Does not upload the
+--- token.
 --- @param casterToken CharacterToken
---- @param token CharacterToken
+--- @param token CharacterToken|table
 --- @param lookKey string
 function ActivatedAbilitySummonBehavior.ApplySummonLook(casterToken, token, lookKey)
     --A summon cast by a since-removed caster: a defunct token handle still
@@ -200,6 +233,12 @@ function ActivatedAbilitySummonBehavior.ApplySummonLook(casterToken, token, look
         if custom.portraitFrameHueShift ~= nil then
             token.portraitFrameHueShift = custom.portraitFrameHueShift
         end
+        if custom.portraitFrameSaturation ~= nil then
+            token.portraitFrameSaturation = custom.portraitFrameSaturation
+        end
+        if custom.portraitFrameBrightness ~= nil then
+            token.portraitFrameBrightness = custom.portraitFrameBrightness
+        end
         if custom.tokenScale ~= nil then
             token.tokenScale = custom.tokenScale
         end
@@ -207,19 +246,46 @@ function ActivatedAbilitySummonBehavior.ApplySummonLook(casterToken, token, look
             token.portraitZoom = custom.portraitZoom
         end
         if custom.portraitOffset ~= nil then
-            token.portraitOffset = custom.portraitOffset
+            --saved as a plain {x, y} table; the token takes a Vector2.
+            token.portraitOffset = core.Vector2(custom.portraitOffset.x or 0, custom.portraitOffset.y or 0)
         end
+        if custom.popoutScale ~= nil then
+            token.popoutScale = custom.popoutScale
+        end
+        if custom.portraitBackground ~= nil then
+            token.portraitBackground = cond(custom.portraitBackground == "", nil, custom.portraitBackground)
+        end
+        if custom.popoutMode ~= nil and HasPopoutMode(token) then
+            token.popoutMode = custom.popoutMode
+        end
+    end
+
+    if custom ~= nil and custom.portraitFrame ~= nil then
         return
     end
 
-    --if the caster controls the summoned tokens then they mimic its appearance.
+    --no frame of its own: the summon mimics the caster's frame, when both
+    --have one or neither does (a frame is never forced onto unframed art).
     local summonerHasFrame = casterToken.portraitFrame ~= nil and casterToken.portraitFrame ~= ""
     local tokenHasFrame = token.portraitFrame ~= nil and token.portraitFrame ~= ""
 
     if summonerHasFrame == tokenHasFrame then
         token.portraitFrame = casterToken.portraitFrame
-        token.portraitFrameHueShift = casterToken.portraitFrameHueShift
+        if custom == nil or custom.portraitFrameHueShift == nil then
+            token.portraitFrameHueShift = casterToken.portraitFrameHueShift
+            token.portraitFrameSaturation = casterToken.portraitFrameSaturation or 1
+            token.portraitFrameBrightness = casterToken.portraitFrameBrightness or 1
+        end
     end
+end
+
+--- True when the summon follows the caster's frame: its look picks none.
+--- @param casterToken CharacterToken
+--- @param lookKey string
+--- @return boolean
+function ActivatedAbilitySummonBehavior.FollowsCasterFrame(casterToken, lookKey)
+    local custom = casterToken.properties:GetSummonAppearance(lookKey)
+    return custom == nil or custom.portraitFrame == nil
 end
 
 --- Returns the creatures this caster can customize, as a sorted list of
@@ -295,14 +361,31 @@ function ActivatedAbilitySummonBehavior.RestyleLiveSummons(casterToken, lookKey)
 
     for _,tok in ipairs(dmhub.GetTokens()) do
         if tok.valid and tok.summonerid == casterToken.charid and tok.properties ~= nil and tok.properties:try_get("monster_type") == monsterType then
-            tok.portrait = monster.info.portrait
-            tok.portraitFrame = monster.info.portraitFrame
-            tok.portraitFrameHueShift = monster.info.portraitFrameHueShift
-            tok.tokenScale = monster.info.tokenScale
-            tok.portraitZoom = monster.info.portraitZoom
-            tok.portraitOffset = monster.info.portraitOffset
+            ActivatedAbilitySummonBehavior.ResetToBestiaryLook(tok, monster)
             ActivatedAbilitySummonBehavior.ApplySummonLook(casterToken, tok, lookKey)
             tok:UploadAppearance()
+        end
+    end
+end
+
+--- Restyles the caster's live summons that follow its frame, after the
+--- caster's frame, tint or look changed. Summons with a frame of their own
+--- are left alone, so nothing uploads for them.
+--- @param casterToken CharacterToken
+function ActivatedAbilitySummonBehavior.RestyleFollowingSummons(casterToken)
+    if casterToken == nil or casterToken.properties == nil then
+        return
+    end
+    local done = {}
+    for _,tok in ipairs(dmhub.GetTokens()) do
+        if tok.valid and tok.summonerid == casterToken.charid and tok.properties ~= nil then
+            local lookKey = tok.properties:try_get("monster_type")
+            if lookKey ~= nil and done[lookKey] == nil then
+                done[lookKey] = true
+                if ActivatedAbilitySummonBehavior.FollowsCasterFrame(casterToken, lookKey) then
+                    ActivatedAbilitySummonBehavior.RestyleLiveSummons(casterToken, lookKey)
+                end
+            end
         end
     end
 end

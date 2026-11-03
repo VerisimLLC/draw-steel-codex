@@ -235,6 +235,8 @@ end
 --- @field eotwMarket? table|false Encounter of the Week town heroes: the hero's Arcane Market visit since their last encounter (EotwMarket.lua).
 --- @field followers? table Characters: follower entries (legacy shape, migrated by validation).
 --- @field levelOverride? integer Characters: minimum character level (slow start / level picker).
+--- @field levelUpSeen? integer Heroes: Level up has shown pages up to this Level; it shows one for each Level above (set when a respite raises the Level; HeroBuildPools.lua).
+--- @field rungSeen? integer Heroes: how far through the slow-start steps of 1st Level Level up has shown them (2-4 = that step, 5 = all of 1st Level; set when the Director's /slowstartlevel chat command moves a Hero).
 --- @field extraLevelInfo? table Characters: additional level data; read via ExtraLevelInfo().
 --- @field mtime? number|string Characters: ServerTimestamp when the character was created (the placeholder string until the server resolves it).
 --- @field originalid? string Characters: the charid the character was created with.
@@ -13530,7 +13532,9 @@ end
 --already cleared "until rest" effects itself -- the respite game mode clears them
 --when the respite begins, so ending that respite must not clear them a second time
 --and wipe anything gained during it (e.g. a respite activity's bonus).
-function creature:Rest(restType, keepOngoingEffects)
+--Pass keepLevel = true to bank the XP without raising the Level: Encounter of
+--the Week levels a Hero at its Training Grounds instead (EotwRoster.LevelUpHero).
+function creature:Rest(restType, keepOngoingEffects, keepLevel)
 	local restid = dmhub.GenerateGuid()
 
 	if restType == 'long' then
@@ -13554,9 +13558,11 @@ function creature:Rest(restType, keepOngoingEffects)
 			local newXp = curXp + victories
 			local xpNextLevel = level * xpPerLevel
 			local newLevel = level
-			local levelingUp = newXp >= xpNextLevel
+			local levelingUp = newXp >= xpNextLevel and not keepLevel
 			if levelingUp then
-				newLevel = math.floor(newXp / xpPerLevel) + 1
+				--Stop at the top Level a Hero can reach (10 in Draw Steel); XP keeps counting.
+				--Only classes[1].level is written below, so monsters (Level = cr) are untouched.
+				newLevel = math.min(math.floor(newXp / xpPerLevel) + 1, GameSystem.numLevels)
 				if newLevel > level then
 					local classes = self:try_get("classes", {})
 					if classes and #classes > 0 then

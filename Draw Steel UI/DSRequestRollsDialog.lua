@@ -491,6 +491,8 @@ local g_timelineRollTypes = {
     opposed_power_roll = true,
     resistance_power_roll = true,
     test_power_roll = true,
+    --downtime project rolls (the Hero sheet and the Respite), shown like a test.
+    project_power_roll = true,
 }
 
 --The creature whose ability asked for this roll, or nil if the request does
@@ -549,9 +551,10 @@ local function ShowTimelinePrompt(check, dialogParams)
     --A test with no ability behind it (the Director's Request Roll dialog) is
     --shown like a characteristic clicked on the character panel: a synthetic
     --test card for the creature rolling (creature:ShowCharacteristicRollDialog).
-    --A roller that is not on the map has no card, so it keeps the old dialog.
+    --A project roll is shown the same way. A roller that is not on the map has
+    --no card, so it keeps the old dialog.
     local rollerToken = nil
-    if cardAbility == nil and check.type == "test_power_roll" then
+    if cardAbility == nil and (check.type == "test_power_roll" or check.type == "project_power_roll") then
         rollerToken = dmhub.LookupToken(dialogParams.creature)
         if rollerToken == nil then
             return nil

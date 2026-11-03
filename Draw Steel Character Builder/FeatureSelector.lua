@@ -970,11 +970,23 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                 end
             end
         end,
-        --Drop a saved pick the feature no longer offers. It has no option to hand
-        --to RemoveSelection, so it comes straight out of levelChoices.
+        --Drop a saved pick the feature no longer offers. Features that keep
+        --their pick elsewhere (a kit keeps kitid) remove it from a stand-in
+        --option; the rest come straight out of levelChoices.
         removeStale = function(element, optionId)
             local creature = _getCreature()
             if creature == nil then return end
+            local state = _getState()
+            local cachedFeature = state and getCachedFeature(state, element.data.featureId)
+            if cachedFeature ~= nil then
+                local stub = { guid = optionId, id = optionId }
+                local feature = cachedFeature:GetFeature()
+                local removeFn = CharacterBuilder._hasFn(feature, "RemoveSelection")
+                if removeFn ~= nil and removeFn(feature, creature, stub) == true then
+                    _fireControllerEvent("tokenDataChanged")
+                    return
+                end
+            end
             local levelChoice = (creature:GetLevelChoices() or {})[element.data.featureId]
             if levelChoice == nil then return end
             for i = #levelChoice, 1, -1 do

@@ -1758,7 +1758,8 @@ function GameHud.CreateEmbeddedRollDialog()
 
     --this is the current 'base roll' that is being calculated based on.
     local baseRoll = '1d6'
-    CalculateRollText = function(calculationOptions)
+    --requirementPass: set only by the rebuild below, so the text is rebuilt at most once.
+    CalculateRollText = function(calculationOptions, requirementPass)
         m_activeModifiers = {}
 
         local rollDisallowed = nil
@@ -1889,6 +1890,13 @@ function GameHud.CreateEmbeddedRollDialog()
         if rollProperties ~= nil then
             -- Check for roll requirements and update modifiers that fail
             resultPanel:FireEventTree("prepareBeforeRollProperties", rollInfo, enabledModifiers, rollProperties)
+
+            --The check may have turned on or off a modifier whose own edge/bane the text
+            --above already counted (e.g. Convocation of Quartz's "bane unless it already
+            --has one"). Build the text again; that check ignores its own bane, so it is stable.
+            if not requirementPass and CharacterModifier.RollRequirementChangedRollText(enabledModifiers, GetEnabledModifiers()) then
+                return CalculateRollText(calculationOptions, true)
+            end
             resultPanel:FireEventTree('prepare', m_options)
 
             enabledModifiers = GetEnabledModifiers()

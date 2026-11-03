@@ -198,6 +198,7 @@ end
 --- @field spellcastingFeature? SpellcastingFeature Spellcasting feature of the ability that cast it, copied onto triggered abilities.
 --- @field persistenceId? string Guid of the caster's persistent ability this aura's lifetime follows; read with try_get.
 --- @field keywords? table<string, boolean> Keywords of the ability that cast this aura (e.g. {Fire = true, Magic = true}), passed with its move damage; read with try_get.
+--- @field anchorTokenId? string Token id of the creature an ability placed this aura around (a creature target with no chosen area), so a creature's own effects can find "the area around me" later (forcedmovementloc auraName); read with try_get.
 AuraInstance = RegisterGameType("AuraInstance")
 
 Aura.Flags = {
@@ -2392,7 +2393,7 @@ function ActivatedAbilityAuraBehavior:Cast(ability, casterToken, targets, option
                     shape = "RadiusFromCreature",
                     radius = 0,
                 }
-                self:CastOnArea(ability,casterToken, targets, options, shape)
+                self:CastOnArea(ability,casterToken, targets, options, shape, target.token)
             end
         end
     end
@@ -2403,7 +2404,8 @@ end
 --- @param targets table
 --- @param options table
 --- @param targetArea LuaShape
-function ActivatedAbilityAuraBehavior:CastOnArea(ability, casterToken, targets, options, targetArea)
+--- @param anchorToken? CharacterToken The creature the area was placed around, recorded as anchorTokenId.
+function ActivatedAbilityAuraBehavior:CastOnArea(ability, casterToken, targets, options, targetArea, anchorToken)
     --copy the 'shallow' parts from the symbols to include with the aura.
     local symbols = {}
     for k, v in pairs(options.symbols) do
@@ -2455,6 +2457,7 @@ function ActivatedAbilityAuraBehavior:CastOnArea(ability, casterToken, targets, 
             --carries them like the ability's own damage does (see creature:AuraDamage).
             keywords = abilityKeywords and DeepCopy(abilityKeywords) or nil,
             casterid = casterToken.charid,
+            anchorTokenId = anchorToken ~= nil and anchorToken.charid or nil,
             --snapshot the caster's party allegiance so an aura that persists past the
             --caster's death (aliveafterdeath) can still tell friend from foe after the
             --caster token/record is gone. Empty string means no party, which the engine

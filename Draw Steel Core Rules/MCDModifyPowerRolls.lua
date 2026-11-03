@@ -240,6 +240,64 @@ for k,v in pairs(g_powerRollsAbilityAdditionalSymbols) do
     g_powerRollSymbols[k] = v
 end
 
+--Edges and banes a power-roll modifier adds by itself, by modtype. Only the plain adders
+--are listed: their share of a roll's tally can be taken back out exactly.
+local g_ownRollCountByModtype = {
+    edge = {edges = 1, banes = 0},
+    double_edge = {edges = 2, banes = 0},
+    bane = {edges = 0, banes = 1},
+    double_bane = {edges = 0, banes = 2},
+}
+
+--The roll requirements that read the roll's edge/bane tally.
+local g_edgeBaneRequirements = {
+    bane = true, doublebane = true, edge = true, doubleedge = true, nobane = true, noedge = true,
+}
+
+--- A modifier that adds its own edge or bane and has an edge/bane roll requirement
+--- (e.g. Convocation of Quartz: "takes a bane if it doesn't already have a bane") has
+--- that requirement judged on the roll WITHOUT its own edge/bane. Returns what it adds,
+--- or nil when that rule does not apply to this modifier.
+--- @return nil|{edges: integer, banes: integer}
+function CharacterModifier:RollRequirementOwnContribution()
+    if self:try_get("behavior") ~= "power" or not g_edgeBaneRequirements[self:try_get("rollRequirement", "none")] then
+        return nil
+    end
+    return g_ownRollCountByModtype[self:try_get("modtype", "none")]
+end
+
+--- The roll dialogs build the roll text first and check roll requirements after. If the
+--- check turns on or off a modifier whose own edge/bane counts in the text (see
+--- RollRequirementOwnContribution), the text is stale and must be built again.
+--- @param before table[] the enabled modifier entries the roll text was built from
+--- @param after table[] the enabled modifier entries after the requirement check
+--- @return boolean
+function CharacterModifier.RollRequirementChangedRollText(before, after)
+    local function Collect(entries)
+        local result = {}
+        for _,entry in ipairs(entries) do
+            if entry.modifier ~= nil and entry.modifier:RollRequirementOwnContribution() ~= nil then
+                result[entry] = true
+            end
+        end
+        return result
+    end
+
+    local a = Collect(before)
+    local b = Collect(after)
+    for entry,_ in pairs(a) do
+        if not b[entry] then
+            return true
+        end
+    end
+    for entry,_ in pairs(b) do
+        if not a[entry] then
+            return true
+        end
+    end
+    return false
+end
+
 function CharacterModifier:CheckRollRequirement(rollInfo, enabledModifiers, rollProperties)
     local requirement = self:try_get("rollRequirement", "none")
     if requirement == "none" then
@@ -248,6 +306,20 @@ function CharacterModifier:CheckRollRequirement(rollInfo, enabledModifiers, roll
 
     local edges = rollInfo.boons or 0
     local banes = rollInfo.banes or 0
+
+    --While this modifier is on, its own edge/bane is already in rollInfo. Take it back out
+    --so the requirement sees the roll as it was without it; otherwise "nobane" would always
+    --fail on the bane this modifier just added, and the modifier would switch itself off.
+    local own = self:RollRequirementOwnContribution()
+    if own ~= nil then
+        for _,entry in ipairs(enabledModifiers or {}) do
+            if entry.modifier == self then
+                edges = math.max(0, edges - own.edges)
+                banes = math.max(0, banes - own.banes)
+                break
+            end
+        end
+    end
 
     if requirement == "bane" then
         return banes > edges and edges < 2

@@ -4435,6 +4435,22 @@ local g_conditionImmunitySpeech = {
     ["weakened"] = "I won't be weakened; not by you, not by anybody!",
 }
 
+--A conditionimmunity modifier with `silent: true` blocks the condition without the
+--"I can't be X!" speech. For bookkeeping immunities that exist only to keep an ability
+--from re-applying a condition the target already has (Hampering Roots on a prone target).
+--- @param c creature
+--- @param conditionid string
+--- @return boolean
+local function ConditionImmunityIsSilent(c, conditionid)
+    for _,mod in ipairs(c:GetActiveModifiers()) do
+        local m = mod.mod
+        if m.behavior == "conditionimmunity" and m:try_get("silent", false) and table.contains(m:try_get("conditions", {}), conditionid) then
+            return true
+        end
+    end
+    return false
+end
+
 --- Inflict a condition on a creature. (Or purge the condition using the 'purge' argument.)
 --- @param conditionid string
 --- @param args {duration:string, force: nil|boolean, purge: nil|boolean, silent: nil|boolean, riders: nil|(string[]), sourceDescription: string, casterInfo:nil|{tokenid:string, timestamp: string|number|nil}, cast: ActivatedAbilityCast}
@@ -4447,8 +4463,9 @@ function creature:InflictCondition(conditionid, args)
         --give feedback that immunity blocked the condition: the creature "speaks"
         --in character, e.g. "I can't be Slowed!". Falls back to floating text when
         --the creature has no spoken language. Skipped when the application is
-        --silent (e.g. internal bookkeeping) via args.silent.
-        if not args.silent then
+        --silent (e.g. internal bookkeeping) via args.silent, or when the immunity
+        --itself is marked silent (see ConditionImmunityIsSilent).
+        if not args.silent and not ConditionImmunityIsSilent(self, conditionid) then
             local conditionsTable = dmhub.GetTable(CharacterCondition.tableName)
             local conditionInfo = conditionsTable[conditionid]
             if conditionInfo ~= nil then

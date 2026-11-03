@@ -1527,7 +1527,8 @@ CharacterModifier.RegisterType('conditionimmunity', "Condition Immunity")
 --a non-empty string, creature:GetConditionImmunityMessage reads it (via try_get) so
 --the immunity-blocked speech can be overridden with a context-specific line instead
 --of the generic "I can't be <Name>!". Used e.g. by Olothec transformation effects
---that block hiding.
+--that block hiding. Optional field: modifier.silent -- when true the immunity blocks
+--the condition with no speech at all (bookkeeping immunities; see MCDMCreature.lua).
 CharacterModifier.TypeInfo.conditionimmunity = {
 	init = function(modifier)
 		modifier.conditions = {}

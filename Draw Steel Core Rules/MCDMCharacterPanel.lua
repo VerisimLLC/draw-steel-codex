@@ -6015,6 +6015,7 @@ function TacPanel.AltitudeBox()
                         if TacPanel.IsReadOnly(element) then return end
                         local token = element.data.token
                         if token ~= nil then
+                            local burrowingDown = false
                             if token.properties:CurrentMoveType() == "swim" then
                                 --in the water, down is a dive (the engine stops it at the bed).
                             elseif token.properties:CanFly() then
@@ -6023,8 +6024,21 @@ function TacPanel.AltitudeBox()
                                 token.properties:SetAndUploadCurrentMoveType("climb")
                             elseif token.properties:CanBurrow() then
                                 token.properties:SetAndUploadCurrentMoveType("burrow")
+                                burrowingDown = true
                             end
-                            token:MoveVertical(token.floorAltitude - 1)
+                            local targetAltitude = token.floorAltitude - 1
+                            if burrowingDown and token.properties:CalculateNamedCustomAttribute("Cannot Drag Underground") > 0 then
+                                --can't drag grabbed creatures underground: let go first (this
+                                --waits a game update, hence the coroutine), then dig.
+                                dmhub.Coroutine(function()
+                                    ActivatedAbilityDigVerticalBehavior.ReleaseGrabsBeforeGoingUnderground(token)
+                                    if token.valid then
+                                        token:MoveVertical(targetAltitude)
+                                    end
+                                end)
+                            else
+                                token:MoveVertical(targetAltitude)
+                            end
                         end
                     end,
                     refreshCharacter = function(element, token)

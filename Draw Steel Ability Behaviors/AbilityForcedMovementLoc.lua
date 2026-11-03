@@ -20,8 +20,84 @@ ActivatedAbilityForcedMovementLocBehavior.summary = 'Forced Movement Origin'
 ActivatedAbilityForcedMovementLocBehavior.creatureRange = ""
 ActivatedAbilityForcedMovementLocBehavior.creatureFilter = ""
 
+--"Center of Aura" options, for a trigger that does not come from the aura itself (e.g. an
+--ongoing effect's "attacked" trigger that pulls toward the area placed around its owner):
+--  auraName: when no aura is in the cast's symbols, find a map aura with this name (the
+--    Aura definition's name or the instance's name) that was placed around the creature
+--    running this ability. See FindNamedAurasAroundCreature for the matching rule.
+--  requireLineOfEffect: drop every target with no line of effect to any square of the
+--    area, so later behaviors (the pull) skip them. With no area at all, every target is
+--    dropped.
+ActivatedAbilityForcedMovementLocBehavior.auraName = ""
+ActivatedAbilityForcedMovementLocBehavior.requireLineOfEffect = false
+
 function ActivatedAbilityForcedMovementLocBehavior:SummarizeBehavior(ability, creatureLookup)
     return "Forced Movement Origin"
+end
+
+--- Map auras named auraName that were placed around this creature. An aura placed by an
+--- ability on a creature target records that creature (AuraInstance.anchorTokenId). Auras
+--- with no such record (placed before it existed, or onto an area) count when the
+--- creature currently stands in them.
+--- @param auraName string
+--- @param creatureToken CharacterToken
+--- @return AuraInstance[]
+local function FindNamedAurasAroundCreature(auraName, creatureToken)
+    local wanted = string.lower(trim(auraName))
+    local anchored = {}
+    local unanchored = {}
+    for _,entry in ipairs(Aura.GetMapAnchoredAuras()) do
+        local instance = entry.instance
+        local auraDef = instance:try_get("aura")
+        local defName = auraDef ~= nil and string.lower(auraDef.name or "") or ""
+        local instanceName = string.lower(instance:try_get("name", ""))
+        local area = instance:GetArea()
+        if (defName == wanted or instanceName == wanted) and area ~= nil and not instance:HasExpired() then
+            local anchorid = instance:try_get("anchorTokenId")
+            if anchorid == creatureToken.charid then
+                anchored[#anchored+1] = instance
+            elseif anchorid == nil and area:ContainsToken(creatureToken) then
+                unanchored[#unanchored+1] = instance
+            end
+        end
+    end
+
+    if #anchored > 0 then
+        return anchored
+    end
+    return unanchored
+end
+
+--- True if the token has line of effect to at least one square of the area.
+--- @param token CharacterToken
+--- @param area LuaShape
+--- @return boolean
+local function HasLineOfEffectToArea(token, area)
+    --GetPierceWalls is a count; pass a boolean so 0 does not read as "pierce".
+    local pierce = token.properties:GetPierceWalls() > 0
+    for _,loc in ipairs(area.locations or {}) do
+        if token:GetLineOfSight(loc, pierce) > 0 then
+            return true
+        end
+    end
+    return false
+end
+
+--- Removes a target from the cast's shared target list (as the Fizzle behavior does), so
+--- the behaviors after this one no longer apply to it.
+local function DropTarget(targets, options, target)
+    local lists = { options.targets }
+    if targets ~= options.targets then
+        lists[#lists+1] = targets
+    end
+    for _,list in ipairs(lists) do
+        for i = #list, 1, -1 do
+            local t = list[i]
+            if t == target or (target.token ~= nil and t.token ~= nil and target.token.charid == t.token.charid) then
+                table.remove(list, i)
+            end
+        end
+    end
 end
 
 
@@ -42,9 +118,24 @@ function ActivatedAbilityForcedMovementLocBehavior:Cast(ability, casterToken, ta
         print("ORIGIN:: set origin =", target.token.loc.str)
     elseif self.type == "aura" then
         local aura = options.symbols.aura
+        local auraName = self:try_get("auraName", "")
+        if (aura == nil or aura:GetArea() == nil) and trim(auraName) ~= "" then
+            self:CastNamedAura(casterToken, targets, options, auraName)
+            return
+        end
+
         if aura == nil or aura:GetArea() == nil then
             print("Origin: aura not found")
             return
+        end
+
+        if self:try_get("requireLineOfEffect", false) then
+            local area = aura:GetArea()
+            for _,target in ipairs(table.shallow_copy(targets)) do
+                if target.token == nil or not HasLineOfEffectToArea(target.token, area) then
+                    DropTarget(targets, options, target)
+                end
+            end
         end
 
         local origin = aura:GetArea().origin
@@ -128,6 +219,56 @@ function ActivatedAbilityForcedMovementLocBehavior:Cast(ability, casterToken, ta
 end
 
 
+--- "Center of Aura" with no aura in the symbols: find the named aura(s) placed around the
+--- creature running this ability and pull toward the center square of the area. With
+--- several such areas, each target is measured against the ones it has line of effect to
+--- (all of them when requireLineOfEffect is off), and the origin is the nearest of those
+--- to the first remaining target. Finding no area drops every target, so nothing is moved
+--- toward the creature by mistake.
+--- @param casterToken CharacterToken
+--- @param targets table
+--- @param options table
+--- @param auraName string
+function ActivatedAbilityForcedMovementLocBehavior:CastNamedAura(casterToken, targets, options, auraName)
+    local auras = FindNamedAurasAroundCreature(auraName, casterToken)
+    local requireLoE = self:try_get("requireLineOfEffect", false)
+
+    local chosenArea = nil
+    for _,target in ipairs(table.shallow_copy(targets)) do
+        local best = nil
+        local bestDistance = nil
+        if target.token ~= nil and target.token.valid then
+            for _,instance in ipairs(auras) do
+                local area = instance:GetArea()
+                if area ~= nil and ((not requireLoE) or HasLineOfEffectToArea(target.token, area)) then
+                    local center = TriggeredAbility.AreaCenterLoc(area) or area.origin
+                    local distance = target.token:Distance(center)
+                    if bestDistance == nil or distance < bestDistance then
+                        best = area
+                        bestDistance = distance
+                    end
+                end
+            end
+        end
+
+        if best == nil then
+            DropTarget(targets, options, target)
+        elseif chosenArea == nil then
+            chosenArea = best
+        end
+    end
+
+    if chosenArea == nil then
+        print("ORIGIN:: no aura named", auraName, "around", casterToken.charid, "reachable by the targets")
+        return
+    end
+
+    local origin = TriggeredAbility.AreaCenterLoc(chosenArea) or chosenArea.origin
+    options.symbols.forcedMovementOrigin = origin
+    options.symbols.forcedMovementOriginTokenId = nil
+    print("ORIGIN:: set origin from named aura =", origin.str)
+end
+
 function ActivatedAbilityForcedMovementLocBehavior:EditorItems(parentPanel)
     local result = {}
 
@@ -151,6 +292,38 @@ function ActivatedAbilityForcedMovementLocBehavior:EditorItems(parentPanel)
                 parentPanel:FireEventTree("refreshOriginType")
             end,
         }
+    }
+
+    --"Center of Aura" from a trigger the aura does not own: name the aura to look for.
+    result[#result + 1] = gui.Panel {
+        classes = { "formPanel", cond((self.type or "aura") == "aura", nil, "collapsed") },
+        refreshOriginType = function(element)
+            element:SetClass("collapsed", (self.type or "aura") ~= "aura")
+        end,
+        gui.Label {
+            classes = { "formLabel" },
+            text = "Aura Name:",
+        },
+        gui.Input {
+            classes = "formInput",
+            text = self:try_get("auraName", ""),
+            placeholderText = "Only when not triggered by the aura",
+            change = function(element)
+                self.auraName = element.text
+            end,
+        },
+    }
+
+    result[#result + 1] = gui.Check {
+        classes = { cond((self.type or "aura") == "aura", nil, "collapsed") },
+        text = "Targets need line of effect to the aura",
+        value = self:try_get("requireLineOfEffect", false),
+        refreshOriginType = function(element)
+            element:SetClass("collapsed", (self.type or "aura") ~= "aura")
+        end,
+        change = function(element)
+            self.requireLineOfEffect = element.value
+        end,
     }
 
     result[#result + 1] = gui.Panel {

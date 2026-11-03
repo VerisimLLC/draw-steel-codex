@@ -207,6 +207,64 @@ local function DigVerticalDescribe(d)
 	return "No movement"
 end
 
+local g_grabbedConditionId = "70504ebe-3899-41d3-9f60-74b52ce35e39"
+
+--- Support for the "Cannot Drag Underground" custom attribute (e.g. the Force
+--- of Earth's Stone Swim). The engine pulls every creature a token is grabbing
+--- along with any move it makes, a downward dig included, and offers no way to
+--- skip that. So a creature with the attribute lets go first: its grabs end and
+--- the grabbed creatures stay where they are.
+---
+--- Call from a coroutine immediately before the downward move. It yields until
+--- the engine has seen the grabs end (its grab list is rebuilt per game update).
+--- @param token CharacterToken The creature about to move down into the ground.
+--- @return integer released How many grabs were ended (0 when there was nothing to do).
+function ActivatedAbilityDigVerticalBehavior.ReleaseGrabsBeforeGoingUnderground(token)
+	if token == nil or not token.valid then
+		return 0
+	end
+	if token.properties:CalculateNamedCustomAttribute("Cannot Drag Underground") <= 0 then
+		return 0
+	end
+
+	--- @type CharacterToken[]
+	local grabbed = {}
+	token.properties:VisitConditionCasterSource(function(conditionid, grabbedTok)
+		if conditionid == g_grabbedConditionId and grabbedTok ~= nil and grabbedTok.valid then
+			grabbed[#grabbed+1] = grabbedTok
+		end
+	end)
+	if #grabbed == 0 then
+		return 0
+	end
+
+	local updateAt = dmhub.ngameupdate
+	for _,grabbedTok in ipairs(grabbed) do
+		--purge only this creature's grab, so another grabber keeps theirs.
+		grabbedTok:ModifyProperties{
+			description = "Grab ended",
+			execute = function()
+				grabbedTok.properties:InflictCondition(g_grabbedConditionId, {
+					purge = true,
+					casterInfo = { tokenid = token.charid },
+				})
+			end,
+		}
+	end
+
+	token.properties:FloatLabel("Can't drag them underground", "white")
+
+	--Wait for the game update that clears the engine's grab list, then one more
+	--frame so every token's refresh has run. Capped so a lost update can't hang.
+	local startTime = dmhub.Time()
+	while dmhub.ngameupdate == updateAt and dmhub.Time() < startTime + 2 do
+		coroutine.yield(0.05)
+	end
+	coroutine.yield(0.05)
+
+	return #grabbed
+end
+
 function ActivatedAbilityDigVerticalBehavior:Cast(ability, casterToken, targets, options)
 	--Using Dig can trigger reactions -- the "Dig" custom trigger on this ability
 	--fires before this behavior (e.g. the Slaughter Demon's Drag Below free
@@ -527,6 +585,15 @@ function ActivatedAbilityDigVerticalBehavior:Cast(ability, casterToken, targets,
 
 	local newAlt = curAlt + chosen
 
+	--Digging down: a creature that can't drag others underground ends its
+	--grabs first, since the engine would otherwise pull them down with it.
+	if chosen < 0 then
+		ActivatedAbilityDigVerticalBehavior.ReleaseGrabsBeforeGoingUnderground(casterToken)
+		if not casterToken.valid then
+			return
+		end
+	end
+
 	--Burrow for the move itself so the creature can travel through solid ground in
 	--either direction (a walker can't move through the ground). MoveVertical only
 	--relocates the creature where that is actually possible; it won't move a
@@ -554,6 +621,7 @@ function ActivatedAbilityDigVerticalBehavior:Cast(ability, casterToken, targets,
 	--creature this one is grabbing to follow a vertical MoveVertical (verified --
 	--the grabbed creature snaps to the grabber's new altitude as a move, no
 	--teleport). So Dig does NOT move them itself; doing so double-moved them.
+	--A creature with Cannot Drag Underground let go of them above instead.
 
 	--Match the move type to where the creature ended up: still burrowing while
 	--below a surface, walking once standing on one. floorAltitude is 0 on a

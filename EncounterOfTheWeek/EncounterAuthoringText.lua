@@ -1139,6 +1139,7 @@ text("author.validator.report.part_first", [[Part 1 of a series: always open; wi
 text("author.validator.report.part_first_titled", [[Part 1: {title} of a series: always open; winning it unlocks Part 2]])
 text("author.validator.report.part_later", [[Part {number} of a series: the town offers it once Part {previous} is won]])
 text("author.validator.report.part_later_titled", [[Part {number}: {title} of a series: the town offers it once Part {previous} is won]])
+text("author.validator.report.no_watermark", [[this map has no watermark chosen and is not from a map pack: if the art is a partner's (e.g. Czepeku), pick them in Map Settings > Display > Watermark so it carries their credit; if not, pick None]])
 text("author.validator.report.part_no_region", [[this part's encounter has no region, so heroes can walk into the other parts' areas: draw one in the encounter builder, then load it into the island]])
 --{count} is the builder's "Victories awarded", {challenge} the Challenge Mode total, {limit} the warning threshold.
 text("author.validator.report.victories.one", [[winning is worth {count} Victory ({challenge} in Challenge Mode)]])

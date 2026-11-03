@@ -1244,6 +1244,32 @@ function GameHud.CreateEmbeddedRollDialog()
     --any ongoing roll as a result of this dialog.
     local m_rollInfo = nil
 
+    --The roll as it now stands for one multitarget row: the dice as rolled (the
+    --total corrected for re-rolls, as the pending handler does) plus the row's
+    --post-roll edges/banes/tiers from triggers. Resolution reads tiers the same
+    --way (CalculateMultitargetsFromRollProperties). nil before the dice land.
+    local function EffectiveRollForTarget(target)
+        if m_rollInfo == nil then
+            return nil
+        end
+        local natRoll = m_rollInfo.naturalRoll or 0
+        local total = m_rollInfo.total or 0
+        if natRoll > 0 and m_rollNonDiceModifier ~= nil then
+            total = natRoll + m_rollNonDiceModifier
+        end
+        return RollUtils.EffectiveRollForTarget({
+            total = total,
+            naturalRoll = natRoll,
+            boons = m_rollInfo.boons or 0,
+            banes = m_rollInfo.banes or 0,
+            tiers = m_rollInfo.tiers,
+            autosuccess = m_rollInfo.autosuccess,
+            autofailure = m_rollInfo.autofailure,
+            nottierone = m_rollInfo.nottierone,
+            nottierthree = m_rollInfo.nottierthree,
+        }, target)
+    end
+
     local rollType = ''
     local rollSubtype = ''
     local rollProperties = nil
@@ -1836,29 +1862,10 @@ function GameHud.CreateEmbeddedRollDialog()
             return
         end
 
-        -- Calculate tier for this target using their boons/banes.
-        local natRoll = m_rollInfo.naturalRoll or 0
-        local correctedTotal = 0
-        if natRoll > 0 and m_rollNonDiceModifier ~= nil then
-            correctedTotal = natRoll + m_rollNonDiceModifier
-        else
-            correctedTotal = m_rollInfo.total or 0
-        end
-
-        local tierRollInfo = {
-            total = correctedTotal,
-            naturalRoll = natRoll,
-            boons = (m_rollInfo.boons or 0) + (target.boons or 0),
-            banes = (m_rollInfo.banes or 0) + (target.banes or 0),
-            tiers = m_rollInfo.tiers,
-            autosuccess = m_rollInfo.autosuccess,
-            autofailure = m_rollInfo.autofailure,
-            nottierone = m_rollInfo.nottierone,
-            nottierthree = m_rollInfo.nottierthree,
-        }
+        -- Calculate tier for this target using their post-roll edges/banes.
         local tier = (rollProperties and rollProperties:try_get("overrideTier"))
                      or (targetRollProps and targetRollProps:try_get("overrideTier"))
-                     or RollUtils.DiceResultToTier(tierRollInfo)
+                     or RollUtils.DiceResultToTier(EffectiveRollForTarget(target))
 
         -- Get the power table text from this target's rollProperties.
         local tierText = targetRollProps and targetRollProps.tiers and targetRollProps.tiers[tier]
@@ -2077,6 +2084,7 @@ function GameHud.CreateEmbeddedRollDialog()
             if not requirementPass and CharacterModifier.RollRequirementChangedRollText(enabledModifiers, GetEnabledModifiers()) then
                 return CalculateRollText(calculationOptions, true)
             end
+
             resultPanel:FireEventTree('prepare', m_options)
 
             enabledModifiers = GetEnabledModifiers()
@@ -2280,47 +2288,17 @@ function GameHud.CreateEmbeddedRollDialog()
 
         -- Compute the highlighted tier directly so remote clients receive
         -- a simple integer rather than needing to replicate DiceResultToTier.
+        -- It is the current target's tier including post-roll edges/banes from
+        -- triggers (N6TSGZYU), matching the roller's Total label.
         local highlightedTier = nil
         if m_rollInfo ~= nil and (rollState == "finished" or rollState == "rolling") then
-            -- On re-rolls m_rollInfo.total is stale; recompute from the fresh
-            -- naturalRoll plus the stored non-dice modifier (same correction as
-            -- the pending handler and UpdateCurrentTargetArrowLabel).
-            local natRoll = m_rollInfo.naturalRoll or 0
-            local total
-            if natRoll > 0 and m_rollNonDiceModifier ~= nil then
-                total = natRoll + m_rollNonDiceModifier
-            else
-                total = m_rollInfo.total or 0
+            local currentIdx = GetCurrentMultiTarget()
+            local currentTarget = nil
+            if currentIdx ~= nil and m_multitargets ~= nil then
+                currentTarget = m_multitargets[currentIdx]
             end
-            local boons = m_rollInfo.boons or 0
-            local banes = m_rollInfo.banes or 0
-
-            if m_rollInfo.autosuccess then
-                highlightedTier = 3
-            elseif m_rollInfo.autofailure then
-                highlightedTier = 1
-            else
-                highlightedTier = 1
-                if total >= 17 then
-                    highlightedTier = 3
-                elseif total >= 12 then
-                    highlightedTier = 2
-                end
-                if boons >= 2 and banes == 0 then
-                    highlightedTier = highlightedTier + 1
-                elseif banes >= 2 and boons == 0 then
-                    highlightedTier = highlightedTier - 1
-                end
-                highlightedTier = highlightedTier + (m_rollInfo.tiers or 0)
-                if highlightedTier > 3 then highlightedTier = 3 end
-                if highlightedTier < 1 then highlightedTier = 1 end
-                if highlightedTier == 3 and m_rollInfo.nottierthree then
-                    highlightedTier = 2
-                end
-                if highlightedTier == 1 and m_rollInfo.nottierone then
-                    highlightedTier = 2
-                end
-            end
+            local effectiveRoll = EffectiveRollForTarget(currentTarget) --[[@as table]]
+            highlightedTier = RollUtils.DiceResultToTier(effectiveRoll)
 
             -- Override tier from roll properties if the caster picked a
             -- different tier manually.
@@ -3388,11 +3366,9 @@ function GameHud.CreateEmbeddedRollDialog()
         -- +/-2 (a single net edge/bane) but the dice are already settled, so the
         -- label is never refreshed by diceface. Recompute here when the multitarget
         -- recalculation fires (the boon-bar press triggers RecalculateMultiTargets).
-        -- This mirrors CalculateMultitargetsFromRollProperties: take the dice total
-        -- as rolled (which already includes the roll-time boon bonus) and re-apply
-        -- the current target's post-roll boon/bane delta. A double edge/bane shifts
-        -- the tier rather than the total, so GetRollModFromEdgesAndBanes returns 0
-        -- for it and the displayed total correctly stays put.
+        -- This is the current target's effective roll, the same math as
+        -- CalculateMultitargetsFromRollProperties. A double edge/bane shifts the
+        -- tier rather than the total, so the displayed total correctly stays put.
         recalculatedMultiTargets = function(element)
             if not element:HasClass("finishedRolling") then
                 return
@@ -3401,31 +3377,14 @@ function GameHud.CreateEmbeddedRollDialog()
                 return
             end
 
-            local natRoll = m_rollInfo.naturalRoll or 0
-            local correctedTotal
-            if natRoll > 0 and m_rollNonDiceModifier ~= nil then
-                correctedTotal = natRoll + m_rollNonDiceModifier
-            else
-                correctedTotal = m_rollInfo.total or 0
-            end
-
-            local rollBoons = m_rollInfo.boons or 0
-            local rollBanes = m_rollInfo.banes or 0
-
-            local targetBoons = 0
-            local targetBanes = 0
             local idx = GetCurrentMultiTarget()
-            if idx ~= nil and m_multitargets ~= nil and m_multitargets[idx] ~= nil then
-                targetBoons = m_multitargets[idx].boons or 0
-                targetBanes = m_multitargets[idx].banes or 0
+            local target = nil
+            if idx ~= nil and m_multitargets ~= nil then
+                target = m_multitargets[idx]
             end
 
-            local baseBonus = ActivatedAbilityPowerRollBehavior.GetRollModFromEdgesAndBanes(rollBoons, rollBanes)
-            local effBonus = ActivatedAbilityPowerRollBehavior.GetRollModFromEdgesAndBanes(
-                math.min(rollBoons + targetBoons, 2),
-                math.min(rollBanes + targetBanes, 2))
-
-            element.text = tostring(correctedTotal + (effBonus - baseBonus))
+            local effectiveRoll = EffectiveRollForTarget(target) --[[@as table]]
+            element.text = tostring(effectiveRoll.total)
         end,
     }
 

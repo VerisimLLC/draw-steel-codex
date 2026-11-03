@@ -1740,6 +1740,8 @@ local CheckEncounterModule = function(ctx)
 		if info ~= nil then
 			if info.type == "code" then
 				errors[#errors+1] = string.format("An Encounter of the Week module cannot include code (%s): its encounters run on the official module's code.", info.displayName)
+			elseif info.type == "module" then
+				errors[#errors+1] = string.format("An Encounter of the Week module cannot depend on another module (%s): the game it is played in already has the official module.", info.displayName)
 			elseif info.type == "map" and eotw.IsEncounterMapName(info.displayName) then
 				if seenNames[info.displayName] then
 					errors[#errors+1] = string.format("Two maps are named \"%s\". A game finds its encounter map by name, so each must be unique.", info.displayName)
@@ -1802,6 +1804,17 @@ local CheckEncounterModule = function(ctx)
 		else
 			for docid,_ in pairs(found.documents) do
 				ctx.include(docid)
+			end
+
+			--a partner's art must carry their credit (a licence term).
+			local unsetWatermarks = {}
+			for _,wm in ipairs({ m, table.unpack(partMaps[m.name] or {}) }) do
+				if CreatorCredit.MapWatermarkUnset(wm.id) then
+					unsetWatermarks[#unsetWatermarks+1] = wm.name
+				end
+			end
+			for _,name in ipairs(unsetWatermarks) do
+				warnings[#warnings+1] = string.format("%s: no watermark chosen, and it is not from a map pack. If the art is a partner's (e.g. Czepeku), pick them in Map Settings > Display > Watermark; if not, pick None.", name)
 			end
 
 			--the series' parts: this map's, then each part map's (whose
@@ -1988,6 +2001,11 @@ local g_heroOptionTables = {
 --publishingProperties (optional) is called with the same ctx when the module
 --is published and returns {key -> value} to store in the module record's
 --publishingProperties.
+--
+--excludedDependencyTypes (optional) is {row type -> true} for entries the
+--dependency search never pulls in. Excluding "module" also keeps out anything
+--an installed module owns, since the search only looks inside modules it may
+--depend on.
 local g_moduleTypes = {
 	{
 		id = "general",
@@ -2073,6 +2091,10 @@ local g_moduleTypes = {
 			pcall(function() enabled = dmhub.GetSettingValue("dev:encounteroftheweek") == true end)
 			return enabled
 		end,
+		--an EotW game already runs the official module and Draw Steel, so the
+		--authoring game's modules (codex-eotwauthor's Trap zone type pulled it
+		--in) and their code must never become dependencies.
+		excludedDependencyTypes = { module = true, code = true },
 		validate = function(ctx)
 			local check = CheckEncounterModule(ctx)
 			local warnings = check.warnings
@@ -2251,6 +2273,10 @@ local showShareModuleDialog = function(options)
 	--last pass saw, so a finished download triggers another pass.
 	local m_dependencySearcher = nil
 	local m_searcherRevision = 0
+
+	--the module type's excludedDependencyTypes the searcher was made with;
+	--choosing a type with different ones makes a new searcher.
+	local m_searcherExclusions = nil
 
 	--true while the searcher is still downloading map data, so what the
 	--selected maps use is not all known yet.
@@ -3964,6 +3990,12 @@ local showShareModuleDialog = function(options)
 				m_dependenciesDirty = true
 			end
 
+			local exclusions = GetModuleType(moduleInstance.moduleType).excludedDependencyTypes
+			if m_dependencySearcher ~= nil and m_searcherExclusions ~= exclusions then
+				m_dependencySearcher = nil
+				m_dependenciesDirty = true
+			end
+
 			if m_dependenciesDirty then
 				local count = 0
 				for k,item in pairs(addressableAssets) do
@@ -3971,7 +4003,18 @@ local showShareModuleDialog = function(options)
 				end
 				dmhub.Debug(string.format("ASSETS:: HAVE %d", count))
 				if m_dependencySearcher == nil then
-					m_dependencySearcher = module.CreateDependencySearcher(allAssets)
+					local candidates = allAssets
+					if exclusions ~= nil then
+						candidates = {}
+						for guid,entry in pairs(allAssets) do
+							if not exclusions[entry.check.data.type] then
+								candidates[guid] = entry
+							end
+						end
+					end
+					m_dependencySearcher = module.CreateDependencySearcher(candidates)
+					m_searcherExclusions = exclusions
+					m_searcherRevision = m_dependencySearcher.revision
 				end
 
 				m_dependencyAssets = m_dependencySearcher:Search(addressableAssets)

@@ -1325,6 +1325,31 @@ DrawSteelMinion.SquadHud = function(floorid, squad)
         return false
     end
 
+    --True when this client may show the token: players must not learn where
+    --fogged or hidden minions are from the squad bar sitting over them.
+    local function memberVisible(tok)
+        return tok ~= nil and tok.valid and (dmhub.isDM or (tok.canSee and not tok.hiddenFromLocalViewer))
+    end
+
+    local function anyMemberVisible()
+        for _, tok in ipairs(squad.tokens or {}) do
+            if memberVisible(tok) then
+                return true
+            end
+        end
+        return false
+    end
+
+    --The squad still has a live token bound to it on this floor.
+    local function squadValidOnFloor()
+        for _,tok in ipairs(squad.tokens) do
+            if tok.valid and tok.floorid == floorid and tok.properties:has_key("_tmp_minionSquad") and tok.properties._tmp_minionSquad == squad then
+                return true
+            end
+        end
+        return false
+    end
+
     if dmhub.isDM == false and not viewerControlsSquad() then
         if dmhub.initiativeQueue == nil or dmhub.initiativeQueue.hidden or (dmhub.GetSettingValue("enemystambardisplay") == "none") then
             return
@@ -1360,6 +1385,11 @@ DrawSteelMinion.SquadHud = function(floorid, squad)
         local m_panelHovered = false
         local m_panelDragging = false
         local m_hoverState = false
+
+        --nil until the root's first think decides whether any member is visible.
+        local m_shown = nil
+        --set when the bar reappears, so it snaps to the visible members at once.
+        local m_forceCalculate = false
 
         local m_fill = gui.Panel{
             interactable = false,
@@ -1598,7 +1628,7 @@ DrawSteelMinion.SquadHud = function(floorid, squad)
                     tokens[#tokens+1] = squad.captain
                 end
                 for _,tok in ipairs(tokens) do
-                    if tok.valid then
+                    if memberVisible(tok) then
                         local link = gui.Panel{
                             interactable = false,
                             width = 3,
@@ -1819,14 +1849,7 @@ DrawSteelMinion.SquadHud = function(floorid, squad)
                             return
                         end
 
-                        local valid = false
-                        for _,tok in ipairs(squad.tokens) do
-                            if tok.valid and tok.floorid == floorid and tok.properties:has_key("_tmp_minionSquad") and tok.properties._tmp_minionSquad == squad then
-                                valid = true
-                            end
-                        end
-
-                        if not valid then
+                        if not squadValidOnFloor() then
                             sheetParent:Destroy()
                             return
                         end
@@ -1849,7 +1872,8 @@ DrawSteelMinion.SquadHud = function(floorid, squad)
                             end
                         end
 
-                        if element.data.lastCalculate == nil or element.data.lastCalculate < dmhub.Time() - 0.5 then
+                        if m_forceCalculate or element.data.lastCalculate == nil or element.data.lastCalculate < dmhub.Time() - 0.5 then
+                            m_forceCalculate = false
                             element.data.lastCalculate = dmhub.Time()
                             element:FireEvent("calculate")
                         end
@@ -1893,9 +1917,11 @@ DrawSteelMinion.SquadHud = function(floorid, squad)
                             ypos = squad.pos.y
                         else
 
+                            --place over the members this viewer can see; the root
+                            --hides the whole hud while there are none.
                             local count = 0
                             for _,tok in ipairs(squad.tokens) do
-                                if tok.valid then
+                                if memberVisible(tok) then
                                     local pos = tok.pos
                                     xpos = xpos + pos.x
                                     ypos = ypos + pos.y
@@ -2015,7 +2041,7 @@ DrawSteelMinion.SquadHud = function(floorid, squad)
                             local squadSpread = 0
                             local validTokens = 0
                             for _,tok in ipairs(squad.tokens) do
-                                if tok.valid then
+                                if memberVisible(tok) then
                                     squadSpread = squadSpread + math.sqrt(math.abs(tok.pos.x - squadCenterPoint.x) + math.abs(tok.pos.y - squadCenterPoint.y))
                                     oldDistance = oldDistance + math.sqrt(math.abs(tok.pos.x - m_targetPos.x) + math.abs(tok.pos.y - m_targetPos.y))
                                     newDistance = newDistance + math.sqrt(math.abs(tok.pos.x - squadCenterPoint.x) + math.abs(tok.pos.y - squadCenterPoint.y))
@@ -2105,7 +2131,40 @@ DrawSteelMinion.SquadHud = function(floorid, squad)
                     transitionTime = 0.2,
                     opacity = 0.9,
                 },
+                gui.Style{
+                    selectors = {"squadHidden"},
+                    hidden = 1,
+                },
             },
+
+            --Hides the hud while the viewer can see no squad member. This lives on the
+            --root because a hidden panel's think stops: the bar could not unhide itself.
+            thinkTime = 0.2,
+            think = function(element)
+                --the bar runs these checks too, but not while it is hidden.
+                if floorid ~= dmhub.floorid or not squadValidOnFloor() then
+                    sheetParent:Destroy()
+                    return
+                end
+
+                local shown = anyMemberVisible()
+                if shown ~= m_shown then
+                    if shown and m_shown == false then
+                        --forget the old placement so the bar does not slide in from
+                        --where the squad was last seen.
+                        m_pos = nil
+                        m_targetPos = nil
+                        m_currentPos = nil
+                        m_squadEstablishedPos = nil
+                        m_squadLastPos = nil
+                        m_squadLastPosTime = nil
+                        m_forceCalculate = true
+                    end
+                    m_shown = shown
+                    m_squadHud:SetClass("squadHidden", not shown)
+                    m_linksPanel:SetClass("squadHidden", not shown)
+                end
+            end,
 
             m_linksPanel,
 
@@ -2113,6 +2172,7 @@ DrawSteelMinion.SquadHud = function(floorid, squad)
 
         }
 
+        sheetParent.sheet:FireEvent("think")
         m_fill:FireEvent("think")
 	end
 end

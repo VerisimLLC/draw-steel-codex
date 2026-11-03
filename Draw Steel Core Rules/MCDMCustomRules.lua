@@ -30,6 +30,14 @@ local function CombinedKit(self, kit, kit2)
 		return memo.kit
 	end
 	local result = Kit.CombineKits(self, kit, kit2)
+	--CombineKits marks its signature abilities as temporary clones, so MakeTemporaryClone hands
+	--them back as they are. GetActivatedAbilities edits what it gets back (reach, modifyability
+	--modifiers appending behaviors), which was fine while each call built new ones but stacks
+	--onto these kept ones on every call. Unmarked, each call deep-copies them like a single kit's
+	--abilities; the copies' melee/ranged variations keep their mark, which the variations need.
+	for _,ability in ipairs(result:SignatureAbilities()) do
+		ability._tmp_temporaryClone = false
+	end
 	rawset(self, "_tmp_combinedKit", { a = kit, b = kit2, key = key, kit = result })
 	return result
 end

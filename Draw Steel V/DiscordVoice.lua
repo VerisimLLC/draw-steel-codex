@@ -54,8 +54,12 @@ local g_status = nil
 --userid -> charid of the token that user's voice shows on, as they announced it.
 local g_userTokens = {}
 
---charid -> true for tokens whose user is speaking now.
+--charid -> dmhub.Time() a tick last heard that token's user speaking. A token
+--counts as speaking until SPEAKING_LINGER_SECONDS after that, so the balloon
+--does not vanish the instant Discord's speaking flag drops between words.
 local g_speakingTokens = {}
+
+local SPEAKING_LINGER_SECONDS = 0.6
 
 local g_nextJoinAttempt = 0
 --the gameid the user chose to leave voice in; no auto-join there until they rejoin.
@@ -125,7 +129,11 @@ end
 --- @param charid string|nil
 --- @return boolean
 function DiscordVoice.IsTokenSpeaking(charid)
-    return charid ~= nil and g_speakingTokens[charid] == true
+    if charid == nil then
+        return false
+    end
+    local heard = g_speakingTokens[charid]
+    return heard ~= nil and dmhub.Time() - heard < SPEAKING_LINGER_SECONDS
 end
 
 local function PrimaryCharacterOf(userid)
@@ -197,18 +205,22 @@ local function UpdateSpeakingTokens(status)
         end
     end
 
+    --a token heard now is (re)stamped; one not heard stays until its linger
+    --runs out. Emotes refresh only when a token starts or finally stops.
+    local now = dmhub.Time()
     local changed = {}
     for charid, _ in pairs(speaking) do
-        if not g_speakingTokens[charid] then
+        if g_speakingTokens[charid] == nil then
+            changed[#changed + 1] = charid
+        end
+        g_speakingTokens[charid] = now
+    end
+    for charid, heard in pairs(g_speakingTokens) do
+        if now - heard >= SPEAKING_LINGER_SECONDS then
+            g_speakingTokens[charid] = nil
             changed[#changed + 1] = charid
         end
     end
-    for charid, _ in pairs(g_speakingTokens) do
-        if not speaking[charid] then
-            changed[#changed + 1] = charid
-        end
-    end
-    g_speakingTokens = speaking
     for _, charid in ipairs(changed) do
         RefreshTokenEmotes(charid)
     end

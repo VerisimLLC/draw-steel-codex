@@ -9272,7 +9272,7 @@ local function EffectiveArrowRange(sourceToken, targetToken, range, ability)
     if range ~= nil and ability ~= nil and sourceToken ~= nil and targetToken ~= nil then
         local measureToken = ability:GetRangeSource(sourceToken)
         if measureToken ~= sourceToken then
-            local altDiffUnits = math.abs(measureToken.altitude - targetToken.altitude) * dmhub.unitsPerSquare
+            local altDiffUnits = RuleUtils.VerticalGapInTiles(measureToken, targetToken) * dmhub.unitsPerSquare
             if math.max(targetToken:Distance(measureToken), altDiffUnits) >= range + dmhub.unitsPerSquare then
                 return 0
             end
@@ -9297,7 +9297,7 @@ local function EffectiveArrowRange(sourceToken, targetToken, range, ability)
         effective = targetUnits
     end
     if effective ~= nil and sourceToken ~= nil and targetToken ~= nil then
-        local altDiffUnits = math.abs(sourceToken.altitude - targetToken.altitude) * dmhub.unitsPerSquare
+        local altDiffUnits = RuleUtils.VerticalGapInTiles(sourceToken, targetToken) * dmhub.unitsPerSquare
         if altDiffUnits >= effective + dmhub.unitsPerSquare then
             effective = 0
         end
@@ -9371,9 +9371,10 @@ local function AddModifierLabelsToMarker(markers, sourceToken, targetToken, abil
     -- max(horizDist, altDiff). A target on the same floor-plan tile but well
     -- above/below is out of range only when the altitude separation alone
     -- exceeds range; otherwise the horizontal distance is what matters.
+    -- altDiff counts how tall each creature is (RuleUtils.VerticalGapInTiles).
     if range ~= nil then
         local horizDist = targetToken:Distance(originToken)
-        local altDiffUnits = math.abs(originToken.altitude - targetToken.altitude) * dmhub.unitsPerSquare
+        local altDiffUnits = RuleUtils.VerticalGapInTiles(originToken, targetToken) * dmhub.unitsPerSquare
         if math.max(horizDist, altDiffUnits) >= range + dmhub.unitsPerSquare
             and (skipRelays or not CastingOriginCoversTarget(ability, sourceToken, targetToken, range)) then
             markers:AddLabel("Out of Range", "forbidden")
@@ -12107,6 +12108,13 @@ CreateAbilityController = function()
             --Never cancel a cast that claimed the controller after the hide was
             --asked for: this event arrives too late to tell them apart itself.
             if DrawSteelActionBar.HideShouldSkipCancel() then
+                return
+            end
+            --Rolling dice (an AI monster's, on a host who also plays a hero)
+            --hides the whole bar. That is not the player leaving the cast: an
+            --open target prompt comes back with the bar (C7YTDXC6).
+            local prompt = DrawSteelActionBar._openPrompt
+            if dmhub.GetSettingValue("__previewdice") and prompt ~= nil and prompt.valid then
                 return
             end
             element:FireEvent("cancelCasting")
@@ -15015,7 +15023,9 @@ local function CalculateSpellTargetFocusing(symbols)
                     --AddModifierLabelsToMarker so arrow greying, the "Out of Range" label, and
                     --the strict-targeting block all agree.
                     if failReason == nil and spell.targetType ~= "areatemplate" and checkStrictRange then
-                        local altDiff = math.abs(rangeSource.altitude - targetToken.altitude)
+                        --The gap between the creatures' heights, so a Size 2 caster
+                        --reaches a target standing 2 squares up (PEK8NNCT).
+                        local altDiff = RuleUtils.VerticalGapInTiles(rangeSource, targetToken)
                         if altDiff > 0 then
                             local horizDist = targetToken:Distance(directRangeSource)
                             local altDiffUnits = altDiff * dmhub.unitsPerSquare
@@ -15183,7 +15193,17 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
             and #g_currentAbility:try_get("modeList", {}) > 1
         local hasPromptOverride = (g_currentAbility:try_get("promptOverride") ~= nil or awaitsModeChoice)
             and not g_manualTargetChosen
-        if forceCast or ((not g_currentAbility:CanSelectMoreTargets(g_token, targets, g_currentSymbols)) and not hasPromptOverride) then --temporarily disabled -David -- and not initialSetup then
+        --A chooser shell (e.g. "Make Melee Free Strike") is targetType self, so one
+        --pre-selected target (an Opportunity Attack's mover) already fills it. Casting
+        --the shell does nothing and cancels silently (5NBZASN4): wait for the player to
+        --pick one of its abilities. Exactly one choice is swapped in by the invoke before
+        --it gets here, and an ability with no choices returns nil and is unaffected.
+        local awaitsSynthChoice = false
+        if (not forceCast) and g_currentAbility:RequiresPromptWhenCast() then
+            local synth = g_currentAbility:SynthesizeAbilities(g_creature)
+            awaitsSynthChoice = synth ~= nil and #synth > 0
+        end
+        if forceCast or ((not g_currentAbility:CanSelectMoreTargets(g_token, targets, g_currentSymbols)) and not hasPromptOverride and not awaitsSynthChoice) then --temporarily disabled -David -- and not initialSetup then
             --we can't select more targets, so cast the spell in here.
             g_token.lookAtMouse = false
             if g_castingEmoteSet and g_token.valid then

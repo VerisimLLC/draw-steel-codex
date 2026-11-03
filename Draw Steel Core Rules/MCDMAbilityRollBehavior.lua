@@ -445,6 +445,49 @@ function RollUtils.DiceResultToTier(result)
     return tier
 end
 
+--- One target's effective roll: the roll as rolled, plus that target's post-roll
+--- edge/bane/tier deltas (a multitarget row from the roll dialog, whose boons,
+--- banes and tiersDelta are relative to the roll). A single net edge/bane moves
+--- the total by 2; a double one shifts the tier instead (DiceResultToTier).
+--- Resolution, the action log and the roll dialog all read tiers through this.
+--- @param rollResult table {total, naturalRoll, boons, banes, tiers, autosuccess, autofailure, nottierone, nottierthree}
+--- @param target nil|{boons: nil|number, banes: nil|number, tiersDelta: nil|number}
+--- @return table rollInfo A new table, ready for DiceResultToTier
+function RollUtils.EffectiveRollForTarget(rollResult, target)
+    local rollInfo = {
+        total = rollResult.total,
+        naturalRoll = rollResult.naturalRoll,
+        boons = rollResult.boons,
+        banes = rollResult.banes,
+        autosuccess = rollResult.autosuccess,
+        autofailure = rollResult.autofailure,
+        nottierone = rollResult.nottierone,
+        nottierthree = rollResult.nottierthree,
+        tiers = rollResult.tiers,
+    }
+
+    if target == nil then
+        return rollInfo
+    end
+
+    if (target.boons or 0) ~= 0 or (target.banes or 0) ~= 0 then
+        local baseBonus = ActivatedAbilityPowerRollBehavior.GetRollModFromEdgesAndBanes(rollInfo.boons, rollInfo.banes)
+
+        rollInfo.boons = math.min((rollInfo.boons or 0) + (target.boons or 0), 2)
+        rollInfo.banes = math.min((rollInfo.banes or 0) + (target.banes or 0), 2)
+
+        local targetBonus = ActivatedAbilityPowerRollBehavior.GetRollModFromEdgesAndBanes(rollInfo.boons, rollInfo.banes)
+
+        rollInfo.total = (rollInfo.total or 0) + (targetBonus - baseBonus)
+    end
+
+    if (target.tiersDelta or 0) ~= 0 then
+        rollInfo.tiers = (rollInfo.tiers or 0) + target.tiersDelta
+    end
+
+    return rollInfo
+end
+
 -- Local alias so existing call sites in this file keep working.
 local DiceResultToTier = RollUtils.DiceResultToTier
 
@@ -658,34 +701,8 @@ local function CalculateMultitargetsFromRollProperties(rollMessage, rollResult)
     local multitargets = {}
     for i,target in ipairs(rollMessage.properties.multitargets) do
         if target.tokenid then
-            local rollInfo = {
-                total = rollResult.total,
-                naturalRoll = rollResult.naturalRoll,
-                boons = rollResult.boons,
-                banes = rollResult.banes,
-                autosuccess = rollResult.autosuccess,
-                autofailure = rollResult.autofailure,
-                nottierone = rollResult.nottierone,
-                nottierthree = rollResult.nottierthree,
-                tiers = rollResult.tiers,
-            }
-
             --the multitargets give boons relative to the base roll, so we apply any different in boons.
-            if (target.boons or 0) ~= 0 or (target.banes or 0) ~= 0 then
-
-                local baseBonusFromBoonsAndBanes = ActivatedAbilityPowerRollBehavior.GetRollModFromEdgesAndBanes(rollInfo.boons, rollInfo.banes)
-
-                rollInfo.boons = math.min(rollInfo.boons + target.boons, 2)
-                rollInfo.banes = math.min(rollInfo.banes + (target.banes or 0), 2)
-
-                local targetBonusFromBoonsAndBanes = ActivatedAbilityPowerRollBehavior.GetRollModFromEdgesAndBanes(rollInfo.boons, rollInfo.banes)
-
-                rollInfo.total = rollInfo.total + (targetBonusFromBoonsAndBanes - baseBonusFromBoonsAndBanes)
-            end
-
-            if (target.tiersDelta or 0) ~= 0 then
-                rollInfo.tiers = (rollInfo.tiers or 0) + target.tiersDelta
-            end
+            local rollInfo = RollUtils.EffectiveRollForTarget(rollResult, target)
 
             local tier = rollMessage.properties:try_get("overrideTier") or DiceResultToTier(rollInfo)
 

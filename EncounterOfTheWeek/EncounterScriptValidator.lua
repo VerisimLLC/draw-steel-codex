@@ -758,6 +758,10 @@ function EncounterScriptValidator.BuildReport(docid, partyid)
             problems[#problems + 1] = check.text
         end
     end
+    local docMap = DocumentMap((dmhub.GetTable("documents") or {})[docid])
+    if docMap ~= nil and CreatorCredit.MapWatermarkUnset(docMap) then
+        problems[#problems + 1] = T("author.validator.report.no_watermark")
+    end
     local victories = OpeningFightVictories(docid)
     local challengeVictories = victories ~= nil and victories + EncounterOfTheWeekGame.CHALLENGE_VICTORIES or nil
     if challengeVictories ~= nil and challengeVictories > CHALLENGE_LIMIT then

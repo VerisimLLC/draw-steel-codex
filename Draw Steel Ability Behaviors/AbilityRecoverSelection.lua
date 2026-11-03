@@ -6,6 +6,10 @@ ActivatedAbilityRecoverySelectionBehavior = RegisterGameType("ActivatedAbilityRe
 
 ActivatedAbilityRecoverySelectionBehavior.summary = "Recovery Selection"
 
+--How many of the enhancements picked cost nothing, as if that much of the heroic resource had
+--already been spent. Godsworn's Healing Gift uses Healing Grace "as if you had spent 1 piety": 1.
+ActivatedAbilityRecoverySelectionBehavior.freeEnhancements = 0
+
 ActivatedAbility.RegisterType
 {
 	id = 'recoverySelection',
@@ -20,6 +24,18 @@ function ActivatedAbilityRecoverySelectionBehavior:EditorItems(parentPanel)
 	local result = {}
 	self:ApplyToEditor(parentPanel, result)
 	self:FilterEditor(parentPanel, result)
+	result[#result+1] = gui.Panel{
+		classes = { "formPanel" },
+		gui.Label{ classes = { "formLabel" }, text = "Free Enhancements:" },
+		gui.Input{
+			classes = { "formInput" },
+			text = tostring(self.freeEnhancements),
+			change = function(element)
+				self.freeEnhancements = math.max(0, math.tointeger(tonumber(element.text) or 0) or 0)
+				element.text = tostring(self.freeEnhancements)
+			end,
+		},
+	}
 	return result
 end
 
@@ -59,7 +75,8 @@ function ActivatedAbilityRecoverySelectionBehavior:Cast(ability, casterToken, ta
             end
         end
 
-        return max(0, numTargets - 1) + max(0, numRecovery - numTargets) + numEffects
+        local enhancements = max(0, numTargets - 1) + max(0, numRecovery - numTargets) + numEffects
+        return max(0, enhancements - self.freeEnhancements)
     end
 
     local recoveryid = nil
@@ -103,6 +120,9 @@ function ActivatedAbilityRecoverySelectionBehavior:Cast(ability, casterToken, ta
         end
         local cost = calcCost()
         costLabelElement.text = string.format("%s Cost: %s", casterToken.properties:GetHeroicResourceName(), cost)
+        if self.freeEnhancements > 0 then
+            costLabelElement.text = string.format("%s (%d free)", costLabelElement.text, self.freeEnhancements)
+        end
         costLabelElement:SetClass("recovery-cannot-afford", cannotAfford())
     end
 

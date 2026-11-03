@@ -44,6 +44,21 @@ function TacPanel.IsReadOnly(element)
     return element:HasClass("readonly") or element:FindParentWithClass("readonly") ~= nil
 end
 
+--- True when the movement controls (the altitude + / -) may move this token.
+--- A player always moves a token they control, even in a read-only panel:
+--- Encounter of the Week shows every hero's panel read-only, and without
+--- this a hero with Wings had no way to take off. Elsewhere a read-only
+--- panel only ever shows tokens the local player can't control.
+--- @param element Panel
+--- @param token nil|CharacterToken
+--- @return boolean
+function TacPanel.CanMoveToken(element, token)
+    if token == nil or not token.valid then
+        return false
+    end
+    return token.canControl or not TacPanel.IsReadOnly(element)
+end
+
 local TacPanelSizes = {}
 
 TacPanelSizes.Panels = {
@@ -5971,13 +5986,25 @@ function TacPanel.AltitudeBox()
                 classes = {"altitude-btn-stack"},
                 floating = true,
                 halign = "right",
+                --editOnly (hidden in a read-only panel) only for tokens the
+                --player can't control: see TacPanel.CanMoveToken.
+                refreshCharacter = function(element, token)
+                    local canControl = token ~= nil and token.valid and token.canControl
+                    element:SetClass("editOnly", not canControl)
+                end,
+                refreshToken = function(element, token)
+                    element:FireEvent("refreshCharacter", token)
+                end,
+                setToken = function(element, token)
+                    element:FireEvent("refreshCharacter", token)
+                end,
                 gui.Label{
-                    classes = {"altitude-btn", "editOnly"},
+                    classes = {"altitude-btn"},
                     text = "+",
                     data = { token = nil },
                     press = function(element)
-                        if TacPanel.IsReadOnly(element) then return end
                         local token = element.data.token
+                        if not TacPanel.CanMoveToken(element, token) then return end
                         if token ~= nil then
                             --a diver swims up toward the surface; only at the surface can it take off.
                             local diving = token.properties:CurrentMoveType() == "swim" and token.distanceBelowGround > 0
@@ -6004,16 +6031,16 @@ function TacPanel.AltitudeBox()
                     end,
                 },
                 gui.Label{
-                    classes = {"altitude-btn-sep", "editOnly"},
+                    classes = {"altitude-btn-sep"},
                     text = "/",
                 },
                 gui.Label{
-                    classes = {"altitude-btn", "editOnly"},
+                    classes = {"altitude-btn"},
                     text = "-",
                     data = { token = nil },
                     press = function(element)
-                        if TacPanel.IsReadOnly(element) then return end
                         local token = element.data.token
+                        if not TacPanel.CanMoveToken(element, token) then return end
                         if token ~= nil then
                             local burrowingDown = false
                             if token.properties:CurrentMoveType() == "swim" then

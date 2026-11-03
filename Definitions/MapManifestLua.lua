@@ -96,6 +96,11 @@ function MapManifestLua:TravelFromPress(button) end
 --- Start syncing this map in the background so a later Travel() to it skips the loading screen. Cheap to call repeatedly (e.g. on hover). Does nothing in Firebase-backed games or the lobby.
 function MapManifestLua:Prefetch() end
 
+--- The value one of this map's settings (setting{storage = 'map'}) has on this map, or nil when it was never set here. Unlike dmhub.GetSettingValue, which reads the current map and falls back to the setting's default, this reads any map and gives no default.
+--- @param id string
+--- @return any
+function MapManifestLua:GetSetting(id) end
+
 --- True if this map is 'Player Viewable' for the given user: on for all players, or that user is one of the chosen players.
 --- @param userid? string
 --- @return boolean

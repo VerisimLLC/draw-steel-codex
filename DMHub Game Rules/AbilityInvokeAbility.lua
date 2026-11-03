@@ -1840,6 +1840,14 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
 
             if abilityClone:RequiresPromptWhenCast(options) then
                 local synth = abilityClone:SynthesizeAbilities(casterToken.properties)
+                --Nothing qualifies (e.g. no melee free strike for an Opportunity Attack):
+                --casting the empty chooser would just cancel with no feedback (5NBZASN4).
+                if synth ~= nil and #synth == 0 then
+                    print("INVOKE:: nothing to offer for", abilityClone.name, "-- treating the invoke as cancelled")
+                    casterToken.properties:FloatLabel("No abilities to use", "#ff0000")
+                    canceled = true
+                    break
+                end
                 if synth ~= nil and #synth == 1 then
                     --if exactly one synthesized ability then just auto-cast it?
                     local preSynthDisableSquad = abilityClone:try_get("disableSquadCoordination")

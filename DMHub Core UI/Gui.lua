@@ -47,6 +47,11 @@ local function CachedStyle(tbl)
 		n = n + 1
 	end
 	local style = _gui.Style(tbl)
+	--A bgimage still loading converts to no image. Keeping that style would leave every later
+	--panel built from this table without the image for the session, so convert it again next time.
+	if style.bgimagePending then
+		return style
+	end
 	g_convertedStyles[tbl] = { style = style, snapshot = snapshot, count = n }
 	return style
 end

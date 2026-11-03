@@ -4066,6 +4066,79 @@ function MonsterAI:WaitForAbilityIdle(timeout)
     return false
 end
 
+--A hero's cast still running on this client (its coroutineStorage record), or
+--nil. A trigger chained off a hero's reaction (Metakinetic Mastery's Knockback
+--after Inertial Shield) runs as the hero's own cast with no reaction marker, so
+--WaitForActivityReactions cannot see it (C7YTDXC6). Only player heroes count:
+--an outer AI cast held open by nested casts must not stall the AI.
+function MonsterAI.LiveHeroCast()
+    for co,info in pairs(ActivatedAbility.coroutineStorage) do
+        local caster = info.casterToken
+        if coroutine.status(co) ~= "dead" and caster ~= nil and caster.valid
+            and caster.playerControlled and not creature.IsTokenAIControlled(caster.charid) then
+            return info
+        end
+    end
+    return nil
+end
+
+--After an AI cast, wait while a hero's cast it set off is still running here,
+--so the next monster does not act, and roll dice, under the hero's target
+--prompt or roll. A player can take their time, so the limit is generous, as
+--for end-of-turn casts. Returns false, reason when the AI is stopped meanwhile.
+function MonsterAI:WaitForHeroCasts(timeout)
+    if MonsterAI.LiveHeroCast() == nil then
+        return true
+    end
+
+    local startedAt = dmhub.Time()
+    local deadline = startedAt + (timeout or 600)
+    self:LogDecision("HERO CAST WAIT START", {
+        result = "waiting for a hero's cast to finish before acting again",
+    })
+
+    local idleSince = nil
+    local isAIRunning = rawget(MonsterAI, "IsAIRunning")
+    local cancelWhenAIStops = MonsterAI.active and isAIRunning ~= nil
+        and isAIRunning()
+    while true do
+        if mod.unloaded or (cancelWhenAIStops and not MonsterAI.active) then
+            MonsterAI.ClearWaiting()
+            return false, mod.unloaded and "Monster AI module unloaded"
+                or "Monster AI stop requested"
+        end
+
+        local info = MonsterAI.LiveHeroCast()
+        if info == nil then
+            idleSince = idleSince or dmhub.Time()
+            if dmhub.Time() - idleSince >= 0.3 then
+                break
+            end
+        else
+            idleSince = nil
+            if dmhub.Time() >= deadline then
+                self:LogDecision("HERO CAST WAIT TIMEOUT", {
+                    ability = info.ability ~= nil and info.ability.name or nil,
+                    result = "continuing the turn with the hero's cast still open",
+                    duration = dmhub.Time() - startedAt,
+                })
+                break
+            end
+            local caster = info.casterToken
+            MonsterAI.SetWaiting("cast", string.format("Waiting for %s's %s",
+                caster.name or "a hero", info.ability ~= nil and info.ability.name or "ability"),
+                {charid = caster.charid})
+        end
+        coroutine.yield(0.1)
+    end
+
+    MonsterAI.ClearWaiting()
+    self:LogDecision("HERO CAST WAIT FINISHED", {
+        duration = dmhub.Time() - startedAt,
+    })
+    return true
+end
+
 local g_aiMinionDeathPendingTimeout = 125
 
 local function AIMinionDeathPending(creatureProps)
@@ -8454,6 +8527,10 @@ function MonsterAI:ExecuteAbility(casterToken, ability, targets, options)
     local completed, reason
     local waitOk, waitErr = RunYieldingFunction(function()
         completed, reason = self:WaitForActivityReactions(activityId)
+        --A hero's cast this one set off may still be resolving (C7YTDXC6).
+        if completed then
+            completed, reason = self:WaitForHeroCasts()
+        end
     end)
     if not waitOk then
         DestroyRays()

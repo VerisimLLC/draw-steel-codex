@@ -121,6 +121,8 @@ local function RunTriggerRetargetChoice(element, triggerToken, trigger, targetId
     local trigid = trigger.id
     controller:FireEventTree("chooseTarget", {
         sourceToken = sourceToken,
+        --The trigger's owner makes the choice. sourceToken only sets where the range is measured from.
+        chooserToken = triggerToken,
         radius = range,
         targets = targets,
         reasons = retargetReasons,
@@ -804,6 +806,8 @@ mod.shared.CreateTriggerPanel = function()
 
                                         element:Get("abilityController"):FireEventTree("chooseTarget", {
                                             sourceToken = sourceToken,
+                                            --The trigger's owner makes the choice. sourceToken only sets where the range is measured from.
+                                            chooserToken = g_token,
                                             radius = range,
                                             targets = targets,
                                             reasons = retargetReasons,
@@ -1038,6 +1042,8 @@ mod.shared.CreateTriggerPanel = function()
 
                                             element:Get("abilityController"):FireEventTree("chooseTarget", {
                                                 sourceToken = sourceToken,
+                                                --The trigger's owner makes the choice. sourceToken only sets where the range is measured from.
+                                                chooserToken = g_token,
                                                 radius = range,
                                                 targets = targets,
                                                 reasons = retargetReasons,
@@ -1300,6 +1306,8 @@ mod.shared.CreateTriggerPanel = function()
 
                                         element:Get("abilityController"):FireEventTree("chooseTarget", {
                                             sourceToken = sourceToken,
+                                            --The trigger's owner makes the choice. sourceToken only sets where the range is measured from.
+                                            chooserToken = g_token,
                                             radius = range,
                                             targets = targets,
                                             reasons = retargetReasons,
@@ -1890,6 +1898,8 @@ mod.shared.CreateTriggerPanel = function()
 
                                             element:Get("abilityController"):FireEventTree("chooseTarget", {
                                                 sourceToken = sourceToken,
+                                                --The trigger's owner makes the choice. sourceToken only sets where the range is measured from.
+                                                chooserToken = g_token,
                                                 radius = range,
                                                 targets = targets,
                                                 reasons = retargetReasons,

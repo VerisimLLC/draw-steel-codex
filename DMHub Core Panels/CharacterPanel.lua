@@ -3490,6 +3490,52 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
                     }
                 end
 
+                --the player party is never cleared; Dead Monsters has its own clear.
+                local deleteAllEntry = nil
+                if #partyMembers > 0 and partyid ~= "graveyard" and (party == nil or party.id ~= GetDefaultPartyID()) then
+                    deleteAllEntry = {
+                        text = "Delete All Members",
+                        click = function()
+                            element.popup = nil
+
+                            local charids = {}
+                            for _, charid in ipairs(partyMembers) do
+                                charids[#charids + 1] = charid
+                            end
+
+                            gamehud:ModalMessage {
+                                title = "Delete All Members?",
+                                message = string.format("Are you sure you want to delete the %d %s in %s? They will be gone forever.", #charids, cond(#charids == 1, "character", "characters"), partyName),
+                                options = {
+                                    {
+                                        text = "Delete",
+                                        execute = function()
+                                            for _, cid in ipairs(charids) do
+                                                local tok = dmhub.GetCharacterById(cid)
+                                                if tok ~= nil then
+                                                    local classInfo = tok.properties:IsHero() and (tok.properties --[[@as character]]):GetClass() or nil
+                                                    track("character_delete", {
+                                                        class = classInfo and classInfo.name or "",
+                                                        ancestry = tok.properties:RaceOrMonsterType() or "",
+                                                        level = tok.properties:CharacterLevel(),
+                                                        dailyLimit = 5,
+                                                    })
+                                                end
+                                            end
+                                            game.DeleteCharacters(charids)
+                                        end,
+                                    },
+                                    {
+                                        text = "Cancel",
+                                        execute = function()
+                                        end,
+                                    },
+                                }
+                            }
+                        end,
+                    }
+                end
+
                 if party ~= nil then
                     local entries = {}
                     if selectAllEntry ~= nil then
@@ -3502,6 +3548,9 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
                             element.popup = nil
                         end,
                     }
+                    if deleteAllEntry ~= nil then
+                        entries[#entries + 1] = deleteAllEntry
+                    end
                     local DeleteParty = function()
                         party.hidden = true
                         dmhub.SetAndUploadTableItem(Party.tableName, party)
@@ -3576,7 +3625,7 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
                 elseif selectAllEntry ~= nil then
                     --Director Controlled and other synthetic folders still
                     --offer the relocated select-all.
-                    element.popup = gui.ContextMenu{ entries = { selectAllEntry } }
+                    element.popup = gui.ContextMenu{ entries = { selectAllEntry, deleteAllEntry } }
                 end
             end,
 

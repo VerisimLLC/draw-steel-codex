@@ -1484,8 +1484,9 @@ local function Progress(args)
         end
 
         --the level line: "Choices to make" by one rule, whatever raised the
-        --Level. Below Level 10 the button is always there, reading "Finish
-        --Level N" while choices are unmade, and gold when there is work to do.
+        --Level. The button reads "Finish Level N" while choices are unmade and
+        --is gold when there is work to do. Manual Level up is Edit mode only:
+        --players read it as a call to action, and in Narrow it costs a row.
         local lineLabel = Text{
             classes = {"heroSheetCardStrong"},
             text = "",
@@ -1591,7 +1592,8 @@ local function Progress(args)
                     tooltip = "Director only. Moves this Hero off of Slow Start and to Level 1."
                 end
             end
-            local showButton = HeroSheetWrite.CanWrite() and (choices or newLevel or last.nextRung ~= nil or (not progress.maxLevel and not onRung))
+            local manualLevelUp = not progress.maxLevel and not onRung and (progress.readyToLevel or HeroSheet.Editing())
+            local showButton = HeroSheetWrite.CanWrite() and (choices or newLevel or last.nextRung ~= nil or manualLevelUp)
             local buttonText = cond(choices or newLevel, finish, last.nextRung or "Level up")
             --the text takes what the button leaves, so a short line stays on
             --one line.
@@ -1620,6 +1622,10 @@ local function Progress(args)
         heroSheetTier = function(element, tier)
             element:FireEvent("heroSheetRepaint")
         end,
+        --Edit mode shows or hides the manual Level up button.
+        heroSheetEdit = function(element, editing)
+            element:FireEvent("heroSheetRepaint")
+        end,
     }, {
         name = "card progress",
         signature = function(token)
@@ -1633,7 +1639,7 @@ local function Progress(args)
             local hero = token.properties --[[@as character]]
             local first = FirstPage(token)
             local slow = string.format("%s|%s|%s", tostring(hero:try_get("rungSeen")), tostring(HeroBuild.main.hero.Rung(hero)), tostring(first ~= nil and first.key or nil))
-            return string.format("%d|%d|%d|%d|%s|%s|%s|%s|%s", prog.level, prog.xp, prog.xpPerLevel, prog.victories, tostring(epic), tostring(ChoicesToMake(token)), tostring(HeroSheetWrite.CanWrite()), tostring(hero:try_get("levelUpSeen")), slow)
+            return string.format("%d|%d|%d|%d|%s|%s|%s|%s|%s|%s", prog.level, prog.xp, prog.xpPerLevel, prog.victories, tostring(epic), tostring(ChoicesToMake(token)), tostring(HeroSheetWrite.CanWrite()), tostring(hero:try_get("levelUpSeen")), slow, tostring(HeroSheet.Editing()))
         end,
         shape = function(token)
             local prog = Prog(token)

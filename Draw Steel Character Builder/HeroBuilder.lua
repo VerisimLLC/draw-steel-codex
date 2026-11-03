@@ -4357,8 +4357,9 @@ function HeroBuilder.Create(args)
                 end
             end
         end
-        --a culture that follows the ancestry says what it becomes.
-        if stepid == "ancestry" then
+        --a culture that follows the ancestry says what it becomes. It never asks
+        --by itself: any culture pick turns the follow off, so it holds none.
+        if stepid == "ancestry" and #lines > 0 then
             local culture = hero:try_get("culture")
             local untouched = true
             for _, aspectId in pairs(culture ~= nil and culture.aspects or {}) do

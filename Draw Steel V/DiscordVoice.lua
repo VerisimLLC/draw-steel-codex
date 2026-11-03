@@ -1104,7 +1104,7 @@ function DiscordVoice.CreateSettingsPanel()
             LevelMeter(m_sensitivity, SENSITIVITY_LABEL_WIDTH + 4),
         }),
 
-        SettingsCheck("Noise suppression", s0.noiseSuppression ~= false, function(value)
+        SettingsCheck(cond(s0.krisp, "Noise suppression (Krisp)", "Noise suppression"), s0.noiseSuppression ~= false, function(value)
             dmhub.DiscordSetVoiceNoiseSuppression(value)
         end),
         SettingsCheck("Echo cancellation", s0.echoCancellation ~= false, function(value)

@@ -316,13 +316,18 @@ local function FindTriggerHandlerFor(fakeToken, monsterType, triggerEntry)
         end
     end
 
+    --Trimmed like FindTriggerHandler: a stray space in a trigger's name
+    --("End Effect ") must not hide its handler.
     local names = {}
+    local function Add(name)
+        if type(name) == "string" then
+            names[#names + 1] = string.match(name, "^%s*(.-)%s*$")
+        end
+    end
     for _, name in ipairs(triggerEntry.names) do
-        names[#names + 1] = name
+        Add(name)
     end
-    if triggerEntry.text ~= nil then
-        names[#names + 1] = triggerEntry.text
-    end
+    Add(triggerEntry.text)
 
     for _, name in ipairs(names) do
         local handler = Matching(ai.triggerHandlersByMonsterAbility[monsterType .. ":" .. name])

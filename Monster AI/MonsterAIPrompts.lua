@@ -96,7 +96,9 @@ local function FreeStrikeTargetScore(targetInfo)
 end
 
 --onlyTarget (optional) limits the plan to strikes against that one creature.
-local function FindBestImmediateFreeStrike(ai, actor, abilities, onlyTarget)
+--allowedTargets (optional, charid -> true) limits it to the creatures a
+--prompt_inherit invoke offers: the targets of the ability granting the strike.
+local function FindBestImmediateFreeStrike(ai, actor, abilities, onlyTarget, allowedTargets)
     --Death-triggered grants resolve before the creature is removed, so the
     --caster can already report dead while still being allowed this strike.
     if not AIControlledCreature(actor) then
@@ -136,6 +138,7 @@ local function FindBestImmediateFreeStrike(ai, actor, abilities, onlyTarget)
                 actor, scoringAbility, actor.loc, range)) do
                 local utility = FreeStrikeTargetScore(targetInfo)
                 if (onlyTarget == nil or targetInfo.token.charid == onlyTarget.charid)
+                    and (allowedTargets == nil or allowedTargets[targetInfo.token.charid])
                     and (best == nil or utility > best.utility) then
                     local activation = DeepCopy(ability)
                     activation.disableSquadCoordination = true
@@ -322,7 +325,10 @@ local function HandleFreeStrikePrompt(ai, invokerToken, casterToken, abilityClon
         end
     end
 
-    local plan = FindBestImmediateFreeStrike(ai, casterToken, synthesized)
+    --A grant that inherits its targets ("a free strike against one of the
+    --targets") sets allowedtargets; without this the ally could strike anyone.
+    local allowedTargets = symbols ~= nil and symbols.allowedtargets or nil
+    local plan = FindBestImmediateFreeStrike(ai, casterToken, synthesized, nil, allowedTargets)
     if plan == nil then
         return {targets = {}}
     end

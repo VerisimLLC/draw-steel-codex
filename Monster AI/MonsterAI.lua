@@ -3348,15 +3348,19 @@ function MonsterAI:FindTriggerHandler(token, triggerInfo)
         end
     end
 
+    --Trimmed: some stat blocks carry a stray space ("End Effect " on the Human
+    --Blackguard, Bandit Chief, Dame Cornelia and War Dog Ground Commander),
+    --which would miss the handler registered under the plain name.
     if type(triggerInfo.abilityName) == "string" then
+        local abilityName = string.match(triggerInfo.abilityName, "^%s*(.-)%s*$")
         local monsterType = token.properties:try_get("monster_type", "")
-        local qualifiedName = string.format("%s:%s", monsterType, triggerInfo.abilityName)
+        local qualifiedName = string.format("%s:%s", monsterType, abilityName)
         local handler = MatchingHandler(self.triggerHandlersByMonsterAbility[qualifiedName])
         if handler ~= nil then
             return handler
         end
 
-        handler = MatchingHandler(self.triggerHandlersByAbility[triggerInfo.abilityName])
+        handler = MatchingHandler(self.triggerHandlersByAbility[abilityName])
         if handler ~= nil then
             return handler
         end
@@ -3364,6 +3368,7 @@ function MonsterAI:FindTriggerHandler(token, triggerInfo)
 
     local triggerText = triggerInfo:GetText()
     if type(triggerText) == "string" then
+        triggerText = string.match(triggerText, "^%s*(.-)%s*$")
         local monsterType = token.properties:try_get("monster_type", "")
         local qualifiedText = string.format("%s:%s", monsterType, triggerText)
         local handler = MatchingHandler(self.triggerHandlersByMonsterText[qualifiedText])

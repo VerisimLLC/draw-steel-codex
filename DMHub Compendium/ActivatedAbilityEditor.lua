@@ -3941,6 +3941,11 @@ function ActivatedAbility:ShowEditActivatedAbilityDialog(options)
 	end
 	options.hide = nil
 
+	--{title=, message=}: Delete asks first (the sheet passes it); without it
+	--Delete acts at once, as before. Taken out because leftover options go to the panel.
+	local deleteConfirm = options.deleteConfirm
+	options.deleteConfirm = nil
+
 	local mainFormPanel = gui.Panel{
 		styles = styles,
 		vscroll = true,
@@ -3963,8 +3968,44 @@ function ActivatedAbility:ShowEditActivatedAbilityDialog(options)
 			halign = "right",
 			valign = "center",
 			click = function(element)
-				resultPanel:FireEvent("delete")
-				resultPanel.data.close()
+				local confirm = deleteConfirm
+				if confirm == nil then
+					resultPanel:FireEvent("delete")
+					resultPanel.data.close()
+					return
+				end
+				gamehud:ModalDialog{
+					title = confirm.title,
+					width = 560,
+					height = 240,
+					flow = "vertical",
+					buttonsHalign = "center",
+					buttons = {
+						{
+							text = "Delete",
+							click = function()
+								resultPanel:FireEvent("delete")
+								resultPanel.data.close()
+							end,
+						},
+						{
+							text = "Cancel",
+							escapeActivates = true,
+						},
+					},
+					children = {
+						gui.Label{
+							--fixed width: the body panel sizes to its content, so
+							--"100%" collapsed and wrapped every word.
+							width = 500,
+							height = "auto",
+							halign = "center",
+							valign = "center",
+							textAlignment = "center",
+							text = confirm.message,
+						},
+					},
+				}
 			end,
 		}
 	end

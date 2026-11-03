@@ -143,11 +143,9 @@ end
 --- @return table features
 function CharacterCultureAggregateChoice.CreateAll(hero)
 
-    local culture = hero:try_get("culture")
-    if culture == nil then
-        hero.culture = Culture.CreateNew()
-        culture = hero:try_get("culture")
-    end
+    --Runs on every Builder refresh, including when a sheet opens, so it must not
+    --write: a Hero with no culture yet reads a blank one (SaveSelection creates it).
+    local culture = hero:try_get("culture") or Culture.CreateNew()
     if culture and culture.aspects then
         local aspects = culture.aspects
         if aspects.environment ~= nil and #aspects.environment > 0 then return {} end

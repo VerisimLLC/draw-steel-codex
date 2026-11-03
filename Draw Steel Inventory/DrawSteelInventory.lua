@@ -40,6 +40,61 @@ local function _duplicateItem(sourceItem)
     return itemCopy
 end
 
+--A small modal asking before a slot-menu action (Destroy). Esc cancels.
+---@param args {title: string, message: string, confirmText: string, confirm: function}
+local function ConfirmInventoryAction(args)
+    gamehud:ModalDialog{
+        title = args.title,
+        width = 560,
+        height = 240,
+        flow = "vertical",
+        buttonsHalign = "center",
+        buttons = {
+            { text = args.confirmText, click = args.confirm },
+            { text = "Cancel", escapeActivates = true },
+        },
+        children = {
+            --fixed width: the body panel sizes to its content, so "100%" would wrap every word.
+            gui.Label{
+                width = 500,
+                height = "auto",
+                halign = "center",
+                valign = "center",
+                textAlignment = "center",
+                text = args.message,
+            },
+        },
+    }
+end
+
+--Shows why an imbue failed; nil (success) shows nothing.
+---@param message string|nil the reason DSImbuement gave
+local function ShowImbueFailure(message)
+    if message == nil then
+        return
+    end
+    gamehud:ModalDialog{
+        title = "Imbuement Failed",
+        width = 560,
+        height = 240,
+        flow = "vertical",
+        buttonsHalign = "center",
+        buttons = {
+            { text = "Close", escapeActivates = true },
+        },
+        children = {
+            gui.Label{
+                width = 500,
+                height = "auto",
+                halign = "center",
+                valign = "center",
+                textAlignment = "center",
+                text = message,
+            },
+        },
+    }
+end
+
 local SlotDim = 72
 
 local g_SlotHighlightStyles = {
@@ -559,10 +614,12 @@ local CreateInventorySlot = function(dmhud, options)
 
 				if item ~= nil and item:try_get("consumable") and item:try_get("consumableCharges", 1) > 1 then
 					--an item with charges.
+					--compare as numbers: as text "10" sorts before "9", so "9/10" was refused.
 					local a,b = string.match(element.text, "(%d+)/(%d+)")
+					a, b = tonumber(a), tonumber(b)
 					if a ~= nil and b ~= nil and b >= a then
-						item.consumableCharges = tonumber(b)
-						item.consumableChargesConsumed = tonumber(b) - tonumber(a)
+						item.consumableCharges = b
+						item.consumableChargesConsumed = b - a
 					else
 						local a = string.match(element.text, "(%d+)")
 						if a ~= nil then
@@ -890,6 +947,16 @@ local CreateInventorySlot = function(dmhud, options)
 								click = function()
 
 									element.popup = nil
+
+									--Give from the stack that was clicked: its slot and its count, not the
+									--item's default slot and the total across every stack.
+									local slotIndex = slotPanel.data.inventoryIndex
+									local quantity = token.properties:QuantityInSlot(item.id, slotIndex)
+									if quantity <= 0 then
+										slotIndex = slotPanel.data.inventoryDialog.data.GetDefaultSlotForItem(item.id)
+										quantity = token.properties.inventory[item.id].quantity
+									end
+
 									local GiveItem = function(quantity)
 										if otherToken.valid then
 											otherToken:BeginChanges()
@@ -897,7 +964,7 @@ local CreateInventorySlot = function(dmhud, options)
 											otherToken:CompleteChanges('Receive item')
 
 											token:BeginChanges()
-											token.properties:GiveItem(item.id, -quantity, slotPanel.data.inventoryDialog.data.GetDefaultSlotForItem(item.id))
+											token.properties:GiveItem(item.id, -quantity, slotIndex)
 											token:CompleteChanges('Give item')
 
 											slotPanel.data.inventoryDialog:FireEventTree('refreshInventory')
@@ -905,7 +972,6 @@ local CreateInventorySlot = function(dmhud, options)
 									end
 
 
-									local quantity = token.properties.inventory[item.id].quantity
 									if quantity == 1 then
 										dmhub.Debug('GIVE ITEM')
 										GiveItem(1)
@@ -1176,12 +1242,26 @@ local CreateInventorySlot = function(dmhud, options)
 
 								local quantity = token.properties:QuantityInSlot(item.id, slotPanel.data.inventoryIndex)
 
-								token:BeginChanges()
-								token.properties:SetItemQuantity(item.id, token.properties:GetItemQuantity(item.id) - quantity, slotPanel.data.inventoryIndex)
-								token:CompleteChanges('Destroy Item')
+								local message = string.format("Destroy %s?", item.name)
+								if quantity > 1 then
+									message = string.format("Destroy all %d of %s?", math.tointeger(quantity) or quantity, item.name)
+								end
 
-								slotPanel.data.inventoryDialog:FireEventTree('refreshInventory')
+								ConfirmInventoryAction{
+									title = "Destroy Item",
+									message = message,
+									confirmText = "Destroy",
+									confirm = function()
+										if not token.valid then
+											return
+										end
+										token:BeginChanges()
+										token.properties:SetItemQuantity(item.id, token.properties:GetItemQuantity(item.id) - quantity, slotPanel.data.inventoryIndex)
+										token:CompleteChanges('Destroy Item')
 
+										slotPanel.data.inventoryDialog:FireEventTree('refreshInventory')
+									end,
+								}
 							end,
 						}
 
@@ -1197,25 +1277,25 @@ local CreateInventorySlot = function(dmhud, options)
 									token.properties:GiveItem(imbueTarget.id, 1)
 									token.properties:SetItemQuantity(imbueItem.id, token.properties:GetItemQuantity(imbueItem.id) - 1, slotPanel.data.inventoryIndex)
 									token:CompleteChanges("Imbue mundane item")
+									return nil
 								end
 								return message
 							end
+							--Imbue a carried or equipped item. Only unique items can be imbued (the
+							--Mundane items this menu makes, then the items imbued from them), so it
+							--edits that item's own record. The imbue runs on a copy, so a failure
+							--changes nothing. Returns the failure reason.
 							local function attemptImbueItem(imbueItem, targetItem)
-								if targetItem:try_get("unique", false) ~= true then
-									targetItem = _duplicateItem(targetItem)
-									dmhub.SetAndUploadTableItem('tbl_Gear', targetItem)
-									token:BeginChanges()
-									token.properties:SetItemQuantity(targetItem.id, 1, parentDialog.data.GetFirstFreeSlotAfter(slotPanel.data.inventoryIndex))
-									token:CompleteChanges('Imbue Item')
+								local imbueTarget, message = DSImbuement.ImbueItem(imbueItem, DeepCopy(targetItem))
+								if imbueTarget == nil then
+									return message
 								end
 
-								local imbueTarget, message = DSImbuement.ImbueItem(imbueItem, targetItem)
-								if imbueTarget then
-									dmhub.SetAndUploadTableItem(equipment.tableName, imbueTarget)
-									token:BeginChanges()
-									token.properties:SetItemQuantity(imbueItem.id, token.properties:GetItemQuantity(imbueItem.id) - 1, slotPanel.data.inventoryIndex)
-									token:CompleteChanges('Imbue Item')
-								end
+								dmhub.SetAndUploadTableItem(equipment.tableName, imbueTarget)
+								token:BeginChanges()
+								token.properties:SetItemQuantity(imbueItem.id, token.properties:GetItemQuantity(imbueItem.id) - 1, slotPanel.data.inventoryIndex)
+								token:CompleteChanges('Imbue Item')
+								return nil
 							end
 							local submenu = {}
 							local prereq = item:try_get("imbuePrereq")
@@ -1225,31 +1305,32 @@ local CreateInventorySlot = function(dmhud, options)
 									click = function()
 										element.popup = nil
 										local imbueTarget = DSImbuement.CreateMundaneItem(targetType)
-										attemptImbueMundane(item, imbueTarget)
+										ShowImbueFailure(attemptImbueMundane(item, imbueTarget))
 									end,
 								}
 							end
 							local itemTable = dmhub.GetTable(equipment.tableName)
 							local creature = token.properties
 							local imbueTargets = {}
-							for id,_ in pairs(creature:try_get("inventory")) do
-								local invItem = itemTable[id]
-								if DSImbuement.CanImbue(item, invItem) then
+							--Only unique items qualify: offering an ordinary one used to copy it
+							--and then fail, leaving the Hero a free copy.
+							local function offer(invItem)
+								if invItem ~= nil and invItem:try_get("unique", false) == true and DSImbuement.CanImbue(item, invItem) then
 									imbueTargets[#imbueTargets+1] = invItem
 								end
+							end
+							for id,_ in pairs(creature:try_get("inventory")) do
+								offer(itemTable[id])
 							end 
 							for _,id in pairs(creature:try_get("equipment", {})) do
-								local invItem = itemTable[id]
-								if DSImbuement.CanImbue(item, invItem) then
-									imbueTargets[#imbueTargets+1] = invItem
-								end
+								offer(itemTable[id])
 							end
 							for _,invItem in ipairs(imbueTargets) do
 								submenu[#submenu+1] = {
 									text = invItem.name,
 									click = function()
 										element.popup = nil
-										attemptImbueItem(item, invItem)
+										ShowImbueFailure(attemptImbueItem(item, invItem))
 									end
 								}								
 							end

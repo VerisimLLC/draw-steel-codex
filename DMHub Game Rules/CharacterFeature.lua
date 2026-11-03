@@ -1109,7 +1109,10 @@ function CharacterFeature:PopupEditor(options)
 	--options.commit: called with the edited feature on every change
 	--notification (including Confirm/Cancel) BEFORE the notify element is
 	--told to refresh.
+	--options.cancel: called with the feature after Cancel has restored it, so
+	--a caller that added the feature just to edit it can take it back out.
 	local commit = options.commit
+	local cancel = options.cancel
 
 	local backup = DeepCopy(self)
 
@@ -1243,6 +1246,10 @@ function CharacterFeature:PopupEditor(options)
 					-- Without this, any name the live poll had already pushed to
 					-- the list would persist until the sheet was reopened.
 					contentPanel:FireEventTree('modifierRefreshed')
+
+					if cancel ~= nil then
+						cancel(self)
+					end
 
 					resultPanel:DestroySelf()
 				end,

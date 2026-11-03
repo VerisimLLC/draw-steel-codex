@@ -3395,48 +3395,10 @@ function DTProjectEditor.StartProject(info, ownerId, args)
     return project
 end
 
---- Starts a project on a hero from the Respite
---- Created only once a source is confirmed, so walking away leaves nothing
---- behind. Starts approved for whoever manages projects (StartProject): a
---- Director's project starts Active even with the players-manage setting off,
---- since asking them to approve a project they just started is a wasted step.
---- @param heroToken any
---- @param sourceType string "crafting" or "activity"
---- @param selectedId string
-function DTProjectEditor.RespiteStartProject(heroToken, sourceType, selectedId)
-    if heroToken == nil or heroToken.properties == nil or selectedId == nil or selectedId == "" then
-        return
-    end
-
-    local downtimeInfo = heroToken.properties:GetDowntimeInfo()
-    if downtimeInfo == nil then
-        return
-    end
-
-    local projectId = dmhub.GenerateGuid()
-
-    heroToken:ModifyProperties{
-        description = "Start downtime project",
-        undoable = false,
-        execute = function()
-            DTProjectEditor.StartProject(downtimeInfo, heroToken.charid, {
-                projectId = projectId,
-                sourceType = sourceType,
-                selectedId = selectedId,
-            })
-        end,
-    }
-
-    dmhub.Schedule(0.1, function()
-        DTSettings.Touch()
-        DTShares.Touch()
-    end)
-end
-
 --- The Respite's button for starting a downtime project
---- Opens the same source dialog the character sheet does. A project belongs to
+--- Opens the Hero sheet's New project window for the hero. A project belongs to
 --- a hero, so the button waits for one to be selected.
---- @param args table selection accessor and host accessor, from the Respite
+--- @param args table selection accessor, from the Respite (its host accessor is not needed: the window opens over the Respite)
 --- @return Panel
 function DTProjectEditor.PaintRespiteActions(args)
     --- @return nil|any the selected hero's token, nil for a follower or nothing
@@ -3483,17 +3445,11 @@ function DTProjectEditor.PaintRespiteActions(args)
             end
 
             local hero = SelectedHero()
-            local host = args.host()
-            if hero == nil or host == nil then
+            if hero == nil then
                 return
             end
 
-            host:AddChild(DTSelectItemDialog.CreateAsChild{
-                offerCustom = false,
-                confirm = function(sourceType, selectedId)
-                    DTProjectEditor.RespiteStartProject(hero, sourceType, selectedId)
-                end,
-            })
+            HeroSheetDowntimeWindows.NewProject(hero)
         end,
     }
 end

@@ -9,6 +9,7 @@ local mod = dmhub.GetModLoading()
 --- @field new fun(o?: table): CharacterFeature
 --- @field guid nil|string Unique identifier for this feature instance.
 --- @field name nil|string Display name of the feature.
+--- @field appliesToCompanion nil|boolean True when this class feature goes to the hero's companion instead (see Class.FillChildChoice).
 --- @field source nil|string Human-readable source description (e.g. "Fighter", "Race Trait").
 --- @field description nil|string Flavor/rules description shown to the player.
 --- @field modifiers nil|CharacterModifier[] The modifiers that this feature applies to the creature.
@@ -386,6 +387,44 @@ CharacterFeature.ModifierStyles = {
 		flow = 'vertical',
 	},
 }
+
+--- The "applies to companion" checkbox for a feature or feature-choice editor, or nil
+--- when no companion kind asks for it (CompanionKind.Register with featureFlagLabel).
+--- Ticked, the node and everything chosen under it go to the hero's companion
+--- instead of the hero (see Class.FillChildChoice).
+--- @param node CharacterFeature|CharacterChoice
+--- @param onchange nil|fun() Called after the flag changes.
+--- @return Panel|nil
+function CharacterFeature.CompanionFlagCheck(node, onchange)
+	--rawget: the companion code loads after this file and may be absent.
+	local companionKind = rawget(_G, "CompanionKind")
+	if companionKind == nil then
+		return nil
+	end
+	local label, tooltip = companionKind.FeatureFlagText()
+	if label == nil then
+		return nil
+	end
+	return gui.Check{
+		text = label,
+		value = node:try_get("appliesToCompanion", false) == true,
+		hover = function(element)
+			if tooltip ~= nil then
+				gui.Tooltip(tooltip)(element)
+			end
+		end,
+		change = function(element)
+			if element.value then
+				node.appliesToCompanion = true
+			else
+				node.appliesToCompanion = nil
+			end
+			if onchange ~= nil then
+				onchange()
+			end
+		end,
+	}
+end
 
 --- Creates the full editor UI panel for this feature.
 --- @param editorPanelOptions nil|table Options controlling panel behaviour (e.g. noscroll).
@@ -941,6 +980,7 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 	} do
 		innerRows[#innerRows+1] = row
 	end
+	innerRows[#innerRows+1] = CharacterFeature.CompanionFlagCheck(self)
 	innerRows[#innerRows+1] = metaRow
 	innerRows[#innerRows+1] = modifiersPanel
 

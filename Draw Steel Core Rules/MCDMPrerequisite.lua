@@ -215,11 +215,11 @@ function CharacterFeatureList:FillChoice(choices, result)
             --Possibly store in _tmp_prerequisites or similar.
             local featureCopy = table.shallow_copy_with_meta(feature)
             featureCopy.prerequisites = parentPrereqs
-			featureCopy:FillChoice(choices, result)
+			Class.FillChildChoice(featureCopy, choices, result)
 		end
 	else
 		for i, feature in ipairs(self.features) do
-			feature:FillChoice(choices, result)
+			Class.FillChildChoice(feature, choices, result)
 		end
 	end
 end

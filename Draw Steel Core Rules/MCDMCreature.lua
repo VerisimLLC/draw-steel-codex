@@ -3424,6 +3424,33 @@ end
 --and other parts of the app to modify the innate abilities to update the creature.
 local g_defaultExcludeKeywords = { "Companion" }
 
+--- Reserve an ability keyword for a companion. Every creature drops abilities with
+--- it by default, as it does "Companion" ones; the companion type that uses them
+--- passes its own excludeKeywords (see AnimalCompanion:GetActivatedAbilities).
+--- @param keyword string
+function creature.AddCompanionKeyword(keyword)
+    for _, existing in ipairs(g_defaultExcludeKeywords) do
+        if existing == keyword then
+            return
+        end
+    end
+    g_defaultExcludeKeywords[#g_defaultExcludeKeywords + 1] = keyword
+end
+
+--- True when the ability carries any companion-reserved keyword (see creature.AddCompanionKeyword).
+--- @return boolean
+function ActivatedAbility:HasCompanionKeyword()
+    if not self:has_key("keywords") then
+        return false
+    end
+    for _, keyword in ipairs(g_defaultExcludeKeywords) do
+        if self:HasKeyword(keyword) then
+            return true
+        end
+    end
+    return false
+end
+
 --Hook called by ActivatedAbilityInvokeAbilityBehavior on the invoker creature
 --right before a custom invoked ability is cast. Lets per-creature subclasses
 --apply the same post-processing they'd do in GetActivatedAbilities (e.g. the

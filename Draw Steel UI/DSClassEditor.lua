@@ -79,6 +79,31 @@ local function MatchesFeatureSearch(obj, search)
 	return true
 end
 
+--Tag on a feature or choice row whose "applies to companion" box is ticked, labelled
+--like the checkbox (e.g. "Servitor"), so the rows that go to the companion stand out.
+local function CompanionFlagTag(feature)
+	local function refresh(element)
+		local label = nil
+		if feature:try_get("appliesToCompanion", false) == true then
+			label = CompanionKind.FeatureFlagText() or "Companion"
+		end
+		element.text = label or ""
+		element:SetClass("collapsed", label == nil)
+	end
+	return gui.Label{
+		classes = {"accent", "sizeM", "bold", "collapsed"},
+		width = "auto",
+		height = "auto",
+		halign = "right",
+		valign = "center",
+		hmargin = 8,
+		text = "",
+		create = refresh,
+		refreshFeatures = refresh,
+		refreshCompanionTag = refresh,
+	}
+end
+
 local CreateFeatureSummary = function(feature, featuresList, index, parentPanel, DescribeFeature, options)
 	options = options or {}
 
@@ -245,6 +270,8 @@ local CreateFeatureSummary = function(feature, featuresList, index, parentPanel,
 
 		pointsCostPanel,
 
+		CompanionFlagTag(feature),
+
 		gui.ImplementationStatusIcon{
 			halign = "right",
             valign = "center",
@@ -368,6 +395,7 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 		nameLabel,
         pointsCostPanel,
         importedLabel,
+        CompanionFlagTag(feature),
 
 		gui.Button{
 			classes = {"deleteButton", "sizeXs"},
@@ -769,6 +797,7 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 
 			bodyChildren[#bodyChildren+1] = feature:CreateEditor(classOrRace, {
 				change = function(element)
+					headerPanel:FireEventTree("refreshCompanionTag")
 					resultPanel:FireEvent("change")
 				end
 			})
@@ -1575,6 +1604,10 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
                     resultPanel:FireEvent('change')
                 end
             }
+
+            children[#children+1] = CharacterFeature.CompanionFlagCheck(self, function()
+                resultPanel:FireEvent('change')
+            end)
 
             if self.inheritChoice then
                 for i,ref in ipairs(self.inheritChoice) do

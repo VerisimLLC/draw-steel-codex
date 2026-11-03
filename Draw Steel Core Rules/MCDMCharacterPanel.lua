@@ -13754,7 +13754,7 @@ function CharacterPanel.DecoratePortraitPanel(token)
 
                 refreshCharacter = function(element, token)
                     m_token = token
-                    element:SetClass("hidden", token == nil or (not token.valid) or token.properties == nil or (token.properties.typeName ~= "character" and token.properties.typeName ~= "AnimalCompanion"))
+                    element:SetClass("hidden", token == nil or (not token.valid) or token.properties == nil or (token.properties.typeName ~= "character" and not token.properties:IsCompanion()))
                 end,
 
                 gui.Label{

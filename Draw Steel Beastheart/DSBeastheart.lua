@@ -201,6 +201,13 @@ local function BuildCompanionSection()
                 return
             end
 
+            --A companion kind that draws its own hero-panel section replaces this one.
+            local kind = CompanionKind.ForBestiaryId(companionType)
+            if kind ~= nil and kind.ownHeroPanel then
+                element:SetClass("collapsed", true)
+                return
+            end
+
             local monster = assets.monsters[companionType]
             local name = (monster and monster.name) or "Companion"
 

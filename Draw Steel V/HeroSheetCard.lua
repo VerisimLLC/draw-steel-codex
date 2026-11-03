@@ -1258,6 +1258,9 @@ local function Progress(args)
         local live = HeroSheet.Token()
         return live ~= nil and (tonumber(live.properties:try_get("xp", 0)) or 0) or 0
     end
+    --Edit mode as last painted: opening a tab ends Edit mode even when it
+    --was off, and that must not repaint the level line.
+    local drawnEditing = false
 
     --Builds the block for its shape: Level 10's experience and epic
     --resource, or the experience bar below it, at the tier's size. Returns
@@ -1484,8 +1487,9 @@ local function Progress(args)
         end
 
         --the level line: "Choices to make" by one rule, whatever raised the
-        --Level. Below Level 10 the button is always there, reading "Finish
-        --Level N" while choices are unmade, and gold when there is work to do.
+        --Level. The button reads "Finish Level N" while choices are unmade and
+        --is gold when there is work to do. Manual Level up is Edit mode only:
+        --players read it as a call to action, and in Narrow it costs a row.
         local lineLabel = Text{
             classes = {"heroSheetCardStrong"},
             text = "",
@@ -1591,7 +1595,9 @@ local function Progress(args)
                     tooltip = "Director only. Moves this Hero off of Slow Start and to Level 1."
                 end
             end
-            local showButton = HeroSheetWrite.CanWrite() and (choices or newLevel or last.nextRung ~= nil or (not progress.maxLevel and not onRung))
+            drawnEditing = HeroSheet.Editing()
+            local manualLevelUp = not progress.maxLevel and not onRung and (progress.readyToLevel or drawnEditing)
+            local showButton = HeroSheetWrite.CanWrite() and (choices or newLevel or last.nextRung ~= nil or manualLevelUp)
             local buttonText = cond(choices or newLevel, finish, last.nextRung or "Level up")
             --the text takes what the button leaves, so a short line stays on
             --one line.
@@ -1620,6 +1626,12 @@ local function Progress(args)
         heroSheetTier = function(element, tier)
             element:FireEvent("heroSheetRepaint")
         end,
+        --Edit mode shows or hides the manual Level up button.
+        heroSheetEdit = function(element, editing)
+            if HeroSheet.Editing() ~= drawnEditing then
+                element:FireEvent("heroSheetRepaint")
+            end
+        end,
     }, {
         name = "card progress",
         signature = function(token)
@@ -1633,7 +1645,7 @@ local function Progress(args)
             local hero = token.properties --[[@as character]]
             local first = FirstPage(token)
             local slow = string.format("%s|%s|%s", tostring(hero:try_get("rungSeen")), tostring(HeroBuild.main.hero.Rung(hero)), tostring(first ~= nil and first.key or nil))
-            return string.format("%d|%d|%d|%d|%s|%s|%s|%s|%s", prog.level, prog.xp, prog.xpPerLevel, prog.victories, tostring(epic), tostring(ChoicesToMake(token)), tostring(HeroSheetWrite.CanWrite()), tostring(hero:try_get("levelUpSeen")), slow)
+            return string.format("%d|%d|%d|%d|%s|%s|%s|%s|%s|%s", prog.level, prog.xp, prog.xpPerLevel, prog.victories, tostring(epic), tostring(ChoicesToMake(token)), tostring(HeroSheetWrite.CanWrite()), tostring(hero:try_get("levelUpSeen")), slow, tostring(HeroSheet.Editing()))
         end,
         shape = function(token)
             local prog = Prog(token)
@@ -2277,6 +2289,17 @@ local function Counters()
             height = "auto",
             flow = "horizontal",
             valign = "center",
+            --the Victory icon the character panel uses, sized as the
+            --heroic resource's.
+            gui.Panel{
+                bgimage = "drawsteel/HeroicResources/T_UI_ICON_FLAT_HR_VICTORY.png",
+                bgcolor = "white",
+                width = 24,
+                height = 24,
+                valign = "center",
+                rmargin = 4,
+                linger = gui.Tooltip("Victories"),
+            },
             HeroSheetTheme.ClickNumber{
                 classes = {"heroSheetCardStrong"},
                 get = function()
@@ -2296,7 +2319,6 @@ local function Counters()
                 fontSize = 22,
                 tooltip = "Victories",
             },
-            Text{classes = {"heroSheetCardSub"}, text = "Victories", fontSize = 13, valign = "center", lmargin = 4},
         }
         --the heroic resource with the class's own icon; below 0 where the
         --class allows it.

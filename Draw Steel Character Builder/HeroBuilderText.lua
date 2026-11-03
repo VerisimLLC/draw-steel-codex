@@ -247,6 +247,21 @@ text("herobuilder.detail.language", [[Language]])
 text("herobuilder.detail.spoken_by", [[Spoken by]])
 --Under a hover card too long to show whole.
 text("herobuilder.detail.pin_hint", [[Click the (i) to pin this and scroll.]])
+--A kit's card: the small capitals over its parts, then one line per bonus.
+--{n} is a number; {bonus} is a damage bonus by tier ("+2/+2/+2"); {type} is
+--the kind of damage ("Melee Weapon", "Supernatural").
+text("herobuilder.kit.equipment", [[Equipment]])
+text("herobuilder.kit.bonuses", [[Bonuses]])
+text("herobuilder.kit.signature_ability", [[Signature ability]])
+text("herobuilder.kit.maneuver", [[Maneuver]])
+text("herobuilder.kit.stamina", [[<b>Stamina Bonus:</b> +{n} per echelon]])
+text("herobuilder.kit.speed", [[<b>Speed Bonus:</b> +{n}]])
+text("herobuilder.kit.distance", [[<b>Distance Bonus:</b> +{n}]])
+text("herobuilder.kit.reach", [[<b>Reach Bonus:</b> +{n}]])
+text("herobuilder.kit.area", [[<b>Area Bonus:</b> +{n}]])
+text("herobuilder.kit.disengage", [[<b>Disengage Bonus:</b> +{n}]])
+text("herobuilder.kit.stability", [[<b>Stability Bonus:</b> +{n}]])
+text("herobuilder.kit.damage", [[<b>{type} Damage Bonus:</b> {bonus}]])
 --A culture's (i) card: after its description, the line before the three
 --aspects it sets, and the last line. {language} is the culture's language.
 text("herobuilder.culture.detail_sets", [[Taking this culture sets:]])

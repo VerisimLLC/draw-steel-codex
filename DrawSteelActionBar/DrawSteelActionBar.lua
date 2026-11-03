@@ -12609,10 +12609,11 @@ CreateAbilityController = function()
                 end
             end
 
-            -- Only while the Monster AI controls the source: auto-picking for
-            -- anyone else would defeat the "Prompt When Resolving" option on
-            -- PowerRollBehavior.
-            if options.sourceToken ~= nil and creature.IsTokenAIControlled(options.sourceToken.charid) then
+            -- Only when the Monster AI is the one choosing: auto-picking for anyone
+            -- else would skip the "Prompt When Resolving" option on PowerRollBehavior.
+            -- A retarget is chosen by the trigger's owner, not the striking monster.
+            local chooserToken = options.chooserToken or options.sourceToken
+            if chooserToken ~= nil and creature.IsTokenAIControlled(chooserToken.charid) then
                 --auto-pick the first target that isn't filtered out with a reason.
                 local pick = options.targets[1]
                 for _,t in ipairs(options.targets or {}) do

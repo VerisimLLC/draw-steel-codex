@@ -1109,6 +1109,91 @@ local function FeatureStack(details, heading, withChoices)
     end
 end
 
+--- A kit's equipment, bonuses and signature ability (and its maneuver, if
+--- any) under small headings, the abilities as the sheet's cards.
+--- @param kit Kit
+--- @return fun(): Panel
+local function KitPanel(kit)
+    return function()
+        --- @type Panel[]
+        local children = {}
+        local function Heading(text)
+            children[#children+1] = gui.Label{
+                classes = {"heroSheetCardLabel"},
+                text = string.upper(text),
+                fontSize = 11.5,
+                bold = true,
+                width = "100%",
+                height = "auto",
+                tmargin = cond(#children == 0, 0, 10),
+            }
+        end
+        local function Line(text)
+            children[#children+1] = gui.Label{
+                classes = {"heroSheetCardText"},
+                text = text,
+                fontSize = 13.5,
+                width = "100%",
+                height = "auto",
+                tmargin = 3,
+                textAlignment = "topleft",
+            }
+        end
+
+        if kit.equipmentDescription ~= "" then
+            Heading(T("herobuilder.kit.equipment"))
+            Line(kit.equipmentDescription)
+        end
+
+        --the same bonuses, in the same order, as the kit's page in the compendium.
+        --(each T() names its key in full so tests/uitext_check.lua can find it.)
+        --- @type string[]
+        local bonuses = {}
+        local function Bonus(value, line)
+            if value ~= 0 then
+                bonuses[#bonuses+1] = line
+            end
+        end
+        Bonus(kit.health, T("herobuilder.kit.stamina", {n = kit.health}))
+        Bonus(kit.speed, T("herobuilder.kit.speed", {n = kit.speed}))
+        Bonus(kit.range, T("herobuilder.kit.distance", {n = kit.range}))
+        Bonus(kit.reach, T("herobuilder.kit.reach", {n = kit.reach}))
+        Bonus(kit.area, T("herobuilder.kit.area", {n = kit.area}))
+        Bonus(kit.disengage, T("herobuilder.kit.disengage", {n = kit.disengage}))
+        Bonus(kit.stability, T("herobuilder.kit.stability", {n = kit.stability}))
+        for _, damageType in ipairs(Kit.damageBonusTypes) do
+            local bonus = kit:FormatDamageBonus(damageType.id)
+            if bonus ~= nil then
+                bonuses[#bonuses+1] = T("herobuilder.kit.damage", {type = damageType.text, bonus = bonus})
+            end
+        end
+        if #bonuses > 0 then
+            Heading(T("herobuilder.kit.bonuses"))
+            for _, bonus in ipairs(bonuses) do
+                Line(bonus)
+            end
+        end
+
+        local function Card(ability)
+            children[#children+1] = gui.Panel{width = "100%", height = "auto", tmargin = 6, AbilityPanel(ability)}
+        end
+        local signatures = kit:SignatureAbilities()
+        if #signatures > 0 then
+            Heading(T("herobuilder.kit.signature_ability"))
+            for _, ability in ipairs(signatures) do
+                Card(ability)
+            end
+        end
+        --kitManeuver holds the maneuver ability; some kit data stores a bare `true` with no ability.
+        if type(kit.kitManeuver) == "table" then
+            Heading(T("herobuilder.kit.maneuver"))
+            Card(kit.kitManeuver)
+        end
+
+        return gui.Panel{width = "100%", height = "auto", flow = "vertical", children = children}
+    end
+end
+
 --- The detail for a choice row's option: a kit as the kit card, a
 --- subclass with its 1st-level features, an ability pick as its card;
 --- anything else as CharacterBuilder's option panel, else its description.
@@ -1123,7 +1208,7 @@ local function OptionDetail(entry, typeName, kicker)
     if typeName == "CharacterKitChoice" then
         local kit = (dmhub.GetTableVisible(Kit.tableName) or {})[entry.id]
         if kit ~= nil then
-            return {kicker = kicker, title = kit.name, panelFn = function() return kit:Render({width = "100%"}, {}) end}
+            return {kicker = kicker, title = kit.name, text = kit.description, panelFn = KitPanel(kit)}
         end
     end
     if typeName == "CharacterSubclassChoice" then

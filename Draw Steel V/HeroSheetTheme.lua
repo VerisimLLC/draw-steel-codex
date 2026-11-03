@@ -423,6 +423,22 @@ function HeroSheetTheme.Rules()
     local function Tint(hex, alpha)
         return HeroSheetTheme.ToHex(HeroSheetTheme.WithAlpha(hex, 1), alpha)
     end
+    --white at an alpha (0-1) over the background, as the solid colour the
+    --engine shows (it blends in linear light). For bordered rounded buttons:
+    --a see-through fill puts a light fringe on their corners.
+    --- @param alpha number
+    --- @return string
+    local function SolidWhite(alpha)
+        local bg = HeroSheetTheme.ParseHex(palette.bg) or BLACK
+        local function channel(value)
+            local srgb = value / 255
+            local linear = cond(srgb <= 0.04045, srgb / 12.92, ((srgb + 0.055) / 1.055) ^ 2.4)
+            linear = linear + (1 - linear) * alpha
+            srgb = cond(linear <= 0.0031308, linear * 12.92, 1.055 * linear ^ (1 / 2.4) - 0.055)
+            return srgb * 255
+        end
+        return HeroSheetTheme.ToHex({r = channel(bg.r), g = channel(bg.g), b = channel(bg.b), a = 1})
+    end
     local rules = {
         {selectors = {"heroSheetTitle"}, color = palette.strong},
         {selectors = {"heroSheetText"}, color = palette.fg},
@@ -447,7 +463,7 @@ function HeroSheetTheme.Rules()
         {selectors = {"heroSheetDivider"}, bgcolor = palette.border},
         --the top bar's buttons on a faint fill; the tabs one joined group;
         --the open tab (and Done) filled in the scheme's text colour.
-        {selectors = {"heroSheetButton"}, bgcolor = "#ffffff0d", borderColor = palette.border},
+        {selectors = {"heroSheetButton"}, bgcolor = SolidWhite(0.05), borderColor = palette.border},
         {selectors = {"heroSheetButton", "hover"}, borderColor = palette.strong},
         {selectors = {"heroSheetButton", "selected"}, bgcolor = palette.rawFg, borderColor = palette.rawFg},
         {selectors = {"heroSheetSegments"}, bgcolor = "clear", borderColor = palette.border},
@@ -485,7 +501,7 @@ function HeroSheetTheme.Rules()
         {selectors = {"heroSheetMutedIcon"}, bgcolor = palette.cardSub},
         {selectors = {"heroSheetFg"}, bgcolor = palette.cardFg},
         {selectors = {"heroSheetDisabled"}, opacity = 0.5},
-        {selectors = {"heroSheetPlateButton"}, bgcolor = "#ffffff14", borderColor = palette.cardFg, color = palette.cardStrong},
+        {selectors = {"heroSheetPlateButton"}, bgcolor = SolidWhite(0.08), borderColor = palette.cardFg, color = palette.cardStrong},
         {selectors = {"heroSheetCardAppear"}, bgcolor = "#000000b0", borderColor = palette.cardFg, color = palette.cardStrong, hidden = 1},
         {selectors = {"heroSheetCardAppear", "parent:hover"}, hidden = 0},
         {selectors = {"heroSheetXpTrack"}, bgcolor = "#ffffff1f"},
@@ -509,7 +525,7 @@ function HeroSheetTheme.Rules()
         --the Treasures block: item rows, their small buttons and the
         --carried pill (@warning past three).
         {selectors = {"heroSheetItemRow"}, bgcolor = "#00000033", borderColor = palette.border},
-        {selectors = {"heroSheetSmallButton"}, bgcolor = "#ffffff0f", borderColor = palette.border, color = palette.cardFg},
+        {selectors = {"heroSheetSmallButton"}, bgcolor = SolidWhite(0.06), borderColor = palette.border, color = palette.cardFg},
         {selectors = {"heroSheetSmallButton", "hover"}, borderColor = palette.cardStrong, color = palette.cardStrong},
         {selectors = {"heroSheetSmallButton", "heroSheetOff"}, opacity = 0.5},
         {selectors = {"heroSheetSmallButton", "heroSheetOff", "hover"}, borderColor = palette.border, color = palette.cardFg},

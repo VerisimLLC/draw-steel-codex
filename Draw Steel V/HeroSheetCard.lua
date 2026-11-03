@@ -1258,6 +1258,9 @@ local function Progress(args)
         local live = HeroSheet.Token()
         return live ~= nil and (tonumber(live.properties:try_get("xp", 0)) or 0) or 0
     end
+    --Edit mode as last painted: opening a tab ends Edit mode even when it
+    --was off, and that must not repaint the level line.
+    local drawnEditing = false
 
     --Builds the block for its shape: Level 10's experience and epic
     --resource, or the experience bar below it, at the tier's size. Returns
@@ -1592,7 +1595,8 @@ local function Progress(args)
                     tooltip = "Director only. Moves this Hero off of Slow Start and to Level 1."
                 end
             end
-            local manualLevelUp = not progress.maxLevel and not onRung and (progress.readyToLevel or HeroSheet.Editing())
+            drawnEditing = HeroSheet.Editing()
+            local manualLevelUp = not progress.maxLevel and not onRung and (progress.readyToLevel or drawnEditing)
             local showButton = HeroSheetWrite.CanWrite() and (choices or newLevel or last.nextRung ~= nil or manualLevelUp)
             local buttonText = cond(choices or newLevel, finish, last.nextRung or "Level up")
             --the text takes what the button leaves, so a short line stays on
@@ -1624,7 +1628,9 @@ local function Progress(args)
         end,
         --Edit mode shows or hides the manual Level up button.
         heroSheetEdit = function(element, editing)
-            element:FireEvent("heroSheetRepaint")
+            if HeroSheet.Editing() ~= drawnEditing then
+                element:FireEvent("heroSheetRepaint")
+            end
         end,
     }, {
         name = "card progress",

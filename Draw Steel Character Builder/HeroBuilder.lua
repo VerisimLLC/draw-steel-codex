@@ -1174,20 +1174,20 @@ local function KitPanel(kit)
             end
         end
 
-        --- @type ActivatedAbility[]
-        local abilities = {}
-        for _, ability in ipairs(kit:SignatureAbilities()) do
-            abilities[#abilities+1] = ability
+        local function Card(ability)
+            children[#children+1] = gui.Panel{width = "100%", height = "auto", tmargin = 6, AbilityPanel(ability)}
         end
-        if #abilities > 0 then
+        local signatures = kit:SignatureAbilities()
+        if #signatures > 0 then
             Heading(T("herobuilder.kit.signature_ability"))
+            for _, ability in ipairs(signatures) do
+                Card(ability)
+            end
         end
         --kitManeuver holds the maneuver ability; some kit data stores a bare `true` with no ability.
         if type(kit.kitManeuver) == "table" then
-            abilities[#abilities+1] = kit.kitManeuver
-        end
-        for _, ability in ipairs(abilities) do
-            children[#children+1] = gui.Panel{width = "100%", height = "auto", tmargin = 6, AbilityPanel(ability)}
+            Heading(T("herobuilder.kit.maneuver"))
+            Card(kit.kitManeuver)
         end
 
         return gui.Panel{width = "100%", height = "auto", flow = "vertical", children = children}

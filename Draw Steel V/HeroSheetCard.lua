@@ -2277,6 +2277,17 @@ local function Counters()
             height = "auto",
             flow = "horizontal",
             valign = "center",
+            --the Victory icon the character panel uses, sized as the
+            --heroic resource's.
+            gui.Panel{
+                bgimage = "drawsteel/HeroicResources/T_UI_ICON_FLAT_HR_VICTORY.png",
+                bgcolor = "white",
+                width = 24,
+                height = 24,
+                valign = "center",
+                rmargin = 4,
+                linger = gui.Tooltip("Victories"),
+            },
             HeroSheetTheme.ClickNumber{
                 classes = {"heroSheetCardStrong"},
                 get = function()
@@ -2296,7 +2307,6 @@ local function Counters()
                 fontSize = 22,
                 tooltip = "Victories",
             },
-            Text{classes = {"heroSheetCardSub"}, text = "Victories", fontSize = 13, valign = "center", lmargin = 4},
         }
         --the heroic resource with the class's own icon; below 0 where the
         --class allows it.

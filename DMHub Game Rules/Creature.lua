@@ -11221,6 +11221,37 @@ function creature:EndTurn(token)
 	end
 	self:CheckAuraExpiration("endturn")
 
+	--Effects flagged removeAtAnyTurnEnd (per-turn usage markers) clear from every
+	--creature whenever anyone ends a turn.
+	for _,otherToken in ipairs(dmhub.allTokens) do
+		local props = otherToken.properties
+		if props ~= nil and props:has_key("ongoingEffects") then
+			local anyFlagged = false
+			for _,effectInstance in ipairs(props.ongoingEffects) do
+				if effectInstance.removeAtAnyTurnEnd then
+					anyFlagged = true
+					break
+				end
+			end
+
+			if anyFlagged then
+				otherToken:ModifyProperties{
+					description = "Remove ongoing effects",
+					undoable = false,
+					execute = function()
+						local kept = {}
+						for _,effectInstance in ipairs(props.ongoingEffects) do
+							if not effectInstance.removeAtAnyTurnEnd then
+								kept[#kept+1] = effectInstance
+							end
+						end
+						props.ongoingEffects = kept
+					end,
+				}
+			end
+		end
+	end
+
 	--Same as the start of the turn: a dead caster's auras expire on the initiative it
 	--acted on, which for a summon is its summoner's.
 	Aura.ExpireOrphanedTurnScopedAurasOnTurn(InitiativeQueue.GetInitiativeId(token), "endturn")

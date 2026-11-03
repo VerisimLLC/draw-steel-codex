@@ -77,6 +77,10 @@ CharacterOngoingEffect.durationOptions = {
 		text = 'Until End of Turn',
 	},
 	{
+		id = 'end_of_any_turn',
+		text = 'Until Any Creature Ends Their Turn',
+	},
+	{
 		id = 'endround',
 		text = 'Until End of Round',
 	},
@@ -402,6 +406,8 @@ CharacterOngoingEffectInstance.removeOnLongRest = false
 CharacterOngoingEffectInstance.removeOnShortRest = false
 CharacterOngoingEffectInstance.removeAtNextTurnEnd = false
 CharacterOngoingEffectInstance.removeAtRoundEnd = false
+--Removed when ANY creature ends a turn (see creature:EndTurn), e.g. per-turn usage markers.
+CharacterOngoingEffectInstance.removeAtAnyTurnEnd = false
 CharacterOngoingEffectInstance.removeOnSave = false
 CharacterOngoingEffectInstance.removeOnEoE = false
 CharacterOngoingEffectInstance.removeOnEoEOrDying = false
@@ -438,6 +444,9 @@ function CharacterOngoingEffectInstance.Create(options)
 		--turn-end (see creature:EndTurn), so it expires at the end of their next turn.
 		options.duration = nil
 		options.removeAtNextTurnEnd = 2
+    elseif options.duration == "end_of_any_turn" then
+		options.duration = nil
+		options.removeAtAnyTurnEnd = true
     elseif options.duration == "endround" then
 		options.duration = nil
 		options.removeAtRoundEnd = true
@@ -499,6 +508,9 @@ function CharacterOngoingEffectInstance:Refresh(duration)
         elseif duration == "end_of_next_turn_from_turnstart" then
             self.duration = nil
             self.removeAtNextTurnEnd = 2
+        elseif duration == "end_of_any_turn" then
+            self.duration = nil
+            self.removeAtAnyTurnEnd = true
         elseif duration == "endround" then
             self.duration = nil
             self.removeAtRoundEnd = true

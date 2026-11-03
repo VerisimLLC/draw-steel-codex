@@ -248,24 +248,21 @@ function Actions.PutInStash(entry, count)
     if party == nil then
         return false
     end
-    local description = string.format("Put %s in the party stash", entry.name)
-    return AsOneUndo(function()
-        local taken = 0
-        local ok = HeroSheetWrite.Save{
-            description = description,
-            execute = function(hero)
-                taken = TakeOff(hero, entry, count or Actions.Count(entry), true)
-            end,
-        }
-        if not ok or taken <= 0 then
-            return false
-        end
-        party:BeginChanges()
-        party.properties:GiveItem(entry.itemid, taken)
-        party:CompleteChanges(description)
+    --one write to both sides, refused if another player changed either first.
+    local ok = HeroSheetWrite.SaveAtomic{
+        description = string.format("Put %s in the party stash", entry.name),
+        others = {party},
+        execute = function(hero)
+            local taken = TakeOff(hero, entry, count or Actions.Count(entry), true)
+            if taken > 0 then
+                party.properties:GiveItem(entry.itemid, taken)
+            end
+        end,
+    }
+    if ok then
         audio.FireSoundEvent("UI.Inv_Place")
-        return true
-    end)
+    end
+    return ok
 end
 
 --- Give some of a row to another token (a Hero, retainer or follower).
@@ -277,29 +274,40 @@ function Actions.GiveTo(entry, target, count)
     if target == nil or not target.valid then
         return false
     end
-    local description = string.format("Give %s", entry.name)
-    return AsOneUndo(function()
-        local taken = 0
-        local ok = SaveHolder(entry, description, function(holder)
-            taken = TakeOff(holder, entry, count, false)
-        end)
-        if not ok or taken <= 0 then
+    --one write to both sides, refused if another player changed either first.
+    --A stash row gives from the party's stash; the Hero is a holder anyway.
+    local party = nil
+    if entry.stash then
+        party = Actions.Party(HeroSheet.Token())
+        if party == nil then
             return false
         end
-        target:ModifyProperties{
-            description = description,
-            execute = function()
+    end
+    ---@type (CharacterToken|LuaPartyInfo)[]
+    local others = {target}
+    if party ~= nil then
+        others[#others+1] = party
+    end
+    local ok = HeroSheetWrite.SaveAtomic{
+        description = string.format("Give %s", entry.name),
+        others = others,
+        execute = function(hero)
+            local holder = party ~= nil and party.properties or hero
+            local taken = TakeOff(holder, entry, count, false)
+            if taken > 0 then
                 target.properties:GiveItem(entry.itemid, taken)
-            end,
-        }
+            end
+        end,
+    }
+    if ok then
         audio.FireSoundEvent("UI.Inv_Place")
-        return true
-    end)
+    end
+    return ok
 end
 
---- Take a stash item into the Hero's inventory, all of it. The stash is read
---- again at the click: if another player's Take has already arrived, nothing
---- moves and a toast says so. A slot that remembers the item equips it again.
+--- Take a stash item into the Hero's inventory, all of it. If another player
+--- takes it first (here, or in the same moment elsewhere), nothing moves and a
+--- toast says so. A slot that remembers the item equips it again.
 --- @param itemid string
 --- @return boolean
 function Actions.Take(itemid)
@@ -314,18 +322,21 @@ function Actions.Take(itemid)
         audio.FireSoundEvent("UI.Error_Generic")
         return false
     end
-    local description = string.format("Take %s from the party stash", item.name)
-    AsOneUndo(function()
-        party:BeginChanges()
-        party.properties:SetItemQuantity(itemid, 0)
-        party:CompleteChanges(description)
-        return HeroSheetWrite.Save{
-            description = description,
-            execute = function(hero)
-                hero:GiveItem(itemid, have)
-            end,
-        }
-    end)
+    local ok = HeroSheetWrite.SaveAtomic{
+        description = string.format("Take %s from the party stash", item.name),
+        others = {party},
+        refusedText = string.format("%s was already taken.", item.name),
+        execute = function(hero)
+            local count = party.properties:GetItemQuantity(itemid) or 0
+            if count > 0 then
+                party.properties:SetItemQuantity(itemid, 0)
+                hero:GiveItem(itemid, count)
+            end
+        end,
+    }
+    if not ok then
+        return false
+    end
     audio.FireSoundEvent("UI.Inv_Grab")
     --at Narrow the inventory is on the other tab: say where it went.
     if HeroSheet.Tier() == "narrow" then
@@ -343,27 +354,28 @@ function Actions.TakeAll()
     end
     local moving = {}
     for _, entry in ipairs(Actions.StashEntries(party)) do
-        moving[#moving+1] = {itemid = entry.itemid, quantity = entry.quantity}
+        moving[#moving+1] = entry.itemid
     end
     if #moving == 0 then
         return false
     end
-    local description = "Take all from the party stash"
-    AsOneUndo(function()
-        party:BeginChanges()
-        for _, move in ipairs(moving) do
-            party.properties:SetItemQuantity(move.itemid, 0)
-        end
-        party:CompleteChanges(description)
-        return HeroSheetWrite.Save{
-            description = description,
-            execute = function(hero)
-                for _, move in ipairs(moving) do
-                    hero:GiveItem(move.itemid, move.quantity)
+    local ok = HeroSheetWrite.SaveAtomic{
+        description = "Take all from the party stash",
+        others = {party},
+        refusedText = "Someone else took from the stash first. Nothing moved.",
+        execute = function(hero)
+            for _, itemid in ipairs(moving) do
+                local count = party.properties:GetItemQuantity(itemid) or 0
+                if count > 0 then
+                    party.properties:SetItemQuantity(itemid, 0)
+                    hero:GiveItem(itemid, count)
                 end
-            end,
-        }
-    end)
+            end
+        end,
+    }
+    if not ok then
+        return false
+    end
     audio.FireSoundEvent("UI.Inv_Grab")
     return true
 end

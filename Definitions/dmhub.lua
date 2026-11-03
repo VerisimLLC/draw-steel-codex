@@ -2103,6 +2103,10 @@ function dmhub.GetDiceStyling(diceset, colorStr) end
 --- @return string
 function dmhub.GetRawImageId(iconid) end
 
+--- Change the properties of several tokens and parties as one write that another client cannot race, such as moving items between a Hero and the party stash. execute changes the holders' properties in place, as in @see CharacterToken.ModifyProperties. Every holder's change is sent in one conditional write together with the values the change replaced: the game server applies all of it only if none of those values has changed meanwhile, otherwise none of it, and the local data is put back to the server's. onSuccess runs when the server accepts the change; onFail(error, step) when it refuses one, where error is "precondition" when another client changed the data first and step is "do", "undo" or "redo". Undo is refused the same way once someone has changed the data since. Firebase games apply the change without the check. Do not call ModifyProperties on the holders inside execute.
+--- @param options {holders: (CharacterToken|LuaPartyInfo)[], execute: (fun():nil), description: nil|string, undoable: nil|boolean, onSuccess: nil|(fun():nil), onFail: nil|(fun(error: string, step: string):nil)}
+function dmhub.AtomicChange(options) end
+
 --- When called, all network changes will be delayed until @see EndTransaction is called and then all changes will be made at once.
 function dmhub.BeginTransaction() end
 

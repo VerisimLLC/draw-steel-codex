@@ -109,6 +109,59 @@ function HeroSheetWrite.Save(args)
     return true
 end
 
+--- @class HeroSheetAtomicArgs
+--- @field description string
+--- @field others (CharacterToken|LuaPartyInfo)[] the other holders the change edits, such as the party stash
+--- @field execute fun(hero: creature, token: CharacterToken) edits the Hero and the others' properties in place
+--- @field refusedText nil|string the toast when another player changed the same items first
+
+--- Save a change that moves things between the open Hero and other holders
+--- (the party stash, another token) as one write that can't race another
+--- player's: if someone changed the same items first, the server refuses it,
+--- nothing moves, the sheet shows the server's values again and a toast says
+--- so. Undo is refused the same way once the items have moved since.
+--- Returns false when nothing was sent (no Hero, or view only).
+--- @param args HeroSheetAtomicArgs
+--- @return boolean
+function HeroSheetWrite.SaveAtomic(args)
+    if not HeroSheetWrite.CanWrite() then
+        audio.FireSoundEvent("UI.Error_Generic")
+        return false
+    end
+    local token = LiveToken() --[[@as CharacterToken]]
+    ---@type (CharacterToken|LuaPartyInfo)[]
+    local holders = {token}
+    for _, other in ipairs(args.others) do
+        holders[#holders+1] = other
+    end
+    dmhub.AtomicChange{
+        holders = holders,
+        description = args.description,
+        execute = function()
+            args.execute(token.properties, token)
+        end,
+        onFail = function(error, step)
+            if mod.unloaded then
+                return
+            end
+            print(string.format("HEROSHEET:: \"%s\" %s refused: %s", args.description, step, error))
+            local text = args.refusedText or "Someone else changed those items first. Nothing moved."
+            if step == "undo" then
+                text = "Can't undo: those items have changed since."
+            elseif step == "redo" then
+                text = "Can't redo: those items have changed since."
+            end
+            HeroSheetWindow.Toast(text)
+            audio.FireSoundEvent("UI.Error_Generic")
+            HeroSheetRefresh.Stale()
+        end,
+    }
+    HeroSheetRefresh.Stale()
+    HeroSheetRefresh.ExpectEcho()
+    HeroSheetWrite.Rebaseline()
+    return true
+end
+
 --- Save after a pause in typing. A newer call with the same key replaces the
 --- older one, so only the last value saves. Flush saves it at once.
 --- @param key string one per field, e.g. "notes:<section id>"

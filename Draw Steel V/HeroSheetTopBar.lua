@@ -319,7 +319,8 @@ local function Thumb(entry)
             if entry.kind == "hero" then
                 local state = HeroSheet.State()
                 if state == nil or state.tokenid ~= charid then
-                    HeroSheet.Open(live)
+                    --the other Hero opens on the tab showing now.
+                    HeroSheet.Open(live, state ~= nil and state.tab or nil)
                 end
             else
                 --a follower, companion or summon opens the classic character

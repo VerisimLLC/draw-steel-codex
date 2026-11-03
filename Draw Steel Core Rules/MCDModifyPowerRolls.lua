@@ -635,16 +635,17 @@ CharacterModifier.TypeInfo.power = {
             }
         end
 
-        --No activation formula: never ticked for the roller. If it is a paid spend that would
-        --otherwise apply to this roll (keywords, skills, affordable), flag it optIn so the roll
-        --dialog still lets the roller choose it under Strictly Enforce Rolls.
+        --No activation formula: never ticked for the roller. If it is a paid spend or a
+        --limited-use option (Barbed Tail's once per round) that would otherwise apply to this
+        --roll (keywords, skills, affordable, uses left), flag it optIn so the roll dialog
+        --still lets the roller choose it under Strictly Enforce Rolls.
         if activationCondition == false or activationCondition == "" then
             local probeOptions = shallow_copy_table(options)
             probeOptions.assumeActivated = true
             return {
                 result = false,
                 justification = {},
-                optIn = self:IsPaidSpend(creature) and CharacterModifier.TypeInfo.power.hintPowerRoll(self, creature, rollType, probeOptions).result == true,
+                optIn = (self:IsPaidSpend(creature) or self:IsUsageLimited()) and CharacterModifier.TypeInfo.power.hintPowerRoll(self, creature, rollType, probeOptions).result == true,
             }
         end
 

@@ -1123,7 +1123,7 @@ function GameHud.CreateEmbeddedRollDialog()
     --- @class EmbeddedRollModifierEntry
     --- @field modifier CharacterModifier
     --- @field context nil|table the modifier's GoblinScript context.
-    --- @field hint nil|{result: boolean|string, justification: string[], optIn: nil|boolean} some hints carry a string result (e.g. "true", a cover amount). optIn: an unticked paid spend the roller may choose (see the power modifier's hintPowerRoll).
+    --- @field hint nil|{result: boolean|string, justification: string[], optIn: nil|boolean} some hints carry a string result (e.g. "true", a cover amount). optIn: an unticked paid or limited-use option the roller may choose (see the power modifier's hintPowerRoll).
     --- @field override nil|boolean the user's explicit on/off choice.
     --- @field failsRequirement nil|boolean
     --- @field modFromTarget nil|boolean
@@ -4434,8 +4434,9 @@ function GameHud.CreateEmbeddedRollDialog()
                         --not offered at all. (The ones that did are still built,
                         --read-only, below.) A rollerDecides chip is the
                         --exception: only the roller can say whether it applies.
-                        --So is an opt-in spend the roller can afford (hint.optIn, e.g.
-                        --To the Uttermost End's extra Ferocity): paying is their choice.
+                        --So is an opt-in option the roller can afford (hint.optIn, e.g.
+                        --To the Uttermost End's extra Ferocity, Barbed Tail's once per
+                        --round): paying or spending the use is their choice.
                         local rollerChoice = mod.rollerDecides == true
                         if not rollerChoice and mod.hint ~= nil and mod.hint.optIn == true and creature ~= nil then
                             local maxCharges = mod.modifier:MaxAffordableCharges(creature, options.expectedCostOfCurrentCast)

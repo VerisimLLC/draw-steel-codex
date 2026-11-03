@@ -3853,6 +3853,14 @@ function CharacterModifier:IsPaidSpend(creature)
     return type(cost) == "number" and cost > 0
 end
 
+--- True when the modifier has a limited number of uses that refresh (once per round,
+--- per encounter, per victory, ...), e.g. Barbed Tail. Spending a use is the roller's choice.
+--- @return boolean
+function CharacterModifier:IsUsageLimited()
+    local refreshType = self:GetResourceRefreshType()
+    return refreshType ~= "none" and refreshType ~= "perspell"
+end
+
 --- How many times the creature can pay this modifier's cost (the most charges a "multicost"
 --- modifier can buy, e.g. To the Uttermost End's extra Ferocity), counting what the
 --- ability being cast has already committed to spend.
@@ -3860,11 +3868,16 @@ end
 --- @param expectedCostOfCurrentCast nil|table Resource id -> amount the ability itself costs.
 --- @return integer|nil nil when there is no positive cost to limit by.
 function CharacterModifier:MaxAffordableCharges(creature, expectedCostOfCurrentCast)
+    --resourceCostAmount defaults to "1" even on free modifiers (e.g. Barbed Tail), so
+    --check the cost type first or a free option reads as unaffordable.
+    local costType = self:try_get("resourceCostType", "none")
+    if costType == "none" then
+        return nil
+    end
     local costPerCharge = self:ResolveResourceCostAmount(creature)
     if type(costPerCharge) ~= "number" or costPerCharge <= 0 then
         return nil
     end
-    local costType = self:try_get("resourceCostType", "none")
     local available
     if costType == "surges" then
         available = creature:GetAvailableSurges()

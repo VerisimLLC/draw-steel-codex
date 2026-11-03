@@ -911,6 +911,24 @@ ThemeEngine.OnThemeChanged(mod, function()
     g_chrome.themed = list
 end)
 
+--- A caption control as map and scene windows draw them (WindowControl), for
+--- a window another module builds, so its title bar matches theirs. args:
+--- icon, click, hover, danger, width, iconSize. Its colours come from
+--- Tabletop.CaptionStyles on a panel around it.
+--- @param args table
+--- @return Panel
+function Tabletop.WindowControl(args)
+    return WindowControl(args)
+end
+
+--- The titlebar rules (caption controls included) resolved for the current
+--- colour scheme, without the base theme: for a title bar under a panel that
+--- already roots the theme. Read them again when the scheme changes.
+--- @return table[]
+function Tabletop.CaptionStyles()
+    return ThemeEngine.MergeTokens(g_titleStyles) or {}
+end
+
 --A horizontal white fade for a panel's gradient: alpha only, so the panel's
 --bgcolor (a themed colour, from its class) tints it.
 --- @param stops {position: number, alpha: string}[] alpha as two hex digits
@@ -2938,6 +2956,22 @@ end
 --and this file keeps minimized, iconX/iconY and button on it. Rects are
 --{x, y, w, h} in documents-layer units, origin top-left. Nothing here is
 --saved with the layout: the owner's window does not outlive the session.
+
+--- Windows another file owns, listed in the title bar's Windows menu after
+--- the table's own (Tabletop.WindowsMenuEntries). fn returns the rows:
+--- {text, open (checked while open and not minimized), activate, icon?,
+--- submenu? (a folder row: its own list of context menu entries), sortKey?
+--- (orders the section; the text otherwise)}. The same id replaces an
+--- earlier source.
+--- @type table<string, fun(): table[]>
+Tabletop.windowsMenuSources = Tabletop.windowsMenuSources or {}
+
+--- Add (or with nil, remove) a source of Windows menu rows.
+--- @param id string
+--- @param fn nil|fun(): table[]
+function Tabletop.RegisterWindowsMenuSource(id, fn)
+    Tabletop.windowsMenuSources[id] = fn
+end
 
 --- A panel's rectangle in documents-layer units, or nil.
 --- @param panel Panel
@@ -5062,6 +5096,12 @@ local function CardStyles()
             opacity = 1,
             transitionTime = 0.1,
         },
+        --the Hero sheet button stays up while the sheet is minimized into
+        --its card (Tabletop.MinimizeToCard), so the sheet can be found.
+        {
+            selectors = {"tabletopCardSheet", "pinned"},
+            opacity = 1,
+        },
         {
             selectors = {"tabletopCardSheet", "hover"},
             bgcolor = "@accent",
@@ -5141,6 +5181,10 @@ end
 Tabletop.CardFace = CardFace
 Tabletop.CardSize = CardSize
 Tabletop.CardStyles = CardStyles
+
+--The documents layer (where map, scene and journal windows sit), for windows
+--other files place there (the Hero sheet). Its size is Tabletop.LayerSize.
+Tabletop.DocumentsLayer = DocumentsLayer
 
 local CloseCard
 
@@ -5357,7 +5401,7 @@ function Tabletop.CardSheetButton(charid, args)
         --the press reaches the card, so hovering here keeps it hovered and a
         --drag from here still moves the card.
         swallowPress = false,
-        hover = gui.Tooltip("Open the character sheet"),
+        hover = gui.Tooltip("Open the Character panel"),
         click = function(element)
             audio.FireSoundEvent("Mouse.Click")
             local toggle = rawget(_G, "ToggleCharacterPanelDocument")
@@ -5378,11 +5422,81 @@ function Tabletop.CardSheetButton(charid, args)
     }
 end
 
---- @param button Panel
+--- @param button nil|Panel
 --- @param on boolean
 function Tabletop.ShowCardSheetButton(button, on)
     if button ~= nil and button.valid then
         button:SetClassTree("shown", on)
+    end
+end
+
+--Helpers for the Hero sheet's card button and for minimizing the sheet into
+--its Hero's card (a table, not locals: this file is at Lua's local limit).
+local g_heroCards = {}
+
+--- The button on a Hero's card for its Hero sheet (HeroSheet.lua), beside
+--- the Character panel button: it opens the sheet, brings a covered one to
+--- the front, and restores one minimized into this card. Shown like the
+--- Character panel button (Tabletop.ShowCardSheetButton), and kept up while
+--- the card holds the minimized sheet.
+--- @param charid string
+--- @param args nil|{x: nil|number, y: nil|number}
+--- @return Panel
+function Tabletop.CardHeroSheetButton(charid, args)
+    args = args or {}
+    local function Holds()
+        local card = CardById(charid)
+        return card ~= nil and card.holdsSheet == true
+    end
+    return gui.Panel{
+        classes = {"tabletopCardSheet", cond(Holds(), "pinned", nil)},
+        floating = true,
+        halign = "right",
+        valign = "top",
+        x = args.x or -32,
+        y = args.y or 6,
+        width = 22,
+        height = 22,
+        cornerRadius = 11,
+        bgimage = "panels/square.png",
+        swallowPress = false,
+        --resting on it warms the Hero's sheet so it opens quickly.
+        hover = function(element)
+            local heroSheet = rawget(_G, "HeroSheet")
+            if heroSheet ~= nil then
+                heroSheet.Warm(charid)
+            end
+        end,
+        linger = function(element)
+            gui.Tooltip(cond(Holds(), "Restore the Hero sheet", "Open the Hero sheet"))(element)
+        end,
+        click = function(element)
+            audio.FireSoundEvent("Mouse.Click")
+            local heroSheet = rawget(_G, "HeroSheet")
+            if heroSheet ~= nil then
+                heroSheet.CardButton(charid)
+            end
+        end,
+        gui.Panel{
+            classes = {"tabletopCardSheet", "tabletopCardSheetIcon"},
+            width = 14,
+            height = 14,
+            halign = "center",
+            valign = "center",
+            bgimage = "phosphor/file-text.png",
+            interactable = false,
+        },
+    }
+end
+
+--Marks a card as holding (or no longer holding) a minimized Hero sheet: its
+--Hero sheet button stays up while it does.
+--- @param card table
+--- @param holds boolean
+function g_heroCards.SetHoldsSheet(card, holds)
+    card.holdsSheet = holds or nil
+    if card.heroSheetButton ~= nil and card.heroSheetButton.valid then
+        card.heroSheetButton:SetClassTree("pinned", holds)
     end
 end
 
@@ -6041,8 +6155,17 @@ local function BuildCard(card)
     Tabletop.ShowCardSelected(card.selectRing, Tabletop.SelectedCharids()[card.charid] == true)
     face:AddChild(card.selectRing)
     card.sheetButton = Tabletop.CardSheetButton(card.charid)
+    card.heroSheetButton = nil
+    --a Hero the Hero sheet opens for gets its button on the card.
+    local heroSheet = rawget(_G, "HeroSheet")
+    if heroSheet ~= nil and heroSheet.Routes(tok) then
+        card.heroSheetButton = Tabletop.CardHeroSheetButton(card.charid)
+    end
 
     local children = {card.scaler, card.sheetButton, titlebar}
+    if card.heroSheetButton ~= nil then
+        children[#children+1] = card.heroSheetButton
+    end
     for _, grip in ipairs(card.grips) do
         children[#children+1] = grip
     end
@@ -6170,11 +6293,13 @@ local function BuildCard(card)
             card.cardHovered = true
             titlebar:SetClassTree("shown", true)
             Tabletop.ShowCardSheetButton(card.sheetButton, true)
+            Tabletop.ShowCardSheetButton(card.heroSheetButton, true)
         end,
         dehover = function(element)
             card.cardHovered = false
             titlebar:SetClassTree("shown", card.gripHovered == true)
             Tabletop.ShowCardSheetButton(card.sheetButton, false)
+            Tabletop.ShowCardSheetButton(card.heroSheetButton, false)
         end,
         rightClick = function(element)
             if dmhub.isDM then
@@ -6329,7 +6454,214 @@ function Tabletop.OpenCard(charid, options)
     end
 end
 
+--- The Hero sheet's colours for the stand-in that flies between it and its
+--- card (HeroSheetWindow passes them: this layer does not know the sheet).
+--- @class HeroSheetGhostLook
+--- @field bg string the window's backdrop
+--- @field bar string its title bar
+--- @field barHeight number the title bar's height on screen
+
+--How long the Hero sheet takes to grow out of its card or shrink into it.
+g_heroCards.ANIM_SECONDS = 0.24
+
+--- The Hero sheet flying out of its card (growing) or into it, then done().
+--- The stand-in has the sheet's shape and colours, with the Hero's portrait
+--- over it cropped to the stand-in's shape (never stretched); the portrait
+--- fades out early as the sheet grows and in late as it shrinks. Eases out:
+--- fast, then settles.
+--- @param charid string
+--- @param from {x: number, y: number, w: number, h: number}
+--- @param to {x: number, y: number, w: number, h: number}
+--- @param growing boolean
+--- @param look nil|HeroSheetGhostLook
+--- @param done fun()
+function g_heroCards.Animate(charid, from, to, growing, look, done)
+    local layer = g_buttonLayer
+    if layer == nil or not layer.valid then
+        done()
+        return
+    end
+    look = look or {bg = "#1b1814f2", bar = "#1b1814ff", barHeight = 30}
+    local portrait = nil
+    local tok = dmhub.GetCharacterById(charid)
+    if tok ~= nil then
+        pcall(function()
+            portrait = tok.portrait
+        end)
+    end
+    --the portrait's width over its height; it stays hidden until known, as
+    --it would draw stretched without it.
+    --- @type nil|number
+    local aspect = nil
+    --- @type nil|Panel
+    local picture = nil
+    if type(portrait) == "string" and portrait ~= "" then
+        picture = gui.Panel{
+            floating = true,
+            interactable = false,
+            width = "100%",
+            height = "100%",
+            bgimage = portrait,
+            bgcolor = "white",
+            opacity = 0,
+        }
+        gui.GetImageDimensionsCallback(portrait, function(dims)
+            if dims ~= nil and (dims.width or 0) > 0 and (dims.height or 0) > 0 then
+                aspect = dims.width / dims.height
+            end
+        end)
+    end
+    local bar = gui.Panel{
+        floating = true,
+        interactable = false,
+        valign = "top",
+        width = "100%",
+        height = look.barHeight,
+        bgimage = "panels/square.png",
+        bgcolor = look.bar,
+    }
+    local start = dmhub.Time()
+    local ghost = gui.Panel{
+        floating = true,
+        interactable = false,
+        halign = "left",
+        valign = "top",
+        x = from.x,
+        y = from.y,
+        width = from.w,
+        height = from.h,
+        bgimage = "panels/square.png",
+        bgcolor = look.bg,
+        --the sheet window's frame (HeroSheetWindow's heroSheetWindow rule).
+        borderWidth = 2,
+        borderColor = "#00000099",
+        children = {bar, picture},
+        thinkTime = 0.01,
+        think = function(element)
+            local progress = math.min(1, (dmhub.Time() - start) / g_heroCards.ANIM_SECONDS)
+            local eased = 1 - (1 - progress) ^ 3
+            local w = math.max(1, lerp(from.w, to.w, eased))
+            local h = math.max(1, lerp(from.h, to.h, eased))
+            element.x = lerp(from.x, to.x, eased)
+            element.y = lerp(from.y, to.y, eased)
+            element.selfStyle.width = w
+            element.selfStyle.height = h
+            --how much of the card still shows: the portrait over the sheet.
+            local cardness
+            if growing then
+                cardness = 1 - math.min(1, eased / 0.55)
+            else
+                cardness = math.max(0, (eased - 0.45) / 0.55)
+            end
+            bar.selfStyle.opacity = 1 - cardness
+            if picture ~= nil then
+                if aspect == nil then
+                    picture.selfStyle.opacity = 0
+                else
+                    --cover the stand-in, keeping the top (the face); imageRect
+                    --counts up from the bottom.
+                    local box = w / h
+                    local cropW, cropH = 1, 1
+                    if aspect > box then
+                        cropW = box / aspect
+                    else
+                        cropH = aspect / box
+                    end
+                    picture.selfStyle.imageRect = {x1 = (1 - cropW) / 2, y1 = 1 - cropH, x2 = (1 + cropW) / 2, y2 = 1}
+                    picture.selfStyle.opacity = cardness
+                end
+            end
+            if progress >= 1 then
+                element:DestroySelf()
+                done()
+            end
+        end,
+    }
+    layer:AddChild(ghost)
+end
+
+--A card's rect in documents-layer units, or nil when it is not on the table.
+--- @param card nil|table
+--- @return nil|{x: number, y: number, w: number, h: number}
+function g_heroCards.Rect(card)
+    if card == nil then
+        return nil
+    end
+    local w, h = ItemSize(card)
+    local scale = card.scale or 1
+    return {x = card.x, y = card.y, w = w * scale, h = h * scale}
+end
+
+--- Minimizes the Hero sheet window (HeroSheetWindow.lua) into its Hero's
+--- card: a ghost flies from `from` (the window's rect) to the card, which is
+--- put on the table where the window's middle was if it is not there already.
+--- The card stays on the table when the sheet is restored, so the next
+--- minimize flies to wherever the player moved it. False, with
+--- nothing done, when the table cannot take it. options: still() (false once
+--- the window is back: then no card is placed), onTakenOff() (the card left
+--- the table while holding it), look (the sheet's colours for the ghost).
+--- @param charid string
+--- @param from {x: number, y: number, w: number, h: number}
+--- @param options {still?: (fun(): boolean), onTakenOff?: fun(), look?: HeroSheetGhostLook}
+--- @return boolean
+function Tabletop.MinimizeToCard(charid, from, options)
+    if not Tabletop.IsActive() or DocumentsLayer() == nil or from == nil or dmhub.GetCharacterById(charid) == nil then
+        return false
+    end
+    local existing = CardById(charid)
+    local at = nil
+    local to = g_heroCards.Rect(existing)
+    if to == nil then
+        local cw, ch = CardSize()
+        at = {x = math.floor(from.x + from.w / 2 - cw / 2), y = math.floor(from.y + from.h / 2 - ch / 2)}
+        to = {x = at.x, y = at.y, w = cw, h = ch}
+    end
+    g_heroCards.Animate(charid, from, to, false, options.look, function()
+        if options.still ~= nil and not options.still() then
+            return
+        end
+        if CardById(charid) == nil then
+            Tabletop.OpenCard(charid, at)
+        end
+        local card = CardById(charid)
+        if card ~= nil then
+            card.standsFor = {onTakenOff = options.onTakenOff}
+            g_heroCards.SetHoldsSheet(card, true)
+        end
+    end)
+    return true
+end
+
+--- The Hero sheet minimized with MinimizeToCard comes back: a ghost flies
+--- from the card to `to`, then done(). The card stays on the table. With no
+--- `to`, the card just lets the sheet go (the sheet closed or moved on),
+--- with no ghost. look: the sheet's colours for the ghost.
+--- @param charid string
+--- @param to nil|{x: number, y: number, w: number, h: number}
+--- @param done fun()
+--- @param look nil|HeroSheetGhostLook
+function Tabletop.RestoreFromCard(charid, to, done, look)
+    local card = CardById(charid)
+    local from = g_heroCards.Rect(card)
+    if card ~= nil then
+        card.standsFor = nil
+        g_heroCards.SetHoldsSheet(card, false)
+    end
+    if from == nil or to == nil then
+        done()
+        return
+    end
+    g_heroCards.Animate(charid, from, to, true, look, done)
+end
+
 CloseCard = function(card)
+    --taken off the table while it held a minimized Hero sheet: the sheet
+    --closes with it (see Tabletop.MinimizeToCard).
+    local standsFor = card.standsFor
+    card.standsFor = nil
+    if standsFor ~= nil and standsFor.onTakenOff ~= nil then
+        standsFor.onTakenOff()
+    end
     if g_cardDrag ~= nil and g_cardDrag.card == card then
         DestroyCardGhost(g_cardDrag)
     end
@@ -10521,9 +10853,11 @@ g_sharing.DefineWindowsMenu = function()
         journal = "phosphor/book-open-text.png",
         doc = "phosphor/file-text.png",
         card = "phosphor/user.png",
+        --rows other files add (Tabletop.RegisterWindowsMenuSource).
+        other = "phosphor/file-text.png",
     }
     --the menu's sections, top to bottom; a divider goes between them.
-    local GROUP_ORDER = {"map", "scene", "journal", "doc", "card"}
+    local GROUP_ORDER = {"map", "scene", "journal", "doc", "card", "other"}
 
     local state = {signature = nil, nextCheck = 0}
 
@@ -10720,6 +11054,32 @@ g_sharing.DefineWindowsMenu = function()
                 Tabletop.OpenCard(charid)
             end)
         end
+        --windows other files own (the Hero sheet...), in their own section.
+        for id, source in pairs(Tabletop.windowsMenuSources) do
+            local ok, rows = pcall(source)
+            if ok and type(rows) == "table" then
+                for _, row in ipairs(rows) do
+                    Add("other", nil, row.text, row.open == true, row.activate or function() end)
+                    local added = groups.other[#groups.other]
+                    if row.icon ~= nil then
+                        added.icon = row.icon
+                    end
+                    --a folder row opens its own list instead of a window.
+                    if row.submenu ~= nil then
+                        local entries = {}
+                        for _, entry in ipairs(row.submenu) do
+                            entries[#entries+1] = GuardedEntry(entry.text, entry.click)
+                        end
+                        added.submenu = entries
+                        added.check = nil
+                        added.click = nil
+                    end
+                    added.sortKey = row.sortKey
+                end
+            elseif not ok then
+                dmhub.Error(string.format("Windows menu source %s failed: %s", tostring(id), tostring(rows)))
+            end
+        end
 
         --a player's: what the Director shares with them and has open, but
         --is not on their own table.
@@ -10737,9 +11097,10 @@ g_sharing.DefineWindowsMenu = function()
         for _, group in ipairs(GROUP_ORDER) do
             local list = groups[group]
             table.sort(list, function(a, b)
-                return string.lower(a.text or "") < string.lower(b.text or "")
+                return string.lower(a.sortKey or a.text or "") < string.lower(b.sortKey or b.text or "")
             end)
             for _, entry in ipairs(list) do
+                entry.sortKey = nil
                 result[#result+1] = entry
             end
         end

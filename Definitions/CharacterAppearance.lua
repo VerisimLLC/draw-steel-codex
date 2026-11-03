@@ -2,6 +2,7 @@
 
 --- @class CharacterAppearance
 --- @field effectiveTokenScaling number
+--- @field hasCardFraming boolean
 --- @field portraitId string
 --- @field offtokenPortraitId string
 --- @field portraitFrameId string
@@ -17,6 +18,10 @@
 --- @field frameSaturation number
 --- @field frameBrightness number
 --- @field popoutScale number
+--- @field cardZoom number
+--- @field cardOffsetX number
+--- @field cardOffsetY number
+--- @field popoutMode number
 --- @field characterName string
 --- @field characterNamePrivate boolean
 --- @field flip boolean
@@ -34,6 +39,12 @@ function CharacterAppearance:GetPortraitId() end
 --- GetOffTokenPortraitId
 --- @return string
 function CharacterAppearance:GetOffTokenPortraitId() end
+
+--- IsPopout
+--- @overload fun(mode?: number, portraitAsset?: GenericImageAsset): boolean
+--- @param portraitAsset? GenericImageAsset
+--- @return boolean
+function CharacterAppearance:IsPopout(portraitAsset) end
 
 --- Equals
 --- @param other? CharacterAppearance

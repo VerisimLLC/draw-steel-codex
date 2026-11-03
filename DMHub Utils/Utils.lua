@@ -156,6 +156,37 @@ function TokenControlledByUser(tok)
     return tok.canControl
 end
 
+--- The rect to cut a token's card art with, at a panel's aspect (width /
+--- height). Use it wherever card art shows: a look with its own card framing
+--- (the Hero sheet's Appearance tab) is cut by that; any other look gets the
+--- crop cut from its token framing. Engine builds without card framing read
+--- token.cardZoom as nil and get the token-framing crop.
+--- @param tok CharacterToken
+--- @param aspect number width / height
+--- @param portrait? string the picture to cut; defaults to the token's portrait
+--- @return Vector4
+function CardPortraitRect(tok, aspect, portrait)
+    if tok.cardZoom ~= nil then
+        return tok:GetCardRectForAspect(aspect, portrait)
+    end
+    return tok:GetPortraitRectForAspect(aspect, portrait)
+end
+
+--- A string that changes when a token's card art would cut differently: for
+--- redraw checks that skip work while nothing changed.
+--- @param tok CharacterToken
+--- @return string
+function CardPortraitSignature(tok)
+    local offset = tok.portraitOffset
+    local result = string.format("%s|%s|%s|%s,%s", tostring(tok.offTokenPortrait), tostring(tok.portrait),
+        tostring(tok.portraitZoom), tostring(offset and offset.x), tostring(offset and offset.y))
+    if tok.cardZoom ~= nil then
+        local card = tok.cardOffset
+        result = string.format("%s|%s|%s,%s", result, tostring(tok.cardZoom), tostring(card and card.x), tostring(card and card.y))
+    end
+    return result
+end
+
 -- The userid that should answer this token's prompts, or nil if this client should.
 -- Use this instead of tok.activeControllerId when routing prompts. They differ only for
 -- a party-owned follower (a retainer or mount): the engine leaves its prompts with

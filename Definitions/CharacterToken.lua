@@ -95,6 +95,10 @@
 --- @field hasSpineAnimation boolean True if this token currently has an active spine animation (i.e. its portraitid resolved to a spine registry entry and the spine renderer was instantiated).
 --- @field popoutPortrait boolean
 --- @field popoutScale number
+--- @field popoutMode number Whether this look's portrait pops out of the frame: 0 follows the image's library type (an AvatarPopout image pops out), 1 always pops out, 2 never does. popoutPortrait reports the result.
+--- @field hasCardFraming boolean (Read-only) True when this look has its own card framing (cardZoom above 0). Without one, GetCardRectForAspect falls back to the token framing.
+--- @field cardZoom number This look's card framing zoom, with the same meaning as portraitZoom. 0 means the look has no card framing; set it to 0 to clear one.
+--- @field cardOffset Vector2 This look's card framing offset, with the same meaning as portraitOffset. Only used while cardZoom is above 0.
 --- @field portraitBackground nil|string
 --- @field appearance CharacterAppearance (Read-only) Information about the character's appearance.
 --- @field wieldedObjectsOverride nil|{mainhand: nil|string, offhand: nil|string, belt: nil|string}
@@ -352,6 +356,12 @@ function CharacterToken:InvalidateObjects() end
 --- @return Vector4
 function CharacterToken:GetPortraitRectForAspect(aspect, portrait) end
 
+--- Like GetPortraitRectForAspect, but uses this look's card framing (cardZoom, cardOffset). A look with no card framing gets exactly what GetPortraitRectForAspect returns.
+--- @param aspect number
+--- @param portrait nil|string The image id of the portrait to fit. Defaults to the token's own portrait.
+--- @return Vector4
+function CharacterToken:GetCardRectForAspect(aspect, portrait) end
+
 --- Returns walk of swim depending on the type of movement the creature will have to move on the ground. preferWater is used if the token straddles water and land and chooses the preferred type for the token.
 --- @param preferWater boolean
 --- @return 'walk'|'swim'
@@ -395,7 +405,7 @@ function CharacterToken:IsAdjacentToWall() end
 --- @return any
 function CharacterToken:DistanceInFeet(otherTokenOrLoc) end
 
---- GetNearbyTokens
+--- The tokens within the radius of this token, measured in 3D: a creature far enough above or below is not nearby even when it stands over the same squares. A radius of 0 means sharing this token's space.
 --- @param radius number Radius in native units (default=one tile)
 --- @return CharacterToken[]
 function CharacterToken:GetNearbyTokens(radius) end

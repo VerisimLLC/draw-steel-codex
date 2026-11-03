@@ -843,8 +843,9 @@ local function LangIds(source)
     return source.langIds --[[@as string[] ]]
 end
 
---- Open New project on the open Hero, or Replace project on one of their
---- projects (no Custom tab; the main button reads Replace).
+--- Open New project for a Hero, or Replace project on one of the open Hero's
+--- projects (no Custom tab; the main button reads Replace). New project also
+--- opens from outside the sheet (the Respite) and saves to this Hero.
 --- @param token CharacterToken the Hero
 --- @param opts nil|{tab: nil|string, itemid: nil|string, projectId: nil|string} tab "activity" / "crafting" / "custom"; itemid picks a craftable item (the Inventory's craft link); projectId replaces that project
 function HeroSheetDowntimeWindows.NewProject(token, opts)
@@ -1573,26 +1574,47 @@ function HeroSheetDowntimeWindows.NewProject(token, opts)
                 langIds = typed.langIds or {},
             }
         end
-        local saved = HeroSheetWrite.Save{
-            description = "Start downtime project",
-            execute = function(props)
-                local info = HeroSheetDowntimeWindows.InfoForWrite(props)
-                if info ~= nil then
-                    DTProjectEditor.StartProject(info, token.charid, {
-                        projectId = projectId,
-                        sourceType = sourceType,
-                        selectedId = source ~= nil and source.id or nil,
-                        name = name,
-                        custom = custom,
-                    })
-                end
-            end,
-        }
+        --- @param props creature the live Hero
+        local function Start(props)
+            local info = HeroSheetDowntimeWindows.InfoForWrite(props)
+            if info ~= nil then
+                DTProjectEditor.StartProject(info, token.charid, {
+                    projectId = projectId,
+                    sourceType = sourceType,
+                    selectedId = source ~= nil and source.id or nil,
+                    name = name,
+                    custom = custom,
+                })
+            end
+        end
+        --the sheet showing this Hero saves through it; opened anywhere else (the Respite), the Hero is written directly.
+        local onSheet = HeroSheet.IsShowing(token.charid)
+        local saved = false
+        if onSheet then
+            saved = HeroSheetWrite.Save{
+                description = "Start downtime project",
+                execute = Start,
+            }
+        elseif CharacterPanel.TokenAccessLevel(token) == "edit" then
+            local charid = token.charid
+            token:ModifyProperties{
+                description = "Start downtime project",
+                execute = function()
+                    local live = dmhub.GetCharacterById(charid) or token
+                    Start(live.properties)
+                end,
+            }
+            saved = true
+        else
+            audio.FireSoundEvent("UI.Error_Generic")
+        end
         if not saved then
             return false
         end
         HeroSheetDowntimeWindows.WakeWatchers()
-        HeroSheetDowntime.Select(projectId)
+        if onSheet then
+            HeroSheetDowntime.Select(projectId)
+        end
         local title = cond(sourceType == "custom", name, source ~= nil and source.name or "")
         HeroSheetWindow.Toast(string.format("%s started.", title) .. cond(waits, " It waits for the Director before the first roll.", ""))
     end

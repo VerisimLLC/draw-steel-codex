@@ -1508,6 +1508,10 @@ function HeroSheet.OpenFromHarness(token, tabid)
     --that the sheet already closed; the window fires it when it really does.
     --Handlers run newest first and true swallows the event, so one
     --registered just before the close sees it first.
+    --This is not reliable: the harness hides itself as soon as its panel
+    --collapses (its Update), often before this runs at high frame rates,
+    --and fires the event unswallowed. Listeners must therefore ignore
+    --characterSheetClosed while HeroSheet.IsShowing(their Hero) (VQJFWPK4).
     dmhub.Schedule(0.01, function()
         if mod.unloaded or not dmhub.inCharacterSheet then
             return

@@ -1110,6 +1110,13 @@ local function EditHero(element, character, onClosed)
 
     local handler
     handler = dmhub.RegisterEventHandler("characterSheetClosed", function()
+        --Heroes open in the Hero sheet window, and the old sheet closes itself
+        --(firing this event) as it hands over. Wait for the window to close.
+        local heroSheet = rawget(_G, "HeroSheet")
+        if heroSheet ~= nil and heroSheet.IsShowing(character.charid) then
+            return false
+        end
+
         g_titlescreen:SetClass("titlescreenHidden", false)
         dmhub.DeregisterEventHandler(handler)
         print("TITLESCREEN:: SHOW")

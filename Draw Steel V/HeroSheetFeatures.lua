@@ -578,7 +578,15 @@ local function AddTitles(ctx)
             local todo, benefits = TitleBenefits(entry.name)
             local names = {}
             local text = OwnText(entry)
+            local abilities = {}
+            local grants = {}
             for _, benefit in ipairs(benefits) do
+                for _, ability in ipairs(GrantedAbilities(benefit)) do
+                    abilities[#abilities+1] = ability
+                end
+                for _, grant in ipairs(Grants(benefit)) do
+                    grants[#grants+1] = grant
+                end
                 local benefitName = nil
                 pcall(function() benefitName = benefit.name end)
                 if benefitName ~= nil and benefitName ~= entry.name then
@@ -599,10 +607,10 @@ local function AddTitles(ctx)
                 pillars = {},
                 core = false,
                 custom = false,
-                abilities = {},
+                abilities = abilities,
                 search = "",
                 feature = entry.feature,
-                grants = {},
+                grants = grants,
             })
         end
     end

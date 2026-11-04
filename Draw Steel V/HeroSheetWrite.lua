@@ -209,20 +209,21 @@ function HeroSheetWrite.HasPending()
     return next(g_pending) ~= nil
 end
 
---The top-level fields where two JSON snapshots of a Hero differ.
+--The top-level fields where two JSON snapshots of a Hero differ, or nil when
+--either snapshot cannot be decoded.
 --- @param before string
 --- @param after string
---- @return string[]
+--- @return nil|string[]
 local function ChangedFields(before, after)
     --FromJson answers {success = ..., result = <the value>}.
     local beforeHero = dmhub.FromJson(before)
     local afterHero = dmhub.FromJson(after)
     beforeHero = type(beforeHero) == "table" and beforeHero.result or nil
     afterHero = type(afterHero) == "table" and afterHero.result or nil
-    local changed = {}
     if type(beforeHero) ~= "table" or type(afterHero) ~= "table" then
-        return changed
+        return nil
     end
+    local changed = {}
     --the decoded Hero is a typed object, which errors on reading a field it
     --does not have, so fields of one side are read from the other with pcall.
     local function Field(tbl, key)
@@ -258,8 +259,14 @@ function HeroSheetWrite.CheckUnsent()
     local now = dmhub.ToJson(token.properties)
     if now ~= g_baseline then
         local fields = ChangedFields(g_baseline, now)
+        --The first open of a Hero in a session rebuilds its properties, which
+        --writes the same fields in another order: no field differs, so no log.
+        if fields ~= nil and #fields == 0 then
+            return
+        end
+        local named = fields ~= nil and table.concat(fields, ", ") or "(fields unknown)"
         print(string.format("HEROSHEET:: UNSENT CHANGES on %s (%s): %s -- a write outside HeroSheetWrite.Save; it is lost on reload.",
-            tostring(token.name), token.charid, table.concat(fields, ", ")))
+            tostring(token.name), token.charid, named))
     end
 end
 

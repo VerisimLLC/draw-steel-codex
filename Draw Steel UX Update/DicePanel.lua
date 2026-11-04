@@ -13,11 +13,32 @@ end
 
 local CreateDicePanel
 
--- Content height of the panel: the dice strip, a hairline, and the last-roll line. The panel
--- is pinned to it (min == max) so the window never shows empty space under the dice.
+-- Content height of the panel: the dice strip, the power roll tray, a hairline, and the
+-- last-roll line. The panel is pinned to it (min == max) so the window never shows empty
+-- space under the dice.
 local STRIP_HEIGHT = 96
+-- The power roll tray: a notch pointing up at the Power Roll tile, the tray box, a gap.
+local TRAY_NOTCH = 6
+local TRAY_HEIGHT = 32
+local TRAY_AREA_HEIGHT = TRAY_NOTCH + TRAY_HEIGHT + 8
 local READOUT_HEIGHT = 30
-local PANEL_HEIGHT = STRIP_HEIGHT + 1 + READOUT_HEIGHT
+local PANEL_HEIGHT = STRIP_HEIGHT + TRAY_AREA_HEIGHT + 1 + READOUT_HEIGHT
+
+-- The edge/bane choices in the power roll tray, worst to best. value is the net edges
+-- (negative = banes); the engine applies them from the roll text ("2d10 1 edge").
+local POWER_EDGE_OPTIONS = {
+	{ value = -2, kind = "bane", name = "Double bane", icon = "phosphor/caret-double-down-bold.png", tooltip = "Double bane: the result drops one tier" },
+	{ value = -1, kind = "bane", name = "Bane", icon = "phosphor/caret-down-bold.png", tooltip = "Bane: -2 to the power roll" },
+	{ value = 0, kind = "none", name = nil, icon = "phosphor/dot-bold.png", tooltip = "No edge or bane" },
+	{ value = 1, kind = "edge", name = "Edge", icon = "phosphor/caret-up-bold.png", tooltip = "Edge: +2 to the power roll" },
+	{ value = 2, kind = "edge", name = "Double edge", icon = "phosphor/caret-double-up-bold.png", tooltip = "Double edge: the result rises one tier" },
+}
+local POWER_BONUS_MIN = -5
+local POWER_BONUS_MAX = 5
+
+-- Edges in the tray use the hero blue of the initiative bar (MCDMInitiativeBar.lua). It is a
+-- fixed game color, not a theme token, so it stays the same in every color scheme.
+local HERO_BLUE = "#1194FF"
 
 DockablePanel.Register{
 	name = "Dice",
@@ -88,12 +109,172 @@ local function BuildDicePanelStyles()
 			classes = {"diceTierPip", "lit"},
 			bgcolor = "@fgStrong",
 		},
+
+		-- Power roll tray: a recessed box under the dice whose notch points at the Power Roll.
+		{
+			classes = {"diceTray"},
+			bgcolor = "@bgAlt",
+			borderColor = "@borderSolid",
+			borderWidth = 1,
+			cornerRadius = 6,
+		},
+		{
+			classes = {"diceTrayNotch"},
+			bgcolor = "@bgAlt",
+			borderColor = "@borderSolid",
+			borderWidth = 1,
+		},
+		-- Covers the notch's lower half and the tray's top edge under it, so the notch reads
+		-- as part of the tray rather than a diamond sitting on a line.
+		{
+			classes = {"diceTrayNotchPatch"},
+			bgcolor = "@bgAlt",
+		},
+
+		-- Segmented controls in the tray: the bonus stepper and the edge/bane picker.
+		{
+			classes = {"diceSeg"},
+			bgcolor = "@bg",
+			borderColor = "@borderSolid",
+			borderWidth = 1,
+			cornerRadius = 4,
+		},
+		{
+			classes = {"diceSegSeam"},
+			bgcolor = "@borderSolid",
+		},
+		{
+			classes = {"diceSegBtn"},
+			bgcolor = "clear",
+		},
+		{
+			classes = {"diceSegBtn", "hover"},
+			bgcolor = "@border",
+		},
+		{
+			classes = {"diceSegBtn", "selected"},
+			bgcolor = "@border",
+			priority = 5,
+		},
+		{
+			classes = {"diceSegBtn", "edge", "selected"},
+			bgcolor = HERO_BLUE,
+			priority = 6,
+		},
+		{
+			classes = {"diceSegBtn", "bane", "selected"},
+			bgcolor = "@danger",
+			priority = 6,
+		},
+		{
+			classes = {"diceSegIcon"},
+			bgcolor = "@fgMuted",
+		},
+		{
+			selectors = {"diceSegIcon", "parent:hover"},
+			bgcolor = "@fgStrong",
+		},
+		{
+			selectors = {"diceSegIcon", "parent:selected"},
+			bgcolor = "@fgStrong",
+			priority = 5,
+		},
+		-- White on hero blue, like the initiative bar's text on it.
+		{
+			selectors = {"diceSegIcon", "parent:selected", "parent:edge"},
+			bgcolor = "#FFFFFF",
+			priority = 6,
+		},
+		{
+			selectors = {"diceSegIcon", "parent:selected", "parent:bane"},
+			bgcolor = "@bg",
+			priority = 6,
+		},
+
+		-- The bonus number: muted at 0, hero blue when it helps, red when it hurts.
+		{
+			classes = {"diceBonusValue", "zero"},
+			color = "@fgMuted",
+		},
+		{
+			classes = {"diceBonusValue", "pos"},
+			color = HERO_BLUE,
+		},
+		{
+			classes = {"diceBonusValue", "neg"},
+			color = "@danger",
+		},
+
+		-- Summary chip at the tray's right end ("+3 . Edge"); clicking it clears the tray.
+		{
+			classes = {"diceChip"},
+			bgcolor = "@bg",
+			borderColor = "@borderSolid",
+			borderWidth = 1,
+			cornerRadius = 10,
+		},
+		{
+			classes = {"diceChip", "edge"},
+			borderColor = HERO_BLUE,
+		},
+		{
+			classes = {"diceChip", "bane"},
+			borderColor = "@danger",
+		},
+		{
+			selectors = {"diceChipText", "parent:edge"},
+			color = HERO_BLUE,
+		},
+		{
+			selectors = {"diceChipText", "parent:bane"},
+			color = "@danger",
+		},
+		{
+			classes = {"diceChipClear"},
+			bgcolor = "@fgMuted",
+		},
+		{
+			selectors = {"diceChipClear", "parent:hover"},
+			bgcolor = "@fgStrong",
+		},
 	}
 end
 
 CreateDicePanel = function()
 
 	local amendableRoll = nil
+
+	-- The panel root; forward-declared so the tray can tell the dice its settings changed.
+	local resultPanel
+
+	-- Power roll tray state, kept until the user changes or clears it. powerEdge is the net
+	-- edges: 1/2 = edge/double edge, -1/-2 = bane/double bane.
+	local powerBonus = 0
+	local powerEdge = 0
+
+	local function PowerModsActive()
+		return powerBonus ~= 0 or powerEdge ~= 0
+	end
+
+	-- The Power Roll as roll text, e.g. "2d10+3 1 edge". The engine adds +2/-2 for a single
+	-- edge/bane, and RollUtils.DiceResultToTier shifts the tier for a double.
+	local function PowerRollText()
+		local text = "2d10"
+		if powerBonus > 0 then
+			text = string.format("%s+%d", text, powerBonus)
+		elseif powerBonus < 0 then
+			text = string.format("%s-%d", text, -powerBonus)
+		end
+		if powerEdge ~= 0 then
+			local count = math.abs(powerEdge)
+			local word = cond(powerEdge > 0, "edge", "bane")
+			if count > 1 then
+				word = word .. "s"
+			end
+			text = string.format("%s %d %s", text, count, word)
+		end
+		return text
+	end
 
 	-- The last-roll line under the strip. Forward-declared so every die tile can report its
 	-- finished roll to it (kind is "power", "d3", "d6", "d10" or "custom" for a mixed roll).
@@ -158,6 +339,19 @@ CreateDicePanel = function()
 			selectedGeo = "power"
 		end
 
+		-- Fills in the dice for a fresh roll from this tile. The Power Roll carries the
+		-- tray's bonus and edge/bane as roll text; untouched, every tile rolls plain dice.
+		local function WithDice(args)
+			if selectedKind == "power" and PowerModsActive() then
+				args.roll = PowerRollText()
+			else
+				args.numDice = selectedNum
+				args.numFaces = selectedFaces
+				args.numKeep = 0
+			end
+			return args
+		end
+
 		-- 3D mode: replace the static #DiceIcon tile with a LIVE cage, like the shop's "try dice"
 		-- (see MakeTryDiceCage in CodexShopScreen.lua). A real die, numbers showing, rests on the tile,
 		-- spins on hover, and rolls seamlessly on click/drag as a real (chat, networked) roll. The
@@ -187,7 +381,9 @@ CreateDicePanel = function()
 				bgimage = true,
 				bgcolor = "white",
 				styles = { gui.Style{ opacity = 0 } },
-				data = { reseedPending = false },
+				-- thrown: the resting die was clicked or dragged and its roll is under way, so
+				-- it must not be re-seeded until that roll finishes (or the throw cancels).
+				data = { reseedPending = false, thrown = false },
 
 				create = function(element)
 					--the cage (see the cast after its constructor).
@@ -251,10 +447,10 @@ CreateDicePanel = function()
 						return
 					end
 					element.data.reseedPending = false
+					element.data.thrown = false
 					pcall(function() element:CancelDicePreviewRoll() end)
-					dmhub.Roll{
+					dmhub.Roll(WithDice{
 						preview = true, previewPanel = element, hideNumbers = false,
-						numDice = selectedNum, numFaces = selectedFaces, numKeep = 0,
 						description = "Custom Roll",
 						complete = function(rollInfo)
 							recordRoll(selectedKind, rollInfo)
@@ -263,7 +459,16 @@ CreateDicePanel = function()
 						cancel = function()
 							if element.valid then element:FireEvent("requestReseed") end
 						end,
-					}
+					})
+				end,
+
+				-- The tray changed. The resting Power Roll die captured its roll text when it
+				-- was seeded, so re-seed it now; a die already thrown re-seeds when it lands.
+				powerModsChanged = function(element)
+					if selectedKind ~= "power" or element.data.thrown then
+						return
+					end
+					element:FireEvent("seedDie")
 				end,
 
 				requestReseed = function(element)
@@ -301,12 +506,15 @@ CreateDicePanel = function()
 					pcall(function() cage:DicePreviewMouseLeave() end)
 				end,
 				dragging = function(element)
+					cage.data.thrown = true
 					pcall(function() cage:DicePreviewDragThink() end)
 				end,
 				drag = function(element)
+					cage.data.thrown = true
 					pcall(function() cage:DicePreviewDragEnd() end)
 				end,
 				click = function(element)
+					cage.data.thrown = true
 					pcall(function() cage:DicePreviewClick() end)
 				end,
 			}
@@ -361,14 +569,11 @@ CreateDicePanel = function()
             dragMove = false,
             draggable = true,
             beginDrag = function(self)
-                dmhub.Roll{
+                dmhub.Roll(WithDice{
                     drag = true,
-                    numDice = selectedNum,
-                    numFaces = selectedFaces,
-					numKeep = 0,
                     description = "Custom Roll",
 					complete = onComplete(selectedKind),
-                }
+                })
             end,
 
 			click = function(panel)
@@ -387,14 +592,11 @@ CreateDicePanel = function()
 
 
 				printf("Roll: rolling with numDice = 1; numFaces = %d", math.tointeger(faces))
-                amendableRoll = dmhub.Roll{
-                    numDice = selectedNum,
-                    numFaces = selectedFaces,
-					numKeep = 0,
+                amendableRoll = dmhub.Roll(WithDice{
                     description = "Custom Roll",
 					amendable = true,
 					complete = onComplete(selectedKind),
-                }
+                })
             end,
 		}
 
@@ -465,6 +667,235 @@ CreateDicePanel = function()
 			valign = "center",
 		}
 	end
+
+	----------------------------------------------------------------
+	-- Power roll tray: bonus stepper, edge/bane picker, summary chip
+	----------------------------------------------------------------
+
+	local RefreshTray
+
+	local function SegSeam()
+		return gui.Panel{
+			classes = {"diceSegSeam"},
+			bgimage = true,
+			width = 1,
+			height = "100%",
+		}
+	end
+
+	-- One square button of a segmented control: an icon, a tooltip, a click.
+	local function SegButton(icon, tooltip, onClick, kind)
+		return gui.Panel{
+			classes = {"diceSegBtn", kind},
+			bgimage = true,
+			width = 24,
+			height = "100%",
+			hover = gui.Tooltip(tooltip),
+			click = onClick,
+			gui.Panel{
+				classes = {"diceSegIcon"},
+				bgimage = icon,
+				interactable = false,
+				width = 12,
+				height = 12,
+				halign = "center",
+				valign = "center",
+			},
+		}
+	end
+
+	local function SetPowerBonus(value)
+		powerBonus = math.max(POWER_BONUS_MIN, math.min(POWER_BONUS_MAX, value))
+		RefreshTray()
+	end
+
+	local bonusValueLabel = gui.Label{
+		classes = {"label", "sizeS", "diceBonusValue", "zero"},
+		interactable = false,
+		width = 28,
+		height = "100%",
+		textAlignment = "center",
+		valign = "center",
+		text = "0",
+	}
+
+	local bonusGroup = gui.Panel{
+		classes = {"diceSeg"},
+		bgimage = true,
+		flow = "horizontal",
+		width = "auto",
+		height = 24,
+		halign = "left",
+		valign = "center",
+		rmargin = 6,
+		SegButton("phosphor/minus-bold.png", "Lower the power roll bonus", function() SetPowerBonus(powerBonus - 1) end, "none"),
+		SegSeam(),
+		bonusValueLabel,
+		SegSeam(),
+		SegButton("phosphor/plus-bold.png", "Raise the power roll bonus (up to +5)", function() SetPowerBonus(powerBonus + 1) end, "none"),
+	}
+
+	local edgeButtons = {}
+	local edgeChildren = {}
+	for i, option in ipairs(POWER_EDGE_OPTIONS) do
+		if i > 1 then
+			edgeChildren[#edgeChildren+1] = SegSeam()
+		end
+		local button = SegButton(option.icon, option.tooltip, function()
+			powerEdge = option.value
+			RefreshTray()
+		end, option.kind)
+		edgeButtons[#edgeButtons+1] = { button = button, value = option.value }
+		edgeChildren[#edgeChildren+1] = button
+	end
+
+	local edgeGroup = gui.Panel{
+		classes = {"diceSeg"},
+		bgimage = true,
+		flow = "horizontal",
+		width = "auto",
+		height = 24,
+		halign = "left",
+		valign = "center",
+		children = edgeChildren,
+	}
+
+	local chipLabel = gui.Label{
+		classes = {"label", "sizeXs", "diceChipText"},
+		interactable = false,
+		width = "auto",
+		height = "auto",
+		valign = "center",
+		lmargin = 8,
+		text = "",
+	}
+
+	-- Shown only while something is set; one click puts the Power Roll back to plain 2d10.
+	local chipPanel = gui.Panel{
+		classes = {"diceChip", "collapsed"},
+		bgimage = true,
+		flow = "horizontal",
+		width = "auto",
+		height = 20,
+		halign = "right",
+		valign = "center",
+		hover = gui.Tooltip("Clear the bonus and edge or bane"),
+		click = function(element)
+			powerBonus = 0
+			powerEdge = 0
+			RefreshTray()
+		end,
+		chipLabel,
+		gui.Panel{
+			classes = {"diceChipClear"},
+			bgimage = "phosphor/x-bold.png",
+			interactable = false,
+			width = 9,
+			height = 9,
+			valign = "center",
+			lmargin = 5,
+			rmargin = 7,
+		},
+	}
+
+	RefreshTray = function()
+		local bonusText = tostring(powerBonus)
+		if powerBonus > 0 then
+			bonusText = "+" .. bonusText
+		end
+		bonusValueLabel.text = bonusText
+		bonusValueLabel:SetClass("zero", powerBonus == 0)
+		bonusValueLabel:SetClass("pos", powerBonus > 0)
+		bonusValueLabel:SetClass("neg", powerBonus < 0)
+
+		local edgeName = nil
+		for _, entry in ipairs(edgeButtons) do
+			entry.button:SetClass("selected", entry.value == powerEdge)
+		end
+		for _, option in ipairs(POWER_EDGE_OPTIONS) do
+			if option.value == powerEdge then
+				edgeName = option.name
+			end
+		end
+
+		local parts = {}
+		if powerBonus ~= 0 then
+			parts[#parts+1] = bonusText
+		end
+		if edgeName ~= nil then
+			parts[#parts+1] = edgeName
+		end
+		-- "\u{B7}" is a middle dot; written as an escape because Lua source must stay ASCII.
+		chipLabel.text = table.concat(parts, " \u{B7} ")
+		chipPanel:SetClass("collapsed", #parts == 0)
+		chipPanel:SetClass("edge", powerEdge > 0)
+		chipPanel:SetClass("bane", powerEdge < 0)
+
+		if resultPanel ~= nil and resultPanel.valid then
+			resultPanel:FireEventTree("powerModsChanged")
+		end
+	end
+
+	-- The tray area spans the panel so the notch holder's "34%-1" matches the Power Roll
+	-- tile above it. Children overlap (flow none): tray box, notch, then the patch on top.
+	local trayArea = gui.Panel{
+		width = "100%",
+		height = TRAY_AREA_HEIGHT,
+		flow = "none",
+
+		gui.Panel{
+			classes = {"diceTray"},
+			bgimage = true,
+			flow = "horizontal",
+			width = "100%-24",
+			height = TRAY_HEIGHT,
+			halign = "center",
+			valign = "top",
+			tmargin = TRAY_NOTCH,
+			hpad = 6,
+			borderBox = true,
+			bonusGroup,
+			edgeGroup,
+			chipPanel,
+		},
+
+		gui.Panel{
+			interactable = false,
+			width = "34%-1",
+			height = TRAY_NOTCH * 2,
+			halign = "left",
+			valign = "top",
+			gui.Panel{
+				classes = {"diceTrayNotch"},
+				bgimage = true,
+				interactable = false,
+				width = 10,
+				height = 10,
+				rotate = 45,
+				halign = "center",
+				valign = "center",
+			},
+		},
+
+		gui.Panel{
+			interactable = false,
+			width = "34%-1",
+			height = TRAY_NOTCH + 8,
+			halign = "left",
+			valign = "top",
+			gui.Panel{
+				classes = {"diceTrayNotchPatch"},
+				bgimage = true,
+				interactable = false,
+				width = 16,
+				height = 8,
+				halign = "center",
+				valign = "bottom",
+			},
+		},
+	}
+
+	RefreshTray()
 
 	-- Tier pips for a Power Roll result; "lit" is toggled by showRoll.
 	local tierPips = {}
@@ -551,10 +982,12 @@ CreateDicePanel = function()
 		-- Swap the hint for the result of the roll that just finished.
 		showRoll = function(element, kind, rollInfo)
 			local faces = {}
+			local diceSum = 0
 			pcall(function()
 				for _, r in ipairs(rollInfo.rolls or {}) do
 					if not r.dropped then
 						faces[#faces+1] = tostring(r.result)
+						diceSum = diceSum + (tonumber(r.result) or 0)
 					end
 				end
 			end)
@@ -584,14 +1017,20 @@ CreateDicePanel = function()
 			end
 
 			if kind == "power" or kind == "custom" then
-				detailLabel.text = table.concat(faces, " + ")
+				-- A tray bonus or single edge/bane makes the total differ from the dice;
+				-- show the difference so the total adds up ("7 + 4 + 5").
+				local detail = table.concat(faces, " + ")
+				local extra = (tonumber(total) or diceSum) - diceSum
+				if kind == "power" and extra ~= 0 and #faces > 0 then
+					detail = string.format("%s %s %d", detail, cond(extra > 0, "+", "-"), math.tointeger(math.abs(extra)) or math.abs(extra))
+				end
+				detailLabel.text = detail
 			else
 				detailLabel.text = kind
 			end
 		end,
 	}
 
-    local resultPanel
 	resultPanel = gui.Panel{
 
 		width = "100%",
@@ -701,6 +1140,8 @@ CreateDicePanel = function()
 				end,
 			}
 		},
+
+		trayArea,
 
 		gui.Panel{
 			classes = {"diceSeam"},

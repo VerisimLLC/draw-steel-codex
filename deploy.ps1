@@ -24,22 +24,35 @@ $ErrorActionPreference = "Stop"
 
 $repo = $PSScriptRoot
 
-# Resolve the app's git folder from its settings; fall back to the known default.
+# Resolve the app's git folder the way the engine does (CodeModManager.GetCodeDevConfig):
+# the Codex's own mods\Codex\settings.json wins, and the shared mods\settings.json
+# is used when that has no gitfolder. Fall back to the known default.
 $gitFolder = "C:\Users\theli\codex-dev-mods"
-$settingsPath = Join-Path $env:USERPROFILE "AppData\LocalLow\MCDM\Codex\mods\settings.json"
-if (Test-Path $settingsPath) {
+$modsDir = Join-Path $env:USERPROFILE "AppData\LocalLow\MCDM\Codex\mods"
+$settingsPaths = @((Join-Path $modsDir "Codex\settings.json"), (Join-Path $modsDir "settings.json"))
+foreach ($settingsPath in $settingsPaths) {
+    if (-not (Test-Path $settingsPath)) { continue }
     try {
         $settings = Get-Content $settingsPath -Raw | ConvertFrom-Json
         if ($settings.gitfolder) {
             $gitFolder = $settings.gitfolder -replace '/', '\'
+            break
         }
     } catch {}
 }
 
 if (-not (Test-Path $gitFolder)) {
     Write-Host "Codex git folder not found: $gitFolder" -ForegroundColor Red
-    Write-Host "Check the gitfolder setting in $settingsPath"
+    Write-Host "Check the gitfolder setting in $($settingsPaths -join ' or ')"
     exit 1
+}
+
+# When the git folder IS this repo, the app already reads these files directly:
+# there is nothing to copy, only a reload (F4) or restart to do.
+if ((Resolve-Path $gitFolder).Path.TrimEnd('\') -eq (Resolve-Path $repo).Path.TrimEnd('\')) {
+    Write-Host "The Codex loads mods straight from this repo ($gitFolder)."
+    Write-Host "Nothing to copy: reload (F4) or restart the Codex to pick up your changes."
+    exit 0
 }
 
 # Gather the files to deploy: explicit paths, or git-modified .lua files.

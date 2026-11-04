@@ -1539,7 +1539,9 @@ function gui.Check(args)
     local tooltip = args.tooltip
     args.tooltip = nil
 
-	local colon = cond(placement == "right", ":", "")
+	--a right-placed box reads as "Label: [x]"; pass colon = false to drop the colon.
+	local colon = cond(placement == "right" and args.colon ~= false, ":", "")
+	args.colon = nil
 	
 	local options = DeepCopy(args)
 	local checked = options.value or false

@@ -5381,7 +5381,8 @@ local function CreateTopBar()
             bug = {
                 title = "Report a Bug",
                 intro = "Describe the bug below and submit it directly to the Codex developers. Please make a separate report for each bug.",
-                placeholder = "Describe the bug: what happened, and what you expected to happen instead. If you can, include exact steps to reproduce it.",
+                --input placeholders do not wrap, so the line break is explicit.
+                placeholder = "Describe the bug: what happened, and what you expected to happen instead.\nIf you can, include exact steps to reproduce it.",
                 thanks = "Your bug report has been submitted. Thank you!",
                 --shown alongside thanks when the ticket bridge exists: a bug
                 --report also opens a ticket the user can follow up on.
@@ -5419,7 +5420,7 @@ local function CreateTopBar()
         local m_reportid = nil
 
         local m_includeLog = isBugReport
-        local m_includeScreenshot = false
+        local m_includeScreenshot = true
         local m_allowGameEntry = true
         local m_mood = nil
 
@@ -5435,15 +5436,31 @@ local function CreateTopBar()
             end
         end
 
+        --Two-pane layout: the description on the left, a side panel running
+        --down the dialog's right edge holding the screenshot, the opt-in
+        --checks and attachments, and a footer across the bottom.
+        local DIALOG_WIDTH = 1024
+        --content inset so the side panel's fill does not cover the frame's border.
+        local FRAME_INSET = 2
+        local SIDE_WIDTH = 340
+        local SIDE_PAD = 20
+        local LEFT_WIDTH = DIALOG_WIDTH - FRAME_INSET * 2 - SIDE_WIDTH - 1
+        local MAIN_HEIGHT = 560
+        local FOOTER_HEIGHT = 72
+
+        --bordered: the theme's inputs are frameless and would vanish on the
+        --dialog's dark surface without it.
         local descriptionInput = gui.Input{
-            width = 880,
-            height = 150,
+            classes = {"bordered"},
+            width = "100%",
+            height = 330,
             fontSize = 16,
             multiline = true,
+            textWrap = true,
             characterLimit = 10000,
             textAlignment = "topleft",
             halign = "left",
-            tmargin = 4,
+            tmargin = 14,
             placeholderText = kindInfo.placeholder,
         }
 
@@ -5454,29 +5471,29 @@ local function CreateTopBar()
                 aspect = report.screenshotHeight / report.screenshotWidth
             end
 
+            local imageWidth = SIDE_WIDTH - SIDE_PAD * 2
             screenshotSection = gui.Panel{
-                width = "auto",
+                width = "100%",
                 height = "auto",
-                flow = "horizontal",
+                flow = "vertical",
                 halign = "left",
-                tmargin = 8,
 
                 gui.Panel{
                     classes = {"bordered"},
                     bgimage = report.screenshotImage,
                     bgcolor = "white",
-                    width = 280,
-                    height = math.floor(280 * aspect),
+                    width = imageWidth,
+                    height = math.floor(imageWidth * aspect),
                     halign = "left",
-                    valign = "center",
                 },
 
                 gui.Check{
                     text = "Include this screenshot of your screen",
+                    placement = "right",
+                    colon = false,
                     value = m_includeScreenshot,
                     halign = "left",
-                    valign = "center",
-                    lmargin = 16,
+                    tmargin = 8,
                     change = function(element)
                         m_includeScreenshot = element.value
                     end,
@@ -5489,10 +5506,11 @@ local function CreateTopBar()
         if isBugReport then
             logCheck = gui.Check{
                 text = "Include my log file (recommended)",
+                placement = "right",
+                colon = false,
                 tooltip = "Your log file helps developers diagnose the problem. If a log from your previous session exists (for example after a crash and restart), it is included too. Logs contain a small amount of personal data, such as your system username, and are compressed before uploading.",
                 value = m_includeLog,
                 halign = "left",
-                tmargin = 12,
                 change = function(element)
                     m_includeLog = element.value
                 end,
@@ -5501,9 +5519,11 @@ local function CreateTopBar()
 
         local gameEntryCheck = gui.Check{
             text = "Allow Codex developers to enter my game if needed",
+            placement = "right",
+            colon = false,
             value = m_allowGameEntry,
             halign = "left",
-            tmargin = cond(isBugReport, 4, 12),
+            tmargin = cond(isBugReport, 8, 0),
             change = function(element)
                 m_allowGameEntry = element.value
             end,
@@ -5538,8 +5558,9 @@ local function CreateTopBar()
 
                     gui.Label{
                         fontSize = 15,
-                        width = "auto",
+                        width = SIDE_WIDTH - SIDE_PAD * 2 - 72,
                         height = "auto",
+                        textWrap = true,
                         valign = "center",
                         text = fileName,
                     },
@@ -5568,7 +5589,8 @@ local function CreateTopBar()
             classes = {"sizeM"},
             text = "Attach File...",
             halign = "left",
-            tmargin = 12,
+            width = "100%",
+            height = 64,
             click = function(element)
                 if m_submitting or m_submitted then
                     return
@@ -5609,10 +5631,9 @@ local function CreateTopBar()
         --The form. Hidden once the report is sent.
         local formPanel = gui.Panel{
             width = "100%",
-            height = 640,
-            vscroll = true,
-            flow = "vertical",
-            halign = "center",
+            height = MAIN_HEIGHT,
+            flow = "horizontal",
+            halign = "left",
         }
 
         --Shown in place of the form once the report is sent, so the user
@@ -5620,7 +5641,7 @@ local function CreateTopBar()
         local confirmationPanel = gui.Panel{
             classes = {"collapsed"},
             width = "100%",
-            height = 640,
+            height = MAIN_HEIGHT,
             flow = "vertical",
             halign = "center",
         }
@@ -5633,7 +5654,7 @@ local function CreateTopBar()
                     width = 96,
                     height = 96,
                     halign = "center",
-                    tmargin = 60,
+                    tmargin = 24,
                     bgimage = "ui-icons/module-checkmark.png",
                     bgcolor = SUCCESS_COLOR,
                     interactable = false,
@@ -5699,10 +5720,10 @@ local function CreateTopBar()
         local submitButton
 
         submitButton = gui.Button{
-            classes = {"sizeL"},
+            classes = {"sizeL", "primary"},
             text = "Submit Report",
             halign = "right",
-            hmargin = 8,
+            valign = "center",
             click = function(element)
                 --After a successful send this is the Close button.
                 if m_submitted then
@@ -5785,10 +5806,9 @@ local function CreateTopBar()
             end,
         }
 
-        --Optional mood picker: five Fluent emoji (angry -> delighted) so the
-        --user can convey how they feel; stored on the report as `mood`. The art
-        --lives at Assets/UIImages/emotes/<mood>.png (run import-ui-images.ps1 +
-        --build for these to resolve).
+        --Optional mood picker: five outline Phosphor faces (angry -> delighted) so
+        --the user can convey how they feel; the id is stored on the report as
+        --`mood`. Phosphor has no big grin, so "delighted" uses the wink face.
         local m_moodButtons = {}
         local function RefreshMoodSelection()
             for _,entry in ipairs(m_moodButtons) do
@@ -5797,11 +5817,11 @@ local function CreateTopBar()
         end
 
         local moodOrder = {
-            { id = "angry", label = "Angry" },
-            { id = "frustrated", label = "Frustrated" },
-            { id = "sad", label = "Sad" },
-            { id = "happy", label = "Happy" },
-            { id = "delighted", label = "Delighted" },
+            { id = "angry", label = "Angry", icon = "phosphor/smiley-angry.png" },
+            { id = "frustrated", label = "Frustrated", icon = "phosphor/smiley-meh.png" },
+            { id = "sad", label = "Sad", icon = "phosphor/smiley-sad.png" },
+            { id = "happy", label = "Happy", icon = "phosphor/smiley.png" },
+            { id = "delighted", label = "Delighted", icon = "phosphor/smiley-wink.png" },
         }
 
         local moodButtonPanels = {}
@@ -5809,8 +5829,7 @@ local function CreateTopBar()
             local optid = opt.id
             local btn = gui.Panel{
                 classes = {"moodButton"},
-                bgimage = "emotes/" .. optid .. ".png",
-                bgcolor = "white",
+                bgimage = opt.icon,
                 --raw gui.Panel does not auto-wrap a string tooltip the way
                 --gui.Check/Button do, so attach the lazy hover handler directly
                 --(a bare `tooltip = string` eagerly creates an orphan panel).
@@ -5827,14 +5846,15 @@ local function CreateTopBar()
         local moodPickerSection = gui.Panel{
             width = "auto",
             height = "auto",
-            flow = "vertical",
+            flow = "horizontal",
             halign = "left",
-            vmargin = 4,
+            tmargin = 12,
 
-            styles = {
-                { selectors = {"moodButton"}, width = 44, height = 44, hmargin = 6, valign = "center", bgcolor = "white", opacity = 0.5 },
-                { selectors = {"moodButton", "hover"}, opacity = 0.85 },
-                { selectors = {"moodButton", "selected"}, opacity = 1.0, scale = 1.15 },
+            --MergeStyles resolves the @fg / @accent tokens in these rules.
+            styles = ThemeEngine.MergeStyles{
+                { selectors = {"moodButton"}, width = 34, height = 34, hmargin = 5, valign = "center", bgcolor = "@fg", opacity = 0.7 },
+                { selectors = {"moodButton", "hover"}, opacity = 1 },
+                { selectors = {"moodButton", "selected"}, bgcolor = "@accent", opacity = 1, scale = 1.15 },
             },
 
             gui.Label{
@@ -5842,6 +5862,8 @@ local function CreateTopBar()
                 width = "auto",
                 height = "auto",
                 halign = "left",
+                valign = "center",
+                rmargin = 6,
                 text = "How are you feeling? (optional)",
             },
 
@@ -5850,101 +5872,179 @@ local function CreateTopBar()
                 height = "auto",
                 flow = "horizontal",
                 halign = "left",
-                tmargin = 4,
+                valign = "center",
                 children = moodButtonPanels,
             },
         }
 
-        --assemble the form children explicitly; screenshotSection may be nil and
-        --a nil hole in a positional children list would truncate it.
-        local formChildren = {
+        local leftColumn = gui.Panel{
+            width = LEFT_WIDTH,
+            height = "100%",
+            flow = "vertical",
+            halign = "left",
+            borderBox = true,
+            hpad = 28,
+            tpad = 22,
+            bpad = 16,
+
             gui.Label{
-                width = 880,
+                classes = {"dialogTitle"},
+                width = "100%",
+                halign = "left",
+                textAlignment = "left",
+                text = kindInfo.title,
+            },
+
+            gui.Label{
+                width = "100%",
                 height = "auto",
                 fontSize = 15,
                 textWrap = true,
                 halign = "left",
-                vmargin = 4,
+                tmargin = 6,
                 text = kindInfo.intro,
             },
 
+            descriptionInput,
+
             moodPickerSection,
 
-            descriptionInput,
+            statusLabel,
         }
 
-        if logCheck ~= nil then
-            formChildren[#formChildren + 1] = logCheck
+        --1px hairline. Full @border strength: at the style guide's 0.35 it
+        --disappears on this dialog's dark surfaces.
+        local function Hairline(args)
+            local panel = {
+                bgimage = "panels/square.png",
+                bgcolor = "@border",
+                width = "100%",
+                height = 1,
+            }
+            for k,v in pairs(args or {}) do
+                panel[k] = v
+            end
+            return gui.Panel(panel)
         end
 
-        formChildren[#formChildren + 1] = gameEntryCheck
+        local function SideSeparator()
+            return Hairline{ vmargin = 14 }
+        end
 
+        --assemble the side panel children explicitly; screenshotSection and
+        --logCheck may be nil and a nil hole in a positional children list
+        --would truncate it.
+        local sideChildren = {}
         if screenshotSection ~= nil then
-            formChildren[#formChildren + 1] = screenshotSection
+            sideChildren[#sideChildren + 1] = screenshotSection
+            sideChildren[#sideChildren + 1] = SideSeparator()
         end
+        if logCheck ~= nil then
+            sideChildren[#sideChildren + 1] = logCheck
+        end
+        sideChildren[#sideChildren + 1] = gameEntryCheck
+        sideChildren[#sideChildren + 1] = SideSeparator()
+        sideChildren[#sideChildren + 1] = attachButton
+        sideChildren[#sideChildren + 1] = m_attachmentsList
 
-        formChildren[#formChildren + 1] = attachButton
-        formChildren[#formChildren + 1] = m_attachmentsList
+        --vscroll is a safety net for a long attachment list. The top pad
+        --leaves room for the close button, which sits over this panel.
+        local sidePanel = gui.Panel{
+            width = SIDE_WIDTH,
+            height = "100%",
+            halign = "right",
+            flow = "vertical",
+            vscroll = true,
+            borderBox = true,
+            hpad = SIDE_PAD,
+            tpad = 56,
+            bpad = SIDE_PAD,
+            bgimage = true,
+            bgcolor = "@bgAlt",
 
-        formPanel.children = formChildren
+            --tick boxes read as settings rows: the label wraps on the left and
+            --the box sits at the right edge. The box is sized directly because
+            --its default 70%-of-row height needs a fixed-height row.
+            styles = {
+                { selectors = {"checkbox"}, width = "100%", height = "auto", minWidth = 0, vpad = 6, hpad = 0, priority = 5 },
+                { selectors = {"checkBackground"}, width = 22, height = 22, valign = "center", rmargin = 0, priority = 5 },
+                { selectors = {"checkboxLabel"}, width = "100%-34", rmargin = 12, halign = "left", textWrap = true, fontSize = 16, priority = 5 },
+            },
 
-        --sized so the whole form is visible without scrolling (the tallest
-        --variant is a bug report with a screenshot section); vscroll remains
-        --as a safety net for long attachment lists. Below the scroll region
-        --the body reserves ~140 of slack so the post-submit status text
-        --(thanks + ticket info + ticket id, ~6 wrapped lines) plus the
-        --bottom button bar always fit inside the frame instead of pushing
-        --the bar out of the bottom of the dialog.
-        local bodyPanel = gui.Panel{
-                width = 940,
-                height = 830,
+            children = sideChildren,
+        }
+
+        formPanel.children = {
+            leftColumn,
+            Hairline{ width = 1, height = "100%" },
+            sidePanel,
+        }
+
+        --Footer across the whole dialog: Open Discord on the left, Submit
+        --Report on the right.
+        local footer = gui.Panel{
+            width = "100%",
+            height = FOOTER_HEIGHT,
+            flow = "horizontal",
+            borderBox = true,
+            hpad = 28,
+
+            gui.Panel{
+                width = "auto",
+                height = "auto",
+                flow = "horizontal",
+                halign = "left",
+                valign = "center",
+
+                gui.Label{
+                    fontSize = 14,
+                    width = "auto",
+                    height = "auto",
+                    valign = "center",
+                    text = "You can also discuss bugs with us on the Draw Steel Codex Discord:",
+                },
+
+                gui.Button{
+                    classes = {"sizeS"},
+                    text = "Open Discord",
+                    valign = "center",
+                    lmargin = 8,
+                    width = 180,
+                    click = function(element)
+                        dmhub.OpenURL(g_bugReportLink)
+                    end,
+                },
+            },
+
+            submitButton,
+        }
+
+        --The dialog frame, built here rather than with gamehud:ModalDialog so
+        --the side panel can run to the frame's edges and there is no empty
+        --button strip. The confirmation panel swaps in for the form at the
+        --same height, so the frame never changes size.
+        local function CreateFrame(extra)
+            local args = {
+                classes = {"framedPanel"},
+                width = DIALOG_WIDTH,
+                height = MAIN_HEIGHT + 1 + FOOTER_HEIGHT + FRAME_INSET * 2,
+                borderBox = true,
+                pad = FRAME_INSET,
                 flow = "vertical",
-                halign = "center",
+                styles = ThemeEngine.GetStyles(),
 
                 formPanel,
                 confirmationPanel,
-
-                statusLabel,
-
-                --Single bottom bar: Open Discord pinned to the bottom-left
-                --corner, Submit Report pinned to the bottom-right corner.
-                gui.Panel{
-                    width = "100%",
-                    height = "auto",
-                    flow = "horizontal",
-                    valign = "bottom",
-                    tmargin = 12,
-
-                    gui.Panel{
-                        width = "auto",
-                        height = "auto",
-                        flow = "horizontal",
-                        halign = "left",
-                        valign = "center",
-
-                        gui.Label{
-                            fontSize = 14,
-                            width = "auto",
-                            height = "auto",
-                            valign = "center",
-                            text = "You can also discuss bugs with us on the Draw Steel Codex Discord:",
-                        },
-
-                        gui.Button{
-                            classes = {"sizeS"},
-                            text = "Open Discord",
-                            valign = "center",
-                            lmargin = 8,
-                            width = 180,
-                            click = function(element)
-                                dmhub.OpenURL(g_bugReportLink)
-                            end,
-                        },
-                    },
-
-                    submitButton,
-                },
-        }
+                Hairline(),
+                footer,
+            }
+            for k,v in pairs(extra) do
+                args[k] = v
+            end
+            local frame = gui.Panel(args)
+            frame:AddChild(closeButton)
+            return frame
+        end
 
         local function ShowInGamehudModal()
             local gh = rawget(_G, "gamehud")
@@ -5953,23 +6053,12 @@ local function CreateTopBar()
                 return
             end
 
-            m_dialog = gh:ModalDialog{
-                title = kindInfo.title,
-
-                --ModalDialog's frame defaults to 768 tall; the 830-tall body
-                --plus the title and ModalDialog's (empty) 60-tall button
-                --strip needs the same 960 the titlescreen host uses, or the
-                --body overflows out of the frame.
-                width = 1024,
-                height = 960,
-
-                --we build our own buttons inside the body so Submit can stay open
-                --while the report uploads.
-                buttons = {},
-
-                bodyPanel,
+            m_dialog = CreateFrame{
+                close = function(element)
+                    gh:CloseModal()
+                end,
             }
-            m_dialog:AddChild(closeButton)
+            gh:ShowModal(m_dialog)
         end
 
         --Host selection. In a real game the gamehud modal stack owns the dialog.
@@ -5992,34 +6081,13 @@ local function CreateTopBar()
         if (dmhub.inGame and not dmhub.isLobbyGame) or (not canHostOnTitlescreen) then
             ShowInGamehudModal()
         else
-            --Floating framed panel on the titlescreen root. The panel owns its
-            --own theme cascade, mirroring the frame gamehud:ModalDialog builds.
-            m_titlescreenModal = gui.Panel{
-                classes = {"framedPanel"},
+            --Floating on the titlescreen root, centered.
+            m_titlescreenModal = CreateFrame{
                 floating = true,
-                width = 1024,
-                height = 960,
                 halign = "center",
                 valign = "center",
-                styles = ThemeEngine.GetStyles(),
-
-                gui.Panel{
-                    width = "100%-32",
-                    height = "100%-32",
-                    flow = "vertical",
-                    halign = "center",
-                    valign = "top",
-
-                    gui.Label{
-                        classes = {"dialogTitle"},
-                        text = kindInfo.title,
-                    },
-
-                    bodyPanel,
-                },
             }
             root:AddChild(m_titlescreenModal)
-            m_titlescreenModal:AddChild(closeButton)
         end
     end
 

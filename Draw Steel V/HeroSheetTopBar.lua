@@ -4,7 +4,9 @@ local mod = dmhub.GetModLoading()
 --  * the switcher: the party's Heroes (yours first; others only as far as the
 --    Director's Party Member Controls allows, with a "View" badge on a
 --    view-only one), the party's hero tokens, then the tokens you control
---    (followers, a companion, summons) and "+" for the Followers window;
+--    (followers, a companion, summons) and "+" for the Followers window.
+--    The Director sees only the open Hero's party, and an eye at the left
+--    shows or hides the open Hero's followers and summons;
 --  * Edit (Character tab only), the tabs, the Builder button, the sheet
 --    actions other mods register (Export). Pop out is on the window's title
 --    bar, as on rail windows (HeroSheetWindow).
@@ -32,6 +34,10 @@ local ONE_ROW_AT = 1000
 --Edit's slot: as wide as "Editing" and Done at Edit's width (measured 140),
 --on every tab.
 local EDIT_SLOT = 142
+--The Director's followers eye: its design size and side margin. It is
+--pinned left of the scrolling row, so its room comes out of the strip's.
+local EYE_SIZE = 26
+local EYE_MARGIN = 4
 
 ----------------------------------------------------------------------
 --Who the switcher shows.
@@ -86,6 +92,42 @@ local function AddLinked(hero, into, seen)
     end
 end
 
+--Whether the Director's switcher shows the open Hero's followers, companion
+--and summons (the eye left of the strip). Players always see theirs.
+local g_followersSetting = setting{
+    id = "herosheet:switcherfollowers",
+    description = "Hero sheet switcher followers",
+    storage = "preference",
+    default = false,
+}
+
+--- The id of the party a character is in, or nil.
+--- @param charid string
+--- @return nil|string
+local function PartyOf(charid)
+    for _, partyid in ipairs(GetAllParties()) do
+        for _, id in ipairs(dmhub.GetCharacterIdsInParty(partyid) or {}) do
+            if id == charid then
+                return partyid
+            end
+        end
+    end
+    return nil
+end
+
+--- The party whose Heroes the switcher shows: for the Director, the open
+--- Hero's party (nil when it is in none: only that Hero shows), since a
+--- Director with every party in the strip has too much to scan. Players see
+--- every party their access allows, so for them it is always "all".
+--- @return nil|string
+function HeroSheetTopBar.ShownParty()
+    local open = HeroSheet.Token()
+    if not dmhub.isDM or open == nil then
+        return "all"
+    end
+    return PartyOf(open.charid)
+end
+
 --- The switcher's entries for the open Hero: Heroes, then linked tokens, and
 --- the label for the linked group ("Yours", or "<Hero>'s" for the Director).
 --- @return HeroSheetSwitcherEntry[] heroes
@@ -94,12 +136,14 @@ end
 function HeroSheetTopBar.Entries()
     local open = HeroSheet.Token()
     local director = dmhub.isDM
+    local shown = HeroSheetTopBar.ShownParty()
     local mine, others = {}, {}
     local seen = {}
     for _, partyid in ipairs(GetAllParties()) do
+        local inShown = shown == "all" or shown == partyid
         for _, charid in ipairs(dmhub.GetCharacterIdsInParty(partyid) or {}) do
             local tok = dmhub.GetCharacterById(charid)
-            if not seen[charid] and tok ~= nil and HeroSheet.Routes(tok) then
+            if inShown and not seen[charid] and tok ~= nil and HeroSheet.Routes(tok) then
                 seen[charid] = true
                 local access = CharacterPanel.TokenAccessLevel(tok)
                 if access ~= "none" then
@@ -126,8 +170,9 @@ function HeroSheetTopBar.Entries()
     local linkedSeen = {}
     local label = "Yours"
     if director then
-        --the Director controls everything: only the open Hero's.
-        if open ~= nil then
+        --the Director controls everything: only the open Hero's, and only
+        --while the eye left of the strip is on.
+        if open ~= nil and g_followersSetting:Get() == true then
             AddLinked(open, linkedTokens, linkedSeen)
             label = (open.name or "Hero") .. "'s"
         end
@@ -160,7 +205,7 @@ end
 --- @return string
 local function EntriesSignature()
     local heroes, linked, label = HeroSheetTopBar.Entries()
-    local parts = {label}
+    local parts = {label, tostring(HeroSheetTopBar.ShownParty()), tostring(g_followersSetting:Get())}
     for _, list in ipairs({heroes, linked}) do
         for _, entry in ipairs(list) do
             local tok = entry.token
@@ -358,7 +403,7 @@ local function GroupLabel(text)
         data = {hm = 6},
         interactable = false,
         heroSheetCompact = function(element, compact)
-            element:SetClass("collapsed", compact.labels == false)
+            element:SetClass("collapsed", compact.labels == false or element.data.off == true)
         end,
     }
 end
@@ -465,10 +510,12 @@ local function Switcher()
     local rightArrow
     --- @type nil|Panel
     local viewHolder
+    --- @type nil|Panel
+    local eye
 
-    --The view takes what the arrows leave. Its width is set here, never
-    --"100% available": the engine re-lays out such a panel's whole subtree
-    --every frame.
+    --The view takes what the arrows and the Director's eye leave. Its width is
+    --set here, never "100% available": the engine re-lays out such a panel's
+    --whole subtree every frame.
     local function SizeView()
         if viewHolder == nil or not viewHolder.valid then
             return
@@ -478,6 +525,9 @@ local function Switcher()
             if not arrow:HasClass("collapsed") then
                 arrows = arrows + 24
             end
+        end
+        if eye ~= nil and not eye:HasClass("collapsed") then
+            arrows = arrows + HeroSheetWindow.TargetSize(EYE_SIZE) + EYE_MARGIN * 2
         end
         local width = string.format("100%%-%d", arrows)
         if viewHolder.selfStyle.width ~= width then
@@ -594,7 +644,7 @@ local function Switcher()
             if child.valid then
                 if compact.small and child:HasClass("heroSheetThumb") then
                     extra = extra + (THUMB - THUMB_SMALL) * perUnit
-                elseif not compact.small and child:HasClass("heroSheetGroupLabel") then
+                elseif not compact.small and child:HasClass("heroSheetGroupLabel") and child.data.off ~= true then
                     extra = extra + (#child.text * 11 * 0.75 + 12) * perUnit
                 end
             end
@@ -676,6 +726,10 @@ local function Switcher()
         local heroes, linked, label = HeroSheetTopBar.Entries()
         local state = HeroSheet.State()
         local openid = state ~= nil and state.tokenid or nil
+        local director = dmhub.isDM
+        if eye ~= nil then
+            eye:FireEvent("paint")
+        end
         local children = {partyLabel}
         local kept = {}
         local function Add(entry)
@@ -690,6 +744,12 @@ local function Switcher()
         end
         children[#children+1] = tokens
         children[#children+1] = divider
+        --with followers and summons off, the Director's strip is just the
+        --party (and "+", after the divider): the label stays attached but
+        --collapsed (data.off), and Entries gives no linked tokens.
+        local labelOff = director and g_followersSetting:Get() ~= true
+        linkedLabel.data.off = labelOff
+        linkedLabel:SetClass("collapsed", labelOff or compact.labels == false)
         linkedLabel.text = string.upper(label)
         children[#children+1] = linkedLabel
         for _, entry in ipairs(linked) do
@@ -791,9 +851,50 @@ local function Switcher()
     leftArrow = Arrow(-1)
     rightArrow = Arrow(1)
 
+    --The Director's eye: shows or hides the open Hero's followers, companion
+    --and summons. Pinned left of the scrolling row so the fitting steps never
+    --drop it; the same button as the Features tab's "Show hidden features".
+    local eyeIcon = gui.Panel{
+        classes = {"heroSheetIconButtonIcon"},
+        bgimage = "phosphor/eye-closed-light.png",
+        width = 15,
+        height = 15,
+        halign = "center",
+        valign = "center",
+        interactable = false,
+    }
+    eye = gui.Panel{
+        classes = {"heroSheetIconButton", "hoverable", cond(dmhub.isDM, nil, "collapsed")},
+        bgimage = "panels/square.png",
+        border = 1,
+        cornerRadius = 6,
+        width = HeroSheetWindow.TargetSize(EYE_SIZE),
+        height = HeroSheetWindow.TargetSize(EYE_SIZE),
+        hmargin = EYE_MARGIN,
+        valign = "center",
+        paint = function(element)
+            local on = g_followersSetting:Get() == true
+            element:SetClass("collapsed", not dmhub.isDM)
+            element:SetClassTree("selected", on)
+            eyeIcon.bgimage = cond(on, "phosphor/eye-light.png", "phosphor/eye-closed-light.png")
+        end,
+        linger = function(element)
+            --says what a click will do.
+            gui.Tooltip(cond(g_followersSetting:Get() == true, "Hide followers and summons", "Show followers and summons"))(element)
+        end,
+        click = function(element)
+            g_followersSetting:Set(g_followersSetting:Get() ~= true)
+            if inner ~= nil and inner.valid then
+                Build()
+            end
+        end,
+        eyeIcon,
+    }
+
     --the view takes what the arrows leave of the switcher's width (SizeView).
     viewHolder = gui.Panel{
-        width = "100%",
+        --until the first fit sizes it: what the Director's eye takes.
+        width = cond(dmhub.isDM, string.format("100%%-%d", HeroSheetWindow.TargetSize(EYE_SIZE) + EYE_MARGIN * 2), "100%"),
         height = STRIP_H,
         valign = "center",
         viewport,
@@ -811,6 +912,7 @@ local function Switcher()
                 Fit()
             end
         end,
+        eye,
         leftArrow,
         viewHolder,
         rightArrow,

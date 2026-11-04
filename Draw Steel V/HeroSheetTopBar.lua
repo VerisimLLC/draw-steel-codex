@@ -6,7 +6,8 @@ local mod = dmhub.GetModLoading()
 --    view-only one), the party's hero tokens, then the tokens you control
 --    (followers, a companion, summons) and "+" for the Followers window.
 --    The Director sees only the open Hero's party, and an eye at the left
---    shows or hides the open Hero's followers and summons;
+--    shows or hides the open Hero's followers and summons (no group labels,
+--    so the eye never changes them);
 --  * Edit (Character tab only), the tabs, the Builder button, the sheet
 --    actions other mods register (Export). Pop out is on the window's title
 --    bar, as on rail windows (HeroSheetWindow).
@@ -133,6 +134,7 @@ end
 --- @return HeroSheetSwitcherEntry[] heroes
 --- @return HeroSheetSwitcherEntry[] linked
 --- @return string linkedLabel
+--- @return nil|string shownParty the party shown (see ShownParty)
 function HeroSheetTopBar.Entries()
     local open = HeroSheet.Token()
     local director = dmhub.isDM
@@ -140,10 +142,14 @@ function HeroSheetTopBar.Entries()
     local mine, others = {}, {}
     local seen = {}
     for _, partyid in ipairs(GetAllParties()) do
-        local inShown = shown == "all" or shown == partyid
-        for _, charid in ipairs(dmhub.GetCharacterIdsInParty(partyid) or {}) do
+        --a party the strip does not show is skipped before its members are read.
+        local members = {}
+        if shown == "all" or shown == partyid then
+            members = dmhub.GetCharacterIdsInParty(partyid) or {}
+        end
+        for _, charid in ipairs(members) do
             local tok = dmhub.GetCharacterById(charid)
-            if inShown and not seen[charid] and tok ~= nil and HeroSheet.Routes(tok) then
+            if not seen[charid] and tok ~= nil and HeroSheet.Routes(tok) then
                 seen[charid] = true
                 local access = CharacterPanel.TokenAccessLevel(tok)
                 if access ~= "none" then
@@ -198,14 +204,14 @@ function HeroSheetTopBar.Entries()
             linked[#linked+1] = {token = tok, kind = "linked", type = LinkedType(tok)}
         end
     end
-    return heroes, linked, label
+    return heroes, linked, label, shown
 end
 
 --A signature of the entries, so the strip redraws only when they change.
 --- @return string
 local function EntriesSignature()
-    local heroes, linked, label = HeroSheetTopBar.Entries()
-    local parts = {label, tostring(HeroSheetTopBar.ShownParty()), tostring(g_followersSetting:Get())}
+    local heroes, linked, label, shown = HeroSheetTopBar.Entries()
+    local parts = {label, tostring(shown), tostring(g_followersSetting:Get())}
     for _, list in ipairs({heroes, linked}) do
         for _, entry in ipairs(list) do
             local tok = entry.token
@@ -527,7 +533,14 @@ local function Switcher()
             end
         end
         if eye ~= nil and not eye:HasClass("collapsed") then
-            arrows = arrows + HeroSheetWindow.TargetSize(EYE_SIZE) + EYE_MARGIN * 2
+            --Font Size reflows the sheet without rebuilding it: resize the eye
+            --here so it matches the room kept for it.
+            local size = HeroSheetWindow.TargetSize(EYE_SIZE)
+            if eye.selfStyle.width ~= size then
+                eye.selfStyle.width = size
+                eye.selfStyle.height = size
+            end
+            arrows = arrows + size + EYE_MARGIN * 2
         end
         local width = string.format("100%%-%d", arrows)
         if viewHolder.selfStyle.width ~= width then
@@ -730,6 +743,14 @@ local function Switcher()
         if eye ~= nil then
             eye:FireEvent("paint")
         end
+        --The Director's strip has no group labels: the eye starts it and the
+        --divider marks the followers, so the eye never changes the labels.
+        --They stay attached but collapsed (data.off).
+        local labelsToggled = partyLabel.data.off ~= director
+        for _, groupLabel in ipairs({partyLabel, linkedLabel}) do
+            groupLabel.data.off = director
+            groupLabel:SetClass("collapsed", director or compact.labels == false)
+        end
         local children = {partyLabel}
         local kept = {}
         local function Add(entry)
@@ -744,12 +765,6 @@ local function Switcher()
         end
         children[#children+1] = tokens
         children[#children+1] = divider
-        --with followers and summons off, the Director's strip is just the
-        --party (and "+", after the divider): the label stays attached but
-        --collapsed (data.off), and Entries gives no linked tokens.
-        local labelOff = director and g_followersSetting:Get() ~= true
-        linkedLabel.data.off = labelOff
-        linkedLabel:SetClass("collapsed", labelOff or compact.labels == false)
         linkedLabel.text = string.upper(label)
         children[#children+1] = linkedLabel
         for _, entry in ipairs(linked) do
@@ -808,6 +823,8 @@ local function Switcher()
         if not same then
             drawn = children
             inner.children = children
+            Fit()
+        elseif labelsToggled then
             Fit()
         end
     end

@@ -510,9 +510,11 @@ local function AddGrowingTables(ctx)
     end
 end
 
---Held titles the shared read did not list. A title whose benefit is not
---chosen yet shows its own text and the Choose a benefit plate, which opens
---the Titles window on it. Needs AddReaderItems (ctx.titled).
+--Held titles the shared read did not list: one still to choose, or one whose
+--benefit is tagged Hidden (Elemental Dabbler's Blaster and Immunity). The card
+--shows the title's own text, then the picked benefit's name and text; while a
+--pick is missing, the Choose a benefit plate opens the Titles window on it.
+--Needs AddReaderItems (ctx.titled).
 --- @param ctx HeroFeatureReadContext
 local function AddTitles(ctx)
     local heldTitles = {}
@@ -521,33 +523,79 @@ local function AddTitles(ctx)
             heldTitles[title.name] = title
         end
     end)
+    --Follows the title's picks down to its benefits, choices within choices
+    --included, as the rules do (CharacterFeatureChoice:FillFeaturesRecursive).
     --- @param name string
-    --- @return nil|string the title's id when its benefit choice has no pick
-    local function TitleToChoose(name)
+    --- @return nil|string todo the title's id when any choice on the way has no pick
+    --- @return table[] benefits the picked benefit features
+    local function TitleBenefits(name)
         local title = heldTitles[name]
+        local benefits = {}
         if title == nil then
-            return nil
+            return nil, benefits
+        end
+        local todo = nil
+        --- @param feature any
+        --- @param depth integer
+        local function Walk(feature, depth)
+            if feature == nil or depth > 6 then
+                return
+            end
+            local typeName = nil
+            pcall(function() typeName = feature.typeName end)
+            if typeName == "CharacterFeatureChoice" then
+                local picks = ctx.levelChoices[feature.guid]
+                if type(picks) ~= "table" or picks[1] == nil then
+                    todo = title.id
+                    return
+                end
+                local options = {}
+                pcall(function() options = feature:GetOptions(ctx.levelChoices) or {} end)
+                for _, pick in ipairs(picks) do
+                    for _, option in ipairs(options) do
+                        if option.guid == pick then
+                            Walk(option, depth + 1)
+                        end
+                    end
+                end
+            elseif typeName == "CharacterFeatureList" then
+                for _, sub in ipairs(feature:try_get("features", {})) do
+                    Walk(sub, depth + 1)
+                end
+            else
+                benefits[#benefits+1] = feature
+            end
         end
         local info = title:try_get("modifierInfo")
         for _, feature in ipairs((info ~= nil and info.features) or {}) do
-            if feature.typeName == "CharacterFeatureChoice" then
-                local picks = ctx.levelChoices[feature.guid]
-                if type(picks) ~= "table" or picks[1] == nil then
-                    return title.id
-                end
-            end
+            Walk(feature, 0)
         end
-        return nil
+        return todo, benefits
     end
     for _, entry in ipairs((ctx.groups.title ~= nil and ctx.groups.title.items) or {}) do
         if entry.name ~= nil and not ctx.titled[entry.name] then
             ctx.titled[entry.name] = true
+            local todo, benefits = TitleBenefits(entry.name)
+            local names = {}
+            local text = OwnText(entry)
+            for _, benefit in ipairs(benefits) do
+                local benefitName = nil
+                pcall(function() benefitName = benefit.name end)
+                if benefitName ~= nil and benefitName ~= entry.name then
+                    names[#names+1] = benefitName
+                end
+                local words = ""
+                pcall(function() words = Clean(benefit:GetDescription()) end)
+                if words ~= "" then
+                    text = cond(text ~= "", text .. "\n\n" .. words, words)
+                end
+            end
             ctx.Add("title", {
-                titleChoose = TitleToChoose(entry.name),
+                titleChoose = todo,
                 key = tostring(entry.guid or entry.name),
                 name = entry.name,
-                sub = nil,
-                text = OwnText(entry),
+                sub = cond(#names > 0, table.concat(names, DOT), nil),
+                text = text,
                 pillars = {},
                 core = false,
                 custom = false,

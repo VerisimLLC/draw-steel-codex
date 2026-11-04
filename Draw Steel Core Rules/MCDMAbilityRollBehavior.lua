@@ -2423,6 +2423,8 @@ ActivatedAbilityPowerRollBehavior.s_modificationTypes = {
 {text = "Suppress Effects", id = "suppresseffects", mod = "suppresseffects", value = -3},
 {text = "Append to Roll", id = "appendroll", hideText = true},
 {text = "Replace Roll", id = "replaceroll", hideText = true},
+--the roll dialog throws the roll a second time and keeps the higher total.
+{text = "Roll Twice, Keep Best", id = "rolltwice", mod = "", value = 0},
 }
 
 ActivatedAbilityPowerRollBehavior.s_modificationTypesById = {}

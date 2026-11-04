@@ -18,6 +18,10 @@ CharacterModifier.displayCondition = ""
 CharacterModifier.afterRollExclusiveGroup = ""
 CharacterModifier.consumeOncePerRoll = false
 
+-- The name of another roll-dialog option this one follows: ticking or unticking
+-- that option does the same to this one, which can still be changed on its own.
+CharacterModifier.ticksWith = ""
+
 local g_powerRollTypes = {
     {
         id = "all",
@@ -873,7 +877,7 @@ CharacterModifier.TypeInfo.power = {
 
         local modtype = self:try_get("modtype", "none")
 
-        if modtype == "none" or modtype == "suppresseffects" then
+        if modtype == "none" or modtype == "suppresseffects" or modtype == "rolltwice" then
             return roll
         end
 

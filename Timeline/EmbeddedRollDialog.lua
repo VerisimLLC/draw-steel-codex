@@ -4557,6 +4557,17 @@ function GameHud.CreateEmbeddedRollDialog()
                                         end
                                     end
 
+                                    --options that tick with this one follow it on and off.
+                                    local name = mod.modifier:try_get("name", "")
+                                    if name ~= "" then
+                                        for _, peer in ipairs(m_options.modifiers or {}) do
+                                            if peer ~= mod and peer.modifier ~= nil
+                                                    and peer.modifier:try_get("ticksWith", "") == name then
+                                                peer.override = element.value
+                                            end
+                                        end
+                                    end
+
                                     resultPanel:FireEventTree('prepare', m_options)
                                     CalculateRollText()
                                     RecalculateMultiTargets()
@@ -7224,6 +7235,19 @@ function GameHud.CreateEmbeddedRollDialog()
 
                 local showingDialog = showDialogDuringRoll
 
+                --A ticked "Roll Twice, Keep Best" option (Expert Artisan): a roll that
+                --closes once thrown is thrown again after it lands, and the higher
+                --total is handed on. A roll that stays open for Accept rolls once.
+                local rollTwiceName = nil
+                if not showingDialog then
+                    for _, entry in ipairs(GetEnabledModifiers()) do
+                        if entry.modifier ~= nil and entry.modifier:try_get("modtype", "none") == "rolltwice" then
+                            rollTwiceName = entry.modifier:try_get("name", "")
+                            break
+                        end
+                    end
+                end
+
                 local completeFunction
 
                 if showingDialog then
@@ -7742,6 +7766,7 @@ function GameHud.CreateEmbeddedRollDialog()
                 -- This guards against `complete` (or an AI auto-proceed) applying
                 -- the result a second time.
                 local m_crowsResolved = false
+                local ThrowSecondRoll
                 local rollArgs = {
                     guid = resultPanel.data.rollid,
                     description = m_options.description,
@@ -7998,7 +8023,11 @@ function GameHud.CreateEmbeddedRollDialog()
                             return
                         end
 
-                        completeFunction(rollInfo)
+                        if rollTwiceName ~= nil then
+                            ThrowSecondRoll(rollInfo)
+                        else
+                            completeFunction(rollInfo)
+                        end
 
 
                         if g_activeRoll == activeRoll then
@@ -8007,6 +8036,60 @@ function GameHud.CreateEmbeddedRollDialog()
                         end
                     end
                 }
+
+                if rollTwiceName ~= nil then
+                    local description = rollArgs.description or ""
+                    rollArgs.description = string.format("%s (%s 1 of 2)", description, rollTwiceName)
+
+                    --The second throw gets its own chat message and callbacks, so
+                    --nothing on the dialog follows it; the better roll completes.
+                    ThrowSecondRoll = function(firstInfo)
+                        local secondArgs = {}
+                        for k, v in pairs(rollArgs) do
+                            secondArgs[k] = v
+                        end
+                        secondArgs.guid = dmhub.GenerateGuid()
+                        secondArgs.description = string.format("%s (%s 2 of 2)", description, rollTwiceName)
+                        secondArgs.delay = nil
+                        secondArgs.begin = nil
+                        secondArgs.pending = nil
+                        secondArgs.complete = function(secondInfo)
+                            local kept = firstInfo
+                            if secondInfo ~= nil and (secondInfo.total or 0) > (firstInfo.total or 0) then
+                                kept = secondInfo
+                            end
+                            completeFunction(kept)
+                        end
+
+                        --hooks such as physical dice see this throw like the first.
+                        if RollDialog.OnBeforeRoll then
+                            local secondHook = RollDialog.OnBeforeRoll({
+                                rollArgs = secondArgs,
+                                roll = secondArgs.roll,
+                                description = secondArgs.description,
+                                creature = secondArgs.creature,
+                                tokenid = secondArgs.tokenid,
+                                properties = secondArgs.properties,
+                                dmonly = secondArgs.dmonly,
+                                dicetower = secondArgs.dicetower,
+                                instant = secondArgs.instant,
+                                silent = secondArgs.silent,
+                                delay = secondArgs.delay,
+                                guid = secondArgs.guid,
+                                modifiers = modifiersUsed,
+                                multitargets = multitargetsUsed,
+                                boons = m_boons,
+                                setActiveRoll = function(roll)
+                                end,
+                            })
+                            if secondHook == "intercept" then
+                                return
+                            end
+                        end
+
+                        dmhub.Roll(secondArgs)
+                    end
+                end
 
                 g_activeRollArgs = rollArgs
                 g_activeRollArgs.originalRoll = rollArgs.roll

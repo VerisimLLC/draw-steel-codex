@@ -242,7 +242,7 @@ local function Read(token)
         end
         for _, ability in ipairs(all) do
             local guid = ability:try_get("guid", "")
-            local isCompanion = ability:has_key("keywords") and ability:HasKeyword("Companion")
+            local isCompanion = ability:HasCompanionKeyword()
             local custom = hero:IsActivatedAbilityInnate(ability) ~= false
             local hidden = ability:try_get("hidden") == true or ability:try_get("categorization") == "Hidden"
             local sharesCustomName = customNames[ability.name] == true and not hidden
@@ -316,11 +316,12 @@ local function DialogLayer(fallback)
     return fallback.root
 end
 
---A Companion-keyword ability added to a Hero is the companion's, so it is
---listed under Companion abilities, not with the Hero's own: say where.
+--An ability with a companion keyword (Companion, or one a module reserved)
+--added to a Hero is the companion's, so it is listed under Companion
+--abilities, not with the Hero's own: say where.
 --- @param ability ActivatedAbility
 local function WarnIfCompanion(ability)
-    if not ability:has_key("keywords") or not ability:HasKeyword("Companion") then
+    if not ability:HasCompanionKeyword() then
         return
     end
     local token = HeroSheet.Token()
@@ -338,7 +339,7 @@ local function WarnIfCompanion(ability)
         title = "Companion ability",
         width = 520,
         bodyHeight = 44,
-        body = HeroSheetWindow.DialogText(string.format("%s has the Companion keyword, so it is listed under Companion abilities, where you can edit or delete it.", ability.name)),
+        body = HeroSheetWindow.DialogText(string.format("%s has a companion keyword, so it is listed under Companion abilities, where you can edit or delete it.", ability.name)),
         onDone = function() end,
     }
 end

@@ -407,7 +407,7 @@ function CharacterFeature.CompanionFlagCheck(node, onchange)
 	end
 	return gui.Check{
 		text = label,
-		value = node:try_get("appliesToCompanion", false) == true,
+		value = Class.IsCompanionFlagged(node),
 		hover = function(element)
 			if tooltip ~= nil then
 				gui.Tooltip(tooltip)(element)
@@ -446,6 +446,11 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 	end
 
 	editorPanelOptions.collapseDescription = nil
+
+	--Only the class editor asks for the "applies to companion" checkbox: elsewhere
+	--(effects, conditions, ancestries) the flag would do nothing.
+	local companionFlag = editorPanelOptions.companionFlag
+	editorPanelOptions.companionFlag = nil
 
 	-- Themed path always-on (matches the sectioned Ability Editor).
 	-- rawget guards against load order where CharacterFeature might be
@@ -980,7 +985,9 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 	} do
 		innerRows[#innerRows+1] = row
 	end
-	innerRows[#innerRows+1] = CharacterFeature.CompanionFlagCheck(self)
+	if companionFlag then
+		innerRows[#innerRows+1] = CharacterFeature.CompanionFlagCheck(self)
+	end
 	innerRows[#innerRows+1] = metaRow
 	innerRows[#innerRows+1] = modifiersPanel
 
@@ -1151,6 +1158,7 @@ function CharacterFeature:PopupEditor(options)
 	--told to refresh.
 	--options.cancel: called with the feature after Cancel has restored it, so
 	--a caller that added the feature just to edit it can take it back out.
+	--options.companionFlag: show the "applies to companion" checkbox (class editor).
 	local commit = options.commit
 	local cancel = options.cancel
 
@@ -1164,6 +1172,7 @@ function CharacterFeature:PopupEditor(options)
 	local abilityEditor = rawget(_G, "AbilityEditor")
 
 	local contentPanel = self:EditorPanel{
+		companionFlag = options.companionFlag,
 		modifierRefreshed = function(element)
 			if commit ~= nil then
 				commit(self)

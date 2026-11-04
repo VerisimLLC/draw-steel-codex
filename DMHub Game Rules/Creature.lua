@@ -15329,3 +15329,10 @@ end
 function monster:IsMonster()
     return true
 end
+
+--- Returns false for most creatures; a hero's companion type (the Beastheart's
+--- AnimalCompanion and its subtypes) overrides it to true.
+--- @return boolean
+function creature:IsCompanion()
+    return false
+end

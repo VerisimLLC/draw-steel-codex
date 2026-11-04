@@ -1915,9 +1915,10 @@ local function StepGains(token, stepid)
             end
         elseif stepid == "class" then
             local extra = hero:ExtraLevelInfo()
+            --the hero's own gains: content ticked for the companion is not the hero's.
             for i, entry in ipairs(hero:GetClassesAndSubClasses()) do
                 local details = {}
-                entry.class:FillFeatureDetailsForLevel({}, entry.level, extra, i ~= 1, details)
+                entry.class:FillHeroFeatureDetailsForLevel({}, entry.level, extra, i ~= 1, details)
                 Add(details, cond(i == 1, nil, entry.class.name))
             end
         elseif stepid == "complication" then
@@ -4776,10 +4777,11 @@ function HeroBuilder.Create(args)
     --- @param title string
     --- @param right nil|Panel replaces the state plate at the heading's right
     --- @param before nil|Panel sits just before the state plate (a list's search)
+    --- @param beside nil|Panel sits just after the name and note (a link to another step)
     --- @return Panel[] the heading and its rule, to start the section with
     --- @return Panel status the state plate
     --- @return Panel note
-    local function SectionHead(title, right, before)
+    local function SectionHead(title, right, before, beside)
         local status = gui.Label{
             classes = {"heroBuilderStatus"},
             bgimage = "panels/square.png",
@@ -4834,6 +4836,9 @@ function HeroBuilder.Create(args)
             before.selfStyle.valign = "center"
             before.selfStyle.rmargin = 10
             row = {caps, note, before, status}
+        end
+        if beside ~= nil then
+            table.insert(row, 3, beside)
         end
         return {
             gui.Panel{
@@ -5609,15 +5614,12 @@ function HeroBuilder.Create(args)
                 end,
             }
         end
-        local children, status, note = SectionHead(section.title, nil, search)
-        --a choice another step took over links to that step, just after its name.
+        --a choice another step took over links to that step, beside its name.
+        local movedLink = nil
         if section.movedTo ~= nil then
             local target = section.movedTo --[[@as string]]
             local targetStep = Engine().STEP_BY_ID[target]
-            --placed right after the name and its note, before the state plate.
-            local headRow = children[1]
-            local rowChildren = headRow.children
-            table.insert(rowChildren, 3, gui.Label{
+            movedLink = gui.Label{
                 classes = {"heroSheetFeatLink", "hoverable"},
                 text = T("herobuilder.moved.link", {step = targetStep ~= nil and targetStep.title or target}),
                 fontSize = 13,
@@ -5629,11 +5631,17 @@ function HeroBuilder.Create(args)
                 lmargin = 12,
                 textWrap = false,
                 click = function()
+                    --Level up's pages are Levels, not steps: open the Builder on the step instead.
+                    local heroSheet = rawget(_G, "HeroSheet")
+                    if stepIndex[target] == nil and heroSheet ~= nil then
+                        heroSheet.OpenBuilderAt(target)
+                        return
+                    end
                     GoTo(target)
                 end,
-            })
-            headRow.children = rowChildren
+            }
         end
+        local children, status, note = SectionHead(section.title, nil, search, movedLink)
         local stale = StaleRow(stepid, section.key)
         children[#children+1] = stale.panel
         --no chosen card above the tiles: the pane's top card shows the pick,
@@ -8271,6 +8279,7 @@ function HeroBuilder.Create(args)
                 state.step = FirstOpenStep(status)
             end
         end
+        --true or nil (never false), so an unchanged Hero compares equal to hiddenSteps.
         local hidden, hiddenChanged = {}, false
         for _, step in ipairs(steps) do
             hidden[step.id] = not Engine().StepShown(hero, step.id) or nil

@@ -80,12 +80,14 @@ local function MatchesFeatureSearch(obj, search)
 end
 
 --Tag on a feature or choice row whose "applies to companion" box is ticked, labelled
---like the checkbox (e.g. "Servitor"), so the rows that go to the companion stand out.
+--like the checkbox, so the rows that go to the companion stand out.
 local function CompanionFlagTag(feature)
 	local function refresh(element)
 		local label = nil
-		if feature:try_get("appliesToCompanion", false) == true then
-			label = CompanionKind.FeatureFlagText() or "Companion"
+		if Class.IsCompanionFlagged(feature) then
+			--rawget: the companion code may be absent (content ticked in another world).
+			local companionKind = rawget(_G, "CompanionKind")
+			label = (companionKind ~= nil and companionKind.FeatureFlagText()) or "Companion"
 		end
 		element.text = label or ""
 		element:SetClass("collapsed", label == nil)
@@ -288,7 +290,7 @@ local CreateFeatureSummary = function(feature, featuresList, index, parentPanel,
 			hmargin = 12,
 			click = function(element)
 				local fn = function(element, feature)
-					local editor = feature:PopupEditor()
+					local editor = feature:PopupEditor{ companionFlag = options.companionFlag }
 					editor.data.notifyElement = featurePanel --will receive refreshModifier events.
 					element.root:AddChild(editor)
 				end
@@ -977,7 +979,7 @@ function ClassLevel:CreateEditor(classOrRace, levelNum, params)
 			for i,feature in ipairs(self.features) do
 				local index = i
 				if feature.typeName == 'CharacterFeature' then
-					children[#children+1] = CreateFeatureSummary(feature, self.features, index, resultPanel, DescribeFeature)
+					children[#children+1] = CreateFeatureSummary(feature, self.features, index, resultPanel, DescribeFeature, {companionFlag = classOrRace.typeName == "Class"})
 				else
 					children[#children+1] = CreateChoiceEditor(feature, self.features, index, resultPanel, classOrRace, {
 						change = function(element)
@@ -1605,9 +1607,12 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
                 end
             }
 
-            children[#children+1] = CharacterFeature.CompanionFlagCheck(self, function()
-                resultPanel:FireEvent('change')
-            end)
+            --Only class content can go to a companion; the race editor shares this one.
+            if classOrRace.typeName == "Class" then
+                children[#children+1] = CharacterFeature.CompanionFlagCheck(self, function()
+                    resultPanel:FireEvent('change')
+                end)
+            end
 
             if self.inheritChoice then
                 for i,ref in ipairs(self.inheritChoice) do
@@ -1734,7 +1739,7 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
 			for i,feature in ipairs(self.options) do
 				local index = i
 				if feature.typeName == 'CharacterFeature' then
-					children[#children+1] = CreateFeatureSummary(feature, self.options, index, resultPanel, nil, {points = self.costsPoints})
+					children[#children+1] = CreateFeatureSummary(feature, self.options, index, resultPanel, nil, {points = self.costsPoints, companionFlag = classOrRace.typeName == "Class"})
 				else
 					children[#children+1] = CreateChoiceEditor(feature, self.options, index, resultPanel, classOrRace, {
                         points = self.costsPoints,

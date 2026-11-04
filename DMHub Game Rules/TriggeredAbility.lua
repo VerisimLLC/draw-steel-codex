@@ -1066,27 +1066,44 @@ local g_departureTriggers = {
     teleport = true,
 }
 
---Events dispatched on the creature using an ability, carrying it as usedability.
+--Events dispatched on the creature using an ability (most carry it as usedability).
 local g_abilityUserTriggers = {
     useability = true,
     targetwithability = true,
     finishability = true,
     dealdamage = true,
+    attack = true,
+    rollpower = true,
 }
 
 --Distance for a subjectRange gate. On a departure trigger the subject's token
 --may already sit at its destination -- the observer's client applies the moved
 --location before draining its triggeredEvents queue -- so measure from
 --path.steps[1], the square it left. No path, or any other trigger, uses the
---live token.
+--live token, unless the subject used the ability from another creature's space (below).
 local function SubjectRangeDistance(triggerName, subjectToken, casterToken, symbols)
-    --The subject used an ability as if in another creature's space (actingFromTokenId
-    --on the event's ability): measure to that space. Only events whose subject is the
-    --ability's user; a damage event on the victim carries the ability too.
-    local usedAbility = g_abilityUserTriggers[triggerName] and symbols and symbols.usedability or nil
-    local actingFromId = type(usedAbility) == "table" and rawget(usedAbility, "actingFromTokenId") or nil
-    if actingFromId ~= nil then
-        local actingFromToken = dmhub.GetTokenById(actingFromId)
+    --A subject using an ability as if it stood in another creature's space is measured
+    --from that space. Only for events whose subject is the ability's user: a damage
+    --event on the victim carries the ability too.
+    if g_abilityUserTriggers[triggerName] then
+        --power-roll events carry the ability as "ability" rather than "usedability".
+        local usedAbility = symbols and (symbols.usedability or symbols.ability) or nil
+        local actingFromId = nil
+        local isAbility = false
+        if type(usedAbility) == "table" then
+            actingFromId = rawget(usedAbility, "actingFromTokenId")
+            --pcall: some events pass a plain symbol table, which has no IsDerivedFrom.
+            pcall(function() isAbility = usedAbility.IsDerivedFrom("ActivatedAbility") == true end)
+        end
+        local actingFromToken = nil
+        if actingFromId ~= nil then
+            actingFromToken = dmhub.GetTokenById(actingFromId)
+        elseif not isAbility then
+            --Strike events carry no ability to read the stamp from; the cast's record has
+            --it, but only on the client running the cast. An event that does carry an
+            --ability without the stamp (a trigger firing mid-cast) uses the subject.
+            actingFromToken = ActivatedAbility.ActingFromToken(subjectToken.charid)
+        end
         if actingFromToken ~= nil then
             return actingFromToken:Distance(casterToken)
         end

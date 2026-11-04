@@ -15,8 +15,10 @@ HeroSheetInventory = rawget(_G, "HeroSheetInventory") or {}
 --- @field create fun(): Panel builds the section; a HeroSheetRefresh block repaints with the Hero
 
 --Sections a module adds below the item list (RegisterListSection), in order.
+--Kept on the global table so reloading only this file does not lose them.
 --- @type HeroInventoryListSection[]
-local g_listSections = {}
+local g_listSections = HeroSheetInventory.listSections or {}
+HeroSheetInventory.listSections = g_listSections
 
 --- Add a section below the Inventory tab's item list (a companion's gear, for
 --- example). create() runs each time a tab is built. Registering an id again
@@ -1302,7 +1304,13 @@ function HeroSheetInventory.Create()
     }
     groupPanels[#groupPanels+1] = empty
     for _, section in ipairs(g_listSections) do
-        groupPanels[#groupPanels+1] = section.create()
+        --A module's broken section is left out rather than breaking the whole tab.
+        local ok, panel = pcall(section.create)
+        if ok then
+            groupPanels[#groupPanels+1] = panel
+        else
+            dmhub.Error(string.format("Inventory section %s failed: %s", section.id, tostring(panel)))
+        end
     end
     local listContent = gui.Panel{
         width = "100%-12",

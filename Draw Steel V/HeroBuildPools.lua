@@ -29,6 +29,54 @@ local mod = dmhub.GetModLoading()
 
 HeroBuild = rawget(_G, "HeroBuild") or {}
 
+--A done, unchangeable row standing in for a choice a registered step took over
+--from another step (Build.RegisterStep's claims). Its one option, already picked,
+--says where the choice went.
+--- @class CharacterMovedChoice: CharacterChoice
+--- @field new fun(o?: table): CharacterMovedChoice
+--- @field text string the placeholder text
+--- @field stepid string the step the choice moved to
+CharacterMovedChoice = RegisterGameType("CharacterMovedChoice", "CharacterChoice")
+
+local MOVED_OPTION = "moved"
+
+function CharacterMovedChoice:NumChoices()
+    return 1
+end
+
+function CharacterMovedChoice:CanRepeat()
+    return false
+end
+
+function CharacterMovedChoice:GetDescription()
+    return self.text
+end
+
+function CharacterMovedChoice:GetOptions()
+    return { { guid = MOVED_OPTION, name = self.text, description = "", unique = false } }
+end
+
+function CharacterMovedChoice:Choices()
+    return { { id = MOVED_OPTION, text = self.text, description = "", unique = false } }
+end
+
+function CharacterMovedChoice:GetSelected()
+    return { MOVED_OPTION }
+end
+
+--Picking or unpicking does nothing: returning true stops the default save.
+function CharacterMovedChoice:SaveSelection()
+    return true
+end
+
+function CharacterMovedChoice:RemoveSelection()
+    return true
+end
+
+function CharacterMovedChoice:VisitRecursive(fn)
+    fn(self)
+end
+
 --- An ancestry name as it is said: "Elf, High" (how ancestries are listed)
 --- reads "High Elf".
 --- @param name nil|string
@@ -84,6 +132,54 @@ function HeroBuild.Create(options)
     Build.STEP_BY_ID = {}
     for _,step in ipairs(Build.STEPS) do
         Build.STEP_BY_ID[step.id] = step
+    end
+
+    ---@class HeroBuildExtraStep
+    ---@field id string the step id
+    ---@field title string the pill's and the page's name
+    ---@field after string the step it follows
+    ---@field shown fun(hero: character): boolean whether this Hero has the step at all
+    ---@field details fun(hero: character): table[] feature details ({feature = ..., levels = {n}}) for its rows
+    ---@field claims fun(hero: character): table<string, boolean> choice guids this step takes from the other steps
+    ---@field order nil|fun(wrapper: CBFeatureWrapper): integer rows sort by this first (default 0), then in the usual order
+    ---@field placeholder nil|string where a claimed choice used to be, a done row with this text says where it went
+
+    --Steps a module added with Build.RegisterStep, by id.
+    ---@type table<string, HeroBuildExtraStep>
+    Build.extraSteps = {}
+
+    --- Add a step (a pill) to this engine's builder, after an existing step.
+    --- Its rows are ordinary feature choices, so picks, counts, Fill and Undo
+    --- work as on the built-in steps; it can also take choices away from the
+    --- other steps (claims). Registering an id again replaces it. Register
+    --- before a builder window opens: each window copies the step list.
+    ---@param args HeroBuildExtraStep
+    function Build.RegisterStep(args)
+        for i = #Build.STEPS, 1, -1 do
+            if Build.STEPS[i].id == args.id then
+                table.remove(Build.STEPS, i)
+            end
+        end
+        local entry = { id = args.id, title = args.title }
+        local insertAt = #Build.STEPS + 1
+        for i,step in ipairs(Build.STEPS) do
+            if step.id == args.after then
+                insertAt = i + 1
+            end
+        end
+        table.insert(Build.STEPS, insertAt, entry)
+        Build.STEP_BY_ID[args.id] = entry
+        Build.extraSteps[args.id] = args
+    end
+
+    --- Whether the builder shows a step's pill for this Hero: a registered step
+    --- can leave out Heroes it does not apply to; every other step shows.
+    ---@param hero character
+    ---@param stepid string
+    ---@return boolean
+    function Build.StepShown(hero, stepid)
+        local extra = Build.extraSteps[stepid]
+        return extra == nil or extra.shown(hero)
     end
 
     --Hand-picked defaults Fill prefers over a random pick. An entry whose
@@ -646,6 +742,73 @@ function HeroBuild.Create(options)
         end
     end
 
+    --A registered step's rows sorted by its order function, keeping the usual
+    --order among rows it ranks the same.
+    ---@param rows HeroBuildRow[]
+    ---@param order fun(wrapper: CBFeatureWrapper): integer
+    ---@return HeroBuildRow[]
+    local function SortByStepOrder(rows, order)
+        local keyed = {}
+        for i,row in ipairs(rows) do
+            keyed[i] = { row = row, rank = order(row.wrapper), index = i }
+        end
+        table.sort(keyed, function(a, b)
+            if a.rank ~= b.rank then
+                return a.rank < b.rank
+            end
+            return a.index < b.index
+        end)
+        local result = {}
+        for i,entry in ipairs(keyed) do
+            result[i] = entry.row
+        end
+        return result
+    end
+
+    --Takes out of a step's rows the choices a registered step claims. Where the
+    --claiming step has placeholder text, a done row says where the choice went;
+    --a choice nested under another pick moves with its parent and needs no row.
+    ---@param hero character
+    ---@param stepid string
+    ---@param rows HeroBuildRow[]
+    ---@return HeroBuildRow[]
+    local function ApplyClaims(hero, stepid, rows)
+        --claimed guid -> the step that took it
+        local claimed = nil
+        for _,extra in pairs(Build.extraSteps) do
+            for guid,_ in pairs(extra.claims(hero)) do
+                claimed = claimed or {}
+                claimed[guid] = extra
+            end
+        end
+        if claimed == nil then
+            return rows
+        end
+
+        local result = {}
+        for _,row in ipairs(rows) do
+            local guid = row.wrapper:GetGuid()
+            local extra = claimed[guid]
+            if extra == nil then
+                result[#result+1] = row
+            elseif extra.placeholder ~= nil and not row.cache:IsNestedFeature(guid) then
+                local moved = CharacterMovedChoice.new{
+                    guid = "moved:" .. guid,
+                    name = row.wrapper:GetName(),
+                    text = extra.placeholder,
+                    stepid = extra.id,
+                }
+                local level = tonumber(row.wrapper:try_get("level")) or 0
+                local cache = CBFeatureCache.CreateNew(hero, stepid, extra.title, {{ feature = moved, levels = { level } }})
+                local wrapper = cache:GetFeature(moved.guid)
+                if wrapper ~= nil then
+                    result[#result+1] = { wrapper = wrapper, cache = cache, id = moved.guid }
+                end
+            end
+        end
+        return result
+    end
+
     --One choice row of a step: the builder's wrapper for the choice, the cache
     --it came from, and the row's id (the choice guid, or "characteristics" /
     --"kit" for those two class rows).
@@ -682,7 +845,16 @@ function HeroBuild.Create(options)
         end
         local step = SourceInfo(stepid)
         local title = step and step.title or stepid
-        local details, separate = StepFeatureDetails(hero, stepid)
+        local extra = Build.extraSteps[stepid]
+        if extra ~= nil and not extra.shown(hero) then
+            return {}
+        end
+        local details, separate
+        if extra ~= nil then
+            details, separate = extra.details(hero), {}
+        else
+            details, separate = StepFeatureDetails(hero, stepid)
+        end
         --a complication's features name no complication (their source says
         --only "Feat"), so its choices carry the complication's name.
         local owners = {}
@@ -722,8 +894,14 @@ function HeroBuild.Create(options)
                 result[#result+1] = row
             end
         end
+        if extra ~= nil and extra.order ~= nil then
+            result = SortByStepOrder(result, extra.order)
+        end
         local rows = NestUnderParents(hero, result)
         ExcludeHeldKitEquivalents(rows)
+        if extra == nil then
+            rows = ApplyClaims(hero, stepid, rows)
+        end
         return rows
     end
 
@@ -1839,6 +2017,8 @@ function HeroBuild.Create(options)
             typeName = feature.typeName,
             --option id -> true for the book's Quick Build pick (starred on screen)
             quickBuild = Build.QuickBuildIds(feature),
+            --a choice a registered step took over: the step it went to
+            movedTo = feature.typeName == "CharacterMovedChoice" and (feature --[[@as CharacterMovedChoice]]).stepid or nil,
         }
     end
 

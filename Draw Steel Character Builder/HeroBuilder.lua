@@ -760,6 +760,7 @@ local CARD_HEIGHTS = {text = 46, cards = 38, kits = 88, wide = 88}
 --- @field link nil|boolean You gain has choices to make: the link to Skills & Languages shows
 --- @field stale nil|HeroBuilderStale picks no longer offered
 --- @field kept nil|HeroBuilderKept[] picks kept for one higher Level; such a section has no cards
+--- @field movedTo nil|string a choice a registered step took over: that step's id, linked from the heading
 
 --- @class HeroBuilderStale
 --- @field ids string[] the picked ids no longer offered
@@ -1852,6 +1853,7 @@ local function RowSection(token, stepid, row, taken, rowOptions)
         result = result,
         search = search,
         stale = StalePicks(stepid, row.stale),
+        movedTo = info.movedTo,
     }
 end
 
@@ -3771,6 +3773,9 @@ function HeroBuilder.Create(args)
     --Other choices shows only while something asks for one; Paint
     --keeps this up to date, and the pills, Back and Next follow it.
     local otherShown = false
+    --Registered steps this Hero does not have (Engine().StepShown); Paint
+    --keeps this up to date like otherShown.
+    local hiddenSteps = {}
     --the stepper row's width, for refitting the pills when a step shows or hides.
     local pillRowW = 1300
 
@@ -3788,6 +3793,9 @@ function HeroBuilder.Create(args)
             if stepid == REVIEW then
                 return args.review ~= nil
             end
+        end
+        if hiddenSteps[stepid] then
+            return false
         end
         return stepid ~= OTHER or otherShown
     end
@@ -5602,6 +5610,30 @@ function HeroBuilder.Create(args)
             }
         end
         local children, status, note = SectionHead(section.title, nil, search)
+        --a choice another step took over links to that step, just after its name.
+        if section.movedTo ~= nil then
+            local target = section.movedTo --[[@as string]]
+            local targetStep = Engine().STEP_BY_ID[target]
+            --placed right after the name and its note, before the state plate.
+            local headRow = children[1]
+            local rowChildren = headRow.children
+            table.insert(rowChildren, 3, gui.Label{
+                classes = {"heroSheetFeatLink", "hoverable"},
+                text = T("herobuilder.moved.link", {step = targetStep ~= nil and targetStep.title or target}),
+                fontSize = 13,
+                underline = true,
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                valign = "center",
+                lmargin = 12,
+                textWrap = false,
+                click = function()
+                    GoTo(target)
+                end,
+            })
+            headRow.children = rowChildren
+        end
         local stale = StaleRow(stepid, section.key)
         children[#children+1] = stale.panel
         --no chosen card above the tiles: the pane's top card shows the pick,
@@ -6522,10 +6554,11 @@ function HeroBuilder.Create(args)
             end
             entry.modelKey = modelKey
             --with choices from more than one Level, the Class step groups
-            --them under "1st-Level Features"... headers.
+            --them under "1st-Level Features"... headers, and so does a step a
+            --module registered (its rows can come from class features too).
             local grouped = false
             --Level up shows one Level, so it needs no groups.
-            if stepid == "class" and stepStatus.levelUp == nil then
+            if (stepid == "class" or Engine().extraSteps[stepid] ~= nil) and stepStatus.levelUp == nil then
                 for _, section in ipairs(model.sections) do
                     grouped = grouped or (section.kept == nil and (section.level or 1) > 1)
                 end
@@ -8235,6 +8268,20 @@ function HeroBuilder.Create(args)
             otherShown = status.other ~= nil
             FitPills(pillRowW)
             if not otherShown and state.step == OTHER then
+                state.step = FirstOpenStep(status)
+            end
+        end
+        local hidden, hiddenChanged = {}, false
+        for _, step in ipairs(steps) do
+            hidden[step.id] = not Engine().StepShown(hero, step.id) or nil
+            if hidden[step.id] ~= hiddenSteps[step.id] then
+                hiddenChanged = true
+            end
+        end
+        if hiddenChanged then
+            hiddenSteps = hidden
+            FitPills(pillRowW)
+            if hiddenSteps[state.step] then
                 state.step = FirstOpenStep(status)
             end
         end

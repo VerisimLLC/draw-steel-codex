@@ -1715,7 +1715,6 @@ local function Stamina()
     local bar
     local fill
     local tempFill
-    local tick
     local number
     local zones
     local field
@@ -1753,7 +1752,6 @@ local function Stamina()
         fieldInput.captureEscape = false
         field:SetClass("collapsed", true)
         line:SetClass("heroSheetHush", false)
-        tick:SetClass("heroSheetHush", false)
     end
 
     --- @param newMode string
@@ -1773,7 +1771,6 @@ local function Stamina()
             fieldInput.text = ""
         end
         field:SetClass("collapsed", false)
-        tick:SetClass("heroSheetHush", true)
         fieldInput.captureEscape = true
         --the line under the bar keeps its height but hides while editing.
         line:SetClass("heroSheetHush", true)
@@ -1834,33 +1831,6 @@ local function Stamina()
         height = "100%",
         halign = "left",
         interactable = false,
-    }
-    --from the left: a spacer as wide as the Winded point, then the tick,
-    --kept inside the bar's outline.
-    local tickSpacer = gui.Panel{
-        width = "50%",
-        height = "100%",
-        halign = "left",
-        interactable = false,
-    }
-    tick = gui.Panel{
-        --hidden under the hover zones and the edit field.
-        classes = {"heroSheetHpTickRow"},
-        floating = true,
-        width = "100%",
-        height = "100%-2",
-        valign = "center",
-        flow = "horizontal",
-        interactable = false,
-        tickSpacer,
-        gui.Panel{
-            classes = {"heroSheetHpTick"},
-            bgimage = "panels/square.png",
-            width = 2,
-            height = "100%",
-            halign = "left",
-            interactable = false,
-        },
     }
     number = Text{
         classes = {"heroSheetHpNumber"},
@@ -2000,7 +1970,6 @@ local function Stamina()
             fill,
             tempFill,
         },
-        tick,
         number,
         zones,
         field,
@@ -2096,8 +2065,6 @@ local function Stamina()
             fill:SetClass("dying", state == "dying" or state == "dead")
             bar:SetClass("winded", state == "winded")
             bar:SetClass("dying", state == "dying" or state == "dead")
-            --the tick marks the Winded point.
-            tickSpacer.selfStyle.width = string.format("%.2f%%", winded / max * 100)
             local text = string.format("%d/%d", cur, max)
             if temp > 0 then
                 text = text .. string.format(" +%d", temp)
@@ -2116,7 +2083,6 @@ local function Stamina()
             stateWord:SetClass("heroSheetCardDanger", state == "dying" or state == "dead")
             --the zones only for those who may change the Hero.
             zones:SetClass("collapsed", not HeroSheetWrite.CanWrite())
-            tick:SetClass("editable", HeroSheetWrite.CanWrite())
         end,
         bar,
         line,
@@ -4311,7 +4277,7 @@ function HeroSheetCard.BuilderCard(block, heroToken)
     }
     local classLine = Text{text = "", width = "100%", fontSize = 14, tmargin = 2, textWrap = true}
 
-    --Stamina, read only: the bar with the Winded tick, then Dead at and Winded at.
+    --Stamina, read only: the bar, then Dead at and Winded at.
     local fill = gui.Panel{
         classes = {"heroSheetHpFill"},
         bgimage = "panels/square.png",
@@ -4328,7 +4294,6 @@ function HeroSheetCard.BuilderCard(block, heroToken)
             interactable = false,
         },
     }
-    local tickSpacer = gui.Panel{width = "50%", height = "100%", halign = "left", interactable = false}
     local number = Text{classes = {"heroSheetHpNumber"}, text = "", fontSize = 13, bold = true, valign = "center"}
     local staminaMark = Mark()
     local bar = gui.Panel{
@@ -4351,16 +4316,6 @@ function HeroSheetCard.BuilderCard(block, heroToken)
             valign = "center",
             flow = "horizontal",
             fill,
-        },
-        gui.Panel{
-            floating = true,
-            width = "100%",
-            height = "100%-2",
-            valign = "center",
-            flow = "horizontal",
-            interactable = false,
-            tickSpacer,
-            gui.Panel{classes = {"heroSheetHpTick"}, bgimage = "panels/square.png", width = 2, height = "100%", halign = "left"},
         },
         --the number, with a preview's mark after it.
         gui.Panel{
@@ -4572,7 +4527,6 @@ function HeroSheetCard.BuilderCard(block, heroToken)
             charValues[i].text = char ~= nil and char.value or ""
         end
         fill.selfStyle.width = string.format("%.2f%%", math.max(0, math.min(1, values.cur / values.max)) * 100)
-        tickSpacer.selfStyle.width = string.format("%.2f%%", values.winded / values.max * 100)
         number.text = string.format("%d/%d", values.cur, values.max)
         deadAt.text = tostring(-values.winded)
         windedAt.text = tostring(values.winded)
@@ -4644,7 +4598,6 @@ function HeroSheetCard.BuilderCard(block, heroToken)
             local max = math.max(1, spec.stamina.max)
             local winded = math.floor(max / 2)
             fill.selfStyle.width = string.format("%.2f%%", math.max(0, math.min(1, live.cur / max)) * 100)
-            tickSpacer.selfStyle.width = string.format("%.2f%%", winded / max * 100)
             number.text = string.format("%d/%d", live.cur, max)
             SetMark(staminaMark, spec.stamina.better)
             deadAt.text = tostring(-winded)

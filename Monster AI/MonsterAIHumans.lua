@@ -526,3 +526,643 @@ MonsterAI:RegisterMaliceAbility{
         end)
     end,
 }
+
+--------------------------------------------------------------------------------
+-- Human Blackguard: a leader with a two-handed sword whose signature is a
+-- 1 burst. Its villain actions are cast for real and their prompts are answered
+-- from the plan made when the action was scored.
+--------------------------------------------------------------------------------
+
+local blackguardMonster = {"Human Blackguard"}
+local swingName = "Zweihander Swing"
+
+--You! then the swing outranks the swing alone, so the mark lands first.
+local markAndSwingBonus = 0.2
+
+--Standard abilities behind Zweihander Swing's "one ally can make a free strike".
+--Its Malice mode (an ally uses their signature) is never chosen by the AI.
+local freeStrikeStandardAbilities = {["Make Free Strike"] = true, ["Free Strike"] = true}
+
+--I Can Throw My Blade: each ally this close to the cube makes one free strike.
+local throwBladeAllyRange = 5
+
+--Villain action plans by blackguard charid, held only while the cast runs so
+--its prompts follow the choices made when the action was scored.
+local advancePlans = {}
+local throwBladePlans = {}
+
+local function StandardAbilityName(id)
+    local ability = (dmhub.GetTable("standardAbilities") or {})[id]
+    return ability ~= nil and ability.name or nil
+end
+
+--The AI's enemy list (creatures in the encounter) when it has one; a prompt
+--answered outside the blackguard's own action has none, so use the whole map.
+local function EnemiesOf(ai, token)
+    local enemies = ai:try_get("enemyTokens")
+    if enemies ~= nil then
+        return enemies
+    end
+    local result = {}
+    for _,other in ipairs(dmhub.allTokens) do
+        if LiveCreature(other) and IsHostile(token, other) then
+            result[#result+1] = other
+        end
+    end
+    return result
+end
+
+--The enemies Zweihander Swing catches with the blackguard standing on loc,
+--and how much the AI wants to hit them.
+local function SwingTargetsAt(ai, token, swing, loc, enemies)
+    local range = swing:GetRange(token.properties)
+    local symbols = {mode = 1}
+    local targets = {}
+    local value = 0
+    ai:ExecuteWithTheoreticalMovementLoc(token, loc, function()
+        for _,enemy in ipairs(enemies) do
+            if LiveCreature(enemy) and MonsterAI.TargetDistance(enemy, token) <= range
+                and swing:TargetPassesFilter(token, enemy, symbols) then
+                targets[#targets+1] = {token = enemy}
+                value = value + DefaultTargetScore(enemy)
+            end
+        end
+    end)
+    return targets, value
+end
+
+--The reachable square whose burst catches the most enemies this turn.
+local function FindBestSwingSquare(ai, token, swing)
+    local enemies = EnemiesOf(ai, token)
+    local best = nil
+    for _,info in pairs(ai.paths or {}) do
+        local targets, value = SwingTargetsAt(ai, token, swing, info.loc, enemies)
+        local rank = value - (info.cost or 0)*0.0001
+        if #targets > 0 and (best == nil or rank > best.rank) then
+            best = {loc = info.loc, targets = targets, rank = rank}
+        end
+    end
+    return best
+end
+
+local function SwingScore(plan)
+    return 1.0 + math.min(0.5, (#plan.targets - 1)*0.15)
+end
+
+local function SwingHere(ai, token, swing)
+    --A trap or reaction can stop the move short; a swing at no one wastes the action.
+    if #SwingTargetsAt(ai, token, swing, token.loc, EnemiesOf(ai, token)) == 0 then
+        return
+    end
+    ai:ExecuteAbility(token, swing, nil, {sleep = abilityPause, symbols = {mode = 1}})
+end
+
+--AI-run allies other than the blackguard that could reach target this round.
+local function AlliesThatCanReach(ai, token, target)
+    local count = 0
+    for _,ally in ipairs(ai:try_get("allyTokens") or {}) do
+        if ally.charid ~= token.charid and LiveCreature(ally) and not ally.playerControlled
+            and MonsterAI.TargetDistance(ally, target) <= (ally.properties:CurrentMovementSpeed() or 0) + 1 then
+            count = count + 1
+        end
+    end
+    return count
+end
+
+--Who You! should mark from loc. The mark gives the blackguard and its allies an
+--edge against the target, so it only pays on an enemy someone is about to
+--attack: one in swingTargets, or one an ally can reach. Minions come last.
+local function ChooseMarkTarget(ai, token, you, loc, swingTargets)
+    local inSwing = {}
+    for _,targetInfo in ipairs(swingTargets or {}) do
+        inSwing[targetInfo.token.charid] = true
+    end
+    local best = nil
+    for _,targetInfo in ipairs(ai:FindValidTargetsOfStrike(token, you, loc)) do
+        local target = targetInfo.token
+        local allies = AlliesThatCanReach(ai, token, target)
+        if LiveCreature(target) and (inSwing[target.charid] or allies > 0) then
+            local value = DefaultTargetScore(target) + cond(inSwing[target.charid], 1, 0)
+                + allies*0.3 - cond(IsMinion(target), 0.8, 0)
+            if best == nil or value > best.value then
+                best = {token = target, value = value}
+            end
+        end
+    end
+    return best
+end
+
+MonsterAI:RegisterMove{
+    id = "Human Blackguard: Zweihander Swing",
+    category = "Main Actions",
+    monsters = blackguardMonster,
+    abilities = {swingName},
+    description = "Move to the square where the burst catches the most enemies, then swing.",
+    score = function(self, ai, token, swing)
+        local plan = FindBestSwingSquare(ai, token, swing)
+        if plan == nil then
+            return nil, "no reachable square puts an enemy in the burst"
+        end
+        return {score = SwingScore(plan), loc = plan.loc}
+    end,
+    execute = function(self, ai, token, scoringInfo, swing)
+        MoveCinematically(ai, token, scoringInfo.loc)
+        SwingHere(ai, token, swing)
+    end,
+}
+
+MonsterAI:RegisterMove{
+    id = "Human Blackguard: You! and Zweihander Swing",
+    category = "Main Actions",
+    monsters = blackguardMonster,
+    abilities = {"You!", swingName},
+    description = "Mark an enemy the swing will hit (or an ally can reach), then swing with the edge.",
+    score = function(self, ai, token, you, swing)
+        local plan = FindBestSwingSquare(ai, token, swing)
+        if plan == nil then
+            return nil, "no reachable square puts an enemy in the burst"
+        end
+        if ChooseMarkTarget(ai, token, you, plan.loc, plan.targets) == nil then
+            return nil, "no enemy worth marking from the swing square"
+        end
+        return {score = SwingScore(plan) + markAndSwingBonus, loc = plan.loc}
+    end,
+    execute = function(self, ai, token, scoringInfo, you, swing)
+        MoveCinematically(ai, token, scoringInfo.loc)
+        local swingTargets = SwingTargetsAt(ai, token, swing, token.loc, EnemiesOf(ai, token))
+        local mark = ChooseMarkTarget(ai, token, you, token.loc, swingTargets)
+        if mark ~= nil then
+            ai:ExecuteAbility(token, you, {{token = mark.token}}, {sleep = abilityPause})
+        end
+        SwingHere(ai, token, swing)
+    end,
+}
+
+MonsterAI:RegisterMove{
+    id = "Human Blackguard: You!",
+    category = "Maneuvers",
+    monsters = blackguardMonster,
+    abilities = {"You!"},
+    description = "Mark an enemy an ally can reach when there is no swing to set up.",
+    score = function(self, ai, token, you)
+        if ChooseMarkTarget(ai, token, you, token.loc, nil) == nil then
+            return nil, "no enemy in range that an ally can reach"
+        end
+        return {score = 0.5}
+    end,
+    execute = function(self, ai, token, scoringInfo, you)
+        local mark = ChooseMarkTarget(ai, token, you, token.loc, nil)
+        if mark ~= nil then
+            ai:ExecuteAbility(token, you, {{token = mark.token}}, {sleep = abilityPause})
+        end
+    end,
+}
+
+--A creature's free strikes as a grant makes them: outside its action economy,
+--never a charge. planning is a copy for target search, which treats anything
+--named "Melee Free Strike" as able to charge.
+local function GrantedFreeStrikes(ally)
+    local result = {}
+    for _,ability in ipairs(ally.properties:GetActivatedAbilities()) do
+        if ability.categorization == "Basic Attack" then
+            local variants = {ability}
+            if ability.meleeAndRanged then
+                variants = {ability.meleeVariation, ability.rangedVariation}
+            end
+            for _,variant in ipairs(variants) do
+                local strike = DeepCopy(variant)
+                strike.actionResourceId = "none"
+                strike.disableSquadCoordination = true
+                if strike.keywords ~= nil then
+                    strike.keywords.Charge = nil
+                end
+                result[#result+1] = strike
+            end
+        end
+    end
+    return result
+end
+
+--The free strike ally would make right now against one of candidates (every
+--enemy when nil), picking the target the AI would rather hit.
+local function BestGrantedFreeStrike(ai, ally, candidates)
+    candidates = candidates or EnemiesOf(ai, ally)
+    local pierceWalls = ally.properties:GetPierceWalls()
+    local best = nil
+    for _,strike in ipairs(GrantedFreeStrikes(ally)) do
+        local range = strike:GetRange(ally.properties)
+        for _,enemy in ipairs(candidates) do
+            if LiveCreature(enemy) and IsHostile(ally, enemy)
+                and not enemy.properties:HasNamedCondition("Hidden")
+                and MonsterAI.TargetDistance(strike:GetRangeSource(ally), enemy) <= range
+                and strike:TargetPassesFilter(ally, enemy, {})
+                and ally:GetLineOfSight(enemy, pierceWalls) > 0 then
+                --a full monster hits harder than a minion, so it goes first.
+                local value = DefaultTargetScore(enemy) + cond(IsMinion(ally), 0, 0.5)
+                if best == nil or value > best.value then
+                    best = {ally = ally, strike = strike, target = enemy, value = value}
+                end
+            end
+        end
+    end
+    return best
+end
+
+--Makes a granted free strike directly. The grant's own prompt chain would hand
+--the ally's choice to the Director, so the handlers below decline the grant
+--after making the strike themselves.
+local function MakeGrantedFreeStrike(ai, plan)
+    --RunWithTokenControl clears the expected prompt; keep the outer action's.
+    local expected = ai:try_get("_tmp_expectedPromptTarget")
+    local ok, err = ai:RunWithTokenControl(plan.ally, function()
+        ai:ExecuteAbility(plan.ally, plan.strike, {{token = plan.target}}, {sleep = 0.5})
+    end)
+    ai._tmp_expectedPromptTarget = expected
+    if not ok then
+        ai:LogDecision("PROMPT ERROR", {
+            ability = plan.strike.name,
+            reason = "granted free strike failed: " .. tostring(err),
+        })
+    end
+end
+
+local function GrantsFreeStrike(ability)
+    for _,behavior in ipairs(ability:try_get("behaviors", {})) do
+        if behavior.typeName == "ActivatedAbilityInvokeAbilityBehavior"
+            and behavior:try_get("abilityType") == "standard"
+            and freeStrikeStandardAbilities[StandardAbilityName(behavior:try_get("standardAbility", ""))] then
+            return true
+        end
+    end
+    return false
+end
+
+--Zweihander Swing: "One ally within 10 squares can make a free strike."
+MonsterAI:RegisterPrompt{
+    id = "Human Blackguard: Swing Ally Free Strike",
+    prompts = {"Human Blackguard:Invoked Ability"},
+    handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
+        if not GrantsFreeStrike(abilityClone) then
+            return nil
+        end
+        local origin = abilityClone:GetRangeSource(casterToken)
+        local range = abilityClone:GetRange(casterToken.properties)
+        local pierceWalls = casterToken.properties:GetPierceWalls()
+        local best = nil
+        for _,ally in ipairs(dmhub.allTokens) do
+            if LiveCreature(ally) and not ally.playerControlled and ally.charid ~= casterToken.charid
+                and not IsHostile(casterToken, ally)
+                and MonsterAI.TargetDistance(origin, ally) <= range
+                and abilityClone:TargetPassesFilter(casterToken, ally, symbols or {})
+                and origin:GetLineOfSight(ally, pierceWalls) > 0 then
+                local plan = BestGrantedFreeStrike(ai, ally, nil)
+                if plan ~= nil and (best == nil or plan.value > best.value) then
+                    best = plan
+                end
+            end
+        end
+        if best ~= nil then
+            MakeGrantedFreeStrike(ai, best)
+        end
+        return {targets = {}}
+    end,
+}
+
+--Advance! comes in two builds: "shift {Movement Speed}" then two swings, or
+--shift, swing, shift, swing, shift. Only the second lets the blackguard swing
+--from two different squares.
+local function CanShiftBetweenSwings(ability)
+    local swings = 0
+    for _,behavior in ipairs(ability:try_get("behaviors", {})) do
+        if behavior.typeName == "ActivatedAbilityInvokeAbilityBehavior" then
+            local abilityType = behavior:try_get("abilityType", "custom")
+            if abilityType == "named"
+                and string.lower(behavior:try_get("namedAbility", "")) == string.lower(swingName) then
+                swings = swings + 1
+            elseif abilityType == "standard" and swings == 1
+                and StandardAbilityName(behavior:try_get("standardAbility", "")) == "Shift" then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+--Advance!'s second swing at an enemy the first already hit is worth less: its
+--slow is already on, and it may be down. At or below advanceLikelyDownStamina
+--(a tier 2 swing) a creature probably falls to the first swing.
+local advanceRepeatValue = 0.8
+local advanceRepeatValueIfLikelyDown = 0.2
+local advanceLikelyDownStamina = 6
+
+local function SecondSwingValue(first, second)
+    local hitFirst = {}
+    for _,targetInfo in ipairs(first.targets) do
+        hitFirst[targetInfo.token.charid] = true
+    end
+    local value = 0
+    for _,targetInfo in ipairs(second.targets) do
+        local target = targetInfo.token
+        local worth = DefaultTargetScore(target)
+        if hitFirst[target.charid] then
+            if IsMinion(target) or target.properties:CurrentHitpoints() <= advanceLikelyDownStamina then
+                worth = worth*advanceRepeatValueIfLikelyDown
+            else
+                worth = worth*advanceRepeatValue
+            end
+        end
+        value = value + worth
+    end
+    return value
+end
+
+--Where Advance! shifts to before the first swing (first) and before the second
+--(second), catching the most enemies over both swings. With no enemy in reach
+--it just closes in. nil when there is no enemy at all.
+local function PlanAdvance(ai, token, ability, swing)
+    local speed = token.properties:CurrentMovementSpeed() or 0
+    local enemies = EnemiesOf(ai, token)
+    local squares = {}
+    local haveStart = false
+    for _,info in pairs(ai:CalculateMovementPaths(token, speed*10, {"shift"})) do
+        squares[#squares+1] = {loc = info.loc, cost = (info.cost or 0)/10}
+        haveStart = haveStart or info.loc.str == token.loc.str
+    end
+    if not haveStart then
+        squares[#squares+1] = {loc = token.loc, cost = 0}
+    end
+
+    local hitting = {}
+    for _,square in ipairs(squares) do
+        local targets, value = SwingTargetsAt(ai, token, swing, square.loc, enemies)
+        square.targets = targets
+        square.hits = #targets
+        square.value = value
+        if square.hits > 0 then
+            hitting[#hitting+1] = square
+        end
+    end
+
+    local split = CanShiftBetweenSwings(ability)
+    local best = nil
+    for _,first in ipairs(hitting) do
+        for _,second in ipairs(split and hitting or {first}) do
+            local moved = first.cost + first.loc:DistanceInTiles(second.loc)
+            if moved <= speed then
+                local rank = first.value + SecondSwingValue(first, second) - moved*0.001
+                if best == nil or rank > best.rank then
+                    best = {first = first.loc, second = second.loc, hits = first.hits + second.hits, rank = rank}
+                end
+            end
+        end
+    end
+    if best ~= nil then
+        return best
+    end
+
+    for _,square in ipairs(squares) do
+        local distance = nil
+        ai:ExecuteWithTheoreticalMovementLoc(token, square.loc, function()
+            distance = NearestDistance(token, enemies)
+        end)
+        if distance ~= nil then
+            local rank = -distance - square.cost*0.001
+            if best == nil or rank > best.rank then
+                best = {first = square.loc, second = square.loc, hits = 0, rank = rank}
+            end
+        end
+    end
+    return best
+end
+
+--Fallback when a planned shift square is out of reach: the best swing square
+--this shift can reach (the current square when nothing beats it).
+local function BestReachableSwingSquare(ai, token, range)
+    local swing = FindAbility(token, swingName)
+    if swing == nil then
+        return nil
+    end
+    local enemies = EnemiesOf(ai, token)
+    local best = nil
+    for _,info in pairs(ai:CalculateMovementPaths(token, range*10, {"shift"})) do
+        local _, value = SwingTargetsAt(ai, token, swing, info.loc, enemies)
+        local rank = value - (info.cost or 0)*0.0001
+        if best == nil or rank > best.rank then
+            best = {loc = info.loc, rank = rank}
+        end
+    end
+    return best ~= nil and best.loc or nil
+end
+
+--Advance!'s shifts: to plan.first before the first swing and plan.second
+--between the swings. Any other shift (the one after both swings) is declined.
+MonsterAI:RegisterPrompt{
+    id = "Human Blackguard: Advance! Shift",
+    prompts = {"Human Blackguard:Shift"},
+    handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
+        local plan = advancePlans[invokerToken.charid]
+        if plan == nil then
+            --not Advance!: the generic Shift handler answers.
+            return nil
+        end
+        local phase = plan.swings
+        local loc = nil
+        if phase <= 1 and not plan.shifted[phase] then
+            plan.shifted[phase] = true
+            loc = cond(phase == 0, plan.first, plan.second)
+        end
+        if loc == nil or loc.str == casterToken.loc.str then
+            return {targets = {}}
+        end
+
+        local range = abilityClone:GetRange(casterToken.properties)
+        local reachable = false
+        for _,info in pairs(ai:CalculateMovementPaths(casterToken, range*10, {"shift"})) do
+            if info.loc.str == loc.str then
+                reachable = true
+                break
+            end
+        end
+        if not reachable then
+            loc = BestReachableSwingSquare(ai, casterToken, range)
+            if loc == nil or loc.str == casterToken.loc.str then
+                return {targets = {}}
+            end
+        end
+
+        casterToken:MarkMovementArrow(loc, {straightline = false, ignorecreatures = false})
+        MonsterAI.Sleep(movementPause)
+        casterToken:ClearMovementArrow()
+        return {targets = {{loc = loc}}}
+    end,
+}
+
+--A swing an ability invokes (Advance!) asks for its targets: every enemy in the
+--burst, in mode 1 (the free strike grant).
+MonsterAI:RegisterPrompt{
+    id = "Human Blackguard: Invoked Zweihander Swing",
+    prompts = {"Human Blackguard:" .. swingName},
+    handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
+        local plan = advancePlans[invokerToken.charid]
+        if plan ~= nil then
+            plan.swings = plan.swings + 1
+        end
+        if symbols ~= nil then
+            symbols.mode = 1
+        end
+        local targets = SwingTargetsAt(ai, casterToken, abilityClone, casterToken.loc, EnemiesOf(ai, casterToken))
+        return {targets = targets}
+    end,
+}
+
+MonsterAI:RegisterVillainAction{
+    id = "Human Blackguard: Advance!",
+    monsters = blackguardMonster,
+    abilities = {"Advance!"},
+    description = "Shift up to speed and swing twice, splitting the shift between two spots when that catches more enemies.",
+    score = function(self, ai, token, ability, context)
+        local swing = FindAbility(token, swingName)
+        if swing == nil then
+            return nil, "no Zweihander Swing to use"
+        end
+        local plan = PlanAdvance(ai, token, ability, swing)
+        if plan == nil then
+            return nil, "no enemy to advance on"
+        end
+        if plan.hits == 0 then
+            --nobody in reach: only worth it as a free advance in the round's last window.
+            plan.score = 0.1
+        else
+            plan.score = math.min(0.95, 0.45 + plan.hits*0.12)
+        end
+        plan.reason = string.format("swing at %s then %s; %d hits",
+            MonsterAI.LocLogName(plan.first), MonsterAI.LocLogName(plan.second), plan.hits)
+        return plan
+    end,
+    execute = function(self, ai, token, scoringInfo, ability, context)
+        advancePlans[token.charid] = {
+            first = scoringInfo.first,
+            second = scoringInfo.second,
+            swings = 0,
+            shifted = {},
+        }
+        local ok, err = ai:RunYieldingFunction(function()
+            ai:ExecuteAbility(token, ability, {{token = token}}, {sleep = abilityPause})
+        end)
+        advancePlans[token.charid] = nil
+        if not ok then
+            error(err, 0)
+        end
+    end,
+}
+
+MonsterAI:RegisterVillainAction{
+    id = "Human Blackguard: Back!",
+    monsters = blackguardMonster,
+    abilities = {"Back!"},
+    description = "Slide every enemy within 5 squares, best when the blackguard is crowded.",
+    score = function(self, ai, token, ability, context)
+        local range = ability:GetRange(token.properties)
+        local caught = 0
+        local adjacent = 0
+        for _,enemy in ipairs(EnemiesOf(ai, token)) do
+            local distance = MonsterAI.TargetDistance(enemy, token)
+            if LiveCreature(enemy) and distance <= range and ability:TargetPassesFilter(token, enemy, {mode = 1}) then
+                caught = caught + 1
+                if distance <= 1 then
+                    adjacent = adjacent + 1
+                end
+            end
+        end
+        if caught == 0 then
+            return nil, "no enemy within the burst"
+        end
+        return {score = math.min(0.95, 0.35 + caught*0.12 + adjacent*0.08), enemies = caught}
+    end,
+    execute = function(self, ai, token, scoringInfo, ability, context)
+        ai:ExecuteAbility(token, ability, nil, {sleep = abilityPause})
+    end,
+}
+
+local function DistanceToArea(token, area)
+    local result = nil
+    for _,loc in ipairs(area.locations or {}) do
+        local distance = token:Distance(loc)
+        if result == nil or distance < result then
+            result = distance
+        end
+    end
+    return result
+end
+
+MonsterAI:RegisterVillainAction{
+    id = "Human Blackguard: I Can Throw My Blade and So Should You!",
+    monsters = blackguardMonster,
+    abilities = {"I Can Throw My Blade and So Should You!"},
+    description = "Throw the swing at the cube catching the most enemies; nearby allies each free strike one of them.",
+    score = function(self, ai, token, ability, context)
+        local plan = FindBestCubePlan(token, ability, EnemiesOf(ai, token))
+        if plan == nil or plan.count == 0 then
+            return nil, "no cube in range catches an enemy"
+        end
+        return {score = math.min(0.95, 0.4 + plan.count*0.15), center = plan.center, enemies = plan.count}
+    end,
+    execute = function(self, ai, token, scoringInfo, ability, context)
+        local area = BuildCubeArea(token, ability, scoringInfo.center)
+        local targets = TokensInArea(token, ability, area)
+        throwBladePlans[token.charid] = {area = area, used = {}}
+        local ok, err = ai:RunYieldingFunction(function()
+            ai:ExecuteAbility(token, DeepCopy(ability), targets, {
+                sleep = abilityPause,
+                symbols = {targetArea = area},
+                targetArea = area,
+            })
+        end)
+        throwBladePlans[token.charid] = nil
+        if not ok then
+            error(err, 0)
+        end
+    end,
+}
+
+--I Can Throw My Blade's newer build asks each ally near the cube for a free
+--strike against one of its targets; the generic Free Strike handler answers.
+--The older build asks, for each enemy struck (the prompt's caster), which
+--allies free strike it. Each ally near the cube strikes once.
+MonsterAI:RegisterPrompt{
+    id = "Human Blackguard: Throw My Blade Ally Free Strikes",
+    prompts = {"Human Blackguard:Ally Makes Free Strike Against Specific Target"},
+    handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
+        local plan = throwBladePlans[invokerToken.charid]
+        local victim = casterToken
+        if plan == nil or not LiveCreature(victim) or not IsHostile(invokerToken, victim) then
+            return {targets = {}}
+        end
+        local best = nil
+        for _,ally in ipairs(dmhub.allTokens) do
+            if LiveCreature(ally) and not ally.playerControlled and ally.charid ~= invokerToken.charid
+                and not plan.used[ally.charid] and not IsHostile(invokerToken, ally)
+                and (DistanceToArea(ally, plan.area) or math.huge) <= throwBladeAllyRange then
+                local strike = BestGrantedFreeStrike(ai, ally, {victim})
+                if strike ~= nil and (best == nil or strike.value > best.value) then
+                    best = strike
+                end
+            end
+        end
+        if best ~= nil then
+            plan.used[best.ally.charid] = true
+            MakeGrantedFreeStrike(ai, best)
+        end
+        return {targets = {}}
+    end,
+}
+
+MonsterAI:RegisterTrigger{
+    id = "Human Blackguard: Parry!",
+    monsters = blackguardMonster,
+    triggers = {"Parry!"},
+    description = "Halve the damage of a strike against the blackguard or an adjacent ally.",
+    handler = function(ai, token, triggerInfo)
+        return {activate = true}
+    end,
+}

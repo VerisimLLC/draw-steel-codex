@@ -542,9 +542,7 @@ function HeroSheetTheme.Rules()
         {selectors = {"heroSheetHpFill", "winded"}, bgcolor = palette.rawWarning},
         {selectors = {"heroSheetHpFill", "dying"}, bgcolor = palette.rawDanger},
         {selectors = {"heroSheetHpTemp"}, bgcolor = "#e4ddd0ff"},
-        {selectors = {"heroSheetHpTick"}, bgcolor = "#ffffffe6"},
         {selectors = {"heroSheetHpSheen"}, bgcolor = "#ffffff1c"},
-        {selectors = {"heroSheetHpTickRow", "editable", "parent:hover"}, hidden = 1},
         {selectors = {"heroSheetHpZones"}, hidden = 1},
         {selectors = {"heroSheetHpZones", "parent:hover"}, hidden = 0},
         --the bar keeps its dark zones in every scheme, so its text is a

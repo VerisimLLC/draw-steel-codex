@@ -1519,6 +1519,7 @@ end
 --- @field text string
 --- @field customPanel nil|Panel
 --- @field placement nil|"left"|"right"
+--- @field colon? boolean A right-placed box reads "Label: [x]"; false drops the colon.
 --- @field value? boolean Whether the checkbox is checked or not. Defaults to false.
 --- @field tooltip? string|LabelArgs Text (or label args) shown when the pointer lingers, built with gui.Tooltip.
 

@@ -2177,7 +2177,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
     --- An item name on one line: left-aligned, cut off with an ellipsis at its
     --- width. It takes no input, so a press reaches the row it sits on.
     --- @param args table gui.Label args; width is required
-    --- @return Panel
+    --- @return Label
     local function NameLabel(args)
         args.textWrap = false
         args.textOverflow = "ellipsis"
@@ -2190,7 +2190,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
 
     --- A row's linger handler: the whole name as a tooltip when its label has
     --- cut it off.
-    --- @param label Panel
+    --- @param label Label
     --- @return fun(element: Panel)
     local function FullNameTooltip(label)
         return function(element)

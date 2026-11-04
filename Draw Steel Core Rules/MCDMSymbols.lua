@@ -99,6 +99,105 @@ creature.RegisterSymbol{
 }
 
 ----------------------------------------------------------------------
+-- Teleport departure symbols (Trail of Cinders: bring an adjacent ally along)
+----------------------------------------------------------------------
+
+creature.RegisterSymbol{
+    symbol = "teleportorigindistance",
+    help = {
+        name = "TeleportOriginDistance",
+        type = "function",
+        desc = "Given a creature, returns how many squares it is from the space this creature teleported away from on its latest teleport. 1 means it was adjacent to the departure point. Returns 999 if this creature has not teleported or the creature given is this creature.",
+        seealso = {"AlliesAdjacentToTeleportOrigin", "UnoccupiedAdjacentSpaces"},
+        examples = {
+            'Caster.TeleportOriginDistance(Target) <= 1',
+        },
+    },
+
+    lookup = function(c)
+        return function(other)
+            return c:DistanceToTeleportOrigin(other)
+        end
+    end,
+}
+
+creature.RegisterSymbol{
+    symbol = "alliesadjacenttoteleportorigin",
+    help = {
+        name = "AlliesAdjacentToTeleportOrigin",
+        type = "number",
+        desc = "The number of living allies, not counting this creature, that are adjacent to the space this creature teleported away from on its latest teleport.",
+        seealso = {"TeleportOriginDistance", "UnoccupiedAdjacentSpaces"},
+    },
+
+    lookup = function(c)
+        local token = dmhub.LookupToken(c)
+        if token == nil or c:TeleportOriginFootprint() == nil then
+            return 0
+        end
+
+        local count = 0
+        for _,other in ipairs(dmhub.allTokens) do
+            if other.valid and other.charid ~= token.charid and (not other.isObject)
+                and other:IsFriend(token) and (not other.properties:IsDead())
+                and c:DistanceToTeleportOrigin(other.properties) <= 1 then
+                count = count + 1
+            end
+        end
+        return count
+    end,
+}
+
+creature.RegisterSymbol{
+    symbol = "unoccupiedadjacentspaces",
+    help = {
+        name = "UnoccupiedAdjacentSpaces",
+        type = "number",
+        desc = "The number of squares adjacent to this creature that no creature or object occupies. Zero means nothing can be placed next to it.",
+        seealso = {"AlliesAdjacentToTeleportOrigin"},
+    },
+
+    lookup = function(c)
+        local token = dmhub.LookupToken(c)
+        if token == nil then
+            return 0
+        end
+
+        --Neighbours are built with loc:dir so they keep the token's floor;
+        --GetLocsWithinRadius reports floor-0 locs, which never look occupied.
+        local own = {}
+        for _,loc in ipairs(token.locsOccupying) do
+            own[loc.str] = true
+        end
+
+        local seen = {}
+        local count = 0
+        for _,loc in ipairs(token.locsOccupying) do
+            for dx=-1,1 do
+                for dy=-1,1 do
+                    local neighbour = loc:dir(dx, dy)
+                    local key = neighbour.str
+                    if not own[key] and not seen[key] then
+                        seen[key] = true
+                        local free = neighbour.valid and neighbour.isOnMap
+                        for _,occupant in ipairs(game.GetTokensAtLoc(neighbour) or {}) do
+                            if occupant.valid then
+                                free = false
+                                break
+                            end
+                        end
+                        if free then
+                            count = count + 1
+                        end
+                    end
+                end
+            end
+        end
+        return count
+    end,
+}
+
+----------------------------------------------------------------------
 -- Portent Affinity Type (custom attribute + GoblinScript symbol)
 ----------------------------------------------------------------------
 

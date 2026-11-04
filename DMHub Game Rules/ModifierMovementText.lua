@@ -30,6 +30,12 @@ local g_textTypeDomains = {
 --controls text showing up when a player is moving.
 CharacterModifier.RegisterType('movementtext', "Reminder Text")
 
+--The "codex" colour is a Codex Callout: how to operate the Codex (e.g. "Hold Ctrl to
+--teleport") rather than a rule. In the movement tooltip it is drawn as a separate boxed
+--note with the Codex logo (GameHud tiletooltip, args.codexCallouts), not inline.
+CharacterModifier.codexCalloutColor = "codex"
+local g_codexCalloutTextColor = "#CDCDCD"
+
 CharacterModifier.TypeInfo.movementtext = {
     init = function(modifier)
         modifier.text = ""
@@ -45,7 +51,11 @@ CharacterModifier.TypeInfo.movementtext = {
         if text ~= "" then
             text = text .. "\n\n"
         end
-        return string.format("%s<color=%s>%s</color>", text, modifier.color, s)
+        local color = modifier.color
+        if color == CharacterModifier.codexCalloutColor then
+            color = g_codexCalloutTextColor
+        end
+        return string.format("%s<color=%s>%s</color>", text, color, s)
     end,
 
     MovementAdvisoryText = function(modifier, creature, path, text)
@@ -54,6 +64,11 @@ CharacterModifier.TypeInfo.movementtext = {
         end
 
         if modifier:try_get("movementType", "all") == "shift" and (not path.shifting) then
+            return text
+        end
+
+        --Codex Callouts are collected separately by MovementCodexCallout.
+        if modifier.color == CharacterModifier.codexCalloutColor then
             return text
         end
 
@@ -114,6 +129,7 @@ CharacterModifier.TypeInfo.movementtext = {
                             { id = "white", text = "White"},
                             { id = "red", text = "Red"},
                             { id = "green", text = "Green"},
+                            { id = CharacterModifier.codexCalloutColor, text = "Codex Callout"},
                         },
                         idChosen = modifier.color,
                         change = function(self)
@@ -411,6 +427,31 @@ function CharacterModifier:MovementAdvisoryText(creature, path, text)
         text = typeInfo.MovementAdvisoryText(self, creature, path, text)
 	end
     return text
+end
+
+--- The Codex Callout text this modifier adds to the movement tooltip for this path, or nil.
+--- Only Reminder Text modifiers in the movement domain whose colour is "Codex Callout".
+--- @param creature creature
+--- @param path LuaPath
+--- @return nil|string
+function CharacterModifier:MovementCodexCallout(creature, path)
+    if self.behavior ~= "movementtext" or self:try_get("color") ~= CharacterModifier.codexCalloutColor then
+        return nil
+    end
+    if self:try_get("texttype", "movement") ~= "movement" then
+        return nil
+    end
+    if self:try_get("movementType", "all") == "shift" and (not path.shifting) then
+        return nil
+    end
+
+    local s = StringInterpolateGoblinScript(self:try_get("text", ""), creature:LookupSymbol{
+        path = PathMoved.new{path = path},
+    })
+    if s == nil or s == "" then
+        return nil
+    end
+    return s
 end
 
 function CharacterModifier:ReminderText(creature, domain, text)

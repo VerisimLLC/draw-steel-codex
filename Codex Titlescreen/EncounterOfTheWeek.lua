@@ -319,6 +319,35 @@ local TOWN_HALL_SCENES = {
     },
 }
 
+--The Training Grounds, the town's third shared build (Build the Training
+--Grounds, EotwDowntime.lua): a building site, then the place heroes Level up
+--(EotwTrainingGrounds.lua). Built, it plays Czepeku Scenes' "Jousting
+--Tournament" (Original Day) loop over its first frame (source
+--C:/dev/eotw/art/training-grounds-jousting-tournament-day.webm; core image
+--assets uploaded 2026-11-04). The
+--building site reuses the Hall of Heroes' Construction still.
+local TRAINING_GROUNDS_VIDEO = "c07dedf7-5fb4-46bf-bad7-dc70398cdc38"
+local TRAINING_GROUNDS_ART = "f5beda93-8e05-4c4b-8045-037286245106" --the video's first frame, 1920x1080
+CreatorCredit.RegisterArt(TRAINING_GROUNDS_VIDEO, "czepeku")
+CreatorCredit.RegisterArt(TRAINING_GROUNDS_ART, "czepeku")
+local TRAINING_GROUNDS_SCENES = {
+    site = {
+        art = CONSTRUCTION_ART,
+        aspect = 16 / 9,
+        focusX = 0.5,
+        title = T("eotw.locations.training_grounds_site.title"),
+        tagline = T("eotw.locations.training_grounds_site.tagline"),
+    },
+    built = {
+        art = TRAINING_GROUNDS_ART,
+        video = TRAINING_GROUNDS_VIDEO,
+        aspect = 16 / 9,
+        focusX = 0.5,
+        title = T("eotw.locations.training_grounds.title"),
+        tagline = T("eotw.locations.training_grounds.tagline"),
+    },
+}
+
 --The town's locations, as fractions of the map image (so they survive a
 --re-export at another size). open(ctx) runs on click; locked(ctx) returns
 --the reason the location is closed, or nil; hidden(ctx), if given, takes the
@@ -498,6 +527,23 @@ local CITY_LOCATIONS = {
         --replaced by OpenLocation each time it opens.
         scene = TOWN_HALL_SCENES.site,
         open = function(ctx) ctx.OpenTownHall() end,
+    },
+    --The Training Grounds' building site until the town has built them
+    --(EotwRoster.TrainingGroundsBuilt); then the Training Grounds, where
+    --heroes Level up. Open to all, even with no hero yet.
+    {
+        id = "traininggrounds",
+        label = function(ctx) return cond(EotwRoster.TrainingGroundsBuilt(), T("eotw.locations.training_grounds.label"), T("eotw.locations.training_grounds_site.label")) end,
+        --built: crossed swords (game-icons.net "crossed-swords" by Lorc, CC BY
+        --3.0), a core image asset since the engine's game-icons/ set lacks it.
+        icon = function(ctx) return cond(EotwRoster.TrainingGroundsBuilt(), "618787aa-ef05-4311-addd-6e5a59b38fd9", "phosphor/hammer-fill.png") end,
+        --the open square in the east district, clear of the other buildings
+        --(chosen from the map art 2026-11-04).
+        x = 0.905,
+        y = 0.44,
+        --replaced by OpenLocation each time it opens.
+        scene = TRAINING_GROUNDS_SCENES.site,
+        open = function(ctx) ctx.OpenTrainingGrounds() end,
     },
 }
 
@@ -7885,6 +7931,8 @@ CreateScreen = function(args)
     local m_hallScene = nil
     --the Town Hall's building site or the Town Hall, whichever was opened.
     local m_townHallScene = nil
+    --the Training Grounds' building site or the Training Grounds.
+    local m_trainingGroundsScene = nil
     local gateScene = nil
     local dangerScene = nil
     local locationHost = nil
@@ -7934,6 +7982,9 @@ CreateScreen = function(args)
         end,
         OpenTownHall = function()
             OpenLocation("townhall")
+        end,
+        OpenTrainingGrounds = function()
+            OpenLocation("traininggrounds")
         end,
     }
 
@@ -8975,8 +9026,13 @@ CreateScreen = function(args)
             wasBuilt = built
         end
     end
-    local RevealHall = BuildingReveal("hall", EotwRoster.HallBuilt, HALL_SCENE)
-    local RevealTownHall = BuildingReveal("townhall", EotwRoster.TownHallBuilt, TOWN_HALL_SCENES.built)
+    --one per building the town builds together (one local: this function
+    --is at Lua's 200-local limit).
+    local m_buildingReveals = {
+        BuildingReveal("hall", EotwRoster.HallBuilt, HALL_SCENE),
+        BuildingReveal("townhall", EotwRoster.TownHallBuilt, TOWN_HALL_SCENES.built),
+        BuildingReveal("traininggrounds", EotwRoster.TrainingGroundsBuilt, TRAINING_GROUNDS_SCENES.built),
+    }
 
     ---- locations: full-screen scenes over the map ----
 
@@ -9095,7 +9151,9 @@ CreateScreen = function(args)
                 fontFace = "display",
                 fontSize = 68,
                 color = "#f6ead0",
-                width = "auto",
+                --the header's width: a long name ("Training Grounds
+                --Construction") wraps instead of running under the card.
+                width = "100%",
                 height = "auto",
             },
             --a cream rule, fading out to the right.
@@ -9500,6 +9558,10 @@ CreateScreen = function(args)
             m_townHallScene:DestroySelf()
         end
         m_townHallScene = nil
+        if m_trainingGroundsScene ~= nil and m_trainingGroundsScene.valid then
+            m_trainingGroundsScene:DestroySelf()
+        end
+        m_trainingGroundsScene = nil
         m_locationId = nil
         ApplyLocationMode()
     end
@@ -9577,6 +9639,19 @@ CreateScreen = function(args)
                 m_townHallScene = LocationScene(loc, 820, EotwDowntime.TownHallConstructionPanel(resultPanel))
             end
             locationHost:AddChild(m_townHallScene)
+            EotwRoster.Refresh()
+        elseif id == "traininggrounds" then
+            --the building site until the town has built it, then the
+            --Training Grounds, where heroes Level up.
+            local loc = CityLocation("traininggrounds")
+            if EotwRoster.TrainingGroundsBuilt() then
+                loc.scene = TRAINING_GROUNDS_SCENES.built
+                m_trainingGroundsScene = LocationScene(loc, 860, EotwTrainingGrounds.Panel(resultPanel))
+            else
+                loc.scene = TRAINING_GROUNDS_SCENES.site
+                m_trainingGroundsScene = LocationScene(loc, 820, EotwDowntime.TrainingGroundsConstructionPanel(resultPanel))
+            end
+            locationHost:AddChild(m_trainingGroundsScene)
             EotwRoster.Refresh()
         end
         ApplyLocationMode()
@@ -10091,8 +10166,9 @@ CreateScreen = function(args)
                 ApplyLocationVisibility()
                 RevealFoundLocations()
                 WatchCommunityProjects()
-                RevealHall()
-                RevealTownHall()
+                for _, reveal in ipairs(m_buildingReveals) do
+                    reveal()
+                end
                 --the beta survey waits for the inn's reveal to finish.
                 if not m_innRevealActive then
                     MaybeShowSurvey()

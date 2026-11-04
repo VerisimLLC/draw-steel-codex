@@ -2042,6 +2042,9 @@ end
 --   {
 --     groupid,      -- the initiative id
 --     statKey,      -- key into monsterStats (sanitized groupid)
+--     statKeys,     -- every monsterStats key this group's stats live under:
+--                   -- statKey plus the onset keys of groups merged into it.
+--                   -- Pass this to GetStatsForMonsterGroup(ByRound).
 --     name,         -- display name for the group
 --     tokens,       -- member tokens still resolvable on the map, heroes excluded
 --     memberCount,  -- #tokens plus onset members whose tokens are gone
@@ -2056,12 +2059,19 @@ end
 -- despawned or deleted) still count as dead members, so the victory screen shows
 -- the full roster rather than just the survivors. Groups with no resolvable
 -- members and no onset members are skipped. Returns a freshly-built list.
+--
+-- Groups follow their members, not the onset snapshot's ids: the Director can
+-- regroup monsters mid-fight (merge two groups into one initiative entry), after
+-- which their stats are recorded under the new id. Each onset member is placed
+-- on the card of the initiative id it has NOW, and the onset group's old stat key
+-- moves with its members, so the card shows stats from before and after the
+-- regroup (9ARZXATK).
 function LiveEncounter:GetMonsterGroups()
     local q = dmhub.initiativeQueue
     local result = {}
     local seenGroups = {}
 
-    local function AddGroup(groupid, name, memberids, memberinfo)
+    local function AddGroup(groupid, name, memberids, memberinfo, statKeys)
         if seenGroups[groupid] then
             return
         end
@@ -2217,6 +2227,7 @@ function LiveEncounter:GetMonsterGroups()
         result[#result+1] = {
             groupid = groupid,
             statKey = SanitizeStatKey(groupid),
+            statKeys = statKeys or { SanitizeStatKey(groupid) },
             name = displayName,
             tokens = tokens,
             memberCount = memberCount,
@@ -2229,8 +2240,85 @@ function LiveEncounter:GetMonsterGroups()
         }
     end
 
-    for _, g in ipairs(self:GetOnsetMonsterGroups()) do
-        AddGroup(g.groupid, g.name, g.memberids, g.memberinfo)
+    local onsetGroups = self:GetOnsetMonsterGroups()
+
+    --Each onset member's initiative id now. GetCharacterById finds dead
+    --monsters that left the map; a member that resolves nowhere stays in its
+    --onset group.
+    local currentId = {}
+    local liveIds = {}
+    for _, g in ipairs(onsetGroups) do
+        for _, mid in ipairs(g.memberids or {}) do
+            local tok = dmhub.GetTokenById(mid)
+            if tok == nil or not tok.valid then
+                tok = dmhub.GetCharacterById(mid)
+            end
+            local id = nil
+            if tok ~= nil and tok.valid and tok.properties ~= nil then
+                id = InitiativeQueue.GetInitiativeId(tok)
+            end
+            currentId[mid] = id or g.groupid
+            liveIds[currentId[mid]] = true
+        end
+    end
+
+    --Cards in onset order. A group that still holds members keeps its own
+    --slot; a group merged away shows up where its members' new group first does.
+    local cards = {}
+    local cardsById = {}
+    local function CardFor(groupid)
+        local card = cardsById[groupid]
+        if card == nil then
+            card = {
+                groupid = groupid,
+                memberids = {},
+                memberinfo = {},
+                statKeys = { SanitizeStatKey(groupid) },
+                seenKeys = { [SanitizeStatKey(groupid)] = true },
+            }
+            cardsById[groupid] = card
+            cards[#cards+1] = card
+        end
+        return card
+    end
+
+    local onsetById = {}
+    for _, g in ipairs(onsetGroups) do
+        onsetById[g.groupid] = g
+        --also keep the slot when tokens that were never snapshotted now hold
+        --this id, so its stat key is not handed to another card as well.
+        if liveIds[g.groupid] or #(g.memberids or {}) == 0 or #(InitiativeQueue.GetTokensForInitiativeId(g.groupid) or {}) > 0 then
+            CardFor(g.groupid)
+        end
+        --how many of this group's members went to each card, for the stat key below.
+        local counts = {}
+        local best = nil
+        for _, mid in ipairs(g.memberids or {}) do
+            local card = CardFor(currentId[mid])
+            card.memberids[#card.memberids+1] = mid
+            if g.memberinfo ~= nil and g.memberinfo[mid] ~= nil then
+                card.memberinfo[mid] = g.memberinfo[mid]
+            end
+            counts[card] = (counts[card] or 0) + 1
+            if best == nil or counts[card] > counts[best] then
+                best = card
+            end
+        end
+
+        --The stats this group recorded before it was regrouped. If the group
+        --still exists they stay on its own card; otherwise they go to the card
+        --that took most of its members (a split group's old stats count once).
+        local key = g.statKey or SanitizeStatKey(g.groupid)
+        local owner = cardsById[g.groupid] or best
+        if owner ~= nil and not owner.seenKeys[key] then
+            owner.seenKeys[key] = true
+            owner.statKeys[#owner.statKeys+1] = key
+        end
+    end
+
+    for _, card in ipairs(cards) do
+        local g = onsetById[card.groupid]
+        AddGroup(card.groupid, g ~= nil and g.name or nil, card.memberids, card.memberinfo, card.statKeys)
     end
 
     if q ~= nil then
@@ -2374,24 +2462,60 @@ function LiveEncounter:GetMonsterStats()
     return self:try_get("monsterStats") or {}
 end
 
+-- A group's stats can live under several keys after a mid-combat regroup (see
+-- GetMonsterGroups' statKeys); accept either one key or that list.
+---@param statKeys string|string[]
+---@return string[]
+local function MonsterStatKeyList(statKeys)
+    if type(statKeys) == "table" then
+        return statKeys
+    end
+    return { statKeys }
+end
+
 -- The whole-combat statistics for a single monster group (a map of statid ->
 -- total summed across rounds, nested sub-tables deep-merged), or an empty table.
--- statKey is the group's sanitized id from GetMonsterGroups. Freshly built --
--- safe for callers to keep.
-function LiveEncounter:GetStatsForMonsterGroup(statKey)
+-- Pass the group's statKeys from GetMonsterGroups (a single statKey also works).
+-- Freshly built -- safe for callers to keep.
+---@param statKeys string|string[]
+function LiveEncounter:GetStatsForMonsterGroup(statKeys)
+    local all = self:GetMonsterStats()
     local result = {}
-    for _, roundStats in pairs(self:GetMonsterStats()[statKey] or {}) do
-        if type(roundStats) == "table" then
-            SumStatsTables(result, roundStats)
+    for _, key in ipairs(MonsterStatKeyList(statKeys)) do
+        for _, roundStats in pairs(all[key] or {}) do
+            if type(roundStats) == "table" then
+                SumStatsTables(result, roundStats)
+            end
         end
     end
     return result
 end
 
 -- The per-round statistics recorded for a single monster group: a map of
--- "round<N>" -> { statid = total }, or an empty table. Read-only view.
-function LiveEncounter:GetStatsForMonsterGroupByRound(statKey)
-    return self:GetMonsterStats()[statKey] or {}
+-- "round<N>" -> { statid = total }, or an empty table. Takes statKeys like
+-- GetStatsForMonsterGroup. One key returns a read-only view; several return a
+-- freshly built per-round sum.
+---@param statKeys string|string[]
+function LiveEncounter:GetStatsForMonsterGroupByRound(statKeys)
+    local all = self:GetMonsterStats()
+    local keys = MonsterStatKeyList(statKeys)
+    if #keys == 1 then
+        return all[keys[1]] or {}
+    end
+    local result = {}
+    for _, key in ipairs(keys) do
+        for roundKey, roundStats in pairs(all[key] or {}) do
+            if type(roundStats) == "table" then
+                local dest = result[roundKey]
+                if dest == nil then
+                    dest = {}
+                    result[roundKey] = dest
+                end
+                SumStatsTables(dest, roundStats)
+            end
+        end
+    end
+    return result
 end
 
 -- Resolve the hero a stat should be attributed to. `tokenid` is the token that
@@ -3127,7 +3251,7 @@ function LiveEncounter:BuildBattleRecord(outcome, roles)
     local monsters = {}
     local monsterCount = 0
     for _, group in ipairs(groups) do
-        local totals = self:GetStatsForMonsterGroup(group.statKey) or {}
+        local totals = self:GetStatsForMonsterGroup(group.statKeys) or {}
         monsterCount = monsterCount + group.memberCount
 
         local monsterType = nil

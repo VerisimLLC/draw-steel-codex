@@ -1841,7 +1841,7 @@ local function ImportMapWizard(options)
                     end
                     --walls, doors and lights come from the stock assets
                     --(ImportMapToFloorCo); lighting is tuned afterwards in
-                    --the map's UVTT Settings panel, which opens by itself.
+                    --Map Settings > UVTT Import Settings, which opens by itself.
                     assets:ImportUniversalVTT(paths, function(info)
                         if options.finish ~= nil then
                             options.finish(info)

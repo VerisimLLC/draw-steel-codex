@@ -1961,16 +1961,33 @@ return {
 }
 
 -- ---------------------------------------------------------------------------
--- UVTT Settings panel
+-- UVTT Import Settings (a section of Map Settings)
 -- ---------------------------------------------------------------------------
---What the UVTT Settings map button opens. Light Brightness scales every
---light on the map together. The script's shared state keeps the brightness
---and each light's unscaled intensity (its "base", by object id), so the
+--The UVTT Settings script marks a map as imported from a Universal VTT file;
+--while it runs, Map Settings shows the controls below (MapSettings.lua asks
+--for them). Light Brightness scales every light on the map together. The
+--script's shared state keeps the brightness and each light's unscaled intensity (its "base", by object id), so the
 --slider can go down to 0% and back without losing any light's own setting.
 --A light whose intensity was changed by hand since the last slider move is
 --re-based from its new value, and lights added later join automatically.
 
 MapScript.UVTT = {}
+
+MapScript.UVTT.scriptid = "builtin:uvtt-settings"
+
+--- The running UVTT Settings script's handler context for the current map,
+--- or nil when the map was not imported from a Universal VTT file. Also nil
+--- for a moment after switching maps: scripts start on the driver's next tick.
+--- @return table|nil
+function MapScript.UVTT.GetContext()
+    local mapid = game.currentMapId
+    for _, instance in pairs(g_runtime.instances) do
+        if instance.rec.scriptid == MapScript.UVTT.scriptid and instance.mapid == mapid and not instance.destroyed then
+            return instance.ctx
+        end
+    end
+    return nil
+end
 
 --- Every object with a Light component on the current map.
 --- @return {obj: LuaObjectInstance, light: LuaObjectComponent}[]
@@ -2036,11 +2053,15 @@ function MapScript.UVTT.SetBrightness(ctx, brightness)
     return #lights
 end
 
---- The panel the UVTT Settings button opens, as an element.popup.
---- @param ctx table the UVTT Settings script's handler context
---- @param element Panel the map button
---- @return Panel
-function MapScript.UVTT.CreatePopup(ctx, element)
+--- The UVTT Import Settings section's controls for Map Settings, or nil when
+--- the current map was not imported from a Universal VTT file. Map Settings
+--- rebuilds its sections when this starts or stops being nil.
+--- @return Panel[]|nil
+function MapScript.UVTT.CreateSettingsControls()
+    local ctx = MapScript.UVTT.GetContext()
+    if ctx == nil then
+        return nil
+    end
     local brightness = tonumber(ctx:GetShared().brightness) or 1
 
     local function LinkedText(count)
@@ -2053,17 +2074,19 @@ function MapScript.UVTT.CreatePopup(ctx, element)
     end
 
     local countLabel = gui.Label{
+        classes = {"formStacked", "sizeXs"},
         text = LinkedText(#MapScript.UVTT.MapLights()),
-        width = "100%",
+        width = "98%",
         height = "auto",
-        fontSize = 12,
+        hmargin = 2,
+        tmargin = 4,
         wrap = true,
-        tmargin = 6,
     }
 
     --a drag fires change every frame; uploading every light that often is
     --wasted traffic, so drags apply at most every 0.1s and the release
-    --(confirm) always applies the final value.
+    --(confirm) always applies the final value. The context is looked up on
+    --each apply so a script restarted since the panel was built still works.
     local lastApply = 0
     local function Apply(value, force)
         local now = dmhub.Time()
@@ -2071,108 +2094,65 @@ function MapScript.UVTT.CreatePopup(ctx, element)
             return
         end
         lastApply = now
-        countLabel.text = LinkedText(MapScript.UVTT.SetBrightness(ctx, value))
+        local current = MapScript.UVTT.GetContext()
+        if current ~= nil then
+            countLabel.text = LinkedText(MapScript.UVTT.SetBrightness(current, value))
+        end
     end
 
-    return gui.Panel{
-        width = "auto",
-        height = "auto",
-        --a popup is a style-cascade root: without the theme,
-        --framedPanel/modalTitle/CloseButton render unstyled.
-        styles = ThemeEngine.GetStyles(),
-        gui.Panel{
-            classes = {"framedPanel"},
-            width = 360,
+    return {
+        gui.Label{
+            classes = {"formStacked", "sizeXs"},
+            width = "98%",
             height = "auto",
-            flow = "vertical",
-            pad = 16,
-            borderBox = true,
-            bgimage = true,
-
-            gui.Panel{
-                width = "100%",
-                height = "auto",
-                flow = "horizontal",
-                bmargin = 12,
-                gui.Label{
-                    classes = {"modalTitle"},
-                    text = "UVTT Settings",
-                    width = "auto",
-                    height = "auto",
-                    halign = "left",
-                    valign = "center",
-                },
-                gui.CloseButton{
-                    halign = "right",
-                    valign = "center",
-                    click = function()
-                        if element.valid then
-                            element.popup = nil
-                        end
-                    end,
-                },
-            },
-
-            gui.Label{
-                text = "Light Brightness",
-                width = "100%",
-                height = "auto",
-                fontSize = 14,
-                bmargin = 4,
-            },
-
-            --double-click resets to 100%: every light at its own intensity.
-            gui.Slider{
-                minValue = 0,
-                maxValue = 3,
-                value = brightness,
-                defaultValue = 1,
-                labelFormat = "rawpercent",
-                sliderWidth = 260,
-                labelWidth = 52,
-                width = "100%",
-                height = 24,
-                fontSize = 14,
-                events = {
-                    change = function(slider)
-                        Apply(slider.data.getValue(), false)
-                    end,
-                    confirm = function(slider)
-                        Apply(slider.data.getValue(), true)
-                    end,
-                },
-            },
-
-            countLabel,
+            hmargin = 2,
+            tmargin = 6,
+            text = "Light Brightness:",
         },
+
+        --double-click resets to 100%: every light at its own intensity.
+        gui.Slider{
+            minValue = 0,
+            maxValue = 3,
+            value = brightness,
+            defaultValue = 1,
+            labelFormat = "rawpercent",
+            sliderWidth = 150,
+            labelWidth = 52,
+            style = {
+                halign = "left",
+                lmargin = 6,
+                fontSize = "30%",
+                height = 24,
+                width = 210,
+            },
+            events = {
+                change = function(slider)
+                    Apply(slider.data.getValue(), false)
+                end,
+                confirm = function(slider)
+                    Apply(slider.data.getValue(), true)
+                end,
+            },
+        },
+
+        countLabel,
     }
 end
 
 --Attached automatically by the map importer (CreateMapDialog's
 --FinishMapImport) when the map came from a Universal VTT file, which also
---opens its panel once the import finishes (MapScript.OpenButton).
+--opens Map Settings once the import finishes. It has no handlers or buttons:
+--being attached is what marks the map as a UVTT import, and its shared
+--state holds the Light Brightness (MapScript.UVTT above).
 MapScript.RegisterBuiltin{
-    id = "builtin:uvtt-settings",
+    id = MapScript.UVTT.scriptid,
     name = "UVTT Settings",
-    description = "Adds a map button for adjusting a map imported from a Universal VTT (.uvtt / .dd2vtt) file. Attached automatically by the importer.",
+    description = "Marks a map imported from a Universal VTT (.uvtt / .dd2vtt) file, so Map Settings shows its UVTT Import Settings. Attached automatically by the importer.",
     code = [==[
 return {
     name = "UVTT Settings",
-    description = "Adds a map button for adjusting a map imported from a Universal VTT (.uvtt / .dd2vtt) file.",
-
-    buttons = {
-        {
-            id = "settings",
-            name = "UVTT Settings",
-            icon = "phosphor/map-trifold.png",
-            click = function(ctx, element)
-                --anchored to the button: click-away and Escape dismiss it,
-                --and the bar's click handler closes it on a second press.
-                --The panel itself (Light Brightness) is MapScript.UVTT.
-                element.popup = MapScript.UVTT.CreatePopup(ctx, element)
-            end,
-        },
-    },
+    description = "Marks a map imported from a Universal VTT (.uvtt / .dd2vtt) file, so Map Settings shows its UVTT Import Settings.",
 }
 ]==],
 }

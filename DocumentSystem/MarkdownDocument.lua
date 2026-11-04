@@ -5523,23 +5523,58 @@ end
 --id appearing in the other page's annotations, which generically catches
 --widget-held references (an exit's nextDocid, a cue's opendoc step)
 --without knowing each widget's schema.
+--The text every other document contributes to the related-entries scan
+--(its lowercased content and its annotations as JSON), cached per document
+--object: building it for every document cost ~250 ms per render of a page
+--in an adventure with a few hundred documents (mostly the annotations
+--ToJson), and the welcome page renders as a game loads. Weak keys drop a
+--document replaced by a table update; refreshTables clears the lot in case
+--one was changed in place.
+local g_relatedScanCache = setmetatable({}, { __mode = "k" })
+
+--true once every document has a cache entry (WarmRelatedScanCo); until then a
+--page shows a placeholder that fills the footer in when the scan is done.
+local g_relatedScanWarm = false
+
+dmhub.RegisterEventHandler("refreshTables", function(keys)
+    g_relatedScanCache = setmetatable({}, { __mode = "k" })
+    g_relatedScanWarm = false
+end)
+
+local function AnnotationsJson(doc)
+    local result = ""
+    pcall(function()
+        local ann = doc:try_get("annotations")
+        if ann ~= nil and next(ann) ~= nil then
+            result = dmhub.ToJson(ann)
+        end
+    end)
+    return result
+end
+
+local function LowerTextContent(doc)
+    local result = ""
+    pcall(function() result = string.lower(doc:GetTextContent() or "") end)
+    return result
+end
+
+--{content = lowercased text, annotations = JSON or ""} for a document that
+--is not the one being rendered.
+local function RelatedScanEntry(doc)
+    local entry = g_relatedScanCache[doc]
+    if entry == nil then
+        entry = { content = LowerTextContent(doc), annotations = AnnotationsJson(doc) }
+        g_relatedScanCache[doc] = entry
+    end
+    return entry
+end
+
 local function CollectRelatedDocs(selfDoc)
     local docsTable = dmhub.GetTable(CustomDocument.tableName) or {}
     local isDM = dmhub.isDM
     local accessibleRoots = nil
     if not isDM then
         accessibleRoots = CustomDocument.GetAccessibleRoots()
-    end
-
-    local function AnnotationsJson(doc)
-        local result = ""
-        pcall(function()
-            local ann = doc:try_get("annotations")
-            if ann ~= nil and next(ann) ~= nil then
-                result = dmhub.ToJson(ann)
-            end
-        end)
-        return result
     end
 
     --true when content references a page with this description via any
@@ -5556,8 +5591,8 @@ local function CollectRelatedDocs(selfDoc)
 
     local mydesc = string.lower(selfDoc.description or "")
     local myid = selfDoc:try_get("id")
-    local mycontent = ""
-    pcall(function() mycontent = string.lower(selfDoc:GetTextContent() or "") end)
+    --the page being rendered may be mid-edit, so it is never read from the cache.
+    local mycontent = LowerTextContent(selfDoc)
     local myannotations = AnnotationsJson(selfDoc)
 
     local outgoing, incoming = {}, {}
@@ -5574,9 +5609,9 @@ local function CollectRelatedDocs(selfDoc)
                     outgoing[#outgoing + 1] = { id = id, name = desc }
                 end
 
-                local theircontent = ""
-                pcall(function() theircontent = string.lower(doc:GetTextContent() or "") end)
-                local theirann = AnnotationsJson(doc)
+                local scan = RelatedScanEntry(doc)
+                local theircontent = scan.content
+                local theirann = scan.annotations
                 if MentionsDesc(theircontent, mydesc)
                     or (myid ~= nil and theirann ~= "" and string.find(theirann, myid, 1, true)) then
                     incoming[#incoming + 1] = { id = id, name = desc }
@@ -5589,7 +5624,70 @@ local function CollectRelatedDocs(selfDoc)
     return outgoing, incoming
 end
 
-local function BuildRelatedFooter(selfDoc)
+--Fills the scan cache for every document, spending at most about
+--RELATED_SCAN_MS_PER_FRAME of each frame on it (one document with big
+--annotations can take several ms). Run from a dmhub.Coroutine; returns early
+--(cache partly filled) if keepGoing() turns false.
+local RELATED_SCAN_MS_PER_FRAME = 4
+local function WarmRelatedScanCo(keepGoing)
+    local docs = {}
+    for _, doc in unhidden_pairs(dmhub.GetTable(CustomDocument.tableName) or {}) do
+        docs[#docs + 1] = doc
+    end
+    local cache = g_relatedScanCache
+    local frameWatch = dmhub.Stopwatch()
+    for _, doc in ipairs(docs) do
+        if cache ~= g_relatedScanCache or not keepGoing() then
+            --tables refreshed (or the page went away) mid-scan.
+            return
+        end
+        if g_relatedScanCache[doc] == nil then
+            RelatedScanEntry(doc)
+            if frameWatch.milliseconds >= RELATED_SCAN_MS_PER_FRAME then
+                coroutine.yield(0)
+                frameWatch = dmhub.Stopwatch()
+            end
+        end
+    end
+    if cache == g_relatedScanCache then
+        g_relatedScanWarm = true
+    end
+end
+
+local BuildRelatedFooter
+
+--The related-entries footer, or -- while the scan cache is cold (the first page
+--rendered after a game loads or tables change) -- an empty panel that warms the
+--cache a few documents per frame and then builds the footer into itself, so the
+--page shows at once instead of stalling on the scan.
+local function RelatedFooterOrPlaceholder(selfDoc)
+    if g_relatedScanWarm then
+        return BuildRelatedFooter(selfDoc)
+    end
+    local placeholder
+    placeholder = gui.Panel {
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        create = function(element)
+            dmhub.Coroutine(function()
+                WarmRelatedScanCo(function()
+                    return (not mod.unloaded) and placeholder ~= nil and placeholder.valid
+                end)
+                if mod.unloaded or placeholder == nil or not placeholder.valid or not g_relatedScanWarm then
+                    return
+                end
+                local footer = BuildRelatedFooter(selfDoc)
+                if footer ~= nil then
+                    placeholder.children = { footer }
+                end
+            end)
+        end,
+    }
+    return placeholder
+end
+
+BuildRelatedFooter = function(selfDoc)
     local outgoing, incoming = CollectRelatedDocs(selfDoc)
     if #outgoing == 0 and #incoming == 0 then
         return nil
@@ -6487,7 +6585,7 @@ function MarkdownDocument.DisplayPanel(self, args)
                 end
             end
             if m_relatedFooter then
-                local footer = BuildRelatedFooter(self)
+                local footer = RelatedFooterOrPlaceholder(self)
                 if footer ~= nil then
                     children[#children + 1] = footer
                 end

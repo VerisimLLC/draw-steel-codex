@@ -1435,6 +1435,9 @@ GameHud.InvalidateGameHud = function()
 dmhub.CreateGameHud = function(dialog, tokenInfo)
 
     if dmhub.isLobbyGame then
+        --back at the lobby: the next game hud is a fresh entry, not a rebuild
+        --of this game's hud, even when it re-enters the same game (see below).
+        rawset(_G, "g_hudGameId", nil)
         return CreateLobbyHud(dialog, tokenInfo)
     end
 

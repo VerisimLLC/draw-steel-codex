@@ -35,6 +35,18 @@ setting{
     default = true,
 }
 
+--Gates the in-development Discord features on the titlescreen: the Discord
+--card in the Infernal Contract dialog and the Discord friends button. Off by
+--default; no editor field, so it never appears in the settings menus. Turn it
+--on with /set discordsocial true (restart the titlescreen to see the button).
+--Not "discord": that id is the engine's Discord Integration checkbox.
+setting{
+    id = "discordsocial",
+    description = "Show the Discord features.",
+    storage = "preference",
+    default = false,
+}
+
 --ADMIN ONLY, hidden. When on, an admin account is treated as a top-tier
 --patron of every creator organization and of the DMHub campaign: map pack
 --tiers, Patreon-included modules, patronTier. The engine ignores it on

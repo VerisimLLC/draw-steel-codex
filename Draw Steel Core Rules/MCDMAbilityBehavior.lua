@@ -1,5 +1,27 @@
 local mod = dmhub.GetModLoading()
 
+--- True when the square directly opposite the caster from the target (where
+--- "teleport to opposite side" would put the target) holds another creature.
+--- Used to warn on the ability card before the roll is made.
+--- @param casterToken CharacterToken
+--- @param targetToken CharacterToken
+--- @return boolean
+function ActivatedAbility.OppositeSquareOccupied(casterToken, targetToken)
+    if casterToken == nil or targetToken == nil or casterToken.loc == nil or targetToken.loc == nil then
+        return false
+    end
+
+    local dx = casterToken.loc.x - targetToken.loc.x
+    local dy = casterToken.loc.y - targetToken.loc.y
+    local oppositeLoc = targetToken.loc:dir(round(dx*2), round(dy*2))
+    for _, tok in ipairs(game.GetTokensAtLoc(oppositeLoc) or {}) do
+        if tok.id ~= targetToken.id and tok.id ~= casterToken.id then
+            return true
+        end
+    end
+    return false
+end
+
 local function track(eventType, fields)
     if dmhub.GetSettingValue("telemetry_enabled") == false then
         return

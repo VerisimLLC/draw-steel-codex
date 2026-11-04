@@ -776,8 +776,10 @@ local function PreviewAbilityCard(abilityInfo)
             --Show the melee or ranged version the AI said it will cast. Previews from
             --older versions don't say, so fall back to the creature's chosen stance.
             local shown = ability:GetActiveVariation(token)
-            if ability.meleeAndRanged and abilityInfo.variation ~= nil then
-                shown = abilityInfo.variation == "ranged" and ability.rangedVariation or ability.meleeVariation
+            if ability.meleeAndRanged and abilityInfo.variation == "melee" then
+                shown = ability.meleeVariation
+            elseif ability.meleeAndRanged and abilityInfo.variation == "ranged" then
+                shown = ability.rangedVariation
             end
             local ok, card = pcall(CreateAbilityTooltip, shown, {
                 token = token,
@@ -7243,6 +7245,35 @@ end
 --  attacks: {token, from = Loc, target = token, label} attack arrows
 --  area, areaCenter: an area ability's LuaShape and the square it is aimed at
 --  moveOnly: true when it only moves (an advance), so the ability card alone is not worth a pause
+--  variation: "melee"/"ranged" for a dual melee/ranged ability, the half its card shows
+
+--- Which half of a dual melee/ranged ability the cast will use, so the preview
+--- card shows that one rather than the creature's stance. Mirrors ExecuteAbility:
+--- melee when every target is within melee range of `from`, else ranged.
+--- Returns nil for an ordinary ability, or when there are no targets to judge by.
+--- @param token CharacterToken
+--- @param ability ActivatedAbility
+--- @param targets {token: CharacterToken}[]
+--- @param from Loc|nil where the creature strikes from
+--- @return nil|"melee"|"ranged"
+function MonsterAI:PreviewCastVariation(token, ability, targets, from)
+    if ability:try_get("isMeleeVariation") then
+        return "melee"
+    elseif ability:try_get("isRangedVariation") then
+        return "ranged"
+    elseif not ability.meleeAndRanged or #targets == 0 then
+        return nil
+    end
+    local meleeRange = ability.meleeVariation:GetRange(token.properties)
+    for _,target in ipairs(targets) do
+        local distance = from ~= nil and self:TargetDistanceFromLoc(token, target.token, from)
+            or MonsterAI.TargetDistance(token, target.token)
+        if distance > meleeRange then
+            return "ranged"
+        end
+    end
+    return "melee"
+end
 
 --- Describe one move: the actor goes to plan.loc (unless already there) and
 --- uses the last of `abilities` on the plan's targets. A plan that names no
@@ -7271,10 +7302,20 @@ function MonsterAI:BuildPlanPreview(token, abilities, plan, pickTargets)
         end
         --The targets the strike planner chose from this square while scoring
         --the move; the move's execute picks them the same way.
+        --A dual melee/ranged move can plan with one of its variations
+        --(the Death Cultist plans Death Scythe ranged), so look there too.
         if #targets == 0 and ability ~= nil and planLoc ~= nil and type(plan.strikePlans) == "table" then
-            local byLoc = plan.strikePlans[ability]
-            if byLoc ~= nil then
-                targets = PreviewTargets(byLoc[planLoc.str])
+            local planned = {ability}
+            if ability.meleeAndRanged then
+                planned[2] = ability.rangedVariation
+                planned[3] = ability.meleeVariation
+            end
+            for _,plannedAbility in ipairs(planned) do
+                local byLoc = plan.strikePlans[plannedAbility]
+                if byLoc ~= nil and byLoc[planLoc.str] ~= nil then
+                    targets = PreviewTargets(byLoc[planLoc.str])
+                    break
+                end
             end
         end
     end
@@ -7311,6 +7352,9 @@ function MonsterAI:BuildPlanPreview(token, abilities, plan, pickTargets)
 
     local preview = {actor = token, actors = {token}, actorName = PreviewName(token),
         ability = ability, moves = {}, attacks = {}, targets = {}}
+    if ability ~= nil then
+        preview.variation = self:PreviewCastVariation(token, ability, targets, chargeLoc or planLoc or mover.loc)
+    end
     if chargeLoc ~= nil then
         preview.moves[1] = {token = mover, to = chargeLoc, via = moveTo}
     elseif moveTo ~= nil then

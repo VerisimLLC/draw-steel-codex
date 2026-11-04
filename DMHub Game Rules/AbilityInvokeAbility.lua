@@ -19,6 +19,31 @@ ActivatedAbilityInvokeAbilityBehavior = RegisterGameType("ActivatedAbilityInvoke
 --- @field timestamp number|string Server time once the server resolves it; the ServerTimestamp() placeholder string until then.
 AbilityInvocation = RegisterGameType("AbilityInvocation")
 
+--- @class InvokeTargetType
+--- @field id string stored in the behavior's abilityType
+--- @field text string the editor's Type dropdown text
+--- @field resolve fun(behavior: ActivatedAbilityInvokeAbilityBehavior, casterToken: CharacterToken): ActivatedAbility|nil the ability to invoke; nil invokes nothing
+
+--Invoke target types a module added (RegisterTargetType), by id.
+--- @type table<string, InvokeTargetType>
+local g_extraTargetTypes = {}
+
+--- Add an entry to the Invoke Ability behavior's Type list. At cast time its
+--- resolve function supplies the ability, which is then cast exactly as a
+--- "Custom Ability" would be (modifiers, parameters, never sent to a remote
+--- controller). Registering an id again replaces it.
+--- @param args InvokeTargetType
+function ActivatedAbilityInvokeAbilityBehavior.RegisterTargetType(args)
+	g_extraTargetTypes[args.id] = args
+end
+
+--- True when the invoke casts an ability it holds rather than one looked up by
+--- name or id: "Custom Ability" and every registered target type.
+--- @return boolean
+function ActivatedAbilityInvokeAbilityBehavior:CastsAsCustom()
+	return self.abilityType == "custom" or g_extraTargetTypes[self.abilityType] ~= nil
+end
+
 AbilityUtils = {
 	--utility to scan an ability for e.g. <<range>> and extract all parameters.
 	ExtractAbilityParameters = function(node, output)
@@ -806,6 +831,16 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
         end
     end
 
+    --A module's target type supplies its ability once, up front, like the pick above.
+    local registeredAbility = nil
+    local registeredType = g_extraTargetTypes[self.abilityType]
+    if registeredType ~= nil then
+        registeredAbility = registeredType.resolve(self, casterToken)
+        if registeredAbility == nil then
+            return
+        end
+    end
+
     local promptWhenResolving = self:try_get("promptWhenResolving", false)
     local rangeOrigin = self:try_get("rangeOrigin", "")
 
@@ -1039,7 +1074,7 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                 --squad is only set up around the local cast further down.
                 if skipInvoke then
                     print("INVOKE:: No valid movement constraint anchor; skipping", ability.name)
-                elseif self.runOnController and TokenPromptControllerId(target.token) ~= nil and self.abilityType ~= "custom" and self.abilityType ~= "chooseClassAbility" and overrideSquadMembers == nil then
+                elseif self.runOnController and TokenPromptControllerId(target.token) ~= nil and not self:CastsAsCustom() and self.abilityType ~= "chooseClassAbility" and overrideSquadMembers == nil then
 
                     --Clean out the ability so we don't copy too much, and make the
                     --cast serialization-safe: it holds live objects (targets[].token
@@ -1155,6 +1190,8 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                         end
                     elseif self.abilityType == "custom" then
                         abilityTemplate = self.customAbility
+                    elseif registeredAbility ~= nil then
+                        abilityTemplate = registeredAbility
                     elseif self.abilityType == "standard" then
                         local t = dmhub.GetTable("standardAbilities") or {}
                         abilityTemplate = t[self.standardAbility]
@@ -1196,7 +1233,7 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                             abilityClone._tmp_payInvokedCost = true
                         end
 
-                        if self.abilityType == "standard" or self.abilityType == "custom" then
+                        if self.abilityType == "standard" or self:CastsAsCustom() then
 
                             local allParameters = {}
                             AbilityUtils.ExtractAbilityParameters(abilityClone, allParameters)
@@ -1250,7 +1287,7 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                         --them through it here so a borrowed class ability picks up the
                         --character's kit, feats and other bonuses exactly as it would if
                         --they had actually learned it.
-                        if (self.abilityType == "custom" or self.abilityType == "chooseClassAbility") and target.token ~= nil and target.token.properties ~= nil then
+                        if (self:CastsAsCustom() or self.abilityType == "chooseClassAbility") and target.token ~= nil and target.token.properties ~= nil then
                             local invokerCreature = target.token.properties
                             abilityClone = abilityClone:BifurcateIntoMeleeAndRanged(invokerCreature)
                             for _, mod in ipairs(invokerCreature:GetActiveModifiers()) do
@@ -2058,12 +2095,20 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
 			halign = "left",
 			valign = "center",
 			gui.Dropdown{
-				options = {
-					{ text = "Custom Ability", id = "custom" },
-					{ text = "Named Ability", id = "named" },
-					{ text = "Choose Class Ability", id = "chooseClassAbility" },
-					cond(dmhub.GetTable("standardAbilities") ~= nil, { text = "Standard Ability", id = "standard" } ),
-				},
+				options = (function()
+					local options = {
+						{ text = "Custom Ability", id = "custom" },
+						{ text = "Named Ability", id = "named" },
+						{ text = "Choose Class Ability", id = "chooseClassAbility" },
+					}
+					if dmhub.GetTable("standardAbilities") ~= nil then
+						options[#options+1] = { text = "Standard Ability", id = "standard" }
+					end
+					for id,targetType in pairs(g_extraTargetTypes) do
+						options[#options+1] = { text = targetType.text, id = id }
+					end
+					return options
+				end)(),
 				idChosen = self.abilityType,
 				change = function(element)
 					---@cast element Dropdown
@@ -2249,14 +2294,14 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
 	}
 
 	result[#result+1] = gui.Check{
-		classes = {cond(self.abilityType == "custom", "collapsed-anim")},
+		classes = {cond(self:CastsAsCustom(), "collapsed-anim")},
 		text = "Target Player Casts",
 		value = self.runOnController,
 		change = function(element)
 			self.runOnController = element.value
 		end,
 		refreshInvoke = function(element)
-			element:SetClass("collapsed-anim", self.abilityType == "custom")
+			element:SetClass("collapsed-anim", self:CastsAsCustom())
 		end,
 	}
 

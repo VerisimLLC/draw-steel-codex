@@ -2428,7 +2428,8 @@ function HeroSheetDowntime.Create()
             end)
         end
     end)
-    --sets the next milestone the book gives for this project's goal.
+    --sets the next milestone the book gives for this project's goal, or
+    --blanks it when the book has none above the progress.
     local bookButton = gui.Panel{
         classes = {"heroSheetIconButton", "hoverable"},
         bgimage = "panels/square.png",
@@ -2438,17 +2439,22 @@ function HeroSheetDowntime.Create()
         height = HeroSheetWindow.TargetSize(30),
         lmargin = 6,
         valign = "center",
-        data = {suggest = nil},
+        data = {suggest = nil, clears = false},
         linger = function(element)
             if element.data.suggest ~= nil then
                 gui.Tooltip(string.format("Set the next milestone to %d.", element.data.suggest))(element)
+            elseif element.data.clears then
+                gui.Tooltip("Clear the next milestone.")(element)
             end
         end,
         click = function(element)
             local entry = Picked()
-            local suggest = element.data.suggest
-            if entry ~= nil and not entry.shared and suggest ~= nil then
+            if entry ~= nil and not entry.shared and (element.data.suggest ~= nil or element.data.clears) then
                 SaveProject(entry.id, "Set next milestone", function(project)
+                    local suggest = DTBusinessRules.CalcNextMilestone(project)
+                    if suggest == nil or suggest <= project:GetProgress() then
+                        suggest = 0
+                    end
                     project:SetMilestoneThreshold(suggest)
                 end)
             end
@@ -3346,8 +3352,14 @@ function HeroSheetDowntime.Create()
                 milestoneField.text = cond(threshold > 0, tostring(threshold), "")
             end
             local suggest = DTBusinessRules.CalcNextMilestone(project)
+            if suggest ~= nil and suggest <= project:GetProgress() then
+                suggest = nil
+            end
+            --with no stop ahead, the button blanks a milestone that is still set.
+            local clears = suggest == nil and (project:GetMilestoneThreshold() or 0) > 0
             bookButton.data.suggest = suggest
-            bookButton:SetClass("heroSheetDisabled", suggest == nil)
+            bookButton.data.clears = clears
+            bookButton:SetClass("heroSheetDisabled", suggest == nil and not clears)
         end
 
         --history

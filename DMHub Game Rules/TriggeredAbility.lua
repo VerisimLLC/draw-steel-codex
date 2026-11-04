@@ -1066,12 +1066,32 @@ local g_departureTriggers = {
     teleport = true,
 }
 
+--Events dispatched on the creature using an ability, carrying it as usedability.
+local g_abilityUserTriggers = {
+    useability = true,
+    targetwithability = true,
+    finishability = true,
+    dealdamage = true,
+}
+
 --Distance for a subjectRange gate. On a departure trigger the subject's token
 --may already sit at its destination -- the observer's client applies the moved
 --location before draining its triggeredEvents queue -- so measure from
 --path.steps[1], the square it left. No path, or any other trigger, uses the
 --live token.
 local function SubjectRangeDistance(triggerName, subjectToken, casterToken, symbols)
+    --The subject used an ability as if in another creature's space (actingFromTokenId
+    --on the event's ability): measure to that space. Only events whose subject is the
+    --ability's user; a damage event on the victim carries the ability too.
+    local usedAbility = g_abilityUserTriggers[triggerName] and symbols and symbols.usedability or nil
+    local actingFromId = type(usedAbility) == "table" and rawget(usedAbility, "actingFromTokenId") or nil
+    if actingFromId ~= nil then
+        local actingFromToken = dmhub.GetTokenById(actingFromId)
+        if actingFromToken ~= nil then
+            return actingFromToken:Distance(casterToken)
+        end
+    end
+
     if not g_departureTriggers[triggerName] then
         return subjectToken:Distance(casterToken)
     end

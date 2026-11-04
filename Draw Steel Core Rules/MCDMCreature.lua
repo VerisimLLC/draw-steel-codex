@@ -2677,6 +2677,8 @@ function creature:GetFlankingTokens(tokensOverride)
 end
 
 function creature:FlankedBy(otherToken)
+    --A creature using an ability as if in another creature's space flanks from that space.
+    otherToken = ActivatedAbility.ActingFromToken(otherToken.charid) or otherToken
     local token = dmhub.LookupToken(self)
     local flanking = self:GetFlankingTokens()
     for _, tok in ipairs(flanking) do

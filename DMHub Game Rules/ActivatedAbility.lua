@@ -24,6 +24,7 @@ end
 --- @field flavor string Flavor/lore text shown in the ability tooltip.
 --- @field range number|string|table Targeting range in world units.
 --- @field rangeOriginTokenId nil|string Serialized token id used as the targeting range origin.
+--- @field actingFromTokenId nil|string Charid of the creature whose space the caster uses this ability as if in: flanking and triggers measuring to the user count that space (ActivatedAbility.ActingFromToken).
 --- @field operatedByAdjacentCreature boolean An object's ability that an adjacent creature uses while the object stays the caster (Field Ballista's Release Bolt).
 --- @field grantedToAdjacentCreatures boolean An object's ability that adjacent creatures get as their own, usable only on the object (Field Ballista's Deactivate).
 --- @field operatorTokenId nil|string Charid of the creature operating the object, stamped on an operated ability's clone; that creature pays the action.
@@ -1723,7 +1724,18 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
 		return false
 	end
 
-    if self.targetType == "all" and casterToken.floorIndex == targetToken.floorIndex and casterToken:GetLineOfSight(targetToken, casterToken.properties:GetPierceWalls()) <= 0 then
+    --A burst placed away from its caster (an aura's, or one used from another
+    --creature's square) reaches its targets from where it is placed.
+    local burstOrigin = nil
+    if self.targetType == "all" then
+        burstOrigin = self:try_get("casterLocOverride")
+    end
+
+    if burstOrigin ~= nil then
+        if targetToken:GetLineOfSight(burstOrigin, casterToken.properties:GetPierceWalls()) <= 0 then
+            return false
+        end
+    elseif self.targetType == "all" and casterToken.floorIndex == targetToken.floorIndex and casterToken:GetLineOfSight(targetToken, casterToken.properties:GetPierceWalls()) <= 0 then
         --A sight-blocking object (a boulder, a solid block) hides its own square, so the engine reports no
         --sight to it. It still counts as reached if the line to one of its squares is stopped only at that
         --square's own edge (within 1 tile of its centre), not by something further out such as a wall.
@@ -2298,6 +2310,25 @@ function ActivatedAbility:FireUseAbility(casterToken, options)
             end
         end
 	end
+end
+
+--Creatures using an ability "as if in another creature's space" right now:
+--caster charid -> that creature's token id. Set for the length of the cast (Cast).
+--- @type table<string, string>
+local g_actingFrom = {}
+
+--- The token whose space a creature acts from while one of its abilities
+--- stamped with actingFromTokenId resolves (content that lets a hero use an
+--- ability as if in its companion's space). Flanking reads it; triggers that
+--- measure to the ability's user read the stamp on the event's ability instead.
+--- @param charid string
+--- @return nil|CharacterToken
+function ActivatedAbility.ActingFromToken(charid)
+	local tokenid = g_actingFrom[charid]
+	if tokenid == nil then
+		return nil
+	end
+	return dmhub.GetTokenById(tokenid)
 end
 
 --- The creature operating an object for this cast, when this ability is an
@@ -3235,6 +3266,19 @@ function ActivatedAbility:Cast(casterToken, targets, options)
 	options = options or {}
 	options.symbols = options.symbols or {}
     options.symbols.castid = dmhub.GenerateGuid()
+
+    --Used as if in another creature's space: flanking counts that space until the cast finishes.
+    local actingFromId = self:try_get("actingFromTokenId")
+    if actingFromId ~= nil and actingFromId ~= casterToken.charid then
+        local casterId = casterToken.charid
+        g_actingFrom[casterId] = actingFromId
+        options.OnFinishCastHandlers = options.OnFinishCastHandlers or {}
+        options.OnFinishCastHandlers[#options.OnFinishCastHandlers+1] = function()
+            if g_actingFrom[casterId] == actingFromId then
+                g_actingFrom[casterId] = nil
+            end
+        end
+    end
 
     local targetTokenIds = {}
     for i,target in ipairs(targets) do

@@ -844,6 +844,14 @@ end
 ---@field sheet fun(charid: string)
 ---@field sheetTip? string the sheet button's tooltip, when it does more than open the sheet
 ---@field actions? Panel[] buttons for the hero's top-right corner, under the sheet button
+---@field chipActions? Panel[] buttons under the rolls counter, in its colours
+---@field respite? RSPStageCardRespite the hero's respite actions button, under the sheet button
+
+---@class RSPStageCardRespite
+---@field names fun(charid: string): string[] the hero's respite actions, alphabetical
+---@field canUse fun(charid: string): boolean
+---@field why fun(charid: string): string|nil why the button is disabled, nil when it is not
+---@field use fun(charid: string) take the player to the hero and the action
 
 --- A character on the player stage, laid out like the montage's hero card: the
 --- portrait is the card, with a plate over its foot. A follower's card is the
@@ -919,13 +927,11 @@ function RSPWidgets.StageCard(args)
 
     local rollsChip = gui.Panel{
         classes = {"rspCardChip"},
-        floating = true,
         width = "auto",
         height = RSPConstants.cardChipHeight,
         halign = "left",
         valign = "top",
-        x = 4,
-        y = 4,
+        bmargin = 4,
         flow = "horizontal",
         hpad = 5,
         monitorGame = holder ~= nil and holder.monitorPath or nil,
@@ -951,16 +957,48 @@ function RSPWidgets.StageCard(args)
         gui.Panel{
             classes = {"rspCardChipIcon"},
             bgimage = RSPConstants.iconRolls,
-            width = 14,
-            height = 14,
+            width = RSPConstants.cardChipIcon,
+            height = RSPConstants.cardChipIcon,
             valign = "center",
             interactable = false,
         },
         rollsLabel,
     }
 
+    -- The rolls counter, with any activity's buttons beneath it in its colours.
+    local leftItems = {rollsChip}
+    for _, action in ipairs(args.chipActions or {}) do
+        action:SetClass("rspCardChipIcon", true)
+        action.selfStyle.width = "70%"
+        action.selfStyle.height = "70%"
+        action.selfStyle.halign = "center"
+        action.selfStyle.valign = "center"
+        leftItems[#leftItems + 1] = gui.Panel{
+            classes = {"rspCardChip"},
+            width = RSPConstants.cardCornerButton,
+            height = RSPConstants.cardCornerButton,
+            halign = "left",
+            bmargin = 4,
+
+            action,
+        }
+    end
+
+    local left = gui.Panel{
+        floating = true,
+        width = "auto",
+        height = "auto",
+        halign = "left",
+        valign = "top",
+        x = 4,
+        y = 4,
+        flow = "vertical",
+        children = leftItems,
+    }
+
     -- The sheet and the hero's own buttons, down the top-right corner.
     local corner = nil
+    local respiteButton = nil
     if not isFollower then
         local buttons = {
             gui.Panel{
@@ -986,6 +1024,40 @@ function RSPWidgets.StageCard(args)
                 },
             },
         }
+
+        -- Shown only while the hero has a respite action; one press takes them to it on the map.
+        local respite = args.respite
+        if respite ~= nil then
+            respiteButton = gui.Panel{
+                classes = {"rspCardButton", "respite", "collapsed"},
+                width = RSPConstants.cardCornerButton,
+                height = RSPConstants.cardCornerButton,
+                halign = "right",
+                bmargin = 4,
+                swallowPress = true,
+                hover = function(element)
+                    local text = respite.why(args.charid)
+                        or ("Respite activities: " .. table.concat(respite.names(args.charid), ", "))
+                    gui.Tooltip(text)(element)
+                end,
+                press = function()
+                    if respite.canUse(args.charid) then
+                        respite.use(args.charid)
+                    end
+                end,
+
+                gui.Panel{
+                    classes = {"rspCardButtonIcon"},
+                    bgimage = RSPConstants.icon,
+                    width = "70%",
+                    height = "70%",
+                    halign = "center",
+                    valign = "center",
+                    interactable = false,
+                },
+            }
+            buttons[#buttons + 1] = respiteButton
+        end
 
         -- Each action wears the sheet button's backing, so it reads over any portrait.
         for _, action in ipairs(args.actions or {}) do
@@ -1047,6 +1119,11 @@ function RSPWidgets.StageCard(args)
         end
 
         rollsChip:FireEvent("refreshRolls")
+
+        if respiteButton ~= nil and args.respite ~= nil then
+            respiteButton:SetClass("collapsed", #args.respite.names(args.charid) == 0)
+            respiteButton:SetClass("disabled", not args.respite.canUse(args.charid))
+        end
     end
 
     -- The portrait is the card. Without art the token image stands in.
@@ -1109,7 +1186,7 @@ function RSPWidgets.StageCard(args)
         end,
 
         plate,
-        rollsChip,
+        left,
         corner,
     }
 
@@ -1312,6 +1389,21 @@ function RSPWidgets.StageStyles()
         {
             selectors = {"rspCardButtonIcon"},
             bgcolor = "@fg",
+        },
+        {
+            selectors = {"rspCardButton", "respite"},
+            opacity = 1,
+            border = 1,
+            borderColor = "@accent",
+        },
+        {
+            selectors = {"rspCardButtonIcon", "parent:respite"},
+            bgcolor = "@accent",
+        },
+        {
+            selectors = {"rspCardButton", "respite", "disabled"},
+            saturation = 0.2,
+            brightness = 0.6,
         },
     }
 

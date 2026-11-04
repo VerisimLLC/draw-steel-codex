@@ -10,6 +10,28 @@ local mod = dmhub.GetModLoading()
 
 HeroSheetInventory = rawget(_G, "HeroSheetInventory") or {}
 
+--- @class HeroInventoryListSection
+--- @field id string
+--- @field create fun(): Panel builds the section; a HeroSheetRefresh block repaints with the Hero
+
+--Sections a module adds below the item list (RegisterListSection), in order.
+--- @type HeroInventoryListSection[]
+local g_listSections = {}
+
+--- Add a section below the Inventory tab's item list (a companion's gear, for
+--- example). create() runs each time a tab is built. Registering an id again
+--- replaces it.
+--- @param args HeroInventoryListSection
+function HeroSheetInventory.RegisterListSection(args)
+    for i, section in ipairs(g_listSections) do
+        if section.id == args.id then
+            g_listSections[i] = args
+            return
+        end
+    end
+    g_listSections[#g_listSections+1] = args
+end
+
 --The token radial's Inventory button opens this tab for a Hero, as the
 --inventory keybind does; other tokens keep the old grid. If ShowInventory is
 --still this wrapper (only this file was reloaded), wrap the stored original;
@@ -1279,6 +1301,9 @@ function HeroSheetInventory.Create()
         tmargin = 18,
     }
     groupPanels[#groupPanels+1] = empty
+    for _, section in ipairs(g_listSections) do
+        groupPanels[#groupPanels+1] = section.create()
+    end
     local listContent = gui.Panel{
         width = "100%-12",
         height = "auto",

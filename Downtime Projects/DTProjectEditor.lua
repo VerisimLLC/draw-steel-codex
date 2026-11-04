@@ -3368,7 +3368,7 @@ end
 --- Call it inside ModifyProperties on the Hero.
 --- @param info DTInfo the Hero's downtime record
 --- @param ownerId string the Hero's charid
---- @param args {projectId: string, sourceType: string, selectedId: nil|string, name: nil|string, custom: nil|{goal: nil|integer, chars: string[], prereq: string, source: string, langIds: string[]}} sourceType "crafting", "activity" or "custom" (name, custom); a custom goal left out keeps the default of 1
+--- @param args {projectId: string, sourceType: string, selectedId: nil|string, name: nil|string, custom: nil|{goal: nil|integer, chars: string[], prereq: string, source: string, langIds: string[]}, hero: nil|creature} sourceType "crafting", "activity" or "custom" (name, custom); a custom goal left out keeps the default of 1; hero is the Hero starting it, whose inventory a crafting project checks
 --- @return DTProject
 function DTProjectEditor.StartProject(info, ownerId, args)
     local project = info:AddProject(ownerId, args.projectId)
@@ -3387,7 +3387,10 @@ function DTProjectEditor.StartProject(info, ownerId, args)
     else
         DTBusinessRules.ApplySourceToProject(project, args.sourceType, args.selectedId)
     end
-    if DTCharSheetTab.CanManageProjects() then
+    --a crafting project whose recipe and components the Hero holds starts
+    --ready to roll, as if the Director had approved it.
+    if DTCharSheetTab.CanManageProjects()
+        or (args.sourceType == "crafting" and DTBusinessRules.HasCraftingMaterials(args.hero, args.selectedId)) then
         project:Approve()
     else
         project.reviewed = false

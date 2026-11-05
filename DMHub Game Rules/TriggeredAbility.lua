@@ -1099,10 +1099,9 @@ local function SubjectRangeDistance(triggerName, subjectToken, casterToken, symb
         if actingFromId ~= nil then
             actingFromToken = dmhub.GetTokenById(actingFromId)
         elseif not isAbility then
-            --Strike events carry no ability to read actingFromTokenId from. The running cast
-            --knows where the caster acts from, but only on the client running it. An event
-            --that carries an ability without actingFromTokenId (a trigger firing mid-cast)
-            --measures from the subject.
+            --A strike event passes the ability as a symbol table with no actingFromTokenId, so
+            --ask the open cast instead (known only on the casting client). A real ability without
+            --actingFromTokenId, such as a trigger firing mid-cast, is measured from the subject.
             actingFromToken = ActivatedAbility.ActingFromToken(subjectToken.charid)
         end
         if actingFromToken ~= nil then

@@ -327,7 +327,10 @@ end
 --"Applies to companion": class content with appliesToCompanion = true belongs to the
 --hero's companion, not the hero. The flag is honored on a class level's items and on
 --the options and items of Feature Choices and Feature Lists (subtypes included), which
---is where the class editor offers it. Which walk is running decides what a flagged node does:
+--is where the class editor offers it. A subtype that overrides FillChoice must pass each
+--child to Class.FillChildChoice, and one that overrides FillFeaturesRecursive must check
+--Class.SkipForHero; otherwise its ticked children go to the hero and all its children go
+--to the companion. Which walk is running decides what a flagged node does:
 --  nil: not walking class content (ancestry, kit...), so the flag is ignored;
 --  "hero": the hero's class walk or feature list, which skip flagged nodes and everything under them;
 --  "search": the companion's walk (FillCompanionFeaturesForLevel), which takes only those;

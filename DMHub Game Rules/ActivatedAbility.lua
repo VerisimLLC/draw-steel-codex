@@ -25,7 +25,7 @@ end
 --- @field range number|string|table Targeting range in world units.
 --- @field rangeOriginTokenId nil|string Serialized token id used as the targeting range origin.
 --- @field actingFromTokenId nil|string Charid of a creature whose space the caster uses this ability from, as if standing there. While it resolves, flanking, a burst's line of effect and triggers that measure to the ability's user all count from that creature (see ActivatedAbility.ActingFromToken).
---- @field actingFromInherited nil|boolean Set on the part an actingFromTokenId ability invokes for its own caster: it acts from the same space; the invoking cast records that space (ActivatedAbility.ActingFromToken) and clears it when it ends.
+--- @field actingFromInherited nil|boolean Set on a part that an actingFromTokenId ability has the same creature cast. The part acts from the same space, and while it resolves ActivatedAbility.ActingFromToken keeps answering with the invoking cast's space instead of starting a new one.
 --- @field operatedByAdjacentCreature boolean An object's ability that an adjacent creature uses while the object stays the caster (Field Ballista's Release Bolt).
 --- @field grantedToAdjacentCreatures boolean An object's ability that adjacent creatures get as their own, usable only on the object (Field Ballista's Deactivate).
 --- @field operatorTokenId nil|string Charid of the creature operating the object, stamped on an operated ability's clone; that creature pays the action.

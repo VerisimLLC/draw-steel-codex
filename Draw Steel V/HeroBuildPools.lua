@@ -140,9 +140,12 @@ function HeroBuild.Create(options)
     ---@type table<string, HeroBuildExtraStep>
     Build.extraSteps = {}
 
+    --"step id:function name" -> true once its error has been shown this session.
+    local g_reportedStepErrors = {}
+
     --Runs one of a registered step's functions (shown, claims, details, order). A
     --module's error is logged and the fallback used, so one broken step can't break
-    --the whole Builder.
+    --the whole Builder. Each error is shown once: these run on every repaint.
     ---@param registeredStep HeroBuildExtraStep
     ---@param name string
     ---@param fallback any
@@ -150,7 +153,11 @@ function HeroBuild.Create(options)
     local function StepCall(registeredStep, name, fallback, ...)
         local ok, result = pcall(registeredStep[name], ...)
         if not ok then
-            dmhub.Error(string.format("Builder step %s: %s failed: %s", registeredStep.id, name, tostring(result)))
+            local key = registeredStep.id .. ":" .. name
+            if not g_reportedStepErrors[key] then
+                g_reportedStepErrors[key] = true
+                dmhub.Error(string.format("Builder step %s: %s failed: %s", registeredStep.id, name, tostring(result)))
+            end
             return fallback
         end
         if result == nil then
@@ -184,6 +191,10 @@ function HeroBuild.Create(options)
         table.insert(Build.STEPS, insertAt, entry)
         Build.STEP_BY_ID[args.id] = entry
         Build.extraSteps[args.id] = args
+        --A fixed and re-registered step reports its next error again.
+        for _,name in ipairs{"shown", "claims", "details", "order"} do
+            g_reportedStepErrors[args.id .. ":" .. name] = nil
+        end
     end
 
     --- Whether the builder shows a step's pill for this Hero: a registered step

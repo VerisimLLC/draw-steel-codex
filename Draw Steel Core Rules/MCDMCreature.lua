@@ -2701,7 +2701,7 @@ end
 function creature:FlankedBy(otherToken)
     local token = dmhub.LookupToken(self)
     local flanking
-    --The square this creature flanks from: its own, or the space it is using an ability from.
+    --Whose square otherToken flanks from: its own, or the creature whose space it is using an ability from.
     local flankSquare = otherToken
     --A creature using an ability as if in another creature's space flanks from that
     --space with its own flanking rules, and its own body is left out: it can't be its

@@ -35,9 +35,15 @@ local g_extraTargetTypes = g_extraInvokeTargetTypes
 --- resolve function supplies the ability, which is then cast the way a
 --- "Custom Ability" is: the invoking ability's modifiers and parameters apply,
 --- and the invoker always casts it (the "Target Player Casts" option is hidden).
---- Registering an id again replaces it.
+--- Registering an id again replaces it. The built-in ids (custom, named, standard,
+--- chooseClassAbility) are refused with an error.
 --- @param args InvokeTargetType
 function ActivatedAbilityInvokeAbilityBehavior.RegisterTargetType(args)
+	--A built-in type's id would take over every existing invoke of that type.
+	if args.id == "custom" or args.id == "named" or args.id == "standard" or args.id == "chooseClassAbility" then
+		dmhub.Error(string.format("Invoke Ability: %s is a built-in type; register under another id", args.id))
+		return
+	end
 	g_extraTargetTypes[args.id] = args
 end
 

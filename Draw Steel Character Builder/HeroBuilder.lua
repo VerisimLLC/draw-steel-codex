@@ -2535,9 +2535,6 @@ function HeroBuilder.DetailCard(spec, pinned, close)
                 if not scroller.valid or not body.valid then
                     return
                 end
-                if body.renderedHeight > scroller.renderedHeight + 0.5 then
-                    scroller.vscroll = true
-                end
                 scroller.vscrollPosition = 1
             end)
         end
@@ -2549,12 +2546,15 @@ function HeroBuilder.DetailCard(spec, pinned, close)
         halign = "left",
         children = children,
     }
+    --scrolls from the start, as every scroll in the app should: the engine
+    --wires a scroll bar only on the panel's first frame, so one turned on
+    --later drags its handle but not the text. A card that fits shows no bar.
     scroller = gui.Panel{
         width = POPUP_INNER,
         height = "auto",
         maxHeight = POPUP_BODY_MAX,
         flow = "vertical",
-        vscroll = false,
+        vscroll = true,
         body,
     }
     local hint = gui.Label{
@@ -2565,13 +2565,12 @@ function HeroBuilder.DetailCard(spec, pinned, close)
         height = "auto",
         tmargin = 8,
     }
-    --a card taller than it may be scrolls (pinned) or says how to read it.
+    --a card taller than it scrolls (pinned) or says how to read it.
     HeroSheetWindow.AfterLayout(function()
         if not scroller.valid or not body.valid then
             return
         end
         if body.renderedHeight > scroller.renderedHeight + 0.5 then
-            scroller.vscroll = true
             hint:SetClass("collapsed", pinned)
         end
     end)
@@ -4012,14 +4011,14 @@ function HeroBuilder.Create(args)
         pageNote,
         pageContent,
     }
-    --scrolls only once the page is taller than it: a scrolling panel lays out
-    --everything in it on every change, which costs time on a long page.
+    --scrolls from the start: the engine wires a scroll bar only on the panel's
+    --first frame, so one turned on later drags its handle but not the page.
     local pageScroll = gui.Panel{
         width = "100%",
         height = 400,
         flow = "vertical",
         valign = "top",
-        vscroll = false,
+        vscroll = true,
         pageBody,
     }
     local page = gui.Panel{
@@ -4075,7 +4074,7 @@ function HeroBuilder.Create(args)
         height = 400,
         flow = "vertical",
         valign = "top",
-        vscroll = false,
+        vscroll = true,
         gui.Panel{
             width = "100%",
             height = "auto",
@@ -4171,8 +4170,8 @@ function HeroBuilder.Create(args)
         paneArt,
     }
 
-    --Turns a scrolling column's scroll on once its content is taller than it,
-    --and off again when it fits, after the content has laid out.
+    --Once a column's content has laid out and is taller than the column, has
+    --the engine skip cards well outside the view.
     --- @param scroller Panel
     local function FitScroll(scroller)
         HeroSheetWindow.AfterLayout(function()
@@ -4184,11 +4183,8 @@ function HeroBuilder.Create(args)
                 return
             end
             local over = content.renderedHeight > scroller.renderedHeight + 0.5
-            if (scroller.vscroll == true) ~= over then
-                scroller.vscroll = over
-            end
             --the engine then skips cards well outside the view, so a long page scrolls
-            --faster. Set only once the scroll view exists: before that the engine errors.
+            --faster. Set only after layout: before that the engine errors.
             if over and scroller == pageScroll and not scroller.hideObjectsOutOfScroll then
                 scroller.hideObjectsOutOfScroll = true
             end
@@ -7433,15 +7429,10 @@ function HeroBuilder.Create(args)
             height = "auto",
             maxHeight = FILL_LIST_MAX,
             flow = "vertical",
-            vscroll = false,
+            vscroll = true,
             tmargin = 6,
             body,
         }
-        HeroSheetWindow.AfterLayout(function()
-            if scroller.valid and body.valid and body.renderedHeight > scroller.renderedHeight + 0.5 then
-                scroller.vscroll = true
-            end
-        end)
         local kept = T("herobuilder.fill.note_kept")
         local note
         if anyStar then

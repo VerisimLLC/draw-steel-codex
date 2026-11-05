@@ -5430,7 +5430,7 @@ end
 --them regardless.
 local g_forcedGameSettings = {
     { id = "strictmovementrules", value = true },  --Strictly Enforce Movement Rules (engine)
-    { id = "strict:movement", value = true },      --Strictly Enforce Forced Movement Rules
+    { id = "strict:movement", value = true },      --Strictly Enforce Ability Movement Rules
     { id = "strict:targeting", value = true },     --Strictly Enforce Targeting Rules
     { id = "strict:resources", value = true },     --Strictly Enforce Action Economy and Resource Costs
     { id = "strict:inventory", value = true },     --Strict Inventory Management

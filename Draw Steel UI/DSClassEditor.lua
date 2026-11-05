@@ -79,6 +79,10 @@ local function MatchesFeatureSearch(obj, search)
 	return true
 end
 
+--OffersCompanionFlag's last answer, with the class and the time it was worked out for.
+---@type {class: table|nil, time: number|nil, value: boolean}
+local g_offersFlagMemo = { class = nil, time = nil, value = false }
+
 --Whether this editor offers the "applies to companion" box: only on a class whose
 --family offers a companion that uses the box. The race editor shares this code and
 --never offers it.
@@ -88,7 +92,18 @@ local function OffersCompanionFlag(classOrRace)
 	end
 	--rawget: the companion code may be absent.
 	local companionKind = rawget(_G, "CompanionKind")
-	return companionKind ~= nil and companionKind.ClassOffersFlag(classOrRace)
+	if companionKind == nil then
+		return false
+	end
+	--Every level, choice and option editor asks while the class editor builds, and the
+	--answer walks the whole class family, so it is kept for the rest of the frame.
+	local now = dmhub.Time()
+	if g_offersFlagMemo.class ~= classOrRace or g_offersFlagMemo.time ~= now then
+		g_offersFlagMemo.class = classOrRace
+		g_offersFlagMemo.time = now
+		g_offersFlagMemo.value = companionKind.ClassOffersFlag(classOrRace)
+	end
+	return g_offersFlagMemo.value
 end
 
 --Tag on a feature or choice row whose "applies to companion" box is ticked, labelled

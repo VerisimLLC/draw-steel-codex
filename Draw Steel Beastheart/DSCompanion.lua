@@ -819,8 +819,8 @@ end
 
 -- Companion-keyword abilities normally belong to the companion: every creature
 -- drops them via g_defaultExcludeKeywords in creature:GetActivatedAbilities, and
--- AnimalCompanion mirrors that by excluding "Beastheart" instead. Content that
--- lets a beastheart use them (the Werewolf Tooth Pendant's hybrid form) sets the
+-- AnimalCompanion excludes "Beastheart" and the other kinds' keywords instead.
+-- Content that lets a beastheart use them (the Werewolf Tooth Pendant's hybrid form) sets the
 -- attribute below, which clears the exclusion for that character only. The
 -- abilities are already on the beastheart -- this only stops them being filtered.
 --
@@ -835,7 +835,7 @@ function character:GetActivatedAbilities(options)
         options = table.shallow_copy(options or {})
         --Only the Companion keyword is let through: keywords other companion kinds
         --reserved still belong to those companions.
-        options.excludeKeywords = table.filter(g_companionExcludeKeywords, function(keyword) return keyword ~= "Companion" end)
+        options.excludeKeywords = creature.OtherCompanionKeywords({"Companion"})
     end
 
     return g_baseCharacterGetActivatedAbilities(self, options)
@@ -1496,7 +1496,10 @@ end
 
 function AnimalCompanion:GetActivatedAbilities(options)
 	options = table.shallow_copy(options or {})
-    options.excludeKeywords = {"Beastheart"}
+    --Keywords other companion kinds reserved stay with those companions, even when
+    --the Beastheart hero has such an ability (shared content, a multiclass).
+    options.excludeKeywords = creature.OtherCompanionKeywords({"Companion"})
+    options.excludeKeywords[#options.excludeKeywords + 1] = "Beastheart"
     --The beastheart's kit signature ability belongs to the beastheart only;
     --the companion shouldn't pick it up when deriving abilities from the
     --summoner. (Kit features that appear via Companion-keyword channels are

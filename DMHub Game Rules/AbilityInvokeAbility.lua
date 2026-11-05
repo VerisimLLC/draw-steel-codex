@@ -22,8 +22,8 @@ AbilityInvocation = RegisterGameType("AbilityInvocation")
 --- @class InvokeTargetType
 --- @field id string stored in the behavior's abilityType
 --- @field text string the editor's Type dropdown text
---- @field resolve fun(behavior: ActivatedAbilityInvokeAbilityBehavior, casterToken: CharacterToken): ActivatedAbility|nil the ability to invoke, asked for once per cast; every target gets its own copy, so it may return a shared or cached ability; nil invokes nothing
---- @field preview nil|fun(behavior: ActivatedAbilityInvokeAbilityBehavior, caster: creature|nil): ActivatedAbility|nil optional: the ability as code outside a cast should see it (the ability card's tier table, whether the invoke counts as a signature ability or free strike). Callers only read the result, so it may be a shared or cached ability. caster can be nil (a card with no token); without preview those readers see nothing.
+--- @field resolve fun(behavior: ActivatedAbilityInvokeAbilityBehavior, casterToken: CharacterToken): ActivatedAbility|nil the ability to invoke, asked for once per cast; every target gets its own copy, so it may return a shared or cached ability; nil invokes nothing. Return the ability before the invoker's bonuses: the copy goes through the invoker's modifiers (its kit's included, where the keywords match) and then its PostProcessInvokedAbility
+--- @field preview nil|fun(behavior: ActivatedAbilityInvokeAbilityBehavior, caster: creature|nil): ActivatedAbility|nil optional: the ability as code outside a cast should see it (the ability card's tier table, whether the invoke counts as a signature ability or free strike). Callers only read the result, so it may be a shared or cached ability. caster can be nil (a card with no token); without preview those readers see nothing. The Monster AI plans with it and then casts what resolve returns, so return the same ability (name and behaviors) resolve will.
 
 --Invoke target types a module added (RegisterTargetType), by id. Kept on the
 --global table so reloading only this file does not lose them.
@@ -1237,8 +1237,10 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                         abilityTemplate = self.customAbility
                     elseif registeredAbility ~= nil then
                         --Copied per target: resolve may hand back a shared or cached ability, and
-                        --one target's modifiers must not change it for the next.
+                        --one target's modifiers must not change it for the next. Marked as a
+                        --temporary clone so MakeTemporaryClone below uses this copy instead of copying again.
                         abilityTemplate = DeepCopy(registeredAbility)
+                        abilityTemplate._tmp_temporaryClone = true
                     elseif self.abilityType == "standard" then
                         local t = dmhub.GetTable("standardAbilities") or {}
                         abilityTemplate = t[self.standardAbility]

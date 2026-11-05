@@ -2335,6 +2335,19 @@ local function ActingFromOver(entry)
 	return entry.finished or options.executedFinish == true or (options.abort == true and options.stopProcessing == true)
 end
 
+--- A creature's newest acting-from cast that is still open, or nil. Casts that
+--- are over but whose finish handler never removed them are dropped on the way.
+--- @param charid string
+--- @return ActingFromEntry|nil
+local function LiveActingFrom(charid)
+	local entry = g_actingFrom[charid]
+	while entry ~= nil and ActingFromOver(entry) do
+		entry = entry.previous
+	end
+	g_actingFrom[charid] = entry
+	return entry
+end
+
 --- The token whose space a creature acts from while one of its abilities
 --- stamped with actingFromTokenId resolves (content that lets a hero use an
 --- ability as if in its companion's space). Flanking reads it; triggers that
@@ -2346,16 +2359,32 @@ end
 --- @param charid string
 --- @return nil|CharacterToken
 function ActivatedAbility.ActingFromToken(charid)
-	--Skip casts that are over but whose finish handler never removed them.
-	local entry = g_actingFrom[charid]
-	while entry ~= nil and ActingFromOver(entry) do
-		entry = entry.previous
-	end
-	g_actingFrom[charid] = entry
+	local entry = LiveActingFrom(charid)
 	if entry == nil or entry.tokenid == nil then
 		return nil
 	end
 	return dmhub.GetTokenById(entry.tokenid)
+end
+
+--- Every creature acting from another's space right now, as one string
+--- ("caster>standin" pairs, sorted; "" when none). It changes exactly when
+--- ActingFromToken's answer changes for some creature, so the creature cache
+--- uses it as part of every key (registered in MCDMCreature.lua).
+--- @return string
+function ActivatedAbility.ActingFromSignature()
+	if next(g_actingFrom) == nil then
+		return ""
+	end
+	local parts = {}
+	--LiveActingFrom may replace or clear the entry being visited; pairs allows that (only adding keys is not).
+	for charid,_ in pairs(g_actingFrom) do
+		local entry = LiveActingFrom(charid)
+		if entry ~= nil and entry.tokenid ~= nil then
+			parts[#parts+1] = charid .. ">" .. entry.tokenid
+		end
+	end
+	table.sort(parts)
+	return table.concat(parts, ",")
 end
 
 --- The creature operating an object for this cast, when this ability is an

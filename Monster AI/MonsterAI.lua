@@ -6070,13 +6070,12 @@ end
 
 local function ResolveInvokedAbility(behavior)
     local abilityType = behavior:try_get("abilityType", "custom")
-    if abilityType == "custom" then
-        return behavior:try_get("customAbility")
-    elseif abilityType == "standard" then
+    if abilityType == "standard" then
         local abilities = dmhub.GetTable("standardAbilities") or {}
         return abilities[behavior:try_get("standardAbility", "")]
     end
-    return nil
+    --Custom Ability's own ability, or a module-registered type's preview; nil for the rest.
+    return behavior:HeldAbility(nil)
 end
 
 local function BehaviorAppliesHarmToTargets(behavior)

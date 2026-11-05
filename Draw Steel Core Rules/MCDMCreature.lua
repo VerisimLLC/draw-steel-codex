@@ -2359,7 +2359,7 @@ creature.RegisterSymbol {
     help = {
         name = "Flanked",
         type = "boolean",
-        desc = "Returns true if this creature is currently being flanked.",
+        desc = "Returns true if this creature is currently being flanked, going by where creatures stand. To ask whether an ability's user flanks it (the user may be acting from another creature's space), use Flanked By.",
         seealso = {},
     },
 }
@@ -2697,6 +2697,13 @@ end
 function creature.FlankingStandIn(token)
     return ActivatedAbility.ActingFromToken(token.charid) or token
 end
+
+--A creature's cached modifiers can depend on FlankedBy, which reads who is acting from
+--another creature's space. Making that part of every cache key rebuilds each creature
+--once when such a cast starts and once when it ends.
+CreatureCache.RegisterSignature("actingfrom", function(_token)
+    return ActivatedAbility.ActingFromSignature()
+end)
 
 function creature:FlankedBy(otherToken)
     local token = dmhub.LookupToken(self)
@@ -3470,14 +3477,28 @@ local g_defaultExcludeKeywords = g_companionExcludeKeywords
 
 --- Reserve an ability keyword for a companion. Every creature drops abilities with
 --- it by default, as it does "Companion" ones; the companion type that uses them
---- passes its own excludeKeywords (see AnimalCompanion:GetActivatedAbilities).
---- A companion type that keeps every keyword would also keep another kind's, so
---- content should only give a kind's keyword to that kind's heroes.
+--- passes its own excludeKeywords, built with creature.OtherCompanionKeywords so it
+--- still drops the other kinds' keywords (see AnimalCompanion:GetActivatedAbilities).
 --- @param keyword string
 function creature.AddCompanionKeyword(keyword)
     if not table.contains(g_defaultExcludeKeywords, keyword) then
         g_defaultExcludeKeywords[#g_defaultExcludeKeywords + 1] = keyword
     end
+end
+
+--- The reserved keywords a companion leaves out of the abilities it takes from its
+--- hero: every one except its own. A companion type passes this (plus any keywords
+--- of its own to drop) as excludeKeywords, so another kind's abilities don't reach it.
+--- @param ownKeywords string[] the reserved keywords this companion uses
+--- @return string[]
+function creature.OtherCompanionKeywords(ownKeywords)
+    local result = {}
+    for _, keyword in ipairs(g_defaultExcludeKeywords) do
+        if not table.contains(ownKeywords, keyword) then
+            result[#result + 1] = keyword
+        end
+    end
+    return result
 end
 
 --- True when the ability carries any companion-reserved keyword (see creature.AddCompanionKeyword).

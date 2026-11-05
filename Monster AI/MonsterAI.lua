@@ -773,7 +773,13 @@ local function PreviewAbilityCard(abilityInfo)
     end
     for _,ability in ipairs(token.properties:GetActivatedAbilities()) do
         if ability.name == abilityInfo.name then
-            local ok, card = pcall(CreateAbilityTooltip, ability:GetActiveVariation(token), {
+            --Show the melee or ranged version the AI said it will cast. Previews from
+            --older versions don't say, so fall back to the creature's chosen stance.
+            local shown = ability:GetActiveVariation(token)
+            if ability.meleeAndRanged and abilityInfo.variation ~= nil then
+                shown = abilityInfo.variation == "ranged" and ability.rangedVariation or ability.meleeVariation
+            end
+            local ok, card = pcall(CreateAbilityTooltip, shown, {
                 token = token,
                 width = PREVIEW_CARD_WIDTH,
                 maxHeight = math.max(200, dmhub.screenDimensionsBelowTitlebar.y - 420),
@@ -7338,6 +7344,20 @@ function MonsterAI:BuildPlanPreview(token, abilities, plan, pickTargets)
         end
     end
 
+    --Tell the card whether this will be cast as melee or ranged, by the same
+    --rule the cast uses: melee only when every target is a legal melee strike.
+    if ability ~= nil and ability.meleeAndRanged and #preview.targets > 0 then
+        preview.variation = "melee"
+        self:ExecuteWithTheoreticalMovementLoc(token, from, function()
+            for _,target in ipairs(preview.targets) do
+                if not self:StrikePairIsLegal(ability.meleeVariation, token, target) then
+                    preview.variation = "ranged"
+                    break
+                end
+            end
+        end)
+    end
+
     local abilityNames = {}
     for _,a in ipairs(abilities) do
         abilityNames[#abilityNames+1] = a.name
@@ -7672,7 +7692,7 @@ function MonsterAI:AwaitPlanPreview(preview)
     --every client finds the ability on the actor by name to show its card.
     card = preview.ability
     if card ~= nil and not actorHidden then
-        doc.data.ability = {charid = preview.actor.charid, name = card.name}
+        doc.data.ability = {charid = preview.actor.charid, name = card.name, variation = preview.variation}
     end
     doc.data.moves = moves
     doc.data.attacks = attacks
@@ -8192,6 +8212,28 @@ function MonsterAI:DistanceFromNearestEnemy(token)
     return result
 end
 
+--- Whether `actor` can strike `target` with `ability` from where it stands:
+--- both are alive, the target is in range of the ability's range source, the
+--- ability's target filter accepts it, and the actor can see it. The cast and
+--- the plan preview both use this, so the preview names the same melee or
+--- ranged version the cast picks. To test a planned square, call it inside
+--- ExecuteWithTheoreticalMovementLoc.
+--- @param ability ActivatedAbility
+--- @param actor CharacterToken
+--- @param target CharacterToken
+--- @param symbols nil|table the cast's symbols (mode, targetArea, ...)
+--- @return boolean
+function MonsterAI:StrikePairIsLegal(ability, actor, target, symbols)
+    if not self.TokenIsLiveCombatant(actor)
+        or not self.TokenIsLiveCombatant(target) then
+        return false
+    end
+    local range = ability:GetRange(actor.properties, symbols)
+    return MonsterAI.TargetDistance(ability:GetRangeSource(actor), target) <= range
+        and ability:TargetPassesFilter(actor, target, symbols)
+        and actor:GetLineOfSight(target, actor.properties:GetPierceWalls()) > 0
+end
+
 function MonsterAI:ExecuteAbility(casterToken, ability, targets, options)
     --the board is about to change; forget planning answers (see PlanningMemo).
     self._tmp_planningMemo = nil
@@ -8314,14 +8356,7 @@ function MonsterAI:ExecuteAbility(casterToken, ability, targets, options)
     end
 
     local function PairIsLegal(candidateAbility, actor, target)
-        if not self.TokenIsLiveCombatant(actor)
-            or not self.TokenIsLiveCombatant(target) then
-            return false
-        end
-        local candidateRange = candidateAbility:GetRange(actor.properties, symbols)
-        return MonsterAI.TargetDistance(candidateAbility:GetRangeSource(actor), target) <= candidateRange
-            and candidateAbility:TargetPassesFilter(actor, target, symbols)
-            and actor:GetLineOfSight(target, actor.properties:GetPierceWalls()) > 0
+        return self:StrikePairIsLegal(candidateAbility, actor, target, symbols)
     end
 
     local function AbilityTargetsAreLegal(candidateAbility)

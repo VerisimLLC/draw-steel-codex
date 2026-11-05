@@ -174,6 +174,90 @@ local function RunTriggerRetargetChoice(element, triggerToken, trigger, targetId
     })
 end
 
+--- Runs the trigger-before ability of an enhancement option (an additional
+--- cost modifier), if it has one, instead of the main modifier's retarget
+--- picker. That ability decides the outcome itself, for example by giving the
+--- trigger a new target. It gets the struck creature as the `target` symbol and
+--- the trigger's id as `parenttriggerid`. The attacker's roll waits (resolving)
+--- until the ability finishes.
+--- @param triggerToken CharacterToken the token that owns the trigger
+--- @param trigger ActiveTrigger
+--- @param index number which enhancement option was pressed
+--- @param targetId string|nil the creature the triggering roll targets
+--- @param chosenTargetId string|nil set when the press picked a target on the map
+--- @return boolean handled false when the option has no trigger-before ability
+local function RunEnhancementTriggerBefore(triggerToken, trigger, index, targetId, chosenTargetId)
+    if trigger.triggered or trigger.powerRollModifier == nil then
+        return false
+    end
+    local additionalModifiers = triggerToken.properties:GetAdditionalCostModifiersForPowerTableTrigger(trigger.powerRollModifier)
+    local enhancement = additionalModifiers[index]
+    if enhancement == nil or not enhancement:try_get("hasTriggerBefore", false) then
+        return false
+    end
+    local triggerBefore = enhancement:try_get("triggerBefore")
+    if triggerBefore == nil then
+        return false
+    end
+
+    local trigid = trigger.id
+
+    --commit to the option first, so the nested ability finds the trigger
+    --already activated with this index when it looks it up.
+    triggerToken:ModifyProperties{
+        undoable = false,
+        description = "Trigger",
+        execute = function()
+            trigger.triggered = index
+            trigger.retargetid = nil
+            trigger.dismissed = true
+            trigger.resolving = true
+            if chosenTargetId ~= nil then
+                trigger.chosenTargetId = chosenTargetId
+            end
+            triggerToken.properties:DispatchAvailableTrigger(trigger)
+        end,
+    }
+
+    local symbols = { parenttriggerid = trigid }
+    local targetToken = targetId ~= nil and dmhub.GetTokenById(targetId) or nil
+    if targetToken ~= nil then
+        symbols.target = targetToken.properties
+    end
+
+    --on a retargeting trigger, the option only applies if the nested ability
+    --picked a new target; otherwise (e.g. it was cancelled) withdraw it
+    --so the strike is unchanged and the option's cost is not charged.
+    local needsRetarget = trigger.powerRollModifier.powerRollModifier:try_get("changeTarget", false)
+
+    triggerBefore:Trigger(enhancement, triggerToken.properties, enhancement:AppendSymbols(symbols), nil, { mod = trigger.powerRollModifier }, {
+        complete = function()
+            --let the attacker's roll continue, even if this panel has closed.
+            if not triggerToken.valid then
+                return
+            end
+            local live = triggerToken.properties:GetAvailableTriggers() or {}
+            local liveTrigger = live[trigid]
+            if liveTrigger ~= nil and liveTrigger.resolving then
+                triggerToken:ModifyProperties{
+                    undoable = false,
+                    description = "Trigger",
+                    execute = function()
+                        liveTrigger.resolving = false
+                        if needsRetarget and liveTrigger.triggered == index and not liveTrigger.retargetid then
+                            liveTrigger.triggered = false
+                            liveTrigger.dismissed = false
+                        end
+                        triggerToken.properties:DispatchAvailableTrigger(liveTrigger)
+                    end,
+                }
+            end
+        end,
+    })
+
+    return true
+end
+
 -- A triggered action offered against several targets of one roll (Parry when a
 -- strike damages three allies) is a single prompt. Pressing it first asks, on
 -- the map, which target it is for; the card's press then runs again with the
@@ -1008,6 +1092,11 @@ mod.shared.CreateTriggerPanel = function()
                                         end
 
                                         audio.DispatchSoundEvent("Notify.TriggerUse", { tokenid = g_token ~= nil and g_token.charid or nil })
+
+                                        --an option with its own trigger-before ability resolves itself.
+                                        if RunEnhancementTriggerBefore(g_token, trigger, index, trigger.targets[1], nil) then
+                                            return
+                                        end
 
                                         if (not trigger.triggered) and #trigger.targets > 0 and trigger.powerRollModifier and trigger.powerRollModifier.powerRollModifier:try_get("changeTarget") and not trigger.powerRollModifier.powerRollModifier:try_get("hasTriggerBefore") then
                                             --this changes the target of the trigger.
@@ -1864,6 +1953,11 @@ mod.shared.CreateTriggerPanel = function()
                                         local targetId = chosenTargetId or trigger:GetTargetId()
 
                                         audio.DispatchSoundEvent("Notify.TriggerUse", { tokenid = g_token ~= nil and g_token.charid or nil })
+
+                                        --an option with its own trigger-before ability resolves itself.
+                                        if RunEnhancementTriggerBefore(g_token, trigger, index, targetId, chosenTargetId) then
+                                            return
+                                        end
 
                                         if (not trigger.triggered) and #trigger.targets > 0 and trigger.powerRollModifier and trigger.powerRollModifier.powerRollModifier:try_get("changeTarget") and not trigger.powerRollModifier.powerRollModifier:try_get("hasTriggerBefore") then
                                             --this changes the target of the trigger.

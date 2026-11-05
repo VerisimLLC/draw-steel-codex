@@ -40,6 +40,11 @@ ActivatedAbilitySummonBehavior.chooseSquad = false
 ActivatedAbilitySummonBehavior.choosePlacement = false
 ActivatedAbilitySummonBehavior.summonRange = "1"
 
+--where choosePlacement's summonRange is measured from: "caster" (default) or
+--"target" (each of the ability's targets). "target" with range 1 summons next
+--to the target, e.g. "summon a minion adjacent to the target".
+ActivatedAbilitySummonBehavior.placementRangeFrom = "caster"
+
 --optional context text prepended to the "Place minion N of M" placement
 --prompt, e.g. "Lingering Hunger Trait:" so the user knows which ability or
 --trait is asking them to place creatures. "" (the default) shows no prefix.
@@ -1582,8 +1587,11 @@ end
 --- @param squadCtx table|nil persistent squad-selection state (see Cast()).
 --- @param creatureCtx table|nil persistent creature-selection state with .choices and .selectedCreature.
 --- @param castOptions table|nil the running cast's options. When its abort is set (a Revert Turn / Turn Rewind cancelled the cast) the prompt closes and returns "aborted".
+--- @param rangeFromToken CharacterToken|nil token rangeTiles is measured from instead of the caster.
 --- @return Loc|nil pickedLoc, table|nil squadResult, table|nil pickedCreature, nil|"cancelled"|"abandoned"|"aborted" failReason Why no loc was picked.
-function ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTiles, index, total, isMinion, squadCtx, creatureCtx, ability, promptPrefix, castOptions)
+function ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTiles, index, total, isMinion, squadCtx, creatureCtx, ability, promptPrefix, castOptions, rangeFromToken)
+    rangeFromToken = rangeFromToken or casterToken
+
     --optional context text shown before "Place minion N of M", e.g.
     --"Lingering Hunger Trait:". Normalized here so every prompt variant
     --below can just concatenate it.
@@ -1595,10 +1603,10 @@ function ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTil
     local SQUAD_CAP = 8
 
     --measure range from the token's full footprint, not just its anchor square.
-    --GetLocsWithinRadius includes every tile the token occupies, so Size 2+ casters
-    --radiate range from all their squares instead of only the bottom-left corner.
-    local validLocs = casterToken:GetLocsWithinRadius(rangeTiles)
-    local occupiedLocs = casterToken:LocsOccupyingWhenAt(casterToken.loc)
+    --GetLocsWithinRadius includes every tile the token occupies, so range from a
+    --Size 2+ creature counts from all of its squares, not just the bottom-left one.
+    local validLocs = rangeFromToken:GetLocsWithinRadius(rangeTiles)
+    local occupiedLocs = rangeFromToken:LocsOccupyingWhenAt(rangeFromToken.loc)
 
     local pickedLoc = nil
     local pickedSquadResult = nil
@@ -2353,12 +2361,26 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
         return
     end
 
-    -- Register a post-cast handler that force-dismisses the tooltip card.
+    --After the cast, hide the ability card unless another cast's roll is still open on it.
     args.OnFinishCastHandlers = args.OnFinishCastHandlers or {}
     args.OnFinishCastHandlers[#args.OnFinishCastHandlers+1] = function()
         if GameHud == nil or not GameHud.instance then return end
         if rawget(GameHud.instance, "abilityDisplay") == nil then return end
         local panel = GameHud.instance.abilityDisplay
+
+        --leave the card alone while another cast's roll is still open on it: a
+        --summon triggered in the middle of a roll would otherwise destroy that roll.
+        local embedded = nil
+        if CharacterPanel.FindEmbeddedRollDialog ~= nil then
+            embedded = CharacterPanel.FindEmbeddedRollDialog()
+        end
+        if embedded ~= nil and embedded.valid and embedded.data ~= nil then
+            local owner = embedded.data.castCoroutine
+            if owner ~= nil and owner ~= coroutine.GetCurrentId() and coroutine.IsCoroutineWithIdStillRunning(owner) then
+                return
+            end
+        end
+
         if panel ~= nil and panel.valid then
             panel:FireEvent("hideAbility")
         end
@@ -2495,21 +2517,32 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
         local finishedRoll = false
         local numSummons = nil
 
-        gamehud.rollDialog.data.ShowDialog{
-            title = 'Roll for Number of Summons',
-            description = string.format("%s Summons", ability.name),
-            roll = dmhub.EvalGoblinScript(self.numSummons, GenerateSymbols(casterToken.properties, args.symbols), string.format("Summons number of creatures for %s", ability.name)),
-            creature = casterToken.properties,
-            skipDeterministic = true,
-            type = 'numSummons',
-            cancelRoll = function()
-                finishedRoll = true
-            end,
-            completeRoll = function(rollInfo)
-                finishedRoll = true
-                numSummons = rollInfo.total
-            end
-        }
+        local numSummonsRoll = dmhub.EvalGoblinScript(self.numSummons, GenerateSymbols(casterToken.properties, args.symbols), string.format("Summons number of creatures for %s", ability.name))
+
+        --a fixed count needs no roll. Skipping the dialog matters when this
+        --summon runs while another roll is open: opening the roll dialog would
+        --replace that roll.
+        local fixedCount = tonumber(numSummonsRoll)
+        if fixedCount ~= nil then
+            numSummons = math.floor(fixedCount)
+            finishedRoll = true
+        else
+            gamehud.rollDialog.data.ShowDialog{
+                title = 'Roll for Number of Summons',
+                description = string.format("%s Summons", ability.name),
+                roll = numSummonsRoll,
+                creature = casterToken.properties,
+                skipDeterministic = true,
+                type = 'numSummons',
+                cancelRoll = function()
+                    finishedRoll = true
+                end,
+                completeRoll = function(rollInfo)
+                    finishedRoll = true
+                    numSummons = rollInfo.total
+                end
+            }
+        end
 
         while not finishedRoll do
             coroutine.yield(0.1)
@@ -2693,7 +2726,11 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                 local pickedCreature = nil
                 if not autoPlaceSummons then
                     local promptResult
-                    pickedLoc, squadResult, pickedCreature, promptResult = ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTiles, j, numSummons, isMinion, squadCtxArg, creatureCtxArg, ability, self.placementPrompt, args)
+                    local rangeFromToken = nil
+                    if self:try_get("placementRangeFrom", "caster") == "target" and target.token ~= nil and target.token.valid then
+                        rangeFromToken = target.token
+                    end
+                    pickedLoc, squadResult, pickedCreature, promptResult = ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTiles, j, numSummons, isMinion, squadCtxArg, creatureCtxArg, ability, self.placementPrompt, args, rangeFromToken)
                     if pickedLoc == nil then
                         if promptResult == "aborted" then
                             --the cast was cancelled (args.abort is already set): place nothing more.
@@ -3487,6 +3524,29 @@ function ActivatedAbilityBehavior:SummonEditor(parentPanel, list, options)
 					subjectDescription = "The creature using the ability",
 					symbols = ActivatedAbility.helpCasting,
 				},
+			},
+		}
+
+		list[#list+1] = gui.Panel{
+			classes = {"formPanel", cond(not self.choosePlacement, "collapsed")},
+			refreshChoosePlacement = function(element)
+				element:SetClass("collapsed", not self.choosePlacement)
+			end,
+			gui.Label{
+				classes = "formLabel",
+				text = "Range From:",
+			},
+			gui.Dropdown{
+				classes = {"formDropdown"},
+				options = {
+					{ id = "caster", text = "The caster" },
+					{ id = "target", text = "Each target" },
+				},
+				idChosen = self:try_get("placementRangeFrom", "caster"),
+				change = function(element)
+					---@cast element Dropdown
+					self.placementRangeFrom = element.idChosen
+				end,
 			},
 		}
 

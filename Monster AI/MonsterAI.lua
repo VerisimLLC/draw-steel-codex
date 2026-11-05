@@ -2573,6 +2573,24 @@ function MonsterAI:CalculateMovementPaths(token, movementAllowanceDecis, flags)
     local prof = ProfBegin("engine: CalculatePathfindingArea")
     local paths = movementToken:CalculatePathfindingArea(movementAllowanceDecis, flags or {})
     ProfEnd(prof)
+
+    --Staying put is always a plan. The engine drops every square the full
+    --creature cannot fit at, its own included, so a creature boxed in or left
+    --squeezed beside an obstacle got no squares at all and passed every turn
+    --with heroes beside it (7V75VX52, E7ZM6G6F). Its exact loc makes the move
+    --a no-op (MoveToken skips a destination it is already at).
+    local here = movementToken.loc
+    local haveHere = false
+    for _,pathInfo in pairs(paths) do
+        local loc = pathInfo.loc
+        if loc.x == here.x and loc.y == here.y and loc.floor == here.floor then
+            haveHere = true
+            break
+        end
+    end
+    if not haveHere then
+        paths[{here.x, here.y}] = {loc = here, cost = 0}
+    end
     prof = ProfBegin("path overlap filter")
     local rejectedKeys = {}
     local numPaths = 0

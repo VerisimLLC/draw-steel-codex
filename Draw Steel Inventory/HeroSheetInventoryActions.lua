@@ -1594,6 +1594,20 @@ function Actions.StashPanel(args)
             name,
             sub,
         }
+        --the count sits apart from the name, as on the list's rows, so a long
+        --name is cut short without hiding how many there are.
+        local qty = gui.Label{
+            classes = {"heroSheetCardStrong", "collapsed"},
+            text = "",
+            fontSize = 13,
+            bold = true,
+            width = "auto",
+            height = "auto",
+            halign = "right",
+            valign = "center",
+            lmargin = 6,
+            textWrap = false,
+        }
         local take = gui.Label{
             classes = {"heroSheetSmallButton", "hoverable", "heroSheetOn"},
             text = "Take",
@@ -1670,6 +1684,7 @@ function Actions.StashPanel(args)
                 end
             end,
             words,
+            qty,
             take,
             keb,
             field.panel,
@@ -1705,7 +1720,10 @@ function Actions.StashPanel(args)
         row.paint = function(entry, waits, write)
             local same = row.entry ~= nil and row.entry.itemid == entry.itemid
             row.entry = entry
-            name.text = entry.name .. cond(entry.quantity > 1, string.format(" x%d", entry.quantity), "")
+            name.text = entry.name
+            local many = entry.quantity > 1
+            qty.text = cond(many, string.format("x%d", entry.quantity), "")
+            qty:SetClass("collapsed", not many)
             --a slot that remembers the item says it will be worn again.
             sub.text = cond(waits, "Equips again when you take it", HeroSheetInventory.KIND_NAMES[entry.kind] or "Item")
             take:SetClass("collapsed", not write)
@@ -1713,8 +1731,9 @@ function Actions.StashPanel(args)
             if field.editing() and not same then
                 field.close()
             end
-            --the words leave room for Take and the "..." (shown on hover).
-            words.selfStyle.width = cond(write, "100%-90", "100%")
+            --the words leave room for the count, Take and the "..." (shown on hover).
+            local room = cond(write, 90, 0) + cond(many, HeroSheetTheme.TextWidth(qty.text, 13) + 6, 0)
+            words.selfStyle.width = string.format("100%%-%d", math.ceil(room))
             name.selfStyle.maxWidth = "100%"
             sub.selfStyle.maxWidth = "100%"
             panel:SetClass("heroSheetRowPinned", HeroSheetInventory.StashShown() == entry.itemid)

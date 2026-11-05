@@ -637,12 +637,13 @@ function HeroSheetInventoryAdd.Create(args)
     ------------------------------------------------------------------
     --The foot: New custom item, and the drag's hint.
 
-    --- New custom item: to this Hero (a unique item, as Make unique makes) or
-    --- to the compendium, through the old grid's item editor.
+    --- New custom item: to this Hero, or the stash while the list shows it (a
+    --- unique item, as Make unique makes), or to the compendium, through the
+    --- old grid's item editor.
     --- @param anchor Panel
     local function NewItemMenu(anchor)
         HeroSheetLists.ShowMenu(anchor, {
-            {text = "Add to inventory", click = function()
+            {text = cond(HeroSheetInventory.Source() == "stash", "Add to the stash", "Add to inventory"), click = function()
                 state.pendingNew = "inventory"
                 if gamehud ~= nil and gamehud.createItemDialog ~= nil then
                     gamehud.createItemDialog.data.show(pane)
@@ -655,6 +656,20 @@ function HeroSheetInventoryAdd.Create(args)
                 end
             end},
         })
+    end
+    --the drag's hint names where an added item goes: the Hero's list or the stash.
+    local hint = gui.Label{
+        classes = {"heroSheetCardSub"},
+        text = "Drag a row into your list, or click Add",
+        fontSize = 11.5,
+        width = "auto",
+        height = "auto",
+        halign = "right",
+        valign = "center",
+        textWrap = false,
+    }
+    local function PaintHint()
+        hint.text = cond(HeroSheetInventory.Source() == "stash", "Drag a row into the stash, or click Add", "Drag a row into your list, or click Add")
     end
     local newButton
     newButton = gui.Label{
@@ -682,16 +697,7 @@ function HeroSheetInventoryAdd.Create(args)
         valign = "bottom",
         tmargin = 6,
         newButton,
-        gui.Label{
-            classes = {"heroSheetCardSub"},
-            text = "Drag a row into your list, or click Add",
-            fontSize = 11.5,
-            width = "auto",
-            height = "auto",
-            halign = "right",
-            valign = "center",
-            textWrap = false,
-        },
+        hint,
     }
 
     pane = gui.Panel{
@@ -724,7 +730,12 @@ function HeroSheetInventoryAdd.Create(args)
                 warming = false
             end)
         end,
+        --the list switched between the Hero's items and the stash while open.
+        heroSheetInventorySource = function(element)
+            PaintHint()
+        end,
         heroSheetAddOpen = function(element)
+            PaintHint()
             state.offered = Offered()
             state.open = nil
             newButton:SetClass("collapsed", not HeroSheetInventoryActions.CanAdd())

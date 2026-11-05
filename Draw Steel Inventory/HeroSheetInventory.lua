@@ -1267,7 +1267,7 @@ function HeroSheetInventory.Create()
 
     --- @class HeroInventoryGroup
     --- @field panel Panel
-    --- @field paint fun(entries: HeroInventoryEntry[], first: boolean)
+    --- @field paint fun(entries: HeroInventoryEntry[], first: boolean, budget: {left: integer}): boolean paints the rows, building at most budget.left new ones; false when some were left for later
     --- @field rows fun(): HeroInventoryRow[]
     --- @field warm fun(count: integer, budget: integer): integer builds hidden rows toward count, at most budget of them; returns how many it built
 
@@ -1332,7 +1332,7 @@ function HeroSheetInventory.Create()
         local rows = {}
         return {
             panel = panel,
-            paint = function(entries, first)
+            paint = function(entries, first, budget)
                 panel:SetClass("collapsed", #entries == 0)
                 panel.children[1].selfStyle.tmargin = cond(first, 2, 14)
                 --the stash carries nothing: its leveled count is a plain count.
@@ -1361,6 +1361,10 @@ function HeroSheetInventory.Create()
                 for i, entry in ipairs(entries) do
                     local row = rows[i]
                     if row == nil then
+                        if budget.left <= 0 then
+                            return false
+                        end
+                        budget.left = budget.left - 1
                         row = NewRow()
                         rows[i] = row
                         holder:AddChild(row.panel)
@@ -1372,6 +1376,7 @@ function HeroSheetInventory.Create()
                     rows[i].panel:SetClass("collapsed", true)
                     rows[i].entry = nil
                 end
+                return true
             end,
             --- @return HeroInventoryRow[]
             rows = function()
@@ -1579,10 +1584,14 @@ function HeroSheetInventory.Create()
             g_stashShown = nil
         end
         if g_source == "stash" then
-            local first = state.entries[1]
-            if first ~= nil and first.stash then
-                g_stashShown = first.itemid
-                return first.source --[[@as HeroInventoryEntry]], true
+            --the list's top row: entries run by name, the list by kind first.
+            for _, kind in ipairs(KINDS) do
+                for _, entry in ipairs(state.entries) do
+                    if entry.stash and entry.kind == kind.id and HeroSheetInventory.Matches(entry, state.filter, state.query) then
+                        g_stashShown = entry.itemid
+                        return entry.source --[[@as HeroInventoryEntry]], true
+                    end
+                end
             end
             return nil, true
         end
@@ -1638,6 +1647,11 @@ function HeroSheetInventory.Create()
         end)
     end
 
+    --rows PaintList builds at once, then per frame after (see PaintList).
+    local BUILD_FIRST = 14
+    local BUILD_LATER = 3
+    local BUILD_NOW = BUILD_FIRST
+    local buildPending = false
     PaintList = function()
         --pick the stash item the pane shows first, so its row is lit.
         if g_source == "stash" then
@@ -1652,13 +1666,34 @@ function HeroSheetInventory.Create()
                 shown = shown + 1
             end
         end
+        --A long list (a big stash) builds the rows that show first and the
+        --rest a few a frame after: building a row costs about 5 ms.
+        local budget = {left = BUILD_NOW}
+        local complete = true
         local first = true
         for _, kind in ipairs(KINDS) do
             local list = byKind[kind.id]
-            groups[kind.id].paint(list, first)
+            if not groups[kind.id].paint(list, first, budget) then
+                complete = false
+            end
             if #list > 0 then
                 first = false
             end
+            if not complete then
+                budget.left = 0
+            end
+        end
+        if not complete and not buildPending then
+            buildPending = true
+            dmhub.Schedule(0.01, function()
+                buildPending = false
+                if mod.unloaded or not body.valid then
+                    return
+                end
+                BUILD_NOW = BUILD_LATER
+                PaintList()
+                BUILD_NOW = BUILD_FIRST
+            end)
         end
         local carried = 0
         for _, entry in ipairs(state.entries) do
@@ -2300,7 +2335,7 @@ function HeroSheetInventory.Create()
     --Stash rows are built the first time the list shows the stash, not with
     --the tab. The pointer on the Party stash tab builds them ahead of the
     --click, a few a frame, so the switch itself has little left to build.
-    local WARM_PER_FRAME = 6
+    local WARM_PER_FRAME = 3
     local warming = false
     local function WarmStash()
         if warming or g_source == "stash" or state.token == nil then

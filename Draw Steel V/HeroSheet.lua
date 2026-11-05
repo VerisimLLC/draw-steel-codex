@@ -367,6 +367,13 @@ local function SelectTab(tabid)
     state.tab = tabid
     state.editing = false
     ShowBuilder(window, tabid == "Builder")
+    --leaving the Inventory tab returns its list to the Hero's items: coming
+    --back, players expect their own inventory, not the stash. Done here, as
+    --the hidden tab no longer hears the switch.
+    local inventory = TabModule("HeroSheetInventory")
+    if tabid ~= "Inventory" and inventory ~= nil and inventory.Source() == "stash" then
+        inventory.SetSource("items")
+    end
     window:FireEventTree("heroSheetTab", tabid)
     window:FireEventTree("heroSheetEdit", false)
     window:FireEventTree("heroSheetTitle")

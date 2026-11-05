@@ -1099,9 +1099,10 @@ local function SubjectRangeDistance(triggerName, subjectToken, casterToken, symb
         if actingFromId ~= nil then
             actingFromToken = dmhub.GetTokenById(actingFromId)
         elseif not isAbility then
-            --Strike events carry no ability to read the stamp from; the cast's record has
-            --it, but only on the client running the cast. An event that does carry an
-            --ability without the stamp (a trigger firing mid-cast) uses the subject.
+            --Strike events carry no ability to read actingFromTokenId from. The running cast
+            --knows where the caster acts from, but only on the client running it. An event
+            --that carries an ability without actingFromTokenId (a trigger firing mid-cast)
+            --measures from the subject.
             actingFromToken = ActivatedAbility.ActingFromToken(subjectToken.charid)
         end
         if actingFromToken ~= nil then

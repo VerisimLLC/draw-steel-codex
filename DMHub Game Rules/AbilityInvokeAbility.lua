@@ -23,6 +23,7 @@ AbilityInvocation = RegisterGameType("AbilityInvocation")
 --- @field id string stored in the behavior's abilityType
 --- @field text string the editor's Type dropdown text
 --- @field resolve fun(behavior: ActivatedAbilityInvokeAbilityBehavior, casterToken: CharacterToken): ActivatedAbility|nil the ability to invoke, asked for once per cast; every target gets its own copy, so it may return a shared or cached ability; nil invokes nothing
+--- @field preview nil|fun(behavior: ActivatedAbilityInvokeAbilityBehavior, caster: creature|nil): ActivatedAbility|nil optional: the ability as code outside a cast should see it (the ability card's tier table, whether the invoke counts as a signature ability or free strike). Callers only read the result, so it may be a shared or cached ability. caster can be nil (a card with no token); without preview those readers see nothing.
 
 --Invoke target types a module added (RegisterTargetType), by id. Kept on the
 --global table so reloading only this file does not lose them.
@@ -45,6 +46,30 @@ end
 --- @return boolean
 function ActivatedAbilityInvokeAbilityBehavior:CastsAsCustom()
 	return self.abilityType == "custom" or g_extraTargetTypes[self.abilityType] ~= nil
+end
+
+--- The ability this invoke holds, for code that reads it outside a cast (an ability
+--- card's tier table, whether it counts as a strike): "Custom Ability"'s own ability,
+--- or a registered type's preview. Nil for other types and when there is none.
+--- Treat the result as read-only.
+--- @param caster creature|nil
+--- @return ActivatedAbility|nil
+function ActivatedAbilityInvokeAbilityBehavior:HeldAbility(caster)
+	if self.abilityType == "custom" then
+		--customAbility has no class default, so read it safely.
+		return self:try_get("customAbility")
+	end
+	local registeredType = g_extraTargetTypes[self.abilityType]
+	if registeredType == nil or registeredType.preview == nil then
+		return nil
+	end
+	--Cards redraw often, so a module's error is printed rather than raised as a popup.
+	local ok, result = pcall(registeredType.preview, self, caster)
+	if not ok then
+		print(string.format("INVOKE:: type %s preview failed: %s", self.abilityType, tostring(result)))
+		return nil
+	end
+	return result
 end
 
 AbilityUtils = {
@@ -1705,6 +1730,13 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
     --Prompt handlers can replace a wrapper ability with a concrete synthesized
     --ability (for example, choosing Melee Free Strike from the generic Free
     --Strike prompt). Every replacement still needs the invoke lifecycle hooks.
+    --A part invoked from another creature's space (actingFromInherited) keeps that space
+    --when a prompt or synthesized choice replaces it; the replacement is a new ability.
+    local inheritedActingFromId = nil
+    if abilityClone:try_get("actingFromInherited", false) then
+        inheritedActingFromId = abilityClone:try_get("actingFromTokenId")
+    end
+
     local installCastCallbacks = function(castAbility)
         local priorBeginCast = castAbility:try_get("OnBeginCast")
         local priorFinishCast = castAbility:try_get("OnFinishCast")
@@ -1712,6 +1744,11 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
         castAbility.OnBeginCast = function(beginAbility, castOptions)
             if priorBeginCast then
                 priorBeginCast(beginAbility, castOptions)
+            end
+            --Cast reads actingFromTokenId right after OnBeginCast, so set it here.
+            if inheritedActingFromId ~= nil and beginAbility:try_get("actingFromTokenId") == nil then
+                beginAbility.actingFromTokenId = inheritedActingFromId
+                beginAbility.actingFromInherited = true
             end
             casting = true
             installFinishHandler(castOptions)

@@ -25,7 +25,7 @@ end
 --- @field range number|string|table Targeting range in world units.
 --- @field rangeOriginTokenId nil|string Serialized token id used as the targeting range origin.
 --- @field actingFromTokenId nil|string Charid of a creature whose space the caster uses this ability from, as if standing there. While it resolves, flanking, a burst's line of effect and triggers that measure to the ability's user all count from that creature (see ActivatedAbility.ActingFromToken).
---- @field actingFromInherited nil|boolean Set on the part an actingFromTokenId ability invokes for its own caster: it acts from the same space, but the invoking cast owns the flanking record.
+--- @field actingFromInherited nil|boolean Set on the part an actingFromTokenId ability invokes for its own caster: it acts from the same space; the invoking cast records that space (ActivatedAbility.ActingFromToken) and clears it when it ends.
 --- @field operatedByAdjacentCreature boolean An object's ability that an adjacent creature uses while the object stays the caster (Field Ballista's Release Bolt).
 --- @field grantedToAdjacentCreatures boolean An object's ability that adjacent creatures get as their own, usable only on the object (Field Ballista's Deactivate).
 --- @field operatorTokenId nil|string Charid of the creature operating the object, stamped on an operated ability's clone; that creature pays the action.
@@ -2313,25 +2313,49 @@ function ActivatedAbility:FireUseAbility(casterToken, options)
 	end
 end
 
---Creatures using an ability "as if in another creature's space" right now:
---caster charid -> that creature's token id. Set for the length of the cast (Cast).
---- @type table<string, string>
+--- One open cast in a caster's stack of "acting from" casts (see Cast).
+--- @class ActingFromEntry
+--- @field tokenid string|nil the creature whose space the caster acts from; nil for a cast that acts from its own square
+--- @field previous ActingFromEntry|nil the cast that was open underneath this one
+--- @field finished boolean set by the cast's finish handler
+--- @field options table the cast's options
+
+--Creatures using an ability "as if in another creature's space" right now: caster charid ->
+--the newest open cast. A cast that opens while another is still open (a trigger mid-roll)
+--goes on top; when it ends, the one underneath applies again.
+--- @type table<string, ActingFromEntry>
 local g_actingFrom = {}
+
+--- True once the cast that made this entry is over, even if its finish handlers never
+--- ran (one before them threw, or the cast was abandoned while stuck on a prompt).
+--- @param entry ActingFromEntry
+--- @return boolean
+local function ActingFromOver(entry)
+	local options = entry.options
+	return entry.finished or options.executedFinish == true or (options.abort == true and options.stopProcessing == true)
+end
 
 --- The token whose space a creature acts from while one of its abilities
 --- stamped with actingFromTokenId resolves (content that lets a hero use an
 --- ability as if in its companion's space). Flanking reads it; triggers that
 --- measure to the ability's user read the stamp on the event's ability instead.
+--- While a newer cast of the creature's own is open on top (a trigger mid-roll),
+--- it is nil: that cast acts from the creature's own square.
 --- Only the client running the cast knows it: flanking worked out on another
 --- client (a Director's reaction, say) uses the hero's own square.
 --- @param charid string
 --- @return nil|CharacterToken
 function ActivatedAbility.ActingFromToken(charid)
-	local tokenid = g_actingFrom[charid]
-	if tokenid == nil then
+	--Skip casts that are over but whose finish handler never removed them.
+	local entry = g_actingFrom[charid]
+	while entry ~= nil and ActingFromOver(entry) do
+		entry = entry.previous
+	end
+	g_actingFrom[charid] = entry
+	if entry == nil or entry.tokenid == nil then
 		return nil
 	end
-	return dmhub.GetTokenById(tokenid)
+	return dmhub.GetTokenById(entry.tokenid)
 end
 
 --- The creature operating an object for this cast, when this ability is an
@@ -3353,18 +3377,26 @@ function ActivatedAbility:Cast(casterToken, targets, options)
 	end
 
     --Used as if in another creature's space: flanking counts that space until the cast finishes.
-    --A part such an ability invokes (actingFromInherited) leaves the record to the cast that
-    --invoked it, which clears it when it finishes. Every other cast sets and clears its own.
+    --Parts it invokes (actingFromInherited) share that space; any other cast by this caster while
+    --it is open (a trigger mid-roll) acts from the caster's own square.
     local clearActingFrom = nil
+    local casterId = casterToken.charid
     local actingFromId = self:try_get("actingFromTokenId")
-    if actingFromId ~= nil and actingFromId ~= casterToken.charid and not self:try_get("actingFromInherited", false) then
-        local casterId = casterToken.charid
+    local inherited = self:try_get("actingFromInherited", false)
+    local stamped = actingFromId ~= nil and actingFromId ~= casterId and not inherited
+    if stamped or (g_actingFrom[casterId] ~= nil and not inherited) then
+        --tokenid nil: this cast acts from the caster's own square while an older one stays open.
+        ---@type ActingFromEntry
+        local entry = {tokenid = stamped and actingFromId or nil, previous = g_actingFrom[casterId], finished = false, options = options}
         clearActingFrom = function()
-            if g_actingFrom[casterId] == actingFromId then
-                g_actingFrom[casterId] = nil
+            entry.finished = true
+            if g_actingFrom[casterId] == entry then
+                g_actingFrom[casterId] = entry.previous
             end
         end
-        g_actingFrom[casterId] = actingFromId
+        g_actingFrom[casterId] = entry
+    end
+    if clearActingFrom ~= nil then
         options.OnFinishCastHandlers = options.OnFinishCastHandlers or {}
         options.OnFinishCastHandlers[#options.OnFinishCastHandlers+1] = clearActingFrom
     end

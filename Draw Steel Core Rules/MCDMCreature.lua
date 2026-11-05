@@ -2722,6 +2722,8 @@ function creature:FlankedBy(otherToken)
     for _, tok in ipairs(flanking) do
         --GetFlankingTokens returns {} when LookupToken(self) is nil, so this loop only runs with a token.
         ---@cast token -nil
+        --Read _tmp_grantsFlanking from otherToken, not tok, on purpose: otherToken holds it
+        --even when it flanks from another creature's space (then tok is that creature).
         if tok.charid == flankSquare.charid and otherToken.properties:try_get("_tmp_grantsFlanking", "") ~= token.charid then
             return true
         end

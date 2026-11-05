@@ -79,6 +79,18 @@ local function MatchesFeatureSearch(obj, search)
 	return true
 end
 
+--Whether this editor offers the "applies to companion" box: only on a class whose
+--family offers a companion that uses the box. The race editor shares this code and
+--never offers it.
+local function OffersCompanionFlag(classOrRace)
+	if classOrRace.typeName ~= "Class" then
+		return false
+	end
+	--rawget: the companion code may be absent.
+	local companionKind = rawget(_G, "CompanionKind")
+	return companionKind ~= nil and companionKind.ClassOffersFlag(classOrRace)
+end
+
 --Tag on a feature or choice row whose "applies to companion" box is ticked, labelled
 --like the checkbox, so the rows that go to the companion stand out.
 local function CompanionFlagTag(feature)
@@ -768,6 +780,14 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 			if BuildPrerequisitesEditor ~= nil then
 				bodyChildren[#bodyChildren+1] = BuildPrerequisitesEditor()
 			end
+			--A choice gets its box in its own editor; a feature list has none, so it goes here.
+			--Ticking the list sends every item in it to the companion.
+			if feature.typeName == "CharacterFeatureList" and OffersCompanionFlag(classOrRace) then
+				bodyChildren[#bodyChildren+1] = CharacterFeature.CompanionFlagCheck(feature, function()
+					resultPanel:FireEvent("change")
+					headerPanel:FireEventTree("refreshCompanionTag")
+				end)
+			end
 			if BuildTagEditor ~= nil then
 				bodyChildren[#bodyChildren+1] = BuildTagEditor()
 			end
@@ -975,11 +995,13 @@ function ClassLevel:CreateEditor(classOrRace, levelNum, params)
 
 	BuildBody = function(element)
 			local children = {}
+			--Worked out once: it walks the whole class family.
+			local offersFlag = OffersCompanionFlag(classOrRace)
 
 			for i,feature in ipairs(self.features) do
 				local index = i
 				if feature.typeName == 'CharacterFeature' then
-					children[#children+1] = CreateFeatureSummary(feature, self.features, index, resultPanel, DescribeFeature, {companionFlag = classOrRace.typeName == "Class"})
+					children[#children+1] = CreateFeatureSummary(feature, self.features, index, resultPanel, DescribeFeature, {companionFlag = offersFlag})
 				else
 					children[#children+1] = CreateChoiceEditor(feature, self.features, index, resultPanel, classOrRace, {
 						change = function(element)
@@ -1607,8 +1629,9 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
                 end
             }
 
-            --Only class content can go to a companion; the race editor shares this one.
-            if classOrRace.typeName == "Class" then
+            --Worked out once: it walks the whole class family. The options below use it too.
+            local offersFlag = OffersCompanionFlag(classOrRace)
+            if offersFlag then
                 children[#children+1] = CharacterFeature.CompanionFlagCheck(self, function()
                     resultPanel:FireEvent('change')
                 end)
@@ -1739,7 +1762,7 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
 			for i,feature in ipairs(self.options) do
 				local index = i
 				if feature.typeName == 'CharacterFeature' then
-					children[#children+1] = CreateFeatureSummary(feature, self.options, index, resultPanel, nil, {points = self.costsPoints, companionFlag = classOrRace.typeName == "Class"})
+					children[#children+1] = CreateFeatureSummary(feature, self.options, index, resultPanel, nil, {points = self.costsPoints, companionFlag = offersFlag})
 				else
 					children[#children+1] = CreateChoiceEditor(feature, self.options, index, resultPanel, classOrRace, {
                         points = self.costsPoints,

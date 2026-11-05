@@ -14,6 +14,7 @@ creature.companionid = false
 --- @field featureFlagLabel nil|string Label for the class-editor "applies to companion" checkbox.
 --- @field featureFlagTooltip nil|string Tooltip for that checkbox.
 --- @field ownHeroPanel boolean True when the kind draws its own hero-panel section.
+--- @field choiceTypeName nil|string Type name of the choice a class uses to offer this companion. Needed for the checkbox: the class editor shows it only on class families that contain this choice, so a kind with featureFlagLabel but no choiceTypeName shows it nowhere.
 
 --- Companion kinds other than the Beastheart's own. A class whose hero gets a
 --- companion with different rules (a subtype of AnimalCompanion) registers it
@@ -26,7 +27,7 @@ CompanionKind.kinds = CompanionKind.kinds or {}
 
 --- Register a companion kind. Calling it again for the same typeName replaces it,
 --- except that its keywords are only ever added: a keyword reserved once stays reserved.
---- @param args {typeName: string, keywords?: string[], featureFlagLabel?: string, featureFlagTooltip?: string, ownHeroPanel?: boolean}
+--- @param args {typeName: string, keywords?: string[], featureFlagLabel?: string, featureFlagTooltip?: string, ownHeroPanel?: boolean, choiceTypeName?: string}
 function CompanionKind.Register(args)
     CompanionKind.kinds[args.typeName] = {
         typeName = args.typeName,
@@ -34,6 +35,7 @@ function CompanionKind.Register(args)
         featureFlagLabel = args.featureFlagLabel,
         featureFlagTooltip = args.featureFlagTooltip,
         ownHeroPanel = args.ownHeroPanel == true,
+        choiceTypeName = args.choiceTypeName,
     }
     for _, keyword in ipairs(args.keywords or {}) do
         creature.AddCompanionKeyword(keyword)
@@ -72,6 +74,55 @@ function CompanionKind.FeatureFlagText()
         return "Companion", "Applies to the companion instead of the hero."
     end
     return label, tooltip
+end
+
+--- True when the class editor should offer the "applies to companion" checkbox on
+--- this class or subclass: its family (the class and all its subclasses) contains the
+--- choice that picks a kind asking for the checkbox. Other classes have no companion
+--- for ticked content to go to, so they never show it.
+--- @param class Class a class or subclass
+--- @return boolean
+function CompanionKind.ClassOffersFlag(class)
+    local choiceTypes = {}
+    for _, kind in pairs(CompanionKind.kinds) do
+        if kind.featureFlagLabel ~= nil and kind.choiceTypeName ~= nil then
+            choiceTypes[kind.choiceTypeName] = true
+        end
+    end
+    if next(choiceTypes) == nil then
+        return false
+    end
+
+    local parentId = class.id
+    if class.primaryClassId ~= "" then
+        parentId = class.primaryClassId
+    end
+    --The edited class itself (it may hold unsaved edits), not its stored row too.
+    local family = { class }
+    local parent = dmhub.GetTable(Class.tableName)[parentId]
+    if parent ~= nil and parent.id ~= class.id then
+        family[#family + 1] = parent
+    end
+    for _, subclass in unhidden_pairs(dmhub.GetTable("subclasses") or {}) do
+        if subclass.primaryClassId == parentId and subclass.id ~= class.id then
+            family[#family + 1] = subclass
+        end
+    end
+
+    local found = false
+    for _, member in ipairs(family) do
+        for _, level in pairs(member:try_get("levels") or {}) do
+            level:VisitAllFeatures(function(node)
+                if choiceTypes[node.typeName] then
+                    found = true
+                end
+            end)
+            if found then
+                return true
+            end
+        end
+    end
+    return false
 end
 
 --- The class and subclass features this hero's content flags as applying to its

@@ -2435,11 +2435,13 @@ for _,option in ipairs(ActivatedAbilityPowerRollBehavior.s_modificationTypes) do
     ActivatedAbilityPowerRollBehavior.s_modificationTypesById[option.id] = option
 end
 
-function ActivatedAbilityBehavior:GetPowerRollDisplay()
+--- @param caster creature|nil the creature whose card shows it, when known
+--- @return string|nil
+function ActivatedAbilityBehavior:GetPowerRollDisplay(caster)
     return nil
 end
 
-function ActivatedAbilityPowerRollBehavior:GetPowerRollDisplay()
+function ActivatedAbilityPowerRollBehavior:GetPowerRollDisplay(caster)
     local roll = self.roll
     return string.gsub(roll, "2d10", "<b>Power Roll</b>")
 end
@@ -2449,13 +2451,10 @@ end
 --render pass already unwraps those nested tiers to display them, so this
 --lookup has to find the same roll -- it gates the whole power-roll section,
 --which stays collapsed while it returns "".
-function ActivatedAbilityInvokeAbilityBehavior:GetPowerRollDisplay()
-    if self.abilityType ~= "custom" then
-        return nil
-    end
-
+--A module's registered invoke type shows its preview's roll the same way.
+function ActivatedAbilityInvokeAbilityBehavior:GetPowerRollDisplay(caster)
     --Take the last matching subbehavior, which is what the render pass shows.
-    local customAbility = self:try_get("customAbility")
+    local customAbility = self:HeldAbility(caster)
     local result = nil
     for _, subbehavior in ipairs(customAbility ~= nil and customAbility.behaviors or {}) do
         if subbehavior.typeName == "ActivatedAbilityPowerRollBehavior" then
@@ -2518,9 +2517,11 @@ function ActivatedAbility:GetRollCharacteristicValue(caster)
     return nil
 end
 
-function ActivatedAbility:GetPowerRollDisplay()
+--- @param caster creature|nil the creature whose card shows it, when known
+--- @return string
+function ActivatedAbility:GetPowerRollDisplay(caster)
     for _,behavior in ipairs(self.behaviors) do
-        local result = behavior:GetPowerRollDisplay()
+        local result = behavior:GetPowerRollDisplay(caster)
         if result ~= nil then
             return result
         end

@@ -2285,10 +2285,10 @@ function HeroSkillsLanguages.Panel(args)
             hpad = COLUMN_HPAD,
             vpad = COLUMN_VPAD,
             borderBox = true,
-            --scrolls only once its content is taller (FitScroll): a scrolling
-            --panel is slow to lay out for every panel inside it, which made
-            --the window slow to show.
-            vscroll = false,
+            --side by side with a set height, each column scrolls, from creation:
+            --the engine wires a scroll bar only on a panel's first frame, so one
+            --turned on later drags its handle but not the content.
+            vscroll = not stacked and args.height ~= nil,
             flow = "vertical",
             valign = "top",
             --a click on empty space clears a selected row.
@@ -2355,7 +2355,7 @@ function HeroSkillsLanguages.Panel(args)
         root = gui.Panel{
             width = args.width,
             height = args.height or "auto",
-            vscroll = false,
+            vscroll = args.height ~= nil,
             flow = "vertical",
             gui.Panel{
                 width = "100%",
@@ -2374,38 +2374,6 @@ function HeroSkillsLanguages.Panel(args)
             left,
             right,
         }
-    end
-    --Turn scrolling on for a column (or the stacked whole) whose content has
-    --grown taller than it, after layout. Once on it stays on.
-    local function FitScroll()
-        --sized to its content (no height), it never needs to scroll.
-        if args.height == nil then
-            return
-        end
-        HeroSheetWindow.AfterLayout(function()
-            local scrollers = cond(stacked, {root}, {left, right})
-            for _, panel in ipairs(scrollers) do
-                --the window may have closed in the two frames waited.
-                if panel.valid then
-                    local content = panel.children[1]
-                    if content ~= nil and content.valid and not panel.vscroll then
-                        local room = panel.renderedHeight
-                        if not stacked then
-                            local scale = panel.renderedWidth / columnWidth
-                            room = room - 2 * COLUMN_VPAD * scale
-                        end
-                        if content.renderedHeight > room + 0.5 then
-                            panel.vscroll = true
-                        end
-                    end
-                end
-            end
-        end)
-    end
-    local refreshRows = Refresh
-    Refresh = function()
-        refreshRows()
-        FitScroll()
     end
     Refresh()
 

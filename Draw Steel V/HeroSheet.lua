@@ -568,11 +568,14 @@ local function BuildContent()
         valign = "top",
         tmargin = 8,
     }
+    --Narrow's panes scroll from creation: the engine wires a scroll bar only
+    --on a panel's first frame. Content that fits shows no bar.
     local statsPane = gui.Panel{
         classes = {"collapsed"},
         width = "100%",
         height = "100%-36",
         flow = "vertical",
+        vscroll = true,
         statsInner,
     }
     local gearInner = gui.Panel{
@@ -588,6 +591,7 @@ local function BuildContent()
         width = "100%",
         height = "100%-36",
         flow = "vertical",
+        vscroll = true,
         gearInner,
     }
     local lists = HeroSheetLists.Create{statsPane = statsPane, gearPane = gearPane}
@@ -692,14 +696,6 @@ local function BuildContent()
                 local over = stats.renderedHeight / perUnit
                 if HeroSheet.Tier() == "narrow" then
                     over = (bannerSlot.renderedHeight + charsSlot.renderedHeight) / perUnit
-                    --Narrow's panes scroll once their content is taller.
-                    for _, pair in ipairs({{statsPane, statsInner}, {gearPane, gearInner}}) do
-                        local pane, inner = pair[1], pair[2]
-                        if not pane:HasClass("collapsed") and pane.renderedHeight > 0 and not pane.vscroll
-                            and inner.renderedHeight > pane.renderedHeight + 0.5 then
-                            pane.vscroll = true
-                        end
-                    end
                 end
                 local room = right.renderedHeight / perUnit - bar - over - HeroSheetLists.TOP_MARGIN
                 short = room < HeroSheetLists.MIN_HEIGHT

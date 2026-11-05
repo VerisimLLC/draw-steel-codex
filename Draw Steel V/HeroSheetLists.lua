@@ -1280,23 +1280,23 @@ function HeroSheetLists.Create(args)
         bmargin = 14,
         children = groupPanels,
     }
-    --scrolls once its content is taller: panels made inside a scrolling
-    --panel lay out far more slowly, so the rows are made first.
+    --scrolls from creation: the engine wires a scroll bar only on a panel's
+    --first frame, so one turned on later drags its handle but not the list.
     --its height is what the heading, the Edit bar and the rule leave (Arrange):
     --never "100% available", which the engine restyles every frame.
     local abilityBody = gui.Panel{
         width = "100%",
         height = "100%-42",
         flow = "vertical",
+        vscroll = true,
         tmargin = 6,
         abilityList,
     }
     FitScroll = function()
         HeroSheetWindow.AfterLayout(function()
-            if abilityBody.valid and not abilityBody.vscroll and abilityList.renderedHeight > abilityBody.renderedHeight + 0.5 then
-                abilityBody.vscroll = true
+            if abilityBody.valid and not abilityBody.hideObjectsOutOfScroll and abilityList.renderedHeight > abilityBody.renderedHeight + 0.5 then
                 --the engine then skips cards well outside the view, so the tab shows and
-                --scrolls faster. Set only once the scroll view exists: before that the engine errors.
+                --scrolls faster. Set only after layout: before that the engine errors.
                 abilityBody.hideObjectsOutOfScroll = true
             end
         end)

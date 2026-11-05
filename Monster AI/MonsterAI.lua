@@ -3010,9 +3010,15 @@ function MonsterAI:ExecuteWithTheoreticalMovementLoc(token, loc, fn)
     return movementToken:ExecuteWithTheoreticalLoc(loc, fn)
 end
 
+--True when the creature, or the mount it rides, is on loc's square, floor and altitude.
+--Tiny-creature slots ("x,y,floor|4") are ignored: the engine can tag any token's loc
+--with one, even a size 2 creature's, so comparing loc.str missed real arrivals.
 function MonsterAI:MovementTokenIsAtLoc(token, loc)
-    local movementToken = self:GetMovementToken(token)
-    return loc ~= nil and movementToken.loc.str == loc.str
+    if loc == nil then
+        return false
+    end
+    local here = self:GetMovementToken(token).loc
+    return here.xyfloorOnly.str == loc.xyfloorOnly.str and here.altitude == loc.altitude
 end
 
 local function OrderMountedRidersFirst(tokens)

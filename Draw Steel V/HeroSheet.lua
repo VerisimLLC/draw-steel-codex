@@ -1045,7 +1045,8 @@ local function BuildContent()
             local onAppearance = tabid == "Appearance" and tier ~= "narrow"
             --on the Inventory tab the column shows the side the list does not:
             --the stash beside the Hero's items, Treasures beside the stash.
-            local stashListed = tabid == "Inventory" and tier ~= "narrow" and TabModule("HeroSheetInventory").Source() == "stash"
+            local inventory = TabModule("HeroSheetInventory")
+            local stashListed = tabid == "Inventory" and tier ~= "narrow" and inventory ~= nil and inventory.Source() == "stash"
             treasures:SetClass("collapsed", (tabid == "Inventory" and not stashListed) or tabid == "Downtime" or onAppearance)
             kit:SetClass("collapsed", (tabid == "Downtime" and tier ~= "narrow") or onAppearance)
             if SyncAppearanceHost ~= nil then

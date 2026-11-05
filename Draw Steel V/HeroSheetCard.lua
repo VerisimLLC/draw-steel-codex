@@ -3493,11 +3493,28 @@ local function ItemRow()
         borderBox = true,
         tmargin = 4,
     }
-    --the name takes the press over most of the row, so both drag.
-    for _, args in ipairs({nameArgs, panelArgs}) do
-        for argName, value in pairs(HeroSheetInventoryActions.DragFields("inv", DragEntry)) do
-            args[argName] = value
+    --the name takes the press over most of the row, so both drag. A drag
+    --from the name dims the whole row (its cover), as a drag from the row
+    --does: the drag marks only the panel the press began on.
+    --- @type Panel
+    local panel
+    for argName, value in pairs(HeroSheetInventoryActions.DragFields("inv", DragEntry)) do
+        panelArgs[argName] = value
+        nameArgs[argName] = value
+    end
+    local beginDrag = nameArgs.beginDrag
+    local endDrag = nameArgs.drag
+    nameArgs.beginDrag = function(element)
+        beginDrag(element)
+        if panel ~= nil and element:HasClass("heroSheetDragSource") then
+            panel:SetClass("heroSheetDragSource", true)
         end
+    end
+    nameArgs.drag = function(element)
+        if panel ~= nil then
+            panel:SetClass("heroSheetDragSource", false)
+        end
+        endDrag(element)
     end
     local name = Text(HeroSheetTheme.HoverCard(nameArgs, function(pinned, close)
         return HeroSheetTheme.CardFrame(ItemCard(cur.it, cur.context.level, cur.noBenefit, pinned), pinned, close)
@@ -3513,7 +3530,20 @@ local function ItemRow()
         warning,
         button,
     }
-    local panel = gui.Panel(panelArgs)
+    --dims the row while it is dragged (opacity would not reach its words);
+    --it reaches over the row's padding (10 left, 3 right).
+    panelArgs[3] = gui.Panel{
+        classes = {"heroSheetDragCover"},
+        bgimage = "panels/square.png",
+        cornerRadius = 6,
+        floating = true,
+        width = "100%+13",
+        height = "100%",
+        halign = "left",
+        x = -10,
+        interactable = false,
+    }
+    panel = gui.Panel(panelArgs)
 
     --- @param it table one of the reader's treasures
     --- @param context {token: CharacterToken, level: number, kit: {read: boolean, gear: nil|table}, write: boolean}

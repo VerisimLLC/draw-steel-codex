@@ -1036,7 +1036,10 @@ local function BuildContent()
             --Appearance's column is its big art and what sits under it:
             --the card, kit and Treasures step aside, and the column never scrolls.
             local onAppearance = tabid == "Appearance" and tier ~= "narrow"
-            treasures:SetClass("collapsed", tabid == "Inventory" or tabid == "Downtime" or onAppearance)
+            --on the Inventory tab the column shows the side the list does not:
+            --the stash beside the Hero's items, Treasures beside the stash.
+            local stashListed = tabid == "Inventory" and tier ~= "narrow" and TabModule("HeroSheetInventory").Source() == "stash"
+            treasures:SetClass("collapsed", (tabid == "Inventory" and not stashListed) or tabid == "Downtime" or onAppearance)
             kit:SetClass("collapsed", (tabid == "Downtime" and tier ~= "narrow") or onAppearance)
             if SyncAppearanceHost ~= nil then
                 SyncAppearanceHost(tabid)
@@ -1045,6 +1048,11 @@ local function BuildContent()
                 element.vscroll = not onAppearance
             end
             FitTreasures()
+        end,
+        --the Inventory list switched between the Hero's items and the stash.
+        heroSheetInventorySource = function(element)
+            local state = HeroSheet.State()
+            element:FireEvent("heroSheetTab", state ~= nil and state.tab or "")
         end,
         card,
         kit,

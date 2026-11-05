@@ -3445,7 +3445,30 @@ local function ItemRow()
             end
         end,
     }
-    local name = Text(HeroSheetTheme.HoverCard({
+    --On the Inventory tab, while the list shows the party stash, a row can be
+    --dragged into it (the Hero's own item, as the list's rows drag). Off that
+    --view there is nowhere to drop it, so it does not drag.
+    --- @return nil|HeroInventoryEntry
+    local function DragEntry()
+        local it = cur.it
+        local sheet = HeroSheet.State()
+        if it == nil or sheet == nil or sheet.tab ~= "Inventory" or HeroSheetInventory.Source() ~= "stash" then
+            return nil
+        end
+        return {
+            key = it.itemid .. "|" .. tostring(it.slot or "carried"),
+            itemid = it.itemid,
+            name = it.name,
+            kind = it.kind,
+            item = it.item,
+            quantity = it.quantity or 1,
+            equipped = it.equipped == true,
+            equippable = it.equippable == true,
+            slot = it.slot,
+            source = it,
+        }
+    end
+    local nameArgs = {
         classes = {"heroSheetCardText"},
         text = "",
         width = "auto",
@@ -3456,10 +3479,8 @@ local function ItemRow()
         textWrap = false,
         textOverflow = "ellipsis",
         valign = "center",
-    }, function(pinned, close)
-        return HeroSheetTheme.CardFrame(ItemCard(cur.it, cur.context.level, cur.noBenefit, pinned), pinned, close)
-    end))
-    local panel = gui.Panel{
+    }
+    local panelArgs = {
         classes = {"heroSheetItemRow"},
         bgimage = "panels/square.png",
         border = 1,
@@ -3471,18 +3492,28 @@ local function ItemRow()
         rpad = 3,
         borderBox = true,
         tmargin = 4,
-        name,
-        gui.Panel{
-            width = "auto",
-            height = "100%",
-            flow = "horizontal",
-            halign = "right",
-            qty,
-            state,
-            warning,
-            button,
-        },
     }
+    --the name takes the press over most of the row, so both drag.
+    for _, args in ipairs({nameArgs, panelArgs}) do
+        for argName, value in pairs(HeroSheetInventoryActions.DragFields("inv", DragEntry)) do
+            args[argName] = value
+        end
+    end
+    local name = Text(HeroSheetTheme.HoverCard(nameArgs, function(pinned, close)
+        return HeroSheetTheme.CardFrame(ItemCard(cur.it, cur.context.level, cur.noBenefit, pinned), pinned, close)
+    end))
+    panelArgs[1] = name
+    panelArgs[2] = gui.Panel{
+        width = "auto",
+        height = "100%",
+        flow = "horizontal",
+        halign = "right",
+        qty,
+        state,
+        warning,
+        button,
+    }
+    local panel = gui.Panel(panelArgs)
 
     --- @param it table one of the reader's treasures
     --- @param context {token: CharacterToken, level: number, kit: {read: boolean, gear: nil|table}, write: boolean}
@@ -3753,8 +3784,16 @@ function HeroSheetCard.Treasures(args)
         content,
     }
 
-    return HeroSheetRefresh.Block({
-        classes = {"heroSheetPlate", "heroSheetBlock"},
+    --Open Inventory is for the other tabs: on the Inventory tab (where the
+    --card stands beside the party stash) it would go nowhere.
+    --- @return boolean
+    local function OnInventory()
+        local sheet = HeroSheet.State()
+        return sheet ~= nil and sheet.tab == "Inventory"
+    end
+
+    local block = HeroSheetRefresh.Block({
+        classes = {"heroSheetPlate", "heroSheetBlock", "heroSheetDropTarget"},
         bgimage = "panels/square.png",
         border = 1,
         cornerRadius = 10,
@@ -3766,6 +3805,9 @@ function HeroSheetCard.Treasures(args)
         borderBox = true,
         tmargin = 12,
         valign = "top",
+        heroSheetTab = function(element, tabid)
+            openInventory:SetClass("collapsed", not HeroSheetWrite.CanWrite() or tabid == "Inventory")
+        end,
         header,
         list,
     }, {
@@ -3786,7 +3828,7 @@ function HeroSheetCard.Treasures(args)
             local read = Data(token)
             local treasures = read ~= nil and read.treasures or nil
             local write = HeroSheetWrite.CanWrite()
-            openInventory:SetClass("collapsed", not write)
+            openInventory:SetClass("collapsed", not write or OnInventory())
             local level = 1
             pcall(function() level = token.properties:CharacterLevel() end)
             --nothing is claimed when the kit could not be read.
@@ -3832,6 +3874,11 @@ function HeroSheetCard.Treasures(args)
             empty:SetClass("collapsed", treasures == nil or listed > 0)
         end,
     })
+    --beside the stash, a stash item dropped here is taken.
+    HeroSheetInventoryActions.RegisterTarget(block, "list", 1, function()
+        return block.valid and not block:HasClass("collapsed") and OnInventory() and HeroSheetInventory.Source() == "stash"
+    end)
+    return block
 end
 
 ----------------------------------------------------------------------

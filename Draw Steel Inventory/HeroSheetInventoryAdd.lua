@@ -394,7 +394,7 @@ function HeroSheetInventoryAdd.Create(args)
             valign = "center",
             click = function(element)
                 if row.entry ~= nil then
-                    HeroSheetInventoryActions.AddToHero(row.entry.item)
+                    HeroSheetInventoryActions.AddItem(row.entry.item)
                 end
             end,
         }
@@ -741,14 +741,15 @@ function HeroSheetInventoryAdd.Create(args)
             state.pendingNew = nil
             local item = (dmhub.GetTable("tbl_Gear") or {})[itemid]
             if item ~= nil and mode == "inventory" then
-                --the Hero's own item: unique and out of the compendium, as
-                --Make unique leaves one.
+                --an item of its own, unique and out of the compendium, as
+                --Make unique leaves one: the Hero's, or the stash's while the
+                --list shows the stash.
                 if not item:IsAmmoForWeapon() then
                     item.unique = true
                 end
                 item.hidden = true
                 dmhub.SetAndUploadTableItem("tbl_Gear", item)
-                HeroSheetInventoryActions.AddToHero(item)
+                HeroSheetInventoryActions.AddItem(item)
             end
             state.offered = Offered()
             Refilter(false)

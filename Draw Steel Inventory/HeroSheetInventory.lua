@@ -179,6 +179,8 @@ local CONTENT_PAD = 12
 --Narrow's tab row over the list, and the gap under it.
 local TAB_ROW = 40
 local TAB_ROW_GAP = 8
+--about what the list header's Take all adds to the chip row's width.
+local TAKE_ALL_WIDTH = 80
 
 --- @class HeroInventoryEntry
 --- @field key string one row: the item, and its slot when equipped
@@ -194,6 +196,7 @@ local TAB_ROW_GAP = 8
 --- @field noBenefit nil|string
 --- @field source table the item as HeroSheetRefresh.Read gives it in its treasures (the hover card reads it)
 --- @field stash nil|boolean a party stash item shown with the same menu and pane
+--- @field waits nil|boolean a stash item one of the Hero's empty slots waits for (it is worn again when taken)
 
 --- A consumable's charges, "2/3 charges", or nil when it has none.
 --- @param item table
@@ -321,6 +324,31 @@ local function Entries(token)
                 source = {itemid = itemid, name = item.name, kind = kind, item = item, quantity = 0, equipped = false, equippable = false},
             }
         end
+    end
+    return result
+end
+
+--- The party stash as the list's rows: the stash's entries with what the
+--- list's rows and hover cards read.
+--- @param token CharacterToken
+--- @return HeroInventoryEntry[]
+local function StashListEntries(token)
+    local result = {}
+    local props = token.properties
+    for _, entry in ipairs(HeroSheetInventoryActions.StashEntries(HeroSheetInventoryActions.Party(token))) do
+        result[#result+1] = {
+            key = entry.key,
+            itemid = entry.itemid,
+            name = entry.name,
+            kind = entry.kind,
+            item = entry.item,
+            quantity = entry.quantity,
+            equipped = false,
+            equippable = false,
+            stash = true,
+            waits = HeroSheetInventoryActions.SlotWaitsFor(props, entry.itemid),
+            source = entry,
+        }
     end
     return result
 end
@@ -466,8 +494,42 @@ local function ToggleEquip(entry)
     return false
 end
 
---The party stash item the item pane shows, picked in the stash column; nil
---when the pane shows one of the Hero's items.
+--What the Inventory list shows: "items" (the Hero's) or "stash" (the party
+--stash, at every tier). The card column, the add pane and drags read it.
+--- @type string
+local g_source = "items"
+
+--- What the Inventory list shows: "items" or "stash".
+--- @return string
+function HeroSheetInventory.Source()
+    return g_source
+end
+
+--The open Inventory's own SetSource and WarmStash; nil until it is built.
+--- @type nil|fun(source: string)
+local g_setSource = nil
+--- @type nil|fun()
+local g_warmStash = nil
+
+--- Show the Hero's items ("items") or the party stash ("stash") in the
+--- Inventory list. The card column's buttons use it.
+--- @param source string
+function HeroSheetInventory.SetSource(source)
+    if g_setSource ~= nil then
+        g_setSource(source)
+    end
+end
+
+--- Build the stash's list rows ahead of a switch to it (the pointer is on
+--- something that switches).
+function HeroSheetInventory.WarmStash()
+    if g_warmStash ~= nil then
+        g_warmStash()
+    end
+end
+
+--The party stash item the item pane shows, picked in the stash column or
+--the list; nil when the pane shows one of the Hero's items.
 --- @type nil|string
 local g_stashShown = nil
 --- @type nil|fun()
@@ -626,6 +688,8 @@ end
 --- Rows are kept and painted again; the pane is built once and painted.
 --- @return Panel
 function HeroSheetInventory.Create()
+    --a new sheet starts on the Hero's items.
+    g_source = "items"
     local state = {
         --the chip picked and the search's words.
         filter = "all",
@@ -650,10 +714,9 @@ function HeroSheetInventory.Create()
         write = false,
         --the add pane shows in the item pane's place.
         adding = false,
-        --at Narrow: which tab, and what shows in the list's place: "list",
-        --"item" (the item pane, with All items) or "add".
+        --at Narrow, what shows in the list's place: "list", "item" (the item
+        --pane, with All items) or "add". Which tab is g_source.
         narrow = false,
-        narrowTab = "items",
         narrowView = "list",
     }
     --- @type fun()
@@ -676,6 +739,13 @@ function HeroSheetInventory.Create()
     local unequipHover = false
     --- @type fun()
     local PaintPreview
+    --- @type fun(source: string)
+    local SetSource
+    --- @type fun(width: number)
+    local Fit
+    --the width Fit last had: a switch of tab fits the header again.
+    --- @type nil|number
+    local lastWidth = nil
 
     ------------------------------------------------------------------
     --The list's header: the heading and count, the chips, the search.
@@ -693,19 +763,21 @@ function HeroSheetInventory.Create()
     }
     --- @type table<string, Panel>
     local chips = {}
+    --"Inventory", or "Party stash" while the list shows the stash.
+    local heading = gui.Label{
+        classes = {"heroSheetTitle"},
+        text = "Inventory",
+        fontSize = 20,
+        bold = true,
+        width = "auto",
+        height = "auto",
+        halign = "left",
+        valign = "center",
+        textWrap = false,
+    }
     --- @type Panel[]
     local headerChildren = {
-        gui.Label{
-            classes = {"heroSheetTitle"},
-            text = "Inventory",
-            fontSize = 20,
-            bold = true,
-            width = "auto",
-            height = "auto",
-            halign = "left",
-            valign = "center",
-            textWrap = false,
-        },
+        heading,
         countLabel,
     }
     local chipRow = gui.Panel{
@@ -757,7 +829,7 @@ function HeroSheetInventory.Create()
         chips[id] = chip
         chipRow:AddChild(chip)
     end
-    chipRow:AddChild(gui.SearchInput{
+    local search = gui.SearchInput{
         placeholderText = "Search your items",
         text = "",
         width = 150,
@@ -769,7 +841,8 @@ function HeroSheetInventory.Create()
             state.query = string.lower(trim(element.text or ""))
             PaintList()
         end,
-    })
+    }
+    chipRow:AddChild(search)
     --Add items: the add pane takes the item pane's place.
     --- @type fun(open: boolean)
     local ShowAdd
@@ -826,6 +899,29 @@ function HeroSheetInventory.Create()
         },
     }
     chipRow:AddChild(addButton)
+    --Take all: the stash column's button, here while the list shows the stash
+    --(the Treasures card takes the column's place then).
+    local takeAllButton = gui.Label{
+        classes = {"heroSheetPlateButton", "hoverable", "collapsed"},
+        text = "Take all",
+        bgimage = "panels/square.png",
+        border = 1,
+        cornerRadius = 14,
+        width = "auto",
+        height = HeroSheetWindow.TargetSize(28),
+        hpad = 10,
+        borderBox = true,
+        lmargin = 6,
+        fontSize = 12.5,
+        bold = true,
+        textWrap = false,
+        halign = "left",
+        valign = "center",
+        click = function(element)
+            HeroSheetInventoryActions.TakeAll()
+        end,
+    }
+    chipRow:AddChild(takeAllButton)
     headerChildren[#headerChildren+1] = chipRow
     local header = gui.Panel{
         width = "100%",
@@ -919,6 +1015,14 @@ function HeroSheetInventory.Create()
         local button = SmallButton("Equip", function()
             local entry = row.entry
             if entry == nil or busy then
+                return
+            end
+            if entry.stash then
+                --one Take per press until the stash's change repaints the row.
+                busy = true
+                if not HeroSheetInventoryActions.Take(entry.itemid) then
+                    busy = false
+                end
                 return
             end
             if entry.kind == "consumable" then
@@ -1027,7 +1131,10 @@ function HeroSheetInventory.Create()
             tmargin = 6,
             click = function(element)
                 local entry = row.entry
-                if entry ~= nil then
+                if entry ~= nil and entry.stash then
+                    --a stash item opens in the pane, read only, with Take.
+                    HeroSheetInventory.ShowStashItem(entry.itemid)
+                elseif entry ~= nil then
                     state.sel = entry.key
                     state.selItem = entry.itemid
                     state.shown = entry.key
@@ -1055,8 +1162,11 @@ function HeroSheetInventory.Create()
             field.panel,
             dragCover,
         }
-        --dragging one of the Hero's items: a used-up row stays put.
-        for argName, value in pairs(HeroSheetInventoryActions.DragFields("inv", function()
+        --dragging one of the Hero's items, or a stash item while the list
+        --shows the stash: a used-up row stays put.
+        for argName, value in pairs(HeroSheetInventoryActions.DragFields(function()
+            return cond(row.entry ~= nil and row.entry.stash == true, "stash", "inv")
+        end, function()
             local entry = row.entry
             if entry == nil or entry.remembered or not state.write then
                 return nil
@@ -1106,6 +1216,8 @@ function HeroSheetInventory.Create()
             local line = table.concat(keywords, ", ")
             if entry.remembered then
                 line = "Used up: equips again when you have one."
+            elseif entry.waits then
+                line = "Equips again when you take it"
             end
             sub.text = line
             sub:SetClass("collapsed", line == "")
@@ -1118,7 +1230,9 @@ function HeroSheetInventory.Create()
             equippedLabel:SetClass("collapsed", not entry.equipped)
             --Use on a consumable; Equip / Unequip on what a slot can take.
             local label = nil
-            if state.write and not entry.remembered then
+            if state.write and entry.stash then
+                label = "Take"
+            elseif state.write and not entry.remembered then
                 if entry.kind == "consumable" then
                     if type(entry.item:try_get("consumable")) == "table" then
                         label = "Use"
@@ -1143,7 +1257,7 @@ function HeroSheetInventory.Create()
             words.selfStyle.width = string.format("100%%-%d", math.ceil(room))
             name.selfStyle.maxWidth = "100%"
             sub.selfStyle.maxWidth = "100%"
-            panel:SetClass("heroSheetRowPinned", entry.key == state.shown)
+            panel:SetClass("heroSheetRowPinned", cond(entry.stash == true, entry.itemid == g_stashShown, entry.key == state.shown))
             if not same then
                 panel.tooltip = nil
             end
@@ -1155,6 +1269,7 @@ function HeroSheetInventory.Create()
     --- @field panel Panel
     --- @field paint fun(entries: HeroInventoryEntry[], first: boolean)
     --- @field rows fun(): HeroInventoryRow[]
+    --- @field warm fun(count: integer, budget: integer): integer builds hidden rows toward count, at most budget of them; returns how many it built
 
     --- @param kind {id: string, heading: string}
     --- @return HeroInventoryGroup
@@ -1220,7 +1335,8 @@ function HeroSheetInventory.Create()
             paint = function(entries, first)
                 panel:SetClass("collapsed", #entries == 0)
                 panel.children[1].selfStyle.tmargin = cond(first, 2, 14)
-                if kind.id == "leveled" then
+                --the stash carries nothing: its leveled count is a plain count.
+                if kind.id == "leveled" and g_source ~= "stash" then
                     --Every copy counts toward the three leveled treasures a
                     --Hero can carry: a stack of two counts as two.
                     local carried = 0
@@ -1240,6 +1356,7 @@ function HeroSheetInventory.Create()
                 else
                     count.text = tostring(#entries)
                     count.data.tooltip = nil
+                    count:SetClass("heroSheetPillWarn", false)
                 end
                 for i, entry in ipairs(entries) do
                     local row = rows[i]
@@ -1259,6 +1376,17 @@ function HeroSheetInventory.Create()
             --- @return HeroInventoryRow[]
             rows = function()
                 return rows
+            end,
+            warm = function(count, budget)
+                local built = 0
+                while #rows < count and built < budget do
+                    local row = NewRow()
+                    rows[#rows+1] = row
+                    holder:AddChild(row.panel)
+                    row.panel:SetClass("collapsed", true)
+                    built = built + 1
+                end
+                return built
             end,
         }
     end
@@ -1367,10 +1495,12 @@ function HeroSheetInventory.Create()
         tpad = 12,
         hpad = 16,
         borderBox = true,
-        --a drag began or ended: the zones show for the Hero's own items.
+        --a drag began or ended: the zones show for the Hero's own items, while
+        --the list shows them (over the stash, the whole list is the stash).
         heroSheetDrag = function(element, from)
-            zones:SetClass("collapsed", from ~= "inv")
-            if from == "inv" then
+            local zoned = from == "inv" and g_source ~= "stash"
+            zones:SetClass("collapsed", not zoned)
+            if zoned then
                 local token = HeroSheet.Token()
                 local onMap = HeroSheetInventoryActions.OnMap(token)
                 --only the words dim: a dimmed zone would let the list show
@@ -1381,6 +1511,22 @@ function HeroSheetInventory.Create()
                     dropReason.text = HeroSheetInventoryActions.NotOnMapText(token)
                 end
             end
+        end,
+        --While the list shows the stash nothing else watches it for changes
+        --from other clients (the stash column is hidden), so the list does.
+        data = {stashSeen = nil},
+        thinkTime = 0.5,
+        think = function(element)
+            if g_source ~= "stash" then
+                element.data.stashSeen = nil
+                return
+            end
+            local party = HeroSheetInventoryActions.Party(state.token)
+            local seen = party ~= nil and dmhub.ToJson(party.properties.inventory or {}) or ""
+            if element.data.stashSeen ~= nil and seen ~= element.data.stashSeen then
+                HeroSheetRefresh.Recheck()
+            end
+            element.data.stashSeen = seen
         end,
         header,
         listScroll,
@@ -1394,7 +1540,10 @@ function HeroSheetInventory.Create()
     end
     HeroSheetInventoryActions.RegisterTarget(dropZone, "mapdrop", 10, ZonesShown)
     HeroSheetInventoryActions.RegisterTarget(destroyZone, "destroy", 10, ZonesShown)
-    HeroSheetInventoryActions.RegisterTarget(listPanel, "list", 1, function()
+    --showing the stash, the list takes the Hero's items into the stash.
+    HeroSheetInventoryActions.RegisterTarget(listPanel, function()
+        return cond(g_source == "stash", "stash", "list")
+    end, 1, function()
         return listPanel.valid
     end)
 
@@ -1415,8 +1564,9 @@ function HeroSheetInventory.Create()
         return same or first
     end
 
-    --- What the item pane shows: the stash item picked in the stash column
-    --- (read only), else the Hero's row picked.
+    --- What the item pane shows: the stash item picked (read only), else the
+    --- Hero's row picked. While the list shows the stash the pane shows a
+    --- stash item: the one picked, else the list's first.
     --- @return nil|HeroInventoryEntry entry
     --- @return boolean fromStash
     local function PaneEntry()
@@ -1427,6 +1577,14 @@ function HeroSheetInventory.Create()
                 end
             end
             g_stashShown = nil
+        end
+        if g_source == "stash" then
+            local first = state.entries[1]
+            if first ~= nil and first.stash then
+                g_stashShown = first.itemid
+                return first.source --[[@as HeroInventoryEntry]], true
+            end
+            return nil, true
         end
         return Picked(), false
     end
@@ -1481,6 +1639,10 @@ function HeroSheetInventory.Create()
     end
 
     PaintList = function()
+        --pick the stash item the pane shows first, so its row is lit.
+        if g_source == "stash" then
+            PaneEntry()
+        end
         local byKind = {leveled = {}, trinket = {}, consumable = {}, other = {}}
         local shown = 0
         for _, entry in ipairs(state.entries) do
@@ -1506,6 +1668,15 @@ function HeroSheetInventory.Create()
         end
         countLabel.text = tostring(carried)
         empty:SetClass("collapsed", #state.entries > 0)
+        --the texts that name what the list shows (set only on a change).
+        local stash = g_source == "stash"
+        local title = cond(stash, "Party stash", "Inventory")
+        if heading.text ~= title then
+            heading.text = title
+            search.placeholderText = cond(stash, "Search the stash", "Search your items")
+            empty.text = cond(stash, "The stash is empty.", "Nothing carried yet.")
+        end
+        takeAllButton:SetClass("collapsed", not (stash and state.write and #state.entries > 0))
     end
 
     ------------------------------------------------------------------
@@ -1994,6 +2165,7 @@ function HeroSheetInventory.Create()
         end
         paneItem:SetClass("collapsed", entry == nil)
         paneEmpty:SetClass("collapsed", entry ~= nil)
+        paneEmpty.text = cond(g_source == "stash", "The stash is empty.", "Nothing carried yet.")
         if entry == nil or token == nil then
             return
         end
@@ -2115,13 +2287,60 @@ function HeroSheetInventory.Create()
         Arrange()
     end
 
-    --Narrow's tabs over the list, in the sheet's list-tab look.
+    --What the list shows now: the Hero's items or the party stash.
+    --- @param token CharacterToken
+    --- @return HeroInventoryEntry[]
+    local function CurrentEntries(token)
+        if g_source == "stash" then
+            return StashListEntries(token)
+        end
+        return Entries(token)
+    end
+
+    --Stash rows are built the first time the list shows the stash, not with
+    --the tab. The pointer on the Party stash tab builds them ahead of the
+    --click, a few a frame, so the switch itself has little left to build.
+    local WARM_PER_FRAME = 6
+    local warming = false
+    local function WarmStash()
+        if warming or g_source == "stash" or state.token == nil then
+            return
+        end
+        local counts = {}
+        for _, entry in ipairs(HeroSheetInventoryActions.StashEntries(HeroSheetInventoryActions.Party(state.token))) do
+            counts[entry.kind] = (counts[entry.kind] or 0) + 1
+        end
+        warming = true
+        local function Step()
+            --the switch came first: its paint builds what is left.
+            if mod.unloaded or not body.valid or g_source == "stash" then
+                warming = false
+                return
+            end
+            local built = 0
+            for _, kind in ipairs(KINDS) do
+                if built < WARM_PER_FRAME then
+                    built = built + groups[kind.id].warm(counts[kind.id] or 0, WARM_PER_FRAME - built)
+                end
+            end
+            if built > 0 then
+                dmhub.Schedule(0.01, Step)
+            else
+                warming = false
+            end
+        end
+        Step()
+    end
+    g_warmStash = WarmStash
+
+    --The tabs over the list: the Hero's items or the party stash, at every
+    --tier, for a Hero in a party. In the sheet's list-tab look.
     --- @type table<string, Panel>
-    local narrowTabs = {}
+    local sourceTabs = {}
     --- @param id string
     --- @param text string
     --- @return Panel
-    local function NarrowTab(id, text)
+    local function SourceTab(id, text)
         local tab = gui.Panel{
             classes = {"heroSheetListTabFrame", "hoverable", cond(id == "items", "selected", nil)},
             bgimage = "panels/square.png",
@@ -2133,9 +2352,12 @@ function HeroSheetInventory.Create()
             halign = "left",
             valign = "bottom",
             click = function(element)
-                state.narrowTab = id
-                state.narrowView = "list"
-                Arrange()
+                SetSource(id)
+            end,
+            hover = function(element)
+                if id == "stash" then
+                    WarmStash()
+                end
             end,
             gui.Label{
                 classes = {"heroSheetListTab", cond(id == "items", "selected", nil)},
@@ -2150,10 +2372,11 @@ function HeroSheetInventory.Create()
                 interactable = false,
             },
         }
-        narrowTabs[id] = tab
+        sourceTabs[id] = tab
         return tab
     end
-    local stashTab = NarrowTab("stash", "Party stash")
+    local itemsTab = SourceTab("items", "Items")
+    local stashTab = SourceTab("stash", "Party stash")
     --on a plate of its own: the frosted window would show through the tabs.
     local tabRow = gui.Panel{
         classes = {"heroSheetPlate", "heroSheetBlock", "collapsed"},
@@ -2166,34 +2389,37 @@ function HeroSheetInventory.Create()
         hpad = 16,
         borderBox = true,
         bmargin = TAB_ROW_GAP,
-        NarrowTab("items", "Items"),
+        itemsTab,
         stashTab,
     }
-    --the Party stash tab takes a dragged item at Narrow.
+    --each tab takes a drag to the side it names while the other side shows:
+    --the Hero's items onto Party stash, a stash item onto Items (Take).
     stashTab:SetClass("heroSheetDropTarget", true)
+    itemsTab:SetClass("heroSheetDropTarget", true)
     HeroSheetInventoryActions.RegisterTarget(stashTab, "stash", 2, function()
-        return state.narrow and not tabRow:HasClass("collapsed")
+        return g_source ~= "stash" and not tabRow:HasClass("collapsed")
     end)
-    --the stash on its own tab at Narrow: a second stash block, shown by Arrange.
-    local narrowStash = HeroSheetInventoryActions.StashPanel{embedded = true}
+    HeroSheetInventoryActions.RegisterTarget(itemsTab, "list", 2, function()
+        return g_source == "stash" and not tabRow:HasClass("collapsed")
+    end)
 
-    --- Show what the tier, the Narrow tab and view call for: at Wide and Medium
-    --- the list beside the item (or add) pane; at Narrow one of them at a time.
+    --- Show what the tier, the tab and Narrow's view call for: at Wide and
+    --- Medium the list beside the item (or add) pane; at Narrow one of them
+    --- at a time.
     Arrange = function()
         local narrow = state.narrow
-        tabRow:SetClass("collapsed", not narrow)
-        for id, tab in pairs(narrowTabs) do
-            tab:SetClassTree("selected", id == state.narrowTab)
+        local hasParty = HeroSheetInventoryActions.Party(state.token) ~= nil
+        tabRow:SetClass("collapsed", not hasParty)
+        local bodyHeight = cond(hasParty, string.format("100%%-%d", TAB_ROW + TAB_ROW_GAP), "100%")
+        if body.selfStyle.height ~= bodyHeight then
+            body.selfStyle.height = bodyHeight
+        end
+        for id, tab in pairs(sourceTabs) do
+            tab:SetClassTree("selected", id == g_source)
         end
         local view = state.narrowView
-        local hasParty = HeroSheetInventoryActions.Party(state.token) ~= nil
-        stashTab:SetClass("collapsed", not hasParty)
-        if narrow and state.narrowTab == "stash" and not hasParty then
-            state.narrowTab = "items"
-        end
         if not narrow then
             listPanel:SetClass("collapsed", false)
-            narrowStash:SetClass("collapsed", true)
             pane:SetClass("collapsed", state.adding)
             if addPane ~= nil then
                 addPane:SetClass("collapsed", not state.adding)
@@ -2206,11 +2432,7 @@ function HeroSheetInventory.Create()
             view = "list"
             state.narrowView = view
         end
-        listPanel:SetClass("collapsed", not (view == "list" and state.narrowTab == "items"))
-        narrowStash:SetClass("collapsed", not (view == "list" and state.narrowTab == "stash"))
-        if view == "list" and state.narrowTab == "stash" then
-            narrowStash:FireEvent("heroSheetStash")
-        end
+        listPanel:SetClass("collapsed", view ~= "list")
         pane:SetClass("collapsed", view ~= "item")
         if addPane ~= nil then
             addPane:SetClass("collapsed", view ~= "add")
@@ -2219,6 +2441,47 @@ function HeroSheetInventory.Create()
         --Esc goes back to the list first.
         body.captureEscape = view ~= "list"
     end
+
+    --- Show the Hero's items ("items") or the party stash ("stash") in the
+    --- list, and tell the card column, which shows the other side.
+    --- @param source string
+    SetSource = function(source)
+        if source == "stash" and HeroSheetInventoryActions.Party(state.token) == nil then
+            source = "items"
+        end
+        if state.narrow then
+            state.narrowView = "list"
+        end
+        if source == g_source or state.token == nil then
+            Arrange()
+            return
+        end
+        g_source = source
+        state.entries = CurrentEntries(state.token)
+        if source == "items" then
+            --back to the Hero's items: the pane goes back to the Hero's pick.
+            g_stashShown = nil
+            local picked = Picked()
+            state.shown = picked ~= nil and picked.key or nil
+        else
+            state.shown = nil
+        end
+        PaintList()
+        PaintPane()
+        if lastWidth ~= nil then
+            Fit(lastWidth)
+        else
+            Arrange()
+        end
+        listScroll.vscrollPosition = 1
+        local live = rawget(_G, "g_heroSheetLive")
+        if live ~= nil and live.window ~= nil and live.window.valid then
+            live.window:FireEventTree("heroSheetInventorySource", source)
+        end
+        --the Treasures card shows in the stash column's place: it draws then.
+        HeroSheetRefresh.Recheck()
+    end
+    g_setSource = SetSource
 
     body = gui.Panel{
         width = "100%",
@@ -2231,7 +2494,7 @@ function HeroSheetInventory.Create()
                 return
             end
             HeroSheetRefresh.Stale()
-            state.entries = Entries(state.token)
+            state.entries = CurrentEntries(state.token)
             paneKey = nil
             PaintList()
             PaintPane()
@@ -2247,7 +2510,6 @@ function HeroSheetInventory.Create()
             end
         end,
         listPanel,
-        narrowStash,
         pane,
     }
 
@@ -2272,7 +2534,8 @@ function HeroSheetInventory.Create()
     --- fifths, within its bounds, and the list the rest; a narrow list's
     --- header takes two lines.
     --- @param width number the window's width in sheet units
-    local function Fit(width)
+    Fit = function(width)
+        lastWidth = width
         local tier = HeroSheet.Tier()
         local narrow = tier == "narrow"
         local card = CARD_COLUMN[tier]
@@ -2280,13 +2543,12 @@ function HeroSheetInventory.Create()
         local listWidth = room
         if narrow then
             --one thing at a time, the whole width, under the tabs.
-            for _, panel in ipairs({listPanel, pane, narrowStash}) do
+            for _, panel in ipairs({listPanel, pane}) do
                 panel.selfStyle.width = "100%"
                 panel.selfStyle.lmargin = 0
             end
             addFit.width = "100%"
             addFit.lmargin = 0
-            body.selfStyle.height = string.format("100%%-%d", TAB_ROW + TAB_ROW_GAP)
         else
             local paneWidth = math.floor(math.max(PANE_MIN_WIDTH, math.min(PANE_WIDTH, room * 0.42)))
             pane.selfStyle.width = paneWidth
@@ -2294,7 +2556,6 @@ function HeroSheetInventory.Create()
             addFit.width = paneWidth
             addFit.lmargin = COLUMN_GAP
             listPanel.selfStyle.width = string.format("100%%-%d", paneWidth + COLUMN_GAP)
-            body.selfStyle.height = "100%"
             listWidth = room - paneWidth - COLUMN_GAP
         end
         if addPane ~= nil then
@@ -2306,9 +2567,11 @@ function HeroSheetInventory.Create()
         --Beside the heading the chip row sits at the right; on its own line
         --it starts at the left. It wraps only when it needs a third line: a
         --row that wraps with room to spare spreads its chips apart.
+        --the stash's Take all makes the chip row wider.
+        local extra = cond(g_source == "stash", TAKE_ALL_WIDTH, 0)
         local headerHeight = HEADER_HEIGHT
-        local ownLine = listWidth < HEADER_WRAP_WIDTH
-        local threeLines = listWidth < CHIP_ROW_WIDTH
+        local ownLine = listWidth < HEADER_WRAP_WIDTH + extra
+        local threeLines = listWidth < CHIP_ROW_WIDTH + extra
         chipRow.wrap = threeLines
         --the full width keeps it off the heading's line.
         chipRow.selfStyle.width = cond(ownLine, "100%", "auto")
@@ -2394,7 +2657,12 @@ function HeroSheetInventory.Create()
             end
             state.level = 1
             pcall(function() state.level = token.properties:CharacterLevel() end)
-            state.entries = Entries(token)
+            --a Hero out of the party (or another Hero with none) goes back to
+            --the Hero's items, and the card column with it.
+            if g_source == "stash" and HeroSheetInventoryActions.Party(token) == nil then
+                SetSource("items")
+            end
+            state.entries = CurrentEntries(token)
             --another Hero starts on the list's first item, with nothing new.
             if otherHero then
                 state.sel = nil
@@ -2408,7 +2676,10 @@ function HeroSheetInventory.Create()
             local items = {}
             --- @type nil|string
             local added = nil
-            for _, entry in ipairs(state.entries) do
+            --while the list shows the stash, what is new to the Hero is noticed
+            --on the way back to the Hero's items.
+            local heroEntries = cond(g_source == "stash", {}, state.entries)
+            for _, entry in ipairs(heroEntries) do
                 if not entry.remembered then
                     items[entry.itemid] = true
                     if state.known ~= nil and not state.known[entry.itemid] then
@@ -2416,13 +2687,15 @@ function HeroSheetInventory.Create()
                     end
                 end
             end
-            state.known = items
+            if g_source ~= "stash" then
+                state.known = items
+            end
             if added ~= nil then
                 state.sel = added
             end
             local picked = Picked()
             state.shown = picked ~= nil and picked.key or nil
-            if picked ~= nil then
+            if picked ~= nil and g_source ~= "stash" then
                 state.sel, state.selItem = picked.key, picked.itemid
             end
             --a stash item just taken shows as the Hero's new row instead.

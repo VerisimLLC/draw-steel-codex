@@ -13,12 +13,21 @@ end
 
 --This file implements the main roll prompt dialog that appears when you get a dice roll prompt.
 
-local g_holdingRollOpen = false
+--Dialogs holding their thrown roll open, keyed by panel. The engine keeps EVERY
+--amendable roll open while this says yes, so it is tracked per dialog: a stacked
+--trigger roll finishing must not release the roll it interrupted.
+local g_rollHolders = {}
 dmhub.HoldAmendableRollOpen = function()
-    return g_holdingRollOpen
+    for panel in pairs(g_rollHolders) do
+        --A holder only counts while its dialog is still up; one that went away
+        --without relinquishing must not hold every later roll open forever.
+        if panel.valid and panel.data.IsShown() then
+            return true
+        end
+        g_rollHolders[panel] = nil
+    end
+    return false
 end
-
-local g_activeRoll = nil
 
 --- The dmhub.Roll args of the roll in flight, kept so a re-roll can amend it.
 ---@class EmbeddedRollActiveArgs: RollDefinition
@@ -27,9 +36,6 @@ local g_activeRoll = nil
 ---@field dicetower boolean?
 ---@field pending function?
 ---@field originalRoll string? the roll text before any re-roll.
-
----@type EmbeddedRollActiveArgs
-local g_activeRollArgs = nil
 
 --- landed dice faces ----------------------------------------------------------
 --Once the dice land, the roll dialog shows each die's result where the dice
@@ -1111,6 +1117,13 @@ function GameHud.CreateEmbeddedRollDialog()
     --host is bound. See StrictRollsEnforced in DMHub Utils/Utils.lua.
     local m_strictRolls = StrictRollsEnforced()
 
+    --This dialog's roll in flight and the args it was made with, so a re-roll
+    --amends the right roll even while a stacked trigger roll has its own dialog up.
+    ---@type ActiveRollLua|nil
+    local m_activeRoll = nil
+    ---@type EmbeddedRollActiveArgs
+    local m_activeRollArgs = nil
+
     --the creature doing the roll
     ---@type creature?
     local creature = nil
@@ -1326,7 +1339,7 @@ function GameHud.CreateEmbeddedRollDialog()
         --Mark the roll finished so a queued ability roll (AcquireAbilityRollDialog)
         --may displace this now-lingering panel instead of waiting on it.
         resultPanel.data.rollRelinquished = true
-        g_holdingRollOpen = false
+        g_rollHolders[resultPanel] = nil
     end
 
     --Dice overrides: while this dialog is preparing a roll, the whole roll (preview
@@ -2154,6 +2167,12 @@ function GameHud.CreateEmbeddedRollDialog()
             return
         end
 
+        --Other players keep seeing the interrupted roll's card while a stacked
+        --trigger roll is up; this dialog's state would overwrite it.
+        if resultPanel.data.stacked then
+            return
+        end
+
         local rollState = "preparing"
         if m_rerolling then
             rollState = "rolling"
@@ -2668,7 +2687,7 @@ function GameHud.CreateEmbeddedRollDialog()
                 end
             end,
             press = function(element)
-                if m_info.modifier:try_get("forceReroll") and (not g_holdingRollOpen) then
+                if m_info.modifier:try_get("forceReroll") and (not g_rollHolders[resultPanel]) then
                     return
                 end
                 if m_info.notakeback then
@@ -2942,6 +2961,12 @@ function GameHud.CreateEmbeddedRollDialog()
 
         thinkTime = 0.5,
         think = function(element)
+            --Frozen under a stacked trigger roll our trigger copies go stale; a
+            --re-send would overwrite what that trigger did meanwhile. See Resume.
+            if resultPanel.data.suspended then
+                return
+            end
+
             if (not element:HasClass("rolling") and (not element:HasClass("finishedRolling"))) then
                 element:FireEvent("cleartriggers")
                 return
@@ -3136,7 +3161,7 @@ function GameHud.CreateEmbeddedRollDialog()
         --used to see if we've changed the trigger status of any triggers. If we have
         --then dispatch the updates.
         dispatchTriggerUpdates = function(element)
-            if m_openedTriggers == nil or m_multitargets == nil then
+            if m_openedTriggers == nil or m_multitargets == nil or resultPanel.data.suspended then
                 return
             end
 
@@ -5061,8 +5086,8 @@ function GameHud.CreateEmbeddedRollDialog()
     --has already paid its own cost. discretionary is true only when a person
     --chose to re-roll, and is what counts against a rule's maxRerolls.
     local function PerformReroll(discretionary)
-        print("REROLL:: DOING REROLL...", g_activeRoll)
-        if g_activeRoll == nil then
+        print("REROLL:: DOING REROLL...", m_activeRoll)
+        if m_activeRoll == nil then
             return
         end
 
@@ -5074,19 +5099,19 @@ function GameHud.CreateEmbeddedRollDialog()
         end
 
         local function doRerollAmend(rollFormula, extraFields)
-            if g_activeRoll == nil then return end
+            if m_activeRoll == nil then return end
             local guid = dmhub.GenerateGuid()
             local amendArgs = {
                 guid = guid,
                 roll = tostring(rollFormula),
                 amendmentRerolls = true,
-                description = g_activeRollArgs.description .. " -- Re-rolled!",
-                amendable = g_activeRollArgs.amendable,
-                tokenid = g_activeRollArgs.tokenid,
-                silent = g_activeRollArgs.silent,
-                instant = g_activeRollArgs.instant,
-                creature = g_activeRollArgs.creature,
-                properties = g_activeRollArgs.properties,
+                description = m_activeRollArgs.description .. " -- Re-rolled!",
+                amendable = m_activeRollArgs.amendable,
+                tokenid = m_activeRollArgs.tokenid,
+                silent = m_activeRollArgs.silent,
+                instant = m_activeRollArgs.instant,
+                creature = m_activeRollArgs.creature,
+                properties = m_activeRollArgs.properties,
                 begin = function(rollInfo)
                     m_rollInfo = rollInfo
                     m_rerolling = true
@@ -5103,7 +5128,7 @@ function GameHud.CreateEmbeddedRollDialog()
                 -- it updates m_rollInfo/the total label and, critically,
                 -- rebinds Accept Result to commit the reroll's result
                 -- instead of the original roll's captured one.
-                complete = g_activeRollArgs.complete,
+                complete = m_activeRollArgs.complete,
             }
             --extraFields lets an intercepting mod (RollDialog.OnReroll)
             --supply additional roll fields -- e.g. forcedDice/instant/
@@ -5111,22 +5136,22 @@ function GameHud.CreateEmbeddedRollDialog()
             for k, v in pairs(extraFields or {}) do
                 amendArgs[k] = v
             end
-            g_activeRoll = g_activeRoll:Amend(amendArgs)
+            m_activeRoll = m_activeRoll:Amend(amendArgs)
         end
 
         -- Hook for external mods to intercept re-rolls
         if RollDialog.OnReroll then
             local rerollResult = RollDialog.OnReroll({
-                rollArgs = g_activeRollArgs,
-                originalRoll = g_activeRollArgs.originalRoll or g_activeRollArgs.roll,
-                activeRoll = g_activeRoll,
-                setActiveRoll = function(roll) g_activeRoll = roll end,
+                rollArgs = m_activeRollArgs,
+                originalRoll = m_activeRollArgs.originalRoll or m_activeRollArgs.roll,
+                activeRoll = m_activeRoll,
+                setActiveRoll = function(roll) m_activeRoll = roll end,
                 amendWithResult = doRerollAmend,
             })
             if rerollResult == "intercept" then return end
         end
 
-        doRerollAmend(g_activeRollArgs.originalRoll or g_activeRollArgs.roll)
+        doRerollAmend(m_activeRollArgs.originalRoll or m_activeRollArgs.roll)
     end
 
     --The `state` handed to a re-roll rule's callbacks (see "Re-roll rules" in
@@ -5263,8 +5288,10 @@ function GameHud.CreateEmbeddedRollDialog()
             --that costs something, so it survives: un-collapse it and hand
             --Accept Result its half of the bar back. Only touched in strict
             --mode, where the construction-time block already wrote both.
-            if m_strictRolls then
-                local hidden = (rule == nil)
+            --A stacked roll has no Re-roll at all: it completes when its dice land,
+            --and a completed roll can no longer be amended.
+            if m_strictRolls or resultPanel.data.stacked then
+                local hidden = (rule == nil) or resultPanel.data.stacked
                 element.selfStyle.collapsed = cond(hidden, 1, 0)
                 proceedAfterRollButton.selfStyle.width = cond(hidden, "100%", 140)
                 proceedAfterRollButton.selfStyle.halign = cond(hidden, "center", "right")
@@ -5468,12 +5495,12 @@ function GameHud.CreateEmbeddedRollDialog()
             --no Intel to spend (also the "not this campaign" case). The
             --shownWhenPending style handles the rest.
             local enabled = (it ~= nil and it.Enabled ~= nil and it.Enabled()) and true or false
-            element:SetClass("collapsed", (not enabled) or pool < 1)
+            element:SetClass("collapsed", (not enabled) or pool < 1 or resultPanel.data.stacked)
         end,
         press = function(element)
             local it = rawget(_G, "IntelTracker")
             if it == nil then return end
-            if g_activeRoll == nil or not g_activeRoll.amendable then return end
+            if m_activeRoll == nil or not m_activeRoll.amendable then return end
             if it.Spend(1, "Re-rolled a power roll") then
                 --Intel has already been paid, so skip the rule's own gate and
                 --cost -- but count it, because "you must use the new roll"
@@ -6772,6 +6799,46 @@ function GameHud.CreateEmbeddedRollDialog()
 
             coroutineOwner = nil,
 
+            --stacked: a trigger interrupted another roll and this dialog sits on top
+            --of it. suspended: this is the interrupted dialog, hidden underneath.
+            stacked = false,
+            suspended = false,
+
+            --Called when the stacked trigger roll over this dialog is gone. Pull the
+            --live state of every trigger we offered first, and hold off re-sending
+            --our copies for the usual interval, so changes made while we were
+            --frozen (a trigger switching itself off) are not overwritten.
+            Resume = function()
+                if m_openedTriggers ~= nil then
+                    for _, trigger in pairs(m_openedTriggers) do
+                        trigger._tmp_refreshTime = dmhub.Time()
+                    end
+                end
+                if triggersContainer.valid then
+                    triggersContainer:FireEvent("charactersUpdated")
+                end
+            end,
+
+            --True while a trigger this dialog offered, owned by the creature with
+            --this charid, is accepted and still resolving its before-action (a free
+            --strike, or Parry's shift).
+            ResolvingTriggerOwnedBy = function(charid)
+                if m_openedTriggers == nil or charid == nil then
+                    return false
+                end
+                for _, trigger in pairs(m_openedTriggers) do
+                    if trigger._tmp_tokenid == charid then
+                        local token = dmhub.GetTokenById(charid)
+                        local live = token ~= nil and token.properties:GetAvailableTriggers() or nil
+                        local liveTrigger = live ~= nil and live[trigger.id] or nil
+                        if liveTrigger ~= nil and liveTrigger.resolving then
+                            return true
+                        end
+                    end
+                end
+                return false
+            end,
+
             UpdateArrowLabels = function()
                 UpdateArrowLabelsWithTierResults()
             end,
@@ -7213,6 +7280,10 @@ function GameHud.CreateEmbeddedRollDialog()
                 if not RollDialogCancelOffered(element) then
                     return
                 end
+                --Hidden under a stacked trigger roll: ESC belongs to that one.
+                if element.data.suspended then
+                    return
+                end
                 element.data.Cancel()
             end,
             submit = function(element)
@@ -7254,7 +7325,7 @@ function GameHud.CreateEmbeddedRollDialog()
                     resultPanel:SetClassTree("rolling", true)
                     resultPanel:SetClassTree("finishedRolling", false)
                     ClearDiceFaces()
-                    g_holdingRollOpen = true
+                    g_rollHolders[resultPanel] = true
                     BroadcastDialogState()
 
 
@@ -7770,7 +7841,10 @@ function GameHud.CreateEmbeddedRollDialog()
                 local rollArgs = {
                     guid = resultPanel.data.rollid,
                     description = m_options.description,
-                    amendable = m_options.amendable,
+                    --A stacked trigger roll is never amendable: the engine only
+                    --finishes amendable rolls once no dialog holds one open, and
+                    --the roll this one interrupted is still holding its own.
+                    amendable = m_options.amendable and not resultPanel.data.stacked,
                     tokenid = tokenid,
                     silent = rollIsSilent,
                     delay = delayRoll,
@@ -7985,8 +8059,8 @@ function GameHud.CreateEmbeddedRollDialog()
                             print("ROLL:: COMPLETE WITH NO ROLL INFO (chat message lost); cancelling")
                             m_rerolling = false
                             CancelRollDialog()
-                            if g_activeRoll == activeRoll then
-                                g_activeRoll = nil
+                            if m_activeRoll == activeRoll then
+                                m_activeRoll = nil
                             end
                             return
                         end
@@ -7995,7 +8069,10 @@ function GameHud.CreateEmbeddedRollDialog()
                         m_rollTotalLabel.text = tostring(rollInfo.total or 0)
 
                         resultPanel:SetClassTree("rolling", false)
-                        resultPanel:SetClassTree("rollPending", false)
+                        --A stacked roll completes as soon as its dice land (it is not
+                        --amendable) but still waits on Accept Result, which only shows
+                        --while pending.
+                        resultPanel:SetClassTree("rollPending", showingDialog and resultPanel.data.stacked)
                         resultPanel:SetClassTree("finishedRolling", true)
                         if showingDialog then
                             ShowDiceFaces(rollInfo)
@@ -8030,8 +8107,8 @@ function GameHud.CreateEmbeddedRollDialog()
                         end
 
 
-                        if g_activeRoll == activeRoll then
-                            g_activeRoll = nil
+                        if m_activeRoll == activeRoll then
+                            m_activeRoll = nil
                 print("ROLL:: ACTIVE ROLL CANCEL")
                         end
                     end
@@ -8091,8 +8168,8 @@ function GameHud.CreateEmbeddedRollDialog()
                     end
                 end
 
-                g_activeRollArgs = rollArgs
-                g_activeRollArgs.originalRoll = rollArgs.roll
+                m_activeRollArgs = rollArgs
+                m_activeRollArgs.originalRoll = rollArgs.roll
 
                 -- Hook for external mods to intercept rolls
                 local hookResult = nil
@@ -8115,7 +8192,7 @@ function GameHud.CreateEmbeddedRollDialog()
                         boons = m_boons,
                         setActiveRoll = function(roll)
                             activeRoll = roll
-                            g_activeRoll = roll
+                            m_activeRoll = roll
                             if activeRollFn ~= nil then
                                 activeRollFn(roll)
                             end
@@ -8130,7 +8207,7 @@ function GameHud.CreateEmbeddedRollDialog()
                 activeRoll = dmhub.Roll(rollArgs)
                 print("ROLL:: ACTIVE ROLL FROM", rollArgs, "HAVE", activeRoll)
 
-                g_activeRoll = activeRoll
+                m_activeRoll = activeRoll
 
                 if activeRollFn ~= nil then
                     activeRollFn(activeRoll)

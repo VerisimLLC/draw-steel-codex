@@ -1939,6 +1939,11 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
         }),
 
         rollActive = function(activeRoll)
+            --A stacked trigger roll is not amendable; letting it replace a held
+            --amendable roll would switch off that roll's edge/bane amend controls.
+            if activeRoll ~= nil and not activeRoll.amendable and g_activeRoll ~= nil and g_activeRoll.amendable then
+                return
+            end
             g_activeRoll = activeRoll
         end,
 

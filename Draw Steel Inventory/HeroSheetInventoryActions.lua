@@ -1499,6 +1499,31 @@ function Actions.StashPanel()
             Actions.TakeAll()
         end,
     }
+    --View all: the Inventory list shows the stash, searchable, with long
+    --names and counts in full. The pointer on it builds the list's rows early.
+    local viewAll = gui.Label{
+        classes = {"heroSheetPlateButton", "hoverable"},
+        text = "View all",
+        bgimage = "panels/square.png",
+        border = 1,
+        cornerRadius = 12,
+        width = "auto",
+        height = 24,
+        hpad = 10,
+        borderBox = true,
+        fontSize = 12,
+        bold = true,
+        textWrap = false,
+        halign = "right",
+        valign = "center",
+        rmargin = 6,
+        click = function(element)
+            HeroSheetInventory.SetSource("stash")
+        end,
+        hover = function(element)
+            HeroSheetInventory.WarmStash()
+        end,
+    }
     local header = gui.Panel{
         width = "100%",
         height = STASH_HEADER,
@@ -1514,7 +1539,14 @@ function Actions.StashPanel()
             valign = "center",
             textWrap = false,
         },
-        takeAll,
+        gui.Panel{
+            width = "auto",
+            height = "100%",
+            flow = "horizontal",
+            halign = "right",
+            viewAll,
+            takeAll,
+        },
     }
     local empty = gui.Label{
         classes = {"heroSheetCardSub", "collapsed"},

@@ -551,12 +551,18 @@ local function AddTitles(ctx)
                 end
                 local options = {}
                 pcall(function() options = feature:GetOptions(ctx.levelChoices) or {} end)
+                local matched = false
                 for _, pick in ipairs(picks) do
                     for _, option in ipairs(options) do
                         if option.guid == pick then
+                            matched = true
                             Walk(option, depth + 1)
                         end
                     end
+                end
+                --a pick the title no longer offers (it was edited) is no pick.
+                if not matched then
+                    todo = title.id
                 end
             elseif typeName == "CharacterFeatureList" then
                 for _, sub in ipairs(feature:try_get("features", {})) do
@@ -612,6 +618,22 @@ local function AddTitles(ctx)
                 feature = entry.feature,
                 grants = grants,
             })
+        end
+    end
+    --A title the shared read listed can still owe a pick: some titles have two
+    --choices, and the read lists the benefit of the one already made. The
+    --title's first card carries the plate.
+    local section = ctx.model.sections.title
+    local checked = {}
+    for _, item in ipairs((section ~= nil and section.items) or {}) do
+        if not checked[item.name] then
+            checked[item.name] = true
+            if item.titleChoose == nil then
+                item.titleChoose = (TitleBenefits(item.name))
+                if item.titleChoose ~= nil then
+                    section.need = section.need + 1
+                end
+            end
         end
     end
 end

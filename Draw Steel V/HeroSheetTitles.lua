@@ -62,14 +62,19 @@ local function Options(choice)
     return options
 end
 
---- The picked option's guid, or nil.
+--- The picked option's guid, or nil. A pick the title no longer offers (it was
+--- edited after the pick) reads as none, so it can be chosen again.
 --- @param choice CharacterFeatureChoice
 --- @param levelChoices table
 --- @return nil|string
 local function Picked(choice, levelChoices)
     local picks = levelChoices[choice.guid]
     if type(picks) == "table" then
-        return picks[1]
+        for _, option in ipairs(Options(choice)) do
+            if option.guid == picks[1] then
+                return picks[1]
+            end
+        end
     end
     return nil
 end

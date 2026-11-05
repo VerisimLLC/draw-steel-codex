@@ -304,7 +304,7 @@ Do NOT edit `C:\MCDM\dmhubclient\draw-steel-codex\` -- that is a separate, stale
 
 ## Deploying Changes to the Running Codex
 
-**Editing the repo alone does not change what the app runs.** The Codex reads checked-out mod source, file by file, from its dev-mod "git folder". The location is the `gitfolder` value in `%USERPROFILE%\AppData\LocalLow\MCDM\Codex\mods\settings.json` (e.g. `C:\Users\theli\codex-dev-mods`). Inside it, each checked-out module is a folder named exactly like the repo's module directory:
+**Editing the repo alone does not change what the app runs.** The Codex reads checked-out mod source, file by file, from its dev-mod "git folder". The location is the `gitfolder` value in `%USERPROFILE%\AppData\LocalLow\MCDM\Codex\mods\Codex\settings.json`, or in `...\mods\settings.json` when the first has none (e.g. `C:\Users\theli\codex-dev-mods`). The app reads it only at startup. If it points at this repo itself, the app already loads your edits: just reload (F4), no deploy needed. Inside it, each checked-out module is a folder named exactly like the repo's module directory:
 
 ```
 <gitfolder>\Draw Steel V\EncounterPanel.lua

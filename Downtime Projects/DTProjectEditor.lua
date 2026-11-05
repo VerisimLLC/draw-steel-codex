@@ -2838,6 +2838,10 @@ function DTProjectEditor._respiteProgressBar(getProject, size)
     }
 end
 
+-- Respite work-area grid tiles; the shared minimum keeps the New Project tile the size of the cards.
+local RESPITE_GRID_CARD_WIDTH = 280
+local RESPITE_GRID_CARD_MIN_HEIGHT = 168
+
 --- One project as the Respite shows it, built empty and bound later
 --- Pooled: a card is handed its project by position on every refresh rather
 --- than rebuilt, so a roll anywhere in the party creates nothing. A read-only
@@ -2976,8 +2980,9 @@ function DTProjectEditor._respiteProjectCard(args)
     -- width and as tall as its content.
     return gui.Panel{
         classes = {"bordered", "collapsed"},
-        width = cond(grid, 280, "100%-12"),
+        width = cond(grid, RESPITE_GRID_CARD_WIDTH, "100%-12"),
         height = "auto",
+        minHeight = cond(grid, RESPITE_GRID_CARD_MIN_HEIGHT, nil),
         flow = "vertical",
         halign = "left",
         valign = "top",
@@ -3124,12 +3129,15 @@ end
 --- Bound on create and whenever the settings document or any roster hero's
 --- token moves: progress lives on the owner's token, rolls left on the roller's.
 --- @param args table entries fun(), selection (nil when read only), readOnly, roster accessor,
---- grid to lay the cards out as wrapping tiles
+--- grid to lay the cards out as wrapping tiles, lead an optional unpooled last tile
 --- @return Panel
 function DTProjectEditor._respiteProjectList(args)
     local list
     local empty
     local watchers
+
+    --- @type Panel[] the project cards, before the lead tile when there is one
+    local pool = {}
 
     local function Bind()
         if list == nil or not list.valid then
@@ -3137,18 +3145,18 @@ function DTProjectEditor._respiteProjectList(args)
         end
 
         local entries = args.entries()
-        local pool = list.children
 
         if #pool < #entries then
-            local grown = {}
-            for i, card in ipairs(pool) do
-                grown[i] = card
-            end
             for i = #pool + 1, #entries do
-                grown[i] = DTProjectEditor._respiteProjectCard{readOnly = args.readOnly, grid = args.grid}
+                pool[i] = DTProjectEditor._respiteProjectCard{readOnly = args.readOnly, grid = args.grid}
             end
-            list.children = grown
-            pool = grown
+            -- Unused pool cards collapse, so the lead tile still reads as last.
+            local children = {}
+            for _, card in ipairs(pool) do
+                children[#children + 1] = card
+            end
+            children[#children + 1] = args.lead
+            list.children = children
         end
 
         for i, card in ipairs(pool) do
@@ -3166,6 +3174,7 @@ function DTProjectEditor._respiteProjectList(args)
         wrap = args.grid == true,
         halign = "left",
         valign = "top",
+        children = {args.lead},
     }
 
     empty = gui.Label{
@@ -3271,6 +3280,8 @@ function DTProjectEditor.PaintRespiteProjects(args)
             selection = selection,
             readOnly = false,
             grid = true,
+            -- A project belongs to a hero, so a follower working here gets no New Project tile.
+            lead = (args.owner == nil and selection ~= nil) and DTProjectEditor._respiteNewProjectCard(heroToken) or nil,
             entries = function()
                 if selection == nil then
                     return {}
@@ -3368,7 +3379,7 @@ end
 --- Call it inside ModifyProperties on the Hero.
 --- @param info DTInfo the Hero's downtime record
 --- @param ownerId string the Hero's charid
---- @param args {projectId: string, sourceType: string, selectedId: nil|string, name: nil|string, custom: nil|{goal: nil|integer, chars: string[], prereq: string, source: string, langIds: string[]}} sourceType "crafting", "activity" or "custom" (name, custom); a custom goal left out keeps the default of 1
+--- @param args {projectId: string, sourceType: string, selectedId: nil|string, name: nil|string, custom: nil|{goal: nil|integer, chars: string[], prereq: string, source: string, langIds: string[]}, hero: nil|creature} sourceType "crafting", "activity" or "custom" (name, custom); a custom goal left out keeps the default of 1; hero is the Hero starting it, whose inventory a crafting project checks
 --- @return DTProject
 function DTProjectEditor.StartProject(info, ownerId, args)
     local project = info:AddProject(ownerId, args.projectId)
@@ -3387,7 +3398,10 @@ function DTProjectEditor.StartProject(info, ownerId, args)
     else
         DTBusinessRules.ApplySourceToProject(project, args.sourceType, args.selectedId)
     end
-    if DTCharSheetTab.CanManageProjects() then
+    --a crafting project whose recipe and components the Hero holds starts
+    --ready to roll, as if the Director had approved it.
+    if DTCharSheetTab.CanManageProjects()
+        or (args.sourceType == "crafting" and DTBusinessRules.HasCraftingMaterials(args.hero, args.selectedId)) then
         project:Approve()
     else
         project.reviewed = false
@@ -3395,60 +3409,76 @@ function DTProjectEditor.StartProject(info, ownerId, args)
     return project
 end
 
---- The Respite's button for starting a downtime project
---- Opens the Hero sheet's New project window for the hero. A project belongs to
---- a hero, so the button waits for one to be selected.
---- @param args table selection accessor, from the Respite (its host accessor is not needed: the window opens over the Respite)
+--- The last tile in a hero's Downtime Projects work area: opens the Hero
+--- sheet's New project window for that hero. Not pooled; it never rebinds.
+--- @param hero any the hero's token
 --- @return Panel
-function DTProjectEditor.PaintRespiteActions(args)
-    --- @return nil|any the selected hero's token, nil for a follower or nothing
-    local function SelectedHero()
-        local entry = args.selection()
-        if entry == nil or entry.owner ~= nil then
-            return nil
-        end
-        return dmhub.GetCharacterById(entry.charid)
-    end
-
-    local function Refresh(element)
-        local hero = SelectedHero()
-        element.data.enabled = hero ~= nil
-        element:SetClass("disabled", hero == nil)
-        if hero == nil then
-            element.data.tip = "Select a hero to start a downtime project."
-        else
-            element.data.tip = string.format("Start a downtime project for %s", hero.name or "this hero")
-        end
-    end
-
-    return gui.Button{
-        classes = {"sizeM"},
-        icon = mod.images.downtimeProjects,
-        width = RSPConstants.activitySheetButtonSize,
-        height = RSPConstants.activitySheetButtonSize,
-        valign = "center",
-        data = {
-            enabled = false,
-            tip = nil,
+function DTProjectEditor._respiteNewProjectCard(hero)
+    return gui.Panel{
+        classes = {"bordered"},
+        styles = {
+            {
+                selectors = {"hover"},
+                borderColor = "@accent",
+            },
         },
-        hover = function(element)
-            if element.data.tip ~= nil then
-                gui.Tooltip(element.data.tip)(element)
-            end
+        width = RESPITE_GRID_CARD_WIDTH,
+        height = RESPITE_GRID_CARD_MIN_HEIGHT,
+        flow = "none",
+        halign = "left",
+        valign = "top",
+        hmargin = 6,
+        vmargin = 6,
+        linger = gui.Tooltip(string.format("Start a downtime project for %s", hero.name or "this hero")),
+        press = function()
+            HeroSheetDowntimeWindows.NewProject(hero)
         end,
-        create = Refresh,
-        rspSelectionChanged = Refresh,
-        respiteChanged = Refresh,
-        press = function(element)
-            if not element.data.enabled then
-                return
-            end
 
-            local hero = SelectedHero()
-            if hero == nil then
-                return
-            end
+        gui.Panel{
+            width = "auto",
+            height = "auto",
+            flow = "vertical",
+            halign = "center",
+            valign = "center",
+            interactable = false,
 
+            gui.Panel{
+                classes = {"bgFg"},
+                bgimage = mod.images.downtimeProjects,
+                width = 56,
+                height = 56,
+                halign = "center",
+                interactable = false,
+            },
+            gui.Label{
+                classes = {"sizeL", "bold"},
+                width = "auto",
+                height = "auto",
+                halign = "center",
+                tmargin = 8,
+                interactable = false,
+                text = "New Project",
+            },
+        },
+    }
+end
+
+--- New Project for the Respite stage's hero card, under the rolls counter. The
+--- stage gives it the counter's backing and colours; it is always that hero's.
+--- @param args table playerChipActions args: selection() is the card's hero
+--- @return Panel|nil
+function DTProjectEditor.PaintRespiteChipAction(args)
+    local entry = args.selection()
+    local hero = entry ~= nil and dmhub.GetCharacterById(entry.charid) or nil
+    if hero == nil then
+        return nil
+    end
+
+    return gui.Panel{
+        bgimage = mod.images.downtimeProjects,
+        swallowPress = true,
+        linger = gui.Tooltip(string.format("Start a downtime project for %s", hero.name or "this hero")),
+        press = function()
             HeroSheetDowntimeWindows.NewProject(hero)
         end,
     }

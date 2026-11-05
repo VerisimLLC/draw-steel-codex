@@ -2277,7 +2277,29 @@ end
 function creature.InflictDamageInstance(self, amount, damageType, keywords, sourceDescription, symbols)
 	amount = math.floor(amount)
 	local originalAmount = amount
+
+    --continuesInstance = { raw = N, landed = N }: this damage is added onto a hit that
+    --already landed (e.g. Tactician's Mark "the ability deals extra damage"), so the
+    --two count as ONE damage instance. If the hit landed anything, flat immunity and
+    --weakness were fully applied to it already, so the extra goes on unmodified. If it
+    --landed nothing, resist the combined raw amount instead (immunity may be left over).
+    local continuesInstance = symbols ~= nil and symbols.continuesInstance or nil
+    local priorLanded = 0
+    local skipResistance = false
+    if continuesInstance ~= nil then
+        priorLanded = math.max(0, math.floor(continuesInstance.landed or 0))
+        if priorLanded > 0 then
+            skipResistance = true
+        else
+            amount = amount + math.max(0, math.floor(continuesInstance.raw or 0))
+        end
+    end
+
 	local resistanceEntry = self:DamageResistance(damageType, keywords)
+    if skipResistance then
+        --an empty entry makes every resistance step below a no-op.
+        resistanceEntry = {} --[[@as table]]
+    end
 	local resistance = resistanceEntry.resistance
 
 
@@ -2312,7 +2334,12 @@ function creature.InflictDamageInstance(self, amount, damageType, keywords, sour
         ignoreImmunity = true
     end
 
-	local note = string.format('%d damage from %s', amount, sourceDescription)
+	local note = string.format('%d damage from %s', originalAmount, sourceDescription)
+    if skipResistance then
+        note = string.format('%s (added to a hit; its immunity and weakness already applied)', note)
+    elseif continuesInstance ~= nil then
+        note = string.format('%s (added to a hit that dealt no damage; resisted together as %d)', note, amount)
+    end
 
 	if resistanceEntry.percent ~= nil then
 		amount = math.floor(amount * resistanceEntry.percent)
@@ -2372,7 +2399,7 @@ function creature.InflictDamageInstance(self, amount, damageType, keywords, sour
     -- the ATTACKER carrying the "Relentless Damage Penalty" custom attribute, so this whole block
     -- is a no-op for every creature that isn't under the Relentless Taunt effect. Applies to the
     -- already-resistance-reduced amount (like a victim immunity), floored at 0.
-    if attacker ~= nil and amount > 0 then
+    if attacker ~= nil and amount > 0 and not skipResistance then
         local relentlessPenalty = attacker:CalculateNamedCustomAttribute("Relentless Damage Penalty") or 0
         if relentlessPenalty > 0 then
             local exemptToken = attacker:RelentlessDamageCaster()

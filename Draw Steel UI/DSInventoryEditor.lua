@@ -271,8 +271,14 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
     local resultPanel = nil
     local description = options.description or 'Create Item'
 
+    --shows and hides the tabs once the fields have refreshed; set with the tabs.
+    local RefreshTabs = nil
+
     local Refresh = function()
         resultPanel:FireEventTree('refresh')
+        if RefreshTabs ~= nil then
+            RefreshTabs()
+        end
     end
 
     local EnsureWieldObject = function(callback)
@@ -390,16 +396,13 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
         }
     end
 
-    local leftPanel = gui.Panel {
-        style = {
-            width = '45%',
-            height = 'auto',
-            halign = 'center',
-            valign = 'top',
-            flow = 'vertical',
-        },
-        children = {
-            gui.Panel {
+    --the tab on show: "general", "properties", "behaviors" or "craftable".
+    local m_tab = "general"
+
+    --The editor's fields, by name. The tabs below place each one; a field's own
+    --refresh still collapses it when it does not apply to this item.
+    local fields = {
+            typePanel = gui.Panel {
                 id = "equipmentTypePanel",
                 width = "100%",
                 height = 'auto',
@@ -482,7 +485,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                 end,
             },
 
-            FormPanel {
+            id = FormPanel {
                 text = "ID:",
                 collapse = function()
                     return not devmode()
@@ -497,7 +500,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                 },
             },
 
-            FormPanel {
+            name = FormPanel {
                 text = "Name:",
                 child = gui.Input {
                     classes = {"formStacked"},
@@ -522,7 +525,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                 },
             },
 
-            FormPanel {
+            availability = FormPanel {
                 text = "Availability:",
                 collapse = function()
                     return (not EquipmentCategory.IsLightSource(document))
@@ -553,7 +556,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
             },
 
 
-            FormPanel {
+            implementation = FormPanel {
                 text = "Implementation:",
                 child = gui.ImplementationStatusPanel {
                     classes = {"formStacked"},
@@ -564,7 +567,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                 },
             },
 
-            FormPanel {
+            keywords = FormPanel {
                 text = "Keywords:",
                 child = gui.Multiselect {
                     classes = {"form"},
@@ -581,7 +584,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
             },
 
 
-            FormPanel {
+            echelon = FormPanel {
                 text = "Echelon:",
                 collapse = function()
                     return (not EquipmentCategory.IsTreasure(document)) or EquipmentCategory.IsLeveledTreasure(document) or EquipmentCategory.IsImbuement(document)
@@ -621,7 +624,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                 },
             },
 
-            FormPanel {
+            imbueTarget = FormPanel {
                 text = "Target Item Type:",
                 collapse = function()
                     return not EquipmentCategory.IsImbuement(document)
@@ -647,7 +650,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                 },
             },
 
-            FormPanel {
+            imbueLevel = FormPanel {
                 text = "Level:",
                 collapse = function()
                     return not EquipmentCategory.IsImbuement(document)
@@ -673,7 +676,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                 },
             },
 
-            FormPanel {
+            itemPrerequisite = FormPanel {
                 text = "Item Prerequisite:",
                 collapse = function()
                     return (not EquipmentCategory.IsTreasure(document))
@@ -691,7 +694,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                 },
             },
 
-            FormPanel {
+            projectSource = FormPanel {
                 text = "Project Source:",
                 collapse = function()
                     return (not EquipmentCategory.IsTreasure(document))
@@ -709,7 +712,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                 },
             },
 
-            FormPanel {
+            projectRollCharacteristic = FormPanel {
                 text = "Project Roll Characteristic:",
                 collapse = function()
                     return (not EquipmentCategory.IsTreasure(document))
@@ -727,7 +730,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                 },
             },
 
-            FormPanel {
+            projectGoal = FormPanel {
                 text = "Project Goal:",
                 collapse = function()
                     return (not EquipmentCategory.IsTreasure(document))
@@ -746,7 +749,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
             },
 
 
-            FormPanel {
+            imbuePrereq = FormPanel {
                 text = "Imbue Prerequisite:",
                 collapse = function()
                     return not EquipmentCategory.IsImbuement(document)
@@ -792,7 +795,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                 },
             },
 
-            FormPanel {
+            imbueReplaces = FormPanel {
                 text = "Replaces Prerequisite:",
                 collapse = function()
                     return not EquipmentCategory.IsImbuement(document)
@@ -813,7 +816,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                 },
             },
 
-            FormPanel {
+            hideFromPlayers = FormPanel {
                 text = "",
                 dmOnly = true,
                 child = gui.Check {
@@ -838,7 +841,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                 },
             },
 
-            FormPanel {
+            destroyChance = FormPanel {
                 text = "Destroy Chance:",
                 collapse = function()
                     return not document:IsAmmoForWeapon()
@@ -860,11 +863,11 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                 },
             },
 
-            gui.Panel {
+            features = gui.Panel {
                 classes = { cond(document:IsAmmoForWeapon() or EquipmentCategory.IsConsumable(document), "collapsed-anim") },
                 width = "auto",
                 height = "auto",
-                halign = "right",
+                halign = "left",
                 refresh = function(element)
                     element:SetClass("collapsed-anim",
                         document:IsAmmoForWeapon() or EquipmentCategory.IsConsumable(document))
@@ -881,7 +884,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
             },
 
 
-            gui.Panel {
+            ammoAugment = gui.Panel {
                 id = "ammoAugmentPanel",
                 styles = {
                     Styles.Form,
@@ -944,7 +947,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                 },
             },
 
-            gui.Panel {
+            weaponBehavior = gui.Panel {
                 id = "weaponBehaviorPanel",
                 styles = {
                     Styles.Form,
@@ -1007,7 +1010,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                 },
             },
 
-            gui.Panel {
+            pack = gui.Panel {
                 id = "packEditor",
                 classes = {"bordered"},
                 flow = "vertical",
@@ -1148,7 +1151,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
 
 
 
-            FormPanel {
+            quantity = FormPanel {
                 text = "Quantity:",
                 classes = {
                     ["collapsed-anim"] = (document:has_key("equipmentCategory") == false or not EquipmentCategory.quantityCategories[document.equipmentCategory]),
@@ -1208,7 +1211,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
 			},
 --]]
 
-            FormPanel {
+            charges = FormPanel {
                 text = "Charges",
                 types = { "Gear" },
                 classes = {
@@ -1242,7 +1245,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
 
 
 
-            FormPanel {
+            consumableAbility = FormPanel {
                 types = { 'Gear' },
                 classes = {
                     ['collapsed'] = not EquipmentCategory.IsConsumable(document),
@@ -1274,6 +1277,13 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
 
                 }
             },
+
+            --armor, shield and weapon stats: each row shows only for its type.
+            stats = gui.Panel {
+                width = "100%",
+                height = "auto",
+                flow = "vertical",
+                data = {group = true},
 
             --armor-specific fields.
             FormPanel {
@@ -1694,8 +1704,8 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                     element.children = rows
                 end,
             },
+            },
 
-        }
     }
 
     local iconEffectPanel = gui.Panel {
@@ -1717,18 +1727,10 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
 
     UpdateIconEffectPanel()
 
-    local rightPanel = gui.Panel {
-        style = {
-            width = '45%',
-            height = 'auto',
-            halign = 'center',
-            valign = 'top',
-            flow = 'vertical',
-        },
+    --The art, how the item shows on the map, and its text, by name as above.
+    local media = {
 
-        children = {
-
-            gui.Panel {
+            icon = gui.Panel {
                 style = {
                     width = 128,
                     height = 128,
@@ -1792,7 +1794,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
             --	},
             --},
 
-            FormPanel {
+            accessory = FormPanel {
                 text = "Accessory:",
                 child = gui.Dropdown {
                     classes = {"formStacked"},
@@ -1809,9 +1811,9 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                 },
             },
 
-            gui.Check {
+            inspectionCheck = gui.Check {
                 classes = {"sizeM"},
-                halign = "center",
+                halign = "left",
                 text = "Has Inspection Image",
                 refresh = function(element)
                     element.value = document:has_key("inspectionImage")
@@ -1824,7 +1826,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
             },
 
 
-            gui.Panel {
+            inspectionImage = gui.Panel {
                 classes = { cond(not document:has_key("inspectionImage"), "collapsed") },
                 refresh = function(element)
                     element:SetClass("collapsed", not document:has_key('inspectionImage'))
@@ -1849,12 +1851,12 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
             },
 
             --Item flavor text area.
-            gui.Input {
+            flavor = gui.Input {
                 classes = {"sizeM"},
-                width = 400,
-                height = 30,
+                width = "100%",
+                height = 140,
                 vmargin = 4,
-                halign = "center",
+                halign = "left",
                 textAlignment = "topleft",
                 placeholderText = "Enter Flavor Text...",
                 multiline = true,
@@ -1867,12 +1869,12 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
             },
 
             --Item description text area.
-            gui.Input {
+            description = gui.Input {
                 classes = {"sizeM"},
-                width = 400,
+                width = "100%",
                 height = 140,
                 vmargin = 4,
-                halign = "center",
+                halign = "left",
                 textAlignment = "topleft",
                 characterLimit = 8192,
                 placeholderText = "Enter Description...",
@@ -1885,72 +1887,71 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                 }
             },
 
-            --5th and 9th level increases for leveled treasures.
-            gui.Panel{
-                width = 400, height = "auto", vmargin = 4, halign = "center", flow = "vertical",
+            --5th and 9th level increases for leveled treasures, side by side.
+            levels = gui.Panel{
+                width = "100%", height = "auto", vmargin = 4, halign = "left", flow = "horizontal",
                 refresh = function(element)
                     element:SetClass("collapsed", not EquipmentCategory.IsLeveledTreasure(document))
                 end,
 
-                gui.Label{
-                    classes = {"sizeM"},
-                    halign = "left",
-                    width = "auto",
-                    height = "auto",
-                    text = "5th Level.",
+                gui.Panel{
+                    width = "48%", height = "auto", halign = "left", flow = "vertical",
+
+                    gui.Label{
+                        classes = {"formStacked"},
+                        text = "5th Level",
+                    },
+
+                    gui.Input {
+                        classes = {"sizeM"},
+                        width = "100%",
+                        height = 140,
+                        vmargin = 4,
+                        halign = "left",
+                        textAlignment = "topleft",
+                        characterLimit = 8192,
+                        placeholderText = "Enter Level 5 effect...",
+                        multiline = true,
+                        text = document:try_get("level5", ""),
+                        events = {
+                            change = function(element)
+                                document.level5 = element.text
+                            end,
+                        }
+                    },
                 },
 
-                --Item description text area.
-                gui.Input {
-                    classes = {"sizeM"},
-                    width = 400,
-                    height = 140,
-                    vmargin = 4,
-                    halign = "center",
-                    textAlignment = "topleft",
-                    characterLimit = 8192,
-                    placeholderText = "Enter Level 5 effect...",
-                    multiline = true,
-                    text = document:try_get("level5", ""),
-                    events = {
-                        change = function(element)
-                            document.level5 = element.text
-                        end,
-                    }
-                },
+                gui.Panel{
+                    width = "48%", height = "auto", halign = "right", flow = "vertical",
 
-                gui.Label{
-                    classes = {"sizeM"},
-                    halign = "left",
-                    width = "auto",
-                    height = "auto",
-                    text = "9th Level.",
-                },
+                    gui.Label{
+                        classes = {"formStacked"},
+                        text = "9th Level",
+                    },
 
-                --Item description text area.
-                gui.Input {
-                    classes = {"sizeM"},
-                    width = 400,
-                    height = 140,
-                    vmargin = 4,
-                    halign = "center",
-                    textAlignment = "topleft",
-                    placeholderText = "Enter Level 9 effect...",
-                    characterLimit = 8192,
-                    multiline = true,
-                    text = document:try_get("level9", ""),
-                    events = {
-                        change = function(element)
-                            document.level9 = element.text
-                        end,
-                    }
+                    gui.Input {
+                        classes = {"sizeM"},
+                        width = "100%",
+                        height = 140,
+                        vmargin = 4,
+                        halign = "left",
+                        textAlignment = "topleft",
+                        placeholderText = "Enter Level 9 effect...",
+                        characterLimit = 8192,
+                        multiline = true,
+                        text = document:try_get("level9", ""),
+                        events = {
+                            change = function(element)
+                                document.level9 = element.text
+                            end,
+                        }
+                    },
                 },
-
             },
 
-            gui.Check {
+            displayOnToken = gui.Check {
                 classes = {"sizeM", cond(not EquipmentCategory.ShowWieldObjectEditor(document), "collapsed")},
-                halign = "center",
+                halign = "left",
                 text = "Display on Token",
                 value = document:try_get("displayOnToken", true),
                 refresh = function(element)
@@ -1963,9 +1964,10 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                 end,
             },
 
-            gui.Button {
+            editObject = gui.Button {
                 classes = {"sizeM", cond(not EquipmentCategory.ShowWieldObjectEditor(document), "collapsed")},
                 width = 160,
+                halign = "left",
                 text = "Edit Object",
                 refresh = function(element)
                     element:SetClass("collapsed", not EquipmentCategory.ShowWieldObjectEditor(document))
@@ -1980,8 +1982,8 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                 end,
             },
 
-            --ammo preview panel.
-            gui.Panel {
+            --ammo preview panel. Its 3D preview is only built while General is showing.
+            ammoPreview = gui.Panel {
                 id = "ammoPreviewPanel",
                 width = 400,
                 height = "auto",
@@ -1991,7 +1993,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                 },
                 refresh = function(element)
                     element:SetClass('collapsed-anim',
-                        not EquipmentCategory.ShowProjectilePreview(document))
+                        m_tab ~= "general" or not EquipmentCategory.ShowProjectilePreview(document))
                     if element:HasClass("collapsed-anim") then
                         element:FireEvent("destroy")
                     elseif element.data.previewFloor == nil then
@@ -2112,15 +2114,699 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                 },
 
             },
-        },
 
     }
+
+    --== Craftable: the recipe and components ==================================
+    --craftRecipe is the id of the recipe item; craftComponents lists
+    --{itemid, quantity}, the shape packItems uses. Both are picked from tbl_Gear.
+
+    --the item picker binds its rows in batches: the first at once, the rest
+    --this far apart, so a long list opens without a stall.
+    local PICKER_BATCH = 15
+    local PICKER_BATCH_DELAY = 0.1
+
+    --- An item's icon in a dark square, for craft tiles and picker rows. Fire
+    --- setItem with the item, or with nil for an empty slot's plus.
+    --- @param size number
+    --- @return Panel
+    local function CraftIcon(size)
+        local image = gui.Panel {
+            classes = {"image", "collapsed"},
+            bgimage = "panels/square.png",
+            bgcolor = "white",
+            width = "100%",
+            height = "100%",
+            cornerRadius = 6,
+            interactable = false,
+        }
+        local plus = gui.Panel {
+            classes = {"iconButton", "collapsed"},
+            bgimage = "phosphor/plus-bold.png",
+            width = math.floor(size * 0.4),
+            height = math.floor(size * 0.4),
+            halign = "center",
+            valign = "center",
+            interactable = false,
+        }
+        return gui.Panel {
+            classes = {"bg"},
+            width = size,
+            height = size,
+            cornerRadius = 6,
+            valign = "center",
+            flow = "none",
+            interactable = false,
+            setItem = function(element, item)
+                local icon = nil
+                if item ~= nil then
+                    pcall(function() icon = item:GetIcon() end)
+                end
+                local has = type(icon) == "string" and icon ~= ""
+                image:SetClass("collapsed", not has)
+                if has then
+                    image.bgimage = icon
+                end
+                plus:SetClass("collapsed", item ~= nil)
+            end,
+            image,
+            plus,
+        }
+    end
+
+    --- An item name on one line: left-aligned, cut off with an ellipsis at its
+    --- width. It takes no input, so a press reaches the row it sits on.
+    --- @param args table gui.Label args; width is required
+    --- @return Label
+    local function NameLabel(args)
+        args.textWrap = false
+        args.textOverflow = "ellipsis"
+        args.textAlignment = "left"
+        args.halign = "left"
+        args.height = "auto"
+        args.interactable = false
+        return gui.Label(args)
+    end
+
+    --- A row's linger handler: the whole name as a tooltip when its label has
+    --- cut it off.
+    --- @param label Label
+    --- @return fun(element: Panel)
+    local function FullNameTooltip(label)
+        return function(element)
+            local ok, size = pcall(function() return label:CalculatePreferredSize() end)
+            if ok and size ~= nil and size.x > label.renderedWidth + 0.5 then
+                gui.Tooltip(label.text)(element)
+            end
+        end
+    end
+
+    --- The delete button on a craft row.
+    --- @param onRemove fun(element: Panel)
+    --- @return Panel
+    local function CraftRemove(onRemove)
+        return gui.Button {
+            classes = {"deleteButton", "sizeS"},
+            valign = "center",
+            lmargin = 8,
+            swallowPress = true,
+            click = onRemove,
+        }
+    end
+
+    --- A craft row in the shape of the inventory sheet's rows: the icon and the
+    --- words at the left, a right-hand group (quantity, delete) at the right.
+    --- extra holds the row's own fields: press, refresh, data and the like.
+    --- @param icon Panel
+    --- @param words Panel[]
+    --- @param right Panel[]
+    --- @param extra table
+    --- @return Panel
+    local function CraftRow(icon, words, right, extra)
+        icon.selfStyle.halign = "left"
+        icon.selfStyle.lmargin = 8
+        local args = {
+            classes = {"bgAlt"},
+            width = "100%",
+            height = 48,
+            flow = "horizontal",
+            tmargin = 4,
+            icon,
+            gui.Panel {
+                width = "62%",
+                height = "auto",
+                flow = "vertical",
+                halign = "left",
+                valign = "center",
+                lmargin = 10,
+                interactable = false,
+                children = words,
+            },
+            gui.Panel {
+                width = "auto",
+                height = "100%",
+                flow = "horizontal",
+                halign = "right",
+                valign = "center",
+                rmargin = 8,
+                children = right,
+            },
+        }
+        for k, v in pairs(extra) do
+            args[k] = v
+        end
+        return gui.Panel(args)
+    end
+
+    --- A section header on the Craftable tab: a label with a rule beneath it.
+    --- @param text string
+    --- @return Panel
+    local function CraftHeader(text)
+        return gui.Panel {
+            classes = {"bordered", "transparent"},
+            border = { x1 = 0, y1 = 1, x2 = 0, y2 = 0 },
+            cornerRadius = 0,
+            width = "100%",
+            height = "auto",
+            tmargin = 10,
+            bmargin = 6,
+            gui.Label { classes = {"sizeS", "bold"}, text = text, width = "auto", height = "auto", halign = "left", bmargin = 2 },
+        }
+    end
+
+    --The item picker: one overlay on the editor, built with it and re-bound on
+    --each open. Its rows are pooled for the editor's life: a search or a new
+    --open re-binds them, and only a longer list than any before adds rows.
+    local pickerCandidates = {}
+    local pickerRows = {}
+    local pickerOnPick = nil
+
+    local pickerEmpty = gui.Label {
+        classes = {"sizeS", "fgMuted", "collapsed"},
+        text = "No items match.",
+        width = "auto",
+        height = "auto",
+        halign = "left",
+        vmargin = 8,
+    }
+    local pickerList = gui.Panel {
+        width = "100%",
+        height = 300,
+        vscroll = true,
+        flow = "vertical",
+        pickerEmpty,
+    }
+    local pickerTitle = gui.Label { classes = {"sizeL", "bold"}, text = "", width = "auto", height = "auto", halign = "left", valign = "center" }
+
+    ---@type Panel
+    local pickerPanel = nil
+
+    --bumped by each open, search and close; a pending batch from an older
+    --one sees the change and stops.
+    local pickerGeneration = 0
+
+    local function ClosePicker()
+        pickerGeneration = pickerGeneration + 1
+        pickerOnPick = nil
+        pickerPanel.captureEscape = false
+        pickerPanel:SetClass("collapsed", true)
+    end
+
+    --- One pooled picker row; ShowPicker binds it to an item.
+    --- @return Panel
+    local function NewPickerRow()
+        local icon = CraftIcon(28)
+        icon.selfStyle.lmargin = 6
+        icon.selfStyle.halign = "left"
+        local label = NameLabel { classes = {"sizeS"}, text = "", width = "78%", valign = "center", lmargin = 8 }
+        --90% of the list, leaving room on the right for its scroll bar.
+        local row = gui.Panel {
+            classes = {"hoverable"},
+            bgimage = "panels/square.png",
+            bgcolor = "clear",
+            width = "90%",
+            height = 40,
+            halign = "left",
+            flow = "horizontal",
+            data = { id = nil },
+            linger = FullNameTooltip(label),
+            press = function(element)
+                local onPick = pickerOnPick
+                local id = element.data.id
+                ClosePicker()
+                if onPick ~= nil and id ~= nil then
+                    onPick(id)
+                end
+            end,
+            icon,
+            label,
+        }
+        row.data.icon = icon
+        row.data.label = label
+        return row
+    end
+
+    --- Binds the pooled rows to the candidates the search matches (all of
+    --- them with no search), a batch at a time.
+    --- @param query string lower case, or ""
+    local function ShowPicker(query)
+        pickerGeneration = pickerGeneration + 1
+        local generation = pickerGeneration
+
+        local matches = {}
+        for _, candidate in ipairs(pickerCandidates) do
+            if query == "" or string.find(candidate.lower, query, 1, true) ~= nil then
+                matches[#matches + 1] = candidate
+            end
+        end
+        pickerEmpty:SetClass("collapsed", #matches > 0)
+        for _, row in ipairs(pickerRows) do
+            row:SetClass("collapsed", true)
+        end
+
+        local bound = 0
+        local function BindBatch()
+            if mod.unloaded or generation ~= pickerGeneration or not pickerPanel.valid then
+                return
+            end
+            local last = math.min(#matches, bound + PICKER_BATCH)
+            for i = bound + 1, last do
+                local candidate = matches[i]
+                local row = pickerRows[i]
+                if row == nil then
+                    row = NewPickerRow()
+                    pickerRows[i] = row
+                    pickerList:AddChild(row)
+                end
+                row.data.id = candidate.id
+                row.data.label.text = candidate.name
+                row.data.icon:FireEvent("setItem", candidate.item)
+                row:SetClass("collapsed", false)
+            end
+            bound = last
+            if bound < #matches then
+                dmhub.Schedule(PICKER_BATCH_DELAY, BindBatch)
+            end
+        end
+        BindBatch()
+    end
+
+    --the search box pads 24px each side on top of its width.
+    local pickerSearch = gui.SearchInput {
+        placeholderText = "Search items",
+        width = "85%",
+        halign = "left",
+        height = 30,
+        vmargin = 6,
+        search = function(element, query)
+            ShowPicker(query)
+        end,
+    }
+
+    pickerPanel = gui.Panel {
+        classes = {"framedPanel", "collapsed"},
+        floating = true,
+        halign = "center",
+        valign = "center",
+        width = 360,
+        height = "auto",
+        flow = "vertical",
+        pad = 10,
+        captureEscape = false,
+        escapePriority = EscapePriority.DMHUB_POPUP,
+        escape = function(element)
+            ClosePicker()
+        end,
+        gui.Panel {
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            pickerTitle,
+            gui.Button {
+                classes = {"closeButton"},
+                halign = "right",
+                valign = "center",
+                click = function(element)
+                    ClosePicker()
+                end,
+            },
+        },
+        pickerSearch,
+        pickerList,
+    }
+
+    --- Opens the item picker: a search box and the items that pass filter, by
+    --- name. onPick gets the chosen item's id.
+    --- @param title string
+    --- @param filter fun(id: string, item: table): boolean
+    --- @param onPick fun(id: string)
+    local function OpenItemPicker(title, filter, onPick)
+        local candidates = {}
+        for id, item in unhidden_pairs(dmhub.GetTable("tbl_Gear") or {}) do
+            if id ~= document.id and filter(id, item) then
+                local name = item.name or ""
+                candidates[#candidates + 1] = { id = id, item = item, name = name, lower = string.lower(name) }
+            end
+        end
+        table.sort(candidates, function(a, b) return a.name < b.name end)
+        pickerCandidates = candidates
+        pickerOnPick = onPick
+        pickerTitle.text = title
+        --clearing the search through its own edit event resets the search
+        --box's memory of the last query, and binds the full list.
+        pickerSearch.text = ""
+        pickerSearch:FireEvent("edit")
+        ShowPicker("")
+        pickerPanel:SetClass("collapsed", false)
+        pickerPanel.captureEscape = true
+    end
+
+    local function GearItem(itemid)
+        if itemid == nil then
+            return nil
+        end
+        return (dmhub.GetTable("tbl_Gear") or {})[itemid]
+    end
+
+    --the recipe: one row, or "Choose recipe" while none is set.
+    local recipeIcon = CraftIcon(36)
+    local recipeName = NameLabel { classes = {"bold"}, text = "", width = "95%" }
+    local recipeKind = gui.Label { classes = {"sizeXs", "fgMuted"}, text = "Recipe", width = "auto", height = "auto", halign = "left" }
+    local recipeRemove = CraftRemove(function(element)
+        document.craftRecipe = nil
+        Refresh()
+    end)
+    local recipeTile = CraftRow(recipeIcon, { recipeName, recipeKind }, { recipeRemove }, {
+        classes = {"bgAlt", "hoverable"},
+        linger = FullNameTooltip(recipeName),
+        press = function(element)
+            OpenItemPicker("Choose recipe", function(id, item)
+                return string.find(string.lower(item.name or ""), "recipe", 1, true) ~= nil
+            end, function(id)
+                document.craftRecipe = id
+                Refresh()
+            end)
+        end,
+        refresh = function(element)
+            local item = GearItem(document:try_get("craftRecipe"))
+            local chosen = item ~= nil
+            recipeIcon:FireEvent("setItem", item)
+            recipeKind:SetClass("collapsed", not chosen)
+            recipeRemove:SetClass("collapsed", document:try_get("craftRecipe") == nil)
+            recipeName:SetClass("fgMuted", not chosen)
+            if item ~= nil then
+                recipeName.text = item.name
+            elseif document:try_get("craftRecipe") ~= nil then
+                recipeName.text = "(Missing item)"
+            else
+                recipeName.text = "Choose recipe"
+            end
+        end,
+    })
+
+    --the components: a row each with its quantity, then "Add component".
+    local componentCount = gui.Label { classes = {"sizeXs", "fgMuted"}, text = "", width = "auto", height = "auto", halign = "right", valign = "center" }
+
+    --- One component row, bound to a craftComponents index by setComponent.
+    --- @return Panel
+    local function NewComponentTile()
+        local icon = CraftIcon(36)
+        local name = NameLabel { classes = {"bold"}, text = "", width = "95%" }
+        --the craftComponents index this row shows; set by setComponent.
+        local index = 0
+        local quantity = gui.Input {
+            classes = {"sizeS", "bordered"},
+            width = 44,
+            height = 26,
+            valign = "center",
+            textAlignment = "center",
+            characterLimit = 3,
+            text = "1",
+            change = function(element)
+                local entry = (document:try_get("craftComponents", {}))[index]
+                local n = tonumber(element.text)
+                if entry ~= nil and n ~= nil and n >= 1 then
+                    entry.quantity = math.floor(n)
+                end
+                Refresh()
+            end,
+        }
+        local remove = CraftRemove(function(element)
+            local list = document:try_get("craftComponents", {})
+            table.remove(list, index)
+            document.craftComponents = list
+            Refresh()
+        end)
+        return CraftRow(icon, { name }, { quantity, remove }, {
+            linger = FullNameTooltip(name),
+            setComponent = function(element, newIndex, entry)
+                index = newIndex
+                local item = GearItem(entry.itemid)
+                icon:FireEvent("setItem", item)
+                name.text = item ~= nil and item.name or "(Missing item)"
+                if not quantity.hasInputFocus then
+                    quantity.text = tostring(entry.quantity or 1)
+                end
+            end,
+        })
+    end
+
+    local componentAddIcon = CraftIcon(36)
+    local componentAdd = CraftRow(componentAddIcon, {
+        gui.Label { classes = {"fgMuted"}, text = "Add component", width = "auto", height = "auto", halign = "left" },
+    }, {}, {
+        classes = {"bgAlt", "hoverable"},
+        refresh = function(element)
+            componentAddIcon:FireEvent("setItem", nil)
+        end,
+        press = function(element)
+            local taken = {}
+            for _, entry in ipairs(document:try_get("craftComponents", {})) do
+                taken[entry.itemid] = true
+            end
+            --crafting ingredients only, leaving out the recipes filed with them.
+            OpenItemPicker("Add component", function(id, item)
+                return not taken[id]
+                    and EquipmentCategory.IsCraftingIngredient(item)
+                    and string.find(string.lower(item.name or ""), "recipe", 1, true) == nil
+            end, function(id)
+                local list = document:try_get("craftComponents", {})
+                list[#list + 1] = { itemid = id, quantity = 1 }
+                document.craftComponents = list
+                Refresh()
+            end)
+        end,
+    })
+
+    --rows are pooled: one per component, the extras collapsed, Add last.
+    local componentTiles = {}
+    local componentGrid = gui.Panel {
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        refresh = function(element)
+            local list = document:try_get("craftComponents", {})
+            componentCount.text = tostring(#list)
+            local grew = false
+            while #componentTiles < #list do
+                componentTiles[#componentTiles + 1] = NewComponentTile()
+                grew = true
+            end
+            if grew then
+                local children = {}
+                for _, tile in ipairs(componentTiles) do
+                    children[#children + 1] = tile
+                end
+                children[#children + 1] = componentAdd
+                element.children = children
+            end
+            for i, tile in ipairs(componentTiles) do
+                tile:SetClass("collapsed", i > #list)
+                if i <= #list then
+                    tile:FireEvent("setComponent", i, list[i])
+                end
+            end
+        end,
+        componentAdd,
+    }
+
+    --== The tabs ===============================================================
+
+    --- A column of fields inside a tab. data.group marks it as a container, so
+    --- an empty-tab check looks through it to the fields.
+    --- @param width string|number
+    --- @param children Panel[]
+    --- @return Panel
+    local function Column(width, children)
+        return gui.Panel {
+            width = width,
+            height = "auto",
+            flow = "vertical",
+            valign = "top",
+            halign = "left",
+            data = { group = true },
+            children = children,
+        }
+    end
+
+    --- Two columns side by side; the right one hugs the right edge.
+    --- @param left Panel
+    --- @param right Panel
+    --- @return Panel
+    local function Columns(left, right)
+        right.selfStyle.halign = "right"
+        return gui.Panel {
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            valign = "top",
+            data = { group = true },
+            left,
+            right,
+        }
+    end
+
+    --- A tab's body: 94% of the scroll area, inset from the left, which
+    --- leaves the right side clear for the scroll bar.
+    --- @param children Panel[]
+    --- @return Panel
+    local function TabRoot(children)
+        return gui.Panel {
+            width = "94%",
+            height = "auto",
+            flow = "vertical",
+            valign = "top",
+            halign = "left",
+            lmargin = 16,
+            tmargin = 8,
+            data = { group = true },
+            children = children,
+        }
+    end
+
+    local tabPanels = {
+        general = TabRoot {
+            Columns(
+                Column("48%", { fields.typePanel, fields.id, fields.name, fields.keywords, fields.availability, fields.hideFromPlayers }),
+                Column("48%", {
+                    gui.Panel {
+                        width = "100%",
+                        height = "auto",
+                        flow = "horizontal",
+                        data = { group = true },
+                        media.icon,
+                        gui.Panel {
+                            width = "66%",
+                            height = "auto",
+                            flow = "vertical",
+                            valign = "top",
+                            halign = "right",
+                            data = { group = true },
+                            media.accessory,
+                            media.inspectionCheck,
+                            media.displayOnToken,
+                            media.editObject,
+                        },
+                    },
+                    media.inspectionImage,
+                    media.ammoPreview,
+                })
+            ),
+            Columns(
+                Column("48%", { gui.Label { classes = {"formStacked"}, text = "Flavor" }, media.flavor }),
+                Column("48%", { gui.Label { classes = {"formStacked"}, text = "Description" }, media.description })
+            ),
+            media.levels,
+        },
+
+        properties = TabRoot {
+            Columns(
+                Column("48%", { fields.echelon, fields.imbueTarget, fields.imbueLevel, fields.imbuePrereq, fields.imbueReplaces, fields.quantity, fields.charges, fields.destroyChance }),
+                Column("48%", { fields.pack, fields.stats })
+            ),
+        },
+
+        behaviors = TabRoot { fields.implementation, fields.features, fields.ammoAugment, fields.weaponBehavior, fields.consumableAbility },
+
+        craftable = TabRoot {
+            Columns(
+            Column("48%", { fields.itemPrerequisite, fields.projectSource, fields.projectRollCharacteristic, fields.projectGoal }),
+            Column("48%", {
+                CraftHeader("RECIPE"),
+                recipeTile,
+                gui.Panel {
+                    width = "100%",
+                    height = "auto",
+                    flow = "none",
+                    CraftHeader("COMPONENTS"),
+                    componentCount,
+                },
+                componentGrid,
+            })
+            ),
+        },
+    }
+
+    local TAB_ORDER = { "general", "properties", "behaviors", "craftable" }
+    local TAB_TEXT = { general = "General", properties = "Properties", behaviors = "Behaviors", craftable = "Craftable" }
+
+    --- Whether anything in a tab shows: a field not collapsed, looking through
+    --- the tab's columns to the fields inside them.
+    --- @param panel Panel
+    --- @return boolean
+    local function HasVisibleContent(panel)
+        for _, child in ipairs(panel.children) do
+            if not (child:HasClass("collapsed") or child:HasClass("collapsed-anim")) then
+                if not child.data.group or HasVisibleContent(child) then
+                    return true
+                end
+            end
+        end
+        return false
+    end
+
+    local tabLabels = {}
+
+    --- Shows one tab and hides the others.
+    --- @param id string
+    local function SelectTab(id)
+        m_tab = id
+        if not pickerPanel:HasClass("collapsed") then
+            ClosePicker()
+        end
+        for _, tabid in ipairs(TAB_ORDER) do
+            tabLabels[tabid]:SetClass("selected", tabid == id)
+            tabPanels[tabid]:SetClass("collapsed", tabid ~= id)
+        end
+        Refresh()
+    end
+
+    for _, tabid in ipairs(TAB_ORDER) do
+        tabLabels[tabid] = gui.Label {
+            classes = { "tab", cond(tabid == m_tab, "selected") },
+            halign = "left",
+            text = TAB_TEXT[tabid],
+            press = function(element)
+                SelectTab(tabid)
+            end,
+        }
+        tabPanels[tabid]:SetClass("collapsed", tabid ~= m_tab)
+    end
+
+    --Craftable shows for items a project can make (the same rule that showed
+    --the crafting fields); Properties and Behaviors hide when they would be
+    --empty. A tab that goes away while open hands over to General.
+    RefreshTabs = function()
+        local shown = {
+            general = true,
+            properties = HasVisibleContent(tabPanels.properties),
+            behaviors = HasVisibleContent(tabPanels.behaviors),
+            craftable = EquipmentCategory.IsTreasure(document),
+        }
+        for _, tabid in ipairs(TAB_ORDER) do
+            tabLabels[tabid]:SetClass("collapsed", not shown[tabid])
+        end
+        if not shown[m_tab] then
+            SelectTab("general")
+        end
+    end
+
+    --full width, so the tab bar's base line runs on past the last tab.
+    local tabBar = gui.Panel {
+        classes = {"tabBar"},
+        width = "100%-32",
+        halign = "center",
+        valign = "top",
+        vmargin = 6,
+    }
+    for _, tabid in ipairs(TAB_ORDER) do
+        tabBar:AddChild(tabLabels[tabid])
+    end
 
     resultPanel = gui.Panel {
         id = "MainTableGearForm",
         classes = {"framedPanel"},
         styles = ThemeEngine.GetStyles(),
-        vscroll = true,
         width = 1060,
         height = 800,
         vpad = 8,
@@ -2137,19 +2823,21 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                 halign = "center",
             },
 
-            gui.Panel {
-                style = {
-                    width = '100%',
-                    height = 'auto',
-                    flow = 'horizontal',
-                    valign = "top",
-                },
-                children = {
-                    leftPanel,
-                    rightPanel,
-                },
-            }
+            tabBar,
 
+            gui.Panel {
+                width = "100%",
+                height = "100%-90",
+                vscroll = true,
+                flow = "vertical",
+                tabPanels.general,
+                tabPanels.properties,
+                tabPanels.behaviors,
+                tabPanels.craftable,
+            },
+
+            --last, so it draws over the tabs while open.
+            pickerPanel,
         }
     }
 

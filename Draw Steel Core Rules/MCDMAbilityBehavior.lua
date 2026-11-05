@@ -266,6 +266,29 @@ local function ExecuteDamage(behavior, ability, casterToken, targetToken, option
     local isRolledDamage = damage == nil
     local damageDice = GameSystem.GetDamageDiceInRoll(match.damage)
 
+    --"(added)": extra damage on the hit that triggered this ability (a Take Damage or
+    --Deal Damage trigger), e.g. "{2*Reason} damage (added)". It joins that hit's damage
+    --instance instead of being a new one, so the target's immunity is not applied twice.
+    --Untyped added damage takes the triggering hit's type. Outside such a trigger, or
+    --when the rule names a different type than the hit (that immunity was not spent),
+    --it is ordinary damage.
+    local continuesInstance = nil
+    if match.mods ~= nil and string.find(match.mods, "added", 1, true) ~= nil then
+        local triggerSymbols = options ~= nil and options.symbols or nil
+        if triggerSymbols ~= nil and type(triggerSymbols.rawdamage) == "number" and type(triggerSymbols.fulldamage) == "number" then
+            local triggerType = triggerSymbols.damagetype
+            if type(triggerType) ~= "string" or triggerType == "" or triggerType == "none" then
+                triggerType = "untyped"
+            end
+            if match.type == nil then
+                damageType = triggerType
+            end
+            if string.lower(damageType) == string.lower(triggerType) then
+                continuesInstance = { raw = triggerSymbols.rawdamage, landed = triggerSymbols.fulldamage }
+            end
+        end
+    end
+
     --Patron damage handling (Acolyte class).
     --The literal token "patron" in tier/rule text is a placeholder for the
     --caster's patron-element damage type (corruption / holy / lightning).
@@ -404,6 +427,9 @@ local function ExecuteDamage(behavior, ability, casterToken, targetToken, option
         if ignoreImmunity then
             damageMessage = damageMessage .. " (ignores immunity)"
         end
+        if continuesInstance ~= nil then
+            damageMessage = damageMessage .. " (added)"
+        end
         ability.RecordTokenMessage(targetToken, options, damageMessage)
 
         if not noDamage then
@@ -411,7 +437,7 @@ local function ExecuteDamage(behavior, ability, casterToken, targetToken, option
                 description = "Inflict Damage",
                 undoable = false,
                 execute = function()
-                    result = targetToken.properties:InflictDamageInstance(damage, damageType, ability.keywords, string.format("%s's %s", selfName, ability.name), { criticalhit = false, attacker = attacker, surges = options.surges, ability = ability, hasability = true, cast = options.symbols.cast, hasrolleddamage = isRolledDamage, damagedice = damageDice, patrondamage = patrondamage, cannotBeReduced = ignoreImmunity})
+                    result = targetToken.properties:InflictDamageInstance(damage, damageType, ability.keywords, string.format("%s's %s", selfName, ability.name), { criticalhit = false, attacker = attacker, surges = options.surges, ability = ability, hasability = true, cast = options.symbols.cast, hasrolleddamage = isRolledDamage, damagedice = damageDice, patrondamage = patrondamage, cannotBeReduced = ignoreImmunity, continuesInstance = continuesInstance})
                     options.symbols.cast:CountDamage(targetToken, result.damageDealt, damage, isRolledDamage, patrondamage)
 
                     --Damage halved away by (half) power-roll modifiers counts as
@@ -510,10 +536,10 @@ local g_rulePatterns = {
     },
     --]]
     {
-        pattern = {"^(?<damage>[0-9 d+-]+)\\s*(?<type>[a-z]+)?\\s?damage(?<mods>(\\s*\\((?:half|no damage)\\))*)(?<ignoreimmunity>[,;]? ?(this damage )?(ignores?|ignoring) (the targets? )?(damage )?immunit(y|ies))?",
-            "^(?<damage>[0-9]+)\\s+(?<type>[a-z]+)\\s+damage(?<mods>(\\s*\\((?:half|no damage)\\))*)(?<ignoreimmunity>[,;]? ?(this damage )?(ignores?|ignoring) (the targets? )?(damage )?immunit(y|ies))?",
-            "^(?<damage>[0-9]+)\\s*\\+\\s*(?<bonus>[MARIPmarip, ]+ or [MARIPmarip]+)(\\s+(?<type>[a-z]+))?\\s*damage(?<mods>(\\s*\\((?:half|no damage)\\))*)(?<ignoreimmunity>[,;]? ?(this damage )?(ignores?|ignoring) (the targets? )?(damage )?immunit(y|ies))?",
-            "^(?<damage>[0-9]+)\\s*\\+\\s*(?<bonus>[MARIPmarip])(?![a-z])(\\s+(?<type>[a-z]+))?\\s*damage(?<mods>(\\s*\\((?:half|no damage)\\))*)(?<ignoreimmunity>[,;]? ?(this damage )?(ignores?|ignoring) (the targets? )?(damage )?immunit(y|ies))?",
+        pattern = {"^(?<damage>[0-9 d+-]+)\\s*(?<type>[a-z]+)?\\s?damage(?<mods>(\\s*\\((?:half|no damage|added)\\))*)(?<ignoreimmunity>[,;]? ?(this damage )?(ignores?|ignoring) (the targets? )?(damage )?immunit(y|ies))?",
+            "^(?<damage>[0-9]+)\\s+(?<type>[a-z]+)\\s+damage(?<mods>(\\s*\\((?:half|no damage|added)\\))*)(?<ignoreimmunity>[,;]? ?(this damage )?(ignores?|ignoring) (the targets? )?(damage )?immunit(y|ies))?",
+            "^(?<damage>[0-9]+)\\s*\\+\\s*(?<bonus>[MARIPmarip, ]+ or [MARIPmarip]+)(\\s+(?<type>[a-z]+))?\\s*damage(?<mods>(\\s*\\((?:half|no damage|added)\\))*)(?<ignoreimmunity>[,;]? ?(this damage )?(ignores?|ignoring) (the targets? )?(damage )?immunit(y|ies))?",
+            "^(?<damage>[0-9]+)\\s*\\+\\s*(?<bonus>[MARIPmarip])(?![a-z])(\\s+(?<type>[a-z]+))?\\s*damage(?<mods>(\\s*\\((?:half|no damage|added)\\))*)(?<ignoreimmunity>[,;]? ?(this damage )?(ignores?|ignoring) (the targets? )?(damage )?immunit(y|ies))?",
         },
         execute = ExecuteDamage,
         isdamage = true,

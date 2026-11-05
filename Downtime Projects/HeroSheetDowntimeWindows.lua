@@ -1546,6 +1546,12 @@ function HeroSheetDowntimeWindows.NewProject(token, opts)
             local projectId = opts.projectId --[[@as string]]
             local saved = SaveProject(projectId, "Replace downtime project", function(project)
                 DTBusinessRules.ApplySourceToProject(project, chosen.kind, chosen.id)
+                --Replace is only offered before any progress, so it starts the
+                --project afresh: one whose recipe and components the Hero holds
+                --is ready to roll, as a new one would be.
+                if chosen.kind == "crafting" and DTBusinessRules.HasCraftingMaterials(token.properties, chosen.id) then
+                    project:Approve()
+                end
                 --a new goal moves the milestones: an Active project takes the
                 --book's next one for it, as Approve gives.
                 if project:GetStatus() == DTConstants.STATUS.ACTIVE.key then
@@ -1559,8 +1565,11 @@ function HeroSheetDowntimeWindows.NewProject(token, opts)
             return
         end
         local projectId = dmhub.GenerateGuid()
-        local waits = not DTCharSheetTab.CanManageProjects()
         local sourceType = state.tab
+        --StartProject's rule: a manager's project, or a crafting project the
+        --Hero has the recipe and components for, does not wait.
+        local waits = not DTCharSheetTab.CanManageProjects()
+            and not (sourceType == "crafting" and source ~= nil and DTBusinessRules.HasCraftingMaterials(token.properties, source.id))
         local name = trim(state.name)
         --- @type nil|{goal: nil|integer, chars: string[], prereq: string, source: string, langIds: string[]}
         local custom = nil
@@ -1584,6 +1593,7 @@ function HeroSheetDowntimeWindows.NewProject(token, opts)
                     selectedId = source ~= nil and source.id or nil,
                     name = name,
                     custom = custom,
+                    hero = props,
                 })
             end
         end

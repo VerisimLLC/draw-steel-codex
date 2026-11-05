@@ -594,6 +594,10 @@ text("heroskills.known.line", [[Known already: {list}.]])
 --The languages' search field (its grey words), and its tooltip.
 text("heroskills.search.placeholder", [[Search languages]])
 text("heroskills.search.tooltip", [[Type to filter. ! or - leaves a word out, > matches the start, < the end.]])
+--The Builder's checkbox beside the search: off hides dead languages the Hero
+--has not taken; remembered between sessions.
+text("heroskills.search.show_dead", [[Show Dead Languages]])
+text("heroskills.search.show_dead_tooltip", [[Dead languages have no living speakers. A dead language the Hero already has always shows.]])
 
 --The Hero sheet's Skills card, at its foot: where the skills come from
 --({sources} is the steps in lower case and other names), and the skills

@@ -1309,6 +1309,15 @@ local function Caps(text, args)
     return gui.Label(fields)
 end
 
+--The Builder's "Show Dead Languages" checkbox, remembered per user (off by
+--default). Off hides the dead languages' chips, except one the Hero holds.
+--Only the Builder (parts mode) has the checkbox, so only it filters.
+local g_showDeadSetting = setting{
+    id = "heroskills:showdeadlanguages",
+    default = false,
+    storage = "preference",
+}
+
 --Chips built across frames (Panel with args.slice): one queue for every
 --panel, in the order the panels were made, so the Skills chips fill in
 --before the Languages under them. Each frame builds chips until the budget
@@ -1797,7 +1806,7 @@ function HeroSkillsLanguages.Panel(args)
         --the name sits over a bold copy of itself, so a chip keeps its width
         --when it turns bold on being picked.
         local nameLabel = gui.Label{
-            classes = {"heroSklChipText"},
+            classes = {"heroSklChipText", cond(entry.dead == true, "heroSklDead", nil)},
             text = entry.name,
             fontSize = 13.5,
             italics = entry.dead == true,
@@ -1870,7 +1879,8 @@ function HeroSkillsLanguages.Panel(args)
             children[#children+1] = star
         end
         if entry.dead then
-            children[#children+1] = gui.Label{
+            --in labels so it takes the chip's state (dark on a picked chip).
+            local deadTag = gui.Label{
                 classes = {"heroSklDeadTag"},
                 bgimage = "panels/square.png",
                 border = 1,
@@ -1886,10 +1896,12 @@ function HeroSkillsLanguages.Panel(args)
                 textWrap = false,
                 interactable = false,
             }
+            labels[#labels+1] = deadTag
+            children[#children+1] = deadTag
         end
         local panel
         panel = gui.Panel{
-            classes = {"heroSklChip", "heroSklOption", "hoverable"},
+            classes = {"heroSklChip", "heroSklOption", "hoverable", cond(entry.dead == true, "heroSklDead", nil)},
             bgimage = "panels/square.png",
             border = 1,
             cornerRadius = 8,
@@ -1940,6 +1952,8 @@ function HeroSkillsLanguages.Panel(args)
     --- @type {label: Panel, group: string, hidden: nil|boolean}[]
     local groupLines = {}
     local searchInput = nil
+    --in parts mode, the search with its checkbox (parts.search)
+    local searchPart = nil
     --With args.slice the chips are not built here: each wrap is made empty
     --and its chips queued (in the order they show) for the frames after, a
     --few ms of them a frame (the queue is QueueSlice, above).
@@ -2021,8 +2035,31 @@ function HeroSkillsLanguages.Panel(args)
                 Refresh()
             end,
         }
-        --the Builder puts the search on its own heading's line.
-        if not args.parts then
+        --the Builder puts the search on its own heading's line, with the
+        --Show Dead Languages checkbox before it.
+        if args.parts then
+            searchPart = gui.Panel{
+                width = "auto",
+                height = "auto",
+                flow = "horizontal",
+                gui.Check{
+                    text = T("heroskills.search.show_dead"),
+                    value = g_showDeadSetting:Get() == true,
+                    tooltip = T("heroskills.search.show_dead_tooltip"),
+                    width = "auto",
+                    height = HeroSheetWindow.TargetSize(28),
+                    minWidth = 0,
+                    fontSize = 12.5,
+                    rmargin = 12,
+                    valign = "center",
+                    change = function(element)
+                        g_showDeadSetting:Set(element.value == true)
+                        Refresh()
+                    end,
+                },
+                searchInput,
+            }
+        else
             chipArea[#chipArea+1] = gui.Panel{
                 width = "100%",
                 height = "auto",
@@ -2107,6 +2144,11 @@ function HeroSkillsLanguages.Panel(args)
         chip.tip = why
         if not isSkill then
             local hide = not Matches(chip.entry)
+            --a dead language hides while the checkbox is off, unless the Hero holds it.
+            if args.parts and chip.entry.dead == true and g_showDeadSetting:Get() ~= true
+                and state ~= "picked" and state ~= "locked" and state ~= "known" then
+                hide = true
+            end
             if hide ~= chip.hidden then
                 chip.panel:SetClass("collapsed", hide)
                 chip.hidden = hide
@@ -2335,7 +2377,7 @@ function HeroSkillsLanguages.Panel(args)
                 end
                 return false
             end,
-            parts = {rows = rowsPanel, known = knownLabel, chips = chipsPanel, search = searchInput},
+            parts = {rows = rowsPanel, known = knownLabel, chips = chipsPanel, search = searchPart},
             SetDraft = SetDraft,
         }
         return rowsPanel, partsControl

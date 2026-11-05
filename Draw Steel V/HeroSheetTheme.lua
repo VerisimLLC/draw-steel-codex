@@ -224,6 +224,7 @@ end
 --- @field cardDanger string
 --- @field cardLabel string the small labels' colour: tan in Default, the scheme's accent in others (EotW's rule)
 --- @field cardLab string the softer labels beside numbers ("Weak", "Average")
+--- @field cardDead string a dead language's chip text (a pale violet), guarded on the card
 --- @field tile string a characteristic tile's see-through ground
 --- @field tileBorder string a tile's edge
 --- @field tierInk string words on a leveled treasure's reached Level block (filled with cardStrong)
@@ -306,6 +307,9 @@ function HeroSheetTheme.Palette()
     local cardDanger = HeroSheetTheme.Readable(get("danger", "#c94040"), cardSurfaces)
     local cardLabel = HeroSheetTheme.Readable(labelSource, cardSurfaces)
     local cardLab = HeroSheetTheme.Readable(labSource, cardSurfaces)
+    --no scheme has a role for it: a fixed hue, apart from the gold/tan
+    --"known" and the status colours, lifted to 4.5:1 like the rest.
+    local cardDead = HeroSheetTheme.Readable("#b3a4e0", cardSurfaces)
     local border = get("borderSolid", get("border", "#66666c"))
     --a reached Level block is filled with cardStrong; its words in the background
     --colour, made readable on that fill (as a picked Builder card).
@@ -338,6 +342,7 @@ function HeroSheetTheme.Palette()
         cardDanger = cardDanger,
         cardLabel = cardLabel,
         cardLab = cardLab,
+        cardDead = cardDead,
         tile = eotw ~= nil and eotw.TILE or "#0000003a",
         tileBorder = eotw ~= nil and eotw.BORDER or border,
         tierInk = tierInk,
@@ -657,6 +662,9 @@ function HeroSheetTheme.Rules()
         --Titles chips share heroSklChip and keep its plain look). Each state
         --names its hover too, so hovering never lights a picked or flat chip.
         {selectors = {"heroSklChip", "heroSklOption"}, bgcolor = ChipMix(palette.cardFg, 0.075), borderColor = ChipMix(palette.cardFg, 0.42)},
+        --a dead language: violet while open to pick; listed before the state
+        --rules so picked, locked, known and flat chips keep their own look.
+        {selectors = {"heroSklChip", "heroSklOption", "heroSklDead"}, bgcolor = ChipMix(palette.cardDead, 0.075), borderColor = ChipMix(palette.cardDead, 0.42)},
         {selectors = {"heroSklChip", "heroSklOption", "hover"}, bgcolor = ChipMix(palette.cardFg, 0.14), borderColor = palette.cardStrong},
         {selectors = {"heroSklChip", "heroSklOption", "heroSklPicked"}, bgcolor = palette.cardFg, borderColor = palette.cardFg},
         {selectors = {"heroSklChip", "heroSklOption", "heroSklPicked", "hover"}, bgcolor = palette.cardStrong, borderColor = palette.cardStrong},
@@ -669,16 +677,20 @@ function HeroSheetTheme.Rules()
         {selectors = {"heroSklChip", "heroSklOption", "heroSklKnown"}, bgcolor = ChipMix(palette.cardLabel, 0.14), borderColor = ChipMix(palette.cardLabel, 0.62)},
         {selectors = {"heroSklChip", "heroSklOption", "heroSklKnown", "hover"}, bgcolor = ChipMix(palette.cardLabel, 0.14), borderColor = ChipMix(palette.cardLabel, 0.62)},
         {selectors = {"heroSklChipText"}, color = palette.cardFg},
+        {selectors = {"heroSklChipText", "heroSklDead"}, color = palette.cardDead},
         {selectors = {"heroSklChipText", "heroSklPicked"}, color = palette.bg, bold = true},
         {selectors = {"heroSklChipText", "heroSklLocked"}, color = palette.cardStrong, bold = true},
         {selectors = {"heroSklChipText", "heroSklUnav"}, color = palette.cardSub},
+        --a dead language stays violet when nothing is open to pick it with.
+        {selectors = {"heroSklChipText", "heroSklUnav", "heroSklDead"}, color = palette.cardDead},
         {selectors = {"heroSklChipText", "heroSklKnown"}, color = palette.cardLabel},
         {selectors = {"heroSklSizer"}, color = "#00000000"},
         {selectors = {"heroSklChipSpeakers"}, color = palette.cardSub},
         {selectors = {"heroSklChipSpeakers", "heroSklPicked"}, color = palette.bg},
         {selectors = {"heroSklChipMark"}, color = palette.cardLabel},
         {selectors = {"heroSklChipMark", "heroSklPicked"}, color = palette.bg},
-        {selectors = {"heroSklDeadTag"}, bgcolor = "clear", borderColor = palette.border, color = palette.cardSub},
+        {selectors = {"heroSklDeadTag"}, bgcolor = "clear", borderColor = ChipMix(palette.cardDead, 0.5), color = palette.cardDead},
+        {selectors = {"heroSklDeadTag", "heroSklPicked"}, borderColor = palette.bg, color = palette.bg},
         --the lists: ability rows a lighter step of the surface (solid
         --mixes), a pinned card's row edged in the strong colour; the heading
         --tabs muted, the open one strong over a warm underline.

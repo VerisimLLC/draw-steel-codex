@@ -691,6 +691,8 @@ function HeroSheetInventory.Create()
     --a new sheet starts on the Hero's items.
     g_source = "items"
     local state = {
+        --set when the tab's panels are gone: scheduled work stops.
+        destroyed = false,
         --the chip picked and the search's words.
         filter = "all",
         query = "",
@@ -1672,7 +1674,7 @@ function HeroSheetInventory.Create()
     --- Build a few more of the rows PaintList left, a frame at a time.
     local function ContinueBuild()
         buildScheduled = false
-        if mod.unloaded or not body.valid or pendingBuild == nil then
+        if mod.unloaded or state.destroyed or not body.valid or pendingBuild == nil then
             return
         end
         local budget = {left = BUILD_LATER}
@@ -1695,7 +1697,7 @@ function HeroSheetInventory.Create()
         if g_source == "stash" then
             local before = g_stashShown
             PaneEntry()
-            if g_stashShown ~= before and before ~= nil then
+            if g_stashShown ~= before then
                 PaintPane()
             end
         end
@@ -2235,7 +2237,8 @@ function HeroSheetInventory.Create()
         end
         paneItem:SetClass("collapsed", entry == nil)
         paneEmpty:SetClass("collapsed", entry ~= nil)
-        paneEmpty.text = cond(g_source == "stash", "The stash is empty.", "Nothing carried yet.")
+        --with a stash that has items, an empty pane means the chip or search hid them.
+        paneEmpty.text = cond(g_source == "stash", cond(#state.entries > 0, "No stash items match.", "The stash is empty."), "Nothing carried yet.")
         if entry == nil or token == nil then
             return
         end
@@ -2383,7 +2386,7 @@ function HeroSheetInventory.Create()
         warming = true
         local function Step()
             --the switch came first: its paint builds what is left.
-            if mod.unloaded or not body.valid or g_source == "stash" then
+            if mod.unloaded or state.destroyed or not body.valid or g_source == "stash" then
                 warming = false
                 return
             end
@@ -2512,6 +2515,44 @@ function HeroSheetInventory.Create()
         body.captureEscape = view ~= "list"
     end
 
+    --- Compare the Hero's rows with the last look, and select one that is new.
+    --- While the list shows the stash nothing is compared: a take from it is
+    --- noticed on the way back to the Hero's items.
+    --- @return nil|string added the new row's key
+    local function NoticeAdded()
+        if g_source == "stash" then
+            return nil
+        end
+        local items = {}
+        --- @type nil|string
+        local added = nil
+        for _, entry in ipairs(state.entries) do
+            if not entry.remembered then
+                items[entry.itemid] = true
+                if state.known ~= nil and not state.known[entry.itemid] then
+                    added = added or entry.key
+                end
+            end
+        end
+        state.known = items
+        if added ~= nil then
+            state.sel = added
+        end
+        return added
+    end
+
+    --- Pulse the list row of a new item, if it is built yet.
+    --- @param key string
+    local function PulseRow(key)
+        for _, kind in ipairs(KINDS) do
+            for _, row in ipairs(groups[kind.id].rows()) do
+                if row.entry ~= nil and row.entry.key == key and not row.panel:HasClass("collapsed") then
+                    Pulse(row.panel)
+                end
+            end
+        end
+    end
+
     --- Show the Hero's items ("items") or the party stash ("stash") in the
     --- list, and tell the card column, which shows the other side.
     --- @param source string
@@ -2528,11 +2569,18 @@ function HeroSheetInventory.Create()
         end
         g_source = source
         state.entries = CurrentEntries(state.token)
+        --- @type nil|string
+        local added = nil
         if source == "items" then
-            --back to the Hero's items: the pane goes back to the Hero's pick.
+            --back to the Hero's items: the pane goes back to the Hero's pick,
+            --or to what was taken from the stash meanwhile.
             g_stashShown = nil
+            added = NoticeAdded()
             local picked = Picked()
             state.shown = picked ~= nil and picked.key or nil
+            if picked ~= nil then
+                state.sel, state.selItem = picked.key, picked.itemid
+            end
         else
             state.shown = nil
         end
@@ -2544,6 +2592,9 @@ function HeroSheetInventory.Create()
             Arrange()
         end
         listScroll.vscrollPosition = 1
+        if added ~= nil then
+            PulseRow(added)
+        end
         local live = rawget(_G, "g_heroSheetLive")
         if live ~= nil and live.window ~= nil and live.window.valid then
             live.window:FireEventTree("heroSheetInventorySource", source)
@@ -2664,6 +2715,18 @@ function HeroSheetInventory.Create()
         width = "100%",
         height = "100%",
         flow = "vertical",
+        --the sheet rebuilt: nothing may reach this tab's panels any more. A
+        --newer Inventory keeps its own closures.
+        destroy = function(element)
+            state.destroyed = true
+            if g_setSource == SetSource then
+                g_source = "items"
+                g_stashShown = nil
+                g_setSource = nil
+                g_warmStash = nil
+                g_showStash = nil
+            end
+        end,
         heroSheetLayout = function(element, width, height)
             Fit(width)
         end,
@@ -2743,26 +2806,7 @@ function HeroSheetInventory.Create()
                 --another Hero at Narrow starts on the list.
                 state.narrowView = "list"
             end
-            local items = {}
-            --- @type nil|string
-            local added = nil
-            --while the list shows the stash, what is new to the Hero is noticed
-            --on the way back to the Hero's items.
-            local heroEntries = cond(g_source == "stash", {}, state.entries)
-            for _, entry in ipairs(heroEntries) do
-                if not entry.remembered then
-                    items[entry.itemid] = true
-                    if state.known ~= nil and not state.known[entry.itemid] then
-                        added = added or entry.key
-                    end
-                end
-            end
-            if g_source ~= "stash" then
-                state.known = items
-            end
-            if added ~= nil then
-                state.sel = added
-            end
+            local added = NoticeAdded()
             local picked = Picked()
             state.shown = picked ~= nil and picked.key or nil
             if picked ~= nil and g_source ~= "stash" then
@@ -2779,13 +2823,7 @@ function HeroSheetInventory.Create()
             PaintPane()
             Arrange()
             if added ~= nil then
-                for _, kind in ipairs(KINDS) do
-                    for _, row in ipairs(groups[kind.id].rows()) do
-                        if row.entry ~= nil and row.entry.key == added and not row.panel:HasClass("collapsed") then
-                            Pulse(row.panel)
-                        end
-                    end
-                end
+                PulseRow(added)
             end
         end,
     })

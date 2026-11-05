@@ -4549,6 +4549,8 @@ local function ArtWindow(target)
     Refill = function()
         Build()
         first = -1
+        --the new list starts at the top: Scroll paints from this position.
+        holder.vscrollPosition = 1
         Scroll()
         HeroSheetWindow.AfterLayout(function()
             if not holder.valid then
@@ -6644,6 +6646,8 @@ local function AnthemWindow()
     local function Refill()
         Build()
         first = -1
+        --the new list starts at the top: Scroll paints from this position.
+        holder.vscrollPosition = 1
         Scroll()
         HeroSheetWindow.AfterLayout(function()
             if not holder.valid then

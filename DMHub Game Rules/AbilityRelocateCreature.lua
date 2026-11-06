@@ -878,13 +878,19 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                 if path ~= nil then
                     --plain numbers, so the route outlives this path object (the side view).
                     local savedPath = {}
-                    for _,step in ipairs(path.steps or {}) do
-                        savedPath[#savedPath+1] = {step.x, step.y, step.floor}
+                    local steps = path.steps or {}
+                    for _,step in ipairs(steps) do
+                        savedPath[#savedPath+1] = {step.x, step.y, step.floor, step.altitude}
                     end
+                    --a fall adds its landing to the end of the path. That step is no square the
+                    --creature was moved, and path.fallDistance reads 0 once it is there.
+                    local last, previous = steps[#steps], steps[#steps-1]
+                    local falling = previous ~= nil and last.x == previous.x and last.y == previous.y
+                        and (last.floor ~= previous.floor or previous.altitude - last.altitude > 1)
                     GameSystem.NotifyPlayObservers("forcedmove", casterToken.properties, {
                         kind = forcemoveEvent.type,
-                        distance = forcemoveEvent.distance,
-                        fell = math.floor(path.fallDistance or 0),
+                        distance = forcemoveEvent.distance - (falling and 1 or 0),
+                        falling = falling,
                         collision = forcemoveEvent.collision,
                         walls = path.wallBreaks ~= nil and #path.wallBreaks or 0,
                         path = savedPath,

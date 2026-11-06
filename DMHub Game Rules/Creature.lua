@@ -24,8 +24,10 @@ local g_playObservers = {}
 ---   resource(creature, key, before, after, refreshType, note): a resource a record of
 ---     play follows changed on a creature.
 ---   globalresource(resourceid, before, after, note): a shared resource changed.
----   forcedmove(creature, info): another creature moved it. info: kind, distance, fell,
----     collision, walls, path (a list of {x, y, floor}, start first), cast.
+---   forcedmove(creature, info): another creature moved it. info: kind, distance, falling,
+---     collision, walls, path (a list of {x, y, floor, altitude}, start first), cast.
+---   fell(creature, info): it landed from a fall. info: distance, in squares. This comes a
+---     moment after the move that caused it, outside any cast.
 ---   threshold(creature, state, info): the creature became "winded", "dying" or "killed".
 ---     info: source, cast.
 ---   minionsdied(creature, info): minion deaths were confirmed. info: squad, killed, left, cast.
@@ -11842,6 +11844,9 @@ end
 
 function creature:TriggerEvent(eventName, info, alreadyTriggeredOnOthers, localFilter)
     StampEventCause(info)
+    if eventName == "fall" then
+        GameSystem.NotifyPlayObservers("fell", self, {distance = info.speed})
+    end
 
     if (not alreadyTriggeredOnOthers) and (info == nil or info.subject == nil) then
         self:TriggerEventOnOthers(eventName, info)

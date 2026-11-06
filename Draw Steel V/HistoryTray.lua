@@ -510,7 +510,7 @@ local function TargetCell(who, width, showTier, extraTaken, minions)
         height = "auto",
         halign = "left",
         valign = "center",
-        lmargin = 3,
+        lmargin = #top > 0 and 3 or 0,
         textWrap = false,
         textAlignment = "left",
     }
@@ -771,6 +771,7 @@ local function BuildAction(item)
         text = entry.ability.name,
         width = "auto",
         height = "auto",
+        lmargin = item.showActor and 4 or 0, --auto width drops the space after the dot.
         halign = "left",
         valign = "center",
     }

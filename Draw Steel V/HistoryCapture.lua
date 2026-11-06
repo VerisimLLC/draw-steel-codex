@@ -157,9 +157,31 @@ local function BeginCastState(entry, targets, options)
     return state
 end
 
+--Pushed creatures on their way down, by charid. The fall lands a moment after the push,
+--often once its cast has ended, so the push leaves here what the landing needs to find.
+local g_falling = {}
+local FALL_WINDOW_MS = 10000
+
+local function Falling(token)
+    local falling = g_falling[token.charid]
+    if falling ~= nil and dmhub.serverTimeMilliseconds - falling.t < FALL_WINDOW_MS then
+        return falling
+    end
+    return nil
+end
+
 local function CastBegan(ability, casterToken, targets, options)
     if not History.Enabled() or options.dismiss then
         return
+    end
+
+    --what a fall does belongs to the push that caused it, so it goes on that row.
+    if ability.typeName == "TriggeredAbility" and ability.trigger == "fall" then
+        local falling = Falling(casterToken)
+        if falling ~= nil and falling.row ~= nil then
+            g_casts[options] = {entry = falling.row.entry, seen = falling.row.seen, landingOn = falling.row}
+            return
+        end
     end
 
     --a card from an earlier cast means this one shares it (an invoked ability).
@@ -258,6 +280,12 @@ local function CastFinished(ability, casterToken, options)
         return
     end
     g_casts[options] = nil
+    if state.landingOn ~= nil then
+        if state.landingOn.finished then
+            History.Rewrite(state.entry)
+        end
+        return
+    end
     state.finished = true
     if state.cast ~= nil then
         g_byCast[state.cast] = state.parent
@@ -438,25 +466,47 @@ end
 
 local function OnForcedMove(creature, info)
     local token = dmhub.LookupToken(creature)
-    if not History.Enabled() or token == nil or (info.distance <= 0 and info.fell <= 0) then
+    if not History.Enabled() or token == nil or (info.distance <= 0 and not info.falling) then
         return
     end
     local moved = {
         kind = info.kind,
         distance = info.distance,
-        fell = info.fell,
+        fell = 0,
         collision = info.collision,
         walls = info.walls,
         path = info.path,
     }
     local state = OpenCast(info.cast)
     if state == nil then
-        WriteLine(token, "moved", {moved = moved, causetext = Cause(nil)})
+        local entry = WriteLine(token, "moved", {moved = moved, causetext = Cause(nil)})
+        if info.falling then
+            g_falling[token.charid] = {moved = moved, entry = entry, t = dmhub.serverTimeMilliseconds}
+        end
         return
     end
     local target = RowTarget(state, token)
     if target ~= nil then
         target.moved = moved
+        if info.falling then
+            g_falling[token.charid] = {moved = moved, entry = state.entry, row = state, t = dmhub.serverTimeMilliseconds}
+        end
+    end
+end
+
+--The landing: the only place the real distance is known, floors included.
+local function OnFell(creature, info)
+    local token = dmhub.LookupToken(creature)
+    if not History.Enabled() or token == nil then
+        return
+    end
+    local falling = Falling(token)
+    if falling == nil then
+        return
+    end
+    falling.moved.fell = info.distance
+    if falling.row == nil or falling.row.finished then
+        History.Rewrite(falling.entry)
     end
 end
 
@@ -871,6 +921,7 @@ GameSystem.RegisterPlayObserver("history", {
     heal = OnHeal,
     threshold = OnThreshold,
     forcedmove = OnForcedMove,
+    fell = OnFell,
     minionsdied = OnMinionsDied,
     temporarystamina = OnTemporaryStamina,
     resource = OnResource,

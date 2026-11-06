@@ -79,6 +79,60 @@ local function MatchesFeatureSearch(obj, search)
 	return true
 end
 
+--OffersCompanionFlag's last answer, with the class and the time it was worked out for.
+---@type {class: table|nil, time: number|nil, value: boolean}
+local g_offersFlagMemo = { class = nil, time = nil, value = false }
+
+--Whether this editor offers the "applies to companion" box: only on a class whose
+--family offers a companion that uses the box. The race editor shares this code and
+--never offers it.
+local function OffersCompanionFlag(classOrRace)
+	if classOrRace.typeName ~= "Class" then
+		return false
+	end
+	--rawget: the companion code may be absent.
+	local companionKind = rawget(_G, "CompanionKind")
+	if companionKind == nil then
+		return false
+	end
+	--Every level, choice and option editor asks while the class editor builds, and the
+	--answer walks the whole class family, so it is kept for the rest of the frame.
+	local now = dmhub.Time()
+	if g_offersFlagMemo.class ~= classOrRace or g_offersFlagMemo.time ~= now then
+		g_offersFlagMemo.class = classOrRace
+		g_offersFlagMemo.time = now
+		g_offersFlagMemo.value = companionKind.ClassOffersFlag(classOrRace)
+	end
+	return g_offersFlagMemo.value
+end
+
+--Tag on a feature or choice row whose "applies to companion" box is ticked, labelled
+--like the checkbox, so the rows that go to the companion stand out.
+local function CompanionFlagTag(feature)
+	local function refresh(element)
+		local label = nil
+		if Class.IsCompanionFlagged(feature) then
+			--rawget: the companion code may be absent (content ticked in another world).
+			local companionKind = rawget(_G, "CompanionKind")
+			label = (companionKind ~= nil and companionKind.FeatureFlagText()) or "Companion"
+		end
+		element.text = label or ""
+		element:SetClass("collapsed", label == nil)
+	end
+	return gui.Label{
+		classes = {"accent", "sizeM", "bold", "collapsed"},
+		width = "auto",
+		height = "auto",
+		halign = "right",
+		valign = "center",
+		hmargin = 8,
+		text = "",
+		create = refresh,
+		refreshFeatures = refresh,
+		refreshCompanionTag = refresh,
+	}
+end
+
 local CreateFeatureSummary = function(feature, featuresList, index, parentPanel, DescribeFeature, options)
 	options = options or {}
 
@@ -245,6 +299,8 @@ local CreateFeatureSummary = function(feature, featuresList, index, parentPanel,
 
 		pointsCostPanel,
 
+		CompanionFlagTag(feature),
+
 		gui.ImplementationStatusIcon{
 			halign = "right",
             valign = "center",
@@ -261,7 +317,7 @@ local CreateFeatureSummary = function(feature, featuresList, index, parentPanel,
 			hmargin = 12,
 			click = function(element)
 				local fn = function(element, feature)
-					local editor = feature:PopupEditor()
+					local editor = feature:PopupEditor{ companionFlag = options.companionFlag }
 					editor.data.notifyElement = featurePanel --will receive refreshModifier events.
 					element.root:AddChild(editor)
 				end
@@ -368,6 +424,7 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 		nameLabel,
         pointsCostPanel,
         importedLabel,
+        CompanionFlagTag(feature),
 
 		gui.Button{
 			classes = {"deleteButton", "sizeXs"},
@@ -738,6 +795,14 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 			if BuildPrerequisitesEditor ~= nil then
 				bodyChildren[#bodyChildren+1] = BuildPrerequisitesEditor()
 			end
+			--A choice gets its box in its own editor; a feature list has none, so it goes here.
+			--Ticking the list sends every item in it to the companion.
+			if feature.typeName == "CharacterFeatureList" and OffersCompanionFlag(classOrRace) then
+				bodyChildren[#bodyChildren+1] = CharacterFeature.CompanionFlagCheck(feature, function()
+					resultPanel:FireEvent("change")
+					headerPanel:FireEventTree("refreshCompanionTag")
+				end)
+			end
 			if BuildTagEditor ~= nil then
 				bodyChildren[#bodyChildren+1] = BuildTagEditor()
 			end
@@ -769,6 +834,7 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 
 			bodyChildren[#bodyChildren+1] = feature:CreateEditor(classOrRace, {
 				change = function(element)
+					headerPanel:FireEventTree("refreshCompanionTag")
 					resultPanel:FireEvent("change")
 				end
 			})
@@ -944,11 +1010,13 @@ function ClassLevel:CreateEditor(classOrRace, levelNum, params)
 
 	BuildBody = function(element)
 			local children = {}
+			--Worked out once: it walks the whole class family.
+			local offersFlag = OffersCompanionFlag(classOrRace)
 
 			for i,feature in ipairs(self.features) do
 				local index = i
 				if feature.typeName == 'CharacterFeature' then
-					children[#children+1] = CreateFeatureSummary(feature, self.features, index, resultPanel, DescribeFeature)
+					children[#children+1] = CreateFeatureSummary(feature, self.features, index, resultPanel, DescribeFeature, {companionFlag = offersFlag})
 				else
 					children[#children+1] = CreateChoiceEditor(feature, self.features, index, resultPanel, classOrRace, {
 						change = function(element)
@@ -1576,6 +1644,14 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
                 end
             }
 
+            --Worked out once: it walks the whole class family. The options below use it too.
+            local offersFlag = OffersCompanionFlag(classOrRace)
+            if offersFlag then
+                children[#children+1] = CharacterFeature.CompanionFlagCheck(self, function()
+                    resultPanel:FireEvent('change')
+                end)
+            end
+
             if self.inheritChoice then
                 for i,ref in ipairs(self.inheritChoice) do
                     local resolved = ref:Resolve()
@@ -1701,7 +1777,7 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
 			for i,feature in ipairs(self.options) do
 				local index = i
 				if feature.typeName == 'CharacterFeature' then
-					children[#children+1] = CreateFeatureSummary(feature, self.options, index, resultPanel, nil, {points = self.costsPoints})
+					children[#children+1] = CreateFeatureSummary(feature, self.options, index, resultPanel, nil, {points = self.costsPoints, companionFlag = offersFlag})
 				else
 					children[#children+1] = CreateChoiceEditor(feature, self.options, index, resultPanel, classOrRace, {
                         points = self.costsPoints,

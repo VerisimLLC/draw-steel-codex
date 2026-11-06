@@ -926,8 +926,8 @@ local function OverviewAbilityFacets(ability)
     --Field test 21 (Ghoul Leap): effects can hide one level down - an
     --InvokeAbilityBehavior whose customAbility carries the real rule (Leap:
     --"1 damage; prone" in a nested DrawSteelCommandBehavior). The scanner
-    --recurses one level into invoked custom abilities and parses bare rule
-    --commands with the same tier-text parser.
+    --looks up to two levels into the abilities invokes hold (custom or a
+    --module's registered type) and parses bare rule commands with the same tier-text parser.
     local scanBehaviors
     scanBehaviors = function(behaviorList, depth)
         for _, behavior in ipairs(behaviorList or {}) do
@@ -1020,7 +1020,10 @@ local function OverviewAbilityFacets(ability)
                     end
                 end
             elseif tn == "ActivatedAbilityInvokeAbilityBehavior" and depth < 3 then
-                local invoked = behavior:try_get("customAbility")
+                --HeldAbility, not customAbility: it also covers module-registered invoke
+                --types, and ignores a leftover customAbility once the type was changed.
+                --The bound caster (when the bar's list bound one) lets a module's preview see who uses it.
+                local invoked = behavior:HeldAbility(ability:try_get("_tmp_boundCaster"))
                 if invoked ~= nil then
                     scanBehaviors(invoked:try_get("behaviors"), depth + 1)
                 end

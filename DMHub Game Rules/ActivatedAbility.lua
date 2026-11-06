@@ -24,6 +24,8 @@ end
 --- @field flavor string Flavor/lore text shown in the ability tooltip.
 --- @field range number|string|table Targeting range in world units.
 --- @field rangeOriginTokenId nil|string Serialized token id used as the targeting range origin.
+--- @field actingFromTokenId nil|string Charid of a creature whose space the caster uses this ability from, as if standing there. While it resolves, flanking, a burst's line of effect and triggers that measure to the ability's user all count from that creature (see ActivatedAbility.ActingFromToken).
+--- @field actingFromInherited nil|boolean Set on a part that an actingFromTokenId ability has the same creature cast. The part acts from the same space, and while it resolves ActivatedAbility.ActingFromToken keeps answering with the invoking cast's space instead of starting a new one.
 --- @field operatedByAdjacentCreature boolean An object's ability that an adjacent creature uses while the object stays the caster (Field Ballista's Release Bolt).
 --- @field grantedToAdjacentCreatures boolean An object's ability that adjacent creatures get as their own, usable only on the object (Field Ballista's Deactivate).
 --- @field operatorTokenId nil|string Charid of the creature operating the object, stamped on an operated ability's clone; that creature pays the action.
@@ -1723,7 +1725,17 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
 		return false
 	end
 
-    if self.targetType == "all" and casterToken.floorIndex == targetToken.floorIndex and casterToken:GetLineOfSight(targetToken, casterToken.properties:GetPierceWalls()) <= 0 then
+    --A burst sees its targets from the caster, or from the creature whose space it is used from.
+    local sightToken = casterToken
+    if self.targetType == "all" then
+        local actingFromId = self:try_get("actingFromTokenId")
+        local actingFrom = actingFromId ~= nil and dmhub.GetTokenById(actingFromId) or nil
+        if actingFrom ~= nil then
+            sightToken = actingFrom
+        end
+    end
+
+    if self.targetType == "all" and sightToken.floorIndex == targetToken.floorIndex and sightToken:GetLineOfSight(targetToken, casterToken.properties:GetPierceWalls()) <= 0 then
         --A sight-blocking object (a boulder, a solid block) hides its own square, so the engine reports no
         --sight to it. It still counts as reached if the line to one of its squares is stopped only at that
         --square's own edge (within 1 tile of its centre), not by something further out such as a wall.
@@ -1731,15 +1743,16 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
         local seen = false
         if targetToken.isObject then
             local pierce = casterToken.properties:GetPierceWalls()
-            local casterRadius = casterToken.tileSize * 0.5
+            local viewerRadius = sightToken.tileSize * 0.5
             for _,loc in ipairs(targetToken.locsOccupying) do
-                local info = casterToken:GetLineOfSightToSpaceInfo(loc, pierce)
-                --obstructionDist is a fraction of the sightline from the caster's EDGE to the square's centre,
-                --so scale it by that length. A square's own edge is at most ~0.71 tiles from its centre; a
-                --grid wall that does not touch the square is at least 1.5 away, so 1 tile splits the two.
-                local dx = loc.x - casterToken.loc.x
-                local dy = loc.y - casterToken.loc.y
-                local sightline = math.max(0, math.sqrt(dx*dx + dy*dy) - casterRadius)
+                local info = sightToken:GetLineOfSightToSpaceInfo(loc, pierce)
+                --obstructionDist is a fraction of the sightline from the viewer's EDGE (the caster,
+                --or the creature it acts from) to the square's centre, so scale it by that length.
+                --A square's own edge is at most ~0.71 tiles from its centre; a grid wall that does
+                --not touch the square is at least 1.5 away, so 1 tile splits the two.
+                local dx = loc.x - sightToken.loc.x
+                local dy = loc.y - sightToken.loc.y
+                local sightline = math.max(0, math.sqrt(dx*dx + dy*dy) - viewerRadius)
                 if info.cover > 0 or sightline * (1 - info.obstructionDist) <= 1 then
                     seen = true
                     break
@@ -2298,6 +2311,80 @@ function ActivatedAbility:FireUseAbility(casterToken, options)
             end
         end
 	end
+end
+
+--- One open cast in a caster's stack of "acting from" casts (see Cast).
+--- @class ActingFromEntry
+--- @field tokenid string|nil the creature whose space the caster acts from; nil for a cast that acts from its own square
+--- @field previous ActingFromEntry|nil the cast that was open underneath this one
+--- @field finished boolean set by the cast's finish handler
+--- @field options table the cast's options
+
+--Creatures using an ability "as if in another creature's space" right now: caster charid ->
+--the newest open cast. A cast that opens while another is still open (a trigger mid-roll)
+--goes on top; when it ends, the one underneath applies again.
+--- @type table<string, ActingFromEntry>
+local g_actingFrom = {}
+
+--- True once the cast that made this entry is over, even if its finish handlers never
+--- ran (one before them threw, or the cast was abandoned while stuck on a prompt).
+--- @param entry ActingFromEntry
+--- @return boolean
+local function ActingFromOver(entry)
+	local options = entry.options
+	return entry.finished or options.executedFinish == true or (options.abort == true and options.stopProcessing == true)
+end
+
+--- A creature's newest acting-from cast that is still open, or nil. Casts that
+--- are over but whose finish handler never removed them are dropped on the way.
+--- @param charid string
+--- @return ActingFromEntry|nil
+local function LiveActingFrom(charid)
+	local entry = g_actingFrom[charid]
+	while entry ~= nil and ActingFromOver(entry) do
+		entry = entry.previous
+	end
+	g_actingFrom[charid] = entry
+	return entry
+end
+
+--- The token whose space a creature acts from while one of its abilities
+--- stamped with actingFromTokenId resolves (content that lets a hero use an
+--- ability as if in its companion's space). Flanking reads it; triggers that
+--- measure to the ability's user read the stamp on the event's ability instead.
+--- While a newer cast of the creature's own is open on top (a trigger mid-roll),
+--- it is nil: that cast acts from the creature's own square.
+--- Only the client running the cast knows it: flanking worked out on another
+--- client (a Director's reaction, say) uses the hero's own square.
+--- @param charid string
+--- @return nil|CharacterToken
+function ActivatedAbility.ActingFromToken(charid)
+	local entry = LiveActingFrom(charid)
+	if entry == nil or entry.tokenid == nil then
+		return nil
+	end
+	return dmhub.GetTokenById(entry.tokenid)
+end
+
+--- Every creature acting from another's space right now, as one string
+--- ("caster>standin" pairs, sorted; "" when none). It changes exactly when
+--- ActingFromToken's answer changes for some creature, so the creature cache
+--- uses it as part of every key (registered in MCDMCreature.lua).
+--- @return string
+function ActivatedAbility.ActingFromSignature()
+	if next(g_actingFrom) == nil then
+		return ""
+	end
+	local parts = {}
+	--LiveActingFrom may replace or clear the entry being visited; pairs allows that (only adding keys is not).
+	for charid,_ in pairs(g_actingFrom) do
+		local entry = LiveActingFrom(charid)
+		if entry ~= nil and entry.tokenid ~= nil then
+			parts[#parts+1] = charid .. ">" .. entry.tokenid
+		end
+	end
+	table.sort(parts)
+	return table.concat(parts, ",")
 end
 
 --- The creature operating an object for this cast, when this ability is an
@@ -3318,6 +3405,31 @@ function ActivatedAbility:Cast(casterToken, targets, options)
 		options.symbols.upcast = self.castingLevel - self:try_get("level", 1)
 	end
 
+    --Used as if in another creature's space: flanking counts that space until the cast finishes.
+    --Parts it invokes (actingFromInherited) share that space; any other cast by this caster while
+    --it is open (a trigger mid-roll) acts from the caster's own square.
+    local clearActingFrom = nil
+    local casterId = casterToken.charid
+    local actingFromId = self:try_get("actingFromTokenId")
+    local inherited = self:try_get("actingFromInherited", false)
+    local stamped = actingFromId ~= nil and actingFromId ~= casterId and not inherited
+    if stamped or (g_actingFrom[casterId] ~= nil and not inherited) then
+        --tokenid nil: this cast acts from the caster's own square while an older one stays open.
+        ---@type ActingFromEntry
+        local entry = {tokenid = stamped and actingFromId or nil, previous = g_actingFrom[casterId], finished = false, options = options}
+        clearActingFrom = function()
+            entry.finished = true
+            if g_actingFrom[casterId] == entry then
+                g_actingFrom[casterId] = entry.previous
+            end
+        end
+        g_actingFrom[casterId] = entry
+    end
+    if clearActingFrom ~= nil then
+        options.OnFinishCastHandlers = options.OnFinishCastHandlers or {}
+        options.OnFinishCastHandlers[#options.OnFinishCastHandlers+1] = clearActingFrom
+    end
+
 	local continueCasting = nil
 	casterToken:ModifyProperties{
 		description = "Cast Spell",
@@ -3368,6 +3480,10 @@ function ActivatedAbility:Cast(casterToken, targets, options)
 
 	if continueCasting ~= nil then
 		continueCasting()
+	elseif clearActingFrom ~= nil then
+		--The instant part errored (ModifyProperties logs it and returns), so
+		--FinishCast will not run to clear it.
+		clearActingFrom()
 	end
 end
 

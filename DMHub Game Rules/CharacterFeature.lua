@@ -9,6 +9,7 @@ local mod = dmhub.GetModLoading()
 --- @field new fun(o?: table): CharacterFeature
 --- @field guid nil|string Unique identifier for this feature instance.
 --- @field name nil|string Display name of the feature.
+--- @field appliesToCompanion nil|boolean True when this class feature goes to the hero's companion instead (see Class.FillChildChoice).
 --- @field source nil|string Human-readable source description (e.g. "Fighter", "Race Trait").
 --- @field description nil|string Flavor/rules description shown to the player.
 --- @field modifiers nil|CharacterModifier[] The modifiers that this feature applies to the creature.
@@ -387,6 +388,44 @@ CharacterFeature.ModifierStyles = {
 	},
 }
 
+--- The "applies to companion" checkbox for a feature or feature-choice editor, or nil
+--- when no companion kind asks for it (CompanionKind.Register with featureFlagLabel).
+--- Ticked, the node and everything chosen under it go to the hero's companion
+--- instead of the hero (see Class.FillChildChoice).
+--- @param node CharacterFeature|CharacterChoice
+--- @param onchange nil|fun() Called after the flag changes.
+--- @return Panel|nil
+function CharacterFeature.CompanionFlagCheck(node, onchange)
+	--rawget: the companion code loads after this file and may be absent.
+	local companionKind = rawget(_G, "CompanionKind")
+	if companionKind == nil then
+		return nil
+	end
+	local label, tooltip = companionKind.FeatureFlagText()
+	if label == nil then
+		return nil
+	end
+	return gui.Check{
+		text = label,
+		value = Class.IsCompanionFlagged(node),
+		hover = function(element)
+			if tooltip ~= nil then
+				gui.Tooltip(tooltip)(element)
+			end
+		end,
+		change = function(element)
+			if element.value then
+				node.appliesToCompanion = true
+			else
+				node.appliesToCompanion = nil
+			end
+			if onchange ~= nil then
+				onchange()
+			end
+		end,
+	}
+end
+
 --- Creates the full editor UI panel for this feature.
 --- @param editorPanelOptions nil|table Options controlling panel behaviour (e.g. noscroll).
 --- @return Panel
@@ -407,6 +446,11 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 	end
 
 	editorPanelOptions.collapseDescription = nil
+
+	--Only the class editor asks for the "applies to companion" checkbox: elsewhere
+	--(effects, conditions, ancestries) the flag would do nothing.
+	local companionFlag = editorPanelOptions.companionFlag
+	editorPanelOptions.companionFlag = nil
 
 	-- Themed path always-on (matches the sectioned Ability Editor).
 	-- rawget guards against load order where CharacterFeature might be
@@ -941,6 +985,9 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 	} do
 		innerRows[#innerRows+1] = row
 	end
+	if companionFlag then
+		innerRows[#innerRows+1] = CharacterFeature.CompanionFlagCheck(self)
+	end
 	innerRows[#innerRows+1] = metaRow
 	innerRows[#innerRows+1] = modifiersPanel
 
@@ -1111,6 +1158,7 @@ function CharacterFeature:PopupEditor(options)
 	--told to refresh.
 	--options.cancel: called with the feature after Cancel has restored it, so
 	--a caller that added the feature just to edit it can take it back out.
+	--options.companionFlag: show the "applies to companion" checkbox (class editor).
 	local commit = options.commit
 	local cancel = options.cancel
 
@@ -1124,6 +1172,7 @@ function CharacterFeature:PopupEditor(options)
 	local abilityEditor = rawget(_G, "AbilityEditor")
 
 	local contentPanel = self:EditorPanel{
+		companionFlag = options.companionFlag,
 		modifierRefreshed = function(element)
 			if commit ~= nil then
 				commit(self)

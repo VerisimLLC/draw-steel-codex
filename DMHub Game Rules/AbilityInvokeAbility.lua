@@ -19,6 +19,65 @@ ActivatedAbilityInvokeAbilityBehavior = RegisterGameType("ActivatedAbilityInvoke
 --- @field timestamp number|string Server time once the server resolves it; the ServerTimestamp() placeholder string until then.
 AbilityInvocation = RegisterGameType("AbilityInvocation")
 
+--- @class InvokeTargetType
+--- @field id string stored in the behavior's abilityType
+--- @field text string the editor's Type dropdown text
+--- @field resolve fun(behavior: ActivatedAbilityInvokeAbilityBehavior, casterToken: CharacterToken): ActivatedAbility|nil the ability to invoke, asked for once per cast; every target gets its own copy, so it may return a shared or cached ability; nil invokes nothing. Return the ability before the invoker's bonuses: the copy goes through the invoker's modifiers (its kit's included, where the keywords match) and then its PostProcessInvokedAbility
+--- @field preview nil|fun(behavior: ActivatedAbilityInvokeAbilityBehavior, caster: creature|nil): ActivatedAbility|nil optional: the ability as code outside a cast should see it (the ability card's tier table, whether the invoke counts as a signature ability or free strike). Callers only read the result, so it may be a shared or cached ability. caster can be nil (a card with no token); without preview those readers see nothing. The Monster AI plans with it and then casts what resolve returns, so return the same ability (name and behaviors) resolve will.
+
+--Invoke target types a module added (RegisterTargetType), by id. Kept on the
+--global table so reloading only this file does not lose them.
+--- @type table<string, InvokeTargetType>
+g_extraInvokeTargetTypes = rawget(_G, "g_extraInvokeTargetTypes") or {}
+local g_extraTargetTypes = g_extraInvokeTargetTypes
+
+--- Add an entry to the Invoke Ability behavior's Type list. At cast time its
+--- resolve function supplies the ability, which is then cast the way a
+--- "Custom Ability" is: the invoking ability's modifiers and parameters apply,
+--- and the invoker always casts it (the "Target Player Casts" option is hidden).
+--- Registering an id again replaces it. The built-in ids (custom, named, standard,
+--- chooseClassAbility) are refused with an error.
+--- @param args InvokeTargetType
+function ActivatedAbilityInvokeAbilityBehavior.RegisterTargetType(args)
+	--A built-in type's id would take over every existing invoke of that type.
+	if args.id == "custom" or args.id == "named" or args.id == "standard" or args.id == "chooseClassAbility" then
+		dmhub.Error(string.format("Invoke Ability: %s is a built-in type; register under another id", args.id))
+		return
+	end
+	g_extraTargetTypes[args.id] = args
+end
+
+--- True when the invoke casts an ability it holds rather than one looked up by
+--- name or id: "Custom Ability" and every registered target type.
+--- @return boolean
+function ActivatedAbilityInvokeAbilityBehavior:CastsAsCustom()
+	return self.abilityType == "custom" or g_extraTargetTypes[self.abilityType] ~= nil
+end
+
+--- The ability this invoke holds, for code that reads it outside a cast (an ability
+--- card's tier table, whether it counts as a strike): "Custom Ability"'s own ability,
+--- or a registered type's preview. Nil for other types and when there is none.
+--- Treat the result as read-only.
+--- @param caster creature|nil
+--- @return ActivatedAbility|nil
+function ActivatedAbilityInvokeAbilityBehavior:HeldAbility(caster)
+	if self.abilityType == "custom" then
+		--customAbility has no class default, so read it safely.
+		return self:try_get("customAbility")
+	end
+	local registeredType = g_extraTargetTypes[self.abilityType]
+	if registeredType == nil or registeredType.preview == nil then
+		return nil
+	end
+	--Cards redraw often, so a module's error is printed rather than raised as a popup.
+	local ok, result = pcall(registeredType.preview, self, caster)
+	if not ok then
+		print(string.format("INVOKE:: type %s preview failed: %s", self.abilityType, tostring(result)))
+		return nil
+	end
+	return result
+end
+
 AbilityUtils = {
 	--utility to scan an ability for e.g. <<range>> and extract all parameters.
 	ExtractAbilityParameters = function(node, output)
@@ -515,21 +574,26 @@ local function GatherClassAbilities(casterToken)
                     known = known,
                 }
 
+                --Class content marked "applies to companion" belongs to the companion, so the hero is never offered it.
                 for _,feature in ipairs(levelEntry:try_get("features", {})) do
-                    if feature.typeName == "CharacterFeatureChoice" then
+                    if Class.IsCompanionFlagged(feature) then
+                        --skip it and everything under it
+                    elseif feature.typeName == "CharacterFeatureChoice" then
                         for _,option in ipairs(feature:GetOptions(levelChoices)) do
-                            --A feature is only offered if every prerequisite on it is
-                            --met. Exposed as a symbol rather than filtered out here so
-                            --content can choose to ignore it.
-                            local prerequisitesMet = true
-                            for _,prerequisite in ipairs(rawget(option, "prerequisites") or {}) do
-                                if not prerequisite:Met(creature) then
-                                    prerequisitesMet = false
+                            if not Class.IsCompanionFlagged(option) then
+                                --A feature is only offered if every prerequisite on it is
+                                --met. Exposed as a symbol rather than filtered out here so
+                                --content can choose to ignore it.
+                                local prerequisitesMet = true
+                                for _,prerequisite in ipairs(rawget(option, "prerequisites") or {}) do
+                                    if not prerequisite:Met(creature) then
+                                        prerequisitesMet = false
+                                    end
                                 end
-                            end
 
-                            info.prerequisitesMet = prerequisitesMet
-                            CollectFeatureAbilities(option, info, result)
+                                info.prerequisitesMet = prerequisitesMet
+                                CollectFeatureAbilities(option, info, result)
+                            end
                         end
                     else
                         info.prerequisitesMet = true
@@ -806,6 +870,22 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
         end
     end
 
+    --A module's target type supplies its ability once, up front, like the pick above.
+    local registeredAbility = nil
+    local registeredType = g_extraTargetTypes[self.abilityType]
+    if registeredType ~= nil then
+        --A module's error is logged and the invoke does nothing; nothing has been paid yet.
+        local ok, resolved = pcall(registeredType.resolve, self, casterToken)
+        if not ok then
+            dmhub.Error(string.format("Invoke Ability type %s failed: %s", self.abilityType, tostring(resolved)))
+            return
+        end
+        registeredAbility = resolved
+        if registeredAbility == nil then
+            return
+        end
+    end
+
     local promptWhenResolving = self:try_get("promptWhenResolving", false)
     local rangeOrigin = self:try_get("rangeOrigin", "")
 
@@ -1039,7 +1119,7 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                 --squad is only set up around the local cast further down.
                 if skipInvoke then
                     print("INVOKE:: No valid movement constraint anchor; skipping", ability.name)
-                elseif self.runOnController and TokenPromptControllerId(target.token) ~= nil and self.abilityType ~= "custom" and self.abilityType ~= "chooseClassAbility" and overrideSquadMembers == nil then
+                elseif self.runOnController and TokenPromptControllerId(target.token) ~= nil and not self:CastsAsCustom() and self.abilityType ~= "chooseClassAbility" and overrideSquadMembers == nil then
 
                     --Clean out the ability so we don't copy too much, and make the
                     --cast serialization-safe: it holds live objects (targets[].token
@@ -1155,6 +1235,12 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                         end
                     elseif self.abilityType == "custom" then
                         abilityTemplate = self.customAbility
+                    elseif registeredAbility ~= nil then
+                        --Copied per target: resolve may hand back a shared or cached ability, and
+                        --one target's modifiers must not change it for the next. Marked as a
+                        --temporary clone so MakeTemporaryClone below uses this copy instead of copying again.
+                        abilityTemplate = DeepCopy(registeredAbility)
+                        abilityTemplate._tmp_temporaryClone = true
                     elseif self.abilityType == "standard" then
                         local t = dmhub.GetTable("standardAbilities") or {}
                         abilityTemplate = t[self.standardAbility]
@@ -1176,8 +1262,8 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                         --its own action cost as well as the invoking ability's. When the
                         --invoker already charges the action for the whole package, that
                         --double-charge makes the invoked ability unaffordable, so clear it.
-                        --Safe to do on the clone: for custom/standard MakeTemporaryClone
-                        --returned a fresh copy, and chooseClassAbility DeepCopies per target.
+                        --Safe to do on the clone: it always belongs to this target alone
+                        --(the types that pick their ability up front copy it per target).
                         --The invoker's action type is kept so rules keyed on it still see the
                         --real action: Critical Hit needs Ability.Action on the roll this clone makes.
                         if self:try_get("suppressInvokedActionCost", false) then
@@ -1196,7 +1282,7 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                             abilityClone._tmp_payInvokedCost = true
                         end
 
-                        if self.abilityType == "standard" or self.abilityType == "custom" then
+                        if self.abilityType == "standard" or self:CastsAsCustom() then
 
                             local allParameters = {}
                             AbilityUtils.ExtractAbilityParameters(abilityClone, allParameters)
@@ -1206,10 +1292,16 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                                 invoker = GenerateSymbols(casterToken.properties),
                                 parenttarget = symbols.parenttarget,
                             })
-                            for k,v in pairs(self:try_get("standardAbilityParams", {})) do
-                                allParameters[k] = nil
-                                local str = AbilityUtils.SubstituteAbilityParameters(v, casterToken.properties:LookupSymbol(parameterSymbols))
-                                AbilityUtils.DeepReplaceAbility(abilityClone, "<<"..k..">>", str)
+                            --A registered type sets no parameters (the editor hides them), so values
+                            --left from an earlier Custom or Standard setup must not reach its ability.
+                            local setParameters = {}
+                            if registeredAbility == nil then
+                                setParameters = self:try_get("standardAbilityParams", {})
+                            end
+                            for paramName,paramValue in pairs(setParameters) do
+                                allParameters[paramName] = nil
+                                local str = AbilityUtils.SubstituteAbilityParameters(paramValue, casterToken.properties:LookupSymbol(parameterSymbols))
+                                AbilityUtils.DeepReplaceAbility(abilityClone, "<<"..paramName..">>", str)
                             end
                             for k,_ in pairs(allParameters) do
                                 --clear out any parameters we didn't explicitly set.
@@ -1250,7 +1342,7 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                         --them through it here so a borrowed class ability picks up the
                         --character's kit, feats and other bonuses exactly as it would if
                         --they had actually learned it.
-                        if (self.abilityType == "custom" or self.abilityType == "chooseClassAbility") and target.token ~= nil and target.token.properties ~= nil then
+                        if (self:CastsAsCustom() or self.abilityType == "chooseClassAbility") and target.token ~= nil and target.token.properties ~= nil then
                             local invokerCreature = target.token.properties
                             abilityClone = abilityClone:BifurcateIntoMeleeAndRanged(invokerCreature)
                             for _, mod in ipairs(invokerCreature:GetActiveModifiers()) do
@@ -1437,6 +1529,14 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                             end
                         else
                             invokerToken = target.token
+                        end
+
+                        --An ability used from another creature's space casts the part it invokes
+                        --from there too, when the same creature casts that part.
+                        local actingFromId = ability:try_get("actingFromTokenId")
+                        if actingFromId ~= nil and invokerToken ~= nil and invokerToken.charid == casterToken.charid then
+                            abilityClone.actingFromTokenId = actingFromId
+                            abilityClone.actingFromInherited = true
                         end
 
                         --The caster's own free follow-up (like A Squad Unto Myself's attack) is part
@@ -1638,6 +1738,13 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
     --Prompt handlers can replace a wrapper ability with a concrete synthesized
     --ability (for example, choosing Melee Free Strike from the generic Free
     --Strike prompt). Every replacement still needs the invoke lifecycle hooks.
+    --A part invoked from another creature's space (actingFromInherited) keeps that space
+    --when a prompt or synthesized choice replaces it; the replacement is a new ability.
+    local inheritedActingFromId = nil
+    if abilityClone:try_get("actingFromInherited", false) then
+        inheritedActingFromId = abilityClone:try_get("actingFromTokenId")
+    end
+
     local installCastCallbacks = function(castAbility)
         local priorBeginCast = castAbility:try_get("OnBeginCast")
         local priorFinishCast = castAbility:try_get("OnFinishCast")
@@ -1645,6 +1752,11 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
         castAbility.OnBeginCast = function(beginAbility, castOptions)
             if priorBeginCast then
                 priorBeginCast(beginAbility, castOptions)
+            end
+            --Cast reads actingFromTokenId right after OnBeginCast, so set it here.
+            if inheritedActingFromId ~= nil and beginAbility:try_get("actingFromTokenId") == nil then
+                beginAbility.actingFromTokenId = inheritedActingFromId
+                beginAbility.actingFromInherited = true
             end
             casting = true
             installFinishHandler(castOptions)
@@ -2039,6 +2151,24 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
 		}
 	}
 
+	--The built-in types, then the ones modules registered, in name order.
+	local typeOptions = {
+		{ text = "Custom Ability", id = "custom" },
+		{ text = "Named Ability", id = "named" },
+		{ text = "Choose Class Ability", id = "chooseClassAbility" },
+	}
+	if dmhub.GetTable("standardAbilities") ~= nil then
+		typeOptions[#typeOptions+1] = { text = "Standard Ability", id = "standard" }
+	end
+	local registeredOptions = {}
+	for id,targetType in pairs(g_extraTargetTypes) do
+		registeredOptions[#registeredOptions+1] = { text = targetType.text, id = id }
+	end
+	table.sort(registeredOptions, function(first, second) return first.text < second.text end)
+	for _,option in ipairs(registeredOptions) do
+		typeOptions[#typeOptions+1] = option
+	end
+
 	-- Type row uses the stacked-label default (label above, controls
 	-- below) like the other form rows. The dropdown + Edit Ability
 	-- button share a horizontal sub-panel on the second line so the
@@ -2058,12 +2188,7 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
 			halign = "left",
 			valign = "center",
 			gui.Dropdown{
-				options = {
-					{ text = "Custom Ability", id = "custom" },
-					{ text = "Named Ability", id = "named" },
-					{ text = "Choose Class Ability", id = "chooseClassAbility" },
-					cond(dmhub.GetTable("standardAbilities") ~= nil, { text = "Standard Ability", id = "standard" } ),
-				},
+				options = typeOptions,
 				idChosen = self.abilityType,
 				change = function(element)
 					---@cast element Dropdown
@@ -2249,14 +2374,14 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
 	}
 
 	result[#result+1] = gui.Check{
-		classes = {cond(self.abilityType == "custom", "collapsed-anim")},
+		classes = {cond(self:CastsAsCustom(), "collapsed-anim")},
 		text = "Target Player Casts",
 		value = self.runOnController,
 		change = function(element)
 			self.runOnController = element.value
 		end,
 		refreshInvoke = function(element)
-			element:SetClass("collapsed-anim", self.abilityType == "custom")
+			element:SetClass("collapsed-anim", self:CastsAsCustom())
 		end,
 	}
 
@@ -2329,9 +2454,11 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
 			abilityTypeCached = nil,
 		},
 		create = function(element)
-			element:SetClass("collapsed", self.abilityType == "named")
+			--A registered type's ability is only known at cast time, so it has no parameters to set here.
+			local noParameters = self.abilityType == "named" or g_extraTargetTypes[self.abilityType] ~= nil
+			element:SetClass("collapsed", noParameters)
 
-			if self.abilityType == "named" or element.data.abilityTypeCached == self.standardAbility then
+			if noParameters or element.data.abilityTypeCached == self.standardAbility then
 				element.children = {}
 				return
 			end

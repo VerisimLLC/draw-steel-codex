@@ -8,8 +8,169 @@ AnimalCompanion = RegisterGameType("AnimalCompanion", "monster")
 
 creature.companionid = false
 
-function creature:IsCompanion()
+--- @class CompanionKindInfo
+--- @field typeName string Game type name of the companion's stat blocks.
+--- @field keywords string[] Ability keywords reserved for this companion: heroes and other creatures leave abilities with them out by default.
+--- @field featureFlagLabel nil|string Label for the class-editor "applies to companion" checkbox.
+--- @field featureFlagTooltip nil|string Tooltip for that checkbox.
+--- @field ownHeroPanel boolean True when the kind draws its own hero-panel section.
+--- @field choiceTypeName nil|string Type name of the choice a class uses to offer this companion. Needed for the checkbox: the class editor shows it only on class families that contain this choice, so a kind with featureFlagLabel but no choiceTypeName shows it nowhere.
+
+--- Companion kinds other than the Beastheart's own. A class whose hero gets a
+--- companion with different rules (a subtype of AnimalCompanion) registers it
+--- here; the companion hooks read this table and do nothing for other kinds.
+--A reload of just this file keeps the kinds other modules registered.
+CompanionKind = rawget(_G, "CompanionKind") or {}
+
+--- @type table<string, CompanionKindInfo>
+CompanionKind.kinds = CompanionKind.kinds or {}
+
+--- Register a companion kind. Calling it again for the same typeName replaces it,
+--- except that its keywords are only ever added: a keyword reserved once stays reserved.
+--- @param args {typeName: string, keywords?: string[], featureFlagLabel?: string, featureFlagTooltip?: string, ownHeroPanel?: boolean, choiceTypeName?: string}
+function CompanionKind.Register(args)
+    CompanionKind.kinds[args.typeName] = {
+        typeName = args.typeName,
+        keywords = args.keywords or {},
+        featureFlagLabel = args.featureFlagLabel,
+        featureFlagTooltip = args.featureFlagTooltip,
+        ownHeroPanel = args.ownHeroPanel == true,
+        choiceTypeName = args.choiceTypeName,
+    }
+    for _, keyword in ipairs(args.keywords or {}) do
+        creature.AddCompanionKeyword(keyword)
+    end
+end
+
+--- The kind a bestiary entry belongs to, or nil for any other stat block.
+--- @param bestiaryId nil|string
+--- @return CompanionKindInfo|nil
+function CompanionKind.ForBestiaryId(bestiaryId)
+    if bestiaryId == nil then
+        return nil
+    end
+    local asset = assets.monsters[bestiaryId]
+    if asset == nil or asset.properties == nil then
+        return nil
+    end
+    return CompanionKind.kinds[asset.properties.typeName]
+end
+
+--- The checkbox label and tooltip for the "applies to companion" flag, or nil
+--- when no registered kind asks for the checkbox. With several kinds the label
+--- falls back to the generic word.
+--- @return nil|string label
+--- @return nil|string tooltip
+function CompanionKind.FeatureFlagText()
+    local label, tooltip, count = nil, nil, 0
+    for _, kind in pairs(CompanionKind.kinds) do
+        if kind.featureFlagLabel ~= nil then
+            count = count + 1
+            label = kind.featureFlagLabel
+            tooltip = kind.featureFlagTooltip
+        end
+    end
+    if count > 1 then
+        return "Companion", "Applies to the companion instead of the hero."
+    end
+    return label, tooltip
+end
+
+--- True when the class editor should offer the "applies to companion" checkbox on
+--- this class or subclass: its family (the class and all its subclasses) contains the
+--- choice that picks a kind asking for the checkbox. Other classes have no companion
+--- for ticked content to go to, so they never show it.
+--- @param class Class a class or subclass
+--- @return boolean
+function CompanionKind.ClassOffersFlag(class)
+    local choiceTypes = {}
+    for _, kind in pairs(CompanionKind.kinds) do
+        if kind.featureFlagLabel ~= nil and kind.choiceTypeName ~= nil then
+            choiceTypes[kind.choiceTypeName] = true
+        end
+    end
+    if next(choiceTypes) == nil then
+        return false
+    end
+
+    local parentId = class.id
+    if class.primaryClassId ~= "" then
+        parentId = class.primaryClassId
+    end
+    --The edited class itself (it may hold unsaved edits), not its stored row too.
+    local family = { class }
+    local parent = dmhub.GetTable(Class.tableName)[parentId]
+    if parent ~= nil and parent.id ~= class.id then
+        family[#family + 1] = parent
+    end
+    for _, subclass in unhidden_pairs(dmhub.GetTable("subclasses") or {}) do
+        if subclass.primaryClassId == parentId and subclass.id ~= class.id then
+            family[#family + 1] = subclass
+        end
+    end
+
+    local found = false
+    for _, member in ipairs(family) do
+        for _, level in pairs(member:try_get("levels") or {}) do
+            level:VisitAllFeatures(function(node)
+                if choiceTypes[node.typeName] then
+                    found = true
+                end
+            end)
+            if found then
+                return true
+            end
+        end
+    end
     return false
+end
+
+--- The class and subclass features this hero's content flags as applying to its
+--- companion, with their chosen options (see Class:FillCompanionFeaturesForLevel).
+--- Prerequisites are checked against the hero. Cached for one game update, since
+--- the companion asks on every modifier pass.
+--- @return CharacterFeature[]
+function character:GetCompanionClassFeatures()
+    --Check both: the game update number changes only when cloud data arrives, but the
+    --hero's cache number changes as soon as a local edit rebuilds its modifiers.
+    local serial = CreatureCache.SerialOf(self)
+    local cached = self:try_get("_tmp_companionClassFeatures")
+    if cached ~= nil and cached.update == dmhub.ngameupdate and cached.serial == serial then
+        --a copy, so a caller that adds to or sorts the list can't change the cache.
+        return { table.unpack(cached.features) }
+    end
+
+    local features = {}
+    local levelChoices = self:GetLevelChoices()
+    for i, entry in ipairs(self:GetClassesAndSubClasses()) do
+        entry.class:FillCompanionFeaturesForLevel(levelChoices, entry.level, self:ExtraLevelInfo(), i ~= 1, features)
+    end
+
+    --Same rule as the hero's own class features: any one prerequisite met is enough.
+    local passed = {}
+    for _, feature in ipairs(features) do
+        local prerequisites = feature:try_get("prerequisites") or {}
+        local met = #prerequisites == 0
+        for _, prerequisite in ipairs(prerequisites) do
+            if prerequisite:Met(self) then
+                met = true
+                break
+            end
+        end
+        if met then
+            passed[#passed + 1] = feature
+        end
+    end
+
+    --read the serial afterwards: checking prerequisites may rebuild the hero's modifiers.
+    self._tmp_companionClassFeatures = { update = dmhub.ngameupdate, serial = CreatureCache.SerialOf(self), features = passed }
+    return { table.unpack(passed) }
+end
+
+--- Only a hero has class features to give a companion.
+--- @return CharacterFeature[]
+function creature:GetCompanionClassFeatures()
+    return {}
 end
 
 --- Return the beastheart's sticky name override for a given companion type,
@@ -658,8 +819,8 @@ end
 
 -- Companion-keyword abilities normally belong to the companion: every creature
 -- drops them via g_defaultExcludeKeywords in creature:GetActivatedAbilities, and
--- AnimalCompanion mirrors that by excluding "Beastheart" instead. Content that
--- lets a beastheart use them (the Werewolf Tooth Pendant's hybrid form) sets the
+-- AnimalCompanion excludes "Beastheart" and the other kinds' keywords instead.
+-- Content that lets a beastheart use them (the Werewolf Tooth Pendant's hybrid form) sets the
 -- attribute below, which clears the exclusion for that character only. The
 -- abilities are already on the beastheart -- this only stops them being filtered.
 --
@@ -672,7 +833,9 @@ function character:GetActivatedAbilities(options)
     if (options == nil or options.excludeKeywords == nil)
        and CustomAttributeValue(self, g_useCompanionAbilitiesSymbol) > 0 then
         options = table.shallow_copy(options or {})
-        options.excludeKeywords = {}
+        --Only the Companion keyword is let through: keywords other companion kinds
+        --reserved still belong to those companions.
+        options.excludeKeywords = creature.OtherCompanionKeywords({"Companion"})
     end
 
     return g_baseCharacterGetActivatedAbilities(self, options)
@@ -1333,7 +1496,10 @@ end
 
 function AnimalCompanion:GetActivatedAbilities(options)
 	options = table.shallow_copy(options or {})
-    options.excludeKeywords = {"Beastheart"}
+    --Keywords other companion kinds reserved stay with those companions, even when
+    --the Beastheart hero has such an ability (shared content, a multiclass).
+    options.excludeKeywords = creature.OtherCompanionKeywords({"Companion"})
+    options.excludeKeywords[#options.excludeKeywords + 1] = "Beastheart"
     --The beastheart's kit signature ability belongs to the beastheart only;
     --the companion shouldn't pick it up when deriving abilities from the
     --summoner. (Kit features that appear via Companion-keyword channels are

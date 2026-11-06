@@ -10,6 +10,30 @@ local mod = dmhub.GetModLoading()
 
 HeroSheetInventory = rawget(_G, "HeroSheetInventory") or {}
 
+--- @class HeroInventoryListSection
+--- @field id string
+--- @field create fun(): Panel builds the section; a HeroSheetRefresh block repaints with the Hero
+
+--Sections a module adds below the item list (RegisterListSection), in order.
+--Kept on the global table so reloading only this file does not lose them.
+--- @type HeroInventoryListSection[]
+local g_listSections = HeroSheetInventory.listSections or {}
+HeroSheetInventory.listSections = g_listSections
+
+--- Add a section below the Inventory tab's item list (a companion's gear, for
+--- example). create() runs each time a tab is built. Registering an id again
+--- replaces it.
+--- @param args HeroInventoryListSection
+function HeroSheetInventory.RegisterListSection(args)
+    for i, section in ipairs(g_listSections) do
+        if section.id == args.id then
+            g_listSections[i] = args
+            return
+        end
+    end
+    g_listSections[#g_listSections+1] = args
+end
+
 --The token radial's Inventory button opens this tab for a Hero, as the
 --inventory keybind does; other tokens keep the old grid. If ShowInventory is
 --still this wrapper (only this file was reloaded), wrap the stored original;
@@ -1279,6 +1303,15 @@ function HeroSheetInventory.Create()
         tmargin = 18,
     }
     groupPanels[#groupPanels+1] = empty
+    for _, section in ipairs(g_listSections) do
+        --A module's broken section is left out rather than breaking the whole tab.
+        local ok, panel = pcall(section.create)
+        if ok then
+            groupPanels[#groupPanels+1] = panel
+        else
+            dmhub.Error(string.format("Inventory section %s failed: %s", section.id, tostring(panel)))
+        end
+    end
     local listContent = gui.Panel{
         width = "100%-12",
         height = "auto",

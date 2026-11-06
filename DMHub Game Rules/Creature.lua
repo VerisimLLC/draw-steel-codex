@@ -6690,7 +6690,8 @@ function creature:FillBaseActiveModifiers(result)
     local isretainer = self:IsRetainer()
 	local ismonster = (not isretainer) and self:IsMonster()
 	local ischaracter = self.typeName == "character"
-    local iscompanion = self.typeName == "AnimalCompanion"
+    --Asked of the creature, not its type name, so a companion subtype gets the companion rules too.
+    local iscompanion = self:IsCompanion()
 
 	--global features first, to do base-level rules like critical hits etc. GetActiveRuleMods also
 	--folds in the rules from any rule-set attached to the currently-live encounter, so encounter
@@ -15354,4 +15355,11 @@ end
 --- @return boolean
 function monster:IsMonster()
     return true
+end
+
+--- Returns false for most creatures; a hero's companion type (the Beastheart's
+--- AnimalCompanion and its subtypes) overrides it to true.
+--- @return boolean
+function creature:IsCompanion()
+    return false
 end

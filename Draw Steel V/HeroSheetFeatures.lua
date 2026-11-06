@@ -568,6 +568,13 @@ local function AddTitles(ctx)
                 for _, sub in ipairs(feature:try_get("features", {})) do
                     Walk(sub, depth + 1)
                 end
+            elseif typeName == "CharacterSkillChoice" or typeName == "CharacterLanguageChoice" then
+                --a benefit that is itself a pick: chosen in the Titles window,
+                --or in the Skills and Languages windows.
+                benefits[#benefits+1] = feature
+                if Unspent(feature, ctx.creature) > 0 then
+                    todo = title.id
+                end
             else
                 benefits[#benefits+1] = feature
             end

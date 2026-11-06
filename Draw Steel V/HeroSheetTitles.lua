@@ -52,7 +52,7 @@ local function BenefitChoices(title)
     return choices
 end
 
---- @param choice CharacterFeatureChoice
+--- @param choice any a choice, or an option that may be one (options read safely)
 --- @return CharacterFeature[]
 local function Options(choice)
     local options = {}
@@ -64,7 +64,7 @@ end
 
 --- The picked option's guid, or nil. A pick the title no longer offers (it was
 --- edited after the pick) reads as none, so it can be chosen again.
---- @param choice CharacterFeatureChoice
+--- @param choice CharacterChoice
 --- @param levelChoices table
 --- @return nil|string
 local function Picked(choice, levelChoices)
@@ -77,6 +77,53 @@ local function Picked(choice, levelChoices)
         end
     end
     return nil
+end
+
+--The choices a benefit can end in that pick from every skill or language, not
+--from options of their own. Their guids hold skill or language ids.
+local LIST_CHOICES = {
+    CharacterSkillChoice = "skill",
+    CharacterLanguageChoice = "language",
+}
+
+--The words for a group's pick count ("Polyglot: choose two").
+local PICK_WORDS = {"one", "two", "three", "four"}
+
+--- How many picks a skill or language choice takes.
+--- @param choice CharacterChoice
+--- @param creature creature
+--- @return integer
+local function PickCount(choice, creature)
+    local count = 1
+    pcall(function() count = tonumber(choice:NumChoices(creature)) or 1 end)
+    return math.max(1, count)
+end
+
+--- The saved picks of a skill or language choice.
+--- @param choice CharacterChoice
+--- @param levelChoices table
+--- @return string[]
+local function ListPicks(choice, levelChoices)
+    local picks = levelChoices[choice.guid]
+    if type(picks) == "table" then
+        return picks
+    end
+    return {}
+end
+
+--- The guids of every choice inside an option, the option's own included:
+--- clearing a pick clears what was picked under it.
+--- @param option CharacterFeature
+--- @param result string[]
+--- @return string[]
+local function NestedGuids(option, result)
+    if option.typeName == "CharacterFeatureChoice" or LIST_CHOICES[option.typeName] ~= nil then
+        result[#result+1] = option.guid
+        for _, sub in ipairs(Options(option)) do
+            NestedGuids(sub, result)
+        end
+    end
+    return result
 end
 
 --- @param creature creature
@@ -304,7 +351,7 @@ function HeroSheetWindows.OpenTitles(focusid)
     end
     --- A nil optionGuid clears the pick, and the pick of any choice nested in
     --- the cleared option (clearGuids).
-    --- @param choice CharacterFeatureChoice
+    --- @param choice CharacterChoice
     --- @param optionGuid nil|string
     --- @param clearGuids nil|string[]
     local function Pick(choice, optionGuid, clearGuids)
@@ -328,6 +375,84 @@ function HeroSheetWindows.OpenTitles(focusid)
         FillHeld()
     end
 
+    --- Save a skill or language choice's picks. The window redraws a frame
+    --- later: the dropdown that called this is still closing.
+    --- @param guid string
+    --- @param ids string[]
+    local function PickList(guid, ids)
+        HeroSheetWrite.Save{
+            charid = token.charid,
+            description = "Choose a title benefit",
+            execute = function(props)
+                props:GetLevelChoices()[guid] = ids
+            end,
+        }
+        HeroSheet.Saved()
+        dmhub.Schedule(0.01, function()
+            if not mod.unloaded then
+                FillHeld()
+            end
+        end)
+    end
+
+    --- The dropdowns of a skill or language choice, one a pick, offering what
+    --- the Skills window would: its own row's skills, less what is already
+    --- known. Empty when the choice has no row in the build.
+    --- @param group CharacterChoice
+    --- @param creature creature
+    --- @return Panel[]
+    local function ListDropdowns(group, creature)
+        local isSkill = LIST_CHOICES[group.typeName] == "skill"
+        local draft = HeroSkillsLanguages.Read(creature --[[@as character]], LIST_CHOICES[group.typeName])
+        local row = nil
+        for _, grant in ipairs(draft.grants) do
+            if grant.guid == group.guid then
+                row = grant
+            end
+        end
+        if row == nil then
+            return {}
+        end
+        local panels = {}
+        local picks = row.picks
+        for slot = 1, row.capacity do
+            local options = {}
+            for _, entry in ipairs(draft.entries) do
+                local holder = HeroSkillsLanguages.Holder(draft, entry.id)
+                local free = holder == nil and draft.known[entry.id] == nil and (row.allowed == nil or row.allowed[entry.id])
+                if free or entry.id == picks[slot] then
+                    options[#options+1] = {id = entry.id, text = entry.name}
+                end
+            end
+            panels[#panels+1] = gui.Dropdown{
+                classes = {"heroSheetField"},
+                width = "100%",
+                height = HeroSheetWindow.TargetSize(28),
+                halign = "left",
+                tmargin = 6,
+                textDefault = cond(isSkill, "Select a skill...", "Select a language..."),
+                sort = true,
+                hasSearch = #options > 12,
+                options = options,
+                idChosen = picks[slot],
+                change = function(element)
+                    ---@cast element Dropdown
+                    local id = element.idChosen
+                    if id == nil or id == picks[slot] then
+                        return
+                    end
+                    local ids = {}
+                    for _, pick in ipairs(picks) do
+                        ids[#ids+1] = pick
+                    end
+                    ids[math.min(slot, #ids + 1)] = id
+                    PickList(group.guid, ids)
+                end,
+            }
+        end
+        return panels
+    end
+
     --A held title: its name and echelon, Remove, its flavour, Earned, then
     --its benefit: the options to choose from, or its one fixed benefit.
     --- @param title Title
@@ -339,22 +464,42 @@ function HeroSheetWindows.OpenTitles(focusid)
         local levelChoices = creature:GetLevelChoices() or {}
         local todo = false
         --an option can itself be a choice (Elemental Dabbler: a damage type,
-        --then its effect); once picked, it is chosen from in turn.
+        --then its effect; Master Crafter: Skilled Hands, Crafting Skill, then
+        --the skills); once picked, it is chosen from in turn.
         --- @param choice CharacterFeatureChoice
-        --- @return nil|CharacterFeatureChoice
-        local function NestedChoice(choice)
-            local picked = Picked(choice, levelChoices)
-            for _, option in ipairs(Options(choice)) do
-                if option.guid == picked and option.typeName == "CharacterFeatureChoice" then
-                    return option --[[@as CharacterFeatureChoice]]
+        --- @return CharacterChoice[] the choice, then each one its picks lead to
+        local function ChoiceChain(choice)
+            --- @type CharacterChoice[]
+            local chain = {choice}
+            --- @type any
+            local group = choice
+            while group ~= nil and #chain < 6 do
+                local picked = Picked(group, levelChoices)
+                --- @type any
+                local nextGroup = nil
+                for _, option in ipairs(Options(group)) do
+                    if option.guid == picked and (option.typeName == "CharacterFeatureChoice" or LIST_CHOICES[option.typeName] ~= nil) then
+                        nextGroup = option
+                    end
                 end
+                chain[#chain+1] = nextGroup
+                group = nextGroup
             end
-            return nil
+            return chain
+        end
+        --- @param group CharacterChoice
+        --- @return boolean
+        local function Unmade(group)
+            if LIST_CHOICES[group.typeName] ~= nil then
+                return #ListPicks(group, levelChoices) < PickCount(group, creature)
+            end
+            return Picked(group, levelChoices) == nil
         end
         for _, choice in ipairs(choices) do
-            local nested = NestedChoice(choice)
-            if Picked(choice, levelChoices) == nil or (nested ~= nil and Picked(nested, levelChoices) == nil) then
-                todo = true
+            for _, group in ipairs(ChoiceChain(choice)) do
+                if Unmade(group) then
+                    todo = true
+                end
             end
         end
         local earned = (creature:try_get("titleEarned") or {})[id] or ""
@@ -508,24 +653,23 @@ function HeroSheetWindows.OpenTitles(focusid)
                     children[#children+1] = Line(description, {"heroSheetCardSub"}, 13, {tmargin = 1})
                 end
             end
-            local nested = NestedChoice(choice)
-            local groups = {choice}
-            if nested ~= nil then
-                groups[2] = nested
-            end
-            for index, group in ipairs(groups) do
+            for index, group in ipairs(ChoiceChain(choice)) do
                 local groupPicked = Picked(group, levelChoices)
+                local isList = LIST_CHOICES[group.typeName] ~= nil
                 if index > 1 then
-                    children[#children+1] = Line(string.format("%s: choose one", group.name or "Benefit"), {"heroSheetCardLabel"}, 12, {bold = true, tmargin = 10})
+                    local count = cond(isList, PickCount(group, creature), 1)
+                    children[#children+1] = Line(string.format("%s: choose %s", group.name or "Benefit", PICK_WORDS[count] or tostring(count)), {"heroSheetCardLabel"}, 12, {bold = true, tmargin = 10})
+                end
+                if isList then
+                    for _, dropdown in ipairs(ListDropdowns(group, creature)) do
+                        children[#children+1] = dropdown
+                    end
                 end
                 for _, option in ipairs(Options(group)) do
                     local on = option.guid == groupPicked
                     local optionGuid = option.guid
-                    --clearing a pick clears the pick nested under it too.
-                    local clearGuids = {}
-                    if option.typeName == "CharacterFeatureChoice" then
-                        clearGuids[1] = option.guid
-                    end
+                    --clearing a pick clears the picks nested under it too.
+                    local clearGuids = NestedGuids(option, {})
                     children[#children+1] = gui.Panel{
                         classes = {"heroSheetFeatCard", "heroSheetBenefit", "hoverable", cond(on, "selected", nil)},
                         bgimage = "panels/square.png",

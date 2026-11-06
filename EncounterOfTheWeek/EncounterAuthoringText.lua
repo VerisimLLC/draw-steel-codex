@@ -1414,6 +1414,7 @@ text("author.script.delve.chest_second_table", [[the chest already has a table; 
 text("author.script.delve.missing", [[option '{option}' enters the delve '{delve}', but there is no '# Delve: {delve}']])
 text("author.script.delve.option_roll_ignored", [[option '{option}' enters a delve; its power roll is ignored]])
 text("author.script.delve.no_obstacles", [[delve '{delve}' has no '## Obstacle: ...']])
+text("author.script.delve.obstacle_dice", [[delve option '{option}': '{clause}' rolls dice, but a delve shows no roll; use a flat number]])
 text("author.script.delve.no_chest", [[delve '{delve}' has no '## Chest'; no treasure will turn up]])
 text("author.script.delve.chest_no_table", [[delve '{delve}': '## Chest' has no dice table ('|Treasure: 1d6' then '|1-2: ...' rows)]])
 text("author.script.delve.finish_unordered", [['## {section}' plays only in an in-order delve ('Order: in sequence'); a random delve ignores it]])

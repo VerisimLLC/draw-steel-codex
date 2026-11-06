@@ -637,8 +637,9 @@ local function ParseClause(clause)
     end
 
     --"you lose <n> stamina" / "each party member[s] lose[s] <n> stamina".
-    --Dice ("you lose 1d6 stamina") are rolled for each hero when it
-    --applies; qty is then the most it can take.
+    --Dice ("you lose 1d6 stamina") are rolled when it applies: one roll
+    --for the whole party when every hero loses it. qty is then the most
+    --it can take.
     local n = string.match(lc, "^you lose (%S+) stamina$")
     local staminaTarget = "self"
     if n == nil then
@@ -5165,6 +5166,15 @@ function EncounterScript.Parse(text)
                 if o.delve ~= nil then
                     Warn(o.delveLine or o.line, "%s", T("author.script.delve.option_nested_delve", { option = o.name, delve = o.delve }))
                     o.delve = nil
+                end
+                --A delve never shows a dice roll, so a dice amount here would
+                --be rolled out of sight. Ask the author for a flat number.
+                for _, effects in ipairs(EncounterScript.OptionEffectLists(o)) do
+                    for _, effect in ipairs(effects or {}) do
+                        if effect.dice ~= nil then
+                            Warn(o.line, "%s", T("author.script.delve.obstacle_dice", { option = o.name, clause = effect.text or effect.dice }))
+                        end
+                    end
                 end
             end
         end

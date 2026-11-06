@@ -130,11 +130,16 @@ function character:EnsureFollowers()
     return self.followers
 end
 
+--Pass mentorToken when you have it: LookupToken can miss a Hero with no token on
+--the current map (the Hero sheet opens those from the party switcher).
 ---@param followerid string
-function character:AddFollowerToMentor(followerid)
-    local token = dmhub.LookupToken(self)
-    --callers pass a mentor token's properties; LookupToken resolves those on any map.
-    ---@cast token -nil
+---@param mentorToken? CharacterToken the token whose properties are self
+function character:AddFollowerToMentor(followerid, mentorToken)
+    local token = mentorToken or dmhub.LookupToken(self)
+    if token == nil then
+        printf("AddFollowerToMentor: no token for mentor %s", tostring(self:try_get("name")))
+        return
+    end
     token:ModifyProperties{
         description = "Assign Follower",
         execute = function()
@@ -144,20 +149,25 @@ function character:AddFollowerToMentor(followerid)
     }
 end
 
+--Pass mentorToken when you have it, as for AddFollowerToMentor.
 ---@param followerid string
-function character:RemoveFollowerFromMentor(followerid)
-    local token = dmhub.LookupToken(self)
-    --callers pass a mentor token's properties; LookupToken resolves those on any map.
-    ---@cast token -nil
+---@param mentorToken? CharacterToken the token whose properties are self
+function character:RemoveFollowerFromMentor(followerid, mentorToken)
+    local token = mentorToken or dmhub.LookupToken(self)
+    if token == nil then
+        printf("RemoveFollowerFromMentor: no token for mentor %s", tostring(self:try_get("name")))
+        return
+    end
+    --nil when the Hero has no downtime info yet and LookupToken misses it: no rolls to clear then.
     local dti = self:GetDowntimeInfo()
-    --GetDowntimeInfo only returns nil for a creature with no token, and token is used below.
-    ---@cast dti -nil
     token:ModifyProperties{
         description = "Remove Follower",
         execute = function()
             local followers = self:EnsureFollowers()
             followers[followerid] = nil
-            dti:SetFollowerRolls(followerid, 0)
+            if dti ~= nil then
+                dti:SetFollowerRolls(followerid, 0)
+            end
         end,
     }
 end
@@ -203,7 +213,7 @@ CreateFollowerMonster = function(followerInfo, followerType, mentorToken, option
     if followerType == "existing" and options.followerToken then
         --Only heroes mentor followers (AddFollowerToMentor is a character method).
         local mentor = mentorToken.properties --[[@as character]]
-        mentor:AddFollowerToMentor(options.followerToken)
+        mentor:AddFollowerToMentor(options.followerToken, mentorToken)
         return
     end
 
@@ -314,7 +324,7 @@ CreateFollowerMonster = function(followerInfo, followerType, mentorToken, option
 
         --Read properties now, not before the wait above: they may have been replaced since.
         local mentor = mentorToken.properties --[[@as character]]
-        mentor:AddFollowerToMentor(newFollower.charid)
+        mentor:AddFollowerToMentor(newFollower.charid, mentorToken)
         
         if open ~= false then
             newFollower:ShowSheet()

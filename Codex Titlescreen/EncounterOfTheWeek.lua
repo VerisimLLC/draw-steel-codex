@@ -319,6 +319,35 @@ local TOWN_HALL_SCENES = {
     },
 }
 
+--The Training Grounds, the town's third shared build (Build the Training
+--Grounds, EotwDowntime.lua): a building site, then the place heroes Level up
+--(EotwTrainingGrounds.lua). Built, it plays Czepeku Scenes' "Jousting
+--Tournament" (Original Day) loop over its first frame (source
+--C:/dev/eotw/art/training-grounds-jousting-tournament-day.webm; core image
+--assets uploaded 2026-11-04). The
+--building site reuses the Hall of Heroes' Construction still.
+local TRAINING_GROUNDS_VIDEO = "c07dedf7-5fb4-46bf-bad7-dc70398cdc38"
+local TRAINING_GROUNDS_ART = "f5beda93-8e05-4c4b-8045-037286245106" --the video's first frame, 1920x1080
+CreatorCredit.RegisterArt(TRAINING_GROUNDS_VIDEO, "czepeku")
+CreatorCredit.RegisterArt(TRAINING_GROUNDS_ART, "czepeku")
+local TRAINING_GROUNDS_SCENES = {
+    site = {
+        art = CONSTRUCTION_ART,
+        aspect = 16 / 9,
+        focusX = 0.5,
+        title = T("eotw.locations.training_grounds_site.title"),
+        tagline = T("eotw.locations.training_grounds_site.tagline"),
+    },
+    built = {
+        art = TRAINING_GROUNDS_ART,
+        video = TRAINING_GROUNDS_VIDEO,
+        aspect = 16 / 9,
+        focusX = 0.5,
+        title = T("eotw.locations.training_grounds.title"),
+        tagline = T("eotw.locations.training_grounds.tagline"),
+    },
+}
+
 --The town's locations, as fractions of the map image (so they survive a
 --re-export at another size). open(ctx) runs on click; locked(ctx) returns
 --the reason the location is closed, or nil; hidden(ctx), if given, takes the
@@ -498,6 +527,29 @@ local CITY_LOCATIONS = {
         --replaced by OpenLocation each time it opens.
         scene = TOWN_HALL_SCENES.site,
         open = function(ctx) ctx.OpenTownHall() end,
+    },
+    --The Training Grounds' building site until the town has built them
+    --(EotwRoster.TrainingGroundsBuilt); then the Training Grounds, where
+    --heroes Level up. Open to all, even with no hero yet.
+    {
+        id = "traininggrounds",
+        label = function(ctx) return cond(EotwRoster.TrainingGroundsBuilt(), T("eotw.locations.training_grounds.label"), T("eotw.locations.training_grounds_site.label")) end,
+        --built: crossed swords (game-icons.net "crossed-swords" by Lorc, CC BY
+        --3.0), a core image asset since the engine's game-icons/ set lacks it.
+        icon = function(ctx) return cond(EotwRoster.TrainingGroundsBuilt(), "618787aa-ef05-4311-addd-6e5a59b38fd9", "phosphor/hammer-fill.png") end,
+        --the open square in the east district, clear of the other buildings
+        --(chosen from the map art 2026-11-04).
+        x = 0.905,
+        y = 0.44,
+        --replaced by OpenLocation each time it opens.
+        scene = TRAINING_GROUNDS_SCENES.site,
+        --Hidden until the City lists its project: a game server without
+        --build-training-grounds would refuse every roll at the site. Also
+        --hidden while the projects are still being listed.
+        hidden = function(ctx)
+            return not EotwRoster.TrainingGroundsBuilt() and EotwDowntime.GetProject("build-training-grounds") == nil
+        end,
+        open = function(ctx) ctx.OpenTrainingGrounds() end,
     },
 }
 
@@ -829,7 +881,7 @@ local function ReadSeriesParts(story)
             end
             local number = math.floor(tonumber(p.number) or 0)
             numbers[number] = true
-            parts[#parts+1] = { number = number, title = title, townGate = townGate, mapName = mapName }
+            parts[#parts+1] = { number = number, title = title, townGate = townGate, mapName = mapName, restFree = p.restFree == true }
         end
     end
     for _, p in pairs(type(story.comingSoonParts) == "table" and story.comingSoonParts or {}) do
@@ -904,7 +956,8 @@ function EncounterOfTheWeek.PartUnlocked(key)
     local won = EncounterOfTheWeek.PartWon(previous)
     local open = EotwRoster.PartOpen(previous, EncounterOfTheWeek.PartBoard(previous))
     --a city from before the respite rule sends no open parts: any win counts.
-    if open == nil then
+    --So does a part whose script says "Rest does not lock this part".
+    if open == nil or (entry ~= nil and entry.restFree) then
         open = won
     end
     if open then
@@ -999,7 +1052,8 @@ function EncounterOfTheWeek.PartsHeldOpen(list)
         if type(key) == "string" and EncounterOfTheWeek.PartBoard(key) == item.board then
             local seriesKey, part = EncounterOfTheWeek.SplitPartKey(key)
             local nextPart = EncounterOfTheWeek.GetPart(seriesKey, part + 1)
-            if nextPart ~= nil and nextPart.comingSoon == nil then
+            --a rest-free next part stays unlocked, so the inn has nothing to warn about.
+            if nextPart ~= nil and nextPart.comingSoon == nil and not nextPart.restFree then
                 local nextKey = EncounterOfTheWeek.PartKey(seriesKey, part + 1)
                 result[#result+1] = {
                     series = EncounterOfTheWeek.EncounterTitle(seriesKey),
@@ -3823,8 +3877,32 @@ CreateScreen = function(args)
         }
     end
 
-    --The Steam overlay's invite dialog for one of our parties.
-    local InviteSteamFriends = function(gameid)
+    --Inviting friends to one of our parties, by platform. One table rather
+    --than a local per platform: this function is at Lua's 200-local limit.
+    local InviteFriends = {}
+
+    --Discord friends: the friends panel in invite mode (DiscordFriends.lua),
+    --inviting with the party's invite code so it works whatever our presence
+    --says, and is kept for friends who are offline until the party sets out.
+    InviteFriends.discord = function(gameid)
+        local friends = rawget(_G, "DiscordFriends")
+        if friends == nil or resultPanel == nil or not resultPanel.valid then
+            return
+        end
+        WithInviteCode(gameid, function(code)
+            if not resultPanel.valid then
+                return
+            end
+            friends.OpenInvite(resultPanel, {
+                connect = "dshub2:" .. STEAM_INVITE_KIND .. ":" .. gameid .. ":" .. code,
+                title = "an Encounter of the Week party",
+            }, {x = -24, y = 80})
+            EotwAnalytics.Track("eotw_party_invite", { runid = gameid, via = "discord" })
+        end, ShowGamesError)
+    end
+
+    --Steam friends: the Steam overlay's invite dialog.
+    InviteFriends.steam = function(gameid)
         WithInviteCode(gameid, function(code)
             if not dmhub.InviteViaSteam(STEAM_INVITE_KIND, gameid .. ":" .. code) then
                 ShowGamesError(T("eotw.invite.no_overlay"))
@@ -5137,20 +5215,62 @@ CreateScreen = function(args)
                 end,
             }
         end
-        --Any member may invite Steam friends while the party is forming; the
-        --invite gets them in even when the party is private. Without the
-        --Steam overlay (not launched through Steam, or overlay disabled)
-        --there is no invite dialog to open, so no button.
-        if isMember and isOpen and dmhub.IsSteamOverlayRunning() then
+        --Any member may invite friends while the party is forming; the
+        --invite gets them in even when the party is private. Steam needs its
+        --overlay (not there when not launched through Steam, or disabled);
+        --Discord needs the Discord features on (DiscordFriends.CanInvite).
+        --With both, the button asks which.
+        local discordFriends = rawget(_G, "DiscordFriends")
+        local canSteam = dmhub.IsSteamOverlayRunning()
+        local canDiscord = discordFriends ~= nil and discordFriends.CanInvite()
+        if isMember and isOpen and (canSteam or canDiscord) then
+            local tooltip = T("eotw.party.invite_tooltip")
+            if canSteam and canDiscord then
+                tooltip = T("eotw.party.invite_tooltip_both")
+            elseif canDiscord then
+                tooltip = T("eotw.party.invite_tooltip_discord")
+            end
             buttons[#buttons+1] = gui.Button{
                 text = T("eotw.party.invite_button"),
                 fontSize = 20,
                 width = 180,
                 height = 44,
                 hmargin = 6,
-                hover = gui.Tooltip(T("eotw.party.invite_tooltip")),
-                click = function()
-                    InviteSteamFriends(gameid)
+                hover = gui.Tooltip(tooltip),
+                click = function(element)
+                    if canSteam and canDiscord then
+                        --a dropdown hung under the button, the button's width.
+                        if element.popup ~= nil then
+                            element.popup = nil
+                            return
+                        end
+                        element.popupPositioning = "panel"
+                        element.popup = gui.ContextMenu{
+                            width = 180,
+                            halign = "center",
+                            valign = "bottom",
+                            entries = {
+                                {
+                                    text = T("eotw.party.invite_steam"),
+                                    click = function()
+                                        element.popup = nil
+                                        InviteFriends.steam(gameid)
+                                    end,
+                                },
+                                {
+                                    text = T("eotw.party.invite_discord"),
+                                    click = function()
+                                        element.popup = nil
+                                        InviteFriends.discord(gameid)
+                                    end,
+                                },
+                            },
+                        }
+                    elseif canDiscord then
+                        InviteFriends.discord(gameid)
+                    else
+                        InviteFriends.steam(gameid)
+                    end
                 end,
             }
         end
@@ -7885,6 +8005,8 @@ CreateScreen = function(args)
     local m_hallScene = nil
     --the Town Hall's building site or the Town Hall, whichever was opened.
     local m_townHallScene = nil
+    --the Training Grounds' building site or the Training Grounds.
+    local m_trainingGroundsScene = nil
     local gateScene = nil
     local dangerScene = nil
     local locationHost = nil
@@ -7934,6 +8056,9 @@ CreateScreen = function(args)
         end,
         OpenTownHall = function()
             OpenLocation("townhall")
+        end,
+        OpenTrainingGrounds = function()
+            OpenLocation("traininggrounds")
         end,
     }
 
@@ -8975,8 +9100,13 @@ CreateScreen = function(args)
             wasBuilt = built
         end
     end
-    local RevealHall = BuildingReveal("hall", EotwRoster.HallBuilt, HALL_SCENE)
-    local RevealTownHall = BuildingReveal("townhall", EotwRoster.TownHallBuilt, TOWN_HALL_SCENES.built)
+    --one per building the town builds together (one local: this function
+    --is at Lua's 200-local limit).
+    local m_buildingReveals = {
+        BuildingReveal("hall", EotwRoster.HallBuilt, HALL_SCENE),
+        BuildingReveal("townhall", EotwRoster.TownHallBuilt, TOWN_HALL_SCENES.built),
+        BuildingReveal("traininggrounds", EotwRoster.TrainingGroundsBuilt, TRAINING_GROUNDS_SCENES.built),
+    }
 
     ---- locations: full-screen scenes over the map ----
 
@@ -9095,7 +9225,9 @@ CreateScreen = function(args)
                 fontFace = "display",
                 fontSize = 68,
                 color = "#f6ead0",
-                width = "auto",
+                --the header's width: a long name ("Training Grounds
+                --Construction") wraps instead of running under the card.
+                width = "100%",
                 height = "auto",
             },
             --a cream rule, fading out to the right.
@@ -9500,6 +9632,10 @@ CreateScreen = function(args)
             m_townHallScene:DestroySelf()
         end
         m_townHallScene = nil
+        if m_trainingGroundsScene ~= nil and m_trainingGroundsScene.valid then
+            m_trainingGroundsScene:DestroySelf()
+        end
+        m_trainingGroundsScene = nil
         m_locationId = nil
         ApplyLocationMode()
     end
@@ -9577,6 +9713,19 @@ CreateScreen = function(args)
                 m_townHallScene = LocationScene(loc, 820, EotwDowntime.TownHallConstructionPanel(resultPanel))
             end
             locationHost:AddChild(m_townHallScene)
+            EotwRoster.Refresh()
+        elseif id == "traininggrounds" then
+            --the building site until the town has built it, then the
+            --Training Grounds, where heroes Level up.
+            local loc = CityLocation("traininggrounds")
+            if EotwRoster.TrainingGroundsBuilt() then
+                loc.scene = TRAINING_GROUNDS_SCENES.built
+                m_trainingGroundsScene = LocationScene(loc, 860, EotwTrainingGrounds.Panel(resultPanel))
+            else
+                loc.scene = TRAINING_GROUNDS_SCENES.site
+                m_trainingGroundsScene = LocationScene(loc, 820, EotwDowntime.TrainingGroundsConstructionPanel(resultPanel))
+            end
+            locationHost:AddChild(m_trainingGroundsScene)
             EotwRoster.Refresh()
         end
         ApplyLocationMode()
@@ -10091,8 +10240,9 @@ CreateScreen = function(args)
                 ApplyLocationVisibility()
                 RevealFoundLocations()
                 WatchCommunityProjects()
-                RevealHall()
-                RevealTownHall()
+                for _, reveal in ipairs(m_buildingReveals) do
+                    reveal()
+                end
                 --the beta survey waits for the inn's reveal to finish.
                 if not m_innRevealActive then
                     MaybeShowSurvey()

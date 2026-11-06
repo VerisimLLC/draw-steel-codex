@@ -1940,7 +1940,9 @@ local CheckEncounterModule = function(ctx)
 					if comingSoon ~= nil then
 						comingSoonParts[#comingSoonParts+1] = { number = entry.number, title = entry.title, text = comingSoon.text }
 					else
-						parts[#parts+1] = { number = entry.number, title = entry.title, townGate = townGateText, townGateSource = townGateSource, tracks = tracks, map = entry.map }
+						--restFree: a rest does not lock this part again once the part before is won.
+						local restFree = cond(script.parse.part ~= nil and script.parse.part.restFree == true, true, nil)
+						parts[#parts+1] = { number = entry.number, title = entry.title, townGate = townGateText, townGateSource = townGateSource, tracks = tracks, map = entry.map, restFree = restFree }
 					end
 				elseif townGateText ~= nil or townGateSource ~= nil then
 					result.encounters[m.name] = { townGate = townGateText, townGateSource = townGateSource }

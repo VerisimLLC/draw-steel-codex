@@ -1288,6 +1288,7 @@ text("author.script.unknown_beat", [[unknown beat '{title}' (expected Montage, N
 text("author.script.second_story", [[a second '# {title}'; only the first is used]])
 --{part} is the part number already given.
 text("author.script.second_part", [[a second '# {title}'; a script is one part, so only '# Part {part}' counts (give each part its own document)]])
+text("author.script.rest_free_placement", [['Rest does not lock this part' goes under a '# Part N' heading; ignored]])
 text("author.script.section_outside_beat", [['## {title}' outside a montage or narrative beat; ignored]])
 
 --Sub-documents linked into the script. {target} is the link as written,
@@ -1414,6 +1415,7 @@ text("author.script.delve.chest_second_table", [[the chest already has a table; 
 text("author.script.delve.missing", [[option '{option}' enters the delve '{delve}', but there is no '# Delve: {delve}']])
 text("author.script.delve.option_roll_ignored", [[option '{option}' enters a delve; its power roll is ignored]])
 text("author.script.delve.no_obstacles", [[delve '{delve}' has no '## Obstacle: ...']])
+text("author.script.delve.obstacle_dice", [[delve option '{option}': '{clause}' rolls dice, but a delve shows no roll; use a flat number]])
 text("author.script.delve.no_chest", [[delve '{delve}' has no '## Chest'; no treasure will turn up]])
 text("author.script.delve.chest_no_table", [[delve '{delve}': '## Chest' has no dice table ('|Treasure: 1d6' then '|1-2: ...' rows)]])
 text("author.script.delve.finish_unordered", [['## {section}' plays only in an in-order delve ('Order: in sequence'); a random delve ignores it]])

@@ -99,6 +99,17 @@ function DiscordVoice.Link()
     return dmhub.DiscordLink()
 end
 
+--- The fallback sign-in: a code the user enters at discord.com/activate on any
+--- device, for when the browser sign-in's approval never reaches Codex.
+function DiscordVoice.LinkWithCode()
+    return dmhub.DiscordLinkWithCode()
+end
+
+--- Stops waiting for a sign-in (browser or code).
+function DiscordVoice.CancelLink()
+    return dmhub.DiscordCancelLink()
+end
+
 function DiscordVoice.Unlink()
     dmhub.DiscordUnlink()
 end
@@ -331,8 +342,10 @@ function DiscordVoice.StatusText()
     local s = DiscordVoice.Status()
     if s.account == "notlinked" then
         return "Discord is not linked."
+    elseif s.account == "linking" and s.deviceCode ~= nil then
+        return "Sign in to Discord with a code."
     elseif s.account == "linking" then
-        return "Waiting for you to approve Codex in Discord... Nothing to approve? Open the Discord app and click Try again."
+        return "Waiting for you to approve Codex in Discord... Approved and nothing happened? Use a code instead."
     elseif s.account == "connecting" then
         return "Connecting to Discord..."
     elseif s.account == "error" then
@@ -375,6 +388,9 @@ end
 local function VoiceAction(s)
     if s.account == "notlinked" or s.account == "error" then
         return "link", "Link Discord"
+    elseif s.account == "linking" and s.deviceCode ~= nil then
+        --the code panel has its own Cancel.
+        return nil, ""
     elseif s.account == "linking" then
         --the approval can go missing (a closed browser tab, an unseen Discord window); linking again starts over.
         return "link", "Try again"
@@ -422,6 +438,117 @@ local function ActionButton(args)
         end,
     }
     return button
+end
+
+--"Use a code instead": the code sign-in, offered until signed in (fire "refreshVoice").
+--The browser sign-in has to get back to Codex through 127.0.0.1, which some
+--browsers and security software block; the code sign-in never needs that.
+local function CodeLinkButton(args)
+    return gui.Button{
+        classes = args.classes,
+        text = "Use a code instead",
+        width = "auto",
+        height = "auto",
+        hpad = 12,
+        vpad = 4,
+        lmargin = args.lmargin,
+        borderBox = true,
+        halign = args.halign,
+        valign = "center",
+        hover = function(element)
+            gui.Tooltip("Sign in by entering a code at discord.com/activate, on this computer or your phone. Use this when the browser sign-in does not come back to Codex.")(element)
+        end,
+        click = function(element)
+            DiscordVoice.LinkWithCode()
+        end,
+        refreshVoice = function(element, s)
+            local signingIn = s.account == "notlinked" or s.account == "error" or s.account == "linking"
+            element:SetClass("collapsed", not signingIn or s.deviceCode ~= nil)
+        end,
+    }
+end
+
+--the code sign-in while it waits: the code, where to enter it, how long it
+--lasts, and Open / Copy / Cancel (fire "refreshVoice").
+local function DeviceCodePanel(args)
+    local instructions = gui.Label{
+        fontSize = 13,
+        color = "@fg",
+        text = "",
+        width = "100%",
+        height = "auto",
+        textWrap = true,
+    }
+    local codeLabel = gui.Label{
+        fontSize = 26,
+        bold = true,
+        color = "@fg",
+        text = "",
+        width = "auto",
+        height = "auto",
+        halign = args.halign,
+        vmargin = 4,
+    }
+    local expiresLabel = gui.Label{
+        fontSize = 12,
+        color = "@fgMuted",
+        text = "",
+        width = "100%",
+        height = "auto",
+        tmargin = 4,
+    }
+    local function SmallButton(text, click)
+        return gui.Button{
+            classes = {"sizeS"},
+            text = text,
+            width = "auto",
+            height = "auto",
+            hpad = 10,
+            vpad = 4,
+            rmargin = 6,
+            borderBox = true,
+            valign = "center",
+            click = click,
+        }
+    end
+    return gui.Panel{
+        classes = {"collapsed"},
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        tmargin = 6,
+        refreshVoice = function(element, s)
+            element:SetClass("collapsed", s.deviceCode == nil)
+            if s.deviceCode == nil then
+                return
+            end
+            local site = string.gsub(s.deviceUrl or "https://discord.com/activate", "^https://", "")
+            instructions.text = string.format("On any device (your phone works too), go to %s and enter this code:", site)
+            codeLabel.text = s.deviceCode
+            local seconds = math.floor(s.deviceExpiresIn or 0)
+            expiresLabel.text = string.format("The code expires in %d:%02d.", seconds // 60, seconds % 60)
+        end,
+        instructions,
+        codeLabel,
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            SmallButton("Open Discord", function()
+                dmhub.DiscordOpenLinkCodePage()
+            end),
+            SmallButton("Copy code", function()
+                local code = DiscordVoice.Status().deviceCode
+                if code ~= nil then
+                    dmhub.CopyToClipboard(code)
+                end
+            end),
+            SmallButton("Cancel", function()
+                DiscordVoice.CancelLink()
+            end),
+        },
+        expiresLabel,
+    }
 end
 
 --a small square icon button with an on/off look.
@@ -615,6 +742,8 @@ function DiscordVoice.CreateMenu(close)
     }
 
     local actionButton = ActionButton{ classes = {"sizeS"}, halign = "right" }
+    local codeButton = CodeLinkButton{ classes = {"sizeS"}, halign = "right" }
+    local deviceCodePanel = DeviceCodePanel{ halign = "center" }
 
     local muteToggle = MuteToggle()
     local deafenToggle = IconToggle{
@@ -683,6 +812,8 @@ function DiscordVoice.CreateMenu(close)
             local s = DiscordVoice.Status()
             statusLabel.text = DiscordVoice.StatusText()
             actionButton:FireEvent("refreshVoice", s)
+            codeButton:FireEvent("refreshVoice", s)
+            deviceCodePanel:FireEvent("refreshVoice", s)
             controlsPanel:SetClass("collapsed", s.account ~= "ready")
             RefreshMuteToggles(muteToggle, deafenToggle, s)
 
@@ -738,6 +869,15 @@ function DiscordVoice.CreateMenu(close)
             statusLabel,
             actionButton,
         },
+
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            tmargin = 4,
+            codeButton,
+        },
+        deviceCodePanel,
 
         controlsPanel,
 
@@ -992,6 +1132,8 @@ function DiscordVoice.CreateSettingsPanel()
         textWrap = true,
     }
     local actionButton = ActionButton{ classes = {"sizeS"}, halign = "left" }
+    local codeButton = CodeLinkButton{ classes = {"sizeS"}, halign = "left", lmargin = 8 }
+    local deviceCodePanel = DeviceCodePanel{ halign = "left" }
     local unlinkButton = gui.Button{
         classes = {"sizeS"},
         text = "Unlink Discord",
@@ -1022,8 +1164,10 @@ function DiscordVoice.CreateSettingsPanel()
             flow = "horizontal",
             tmargin = 4,
             actionButton,
+            codeButton,
             unlinkButton,
         },
+        deviceCodePanel,
     })
 
     --the Discord Voice game setting, for an admin hosting this game. It is
@@ -1145,6 +1289,8 @@ function DiscordVoice.CreateSettingsPanel()
             local s = DiscordVoice.Status()
             statusLabel.text = DiscordVoice.StatusText()
             actionButton:FireEvent("refreshVoice", s)
+            codeButton:FireEvent("refreshVoice", s)
+            deviceCodePanel:FireEvent("refreshVoice", s)
             unlinkButton:SetClass("collapsed", s.account ~= "ready")
             controlsPanel:SetClass("collapsed", s.account ~= "ready")
             --follow changes made elsewhere (the Game tab, another session).

@@ -899,6 +899,125 @@ graveyard.
     milestone cards do name "the Town Hall"); `dev-reset-account` and
     `scrub-hero` leave Town Hall votes and petitions alone; no comments on
     petitions.
+- **The Training Grounds** (BUILT 2026-11-04: codex + server; server on
+  STAGING only; live-tested on the staging town, see "Status" below). Where
+  heroes Level up. The levelling itself was built by James (handoff
+  2026-11-03, merged): `EotwRoster.LevelUpState(heroid)` (`ready`, `level`,
+  `xp`, `xpIntoLevel`, `xpPerLevel` = 16, `choicesLeft`, `reason` = `xp` /
+  `maxlevel` / `away` / `notonroster` / `notloaded`) and
+  `EotwRoster.LevelUpHero{heroid, host, onDone(finished)}` (one Level per
+  call, saved to the City, opens the main Builder in Level up mode; unmade
+  choices are allowed and reopen later).
+  - **Construction** (David 2026-11-04): the third community project,
+    `build-training-grounds` (scope `community`, **6000** points, one
+    completion, `autoStart`; effect `trainingGrounds` ->
+    `unlocks.trainingGrounds`, `trainingGroundsBuilt()`) in `CITY_PROJECTS`
+    (`city-core.ts`, test "building the Training Grounds" in
+    `test/city-core.test.ts`), "the Training Grounds" in
+    `COMMUNITY_PROJECT_NAMES` (`discord-core.ts`), the Lua `PROJECTS` entry
+    (`EotwDowntime.lua`), `EotwRoster.TrainingGroundsBuilt()`, and the map
+    node `traininggrounds` (`CITY_LOCATIONS`, `TRAINING_GROUNDS_SCENES`,
+    `OpenLocation`/`CloseLocation`, `m_buildingReveals` in
+    `Codex Titlescreen/EncounterOfTheWeek.lua`). The building site card is
+    `EotwDowntime.TrainingGroundsConstructionPanel`. Map icons: hammer while
+    building; once built, crossed swords -- game-icons.net "crossed-swords"
+    (Lorc, CC BY 3.0) uploaded as core image `618787aa-ef05-4311-addd-
+    6e5a59b38fd9`, because the engine's `game-icons/` set (a fixed list in
+    `ImageManager.cs`) does not include it. Map spot **(0.905, 0.44)**, the
+    open square in the east district (David: "an urban area away from other
+    buildings"); seen in the app 2026-11-04: the long site label "Training
+    Grounds Construction" fits, but only just reaches the map's right frame.
+  - **Two stages** (David 2026-11-04). The first half (points 0-2999) is
+    **Planning**: Reason or Presence; Architecture, Lead, Strategy,
+    Society. The second half (3000-6000) is **Building**: Might or
+    Agility; Blacksmithing, Carpentry, Fletching, Mechanics. The server
+    knows only the total (it does not check characteristics or skills).
+    The Lua def has `stages = { {upTo = 0.5, name, blurb, characteristics,
+    skills}, {name, blurb, characteristics, skills, banner} }`;
+    `EotwDowntime.ProjectStage(project, state?)` / `ProjectStageAt(project,
+    progress)` pick the stage, and every reader of the lists
+    (`ProjectCharacteristics`, `TrainedProjectSkills`, `BestCharacteristic`,
+    the roll dialog's skills line, the card's "needs" line) goes through
+    `NeededCharacteristics` / `NeededSkills`. The card shows "Stage N of 2:
+    <name>" (`downtime.card.stage`) and the stage blurb (through the
+    project's `blurb(state)`); the roll dialog re-picks the characteristic
+    if the stage moves on while it is open; the roll that crosses 50% shows
+    the stage's `banner`. Roll lines use `rollLines.bands` (four bands with
+    `upTo` 0.25 / 0.5 / 0.75 / end) instead of early/mid/late, and a staged
+    project's line is chosen by the points BEFORE the roll, so it belongs to
+    the stage the hero worked on.
+  - **Built:** full-screen scene, Czepeku "Jousting Tournament" (Original
+    Day HD) 30s 1080p video over its first frame, Czepeku credit (core image
+    assets uploaded 2026-11-04: video `c07dedf7-5fb4-46bf-bad7-dc70398cdc38`,
+    still `f5beda93-8e05-4c4b-8045-037286245106`; source
+    `C:/dev/eotw/art/training-grounds-jousting-tournament-day.webm`). The
+    card is `EotwTrainingGrounds.Panel` (NEW `Codex Titlescreen/
+    EotwTrainingGrounds.lua`, registered in Codex Titlescreen after
+    `EotwTownHall.lua`, Firebase confirmed): a random trainer greeting, a
+    row per roster hero -- portrait, name, Level, XP bar (`xpIntoLevel` of
+    `xpPerLevel`, green when full), the XP line ("Ready for Level N!" plus
+    "enough for N more Levels" when XP covers several), banked Victories
+    ("rest at the Blue Fish Inn") -- then **Level Up** when `ready`,
+    **Finish Your Level** when not ready but `choicesLeft > 0` and the hero
+    is home, else the reason. Pressing one calls `LevelUpHero` with host
+    `EncounterOfTheWeek.TownScreen()`; `onDone` shows "X is now Level N!"
+    in a banner with a random cheer (or the "training is saved" note when
+    closed with choices left), tracks `eotw_training_grounds_level`, and
+    rebuilds the rows. The rows rebuild on `EotwRoster.revision` /
+    `EotwDowntime.revision`, and not while the Builder is open.
+  - **Text:** every line is in `Codex Titlescreen/EotwTextTrainingGrounds.lua`
+    (David's words, filled in 2026-11-04; registered in Codex Titlescreen
+    after `EotwTextTown.lua`, Firebase confirmed, and in
+    `tests/uitext_check.lua`). The Discord name lives in `discord-core.ts`,
+    not the Lua file. The earlier markdown template
+    `EncounterOfTheWeek/TRAINING_GROUNDS_TEXT.md` is superseded by the Lua
+    file (kept until David says to delete it).
+  - **XP banking:** a respite banks XP only once the Training Grounds stand:
+    `EotwDowntime.RespiteBanksXp()` returns
+    `EotwRoster.TrainingGroundsBuilt()` (it replaced the `RESPITE_BANKS_XP`
+    constant). Until then a respite keeps raising the Level itself. The hero
+    sheet's respite line switches with it (`herosheet.card.respite_line_grounds`).
+  - **Encounter balancing is NOT part of this change** (David 2026-11-04:
+    "I'll worry about that in a later step"). No monster scaling by Level.
+  - **The Level 1 clamp is off** (David 2026-11-04, knowing fights get easier
+    as heroes level until balancing lands). `NormalizeHeroLevel` (game
+    `EncounterOfTheWeek/EncounterOfTheWeek.lua`) now only clears
+    `extraLevelInfo.encounter` (the slow-start rungs); it no longer forces
+    `levelOverride = 1` or `classes[i].level = 1`. Heroes enter EotW games
+    only as town heroes (recruited at Level 1, levelled in town) or module
+    pregens (authored at Level 1), so nothing arrives above its town Level.
+    Respites already raised Levels before this, so heroes levelled that way
+    play at their real Level as soon as this ships.
+  - **For the later balancing step:** hero Encounter Strength is 4 + 2 x Level, and a platoon / leader
+    / solo's EV in `MCDMMonsterScaling` is the same 4 + 2 x Level, so
+    raising every monster by (average party Level - 1) with
+    `monster:SetLevelAdjustment` keeps authored difficulty; the fraction
+    left over can level the strongest monsters by one more until that
+    fraction of the EV is levelled (Challenge Mode's
+    `LevelUpStrongestHalf` pattern), so no rounding rule is needed.
+  - **Shared fix:** a scene's title (`SceneHeader`) now has the header's
+    width, so a long name wraps instead of running under the card
+    ("Training Grounds Construction" takes three lines).
+  - **Status / not done:**
+    - Server deployed to **staging only** (2026-11-04, version 45314880);
+      the release town does not have the project until a release deploy
+      (David's go-ahead needed). Until then the release map shows the site
+      at 0/6000 and its rolls are refused by the City.
+    - Tested on the staging town (David's account, 2026-11-04): the site,
+      Stage 1 card, `admin-set-project` to 3000 (Stage 2: Might/Agility and
+      the building skills in the roll dialog), to 6000 (the scene swapped
+      itself to the built Training Grounds, crossed-swords node, hero rows),
+      then reset to 0. The Level Up / Finish rows were checked with a faked
+      `LevelUpState` in that session only; Finish Your Level opened the
+      Builder and its close showed the "saved" note. **Not tested:** a real
+      Level Up press (no staging hero had 16 XP), a real project roll (would
+      spend a staging hero's Downtime), the stage banner on a roll crossing
+      50%, a respite banking XP once built, and an EotW game played with a
+      levelled hero (abilities and Stamina arrive; Victory screen and Hall of
+      Heroes show the right Level).
+    - Nothing committed.
+    - **Open:** the building-site art (placeholder: the Hall's Construction
+      still).
 
 ## Locations on the map
 
@@ -916,6 +1035,7 @@ already has natural homes (fractions of the 6160x4480 canvas):
 | **Hero's Guild** | the small walled green island with a lone building in the canal (0.44, 0.42) | chosen when building (2026-10-02); the Safe House block (~0.54, 0.60) was the alternative |
 | **Blue Fish Inn** | the canal-side building west of the Guild (0.235, 0.455); moved 2026-10-11 (user direction) from the "Drunken Fool" tavern (0.335, 0.575), which the hero cards along the bottom covered | BUILT 2026-10-10 (Downtime); hidden until heroes first come home, then revealed once (2026-10-11, see "The inn's reveal") |
 | **Arcane Market** | the shop the "Front and Back" label points at (0.695, 0.18) | BUILT 2026-10-10; since 2026-10-11 hidden until the player finds it (see "Leads") |
+| **Training Grounds** | the open square in the east district (0.905, 0.44) | BUILT 2026-11-04 (6000-point two-stage build, then Level up; server on staging only) |
 | later | the Docks, Bora's Wagon Yard, the Cathedral, the Safe House | |
 
 ## Decisions taken (2026-10-01, with the user)
@@ -1497,6 +1617,10 @@ party, scaling only by hero *count*. Options to weigh:
   and delve chests are already concrete items), **titles/renown**, a record
   of encounters survived, and town unlocks. The weekly balance is untouched.
 - A mix: items and renown now, levels later with bands.
+
+**Levels decided 2026-11-04:** Draw Steel-native levelling: heroes Level
+individually at the Training Grounds (see "The Training Grounds" under the
+town's locations). Balancing encounters for levelled heroes is a later step.
 
 **First piece designed 2026-10-10:** wounds carried home, Victories to XP at
 a respite at the Blue Fish Inn, Downtime Activities and projects, with heroes
@@ -5042,6 +5166,79 @@ waits for every voter or the deadline, stamps `phase = "done"`, and calls
 `begin()`. If `begin` was lost (a Lua reload on the host), it starts combat
 again with `StartEncounterCombat(sides, { forceHeroes = true, noArrange =
 true })`. `/eotwmontage reset` clears `arrange` and `arrivalItems`.
+
+**Preparing during the arrangement (BUILT + VERIFIED live 2026-11-05, UNCOMMITTED).**
+David's direction: while the heroes arrange, players may use Catch Breath and
+the Null's Null Field, and nothing else. Respite activities are held back:
+they belong in Blackbottom (the town), not here.
+
+- *Core cast gate* (`Draw Steel Core Rules/MCDMActivatedAbility.lua`):
+  `ActivatedAbility.RegisterCastGate(id, fn(ability, casterCreature,
+  casterToken) -> reason|nil)`, run (pcall-guarded) from the
+  `AbilityFilterFailureMessage` override for player-controlled casters
+  under `StrictActionEconomyEnforced()`, never for a `TriggeredAbility`. The
+  action bar already greys a failing chip, shows the reason, and refuses a
+  player's press (`m_suppressed`), so it needed no change. The Director, the
+  Monster AI and trigger prompts are never refused.
+- *EotW's gate* (`EncounterOfTheWeek.lua`, after `ArrangeHeroesWin`): while
+  `arrange.phase == "arranging"` and no live queue, only the guids in
+  `EncounterOfTheWeekGame.ARRANGE_ABILITY_IDS` pass: Catch Breath
+  `ca322ca9-4729-46b2-81bc-d3ac4098fc47` (global rule mod) and Null Field
+  `8dbe876d-7e72-4e8c-8d11-ab51bffe9bd6` (Null class feature; Null Field -
+  Effect is NOT included). Everything else reads
+  `encounter.arrange.cast_blocked`. Outside the arrangement nothing changed.
+  Catch Breath is unlimited (only Recoveries limit it), because with no
+  queue a `"turn"` refresh id is a fresh guid on every call
+  (`creature:GetResourceRefreshId`, `Resource.lua`), so a maneuver is never
+  used up. No potions or other consumables.
+- *Combat waits for casts*: `UpdateBusyMirror` now also mirrors ability
+  activity while arranging, and `ArrangeHostTick` holds `begin()` while
+  `AnyClientAbilityBusy()`, for at most 30s past the deadline.
+- *Panel line*: `encounter.arrange.prepare_hint` under the intro
+  (`EncounterText.lua`).
+- *The panel moved to the top* (`valign = "top"`, `tmargin = 80`). At the
+  bottom it covered the action bar's drawer menus (Null Field's Heroic
+  Abilities column) and the cast prompt's Confirm button.
+
+luac, `uitext_check`, `strict_manual_trigger_test` and `check.ps1 -Changed`
+clean. VERIFIED live 2026-11-05 in two combat authoring tests of Horizon's
+Grave Part 1 (game `e400e9b8`, Human Null + Dwarf Fury + Human Censor
+pregens, the heroes lost the initiative):
+- During the arrangement the menus showed only Catch Breath and Null Field
+  usable; every other chip was red. Pressing Charge was refused
+  (`press-refused ... suppressed=true`).
+- Null Field cast from the bar (the effect landed), then Catch Breath
+  healed 23 -> 27 and spent one Recovery. It stayed usable afterwards.
+  Null Field left the menu once it was up (its own `filterCondition`), so
+  it cannot be stacked.
+- Pressing Ready mid-cast held combat ("waiting for action bar targeting
+  before combat") until the cast ended.
+- After `begin()` the queue went live in round 1, the Null Field aura was
+  still up (drawn on the map while the monsters acted), and strikes passed
+  the filter again.
+- No new console errors.
+NOT seen: a won initiative (same code path), multi-client (a second
+player's cast holding combat through its `abilityBusy` stamp), the 30s
+overtime cap.
+
+Known gap, not fixed (outside the ask): before the arrangement (arrival,
+waiting for players, after a montage) nothing gates casting. With no queue
+every action and maneuver is affordable, so a hero in range could strike a
+monster. A surprised party never arranges, so it gets no preparation.
+
+Respite activities, for when Blackbottom takes them up: abilities whose
+`actionResourceId` is `CharacterResource.respiteActivityId`. The Actions
+global rule mod grants that resource only `when Game Mode = "Respite"`. The
+tagged ones: Revitalizing Ritual, Sanctified Weapon, Oracular Warning, Saint's
+Epiphany (Conduit and Censor domains), Mindlink (Telepathy), Bloodbound Band
+(item), Study the Notebook (Advanced Studies; only the roll is automated),
+Among Our Ranks and Return to the Source (Summoner, not automated). Some
+"each time you finish a respite" abilities are not tagged: Inner Light (Sun
+domain) and Implement of Wrath (Censor 6th level) use no action, so they can
+be cast at any time in any game, and Faith's Sword (Conduit 9th level) is a
+free maneuver. Revitalizing Ritual and Oracular Warning read as
+finish-a-respite benefits, not activities, so one shared resource would make
+them compete.
 
 ## Victory, defeat and leaving
 

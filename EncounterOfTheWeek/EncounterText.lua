@@ -49,6 +49,10 @@ text("encounter.about.title_with_part", [[{title} -- {part}]])
 text("encounter.arrange.title", [[Arrange Your Heroes]])
 text("encounter.arrange.intro", [[You have won the initiative. Choose starting locations, then press Ready.]])
 text("encounter.arrange.intro_lost", [[You have lost the initiative; the enemy acts first. Choose starting locations, then press Ready.]])
+--A smaller line under the intro: what heroes may do while they arrange.
+text("encounter.arrange.prepare_hint", [[Before the fight you can Catch Breath, and a Null can raise their Null Field.]])
+--Shown on any other ability (greyed in the action bar) while the heroes arrange.
+text("encounter.arrange.cast_blocked", [[While you arrange your heroes you can only use Catch Breath and Null Field.]])
 
 --The button. Short: it is a button.
 text("encounter.arrange.ready_button", [[Ready]])
@@ -99,11 +103,14 @@ text("encounter.story.title_with_part", [[{title} -- {part}]])
 --Garden").
 text("encounter.series_next.title", [[{part} is open]])
 text("encounter.series_next.body", [[You have access to this encounter until you take a respite]])
+--The same, for a part whose script says "Rest does not lock this part".
+text("encounter.series_next.body_rest_free", [[It stays open, even after you take a respite]])
 --The button, here and on the Conclusion screen: back to town, where the party
 --for the next part is ready to form.
 text("encounter.series_next.button", [[Continue to {part}]])
 --Above the buttons on the Conclusion screen.
 text("encounter.series_next.story_note", [[{part} is open until your heroes take a respite.]])
+text("encounter.series_next.story_note_rest_free", [[{part} is open, and stays open after a respite.]])
 
 --When the next part plays on the same map, the party goes straight on in the
 --same game instead, and the game's host decides for everyone. The victory
@@ -1228,8 +1235,8 @@ text("script.effect.item.self", [[the hero gains {qty} x {item}]])
 text("script.effect.item.party", [[every hero gains {qty} x {item}]])
 text("script.effect.stamina.self", [[the hero loses {qty} stamina]])
 text("script.effect.stamina.party", [[every hero loses {qty} stamina]])
-text("script.effect.stamina_dice.self", [[the hero loses {dice} stamina (rolled for each hero)]])
-text("script.effect.stamina_dice.party", [[every hero loses {dice} stamina (rolled for each hero)]])
+text("script.effect.stamina_dice.self", [[the hero loses {dice} stamina]])
+text("script.effect.stamina_dice.party", [[every hero loses {dice} stamina (one roll for the whole party)]])
 text("script.effect.heal.self", [[the hero heals {qty} stamina]])
 text("script.effect.heal.party", [[every hero heals {qty} stamina]])
 text("script.effect.temp_stamina.self", [[the hero gains {qty} temporary stamina]])

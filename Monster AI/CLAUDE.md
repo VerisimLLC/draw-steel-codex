@@ -422,9 +422,10 @@ has `allMonsters = true`, so every monster uses it unless it is turned off):
   `MonsterAI.opportunityAttackPenalty` (0.8) per attack. A safe choice keeps
   the safe squares for the move's execution (`_tmp_oaSafeOnly`, honored by
   `CalculateMovementPaths`). `CalculateMovementPaths` marks each square's
-  `provokes`; the advance fallback skips squares that provoke, and minion
-  squads add `squadOpportunityAttackPenalty` (100) per attack to a
-  position's cost. It is an estimate from start and end squares: a route that
+  `provokes`; the advance fallback skips squares that provoke, and a minion
+  squad member never takes a strike position that provokes (a free strike
+  kills a minion): with no unclaimed target reachable safely it holds and
+  sits the strike out. It is an estimate from start and end squares: a route that
   walks past an enemy it did not start next to is not seen.
 
 `MonsterAI.HasBehavior(token, id)` answers whether it is on: behavior sources
@@ -865,6 +866,13 @@ its charge segment's zero-altitude `loc` with straight-line walking; the absolut
 `expectedLoc`/destination is used to verify arrival. Jump-assisted charge plans
 are not currently selected by the AI. Synthetic leap combos retain their separate
 probe and ability execution.
+
+A charge never squeezes: the engine's charge planner rejects any step the full
+creature cannot fit at, so a 2x2 cannot end a charge beside a pillar half a
+square off the grid (7V75VX52, E7ZM6G6F). `CalculateMovementPaths` also always
+offers the creature's own square at cost 0, because the engine's path search
+drops every square the full creature cannot fit at, its own included, and a
+creature stuck squeezed or boxed in used to pass every turn.
 
 A charge moves the creature once, so every target of a multi-target Charge
 strike must be hit from one landing. `FindValidTargetsOfStrike` still plans a

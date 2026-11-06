@@ -14879,6 +14879,11 @@ local function IconRailStyles()
     })
 end
 
+--Shared so rail-style buttons outside the rail (the titlescreen's Discord
+--button) look like rail buttons. A field, not a local: this file is at
+--Lua's 200-locals limit.
+PanelDocument.IconRailStyles = IconRailStyles
+
 --The buttons currently shifted to open a drag gap ({panel, base}), and
 --the signature of the shift so a drag hovering the same slot doesn't
 --re-apply margins every frame. (selfStyle properties are write-mostly:

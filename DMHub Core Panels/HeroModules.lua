@@ -196,6 +196,45 @@ function HeroModules.CollectInventory(callback)
 	Finish()
 end
 
+--A CollectInventory started ahead of InstallIntoGame (see PrefetchInventory),
+--for this game only: { gameid, items = nil until it lands, waiters }.
+local g_inventoryPrefetch = nil
+
+--- Starts collecting the inventory for a coming InstallIntoGame in this game,
+--- so the install does not then wait on the module-info downloads (one per
+--- owned or added module, 0.1-3 s together). An Encounter of the Week arrival
+--- calls it first thing, so the downloads overlap the map travel. The next
+--- InstallIntoGame in this game uses the result (waiting for it if needed);
+--- any later one collects afresh.
+function HeroModules.PrefetchInventory()
+	if dmhub.isLobbyGame or not dmhub.inGame then
+		return
+	end
+	local prefetch = { gameid = dmhub.gameid, items = nil, waiters = {} }
+	g_inventoryPrefetch = prefetch
+	HeroModules.CollectInventory(function(items)
+		prefetch.items = items
+		local waiters = prefetch.waiters
+		prefetch.waiters = {}
+		for _, waiter in ipairs(waiters) do
+			waiter(items)
+		end
+	end)
+end
+
+--CollectInventory, or the prefetched result for this game when there is one.
+local function CollectInventoryForInstall(callback)
+	local prefetch = g_inventoryPrefetch
+	g_inventoryPrefetch = nil
+	if prefetch == nil or prefetch.gameid ~= dmhub.gameid then
+		HeroModules.CollectInventory(callback)
+	elseif prefetch.items ~= nil then
+		callback(prefetch.items)
+	else
+		prefetch.waiters[#prefetch.waiters + 1] = callback
+	end
+end
+
 --moduleid -> the last error installing it into the lobby, for the inventory
 --UI to show (e.g. "waiting for review by an admin").
 local g_lastErrors = {}
@@ -295,6 +334,309 @@ function HeroModules.SyncLobby()
 	end)
 end
 
+--Only the game's owner may change a game's code list, so a player in someone
+--else's game can't add a Hero module that carries code (the engine refuses,
+--see ModuleManager.InstallHeroModuleCo). Such a player asks the owner's client
+--through this shared document instead, and the owner's client installs it
+--(HeroModules.ServeOwnerRequests). Every client then loads the new code.
+--  requests[userid][fullid] = server time the player asked
+--  results[fullid] = { ok = boolean, message = nil|string, time = server time }
+--A result answers every ask made at or before its time.
+local OWNER_REQUESTS_DOC_ID = "heromoduleownerrequests"
+
+--Hero modules that could not be brought into the current game, for the
+--warning a player sees: { gameid, list = { [fullid] = {name, message, pending} } }.
+--pending: still waiting for the game owner's client to answer.
+local g_gameProblems = { gameid = nil, list = {} }
+
+--- @param info ModuleLua
+--- @param message string
+--- @param pending nil|boolean
+local function SetGameProblem(info, message, pending)
+	if g_gameProblems.gameid ~= dmhub.gameid then
+		g_gameProblems = { gameid = dmhub.gameid, list = {} }
+	end
+	g_gameProblems.list[info.fullid] = { name = info.name, message = message, pending = pending == true }
+end
+
+--- @param fullid string
+local function ClearGameProblem(fullid)
+	if g_gameProblems.gameid == dmhub.gameid then
+		g_gameProblems.list[fullid] = nil
+	end
+end
+
+--- Asks the game owner's client to install modules this client could not.
+--- Records each as a problem until the owner answers; answers that come in
+--- later (after the arrival has moved on) still clear or update them.
+--- @param infos ModuleLua[]
+local function AskOwnerToInstall(infos)
+	local gameid = dmhub.gameid
+	local askedAt = dmhub.serverTime
+	local doc = mod:GetDocumentSnapshot(OWNER_REQUESTS_DOC_ID)
+	doc:BeginChange()
+	doc.data.requests = doc.data.requests or {}
+	local mine = doc.data.requests[dmhub.loginUserid] or {}
+	for _, info in ipairs(infos) do
+		mine[info.fullid] = askedAt
+		SetGameProblem(info, "Waiting for the game's owner to add it. Their client adds it automatically while they are in the game.", true)
+		print(string.format("HeroModules: asked the game's owner to add %s", info.fullid))
+	end
+	doc.data.requests[dmhub.loginUserid] = mine
+	doc:CompleteChange("Ask the game owner to add Hero modules", {undoable = false})
+
+	--- @type table<string, ModuleLua>
+	local pending = {}
+	for _, info in ipairs(infos) do
+		pending[info.fullid] = info
+	end
+
+	dmhub.Coroutine(function()
+		while next(pending) ~= nil and not mod.unloaded and dmhub.gameid == gameid do
+			local results = mod:GetDocumentSnapshot(OWNER_REQUESTS_DOC_ID).data.results
+			if type(results) == "table" then
+				for fullid, info in pairs(pending) do
+					local result = results[fullid]
+					if type(result) == "table" and (tonumber(result.time) or 0) >= askedAt then
+						pending[fullid] = nil
+						if result.ok then
+							g_lastErrors[fullid] = nil
+							ClearGameProblem(fullid)
+							print(string.format("HeroModules: the game's owner added %s", fullid))
+						else
+							local message = tostring(result.message or "The game's owner could not add it.")
+							g_lastErrors[fullid] = message
+							SetGameProblem(info, message)
+							print(string.format("HeroModules: the game's owner could not add %s: %s", fullid, message))
+						end
+					end
+				end
+			end
+			coroutine.yield(0.25)
+		end
+	end)
+end
+
+--The game currently served by ServeOwnerRequests, so a second call only
+--updates the callback: { gameid, onInstalled }.
+local g_serving = nil
+
+--- Installs one module a player asked for, on the owner's client. Calls
+--- back once with (true) or (false, message for the player).
+--- @param fullid string
+--- @param callback fun(ok: boolean, message: nil|string)
+local function InstallForPlayer(fullid, callback)
+	module.DownloadModuleInfo{
+		moduleid = fullid,
+		success = function(info)
+			--a player can only ask for Hero modules: their code was approved
+			--by an admin, which is what makes adding it on request safe.
+			if not info.isHeroModule then
+				callback(false, "This is not a Hero module.")
+				return
+			end
+			if info.premium and not info.owned then
+				callback(false, "This is a premium module the game's owner does not own, so they can't add it.")
+				return
+			end
+			info:InstallAsHeroModule{
+				success = function()
+					callback(true)
+				end,
+				error = function(message)
+					callback(false, message)
+				end,
+			}
+		end,
+		failure = function(message)
+			callback(false, string.format("The game's owner could not download it: %s", tostring(message)))
+		end,
+	}
+end
+
+--- On the game owner's client: installs the Hero modules other players ask
+--- for (see AskOwnerToInstall), one at a time, for as long as this client is
+--- in this game. Asks made while the owner was away are served when this
+--- starts. Runs for the owner of every game from game entry (see the
+--- EnterGame handler below). onInstalled(fullid), if given, runs after each
+--- successful install; a later call for the same game replaces it.
+--- Does nothing for anyone but the owner.
+--- @param onInstalled nil|fun(fullid: string)
+function HeroModules.ServeOwnerRequests(onInstalled)
+	if dmhub.isLobbyGame or not dmhub.inGame or not dmhub.isGameOwner then
+		return
+	end
+	local gameid = dmhub.gameid
+	if g_serving ~= nil and g_serving.gameid == gameid then
+		if onInstalled ~= nil then
+			g_serving.onInstalled = onInstalled
+		end
+		return
+	end
+	local serving = { gameid = gameid, onInstalled = onInstalled }
+	g_serving = serving
+
+	dmhub.Coroutine(function()
+		local busy = false
+		while not mod.unloaded and dmhub.gameid == gameid do
+			if not busy then
+				local data = mod:GetDocumentSnapshot(OWNER_REQUESTS_DOC_ID).data
+				local results = type(data.results) == "table" and data.results or {}
+
+				--the newest ask for each module, across every player.
+				--- @type table<string, number>
+				local asks = {}
+				if type(data.requests) == "table" then
+					for _, list in pairs(data.requests) do
+						if type(list) == "table" then
+							for fullid, t in pairs(list) do
+								t = tonumber(t)
+								if type(fullid) == "string" and t ~= nil and (asks[fullid] == nil or t > asks[fullid]) then
+									asks[fullid] = t
+								end
+							end
+						end
+					end
+				end
+
+				for fullid, askedAt in pairs(asks) do
+					local result = results[fullid]
+					local answered = type(result) == "table" and (tonumber(result.time) or 0) >= askedAt
+					if not answered then
+						busy = true
+						print(string.format("HeroModules: adding %s for a player who asked", fullid))
+						InstallForPlayer(fullid, function(ok, message)
+							busy = false
+							if mod.unloaded or dmhub.gameid ~= gameid then
+								return
+							end
+							if not ok then
+								print(string.format("HeroModules: could not add %s for a player: %s", fullid, tostring(message)))
+							end
+							local doc = mod:GetDocumentSnapshot(OWNER_REQUESTS_DOC_ID)
+							doc:BeginChange()
+							doc.data.results = doc.data.results or {}
+							--never earlier than the ask, so a small clock difference
+							--between the two clients can't leave it unanswered.
+							doc.data.results[fullid] = { ok = ok, message = message, time = math.max(dmhub.serverTime, askedAt) }
+							doc:CompleteChange("Add a player's Hero module", {undoable = false})
+							if ok and serving.onInstalled ~= nil then
+								local okCall, err = pcall(serving.onInstalled, fullid)
+								if not okCall then
+									print(string.format("HeroModules: after adding %s: %s", fullid, tostring(err)))
+								end
+							end
+						end)
+						break
+					end
+				end
+			end
+			coroutine.yield(0.5)
+		end
+		if g_serving == serving then
+			g_serving = nil
+		end
+	end)
+end
+
+--every game's owner serves its players' asks while in the game. Also on a
+--reload of this file mid-game, which stops the old file's loop.
+dmhub.RegisterEventHandler("EnterGame", function()
+	if mod.unloaded then
+		return
+	end
+	HeroModules.ServeOwnerRequests()
+end)
+if dmhub.inGame then
+	HeroModules.ServeOwnerRequests()
+end
+
+--- True if this hero was built with a class or ancestry that is not in this
+--- game (its Hero module was not installed here). The hero then has no class
+--- -- 0 Stamina, no Recoveries -- or falls back to the default ancestry.
+--- @param token CharacterToken
+--- @return boolean
+function HeroModules.HeroIsMissingContent(token)
+	local missing = false
+	pcall(function()
+		local props = token.properties
+		if props == nil or not props:IsHero() then
+			return
+		end
+		local classesTable = GetTableCached("classes")
+		for _, entry in ipairs(props:try_get("classes", {})) do
+			if entry.classid ~= nil and classesTable[entry.classid] == nil then
+				missing = true
+			end
+		end
+		local raceid = props:try_get("raceid")
+		if raceid ~= nil and GetTableCached("races")[raceid] == nil then
+			missing = true
+		end
+	end)
+	return missing
+end
+
+--- @type fun(charids: string[])
+local ShowMissingContentWarning
+
+--- Shows the player a warning when any of these heroes is missing its class
+--- or ancestry because a Hero module could not be added to this game, naming
+--- each such module and why. Shows nothing when every hero is complete.
+--- Waits for the loading screen to clear first, and checks then, so a module
+--- the game owner added in the meantime is not reported.
+--- @param charids string[]
+function HeroModules.WarnIfHeroesMissingContent(charids)
+	local gameid = dmhub.gameid
+	dmhub.Coroutine(function()
+		local waited = 0
+		while dmhub.loadingScreenHeld and waited < 60 and not mod.unloaded do
+			coroutine.yield(0.5)
+			waited = waited + 0.5
+		end
+		--let the reveal's fade finish first.
+		coroutine.yield(1.5)
+		if mod.unloaded or dmhub.gameid ~= gameid then
+			return
+		end
+		ShowMissingContentWarning(charids)
+	end)
+end
+
+--- The warning itself, for WarnIfHeroesMissingContent.
+--- @param charids string[]
+ShowMissingContentWarning = function(charids)
+	if g_gameProblems.gameid ~= dmhub.gameid or next(g_gameProblems.list) == nil then
+		return
+	end
+
+	local heroNames = {}
+	for _, charid in ipairs(charids or {}) do
+		local token = dmhub.GetCharacterById(charid)
+		if token ~= nil and HeroModules.HeroIsMissingContent(token) then
+			heroNames[#heroNames+1] = token.name or "A hero"
+		end
+	end
+	if #heroNames == 0 then
+		return
+	end
+
+	local lines = {}
+	for _, problem in pairs(g_gameProblems.list) do
+		lines[#lines+1] = string.format("<b>%s</b>: %s", tostring(problem.name), tostring(problem.message))
+	end
+	table.sort(lines)
+
+	gui.ModalMessage{
+		title = "Hero Module Not Added",
+		message = string.format("%s %s missing content from a Hero module that could not be added to this game, so %s may have no class (0 Stamina) or the wrong ancestry.\n\n%s",
+			table.concat(heroNames, ", "),
+			#heroNames == 1 and "is" or "are",
+			#heroNames == 1 and "this hero" or "these heroes",
+			table.concat(lines, "\n")),
+	}
+end
+
 --- Brings the player's enabled Hero modules into the current (non-lobby) game,
 --- so the classes and ancestries their heroes were built with exist there.
 --- Called on the arriving player's own client just before their heroes are
@@ -303,9 +645,15 @@ end
 --- finished or failed, or after timeoutSeconds (default 30) so a slow network
 --- never holds the hero back. Installs still running at the timeout carry on,
 --- so their classes arrive late rather than never.
+--- options.askOwner: a player who isn't the game's owner asks the owner's
+--- client to add what this client could not (a module with code; see
+--- HeroModules.ServeOwnerRequests). done() then also waits for the owner's
+--- answers, for at most options.ownerWaitSeconds (default: until the overall
+--- timeout). An owner who is not in the game answers when they next enter.
 --- @param done nil|fun()
 --- @param timeoutSeconds nil|number
-function HeroModules.InstallIntoGame(done, timeoutSeconds)
+--- @param options nil|{askOwner: nil|boolean, ownerWaitSeconds: nil|number}
+function HeroModules.InstallIntoGame(done, timeoutSeconds, options)
 	local finished = false
 	local Finish = function()
 		if finished then
@@ -329,7 +677,7 @@ function HeroModules.InstallIntoGame(done, timeoutSeconds)
 		Finish()
 	end)
 
-	HeroModules.CollectInventory(function(items)
+	CollectInventoryForInstall(function(items)
 		if mod.unloaded then
 			Finish()
 			return
@@ -341,6 +689,35 @@ function HeroModules.InstallIntoGame(done, timeoutSeconds)
 			if item.enabled and ((not info.premium) or info.owned) then
 				wanted[#wanted+1] = info
 			end
+		end
+
+		g_gameProblems = { gameid = dmhub.gameid, list = {} }
+		local askOwner = options ~= nil and options.askOwner == true and not dmhub.isGameOwner
+		--- @type ModuleLua[]
+		local forOwner = {}
+
+		--done() waits for the owner's answers: Finish once none is pending.
+		local function FinishWhenOwnerAnswers()
+			local gameid = dmhub.gameid
+			local ownerWaitSeconds = options ~= nil and tonumber(options.ownerWaitSeconds) or nil
+			local waited = 0
+			dmhub.Coroutine(function()
+				while not finished and not mod.unloaded and dmhub.gameid == gameid and (ownerWaitSeconds == nil or waited < ownerWaitSeconds) do
+					local pending = false
+					for _, info in ipairs(forOwner) do
+						local problem = g_gameProblems.list[info.fullid]
+						if problem ~= nil and problem.pending then
+							pending = true
+						end
+					end
+					if not pending then
+						break
+					end
+					coroutine.yield(0.25)
+					waited = waited + 0.25
+				end
+				Finish()
+			end)
 		end
 
 		local index = 0
@@ -356,7 +733,12 @@ function HeroModules.InstallIntoGame(done, timeoutSeconds)
 			index = index + 1
 			local info = wanted[index]
 			if info == nil then
-				Finish()
+				if #forOwner > 0 then
+					AskOwnerToInstall(forOwner)
+					FinishWhenOwnerAnswers()
+				else
+					Finish()
+				end
 				return
 			end
 			local fullid = info.fullid
@@ -368,6 +750,11 @@ function HeroModules.InstallIntoGame(done, timeoutSeconds)
 				error = function(message)
 					g_lastErrors[fullid] = message
 					print(string.format("HeroModules: %s not installed in this game: %s", fullid, message))
+					if askOwner then
+						forOwner[#forOwner+1] = info
+					else
+						SetGameProblem(info, message)
+					end
 					RunNext()
 				end,
 			}

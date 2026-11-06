@@ -336,6 +336,11 @@ text("eotw.party.begin_button", [[Begin]])
 text("eotw.party.rejoin_button", [[Re-join]])
 text("eotw.party.invite_button", [[Invite Friends]])
 text("eotw.party.invite_tooltip", [[Invite Steam friends to join this party.]])
+text("eotw.party.invite_tooltip_discord", [[Invite Discord friends to join this party.]])
+text("eotw.party.invite_tooltip_both", [[Invite Steam or Discord friends to join this party.]])
+--The Invite Friends button's choices when both Steam and Discord can invite.
+text("eotw.party.invite_steam", [[Steam Friends...]])
+text("eotw.party.invite_discord", [[Discord Friends...]])
 --The host's button, which disbands the party, and a member's.
 text("eotw.party.abandon_button", [[Abandon]])
 text("eotw.party.leave_button", [[Leave]])

@@ -297,6 +297,8 @@ function EotwRoster.Attach(conn)
     m_leads = nil
     m_carouse = nil
     EotwRoster.lastError = nil
+    --project states are per server too (the town can switch staging/release).
+    EotwDowntime.ForgetProjects()
     Bump()
 end
 
@@ -492,6 +494,18 @@ function EotwRoster.TownHallBuilt()
         return true
     end
     local state = EotwDowntime.GetProject("build-town-hall")
+    return state ~= nil and (tonumber(state.completions) or 0) >= 1
+end
+
+--Has the town finished building the Training Grounds (the community
+--project Build the Training Grounds)? Until then its place on the map is a
+--building site, and a respite Levels heroes up itself; once built, a
+--respite only banks XP and heroes Level up at the Training Grounds.
+function EotwRoster.TrainingGroundsBuilt()
+    if m_unlocks ~= nil and m_unlocks.trainingGrounds == true then
+        return true
+    end
+    local state = EotwDowntime.GetProject("build-training-grounds")
     return state ~= nil and (tonumber(state.completions) or 0) >= 1
 end
 
@@ -1527,8 +1541,8 @@ end
 
 --Recruit one of the player's own titlescreen heroes: a COPY joins the town
 --roster, and the titlescreen hero is never touched. Town heroes start fresh,
---so the copy comes in at level 1 (as NormalizeHeroLevel does in an EotW
---game) with no items (treasure is earned in town); its kit is kept.
+--so the copy comes in at level 1 (and Levels up in town, at the Training
+--Grounds) with no items (treasure is earned in town); its kit is kept.
 function EotwRoster.RecruitTitlescreenHero(source, name, onDone)
     if not EotwRoster.CanAddHero() then
         Fail(EotwRoster.FullRosterMessage())
@@ -1678,8 +1692,8 @@ end
 --who left the builder with choices unmade (not ready, choicesLeft > 0) gets
 --the builder again without a new Level. The player may close it at any time.
 --Returns false, opening nothing, when the Hero can do neither (LevelUpState
---says why). Pair with RESPITE_BANKS_XP in EotwDowntime.lua: turn it on when
---the Training Grounds opens, so a respite stops raising the Level itself.
+--says why). Once the Training Grounds are built a respite stops raising the
+--Level itself (EotwDowntime.RespiteBanksXp), so this is the way to Level.
 --args:
 --  heroid  the roster Hero
 --  host    the panel to mount the builder on (the town screen)

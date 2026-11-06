@@ -765,17 +765,34 @@ function Series.NextPart()
     end
     local _, mapName, part = ParseEncounterKey(key)
     local number = part + 1
-    local found, title = false, nil
+    local found = nil
     for _, p in ipairs(EncounterOfTheWeekGame.SeriesParts()) do
         if p.number == number then
-            found, title = true, p.title
+            found = p
         end
     end
-    if not found and FindMapByName(Series.PartMapName(mapName, number)) == nil then
+    if found == nil then
+        --the next part on its own part map: read that map's script.
+        local partMap = FindMapByName(Series.PartMapName(mapName, number))
+        if partMap == nil then
+            return nil
+        end
+        found = { number = number }
+        pcall(function()
+            for _, script in ipairs(EncounterMontage.ScriptForMap(partMap.id).parts or {}) do
+                local p = script.parse.part
+                if p.number == number then
+                    found = { number = number, title = p.title, comingSoon = p.comingSoon ~= nil, restFree = p.restFree == true }
+                end
+            end
+        end)
+    end
+    --a "Coming soon" part cannot be played yet, so it is not offered.
+    if found.comingSoon then
         return nil
     end
     local seriesKey = key:match("^(.-)#%d+$") or key
-    return { number = number, title = title, key = string.format("%s#%d", seriesKey, number) }
+    return { number = number, title = found.title, restFree = found.restFree == true, key = string.format("%s#%d", seriesKey, number) }
 end
 
 --"Part 2: Lush Garden" (or "Part 2") for Series.NextPart's answer.
@@ -1078,7 +1095,9 @@ end
 --True once every expected player has arrived (and the newest arrival has had
 --a moment to settle, so the last client in actually sees the Draw Steel
 --banner appear rather than loading into mid-roll).
-function EncounterOfTheWeekGame.AllPlayersArrived()
+--skipSettle: true for the loading-screen reveal, which needs everyone in but not
+--the 3 s settle (that holds back the encounter's start, not the view of the map).
+function EncounterOfTheWeekGame.AllPlayersArrived(skipSettle)
     local doc = mod:GetDocumentSnapshot(STATE_DOC_ID)
     local expected = doc.data.expectedUsers
     if type(expected) ~= "table" or #expected == 0 then
@@ -1104,7 +1123,7 @@ function EncounterOfTheWeekGame.AllPlayersArrived()
     --No settle while an opening stage beat waits on the party: every
     --player's loading screen is held until that beat opens (RevealReady), so
     --nobody can load into the middle of anything.
-    if newest ~= nil and not EncounterOfTheWeekGame.OpeningStageArriving() and math.abs(dmhub.serverTime - newest) < 3 then
+    if newest ~= nil and not skipSettle and not EncounterOfTheWeekGame.OpeningStageArriving() and math.abs(dmhub.serverTime - newest) < 3 then
         return false
     end
     return true
@@ -1908,7 +1927,7 @@ pcall(function()
         local chosen = false
         --in this game only the host decides.
         local decides = not here or IsDMOrPlayerHost()
-        local body = UIText.T("encounter.series_next.body")
+        local body = UIText.T(cond(nextPart.restFree, "encounter.series_next.body_rest_free", "encounter.series_next.body"))
         if here then
             body = cond(decides, UIText.T("encounter.series_next.body_here"),
                 UIText.T("encounter.series_next.body_member", { host = Series.HostName() }))
@@ -2971,7 +2990,7 @@ local function UpdateEncounterConclusion()
                 else
                     choice = {
                         text = UIText.T("encounter.series_next.button", { part = label }),
-                        note = UIText.T("encounter.series_next.story_note", { part = label }),
+                        note = UIText.T(cond(nextPart.restFree, "encounter.series_next.story_note_rest_free", "encounter.series_next.story_note"), { part = label }),
                         onChoose = function()
                             Series.SetContinue(nextPart.key)
                         end,
@@ -3111,14 +3130,21 @@ local function ClearBusyStamp()
 end
 
 --Per-client, from the 1s driver: mirror local ability activity into the
---state doc while combat is live. Writes only on transitions plus a
---BUSY_REFRESH_INTERVAL keep-alive, so idle ticks cost nothing.
+--state doc while combat is live, and while the heroes arrange (a Catch
+--Breath or Null Field in flight holds the start of combat; see
+--ArrangeHostTick). Writes only on transitions plus a BUSY_REFRESH_INTERVAL
+--keep-alive, so idle ticks cost nothing.
 local function UpdateBusyMirror()
     if not EncounterOfTheWeekGame.IsEotwGame() then
         return
     end
+    local arranging = false
+    pcall(function()
+        local arrange = mod:GetDocumentSnapshot(STATE_DOC_ID).data.arrange
+        arranging = type(arrange) == "table" and arrange.phase == "arranging"
+    end)
     local queue = dmhub.initiativeQueue
-    if queue == nil or queue.hidden then
+    if (queue == nil or queue.hidden) and not arranging then
         if m_busyStampTime ~= nil then
             ClearBusyStamp()
         end
@@ -3225,6 +3251,35 @@ end
 local function ArrangeHeroesWin(state)
     return state.heroesWin ~= false
 end
+
+--The only abilities players may use while arranging (David, 2026-11-05),
+--by ability guid. A table field, not a local: this file is at Lua's
+--200-local limit.
+EncounterOfTheWeekGame.ARRANGE_ABILITY_IDS = {
+    ["ca322ca9-4729-46b2-81bc-d3ac4098fc47"] = true, --Catch Breath (global rule mod)
+    ["8dbe876d-7e72-4e8c-8d11-ab51bffe9bd6"] = true, --Null Field (Null class feature)
+}
+
+--While the heroes arrange, a player's hero may prepare but not fight: every
+--other ability is greyed with the reason below (core cast gate; binds only
+--players under strict rules, which EotW forces). Catch Breath is limited only
+--by Recoveries: with no initiative queue a maneuver is never used up.
+ActivatedAbility.RegisterCastGate("eotw-arrange", function(ability, casterCreature, casterToken)
+    local state = ArrangeState()
+    if state == nil or state.phase ~= "arranging" then
+        return nil
+    end
+    --an "arranging" doc with a live queue is stale (see UpdateArrangePanel).
+    local queue = dmhub.initiativeQueue
+    if queue ~= nil and not queue.hidden then
+        return nil
+    end
+    local guid = ability:try_get("guid")
+    if guid ~= nil and EncounterOfTheWeekGame.ARRANGE_ABILITY_IDS[guid] then
+        return nil
+    end
+    return UIText.T("encounter.arrange.cast_blocked")
+end)
 
 local function ArrangeVoters()
     local voters = {}
@@ -3368,10 +3423,12 @@ local function CreateArrangePanel()
         bgcolor = "#0c0f14e6",
         width = 560,
         height = "auto",
-        --at the bottom, clear of the starting area the camera centres on.
+        --at the top, clear of the starting area the camera centres on. Not at
+        --the bottom: it covered the action bar's menus and cast prompt, and
+        --heroes may Catch Breath / raise Null Field while arranging.
         halign = "center",
-        valign = "bottom",
-        bmargin = 60,
+        valign = "top",
+        tmargin = 80,
         flow = "vertical",
         hpad = 20,
         vpad = 16,
@@ -3408,6 +3465,18 @@ local function CreateArrangePanel()
                 textAlignment = "center",
                 textWrap = true,
                 fontSize = 16,
+            },
+            gui.Label{
+                classes = {"fg"},
+                text = UIText.T("encounter.arrange.prepare_hint"),
+                width = "100%",
+                height = "auto",
+                halign = "center",
+                tmargin = 4,
+                textAlignment = "center",
+                textWrap = true,
+                fontSize = 14,
+                opacity = 0.8,
             },
             statusLabel,
             readyButton,
@@ -3847,19 +3916,17 @@ end
 
 --- hero placement -----------------------------------------------------
 
---Force a placed hero to exactly level 1.
+--Bring a placed hero up to a FULL Level, keeping the Level they have.
 --
---Heroes arrive from wherever their owner built them, and the weekly
---encounter is tuned for a level-1 party, so two directions have to be
---corrected on the game's COPY of the hero:
---  * ABOVE level 1: a lobby or campaign hero can be any level. Note that
---    CharacterLevel() is max(sum of class levels, levelOverride), so the
---    class entries have to come down too -- levelOverride alone cannot
---    lower a level-6 hero.
---  * BELOW level 1: the Draw Steel "slow start" track sits at level 1 with
---    extraLevelInfo.encounter = 1..4 -- the "First Encounter".."Fourth
---    Encounter" rungs, which grant only part of a level-1 hero's features.
---    Clearing .encounter promotes them to a full level 1.
+--Heroes Level up in Blackbottom (the Training Grounds, or a respite before
+--those are built), so a town hero plays at its own Level. Until 2026-11-04
+--this clamped every hero to exactly Level 1, because the weekly encounter
+--is tuned for a Level-1 party; that clamp is off (David's decision; the
+--encounter is not yet rebalanced for higher Levels -- a later step).
+--What remains is the "slow start" track: Draw Steel's level 1 with
+--extraLevelInfo.encounter = 1..4 (the "First Encounter".."Fourth
+--Encounter" rungs) grants only part of a level-1 hero's features, and
+--clearing .encounter promotes such a hero to a full Level.
 --The owner's original hero (in their lobby game or campaign) is never
 --touched: this runs on the pasted duplicate that lives in the EotW game.
 --Mirrors the character builder's level dropdown (Draw Steel Character
@@ -3870,53 +3937,25 @@ local function NormalizeHeroLevel(token)
         return
     end
 
-    --decide first, so a hero that is already level 1 (every well-authored
-    --pregen) costs nothing and leaves no upload behind.
+    --decide first, so a hero with nothing to fix (every well-authored pregen
+    --and town hero) costs nothing and leaves no upload behind.
     local extra = props:ExtraLevelInfo()
-    local clearEncounter = extra.encounter ~= nil
-    local setOverride = props:try_get("levelOverride", 1) ~= 1
-
-    local classes = props:try_get("classes", {})
-    local lowerClasses = false
-    for _,entry in ipairs(classes) do
-        if entry.level ~= 1 then
-            lowerClasses = true
-        end
-    end
-
-    if #classes > 1 then
-        --Draw Steel has no multiclassing, so this should not happen; the
-        --level would sum to #classes and no per-entry clamp can fix it.
-        --Leave the classes alone (deleting one is destructive) and say so.
-        printf("EotW: hero %s has %d classes; level cannot be forced to 1", tostring(token.name), #classes)
-    end
-
-    if not (clearEncounter or setOverride or lowerClasses) then
+    if extra.encounter == nil then
         return
     end
 
     token:ModifyProperties{
-        --setup, not a player action: an undo must not put the hero back to
-        --the level the encounter is not balanced for.
-        description = "Encounter of the Week: level 1",
+        --setup, not a player action: an undo must not put the hero back on
+        --the slow-start track.
+        description = "Encounter of the Week: full level",
         undoable = false,
         execute = function()
-            if clearEncounter then
-                --the field existed, so this is the stored table and not
-                --try_get's throwaway default; write it back to persist the
-                --clear.
-                local info = props:ExtraLevelInfo()
-                info.encounter = nil
-                props.extraLevelInfo = info
-            end
-
-            if setOverride then
-                props.levelOverride = 1
-            end
-
-            for _,entry in ipairs(props:try_get("classes", {})) do
-                entry.level = 1
-            end
+            --the field existed, so this is the stored table and not
+            --try_get's throwaway default; write it back to persist the
+            --clear.
+            local info = props:ExtraLevelInfo()
+            info.encounter = nil
+            props.extraLevelInfo = info
         end,
     }
 end
@@ -3976,7 +4015,7 @@ local function ClaimPastedHero(charid, description)
                 token:UploadToken(description or "Encounter of the Week hero")
                 --properties patches, issued after the token upload: cut the
                 --copy loose from the lobby hero it was pasted from, then
-                --clamp it to the level the encounter is balanced for.
+                --finish a slow-start hero's level (NormalizeHeroLevel).
                 DetachFromLobbySync(token)
                 NormalizeHeroLevel(token)
                 return
@@ -4954,6 +4993,16 @@ local function ArrangeHostTick()
     end
     if not ArrangeComplete(state) then
         return true
+    end
+    --a Catch Breath or Null Field still being cast finishes first, but for
+    --at most 30s past the deadline so a stuck prompt can't hold the fight.
+    local overtime = state.deadline ~= nil and dmhub.serverTime >= state.deadline + 30
+    if not overtime then
+        local busy, busyReason = AnyClientAbilityBusy()
+        if busy then
+            printf("EotW: the heroes are in position; waiting for %s before combat", tostring(busyReason))
+            return true
+        end
     end
     local doc = mod:GetDocumentSnapshot(STATE_DOC_ID)
     doc:BeginChange()
@@ -6065,6 +6114,23 @@ end
 --game, from inside the arrival coroutine. Each client installs its own, so a
 --member's modules arrive with the member. Renews the loading screen hold while
 --it waits; HeroModules gives up after HERO_MODULES_TIMEOUT_SECONDS.
+--Returns a function to call on every wait-loop pass: it renews the engine's
+--loading-screen hold once ~5 s of REAL time have passed. The engine's 20 s
+--backstop runs on real time, but coroutine.yield(0.1) waits game time, which
+--barely moves through long frames, so loops that counted their yields renewed
+--too late and the screen was force-cleared mid-setup (7 of 545 real entries,
+--Oct-Nov 2026 bug-report logs). A table field, not a local: this file's main
+--chunk is at Lua's 200-local limit.
+function EncounterOfTheWeekGame.LoadingScreenHoldRenewer()
+    local watch = dmhub.Stopwatch()
+    return function()
+        if watch.milliseconds >= 5000 then
+            pcall(function() dmhub.HoldLoadingScreen() end)
+            watch = dmhub.Stopwatch()
+        end
+    end
+end
+
 local HERO_MODULES_TIMEOUT_SECONDS = 20
 local function InstallMyHeroModules()
     local heroModules = rawget(_G, "HeroModules")
@@ -6072,24 +6138,22 @@ local function InstallMyHeroModules()
         return
     end
     local done = false
+    --a member can't add a module with code to the host's game, so it asks
+    --the host's client to (HeroModules.ServeOwnerRequests) -- A9C9NGB8.
     heroModules.InstallIntoGame(function()
         done = true
-    end, HERO_MODULES_TIMEOUT_SECONDS)
-    local sinceRenew = 0
+    end, HERO_MODULES_TIMEOUT_SECONDS, { askOwner = true })
+    local renewHold = EncounterOfTheWeekGame.LoadingScreenHoldRenewer()
     while not done and not mod.unloaded do
-        if sinceRenew >= 5 then
-            sinceRenew = 0
-            pcall(function() dmhub.HoldLoadingScreen() end)
-        end
+        renewHold()
         coroutine.yield(0.1)
-        sinceRenew = sinceRenew + 0.1
     end
 end
 
 local HOST_SETUP_TIMEOUT_SECONDS = 120
 local function WaitForHostSetup()
     local waited = 0
-    local sinceRenew = 0
+    local renewHold = EncounterOfTheWeekGame.LoadingScreenHoldRenewer()
     while waited < HOST_SETUP_TIMEOUT_SECONDS do
         if mod.unloaded then
             return
@@ -6101,13 +6165,9 @@ local function WaitForHostSetup()
         if ready then
             return
         end
-        if sinceRenew >= 5 then
-            sinceRenew = 0
-            pcall(function() dmhub.HoldLoadingScreen() end)
-        end
+        renewHold()
         coroutine.yield(0.1)
         waited = waited + 0.1
-        sinceRenew = sinceRenew + 0.1
     end
     printf("EotW: the host's setup was not ready after %d seconds; continuing", HOST_SETUP_TIMEOUT_SECONDS)
 end
@@ -6211,20 +6271,19 @@ end
 --while waiting.
 local function WaitForPartyThenRelease()
     local waited = 0
-    local sinceRenew = 0
+    local renewHold = EncounterOfTheWeekGame.LoadingScreenHoldRenewer()
     while waited < REVEAL_WAIT_MAX_SECONDS and not mod.unloaded do
         local arrived = false
-        pcall(function() arrived = EncounterOfTheWeekGame.AllPlayersArrived() end)
+        --no settle here: once everyone is in, show them the map; the encounter
+        --itself still waits out the settle before it starts (the bug-report
+        --logs had every no-stage entry sitting ~3 s on a finished load).
+        pcall(function() arrived = EncounterOfTheWeekGame.AllPlayersArrived(true) end)
         if arrived then
             break
         end
-        if sinceRenew >= 5 then
-            sinceRenew = 0
-            pcall(function() dmhub.HoldLoadingScreen() end)
-        end
+        renewHold()
         coroutine.yield(0.1)
         waited = waited + 0.1
-        sinceRenew = sinceRenew + 0.1
     end
     EotwProf("party in; releasing the loading screen")
     ReleaseLoadingScreen()
@@ -6318,6 +6377,16 @@ function EncounterOfTheWeekGame.SetupOnArrival(args)
 
         EotwProf("SetupOnArrival begin (%s)", IsDMOrPlayerHost() and "host" or "member")
 
+        --the Hero modules' info downloads (InstallMyHeroModules, below) start
+        --now, so they overlap the map travel and the encounter install instead
+        --of adding to them.
+        pcall(function()
+            local heroModules = rawget(_G, "HeroModules")
+            if heroModules ~= nil and heroModules.PrefetchInventory ~= nil then
+                heroModules.PrefetchInventory()
+            end
+        end)
+
         --what KeepMyArrivalRecorded restores belongs to this game only.
         m_myExpectedUsers = nil
         m_myPlacedHeroes = nil
@@ -6364,6 +6433,18 @@ function EncounterOfTheWeekGame.SetupOnArrival(args)
                 members = recorded
             end
             RecordExpectedUsers(members)
+
+            --install the Hero modules members ask for (a module with code
+            --only the owner can add), from before any member can arrive and
+            --ask. A module's pregens come with it: re-sweep after each.
+            pcall(function()
+                local heroModules = rawget(_G, "HeroModules")
+                if heroModules ~= nil and heroModules.ServeOwnerRequests ~= nil then
+                    heroModules.ServeOwnerRequests(function()
+                        SweepPlayersParty()
+                    end)
+                end
+            end)
 
             --an EotW game hosted by an admin has Discord voice on for everyone
             --in it (Draw Steel V/DiscordVoice.lua). Once per game, so it stays
@@ -6428,6 +6509,18 @@ function EncounterOfTheWeekGame.SetupOnArrival(args)
         EotwProf("hero modules installed")
 
         local myPasted, anchor = PlaceMyHeroes(args.heroes, args.clipboardIds)
+        --a hero whose Hero module could not be added would otherwise just
+        --show 0 Stamina: tell the player why, once the game is revealed.
+        pcall(function()
+            local heroModules = rawget(_G, "HeroModules")
+            if heroModules ~= nil and heroModules.WarnIfHeroesMissingContent ~= nil then
+                local charids = {}
+                for _,charid in pairs(GetPlacedHeroes(dmhub.loginUserid)) do
+                    charids[#charids+1] = charid
+                end
+                heroModules.WarnIfHeroesMissingContent(charids)
+            end
+        end)
         --the party record says who won its first part; a later part played
         --on in this game was stamped when it began (Series.OnNewPart).
         if type(mod:GetDocumentSnapshot(STATE_DOC_ID).data.seriesContinue) ~= "table" then

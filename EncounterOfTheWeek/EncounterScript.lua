@@ -637,8 +637,9 @@ local function ParseClause(clause)
     end
 
     --"you lose <n> stamina" / "each party member[s] lose[s] <n> stamina".
-    --Dice ("you lose 1d6 stamina") are rolled for each hero when it
-    --applies; qty is then the most it can take.
+    --Dice ("you lose 1d6 stamina") are rolled when it applies: one roll
+    --for the whole party when every hero loses it. qty is then the most
+    --it can take.
     local n = string.match(lc, "^you lose (%S+) stamina$")
     local staminaTarget = "self"
     if n == nil then
@@ -3814,12 +3815,21 @@ function EncounterScript.Parse(text)
             if soonRest ~= nil then
                 soonText = string.match(soonRest, "^:%s*(.-)$") or (string.match(soonRest, "^%.?$") and "" or nil)
             end
+            --"Rest does not lock this part": a win of the part before
+            --unlocks this one for good, even after the party rests.
+            local restFree = string.match(lower(t), "^rest does not lock this part%.?$") ~= nil
             if soonText ~= nil then
                 local mark = { text = cond(soonText ~= "", soonText, nil), line = lineIndex }
                 if result.part ~= nil then
                     result.part.comingSoon = mark
                 else
                     pendingComingSoon = mark
+                end
+            elseif restFree then
+                if result.part ~= nil then
+                    result.part.restFree = true
+                else
+                    Warn(lineIndex, "%s", T("author.script.rest_free_placement"))
                 end
             elseif declText ~= nil then
                 local decl = EncounterScript.ParseTrackDeclaration(declText)
@@ -5165,6 +5175,15 @@ function EncounterScript.Parse(text)
                 if o.delve ~= nil then
                     Warn(o.delveLine or o.line, "%s", T("author.script.delve.option_nested_delve", { option = o.name, delve = o.delve }))
                     o.delve = nil
+                end
+                --A delve never shows a dice roll, so a dice amount here would
+                --be rolled out of sight. Ask the author for a flat number.
+                for _, effects in ipairs(EncounterScript.OptionEffectLists(o)) do
+                    for _, effect in ipairs(effects or {}) do
+                        if effect.dice ~= nil then
+                            Warn(o.line, "%s", T("author.script.delve.obstacle_dice", { option = o.name, clause = effect.text or effect.dice }))
+                        end
+                    end
                 end
             end
         end

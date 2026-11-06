@@ -17,6 +17,7 @@
 local DEFAULT_TEXT = {
     "Codex Titlescreen/EotwTextTown.lua",
     "Codex Titlescreen/EotwTextHeroes.lua",
+    "Codex Titlescreen/EotwTextTrainingGrounds.lua",
     "EncounterOfTheWeek/EncounterText.lua",
     "EncounterOfTheWeek/EncounterAuthoringText.lua",
     --the main game's Hero Builder, which EotW runs too.
@@ -37,6 +38,7 @@ local DEFAULT_CODE = {
     "Codex Titlescreen/EotwModeration.lua",
     "Codex Titlescreen/EotwRoster.lua",
     "Codex Titlescreen/EotwTownHall.lua",
+    "Codex Titlescreen/EotwTrainingGrounds.lua",
     --EotW's build engine, shared with the main game's Builder.
     "Draw Steel V/HeroBuildPools.lua",
     --the main game's Hero Builder and its Skills & Languages, which EotW runs too.

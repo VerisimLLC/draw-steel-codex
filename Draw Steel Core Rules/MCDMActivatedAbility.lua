@@ -1293,6 +1293,24 @@ local function HasAutomaticTrigger(creatureProps, name)
     return false
 end
 
+--Cast gates: rules a game mode adds to stop players' creatures using
+--abilities by hand for a while (Encounter of the Week's "Arrange Your
+--Heroes" allows only Catch Breath and Null Field). A gate is
+--fn(ability, casterCreature, casterToken) returning a reason string to
+--refuse, or nil to allow. Gates bind only player-controlled casters, only
+--under Strictly Enforce Action Economy, and never a TriggeredAbility, so
+--the Director, the Monster AI and trigger prompts are never refused. The
+--action bar greys a refused chip, shows the reason and ignores the press.
+--- @type table<string, fun(ability: ActivatedAbility, casterCreature: creature, casterToken: CharacterToken): string|nil>
+local g_castGates = {}
+
+--- Adds (or, with the same id, replaces) a cast gate; pass nil to remove it.
+--- @param id string unique per gate, so a Lua reload replaces rather than adds
+--- @param fn nil|fun(ability: ActivatedAbility, casterCreature: creature, casterToken: CharacterToken): string|nil
+function ActivatedAbility.RegisterCastGate(id, fn)
+    g_castGates[id] = fn
+end
+
 local g_baseAbilityFilterFailureMessage = ActivatedAbility.AbilityFilterFailureMessage
 function ActivatedAbility:AbilityFilterFailureMessage(casterCreature)
     local message, filter = g_baseAbilityFilterFailureMessage(self, casterCreature)
@@ -1303,6 +1321,19 @@ function ActivatedAbility:AbilityFilterFailureMessage(casterCreature)
     --the prompt's own cast is the TriggeredAbility itself; never refuse that.
     if self.typeName == "TriggeredAbility" or casterCreature == nil then
         return nil
+    end
+
+    if next(g_castGates) ~= nil and StrictActionEconomyEnforced() then
+        local casterToken = dmhub.LookupToken(casterCreature)
+        if casterToken ~= nil and casterToken.playerControlled then
+            for _,gate in pairs(g_castGates) do
+                --a broken gate must not break every ability filter in the game.
+                local ok, reason = pcall(gate, self, casterCreature, casterToken)
+                if ok and reason ~= nil then
+                    return reason
+                end
+            end
+        end
     end
     local manualCopy = self:try_get("manualVersionOfTrigger", false)
     if not (manualCopy or self.categorization == "Trigger") then

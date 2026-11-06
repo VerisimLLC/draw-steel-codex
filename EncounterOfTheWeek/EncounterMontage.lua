@@ -1037,7 +1037,8 @@ end
 local function PartSummaries(parts)
     local result = {}
     for _, script in ipairs(parts or {}) do
-        result[#result + 1] = { number = script.parse.part.number, title = script.parse.part.title }
+        local part = script.parse.part
+        result[#result + 1] = { number = part.number, title = part.title, comingSoon = part.comingSoon ~= nil, restFree = part.restFree == true }
     end
     return result
 end
@@ -2725,8 +2726,22 @@ function EncounterMontage.ApplyEffects(effects, ctx)
                         applied[#applied + 1] = TP("montage.effect.item.heroes", #names, { names = TargetNames(names), qty = effect.qty, item = item.name })
                     end
                 end
+            elseif effect.kind == "stamina" and effect.dice ~= nil and effect.target == "party" then
+                --"each party member loses 2d6 stamina": one roll, the same
+                --loss for every hero.
+                local amount = tonumber(diceTotals[string.format("s:%d:party", effectIndex)])
+                    or RollDiceExpression(effect.dice)
+                local any = false
+                for _, target in ipairs(Targets(effect)) do
+                    if pcall(LoseStamina, target.token, amount, SourceLabel(ctx)) then
+                        any = true
+                    end
+                end
+                if any then
+                    applied[#applied + 1] = T("montage.effect.stamina_loss.party", { amount = amount })
+                end
             elseif effect.kind == "stamina" and effect.dice ~= nil then
-                --"you lose 1d6 stamina": each hero rolls their own.
+                --"you lose 1d6 stamina": the acting hero rolls.
                 for _, target in ipairs(Targets(effect)) do
                     local amount = tonumber(diceTotals[string.format("s:%d:%s", effectIndex, target.charid)])
                         or RollDiceExpression(effect.dice)
@@ -3934,16 +3949,34 @@ function EncounterMontage.PendingDice(effects, ctx)
                     targets = { ctx.heroEntry }
                 end
                 local stamina = effect.kind == "stamina"
-                for _, hero in ipairs(targets) do
-                    rolls[#rolls + 1] = {
-                        key = string.format("%s:%d:%s", cond(stamina, "s", "r"), effectIndex, hero.charid),
-                        kind = cond(stamina, "damage", "recovery"),
-                        dice = effect.dice,
-                        label = cond(stamina, T("montage.dice.stamina_label"), T("montage.dice.recoveries_label")),
-                        heroid = hero.charid,
-                        heroName = hero.name,
-                        userid = RollerFor(hero, ctx.userid or dmhub.loginUserid),
-                    }
+                --party-wide stamina loss is one roll for everyone, made by the
+                --acting hero (the first hero for a consequence). Recoveries
+                --stay one roll per hero.
+                if stamina and effect.target == "party" then
+                    local roller = ctx.heroEntry or targets[1]
+                    if roller ~= nil then
+                        rolls[#rolls + 1] = {
+                            key = string.format("s:%d:party", effectIndex),
+                            kind = "damage",
+                            dice = effect.dice,
+                            label = T("montage.dice.stamina_label"),
+                            heroid = roller.charid,
+                            heroName = roller.name,
+                            userid = RollerFor(roller, ctx.userid or dmhub.loginUserid),
+                        }
+                    end
+                else
+                    for _, hero in ipairs(targets) do
+                        rolls[#rolls + 1] = {
+                            key = string.format("%s:%d:%s", cond(stamina, "s", "r"), effectIndex, hero.charid),
+                            kind = cond(stamina, "damage", "recovery"),
+                            dice = effect.dice,
+                            label = cond(stamina, T("montage.dice.stamina_label"), T("montage.dice.recoveries_label")),
+                            heroid = hero.charid,
+                            heroName = hero.name,
+                            userid = RollerFor(hero, ctx.userid or dmhub.loginUserid),
+                        }
+                    end
                 end
             end
         end

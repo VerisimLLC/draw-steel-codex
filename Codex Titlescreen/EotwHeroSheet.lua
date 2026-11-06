@@ -2253,7 +2253,9 @@ local function LevelRow(d, fallen, epicFeature)
         if ready then
             rows[#rows+1] = Text(T("herosheet.card.ready_line"), { "eotwsReadyLine" }, { tmargin = 6 })
         elseif reach then
-            rows[#rows+1] = Text(T("herosheet.card.respite_line"), { "eotwsRespiteLine" }, { tmargin = 6 })
+            --once the Training Grounds stand, a respite only banks the XP.
+            local grounds = EotwRoster ~= nil and EotwRoster.TrainingGroundsBuilt()
+            rows[#rows+1] = Text(cond(grounds, T("herosheet.card.respite_line_grounds"), T("herosheet.card.respite_line")), { "eotwsRespiteLine" }, { tmargin = 6 })
         end
     end
     return rows

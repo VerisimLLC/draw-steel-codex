@@ -1253,7 +1253,7 @@ local function ComputeMonsterRolesInternal(live)
     local data = {}
     for _, group in ipairs(groups) do
         local rounds = {}
-        for roundKey, stats in pairs(live:GetStatsForMonsterGroupByRound(group.statKey)) do
+        for roundKey, stats in pairs(live:GetStatsForMonsterGroupByRound(group.statKeys)) do
             local n = tonumber(string.match(tostring(roundKey), "^round(%d+)$"))
             if n ~= nil and type(stats) == "table" then
                 rounds[n] = stats
@@ -1263,7 +1263,7 @@ local function ComputeMonsterRolesInternal(live)
         data[#data+1] = {
             group = group,
             name = group.name or "Monsters",
-            totals = live:GetStatsForMonsterGroup(group.statKey),
+            totals = live:GetStatsForMonsterGroup(group.statKeys),
             rounds = rounds,
         }
     end
@@ -1745,7 +1745,7 @@ Commands.RegisterMacro{
             else
                 print(string.format("  %s (%s): (no role)", group.name, status))
             end
-            local totals = live:GetStatsForMonsterGroup(group.statKey)
+            local totals = live:GetStatsForMonsterGroup(group.statKeys)
             local parts = {}
             for statid, v in pairs(totals) do
                 if type(v) == "number" then

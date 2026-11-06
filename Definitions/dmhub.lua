@@ -29,8 +29,6 @@
 --- @field whiteLabelEntityName string The name of the publisher of the product the engine is running as.
 --- @field whiteLabelAppName string The name of the app the engine is running as, suitable for showing to users.
 --- @field cloudFunctionsBaseUrl string Base URL for Firebase cloud functions for the current whitelabel project (e.g. https://us-central1-mcdm-385cf.cloudfunctions.net). Append the function name with a leading slash.
---- @field discordStatus {account: 'unsupported'|'off'|'notlinked'|'linking'|'connecting'|'ready'|'error', accountError: string|nil, displayName: string|nil, voice: 'off'|'joining'|'connecting'|'connected'|'disconnected', voiceError: string|nil, muted: boolean, pushToTalk: boolean|nil, deafened: boolean|nil, transmitting: boolean, inputVolume: number|nil, outputVolume: number|nil, noiseSuppression: boolean|nil, krisp: boolean|nil, autoGainControl: boolean|nil, echoCancellation: boolean|nil, sensitivityAutomatic: boolean|nil, sensitivity: number|nil, participants: {id: string, userid: string|nil, name: string, speaking: boolean, isSelf: boolean, volume: number|nil, localMute: boolean|nil}[]} (read-only, PROTOTYPE) The Discord account link and voice state. account is 'unsupported' outside the MCDM white label on Windows/macOS and 'off' when the Discord integration is off; 'ready' means signed in to Discord. voice describes this game's Discord call. muted is the user's choice; pushToTalk is true while the Push to Talk key is held (the mic is open then even when muted); transmitting is true while our own voice is going out. inputVolume is 0-100, outputVolume 0-200. sensitivityAutomatic and sensitivity (dB, -100 to 0) are the input sensitivity. krisp is true when noise suppression uses Krisp noise cancellation (its library and models shipped with this build). participants are the people in the call: id is their Discord id, userid their Codex userid (when they joined with one), volume (0-200, 100 normal) and localMute are how this user hears them.
---- @field discordMicLevel number|nil (read-only, PROTOTYPE) The user's microphone level in dB, -100 (silence) to 0 (loudest), on the same scale as the input sensitivity threshold. Measured from the audio Discord captures, so it is nil when not in a call or while Discord is not capturing. Smoothed: it rises at once and falls at 60 dB a second.
 --- @field platform string The platform the engine is running on. Returns 'windows', 'macOS', or 'linux'.
 --- @field applicationsFolder string The default operating-system folder where applications/executables live: the Program Files folder on Windows, /Applications on macOS, /usr/bin on Linux. Useful as a starting directory for a file dialog that browses for an executable.
 --- @field liveEditSessions {objid: string, name: string, imageId: string, changesPending: boolean}[]|nil The active image live-edit sessions, each as a table with 'objid' (the map object being edited), 'name' (a display label), 'imageId' (the live, updating image id, suitable as a thumbnail), and 'changesPending' (true once the external editor has saved a change that has not yet been uploaded). Returns nil when there are no active sessions.
@@ -111,6 +109,7 @@
 --- @field tokenInfo SheetHud The SheetHud instance that displays token information in the UI.
 --- @field markupZonesSeq number A sequence number that increments whenever any floor's markup zone records change, locally or remotely. Poll it to invalidate caches built from floor.markupZones.
 --- @field logicalMapSeq number A sequence number that increments whenever the logical map is recalculated (any wall or solid-terrain change on a visible floor, floor changes, map load). Poll it to invalidate caches built from data the logical map derives, such as dmhub.GetWallClimbableTilesOnFloor.
+--- @field terrainRulesSeq number Like tileRulesSeq, but not moved by rebuilds of the aura index, which happen on every game update that touches a character. Creature auras on a tile are per-token state (see CharacterToken.GetAurasTouching); poll this for everything else that feeds the tile rules -- floor data, walls and solids, tilesheet assets, the logical map, the water level. Only equality is meaningful; it is not monotonic.
 --- @field tileRulesSeq number A change serial for the built-in tile rules on the current map: it moves whenever anything that feeds FloorController.GetTileRulesAtLoc could have changed -- floor data patches, building-layer polygon applies (walls, floors, solids), object aura rebuilds (object Floor components move, appear or change), tilesheet asset edits, and logical-map recalculations. Poll it to invalidate caches built from dmhub.GetBuiltinTerrainZonesOnFloor or dmhub.GetWallClimbableTilesOnFloor. Only equality is meaningful; it is not monotonic.
 --- @field supportsDynamicLightZones boolean (read-only) True on engine builds that support dmhub.GetDarkTiles (deterministic map light sampling for dynamic-light markup zones). Probe this before calling it: on older builds unknown dmhub properties read as nil.
 --- @field popoutChildWindowsSupported boolean (read-only) True when the live popout companion process has advertised support for desktop-level child surfaces (tooltip/popup-menu/modal-child native windows parented to a popout window via panel:MoveToNativeWindow{windowType=..., parentPanel=...}). Gate any child-surface promotion on this: false means an old companion (or none attached yet), and promotion must fall back to today's in-window behavior. On older engine builds unknown dmhub properties read as nil, which is equally falsy.
@@ -136,7 +135,6 @@
 --- @field nonCharacterUpdateSeq number (read-only) Changes whenever a game update touches anything other than character records: initiative, shared documents, map objects, map manifests, settings, and so on. Session pings do not count. A value computed only from character records stays valid while this is unchanged and those records are (see CharacterRecordRevision).
 --- @field recentNonCharacterPaths string[] (read-only) Diagnostics: the most recent game update paths (up to 16, newest last, each prefixed with its update number) that advanced nonCharacterUpdateSeq. Each of them makes every creature rebuild its cached modifiers, so look here when they rebuild more often than expected.
 --- @field dependencyWildcardTrace boolean Diagnostics: when true, each dependency scope records the Lua stack of the first token query that made it wildcard, returned by EndDependencyScope as wildcardTrace. Slower; for finding what makes a cached value depend on every token.
---- @field terrainRulesSeq number Like tileRulesSeq, but not moved by rebuilds of the aura index, which happen on every game update that touches a character. Creature auras on a tile are per-token state (see CharacterToken.GetAurasTouching); poll this for everything else that feeds the tile rules -- floor data, walls and solids, tilesheet assets, the logical map, the water level. Only equality is meaningful; it is not monotonic.
 --- @field gameupdateid string (read-only) A guid that is unique to the game being updated from the cloud. Anytime this value changes we have new data from the cloud and the game is in a different state.
 --- @field tooltipsSuppressed boolean Tooltip Suppression Mode: while true, no tooltip is displayed anywhere on this client -- panel hover tooltips, map/tile tooltips, and the token-drag movement tooltip (and with it the movement cross-section diagram it carries). Any tooltip already on screen is dismissed the moment this is set. Client-only and session-scoped: it lives on the game session, so leaving the game always restores tooltips even if a mod forgets to clear it. Intended for a mod that needs an uncluttered phase of play; prefer the core codex wrapper GameHud.SetTooltipsSuppressed(key, value), which also stops the movement cross-section diagram from being rendered at all and lets several mods hold the suppression independently.
 --- @field currentRollGuid nil|string (Read-only) The guid that has been assigned to the current roll that is being previewed.
@@ -242,6 +240,8 @@
 --- @field inCoroutine boolean Returns true if we are currently running in a coroutine.
 --- @field PlaceholderNil any A stand-in for nil when we want to put it in a table.
 --- @field debugPropertyOutput string Engine debugging and performance information.
+--- @field discordStatus {account: 'unsupported'|'off'|'notlinked'|'linking'|'connecting'|'ready'|'error', accountError: string|nil, displayName: string|nil, deviceCode: string|nil, deviceUrl: string|nil, deviceExpiresIn: number|nil, voice: 'off'|'joining'|'connecting'|'connected'|'disconnected', voiceError: string|nil, muted: boolean, pushToTalk: boolean|nil, deafened: boolean|nil, transmitting: boolean, inputVolume: number|nil, outputVolume: number|nil, noiseSuppression: boolean|nil, krisp: boolean|nil, autoGainControl: boolean|nil, echoCancellation: boolean|nil, sensitivityAutomatic: boolean|nil, sensitivity: number|nil, participants: {id: string, userid: string|nil, name: string, speaking: boolean, isSelf: boolean, volume: number|nil, localMute: boolean|nil}[], discordId: string|nil, avatar: string|nil, socialRevision: integer|nil, messageRevision: integer|nil, unreadTotal: integer|nil, joinable: boolean|nil, joinSecret: string|nil, inviteRevision: integer|nil} (read-only, PROTOTYPE) The Discord account link and voice state. account is 'unsupported' outside the MCDM white label on Windows/macOS and 'off' when the Discord integration is off; 'ready' means signed in to Discord. While a code sign-in (DiscordLinkWithCode) waits, deviceCode is the code to show, deviceUrl the page to enter it on, and deviceExpiresIn the seconds left. voice describes this game's Discord call. muted is the user's choice; pushToTalk is true while the Push to Talk key is held (the mic is open then even when muted); transmitting is true while our own voice is going out. inputVolume is 0-100, outputVolume 0-200. sensitivityAutomatic and sensitivity (dB, -100 to 0) are the input sensitivity. krisp is true when noise suppression uses Krisp noise cancellation (its library and models shipped with this build). participants are the people in the call: id is their Discord id, userid their Codex userid (when they joined with one), volume (0-200, 100 normal) and localMute are how this user hears them. Friends and messages: discordId and avatar (a bgimage) are the linked user's; socialRevision goes up whenever a friend, request, block or a friend's presence changes, and messageRevision whenever a direct message arrives or is sent, so a panel can poll them and re-read; unreadTotal counts direct messages not yet read (see DiscordMarkRead); joinable is true while our presence can be joined, which DiscordSendInvite needs, and joinSecret is then what friends get to join us (the Steam connect string: dshub1:<gameid> for a game, dshub2:<kind>:<payload> for a party Lua advertises). inviteRevision goes up whenever a Discord invite or Ask to Join request arrives, changes or is answered (DiscordGetInvites).
+--- @field discordMicLevel number|nil (read-only, PROTOTYPE) The user's microphone level in dB, -100 (silence) to 0 (loudest), on the same scale as the input sensitivity threshold. Measured from the audio Discord captures, so it is nil when not in a call or while Discord is not capturing. Smoothed: it rises at once and falls at 60 dB a second.
 --- @field mergedTitleBarAvailable boolean True when this platform supports merging the native title bar into the app's own bar (Windows standalone). Gate all merged-title-bar UI on this.
 --- @field titleBarChromeMode string Which merged-title-bar implementation is active: 'nccalcsize' (keep the captioned window style, reclaim the caption's pixels via WM_NCCALCSIZE -- the default) or 'strip' (legacy WS_CAPTION removal). 'unsupported' where merging is unavailable.
 --- @field windowMaxButtonState string Interaction state of the native maximize-button zone registered via SetTitleBarHitRegions: 'none', 'hover' or 'pressed'. The engine fires the 'windowMaxButtonState' global event when this changes; read it there to drive the control's hover/press visuals, since the app's gui never receives mouse events over a native zone.
@@ -549,6 +549,10 @@ function dmhub.SaveFileDialog(options) end
 --- @return any
 function dmhub.GetLoadedTextures() end
 
+--- Developer texture browser, 'All textures' mode: every live texture in the process, not only the ImageManager cache that dmhub.GetLoadedTextures reports -- render targets, font atlases, sprite sheets shipped in the build, map raster/heightmap textures and so on. Sorted largest first. Shape: { summary={count, residentCount, vramMB (resident textures), notResidentMB (render targets defined but not allocated on the GPU), sources={ {source, count, vramMB}, ... } (largest first)}, textures={ {name, source, kind, imageId, width, height, depth, format, compressed, mips, msaa, resident, owner, vramBytes, instanceId}, ... } }. source is 'Image cache' (imageId set: the ImageManager key), 'Render target: <subsystem>' (owner = the camera rendering into it), 'Font atlas', 'Sprite' (UI art and atlases referenced by a Sprite) or 'Other'. vramBytes is estimated from format, dimensions, mips and MSAA, not reported by the driver; a render target that is not resident uses no GPU memory yet and is left out of vramMB. Walks every loaded object, so call it on demand, not per frame.
+--- @return any
+function dmhub.GetAllTextures() end
+
 --- Developer texture browser: given an image id, scans live game objects -- character tokens (portrait/frame/ribbon/background), placed map objects, and UI panels (bgimage) -- and returns an array of usage entries describing where the image is currently in use. Token entries are { kind='token', charid, slot, onmap } (pass charid to dmhub.FocusToken to jump to it); object/panel entries are { kind='object'|'panel', label }. Complements the load trace (call stack at load time) with a 'who references this right now' answer. Resolves asset GUIDs / md5: / thumb: refs to the canonical image key before matching.
 --- @param imageid? string
 --- @return any
@@ -841,6 +845,18 @@ function dmhub.MarkLocs(args) end
 --- @param args {shape: SpellShapes, token: CharacterToken, objectTemplate: nil|string, targetPoint: nil|Vector3Arg, range: nil|number, radius: nil|number, locOverride: nil|Loc, requireEmpty: nil|boolean, checklos: nil|boolean, altitude: nil|number, targetFloorIndex: nil|number }
 --- @return LuaShape
 function dmhub.CalculateShape(args) end
+
+--- Returns a number that changes whenever a game update touches the given character's record (its properties, location, appearance, ...). Equal values mean the record has not changed in between.
+--- @param charid? string
+--- @return number
+function dmhub.CharacterRecordRevision(charid) end
+
+--- Starts recording which tokens Lua reads, for caching a computed value until one of them changes. Every property read or method call on a CharacterToken records its charid, and every query over a set of tokens (all tokens, tokens at a location or in a radius, all characters) marks the scope as depending on every token. Scopes nest, each recording only its own reads. Always pair with EndDependencyScope, even when the computation errors.
+function dmhub.BeginDependencyScope() end
+
+--- Ends the innermost scope started by BeginDependencyScope and returns what it recorded: tokens is a set of the charids read, and wildcard is true if a token query ran, so the result may change when any token moves, appears or disappears. Returns nil if no scope is open (for example because a game update discarded a scope left open by an error).
+--- @return nil|{wildcard: boolean, tokens: table<string, boolean>, wildcardTrace: nil|string}
+function dmhub.EndDependencyScope() end
 
 --- Registers a bonus type used with rolls, e.g. "Circumstance" for circumstance bonuses in pf2e. Once registered, dice rolls may use these identifiers as keywords to identify the type of a bonus.
 --- @param name? string
@@ -1401,73 +1417,18 @@ function dmhub.SetSteamJoinTarget(kind, payload, group, groupSize) end
 --- @return any
 function dmhub.TakeSteamInvite() end
 
---- (PROTOTYPE) Starts linking the user's Discord account: Discord's approval screen opens (in the Discord app or a browser). Watch dmhub.discordStatus.account for the result. Calling it while still waiting for approval abandons that attempt and starts again. Returns false when linking cannot start (unsupported, or the approved link is being set up).
+--- Diagnostic: groups every live RenderTexture by name, size, format and depth, largest groups first, logs it as an RTCENSUS:: line and returns the same text. A leak shows as one group with a huge count.
+--- @return string
+function dmhub.DebugRenderTextureCensus() end
+
+--- Testing aid: while hold is true, this client discards every message from the game server for the current game, as if the server had gone silent, so its writes stay unacknowledged. Pair with DebugGameServerDrop to exercise the resend-after-reconnect path. Returns false when the current game has no game-server connection.
+--- @param hold? boolean
 --- @return boolean
-function dmhub.DiscordLink() end
+function dmhub.DebugGameServerHoldInbound(hold) end
 
---- (PROTOTYPE) Unlinks the user's Discord account: leaves voice, disconnects, and revokes the link on the server. Returns false when Discord is not available.
+--- Testing aid: drop this client's game-server socket for the current game exactly as a network failure does. Unacknowledged writes are queued, the client reconnects, and they are resent in the order they were first issued. Also releases DebugGameServerHoldInbound. Returns false when the current game has no game-server connection.
 --- @return boolean
-function dmhub.DiscordUnlink() end
-
---- (PROTOTYPE) Joins this game's Discord voice call (needs a linked account and a real game, not the titlescreen). Returns nil when joining started, or a message saying why it cannot.
---- @return string|nil
-function dmhub.DiscordJoinVoice() end
-
---- (PROTOTYPE) Leaves the Discord voice call. Leaving the game does this too.
-function dmhub.DiscordLeaveVoice() end
-
---- (PROTOTYPE) Mutes or unmutes the user's microphone in Discord voice. Saved for next time. While the Push to Talk key is held the mic is open anyway.
---- @param muted boolean
-function dmhub.DiscordSetVoiceMuted(muted) end
-
---- (PROTOTYPE) Deafens (hear nobody) or undeafens the user in Discord voice.
---- @param deafened boolean
-function dmhub.DiscordSetVoiceDeafened(deafened) end
-
---- (PROTOTYPE) Sets the microphone volume, 0-100. Saved for next time.
---- @param volume number
-function dmhub.DiscordSetVoiceInputVolume(volume) end
-
---- (PROTOTYPE) Sets the volume of everyone in the call, 0-200 (100 normal). Saved for next time.
---- @param volume number
-function dmhub.DiscordSetVoiceOutputVolume(volume) end
-
---- (PROTOTYPE) Turns background noise suppression on or off: Krisp noise cancellation when it shipped with this build (discordStatus.krisp), else Discord's basic suppression. Saved for next time.
---- @param on boolean
-function dmhub.DiscordSetVoiceNoiseSuppression(on) end
-
---- (PROTOTYPE) Sets the input sensitivity: how loud the user must be before Discord sends their voice. automatic lets Discord decide; otherwise threshold is used, in dB from -100 (picks up everything) to 0 (Discord's usual manual value is -60). Saved for next time.
---- @param automatic boolean
---- @param threshold number
-function dmhub.DiscordSetVoiceSensitivity(automatic, threshold) end
-
---- (PROTOTYPE) Turns Discord's automatic gain control (evening out the mic volume) on or off. Saved for next time.
---- @param on boolean
-function dmhub.DiscordSetVoiceAutoGainControl(on) end
-
---- (PROTOTYPE) Turns Discord's echo cancellation on or off. Saved for next time.
---- @param on boolean
-function dmhub.DiscordSetVoiceEchoCancellation(on) end
-
---- (PROTOTYPE) Sets how loud one call participant is for this user only, 0-200 (100 normal). discordId is a participant id from dmhub.discordStatus. Saved for next time.
---- @param discordId string
---- @param volume number
-function dmhub.DiscordSetParticipantVolume(discordId, volume) end
-
---- (PROTOTYPE) Mutes or unmutes one call participant for this user only. Saved for next time.
---- @param discordId string
---- @param mute boolean
-function dmhub.DiscordSetParticipantLocalMute(discordId, mute) end
-
---- (PROTOTYPE) Lists the microphones and speakers Discord can use and the ones in use, calling callback when ready. Returns false (and never calls back) when Discord is not available.
---- @param callback fun(devices: {inputs: {id: string, name: string, isDefault: boolean}[], outputs: {id: string, name: string, isDefault: boolean}[], input: string|nil, output: string|nil})
---- @return boolean
-function dmhub.DiscordGetAudioDevices(callback) end
-
---- (PROTOTYPE) Switches Discord voice to the given microphone ('input') or speakers ('output'), a device id from DiscordGetAudioDevices. Saved for next time.
---- @param kind 'input'|'output'
---- @param deviceId string
-function dmhub.DiscordSetAudioDevice(kind, deviceId) end
+function dmhub.DebugGameServerDrop() end
 
 --- Testing aid: handle a Steam connect string exactly as if a friend's 'Join Game' or invite had just been accepted ('dshub1:{gameid}' enters a game; 'dshub2:{kind}:{payload}' queues an invite for TakeSteamInvite). Works without Steam, so dev builds can exercise the receiving side.
 --- @param connect? string
@@ -1600,18 +1561,6 @@ function dmhub.GetAllCharacters() end
 --- @param tokenid string
 --- @return nil|CharacterToken
 function dmhub.GetCharacterById(tokenid) end
-
---- Returns a number that changes whenever a game update touches the given character's record (its properties, location, appearance, ...). Equal values mean the record has not changed in between.
---- @param charid string
---- @return number
-function dmhub.CharacterRecordRevision(charid) end
-
---- Starts recording which tokens Lua reads, for caching a computed value until one of them changes. Every property read or method call on a CharacterToken records its charid, and every query over a set of tokens (all tokens, tokens at a location or in a radius, all characters) marks the scope as depending on every token. Scopes nest, each recording only its own reads. Always pair with EndDependencyScope, even when the computation errors.
-function dmhub.BeginDependencyScope() end
-
---- Ends the innermost scope started by BeginDependencyScope and returns what it recorded: tokens is a set of the charids read, and wildcard is true if a token query ran, so the result may change when any token moves, appears or disappears. Returns nil if no scope is open (for example because a game update discarded a scope left open by an error).
---- @return nil|{wildcard: boolean, tokens: table<string, boolean>, wildcardTrace: nil|string}
-function dmhub.EndDependencyScope() end
 
 --- Converts a creature size string (e.g. 'medium', 'large') to the corresponding token visual scale.
 --- @param creatureSize string
@@ -2131,6 +2080,23 @@ function dmhub.PoolMetrics() end
 --- @return string
 function dmhub.PoolAudit() end
 
+--- Diagnostic: compares parked panels in the recycling pool, field by field (every managed field plus RectTransform/Graphic/TMP/material state), against a pristine Instantiate of their prefab. Anything reported that is not deliberately kept is state a recycled panel would carry into its next use. Returns 'IDENTICAL (...)' or the differences. See Assets/POOLING_REFERENCE.md.
+--- @param maxPanels? number How many parked panels to compare (default 400).
+--- @param maxDiffs? number Cap on reported differences (default 60).
+--- @return string
+function dmhub.PoolFreshAudit(maxPanels, maxDiffs) end
+
+--- Diagnostic: deep-compares two live panel trees -- every managed field of every panel and component, RectTransform geometry, Graphic/Image/TMP state and material uniforms -- pairing children by index. Build the same widgets twice, once fresh (pooling off) and once from recycled panels, and any difference is state that leaked across a recycle. Returns 'IDENTICAL (...)' or the differences.
+--- @param a Panel
+--- @param b Panel
+--- @param maxDiffs? number Cap on reported differences (default 60).
+--- @return string
+function dmhub.PanelStateDiff(a, b, maxDiffs) end
+
+--- Diagnostic: one line with the size of every static SheetPanel registry (active, top-level, thinkers, scheduled events, monitors, renderer queue, ...), the live/rebirth counters, every SheetPanel object in memory including parked ones, and the managed heap. Sample it across a long soak: a count that only grows is a leak. Not cheap.
+--- @return string
+function dmhub.PanelRegistryStats() end
+
 --- Diagnostic: zeroes the SheetPanel pooling counters so a measurement can start from a clean slate.
 function dmhub.PoolResetMetrics() end
 
@@ -2159,7 +2125,7 @@ function dmhub.PanelMaterialInputsGuard(enabled) end
 --- @param legacy? boolean
 function dmhub.PanelSetParentLegacy(legacy) end
 
---- Experimental: when true, new gui widgets are born under an inactive nursery root instead of inside the live canvas, so widget-tree assembly pays no per-child UGUI re-registration; the subtree registers once at final attach. Default false.
+--- Experimental: when true, new gui widgets are born under an inactive nursery root instead of inside the live canvas, so widget-tree assembly pays no per-child UGUI re-registration; the subtree registers once at final attach. Default true (since 2026-10-29); --nursery off at startup restores the legacy birth path.
 --- @param enabled? boolean
 function dmhub.PanelNursery(enabled) end
 
@@ -2198,6 +2164,166 @@ function dmhub:DebugUserDataReport() end
 --- MigrateGameFormatV316
 --- @deprecated
 function dmhub.MigrateGameFormatV316() end
+
+--- (PROTOTYPE) Starts linking the user's Discord account: Discord's approval screen opens (in the Discord app or a browser). Watch dmhub.discordStatus.account for the result. Calling it while still waiting for approval abandons that attempt and starts again. Returns false when linking cannot start (unsupported, or the approved link is being set up).
+--- @return boolean
+function dmhub.DiscordLink() end
+
+--- (PROTOTYPE) Starts linking the user's Discord account with a code instead of a browser redirect: once the server has it, dmhub.discordStatus.deviceCode is the code to enter at deviceUrl (discord.com/activate) on any device, and account becomes 'ready' when it is approved, or 'error' when it is declined or expires (deviceExpiresIn counts down). For when the browser sign-in's approval never reaches Codex. Abandons a sign-in already waiting. Returns false when linking cannot start.
+--- @return boolean
+function dmhub.DiscordLinkWithCode() end
+
+--- (PROTOTYPE) Stops waiting for a Discord sign-in (browser or code). A signed-in account stays signed in. Returns false when no sign-in was waiting.
+--- @return boolean
+function dmhub.DiscordCancelLink() end
+
+--- (PROTOTYPE) Opens the code sign-in's Discord page in the browser, with the code filled in. Returns false when no code sign-in is waiting.
+--- @return boolean
+function dmhub.DiscordOpenLinkCodePage() end
+
+--- (PROTOTYPE) Unlinks the user's Discord account: leaves voice, disconnects, and revokes the link on the server. Returns false when Discord is not available.
+--- @return boolean
+function dmhub.DiscordUnlink() end
+
+--- (PROTOTYPE) Joins this game's Discord voice call (needs a linked account and a real game, not the titlescreen). Returns nil when joining started, or a message saying why it cannot.
+--- @return string|nil
+function dmhub.DiscordJoinVoice() end
+
+--- (PROTOTYPE) Leaves the Discord voice call. Leaving the game does this too.
+function dmhub.DiscordLeaveVoice() end
+
+--- (PROTOTYPE) Mutes or unmutes the user's microphone in Discord voice. Saved for next time. While the Push to Talk key is held the mic is open anyway.
+--- @param muted? boolean
+function dmhub.DiscordSetVoiceMuted(muted) end
+
+--- (PROTOTYPE) Deafens (hear nobody) or undeafens the user in Discord voice.
+--- @param deafened? boolean
+function dmhub.DiscordSetVoiceDeafened(deafened) end
+
+--- (PROTOTYPE) Sets the microphone volume, 0-100. Saved for next time.
+--- @param volume? number
+function dmhub.DiscordSetVoiceInputVolume(volume) end
+
+--- (PROTOTYPE) Sets the volume of everyone in the call, 0-200 (100 normal). Saved for next time.
+--- @param volume? number
+function dmhub.DiscordSetVoiceOutputVolume(volume) end
+
+--- (PROTOTYPE) Turns background noise suppression on or off: Krisp noise cancellation when it shipped with this build (discordStatus.krisp), else Discord's basic suppression. Saved for next time.
+--- @param on? boolean
+function dmhub.DiscordSetVoiceNoiseSuppression(on) end
+
+--- (PROTOTYPE) Sets the input sensitivity: how loud the user must be before Discord sends their voice. automatic lets Discord decide; otherwise threshold is used, in dB from -100 (picks up everything) to 0 (Discord's usual manual value is -60). Saved for next time.
+--- @param automatic? boolean
+--- @param threshold? number
+function dmhub.DiscordSetVoiceSensitivity(automatic, threshold) end
+
+--- (PROTOTYPE) Turns Discord's automatic gain control (evening out the mic volume) on or off. Saved for next time.
+--- @param on? boolean
+function dmhub.DiscordSetVoiceAutoGainControl(on) end
+
+--- (PROTOTYPE) Turns Discord's echo cancellation on or off. Saved for next time.
+--- @param on? boolean
+function dmhub.DiscordSetVoiceEchoCancellation(on) end
+
+--- (PROTOTYPE) Sets how loud one call participant is for this user only, 0-200 (100 normal). discordId is a participant id from dmhub.discordStatus. Saved for next time.
+--- @param discordId? string
+--- @param volume? number
+function dmhub.DiscordSetParticipantVolume(discordId, volume) end
+
+--- (PROTOTYPE) Mutes or unmutes one call participant for this user only. Saved for next time.
+--- @param discordId? string
+--- @param mute? boolean
+function dmhub.DiscordSetParticipantLocalMute(discordId, mute) end
+
+--- (PROTOTYPE) Lists the microphones and speakers Discord can use and the ones in use, calling callback when ready. Returns false (and never calls back) when Discord is not available.
+--- @param callback fun(devices: {inputs: {id: string, name: string, isDefault: boolean}[], outputs: {id: string, name: string, isDefault: boolean}[], input: string|nil, output: string|nil})
+--- @return boolean
+function dmhub.DiscordGetAudioDevices(callback) end
+
+--- (PROTOTYPE) Switches Discord voice to the given microphone ('input') or speakers ('output'), a device id from DiscordGetAudioDevices. Saved for next time.
+--- @param kind 'input'|'output'
+--- @param deviceId string
+function dmhub.DiscordSetAudioDevice(kind, deviceId) end
+
+--- (PROTOTYPE) The linked user's Discord friends, friend requests and blocked users, read live from Discord (nothing is stored). Friends come first in Discord's own groups and order: group 'playing' (online in the Codex), 'online' (online elsewhere), 'offline'; then incoming and outgoing requests and blocked users. avatar is a bgimage that shows their Discord profile picture. activity is their presence in the Codex only (Discord does not share activity in other games). spam marks a request Discord flagged as likely spam; unread counts their direct messages not yet read. Empty when no Discord account is linked. Re-read when dmhub.discordStatus.socialRevision changes.
+--- @return {id: string, relationship: 'friend'|'incoming'|'outgoing'|'blocked', group: 'playing'|'online'|'offline'|nil, username: string, displayName: string, status: 'online'|'idle'|'dnd'|'streaming'|'offline'|'blocked', avatar: string|nil, spam: boolean|nil, unread: integer|nil, activity: {name: string, details: string|nil, state: string|nil, joinable: boolean|nil}|nil}[]
+function dmhub.DiscordGetRelationships() end
+
+--- (PROTOTYPE) Changes the relationship with a Discord user: 'accept' or 'reject' their friend request, 'cancel' ours, 'remove' them as a friend, 'block' or 'unblock' them. callback gets nil on success or Discord's error message. Returns false (and never calls back) when no Discord account is ready or the action is unknown.
+--- @param action 'accept'|'reject'|'cancel'|'remove'|'block'|'unblock'
+--- @param userId string
+--- @param callback nil|fun(error: string|nil)
+--- @return boolean
+function dmhub.DiscordRelationshipAction(action, userId, callback) end
+
+--- (PROTOTYPE) Sends a Discord friend request to a Discord username. callback gets nil on success or Discord's error message (no such user, already friends, ...). Returns false when no Discord account is ready or the name is empty.
+--- @param username string
+--- @param callback nil|fun(error: string|nil)
+--- @return boolean
+function dmhub.DiscordSendFriendRequest(username, callback) end
+
+--- (PROTOTYPE) Invites a Discord friend to join us, with an optional message. Only works while dmhub.discordStatus.joinable is true (we are in a game, or Lua advertises a party). Accepting uses the same path as Ask to Join. callback gets nil on success or Discord's error message.
+--- @param userId string
+--- @param message string|nil
+--- @param callback nil|fun(error: string|nil)
+--- @return boolean
+function dmhub.DiscordSendInvite(userId, message, callback) end
+
+--- (PROTOTYPE) Asks to join a Discord friend who is in a joinable Codex game or party (their DiscordGetRelationships activity.joinable). They get the request as an invite to accept; when they do, we join them automatically (within 10 minutes of asking). callback gets nil once the request is sent, or Discord's error message.
+--- @param userId string
+--- @param callback nil|fun(error: string|nil)
+--- @return boolean
+function dmhub.DiscordSendJoinRequest(userId, callback) end
+
+--- (PROTOTYPE) Invites and Ask to Join requests received from Discord friends since the app started, oldest first, not yet accepted or dismissed. type 'invite' is a friend inviting us to their game; 'joinrequest' is a friend asking to join ours. valid is false while the sender is offline or has left the game they invited us to. age is seconds since it arrived. Re-read when dmhub.discordStatus.inviteRevision changes.
+--- @return {id: integer, type: 'invite'|'joinrequest', senderId: string, senderName: string, avatar: string|nil, valid: boolean, age: number}[]
+function dmhub.DiscordGetInvites() end
+
+--- (PROTOTYPE) Accepts a received invite or Ask to Join request (an id from DiscordGetInvites). Accepting an invite joins the sender's game or party, the same way as a Steam join (asking first when in another game); accepting a request lets the friend join us. It is removed from the list either way. callback gets nil on success or Discord's error message. Returns false when the id is unknown or no Discord account is ready.
+--- @param id integer
+--- @param callback nil|fun(error: string|nil)
+--- @return boolean
+function dmhub.DiscordAcceptInvite(id, callback) end
+
+--- (PROTOTYPE) Drops a received invite or Ask to Join request (an id from DiscordGetInvites) without answering it. Discord tells the sender nothing.
+--- @param id integer
+function dmhub.DiscordDismissInvite(id) end
+
+--- (PROTOTYPE) Accepts an invite the Codex stored for us (the discordInvitesList cloud function): enters its connect string exactly as an accepted Steam or Discord join does. 'dshub1:<gameid>' enters that game (asking first when in another one); 'dshub2:<kind>:<payload>' hands the invite to the Lua feature that owns kind (dmhub.TakeSteamInvite). Returns false for anything that is not a connect string.
+--- @param connect string
+--- @return boolean
+function dmhub.DiscordJoin(connect) end
+
+--- (PROTOTYPE) Fetches the most recent direct messages with a Discord user (up to limit, at most 200), oldest first. sent is in seconds since the epoch (for os.date). sentFromGame is false for messages written in Discord itself; disclosure marks Discord's notice that these messages are visible in Discord; hasAttachment marks content the game cannot show (images, embeds), which canOpenInDiscord messages can open in Discord (DiscordOpenMessageInDiscord). Returns false when no Discord account is ready.
+--- @param userId string
+--- @param limit integer
+--- @param callback fun(messages: {id: string, authorId: string, fromSelf: boolean, content: string, sent: number, sentFromGame: boolean, disclosure: boolean|nil, hasAttachment: boolean|nil, canOpenInDiscord: boolean|nil}[]|nil, error: string|nil)
+--- @return boolean
+function dmhub.DiscordGetMessages(userId, limit, callback) end
+
+--- (PROTOTYPE) Sends a direct message to a Discord friend; it also appears in their (and our) Discord DMs. callback gets nil on success or Discord's error message. Returns false when no Discord account is ready or the text is empty.
+--- @param userId string
+--- @param text string
+--- @param callback nil|fun(error: string|nil)
+--- @return boolean
+function dmhub.DiscordSendMessage(userId, text, callback) end
+
+--- (PROTOTYPE) Unread direct messages per Discord user id. Counted since the app started; messages read in Discord itself are not known to us.
+--- @return table<string, integer>
+function dmhub.DiscordUnreadCounts() end
+
+--- (PROTOTYPE) Marks a Discord user's direct messages as read.
+--- @param userId? string
+function dmhub.DiscordMarkRead(userId) end
+
+--- (PROTOTYPE) Tells the engine which conversation is on screen, so its new messages do not count as unread; nil when none is.
+--- @param userId string|nil
+function dmhub.DiscordSetOpenConversation(userId) end
+
+--- (PROTOTYPE) Opens a direct message in the Discord app (for content the Codex cannot show). Returns false when it cannot.
+--- @param messageId? string
+--- @return boolean
+function dmhub.DiscordOpenMessageInDiscord(messageId) end
 
 --- Strip (true) or restore (false) the native Windows caption bar, merging the app's title bar with the window chrome. The app bar must supply drag and window buttons while merged. No-op where unsupported.
 --- @param merged? boolean

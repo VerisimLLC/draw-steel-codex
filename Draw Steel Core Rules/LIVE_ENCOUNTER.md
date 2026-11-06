@@ -350,8 +350,10 @@ display info (`memberinfo`: minion flag, portrait, monster type/role) so
 `GetMonsterGroups` still counts and draws members whose tokens were despawned or
 deleted -- dead monsters leave the map but read back as dead members instead of
 vanishing from the victory screen. Read back with
-`GetMonsterGroups()` / `GetStatsForMonsterGroup(statKey)` /
-`GetStatsForMonsterGroupByRound(statKey)`; consumed by the victory screen's
+`GetMonsterGroups()` / `GetStatsForMonsterGroup(group.statKeys)` /
+`GetStatsForMonsterGroupByRound(group.statKeys)` -- groups follow their
+members, so monsters regrouped mid-fight show on their new group's card with
+the stats from before and after the regroup; consumed by the victory screen's
 Monsters tab (`DSVictoryScreen.ComputeMonsterRoles`, debug via `/monsterroles`).
 Full contract in `STATS_TRACKING.md` ("Monster-side tracking").
 

@@ -498,7 +498,8 @@ MonsterAI:RegisterPrompt{
         if #targets > 0 then
             return {targets = {targets[1]}}
         end
-        return "skip"
+        --No target in reach: skip the bite (HandlePrompt needs a table, not a string).
+        return {targets = {}}
     end,
 }
 

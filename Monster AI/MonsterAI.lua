@@ -776,8 +776,10 @@ local function PreviewAbilityCard(abilityInfo)
             --Show the melee or ranged version the AI said it will cast. Previews from
             --older versions don't say, so fall back to the creature's chosen stance.
             local shown = ability:GetActiveVariation(token)
-            if ability.meleeAndRanged and abilityInfo.variation ~= nil then
-                shown = abilityInfo.variation == "ranged" and ability.rangedVariation or ability.meleeVariation
+            if ability.meleeAndRanged and abilityInfo.variation == "melee" then
+                shown = ability.meleeVariation
+            elseif ability.meleeAndRanged and abilityInfo.variation == "ranged" then
+                shown = ability.rangedVariation
             end
             local ok, card = pcall(CreateAbilityTooltip, shown, {
                 token = token,
@@ -2571,6 +2573,24 @@ function MonsterAI:CalculateMovementPaths(token, movementAllowanceDecis, flags)
     local prof = ProfBegin("engine: CalculatePathfindingArea")
     local paths = movementToken:CalculatePathfindingArea(movementAllowanceDecis, flags or {})
     ProfEnd(prof)
+
+    --Staying put is always a plan. The engine drops every square the full
+    --creature cannot fit at, its own included, so a creature boxed in or left
+    --squeezed beside an obstacle got no squares at all and passed every turn
+    --with heroes beside it (7V75VX52, E7ZM6G6F). Its exact loc makes the move
+    --a no-op (MoveToken skips a destination it is already at).
+    local here = movementToken.loc
+    local haveHere = false
+    for _,pathInfo in pairs(paths) do
+        local loc = pathInfo.loc
+        if loc.x == here.x and loc.y == here.y and loc.floor == here.floor then
+            haveHere = true
+            break
+        end
+    end
+    if not haveHere then
+        paths[{here.x, here.y}] = {loc = here, cost = 0}
+    end
     prof = ProfBegin("path overlap filter")
     local rejectedKeys = {}
     local numPaths = 0
@@ -7243,6 +7263,35 @@ end
 --  attacks: {token, from = Loc, target = token, label} attack arrows
 --  area, areaCenter: an area ability's LuaShape and the square it is aimed at
 --  moveOnly: true when it only moves (an advance), so the ability card alone is not worth a pause
+--  variation: "melee"/"ranged" for a dual melee/ranged ability, the half its card shows
+
+--- Which half of a dual melee/ranged ability the cast will use, so the preview
+--- card shows that one rather than the creature's stance. Mirrors ExecuteAbility:
+--- melee when every target is within melee range of `from`, else ranged.
+--- Returns nil for an ordinary ability, or when there are no targets to judge by.
+--- @param token CharacterToken
+--- @param ability ActivatedAbility
+--- @param targets {token: CharacterToken}[]
+--- @param from Loc|nil where the creature strikes from
+--- @return nil|"melee"|"ranged"
+function MonsterAI:PreviewCastVariation(token, ability, targets, from)
+    if ability:try_get("isMeleeVariation") then
+        return "melee"
+    elseif ability:try_get("isRangedVariation") then
+        return "ranged"
+    elseif not ability.meleeAndRanged or #targets == 0 then
+        return nil
+    end
+    local meleeRange = ability.meleeVariation:GetRange(token.properties)
+    for _,target in ipairs(targets) do
+        local distance = from ~= nil and self:TargetDistanceFromLoc(token, target.token, from)
+            or MonsterAI.TargetDistance(token, target.token)
+        if distance > meleeRange then
+            return "ranged"
+        end
+    end
+    return "melee"
+end
 
 --- Describe one move: the actor goes to plan.loc (unless already there) and
 --- uses the last of `abilities` on the plan's targets. A plan that names no
@@ -7271,10 +7320,20 @@ function MonsterAI:BuildPlanPreview(token, abilities, plan, pickTargets)
         end
         --The targets the strike planner chose from this square while scoring
         --the move; the move's execute picks them the same way.
+        --A dual melee/ranged move can plan with one of its variations
+        --(the Death Cultist plans Death Scythe ranged), so look there too.
         if #targets == 0 and ability ~= nil and planLoc ~= nil and type(plan.strikePlans) == "table" then
-            local byLoc = plan.strikePlans[ability]
-            if byLoc ~= nil then
-                targets = PreviewTargets(byLoc[planLoc.str])
+            local planned = {ability}
+            if ability.meleeAndRanged then
+                planned[2] = ability.rangedVariation
+                planned[3] = ability.meleeVariation
+            end
+            for _,plannedAbility in ipairs(planned) do
+                local byLoc = plan.strikePlans[plannedAbility]
+                if byLoc ~= nil and byLoc[planLoc.str] ~= nil then
+                    targets = PreviewTargets(byLoc[planLoc.str])
+                    break
+                end
             end
         end
     end
@@ -7311,6 +7370,9 @@ function MonsterAI:BuildPlanPreview(token, abilities, plan, pickTargets)
 
     local preview = {actor = token, actors = {token}, actorName = PreviewName(token),
         ability = ability, moves = {}, attacks = {}, targets = {}}
+    if ability ~= nil then
+        preview.variation = self:PreviewCastVariation(token, ability, targets, chargeLoc or planLoc or mover.loc)
+    end
     if chargeLoc ~= nil then
         preview.moves[1] = {token = mover, to = chargeLoc, via = moveTo}
     elseif moveTo ~= nil then

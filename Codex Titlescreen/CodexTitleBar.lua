@@ -1553,6 +1553,58 @@ local function CreateConnectivityPanel()
         m_micIcon,
     }
 
+    --Discord friends (Codex Titlescreen/DiscordFriends.lua) in a game: the
+    --same friends panel as the titlescreen's Discord button, for inviting
+    --friends into this campaign or party and asking to join theirs. Unlinked,
+    --the panel offers linking. Gated on the hidden "discordsocial" preference
+    --while the feature is in development.
+    local discordIcon = gui.Panel{
+        classes = {"collapsed"},
+        width = 20,
+        height = 20,
+        halign = "left",
+        valign = "center",
+        rmargin = 6,
+        bgimage = "phosphor/discord-logo-fill.png",
+        bgcolor = "#c8c8c8",
+        hover = function(element)
+            local unread = 0
+            pcall(function() unread = dmhub.discordStatus.unreadTotal or 0 end)
+            if unread > 0 then
+                gui.Tooltip(string.format("Discord Friends (%d unread)", unread))(element)
+            else
+                gui.Tooltip("Discord Friends")(element)
+            end
+        end,
+        click = function(element)
+            local friends = rawget(_G, "DiscordFriends")
+            local gh = rawget(_G, "gamehud")
+            if friends == nil or gh == nil then
+                return
+            end
+            friends.Toggle(gh.mainDialogPanel, {x = -20, y = 68})
+        end,
+    }
+
+    --never collapses, so its think can bring the icon back (see micWrapper).
+    local discordWrapper = gui.Panel{
+        width = "auto",
+        height = "100%",
+        halign = "left",
+        valign = "center",
+        thinkTime = 0.5,
+        think = function(element)
+            local show = false
+            if dmhub.inGame and not dmhub.isLobbyGame and rawget(_G, "DiscordFriends") ~= nil and dmhub.GetSettingValue("discordsocial") == true then
+                local account = "off"
+                pcall(function() account = dmhub.discordStatus.account end)
+                show = account ~= "off" and account ~= "unsupported"
+            end
+            discordIcon:SetClass("collapsed", not show)
+        end,
+        discordIcon,
+    }
+
     local playersRow = gui.Panel{
         flow = "horizontal",
         width = "auto",
@@ -1626,6 +1678,7 @@ local function CreateConnectivityPanel()
         valign = "center",
         m_wifiIcon,
         micWrapper,
+        discordWrapper,
         playersRow,
     }
 

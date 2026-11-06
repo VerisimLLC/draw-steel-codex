@@ -8699,7 +8699,8 @@ ActionMenu = function()
         bgimage = true,
         bgcolor = "clear",
 
-        g_manualSetResourcePanel,
+        --g_manualSetResourcePanel is the LAST child (below the lens bar); it was
+        --listed here as well, putting one panel in children twice.
 
         --casterToken is optional: an AbilityHeading with an args.casterToken
         --override passes its owner so the card renders for that token; every

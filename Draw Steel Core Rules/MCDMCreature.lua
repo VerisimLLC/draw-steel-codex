@@ -7015,6 +7015,15 @@ function creature.Heal(self, amount, note)
         return
     end
 
+    -- "Regain N less Stamina" effects (e.g. Myxovidan's Stench of Death aura) raise
+    -- this custom attribute; every Stamina regain path goes through here.
+    local reduction = self:CalculateNamedCustomAttribute("Stamina Regain Reduction")
+    if reduction > 0 and amount > 0 then
+        local reduced = math.max(0, amount - reduction)
+        self:FloatLabel(string.format("%d less Stamina regained", math.floor(amount - reduced)), "#ff0000")
+        amount = reduced
+    end
+
     if amount <= 0 then
         return
     end
@@ -8624,6 +8633,36 @@ GameSystem.RegisterGoblinScriptField{
                         return true
                     end
                 end
+            end
+        end
+
+        return false
+    end,
+}
+
+--Corpses are object tokens with isCorpse set (the same test Rise, My Minions uses).
+--War Dog Thanatite's Snaking Entrails reads this for its "adjacent to any corpse" rider.
+GameSystem.RegisterGoblinScriptField{
+    target = creature,
+    name = "AdjacentToCorpse",
+    type = "boolean",
+    desc = "True if this creature is within 1 square of a corpse on the same actual floor. Uses the engine's footprint distance, like AdjacentToTargetableObject.",
+    seealso = {"AdjacentToTargetableObject"},
+    examples = {"Target.AdjacentToCorpse"},
+    calculate = function(c)
+        local token = GetDeployedCreatureToken(c)
+        if token == nil then
+            return false
+        end
+
+        local actualFloor = GetTokenActualFloor(token)
+        if actualFloor == nil then
+            return false
+        end
+
+        for _,other in ipairs(dmhub.allObjectTokens or {}) do
+            if other.valid and other.isCorpse and GetTokenActualFloor(other) == actualFloor and token:Distance(other) <= 1 then
+                return true
             end
         end
 

@@ -397,8 +397,17 @@ the combat, records the stat under
     "died before taking a single turn" (turnsTaken == 0) stays detectable.
 - Reading back: `LiveEncounter:GetMonsterGroups()` (merged onset snapshot + live
   non-player entries, with live member tokens and alive/dead counts),
-  `GetStatsForMonsterGroup(statKey)` (whole-combat totals),
-  `GetStatsForMonsterGroupByRound(statKey)`.
+  `GetStatsForMonsterGroup(group.statKeys)` (whole-combat totals),
+  `GetStatsForMonsterGroupByRound(group.statKeys)`.
+- Regrouping mid-fight: the Director can merge monsters into one initiative entry
+  after combat starts, and their stats are then recorded under the NEW group id
+  while the onset snapshot still lists the old one. `GetMonsterGroups` therefore
+  places each onset member on the card of the initiative id it has now (dead
+  off-map members resolve through `GetCharacterById`), and each card's
+  `statKeys` lists its own key plus the onset keys of groups merged into it. A
+  group that still holds members keeps its own old key; a group that was split
+  hands its key to the card that took most of its members, so old stats are
+  never counted twice. The stat write path keys are unchanged (9ARZXATK).
 - Consumed by the victory screen's **Monsters tab**
   (`Draw Steel UI/DSVictoryScreen.lua`, `ComputeMonsterRoles`); debug with the
   `/monsterroles` macro mid-fight.

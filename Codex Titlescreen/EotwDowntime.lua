@@ -459,6 +459,15 @@ function EotwDowntime.GetProject(projectid)
     return m_projects[projectid]
 end
 
+--Drop every cached project. EotwRoster.Attach calls this for each new city
+--connection: the cache belongs to one server, and a project only staging
+--knows (build-training-grounds) must not stay listed after a switch to release.
+function EotwDowntime.ForgetProjects()
+    m_projects = {}
+    m_listing = {}
+    Bump()
+end
+
 --Ask the City for this account's projects and the town's community ones,
 --and cache them.
 function EotwDowntime.RefreshProjects()
@@ -473,6 +482,10 @@ function EotwDowntime.RefreshProjects()
                 action = "list-projects",
                 args = { scope = scope },
                 success = function(result)
+                    --a reply from a connection replaced since (server switch) is stale.
+                    if EotwRoster.Connection() ~= conn then
+                        return
+                    end
                     m_listing[scope] = false
                     for _, project in ipairs(result.projects or {}) do
                         m_projects[project.projectid] = project

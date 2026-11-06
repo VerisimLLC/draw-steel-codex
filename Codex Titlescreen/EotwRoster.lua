@@ -297,6 +297,8 @@ function EotwRoster.Attach(conn)
     m_leads = nil
     m_carouse = nil
     EotwRoster.lastError = nil
+    --project states are per server too (the town can switch staging/release).
+    EotwDowntime.ForgetProjects()
     Bump()
 end
 

@@ -523,67 +523,18 @@ local function AddTitles(ctx)
             heldTitles[title.name] = title
         end
     end)
-    --Follows the title's picks down to its benefits, choices within choices
-    --included, as the rules do (CharacterFeatureChoice:FillFeaturesRecursive).
+    --- @type table<string, HeroSkillsDraft>
+    local drafts = {}
     --- @param name string
-    --- @return nil|string todo the title's id when any choice on the way has no pick
+    --- @return nil|string todo the title's id when a pick is still to make
     --- @return table[] benefits the picked benefit features
     local function TitleBenefits(name)
         local title = heldTitles[name]
-        local benefits = {}
         if title == nil then
-            return nil, benefits
+            return nil, {}
         end
-        local todo = nil
-        --- @param feature any
-        --- @param depth integer
-        local function Walk(feature, depth)
-            if feature == nil or depth > 6 then
-                return
-            end
-            local typeName = nil
-            pcall(function() typeName = feature.typeName end)
-            if typeName == "CharacterFeatureChoice" then
-                local picks = ctx.levelChoices[feature.guid]
-                if type(picks) ~= "table" or picks[1] == nil then
-                    todo = title.id
-                    return
-                end
-                local options = {}
-                pcall(function() options = feature:GetOptions(ctx.levelChoices) or {} end)
-                local matched = false
-                for _, pick in ipairs(picks) do
-                    for _, option in ipairs(options) do
-                        if option.guid == pick then
-                            matched = true
-                            Walk(option, depth + 1)
-                        end
-                    end
-                end
-                --a pick the title no longer offers (it was edited) is no pick.
-                if not matched then
-                    todo = title.id
-                end
-            elseif typeName == "CharacterFeatureList" then
-                for _, sub in ipairs(feature:try_get("features", {})) do
-                    Walk(sub, depth + 1)
-                end
-            elseif typeName == "CharacterSkillChoice" or typeName == "CharacterLanguageChoice" then
-                --a benefit that is itself a pick: chosen in the Titles window,
-                --or in the Skills and Languages windows.
-                benefits[#benefits+1] = feature
-                if Unspent(feature, ctx.creature) > 0 then
-                    todo = title.id
-                end
-            else
-                benefits[#benefits+1] = feature
-            end
-        end
-        local info = title:try_get("modifierInfo")
-        for _, feature in ipairs((info ~= nil and info.features) or {}) do
-            Walk(feature, 0)
-        end
-        return todo, benefits
+        local walk = HeroSheetWindows.TitleWalk(title, ctx.creature, ctx.levelChoices, drafts)
+        return cond(walk.todo, title.id, nil), walk.benefits
     end
     for _, entry in ipairs((ctx.groups.title ~= nil and ctx.groups.title.items) or {}) do
         if entry.name ~= nil and not ctx.titled[entry.name] then

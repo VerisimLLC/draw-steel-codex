@@ -725,6 +725,24 @@ function HeroSkillsLanguages.Holder(draft, id)
     return nil
 end
 
+--- What a grant row's slot can hold: what the row allows, less what the Hero
+--- has from anywhere else. The slot's own pick stays on offer.
+--- @param draft HeroSkillsDraft
+--- @param row HeroSkillsRow
+--- @param slot integer
+--- @return HeroSkillsEntry[]
+function HeroSkillsLanguages.SlotOptions(draft, row, slot)
+    local result = {}
+    for _, entry in ipairs(draft.entries) do
+        local free = HeroSkillsLanguages.Holder(draft, entry.id) == nil and draft.known[entry.id] == nil
+            and (row.allowed == nil or row.allowed[entry.id] == true)
+        if free or entry.id == row.picks[slot] then
+            result[#result+1] = entry
+        end
+    end
+    return result
+end
+
 --- @param row HeroSkillsRow
 --- @param id string
 --- @return boolean

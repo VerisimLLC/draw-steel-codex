@@ -57,7 +57,9 @@ local function feature(name, guid)
     return obj{typeName = 'CharacterFeature', name = name, guid = guid, description = name .. ' text'}
 end
 local function choice(name, guid, options)
-    return obj{typeName = 'CharacterFeatureChoice', name = name, guid = guid, description = '', options = options}
+    local result = obj{typeName = 'CharacterFeatureChoice', name = name, guid = guid, description = '', options = options}
+    function result:GetOptions() return self.options end
+    return result
 end
 local damageTypes = {}
 for _, damage in ipairs{'Acid', 'Cold', 'Fire'} do
@@ -86,18 +88,33 @@ local crafter = obj{id = 'crafter', name = 'Master Crafter', echelon = 1, descri
 
 local levelChoices = {}
 --what the Skills window offers: Forgery is already known.
+local reads = 0
+local allowed = {cooking = true, forgery = true, tailoring = true}
+local capacity = 2
 HeroSkillsLanguages = {
     Read = function()
+        reads = reads + 1
         return {
-            grants = {{guid = 'crafting', capacity = 2, picks = levelChoices.crafting or {},
-                allowed = {cooking = true, forgery = true, tailoring = true}}},
+            grants = {{guid = 'crafting', capacity = capacity, picks = levelChoices.crafting or {}, allowed = allowed}},
             entries = {{id = 'cooking', name = 'Cooking'}, {id = 'forgery', name = 'Forgery'},
                 {id = 'tailoring', name = 'Tailoring'}, {id = 'history', name = 'History'}},
             known = {forgery = 'Career'},
         }
     end,
-    Holder = function() return nil end,
+    --as the real one: what the row allows, less what is known; a slot's own pick stays.
+    SlotOptions = function(draft, row, slot)
+        local result = {}
+        local held = {}
+        for _, id in ipairs(row.picks) do held[id] = true end
+        for _, entry in ipairs(draft.entries) do
+            if entry.id == row.picks[slot] or (not held[entry.id] and draft.known[entry.id] == nil and row.allowed[entry.id]) then
+                result[#result+1] = entry
+            end
+        end
+        return result
+    end,
 }
+HeroBuild = {main = {Cached = function(fn) return fn() end}}
 local hero = obj{
     Titles = function() return {dabbler, crafter} end,
     GetLevelChoices = function() return levelChoices end,
@@ -219,6 +236,36 @@ check(levelChoices.crafting[2] == 'tailoring', 'the second pick saves beside the
 check(not todo(), 'with both skills picked the title is no longer a todo')
 choose(1, 'cooking')
 check(#levelChoices.crafting == 2, 'choosing the same skill again changes nothing')
+check(not offers(dropdowns()[2], 'cooking'), 'a slot does not offer what the other slot holds')
+check(offers(dropdowns()[1], 'none'), 'a filled slot offers None')
+
+choose(1, 'none')
+check(#levelChoices.crafting == 1 and levelChoices.crafting[1] == 'tailoring', 'None clears only that slot')
+check(todo(), 'with a slot cleared the title is a todo again')
+check(not offers(dropdowns()[2], 'none'), 'an empty slot offers no None')
+reads = 0
+choose(1, 'cooking')
+check(reads == 1, 'a redraw reads the skills once, however many titles it draws')
+
+--every allowed skill already known: nothing to pick, so nothing is owed.
+levelChoices.crafting = nil
+allowed = {forgery = true}
+row('Already Have Skill').click()
+row('Crafting Skill').click()
+check(not todo(), 'a skill choice with nothing left to offer is not a todo')
+allowed = {cooking = true, forgery = true, tailoring = true}
+
+--a formula count: the row's own capacity sets the heading.
+capacity = 3
+craftingSkill.numChoices = 'Level'
+row('Already Have Skill').click()
+row('Crafting Skill').click()
+check(heading('Crafting Skill: choose three'), 'the heading follows the row, not the raw count')
+check(#dropdowns() == 3, 'three picks show three dropdowns')
+capacity = 2
+craftingSkill.numChoices = 2
+choose(1, 'cooking')
+choose(2, 'tailoring')
 
 row('Skilled Hands').click()
 check(levelChoices.crafterTop == nil and levelChoices.skilled == nil, 'clearing the option clears the choice inside it')

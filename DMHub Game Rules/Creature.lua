@@ -19,7 +19,11 @@ local g_playObservers = {}
 ---     was cancelled and options.atexit that it stopped with an error.
 ---   damage(creature, info): Stamina or temporary Stamina was hit. info: landed, lost,
 ---     raw, damagetype, source, cast, startofturn.
----   heal(creature, regained, note): Stamina went up by regained.
+---   heal(creature, regained, note, recovered): Stamina went up by regained. recovered is
+---     "winded" or "dying" if that ended it.
+---   threshold(creature, state, info): the creature became "winded", "dying" or "killed".
+---     info: source, cast.
+---   minionsdied(creature, info): minion deaths were confirmed. info: squad, killed, left, cast.
 ---   temporarystamina(creature, before, after, note): the pool grew.
 ---   effectstarted(creature, info): a condition or ongoing effect began. info: conditionid
 ---     or ongoingeffectid, duration, source.

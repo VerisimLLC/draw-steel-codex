@@ -31,6 +31,9 @@ local mod = dmhub.GetModLoading()
 --- @field ended? string[] On a target: names of what it ended.
 --- @field immune? string[] On a target: conditions that its immunity stopped.
 --- @field resisted? boolean On a target: it resisted a potency test.
+--- @field state? string On a target: "winded", "dying" or "killed" if this did that.
+--- @field recovered? string On a target: "winded" or "dying" if this ended that.
+--- @field squad? string On a minion: the name of its squad.
 
 --- The creature a token shows now, as plain data for an entry.
 --- @param token CharacterToken
@@ -41,13 +44,15 @@ function History.Creature(token)
         name = token.description
     end
     local rect = token.portraitRect
+    local props = token.properties
     return {
         id = token.charid,
         name = name,
         img = token.portrait,
         rect = rect ~= nil and {rect.x1, rect.y1, rect.x2, rect.y2} or nil,
-        hero = token.playerControlled or (token.properties ~= nil and token.properties:IsHero()),
+        hero = token.playerControlled or (props ~= nil and props:IsHero()),
         secret = token.namePrivate or nil,
+        squad = (props ~= nil and props.minion) and props:MinionSquad() or nil,
     }
 end
 
@@ -119,6 +124,10 @@ local g_casts = setmetatable({}, {__mode = "k"})
 --An invoked ability shares its parent's cast, so its results join the parent's row.
 local g_byCast = setmetatable({}, {__mode = "k"})
 
+--The row each cast wrote, kept after it ends: minion deaths are confirmed long after
+--the hit, and must still find the action that killed them.
+local g_rowOfCast = setmetatable({}, {__mode = "k"})
+
 --A cast with no row of its own that runs inside one with a row. Anything it sets off
 --names this cast, so the row answers to its id too.
 local function JoinParentRow(options)
@@ -142,6 +151,7 @@ local function BeginCastState(entry, targets, options)
         state.cast = cast
         state.parent = g_byCast[cast]
         g_byCast[cast] = state
+        g_rowOfCast[cast] = entry.id
     end
     return state
 end
@@ -206,7 +216,7 @@ local function ChangedTheTable(entry)
     for _, who in ipairs(entry.targets) do
         if (who.taken or 0) > 0 or (who.healed or 0) > 0 or who.pool ~= nil
             or (who.immunity ~= nil and who.immunity.amount ~= 0)
-            or who.conds ~= nil or who.ended ~= nil then
+            or who.conds ~= nil or who.ended ~= nil or who.state ~= nil then
             return true
         end
     end
@@ -388,7 +398,7 @@ local function OnDamage(creature, info)
     end
 end
 
-local function OnHeal(creature, regained, note)
+local function OnHeal(creature, regained, note, recovered)
     if not History.Enabled() then
         return
     end
@@ -398,13 +408,46 @@ local function OnHeal(creature, regained, note)
     end
     local state = OpenCast(nil)
     if state == nil then
-        WriteLine(token, "heal", {healed = regained, causetext = Cause(note)})
+        WriteLine(token, "heal", {healed = regained, recovered = recovered, causetext = Cause(note)})
         return
     end
     local target = RowTarget(state, token)
     if target ~= nil then
         target.healed = (target.healed or 0) + regained
+        target.recovered = recovered or target.recovered
     end
+end
+
+--Winded, dying and killed: a caption on the row that caused it, a line when nothing did.
+local function OnThreshold(creature, thresholdState, info)
+    local token = dmhub.LookupToken(creature)
+    if not History.Enabled() or token == nil then
+        return
+    end
+    local state = OpenCast(info.cast)
+    if state == nil then
+        WriteLine(token, "threshold", {state = thresholdState, causetext = Cause(info.source)})
+        return
+    end
+    local target = RowTarget(state, token)
+    if target ~= nil then
+        target.state = thresholdState
+    end
+end
+
+--Confirmed minion deaths come after the hit, once the Director clicks the skulls. So this
+--is an entry of its own naming the row it belongs to, which the tray puts together.
+local function OnMinionsDied(creature, info)
+    local token = dmhub.LookupToken(creature)
+    if not History.Enabled() or token == nil then
+        return
+    end
+    WriteLine(token, "minions", {
+        name = info.squad,
+        killed = info.killed,
+        left = info.left,
+        cause = info.cast ~= nil and g_rowOfCast[info.cast] or nil,
+    })
 end
 
 local function OnTemporaryStamina(creature, before, after, note)
@@ -680,6 +723,8 @@ GameSystem.RegisterPlayObserver("history", {
     finished = CastFinished,
     damage = OnDamage,
     heal = OnHeal,
+    threshold = OnThreshold,
+    minionsdied = OnMinionsDied,
     temporarystamina = OnTemporaryStamina,
     effectstarted = OnEffectStarted,
     effectsended = OnEffectsEnded,

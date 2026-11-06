@@ -29,10 +29,14 @@ local mod = dmhub.GetModLoading()
 --- @field targets? HistoryCreature[] Who it was aimed at.
 --- @field ability? {name: string, icon: string|nil, action: string|nil, free: boolean|nil} What was used.
 --- @field roll? {total: number, low: number|nil, high: number|nil, edges: number, banes: number, tier: number} The power roll.
---- @field cause? string On an automatic trigger (kind "trigger"): id of the cast that set it off.
+--- @field cause? string On an automatic trigger or a minions line: id of the cast behind it.
 --- @field aliases? string[] On an action: ids of casts inside it that have no row of their own.
 --- @field family? string On a line (kind "line"): "damage", "heal", "temporarystamina",
---- "condition", "ended", "save", "persistence" or "encounterend".
+--- "condition", "ended", "save", "persistence", "encounterend", "threshold" or "minions".
+--- @field state? string On a threshold line: "winded", "dying" or "killed".
+--- @field killed? integer On a minions line: how many died.
+--- @field left? integer On a minions line: how many of the squad are left.
+--- @field recovered? string On a heal line: "winded" or "dying" if the heal ended it.
 --- @field name? string On a condition, save or persistence line: what it is about.
 --- @field names? string[] On an ended line: what ended.
 --- @field icon? string On a condition line: its icon.

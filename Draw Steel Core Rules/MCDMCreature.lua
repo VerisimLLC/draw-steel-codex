@@ -6429,6 +6429,13 @@ local function CheckFlushSquadMinionDeathBatch(key, lastConfirmed)
         return
     end
 
+    GameSystem.NotifyPlayObservers("minionsdied", victim, {
+        squad = batch.squadName,
+        killed = batch.totalKills,
+        left = batch.expectedBands,
+        cast = batch.cast,
+    })
+
     for damagetype,group in pairs(batch.groups) do
         victim:DispatchEvent("squadminiondeaths", {
             minionskilled = group.kills,
@@ -7144,10 +7151,12 @@ function creature.TakeDamage(self, amount, note, info)
                 end
             end
 
+            GameSystem.NotifyPlayObservers("threshold", self, "dying", {source = info.sourcedescription or note, cast = info.cast})
             self:DispatchEvent("dying", eventArg)
             print("DYING:: FIRED")
         end
     elseif isWindedNow and not isWindedAtStart then
+        GameSystem.NotifyPlayObservers("threshold", self, "winded", {source = info.sourcedescription or note, cast = info.cast})
         self:DispatchEvent("winded", eventArg)
         audio.DispatchSoundEvent("Condition.Winded", soundArgs)
         print("DYING:: WINDED")
@@ -7201,6 +7210,7 @@ function creature.TakeDamage(self, amount, note, info)
         if info.cast ~= nil then
             info.cast:RecordKill(self, 1)
         end
+        GameSystem.NotifyPlayObservers("threshold", self, "killed", {source = info.sourcedescription or note, cast = info.cast})
 
         if self:IsDead() then
             self.killingDamageType = string.lower(tostring(eventArg.damagetype or "untyped"))
@@ -7410,10 +7420,17 @@ end
 local g_creatureHeal = creature.Heal
 function creature.Heal(self, amount, note)
     local before = self:CurrentHitpoints()
+    local wasWinded = self:IsWinded()
     g_creatureHeal(self, amount, note)
     local regained = self:CurrentHitpoints() - before
     if regained > 0 then
-        GameSystem.NotifyPlayObservers("heal", self, regained, note)
+        local recovered = nil
+        if before <= 0 and self:CurrentHitpoints() > 0 then
+            recovered = "dying"
+        elseif wasWinded and not self:IsWinded() then
+            recovered = "winded"
+        end
+        GameSystem.NotifyPlayObservers("heal", self, regained, note, recovered)
     end
 end
 
@@ -7429,11 +7446,15 @@ function creature.SetStaminaDirect(self, amount, note)
     local isDeadNow = self:IsDead()
 
     if isWindedNow and not isWindedAtStart then
+        GameSystem.NotifyPlayObservers("threshold", self, "winded", {source = "Set by hand"})
         self:DispatchEvent("winded", {})
         audio.DispatchSoundEvent("Condition.Winded", { tokenid = dmhub.LookupTokenId(self) })
     end
 
     if isBelowZeroNow and not isBelowZeroAtStart and not self.isMapObject then
+        if not isDeadNow then
+            GameSystem.NotifyPlayObservers("threshold", self, "dying", {source = "Set by hand"})
+        end
         audio.DispatchSoundEvent("Notify.Status_Dying_Hero", { tokenid = dmhub.LookupTokenId(self) })
         self:DispatchEvent("dying", {})
     end
@@ -7441,6 +7462,7 @@ function creature.SetStaminaDirect(self, amount, note)
     if (not isDeadAtStart) and isDeadNow then
         --set directly, not by a blow: never fire.
         self.killingDamageType = "untyped"
+        GameSystem.NotifyPlayObservers("threshold", self, "killed", {source = "Set by hand"})
         self:RemoveAurasOnDeath()
         if self:IsDead() then
             self:ResetDeathSavingThrowStatus()

@@ -107,6 +107,23 @@ local function Styles()
             color = "@fg",
         },
         {
+            selectors = {"label", "historyCaption", "historyWinded"},
+            color = "@warning",
+        },
+        {
+            selectors = {"label", "historyCaption", "historyDying"},
+            color = "@danger",
+        },
+        {
+            selectors = {"label", "historyCaption", "historyGood"},
+            color = "@success",
+        },
+        {
+            selectors = {"label", "historyCaption", "historyDead"},
+            color = "@bg",
+            bgcolor = "@danger",
+        },
+        {
             selectors = {"label", "historyEndedTag"},
             fontSize = 11,
             bold = true,
@@ -341,11 +358,36 @@ local function MiniFaces(tally)
     }
 end
 
+--The caption a state shows as (T14), with the style that marks it.
+local STATE_CAPTIONS = {
+    winded = {text = "Winded", style = "historyWinded"},
+    dying = {text = "Dying", style = "historyDying"},
+    killed = {text = "Killed", style = "historyDead"},
+}
+
+--What minion deaths read as. The whole squad gone says so.
+local function MinionWords(entry)
+    if entry.left <= 0 then
+        return "Squad destroyed"
+    end
+    return string.format("%d of %d killed", entry.killed, entry.killed + entry.left)
+end
+
 --The small lines under a target (T14). ended marks one that takes an Ended tag.
-local function Captions(who)
+--minions: confirmed minion deaths that belong on this cell.
+local function Captions(who, minions)
     local list = {}
-    local function Add(text, ended)
-        list[#list + 1] = {text = text, ended = ended}
+    local function Add(text, ended, style)
+        list[#list + 1] = {text = text, ended = ended, style = style}
+    end
+    if who.state ~= nil then
+        Add(STATE_CAPTIONS[who.state].text, nil, STATE_CAPTIONS[who.state].style)
+    end
+    for _, entry in ipairs(minions or {}) do
+        Add(MinionWords(entry), nil, "historyDead")
+    end
+    if who.recovered ~= nil then
+        Add(string.format("No longer %s", who.recovered), nil, "historyGood")
     end
     if who.types ~= nil then
         local names = {}
@@ -394,7 +436,8 @@ end
 
 --extraTaken: what triggers nested under this action added. A face shows everything
 --the creature took from the action, so it agrees with the detail (fix B1).
-local function TargetCell(who, width, showTier, extraTaken)
+--minions: confirmed minion deaths to show on this cell.
+local function TargetCell(who, width, showTier, extraTaken, minions)
     local textWidth = width - 45
     local top = {}
     if (who.taken or 0) > 0 then
@@ -433,13 +476,17 @@ local function TargetCell(who, width, showTier, extraTaken)
             textAlignment = "center",
         }
     end
-    for _, caption in ipairs(Captions(who)) do
+    for _, caption in ipairs(Captions(who, minions)) do
         below[#below + 1] = gui.Label{
-            classes = {"historyCaption"},
+            classes = {"historyCaption", caption.style},
+            bgimage = cond(caption.style == "historyDead", "panels/square.png", nil),
+            cornerRadius = 3,
             text = caption.text,
             width = "auto",
             maxWidth = textWidth,
             height = "auto",
+            hpad = cond(caption.style == "historyDead", 3, 0),
+            borderBox = true,
             halign = "left",
             valign = "center",
             rmargin = cond(caption.ended, 0, 8),
@@ -580,6 +627,9 @@ local function TriggerRow(index, entry)
         for _, name in ipairs(who.ended or {}) do
             effects[#effects + 1] = name .. " ended"
         end
+        if who.state ~= nil then
+            effects[#effects + 1] = STATE_CAPTIONS[who.state].text
+        end
     end
     local effectText = #effects > 0 and (": " .. table.concat(effects, ", ")) or ""
     children[#children + 1] = gui.Label{
@@ -662,11 +712,25 @@ local function BuildAction(item)
 
     local action = ACTION_WORDS[entry.ability.action]
 
-    --what nested triggers added to each creature this action hit.
+    --what nested triggers added to each creature this action hit, and the confirmed
+    --minion deaths, which go on the first cell of their squad.
     local extra = {}
+    local triggers = {}
+    local minions = {}
     for _, kid in ipairs(item.triggers or {}) do
-        for _, who in ipairs(kid.targets) do
-            extra[who.id] = (extra[who.id] or 0) + (who.taken or 0)
+        if kid.kind == "trigger" then
+            triggers[#triggers + 1] = kid
+            for _, who in ipairs(kid.targets) do
+                extra[who.id] = (extra[who.id] or 0) + (who.taken or 0)
+            end
+        else
+            for _, who in ipairs(entry.targets) do
+                if who.squad == kid.name then
+                    minions[who.id] = minions[who.id] or {}
+                    table.insert(minions[who.id], kid)
+                    break
+                end
+            end
         end
     end
 
@@ -674,12 +738,12 @@ local function BuildAction(item)
     local targets = entry.targets
     local cells = {}
     if #targets == 1 then
-        cells[1] = TargetCell(targets[1], inner, tierPerTarget, extra[targets[1].id])
+        cells[1] = TargetCell(targets[1], inner, tierPerTarget, extra[targets[1].id], minions[targets[1].id])
     else
         local cellWidth = math.floor((inner - 10) / 2)
         local shown = cond(#targets > TARGET_CELLS, TARGET_CELLS - 1, #targets)
         for i = 1, shown do
-            cells[#cells + 1] = TargetCell(targets[i], cellWidth, tierPerTarget, extra[targets[i].id])
+            cells[#cells + 1] = TargetCell(targets[i], cellWidth, tierPerTarget, extra[targets[i].id], minions[targets[i].id])
         end
         if #targets > shown then
             local rest = {}
@@ -691,7 +755,7 @@ local function BuildAction(item)
     end
 
     local triggerRows = {}
-    for i, kid in ipairs(item.triggers or {}) do
+    for i, kid in ipairs(triggers) do
         triggerRows[i] = TriggerRow(i, kid)
     end
 
@@ -775,6 +839,13 @@ local function LineWords(entry)
         return string.format("%s stopped maintaining %s", name, entry.name)
     elseif family == "encounterend" then
         return "<b>Encounter ended</b>"
+    elseif family == "threshold" then
+        if entry.state == "killed" then
+            return name .. " was killed"
+        end
+        return string.format("%s is %s", name, entry.state)
+    elseif family == "minions" then
+        return string.format("<b>%s</b> %d of %d minions killed", entry.name, entry.killed, entry.killed + entry.left)
     end
     return name .. " temporary Stamina"
 end
@@ -802,6 +873,10 @@ end
 local function BuildLine(item)
     local entry = item.entry
     local cause = entry.causetext
+    if entry.recovered ~= nil then
+        local recovered = string.format("No longer %s", entry.recovered)
+        cause = cause ~= nil and (cause .. DOT .. recovered) or recovered
+    end
     if entry.soaked ~= nil then
         local soaked = string.format("%d soaked by temporary Stamina", entry.soaked)
         cause = cause ~= nil and (cause .. DOT .. soaked) or soaked
@@ -1130,8 +1205,8 @@ local function TallySignature(tally)
     return table.concat(parts, ",")
 end
 
---The action an automatic trigger hangs from, following triggers set off by triggers.
---Nil when nothing it came from has a row: it stands alone in its turn.
+--The action a trigger or a minion death hangs from, following triggers set off by
+--triggers. Nil when nothing it came from has a row: it stands alone in its turn.
 local function RootAction(entry, rowsById)
     local parent = rowsById[entry.cause]
     for _ = 1, 8 do
@@ -1149,7 +1224,7 @@ end
 --Groups entries, oldest first, into sections (a round, or a stretch out of combat)
 --holding turns holding entries. Out of combat has no round, so an encounter between
 --two stretches keeps them apart, and each takes its id from its first entry.
---Also returns the triggers nested under each action, by the action's id.
+--Also returns what is nested under each action, by the action's id.
 local function BuildSections(mapid)
     local keys = History.Keys(mapid)
     local rowsById = {}
@@ -1170,7 +1245,7 @@ local function BuildSections(mapid)
     for _, key in ipairs(keys) do
         local entry = History.Entry(mapid, key)
         local root = nil
-        if entry ~= nil and entry.kind == "trigger" then
+        if entry ~= nil and entry.cause ~= nil then
             root = RootAction(entry, rowsById)
         end
         if root ~= nil then
@@ -1247,6 +1322,9 @@ local function AddLoneTrigger(items, entry, key)
         end
         if who.ended ~= nil then
             parts[#parts + 1] = {family = "ended", names = who.ended}
+        end
+        if who.state ~= nil then
+            parts[#parts + 1] = {family = "threshold", state = who.state}
         end
         for j, part in ipairs(parts) do
             for k, v in pairs(base) do

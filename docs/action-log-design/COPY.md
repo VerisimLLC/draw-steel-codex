@@ -278,10 +278,8 @@ because "Dying Ended" could read as the creature died.
 | L44 | A test | {Creature} rolled {n} | {Characteristic} test · Tier {n} |
 | L45 | A Dice panel roll | {Creature} rolled {n} | {dice} |
 
-## Round 5: drafts in the build, not signed off (2026-11-06)
+## Round 5: wordings the stage 1 build needed (signed off 2026-11-06)
 
-Stage 1 needed these and COPY.md had no wording for them. They are in the code as drafts until James
-signs them off.
 | ID | What | Draft |
 |---|---|---|
 | D1 | Duration on a condition badge or line | (EoT) / (EoE) / (save ends) |

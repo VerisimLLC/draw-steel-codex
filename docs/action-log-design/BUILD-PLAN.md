@@ -95,15 +95,20 @@ Goal: the "did it change the table?" rule, on the glance. One family per chunk.
   hand edits count. Minion deaths wait for the batch that confirms them, then name the squad.
 - **1.5:** resources carry the number that really changed (`ReportResource`). Undo on a resource line
   goes through `History.UndoResource`, which marks the line undone and keeps it.
-- **1.6:** the saved path is a plain list of {x, y, floor} from `path.steps`, because what
+- **1.6:** the saved path is a plain list of {x, y, floor, altitude} from `path.steps`, because what
   `LuaPath:Serialize` returned never reached the entry. Chunk 4.1 rebuilds a route from that list.
   Collisions and wall breaks are stored for the detail card; the tray only shows distance and fall.
+- **Falls land after the push.** The engine adds the landing as one last path step, so `numSteps` is one
+  too many and `path.fallDistance` reads 0 afterwards. The real distance only comes with the `fall`
+  event, which the engine fires when the animation ends, outside any cast. So the push leaves its row
+  in `g_falling`, and the landing and the Fall Damage trigger join that row, even if it has closed.
+  A fall with no push behind it stays a line, cause Fall Damage. A creature landed on is still a line.
 - **Tested for real:** Brutal Slam on two clients, real heal and temporary Stamina behaviors, a Reactor
   trigger nested across clients, real end of turn, a real passing save, a real push with Growing
-  Ferocity nested, real Undo, and a Player seeing no Malice lines.
-- **Tested with fed data only:** failed saves, persistence, dying lines, confirmed minion deaths, and
-  falls. A real fall needs raised ground, so `fallDistance` has only ever read 0 in a real cast.
-- **Wordings not in COPY.md yet:** listed in COPY.md, Round 5. They are in the build as drafts.
+  Ferocity nested, a real push off a ledge in both orders (row closed before and after the landing),
+  real Undo, and a Player seeing no Malice lines.
+- **Tested with fed data only:** failed saves, persistence, dying lines, confirmed minion deaths.
+- **Wordings:** the ones the build needed are signed off, COPY.md Round 5.
 - **Left for later:** effects ended by a respite (5.1), "Hidden from enemies" effects reaching players
   (2.4), the Active tag on a target's badge (3.1). Crows is not checked: `Crowdex/` isn't in this
   checkout, so check a Crows game before merging.

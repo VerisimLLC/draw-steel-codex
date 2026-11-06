@@ -11740,7 +11740,20 @@ end
 
 --an event is triggered which could cause triggered abilities to go off.
 --localFilter: nil = all triggers, "localOnly" = only local-only triggers, "skipLocal" = skip local-only triggers
+--Marks an event with the cast it came out of, so a trigger it sets off can say what
+--caused it. A plain id, so it survives the event being sent to another machine.
+local function StampEventCause(info)
+    if type(info) ~= "table" or info.causecastid ~= nil then
+        return
+    end
+    local running = ActivatedAbility.CurrentCastInfo()
+    if running ~= nil and running.options ~= nil and running.options.symbols ~= nil then
+        info.causecastid = running.options.symbols.castid
+    end
+end
+
 function creature:TriggerEvent(eventName, info, alreadyTriggeredOnOthers, localFilter)
+    StampEventCause(info)
 
     if (not alreadyTriggeredOnOthers) and (info == nil or info.subject == nil) then
         self:TriggerEventOnOthers(eventName, info)
@@ -12311,6 +12324,7 @@ function creature:GetAIReactionDeliveryStatus(activityId)
 end
 
 function creature:DispatchEvent(eventName, info)
+    StampEventCause(info)
 
     --Stamp the Monster AI's in-flight activity on the event so any prompt it
     --raises on a hero is tracked as a reaction the AI waits on. A mover's

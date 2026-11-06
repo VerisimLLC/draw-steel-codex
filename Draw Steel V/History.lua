@@ -27,11 +27,13 @@ local mod = dmhub.GetModLoading()
 --- @field owner? HistoryCreature Whose turn it was; nil between turns.
 --- @field actor? HistoryCreature Who acted.
 --- @field targets? HistoryCreature[] Who it was aimed at.
---- @field ability? {name: string, icon: string|nil, action: string|nil} What was used.
+--- @field ability? {name: string, icon: string|nil, action: string|nil, free: boolean|nil} What was used.
 --- @field roll? {total: number, low: number|nil, high: number|nil, edges: number, banes: number, tier: number} The power roll.
+--- @field cause? string On an automatic trigger (kind "trigger"): id of the cast that set it off.
+--- @field aliases? string[] On an action: ids of casts inside it that have no row of their own.
 --- @field family? string On a line (kind "line"): "damage", "heal" or "temporarystamina".
 --- @field who? HistoryCreature On a line: who it happened to.
---- @field cause? string On a line: the small text under it.
+--- @field causetext? string On a line: the small text under it.
 --- @field taken? number On a damage line: what landed.
 --- @field healed? number On a heal line: what was regained.
 --- @field soaked? number On a damage line: how much of it temporary Stamina took.

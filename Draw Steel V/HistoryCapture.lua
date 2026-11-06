@@ -1,11 +1,12 @@
 local mod = dmhub.GetModLoading()
 
---Fills History at the source. For now, family F1 of the build plan: one entry for
---each ability cast that posts a card to the log, prompted triggers included. A cast
---that shares its parent's card (an invoked ability), a hidden one and an automatic
---trigger make no row of their own here; automatic triggers come in chunk 1.2.
+--Fills History at the source. Each ability cast that posts a card to the log gets an
+--entry, prompted triggers included. A cast that shares its parent's card joins the
+--parent's entry. An automatic trigger gets an entry only if it changed something, and
+--that entry names the cast that set it off, so the tray can nest it under that row:
+--the two may be written by different clients, in either order.
 --
---The entry is written when the cast ends, so it holds the roll and a cancelled cast
+--An entry is written when the cast ends, so it holds the roll and a cancelled cast
 --leaves nothing. It keeps the time the cast began, which sets its place in the list.
 
 --- A creature as it looked at the time, so renames and deletions never rewrite History.
@@ -114,46 +115,110 @@ local g_casts = setmetatable({}, {__mode = "k"})
 --An invoked ability shares its parent's cast, so its results join the parent's row.
 local g_byCast = setmetatable({}, {__mode = "k"})
 
-local function CastBegan(ability, casterToken, targets, options)
-    if not History.Enabled() then
+--A cast with no row of its own that runs inside one with a row. Anything it sets off
+--names this cast, so the row answers to its id too.
+local function JoinParentRow(options)
+    local symbols = options.symbols
+    if symbols == nil or symbols.cast == nil or symbols.castid == nil then
         return
     end
+    local parent = g_byCast[symbols.cast]
+    if parent ~= nil then
+        parent.entry.aliases = parent.entry.aliases or {}
+        table.insert(parent.entry.aliases, symbols.castid)
+    end
+end
+
+local function BeginCastState(entry, targets, options)
+    local state = {entry = entry, seen = {}}
+    g_casts[options] = state
+    local cast = options.symbols ~= nil and options.symbols.cast or nil
+    if cast ~= nil then
+        --a cast with its own row takes over a shared cast until it ends.
+        state.cast = cast
+        state.parent = g_byCast[cast]
+        g_byCast[cast] = state
+    end
+    return state
+end
+
+local function CastBegan(ability, casterToken, targets, options)
+    if not History.Enabled() or options.dismiss then
+        return
+    end
+
     --a card from an earlier cast means this one shares it (an invoked ability).
     local card = options.chatMessage
-    local sharesCard = card ~= nil and (options.symbols == nil or card.castid ~= options.symbols.castid)
-    if options.dismiss or sharesCard or not ability:ShowChatMessageOnCast() then
+    local symbols = options.symbols
+    local sharesCard = card ~= nil and (symbols == nil or card.castid ~= symbols.castid)
+    local automatic = ability.typeName == "TriggeredAbility" and not ability:ShowChatMessageOnCast()
+    if sharesCard or (not automatic and not ability:ShowChatMessageOnCast()) then
+        JoinParentRow(options)
+        return
+    end
+
+    if automatic then
+        --most automatic triggers change nothing: this stays cheap until one does.
+        local state = BeginCastState({
+            id = symbols ~= nil and symbols.castid or nil,
+            t = dmhub.serverTimeMilliseconds,
+            kind = "trigger",
+            map = casterToken.mapid,
+            cause = symbols ~= nil and symbols.causecastid or nil,
+            ability = {
+                name = ability.name,
+                free = ability:ActionResource() == CharacterResource.freeTriggeredActionResourceId or nil,
+            },
+            targets = {},
+        }, targets, options)
+        state.automatic = true
+        state.actorToken = dmhub.GetCharacterById(ActivatedAbility.GetLogActorId(casterToken, options)) or casterToken
         return
     end
 
     local actor = dmhub.GetCharacterById(ActivatedAbility.GetLogActorId(casterToken, options)) or casterToken
-    local entry = {
-        id = options.symbols ~= nil and options.symbols.castid or nil,
+    local state = BeginCastState({
+        id = symbols ~= nil and symbols.castid or nil,
         t = dmhub.serverTimeMilliseconds,
         kind = "action",
         map = casterToken.mapid,
         actor = History.Creature(actor),
         ability = {name = ability.name, icon = ability:try_get("iconid"), action = ActionKind(ability)},
         targets = {},
-    }
-    History.AddCombatFacts(entry)
+    }, targets, options)
+    History.AddCombatFacts(state.entry)
 
     --snapshot now: a target may be gone by the time the cast ends.
-    local seen = {}
     for _, target in ipairs(targets) do
-        AddTarget(entry, seen, target.token)
+        AddTarget(state.entry, state.seen, target.token)
     end
     if ability.targetType == "self" and #targets == 0 then
-        AddTarget(entry, seen, casterToken)
+        AddTarget(state.entry, state.seen, casterToken)
     end
-    local state = {entry = entry, seen = seen}
-    g_casts[options] = state
-    local cast = options.symbols ~= nil and options.symbols.cast or nil
-    if cast ~= nil then
-        --an invoked ability with its own card takes over its parent's cast until it ends.
-        state.cast = cast
-        state.parent = g_byCast[cast]
-        g_byCast[cast] = state
+end
+
+--True if anything on the entry shows a change. More families join this as they land.
+local function ChangedTheTable(entry)
+    for _, who in ipairs(entry.targets) do
+        if (who.taken or 0) > 0 or (who.healed or 0) > 0 or who.pool ~= nil
+            or (who.immunity ~= nil and who.immunity.amount ~= 0) then
+            return true
+        end
     end
+    return false
+end
+
+local function WriteTrigger(state)
+    local entry = state.entry
+    if not ChangedTheTable(entry) then
+        return
+    end
+    local actor = state.actorToken
+    if actor ~= nil and actor.valid then
+        entry.actor = History.Creature(actor)
+    end
+    History.AddCombatFacts(entry)
+    History.Write(entry)
 end
 
 local function AddRoll(entry, cast)
@@ -185,6 +250,11 @@ local function CastFinished(ability, casterToken, options)
         return
     end
 
+    if state.automatic then
+        WriteTrigger(state)
+        return
+    end
+
     local entry = state.entry
     local seen = state.seen
     --targets can join while a cast resolves (Chain Reaction): the card keeps the list.
@@ -206,13 +276,18 @@ local function CastFinished(ability, casterToken, options)
     History.Write(entry)
 end
 
---The cast running on this client right now, if it is one with a row. Nil for an
---automatic trigger, and for anything outside a cast.
+--The row a result belongs to: the running cast's own, else one it shares through its
+--cast (an invoked ability), else the row of the cast the hit names. Nil outside any.
 local function OpenCast(cast)
-    if cast == nil then
-        local running = ActivatedAbility.CurrentCastInfo()
-        if running ~= nil and running.options ~= nil and running.options.symbols ~= nil then
-            cast = running.options.symbols.cast
+    local running = ActivatedAbility.CurrentCastInfo()
+    if running ~= nil and running.options ~= nil then
+        local state = g_casts[running.options]
+        if state ~= nil then
+            return state
+        end
+        local symbols = running.options.symbols
+        if cast == nil and symbols ~= nil then
+            cast = symbols.cast
         end
     end
     return cast ~= nil and g_byCast[cast] or nil
@@ -280,7 +355,7 @@ local function OnDamage(creature, info)
                 taken = info.landed,
                 soaked = soaked > 0 and soaked or nil,
                 damagetype = damagetype,
-                cause = cause,
+                causetext = cause,
             })
         end
         return
@@ -314,7 +389,7 @@ local function OnHeal(creature, regained, note)
     end
     local state = OpenCast(nil)
     if state == nil then
-        WriteLine(token, "heal", {healed = regained, cause = Cause(note)})
+        WriteLine(token, "heal", {healed = regained, causetext = Cause(note)})
         return
     end
     local target = RowTarget(state, token)
@@ -333,7 +408,7 @@ local function OnTemporaryStamina(creature, before, after, note)
     end
     local state = OpenCast(nil)
     if state == nil then
-        WriteLine(token, "temporarystamina", {before = before, after = after, cause = Cause(note)})
+        WriteLine(token, "temporarystamina", {before = before, after = after, causetext = Cause(note)})
         return
     end
     local target = RowTarget(state, token)

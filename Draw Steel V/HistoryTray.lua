@@ -107,6 +107,18 @@ local function Styles()
             color = "@fg",
         },
         {
+            selectors = {"label", "historyTriggerText"},
+            fontSize = 12,
+            color = "@fgMuted",
+        },
+        {
+            selectors = {"label", "historyTriggerNumber"},
+            fontSize = 11,
+            bold = true,
+            color = "@fg",
+            bgcolor = "@bgAlt",
+        },
+        {
             selectors = {"label", "historyCaption"},
             fontSize = 11,
             bold = true,
@@ -296,11 +308,13 @@ local function Captions(who)
     return list
 end
 
-local function TargetCell(who, width, showTier)
+--extraTaken: what triggers nested under this action added. A face shows everything
+--the creature took from the action, so it agrees with the detail (fix B1).
+local function TargetCell(who, width, showTier, extraTaken)
     local textWidth = width - 45
     local top = {}
     if (who.taken or 0) > 0 then
-        top[#top + 1] = Amount(who.taken, false, 16)
+        top[#top + 1] = Amount(who.taken + (extraTaken or 0), false, 16)
     end
     if (who.healed or 0) > 0 then
         top[#top + 1] = Amount(who.healed, true, 16)
@@ -429,6 +443,84 @@ local function SharedTier(entry)
     return shared, false
 end
 
+--A trigger nested under an action (T15): who, which, and what it did to whom.
+local function TriggerRow(index, entry)
+    --- @type Panel[]
+    local children = {
+        gui.Label{
+            classes = {"historyTriggerNumber"},
+            bgimage = "panels/square.png",
+            text = tostring(index),
+            width = 15,
+            height = 15,
+            cornerRadius = 7,
+            halign = "left",
+            valign = "center",
+            textAlignment = "center",
+        },
+    }
+    if entry.actor ~= nil then
+        local face = Face(entry.actor, 20)
+        face.selfStyle.lmargin = 6
+        children[#children + 1] = face
+    end
+    local owner = entry.actor ~= nil and (ShownName(entry.actor) .. DOT) or ""
+    children[#children + 1] = gui.Label{
+        classes = {"historySmallCaps"},
+        text = cond(entry.ability.free, "Free", "Triggered"),
+        width = "auto",
+        height = "auto",
+        lmargin = 6,
+        halign = "left",
+        valign = "center",
+    }
+    children[#children + 1] = gui.Label{
+        classes = {"historyTriggerText"},
+        text = owner .. entry.ability.name,
+        width = "auto",
+        height = "auto",
+        lmargin = 5,
+        halign = "left",
+        valign = "center",
+    }
+    for _, who in ipairs(entry.targets) do
+        if (who.taken or 0) > 0 or (who.healed or 0) > 0 then
+            children[#children + 1] = gui.Panel{
+                classes = {"historyCaret"},
+                bgimage = "phosphor/caret-right-bold.png",
+                width = 9,
+                height = 9,
+                lmargin = 6,
+                halign = "left",
+                valign = "center",
+            }
+            local face = Face(who, 20)
+            face.selfStyle.lmargin = 4
+            children[#children + 1] = face
+            if (who.taken or 0) > 0 then
+                local amount = Amount(who.taken, false, 13)
+                amount.selfStyle.lmargin = 3
+                children[#children + 1] = amount
+            end
+            if (who.healed or 0) > 0 then
+                local amount = Amount(who.healed, true, 13)
+                amount.selfStyle.lmargin = 3
+                children[#children + 1] = amount
+            end
+        end
+    end
+    return gui.Panel{
+        flow = "horizontal",
+        wrap = true,
+        width = "100%",
+        height = "auto",
+        lpad = 9,
+        vmargin = 2,
+        borderBox = true,
+        children = children,
+    }
+end
+
 local function BuildAction(item)
     local entry = item.entry
     local tier, tierPerTarget = SharedTier(entry)
@@ -462,16 +554,24 @@ local function BuildAction(item)
 
     local action = ACTION_WORDS[entry.ability.action]
 
+    --what nested triggers added to each creature this action hit.
+    local extra = {}
+    for _, kid in ipairs(item.triggers or {}) do
+        for _, who in ipairs(kid.targets) do
+            extra[who.id] = (extra[who.id] or 0) + (who.taken or 0)
+        end
+    end
+
     local inner = TRAY_WIDTH - 52 - 12
     local targets = entry.targets
     local cells = {}
     if #targets == 1 then
-        cells[1] = TargetCell(targets[1], inner, tierPerTarget)
+        cells[1] = TargetCell(targets[1], inner, tierPerTarget, extra[targets[1].id])
     else
         local cellWidth = math.floor((inner - 10) / 2)
         local shown = cond(#targets > TARGET_CELLS, TARGET_CELLS - 1, #targets)
         for i = 1, shown do
-            cells[#cells + 1] = TargetCell(targets[i], cellWidth, tierPerTarget)
+            cells[#cells + 1] = TargetCell(targets[i], cellWidth, tierPerTarget, extra[targets[i].id])
         end
         if #targets > shown then
             local rest = {}
@@ -480,6 +580,11 @@ local function BuildAction(item)
             end
             cells[#cells + 1] = MoreCell(rest, cellWidth)
         end
+    end
+
+    local triggerRows = {}
+    for i, kid in ipairs(item.triggers or {}) do
+        triggerRows[i] = TriggerRow(i, kid)
     end
 
     return gui.Panel{
@@ -521,6 +626,13 @@ local function BuildAction(item)
             height = "auto",
             children = cells,
         },
+        gui.Panel{
+            flow = "vertical",
+            width = "100%",
+            height = "auto",
+            tmargin = 3,
+            children = triggerRows,
+        },
     }
 end
 
@@ -555,7 +667,7 @@ end
 
 local function BuildLine(item)
     local entry = item.entry
-    local cause = entry.cause
+    local cause = entry.causetext
     if entry.soaked ~= nil then
         local soaked = string.format("%d soaked by temporary Stamina", entry.soaked)
         cause = cause ~= nil and (cause .. DOT .. soaked) or soaked
@@ -807,7 +919,7 @@ local function Toggle(id, isOpen)
 end
 
 --What each creature took and regained across some entries, for a fold line.
-local function Tally(entries)
+local function Tally(entries, nested)
     local list = {}
     local byId = {}
     local function Add(who, taken, healed)
@@ -823,13 +935,19 @@ local function Tally(entries)
         row.taken = row.taken + (taken or 0)
         row.healed = row.healed + (healed or 0)
     end
-    for _, entry in ipairs(entries) do
+    local function AddEntry(entry)
         if entry.kind == "line" then
             Add(entry.who, entry.taken, entry.healed)
         else
             for _, who in ipairs(entry.targets or {}) do
                 Add(who, who.taken, who.healed)
             end
+        end
+    end
+    for _, entry in ipairs(entries) do
+        AddEntry(entry)
+        for _, kid in ipairs(nested[entry.id] or {}) do
+            AddEntry(kid)
         end
     end
     return list
@@ -843,16 +961,53 @@ local function TallySignature(tally)
     return table.concat(parts, ",")
 end
 
+--The action an automatic trigger hangs from, following triggers set off by triggers.
+--Nil when nothing it came from has a row: it stands alone in its turn.
+local function RootAction(entry, rowsById)
+    local parent = rowsById[entry.cause]
+    for _ = 1, 8 do
+        if parent == nil or parent.kind ~= "trigger" then
+            break
+        end
+        parent = rowsById[parent.cause]
+    end
+    if parent ~= nil and parent.kind == "action" then
+        return parent
+    end
+    return nil
+end
+
 --Groups entries, oldest first, into sections (a round, or a stretch out of combat)
 --holding turns holding entries. Out of combat has no round, so an encounter between
 --two stretches keeps them apart, and each takes its id from its first entry.
+--Also returns the triggers nested under each action, by the action's id.
 local function BuildSections(mapid)
-    local sections = {}
-    local section = nil
-    local turn = nil
-    for _, key in ipairs(History.Keys(mapid)) do
+    local keys = History.Keys(mapid)
+    local rowsById = {}
+    for _, key in ipairs(keys) do
         local entry = History.Entry(mapid, key)
         if entry ~= nil then
+            rowsById[entry.id] = entry
+            for _, alias in ipairs(entry.aliases or {}) do
+                rowsById[alias] = entry
+            end
+        end
+    end
+
+    local sections = {}
+    local nested = {}
+    local section = nil
+    local turn = nil
+    for _, key in ipairs(keys) do
+        local entry = History.Entry(mapid, key)
+        local root = nil
+        if entry ~= nil and entry.kind == "trigger" then
+            root = RootAction(entry, rowsById)
+        end
+        if root ~= nil then
+            nested[root.id] = nested[root.id] or {}
+            table.insert(nested[root.id], entry)
+        elseif entry ~= nil then
             local groupid = "out"
             if entry.encounter ~= nil then
                 groupid = string.format("%s-%d", entry.encounter, entry.round)
@@ -879,7 +1034,7 @@ local function BuildSections(mapid)
             section.entries[#section.entries + 1] = entry
         end
     end
-    return sections
+    return sections, nested
 end
 
 local function SectionTitle(section)
@@ -889,7 +1044,45 @@ local function SectionTitle(section)
     return string.format("Round %d", section.round)
 end
 
-local function AddTurnRows(items, turn, isNewest)
+--The damage type of a target hit by one type only, else nil.
+local function OnlyType(who)
+    local only = next(who.types or {})
+    if only ~= nil and next(who.types, only) == nil then
+        return only
+    end
+    return nil
+end
+
+--A trigger with no action to nest under reads as lines naming the feature, one for
+--each thing it did. These are the same words as any other line.
+local function AddLoneTrigger(items, entry, key)
+    for i, who in ipairs(entry.targets) do
+        local base = {kind = "line", who = who, causetext = entry.ability.name}
+        local parts = {}
+        if (who.taken or 0) > 0 then
+            parts[#parts + 1] = {family = "damage", taken = who.taken, soaked = who.soaked, damagetype = OnlyType(who)}
+        end
+        if (who.healed or 0) > 0 then
+            parts[#parts + 1] = {family = "heal", healed = who.healed}
+        end
+        if who.pool ~= nil then
+            parts[#parts + 1] = {family = "temporarystamina", before = who.pool.before, after = who.pool.after}
+        end
+        for j, part in ipairs(parts) do
+            for k, v in pairs(base) do
+                part[k] = v
+            end
+            items[#items + 1] = {
+                kind = "line",
+                key = string.format("%s-%d-%d", key, i, j),
+                sig = entry,
+                entry = part,
+            }
+        end
+    end
+end
+
+local function AddTurnRows(items, turn, isNewest, nested)
     local isOpen = g_open[turn.id]
     if isOpen == nil then
         isOpen = g_showAll or isNewest
@@ -897,7 +1090,7 @@ local function AddTurnRows(items, turn, isNewest)
     local toggle = Toggle(turn.id, isOpen)
     if turn.owner ~= nil then
         if not isOpen then
-            local tally = Tally(turn.entries)
+            local tally = Tally(turn.entries, nested)
             items[#items + 1] = {
                 kind = "turnfold",
                 key = "fold-" .. turn.id,
@@ -921,26 +1114,38 @@ local function AddTurnRows(items, turn, isNewest)
     for i, entry in ipairs(turn.entries) do
         if entry.kind == "line" then
             items[#items + 1] = {kind = "line", key = turn.keys[i], sig = entry, entry = entry}
+        elseif entry.kind == "trigger" then
+            AddLoneTrigger(items, entry, turn.keys[i])
         else
+            local triggers = nested[entry.id]
+            local sig = entry
+            if triggers ~= nil then
+                local ids = {tostring(entry)}
+                for _, kid in ipairs(triggers) do
+                    ids[#ids + 1] = kid.id
+                end
+                sig = table.concat(ids, ",")
+            end
             items[#items + 1] = {
                 kind = "action",
                 key = turn.keys[i],
-                sig = entry,
+                sig = sig,
                 entry = entry,
+                triggers = triggers,
                 showActor = turn.owner == nil or entry.actor.id ~= turn.owner.id,
             }
         end
     end
 end
 
-local function AddSectionRows(items, section, isNewest)
+local function AddSectionRows(items, section, isNewest, nested)
     local isOpen = g_open[section.id]
     if isOpen == nil then
         isOpen = g_showAll or isNewest
     end
     local title = SectionTitle(section)
     if not isOpen then
-        local tally = Tally(section.entries)
+        local tally = Tally(section.entries, nested)
         items[#items + 1] = {
             kind = "roundfold",
             key = "fold-" .. section.id,
@@ -975,7 +1180,7 @@ local function AddSectionRows(items, section, isNewest)
                 entries[#entries + 1] = entry
             end
         end
-        local tally = Tally(entries)
+        local tally = Tally(entries, nested)
         items[#items + 1] = {
             kind = "groupfold",
             key = groupid,
@@ -986,15 +1191,15 @@ local function AddSectionRows(items, section, isNewest)
         }
     end
     for i = first, #turns do
-        AddTurnRows(items, turns[i], isNewest and i == #turns)
+        AddTurnRows(items, turns[i], isNewest and i == #turns, nested)
     end
 end
 
 local function BuildItems(mapid)
     local items = {}
-    local sections = BuildSections(mapid)
+    local sections, nested = BuildSections(mapid)
     for i, section in ipairs(sections) do
-        AddSectionRows(items, section, i == #sections)
+        AddSectionRows(items, section, i == #sections, nested)
     end
     return items
 end

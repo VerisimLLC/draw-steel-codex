@@ -24,6 +24,11 @@ local mod = dmhub.GetModLoading()
 --- @field encounter? string Guid of the combat it happened in; nil out of combat.
 --- @field round? integer The combat round.
 --- @field turn? integer Running turn number within the combat.
+--- @field owner? HistoryCreature Whose turn it was; nil between turns.
+--- @field actor? HistoryCreature Who acted.
+--- @field targets? HistoryCreature[] Who it was aimed at.
+--- @field ability? {name: string, icon: string|nil, action: string|nil} What was used.
+--- @field roll? {total: number, low: number|nil, high: number|nil, edges: number, banes: number, tier: number} The power roll.
 
 History = {
     --Entries kept per map, oldest culled first. Why 500: PROBE-0.1.md.

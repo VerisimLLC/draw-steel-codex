@@ -70,6 +70,21 @@ Goal: the "did it change the table?" rule, on the glance. One family per chunk.
 | 1.5 | F6 resources with a cause; Malice; the Undo button on resource lines | `ConsumeResource`, `RefreshResource`, `CharacterResource.SetMalice` | M |
 | 1.6 | F7 forced movement: distance, collisions, falls, wall breaks, the saved path | `AbilityRelocateCreature`, `LuaPath:Serialize` | M |
 
+### Stage 1 notes
+
+- **1.1 hooks moved, for the better.** `creature.TakeDamage` and `creature.Heal` instead of the damage
+  and heal behaviors: every route ends there, hand edits and falls included, and they know the number
+  that landed. `SetTemporaryHitpoints` instead of `GrantTemporaryStamina`, so ongoing effects count.
+- **One observer:** `GameSystem.RegisterPlayObserver` replaces the cast observer. Later families add a
+  moment to it, not a new mechanism.
+- **Writes batch per frame.** History.Write queues; an aura hitting eight creatures is one write.
+- **Measured per hit:** 1 us with History off, 3 us inside a cast, 40 us for a line, plus the write.
+- **1.2:** events carry `causecastid`, which survives the trip to another client. A trigger's entry names
+  its cause and the tray nests it, so client and order don't matter, and nothing rewrites the parent.
+- **Prompted triggers stay action rows** (REVIEW.md section 1). A prompted trigger does not nest yet;
+  "Before the roll" and "After the roll" (T15) need roll data from stage 2.
+- **1.3 needs the Codex closed** for its data pass: `data/` YAML is never edited while it runs.
+
 ## Stage 2: the detail card
 
 Goal: why it happened, one click from the row.

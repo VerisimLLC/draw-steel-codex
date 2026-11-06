@@ -12017,7 +12017,8 @@ end
 --- The files become one new map (a floor each) through the import wizard,
 --- whose window opens at (mx, my) on the table once the map exists.
 --- options (optional): aspect, the image's width over height -- the window
---- takes that shape and frames the whole map once it is placed; variations,
+--- takes that shape and frames the whole map once it is placed (left out,
+--- the shape of the map the import read is used); variations,
 --- more files that become the map's alternate appearances (paths is then
 --- the one base image); name, the map's name (else the first file's);
 --- created(mapid), called once the map exists; shared, make the map
@@ -12029,15 +12030,22 @@ end
 function Tabletop.AddFilesAsMap(paths, mx, my, options)
     options = options or {}
     local rec = nil
+    local aspect = options.aspect
     ImportMapFromFiles(paths, {
         name = options.name or FileDrops.BaseName(paths[1]),
         variations = options.variations,
+        --no aspect given (a Universal VTT file, whose picture is inside it):
+        --take the shape of the map the import read.
+        imported = function(width, height)
+            if aspect == nil and width > 0 and height > 0 then
+                aspect = width / height
+            end
+        end,
         created = function(mapid)
             if mod.unloaded or WindowForMap(mapid) ~= nil then
                 return
             end
             rec = NewWindowRecord(mapid)
-            local aspect = options.aspect
             if aspect ~= nil and aspect > 0 then
                 --the picture's shape under the titlebar, as big as a map
                 --opened from the Maps panel (Tabletop.ShapedBox).
@@ -12063,7 +12071,7 @@ function Tabletop.AddFilesAsMap(paths, mx, my, options)
         --a window shaped like its picture shows all of it: zoom to the
         --whole map once its window is the live one.
         done = function(mapid)
-            if options.aspect == nil then
+            if aspect == nil then
                 return
             end
             local deadline = dmhub.Time() + 15

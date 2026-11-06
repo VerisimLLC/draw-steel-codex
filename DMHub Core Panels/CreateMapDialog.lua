@@ -5895,7 +5895,7 @@ end
 --- on the table, say) through the import wizard, where the user sets the
 --- grid. The new map is travelled to once made.
 --- @param paths string[] Local file paths, one per floor.
---- @param options nil|{name: nil|string, created: nil|fun(mapid: string), variations: nil|string[], done: nil|fun(mapid: string)} name: the map's name; created: called once the map exists, just before travelling to it; variations: more files that become the map's alternate appearances (same size as paths[1], which should then be the only path); done: called once the images are placed on the map.
+--- @param options nil|{name: nil|string, imported: nil|fun(width: number, height: number), created: nil|fun(mapid: string), variations: nil|string[], done: nil|fun(mapid: string)} name: the map's name; imported: called with the map's size in tiles once the files are read, before the map is made; created: called once the map exists, just before travelling to it; variations: more files that become the map's alternate appearances (same size as paths[1], which should then be the only path); done: called once the images are placed on the map.
 function ImportMapFromFiles(paths, options)
     options = options or {}
     if paths == nil or #paths == 0 then
@@ -5907,6 +5907,9 @@ function ImportMapFromFiles(paths, options)
         nofade = true,
         paths = paths,
         finish = function(info)
+            if options.imported ~= nil then
+                options.imported(tonumber(info.width) or 0, tonumber(info.height) or 0)
+            end
             mod.shared.FinishMapImport(options.name or "New Map", info, options.created, {
                 variations = options.variations,
                 done = options.done,

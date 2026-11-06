@@ -31,7 +31,14 @@ local mod = dmhub.GetModLoading()
 --- @field roll? {total: number, low: number|nil, high: number|nil, edges: number, banes: number, tier: number} The power roll.
 --- @field cause? string On an automatic trigger (kind "trigger"): id of the cast that set it off.
 --- @field aliases? string[] On an action: ids of casts inside it that have no row of their own.
---- @field family? string On a line (kind "line"): "damage", "heal" or "temporarystamina".
+--- @field family? string On a line (kind "line"): "damage", "heal", "temporarystamina",
+--- "condition", "ended", "save", "persistence" or "encounterend".
+--- @field name? string On a condition, save or persistence line: what it is about.
+--- @field names? string[] On an ended line: what ended.
+--- @field icon? string On a condition line: its icon.
+--- @field iscondition? boolean On a condition line: a condition, not some other effect.
+--- @field duration? string On a condition line: "save ends", "EoT" or "EoE".
+--- @field passed? boolean On a save line: whether it was made.
 --- @field who? HistoryCreature On a line: who it happened to.
 --- @field causetext? string On a line: the small text under it.
 --- @field taken? number On a damage line: what landed.

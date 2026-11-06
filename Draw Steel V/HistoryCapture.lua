@@ -27,6 +27,10 @@ local mod = dmhub.GetModLoading()
 --- @field types? table<string, number> On a target: damage by type, typed damage only.
 --- @field immunity? {damagetype: string, amount: number} On a target: what immunity took off, or weakness added (negative).
 --- @field pool? {before: number, after: number} On a target: temporary Stamina that grew.
+--- @field conds? {name: string, icon: string|nil, duration: string|nil}[] On a target: conditions and effects it started.
+--- @field ended? string[] On a target: names of what it ended.
+--- @field immune? string[] On a target: conditions that its immunity stopped.
+--- @field resisted? boolean On a target: it resisted a potency test.
 
 --- The creature a token shows now, as plain data for an entry.
 --- @param token CharacterToken
@@ -201,7 +205,8 @@ end
 local function ChangedTheTable(entry)
     for _, who in ipairs(entry.targets) do
         if (who.taken or 0) > 0 or (who.healed or 0) > 0 or who.pool ~= nil
-            or (who.immunity ~= nil and who.immunity.amount ~= 0) then
+            or (who.immunity ~= nil and who.immunity.amount ~= 0)
+            or who.conds ~= nil or who.ended ~= nil then
             return true
         end
     end
@@ -252,6 +257,9 @@ local function CastFinished(ability, casterToken, options)
 
     if state.automatic then
         WriteTrigger(state)
+        return
+    end
+    if state.noRow then
         return
     end
 
@@ -318,6 +326,7 @@ local function WriteLine(token, family, facts)
     end
     History.AddCombatFacts(entry)
     History.Write(entry)
+    return entry
 end
 
 --Damage types worth naming. These three are how it was dealt, shown as movement in 1.6.
@@ -417,10 +426,267 @@ local function OnTemporaryStamina(creature, before, after, note)
     end
 end
 
+--The words a duration shows as, in the rules' own short forms.
+local DURATION_WORDS = {
+    save = "save ends",
+    save_ends = "save ends",
+    eot = "EoT",
+    end_of_next_turn = "EoT",
+    eoe = "EoE",
+}
+
+--The name and icon History shows for a condition or an effect. Nil for one it leaves
+--out: effects hidden from everyone, and markers that only track rules.
+local function EffectFacts(item)
+    if item.conditionid ~= nil then
+        local info = GetTableCached(CharacterCondition.tableName)[item.conditionid]
+        if info == nil then
+            return nil
+        end
+        return {name = info.name, icon = info.iconid, iscondition = true}
+    end
+    local info = GetTableCached(CharacterOngoingEffect.tableName)[item.ongoingeffectid]
+    if info == nil or not info.statusEffect or info.hiddenFromHistory then
+        return nil
+    end
+    return {name = info.name, icon = info.iconid, iscondition = info.condition ~= "none" or nil}
+end
+
+local function OnEffectStarted(creature, info)
+    if not History.Enabled() then
+        return
+    end
+    local facts = EffectFacts(info)
+    local token = dmhub.LookupToken(creature)
+    if facts == nil or token == nil then
+        return
+    end
+    facts.duration = DURATION_WORDS[info.duration]
+
+    local state = OpenCast(nil)
+    if state == nil then
+        facts.causetext = Cause(info.source)
+        WriteLine(token, "condition", facts)
+        return
+    end
+    local target = RowTarget(state, token)
+    if target ~= nil then
+        target.conds = target.conds or {}
+        target.conds[#target.conds + 1] = facts
+    end
+end
+
+--Lines waiting to go up this frame, by creature and cause, so effects that end
+--together are one line (L8).
+local g_endedFrame = nil
+local g_endedLines = {}
+
+local function WriteEnded(token, names, causetext)
+    local frame = dmhub.FrameCount()
+    if g_endedFrame ~= frame then
+        g_endedFrame = frame
+        g_endedLines = {}
+    end
+    local key = token.charid .. "|" .. (causetext or "")
+    local entry = g_endedLines[key]
+    if entry ~= nil then
+        for _, name in ipairs(names) do
+            entry.names[#entry.names + 1] = name
+        end
+        return
+    end
+    g_endedLines[key] = WriteLine(token, "ended", {names = names, causetext = causetext})
+end
+
+--The closing line of each encounter, while its creatures report what ended (L17).
+local g_closing = {}
+
+local function ClosingEntry(token)
+    local q = dmhub.initiativeQueue
+    if q == nil then
+        return nil
+    end
+    local key = q.guid .. token.mapid
+    if g_closing[key] == nil then
+        g_closing[key] = {
+            kind = "line",
+            family = "encounterend",
+            map = token.mapid,
+            encounter = q.guid,
+            round = q.round,
+            turn = q.turnNumber,
+            causetext = string.format("Round %d", q.round),
+            ended = {},
+        }
+        History.Write(g_closing[key])
+    end
+    return g_closing[key]
+end
+
+local function OnEncounterEnded(creature)
+    local token = dmhub.LookupToken(creature)
+    if History.Enabled() and token ~= nil then
+        ClosingEntry(token)
+    end
+end
+
+local function OnEffectsEnded(creature, ended, cause)
+    if not History.Enabled() then
+        return
+    end
+    local token = dmhub.LookupToken(creature)
+    if token == nil then
+        return
+    end
+    local names = {}
+    for _, item in ipairs(ended) do
+        local facts = EffectFacts(item)
+        if facts ~= nil then
+            names[#names + 1] = facts.name
+        end
+    end
+    --the save's own line already says it ended.
+    if #names == 0 or cause == "saved" then
+        return
+    end
+
+    if cause == "endofencounter" then
+        local closing = ClosingEntry(token)
+        if closing ~= nil then
+            closing.ended[#closing.ended + 1] = {who = History.Creature(token), names = names}
+        end
+        return
+    end
+
+    local causetext = cause
+    if cause == "endturn" then
+        causetext = "End of turn"
+    elseif cause == "endround" then
+        causetext = "End of round"
+    elseif cause == "dying" then
+        causetext = History.Creature(token).name .. " is dying"
+    end
+
+    if causetext == nil then
+        local state = OpenCast(nil)
+        if state ~= nil then
+            local target = RowTarget(state, token)
+            if target ~= nil then
+                target.ended = target.ended or {}
+                for _, name in ipairs(names) do
+                    target.ended[#target.ended + 1] = name
+                end
+            end
+            return
+        end
+        causetext = Cause(nil)
+    end
+    WriteEnded(token, names, causetext)
+end
+
+local function OnConditionImmune(creature, conditionid)
+    local facts = EffectFacts{conditionid = conditionid}
+    local state = History.Enabled() and OpenCast(nil) or nil
+    local token = dmhub.LookupToken(creature)
+    if facts == nil or state == nil or token == nil then
+        return
+    end
+    local target = RowTarget(state, token)
+    if target ~= nil then
+        target.immune = target.immune or {}
+        target.immune[#target.immune + 1] = string.lower(facts.name)
+    end
+end
+
+local function OnResisted(creature)
+    local state = History.Enabled() and OpenCast(nil) or nil
+    local token = dmhub.LookupToken(creature)
+    if state == nil or token == nil then
+        return
+    end
+    local target = RowTarget(state, token)
+    if target ~= nil then
+        target.resisted = true
+    end
+end
+
+--A save is a roll the table watched, so it earns a line whether it passed or not. The
+--line says everything, so the cast that made the roll gets no row of its own.
+local function OnSaved(creature, info)
+    local token = dmhub.LookupToken(creature)
+    if not History.Enabled() or token == nil then
+        return
+    end
+    local state = g_casts[info.options]
+    if state ~= nil then
+        state.noRow = true
+    end
+    local rolled = string.format("rolled %d (%d or more ends it)", info.total, info.target)
+    WriteLine(token, "save", {
+        name = info.name,
+        passed = info.passed,
+        causetext = info.atturnend and ("End of turn: " .. rolled) or string.upper_first(rolled),
+    })
+end
+
+local PERSISTENCE_WORDS = {
+    chose = "Chose to stop",
+    targetsgone = "All its targets are dead",
+}
+
+local function OnPersistenceEnded(creature, abilityName, reason)
+    local token = dmhub.LookupToken(creature)
+    if History.Enabled() and token ~= nil then
+        WriteLine(token, "persistence", {
+            name = abilityName,
+            causetext = PERSISTENCE_WORDS[reason] or Cause(nil),
+        })
+    end
+end
+
+local function HasLapsedEffect(props)
+    for _, instance in ipairs(props:try_get("ongoingEffects", {})) do
+        if instance.typeName == "CharacterOngoingEffectInstance" and instance:Expired() then
+            return true
+        end
+    end
+    return false
+end
+
+--Timers and concentration lapse with no one removing anything: the game just stops
+--counting them. At each turn end this clears them, which is how they get reported.
+local function OnTurnEnded(creature)
+    if not History.Enabled() then
+        return
+    end
+    for _, token in ipairs(dmhub.allTokens) do
+        local props = token.properties
+        if props ~= nil and HasLapsedEffect(props) then
+            token:ModifyProperties{
+                description = "Clear lapsed effects",
+                undoable = false,
+                execute = function()
+                    props:EndingEffects("endturn", function()
+                        props.ongoingEffects = props:ActiveOngoingEffects(true)
+                    end)
+                end,
+            }
+        end
+    end
+end
+
 GameSystem.RegisterPlayObserver("history", {
     began = CastBegan,
     finished = CastFinished,
     damage = OnDamage,
     heal = OnHeal,
     temporarystamina = OnTemporaryStamina,
+    effectstarted = OnEffectStarted,
+    effectsended = OnEffectsEnded,
+    conditionimmune = OnConditionImmune,
+    resisted = OnResisted,
+    saved = OnSaved,
+    persistenceended = OnPersistenceEnded,
+    encounterended = OnEncounterEnded,
+    turnended = OnTurnEnded,
 })

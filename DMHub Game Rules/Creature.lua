@@ -21,6 +21,17 @@ local g_playObservers = {}
 ---     raw, damagetype, source, cast, startofturn.
 ---   heal(creature, regained, note): Stamina went up by regained.
 ---   temporarystamina(creature, before, after, note): the pool grew.
+---   effectstarted(creature, info): a condition or ongoing effect began. info: conditionid
+---     or ongoingeffectid, duration, source.
+---   effectsended(creature, ended, cause): conditions and ongoing effects ended. ended is
+---     a list of {conditionid} or {ongoingeffectid}; cause is what EndingEffects was told.
+---   conditionimmune(creature, conditionid): an infliction was stopped by immunity.
+---   resisted(creature): a potency test was resisted.
+---   saved(creature, info): a saving throw landed. info: name, passed, total, target,
+---     atturnend, options (the options of the cast that rolled it).
+---   persistenceended(creature, abilityname, reason): a persistent ability stopped.
+---   encounterended(creature): runs for each creature as combat ends.
+---   turnended(creature): a creature's turn ended.
 --- None may yield. Any may fail: a broken observer is logged and play carries on.
 --- @param id string Unique name for this observer.
 --- @param handlers table<string, function>
@@ -6198,9 +6209,11 @@ function creature:RefreshToken(token)
                 token:ModifyProperties{
                     description = "Remove expired inflicted conditions",
                     execute = function()
-                        for _,k in ipairs(removes) do
-                            self.inflictedConditions[k] = nil
-                        end
+                        self:EndingEffects(nil, function()
+                            for _,k in ipairs(removes) do
+                                self.inflictedConditions[k] = nil
+                            end
+                        end)
                     end,
                 }
             end
@@ -6233,7 +6246,9 @@ function creature:RefreshToken(token)
 				token:ModifyProperties{
 					description = "Remove expired ongoing effects",
 					execute = function()
-						self.ongoingEffects = ongoingEffects
+						self:EndingEffects(nil, function()
+							self.ongoingEffects = ongoingEffects
+						end)
 					end,
 				}
 			end
@@ -8978,13 +8993,66 @@ local function PropagateTargetingGroupEnd(key)
     g_propagatingTargetingGroupEnd = false
 end
 
+--Creatures whose changes an EndingEffects call further up the stack is already watching.
+local g_endingEffects = {}
+
+--What is on a creature that can end, by a key that is the same before and after.
+local function EffectsOn(self)
+    local result = {}
+    for _,instance in ipairs(self:try_get("ongoingEffects", {})) do
+        result["effect:" .. tostring(instance.id)] = {ongoingeffectid = instance.ongoingEffectid}
+    end
+    for conditionid,_ in pairs(self:try_get("inflictedConditions", {})) do
+        result["condition:" .. conditionid] = {conditionid = conditionid}
+    end
+    return result
+end
+
+--- Runs fn, which may end conditions or ongoing effects on this creature, then tells play
+--- observers what ended. Any code that takes something off a creature goes through this,
+--- so what ended is worked out from what changed, not by each caller. A nested call joins
+--- the outer one, so the outer cause wins. fn must not yield.
+--- @param cause nil|string "endturn", "endround", "dying", "saved", "endofencounter", or words to show.
+--- @param fn function
+--- @return any ...
+function creature:EndingEffects(cause, fn)
+    if g_endingEffects[self] then
+        return fn()
+    end
+
+    local before = EffectsOn(self)
+    g_endingEffects[self] = true
+    local results = table.pack(pcall(fn))
+    g_endingEffects[self] = nil
+    if not results[1] then
+        error(results[2], 0)
+    end
+
+    local after = EffectsOn(self)
+    local ended = nil
+    for key,item in pairs(before) do
+        if after[key] == nil then
+            ended = ended or {}
+            ended[#ended+1] = item
+        end
+    end
+    if ended ~= nil then
+        GameSystem.NotifyPlayObservers("effectsended", self, ended, cause)
+    end
+    return table.unpack(results, 2, results.n)
+end
+
 local g_baseRemoveOngoingEffect = creature.RemoveOngoingEffect
 function creature:RemoveOngoingEffect(ongoingEffectid, numStacks)
     if g_propagatingTargetingGroupEnd or not g_targetingGroupEffectIds[ongoingEffectid] then
-        return g_baseRemoveOngoingEffect(self, ongoingEffectid, numStacks)
+        return self:EndingEffects(nil, function()
+            return g_baseRemoveOngoingEffect(self, ongoingEffectid, numStacks)
+        end)
     end
     local key = self:CalculateNamedCustomAttribute("Targeting Group")
-    local r = g_baseRemoveOngoingEffect(self, ongoingEffectid, numStacks)
+    local r = self:EndingEffects(nil, function()
+        return g_baseRemoveOngoingEffect(self, ongoingEffectid, numStacks)
+    end)
     if not CreatureHasTargetingGroupEffect(self) then
         PropagateTargetingGroupEnd(key)
     end
@@ -8994,11 +9062,15 @@ end
 local g_baseRemoveOngoingEffectBySeq = creature.RemoveOngoingEffectBySeq
 function creature:RemoveOngoingEffectBySeq(seq, numStacks)
     if g_propagatingTargetingGroupEnd then
-        return g_baseRemoveOngoingEffectBySeq(self, seq, numStacks)
+        return self:EndingEffects(nil, function()
+            return g_baseRemoveOngoingEffectBySeq(self, seq, numStacks)
+        end)
     end
     local hadGroup = CreatureHasTargetingGroupEffect(self)
     local key = hadGroup and self:CalculateNamedCustomAttribute("Targeting Group") or 0
-    local r = g_baseRemoveOngoingEffectBySeq(self, seq, numStacks)
+    local r = self:EndingEffects(nil, function()
+        return g_baseRemoveOngoingEffectBySeq(self, seq, numStacks)
+    end)
     if hadGroup and not CreatureHasTargetingGroupEffect(self) then
         PropagateTargetingGroupEnd(key)
     end
@@ -11478,7 +11550,9 @@ function creature:EndTurn(token)
 		token:ModifyProperties{
 			description = "Remove ongoing effects",
 			execute = function()
-				self.ongoingEffects = newOngoingEffects
+				self:EndingEffects("endturn", function()
+					self.ongoingEffects = newOngoingEffects
+				end)
 			end,
 		}
 	end
@@ -11488,6 +11562,7 @@ function creature:EndTurn(token)
 	--acted on, which for a summon is its summoner's.
 	Aura.ExpireOrphanedTurnScopedAurasOnTurn(InitiativeQueue.GetInitiativeId(token), "endturn")
 
+	GameSystem.NotifyPlayObservers("turnended", self)
 end
 
 function creature:EndRound(token)
@@ -11524,7 +11599,9 @@ function creature:EndRound(token)
                         end
                     end
 
-                    self.ongoingEffects = newOngoingEffects
+                    self:EndingEffects("endround", function()
+                        self.ongoingEffects = newOngoingEffects
+                    end)
                 end,
             }
         end
@@ -11661,9 +11738,11 @@ function creature:RemoveOngoingEffectsOnTrigger(eventName, info)
 					description = "Remove ongoing effects",
 					undoable = false,
 					execute = function()
-						for i=#removeIndexes,1,-1 do
-							table.remove(self.ongoingEffects, removeIndexes[i])
-						end
+						self:EndingEffects(eventName == "dying" and "dying" or nil, function()
+							for i=#removeIndexes,1,-1 do
+								table.remove(self.ongoingEffects, removeIndexes[i])
+							end
+						end)
 					end,
 				}
 			end

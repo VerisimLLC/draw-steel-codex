@@ -2105,6 +2105,7 @@ function ActivatedAbilityDrawSteelCommandBehavior:ExecuteCommandInternal(ability
 
             if options.powerRollPass == "target" then
                 ability.RecordTokenMessage(targetToken, options, string.format("Resisted potency: %s(%d)<%d", string.upper(gateMatch.attr), resistanceValue, gate))
+                GameSystem.NotifyPlayObservers("resisted", targetToken.properties)
             end
 
             --resisted don't do the gated part, but keep anything after the semicolon.

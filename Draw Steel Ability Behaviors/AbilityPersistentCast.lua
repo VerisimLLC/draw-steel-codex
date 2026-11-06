@@ -225,7 +225,7 @@ function ActivatedAbilityPersistenceControlBehavior:Cast(ability, casterToken, t
                 -- End any persistent abilities that were NOT selected to keep.
                 for _, ab in pairs(persistenceAbilities) do
                     if not keepAbilities[ab.guid] then
-                        casterToken.properties:EndPersistentAbilityById(ab.guid)
+                        casterToken.properties:EndPersistentAbilityById(ab.guid, "chose")
                     end
                 end
 

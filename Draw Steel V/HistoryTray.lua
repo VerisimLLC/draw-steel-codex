@@ -107,6 +107,28 @@ local function Styles()
             color = "@fg",
         },
         {
+            selectors = {"label", "historyEndedTag"},
+            fontSize = 11,
+            bold = true,
+            uppercase = true,
+            color = "@fgMuted",
+            bgcolor = "clear",
+            borderColor = "@fgMuted",
+        },
+        {
+            selectors = {"label", "historyActiveTag"},
+            fontSize = 11,
+            bold = true,
+            uppercase = true,
+            color = "@bg",
+            bgcolor = "@warning",
+        },
+        {
+            selectors = {"historyBadge"},
+            bgcolor = "@bg",
+            borderColor = "@borderSolid",
+        },
+        {
             selectors = {"label", "historyTriggerText"},
             fontSize = 12,
             color = "@fgMuted",
@@ -192,6 +214,51 @@ local function Face(who, size)
     }
 end
 
+--Small marks beside a name. Ended is the partner of Active: one for what stopped, one
+--for what is still on (L7, L10).
+local function Tag(style, text)
+    return gui.Label{
+        classes = {style},
+        bgimage = "panels/square.png",
+        text = text,
+        width = "auto",
+        height = 14,
+        hpad = 4,
+        borderBox = true,
+        cornerRadius = 3,
+        borderWidth = cond(style == "historyEndedTag", 1, 0),
+        lmargin = 5,
+        halign = "left",
+        valign = "center",
+        textAlignment = "center",
+    }
+end
+
+--The condition's icon in a small dark circle on the face's top corner.
+local function ConditionBadge(condition, index)
+    return gui.Panel{
+        classes = {"historyBadge"},
+        floating = true,
+        bgimage = "panels/square.png",
+        width = 17,
+        height = 17,
+        cornerRadius = 8,
+        borderWidth = 1,
+        halign = cond(index == 1, "right", "left"),
+        valign = "top",
+        x = cond(index == 1, 5, -5),
+        y = -4,
+        gui.Panel{
+            bgimage = condition.icon,
+            bgcolor = "white",
+            width = 13,
+            height = 13,
+            halign = "center",
+            valign = "center",
+        },
+    }
+end
+
 local function Caret(down)
     return gui.Panel{
         classes = {"historyCaret"},
@@ -274,9 +341,12 @@ local function MiniFaces(tally)
     }
 end
 
---The small lines under a target (T14).
+--The small lines under a target (T14). ended marks one that takes an Ended tag.
 local function Captions(who)
     local list = {}
+    local function Add(text, ended)
+        list[#list + 1] = {text = text, ended = ended}
+    end
     if who.types ~= nil then
         local names = {}
         for name in pairs(who.types) do
@@ -284,26 +354,40 @@ local function Captions(who)
         end
         table.sort(names)
         if #names == 1 then
-            list[1] = string.upper_first(names[1])
+            Add(string.upper_first(names[1]))
         else
             local parts = {}
             for i, name in ipairs(names) do
                 parts[i] = string.format("%d %s", who.types[name], name)
             end
-            list[1] = table.concat(parts, ", ")
+            Add(table.concat(parts, ", "))
         end
     end
     local immunity = who.immunity
     if immunity ~= nil and immunity.amount > 0 then
-        list[#list + 1] = string.format("%s immunity -%d", string.upper_first(immunity.damagetype), immunity.amount)
+        Add(string.format("%s immunity -%d", string.upper_first(immunity.damagetype), immunity.amount))
     elseif immunity ~= nil and immunity.amount < 0 then
-        list[#list + 1] = string.format("%s weakness +%d", string.upper_first(immunity.damagetype), -immunity.amount)
+        Add(string.format("%s weakness +%d", string.upper_first(immunity.damagetype), -immunity.amount))
     end
     if who.soaked ~= nil then
-        list[#list + 1] = string.format("%d soaked by temporary Stamina", who.soaked)
+        Add(string.format("%d soaked by temporary Stamina", who.soaked))
     end
     if who.pool ~= nil then
-        list[#list + 1] = string.format("temporary Stamina %d to %d", who.pool.before, who.pool.after)
+        Add(string.format("temporary Stamina %d to %d", who.pool.before, who.pool.after))
+    end
+    for _, condition in ipairs(who.conds or {}) do
+        if condition.icon == nil then
+            Add(condition.name)
+        end
+    end
+    if who.resisted then
+        Add("Resisted")
+    end
+    for _, name in ipairs(who.immune or {}) do
+        Add(string.format("Immune to %s", name))
+    end
+    for _, name in ipairs(who.ended or {}) do
+        Add(name, true)
     end
     return list
 end
@@ -349,18 +433,31 @@ local function TargetCell(who, width, showTier, extraTaken)
             textAlignment = "center",
         }
     end
-    for _, text in ipairs(Captions(who)) do
+    for _, caption in ipairs(Captions(who)) do
         below[#below + 1] = gui.Label{
             classes = {"historyCaption"},
-            text = text,
+            text = caption.text,
             width = "auto",
             maxWidth = textWidth,
             height = "auto",
             halign = "left",
             valign = "center",
-            rmargin = 8,
+            rmargin = cond(caption.ended, 0, 8),
             textAlignment = "left",
         }
+        if caption.ended then
+            local tag = Tag("historyEndedTag", "Ended")
+            tag.selfStyle.rmargin = 8
+            below[#below + 1] = tag
+        end
+    end
+
+    local face = Face(who, 36)
+    face.flow = "none"
+    for i, condition in ipairs(who.conds or {}) do
+        if i <= 2 and condition.icon ~= nil then
+            face:AddChild(ConditionBadge(condition, i))
+        end
     end
 
     return gui.Panel{
@@ -369,7 +466,7 @@ local function TargetCell(who, width, showTier, extraTaken)
         height = "auto",
         halign = "left",
         vmargin = 2,
-        Face(who, 36),
+        face,
         gui.Panel{
             flow = "vertical",
             width = textWidth,
@@ -474,9 +571,20 @@ local function TriggerRow(index, entry)
         halign = "left",
         valign = "center",
     }
+    --what it did beyond the numbers (T15).
+    local effects = {}
+    for _, who in ipairs(entry.targets) do
+        for _, condition in ipairs(who.conds or {}) do
+            effects[#effects + 1] = condition.name
+        end
+        for _, name in ipairs(who.ended or {}) do
+            effects[#effects + 1] = name .. " ended"
+        end
+    end
+    local effectText = #effects > 0 and (": " .. table.concat(effects, ", ")) or ""
     children[#children + 1] = gui.Label{
         classes = {"historyTriggerText"},
-        text = owner .. entry.ability.name,
+        text = owner .. entry.ability.name .. effectText,
         width = "auto",
         height = "auto",
         lmargin = 5,
@@ -636,33 +744,59 @@ local function BuildAction(item)
     }
 end
 
---A result with no action behind it (L1-L4): who, what, and the cause under it.
+--A result with no action behind it (L1-L24): who, what, and the cause under it.
 local function LineWords(entry)
-    local name = string.format("<b>%s</b>", ShownName(entry.who))
-    if entry.family == "damage" then
+    local name = entry.who ~= nil and string.format("<b>%s</b>", ShownName(entry.who)) or ""
+    local family = entry.family
+    if family == "damage" then
         local kind = entry.damagetype ~= nil and (entry.damagetype .. " ") or ""
         return string.format("%s took %d %sdamage", name, entry.taken, kind)
-    elseif entry.family == "heal" then
+    elseif family == "heal" then
         return string.format("%s regained %d Stamina", name, entry.healed)
+    elseif family == "condition" then
+        local duration = entry.duration ~= nil and string.format(" (%s)", entry.duration) or ""
+        if entry.iscondition then
+            return string.format("%s is %s%s", name, string.lower(entry.name), duration)
+        end
+        return string.format("%s %s%s", name, entry.name, duration)
+    elseif family == "ended" then
+        local names = entry.names
+        if #names == 1 then
+            return string.format("%s %s", name, names[1])
+        end
+        local most = {}
+        for i = 1, #names - 1 do
+            most[i] = names[i]
+        end
+        return string.format("%s %s and %s", name, table.concat(most, ", "), names[#names])
+    elseif family == "save" then
+        return string.format("%s %s %s", name, cond(entry.passed, "saved against", "failed a save against"), entry.name)
+    elseif family == "persistence" then
+        return string.format("%s stopped maintaining %s", name, entry.name)
+    elseif family == "encounterend" then
+        return "<b>Encounter ended</b>"
     end
     return name .. " temporary Stamina"
 end
 
+--The number at the end of a line. Nil for lines about something else.
 local function LineNumber(entry)
     if entry.family == "damage" then
         return Amount(entry.taken, false, 14)
     elseif entry.family == "heal" then
         return Amount(entry.healed, true, 14)
+    elseif entry.family == "temporarystamina" then
+        return gui.Label{
+            classes = {"historyPlainNumber"},
+            text = string.format("%d to %d", entry.before, entry.after),
+            fontSize = 14,
+            width = "auto",
+            height = "auto",
+            halign = "right",
+            valign = "center",
+        }
     end
-    return gui.Label{
-        classes = {"historyPlainNumber"},
-        text = string.format("%d to %d", entry.before, entry.after),
-        fontSize = 14,
-        width = "auto",
-        height = "auto",
-        halign = "right",
-        valign = "center",
-    }
+    return nil
 end
 
 local function BuildLine(item)
@@ -673,12 +807,37 @@ local function BuildLine(item)
         cause = cause ~= nil and (cause .. DOT .. soaked) or soaked
     end
 
-    local words = {
+    --a line with no number can use the room kept for one.
+    local number = LineNumber(entry)
+    local rowWidth = TRAY_WIDTH - 52 - 12 - cond(number ~= nil, LINE_NUMBER_WIDTH, 0)
+    local textWidth = rowWidth - 26
+    local tag = nil
+    if entry.family == "ended" then
+        tag = Tag("historyEndedTag", "Ended")
+    elseif entry.family == "save" and not entry.passed then
+        tag = Tag("historyActiveTag", "Active")
+    end
+
+    local top = {
         gui.Label{
             text = LineWords(entry),
+            width = "auto",
+            maxWidth = textWidth,
+            height = "auto",
+            halign = "left",
+            valign = "center",
+            textAlignment = "left",
+        },
+    }
+    top[2] = tag
+
+    local words = {
+        gui.Panel{
+            flow = "horizontal",
+            wrap = true,
             width = "100%",
             height = "auto",
-            textAlignment = "left",
+            children = top,
         },
     }
     if cause ~= nil then
@@ -691,8 +850,35 @@ local function BuildLine(item)
         }
     end
 
-    local number = LineNumber(entry)
-    number.selfStyle.halign = "right"
+    local row = {}
+    if entry.who ~= nil then
+        row[1] = Face(entry.who, 18)
+    end
+    row[#row + 1] = gui.Panel{
+        flow = "vertical",
+        width = textWidth,
+        height = "auto",
+        lmargin = cond(entry.who ~= nil, 8, 0),
+        halign = "left",
+        valign = "center",
+        children = words,
+    }
+
+    local children = {
+        gui.Panel{
+            flow = "horizontal",
+            width = rowWidth,
+            height = "auto",
+            halign = "left",
+            valign = "center",
+            children = row,
+        },
+    }
+    if number ~= nil then
+        number.selfStyle.halign = "right"
+        children[2] = number
+    end
+
     return gui.Panel{
         flow = "none",
         width = "100%",
@@ -701,24 +887,7 @@ local function BuildLine(item)
         rpad = 12,
         vpad = 4,
         borderBox = true,
-        gui.Panel{
-            flow = "horizontal",
-            width = TRAY_WIDTH - 52 - 12 - LINE_NUMBER_WIDTH,
-            height = "auto",
-            halign = "left",
-            valign = "center",
-            Face(entry.who, 18),
-            gui.Panel{
-                flow = "vertical",
-                width = TRAY_WIDTH - 52 - 12 - LINE_NUMBER_WIDTH - 26,
-                height = "auto",
-                lmargin = 8,
-                halign = "left",
-                valign = "center",
-                children = words,
-            },
-        },
-        number,
+        children = children,
     }
 end
 
@@ -1068,6 +1237,17 @@ local function AddLoneTrigger(items, entry, key)
         if who.pool ~= nil then
             parts[#parts + 1] = {family = "temporarystamina", before = who.pool.before, after = who.pool.after}
         end
+        for _, condition in ipairs(who.conds or {}) do
+            parts[#parts + 1] = {
+                family = "condition",
+                name = condition.name,
+                iscondition = condition.iscondition,
+                duration = condition.duration,
+            }
+        end
+        if who.ended ~= nil then
+            parts[#parts + 1] = {family = "ended", names = who.ended}
+        end
         for j, part in ipairs(parts) do
             for k, v in pairs(base) do
                 part[k] = v
@@ -1112,7 +1292,18 @@ local function AddTurnRows(items, turn, isNewest, nested)
         }
     end
     for i, entry in ipairs(turn.entries) do
-        if entry.kind == "line" then
+        local last = items[#items]
+        if entry.kind == "line" and entry.family == "ended" and last ~= nil and last.kind == "line"
+            and last.entry.family == "ended" and last.entry.who.id == entry.who.id
+            and last.entry.causetext == entry.causetext then
+            --ended a moment apart, for the same reason: one line (L8).
+            local names = table.shallow_copy(last.entry.names)
+            for _, name in ipairs(entry.names) do
+                names[#names + 1] = name
+            end
+            last.entry = {family = "ended", kind = "line", who = entry.who, causetext = entry.causetext, names = names}
+            last.sig = table.concat(names, ",")
+        elseif entry.kind == "line" then
             items[#items + 1] = {kind = "line", key = turn.keys[i], sig = entry, entry = entry}
         elseif entry.kind == "trigger" then
             AddLoneTrigger(items, entry, turn.keys[i])

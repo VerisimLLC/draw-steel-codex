@@ -4829,6 +4829,54 @@ function creature:InflictCondition(conditionid, args)
     self.inflictedConditions = inflictedConditions
 end
 
+--Where conditions start and are purged, for a record of play: this wraps the whole
+--function so each of its exits is covered.
+local g_creatureInflictCondition = creature.InflictCondition
+function creature:InflictCondition(conditionid, args)
+    if args.purge then
+        return self:EndingEffects(nil, function()
+            return g_creatureInflictCondition(self, conditionid, args)
+        end)
+    end
+
+    local inflicted = self:try_get("inflictedConditions", {})
+    local hadIt = inflicted[conditionid] ~= nil
+    local immune = self:GetConditionImmunities()[conditionid]
+    local result = g_creatureInflictCondition(self, conditionid, args)
+    if immune then
+        GameSystem.NotifyPlayObservers("conditionimmune", self, conditionid)
+    elseif not hadIt then
+        local entry = self:try_get("inflictedConditions", {})[conditionid]
+        if entry ~= nil then
+            GameSystem.NotifyPlayObservers("effectstarted", self, {
+                conditionid = conditionid,
+                duration = entry.duration,
+                source = args.sourceDescription,
+            })
+        end
+    end
+    return result
+end
+
+local g_creatureApplyOngoingEffect = creature.ApplyOngoingEffect
+function creature:ApplyOngoingEffect(ongoingEffectid, duration, casterInfo, options)
+    local hadIt = false
+    for _, instance in ipairs(self:try_get("ongoingEffects", {})) do
+        if instance.ongoingEffectid == ongoingEffectid and not instance:Expired() then
+            hadIt = true
+        end
+    end
+    local result = g_creatureApplyOngoingEffect(self, ongoingEffectid, duration, casterInfo, options)
+    if result ~= nil and not hadIt then
+        GameSystem.NotifyPlayObservers("effectstarted", self, {
+            ongoingeffectid = ongoingEffectid,
+            duration = duration,
+            source = options ~= nil and options.sourceDescription or nil,
+        })
+    end
+    return result
+end
+
 function creature:GetInflictedConditionCasterTime(conditionid, casterid)
     local inflictedConditions = self:try_get("inflictedConditions", {})
     local entry = inflictedConditions[conditionid]
@@ -7863,7 +7911,11 @@ function creature:MostRecentPersistentAbilityId()
     return persistentAbility.guid
 end
 
-function creature:EndPersistentAbilityById(guid)
+--- Stops maintaining a persistent ability.
+--- @param guid string
+--- @param reason nil|string Why, for a record of play: "chose" or "targetsgone". Nil when
+--- combat is ending, which says so itself.
+function creature:EndPersistentAbilityById(guid, reason)
     local token = dmhub.LookupToken(self)
     if token == nil then
         return false
@@ -7872,12 +7924,17 @@ function creature:EndPersistentAbilityById(guid)
     local persistentAbilities = self:try_get("persistentAbilities", {})
     local persistentIndex = nil
     local targets = {}
+    local persistentName = nil
     for i, entry in ipairs(persistentAbilities) do
         if entry.guid == guid then
             persistentIndex = i
             targets = entry.targets or {}
+            persistentName = entry.abilityName
             break
         end
+    end
+    if persistentName ~= nil and reason ~= nil then
+        GameSystem.NotifyPlayObservers("persistenceended", self, persistentName, reason)
     end
 
     for _, targetid in ipairs(targets) do
@@ -7898,9 +7955,11 @@ function creature:EndPersistentAbilityById(guid)
                     description = "End Persistent Ability Target",
                     undoable = false,
                     execute = function()
-                        for _, effectid in ipairs(removeIds) do
-                            target:RemoveOngoingEffect(effectid)
-                        end
+                        target:EndingEffects(persistentName, function()
+                            for _, effectid in ipairs(removeIds) do
+                                target:RemoveOngoingEffect(effectid)
+                            end
+                        end)
                     end,
                 }
             end
@@ -8042,7 +8101,7 @@ function creature:AutoEndPersistentAbilitiesWithDeadTargets()
                 name = rawget(entry, "abilityName")
             end
             ended[#ended + 1] = name or "Persistent Ability"
-            self:EndPersistentAbilityById(entry.guid)
+            self:EndPersistentAbilityById(entry.guid, "targetsgone")
         end
     end
     return ended
@@ -8480,10 +8539,11 @@ creature.RegisterSymbol {
 function creature:StartOnDying()
     self:RemoveMatchingOngoingEffects(function(ongoingEffect)
         return ongoingEffect.removeOnEoEOrDying
-    end)
+    end, "dying")
 end
 
 function creature:EndCombat()
+    GameSystem.NotifyPlayObservers("encounterended", self)
 
     local persistentAbilities = self:try_get("persistentAbilities", {})
     for i = #persistentAbilities, 1, -1 do
@@ -8492,11 +8552,11 @@ function creature:EndCombat()
 
     self:RemoveMatchingOngoingEffects(function(ongoingEffect)
         return ongoingEffect.removeOnEoEOrDying or ongoingEffect.removeOnEoE
-    end)
+    end, "endofencounter")
 
     self:RemoveMatchingCondition(function(condition)
         return condition.duration == "eoe"
-    end)
+    end, "endofencounter")
 
     if self:has_key("auras") then
         local expires = false
@@ -8556,7 +8616,9 @@ function creature:EndCombat()
     }
 end
 
-function creature:RemoveMatchingOngoingEffects(predicate)
+--- @param predicate fun(effect: CharacterOngoingEffectInstance): boolean
+--- @param cause nil|string Why they end, as for EndingEffects.
+function creature:RemoveMatchingOngoingEffects(predicate, cause)
     local removes = nil
     local ongoingEffects = self:try_get("ongoingEffects", {})
     for i = #ongoingEffects, 1, -1 do
@@ -8580,14 +8642,18 @@ function creature:RemoveMatchingOngoingEffects(predicate)
             token:ModifyProperties {
                 description = "End combat",
                 execute = function()
-                    self.ongoingEffects = newOngoingEffects
+                    self:EndingEffects(cause, function()
+                        self.ongoingEffects = newOngoingEffects
+                    end)
                 end,
             }
         end
     end
 end
 
-function creature:RemoveMatchingCondition(predicate)
+--- @param predicate fun(condition: table): boolean
+--- @param cause nil|string Why they end, as for EndingEffects.
+function creature:RemoveMatchingCondition(predicate, cause)
     local removes = nil
     local conditions = self:try_get("inflictedConditions", {})
     for condid, condition in pairs(conditions) do
@@ -8610,7 +8676,9 @@ function creature:RemoveMatchingCondition(predicate)
             token:ModifyProperties {
                 description = "Remove matching conditions",
                 execute = function()
-                    self.inflictedConditions = newConditions
+                    self:EndingEffects(cause, function()
+                        self.inflictedConditions = newConditions
+                    end)
                 end,
             }
         end

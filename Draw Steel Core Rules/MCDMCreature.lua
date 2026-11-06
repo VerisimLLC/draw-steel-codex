@@ -6306,33 +6306,63 @@ local function HeroicResourceBefore(c, key)
     return c:GetResources()[CharacterResource.heroicResourceId] or 0
 end
 
+--What a creature has left of a resource a record of play follows, nil for any other.
+--Actions, maneuvers and triggers are not among them: every turn spends those.
+local function RecordedAmount(self, key)
+    if key ~= CharacterResource.heroicResourceId and key ~= CharacterResource.surgeResourceId
+        and key ~= CharacterResource.recoveryResourceId then
+        return nil
+    end
+    local info = dmhub.GetTable(CharacterResource.tableName)[key]
+    local usage = info ~= nil and self:GetResourceUsage(key, info.usageLimit) or 0
+    return (self:GetResources()[key] or 0) - (usage or 0)
+end
+
+--Compares after the change: a spend can be routed to a mentor or a summoner, and a
+--refresh can be capped, so what was asked for is not always what happened.
+local function ReportResource(self, key, before, refreshType, note)
+    if before == nil then
+        return
+    end
+    local after = RecordedAmount(self, key)
+    if after ~= before then
+        GameSystem.NotifyPlayObservers("resource", self, key, before, after, refreshType, note)
+    end
+end
+
 local g_baseConsumeResource = creature.ConsumeResource
 function creature.ConsumeResource(self, key, refreshType, quantity, note)
     local before = HeroicResourceBefore(self, key)
+    local amountBefore = RecordedAmount(self, key)
     local result = g_baseConsumeResource(self, key, refreshType, quantity, note)
     if before ~= nil then
         TrackHeroicResourceDelta(self, before)
     end
+    ReportResource(self, key, amountBefore, refreshType, note)
     return result
 end
 
 local g_baseRefreshResource = creature.RefreshResource
 function creature.RefreshResource(self, key, refreshType, quantity, note)
     local before = HeroicResourceBefore(self, key)
+    local amountBefore = RecordedAmount(self, key)
     local result = g_baseRefreshResource(self, key, refreshType, quantity, note)
     if before ~= nil then
         TrackHeroicResourceDelta(self, before)
     end
+    ReportResource(self, key, amountBefore, refreshType, note)
     return result
 end
 
 local g_baseAddUnboundedResource = creature.AddUnboundedResource
 function creature.AddUnboundedResource(self, key, quantity, note)
     local before = HeroicResourceBefore(self, key)
+    local amountBefore = RecordedAmount(self, key)
     local result = g_baseAddUnboundedResource(self, key, quantity, note)
     if before ~= nil then
         TrackHeroicResourceDelta(self, before)
     end
+    ReportResource(self, key, amountBefore, "unbounded", note)
     return result
 end
 

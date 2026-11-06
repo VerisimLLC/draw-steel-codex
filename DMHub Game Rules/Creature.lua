@@ -21,6 +21,9 @@ local g_playObservers = {}
 ---     raw, damagetype, source, cast, startofturn.
 ---   heal(creature, regained, note, recovered): Stamina went up by regained. recovered is
 ---     "winded" or "dying" if that ended it.
+---   resource(creature, key, before, after, refreshType, note): a resource a record of
+---     play follows changed on a creature.
+---   globalresource(resourceid, before, after, note): a shared resource changed.
 ---   threshold(creature, state, info): the creature became "winded", "dying" or "killed".
 ---     info: source, cast.
 ---   minionsdied(creature, info): minion deaths were confirmed. info: squad, killed, left, cast.

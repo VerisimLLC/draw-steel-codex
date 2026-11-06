@@ -124,6 +124,45 @@ local function Styles()
             bgcolor = "@danger",
         },
         {
+            selectors = {"label", "historyChip"},
+            fontSize = 11,
+            bold = true,
+            color = "@fgMuted",
+            bgcolor = "clear",
+            borderColor = "@borderSolid",
+        },
+        {
+            selectors = {"label", "historyChip", "historyChipHeroic"},
+            color = "@info",
+            borderColor = "@info",
+        },
+        {
+            selectors = {"label", "historyChip", "historyChipSurge"},
+            color = "@warning",
+            borderColor = "@warning",
+        },
+        {
+            selectors = {"label", "historyChip", "historyChipMalice"},
+            color = "@danger",
+            borderColor = "@danger",
+        },
+        {
+            selectors = {"label", "historyUndone"},
+            color = "@fgMuted",
+        },
+        {
+            selectors = {"label", "historyLineButton"},
+            fontSize = 11,
+            color = "@fgMuted",
+            bgcolor = "clear",
+            borderColor = "@borderSolid",
+        },
+        {
+            selectors = {"label", "historyLineButton", "hover"},
+            color = "@fgStrong",
+            borderColor = "@fgMuted",
+        },
+        {
             selectors = {"label", "historyEndedTag"},
             fontSize = 11,
             bold = true,
@@ -572,6 +611,14 @@ local function MoreCell(rest, width)
     }
 end
 
+--"2 surges", but "1 surge". Every other resource name reads the same at any amount.
+local function ResourceWords(amount, name)
+    if amount == 1 and name == "surges" then
+        return "1 surge"
+    end
+    return string.format("%d %s", amount, name)
+end
+
 --A tier on the action when every target got the same one; on the cells when not.
 local function SharedTier(entry)
     local shared = nil
@@ -709,6 +756,31 @@ local function BuildAction(item)
     if tier ~= nil then
         titleChildren[#titleChildren + 1] = TierBadge(tier)
     end
+    if entry.costs ~= nil then
+        local names = {}
+        for name in pairs(entry.costs) do
+            names[#names + 1] = name
+        end
+        table.sort(names)
+        for _, name in ipairs(names) do
+            local cost = entry.costs[name]
+            titleChildren[#titleChildren + 1] = gui.Label{
+                classes = {"historyChip", cost.style},
+                bgimage = "panels/square.png",
+                text = ResourceWords(cost.amount, name),
+                width = "auto",
+                height = 16,
+                hpad = 6,
+                borderBox = true,
+                borderWidth = 1,
+                cornerRadius = 8,
+                lmargin = 5,
+                halign = "left",
+                valign = "center",
+                textAlignment = "center",
+            }
+        end
+    end
 
     local action = ACTION_WORDS[entry.ability.action]
 
@@ -723,6 +795,12 @@ local function BuildAction(item)
             for _, who in ipairs(kid.targets) do
                 extra[who.id] = (extra[who.id] or 0) + (who.taken or 0)
             end
+        elseif kid.family == "resource" then
+            triggers[#triggers + 1] = {
+                actor = kid.who,
+                ability = {name = string.format("%s: %s %+d", kid.causetext or "", kid.name, kid.amount)},
+                targets = {},
+            }
         else
             for _, who in ipairs(entry.targets) do
                 if who.squad == kid.name then
@@ -846,6 +924,15 @@ local function LineWords(entry)
         return string.format("%s is %s", name, entry.state)
     elseif family == "minions" then
         return string.format("<b>%s</b> %d of %d minions killed", entry.name, entry.killed, entry.killed + entry.left)
+    elseif family == "resource" then
+        return string.format("%s %s %s", name, cond(entry.amount > 0, "gained", "spent"), ResourceWords(math.abs(entry.amount), entry.name))
+    elseif family == "malice" then
+        if entry.who == nil then
+            return "<b>Director</b> Malice"
+        end
+        return name .. " Malice"
+    elseif family == "globalresource" then
+        return string.format("<b>%s</b>", entry.name)
     end
     return name .. " temporary Stamina"
 end
@@ -856,7 +943,7 @@ local function LineNumber(entry)
         return Amount(entry.taken, false, 14)
     elseif entry.family == "heal" then
         return Amount(entry.healed, true, 14)
-    elseif entry.family == "temporarystamina" then
+    elseif entry.family == "temporarystamina" or entry.family == "malice" or entry.family == "globalresource" then
         return gui.Label{
             classes = {"historyPlainNumber"},
             text = string.format("%d to %d", entry.before, entry.after),
@@ -884,7 +971,8 @@ local function BuildLine(item)
 
     --a line with no number can use the room kept for one.
     local number = LineNumber(entry)
-    local rowWidth = TRAY_WIDTH - 52 - 12 - cond(number ~= nil, LINE_NUMBER_WIDTH, 0)
+    local leaveRoom = number ~= nil or entry.family == "resource"
+    local rowWidth = TRAY_WIDTH - 52 - 12 - cond(leaveRoom, LINE_NUMBER_WIDTH, 0)
     local textWidth = rowWidth - 26
     local tag = nil
     if entry.family == "ended" then
@@ -893,8 +981,10 @@ local function BuildLine(item)
         tag = Tag("historyActiveTag", "Active")
     end
 
+    --opacity does not reach a panel's children, so an undone line fades by its text colour.
     local top = {
         gui.Label{
+            classes = {cond(entry.undone, "historyUndone", "historyLineText")},
             text = LineWords(entry),
             width = "auto",
             maxWidth = textWidth,
@@ -954,6 +1044,32 @@ local function BuildLine(item)
         children[2] = number
     end
 
+    --a resource line can be put back by whoever controls the creature (L42).
+    local undoable = entry.family == "resource" and not entry.undone and entry.who ~= nil
+    if undoable then
+        local token = dmhub.GetCharacterById(entry.who.id)
+        undoable = token ~= nil and token.canControl
+    end
+    if undoable then
+        children[#children + 1] = gui.Label{
+            classes = {"historyLineButton"},
+            bgimage = "panels/square.png",
+            text = "Undo",
+            width = "auto",
+            height = 18,
+            hpad = 6,
+            borderBox = true,
+            borderWidth = 1,
+            cornerRadius = 4,
+            halign = "right",
+            valign = "center",
+            textAlignment = "center",
+            click = function(element)
+                History.UndoResource(entry)
+            end,
+        }
+    end
+
     return gui.Panel{
         flow = "none",
         width = "100%",
@@ -979,6 +1095,25 @@ local function BuildRoundHead(item)
         halign = "left",
         valign = "center",
     }
+    local head = {
+        gui.Panel{
+            flow = "horizontal",
+            width = "auto",
+            height = "100%",
+            halign = "left",
+            children = title,
+        },
+    }
+    if item.right ~= nil then
+        head[2] = gui.Label{
+            classes = {"historyMuted"},
+            text = item.right,
+            width = "auto",
+            height = "auto",
+            halign = "right",
+            valign = "center",
+        }
+    end
     return gui.Panel{
         classes = {cond(item.toggle ~= nil, "historyFold", "historyStill")},
         bgimage = "panels/square.png",
@@ -987,13 +1122,13 @@ local function BuildRoundHead(item)
         height = "auto",
         click = item.toggle,
         gui.Panel{
-            flow = "horizontal",
+            flow = "none",
             width = "100%",
             height = 30,
             hpad = 12,
             borderBox = true,
             valign = "center",
-            children = title,
+            children = head,
         },
         gui.Panel{
             classes = {"historySeam"},
@@ -1251,7 +1386,7 @@ local function BuildSections(mapid)
         if root ~= nil then
             nested[root.id] = nested[root.id] or {}
             table.insert(nested[root.id], entry)
-        elseif entry ~= nil then
+        elseif entry ~= nil and (entry.family ~= "malice" or dmhub.isDM) then
             local groupid = "out"
             if entry.encounter ~= nil then
                 groupid = string.format("%s-%d", entry.encounter, entry.round)
@@ -1267,15 +1402,21 @@ local function BuildSections(mapid)
                 sections[#sections + 1] = section
                 turn = nil
             end
-            local number = entry.turn or 0
-            if turn == nil or turn.number ~= number then
-                turn = {id = string.format("%s-%d", section.id, number), number = number, entries = {}, keys = {}}
-                section.turns[#section.turns + 1] = turn
+            if entry.family == "malice" then
+                section.maliceBefore = section.maliceBefore or entry.before
+                section.maliceAfter = entry.after
             end
-            turn.owner = turn.owner or entry.owner
-            turn.entries[#turn.entries + 1] = entry
-            turn.keys[#turn.keys + 1] = key
-            section.entries[#section.entries + 1] = entry
+            if not entry.quiet then
+                local number = entry.turn or 0
+                if turn == nil or turn.number ~= number then
+                    turn = {id = string.format("%s-%d", section.id, number), number = number, entries = {}, keys = {}}
+                    section.turns[#section.turns + 1] = turn
+                end
+                turn.owner = turn.owner or entry.owner
+                turn.entries[#turn.entries + 1] = entry
+                turn.keys[#turn.keys + 1] = key
+                section.entries[#section.entries + 1] = entry
+            end
         end
     end
     return sections, nested
@@ -1426,12 +1567,18 @@ local function AddSectionRows(items, section, isNewest, nested)
         return
     end
 
+    local right = nil
+    if section.maliceAfter ~= nil then
+        right = string.format("Malice %d to %d", section.maliceBefore, section.maliceAfter)
+    end
+
     --the newest section stays open, so it has nothing to fold to.
     items[#items + 1] = {
         kind = "roundhead",
         key = "head-" .. section.id,
-        sig = title,
+        sig = title .. (right or ""),
         text = title,
+        right = right,
         toggle = (not isNewest or g_open[section.id] == false) and Toggle(section.id, isOpen) or nil,
     }
 

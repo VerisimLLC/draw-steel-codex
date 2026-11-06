@@ -32,7 +32,14 @@ local mod = dmhub.GetModLoading()
 --- @field cause? string On an automatic trigger or a minions line: id of the cast behind it.
 --- @field aliases? string[] On an action: ids of casts inside it that have no row of their own.
 --- @field family? string On a line (kind "line"): "damage", "heal", "temporarystamina",
---- "condition", "ended", "save", "persistence", "encounterend", "threshold" or "minions".
+--- "condition", "ended", "save", "persistence", "encounterend", "threshold", "minions",
+--- "resource", "malice" or "globalresource".
+--- @field amount? number On a resource line: the change, negative when spent.
+--- @field resourceid? string On a resource line: the resource, for Undo.
+--- @field refreshtype? string On a resource line: how it refreshes, for Undo.
+--- @field undone? boolean On a resource line: Undo was pressed.
+--- @field quiet? boolean On a Malice line: it counts in the round heading but shows no line.
+--- @field costs? table<string, {amount: number, style: string}> On an action: resources it spent.
 --- @field state? string On a threshold line: "winded", "dying" or "killed".
 --- @field killed? integer On a minions line: how many died.
 --- @field left? integer On a minions line: how many of the squad are left.
@@ -249,6 +256,12 @@ function History.Entry(mapid, key)
         g_parsed[key] = parsed
     end
     return parsed.entry
+end
+
+--- Rewrites an entry that is already in History, for a change to what it says.
+--- @param entry HistoryEntry
+function History.Rewrite(entry)
+    History.Write(entry)
 end
 
 --- Empties a map's History, for everyone.

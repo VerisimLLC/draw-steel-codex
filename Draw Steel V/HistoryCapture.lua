@@ -566,6 +566,127 @@ local function ClosingEntry(token)
     return g_closing[key]
 end
 
+--What a resource is called on a line, and which chip colour it takes on a row.
+local function ResourceFacts(creature, key)
+    if key == CharacterResource.heroicResourceId then
+        return creature:GetHeroicResourceName(), "historyChipHeroic"
+    end
+    if key == CharacterResource.surgeResourceId then
+        return "surges", "historyChipSurge"
+    end
+    local info = dmhub.GetTable(CharacterResource.tableName)[key]
+    return info ~= nil and info.name or "resource", nil
+end
+
+--A spend on a row reads as a chip (T12).
+local function AddCost(state, name, amount, style)
+    local entry = state.entry
+    entry.costs = entry.costs or {}
+    local cost = entry.costs[name] or {amount = 0, style = style}
+    cost.amount = cost.amount + amount
+    entry.costs[name] = cost
+end
+
+local function OnResource(creature, key, before, after, refreshType, note)
+    if not History.Enabled() or note == "Undo" or note == "Redo" then
+        return
+    end
+    local token = dmhub.LookupToken(creature)
+    if token == nil then
+        return
+    end
+    local name, style = ResourceFacts(creature, key)
+    local change = after - before
+    local state = OpenCast(nil)
+    if state ~= nil and not state.automatic and change < 0 then
+        AddCost(state, name, -change, style)
+        return
+    end
+    --gains are lines, with Undo. Inside an automatic trigger the line names the trigger
+    --and its cause, so the tray can still nest it (T15).
+    WriteLine(token, "resource", {
+        name = name,
+        amount = change,
+        resourceid = key,
+        refreshtype = refreshType,
+        causetext = Cause(note),
+        cause = state ~= nil and state.automatic and state.entry.cause or nil,
+    })
+end
+
+--- Puts a resource line back the way it was. Whoever controls the creature can do this.
+--- @param entry HistoryEntry
+function History.UndoResource(entry)
+    local token = entry.who ~= nil and dmhub.GetCharacterById(entry.who.id) or nil
+    if token == nil or entry.resourceid == nil or entry.undone then
+        return
+    end
+    token:ModifyProperties{
+        description = "Undo Resource",
+        execute = function()
+            if entry.amount > 0 then
+                token.properties:ConsumeResource(entry.resourceid, entry.refreshtype, entry.amount, "Undo")
+            else
+                token.properties:RefreshResource(entry.resourceid, entry.refreshtype, -entry.amount, "Undo")
+            end
+        end,
+    }
+    entry.undone = true
+    History.Rewrite(entry)
+end
+
+--Malice is shown to the Director only, except a spend, which is on its row for all (gap 4).
+local function OnMalice(before, after, note)
+    local running = ActivatedAbility.CurrentCastInfo()
+    local caster = running ~= nil and running.casterToken or nil
+    local state = OpenCast(nil)
+    local spentOnRow = state ~= nil and not state.automatic and after < before
+    if spentOnRow then
+        AddCost(state, "Malice", before - after, "historyChipMalice")
+    end
+
+    local byHand = note == nil or note == "Manually set"
+    local token = caster ~= nil and caster.valid and caster or nil
+    local entry = {
+        kind = "line",
+        family = "malice",
+        map = token ~= nil and token.mapid or game.currentMapId,
+        who = token ~= nil and History.Creature(token) or nil,
+        before = before,
+        after = after,
+        causetext = byHand and "Set by hand" or note,
+        --the round heading shows these; only a trait or a hand edit earns a line.
+        quiet = spentOnRow or (token == nil and not byHand) or nil,
+    }
+    History.AddCombatFacts(entry)
+    History.Write(entry)
+end
+
+local function OnGlobalResource(resourceid, before, after, note)
+    if not History.Enabled() then
+        return
+    end
+    if resourceid == CharacterResource.maliceResourceId then
+        OnMalice(before, after, note)
+        return
+    end
+    local info = dmhub.GetTable(CharacterResource.tableName)[resourceid]
+    if info == nil or info.name ~= "Hero Tokens" then
+        return
+    end
+    local entry = {
+        kind = "line",
+        family = "globalresource",
+        map = game.currentMapId,
+        name = info.name,
+        before = before,
+        after = after,
+        causetext = Cause(note),
+    }
+    History.AddCombatFacts(entry)
+    History.Write(entry)
+end
+
 local function OnEncounterEnded(creature)
     local token = dmhub.LookupToken(creature)
     if History.Enabled() and token ~= nil then
@@ -726,6 +847,8 @@ GameSystem.RegisterPlayObserver("history", {
     threshold = OnThreshold,
     minionsdied = OnMinionsDied,
     temporarystamina = OnTemporaryStamina,
+    resource = OnResource,
+    globalresource = OnGlobalResource,
     effectstarted = OnEffectStarted,
     effectsended = OnEffectsEnded,
     conditionimmune = OnConditionImmune,

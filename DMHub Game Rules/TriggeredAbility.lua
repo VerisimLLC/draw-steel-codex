@@ -8,6 +8,7 @@ local mod = dmhub.GetModLoading()
 --- @field categorization string Always "Triggered Ability".
 --- @field despawnBehavior string What to do when a targeted token despawns: "remove" or "corpse".
 --- @field mandatory boolean|string If true, fires automatically; if false, prompts the player; if a string, uses that setting id.
+--- @field waitForOtherCasts boolean If false, waits only for casts by or targeting its creature, not every cast.
 --- @field trigger string The event id that triggers this ability.
 --- @field triggerFilter nil|string GoblinScript formula that must be truthy for the trigger to fire.
 --- @field characterConditionRequired? string Condition id the subject must have for the trigger to fire ("none"/nil for no requirement); read with try_get.
@@ -969,6 +970,10 @@ TriggeredAbility.mandatory = true
 --damage) rather than a beneficial reaction offer. Its prompt shows a red icon,
 --never ages out, and must be manually activated or dismissed.
 TriggeredAbility.hostile = false
+--If false, the trigger waits only for casts by or targeting its creature
+--(and the cast it fired in), not every cast on this machine. Only for
+--mandatory triggers that show nothing, such as the Monster Death rule.
+TriggeredAbility.waitForOtherCasts = true
 
 function TriggeredAbility.OnDeserialize(self)
 	ActivatedAbility.OnDeserialize(self)
@@ -2229,12 +2234,19 @@ function TriggeredAbility:ExecuteTriggerCast(args)
 	if argOptions.complete ~= nil then
 		dmhub.CoroutineSynchronous(TriggeredAbility.TriggerCo, self, targets, args.characterModifier, casterToken, args.creature, symbols, args.auraControllerToken, args.modContext, argOptions)
 	else
+		--A trigger set not to wait for other casts (e.g. Monster Death, after a
+		--skull click) waits only for the cast it fired in and casts by or
+		--targeting its creature. A trigger that may prompt always waits.
+		local involving = nil
+		if not self.waitForOtherCasts and not self:MayBePrompted() then
+			involving = casterToken
+		end
 		ActivatedAbility.RunWhenCastsComplete(function()
 			if casterToken == nil or not casterToken.valid then
 				return
 			end
 			dmhub.CoroutineSynchronous(TriggeredAbility.TriggerCo, self, targets, args.characterModifier, casterToken, args.creature, symbols, args.auraControllerToken, args.modContext, argOptions)
-		end, {casterid = casterToken ~= nil and casterToken.charid or nil})
+		end, {casterid = casterToken ~= nil and casterToken.charid or nil, involving = involving})
 	end
 
 	g_triggerDepth = g_triggerDepth - 1

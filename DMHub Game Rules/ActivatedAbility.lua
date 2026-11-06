@@ -3613,17 +3613,35 @@ end
 local AWAITING_TRIGGERS_ACTIVITY = "awaitingtriggers"
 ActivatedAbility.AWAITING_TRIGGERS_ACTIVITY = AWAITING_TRIGGERS_ACTIVITY
 
+--True if this cast is by the token or targets it.
+local function CastInvolvesToken(info, token)
+    if info.casterToken ~= nil and info.casterToken.valid and info.casterToken.charid == token.charid then
+        return true
+    end
+    for _,target in ipairs(info.targets or {}) do
+        if target.token ~= nil and target.token.valid and target.token.charid == token.charid then
+            return true
+        end
+    end
+    return false
+end
+
 --Runs fn once every ability cast that was active when this was called has
 --finished, including the calling cast if invoked from inside one. Runs fn
 --immediately when no casts are active.
 --opts.casterid names the creature fn will cast for, so HasDeferredCastFor can
 --report that the creature still has work queued.
+--opts.involving waits only for the calling cast and casts by or targeting
+--that creature, not for unrelated ones.
 --- @param fn function
---- @param opts nil|{casterid: string|nil}
+--- @param opts nil|{casterid: string|nil, involving: CharacterToken|nil}
 function ActivatedAbility.RunWhenCastsComplete(fn, opts)
+    local involving = opts ~= nil and opts.involving or nil
+    local running = involving ~= nil and coroutine.running() or nil
     local casts = {}
     for co,info in pairs(ActivatedAbility.coroutineStorage) do
-        if coroutine.status(co) ~= "dead" and info.activity ~= AWAITING_TRIGGERS_ACTIVITY then
+        if coroutine.status(co) ~= "dead" and info.activity ~= AWAITING_TRIGGERS_ACTIVITY
+            and (involving == nil or co == running or CastInvolvesToken(info, involving)) then
             casts[co] = true
         end
     end

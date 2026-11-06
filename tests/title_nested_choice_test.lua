@@ -13,37 +13,41 @@ local function check(ok, message)
     assert(ok, message)
 end
 
---engine stubs: every widget is its args table.
+--Engine stubs are set through stub(): LuaLS reads a global assignment here,
+--even a rawset with a literal name, as another definition of the real global
+--and retypes it across the codex (HeroSheetWrite.Save lost its boolean return).
+local function stub(name, value) rawset(_G, name, value) end
+--every widget is its args table.
 local function widget(args)
     args = args or {}
     args.valid = true
     return args
 end
-gui = {
+stub('gui', {
     Panel = widget, Label = widget, Input = widget, SearchInput = widget,
     Tooltip = function() return function() end end,
-}
-function cond(a, b, c) if a then return b else return c end end
-function trim(s) return (string.gsub(s or '', '^%s*(.-)%s*$', '%1')) end
-unhidden_pairs = pairs
-Title = {tableName = 'titles'}
-dmhub = {
+})
+stub('cond', function(a, b, c) if a then return b else return c end end)
+stub('trim', function(s) return (string.gsub(s or '', '^%s*(.-)%s*$', '%1')) end)
+stub('unhidden_pairs', pairs)
+stub('Title', {tableName = 'titles'})
+stub('dmhub', {
     GetModLoading = function() return {} end,
     GetTable = function() return {} end,
     Schedule = function() end,
     isDM = true,
-}
-HeroSheetTheme = {
+})
+stub('HeroSheetTheme', {
     CardFrame = function(panel) return panel end,
     HoverCard = function(args) return args end,
-}
+})
 local shown
-HeroSheetWindow = {
+stub('HeroSheetWindow', {
     DialogWidth = function(w) return w end,
     TargetSize = function(s) return s end,
     ShowDialog = function(args) shown = args end,
     Toast = function() end,
-}
+})
 
 local function obj(t)
     t.try_get = function(self, k, d) if self[k] == nil then return d end return self[k] end
@@ -74,14 +78,14 @@ local hero = obj{
     Echelon = function() return 1 end,
 }
 local token = {charid = 'hero', name = 'Hero', properties = hero}
-HeroSheet = {Token = function() return token end, Saved = function() end}
-HeroSheetWrite = {
+stub('HeroSheet', {Token = function() return token end, Saved = function() end})
+stub('HeroSheetWrite', {
     CanWrite = function() return true end,
     Save = function(args) args.execute(hero) end,
     SaveSoon = function() end,
     Flush = function() end,
-}
-HeroSheetWindows = nil
+})
+stub('HeroSheetWindows', nil)
 
 assert(load(source, path))()
 HeroSheetWindows.OpenTitles()

@@ -3,6 +3,10 @@
 --has options that are choices themselves (Elemental Dabbler: a damage type,
 --then Blaster / Immunity / Weapons). The nested choice must show once its
 --option is picked, count toward "choose one", and a pick must be clearable.
+--The stubs below live in a private environment: as plain globals, the type
+--checker takes them for the engine's real API and misreads the whole codex.
+local _ENV = setmetatable({}, {__index = _G})
+
 local path = 'Draw Steel V/HeroSheetTitles.lua'
 local f = assert(io.open(path, 'rb'))
 local source = f:read('*a'):gsub('\r\n', '\n'); f:close()
@@ -110,7 +114,7 @@ HeroSheetWrite = {
 }
 HeroSheetWindows = nil
 
-assert(load(source, path))()
+assert(load(source, path, 't', _ENV))()
 HeroSheetWindows.OpenTitles()
 check(shown ~= nil, 'the Titles window opened')
 

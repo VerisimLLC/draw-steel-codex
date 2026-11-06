@@ -139,6 +139,12 @@ TriggeredAbility.TargetTypes = {
 		text = 'Burst',
 	},
 	{
+		--every creature in the encounter passing the target filter, ignoring range
+		--and line of effect. Resolved in TriggeredAbility:Trigger (targetType 'map').
+		id = 'map',
+		text = 'All Creatures in Encounter',
+	},
+	{
 		id = 'attacker',
 		text = 'Creature Attacking Me',
 		condition = function(ability)
@@ -1385,6 +1391,25 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 				}
 			end
 		end
+	elseif self.targetType == 'map' then
+		--"All Creatures in Encounter": every creature passing the target filter,
+		--with no range or line of effect (Ravenous Horde's end-of-round zombies
+		--beside each marked hero). In combat only creatures in initiative count,
+		--the same rule the action bar applies to a cast "map" ability.
+		targets = {}
+		local q = dmhub.initiativeQueue
+		if q ~= nil and q.hidden then
+			q = nil
+		end
+		for _,tok in ipairs(dmhub.allTokens) do
+			local inEncounter = q == nil or q:HasInitiative(InitiativeQueue.GetInitiativeId(tok))
+			if inEncounter and (tok.id ~= casterToken.charid or self:try_get("selfTarget", false)) and self:TargetPassesFilter(casterToken, tok, symbols) then
+				targets[#targets+1] = {
+					loc = tok.loc,
+					token = tok,
+				}
+			end
+		end
     elseif self.targetType == 'subject' and subjectToken ~= nil then
         --The subject is predetermined, but the authored target filters
         --(Target Filter / Ability Filters / Reasoned Filters) still gate
@@ -2608,6 +2633,12 @@ function TriggeredAbility:TriggerCo(targets, characterModifier, casterToken, cre
             token = casterToken,
             range = 0,
             radius = self:GetRange(creature),
+        }
+    elseif self.targetType == 'map' then
+        --the same whole-map area a cast "map" ability uses.
+        targetArea = dmhub.CalculateShape{
+            shape = "map",
+            token = casterToken,
         }
     end
 

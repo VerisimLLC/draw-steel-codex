@@ -3815,12 +3815,21 @@ function EncounterScript.Parse(text)
             if soonRest ~= nil then
                 soonText = string.match(soonRest, "^:%s*(.-)$") or (string.match(soonRest, "^%.?$") and "" or nil)
             end
+            --"Rest does not lock this part": a win of the part before
+            --unlocks this one for good, even after the party rests.
+            local restFree = string.match(lower(t), "^rest does not lock this part%.?$") ~= nil
             if soonText ~= nil then
                 local mark = { text = cond(soonText ~= "", soonText, nil), line = lineIndex }
                 if result.part ~= nil then
                     result.part.comingSoon = mark
                 else
                     pendingComingSoon = mark
+                end
+            elseif restFree then
+                if result.part ~= nil then
+                    result.part.restFree = true
+                else
+                    Warn(lineIndex, "%s", T("author.script.rest_free_placement"))
                 end
             elseif declText ~= nil then
                 local decl = EncounterScript.ParseTrackDeclaration(declText)

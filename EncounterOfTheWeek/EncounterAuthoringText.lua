@@ -1288,6 +1288,7 @@ text("author.script.unknown_beat", [[unknown beat '{title}' (expected Montage, N
 text("author.script.second_story", [[a second '# {title}'; only the first is used]])
 --{part} is the part number already given.
 text("author.script.second_part", [[a second '# {title}'; a script is one part, so only '# Part {part}' counts (give each part its own document)]])
+text("author.script.rest_free_placement", [['Rest does not lock this part' goes under a '# Part N' heading; ignored]])
 text("author.script.section_outside_beat", [['## {title}' outside a montage or narrative beat; ignored]])
 
 --Sub-documents linked into the script. {target} is the link as written,

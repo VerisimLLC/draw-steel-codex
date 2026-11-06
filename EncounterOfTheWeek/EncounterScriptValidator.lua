@@ -816,6 +816,8 @@ function EncounterScriptValidator.BuildReport(docid, partyid)
         if parse.part.comingSoon ~= nil then
             note = string.format("Part %d%s of a series: marked 'Coming soon', so the town shows it locked%s", parse.part.number, title,
                 cond(parse.part.comingSoon.text ~= nil, " (\"" .. tostring(parse.part.comingSoon.text) .. "\")", ""))
+        elseif parse.part.restFree then
+            note = note .. "; a rest does not lock it again"
         end
         children[#children + 1] = RowLabel{ depth = 0, class = "note", text = note }
         local encounter = nil

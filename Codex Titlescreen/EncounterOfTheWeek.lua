@@ -881,7 +881,7 @@ local function ReadSeriesParts(story)
             end
             local number = math.floor(tonumber(p.number) or 0)
             numbers[number] = true
-            parts[#parts+1] = { number = number, title = title, townGate = townGate, mapName = mapName }
+            parts[#parts+1] = { number = number, title = title, townGate = townGate, mapName = mapName, restFree = p.restFree == true }
         end
     end
     for _, p in pairs(type(story.comingSoonParts) == "table" and story.comingSoonParts or {}) do
@@ -956,7 +956,8 @@ function EncounterOfTheWeek.PartUnlocked(key)
     local won = EncounterOfTheWeek.PartWon(previous)
     local open = EotwRoster.PartOpen(previous, EncounterOfTheWeek.PartBoard(previous))
     --a city from before the respite rule sends no open parts: any win counts.
-    if open == nil then
+    --So does a part whose script says "Rest does not lock this part".
+    if open == nil or (entry ~= nil and entry.restFree) then
         open = won
     end
     if open then
@@ -1051,7 +1052,8 @@ function EncounterOfTheWeek.PartsHeldOpen(list)
         if type(key) == "string" and EncounterOfTheWeek.PartBoard(key) == item.board then
             local seriesKey, part = EncounterOfTheWeek.SplitPartKey(key)
             local nextPart = EncounterOfTheWeek.GetPart(seriesKey, part + 1)
-            if nextPart ~= nil and nextPart.comingSoon == nil then
+            --a rest-free next part stays unlocked, so the inn has nothing to warn about.
+            if nextPart ~= nil and nextPart.comingSoon == nil and not nextPart.restFree then
                 local nextKey = EncounterOfTheWeek.PartKey(seriesKey, part + 1)
                 result[#result+1] = {
                     series = EncounterOfTheWeek.EncounterTitle(seriesKey),

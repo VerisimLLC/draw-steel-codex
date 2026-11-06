@@ -701,6 +701,12 @@ time).
   feature do not offer it at all. A series can ship with its first parts
   playable and the rest as placeholders. Remove the line and publish an update
   to open it.
+- **Rests and later parts**: by default a part is playable only while the
+  part before it is still fresh: won since the account last rested at the
+  inn (Catching Breath keeps it). A rest locks it again until that part is won
+  again. For a series where heroes may rest between parts, put
+  `Rest does not lock this part` under the heading of each later part: once
+  the part before is won, it stays unlocked.
 - Each part is a whole script: its own beats, its own `# Encounter` and
   `[[encounter]]` island, and its own `# Town Gate` / `# Conclusion` /
   `# Defeat`. Sub-documents work as usual, per part.

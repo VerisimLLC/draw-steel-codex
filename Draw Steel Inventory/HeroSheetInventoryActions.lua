@@ -93,11 +93,18 @@ function Actions.AddToStash(item)
     if party == nil or not Actions.CanAdd() then
         return false
     end
-    party:BeginChanges()
-    party.properties:GiveItem(item.id, item:TradedQuantity())
-    party:CompleteChanges(string.format("Add %s", item.name))
-    audio.FireSoundEvent("UI.Inv_Place")
-    return true
+    local ok = HeroSheetWrite.SaveAtomic{
+        description = string.format("Add %s", item.name),
+        others = {party},
+        othersOnly = true,
+        execute = function()
+            party.properties:GiveItem(item.id, item:TradedQuantity())
+        end,
+    }
+    if ok then
+        audio.FireSoundEvent("UI.Inv_Place")
+    end
+    return ok
 end
 
 --- @class HeroStashEntry
@@ -167,7 +174,7 @@ end
 
 --- Change whoever holds a row's item, as one undo step: the open Hero
 --- (through HeroSheetWrite.Save) or, for a party stash row, the party's
---- stash record (as the old trade window writes it). fn gets its properties.
+--- stash record. fn gets its properties.
 --- @param entry HeroInventoryEntry|HeroStashEntry
 --- @param description string
 --- @param fn fun(props: any)
@@ -178,10 +185,16 @@ local function SaveHolder(entry, description, fn)
         if party == nil or not HeroSheetWrite.CanWrite() then
             return false
         end
-        party:BeginChanges()
-        fn(party.properties)
-        party:CompleteChanges(description)
-        return true
+        --a conditional write: a change from a stale view is refused, so two
+        --players cannot leave the stash with more than it held.
+        return HeroSheetWrite.SaveAtomic{
+            description = description,
+            others = {party},
+            othersOnly = true,
+            execute = function()
+                fn(party.properties)
+            end,
+        }
     end
     return HeroSheetWrite.Save{
         description = description,

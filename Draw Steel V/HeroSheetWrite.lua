@@ -114,6 +114,7 @@ end
 --- @field others (CharacterToken|LuaPartyInfo)[] the other holders the change edits, such as the party stash
 --- @field execute fun(hero: creature, token: CharacterToken) edits the Hero and the others' properties in place
 --- @field refusedText nil|string the toast when another player changed the same items first
+--- @field othersOnly nil|boolean the change edits only the others, not the Hero (a write to the party stash alone)
 
 --- Save a change that moves things between the open Hero and other holders
 --- (the party stash, another token) as one write that can't race another
@@ -130,7 +131,10 @@ function HeroSheetWrite.SaveAtomic(args)
     end
     local token = LiveToken() --[[@as CharacterToken]]
     ---@type (CharacterToken|LuaPartyInfo)[]
-    local holders = {token}
+    local holders = {}
+    if not args.othersOnly then
+        holders[1] = token
+    end
     for _, other in ipairs(args.others) do
         holders[#holders+1] = other
     end

@@ -257,6 +257,43 @@ text("eotw.party.row_byline", [[Hosted by {host} -- {filled}/{total} heroes{enco
 text("eotw.party.row_open_button", [[Open]])
 text("eotw.party.row_join_button", [[Join]])
 
+----------------------------------------------------------------------------
+-- JOINING A PARTY UNDER WAY: a public party that has already set out
+----------------------------------------------------------------------------
+
+--The board's title while looking at a party under way you are not in.
+text("eotw.late.board_title", [[A Party Under Way]])
+--The row's button to ask to watch a party under way. Short: a button.
+text("eotw.late.row_watch_button", [[Watch]])
+--After the name of a party under way, instead of "(launched)".
+text("eotw.late.row_tag_join", [[(under way -- heroes may still join)]])
+text("eotw.late.row_tag_watch", [[(under way -- watch only)]])
+--Shown in the party's view, above the heroes you would bring.
+text("eotw.late.view_note_join", [[This party has already set out. Ask the host to let you bring heroes in, or just watch.]])
+text("eotw.late.view_note_watch", [[This party is deep in combat: heroes can no longer join, but you can ask to watch.]])
+--{count} heroes picked of the {space} that fit.
+text("eotw.late.bring_heading", [[Heroes You Would Bring ({count}/{space})]])
+--On a picked hero's card.
+text("eotw.late.card_remove_note", [[Click to leave behind]])
+--The chip that opens the hero picker. Short: a button.
+text("eotw.late.add_hero_chip", [[+ Add a Hero]])
+--The view's buttons. Short: buttons.
+text("eotw.late.ask_join_button", [[Ask to Join]])
+text("eotw.late.ask_watch_button", [[Ask to Watch]])
+text("eotw.late.cancel_button", [[Cancel Request]])
+text("eotw.late.back_button", [[Back]])
+--While the host decides. {host} is the host's name, {seconds} the time left.
+text("eotw.late.waiting_join", [[Waiting for {host} to let your heroes join... ({seconds}s)]])
+text("eotw.late.waiting_watch", [[Waiting for {host} to let you watch... ({seconds}s)]])
+--A member who is only watching, in the party's view. {player} is their name.
+text("eotw.late.member_watching", [[{player} is watching]])
+--Why a request did not get in.
+text("eotw.late.declined", [[{host} declined your request.]])
+text("eotw.late.timeout", [[{host} did not answer. Try again, or find another party.]])
+text("eotw.late.closed", [[This party is no longer taking newcomers.]])
+text("eotw.late.gone", [[That party has ended.]])
+text("eotw.late.pick_heroes", [[Choose at least one hero to bring.]])
+
 --The player's own game in progress, at the top of the Gate's board.
 text("eotw.resume.heading", [[Your game in progress]])
 --Its name when it has none.

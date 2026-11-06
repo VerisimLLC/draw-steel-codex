@@ -17,6 +17,10 @@
 --  data.montage  = {
 --    beatIndex, round, phase = "rounds"|"consequences"|"done",
 --    acted = { [heroCharid] = true },       -- this round
+--    bonus = nil | { [heroCharid] = round },-- a hero who joined the game
+--                                              after round 1 acts twice in
+--                                              that round: the first action
+--                                              spends this, not `acted`
 --    taken = { [entryId] = true },          -- opportunities consumed
 --    vanquished = { [entryId] = true },     -- threats resolved
 --    threatTimes = nil | { [entryId] = n }, -- Challenge Mode: a threat that
@@ -4460,8 +4464,7 @@ local function DelveFinish(m, doc, t)
     t.status = "resolved"
     t.applied = d.applied or {}
     t.resolvedAt = dmhub.serverTime
-    m.acted = m.acted or {}
-    m.acted[t.heroid] = true
+    EncounterMontage.MarkActed(m, t.heroid)
     m.taken = m.taken or {}
     m.taken[t.entryId] = true
     m.log = m.log or {}
@@ -5631,6 +5634,10 @@ local function HandleRequest(m, doc, userid, req, beat, heroes)
             return "ignored pass: inside a delve (turn back at the next choice)"
         end
         local entry = EncounterMontage.TurnEntry(beat, t)
+        --a pass ends the hero's round, a second action included.
+        if m.bonus ~= nil then
+            m.bonus[t.heroid] = nil
+        end
         m.acted = m.acted or {}
         m.acted[t.heroid] = true
         m.log = m.log or {}
@@ -6141,6 +6148,84 @@ local function RollRemovals(m, beat)
             n, #EncounterScript.MontageEntries(beat))
     end
     return removed
+end
+
+--Host: a hero has used their action this round. A hero who joined after
+--round 1 has a second action that round (m.bonus): the first action spends
+--it. Call inside an open change of the montage document.
+function EncounterMontage.MarkActed(m, charid)
+    if m.bonus ~= nil and m.bonus[charid] ~= nil and m.bonus[charid] == m.round then
+        m.bonus[charid] = nil
+        return
+    end
+    m.acted = m.acted or {}
+    m.acted[charid] = true
+end
+
+--Host: heroes joined the game during this montage (EncounterOfTheWeek.lua,
+--"heroes joining a game under way"). The party-size draw is made again for
+--the larger party, for this round and those to come: an entry the smaller
+--party lost that the larger one keeps comes back onto the board now. Entries
+--already on the board are never taken away, and earlier rounds are left as
+--they were. A hero who joins after round 1 acts twice in the round they join.
+--Returns the number of entries restored, and whether the heroes act twice.
+---@param charids string[]
+---@return number, boolean
+function EncounterMontage.OnHeroesJoined(charids)
+    local doc = EncounterMontage.GetDoc()
+    local m = doc.data.montage
+    if type(m) ~= "table" or m.phase ~= "rounds" or m.removed == nil then
+        return 0, false
+    end
+    local beat = EncounterMontage.CurrentBeat()
+    if beat == nil then
+        return 0, false
+    end
+    local size = #EncounterMontage.Heroes()
+    local round = tonumber(m.round) or 1
+    local twice = round > 1
+
+    doc:BeginChange()
+    local dm = doc.data.montage
+    local restored = 0
+    if size > (tonumber(dm.removedForPartySize) or 0) then
+        for _, r in ipairs(beat.rounds or {}) do
+            if r.number >= round then
+                local removals = EncounterScript.ScalingRemovals(r, size)
+                for _, kind in ipairs({ "opportunity", "threat" }) do
+                    --this round's entries of the kind the draw took away.
+                    local gone = {}
+                    for _, e in ipairs(r.entries or {}) do
+                        if e.kind == kind and dm.removed[e.id] then
+                            gone[#gone + 1] = e.id
+                        end
+                    end
+                    local back = #gone - (removals[kind] or 0)
+                    for _ = 1, back do
+                        local id = table.remove(gone, math.random(#gone))
+                        dm.removed[id] = nil
+                        restored = restored + 1
+                        printf("EotW montage: the larger party brings back %s [%s] (round %d)", kind, id, r.number)
+                    end
+                end
+            end
+        end
+        dm.removedForPartySize = size
+    end
+    if twice then
+        dm.bonus = dm.bonus or {}
+        for _, charid in ipairs(charids) do
+            if not (dm.acted or {})[charid] then
+                dm.bonus[charid] = round
+            end
+        end
+    end
+    --a latecomer marked by the town is hunted too (once per game).
+    AddAssassins(doc, dm)
+    doc:CompleteChange("Montage: heroes joined", { undoable = false })
+    printf("EotW montage: %d heroes joined in round %d (party of %d); %d entries restored%s",
+        #charids, round, size, restored, cond(twice, "; they act twice this round", ""))
+    return restored, twice
 end
 
 --The "(Locked)" entries of a beat and whether anything has let them out

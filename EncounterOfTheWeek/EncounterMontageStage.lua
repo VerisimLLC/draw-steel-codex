@@ -4424,6 +4424,15 @@ local function HeroSignature(heroes)
     return table.concat(parts, "|")
 end
 
+--Who controls each hero, so a stage can tell when a hero changes hands.
+local function OwnerSignature(heroes)
+    local parts = {}
+    for _, hero in ipairs(heroes) do
+        parts[#parts + 1] = hero.charid .. ":" .. tostring(hero.ownerId)
+    end
+    return table.concat(parts, "|")
+end
+
 --- the montage haul ------------------------------------------------------------------
 
 local function ItemGear(itemid)
@@ -5276,6 +5285,10 @@ local function CreateStage(args)
     local m_headerHeight = nil
     local m_turnSignature = nil
     local m_heroSignature = nil
+    --who controls each hero, as last drawn (OwnerSignature): a returning
+    --player is handed their heroes back after they arrive, which changes no
+    --montage document, so the think redraws on this instead.
+    local m_ownerSignature = nil
     local m_scene = nil
     --when each consequence (ConsequenceKey/ExpiredKey) started playing here,
     --so a rebuild never replays one. false = it was already on the board at
@@ -5709,6 +5722,17 @@ local function CreateStage(args)
             end
             pcall(EncounterMontage.ClientTick)
             SyncHeaderHeight()
+            --a hero changing hands (a player back from away) changes which
+            --cards may be dragged and the "your move" line.
+            local owners = OwnerSignature(EncounterMontage.Heroes())
+            if owners ~= m_ownerSignature then
+                local first = m_ownerSignature == nil
+                m_ownerSignature = owners
+                if not first then
+                    m_turnSignature = nil
+                    Refresh(element)
+                end
+            end
             element:FireEventTree("refreshCard")
         end,
     }
@@ -7635,6 +7659,8 @@ local function CreateScriptStage(args)
     local m_holdsActionBar = false
     local m_staleHideSent = false
     local m_staleCheckScheduled = false
+    --the script the body was built from (its document and map).
+    local m_scriptKey = nil
 
     --one child, sized to fill: the montage's body or the narrative's.
     local bodyHolder = gui.Panel{
@@ -7736,6 +7762,17 @@ local function CreateScriptStage(args)
             --hold what is up rather than tearing the surface down. The host
             --hides the stage when it really means to hand the map back.
             return
+        end
+
+        --a client that came in on another map (joining a game under way)
+        --builds the stage from that map's script, then travels: the body
+        --follows the script it should be showing.
+        local scriptKey = string.format("%s|%s", tostring(script ~= nil and script.docid or nil), tostring(game.currentMapId))
+        if scriptKey ~= m_scriptKey then
+            if m_scriptKey ~= nil then
+                m_kind = nil
+            end
+            m_scriptKey = scriptKey
         end
 
         if kind ~= m_kind then

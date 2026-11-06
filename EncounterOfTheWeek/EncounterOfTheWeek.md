@@ -51,6 +51,13 @@ pregens through dev drivers), so the open risk is in the multi-client paths:
 a second player's turns, rolls and votes, late joiners, and the beat
 handovers on a non-host screen.
 
+**Joining a game under way (2026-11-06):** public parties stay listed after
+they set out; newcomers ask to join (before combat or in combat round 1) or
+watch, and the host accepts or declines in game. Montage recount + two
+actions, round-1 monster rebalance, Hero Tokens, initiative. Live-tested with
+two windows on staging (some paths driven directly); lobby server on release
+since 2026-11-06; committed 2026-11-06. See "Joining a game under way".
+
 **Encounter series (2026-10-17):** one map, several encounters unlocked in
 order, each bounded to its encounter's region. Built across the parser, game,
 town, both publishers and the City; nothing run, not deployed, uncommitted.
@@ -685,8 +692,10 @@ All in `Codex Titlescreen/EncounterOfTheWeek.lua`, mounted on
   Measured 2026-10-08 (two clients on one machine, `/debug` off; Begin to
   loading screen gone): host 5.2s -> 3.9s, member 11.8s (bare map, heroes
   at 13.8s) -> 4.5s (straight onto the stage). See "Launch timing" below.
-- While in the game nobody heartbeats the roster record, so it expires about
-  5 minutes after launch.
+- While in the game the host's client heartbeats a started party's record
+  (`set-late-join`, every 30s) so newcomers can still find it, and drops it
+  15s after the encounter is decided; see "Joining a game under way". A
+  record whose host is gone expires 5 minutes after its last heartbeat.
 - **Choosing the encounter.** Since 2026-10-06 the party's encounter is
   chosen by WHERE it is formed, not from a dropdown: the Gate's Form a Party
   sets out for the Encounter of the Week, Past Encounters for an earlier
@@ -5629,7 +5638,11 @@ leaver from every wait; the host then votes or acts for them.
   plain child was hidden behind the End Turn banner. The popup is rebuilt
   whole whenever a notice comes or goes: popup placement is computed from
   the panel as first shown, and a column grown afterwards spilled upward
-  over the bar. A click elsewhere closes the notices, like any popup.
+  over the bar. A click elsewhere closes the notices, like any popup. In a
+  game (since 2026-11-06) the column lives in `gamehud.popupPanel` instead,
+  top right under the map strip: as a title-bar popup it drew over the hud
+  but lost the mouse to it, so its buttons could not be clicked over a map
+  window or a stage. There a click elsewhere does not close it.
   `CodexTitleBar.OpenPlayersPopout()` opens the plate's popout; a custom
   interface supplies its content through the new `playersPopout` provider
   field (`GameHud.CustomInterfacePlayersPopout`). In a directorless game the
@@ -5647,6 +5660,284 @@ trigger badge jumps to the hero); a prompt that was already open on the
 leaver's screen when they went has not been tested, and the AI's save wait
 has no timeout. Nothing yet tells a player in town that their game went on
 without them (phase 2).
+
+## Joining a game under way (BUILT + live-tested 2026-11-06 on staging; server on release; committed)
+
+User direction 2026-11-06. A **public** party stays on the town's list after
+it sets out, and newcomers may ask to **join** (bring heroes) or **watch**
+(come in controlling nothing). The host gets a notice under the players row
+with **Accept / Decline**. When newcomers may bring heroes:
+
+| The game is in | Newcomers may |
+|---|---|
+| any story beat before combat (narrative, montage, negotiation, Tactical Preparation, the arrangement) | join or watch |
+| combat round 1 | join or watch |
+| combat round 2 on, or between combat and the end | watch only |
+| decided (victory/defeat seen) | nothing; the party leaves the list |
+
+Decisions (2026-11-06, with the user):
+- **The host must accept** (not just a notice). No answer within 75s lapses
+  the request (the city) and the newcomer gives up at 90s (the town).
+- **Public games only.** A private game's invite code does not open it
+  once it has set out.
+- **Combat round 1: rebalance to the new count.** Every group is recomputed
+  for the larger party with the counts the author set for each party size;
+  only the difference spawns, next to the group and in its initiative. Nothing
+  is removed and fallen monsters are not replaced.
+- **Montage: restored entries appear at once.** The party-size draw is made
+  again for the larger party, for the current round and later ones; an entry
+  the smaller party lost that the larger keeps comes back onto the board now.
+  Entries already on the board are never taken away, earlier rounds are left
+  alone, and a larger party never removes more (a directive that would cut
+  more at the bigger size is ignored for a late join).
+- **Two actions:** a hero who joins in montage round 2 or later acts twice
+  in that round (`m.bonus[charid] = round`; the first action spends it, a
+  pass ends the round outright). A hero joining in round 1 acts once, like
+  everyone.
+- **Observing** is joining as a member with no heroes (the open question
+  under "Open questions" is answered: no separate spectator mechanism). An
+  observer is in no vote or wait (nothing is keyed to them) and sees what any
+  player sees.
+
+**Lobby server** (`cloudflare-game-server/src/lobby-core.ts`; dispatch in
+`lobby.ts`; unit tests "late joining" in `test/lobby-core.test.ts`).
+DEPLOYED to staging 2026-11-06 (version 3183797a); NOT on release.
+- Record fields: `lateJoin` ("join" | "observe"; absent = taking no
+  requests), `requests[userid] = {name, mode, heroes, at}`,
+  `declined[userid] = {at, reason: "declined" | "timeout" | "closed"}`, and an
+  observer's player entry carries `observer: true`.
+- `set-late-join {gameid, mode}`: any member of a launched game (after a host
+  hand-over the lobby cannot tell who hosts). It is also the **in-game
+  heartbeat** that keeps a started game listed (until now only the town
+  screen beat the record, so it expired ~5 min after launch). Going to
+  "observe" refuses waiting joins; "closed" refuses every request. A private
+  game's call only heartbeats. A heartbeat that changes nothing visible is
+  still written to storage (quietly), or a hibernating DO would forget it.
+- `request-late-join {gameid, mode, heroes?}`: non-members of a public game
+  that takes requests. Heroes go through `prepareHeroClaim` (the City's
+  roster check) and must fit the free slots. In `BANNED_ACTIONS`.
+- `cancel-late-join {gameid}`; `answer-late-join {gameid, userid, accept}`
+  (any member; a join is re-checked against the mode and free slots and
+  turned down with `reason` "full" / "too-late" if they changed).
+- `sweepExpired` lapses requests after `LATE_JOIN_REQUEST_TTL_MS` (75s).
+
+**Town** (`Codex Titlescreen/EncounterOfTheWeek.lua`, the `Late` table,
+declared above `CreateScreen` because that function is at the 200-local
+limit; text in `EotwTextTown.lua`, `eotw.late.*`):
+- A party under way shows "(under way -- heroes may still join)" or
+  "(under way -- watch only)" and **Join** (opens its view) / **Watch**
+  (asks at once).
+- Its view, for a newcomer: the heroes they would bring (pre-filled with
+  their free active heroes, as forming a party does; click a card to leave it
+  behind, "+" opens the usual hero picker, which now takes an `onPick`), **Ask
+  to Join**, **Ask to Watch**, **Back**. While waiting: "Waiting for {host}...
+  (Ns)" and **Cancel Request**.
+- `Late.Check` (every roster change, and each second while waiting): our
+  entry in `players` = accepted -> `Late.Enter`: `lobby:JoinGameEotw`,
+  mark the slot, abandon the previous EotW game, wait (10s at most) until
+  `lobby.eotwGameid` shows the engine join landed (the game server admits
+  listed players only), then `EnterWorld`. Our entry in `declined` says why
+  it failed.
+- **Changed for members:** a started party now stays listed for its whole
+  game, so its member view's walk-away is **Abandon** with
+  `{abandon = true}` (the eotwAbandonGame path) for everyone, the host
+  included. The old host button deleted the game outright, which a few
+  minutes after launch was harmless and now would delete it from under the
+  others.
+
+**Game side.**
+- `EncounterOfTheWeek.lua`: one **shared lobby connection, counted by its
+  users** (`EncounterOfTheWeekGame.AcquireLobbyConnection` /
+  `ReleaseLobbyConnection`; `SendLobbyRequest` and the prewarm use it). The
+  engine hands every `lobbies:Connect` for the same city the same underlying
+  connection, so the old per-request `Disconnect` would have closed the
+  watcher's.
+- `EncounterOfTheWeekGame.LateJoinPhase()` -> "join" | "observe" | "closed"
+  (table above; round from `dmhub.initiativeQueue.round`, 1 in the first
+  round).
+- `EncounterPresence.lua`, "newcomers to a game under way": on the host,
+  every 0.5s (`WatchLateJoin`): `set-late-join` every 30s and on a phase
+  change; each waiting request as a sticky notice (in a game the notices
+  live in the hud's popup layer, so their buttons take the mouse; id
+  `eotw-latejoin-<userid>`, re-shown 5s after it is clicked away); Accept
+  adds a "latejoin" presence event ("X is joining the party with A" / "X is
+  coming to watch" on every other screen). Once "closed", 15s later the
+  record's host sends `leave-game` so the party's heroes are free for new
+  parties at once.
+- `EncounterOfTheWeek.lua`, "heroes joining a game under way"
+  (`EncounterOfTheWeekGame.LateHeroesHostTick`, every map-script host tick,
+  not in tests). Host-only document `eotwlatejoin`: `known` (every hero
+  counted: the party once `AllPlayersArrived()` or combat began, then each
+  latecomer), `late[charid] = {at, owner, phase, combat}`, and `balance`
+  (what `SpawnEncounterMonsters` placed: hero count, the series part, and
+  per group its initiative `groupid` and per-monster counts). For each new
+  hero: `numheroes` +1 (clamped 3..7; the spawn, reinforcements and series
+  scoring read it), one Hero Token, `EncounterMontage.OnHeroesJoined` (the
+  recount and two actions; a "latehero" notice when they act twice),
+  `RebalanceForLateHeroes` while the phase is "join" (no-op before the spawn,
+  or when the balance belongs to another series part), and in combat a place
+  in the initiative (`entry.player = true`, once per combat; that is also
+  what makes `GetBattleHeroTokens` count them for the Victory).
+- A latecomer's own client needs nothing new: `EnterWorld` parks their heroes
+  from their roster entry, `SetupOnArrival` pastes them in the Start zone,
+  and the loading screen is released by the montage stage (a beat already
+  open) or at once (combat: the expected party is already in). They are not
+  added to `expectedUsers`, so nothing waits for them.
+
+**Verified live (2026-11-06, staging, two windows on one machine:** the admin
+host in a public Bound Minotaur party, the New Player Window as the partner
+account with `EotwRoster.UseStaging` patched to true at runtime, since that
+account is not an admin):
+- The started party stays listed with the in-game heartbeat, tagged
+  "(under way -- heroes may still join)"; Join opens the view pre-filled with
+  the partner's two free heroes; Ask to Join shows the countdown.
+- The host's notice ("David asks to join with Polder Shadow and Talent.")
+  with Accept / Decline; Accept made them a member, everyone got "David is
+  joining the party with ...", the newcomer's town joined the engine game and
+  entered during the opening narrative. Heroes 4 -> 6 on the map,
+  `numheroes` 4 -> 6, Hero Tokens 4 -> 6, the newcomer a voter.
+- Decline: the newcomer sees "Denivarius declined your request."; an
+  unanswered request lapsed ("timeout") and the view returned to the pick.
+- Watch: the partner (after Abandon from the member view, which left the
+  record and cleared their slot while the game went on) asked to watch, was
+  accepted and came in with no heroes (`observer: true`), seeing combat.
+- Montage recount and two actions (exercised directly on the live state: the
+  montage drawn for 4 heroes, moved to round 2, then `OnHeroesJoined`): round
+  2's removed threat came back, round 1's stayed removed, both newcomers got
+  the bonus; `MarkActed` lets a bonus hero act twice, a normal hero once.
+- Combat round 1 (spawned for 4 heroes through the encounter beat, then the
+  newcomers made "new" again): `numheroes` 4 -> 6, Hero Tokens +2, monsters
+  14 -> 24 (the author's 6-hero groups, never removing: group 3 kept its 8
+  minions where the 6-hero setup has 5), every group in the initiative, new
+  minions in the group's existing squad, the latecomers stamped for the combat.
+- Round 2 turns the record to "observe"; "closed" (the outcome seen) drops
+  the record 15s later.
+
+**Fixed during the test:**
+- *The lobby lost in-game heartbeats.* A heartbeat changed only memory, so
+  when the DO hibernated between beats and woke, the record came back with
+  its old stamp and was swept 5 minutes after its last real change (a party
+  under way vanished mid-test). `heartbeat` and `set-late-join` now persist the
+  state row without broadcasting (`LobbyObject.persistLobbyState`, staging
+  version 3a92154a). The same loss could drop a party idling in town for 5
+  minutes before.
+- *Notices could not be clicked in a game.* The players-row notices were a
+  popup of the title bar, which draws over the game hud but loses the mouse to
+  it (the maximized map window's strip, then an EotW stage). In a game they now
+  live in `gamehud.popupPanel`, top right under the map strip
+  (`CodexTitleBar.lua`, `RebuildPlayersToasts`; out of a game unchanged). This
+  also made the existing Reassign / Claim Host / Reclaim Host buttons
+  clickable; in a game a click elsewhere no longer closes the notices.
+- *Hero picks as cards pushed the buttons off a smaller window*: they are
+  compact chips now ("+ Add a Hero" opens the picker). The board says "A Party
+  Under Way" for a party you are not in.
+- *The stage kept the old hero row*: the narrative stage redraws its heroes
+  only on a script-document change, so the host stamps
+  `eotwscript.data.heroesJoinedAt` 3s after admitting latecomers.
+- *Balance keys*: groups were keyed "1", "2", ..., which the document turns
+  into a list on reload, so after a restart no group matched and a rebalance
+  spawned the whole encounter again. Keys are `EncounterOfTheWeekGame.
+  BalanceGroupKey(i)` = "g<i>" (verified across a restart).
+- *A group new to the larger party* split its monster types into separate
+  initiatives (each `SpawnPrepMonsters` call minted its own); its spawned
+  monsters now join `existing`, so later types follow the first.
+
+**Fixed after David's own test (2026-11-06, release):**
+- *A newcomer arriving mid-montage saw another map's montage* and nothing
+  they dragged worked (the host answered every approach "entry unavailable":
+  the entry ids came from Goblin Ambush's script). A community module's game
+  started members on the module's first map and travelled; the stage, already
+  up for a beat under way, was built from that map's script and kept it. Now
+  a party already set up (record "ready") starts every arrival on its
+  encounter map whatever the module (`EnterWorld`), and the script stage
+  rebuilds its body when the script it shows changes (`CreateScriptStage`,
+  keyed by script document + map).
+- *Errors entering late* (`GameController.isDMOrPlayerHost` NRE from every
+  loading-screen panel; "Could not find game id"): the engine fetches a game's
+  record (GamesMonitor) only once the account slot changes, and the late join
+  entered before it landed. `Late.Enter` now also waits (5s at most) for
+  `lobby.gamesRevision` to move after the slot shows the game.
+- *Leaving a game you only watched asked about Abandon.* `ConfirmExit` now
+  steps aside for a non-host who controls nothing on the map, and the town
+  (`Late.LeaveWatched`, from `RefreshGames`) takes a returning watcher off the
+  party and out of their EotW slot, so the board offers Join / Watch again. A
+  watcher who crashes out must ask again too.
+
+**Seen live after those fixes (2026-11-06, staging, two windows, The Bound
+Minotaur):** Watch -> Accept -> the watcher entered on the encounter map
+(the host's `e8b23317`) with the opening narrative showing and no
+isDMOrPlayerHost errors; Leave Game asked nothing; back in town the watcher
+was taken off the party ("EotW: stopped watching ...") and the stale "Your
+game in progress" bar went with the slot; the board offered Join / Watch
+again; Ask to Join -> Accept brought two heroes in (Hero Tokens 4 -> 6, both
+on the stage, the newcomer a voter whose Ready the host saw). Then, mid-
+montage, the partner's window was killed and came back through Re-join: on
+the right montage, and its drag onto "Keep Up Morale" was taken by the host.
+
+**Fixed during that test:**
+- *A player back mid-montage could not drag their heroes.* The host hands a
+  returning player's heroes back after they arrive ("Welcome back"), which
+  changes no montage document, and the stage decides which cards may be
+  dragged (and "Your move: ...") only on a document change: the cards stayed
+  locked and the line said "Waiting for the other heroes to act" until
+  someone else acted. Not specific to late joining. The montage stage's think
+  now redraws when who controls a hero changes (`OwnerSignature`,
+  EncounterMontageStage.lua). Probably also what David saw in the second
+  window, alongside the wrong-map script.
+- *The late-join watcher stalled on a closed connection* (it held it and only
+  checked `connected`): it now lets a closed one go and takes a fresh one
+  (`WatchLateJoin`, EncounterPresence.lua).
+- *A newcomer looking at a party under way was told "The game is starting ...
+  You will enter automatically"*; that line is now for members only.
+
+**Testing on staging:** set the host's preference `eotw:server` to
+"staging" before the party sets out (the game mod's lobby requests --
+`ready-game`, the late-join heartbeat -- read it; patching
+`EotwRoster.UseStaging` changes only the town screen, and a party whose
+`ready-game` went to the other server stays "launched": no Re-join, members
+never auto-enter). The non-admin partner window still needs the
+`EotwRoster.UseStaging` patch, re-applied after every game exit (the town
+mod reloads). A public party on release is real: a stranger joined the test
+party within seconds.
+
+**Not done / known gaps.**
+- **Release**: the lobby change was deployed to release 2026-11-06 (version
+  63289e52, with David's OK). Codex and game server committed 2026-11-06
+  (unpushed).
+- Not run live: a newcomer joining for real mid-montage after round 1 (only
+  one spare account; the logic was driven directly) or in combat round 1 (the
+  arrival was simulated by clearing `known`), and a real victory or defeat
+  closing the record.
+- **Engine (C#, not fixed): `DOConnection.OnOpen` NullReferenceException**
+  when a client re-enters a game it had a cached connection for (log:
+  "evicting cached connection" then "Connected" then the NRE, crash report
+  uploaded). The open callback of an evicted connection runs after its socket
+  was closed; a null check on `_ws` before `_ws.Send(authMsg)` would do. Seen on
+  the observer's entry; not specific to late joining.
+- **Abandon from the town does not count as abandoning in the game.** Only
+  the in-game Abandon writes `eotwleave-<userid>`; the town's (member view,
+  resume row) just leaves. The host then treats the player as away, and if they
+  come back -- to watch, say -- they are handed their heroes again.
+- Rebalancing never removes, so a party that grows can face more than the
+  author's count for its size (24 vs 20 in The Bound Minotaur at 6 heroes)
+  when the larger setup trims a group. Decided ("never remove"), but worth a
+  look with real encounters.
+- Rebalanced monsters keep the existing monsters' stamina (a group's
+  `balancing[n].stamina` is applied to the newcomers only), and they stand on
+  free tiles beside their group rather than on banked positions.
+- Challenge Mode with a full party (6 balanced as 6 + level-up): a late hero
+  cannot raise the count past 6, and the level-up is not redone.
+- A request in the instant between a hero's acceptance and their arrival in
+  round 2 still lets them in (accepted in round 1 is enough).
+- The host's lobby connection shows the host as present in the town while
+  they play (presence is derived from sockets). Not checked whether the town
+  roster shows them.
+- A series that goes straight on in the same game drops the party from the
+  list at the first part's victory, so later parts take no newcomers.
+- The montage stage shows no hint of a hero's second action beyond the
+  notice.
+- A member's own hero cards in a started party still show the hover trash
+  (set-heroes is refused once launched); harmless, unchanged.
 
 ---
 
@@ -7593,8 +7884,9 @@ EotW codemod all changed):
 - ~~**A disconnected player** blocks a montage round and a narrative
   section.~~ Decided 2026-10-09: free agents (see "Players leaving and
   coming back").
-- **Observers**: join as a player with no heroes (works today), or a true
-  spectator mechanism?
+- ~~**Observers**: join as a player with no heroes (works today), or a true
+  spectator mechanism?~~ Decided 2026-11-06: a member with no heroes, let in
+  by the host (see "Joining a game under way").
 - **Does the player host see the monsters it runs?** With `canControl`
   elevation-aware the host now sees monsters like a player (no X-ray). If the
   host needs to notice a wedged monster, the debug hatch is the answer.

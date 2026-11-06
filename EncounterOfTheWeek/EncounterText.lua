@@ -1099,6 +1099,30 @@ text("presence.given.other_controls_abandoned", [[{controller} now controls {her
 text("presence.notice.reassign_button", [[Reassign]])
 
 ----------------------------------------------------------------------------
+-- JOINING A GAME UNDER WAY: newcomers to a public game that has set out
+----------------------------------------------------------------------------
+
+--The host's notice when someone in town asks to come in. {name} is the
+--player; {heroes} the heroes they would bring.
+text("presence.latejoin.request_join", [[{name} asks to join with {heroes}.]])
+text("presence.latejoin.request_watch", [[{name} asks to watch the game.]])
+--The notice's buttons. Short: buttons.
+text("presence.latejoin.accept_button", [[Accept]])
+text("presence.latejoin.decline_button", [[Decline]])
+--The host accepted, but the newcomer could not come in after all.
+text("presence.latejoin.refused_full", [[{name} could not join: the party is full now.]])
+text("presence.latejoin.refused_late", [[{name} could not join: it is too late for heroes to join.]])
+--Seen by everyone once the host lets a newcomer in.
+text("presence.latejoin.joining", [[{name} is joining the party with {heroes}.]])
+text("presence.latejoin.watching", [[{name} is coming to watch.]])
+--Seen by everyone when a newcomer's heroes reach a montage after its first
+--round: they get two actions in that round.
+text("presence.latehero.twice", [[{heroes} join the montage late and may act twice this round.]])
+--The Hero Token history note when newcomers bring the party more. {count}
+--is how many heroes joined.
+text("encounter.late.hero_tokens_note", [[Heroes joined the game ({count})]])
+
+----------------------------------------------------------------------------
 -- PLAYERS LEAVING AND COMING BACK: when the host leaves
 ----------------------------------------------------------------------------
 

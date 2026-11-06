@@ -3250,6 +3250,10 @@ function EncounterOfTheWeek.ShowWeekDialog()
     end)
 end
 
+--The town screen's late-join pieces (joining a party under way), filled in
+--by CreateScreen for each screen it builds.
+local Late = {}
+
 --Builds the full-screen EotW panel: overview text, the games list driven by
 --the lobby's /state/games roster, and the lobby chat + presence column.
 CreateScreen = function(args)
@@ -4095,10 +4099,15 @@ CreateScreen = function(args)
         --start directly on the encounter map rather than on the module's
         --first map and travelling. Only for the official module's maps: a
         --Proving Pits module is installed by the host's setup, after load.
+        --A game already set up ("ready": joining it under way, or going back
+        --in) has its module installed whatever it is, and its story may be
+        --on screen already: a client arriving on another map would build
+        --the stage from that map's script.
         local enterOptions = nil
-        if arrival.fastLaunch and encounterMap ~= nil then
+        local setUp = record ~= nil and record.status == "ready"
+        if (arrival.fastLaunch or setUp) and encounterMap ~= nil then
             local moduleid, mapName = EncounterOfTheWeek.ParseEncounterKey(encounterMap)
-            if moduleid == STARTING_MODULE then
+            if moduleid == STARTING_MODULE or setUp then
                 --a series part on its own map starts there.
                 local part = EncounterOfTheWeek.GetPart(encounterMap)
                 if part ~= nil and part.mapName ~= nil then
@@ -4189,6 +4198,239 @@ CreateScreen = function(args)
         end
     end
 
+    ---- joining a party already under way (late join) ---------------------
+    --A public party that has set out stays listed while its host plays (the
+    --game heartbeats it) and says what newcomers may do: record.lateJoin
+    --"join" (bring heroes: before combat, or in combat round 1) or "observe"
+    --(watch only). A newcomer asks; the host accepts or declines from inside
+    --the game; once accepted we are a member, join the engine game and enter.
+    --Design: EncounterOfTheWeek.md, "Joining a game under way".
+
+    --(Late is declared above CreateScreen: this function is at Lua's
+    --200-local limit. Its state is reset for each screen built.)
+    --Our request waiting for the host: { gameid, mode, acked, sentAt }.
+    Late.req = nil
+    --The heroes we would bring to a party under way, by gameid (set-heroes specs).
+    Late.pick = {}
+    --We give up waiting after this long (the city lapses a request after 75s).
+    Late.WAIT_SECONDS = 90
+
+    --What a newcomer may do in this party now: "join", "observe" or nil.
+    Late.Of = function(record)
+        if record == nil or record.status == "open" or record.public ~= true then
+            return nil
+        end
+        if record.lateJoin == "join" or record.lateJoin == "observe" then
+            return record.lateJoin
+        end
+        return nil
+    end
+
+    --How many heroes we could bring: the free slots, at most 4.
+    Late.FreeSlots = function(record)
+        local total = math.min(record.slotsTotal or MAX_HEROES, MAX_HEROES)
+        return math.max(0, math.min(4, total - (record.slotsFilled or 0)))
+    end
+
+    --The heroes we would bring: our pick, first filled with our active
+    --heroes that are free and fit (as forming a party does).
+    Late.Pick = function(gameid, record)
+        local pick = Late.pick[gameid]
+        if pick == nil then
+            pick = {}
+            local away = EotwRoster.AwayHeroes()
+            local space = Late.FreeSlots(record)
+            for _,hero in ipairs(EotwRoster.ActiveHeroes()) do
+                if #pick >= space then
+                    break
+                end
+                if hero.status ~= "fallen" and away[hero.heroid] == nil and not EotwRoster.IsDying(hero.heroid) then
+                    pick[#pick+1] = (RosterHeroSpec(hero))
+                end
+            end
+            Late.pick[gameid] = pick
+        end
+        return pick
+    end
+
+    Late.SendCancel = function(gameid)
+        if m_conn ~= nil then
+            m_conn:Request{
+                action = "cancel-late-join",
+                args = { gameid = gameid },
+                error = function() end,
+            }
+        end
+    end
+
+    --Ask the host of a party under way to let us in: mode "join" brings our
+    --picked heroes, "observe" brings none.
+    Late.Send = function(gameid, mode)
+        if m_conn == nil or Late.req ~= nil then
+            return
+        end
+        local record = GetGameRecord(gameid)
+        local allowed = Late.Of(record)
+        if allowed == nil or (mode == "join" and allowed ~= "join") then
+            ShowGamesError(T("eotw.late.closed"))
+            return
+        end
+        ---@cast record -nil
+        local heroes = nil
+        if mode == "join" then
+            heroes = Late.Pick(gameid, record)
+            if #heroes == 0 then
+                ShowGamesError(T("eotw.late.pick_heroes"))
+                return
+            end
+        end
+        local req = { gameid = gameid, mode = mode, acked = false, sentAt = dmhub.Time() }
+        Late.req = req
+        m_conn:Request{
+            action = "request-late-join",
+            args = { gameid = gameid, mode = mode, heroes = heroes },
+            success = function()
+                --the request's broadcast lands before its ack, so from now
+                --on its absence from the record means it was answered.
+                req.acked = true
+                if RefreshGames ~= nil then
+                    RefreshGames()
+                end
+            end,
+            error = function(message)
+                if Late.req == req then
+                    Late.req = nil
+                end
+                ShowGamesError(message)
+                if RefreshGames ~= nil then
+                    RefreshGames()
+                end
+            end,
+        }
+        EotwAnalytics.Track("eotw_party_late_request", { runid = gameid, encounter = record.encounter, mode = mode })
+    end
+
+    Late.Cancel = function()
+        local req = Late.req
+        Late.req = nil
+        if req ~= nil then
+            Late.SendCancel(req.gameid)
+        end
+        if RefreshGames ~= nil then
+            RefreshGames()
+        end
+    end
+
+    --Accepted: join the engine game (one EotW game per account, so the
+    --previous one goes, as joining any party does) and enter it.
+    Late.Enter = function(gameid)
+        if m_enteringWorld then
+            return
+        end
+        m_enteringWorld = true
+        local prev = EotwSlotGameid()
+        EngineJoinEotw(gameid)
+        MarkSlotGame(gameid, false)
+        if prev ~= nil and prev ~= gameid then
+            DestroyPreviousGame(prev, { abandon = true })
+        end
+        --the engine join writes us into the game's player list and only then
+        --records the account slot. The game server admits listed players
+        --only, so enter once the slot shows the join landed (10s at most).
+        dmhub.Coroutine(function()
+            local waited = 0
+            while waited < 10 and EotwSlotGameid() ~= gameid do
+                coroutine.yield(0.25)
+                waited = waited + 0.25
+                if mod.unloaded then
+                    return
+                end
+            end
+            --...and the slot change makes the engine fetch the game's record
+            --(GamesMonitor) only then. Entering before it lands leaves the
+            --engine without the game's details: every isDM read throws while
+            --the loading screen is built. The games revision moves when it
+            --lands.
+            local revision = lobby.gamesRevision
+            local revWaited = 0
+            while revWaited < 5 and lobby.gamesRevision == revision do
+                coroutine.yield(0.25)
+                revWaited = revWaited + 0.25
+                if mod.unloaded then
+                    return
+                end
+            end
+            waited = waited + revWaited
+            EotwProf("late join accepted; entering game=%s (slot wait %.1fs)", gameid, waited)
+            EnterWorld(gameid)
+        end)
+    end
+
+    --Follow our waiting request (from RefreshGames, and every second while
+    --the waiting note shows): accepted, refused, lapsed, or the party gone.
+    Late.Check = function()
+        local req = Late.req
+        if req == nil or m_conn == nil then
+            return
+        end
+        local record = GetGameRecord(req.gameid)
+        if record == nil then
+            Late.req = nil
+            ShowGamesError(T("eotw.late.gone"))
+            return
+        end
+        local me = dmhub.loginUserid
+        if record.players ~= nil and record.players[me] ~= nil then
+            Late.req = nil
+            Late.pick[req.gameid] = nil
+            EotwAnalytics.Track("eotw_party_late_accepted", { runid = req.gameid, encounter = record.encounter, mode = req.mode })
+            Late.Enter(req.gameid)
+            return
+        end
+        if not req.acked then
+            return
+        end
+        if (record.requests or {})[me] ~= nil then
+            if dmhub.Time() - req.sentAt > Late.WAIT_SECONDS then
+                Late.req = nil
+                Late.SendCancel(req.gameid)
+                ShowGamesError(T("eotw.late.timeout", { host = record.hostName or "?" }))
+            end
+            return
+        end
+        Late.req = nil
+        local declined = (record.declined or {})[me]
+        local reason = type(declined) == "table" and declined.reason or nil
+        if reason == "declined" then
+            ShowGamesError(T("eotw.late.declined", { host = record.hostName or "?" }))
+        elseif reason == "timeout" then
+            ShowGamesError(T("eotw.late.timeout", { host = record.hostName or "?" }))
+        else
+            ShowGamesError(T("eotw.late.closed"))
+        end
+    end
+
+    --Back in town from a game we only watched: leaving it was leaving it
+    --(EncounterPresence.ConfirmExit lets a watcher go unasked), so take us
+    --off that party -- and out of our EotW slot -- and the board offers it
+    --to us again, to watch or to join. Once per party per screen.
+    Late.leftWatching = {}
+    Late.LeaveWatched = function()
+        if m_conn == nil or m_enteringWorld then
+            return
+        end
+        local me = dmhub.loginUserid
+        for gameid,record in pairs(m_conn:GetPath("/state/games") or {}) do
+            local player = record.players ~= nil and record.players[me] or nil
+            if player ~= nil and player.observer == true and record.status ~= "open"
+                    and record.hostUserid ~= me and not Late.leftWatching[gameid] then
+                Late.leftWatching[gameid] = true
+                printf("EotW: stopped watching %s", gameid)
+                DestroyPreviousGame(gameid, { abandon = true, how = "stopped-watching" })
+            end
+        end
+    end
+
     local MakeGameRow = function(gameid, record)
         local myUserid = dmhub.loginUserid
         local isHost = record.hostUserid == myUserid
@@ -4209,6 +4451,22 @@ CreateScreen = function(args)
             buttons[#buttons+1] = RowButton(T("eotw.party.row_join_button"), function()
                 JoinGame(gameid)
             end)
+        elseif Late.Of(record) ~= nil then
+            --a party under way: Join opens its view to pick the heroes to
+            --bring; Watch asks the host straight away.
+            if Late.Of(record) == "join" then
+                buttons[#buttons+1] = RowButton(T("eotw.party.row_join_button"), function()
+                    if OpenGameView ~= nil then
+                        OpenGameView(gameid)
+                    end
+                end)
+            end
+            buttons[#buttons+1] = RowButton(T("eotw.late.row_watch_button"), function()
+                Late.Send(gameid, "observe")
+                if OpenGameView ~= nil then
+                    OpenGameView(gameid)
+                end
+            end)
         end
 
         local tagText = ""
@@ -4216,7 +4474,14 @@ CreateScreen = function(args)
             tagText = "  " .. T("eotw.party.row_tag_private")
         end
         if not isOpen then
-            tagText = tagText .. "  " .. T("eotw.party.row_tag_launched")
+            local late = not isMember and Late.Of(record) or nil
+            if late == "join" then
+                tagText = tagText .. "  " .. T("eotw.late.row_tag_join")
+            elseif late == "observe" then
+                tagText = tagText .. "  " .. T("eotw.late.row_tag_watch")
+            else
+                tagText = tagText .. "  " .. T("eotw.party.row_tag_launched")
+            end
         end
 
         return gui.Panel{
@@ -4959,6 +5224,124 @@ CreateScreen = function(args)
             children = cards,
         }
 
+        --a newcomer to a party under way: the heroes they would bring (click
+        --one to leave it behind, "+" to add one), or the wait for the host.
+        local late = not isMember and Late.Of(record) or nil
+        local waiting = Late.req ~= nil and Late.req.gameid == gameid
+        local req = Late.req
+        if waiting and req ~= nil then
+            local WaitText = function()
+                local args = { host = record.hostName or "?", seconds = math.max(0, math.floor(Late.WAIT_SECONDS - (dmhub.Time() - req.sentAt))) }
+                if req.mode == "join" then
+                    return T("eotw.late.waiting_join", args)
+                end
+                return T("eotw.late.waiting_watch", args)
+            end
+            children[#children+1] = gui.Label{
+                text = WaitText(),
+                fontSize = 18,
+                color = "#d9b56a",
+                width = "90%",
+                height = "auto",
+                halign = "center",
+                textAlignment = "center",
+                vmargin = 10,
+                thinkTime = 1,
+                think = function(element)
+                    element.text = WaitText()
+                    local before = Late.req
+                    Late.Check()
+                    if Late.req ~= before then
+                        RefreshGames()
+                    end
+                end,
+            }
+        elseif late ~= nil then
+            children[#children+1] = gui.Label{
+                text = cond(late == "join", T("eotw.late.view_note_join"), T("eotw.late.view_note_watch")),
+                fontSize = 18,
+                color = Styles.textColor,
+                opacity = 0.85,
+                width = "86%",
+                height = "auto",
+                halign = "center",
+                textAlignment = "center",
+                textWrap = true,
+                vmargin = 8,
+            }
+        end
+        if late == "join" and not waiting then
+            local pick = Late.Pick(gameid, record)
+            local space = Late.FreeSlots(record)
+            children[#children+1] = gui.Label{
+                text = T("eotw.late.bring_heading", { count = #pick, space = space }),
+                fontSize = 22,
+                bold = true,
+                color = Styles.textColor,
+                width = "96%",
+                height = "auto",
+                halign = "center",
+                vmargin = 8,
+            }
+            --compact chips, not hero cards: a second row of cards pushed the
+            --view's buttons out of sight in a smaller window.
+            local Chip = function(text, onClick, tooltip)
+                return gui.Label{
+                    text = text,
+                    fontSize = 17,
+                    color = Styles.textColor,
+                    width = "auto",
+                    height = 34,
+                    hpad = 12,
+                    borderBox = true,
+                    hmargin = 4,
+                    vmargin = 3,
+                    textAlignment = "center",
+                    bgimage = "panels/square.png",
+                    bgcolor = "#ffffff14",
+                    borderWidth = 1,
+                    borderColor = "#ffffff40",
+                    styles = {
+                        { selectors = { "hover" }, bgcolor = "#ffffff30" },
+                    },
+                    hover = tooltip ~= nil and gui.Tooltip(tooltip) or nil,
+                    click = function()
+                        audio.FireSoundEvent("Mouse.Click")
+                        onClick()
+                    end,
+                }
+            end
+            local pickChips = {}
+            for index,spec in ipairs(pick) do
+                pickChips[#pickChips+1] = Chip(string.format("%s  (%s)  x", spec.name or "?", FormatHeroDetails(spec.level, spec.ancestry, spec.className)),
+                    function()
+                        table.remove(pick, index)
+                        RefreshGames()
+                    end, T("eotw.late.card_remove_note"))
+            end
+            if #pick < space then
+                pickChips[#pickChips+1] = Chip(T("eotw.late.add_hero_chip"), function()
+                    if ShowAddHeroDialog ~= nil then
+                        ShowAddHeroDialog(gameid, function(spec)
+                            if #pick < Late.FreeSlots(GetGameRecord(gameid) or record) then
+                                pick[#pick+1] = spec
+                            end
+                            RefreshGames()
+                        end, pick)
+                    end
+                end)
+            end
+            children[#children+1] = gui.Panel{
+                width = "96%",
+                height = "auto",
+                halign = "center",
+                flow = "horizontal",
+                wrap = true,
+                vmargin = 4,
+                children = pickChips,
+            }
+        end
+
         --members who joined but claimed no heroes yet fill no slot row,
         --so list them separately -- the host must still be able to see
         --and kick them.
@@ -4998,7 +5381,9 @@ CreateScreen = function(args)
                     vmargin = 2,
 
                     gui.Label{
-                        text = T("eotw.party.member_no_heroes", { player = player.name or "?" }),
+                        text = cond(player.observer == true,
+                            T("eotw.late.member_watching", { player = player.name or "?" }),
+                            T("eotw.party.member_no_heroes", { player = player.name or "?" })),
                         fontSize = 18,
                         color = Styles.textColor,
                         opacity = 0.6,
@@ -5015,8 +5400,9 @@ CreateScreen = function(args)
         --while the host is inside the game running setup (module install,
         --hero placement, encounter spawn), waiting members see why nothing
         --is happening yet; they enter automatically once the record flips
-        --to "ready" (CheckLaunchedGames).
-        if record.status == "launched" and not isHost then
+        --to "ready" (CheckLaunchedGames). Not said to a newcomer looking at
+        --a party under way: they enter only once the host lets them in.
+        if record.status == "launched" and isMember and not isHost then
             children[#children+1] = gui.Label{
                 text = T("eotw.party.starting"),
                 fontSize = 18,
@@ -5274,7 +5660,93 @@ CreateScreen = function(args)
                 end,
             }
         end
-        if isMember then
+        --a newcomer to a party under way: ask to come in, or go back.
+        if not isMember and not isOpen then
+            if waiting then
+                buttons[#buttons+1] = gui.Button{
+                    text = T("eotw.late.cancel_button"),
+                    fontSize = 20,
+                    width = 200,
+                    height = 44,
+                    hmargin = 6,
+                    click = function()
+                        Late.Cancel()
+                    end,
+                }
+            elseif late ~= nil then
+                if late == "join" then
+                    local pickCount = #Late.Pick(gameid, record)
+                    buttons[#buttons+1] = gui.Button{
+                        text = T("eotw.late.ask_join_button"),
+                        fontSize = 20,
+                        width = 180,
+                        height = 44,
+                        hmargin = 6,
+                        opacity = cond(pickCount > 0, 1, 0.45),
+                        click = function()
+                            Late.Send(gameid, "join")
+                            RefreshGames()
+                        end,
+                    }
+                end
+                buttons[#buttons+1] = gui.Button{
+                    text = T("eotw.late.ask_watch_button"),
+                    fontSize = 20,
+                    width = 180,
+                    height = 44,
+                    hmargin = 6,
+                    click = function()
+                        Late.Send(gameid, "observe")
+                        RefreshGames()
+                    end,
+                }
+            end
+            if not waiting then
+                buttons[#buttons+1] = gui.Button{
+                    text = T("eotw.late.back_button"),
+                    fontSize = 20,
+                    width = 140,
+                    height = 44,
+                    hmargin = 6,
+                    click = function()
+                        if CloseGameView ~= nil then
+                            CloseGameView()
+                        end
+                    end,
+                }
+            end
+        end
+        --A party under way stays listed while it plays, so its members see it
+        --here: stepping out of it for good is an abandon (the game goes on for
+        --the others; it is deleted only when nobody is left), never the
+        --host's outright delete of a party still forming.
+        if isMember and not isOpen then
+            buttons[#buttons+1] = gui.Button{
+                text = T("eotw.party.abandon_button"),
+                fontSize = 20,
+                width = 160,
+                height = 44,
+                hmargin = 6,
+                data = { confirming = false },
+                resetConfirm = function(element)
+                    element.data.confirming = false
+                    element.text = T("eotw.party.abandon_button")
+                end,
+                click = function(element)
+                    if not element.data.confirming then
+                        element.data.confirming = true
+                        element.text = T("eotw.party.abandon_confirm")
+                        element:ScheduleEvent("resetConfirm", 4)
+                        return
+                    end
+                    EotwAnalytics.Track("eotw_party_leave", { runid = gameid, how = "abandon", encounter = record.encounter })
+                    DestroyPreviousGame(gameid, { abandon = true, how = "abandon" })
+                    if CloseGameView ~= nil then
+                        CloseGameView()
+                    end
+                end,
+            }
+        elseif isMember then
             --The host's Abandon destroys the game outright (roster record
             --dropped, engine game deleted + storage released, account slot
             --cleared), so it asks for a second click to confirm. A
@@ -5795,8 +6267,11 @@ CreateScreen = function(args)
         end
 
         --a launched game we belong to pulls us into the world; the lists
-        --still re-render below while the game switch spins up.
+        --still re-render below while the game switch spins up. A late-join
+        --request the host accepted does the same.
+        Late.Check()
         CheckLaunchedGames()
+        Late.LeaveWatched()
 
         --game lobby view mode: the viewed party renders on its own board
         --(the other board keeps its lists); if it vanished (abandoned,
@@ -5834,7 +6309,14 @@ CreateScreen = function(args)
                     ui.list.children = BoardChildren(mode, games, ids)
                 end
                 if ui.title ~= nil and ui.title.valid then
-                    ui.title.text = cond(inView, T("eotw.party.board_title"), cond(mode == "gate", T("eotw.gate.board_title"), T("eotw.pits.board_title")))
+                    local title = cond(mode == "gate", T("eotw.gate.board_title"), T("eotw.pits.board_title"))
+                    if inView then
+                        ---@cast viewRecord -nil
+                        local member = viewRecord.hostUserid == dmhub.loginUserid
+                            or (viewRecord.players ~= nil and viewRecord.players[dmhub.loginUserid] ~= nil)
+                        title = cond(member, T("eotw.party.board_title"), T("eotw.late.board_title"))
+                    end
+                    ui.title.text = title
                 end
                 --no back button in a party view: leaving the party
                 --(Abandon/Leave) is the way back to the lists. The collapsed
@@ -6159,7 +6641,10 @@ CreateScreen = function(args)
     --Fills one of our (up to 4) slots with a hero: either one of the
     --local titlescreen heroes, or a pregen from the weekly module.
 
-    ShowAddHeroDialog = function(gameid)
+    --onPick/picked (optional): hand the choice to onPick instead of claiming
+    --it in the party, offering none of the heroes in picked (a newcomer
+    --choosing what to bring to a party under way).
+    ShowAddHeroDialog = function(gameid, onPick, picked)
         if m_conn == nil or resultPanel == nil or not resultPanel.valid then
             return
         end
@@ -6180,8 +6665,18 @@ CreateScreen = function(args)
         for _,h in ipairs(MyHeroesCopy(record)) do
             claimed[h.id] = true
         end
+        for _,h in ipairs(picked or {}) do
+            claimed[h.id] = true
+        end
 
         local AddHero = function(spec)
+            if onPick ~= nil then
+                if dlg ~= nil and dlg.valid then
+                    dlg:DestroySelf()
+                end
+                onPick(spec)
+                return
+            end
             local freshRecord = GetGameRecord(gameid)
             if freshRecord == nil then
                 return

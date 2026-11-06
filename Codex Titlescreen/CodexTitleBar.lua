@@ -1408,6 +1408,9 @@ end
 
 --the zero-size panel beneath the players row that the column hangs from.
 local g_playersToastAnchor = nil
+--In a game the column lives in the game hud's popup layer instead (see
+--RebuildPlayersToasts): this is it while it shows.
+local g_playersToastHudColumn = nil
 --the players panel itself, so CodexTitleBar.OpenPlayersPopout can click it.
 local g_connectivityPanel = nil
 
@@ -1972,12 +1975,39 @@ RebuildPlayersToasts = function()
         return
     end
     anchor.popup = nil
+    if g_playersToastHudColumn ~= nil then
+        if g_playersToastHudColumn.valid then
+            g_playersToastHudColumn:DestroySelf()
+        end
+        g_playersToastHudColumn = nil
+    end
     if #g_playersToasts == 0 then
         return
     end
     local panels = {}
     for _, t in ipairs(g_playersToasts) do
         panels[#panels + 1] = BuildPlayersToast(t)
+    end
+    --In a game, the column goes in the game hud's popup layer, top right,
+    --just under a maximized map window's strip (30px, Tabletop's
+    --TITLE_HEIGHT). A popup of the title bar draws over the hud but loses
+    --the mouse to it: a notice's buttons could not be clicked over a map
+    --window or an Encounter of the Week stage.
+    local hud = rawget(_G, "gamehud")
+    local layer = hud ~= nil and hud.popupPanel or nil
+    if dmhub.inGame and not dmhub.isLobbyGame and layer ~= nil and layer.valid then
+        g_playersToastHudColumn = gui.Panel{
+            flow = "vertical",
+            width = "auto",
+            height = "auto",
+            halign = "right",
+            valign = "top",
+            y = 32,
+            rmargin = 8,
+            children = panels,
+        }
+        layer:AddChild(g_playersToastHudColumn)
+        return
     end
     --the title bar's below-bar popup recipe (see ShowOverlayMenu): a
     --sizeless shim placed against the whole players plate, and the column
@@ -2002,9 +2032,18 @@ RebuildPlayersToasts = function()
     }
 end
 
+--Are the notices up? A title-bar popup closes on a click elsewhere, taking
+--them all; the in-game column (RebuildPlayersToasts) does not.
+local function PlayersToastsShowing()
+    if g_playersToastHudColumn ~= nil and g_playersToastHudColumn.valid then
+        return true
+    end
+    return g_playersToastAnchor ~= nil and g_playersToastAnchor.valid and g_playersToastAnchor.popup ~= nil
+end
+
 --Is the notice with this id (ShowPlayersToast's args.id) still showing?
 function CodexTitleBar.HasPlayersToast(id)
-    if g_playersToastAnchor == nil or not g_playersToastAnchor.valid or g_playersToastAnchor.popup == nil then
+    if not PlayersToastsShowing() then
         return false
     end
     for _, t in ipairs(g_playersToasts) do
@@ -2033,14 +2072,15 @@ end
 --  args.duration  seconds before it goes (default 8; 0 = stays until an
 --                 action or its close button)
 --  args.id        optional: a notice with the same id replaces this one
---Clicking elsewhere closes the notices, as it does any popup.
+--Outside a game, clicking elsewhere closes the notices, as it does any popup;
+--in a game they stay until closed, answered or timed out.
 function CodexTitleBar.ShowPlayersToast(args)
     args = args or {}
     if g_playersToastAnchor == nil or not g_playersToastAnchor.valid then
         return
     end
     --a click away closed the popup: those notices are gone.
-    if g_playersToastAnchor.popup == nil then
+    if not PlayersToastsShowing() then
         g_playersToasts = {}
     end
     if args.id ~= nil then

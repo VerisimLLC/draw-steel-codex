@@ -286,6 +286,7 @@ end
 
 local g_hordeRoundByEncounter = {}
 
+--Every hero gets the effect, even one with undead beside them now: the effect checks again at the end of the round.
 local function HordeTargets(token, ability, context)
     local result = {}
     for _,enemy in ipairs(context.enemyTokens or {}) do
@@ -296,6 +297,10 @@ local function HordeTargets(token, ability, context)
     end
     return result
 end
+
+--Keep this the same as the condition on the Ravenous Horde effect's trigger,
+--so the AI only pays when zombies would rise.
+local hordeVictimCheck = 'Count Nearby Enemies(1, "Undead") = 0'
 
 local function ExecuteMapAbility(ai, caster, ability, targetTokens)
     local area = dmhub.CalculateShape{
@@ -317,7 +322,7 @@ MonsterAI:RegisterMaliceAbility{
     id = "Undead Malice: Ravenous Horde",
     monsterGroups = undeadGroup,
     abilities = {"Ravenous Horde"},
-    description = "Spend 2 Malice to raise two rotting zombies next to each hero who has no enemy beside them. Never two rounds in a row.",
+    description = "Spend 2 Malice to raise two rotting zombies next to each hero who has no undead beside them. Never two rounds in a row.",
     score = function(self, ai, token, ability, context)
         local queue = context.initiativeQueue
         local round = context.round or 0
@@ -325,9 +330,16 @@ MonsterAI:RegisterMaliceAbility{
         if lastRound ~= nil and round - lastRound <= 1 then
             return nil, "used this round or last round"
         end
-        local targets = HordeTargets(token, ability, context)
-        if #targets == 0 then
-            return nil, "every hero already has an enemy beside them"
+        --How many heroes would get zombies if the round ended now.
+        local victims = 0
+        for _,hero in ipairs(HordeTargets(token, ability, context)) do
+            local result = ExecuteGoblinScript(hordeVictimCheck, hero.properties:LookupSymbol({}), 0, "Ravenous Horde AI")
+            if GoblinScriptTrue(result) then
+                victims = victims + 1
+            end
+        end
+        if victims == 0 then
+            return nil, "every hero already has an undead beside them"
         end
         if KeepingMaliceForCryx(2, context) then
             return nil, "keeping Malice for Captain Cryx"
@@ -335,7 +347,7 @@ MonsterAI:RegisterMaliceAbility{
         if SavingForMarch(token, 2, context) then
             return nil, "saving Malice for Dread March"
         end
-        return {score = math.min(0.95, 0.62 + 0.07*#targets), heroes = #targets}
+        return {score = math.min(0.95, 0.62 + 0.07*victims), heroes = victims}
     end,
     execute = function(self, ai, token, scoringInfo, ability, context)
         local targets = HordeTargets(token, ability, context)

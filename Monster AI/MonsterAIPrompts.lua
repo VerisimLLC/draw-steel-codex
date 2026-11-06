@@ -819,8 +819,10 @@ MonsterAI:RegisterPrompt{
             end
         end
 
+        --No legal second target: answer with no targets so the follow-up is
+        --skipped. HandlePrompt only accepts a table (or nil to ask the Director).
         if #possibleTokens == 0 then
-            return "skip"
+            return {targets = {}}
         end
 
         return {

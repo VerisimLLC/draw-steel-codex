@@ -49,6 +49,10 @@ text("encounter.about.title_with_part", [[{title} -- {part}]])
 text("encounter.arrange.title", [[Arrange Your Heroes]])
 text("encounter.arrange.intro", [[You have won the initiative. Choose starting locations, then press Ready.]])
 text("encounter.arrange.intro_lost", [[You have lost the initiative; the enemy acts first. Choose starting locations, then press Ready.]])
+--A smaller line under the intro: what heroes may do while they arrange.
+text("encounter.arrange.prepare_hint", [[Before the fight you can Catch Breath, and a Null can raise their Null Field.]])
+--Shown on any other ability (greyed in the action bar) while the heroes arrange.
+text("encounter.arrange.cast_blocked", [[While you arrange your heroes you can only use Catch Breath and Null Field.]])
 
 --The button. Short: it is a button.
 text("encounter.arrange.ready_button", [[Ready]])

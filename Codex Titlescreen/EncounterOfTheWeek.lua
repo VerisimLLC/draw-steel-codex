@@ -543,6 +543,12 @@ local CITY_LOCATIONS = {
         y = 0.44,
         --replaced by OpenLocation each time it opens.
         scene = TRAINING_GROUNDS_SCENES.site,
+        --Hidden until the City lists its project: a game server without
+        --build-training-grounds would refuse every roll at the site. Also
+        --hidden while the projects are still being listed.
+        hidden = function(ctx)
+            return not EotwRoster.TrainingGroundsBuilt() and EotwDowntime.GetProject("build-training-grounds") == nil
+        end,
         open = function(ctx) ctx.OpenTrainingGrounds() end,
     },
 }
@@ -3869,8 +3875,32 @@ CreateScreen = function(args)
         }
     end
 
-    --The Steam overlay's invite dialog for one of our parties.
-    local InviteSteamFriends = function(gameid)
+    --Inviting friends to one of our parties, by platform. One table rather
+    --than a local per platform: this function is at Lua's 200-local limit.
+    local InviteFriends = {}
+
+    --Discord friends: the friends panel in invite mode (DiscordFriends.lua),
+    --inviting with the party's invite code so it works whatever our presence
+    --says, and is kept for friends who are offline until the party sets out.
+    InviteFriends.discord = function(gameid)
+        local friends = rawget(_G, "DiscordFriends")
+        if friends == nil or resultPanel == nil or not resultPanel.valid then
+            return
+        end
+        WithInviteCode(gameid, function(code)
+            if not resultPanel.valid then
+                return
+            end
+            friends.OpenInvite(resultPanel, {
+                connect = "dshub2:" .. STEAM_INVITE_KIND .. ":" .. gameid .. ":" .. code,
+                title = "an Encounter of the Week party",
+            }, {x = -24, y = 80})
+            EotwAnalytics.Track("eotw_party_invite", { runid = gameid, via = "discord" })
+        end, ShowGamesError)
+    end
+
+    --Steam friends: the Steam overlay's invite dialog.
+    InviteFriends.steam = function(gameid)
         WithInviteCode(gameid, function(code)
             if not dmhub.InviteViaSteam(STEAM_INVITE_KIND, gameid .. ":" .. code) then
                 ShowGamesError(T("eotw.invite.no_overlay"))
@@ -5183,20 +5213,62 @@ CreateScreen = function(args)
                 end,
             }
         end
-        --Any member may invite Steam friends while the party is forming; the
-        --invite gets them in even when the party is private. Without the
-        --Steam overlay (not launched through Steam, or overlay disabled)
-        --there is no invite dialog to open, so no button.
-        if isMember and isOpen and dmhub.IsSteamOverlayRunning() then
+        --Any member may invite friends while the party is forming; the
+        --invite gets them in even when the party is private. Steam needs its
+        --overlay (not there when not launched through Steam, or disabled);
+        --Discord needs the Discord features on (DiscordFriends.CanInvite).
+        --With both, the button asks which.
+        local discordFriends = rawget(_G, "DiscordFriends")
+        local canSteam = dmhub.IsSteamOverlayRunning()
+        local canDiscord = discordFriends ~= nil and discordFriends.CanInvite()
+        if isMember and isOpen and (canSteam or canDiscord) then
+            local tooltip = T("eotw.party.invite_tooltip")
+            if canSteam and canDiscord then
+                tooltip = T("eotw.party.invite_tooltip_both")
+            elseif canDiscord then
+                tooltip = T("eotw.party.invite_tooltip_discord")
+            end
             buttons[#buttons+1] = gui.Button{
                 text = T("eotw.party.invite_button"),
                 fontSize = 20,
                 width = 180,
                 height = 44,
                 hmargin = 6,
-                hover = gui.Tooltip(T("eotw.party.invite_tooltip")),
-                click = function()
-                    InviteSteamFriends(gameid)
+                hover = gui.Tooltip(tooltip),
+                click = function(element)
+                    if canSteam and canDiscord then
+                        --a dropdown hung under the button, the button's width.
+                        if element.popup ~= nil then
+                            element.popup = nil
+                            return
+                        end
+                        element.popupPositioning = "panel"
+                        element.popup = gui.ContextMenu{
+                            width = 180,
+                            halign = "center",
+                            valign = "bottom",
+                            entries = {
+                                {
+                                    text = T("eotw.party.invite_steam"),
+                                    click = function()
+                                        element.popup = nil
+                                        InviteFriends.steam(gameid)
+                                    end,
+                                },
+                                {
+                                    text = T("eotw.party.invite_discord"),
+                                    click = function()
+                                        element.popup = nil
+                                        InviteFriends.discord(gameid)
+                                    end,
+                                },
+                            },
+                        }
+                    elseif canDiscord then
+                        InviteFriends.discord(gameid)
+                    else
+                        InviteFriends.steam(gameid)
+                    end
                 end,
             }
         end

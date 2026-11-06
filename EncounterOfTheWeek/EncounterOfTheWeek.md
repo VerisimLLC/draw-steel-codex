@@ -5167,6 +5167,79 @@ waits for every voter or the deadline, stamps `phase = "done"`, and calls
 again with `StartEncounterCombat(sides, { forceHeroes = true, noArrange =
 true })`. `/eotwmontage reset` clears `arrange` and `arrivalItems`.
 
+**Preparing during the arrangement (BUILT + VERIFIED live 2026-11-05, UNCOMMITTED).**
+David's direction: while the heroes arrange, players may use Catch Breath and
+the Null's Null Field, and nothing else. Respite activities are held back:
+they belong in Blackbottom (the town), not here.
+
+- *Core cast gate* (`Draw Steel Core Rules/MCDMActivatedAbility.lua`):
+  `ActivatedAbility.RegisterCastGate(id, fn(ability, casterCreature,
+  casterToken) -> reason|nil)`, run (pcall-guarded) from the
+  `AbilityFilterFailureMessage` override for player-controlled casters
+  under `StrictActionEconomyEnforced()`, never for a `TriggeredAbility`. The
+  action bar already greys a failing chip, shows the reason, and refuses a
+  player's press (`m_suppressed`), so it needed no change. The Director, the
+  Monster AI and trigger prompts are never refused.
+- *EotW's gate* (`EncounterOfTheWeek.lua`, after `ArrangeHeroesWin`): while
+  `arrange.phase == "arranging"` and no live queue, only the guids in
+  `EncounterOfTheWeekGame.ARRANGE_ABILITY_IDS` pass: Catch Breath
+  `ca322ca9-4729-46b2-81bc-d3ac4098fc47` (global rule mod) and Null Field
+  `8dbe876d-7e72-4e8c-8d11-ab51bffe9bd6` (Null class feature; Null Field -
+  Effect is NOT included). Everything else reads
+  `encounter.arrange.cast_blocked`. Outside the arrangement nothing changed.
+  Catch Breath is unlimited (only Recoveries limit it), because with no
+  queue a `"turn"` refresh id is a fresh guid on every call
+  (`creature:GetResourceRefreshId`, `Resource.lua`), so a maneuver is never
+  used up. No potions or other consumables.
+- *Combat waits for casts*: `UpdateBusyMirror` now also mirrors ability
+  activity while arranging, and `ArrangeHostTick` holds `begin()` while
+  `AnyClientAbilityBusy()`, for at most 30s past the deadline.
+- *Panel line*: `encounter.arrange.prepare_hint` under the intro
+  (`EncounterText.lua`).
+- *The panel moved to the top* (`valign = "top"`, `tmargin = 80`). At the
+  bottom it covered the action bar's drawer menus (Null Field's Heroic
+  Abilities column) and the cast prompt's Confirm button.
+
+luac, `uitext_check`, `strict_manual_trigger_test` and `check.ps1 -Changed`
+clean. VERIFIED live 2026-11-05 in two combat authoring tests of Horizon's
+Grave Part 1 (game `e400e9b8`, Human Null + Dwarf Fury + Human Censor
+pregens, the heroes lost the initiative):
+- During the arrangement the menus showed only Catch Breath and Null Field
+  usable; every other chip was red. Pressing Charge was refused
+  (`press-refused ... suppressed=true`).
+- Null Field cast from the bar (the effect landed), then Catch Breath
+  healed 23 -> 27 and spent one Recovery. It stayed usable afterwards.
+  Null Field left the menu once it was up (its own `filterCondition`), so
+  it cannot be stacked.
+- Pressing Ready mid-cast held combat ("waiting for action bar targeting
+  before combat") until the cast ended.
+- After `begin()` the queue went live in round 1, the Null Field aura was
+  still up (drawn on the map while the monsters acted), and strikes passed
+  the filter again.
+- No new console errors.
+NOT seen: a won initiative (same code path), multi-client (a second
+player's cast holding combat through its `abilityBusy` stamp), the 30s
+overtime cap.
+
+Known gap, not fixed (outside the ask): before the arrangement (arrival,
+waiting for players, after a montage) nothing gates casting. With no queue
+every action and maneuver is affordable, so a hero in range could strike a
+monster. A surprised party never arranges, so it gets no preparation.
+
+Respite activities, for when Blackbottom takes them up: abilities whose
+`actionResourceId` is `CharacterResource.respiteActivityId`. The Actions
+global rule mod grants that resource only `when Game Mode = "Respite"`. The
+tagged ones: Revitalizing Ritual, Sanctified Weapon, Oracular Warning, Saint's
+Epiphany (Conduit and Censor domains), Mindlink (Telepathy), Bloodbound Band
+(item), Study the Notebook (Advanced Studies; only the roll is automated),
+Among Our Ranks and Return to the Source (Summoner, not automated). Some
+"each time you finish a respite" abilities are not tagged: Inner Light (Sun
+domain) and Implement of Wrath (Censor 6th level) use no action, so they can
+be cast at any time in any game, and Faith's Sword (Conduit 9th level) is a
+free maneuver. Revitalizing Ritual and Oracular Warning read as
+finish-a-respite benefits, not activities, so one shared resource would make
+them compete.
+
 ## Victory, defeat and leaving
 
 - **Detection** (host tick, while the queue is live and nothing is awarded):

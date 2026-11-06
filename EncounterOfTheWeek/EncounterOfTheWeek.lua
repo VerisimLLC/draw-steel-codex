@@ -3113,14 +3113,21 @@ local function ClearBusyStamp()
 end
 
 --Per-client, from the 1s driver: mirror local ability activity into the
---state doc while combat is live. Writes only on transitions plus a
---BUSY_REFRESH_INTERVAL keep-alive, so idle ticks cost nothing.
+--state doc while combat is live, and while the heroes arrange (a Catch
+--Breath or Null Field in flight holds the start of combat; see
+--ArrangeHostTick). Writes only on transitions plus a BUSY_REFRESH_INTERVAL
+--keep-alive, so idle ticks cost nothing.
 local function UpdateBusyMirror()
     if not EncounterOfTheWeekGame.IsEotwGame() then
         return
     end
+    local arranging = false
+    pcall(function()
+        local arrange = mod:GetDocumentSnapshot(STATE_DOC_ID).data.arrange
+        arranging = type(arrange) == "table" and arrange.phase == "arranging"
+    end)
     local queue = dmhub.initiativeQueue
-    if queue == nil or queue.hidden then
+    if (queue == nil or queue.hidden) and not arranging then
         if m_busyStampTime ~= nil then
             ClearBusyStamp()
         end
@@ -3227,6 +3234,35 @@ end
 local function ArrangeHeroesWin(state)
     return state.heroesWin ~= false
 end
+
+--The only abilities players may use while arranging (David, 2026-11-05),
+--by ability guid. A table field, not a local: this file is at Lua's
+--200-local limit.
+EncounterOfTheWeekGame.ARRANGE_ABILITY_IDS = {
+    ["ca322ca9-4729-46b2-81bc-d3ac4098fc47"] = true, --Catch Breath (global rule mod)
+    ["8dbe876d-7e72-4e8c-8d11-ab51bffe9bd6"] = true, --Null Field (Null class feature)
+}
+
+--While the heroes arrange, a player's hero may prepare but not fight: every
+--other ability is greyed with the reason below (core cast gate; binds only
+--players under strict rules, which EotW forces). Catch Breath is limited only
+--by Recoveries: with no initiative queue a maneuver is never used up.
+ActivatedAbility.RegisterCastGate("eotw-arrange", function(ability, casterCreature, casterToken)
+    local state = ArrangeState()
+    if state == nil or state.phase ~= "arranging" then
+        return nil
+    end
+    --an "arranging" doc with a live queue is stale (see UpdateArrangePanel).
+    local queue = dmhub.initiativeQueue
+    if queue ~= nil and not queue.hidden then
+        return nil
+    end
+    local guid = ability:try_get("guid")
+    if guid ~= nil and EncounterOfTheWeekGame.ARRANGE_ABILITY_IDS[guid] then
+        return nil
+    end
+    return UIText.T("encounter.arrange.cast_blocked")
+end)
 
 local function ArrangeVoters()
     local voters = {}
@@ -3370,10 +3406,12 @@ local function CreateArrangePanel()
         bgcolor = "#0c0f14e6",
         width = 560,
         height = "auto",
-        --at the bottom, clear of the starting area the camera centres on.
+        --at the top, clear of the starting area the camera centres on. Not at
+        --the bottom: it covered the action bar's menus and cast prompt, and
+        --heroes may Catch Breath / raise Null Field while arranging.
         halign = "center",
-        valign = "bottom",
-        bmargin = 60,
+        valign = "top",
+        tmargin = 80,
         flow = "vertical",
         hpad = 20,
         vpad = 16,
@@ -3410,6 +3448,18 @@ local function CreateArrangePanel()
                 textAlignment = "center",
                 textWrap = true,
                 fontSize = 16,
+            },
+            gui.Label{
+                classes = {"fg"},
+                text = UIText.T("encounter.arrange.prepare_hint"),
+                width = "100%",
+                height = "auto",
+                halign = "center",
+                tmargin = 4,
+                textAlignment = "center",
+                textWrap = true,
+                fontSize = 14,
+                opacity = 0.8,
             },
             statusLabel,
             readyButton,
@@ -4926,6 +4976,16 @@ local function ArrangeHostTick()
     end
     if not ArrangeComplete(state) then
         return true
+    end
+    --a Catch Breath or Null Field still being cast finishes first, but for
+    --at most 30s past the deadline so a stuck prompt can't hold the fight.
+    local overtime = state.deadline ~= nil and dmhub.serverTime >= state.deadline + 30
+    if not overtime then
+        local busy, busyReason = AnyClientAbilityBusy()
+        if busy then
+            printf("EotW: the heroes are in position; waiting for %s before combat", tostring(busyReason))
+            return true
+        end
     end
     local doc = mod:GetDocumentSnapshot(STATE_DOC_ID)
     doc:BeginChange()

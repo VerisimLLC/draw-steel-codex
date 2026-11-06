@@ -547,6 +547,12 @@ end
 --  args.onClose: called after the panel is destroyed.
 --  args.offerLink: opens the link offer (the panel shows it when unlinked).
 local function CreatePanel(args)
+    --Invite mode ({connect, title}): opened from a feature's own Invite button
+    --(an Encounter of the Week party). Each friend row gets an Invite button
+    --that invites them to that target rather than to our presence.
+    local m_invite = args.invite
+    --friend ids invited from this panel, so their button reads "Invited".
+    local m_invited = {}
     --"friends", "pending", or "blocked" (the Settings view).
     local m_tab = "friends"
     local m_search = ""
@@ -657,21 +663,33 @@ local function CreatePanel(args)
         end
     end
 
+    local function ReportOutcome(text, isError)
+        if root.valid then
+            SetStatus(text, isError)
+        end
+    end
+
+    --Invites go through Discord and the Codex's invite store at once, so an
+    --offline friend still gets it (DiscordFriends.SendInvite).
     local function Invite(entry)
         SetStatus("Sending invite...", false)
-        local started = dmhub.DiscordSendInvite(entry.id, INVITE_MESSAGE, function(err)
-            if not root.valid then
-                return
+        DiscordFriends.SendInvite(entry, function(text, isError)
+            if not isError then
+                m_invited[entry.id] = true
+                RebuildList()
             end
-            if err ~= nil then
-                SetStatus(err, true)
-            else
-                SetStatus(string.format("Invite sent to %s.", entry.displayName), false)
-            end
-        end)
-        if not started then
-            SetStatus("Discord is not connected right now.", true)
-        end
+            ReportOutcome(text, isError)
+        end, m_invite)
+    end
+
+    local function AskToJoin(entry)
+        SetStatus("Asking to join...", false)
+        DiscordFriends.AskToJoin(entry, ReportOutcome)
+    end
+
+    --a friend in a Codex game or party we could ask to join.
+    local function CanAskToJoin(entry)
+        return entry.relationship == "friend" and entry.activity ~= nil and entry.activity.joinable == true
     end
 
     local function ConfirmRemove(entry)
@@ -704,8 +722,11 @@ local function CreatePanel(args)
         end
         if entry.relationship == "friend" then
             Add("Message", function() OpenChat(entry) end)
-            if s.joinable then
-                Add("Invite to Game", function() Invite(entry) end)
+            if m_invite ~= nil or s.joinable then
+                Add(cond(m_invite ~= nil, "Invite", "Invite to Game"), function() Invite(entry) end)
+            end
+            if CanAskToJoin(entry) then
+                Add("Ask to Join", function() AskToJoin(entry) end)
             end
             Add("Remove Friend...", function() ConfirmRemove(entry) end)
             Add("Block...", function() ConfirmBlock(entry) end)
@@ -737,7 +758,22 @@ local function CreatePanel(args)
     local function FriendRow(entry)
         local isFriend = entry.relationship == "friend"
         local actions = {}
+        if isFriend and m_invite ~= nil then
+            local invited = m_invited[entry.id] == true
+            actions[#actions + 1] = gui.Button{
+                classes = {"sizeS"},
+                text = cond(invited, "Invited", "Invite"),
+                valign = "center",
+                interactable = not invited,
+                click = function()
+                    Invite(entry)
+                end,
+            }
+        end
         if isFriend then
+            if CanAskToJoin(entry) then
+                actions[#actions + 1] = RowActionButton("phosphor/sign-in-bold.png", "Ask to Join", function() AskToJoin(entry) end)
+            end
             actions[#actions + 1] = RowActionButton("phosphor/chat-circle-dots.png", "Message", function() OpenChat(entry) end)
         elseif entry.relationship == "incoming" then
             actions[#actions + 1] = RowActionButton("phosphor/check-bold.png", "Accept", function()
@@ -932,6 +968,8 @@ local function CreatePanel(args)
             tostring(entry.unread or 0),
             tostring(entry.spam == true),
             entry.avatar or "",
+            tostring(entry.activity ~= nil and entry.activity.joinable == true),
+            tostring(m_invited[entry.id] == true),
         }, "|")
     end
 
@@ -1834,7 +1872,7 @@ local function CreatePanel(args)
             },
             gui.Label{
                 classes = {"dfTitle"},
-                text = "Discord Friends",
+                text = cond(m_invite ~= nil, "Invite Discord Friends", "Discord Friends"),
             },
             gui.Button{
                 classes = {"sizeM"},
@@ -1912,7 +1950,7 @@ end
 
 --- Opens the friends panel in parent, or closes it if it is open.
 --- @param parent Panel the panel to float the friends panel in.
---- @param args nil|{x: number|nil, y: number|nil, offerLink: nil|fun()}
+--- @param args nil|{x: number|nil, y: number|nil, offerLink: nil|fun(), invite: nil|{connect: string, title: string}}
 function DiscordFriends.Toggle(parent, args)
     if DiscordFriends.IsOpen() then
         DiscordFriends.Close()
@@ -1923,11 +1961,32 @@ function DiscordFriends.Toggle(parent, args)
         x = args.x,
         y = args.y,
         offerLink = args.offerLink,
+        invite = args.invite,
         onClose = function()
             g_panel = nil
         end,
     }
     parent:AddChild(g_panel)
+end
+
+--- True where Discord invites can be offered: the feature is switched on
+--- (the hidden discordsocial preference) and this build has Discord. The
+--- account may still need linking; the friends panel offers that itself.
+--- @return boolean
+function DiscordFriends.CanInvite()
+    return dmhub.GetSettingValue("discordsocial") == true and Available(Status())
+end
+
+--- Opens the friends panel in invite mode: every friend gets an Invite
+--- button that invites them to target (not to our presence), stored for
+--- friends who are offline. Replaces a friends panel already open.
+--- @param parent Panel the panel to float the friends panel in.
+--- @param target {connect: string, title: string}
+--- @param args nil|{x: number|nil, y: number|nil}
+function DiscordFriends.OpenInvite(parent, target, args)
+    DiscordFriends.Close()
+    args = args or {}
+    DiscordFriends.Toggle(parent, {x = args.x, y = args.y, invite = target})
 end
 
 --- The Discord button: an icon-rail button with the Discord logo and an
@@ -2032,6 +2091,525 @@ function DiscordFriends.CreateButton(args)
     g_buttons[#g_buttons + 1] = button
     return button
 end
+
+--------------------------------------------------------------------------------
+--Invites and Ask to Join.
+--
+--Sending: an invite goes two ways at once. Discord's own invite
+--(dmhub.DiscordSendInvite) shows in the friend's Discord DMs and reaches a
+--running Codex at once, but it only works while we are still in the game,
+--because Discord hands over our CURRENT join secret. So the Codex also stores
+--it (the discordInviteSend cloud function) under the friend's Discord id, with
+--our join secret as it is now; a campaign invite then lasts 30 days, a party
+--invite until the party sets out (12 hours at most).
+--
+--Receiving: invites arrive live from Discord (dmhub.DiscordGetInvites, also
+--Ask to Join requests) and from the Codex's store (discordInvitesList, read
+--when the Discord account comes up, a moment after any live one arrives, and
+--every 10 minutes). Both from the same friend merge into one. Each is shown in
+--a dialog above everything else, one at a time. Stored invites from people who
+--are not our Discord friends are never shown. "Not now" hides a stored invite
+--until the Codex next starts.
+--------------------------------------------------------------------------------
+
+local STORE_POLL_SECONDS = 10 * 60
+--after a live invite, wait this long so the sender's stored copy is there.
+local STORE_AFTER_LIVE_SECONDS = 3
+
+--- What we would invite a friend into right now, for the stored invite and
+--- the receiver's dialog: the campaign's name, or a description of the party.
+--- @param secret string
+--- @return string
+local function InviteTitle(secret)
+    if string.find(secret, "^dshub2:eotw:") ~= nil then
+        return "an Encounter of the Week party"
+    end
+    local gameid = dmhub.gameid
+    if gameid ~= nil and gameid == lobby.eotwGameid then
+        return "an Encounter of the Week game"
+    end
+    for _, info in ipairs(lobby.games or {}) do
+        if info.gameid == gameid and type(info.description) == "string" and info.description ~= "" then
+            return info.description
+        end
+    end
+    return ""
+end
+
+--- Invites a Discord friend to whatever we can be joined in right now (a
+--- campaign, or the Encounter of the Week party we are in), both through
+--- Discord and the Codex's invite store, so a friend who is offline sees it
+--- when they next open the Codex. done(text, isError) reports the outcome.
+--- target ({connect, title}) invites to something other than our presence,
+--- such as an Encounter of the Week party we are looking at.
+--- @param friend {id: string, displayName: string, status: string|nil}
+--- @param done fun(text: string, isError: boolean)
+--- @param target nil|{connect: string, title: string}
+function DiscordFriends.SendInvite(friend, done, target)
+    local presence = Status().joinSecret
+    local secret = presence
+    local title = nil
+    if target ~= nil then
+        secret = target.connect
+        title = target.title
+    end
+    if secret == nil then
+        done("There is no game to invite them to right now.", true)
+        return
+    end
+    title = title or InviteTitle(secret)
+    --Discord's own invite carries our CURRENT presence, so it is only sent
+    --when that is what we are inviting to.
+    local sendLive = presence == secret
+
+    --nil while waiting, false on success, else the error text.
+    local liveErr = nil
+    local storedErr = nil
+    local remaining = 2
+    local function Finish()
+        remaining = remaining - 1
+        if remaining > 0 then
+            return
+        end
+        if storedErr == false then
+            if friend.status == "offline" then
+                done(string.format("Invite sent to %s. They will see it the next time they open the Codex.", friend.displayName), false)
+            else
+                done(string.format("Invite sent to %s.", friend.displayName), false)
+            end
+        elseif liveErr == false then
+            done(string.format("Invite sent to %s on Discord.", friend.displayName), false)
+        else
+            done(tostring(storedErr or liveErr), true)
+        end
+    end
+
+    local started = sendLive and dmhub.DiscordSendInvite(friend.id, INVITE_MESSAGE, function(err)
+        liveErr = err or false
+        Finish()
+    end)
+    if not started then
+        liveErr = cond(sendLive, "Discord is not connected right now.", nil)
+        Finish()
+    end
+
+    net.Post{
+        url = dmhub.cloudFunctionsBaseUrl .. "/discordInviteSend",
+        data = {
+            toDiscordUserId = friend.id,
+            connect = secret,
+            title = title,
+        },
+        success = function(response)
+            if type(response) == "table" and response.ok then
+                storedErr = false
+            else
+                storedErr = (type(response) == "table" and response.error) or "The invite could not be saved."
+            end
+            Finish()
+        end,
+        error = function(message)
+            storedErr = "Could not reach the Codex servers."
+            Finish()
+        end,
+    }
+end
+
+--- Asks a Discord friend who is in a joinable Codex game or party to let us
+--- join. When they accept, we join them automatically.
+--- @param friend {id: string, displayName: string}
+--- @param done fun(text: string, isError: boolean)
+function DiscordFriends.AskToJoin(friend, done)
+    local started = dmhub.DiscordSendJoinRequest(friend.id, function(err)
+        if err ~= nil then
+            done(err, true)
+        else
+            done(string.format("Asked to join %s. You will join them as soon as they accept.", friend.displayName), false)
+        end
+    end)
+    if not started then
+        done("Discord is not connected right now.", true)
+    end
+end
+
+--Received invites by sender's Discord id, each {senderId, name, avatar,
+--live = a DiscordGetInvites entry or nil, stored = a stored invite or nil}.
+--Join requests are kept apart, under "req:" .. senderId.
+local g_inbox = {}
+--stored invite ids hidden with "Not now" (until the Codex next starts).
+local g_snoozed = {}
+--the invite dialog on screen, and the inbox key it shows.
+local g_dialog = nil
+local g_dialogKey = nil
+local g_dialogLayer = nil
+local g_dialogHost = nil
+
+local g_lastInviteRev = nil
+local g_lastAccount = nil
+local g_nextStoreFetch = nil
+local g_fetching = false
+
+local function Gated()
+    return dmhub.GetSettingValue("discordsocial") == true
+end
+
+--Our Discord friends by id, read live (nothing is kept between calls).
+local function FriendsById()
+    local result = {}
+    for _, entry in ipairs(dmhub.DiscordGetRelationships() or {}) do
+        if entry.relationship == "friend" then
+            result[entry.id] = entry
+        end
+    end
+    return result
+end
+
+--Rebuilds the live half of the inbox from the engine's list.
+local function MergeLive()
+    for key, item in pairs(g_inbox) do
+        item.live = nil
+        if item.stored == nil then
+            g_inbox[key] = nil
+        end
+    end
+    for _, invite in ipairs(dmhub.DiscordGetInvites() or {}) do
+        local key = cond(invite.type == "joinrequest", "req:" .. invite.senderId, invite.senderId)
+        local item = g_inbox[key] or {senderId = invite.senderId, arrived = dmhub.Time()}
+        item.live = invite
+        item.name = item.name or invite.senderName
+        item.avatar = item.avatar or invite.avatar
+        g_inbox[key] = item
+    end
+end
+
+local function FetchStored()
+    if g_fetching then
+        return
+    end
+    g_fetching = true
+    net.Post{
+        url = dmhub.cloudFunctionsBaseUrl .. "/discordInvitesList",
+        data = {},
+        success = function(response)
+            g_fetching = false
+            if mod.unloaded or type(response) ~= "table" or not response.ok then
+                return
+            end
+            local friends = FriendsById()
+            --right after linking, Discord may not have sent the friends list
+            --yet: try again shortly rather than dropping every invite.
+            if next(friends) == nil and #(response.invites or {}) > 0 then
+                g_nextStoreFetch = dmhub.Time() + 5
+                return
+            end
+            for key, item in pairs(g_inbox) do
+                item.stored = nil
+                if item.live == nil then
+                    g_inbox[key] = nil
+                end
+            end
+            for _, invite in ipairs(response.invites or {}) do
+                local friend = friends[invite.fromDiscordId]
+                local key = invite.fromDiscordId
+                --one invite per sender: the newest (the list is newest first).
+                if friend ~= nil and not g_snoozed[invite.id] and (g_inbox[key] == nil or g_inbox[key].stored == nil) then
+                    local item = g_inbox[key] or {senderId = key, arrived = dmhub.Time()}
+                    item.stored = invite
+                    item.name = friend.displayName or invite.fromName
+                    item.avatar = friend.avatar
+                    g_inbox[key] = item
+                end
+            end
+        end,
+        error = function(message)
+            g_fetching = false
+        end,
+    }
+end
+
+--Tells the store a stored invite is answered (accepted or declined).
+local function AnswerStored(invite)
+    net.Post{
+        url = dmhub.cloudFunctionsBaseUrl .. "/discordInviteAnswer",
+        data = {id = invite.id},
+    }
+end
+
+--Where the dialog can go right now: "titlescreen", "game", or nil to wait
+--(the press-any-key screen, no hud yet). Not gameLoadingProgress: it can sit
+--below 1 in a fully loaded game.
+local function DialogHost()
+    if dmhub.isLobbyGame then
+        local root = rawget(_G, "CodexTitlescreenRoot")
+        if root ~= nil and root.valid and not root:HasClass("starting-screen") and not root:HasClass("hidden") then
+            return "titlescreen"
+        end
+        return nil
+    end
+    if dmhub.inGame and rawget(_G, "gamehud") ~= nil then
+        return "game"
+    end
+    return nil
+end
+
+local function CloseDialog()
+    local dialog = g_dialog
+    local layer = g_dialogLayer
+    g_dialog = nil
+    g_dialogKey = nil
+    g_dialogLayer = nil
+    g_dialogHost = nil
+    if layer ~= nil then
+        gui.CloseModalInLayer(layer)
+    elseif dialog ~= nil and dialog.valid then
+        dialog:DestroySelf()
+    end
+end
+
+--What the dialog says about an inbox item: title, message, and whether it can
+--still be accepted.
+local function DescribeItem(item)
+    local name = item.name or "A friend"
+    if item.live ~= nil and item.live.type == "joinrequest" then
+        return "Ask to Join", string.format("%s wants to join you.", name), true
+    end
+    local stored = item.stored
+    if stored ~= nil then
+        if stored.kind == "party" then
+            return "Invitation", string.format("%s invited you to join %s.", name, cond(stored.title ~= "", stored.title, "their Encounter of the Week party")), true
+        end
+        --a description ("an Encounter of the Week game") rather than a name.
+        if string.find(stored.title, "^an? ") ~= nil then
+            return "Invitation", string.format("%s invited you to join %s.", name, stored.title), true
+        end
+        if stored.title ~= "" then
+            return "Invitation", string.format("%s invited you to join their campaign, %s.", name, stored.title), true
+        end
+        return "Invitation", string.format("%s invited you to join their campaign.", name), true
+    end
+    if item.live ~= nil and item.live.valid == false then
+        return "Invitation", string.format("%s invited you to play, but they are no longer in that game.", name), false
+    end
+    return "Invitation", string.format("%s invited you to play with them in the Codex.", name), true
+end
+
+--Answers an item: "accept", "decline" or "later". The item leaves the inbox.
+local function Answer(key, item, answer)
+    g_inbox[key] = nil
+    CloseDialog()
+    local live = item.live
+    local stored = item.stored
+    if answer == "accept" then
+        if stored ~= nil and (live == nil or live.type ~= "joinrequest") then
+            --the stored invite carries the join secret even if they left.
+            AnswerStored(stored)
+            if live ~= nil then
+                dmhub.DiscordDismissInvite(live.id)
+            end
+            dmhub.DiscordJoin(stored.connect)
+        elseif live ~= nil then
+            dmhub.DiscordAcceptInvite(live.id, function(err)
+                if err ~= nil then
+                    printf("Discord: could not accept the invite: %s", err)
+                end
+            end)
+        end
+        return
+    end
+
+    if live ~= nil then
+        dmhub.DiscordDismissInvite(live.id)
+    end
+    if stored ~= nil then
+        if answer == "decline" then
+            AnswerStored(stored)
+        else
+            g_snoozed[stored.id] = true
+        end
+    end
+end
+
+local function ShowDialog(key, item, host)
+    local title, message, canAccept = DescribeItem(item)
+    local isRequest = item.live ~= nil and item.live.type == "joinrequest"
+
+    local buttons = {}
+    if canAccept then
+        buttons[#buttons + 1] = gui.Button{
+            classes = {"sizeL"},
+            text = cond(isRequest, "Let Them Join", "Join"),
+            hmargin = 6,
+            click = function()
+                Answer(key, item, "accept")
+            end,
+        }
+    end
+    if item.stored ~= nil then
+        buttons[#buttons + 1] = gui.Button{
+            classes = {"sizeL"},
+            text = "Not Now",
+            hmargin = 6,
+            click = function()
+                Answer(key, item, "later")
+            end,
+        }
+    end
+    buttons[#buttons + 1] = gui.Button{
+        classes = {"sizeL"},
+        text = cond(canAccept, "Decline", "Dismiss"),
+        hmargin = 6,
+        click = function()
+            Answer(key, item, "decline")
+        end,
+    }
+
+    local dialog = gui.Panel{
+        classes = {"framedPanel"},
+        width = 560,
+        height = "auto",
+        halign = "center",
+        valign = "center",
+        flow = "vertical",
+        pad = 24,
+        borderBox = true,
+        swallowPress = true,
+
+        --a fixed-height header with an auto-width title: a "100% available"
+        --title (dfTitle's own width) in this auto-height dialog kept the layout
+        --settling, and the buttons below never received their clicks.
+        gui.Panel{
+            flow = "horizontal",
+            width = "100%",
+            height = 56,
+            halign = "center",
+            AvatarPanel({avatar = item.avatar, status = "online"}, 56, false),
+            gui.Panel{
+                classes = {"dfBrand"},
+                bgimage = "phosphor/discord-logo-fill.png",
+                width = 24,
+                height = 24,
+                valign = "center",
+                lmargin = 12,
+            },
+            gui.Label{
+                classes = {"dfTitle"},
+                width = "auto",
+                text = title,
+            },
+        },
+        gui.Label{
+            classes = {"modalMessage"},
+            width = "100%",
+            height = "auto",
+            vmargin = 18,
+            text = message,
+        },
+        gui.Panel{
+            flow = "horizontal",
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            children = buttons,
+        },
+    }
+
+    --the titlescreen root is wider than the screen: cover the visible part.
+    local onTitlescreen = host == "titlescreen"
+    local backdrop = gui.Panel{
+        floating = onTitlescreen,
+        width = cond(onTitlescreen, 1080 * (dmhub.screenDimensions.x / dmhub.screenDimensions.y), "100%"),
+        height = cond(onTitlescreen, 1080, "100%"),
+        halign = "center",
+        valign = "center",
+        bgimage = "panels/square.png",
+        bgcolor = "#000000b0",
+        styles = ThemeEngine.MergeStyles(BuildStyles()),
+        captureEscape = true,
+        escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+        escape = function()
+            Answer(key, item, cond(item.stored ~= nil, "later", "decline"))
+        end,
+        dialog,
+    }
+
+    g_dialogKey = key
+    g_dialogHost = host
+    if host == "game" then
+        g_dialog = backdrop
+        g_dialogLayer = gui.ShowModal(backdrop)
+        return
+    end
+
+    rawget(_G, "CodexTitlescreenRoot"):AddChild(backdrop)
+    g_dialog = backdrop
+end
+
+local function PollInvites()
+    if mod.unloaded then
+        return
+    end
+    dmhub.Schedule(1, PollInvites)
+    if not Gated() then
+        return
+    end
+
+    local s = Status()
+    local ready = s.account == "ready"
+    if s.account ~= g_lastAccount then
+        g_lastAccount = s.account
+        if ready then
+            g_nextStoreFetch = dmhub.Time()
+        else
+            g_inbox = {}
+            CloseDialog()
+            g_nextStoreFetch = nil
+        end
+    end
+    if not ready then
+        return
+    end
+
+    if s.inviteRevision ~= g_lastInviteRev then
+        g_lastInviteRev = s.inviteRevision
+        MergeLive()
+        local soon = dmhub.Time() + STORE_AFTER_LIVE_SECONDS
+        if g_nextStoreFetch == nil or g_nextStoreFetch > soon then
+            g_nextStoreFetch = soon
+        end
+    end
+
+    if g_nextStoreFetch ~= nil and dmhub.Time() >= g_nextStoreFetch then
+        g_nextStoreFetch = dmhub.Time() + STORE_POLL_SECONDS
+        FetchStored()
+    end
+
+    --the dialog went with its host (left a game, a modal swept it away).
+    if g_dialog ~= nil and not g_dialog.valid then
+        g_dialog = nil
+        g_dialogKey = nil
+        g_dialogLayer = nil
+    end
+    local host = DialogHost()
+    --shown on the titlescreen and we have since entered a game (or the
+    --reverse): take it down; the invite stays and shows again where we are.
+    if g_dialog ~= nil and host ~= g_dialogHost then
+        CloseDialog()
+    end
+    if g_dialog ~= nil or host == nil then
+        return
+    end
+    --the one that reached us first.
+    local bestKey, bestItem = nil, nil
+    for key, item in pairs(g_inbox) do
+        if bestItem == nil or item.arrived < bestItem.arrived then
+            bestKey, bestItem = key, item
+        end
+    end
+    if bestItem ~= nil then
+        ShowDialog(bestKey, bestItem, host)
+    end
+end
+dmhub.Schedule(1, PollInvites)
 
 --Scheme switches restyle the open panel and every button.
 ThemeEngine.OnThemeChanged(mod, function()

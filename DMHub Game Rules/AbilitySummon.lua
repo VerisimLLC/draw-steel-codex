@@ -2616,6 +2616,11 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
         local warningExceededMinions = false
         local warningExceededSquads = false
 
+        --Under strict:resources a Summoner's limits are enforced, not just
+        --reported. summonsCapped records which limit stopped the summons, and when.
+        local strictSummonLimits = isSummoner and (not dmhub.isDM) and dmhub.GetSettingValue("strict:resources") == true
+        local summonsCapped = nil
+
         --set when the placement UI is torn down externally mid-cast: the
         --remaining summons auto-place near the target/caster instead of
         --prompting, so the summons are never stranded.
@@ -2828,6 +2833,33 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
 
             if loc == nil then
                 break
+            end
+
+            --Strict rules: a Summoner summons up to their minion and squad limits
+            --and no further. Their list of minions only updates when the cast
+            --ends, so summons placed earlier in this same cast are counted too.
+            if strictSummonLimits and chosenOption.properties:try_get("minion", false) then
+                local minionsAfter = #casterToken.properties:GetLiveSummonedEntries() + #summonerEntries + 1
+                local squadNames = {}
+                for name, _ in pairs(casterToken.properties:GetSummonedSquadsByType(nil)) do
+                    squadNames[name] = true
+                end
+                for _, entry in ipairs(summonerEntries) do
+                    if entry.squad ~= nil then
+                        squadNames[entry.squad] = true
+                    end
+                end
+                if squadNameForSpawn ~= nil then
+                    squadNames[squadNameForSpawn] = true
+                end
+                local squadsAfter = #table.keys(squadNames)
+                if summonerMaxMinions > 0 and minionsAfter > summonerMaxMinions then
+                    summonsCapped = { count = j - 1, limit = summonerMaxMinions, what = "minions" }
+                    break
+                elseif summonerMaxSquads > 0 and squadsAfter > summonerMaxSquads then
+                    summonsCapped = { count = j - 1, limit = summonerMaxSquads, what = "minion squads" }
+                    break
+                end
             end
 
             local token = game.SpawnTokenFromBestiaryLocally(chosenOption.id, loc.withGroundAltitude, {
@@ -3073,11 +3105,16 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                 end
             end
 
-            if warningExceededMinions then
-                chat.Send(string.format("%s exceeded their MaximumMinions limit of %d.", casterToken.description, summonerMaxMinions))
-            end
-            if warningExceededSquads then
-                chat.Send(string.format("%s exceeded their MaxMinionSquads limit of %d.", casterToken.description, summonerMaxSquads))
+            if summonsCapped ~= nil then
+                chat.Send(string.format("%s has reached their limit of %d %s; only %d of %d summons arrived.",
+                    casterToken.description, summonsCapped.limit, summonsCapped.what, summonsCapped.count, numSummons))
+            elseif not strictSummonLimits then
+                if warningExceededMinions then
+                    chat.Send(string.format("%s exceeded their MaximumMinions limit of %d.", casterToken.description, summonerMaxMinions))
+                end
+                if warningExceededSquads then
+                    chat.Send(string.format("%s exceeded their MaxMinionSquads limit of %d.", casterToken.description, summonerMaxSquads))
+                end
             end
 
             dmhub.Debug(string.format("SUMMON:: DONE"))

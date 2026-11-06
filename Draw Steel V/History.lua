@@ -33,6 +33,9 @@ local mod = dmhub.GetModLoading()
 History = {
     --Entries kept per map, oldest culled first. Why 500: PROBE-0.1.md.
     hardCap = 500,
+    --Set by the tray: runs when the setting changes.
+    --- @type nil|function
+    OnEnabledChanged = nil,
 }
 
 --Off by default until the last stage of the build; on for a whole game at once,
@@ -43,6 +46,11 @@ local g_enabledSetting = setting{
     id = "historyenabled",
     storage = "game",
     default = false,
+    onchange = function()
+        if History.OnEnabledChanged ~= nil then
+            History.OnEnabledChanged()
+        end
+    end,
 }
 
 --- True if History is on in this game. Cheap enough to ask every frame.

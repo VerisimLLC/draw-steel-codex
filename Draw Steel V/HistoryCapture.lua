@@ -35,7 +35,7 @@ function History.Creature(token)
         name = name,
         img = token.portrait,
         rect = rect ~= nil and {rect.x1, rect.y1, rect.x2, rect.y2} or nil,
-        hero = token.playerControlled,
+        hero = token.playerControlled or (token.properties ~= nil and token.properties:IsHero()),
         secret = token.namePrivate or nil,
     }
 end

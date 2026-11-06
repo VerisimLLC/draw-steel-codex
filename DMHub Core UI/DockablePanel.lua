@@ -2254,6 +2254,11 @@ local PanelPermittedForUser = function(p)
 	if p.devonly and not devmode() then
 		return false
 	end
+	--a panel behind a setting: available() says whether it exists right now. It runs
+	--several times a second on the rails, so keep it cheap.
+	if p.available ~= nil and not p.available() then
+		return false
+	end
 	--DirectorUIVisible rather than dmhub.isDM so dmonly panels also hide for
 	--a Director presenting as a player (Encounter of the Week host). Panel
 	--background processes (DockablePanel.StartProcess) are independent of
@@ -2325,6 +2330,7 @@ DockablePanel = {
 	--gets an icon, menu placement, dmonly/devonly gating, and rail
 	--membership like any panel. First client: the Body Banks, which
 	--launches the companion app.
+	--available = function() hides the panel from every list while it returns false.
 	Register = function(args)
 		--if args.dmonly and not dmhub.isDM then
 		--	return

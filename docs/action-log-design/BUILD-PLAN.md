@@ -31,6 +31,27 @@ Goal: one real action appears in a real tray, stored safely, behind the setting.
 | 0.3 | F1 actions, at `ActivatedAbility:Cast` (`ActivatedAbility.lua:3133`): actor, ability, targets, castid, round, turn, map, roll facts | M | Every ability cast writes one record, prompted triggers included |
 | 0.4 | The tray: table item, rail button below Chat, round and turn folds, turn numbers, target cells, starts closed; builds the newest 30-40 rows and more as you scroll up, as today's log does | L | Real rows in the tray, meeting the idle and drag budgets |
 
+### Stage 0 notes (built 2026-11-06)
+
+- **Entries are JSON strings, not tables** (PROBE-0.1.md), and the hard cap is 500. The tray parses
+  only the rows it builds.
+- **Written when the cast ends**, stamped with when it began, so a cancelled cast leaves nothing and
+  one action is one write. Stage 1 should add a cast's results to its entry before that write.
+- **The setting** is `historyenabled`, game-wide, with no UI: `dmhub.SetSettingValue("historyenabled",
+  true)`. It has no wording yet because it never reaches a screen. Turning it on puts the rail button
+  below Chat for that user (`PanelDocument.RailPlaceBelow`); 6.4 can use the same call.
+- **Generic hooks added:** `ActivatedAbility.RegisterCastObserver`, `available` on a panel registration,
+  `place`, `Tabletop.HasItem`, `Tabletop.CloseItem` and `Tabletop.ResizeItem` for table items, and
+  `InitiativeQueue.turnNumber`, a running count, because `turn` starts again each round.
+- **Measured at 485 entries:** tray open 70 ms of Lua, worst frame 150 ms; Show all 89 ms; a new row
+  under 35 ms with its cast; idle open equals closed (14 ms); dragging 22 ms a frame against 25.6 ms
+  for a map window. Panel count stays flat.
+- **Left for later, not in stage 0's list:** the Main, Maneuver and Move markers (T8: Move is not
+  recorded yet), the Draw Steel banner (T10), chips (T12), the hover titlebar's text (T2), the rail
+  button's lit state while the tray is open, and text for an empty tray, which has no signed wording.
+- **Not checked: Crows.** `Crowdex/` is not in this checkout and does not load in the test game.
+  History is inert while the setting is off, but check a Crows game before merging.
+
 ## Stage 1: what happened in combat
 
 Goal: the "did it change the table?" rule, on the glance. One family per chunk.

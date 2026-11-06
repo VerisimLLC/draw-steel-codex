@@ -5,9 +5,12 @@ prototype https://claude.ai/artifact/UPWo9XvYuaDiZ388xRES35 (version 26).
 
 ## How the work runs
 
-- **One chunk, one commit.** Each stage is one PR on `feature/history-*`, merged into main as it
-  finishes. Everything sits behind an off-by-default setting, so main is always safe and nobody
-  reviews a giant PR at the end.
+- **One chunk, one commit.** Each stage is still one PR, but none goes up until the build is
+  finished; then they are raised together (James, 2026-11-06), so a late change to an earlier
+  stage's files needs no extra PRs. Everything stays behind an off-by-default setting.
+- **A tag marks where each stage ends:** `history-stage-0`, `history-stage-1` and so on. Each stage
+  works on `feature/history-stage-N`, cut from the last stage's tag. Tags and branches stay local
+  until the PRs go up. Merge main in at each stage end, since these files change often there.
 - **History runs beside the old log until the last stage.** The old log and its messages stay
   untouched. The switch-over is one chunk.
 - **History never breaks the game.** Every hook sits in hot combat code, so each is wrapped the way
@@ -49,6 +52,9 @@ Goal: one real action appears in a real tray, stored safely, behind the setting.
 - **Left for later, not in stage 0's list:** the Main, Maneuver and Move markers (T8: Move is not
   recorded yet), the Draw Steel banner (T10), chips (T12), the hover titlebar's text (T2), the rail
   button's lit state while the tray is open, and text for an empty tray, which has no signed wording.
+- **Cloud file list:** History, HistoryCapture and HistoryTray are registered in Draw Steel V now,
+  ahead of the code reaching main. A client without the files on disk runs the empty cloud stubs,
+  so History simply isn't there for anyone on main until the PRs merge.
 - **Not checked: Crows.** `Crowdex/` is not in this checkout and does not load in the test game.
   History is inert while the setting is off, but check a Crows game before merging.
 

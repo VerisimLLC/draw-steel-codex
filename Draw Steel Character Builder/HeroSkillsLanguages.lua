@@ -1623,7 +1623,10 @@ function HeroSkillsLanguages.Panel(args)
                 statusBox.selfStyle.width = width
                 statusLabel.selfStyle.width = width
                 if paneRows then
+                    --the labels too: wider than their column, they spill out of the row.
                     titleColumn.selfStyle.width = rowInner - width - 10
+                    titleLabel.selfStyle.width = rowInner - width - 10
+                    lineLabel.selfStyle.width = rowInner - width - 10
                 else
                     values.selfStyle.width = rowInner - width - 20 - titleWidth
                 end

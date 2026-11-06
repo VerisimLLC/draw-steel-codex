@@ -1739,14 +1739,21 @@ function HeroSheetInventory.Create()
             end
         end
         countLabel.text = tostring(carried)
-        empty:SetClass("collapsed", #state.entries > 0)
+        empty:SetClass("collapsed", shown > 0)
         --the texts that name what the list shows (set only on a change).
         local stash = g_source == "stash"
+        --rows exist but a chip or search hid them all: nothing is wrong with the list.
+        local emptyText = cond(stash, "The stash is empty.", "Nothing carried yet.")
+        if #state.entries > 0 then
+            emptyText = cond(stash, "No stash items match.", "No items match.")
+        end
+        if empty.text ~= emptyText then
+            empty.text = emptyText
+        end
         local title = cond(stash, "Party stash", "Inventory")
         if heading.text ~= title then
             heading.text = title
             search.placeholderText = cond(stash, "Search the stash", "Search your items")
-            empty.text = cond(stash, "The stash is empty.", "Nothing carried yet.")
         end
         takeAllButton:SetClass("collapsed", not (stash and state.write and #state.entries > 0))
     end

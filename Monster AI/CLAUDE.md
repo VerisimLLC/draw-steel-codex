@@ -422,9 +422,10 @@ has `allMonsters = true`, so every monster uses it unless it is turned off):
   `MonsterAI.opportunityAttackPenalty` (0.8) per attack. A safe choice keeps
   the safe squares for the move's execution (`_tmp_oaSafeOnly`, honored by
   `CalculateMovementPaths`). `CalculateMovementPaths` marks each square's
-  `provokes`; the advance fallback skips squares that provoke, and minion
-  squads add `squadOpportunityAttackPenalty` (100) per attack to a
-  position's cost. It is an estimate from start and end squares: a route that
+  `provokes`; the advance fallback skips squares that provoke, and a minion
+  squad member never takes a strike position that provokes (a free strike
+  kills a minion): with no unclaimed target reachable safely it holds and
+  sits the strike out. It is an estimate from start and end squares: a route that
   walks past an enemy it did not start next to is not seen.
 
 `MonsterAI.HasBehavior(token, id)` answers whether it is on: behavior sources

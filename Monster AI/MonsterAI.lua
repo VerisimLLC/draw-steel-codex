@@ -2404,10 +2404,8 @@ MonsterAI.avoidOpportunityAttacksBehavior = "Avoid Opportunity Attacks"
 --What each provoked opportunity attack costs a plan, in move score (a standard
 --signature move scores 1.0, a free strike 0.2).
 MonsterAI.opportunityAttackPenalty = 0.8
---The same for a minion squad member's strike position, in squad planning cost,
---where a square of movement costs 10 and a target edge is worth 5. An
---opportunity attack kills a minion, so this outweighs any detour it can make.
-MonsterAI.squadOpportunityAttackPenalty = 100
+--Minion squads don't use this penalty: a free strike kills a minion, so squad
+--members never strike from a square that provokes one.
 
 --- The enemies who could make an opportunity attack if this creature walked
 --- out of their reach now, or nil when there are none or it does not have the
@@ -5411,7 +5409,11 @@ function MonsterAI:FindSquadMemberStrikeOptions(squadMember, ability, reserved)
         local destLoc = info.loc
 
         local targets = {}
-        if offsets == nil or self.SquadOptionIsFree(reserved, offsets, destLoc, nil) then
+        --A free strike kills a minion, so a squad member never strikes from a
+        --square that would provoke one. With no safe target left, it stays put
+        --and sits this strike out.
+        local provokes = (info.provokes or 0) > 0
+        if (not provokes) and (offsets == nil or self.SquadOptionIsFree(reserved, offsets, destLoc, nil)) then
             targets = self:FindValidTargetsOfStrike(squadMember.token, ability, destLoc, range)
         end
         for _,target in ipairs(targets) do
@@ -5421,8 +5423,6 @@ function MonsterAI:FindSquadMemberStrikeOptions(squadMember, ability, reserved)
                 and not self.SquadOptionIsFree(reserved, offsets, destLoc, target.charge)
             local cost = info.cost
             cost = cost - target.edges * 5 --we love to get edges
-            --Avoid Opportunity Attacks (CalculateMovementPaths marks provokes).
-            cost = cost + (info.provokes or 0)*MonsterAI.squadOpportunityAttackPenalty
             if target.charge ~= nil then
                 --if charging, prefer to move in line with the charge
                 local deltaMove = {x = target.charge.x - squadMember.token.loc.x, y = target.charge.y - squadMember.token.loc.y}

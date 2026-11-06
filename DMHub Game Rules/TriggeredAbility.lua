@@ -2157,7 +2157,7 @@ function TriggeredAbility:ExecuteTriggerCast(args)
 	if not isDismissExec and self:ActionResource() == CharacterResource.triggerResourceId then
 		casterToken.properties:DispatchEvent("usetriggeredaction", {usedability = self, cast = symbols and symbols.cast})
 	end
-	local options = { symbols = symbols, alreadyPaid = argOptions.alreadyPaid, dismiss = isDismissExec }
+	local options = { symbols = symbols, alreadyPaid = argOptions.alreadyPaid, dismiss = isDismissExec, modContext = args.modContext }
 	local needCoroutine = self:CastInstantPortion(casterToken, targets, options)
 	if not needCoroutine then
 		--A dismissed trigger never costs resources, even when On Dismiss
@@ -2604,6 +2604,9 @@ function TriggeredAbility:TriggerCo(targets, characterModifier, casterToken, cre
 		alreadyInCoroutine = true,
 		alreadyPaid = argOptions.alreadyPaid,
 		dismiss = argOptions.dismiss == true,
+		--the modifier's context (its ongoing effect, if any), for behaviors
+		--that act for whoever applied the effect.
+		modContext = modContext,
         OnFinishCastHandlers = {
             function()
                 if argOptions.complete then

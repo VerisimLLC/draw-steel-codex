@@ -24,6 +24,10 @@ ActivatedAbilitySummonBehavior.monsterType = "custom"
 ActivatedAbilitySummonBehavior.hasReplaceCaster = true --display 'replace caster' in menu.
 ActivatedAbilitySummonBehavior.replaceCaster = false
 ActivatedAbilitySummonBehavior.casterControls = true
+--In a trigger on an ongoing effect, the creature that applied the effect is the
+--summoner, not the creature with the effect. If it is gone, the summons have no
+--summoner and join the Director's side.
+ActivatedAbilitySummonBehavior.effectCasterSummons = false
 ActivatedAbilitySummonBehavior.casterChoosesCreatures = true
 ActivatedAbilitySummonBehavior.changeCreatureWhileCasting = false
 ActivatedAbilitySummonBehavior.groupInitiativeWithCaster = true
@@ -2361,6 +2365,29 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
         return
     end
 
+    local modContext = args.modContext
+    local effect = modContext ~= nil and modContext.ongoingEffect or nil
+    --Not from an ongoing effect, or set with Replace Caster: summon as usual.
+    if (not self.effectCasterSummons) or self.replaceCaster or effect == nil then
+        self:CastSummons(ability, casterToken, targets, args, false)
+        return
+    end
+
+    --Summon as the creature that applied the effect. If it is gone, the
+    --summons have no summoner and join the Director's side.
+    local casterInfo = effect:try_get("casterInfo")
+    local effectCaster = casterInfo ~= nil and casterInfo.tokenid ~= nil and dmhub.GetTokenById(casterInfo.tokenid) or nil
+    if effectCaster ~= nil and effectCaster.valid and effectCaster.properties ~= nil then
+        self:CastSummons(ability, effectCaster, targets, args, false)
+    else
+        self:CastSummons(ability, casterToken, targets, args, true)
+    end
+end
+
+--- Summons the creatures for Cast, once it knows who the caster is.
+--- @param detached boolean True when the summons have no summoner.
+function ActivatedAbilitySummonBehavior:CastSummons(ability, casterToken, targets, args, detached)
+
     --After the cast, hide the ability card unless another cast's roll is still open on it.
     args.OnFinishCastHandlers = args.OnFinishCastHandlers or {}
     args.OnFinishCastHandlers[#args.OnFinishCastHandlers+1] = function()
@@ -2426,9 +2453,9 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
     local freshSquadSpawns = {}
 
     local initiativeGrouping = nil
-    if self.groupInitiativeWithCaster then
+    if self.groupInitiativeWithCaster and not detached then
         initiativeGrouping = InitiativeQueue.GetInitiativeId(casterToken)
-    elseif self.newInitiativeGroup then
+    elseif self.newInitiativeGroup or detached then
         initiativeGrouping = dmhub.GenerateGuid()
     end
 
@@ -2438,7 +2465,7 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
             break
         end
         local newOwner = ""
-        if self.casterControls then
+        if self.casterControls and not detached then
             newOwner = casterToken.ownerId
         end
 
@@ -2593,7 +2620,8 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
 
         local summonerMaxMinions = casterToken.properties:CalculateNamedCustomAttribute("MaximumMinions")
         local summonerMaxSquads = casterToken.properties:CalculateNamedCustomAttribute("MaxMinionSquads")
-        local isSummoner = (not casterToken.properties.minion) and (summonerMaxMinions > 0 or summonerMaxSquads > 0)
+        --With no summoner, a Summoner hero must not be asked to pick squads for these summons.
+        local isSummoner = (not detached) and (not casterToken.properties.minion) and (summonerMaxMinions > 0 or summonerMaxSquads > 0)
         local chooseSquad = self:try_get("chooseSquad", false)
         local usesSquadChooser = isSummoner or chooseSquad
         local useEncounterSquads = chooseSquad and not isSummoner
@@ -2878,7 +2906,7 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
 
             if inheritedSummonerToken ~= nil then
                 token.summonerid = inheritedSummonerToken.charid
-            else
+            elseif not detached then
                 token.summonerid = casterToken.charid
             end
 
@@ -2971,7 +2999,7 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                 }
             end
 
-            if self.casterControls then
+            if self.casterControls and not detached then
                 local lookKey = ActivatedAbilitySummonBehavior.SummonLookKey(chosenOption, chosenOption.id)
 
                 ActivatedAbilitySummonBehavior.ApplySummonLook(casterToken, token, lookKey)
@@ -3170,9 +3198,13 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
     --give the fresh group its entry, on the caster's side (hero or director),
     --mirroring the add_to_initiative ability mode.
     local q = dmhub.initiativeQueue
-    if self.newInitiativeGroup and (not self.groupInitiativeWithCaster) and #allSummonedTokens > 0 and q ~= nil and (not q.hidden) then
+    --Summons with no summoner (the effect's caster is gone) join the Director's side, not the hero's.
+    local freshGroup = detached or (self.newInitiativeGroup and not self.groupInitiativeWithCaster)
+    if freshGroup and #allSummonedTokens > 0 and q ~= nil and (not q.hidden) then
         local entry = q:SetInitiative(initiativeGrouping, 0, 0)
-        if casterToken.valid and casterToken.properties ~= nil then
+        if detached then
+            entry.player = false
+        elseif casterToken.valid and casterToken.properties ~= nil then
             entry.player = q:IsEntryPlayer(InitiativeQueue.GetInitiativeId(casterToken))
         end
         dmhub:UploadInitiativeQueue()
@@ -3427,7 +3459,7 @@ function ActivatedAbilitySummonBehavior:EditorItems(parentPanel)
 			end,
 		}
 	else
-		self:SummonEditor(parentPanel, result, {numSummons = true, casterControls = true})
+		self:SummonEditor(parentPanel, result, {numSummons = true, casterControls = true, effectCasterSummons = true})
 	end
 
 	return result
@@ -3825,6 +3857,29 @@ function ActivatedAbilityBehavior:SummonEditor(parentPanel, list, options)
             minWidth = 300,
             change = function(element)
                 self.replaceCaster = element.value
+                if element.value and self:try_get("effectCasterSummons", false) then
+                    self.effectCasterSummons = false
+                    parentPanel:FireEvent("refreshBehavior")
+                end
+            end,
+        }
+    end
+
+    --Only a trigger can come from an ongoing effect. Ticking this turns Replace
+    --Caster off, and the other way round: the two don't work together.
+    local parentAbility = parentPanel.data.parentAbility
+    if options.effectCasterSummons and parentAbility ~= nil and parentAbility.typeName == "TriggeredAbility" then
+        list[#list+1] = gui.Check{
+            text = "Effect's Caster Summons",
+            hover = gui.Tooltip("In a trigger on an ongoing effect, the creature that applied the effect is the summoner, not the creature with the effect."),
+            value = self:try_get("effectCasterSummons", false),
+            minWidth = 300,
+            change = function(element)
+                self.effectCasterSummons = element.value
+                if element.value and self:try_get("replaceCaster", false) then
+                    self.replaceCaster = false
+                    parentPanel:FireEvent("refreshBehavior")
+                end
             end,
         }
     end

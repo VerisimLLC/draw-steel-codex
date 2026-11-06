@@ -412,6 +412,21 @@ local function MinionWords(entry)
     return string.format("%d of %d killed", entry.killed, entry.killed + entry.left)
 end
 
+local MOVED_VERBS = {push = "pushed", pull = "pulled", slide = "slid"}
+
+--"Push 3", with "fell 4" after a dot when it fell too (T14). vertical_push reads "Vertical push".
+local function MovedWords(moved)
+    local kind = string.upper_first(string.gsub(moved.kind, "_", " "))
+    if moved.distance <= 0 then
+        return string.format("Fell %d", moved.fell)
+    end
+    local words = string.format("%s %d", kind, moved.distance)
+    if moved.fell > 0 then
+        words = words .. DOT .. string.format("fell %d", moved.fell)
+    end
+    return words
+end
+
 --The small lines under a target (T14). ended marks one that takes an Ended tag.
 --minions: confirmed minion deaths that belong on this cell.
 local function Captions(who, minions)
@@ -424,6 +439,9 @@ local function Captions(who, minions)
     end
     for _, entry in ipairs(minions or {}) do
         Add(MinionWords(entry), nil, "historyDead")
+    end
+    if who.moved ~= nil then
+        Add(MovedWords(who.moved))
     end
     if who.recovered ~= nil then
         Add(string.format("No longer %s", who.recovered), nil, "historyGood")
@@ -677,6 +695,9 @@ local function TriggerRow(index, entry)
         if who.state ~= nil then
             effects[#effects + 1] = STATE_CAPTIONS[who.state].text
         end
+        if who.moved ~= nil then
+            effects[#effects + 1] = MovedWords(who.moved)
+        end
     end
     local effectText = #effects > 0 and (": " .. table.concat(effects, ", ")) or ""
     children[#children + 1] = gui.Label{
@@ -924,6 +945,14 @@ local function LineWords(entry)
         return string.format("%s is %s", name, entry.state)
     elseif family == "minions" then
         return string.format("<b>%s</b> %d of %d minions killed", entry.name, entry.killed, entry.killed + entry.left)
+    elseif family == "moved" then
+        local moved = entry.moved
+        local verb = MOVED_VERBS[string.gsub(moved.kind, "vertical_", "")] or "moved"
+        local words = string.format("%s was %s %d %s", name, verb, moved.distance, cond(moved.distance == 1, "square", "squares"))
+        if moved.fell > 0 then
+            words = words .. string.format(", it fell %d %s", moved.fell, cond(moved.fell == 1, "square", "squares"))
+        end
+        return words
     elseif family == "resource" then
         return string.format("%s %s %s", name, cond(entry.amount > 0, "gained", "spent"), ResourceWords(math.abs(entry.amount), entry.name))
     elseif family == "malice" then
@@ -1466,6 +1495,9 @@ local function AddLoneTrigger(items, entry, key)
         end
         if who.state ~= nil then
             parts[#parts + 1] = {family = "threshold", state = who.state}
+        end
+        if who.moved ~= nil then
+            parts[#parts + 1] = {family = "moved", moved = who.moved}
         end
         for j, part in ipairs(parts) do
             for k, v in pairs(base) do

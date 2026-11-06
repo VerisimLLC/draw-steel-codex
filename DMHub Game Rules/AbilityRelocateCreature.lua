@@ -875,6 +875,22 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                 --clone, which InvokeAbility populates with the parent ability's keywords.
                 forcemoveEvent.distance = math.floor((path ~= nil and path.numSteps) or 0)
                 forcemoveEvent.melee = ability.keywords ~= nil and ability.keywords["Melee"] == true
+                if path ~= nil then
+                    --plain numbers, so the route outlives this path object (the side view).
+                    local savedPath = {}
+                    for _,step in ipairs(path.steps or {}) do
+                        savedPath[#savedPath+1] = {step.x, step.y, step.floor}
+                    end
+                    GameSystem.NotifyPlayObservers("forcedmove", casterToken.properties, {
+                        kind = forcemoveEvent.type,
+                        distance = forcemoveEvent.distance,
+                        fell = math.floor(path.fallDistance or 0),
+                        collision = forcemoveEvent.collision,
+                        walls = path.wallBreaks ~= nil and #path.wallBreaks or 0,
+                        path = savedPath,
+                        cast = options.symbols.cast,
+                    })
+                end
                 casterToken.properties:DispatchEvent("forcemove", forcemoveEvent)
             end
 

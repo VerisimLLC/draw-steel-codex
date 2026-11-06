@@ -33,7 +33,8 @@ local mod = dmhub.GetModLoading()
 --- @field aliases? string[] On an action: ids of casts inside it that have no row of their own.
 --- @field family? string On a line (kind "line"): "damage", "heal", "temporarystamina",
 --- "condition", "ended", "save", "persistence", "encounterend", "threshold", "minions",
---- "resource", "malice" or "globalresource".
+--- "resource", "malice", "globalresource" or "moved".
+--- @field moved? table On a moved line: what happened; see the moved field of HistoryCreature.
 --- @field amount? number On a resource line: the change, negative when spent.
 --- @field resourceid? string On a resource line: the resource, for Undo.
 --- @field refreshtype? string On a resource line: how it refreshes, for Undo.

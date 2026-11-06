@@ -34,6 +34,7 @@ local mod = dmhub.GetModLoading()
 --- @field state? string On a target: "winded", "dying" or "killed" if this did that.
 --- @field recovered? string On a target: "winded" or "dying" if this ended that.
 --- @field squad? string On a minion: the name of its squad.
+--- @field moved? {kind: string, distance: number, fell: number, collision: number, walls: number, path: table|nil} On a target: how another creature moved it. The path is for the side view.
 
 --- The creature a token shows now, as plain data for an entry.
 --- @param token CharacterToken
@@ -216,7 +217,7 @@ local function ChangedTheTable(entry)
     for _, who in ipairs(entry.targets) do
         if (who.taken or 0) > 0 or (who.healed or 0) > 0 or who.pool ~= nil
             or (who.immunity ~= nil and who.immunity.amount ~= 0)
-            or who.conds ~= nil or who.ended ~= nil or who.state ~= nil then
+            or who.conds ~= nil or who.ended ~= nil or who.state ~= nil or who.moved ~= nil then
             return true
         end
     end
@@ -432,6 +433,30 @@ local function OnThreshold(creature, thresholdState, info)
     local target = RowTarget(state, token)
     if target ~= nil then
         target.state = thresholdState
+    end
+end
+
+local function OnForcedMove(creature, info)
+    local token = dmhub.LookupToken(creature)
+    if not History.Enabled() or token == nil or (info.distance <= 0 and info.fell <= 0) then
+        return
+    end
+    local moved = {
+        kind = info.kind,
+        distance = info.distance,
+        fell = info.fell,
+        collision = info.collision,
+        walls = info.walls,
+        path = info.path,
+    }
+    local state = OpenCast(info.cast)
+    if state == nil then
+        WriteLine(token, "moved", {moved = moved, causetext = Cause(nil)})
+        return
+    end
+    local target = RowTarget(state, token)
+    if target ~= nil then
+        target.moved = moved
     end
 end
 
@@ -845,6 +870,7 @@ GameSystem.RegisterPlayObserver("history", {
     damage = OnDamage,
     heal = OnHeal,
     threshold = OnThreshold,
+    forcedmove = OnForcedMove,
     minionsdied = OnMinionsDied,
     temporarystamina = OnTemporaryStamina,
     resource = OnResource,

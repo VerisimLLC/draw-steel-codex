@@ -24,6 +24,8 @@ local g_playObservers = {}
 ---   resource(creature, key, before, after, refreshType, note): a resource a record of
 ---     play follows changed on a creature.
 ---   globalresource(resourceid, before, after, note): a shared resource changed.
+---   forcedmove(creature, info): another creature moved it. info: kind, distance, fell,
+---     collision, walls, path (a list of {x, y, floor}, start first), cast.
 ---   threshold(creature, state, info): the creature became "winded", "dying" or "killed".
 ---     info: source, cast.
 ---   minionsdied(creature, info): minion deaths were confirmed. info: squad, killed, left, cast.

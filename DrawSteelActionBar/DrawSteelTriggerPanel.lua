@@ -187,7 +187,8 @@ end
 --- @param chosenTargetId string|nil set when the press picked a target on the map
 --- @return boolean handled false when the option has no trigger-before ability
 local function RunEnhancementTriggerBefore(triggerToken, trigger, index, targetId, chosenTargetId)
-    if trigger.triggered or trigger.powerRollModifier == nil then
+    --powerRollModifier is false (not nil) on triggers that have none.
+    if trigger.triggered or not trigger.powerRollModifier then
         return false
     end
     local additionalModifiers = triggerToken.properties:GetAdditionalCostModifiersForPowerTableTrigger(trigger.powerRollModifier)

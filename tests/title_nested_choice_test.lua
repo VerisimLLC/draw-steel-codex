@@ -97,6 +97,7 @@ HeroSkillsLanguages = {
 local hero = obj{
     Titles = function() return {dabbler, crafter} end,
     GetLevelChoices = function() return levelChoices end,
+    Invalidate = function() end,
     Echelon = function() return 1 end,
 }
 local token = {charid = 'hero', name = 'Hero', properties = hero}

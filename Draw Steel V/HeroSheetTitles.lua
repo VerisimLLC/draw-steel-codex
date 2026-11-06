@@ -385,6 +385,8 @@ function HeroSheetWindows.OpenTitles(focusid)
             description = "Choose a title benefit",
             execute = function(props)
                 props:GetLevelChoices()[guid] = ids
+                --as the Skills window's save does: the Hero's skills read again.
+                props:Invalidate()
             end,
         }
         HeroSheet.Saved()

@@ -91,8 +91,22 @@ Goal: the "did it change the table?" rule, on the glance. One family per chunk.
   Hidden from History on the 40 markers. Without `--apply` it only lists them. Commit it in `data/`.
 - **L13 has no hook.** The Elementalist's 5 x Reason rule only shows floating text; nothing ends the
   persistence, so "Took {n} damage in one turn" cannot appear until that rule is automated.
+- **1.4:** winded, dying and killed fire where the rules already decide them, in `MCDMCreature.lua`, so
+  hand edits count. Minion deaths wait for the batch that confirms them, then name the squad.
+- **1.5:** resources carry the number that really changed (`ReportResource`). Undo on a resource line
+  goes through `History.UndoResource`, which marks the line undone and keeps it.
+- **1.6:** the saved path is a plain list of {x, y, floor} from `path.steps`, because what
+  `LuaPath:Serialize` returned never reached the entry. Chunk 4.1 rebuilds a route from that list.
+  Collisions and wall breaks are stored for the detail card; the tray only shows distance and fall.
+- **Tested for real:** Brutal Slam on two clients, real heal and temporary Stamina behaviors, a Reactor
+  trigger nested across clients, real end of turn, a real passing save, a real push with Growing
+  Ferocity nested, real Undo, and a Player seeing no Malice lines.
+- **Tested with fed data only:** failed saves, persistence, dying lines, confirmed minion deaths, and
+  falls. A real fall needs raised ground, so `fallDistance` has only ever read 0 in a real cast.
+- **Wordings not in COPY.md yet:** listed in COPY.md, Round 5. They are in the build as drafts.
 - **Left for later:** effects ended by a respite (5.1), "Hidden from enemies" effects reaching players
-  (2.4), the Active tag on a target's badge (3.1).
+  (2.4), the Active tag on a target's badge (3.1). Crows is not checked: `Crowdex/` isn't in this
+  checkout, so check a Crows game before merging.
 
 ## Stage 2: the detail card
 

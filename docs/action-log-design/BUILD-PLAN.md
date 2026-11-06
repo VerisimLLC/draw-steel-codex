@@ -83,7 +83,16 @@ Goal: the "did it change the table?" rule, on the glance. One family per chunk.
   its cause and the tray nests it, so client and order don't matter, and nothing rewrites the parent.
 - **Prompted triggers stay action rows** (REVIEW.md section 1). A prompted trigger does not nest yet;
   "Before the roll" and "After the roll" (T15) need roll data from stage 2.
-- **1.3 needs the Codex closed** for its data pass: `data/` YAML is never edited while it runs.
+- **1.3:** `creature:EndingEffects(cause, fn)` wraps every place something comes off a creature and
+  works out what ended from what changed, so a new removal path needs one wrapper, not its own logic.
+  Lapsed timers are cleared at turn end, which is how they get reported.
+- **1.3 data pass, still to run, with the Codex closed:** `data/` YAML is never edited while it runs.
+  From the repo root: `python docs/action-log-design/probes/mark-history-hidden.py.txt --apply` ticks
+  Hidden from History on the 40 markers. Without `--apply` it only lists them. Commit it in `data/`.
+- **L13 has no hook.** The Elementalist's 5 x Reason rule only shows floating text; nothing ends the
+  persistence, so "Took {n} damage in one turn" cannot appear until that rule is automated.
+- **Left for later:** effects ended by a respite (5.1), "Hidden from enemies" effects reaching players
+  (2.4), the Active tag on a target's badge (3.1).
 
 ## Stage 2: the detail card
 

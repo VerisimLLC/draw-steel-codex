@@ -1,0 +1,35 @@
+import os,re,sys
+root='data/objectTables/characterongoingeffects'
+names=['Bullseye Tier 1 (marker)','Burning Ash Target','Clinging Muck Marker','Envy Payload','Envy Primed','Invisible Marker','Shared Maneuvers Echo','Shriek Rider',
+'Moved This Turn','Started their turn Hidden','BlitzTracking','BlitzUsed','Radical Fantasia Free Triggered Action Used','Used Moonlight Sonata','Used Posthumous Retirement','Revenge Expiring','Source of Earth Damage Taken','Targeted by Time Bomb','Dramatic Reveal Target','Chain Reaction target','Synaptic Dissipation damage trigger','Vengeance','One Vial Makes You Faster - stored',
+'Affinity Type - Acid','Affinity Type - Cold','Affinity Type - Corruption','Affinity Type - Fire','Affinity Type - Lightning','Affinity Type - Poison',
+'Companion Creature','Companion Guardian','Companion Prowler','Companion Spark','Gloom Squad Member','Gloom Squad Summoned','Death Cultist Has Minions','Cursed Caster','Mazed Caster','Blitz Tactics','Portfolio Champion']
+print(len(names),'names')
+apply='--apply' in sys.argv
+found={}
+for f in os.listdir(root):
+    if not f.endswith('.yaml'): continue
+    p=os.path.join(root,f)
+    t=open(p,encoding='utf-8',newline='').read()
+    m=re.search(r'^name:\s*(.+?)\s*$',t,re.M)
+    if not m: continue
+    n=m.group(1).strip('"\'')
+    if n in names:
+        found.setdefault(n,[]).append((f,t))
+missing=[n for n in names if n not in found]
+print('found',len(found),'missing',missing)
+for n,l in sorted(found.items()):
+    for f,t in l:
+        h=re.search(r'^hiddenOnToken:\s*(\S+)',t,re.M)
+        s=re.search(r'^statusEffect:\s*(\S+)',t,re.M)
+        print(f'{n:45s} {len(l)} {f:58s} onToken={h.group(1) if h else "-"} status={s.group(1) if s else "-"}')
+if apply:
+    done=0
+    for n,l in found.items():
+        for f,t in l:
+            if re.search(r'^hiddenFromHistory:',t,re.M): continue
+            nl='\r\n' if '\r\n' in t else '\n'
+            i=t.index(nl+'hiddenOnToken:')+len(nl)
+            t2=t[:i]+'hiddenFromHistory: true'+nl+t[i:]
+            open(os.path.join(root,f),'w',encoding='utf-8',newline='').write(t2); done+=1
+    print('marked',done)

@@ -103,11 +103,14 @@ text("encounter.story.title_with_part", [[{title} -- {part}]])
 --Garden").
 text("encounter.series_next.title", [[{part} is open]])
 text("encounter.series_next.body", [[You have access to this encounter until you take a respite]])
+--The same, for a part whose script says "Rest does not lock this part".
+text("encounter.series_next.body_rest_free", [[It stays open, even after you take a respite]])
 --The button, here and on the Conclusion screen: back to town, where the party
 --for the next part is ready to form.
 text("encounter.series_next.button", [[Continue to {part}]])
 --Above the buttons on the Conclusion screen.
 text("encounter.series_next.story_note", [[{part} is open until your heroes take a respite.]])
+text("encounter.series_next.story_note_rest_free", [[{part} is open, and stays open after a respite.]])
 
 --When the next part plays on the same map, the party goes straight on in the
 --same game instead, and the game's host decides for everyone. The victory

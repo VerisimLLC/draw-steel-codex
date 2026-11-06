@@ -765,17 +765,34 @@ function Series.NextPart()
     end
     local _, mapName, part = ParseEncounterKey(key)
     local number = part + 1
-    local found, title = false, nil
+    local found = nil
     for _, p in ipairs(EncounterOfTheWeekGame.SeriesParts()) do
         if p.number == number then
-            found, title = true, p.title
+            found = p
         end
     end
-    if not found and FindMapByName(Series.PartMapName(mapName, number)) == nil then
+    if found == nil then
+        --the next part on its own part map: read that map's script.
+        local partMap = FindMapByName(Series.PartMapName(mapName, number))
+        if partMap == nil then
+            return nil
+        end
+        found = { number = number }
+        pcall(function()
+            for _, script in ipairs(EncounterMontage.ScriptForMap(partMap.id).parts or {}) do
+                local p = script.parse.part
+                if p.number == number then
+                    found = { number = number, title = p.title, comingSoon = p.comingSoon ~= nil, restFree = p.restFree == true }
+                end
+            end
+        end)
+    end
+    --a "Coming soon" part cannot be played yet, so it is not offered.
+    if found.comingSoon then
         return nil
     end
     local seriesKey = key:match("^(.-)#%d+$") or key
-    return { number = number, title = title, key = string.format("%s#%d", seriesKey, number) }
+    return { number = number, title = found.title, restFree = found.restFree == true, key = string.format("%s#%d", seriesKey, number) }
 end
 
 --"Part 2: Lush Garden" (or "Part 2") for Series.NextPart's answer.
@@ -1910,7 +1927,7 @@ pcall(function()
         local chosen = false
         --in this game only the host decides.
         local decides = not here or IsDMOrPlayerHost()
-        local body = UIText.T("encounter.series_next.body")
+        local body = UIText.T(cond(nextPart.restFree, "encounter.series_next.body_rest_free", "encounter.series_next.body"))
         if here then
             body = cond(decides, UIText.T("encounter.series_next.body_here"),
                 UIText.T("encounter.series_next.body_member", { host = Series.HostName() }))
@@ -2973,7 +2990,7 @@ local function UpdateEncounterConclusion()
                 else
                     choice = {
                         text = UIText.T("encounter.series_next.button", { part = label }),
-                        note = UIText.T("encounter.series_next.story_note", { part = label }),
+                        note = UIText.T(cond(nextPart.restFree, "encounter.series_next.story_note_rest_free", "encounter.series_next.story_note"), { part = label }),
                         onChoose = function()
                             Series.SetContinue(nextPart.key)
                         end,

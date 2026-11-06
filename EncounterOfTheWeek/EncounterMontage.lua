@@ -1037,7 +1037,8 @@ end
 local function PartSummaries(parts)
     local result = {}
     for _, script in ipairs(parts or {}) do
-        result[#result + 1] = { number = script.parse.part.number, title = script.parse.part.title }
+        local part = script.parse.part
+        result[#result + 1] = { number = part.number, title = part.title, comingSoon = part.comingSoon ~= nil, restFree = part.restFree == true }
     end
     return result
 end

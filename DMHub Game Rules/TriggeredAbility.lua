@@ -2237,8 +2237,10 @@ function TriggeredAbility:ExecuteTriggerCast(args)
 		--A trigger set not to wait for other casts (e.g. Monster Death, after a
 		--skull click) waits only for the cast it fired in and casts by or
 		--targeting its creature. A trigger that may prompt always waits.
+		--A dismissed trigger waits the same way: it only runs its On Dismiss
+		--steps (e.g. removing a minion), which show nothing.
 		local involving = nil
-		if not self.waitForOtherCasts and not self:MayBePrompted() then
+		if isDismissExec or (not self.waitForOtherCasts and not self:MayBePrompted()) then
 			involving = casterToken
 		end
 		ActivatedAbility.RunWhenCastsComplete(function()
@@ -2299,7 +2301,8 @@ function TriggeredAbility:SendTriggerCastToController(controllerid, args)
 	--here, and delivering mid-cast prompts the remote player while this
 	--machine is still resolving. The timestamp is refreshed at delivery so
 	--the deferral doesn't consume the 30-second staleness window checked by
-	--PumpRemoteInvokes.
+	--PumpRemoteInvokes. A dismissed trigger only runs its On Dismiss steps, so
+	--it waits only for casts by or targeting the creature.
 	print("RemoteTrigger:: shipping", self.name, "to controller", controllerid)
 
 	ActivatedAbility.RunWhenCastsComplete(function()
@@ -2315,7 +2318,7 @@ function TriggeredAbility:SendTriggerCastToController(controllerid, args)
 				invokes[#invokes+1] = DeepCopy(invocation)
 			end,
 		}
-	end, {casterid = casterToken.charid})
+	end, {casterid = casterToken.charid, involving = args.dismiss and casterToken or nil})
 end
 
 --Invoked by PumpRemoteInvokes on the controlling client. Reconstructs the

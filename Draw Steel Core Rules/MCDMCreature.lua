@@ -5737,7 +5737,12 @@ end
 local g_creatureSetTemporaryHitpoints = creature.SetTemporaryHitpoints
 function creature.SetTemporaryHitpoints(self, amount, note, options)
     options = options or {}
+    local poolBefore = self:TemporaryHitpoints()
     g_creatureSetTemporaryHitpoints(self, amount, note, options)
+    local poolAfter = self:TemporaryHitpoints()
+    if poolAfter > poolBefore then
+        GameSystem.NotifyPlayObservers("temporarystamina", self, poolBefore, poolAfter, note)
+    end
 
 
     if mod.unloaded then
@@ -6950,6 +6955,16 @@ function creature.TakeDamage(self, amount, note, info)
         end
     end
 
+    GameSystem.NotifyPlayObservers("damage", self, {
+        landed = original_amount,
+        lost = amount,
+        raw = eventArg.rawdamage,
+        damagetype = eventArg.damagetype,
+        source = info.sourcedescription or note,
+        cast = info.cast,
+        startofturn = info.startofturn,
+    })
+
     if (not info.doesNotTrigger) and original_amount > 0 then
         self:DispatchEvent("losehitpoints", eventArg)
     end
@@ -7342,6 +7357,18 @@ function creature.Heal(self, amount, note)
     end
 end
 
+--Every Stamina regain ends here, so this is where a record of play hears of it, with
+--what actually changed: the amount can be cut or capped on the way in.
+local g_creatureHeal = creature.Heal
+function creature.Heal(self, amount, note)
+    local before = self:CurrentHitpoints()
+    g_creatureHeal(self, amount, note)
+    local regained = self:CurrentHitpoints() - before
+    if regained > 0 then
+        GameSystem.NotifyPlayObservers("heal", self, regained, note)
+    end
+end
+
 function creature.SetStaminaDirect(self, amount, note)
     local isWindedAtStart = self:IsWinded()
     local isBelowZeroAtStart = self:CurrentHitpoints() <= 0
@@ -7467,7 +7494,7 @@ function creature:CanNavigateDifficultTerrain(flags)
 end
 
 --- @param token CharacterToken
---- @param info {type: string, amount: number, instances: number, aura: AuraInstance}
+--- @param info {type: string, amount: number, instances: number, aura: AuraInstance, startofturn: nil|boolean}
 function creature:AuraDamage(token, info)
     --Credit the damage to the aura's caster (e.g. Wall of Fire's elementalist), so
     --their "deal damage" triggers and damage stats count it.
@@ -7485,7 +7512,7 @@ function creature:AuraDamage(token, info)
         description = info.aura.aura.name,
         execute = function()
             for i = 1, info.instances do
-                self:InflictDamageInstance(info.amount, info.type, keywords, info.aura.aura.name, { damagesound = "Attack.Enviro", attacker = attacker })
+                self:InflictDamageInstance(info.amount, info.type, keywords, info.aura.aura.name, { damagesound = "Attack.Enviro", attacker = attacker, startofturn = info.startofturn })
             end
         end,
     }

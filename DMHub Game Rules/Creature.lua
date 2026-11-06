@@ -7,6 +7,42 @@ local mod = dmhub.GetModLoading()
 --- @field new fun(o?: table): GameSystem
 GameSystem = RegisterGameType("GameSystem")
 
+--Observers of play, by id, so a reload of the observing mod replaces its observer
+--instead of adding a second one.
+local g_playObservers = {}
+
+--- Registers functions told about things that happen in play, for code that keeps a
+--- record of it. handlers holds a function per moment, any of:
+---   began(ability, casterToken, targets, options): a cast has its castid and its
+---     symbols.cast, before anything is paid or resolved.
+---   finished(ability, casterToken, options): a cast ended. options.abort means it
+---     was cancelled and options.atexit that it stopped with an error.
+---   damage(creature, info): Stamina or temporary Stamina was hit. info: landed, lost,
+---     raw, damagetype, source, cast, startofturn.
+---   heal(creature, regained, note): Stamina went up by regained.
+---   temporarystamina(creature, before, after, note): the pool grew.
+--- None may yield. Any may fail: a broken observer is logged and play carries on.
+--- @param id string Unique name for this observer.
+--- @param handlers table<string, function>
+function GameSystem.RegisterPlayObserver(id, handlers)
+	g_playObservers[id] = handlers
+end
+
+--- Tells every observer that something happened. Safe in hot code: it costs a table
+--- lookup per observer, and a failure in one stops nothing.
+--- @param moment string
+function GameSystem.NotifyPlayObservers(moment, ...)
+	for id,handlers in pairs(g_playObservers) do
+		local fn = handlers[moment]
+		if fn ~= nil then
+			local ok, err = pcall(fn, ...)
+			if not ok then
+				print("GameSystem:: play observer failed:", id, moment, err)
+			end
+		end
+	end
+end
+
 --- @class StatHistoryEntry
 --- @field note nil|string
 --- @field disposition nil|string
@@ -11148,6 +11184,7 @@ function creature:BeginTurn(options)
                                 amount = damageInfo.damage,
                                 instances = 1,
                                 aura = auraInstance,
+                                startofturn = true,
                             })
                         end
                     end

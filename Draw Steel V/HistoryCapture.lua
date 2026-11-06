@@ -20,6 +20,12 @@ local mod = dmhub.GetModLoading()
 --- @field turnid? string On a turn owner: the initiative id, which identifies the turn.
 --- @field group? integer On a turn owner: how many creatures share this turn.
 --- @field minions? boolean On a turn owner: true when the group is minions.
+--- @field taken? number On a target: damage that landed, soaked included.
+--- @field healed? number On a target: Stamina regained.
+--- @field soaked? number On a target: how much of the damage temporary Stamina took.
+--- @field types? table<string, number> On a target: damage by type, typed damage only.
+--- @field immunity? {damagetype: string, amount: number} On a target: what immunity took off, or weakness added (negative).
+--- @field pool? {before: number, after: number} On a target: temporary Stamina that grew.
 
 --- The creature a token shows now, as plain data for an entry.
 --- @param token CharacterToken
@@ -104,11 +110,18 @@ end
 --dies without finishing leaves nothing behind.
 local g_casts = setmetatable({}, {__mode = "k"})
 
+--The same states by ActivatedAbilityCast: what a damage or heal can see of its cast.
+--An invoked ability shares its parent's cast, so its results join the parent's row.
+local g_byCast = setmetatable({}, {__mode = "k"})
+
 local function CastBegan(ability, casterToken, targets, options)
     if not History.Enabled() then
         return
     end
-    if options.dismiss or options.chatMessage ~= nil or not ability:ShowChatMessageOnCast() then
+    --a card from an earlier cast means this one shares it (an invoked ability).
+    local card = options.chatMessage
+    local sharesCard = card ~= nil and (options.symbols == nil or card.castid ~= options.symbols.castid)
+    if options.dismiss or sharesCard or not ability:ShowChatMessageOnCast() then
         return
     end
 
@@ -132,7 +145,15 @@ local function CastBegan(ability, casterToken, targets, options)
     if ability.targetType == "self" and #targets == 0 then
         AddTarget(entry, seen, casterToken)
     end
-    g_casts[options] = {entry = entry, seen = seen}
+    local state = {entry = entry, seen = seen}
+    g_casts[options] = state
+    local cast = options.symbols ~= nil and options.symbols.cast or nil
+    if cast ~= nil then
+        --an invoked ability with its own card takes over its parent's cast until it ends.
+        state.cast = cast
+        state.parent = g_byCast[cast]
+        g_byCast[cast] = state
+    end
 end
 
 local function AddRoll(entry, cast)
@@ -156,6 +177,10 @@ local function CastFinished(ability, casterToken, options)
         return
     end
     g_casts[options] = nil
+    state.finished = true
+    if state.cast ~= nil then
+        g_byCast[state.cast] = state.parent
+    end
     if options.abort then
         return
     end
@@ -181,4 +206,146 @@ local function CastFinished(ability, casterToken, options)
     History.Write(entry)
 end
 
-ActivatedAbility.RegisterCastObserver("history", {began = CastBegan, finished = CastFinished})
+--The cast running on this client right now, if it is one with a row. Nil for an
+--automatic trigger, and for anything outside a cast.
+local function OpenCast(cast)
+    if cast == nil then
+        local running = ActivatedAbility.CurrentCastInfo()
+        if running ~= nil and running.options ~= nil and running.options.symbols ~= nil then
+            cast = running.options.symbols.cast
+        end
+    end
+    return cast ~= nil and g_byCast[cast] or nil
+end
+
+--What to call the cause of a line: the note if it has one, else the running ability.
+local function Cause(note)
+    if note ~= nil and note ~= "" then
+        return note
+    end
+    local running = ActivatedAbility.CurrentCastInfo()
+    if running ~= nil and running.ability ~= nil then
+        return running.ability.name
+    end
+    return nil
+end
+
+--The target's place on a cast's row, added if the cast did not aim at it.
+local function RowTarget(state, token)
+    AddTarget(state.entry, state.seen, token)
+    return state.seen[token.charid]
+end
+
+local function WriteLine(token, family, facts)
+    local entry = {kind = "line", family = family, map = token.mapid, who = History.Creature(token)}
+    for key, value in pairs(facts) do
+        entry[key] = value
+    end
+    History.AddCombatFacts(entry)
+    History.Write(entry)
+end
+
+--Damage types worth naming. These three are how it was dealt, shown as movement in 1.6.
+local function TypeWord(damagetype)
+    if damagetype == nil or damagetype == "" or damagetype == "untyped"
+        or damagetype == "push" or damagetype == "collide" or damagetype == "fall" then
+        return nil
+    end
+    return string.lower(damagetype)
+end
+
+local function OnDamage(creature, info)
+    if not History.Enabled() then
+        return
+    end
+    local changed = info.raw - info.landed
+    if info.landed <= 0 and changed <= 0 then
+        return
+    end
+    local token = dmhub.LookupToken(creature)
+    if token == nil then
+        return
+    end
+
+    local soaked = info.landed - info.lost
+    local damagetype = TypeWord(info.damagetype)
+    local state = OpenCast(info.cast)
+    if state == nil then
+        if info.landed > 0 then
+            local cause = Cause(info.source)
+            if info.startofturn and cause ~= nil then
+                cause = "Start of turn: " .. cause
+            end
+            WriteLine(token, "damage", {
+                taken = info.landed,
+                soaked = soaked > 0 and soaked or nil,
+                damagetype = damagetype,
+                cause = cause,
+            })
+        end
+        return
+    end
+
+    local target = RowTarget(state, token)
+    if target == nil then
+        return
+    end
+    target.taken = (target.taken or 0) + info.landed
+    if soaked > 0 then
+        target.soaked = (target.soaked or 0) + soaked
+    end
+    if damagetype ~= nil and info.landed > 0 then
+        target.types = target.types or {}
+        target.types[damagetype] = (target.types[damagetype] or 0) + info.landed
+    end
+    if changed ~= 0 then
+        target.immunity = target.immunity or {damagetype = damagetype or "damage", amount = 0}
+        target.immunity.amount = target.immunity.amount + changed
+    end
+end
+
+local function OnHeal(creature, regained, note)
+    if not History.Enabled() then
+        return
+    end
+    local token = dmhub.LookupToken(creature)
+    if token == nil then
+        return
+    end
+    local state = OpenCast(nil)
+    if state == nil then
+        WriteLine(token, "heal", {healed = regained, cause = Cause(note)})
+        return
+    end
+    local target = RowTarget(state, token)
+    if target ~= nil then
+        target.healed = (target.healed or 0) + regained
+    end
+end
+
+local function OnTemporaryStamina(creature, before, after, note)
+    if not History.Enabled() then
+        return
+    end
+    local token = dmhub.LookupToken(creature)
+    if token == nil then
+        return
+    end
+    local state = OpenCast(nil)
+    if state == nil then
+        WriteLine(token, "temporarystamina", {before = before, after = after, cause = Cause(note)})
+        return
+    end
+    local target = RowTarget(state, token)
+    if target ~= nil then
+        target.pool = {before = target.pool ~= nil and target.pool.before or before, after = after}
+    end
+end
+
+GameSystem.RegisterPlayObserver("history", {
+    began = CastBegan,
+    finished = CastFinished,
+    damage = OnDamage,
+    heal = OnHeal,
+    temporarystamina = OnTemporaryStamina,
+})

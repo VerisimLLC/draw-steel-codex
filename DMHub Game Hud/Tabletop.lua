@@ -7469,7 +7469,7 @@ end
 --- resized so Tabletop.KeepView can show the same area once it has its new
 --- size. nil when the window is not showing its map live.
 --- @param rec table the window record
---- @return nil|{mapid: string, x1: number, y1: number, x2: number, y2: number}
+--- @return nil|{mapid: string, x1: number, y1: number, x2: number, y2: number, maximized: boolean}
 function Tabletop.CaptureView(rec)
     if rec.minimized or Tabletop.LiveWindowId() ~= rec.id then
         return nil
@@ -7478,25 +7478,57 @@ function Tabletop.CaptureView(rec)
     if b == nil then
         return nil
     end
-    return {mapid = game.currentMapId, x1 = b.x1, y1 = b.y1, x2 = b.x2, y2 = b.y2}
+    return {mapid = game.currentMapId, x1 = b.x1, y1 = b.y1, x2 = b.x2, y2 = b.y2, maximized = rec.maximized == true}
 end
 
 --- Zooms a resized window to the area Tabletop.CaptureView read, so the map
 --- fills it as much as it did before (David, 2026-10-17): maximizing a window
 --- framed on the whole map shows the whole map full screen, with bars only
 --- where the shapes differ.
+--- Restoring a maximized window goes back to the view it had before it was
+--- maximized, moved and zoomed by however the view was panned or zoomed while
+--- maximized. Fitting the maximized view back into the window would not: it
+--- includes the letterbox bars, so the map came back far smaller (David,
+--- 2026-11-06).
 --- @param rec table the window record
---- @param view nil|{mapid: string, x1: number, y1: number, x2: number, y2: number}
+--- @param view nil|{mapid: string, x1: number, y1: number, x2: number, y2: number, maximized: boolean}
 function Tabletop.KeepView(rec, view)
+    --rec.restoreView: {mapid, windowed, maximized}, the view before maximizing
+    --and the view maximizing framed. Runtime only, never saved.
+    local restore = rec.restoreView
+    rec.restoreView = nil
     if view == nil then
         return
+    end
+    local goingUp = not view.maximized and rec.maximized == true
+    local target = view
+    if view.maximized and not rec.maximized and restore ~= nil and restore.mapid == view.mapid then
+        --map the windowed view through the pan/zoom made while maximized
+        --(none: exactly the windowed view again).
+        local w, m = restore.windowed, restore.maximized
+        local sx = (view.x2 - view.x1) / (m.x2 - m.x1)
+        local sy = (view.y2 - view.y1) / (m.y2 - m.y1)
+        local dx = (view.x1 + view.x2) / 2 - (m.x1 + m.x2) / 2
+        local dy = (view.y1 + view.y2) / 2 - (m.y1 + m.y2) / 2
+        local cx, cy = (w.x1 + w.x2) / 2 + dx, (w.y1 + w.y2) / 2 + dy
+        local hw, hh = (w.x2 - w.x1) / 2 * sx, (w.y2 - w.y1) / 2 * sy
+        target = {mapid = view.mapid, x1 = cx - hw, y1 = cy - hh, x2 = cx + hw, y2 = cy + hh}
     end
     --a frame for the window's new size to reach the camera.
     dmhub.Schedule(0.1, function()
         if mod.unloaded or Tabletop.LiveWindowId() ~= rec.id or game.currentMapId ~= view.mapid then
             return
         end
-        dmhub.FrameMapArea({world = {x1 = view.x1, y1 = view.y1, x2 = view.x2, y2 = view.y2}})
+        dmhub.FrameMapArea({world = {x1 = target.x1, y1 = target.y1, x2 = target.x2, y2 = target.y2}})
+        --FrameMapArea moves the camera at once, so this is the maximized view.
+        local b = dmhub.cameraUsableBounds
+        if goingUp and rec.maximized and b ~= nil then
+            rec.restoreView = {
+                mapid = view.mapid,
+                windowed = view,
+                maximized = {x1 = b.x1, y1 = b.y1, x2 = b.x2, y2 = b.y2},
+            }
+        end
     end)
 end
 

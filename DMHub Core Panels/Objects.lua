@@ -193,7 +193,8 @@ end
 --image comes with the tooltip, or when the prop is placed). nil for any
 --other object; the pack check skips the lookup in games with no packs.
 local function PropsPackPreview(nodeid)
-	if #propspacks.packs == 0 then
+	--GetPreview is missing on engine builds older than the previews.
+	if #propspacks.packs == 0 or propspacks.GetPreview == nil then
 		return nil
 	end
 	return PropsPackImageId(propspacks.GetPreview(nodeid))

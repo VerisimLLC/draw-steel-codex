@@ -1018,26 +1018,8 @@ text("hud.rules_button.tooltip", [[Encounter Rules]])
 --the map maker's name follows it.
 text("hud.map_credit.lead", [[Map by]])
 
-----------------------------------------------------------------------------
--- ABOUT ENCOUNTER OF THE WEEK: the dialog from the Codex menu
-----------------------------------------------------------------------------
-
---The Codex menu item that opens the dialog, and the dialog's title.
-text("hud.about.menu_item", [[About Encounter of the Week]])
-text("hud.about.title", [[About Encounter of the Week]])
---The credits, one line each. {name} is the credited name (it may be a link).
-text("hud.about.credit.draw_steel", [[<b>Draw Steel</b> by {name}]])
-text("hud.about.credit.eotw", [[<b>Encounter of the Week</b> concept and engineering by {name}]])
-text("hud.about.credit.eotw_name", [[the Codex Development Team]])
-text("hud.about.credit.cartography", [[<b>Cartography</b> by {name}]])
---The heading over the encounter being played. {title} is its name.
-text("hud.about.encounter_heading", [[About {title}]])
---Under that heading. {name} is the encounter's author, or the map's maker
---(bold, and a link when they have a website).
-text("hud.about.written_by", [[Written by {name}]])
-text("hud.about.map_by", [[Map by {name}]])
---Short: a button.
-text("hud.about.close", [[Close]])
+--The About Encounter of the Week dialog's words are in
+--Codex Titlescreen/EotwTextTown.lua (it opens in town as well).
 
 ----------------------------------------------------------------------------
 -- PLAYERS LEAVING AND COMING BACK: the notices under the players row

@@ -43,6 +43,30 @@ text("eotw.veil.title", [[Encounter of the Week]])
 text("eotw.veil.loading", [[Loading]])
 
 ----------------------------------------------------------------------------
+-- ABOUT ENCOUNTER OF THE WEEK: the dialog from the Codex menu, in town and
+-- in an encounter
+----------------------------------------------------------------------------
+
+--The Codex menu item that opens the dialog, and the dialog's title.
+text("eotw.about.menu_item", [[About Encounter of the Week]])
+text("eotw.about.title", [[About Encounter of the Week]])
+--The credits, one line each. {name} is the credited name (it may be a link).
+text("eotw.about.credit.draw_steel", [[<b>Draw Steel</b> by {name}]])
+text("eotw.about.credit.eotw", [[<b>Encounter of the Week</b> concept and engineering by {name}]])
+text("eotw.about.credit.eotw_name", [[the Codex Development Team]])
+text("eotw.about.credit.montage", [[<b>Threats&Opportunities</b> Montage Concept by {name}]])
+text("eotw.about.credit.cartography", [[<b>Cartography</b> by {name}]])
+--In an encounter only: the heading over the encounter being played. {title}
+--is its name.
+text("eotw.about.encounter_heading", [[About {title}]])
+--Under that heading. {name} is the encounter's author, or the map's maker
+--(bold, and a link when they have a website).
+text("eotw.about.written_by", [[Written by {name}]])
+text("eotw.about.map_by", [[Map by {name}]])
+--Short: a button.
+text("eotw.about.close", [[Close]])
+
+----------------------------------------------------------------------------
 -- THE TOWN MAP: the plaque, the way out, the chat button
 ----------------------------------------------------------------------------
 

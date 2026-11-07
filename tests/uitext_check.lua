@@ -26,6 +26,7 @@ local DEFAULT_TEXT = {
 
 local DEFAULT_CODE = {
     "Codex Titlescreen/EncounterOfTheWeek.lua",
+    "Codex Titlescreen/EotwAbout.lua",
     "Codex Titlescreen/EotwAnalytics.lua",
     "Codex Titlescreen/EotwBuild.lua",
     "Codex Titlescreen/EotwBuilder.lua",

@@ -2505,15 +2505,28 @@ function EncounterOfTheWeek.TownScreen()
 end
 
 --Extra rows for the titlescreen's Codex menu (CodexTitleBar appends them).
---Admins get "New Player Window" while the town is open: a second app window
---logged in as the secondary account, which opens straight into this screen
---(see EncounterOfTheWeek.autoOpen). connect = false so the child does not
---borrow this process's lobby game -- it loads the secondary account's own.
+--Everyone gets "About Encounter of the Week" while the town is open (an
+--encounter has its own row, in EncounterOfTheWeekHud). Admins also get
+--"New Player Window": a second app window logged in as the secondary
+--account, which opens straight into this screen (see
+--EncounterOfTheWeek.autoOpen). connect = false so the child does not borrow
+--this process's lobby game -- it loads the secondary account's own.
 function EncounterOfTheWeek.CodexMenuItems()
-    if not dmhub.isAdminAccount or not EncounterOfTheWeek.IsScreenOpen() then
+    if not EncounterOfTheWeek.IsScreenOpen() then
         return {}
     end
+    local about = {
+        text = EotwAbout.MenuText(),
+        icon = "phosphor/info.png",
+        click = function()
+            EotwAbout.ShowInTown()
+        end,
+    }
+    if not dmhub.isAdminAccount then
+        return { about }
+    end
     return {
+        about,
         {
             text = "New Player Window",
             icon = "phosphor/users-three.png",

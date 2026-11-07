@@ -1869,7 +1869,8 @@ end
 --- (a subclass's features, a kit's signature ability, a complication's
 --- features), tagged with the pick, then outright skills and languages. The
 --- features are read with no picks applied, so a choice's picks never show
---- here (they are the pane's other blocks).
+--- here (they are the pane's other blocks). A feature for a domain the Hero did
+--- not pick is left out.
 --- @param token CharacterToken
 --- @param stepid string
 --- @return HeroBuilderPaneLine[]
@@ -1886,7 +1887,7 @@ local function StepGains(token, stepid)
             --features list in FeatureStack shows one instead).
             local isChoice = true
             pcall(function() isChoice = feature.IsDerivedFrom("CharacterChoice") end)
-            if feature ~= nil and not isChoice then
+            if feature ~= nil and not isChoice and Engine().hero.PrerequisitesMet(hero, feature) then
                 found[#found+1] = {feature = feature, tag = tag, shown = Engine().FeatureShown(feature), level = tonumber((entry.levels or {})[1]) or 1}
             end
         end

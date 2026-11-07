@@ -3185,22 +3185,27 @@ function MonsterAI:HandlePrompt(invokerToken, casterToken, abilityClone, symbols
         end
     end
 
-    --try_get: the invoker can be an object token (e.g. a wall voxel
-    --prompting for a target near it), whose TargetableObject
-    --properties have no monster_type field.
-    local qualifiedPrompt = string.format("%s:%s", invokerMonsterType, abilityClone.name)
+    --The invoker can be an object token (e.g. a wall voxel prompting for a
+    --target near it), whose TargetableObject properties have no monster_type
+    --field; AIMonsterTypes copes with that.
     --Monster-qualified handlers get the first chance to answer shared wrapper
-    --names. A nil result can then fall through to the generic handler.
+    --names (the invoker's own type, then its "similar to" type). A nil result
+    --can then fall through to the generic handler.
     local handlers = {}
-    local qualifiedHandler = self.prompts[qualifiedPrompt]
-    local genericHandler = self.prompts[abilityClone.name]
-    if qualifiedHandler ~= nil then
-        handlers[#handlers+1] = {
-            handler = qualifiedHandler,
-            name = qualifiedHandler.id or qualifiedPrompt,
-        }
+    local qualifiedHandlers = {}
+    for _,monsterType in ipairs(MonsterAI.AIMonsterTypes(invokerToken.properties)) do
+        local qualifiedPrompt = string.format("%s:%s", monsterType, abilityClone.name)
+        local qualifiedHandler = self.prompts[qualifiedPrompt]
+        if qualifiedHandler ~= nil and not qualifiedHandlers[qualifiedHandler] then
+            qualifiedHandlers[qualifiedHandler] = true
+            handlers[#handlers+1] = {
+                handler = qualifiedHandler,
+                name = qualifiedHandler.id or qualifiedPrompt,
+            }
+        end
     end
-    if genericHandler ~= nil and genericHandler ~= qualifiedHandler then
+    local genericHandler = self.prompts[abilityClone.name]
+    if genericHandler ~= nil and not qualifiedHandlers[genericHandler] then
         handlers[#handlers+1] = {
             handler = genericHandler,
             name = genericHandler.id or abilityClone.name,
@@ -3255,7 +3260,7 @@ function MonsterAI:HandlePrompt(invokerToken, casterToken, abilityClone, symbols
     else
         self:LogDecision("PROMPT DEFERRED", {
             ability = abilityClone.name,
-            prompt = qualifiedPrompt,
+            prompt = string.format("%s:%s", invokerMonsterType, abilityClone.name),
             reason = "no registered AI prompt handler",
             result = "Director prompt",
         })
@@ -3377,14 +3382,16 @@ function MonsterAI:FindTriggerHandler(token, triggerInfo)
     --which would miss the handler registered under the plain name.
     if type(triggerInfo.abilityName) == "string" then
         local abilityName = string.match(triggerInfo.abilityName, "^%s*(.-)%s*$")
-        local monsterType = token.properties:try_get("monster_type", "")
-        local qualifiedName = string.format("%s:%s", monsterType, abilityName)
-        local handler = MatchingHandler(self.triggerHandlersByMonsterAbility[qualifiedName])
-        if handler ~= nil then
-            return handler
+        --own monster type first, then its "similar to" type.
+        for _,monsterType in ipairs(MonsterAI.AIMonsterTypes(token.properties)) do
+            local qualifiedName = string.format("%s:%s", monsterType, abilityName)
+            local handler = MatchingHandler(self.triggerHandlersByMonsterAbility[qualifiedName])
+            if handler ~= nil then
+                return handler
+            end
         end
 
-        handler = MatchingHandler(self.triggerHandlersByAbility[abilityName])
+        local handler = MatchingHandler(self.triggerHandlersByAbility[abilityName])
         if handler ~= nil then
             return handler
         end
@@ -3393,11 +3400,12 @@ function MonsterAI:FindTriggerHandler(token, triggerInfo)
     local triggerText = triggerInfo:GetText()
     if type(triggerText) == "string" then
         triggerText = string.match(triggerText, "^%s*(.-)%s*$")
-        local monsterType = token.properties:try_get("monster_type", "")
-        local qualifiedText = string.format("%s:%s", monsterType, triggerText)
-        local handler = MatchingHandler(self.triggerHandlersByMonsterText[qualifiedText])
-        if handler ~= nil then
-            return handler
+        for _,monsterType in ipairs(MonsterAI.AIMonsterTypes(token.properties)) do
+            local qualifiedText = string.format("%s:%s", monsterType, triggerText)
+            local handler = MatchingHandler(self.triggerHandlersByMonsterText[qualifiedText])
+            if handler ~= nil then
+                return handler
+            end
         end
 
         return MatchingHandler(self.triggerHandlersByText[triggerText])
@@ -6754,6 +6762,76 @@ function MonsterAI:MovesInScoringOrder()
     return uncapped
 end
 
+--"Similar to" ------------------------------------------------------------
+--A monster's properties can name another monster type in `aiSimilarTo`, and
+--the AI then plays it like that monster: a reskinned or homebrew stat block
+--borrows the hand-written AI of the one it is based on. Registrations listing
+--either the monster's own type or the similar type apply, and band code that
+--asks "what is this monster?" gets the similar type (AIMonsterType). The
+--Monster AI panel's per-type switches stay keyed by the monster's own type.
+--Set in the Monster AI tab of the character sheet in an EotW authoring game.
+
+--- The monster type this creature's properties are similar to for AI
+--- purposes, or nil when they name none.
+--- @param props any creature properties (a bestiary entry's work too)
+--- @return string|nil
+function MonsterAI.SimilarMonsterType(props)
+    if props == nil then
+        return nil
+    end
+    local similar = nil
+    --try_get: object tokens' properties are not creatures.
+    pcall(function() similar = props:try_get("aiSimilarTo") end)
+    if type(similar) == "string" and similar ~= "" then
+        return similar
+    end
+    return nil
+end
+
+--- The monster type the AI plays this creature as: its "similar to" type when
+--- it has one, else its own monster_type ("" when it has neither).
+--- @param props any
+--- @return string
+function MonsterAI.AIMonsterType(props)
+    local similar = MonsterAI.SimilarMonsterType(props)
+    if similar ~= nil then
+        return similar
+    end
+    local monsterType = ""
+    pcall(function() monsterType = props:try_get("monster_type", "") end)
+    return monsterType or ""
+end
+
+--- The monster types registrations are matched against: the creature's own
+--- monster_type first, then its "similar to" type when it differs.
+--- @param props any
+--- @return string[]
+function MonsterAI.AIMonsterTypes(props)
+    local own = ""
+    pcall(function() own = props:try_get("monster_type", "") end)
+    own = own or ""
+    local similar = MonsterAI.SimilarMonsterType(props)
+    if similar ~= nil and similar ~= own then
+        return {own, similar}
+    end
+    return {own}
+end
+
+--- Does a registration's `monsters` list name any of these types?
+--- @param monsters string[]
+--- @param types string[]
+--- @return boolean
+function MonsterAI.ListsAnyMonsterType(monsters, types)
+    for i=1,#monsters do
+        for j=1,#types do
+            if monsters[i] == types[j] then
+                return true
+            end
+        end
+    end
+    return false
+end
+
 function MonsterAI.MoveMatchesMonster(token, move, includeDisabled)
     if move.id == "Minion Signature Ability" then
         --minion signatures cannot be disabled.
@@ -6770,16 +6848,10 @@ function MonsterAI.MoveMatchesMonster(token, move, includeDisabled)
         end
     end
     if move.monsters ~= nil then
-        for i=1,#move.monsters do
-            if move.monsters[i] == monster_type then
-                return true
-            end
-        end
+        return MonsterAI.ListsAnyMonsterType(move.monsters, MonsterAI.AIMonsterTypes(token.properties))
     else
         return true
     end
-
-    return false
 end
 
 --Initiative choice --------------------------------------------------------
@@ -9189,12 +9261,7 @@ function MonsterAI.HasBehavior(token, behaviorId, includeDisabled)
     local on = BehaviorSourceSetting(token, behaviorId)
     if on == nil then
         on = behavior.allMonsters == true
-        for _,listed in ipairs(behavior.monsters or {}) do
-            if listed == monsterType then
-                on = true
-                break
-            end
-        end
+            or MonsterAI.ListsAnyMonsterType(behavior.monsters or {}, MonsterAI.AIMonsterTypes(token.properties))
     end
     if not on then
         return false

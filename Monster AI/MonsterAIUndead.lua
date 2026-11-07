@@ -723,7 +723,7 @@ local cryxSpeech = {
 }
 
 local function CryxSays(ai, token, key)
-    if token.properties:try_get("monster_type", "") ~= "Captain Cryx" then
+    if MonsterAI.AIMonsterType(token.properties) ~= "Captain Cryx" then
         return
     end
     local lines = cryxSpeech[key]

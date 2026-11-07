@@ -2116,7 +2116,7 @@ local g_moduleTypes = {
 		--(see HeroModuleReviewAfterPublish below).
 		id = "hero",
 		text = "Hero Module",
-		description = "Options for building heroes, such as classes, ancestries and kits. Players add a Hero module to their inventory from the titlescreen, and it is added automatically to any game a hero using it enters. Heroes included in it become pregens: they are added to games unclaimed, and offered wherever pregens are, such as Encounter of the Week. A Hero module can't contain maps. If it contains code, an admin must approve each version before players can add it to their inventory; Directors can still install it into a game like any module.",
+		description = "Options for building heroes, such as classes, ancestries and kits. Players add a Hero module to their inventory from the titlescreen, and it is added automatically to any game a hero using it enters. Heroes included in it become pregens: they are added to games unclaimed, and offered wherever pregens are, such as Encounter of the Week. A Hero module can't contain maps. If it contains code, an admin must approve that code before players can add it to their inventory; a later version that uses only code already approved needs no new review. Directors can still install it into a game like any module.",
 		validate = function(ctx)
 			local errors = {}
 			local warnings = {}
@@ -2212,6 +2212,12 @@ local HeroModuleReviewAfterPublish = function(moduleInstance, versionid, codeMod
 		success = function(data)
 			if type(data) ~= "table" or data.error then
 				report(string.format("Sending it for review failed: %s", type(data) == "table" and data.error or "invalid response"))
+				return
+			end
+			--the server approves a version at once when an admin has already
+			--approved all of its code mods (heroModuleReviewRequest).
+			if data.status == "approved" then
+				report("Its code was approved for an earlier version, so players can use it as a Hero module now.")
 				return
 			end
 			report("Its code has been sent to an admin for review. Players can add it to their inventory once it is approved; Directors can install it now.")

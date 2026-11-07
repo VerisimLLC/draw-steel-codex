@@ -30,6 +30,7 @@ local mod = dmhub.GetModLoading()
 --- @field ability? {name: string, icon: string|nil, action: string|nil, free: boolean|nil} What was used.
 --- @field roll? {total: number, low: number|nil, high: number|nil, edges: number, banes: number, tier: number} The power roll.
 --- @field cause? string On an automatic trigger or a minions line: id of the cast behind it.
+--- @field landedby? HistoryCreature On an automatic trigger: the creature that fell on its target.
 --- @field aliases? string[] On an action: ids of casts inside it that have no row of their own.
 --- @field family? string On a line (kind "line"): "damage", "heal", "temporarystamina",
 --- "condition", "ended", "save", "persistence", "encounterend", "threshold", "minions",

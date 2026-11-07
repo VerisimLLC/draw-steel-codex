@@ -35,6 +35,7 @@ local mod = dmhub.GetModLoading()
 --- @field recovered? string On a target: "winded" or "dying" if this ended that.
 --- @field squad? string On a minion: the name of its squad.
 --- @field moved? {kind: string, distance: number, fell: number, collision: number, walls: number, path: table|nil} On a target: how another creature moved it. The path is for the side view.
+--- @field landedon? boolean On a target: a creature fell on it.
 
 --- The creature a token shows now, as plain data for an entry.
 --- @param token CharacterToken
@@ -170,18 +171,39 @@ local function Falling(token)
     return nil
 end
 
+--The creature whose fall set off this trigger, if one did. The engine fires "fallenon" only
+--on creatures in the landing square, so being landed on is never guessed from the damage,
+--which is called Fall Damage either way. A creature that simply fell only gets "fall".
+local function FallerOf(ability, casterToken, options)
+    if ability.typeName ~= "TriggeredAbility" then
+        return nil
+    end
+    if ability.trigger == "fall" then
+        return casterToken
+    end
+    local symbols = options.symbols
+    if ability.trigger == "fallenon" and symbols ~= nil and symbols.fallingcreature ~= nil then
+        return dmhub.LookupToken(symbols.fallingcreature)
+    end
+    return nil
+end
+
 local function CastBegan(ability, casterToken, targets, options)
     if not History.Enabled() or options.dismiss then
         return
     end
 
     --what a fall does belongs to the push that caused it, so it goes on that row.
-    if ability.typeName == "TriggeredAbility" and ability.trigger == "fall" then
-        local falling = Falling(casterToken)
-        if falling ~= nil and falling.row ~= nil then
-            g_casts[options] = {entry = falling.row.entry, seen = falling.row.seen, landingOn = falling.row}
-            return
-        end
+    local faller = FallerOf(ability, casterToken, options)
+    local falling = faller ~= nil and Falling(faller) or nil
+    if falling ~= nil and falling.row ~= nil then
+        g_casts[options] = {
+            entry = falling.row.entry,
+            seen = falling.row.seen,
+            landingOn = falling.row,
+            landedOn = ability.trigger == "fallenon" and casterToken.charid or nil,
+        }
+        return
     end
 
     --a card from an earlier cast means this one shares it (an invoked ability).
@@ -206,6 +228,7 @@ local function CastBegan(ability, casterToken, targets, options)
                 name = ability.name,
                 free = ability:ActionResource() == CharacterResource.freeTriggeredActionResourceId or nil,
             },
+            landedby = faller ~= nil and faller ~= casterToken and History.Creature(faller) or nil,
             targets = {},
         }, targets, options)
         state.automatic = true
@@ -281,6 +304,11 @@ local function CastFinished(ability, casterToken, options)
     end
     g_casts[options] = nil
     if state.landingOn ~= nil then
+        --only set here, so a creature the fall changed nothing on stays off the row.
+        local landedOn = state.landedOn ~= nil and state.seen[state.landedOn] or nil
+        if landedOn ~= nil then
+            landedOn.landedon = true
+        end
         if state.landingOn.finished then
             History.Rewrite(state.entry)
         end
@@ -504,6 +532,12 @@ local function OnFell(creature, info)
     if falling == nil then
         return
     end
+    if falling.landed then
+        --it already landed from the push, so this is a new fall the push did not cause.
+        g_falling[token.charid] = nil
+        return
+    end
+    falling.landed = true
     falling.moved.fell = info.distance
     if falling.row == nil or falling.row.finished then
         History.Rewrite(falling.entry)

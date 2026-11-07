@@ -443,6 +443,9 @@ local function Captions(who, minions)
     if who.moved ~= nil then
         Add(MovedWords(who.moved))
     end
+    if who.landedon then
+        Add("Landed on")
+    end
     if who.recovered ~= nil then
         Add(string.format("No longer %s", who.recovered), nil, "historyGood")
     end
@@ -1471,8 +1474,12 @@ end
 --A trigger with no action to nest under reads as lines naming the feature, one for
 --each thing it did. These are the same words as any other line.
 local function AddLoneTrigger(items, entry, key)
+    local causetext = entry.ability.name
+    if entry.landedby ~= nil then
+        causetext = string.format("Landed on by %s", ShownName(entry.landedby))
+    end
     for i, who in ipairs(entry.targets) do
-        local base = {kind = "line", who = who, causetext = entry.ability.name}
+        local base = {kind = "line", who = who, causetext = causetext}
         local parts = {}
         if (who.taken or 0) > 0 then
             parts[#parts + 1] = {family = "damage", taken = who.taken, soaked = who.soaked, damagetype = OnlyType(who)}

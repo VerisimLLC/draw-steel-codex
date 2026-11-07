@@ -291,3 +291,5 @@ because "Dying Ended" could read as the creature died.
 | D7 | Forced movement under a target | Push {n} / Pull {n} / Slide {n} / Vertical push {n} / Vertical pull {n} |
 | D8 | With a fall, or only a fall | Push {n} · fell {m} / Fell {m} |
 | D9 | Forced movement, no action | {Creature} was pushed {n} squares, it fell {m} squares |
+| D10 | A creature landed on, on the push's row (signed off 2026-11-07) | Landed on |
+| D11 | Cause when a creature landed on it, no push (signed off 2026-11-07) | Landed on by {Creature} |

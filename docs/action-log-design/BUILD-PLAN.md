@@ -102,7 +102,13 @@ Goal: the "did it change the table?" rule, on the glance. One family per chunk.
   too many and `path.fallDistance` reads 0 afterwards. The real distance only comes with the `fall`
   event, which the engine fires when the animation ends, outside any cast. So the push leaves its row
   in `g_falling`, and the landing and the Fall Damage trigger join that row, even if it has closed.
-  A fall with no push behind it stays a line, cause Fall Damage. A creature landed on is still a line.
+  A fall with no push behind it stays a line, cause Fall Damage.
+- **A creature landed on** joins the push's row with the caption Landed on. With no push behind the fall
+  it is a line, cause Landed on by {name}. Nothing is guessed from the damage, which is called Fall
+  Damage either way: the engine fires `fallenon` only on creatures in the landing square, and its symbols
+  name the faller. Tested for real, pushes in both orders, falls with no push, and a second fall inside
+  the push's window, which stays off the row. Not tested across clients: if a trigger runs on another
+  client it finds no push there and reads as a line, which is still true.
 - **Tested for real:** Brutal Slam on two clients, real heal and temporary Stamina behaviors, a Reactor
   trigger nested across clients, real end of turn, a real passing save, a real push with Growing
   Ferocity nested, a real push off a ledge in both orders (row closed before and after the landing),

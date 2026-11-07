@@ -18,7 +18,7 @@ local mod = dmhub.GetModLoading()
 --- @field hero boolean True on the heroes' side.
 --- @field secret? boolean True when players may not see the name.
 --- @field tier? integer On a target: the tier of the roll against it.
---- @field roll? {edges: number, banes: number, total: number} On a target: its own roll, when edges or banes against it alone changed the total.
+--- @field roll? {edges: number, banes: number, total: number, sources: HistoryEdgeSource[]|nil} On a target: its own roll, when edges or banes against it alone changed the total.
 --- @field turnid? string On a turn owner: the initiative id, which identifies the turn.
 --- @field group? integer On a turn owner: how many creatures share this turn.
 --- @field minions? boolean On a turn owner: true when the group is minions.
@@ -38,6 +38,14 @@ local mod = dmhub.GetModLoading()
 --- @field squad? string On a minion: the name of its squad.
 --- @field moved? {kind: string, distance: number, fell: number, collision: number, walls: number, path: table|nil} On a target: how another creature moved it. The path is for the side view.
 --- @field landedon? boolean On a target: a creature fell on it.
+
+--- Something that added edges or banes to a roll, as the roll dialog named it.
+--- @class HistoryEdgeSource
+--- @field name string The modifier's name, spoiler markup kept; "" when set by hand.
+--- @field edges? integer Edges it added.
+--- @field banes? integer Banes it added.
+--- @field who? HistoryCreature On a trigger: whose trigger it is.
+--- @field hand? boolean Set with the roll dialog's edge and bane buttons.
 
 --- The creature a token shows now, as plain data for an entry.
 --- @param token CharacterToken
@@ -348,6 +356,23 @@ local function AddRoll(entry, cast, ability, caster)
     end
 end
 
+--The roll dialog's sources for one target (2.3a), with a trigger's owner as it looks now.
+--- @return HistoryEdgeSource[]
+local function EdgeSources(sources)
+    local result = {}
+    for _, source in ipairs(sources) do
+        local owner = source.charid ~= nil and dmhub.GetCharacterById(source.charid) or nil
+        result[#result + 1] = {
+            name = source.name or "",
+            edges = source.edges,
+            banes = source.banes,
+            who = owner ~= nil and History.Creature(owner) or nil,
+            hand = source.hand,
+        }
+    end
+    return result
+end
+
 local function CastFinished(ability, casterToken, options)
     local state = g_casts[options]
     if state == nil then
@@ -398,9 +423,22 @@ local function CastFinished(ability, casterToken, options)
                 seen[tokenid].tier = tier
             end
         end
+        local targetSources = cast:try_get("targetSources", {})
         for tokenid, roll in pairs(cast:try_get("targetRolls", {})) do
             if seen[tokenid] ~= nil then
-                seen[tokenid].roll = {edges = roll.edges, banes = roll.banes, total = roll.total}
+                local sources = targetSources[tokenid]
+                seen[tokenid].roll = {edges = roll.edges, banes = roll.banes, total = roll.total,
+                    sources = sources ~= nil and EdgeSources(sources) or nil}
+            end
+        end
+        --the roll's own sources are a target's with no roll of its own, as its tier is. Two
+        --such targets can owe the same edges to different things; the first one's show.
+        if entry.roll ~= nil then
+            for _, who in ipairs(entry.targets) do
+                if who.roll == nil and targetSources[who.id] ~= nil then
+                    entry.roll.sources = EdgeSources(targetSources[who.id])
+                    break
+                end
             end
         end
     end

@@ -330,3 +330,14 @@ The receipt (chunk 2.2) uses C3, C3s, C4/C4b/C4c and T12 as signed. These are th
 | Z5 | Immunity or weakness | Damage immunity 2 / Fire immunity 3 (the Why leads) / Fire weakness 3 |
 | Z6 | A flat roll bonus with no name behind it | Bonus |
 | Z7 | A Heroic Resource cost | Cost: {n} {Heroic Resource}, e.g. Cost: 3 Ferocity (C3's pattern) |
+
+## Round 8: the edge and bane sources (signed off 2026-11-08)
+
+C5 as signed needs facts the Codex doesn't record (who you flank with, whether a strike was melee). The
+receipt names each source as the roll dialog's badge did when the roll was made, so History repeats what
+the player saw. This replaces C5.
+| ID | Source | Text |
+|---|---|---|
+| C5 | A modifier | its badge name: Flanking / High Ground / Cover / Prone / Target is {name} |
+| C5t | Another creature's trigger | {Owner}'s {trigger}, e.g. Reactor 1's Test 5 |
+| C5h | The dialog's edge and bane buttons | Set by hand |

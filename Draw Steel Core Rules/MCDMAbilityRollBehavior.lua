@@ -2311,6 +2311,11 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
                         local targetRolls = options.symbols.cast:get_or_add("targetRolls", {})
                         targetRolls[targetToken.charid] = {edges = effective.boons, banes = effective.banes, total = effective.total}
                     end
+                    --and what gave this target's roll its edges and banes, as the roll dialog named them.
+                    if multitarget.edgeSources ~= nil and #multitarget.edgeSources > 0 then
+                        local targetSources = options.symbols.cast:get_or_add("targetSources", {})
+                        targetSources[targetToken.charid] = multitarget.edgeSources
+                    end
 
                     --Check modifiers actually applied to roll for this target
                     for _, mod in ipairs(m_rollInfo.properties.multitargets[numTarget].modifiersUsed or {}) do

@@ -186,6 +186,20 @@ Goal: why it happened, one click from the row.
 - **Tested:** a real Brutal Slam (5 + 5, Might 2, an edge from Prone, 14, Tier 2, 8 taken) and a fed
   entry with three edges and a bane, a flat bonus, a target cancelled out on its own roll, typed damage
   with immunity, a weakness, two goblins grouped, healing, a damaging trigger and a Malice cost.
+- **2.3 in four commits:** 2.3a edge and bane sources, 2.3b surges and kit bonuses, 2.3c Why lines and
+  typed messages, 2.3d the ability card on hover.
+- **2.3a, edge and bane sources:** under each edge or bane line, one line per thing that added to it
+  (COPY.md Round 8): its arrows, a trigger owner's face, its name as the roll dialog's badge showed it;
+  edges first, Set by hand last on each side, then the C4 note. The roll dialog measures each enabled
+  modifier's edges and banes as CalculateRollText applies it (so the sources add up to the counts) and
+  keeps the list on each target row as `edgeSources`; the power roll copies it onto the cast as
+  `targetSources`; capture keeps it on the roll (from a target with no roll of its own) and on a
+  target's own roll. Spoilered names stay redacted for players, as in the dialog.
+- **Limits of 2.3a:** a source that only removes edges or banes (Ignore Edges) is not listed. Two targets
+  with the same counts from different sources show the first one's under Power roll.
+- **Found in 2.3a:** pressing the dialog's Roll Dice by its text over the bridge hits the side tab's
+  label, not the button; click it with the virtual mouse. 2.2's `targetRolls` path is live (it sits in
+  the same per-target block, which a real cast reaches).
 
 ## Stage 3: getting to it
 

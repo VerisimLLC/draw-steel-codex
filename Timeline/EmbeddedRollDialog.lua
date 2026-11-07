@@ -1146,6 +1146,7 @@ function GameHud.CreateEmbeddedRollDialog()
     --- @field surges nil|number
     --- @field modifiers EmbeddedRollModifierEntry[]
     --- @field modifiersUsed nil|CharacterModifier[] snapshot of the roll's active modifiers.
+    --- @field edgeSources nil|EmbeddedRollEdgeSource[] what gave this target's roll its edges and banes.
     --- @field rollProperties nil|RollProperties
     --- @field triggers table[] free-form trigger records.
 
@@ -1594,6 +1595,19 @@ function GameHud.CreateEmbeddedRollDialog()
 
     local m_activeModifiers = {}
 
+    --- One thing that added edges or banes to the roll, named as its badge in this dialog.
+    --- History shows them under the roll's edge and bane line.
+    --- @class EmbeddedRollEdgeSource
+    --- @field name string The modifier's name, spoiler markup kept; "" when set by hand.
+    --- @field edges nil|integer Edges it added.
+    --- @field banes nil|integer Banes it added.
+    --- @field charid nil|string On a trigger: the creature whose trigger it is.
+    --- @field hand nil|boolean Set with the dialog's edge and bane buttons.
+
+    --- Rebuilt by each CalculateRollText, beside m_activeModifiers.
+    --- @type EmbeddedRollEdgeSource[]
+    local m_edgeSources = {}
+
     local m_rollResults
     local m_customContainer
     local m_tableContainer
@@ -1947,11 +1961,36 @@ function GameHud.CreateEmbeddedRollDialog()
         end
     end
 
+    --What each modifier adds to the edges and banes, measured as it is applied, so the
+    --sources always add up to the roll's counts. Only the additions are kept.
+    local function RecordEdgeSource(mod, before, rollText)
+        local after = dmhub.ParseRoll(rollText)
+        if before == nil or after == nil then
+            return after
+        end
+        local edges = (after.boons or 0) - (before.boons or 0)
+        local banes = (after.banes or 0) - (before.banes or 0)
+        if edges > 0 or banes > 0 then
+            local name = mod.modifier.name or ""
+            if mod.modFromTarget then
+                name = string.format("Target is %s", name)
+            end
+            m_edgeSources[#m_edgeSources + 1] = {
+                name = name,
+                edges = edges > 0 and edges or nil,
+                banes = banes > 0 and banes or nil,
+                charid = mod.modifier:try_get("_tmp_triggerCharid"),
+            }
+        end
+        return after
+    end
+
     --this is the current 'base roll' that is being calculated based on.
     local baseRoll = '1d6'
     --requirementPass: set only by the rebuild below, so the text is rebuilt at most once.
     CalculateRollText = function(calculationOptions, requirementPass)
         m_activeModifiers = {}
+        m_edgeSources = {}
 
         local rollDisallowed = nil
 
@@ -1994,6 +2033,9 @@ function GameHud.CreateEmbeddedRollDialog()
 
         if GameSystem.UseBoons then
             roll = GameSystem.ApplyBoons(roll, m_boons)
+            if m_boons ~= 0 then
+                m_edgeSources[1] = {name = "", hand = true, edges = m_boons > 0 and m_boons or nil, banes = m_boons < 0 and -m_boons or nil}
+            end
         end
 
         if creature then
@@ -2012,9 +2054,13 @@ function GameHud.CreateEmbeddedRollDialog()
         local afterCritMods = {}
 
         if creature then
+            local edgesBefore = GameSystem.UseBoons and dmhub.ParseRoll(roll) or nil
             for i, mod in ipairs(enabledModifiers) do
                 --call this generic function which might be modified by mods.
                 roll = mod.modifier:ApplyToRoll(mod.context, creature, targetCreature, rollType, roll)
+                if edgesBefore ~= nil then
+                    edgesBefore = RecordEdgeSource(mod, edgesBefore, roll)
+                end
 
                 if rollType == 'damage' then
                     if mod.modFromTarget then
@@ -5881,6 +5927,7 @@ function GameHud.CreateEmbeddedRollDialog()
             local rollInfo = dmhub.ParseRoll(roll, m_multitargets[index].token.properties)
 
             m_multitargets[index].modifiersUsed = DeepCopy(m_activeModifiers)
+            m_multitargets[index].edgeSources = m_edgeSources
             m_multitargets[index].rollProperties = DeepCopy(rollProperties)
             m_multitargets[index].rollProperties.multitargets = nil
             m_multitargets[index].boons = (rollInfo.boons or 0)
@@ -6044,6 +6091,7 @@ function GameHud.CreateEmbeddedRollDialog()
                     -- effects (surges etc.) are never applied on roll acceptance.
                     CalculateRollText{surges = m_multitargets[index].surges or 0}
                     m_multitargets[index].modifiersUsed = DeepCopy(m_activeModifiers)
+                    m_multitargets[index].edgeSources = m_edgeSources
                     m_multitargets[index].rollProperties = DeepCopy(rollProperties)
                 end
             end

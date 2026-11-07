@@ -318,6 +318,13 @@ local function Styles()
             color = "@fgMuted",
         },
         {
+            --between the receipt's lines and its notes, as the prototype's sources are.
+            selectors = {"label", "historyReceiptSource"},
+            fontSize = 13,
+            color = "@fg",
+            opacity = 0.8,
+        },
+        {
             selectors = {"label", "historyReceiptNote"},
             fontSize = 12,
             italics = true,

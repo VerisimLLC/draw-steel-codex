@@ -934,7 +934,59 @@ local function SubHead(text, width, who)
     }
 end
 
-local function AddEdgeLines(rows, width, edges, banes, forTarget)
+--A source's name as the roll dialog shows it: a spoilered name stays a redaction bar for
+--players until the Director reveals it there.
+local function SpoilerName(name)
+    if not PowerRollSpoilers.HasSpoiler(name) then
+        return name
+    end
+    return PowerRollSpoilers.Format(name, PowerRollSpoilers.IsRevealed(PowerRollSpoilers.Key(name), PowerRollSpoilers.DefaultRevealed(name)))
+end
+
+local SOURCE_INDENT = 16
+
+--One thing that gave the roll edges or banes, under the line it changed (C5): its arrows,
+--a trigger owner's face, and its name as the roll dialog showed it.
+--- @param source HistoryEdgeSource
+--- @param side "edge"|"bane"
+local function SourceLine(width, source, side)
+    local children = {Chevrons(side, math.min((side == "edge" and source.edges or source.banes) or 0, 2))}
+    local text = "Set by hand"
+    if not source.hand then
+        text = SpoilerName(source.name)
+        if source.who ~= nil then
+            local face = History.Face(source.who, 18)
+            face.selfStyle.rmargin = 6
+            face.selfStyle.halign = "left"
+            children[#children + 1] = face
+            text = string.format("%s's %s", History.ShownName(source.who), text)
+        end
+    end
+    children[#children + 1] = gui.Label{
+        classes = {"historyReceiptSource"},
+        text = text,
+        width = "auto",
+        maxWidth = width - SOURCE_INDENT - 48,
+        height = "auto",
+        halign = "left",
+        valign = "center",
+    }
+    return gui.Panel{
+        flow = "horizontal",
+        width = width - SOURCE_INDENT,
+        height = "auto",
+        lmargin = SOURCE_INDENT,
+        vpad = 1,
+        borderBox = true,
+        halign = "left",
+        children = children,
+    }
+end
+
+--The net edge or bane line, what gave it each edge and bane (edges first, set by hand
+--last on each side), then the rule note.
+--- @param sources HistoryEdgeSource[]|nil
+local function AddEdgeLines(rows, width, edges, banes, forTarget, sources)
     local net = NetEdges(edges, banes)
     if net == nil then
         return
@@ -950,6 +1002,16 @@ local function AddEdgeLines(rows, width, edges, banes, forTarget)
         aside = net.aside,
         value = net.value,
     })
+    for _, side in ipairs({"edge", "bane"}) do
+        local field = side == "edge" and "edges" or "banes"
+        for pass = 1, 2 do
+            for _, source in ipairs(sources or {}) do
+                if (source[field] or 0) > 0 and (source.hand == true) == (pass == 2) then
+                    rows[#rows + 1] = SourceLine(width, source, side)
+                end
+            end
+        end
+    end
     if net.note ~= nil then
         rows[#rows + 1] = ReceiptNote(width, net.note)
     end
@@ -969,7 +1031,7 @@ end
 --what landed. count > 1 for numbered creatures that all got the same.
 local function AddTargetLines(rows, width, entry, who, count)
     if who.roll ~= nil then
-        AddEdgeLines(rows, width, who.roll.edges, who.roll.banes, true)
+        AddEdgeLines(rows, width, who.roll.edges, who.roll.banes, true, who.roll.sources)
         rows[#rows + 1] = ReceiptLine(width, {label = "Their roll", badge = who.tier, value = tostring(who.roll.total), total = true})
     end
     --what dealt it: the tier against this target, or the ability when nothing was rolled.
@@ -1028,7 +1090,14 @@ local function ReceiptKey(who)
     end
     table.sort(types)
     local immunity = who.immunity ~= nil and (who.immunity.damagetype .. who.immunity.amount) or ""
-    local roll = who.roll ~= nil and string.format("%d/%d/%d", who.roll.edges or 0, who.roll.banes or 0, who.roll.total) or ""
+    local roll = ""
+    if who.roll ~= nil then
+        local names = {}
+        for _, source in ipairs(who.roll.sources or {}) do
+            names[#names + 1] = string.format("%s%s/%d/%d", source.name, source.who ~= nil and source.who.id or "", source.edges or 0, source.banes or 0)
+        end
+        roll = string.format("%d/%d/%d/%s", who.roll.edges or 0, who.roll.banes or 0, who.roll.total, table.concat(names, ","))
+    end
     return string.format("%s|%d|%d|%s|%s|%s", tostring(who.tier), who.taken or 0, who.healed or 0, table.concat(types, ","), immunity, roll)
 end
 
@@ -1053,7 +1122,7 @@ local function NumbersRows(entry, kids, width)
                 rows[#rows + 1] = ReceiptLine(width, {label = "Bonus", value = Signed(roll.bonus)})
             end
         end
-        AddEdgeLines(rows, width, roll.edges, roll.banes, false)
+        AddEdgeLines(rows, width, roll.edges, roll.banes, false, roll.sources)
         --the tier of the roll itself: a target with edges or banes of its own got another.
         local tier = roll.tier
         for _, who in ipairs(targets) do

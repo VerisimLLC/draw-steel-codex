@@ -510,9 +510,11 @@ local function AddGrowingTables(ctx)
     end
 end
 
---Held titles the shared read did not list. A title whose benefit is not
---chosen yet shows its own text and the Choose a benefit plate, which opens
---the Titles window on it. Needs AddReaderItems (ctx.titled).
+--Held titles the shared read did not list: one still to choose, or one whose
+--benefit is tagged Hidden (Elemental Dabbler's Blaster and Immunity). The card
+--shows the title's own text, then the picked benefit's name and text; while a
+--pick is missing, the Choose a benefit plate opens the Titles window on it.
+--Needs AddReaderItems (ctx.titled).
 --- @param ctx HeroFeatureReadContext
 local function AddTitles(ctx)
     local heldTitles = {}
@@ -521,41 +523,75 @@ local function AddTitles(ctx)
             heldTitles[title.name] = title
         end
     end)
+    --- @type table<string, HeroSkillsDraft>
+    local drafts = {}
     --- @param name string
-    --- @return nil|string the title's id when its benefit choice has no pick
-    local function TitleToChoose(name)
+    --- @return nil|string todo the title's id when a pick is still to make
+    --- @return table[] benefits the picked benefit features
+    local function TitleBenefits(name)
         local title = heldTitles[name]
         if title == nil then
-            return nil
+            return nil, {}
         end
-        local info = title:try_get("modifierInfo")
-        for _, feature in ipairs((info ~= nil and info.features) or {}) do
-            if feature.typeName == "CharacterFeatureChoice" then
-                local picks = ctx.levelChoices[feature.guid]
-                if type(picks) ~= "table" or picks[1] == nil then
-                    return title.id
-                end
-            end
-        end
-        return nil
+        local walk = HeroSheetWindows.TitleWalk(title, ctx.creature, ctx.levelChoices, drafts)
+        return cond(walk.todo, title.id, nil), walk.benefits
     end
     for _, entry in ipairs((ctx.groups.title ~= nil and ctx.groups.title.items) or {}) do
         if entry.name ~= nil and not ctx.titled[entry.name] then
             ctx.titled[entry.name] = true
+            local todo, benefits = TitleBenefits(entry.name)
+            local names = {}
+            local text = OwnText(entry)
+            local abilities = {}
+            local grants = {}
+            for _, benefit in ipairs(benefits) do
+                for _, ability in ipairs(GrantedAbilities(benefit)) do
+                    abilities[#abilities+1] = ability
+                end
+                for _, grant in ipairs(Grants(benefit)) do
+                    grants[#grants+1] = grant
+                end
+                local benefitName = nil
+                pcall(function() benefitName = benefit.name end)
+                if benefitName ~= nil and benefitName ~= entry.name then
+                    names[#names+1] = benefitName
+                end
+                local words = ""
+                pcall(function() words = Clean(benefit:GetDescription()) end)
+                if words ~= "" then
+                    text = cond(text ~= "", text .. "\n\n" .. words, words)
+                end
+            end
             ctx.Add("title", {
-                titleChoose = TitleToChoose(entry.name),
+                titleChoose = todo,
                 key = tostring(entry.guid or entry.name),
                 name = entry.name,
-                sub = nil,
-                text = OwnText(entry),
+                sub = cond(#names > 0, table.concat(names, DOT), nil),
+                text = text,
                 pillars = {},
                 core = false,
                 custom = false,
-                abilities = {},
+                abilities = abilities,
                 search = "",
                 feature = entry.feature,
-                grants = {},
+                grants = grants,
             })
+        end
+    end
+    --A title the shared read listed can still owe a pick: some titles have two
+    --choices, and the read lists the benefit of the one already made. The
+    --title's first card carries the plate.
+    local section = ctx.model.sections.title
+    local checked = {}
+    for _, item in ipairs((section ~= nil and section.items) or {}) do
+        if not checked[item.name] then
+            checked[item.name] = true
+            if item.titleChoose == nil then
+                item.titleChoose = (TitleBenefits(item.name))
+                if item.titleChoose ~= nil then
+                    section.need = section.need + 1
+                end
+            end
         end
     end
 end

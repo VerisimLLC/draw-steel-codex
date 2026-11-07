@@ -683,10 +683,10 @@ function HeroBuild.Create(options)
         local step = SourceInfo(stepid)
         local title = step and step.title or stepid
         local details, separate = StepFeatureDetails(hero, stepid)
-        --a complication's features name no complication (their source says
-        --only "Feat"), so its choices carry the complication's name.
+        --a complication's or title's features name neither (their source says
+        --only "Feat"), so its choices carry the complication's or title's name.
         local owners = {}
-        if stepid == "complication" then
+        if stepid == "complication" or stepid == "titles" then
             for _,entry in ipairs(details) do
                 if entry.feat ~= nil and entry.feature ~= nil then
                     owners[entry.feature.guid] = entry.feat.name

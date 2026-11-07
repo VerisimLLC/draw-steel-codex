@@ -4149,13 +4149,28 @@ function ActivatedAbility:IsPartOfAnotherAbility(casterToken, options)
         return false
     end
 
+    --Each cast runs on its own coroutine, so an outer ability by this same creature
+    --that is still resolving shows up here as another live cast.
+    local hasOuterCastBySameCreature = function()
+        for co,info in pairs(ActivatedAbility.coroutineStorage) do
+            if co ~= coroutine.running() and coroutine.status(co) ~= "dead"
+                and not rawequal(info.ability, self)
+                and info.casterToken ~= nil and info.casterToken.valid and info.casterToken.charid == casterToken.charid then
+                return true
+            end
+        end
+        return false
+    end
+
     --Invoked straight from an invoke behavior: the clone names who invoked it.
+    --The Monster AI casts every ability with the monster named as its own invoker,
+    --so that alone does not make this a nested cast: an outer cast must still be running.
     local invoker = self:try_get("invoker")
     if type(invoker) == "function" then
         invoker = invoker("self")
     end
     if invoker ~= nil and dmhub.LookupTokenId(invoker) == casterToken.charid then
-        return true
+        return hasOuterCastBySameCreature()
     end
 
     --A prompt (Charge's "Choose Charging Attack", Riposte's free strike) casts a
@@ -4166,14 +4181,7 @@ function ActivatedAbility:IsPartOfAnotherAbility(casterToken, options)
     if cast == nil or cast:try_get("ability") == nil or rawequal(cast.ability, self) then
         return false
     end
-    for co,info in pairs(ActivatedAbility.coroutineStorage) do
-        if co ~= coroutine.running() and coroutine.status(co) ~= "dead"
-            and not rawequal(info.ability, self)
-            and info.casterToken ~= nil and info.casterToken.valid and info.casterToken.charid == casterToken.charid then
-            return true
-        end
-    end
-    return false
+    return hasOuterCastBySameCreature()
 end
 
 --- @return boolean

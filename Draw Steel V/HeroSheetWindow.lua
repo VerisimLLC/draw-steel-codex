@@ -1384,11 +1384,14 @@ function HeroSheetWindow.ShowPopup(args)
     --pinned to the top from the start: a scrolling body centres content and
     --hides its top until it lays out again.
     args.content.selfStyle.valign = "top"
+    --scrolls from creation, for when the screen caps the frame below its
+    --design height: the engine wires a scroll bar only on a panel's first
+    --frame. Content that fits shows no bar.
     local body = gui.Panel{
         width = "100%",
         height = "100%",
         valign = "top",
-        vscroll = false,
+        vscroll = true,
         args.content,
     }
 
@@ -1427,9 +1430,6 @@ function HeroSheetWindow.ShowPopup(args)
         frame.selfStyle.uiscale = zoom
         frame.selfStyle.width = w / zoom
         frame.selfStyle.height = h / zoom
-        --the body scrolls only when the screen caps the frame below its
-        --design height.
-        body.vscroll = h < args.height * zoom - 0.5
     end
 
     frame = gui.Panel{

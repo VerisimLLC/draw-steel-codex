@@ -9917,6 +9917,20 @@ local function DefineTableItems()
         return item ~= nil and item.panel ~= nil and item.panel.valid
     end
 
+    --- Where an item sits on the table, in the layer's units. Nil if it is not there.
+    --- @param kind string
+    --- @param key string
+    --- @return {x: number, y: number, w: number, h: number, scale: number}|nil
+    function Tabletop.ItemRect(kind, key)
+        local item = ItemByKey(kind, key)
+        if item == nil or item.baseSize == nil then
+            return nil
+        end
+        local w, h = item.baseSize()
+        local scale = item.scale or 1
+        return {x = item.x, y = item.y, w = w * scale, h = h * scale, scale = scale}
+    end
+
     --- Takes this item off this user's table, if it is there.
     --- @param kind string
     --- @param key string

@@ -27,10 +27,11 @@ local mod = dmhub.GetModLoading()
 --- @field types? table<string, number> On a target: damage by type, typed damage only.
 --- @field immunity? {damagetype: string, amount: number} On a target: what immunity took off, or weakness added (negative).
 --- @field pool? {before: number, after: number} On a target: temporary Stamina that grew.
---- @field conds? {name: string, icon: string|nil, duration: string|nil}[] On a target: conditions and effects it started.
+--- @field conds? {name: string, icon: string|nil, duration: string|nil, iscondition: boolean|nil}[] On a target: conditions and effects it started.
 --- @field ended? string[] On a target: names of what it ended.
+--- @field endedconds? table<string, boolean> On a target: which of those names are conditions.
 --- @field immune? string[] On a target: conditions that its immunity stopped.
---- @field resisted? boolean On a target: it resisted a potency test.
+--- @field resisted? boolean|string On a target: it resisted a potency test. A string names the condition it escaped.
 --- @field state? string On a target: "winded", "dying" or "killed" if this did that.
 --- @field recovered? string On a target: "winded" or "dying" if this ended that.
 --- @field squad? string On a minion: the name of its squad.
@@ -243,7 +244,14 @@ local function CastBegan(ability, casterToken, targets, options)
         kind = "action",
         map = casterToken.mapid,
         actor = History.Creature(actor),
-        ability = {name = ability.name, icon = ability:try_get("iconid"), action = ActionKind(ability)},
+        ability = {
+            name = ability.name,
+            icon = ability:try_get("iconid"),
+            action = ActionKind(ability),
+            area = ability:IsTargetTypeAOE(ability.targetType) or nil,
+        },
+        --whoever is rolling is on this client; nil means the Director.
+        player = not dmhub.isDM and dmhub.GetDisplayName(dmhub.userid) or nil,
         targets = {},
     }, targets, options)
     History.AddCombatFacts(state.entry)
@@ -812,10 +820,12 @@ local function OnEffectsEnded(creature, ended, cause)
         return
     end
     local names = {}
+    local conditions = {}
     for _, item in ipairs(ended) do
         local facts = EffectFacts(item)
         if facts ~= nil then
             names[#names + 1] = facts.name
+            conditions[facts.name] = facts.iscondition
         end
     end
     --the save's own line already says it ended.
@@ -846,8 +856,10 @@ local function OnEffectsEnded(creature, ended, cause)
             local target = RowTarget(state, token)
             if target ~= nil then
                 target.ended = target.ended or {}
+                target.endedconds = target.endedconds or {}
                 for _, name in ipairs(names) do
                     target.ended[#target.ended + 1] = name
+                    target.endedconds[name] = conditions[name]
                 end
             end
             return
@@ -871,7 +883,22 @@ local function OnConditionImmune(creature, conditionid)
     end
 end
 
-local function OnResisted(creature)
+--The condition a potency's rule text was about to apply, if it names one.
+local function ConditionIn(text)
+    if text == nil then
+        return nil
+    end
+    text = string.lower(text)
+    for _, info in unhidden_pairs(GetTableCached(CharacterCondition.tableName)) do
+        local name = string.lower(info.name)
+        if string.find(text, name, 1, true) ~= nil then
+            return name
+        end
+    end
+    return nil
+end
+
+local function OnResisted(creature, ruleText)
     local state = History.Enabled() and OpenCast(nil) or nil
     local token = dmhub.LookupToken(creature)
     if state == nil or token == nil then
@@ -879,7 +906,7 @@ local function OnResisted(creature)
     end
     local target = RowTarget(state, token)
     if target ~= nil then
-        target.resisted = true
+        target.resisted = ConditionIn(ruleText) or true
     end
 end
 

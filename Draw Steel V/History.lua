@@ -27,7 +27,8 @@ local mod = dmhub.GetModLoading()
 --- @field owner? HistoryCreature Whose turn it was; nil between turns.
 --- @field actor? HistoryCreature Who acted.
 --- @field targets? HistoryCreature[] Who it was aimed at.
---- @field ability? {name: string, icon: string|nil, action: string|nil, free: boolean|nil} What was used.
+--- @field ability? {name: string, icon: string|nil, action: string|nil, free: boolean|nil, area: boolean|nil} What was used.
+--- @field player? string On an action: the player who used it. Nil means the Director.
 --- @field roll? {total: number, low: number|nil, high: number|nil, edges: number, banes: number, tier: number} The power roll.
 --- @field cause? string On an automatic trigger or a minions line: id of the cast behind it.
 --- @field landedby? HistoryCreature On an automatic trigger: the creature that fell on its target.
@@ -48,6 +49,7 @@ local mod = dmhub.GetModLoading()
 --- @field recovered? string On a heal line: "winded" or "dying" if the heal ended it.
 --- @field name? string On a condition, save or persistence line: what it is about.
 --- @field names? string[] On an ended line: what ended.
+--- @field ended? {who: HistoryCreature, names: string[]}[] On an encounter's closing line: what ended, by creature.
 --- @field icon? string On a condition line: its icon.
 --- @field iscondition? boolean On a condition line: a condition, not some other effect.
 --- @field duration? string On a condition line: "save ends", "EoT" or "EoE".

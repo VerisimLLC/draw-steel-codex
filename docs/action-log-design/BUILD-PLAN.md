@@ -129,6 +129,26 @@ Goal: why it happened, one click from the row.
 | 2.3 | F10 named sources: `modifiersUsed`, kit notes (`modificationLog`), immunity and weakness, `DescribeModifications` for anything else; Why lines; typed messages; ability card on hover | L |
 | 2.4 | The visibility rule: secret modifiers follow the reveal, minion Stamina and monster numbers follow Monster Info | S |
 
+### Stage 2 notes
+
+- **2.1:** the card is a floating child of the tray's face, so it moves, scales and closes with the tray
+  and no layout has to remember it. `Tabletop.ItemRect` says where the tray sits; the card picks right,
+  then left, then inside the tray with Back (B7), and rechecks once a second, so dragging the tray moves
+  it. It is rebuilt whenever it changes, because a scroll bar only works if it exists on its first frame.
+- **Sentences:** `History.Story` turns an entry into rows, with no gui, so the hover preview (3.3) and the
+  sidebar preview (3.4) can use the same words. New wordings are COPY.md Round 6.
+- **Which rows open a card:** actions, and the Encounter ended line (L17). Every other line already says
+  everything; L16 joins with the Why lines in 2.3.
+- **W10 is not built.** "Took 6 damage from 2 minions" needs the count of minions that reached a target,
+  which entries don't hold yet. Look at it with the numbers in 2.2.
+- **New facts on entries:** `ability.area`, `player`, `resisted` names the condition when the rule text
+  does, `endedconds`. Rows written before this have none of them, so an old row reads "Director" in its
+  footer and "and Slowed ended" for a condition.
+- **T13 Ally hit** was missed in stage 1; it is on the target cell now, from the same check as W11.
+- **Tested for real:** the card on the right, on the left and inside the tray (a narrow table was faked),
+  row swap, same row closes, close button, wheel, scroll bar drag, a row rewritten while its card is open,
+  31 rows built in 19 ms. **Fed data only:** every sentence but falls, the Encounter ended card.
+
 ## Stage 3: getting to it
 
 | Chunk | What | Size |

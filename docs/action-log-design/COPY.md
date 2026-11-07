@@ -293,3 +293,27 @@ because "Dying Ended" could read as the creature died.
 | D9 | Forced movement, no action | {Creature} was pushed {n} squares, it fell {m} squares |
 | D10 | A creature landed on, on the push's row (signed off 2026-11-07) | Landed on |
 | D11 | Cause when a creature landed on it, no push (signed off 2026-11-07) | Landed on by {Creature} |
+
+## Round 6: wordings the detail card needs (drafts, 2026-11-07)
+
+N2 covers most sentences. These are the cases it doesn't cover, as built in chunk 2.1.
+| ID | What | Draft |
+|---|---|---|
+| X1 | An effect that isn't a condition | {Creature} took 3 damage and gained {Effect} until the end of its turn. |
+| X2 | An effect ended (a condition keeps W12) | ... and {Effect} ended. / {Creature}'s {Effect} ended. |
+| X3 | A creature landed on | ... took 10 damage and was landed on. |
+| X4 | Temporary Stamina took some of it | ... took 7 damage, 3 soaked by temporary Stamina. |
+| X5 | Temporary Stamina grew | {Creature}'s temporary Stamina went from 3 to 10. / ... and temporary Stamina went from 3 to 10. |
+| X6 | A fall with no push | ... took 6 damage and fell 4 squares. |
+| X7 | Resisted, the rule text names no condition | ... took 4 damage and resisted. |
+| X8 | Damage partly typed | ... took 10 damage: 6 fire and 4 untyped. |
+| X9 | W11 for any area, not only a burst | {Creature}, an ally, was caught in the area and took {N} damage. |
+| X10 | A trigger that did more than damage (W13 covers damage) | {Owner}'s {trigger}: {sentence} |
+| X11 | An action that changed nothing | {Creature} used {Ability}. |
+| X12 | C6 with no roll behind it | {player} · {time} |
+| X13 | L30, no plural | Goblin 1-4 each took 6 damage. |
+
+Two N2 changes the data forces:
+- W15 loses "off {place}": nothing records the ledge's name, so it reads "pushed 3 squares, it fell 4 squares."
+- EoE stays out of sentences: the Codex also stores "no timer" as EoE, so a fall's Prone would read
+  "until the end of the encounter" when it ends on standing up. The tray keeps its (EoE) (D1).

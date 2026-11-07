@@ -6013,10 +6013,9 @@ end
 
 creature.minionDamageTime = 0
 
---Module-local map tracking the largest damage instance any single strike has applied to a given
---minion squad's shared Stamina pool. Outer key is the ActivatedAbilityCast object (weak key so it is
---collected when the strike finishes); inner key is the squad name, value is the largest damage amount
---applied to that squad's pool this cast.
+--Largest damage each strike has dealt to a minion squad's shared pool:
+--g_summonerSquadCastDamage[cast][ability][squadName] = amount. One cast covers a whole activation,
+--including abilities it invokes, so the ability splits a repeated or free strike from the one that triggered it.
 local g_summonerSquadCastDamage = setmetatable({}, {__mode = "k"})
 
 --Batching and confirmation gating for the "squadminiondeaths" trigger.
@@ -6369,17 +6368,24 @@ function creature.TakeDamage(self, amount, note, info)
             --the shared Stamina pool only takes the largest single instance.
             local squadName = self:MinionSquad()
             if squadName ~= nil then
-                local castMap = g_summonerSquadCastDamage[info.cast]
-                if castMap == nil then
-                    castMap = {}
-                    g_summonerSquadCastDamage[info.cast] = castMap
+                local strikesInCast = g_summonerSquadCastDamage[info.cast]
+                if strikesInCast == nil then
+                    strikesInCast = {}
+                    g_summonerSquadCastDamage[info.cast] = strikesInCast
                 end
-                local prev = castMap[squadName] or 0
+                --Damage paths that pass no ability fall back to one entry for the whole cast.
+                local strikeKey = info.ability or info.cast
+                local strikeDamageBySquad = strikesInCast[strikeKey]
+                if strikeDamageBySquad == nil then
+                    strikeDamageBySquad = {}
+                    strikesInCast[strikeKey] = strikeDamageBySquad
+                end
+                local prev = strikeDamageBySquad[squadName] or 0
                 local preClampAmount = amount
                 if amount <= prev then
                     amount = 0
                 else
-                    castMap[squadName] = amount
+                    strikeDamageBySquad[squadName] = amount
                     amount = amount - prev
                 end
                 if amount < preClampAmount then

@@ -32,7 +32,7 @@ Goal: one real action appears in a real tray, stored safely, behind the setting.
 | 0.1 | Performance test: a probe writes 300 records, one per action, with two clients connected, and measures the cost of a write and of a load | S | We know this encounter and the last one are cheap to keep, and the hard cap is set (starting figure 300 entries) |
 | 0.2 | Record store: entries keyed by id (the `BattleLog.RecordBattle` pattern); one document per map; this encounter, the last one and what lies between, under a hard cap that culls the oldest first; names and portraits snapshotted; one client writes each entry; not registered for checkpoints; the setting | M | Records survive a reload and reach a second client |
 | 0.3 | F1 actions, at `ActivatedAbility:Cast` (`ActivatedAbility.lua:3133`): actor, ability, targets, castid, round, turn, map, roll facts | M | Every ability cast writes one record, prompted triggers included |
-| 0.4 | The tray: table item, rail button below Chat, round and turn folds, turn numbers, target cells, starts closed; builds the newest 30-40 rows and more as you scroll up, as today's log does | L | Real rows in the tray, meeting the idle and drag budgets |
+| 0.4 | The tray: table item (a rail panel since 2.1b), rail button below Chat, round and turn folds, turn numbers, target cells, starts closed; builds the newest 30-40 rows and more as you scroll up, as today's log does | L | Real rows in the tray, meeting the idle and drag budgets |
 
 ### Stage 0 notes (built 2026-11-06)
 
@@ -148,6 +148,14 @@ Goal: why it happened, one click from the row.
 - **Tested for real:** the card on the right, on the left and inside the tray (a narrow table was faked),
   row swap, same row closes, close button, wheel, scroll bar drag, a row rewritten while its card is open,
   31 rows built in 19 ms. **Fed data only:** every sentence but falls, the Encounter ended card.
+- **2.1b, a rail panel (James, 2026-11-07):** History registers as a dockable panel with content, so the
+  rail opens it as a window like Chat: frame, transparency, pin, pop out, Font Size zoom. Two generic
+  registration fields in `PresentPanel`: `defaultWidth` (the rows are laid out for 410, plus the 8 px
+  resize strip) and `dragInPlace` (rail windows are dragged without it, which restyles the whole window
+  every frame: History's drag went from 64 ms a frame to 15; Chat's is 18). Only History sets them; giving
+  every rail window `dragInPlace` is a separate change. The table item and the `Tabletop.lua` additions
+  from 0.4 and 2.1 are gone. The card is placed from the window's position; popped out, it opens inside.
+  The roll card that folds into History later (S5) aims at this window.
 
 ## Stage 3: getting to it
 

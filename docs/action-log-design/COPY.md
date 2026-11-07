@@ -294,7 +294,7 @@ because "Dying Ended" could read as the creature died.
 | D10 | A creature landed on, on the push's row (signed off 2026-11-07) | Landed on |
 | D11 | Cause when a creature landed on it, no push (signed off 2026-11-07) | Landed on by {Creature} |
 
-## Round 6: wordings the detail card needs (drafts, 2026-11-07)
+## Round 6: wordings the detail card needs (signed off 2026-11-07)
 
 N2 covers most sentences. These are the cases it doesn't cover, as built in chunk 2.1.
 | ID | What | Draft |
@@ -302,7 +302,7 @@ N2 covers most sentences. These are the cases it doesn't cover, as built in chun
 | X1 | An effect that isn't a condition | {Creature} took 3 damage and gained {Effect} until the end of its turn. |
 | X2 | An effect ended (a condition keeps W12) | ... and {Effect} ended. / {Creature}'s {Effect} ended. |
 | X3 | A creature landed on | ... took 10 damage and was landed on. |
-| X4 | Temporary Stamina took some of it | ... took 7 damage, 3 soaked by temporary Stamina. |
+| X4 | Temporary Stamina took some of it | ... took 7 damage, 3 of it to temporary Stamina. |
 | X5 | Temporary Stamina grew | {Creature}'s temporary Stamina went from 3 to 10. / ... and temporary Stamina went from 3 to 10. |
 | X6 | A fall with no push | ... took 6 damage and fell 4 squares. |
 | X7 | Resisted, the rule text names no condition | ... took 4 damage and resisted. |

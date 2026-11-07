@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
---The History tray: a table item that shows a map's History as rounds and turns,
+--The History tray: a rail panel window that shows a map's History as rounds and turns,
 --newest at the bottom. Older rounds and turns fold away, so opening it builds a few
 --rows even after a long fight. The target design is the prototype named in
 --docs/action-log-design/BUILD-PLAN.md.
@@ -8,10 +8,13 @@ local mod = dmhub.GetModLoading()
 --Each refresh works out the list of rows from the entries, then keeps every row whose
 --signature is unchanged and builds only what is new. A new action builds one row.
 
+--Rows are laid out for this width. The window adds EDGE_STRIP on the right, where its
+--resize strip sits, so the list's scroll bar stays clear of it.
 local TRAY_WIDTH = 410
-local TRAY_HEIGHT = 520
-local TRAY_HEIGHT_ALL = 914
-local HEAD_HEIGHT = 36
+local EDGE_STRIP = 8
+
+--The bar above the list that holds Show all.
+local BAR_HEIGHT = 28
 
 --Rows built at first; scrolling to the top adds this many more each time.
 local ROWS_CHUNK = 40
@@ -24,9 +27,6 @@ local FOLD_FACES = 5
 
 --Targets on an action before the last cell becomes "+N".
 local TARGET_CELLS = 4
-
-local ITEM_KIND = "history"
-local ITEM_KEY = "tray"
 
 --The Codex's fonts have these two; Lua source stays ASCII (REVIEW.md, font check).
 local DOT = " \194\183 "
@@ -45,24 +45,18 @@ local ACTION_WORDS = {
     triggered = "Triggered action",
 }
 
---Where the detail card goes. It sits beside the tray, so it moves and scales with it.
+--Where the detail card goes. It sits beside the window, so it moves and zooms with it.
 local CARD_GAP = 12
-local CARD_HEIGHT = 800
-local CARD_HEIGHT_ALL = 914
+local CARD_HEIGHT = 914
 
---The rail sits along the table's left edge; a card can't go under it.
-local TABLE_LEFT = 62
+--The icon rail runs down the screen's left edge; a card can't go under it.
+local RAIL_LEFT = 62
 
 --The open tray: {face, Refresh, Select}.
 local g_tray = nil
 
 local function Styles()
     return {
-        {
-            selectors = {"historyTray"},
-            bgcolor = "@bg",
-            borderColor = "@borderSolid",
-        },
         {
             selectors = {"label"},
             fontSize = 13,
@@ -1800,25 +1794,44 @@ local function CreateFace()
     --- @type {x: number, width: number, maxHeight: number, inTray: boolean}|nil
     local cardPlace = nil
 
-    --Beside the tray on the side with room, else over the tray with a way back (B7).
+    --Where the rail window sits on the screen layer, in layer units, with the top of this
+    --face (below the window's header). Nil in a popped-out window: it has no room beside it.
+    --- @return {x: number, top: number, w: number, scale: number, layerWidth: number, layerHeight: number}|nil
+    local function WindowRect()
+        local dialog = face:FindParentWithClass("panelDocumentWindow")
+        local hud = GameHud.instance
+        if PanelDocument.IsPoppedOut("history") or dialog == nil or not hud or hud.documentsPanel == nil or not hud.documentsPanel.valid then
+            return nil
+        end
+        local layer = hud.documentsPanel
+        local scale = dialog.data.windowScale or 1
+        return {
+            x = dialog.x,
+            top = dialog.y + (dialog.renderedHeight - face.renderedHeight) * scale,
+            w = dialog.renderedWidth * scale,
+            scale = scale,
+            layerWidth = layer.renderedWidth - RailRightColumnWidth(),
+            layerHeight = layer.renderedHeight,
+        }
+    end
+
+    --Beside the window on the side with room, else over the list with a way back (B7).
     local function CardPlace()
-        local rect = Tabletop.ItemRect(ITEM_KIND, ITEM_KEY)
+        local rect = WindowRect()
         if rect ~= nil then
-            local layerWidth, layerHeight = Tabletop.LayerSize()
             local needed = (History.CARD_WIDTH + CARD_GAP) * rect.scale
             local x = nil
-            if rect.x + rect.w + needed <= layerWidth then
-                x = TRAY_WIDTH + CARD_GAP
-            elseif rect.x - needed >= TABLE_LEFT then
+            if rect.x + rect.w + needed <= rect.layerWidth then
+                x = face.renderedWidth + CARD_GAP
+            elseif rect.x - needed >= RAIL_LEFT then
                 x = -(History.CARD_WIDTH + CARD_GAP)
             end
             if x ~= nil then
-                local room = math.floor((layerHeight - rect.y) / rect.scale) - CARD_GAP
-                local tallest = cond(g_showAll, CARD_HEIGHT_ALL, CARD_HEIGHT)
-                return {x = x, width = History.CARD_WIDTH, maxHeight = math.min(room, tallest), inTray = false}
+                local room = math.floor((rect.layerHeight - rect.top) / rect.scale) - CARD_GAP
+                return {x = x, width = History.CARD_WIDTH, maxHeight = math.min(room, CARD_HEIGHT), inTray = false}
             end
         end
-        return {x = 0, width = TRAY_WIDTH, maxHeight = cond(g_showAll, TRAY_HEIGHT_ALL, TRAY_HEIGHT), inTray = true}
+        return {x = 0, width = TRAY_WIDTH, maxHeight = face.renderedHeight, inTray = true}
     end
 
     local Select
@@ -1924,8 +1937,9 @@ local function CreateFace()
 
     list = gui.Panel{
         flow = "vertical",
-        width = "100%",
-        height = TRAY_HEIGHT - HEAD_HEIGHT - 6,
+        width = TRAY_WIDTH,
+        height = string.format("100%%-%d", BAR_HEIGHT),
+        halign = "left",
         vscroll = true,
         rowsPanel,
 
@@ -1989,9 +2003,6 @@ local function CreateFace()
             g_showAll = not g_showAll
             g_open = {}
             element.text = cond(g_showAll, "Show less", "Show all")
-            list.selfStyle.height = cond(g_showAll, TRAY_HEIGHT_ALL, TRAY_HEIGHT) - HEAD_HEIGHT - 6
-            face.selfStyle.height = cond(g_showAll, TRAY_HEIGHT_ALL, TRAY_HEIGHT)
-            Tabletop.ResizeItem(ITEM_KIND, ITEM_KEY)
             rowsWanted = ROWS_CHUNK
             Refresh()
             KeepCardPlaced()
@@ -1999,17 +2010,15 @@ local function CreateFace()
         end,
     }
 
+    --No background of its own: the rail window's frame shows through.
     face = gui.Panel{
         classes = {"historyTray"},
         styles = ThemeEngine.MergeStyles(Styles()),
-        bgimage = "panels/square.png",
         flow = "vertical",
-        width = TRAY_WIDTH,
-        height = cond(g_showAll, TRAY_HEIGHT_ALL, TRAY_HEIGHT),
+        width = "100%",
+        height = "100%",
         halign = "left",
         valign = "top",
-        borderWidth = 1,
-        cornerRadius = 6,
 
         monitorGame = History.DocPath(mapid),
         refreshGame = Refresh,
@@ -2034,27 +2043,15 @@ local function CreateFace()
             end
         end,
 
+        --the window's own header names the panel, so this bar only holds Show all.
         gui.Panel{
             flow = "none",
-            width = "100%",
-            height = HEAD_HEIGHT,
-            hpad = 12,
+            width = TRAY_WIDTH,
+            height = BAR_HEIGHT,
+            halign = "left",
+            rpad = 12,
             borderBox = true,
-            gui.Label{
-                classes = {"historyTitle"},
-                text = "History",
-                width = "auto",
-                height = "auto",
-                halign = "left",
-                valign = "center",
-            },
             showAllButton,
-        },
-        gui.Panel{
-            classes = {"historySeam"},
-            bgimage = "panels/square.png",
-            width = "100%",
-            height = 1,
         },
         list,
     }
@@ -2071,38 +2068,21 @@ ThemeEngine.OnThemeChanged(mod, function()
     end
 end)
 
-Tabletop.itemKinds = Tabletop.itemKinds or {}
-Tabletop.itemKinds[ITEM_KIND] = {
-    available = History.Enabled,
-    exists = function(key)
-        return true
-    end,
-    name = function(key)
-        return "History"
-    end,
-    size = function(key)
-        return TRAY_WIDTH, cond(g_showAll, TRAY_HEIGHT_ALL, TRAY_HEIGHT)
-    end,
-    face = function(key)
-        return CreateFace()
-    end,
-    cornerRadius = 6,
-    --beside the rail, where it opens in the prototype.
-    place = function(layerWidth, layerHeight)
-        return 62, 110
-    end,
-}
-
+--A rail panel like Chat, so it gets the rail windows' frame, pin, pop out and Font Size zoom.
 DockablePanel.Register{
     name = "History",
     icon = "phosphor/clock-counter-clockwise-bold.png",
     available = History.Enabled,
-    launch = function()
-        if Tabletop.HasItem(ITEM_KIND, ITEM_KEY) then
-            Tabletop.CloseItem(ITEM_KIND, ITEM_KEY)
-        else
-            Tabletop.OpenItem(ITEM_KIND, ITEM_KEY)
-        end
+    vscroll = false,
+    minHeight = 200,
+    --the rows are laid out for one width; narrow windows are chunk 6.3.
+    defaultWidth = TRAY_WIDTH + EDGE_STRIP,
+    minWidth = TRAY_WIDTH + EDGE_STRIP,
+    maxWidth = TRAY_WIDTH + EDGE_STRIP,
+    resizableWidth = false,
+    dragInPlace = true,
+    content = function()
+        return CreateFace()
     end,
 }
 

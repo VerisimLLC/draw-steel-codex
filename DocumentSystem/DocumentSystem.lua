@@ -9011,7 +9011,15 @@ function PanelDocument:PresentPanel(args)
         return existing
     end
 
-    args.width = args.width or PanelDocument.DefaultWidth
+    --a panel laid out for one width (History) registers defaultWidth for its first window.
+    local reg = DockablePanel.GetRegistration(self:try_get("panelName") or "")
+    local defaultWidth = nil
+    local dragInPlace = false
+    pcall(function()
+        defaultWidth = reg ~= nil and reg.defaultWidth or nil
+        dragInPlace = reg ~= nil and reg.dragInPlace == true
+    end)
+    args.width = args.width or defaultWidth or PanelDocument.DefaultWidth
     args.height = PanelDocument.ClampHeight(
         self:try_get("panelName"),
         args.height or PanelDocument.DefaultHeight)
@@ -9028,6 +9036,11 @@ function PanelDocument:PresentPanel(args)
     self._tmp_dialog = dialog
     --map windows stay under rail panel windows (PanelDocument.ABOVE_MAP_WINDOWS).
     dialog:SetClass("panelDocumentWindow", true)
+    --a dragged window is otherwise lifted out of its layer and restyled whole every frame:
+    --History's drag measured 64 ms a frame without this, 15 ms with it.
+    if dragInPlace then
+        dialog.dragInPlace = true
+    end
     GameHud.instance.documentsPanel:AddChild(dialog)
     --apply the rail-mode window zoom now that the window is attached
     --(pivot writes need an attached panel -- see setWindowScale).

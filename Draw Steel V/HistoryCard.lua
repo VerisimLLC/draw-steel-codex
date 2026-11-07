@@ -136,7 +136,7 @@ local function Predicate(who, isAlly)
         local words, split = DamageWords(who)
         splitLead = split
         if who.soaked ~= nil then
-            words = string.format("%s, %d soaked by temporary Stamina", words, who.soaked)
+            words = string.format("%s, %d of it to temporary Stamina", words, who.soaked)
         end
         if isAlly then
             words = "was caught in the area and " .. words

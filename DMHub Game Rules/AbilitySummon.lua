@@ -4,6 +4,7 @@ local mod = dmhub.GetModLoading()
 
 --- @class ActivatedAbilitySummonBehavior : ActivatedAbilityBehavior
 --- @field new fun(o?: table): ActivatedAbilitySummonBehavior
+--- @field ignoreSummonerLimits boolean If true, summons ignore the caster's MaximumMinions / MaxMinionSquads, even under strict:resources.
 ActivatedAbilitySummonBehavior = RegisterGameType("ActivatedAbilitySummonBehavior", "ActivatedAbilityBehavior")
 
 ActivatedAbility.RegisterType
@@ -41,6 +42,9 @@ ActivatedAbilitySummonBehavior.shareHeroicResourceWithSummoner = false
 --the caster is not a rules-level Summoner. This does not enable Summoner
 --limits or roster bookkeeping.
 ActivatedAbilitySummonBehavior.chooseSquad = false
+--Summon past the caster's MaximumMinions / MaxMinionSquads, even under
+--strict:resources (e.g. Explosive Parade: "regardless of your minion maximum").
+ActivatedAbilitySummonBehavior.ignoreSummonerLimits = false
 ActivatedAbilitySummonBehavior.choosePlacement = false
 ActivatedAbilitySummonBehavior.summonRange = "1"
 
@@ -2622,6 +2626,12 @@ function ActivatedAbilitySummonBehavior:CastSummons(ability, casterToken, target
         local summonerMaxSquads = casterToken.properties:CalculateNamedCustomAttribute("MaxMinionSquads")
         --With no summoner, a Summoner hero must not be asked to pick squads for these summons.
         local isSummoner = (not detached) and (not casterToken.properties.minion) and (summonerMaxMinions > 0 or summonerMaxSquads > 0)
+        if self:try_get("ignoreSummonerLimits", false) then
+            --Runs after isSummoner on purpose, so the caster still picks squads.
+            --A limit of 0 means "no limit" below: no strict cap, no over-limit warnings.
+            summonerMaxMinions = 0
+            summonerMaxSquads = 0
+        end
         local chooseSquad = self:try_get("chooseSquad", false)
         local usesSquadChooser = isSummoner or chooseSquad
         local useEncounterSquads = chooseSquad and not isSummoner
@@ -3159,7 +3169,19 @@ function ActivatedAbilitySummonBehavior:CastSummons(ability, casterToken, target
                     end,
                 }
             end
+        elseif summonsCapped ~= nil then
+            --The limit was hit before the first summon. Tell the player, or the
+            --ability looks like it did nothing.
+            chat.Send(string.format("%s has reached their limit of %d %s; none of the %d summons arrived.",
+                casterToken.description, summonsCapped.limit, summonsCapped.what, numSummons))
         end
+    end
+
+    --If nothing was summoned, end the cast here. The target list still holds the
+    --original targets (the caster, for a self-targeted ability), and later steps
+    --such as Remove Creature would act on them instead.
+    if #allSummonedTokens == 0 then
+        args.stopProcessing = true
     end
 
     --seed each fresh squad's shared stamina pool with its summons' initial
@@ -3919,6 +3941,15 @@ function ActivatedAbilityBehavior:SummonEditor(parentPanel, list, options)
 		minWidth = 300,
 		change = function(element)
 			self.chooseSquad = element.value
+		end,
+	}
+
+	list[#list+1] = gui.Check{
+		text = "Ignore summoner minion/squad limits",
+		value = self:try_get("ignoreSummonerLimits", false),
+		minWidth = 300,
+		change = function(element)
+			self.ignoreSummonerLimits = element.value
 		end,
 	}
 

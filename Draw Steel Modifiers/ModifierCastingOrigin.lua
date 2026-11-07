@@ -22,7 +22,57 @@ CharacterModifier.TypeInfo.castingorigin = {
 
 			local children = {}
 
-			children[#children+1] = modifier:FilterConditionEditor()
+			children[#children+1] = gui.Label{
+				classes = {"formHelpLabel"},
+				text = "The creature with this modifier becomes a casting origin: other creatures that pass the Condition can measure an ability's range from it instead of from themselves. The Condition must be filled in. If it is blank, no one can use this creature as an origin.",
+				fontSize = 10,
+				color = "#aaaaaa",
+				width = "100%",
+				height = "auto",
+			}
+
+			children[#children+1] = gui.Panel{
+				classes = {"formPanel"},
+				gui.Label{
+					classes = {"formLabel"},
+					text = "Condition:",
+				},
+				gui.GoblinScriptInput{
+					value = modifier:try_get("filterCondition", ""),
+					change = function(el)
+						if type(el.value) == "string" and trim(el.value) == "" then
+							modifier.filterCondition = nil
+						else
+							modifier.filterCondition = el.value
+						end
+					end,
+
+					documentation = {
+						domains = modifier:Domains(),
+						help = "Decides which creatures may cast through this one. Self is the creature with this modifier; Caster is the creature using an ability. Produce True to let that caster measure range from this creature. A blank condition lets no one use it.",
+						output = "boolean",
+						examples = {
+							{
+								script = "Caster is Self.Summoner",
+								text = "Only the creature that summoned this creature can cast through it.",
+							},
+							{
+								script = "Caster is Self.Summoner or Caster.Summoned",
+								text = "The summoner, and any summoned creature, can cast through this creature.",
+							},
+						},
+						subject = creature.helpSymbols,
+						subjectDescription = "The creature with this modifier (the casting origin)",
+						symbols = modifier:HelpAdditionalSymbols{
+							caster = {
+								name = "Caster",
+								type = "creature",
+								desc = "The creature using an ability that would measure its range from this creature.",
+							},
+						},
+					},
+				},
+			}
 
 			local addDropdown = gui.Dropdown{
 				classes = "formDropdown",

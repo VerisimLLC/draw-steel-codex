@@ -78,6 +78,58 @@ CharacterModifier.TypeInfo.castingorigin = {
 				},
 			}
 
+			children[#children+1] = gui.Panel{
+				classes = {"formPanel"},
+				gui.Label{
+					classes = {"formLabel"},
+					text = "Ability Filter:",
+				},
+				gui.GoblinScriptInput{
+					value = modifier:try_get("abilityFilter", ""),
+					change = function(el)
+						if type(el.value) == "string" and trim(el.value) == "" then
+							modifier.abilityFilter = nil
+						else
+							modifier.abilityFilter = el.value
+						end
+					end,
+
+					documentation = {
+						domains = modifier:Domains(),
+						help = "Optional. Decides which abilities may be cast through this creature. Produce True to allow the ability. Leave blank to allow every ability (subject to the keyword filter below).",
+						output = "boolean",
+						examples = {
+							{
+								script = "Ability.Keywords has \"Magic\"",
+								text = "Only magic abilities can be cast through this creature.",
+							},
+							{
+								script = "Ability.Name = \"Judgment\"",
+								text = "Only the Judgment ability can be cast through this creature.",
+							},
+							{
+								script = "Ability.Categorization != \"Heroic Ability\"",
+								text = "Heroic abilities cannot be cast through this creature.",
+							},
+						},
+						subject = creature.helpSymbols,
+						subjectDescription = "The creature with this modifier (the casting origin)",
+						symbols = modifier:HelpAdditionalSymbols{
+							caster = {
+								name = "Caster",
+								type = "creature",
+								desc = "The creature using the ability.",
+							},
+							ability = {
+								name = "Ability",
+								type = "ability",
+								desc = "The ability that would measure its range from this creature.",
+							},
+						},
+					},
+				},
+			}
+
 			local addDropdown = gui.Dropdown{
 				classes = "formDropdown",
 				sort = true,
@@ -173,22 +225,35 @@ local function KeywordFilterMatches(ability, keywordFilter)
 	return not hasAnyFilter
 end
 
-local function CasterPassesCondition(casterCreature, bearerCreature, modifier, modContext)
-	local condition = modifier:try_get("filterCondition", "")
-	if condition == "" then
-		return false
-	end
-
-	-- Install symbols from context (ongoing effect, etc.) so they are available in the condition
+--Runs a Casting Origin formula with Self = the origin, plus Caster and Ability.
+--modContext carries symbols from the modifier's source (e.g. an ongoing effect).
+local function EvaluateOriginFormula(formula, label, ability, casterCreature, bearerCreature, modifier, modContext)
 	if modContext ~= nil then
 		modifier:InstallSymbolsFromContext(modContext)
 	end
 
 	local symbols = modifier:try_get("_tmp_symbols", {})
-	-- self = bearer (creature with the modifier), caster = creature trying to cast through the relay
 	symbols.caster = casterCreature
-	local result = ExecuteGoblinScript(condition, bearerCreature:LookupSymbol(symbols), 0, "Casting Origin: condition")
-	return result ~= 0
+	symbols.ability = ability
+	return GoblinScriptTrue(ExecuteGoblinScript(formula, bearerCreature:LookupSymbol(symbols), 0, label))
+end
+
+--Blank allows every ability, so older modifiers keep working. The Condition is the
+--opposite: blank lets no one cast through.
+local function AbilityPassesFilter(ability, casterCreature, bearerCreature, modifier, modContext)
+	local filter = modifier:try_get("abilityFilter", "")
+	if filter == "" then
+		return true
+	end
+	return EvaluateOriginFormula(filter, "Casting Origin: ability filter", ability, casterCreature, bearerCreature, modifier, modContext)
+end
+
+local function CasterPassesCondition(ability, casterCreature, bearerCreature, modifier, modContext)
+	local condition = modifier:try_get("filterCondition", "")
+	if condition == "" then
+		return false
+	end
+	return EvaluateOriginFormula(condition, "Casting Origin: condition", ability, casterCreature, bearerCreature, modifier, modContext)
 end
 
 --Relay lookup walks every token on the map and runs a GoblinScript condition
@@ -225,7 +290,8 @@ function ActivatedAbility:GetCastingOriginTokens(casterToken)
 			for _, modEntry in ipairs(modifiers) do
 				if modEntry.mod.behavior == "castingorigin"
 					and KeywordFilterMatches(self, modEntry.mod.keywordFilter)
-					and CasterPassesCondition(casterToken.properties, tok.properties, modEntry.mod, modEntry) then
+					and AbilityPassesFilter(self, casterToken.properties, tok.properties, modEntry.mod, modEntry)
+					and CasterPassesCondition(self, casterToken.properties, tok.properties, modEntry.mod, modEntry) then
 					result[#result+1] = tok
 					break
 				end

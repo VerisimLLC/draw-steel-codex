@@ -29,7 +29,7 @@ local mod = dmhub.GetModLoading()
 --- @field targets? HistoryCreature[] Who it was aimed at.
 --- @field ability? {name: string, icon: string|nil, action: string|nil, free: boolean|nil, area: boolean|nil} What was used.
 --- @field player? string On an action: the player who used it. Nil means the Director.
---- @field roll? {total: number, low: number|nil, high: number|nil, edges: number, banes: number, tier: number} The power roll.
+--- @field roll? {total: number, low: number|nil, high: number|nil, edges: number, banes: number, tier: number, natural: number|nil, characteristic: {name: string, value: number}|nil, bonus: number|nil} The power roll. natural is the dice; bonus is what the total adds past the dice, the characteristic and an edge or bane.
 --- @field cause? string On an automatic trigger or a minions line: id of the cast behind it.
 --- @field landedby? HistoryCreature On an automatic trigger: the creature that fell on its target.
 --- @field aliases? string[] On an action: ids of casts inside it that have no row of their own.

@@ -292,6 +292,70 @@ local function Styles()
             selectors = {"historyCardTail"},
             bgcolor = "@bgAlt",
         },
+        --The numbers (the receipt in the card).
+        {
+            selectors = {"label", "historyReceipt"},
+            fontSize = 14,
+            color = "@fg",
+        },
+        {
+            selectors = {"label", "historyReceiptValue"},
+            fontSize = 14,
+            bold = true,
+            color = "@fgStrong",
+        },
+        {
+            selectors = {"label", "historyReceiptValue", "historyHurt"},
+            color = "@danger",
+        },
+        {
+            selectors = {"label", "historyReceiptValue", "historyHealed"},
+            color = "@success",
+        },
+        {
+            selectors = {"label", "historyReceiptAside"},
+            fontSize = 13,
+            color = "@fgMuted",
+        },
+        {
+            selectors = {"label", "historyReceiptNote"},
+            fontSize = 12,
+            italics = true,
+            color = "@fgMuted",
+        },
+        {
+            selectors = {"label", "historyReceiptMore"},
+            fontSize = 12,
+            color = "@fg",
+        },
+        {
+            selectors = {"historyReceiptRule"},
+            bgcolor = "@border",
+        },
+        {
+            selectors = {"label", "historyDie"},
+            fontSize = 12,
+            bold = true,
+            color = "@fgStrong",
+            bgcolor = "@bgRaised",
+            borderColor = "@borderSolid",
+        },
+        {
+            selectors = {"historyEdgeIcon"},
+            bgcolor = "@success",
+        },
+        {
+            selectors = {"historyBaneIcon"},
+            bgcolor = "@danger",
+        },
+        {
+            selectors = {"label", "historyEdgeText"},
+            color = "@success",
+        },
+        {
+            selectors = {"label", "historyBaneText"},
+            color = "@danger",
+        },
         {
             selectors = {"historyCardClose"},
             bgcolor = "@fgMuted",
@@ -449,6 +513,7 @@ end
 
 History.Tag = Tag
 History.Amount = Amount
+History.TierBadge = TierBadge
 
 --The faces on a fold line, each with what it took and regained. Damage and healing stay
 --apart, so 9 taken and 8 healed never reads as -1 (fix B1).

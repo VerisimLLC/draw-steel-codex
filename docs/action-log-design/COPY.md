@@ -317,3 +317,16 @@ Two N2 changes the data forces:
 - W15 loses "off {place}": nothing records the ledge's name, so it reads "pushed 3 squares, it fell 4 squares."
 - EoE stays out of sentences: the Codex also stores "no timer" as EoE, so a fall's Prone would read
   "until the end of the encounter" when it ends on standing up. The tray keeps its (EoE) (D1).
+
+## Round 7: wordings the numbers need (signed off 2026-11-07)
+
+The receipt (chunk 2.2) uses C3, C3s, C4/C4b/C4c and T12 as signed. These are the cases they don't cover.
+| ID | Where | Text |
+|---|---|---|
+| Z1 | A target's own edges or banes | {Edge / Double edge / Bane / Double bane} for this target |
+| Z2 | A damage line | Tier 2 / Tier 2: fire (two types give two lines) |
+| Z3 | The value beside a double edge or double bane | +1 tier / -1 tier |
+| Z4 | Total for grouped targets (as in X13) | Taken, each |
+| Z5 | Immunity or weakness | Damage immunity 2 / Fire immunity 3 (the Why leads) / Fire weakness 3 |
+| Z6 | A flat roll bonus with no name behind it | Bonus |
+| Z7 | A Heroic Resource cost | Cost: {n} {Heroic Resource}, e.g. Cost: 3 Ferocity (C3's pattern) |

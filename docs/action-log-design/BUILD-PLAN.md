@@ -174,6 +174,18 @@ Goal: why it happened, one click from the row.
   the rail (~95 ms) and Show all (120-140 ms for ~33 rows, 29 ms of it Lua). Spreading Show all over
   frames is 6.2's. Measure on a fresh start: after a day of reloads and pop outs the Codex itself
   slowed to ~4 frames a second, which made Show all look like a 2.7 s stall.
+- **2.2, the numbers:** the prototype's receipt under What happened: Power roll (the two dice, the
+  characteristic, a flat Bonus, edges and banes with their counts and the C4 note, Total with its tier),
+  then a sum per target (its own roll if it had one, Tier lines by damage type, immunity or weakness,
+  Taken / Taken, each / Regained), then Triggered and Cost. Wordings are COPY.md Round 7 (Z1-Z7).
+  New facts: `roll.natural`, `roll.characteristic`, `roll.bonus`, and a target's own `roll` (edges,
+  banes, total), which the roll behaviour now keeps on the cast as `targetRolls` beside `tokenToTier`.
+  Rows written before 2.2 show only the total, the tier and the targets' sums.
+- **Left for 2.3:** surges and kit bonuses are inside the Tier line's number until 2.3 splits them out
+  with the named sources. Immunity is one line per target even when two hits each met it.
+- **Tested:** a real Brutal Slam (5 + 5, Might 2, an edge from Prone, 14, Tier 2, 8 taken) and a fed
+  entry with three edges and a bane, a flat bonus, a target cancelled out on its own roll, typed damage
+  with immunity, a weakness, two goblins grouped, healing, a damaging trigger and a Malice cost.
 
 ## Stage 3: getting to it
 

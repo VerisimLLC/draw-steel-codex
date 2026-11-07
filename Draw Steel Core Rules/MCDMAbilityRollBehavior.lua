@@ -2303,6 +2303,15 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
                 if m_rollInfo.properties ~= nil and m_rollInfo.properties:try_get("multitargets") ~= nil and m_rollInfo.properties.multitargets[numTarget] ~= nil then
                     surges = m_rollInfo.properties.multitargets[numTarget].surges or 0
 
+                    --A target with its own edges or banes rolls a different total. Kept on the
+                    --cast beside its tier (tokenToTier) so History can show that target's roll.
+                    local multitarget = m_rollInfo.properties.multitargets[numTarget]
+                    if (multitarget.boons or 0) ~= 0 or (multitarget.banes or 0) ~= 0 then
+                        local effective = RollUtils.EffectiveRollForTarget(m_result, multitarget)
+                        local targetRolls = options.symbols.cast:get_or_add("targetRolls", {})
+                        targetRolls[targetToken.charid] = {edges = effective.boons, banes = effective.banes, total = effective.total}
+                    end
+
                     --Check modifiers actually applied to roll for this target
                     for _, mod in ipairs(m_rollInfo.properties.multitargets[numTarget].modifiersUsed or {}) do
                         potencyApplied = potencyApplied + (tonumber(mod:try_get("potencymod", 0)) or 0)

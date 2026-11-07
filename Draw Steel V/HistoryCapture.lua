@@ -18,6 +18,7 @@ local mod = dmhub.GetModLoading()
 --- @field hero boolean True on the heroes' side.
 --- @field secret? boolean True when players may not see the name.
 --- @field tier? integer On a target: the tier of the roll against it.
+--- @field roll? {edges: number, banes: number, total: number} On a target: its own roll, when edges or banes against it alone changed the total.
 --- @field turnid? string On a turn owner: the initiative id, which identifies the turn.
 --- @field group? integer On a turn owner: how many creatures share this turn.
 --- @field minions? boolean On a turn owner: true when the group is minions.
@@ -290,7 +291,34 @@ local function WriteTrigger(state)
     History.Write(entry)
 end
 
-local function AddRoll(entry, cast)
+--The characteristic a power roll adds, by name and value: of those its formula names
+--("Might or Agility", "Highest Characteristic"), the one the value came from. Nil for a
+--flat roll such as "2d10 + 3".
+--- @return string|nil name
+--- @return number|nil value
+local function RollCharacteristic(ability, caster)
+    for _, behavior in ipairs(ability.behaviors or {}) do
+        if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+            local value = behavior:GetRollCharacteristicValue(caster)
+            if value == nil then
+                return nil, nil
+            end
+            local formula = string.lower(behavior:try_get("roll", ""))
+            local anyOne = string.find(formula, "highest", 1, true) ~= nil
+            for _, attrid in ipairs(creature.attributeIds) do
+                local name = creature.attributesInfo[attrid].description
+                if (anyOne or string.find(formula, string.lower(name), 1, true) ~= nil)
+                    and caster:AttributeMod(attrid) == value then
+                    return name, value
+                end
+            end
+            return nil, value
+        end
+    end
+    return nil, nil
+end
+
+local function AddRoll(entry, cast, ability, caster)
     local total = cast:try_get("total")
     if total == nil then
         return
@@ -303,6 +331,21 @@ local function AddRoll(entry, cast)
         banes = cast.banesApplied,
         tier = cast.tier,
     }
+    --what the dice add up to and what is added to them, for the receipt (2.2). The rest of
+    --the total past the dice, the characteristic and an edge or bane is a flat bonus.
+    local natural = cast:try_get("naturalRoll")
+    if natural ~= nil and caster ~= nil then
+        local name, value = RollCharacteristic(ability, caster)
+        local edgeBonus = ActivatedAbilityPowerRollBehavior.GetRollModFromEdgesAndBanes(entry.roll.edges or 0, entry.roll.banes or 0)
+        entry.roll.natural = natural
+        if name ~= nil then
+            entry.roll.characteristic = {name = name, value = value}
+        end
+        local bonus = total - natural - edgeBonus - (name ~= nil and value or 0)
+        if bonus ~= 0 then
+            entry.roll.bonus = bonus
+        end
+    end
 end
 
 local function CastFinished(ability, casterToken, options)
@@ -349,10 +392,15 @@ local function CastFinished(ability, casterToken, options)
 
     local cast = options.symbols ~= nil and options.symbols.cast or nil
     if cast ~= nil then
-        AddRoll(entry, cast)
+        AddRoll(entry, cast, ability, casterToken ~= nil and casterToken.valid and casterToken.properties or nil)
         for tokenid, tier in pairs(cast:try_get("tokenToTier", {})) do
             if seen[tokenid] ~= nil then
                 seen[tokenid].tier = tier
+            end
+        end
+        for tokenid, roll in pairs(cast:try_get("targetRolls", {})) do
+            if seen[tokenid] ~= nil then
+                seen[tokenid].roll = {edges = roll.edges, banes = roll.banes, total = roll.total}
             end
         end
     end

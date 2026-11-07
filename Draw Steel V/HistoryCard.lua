@@ -36,6 +36,10 @@ local BACK_TEXT = "\226\128\185 Back"
 
 --The section heading's words, for the rule that runs on from them.
 local WHAT_HAPPENED_WIDTH = 104
+local THE_NUMBERS_WIDTH = 88
+
+--The receipt's number column, on the right of every line.
+local VALUE_WIDTH = 56
 
 --No phrase for EoE: the Codex also stores "no timer" as EoE, so a fall's Prone would read
 --as lasting the whole encounter when it ends on standing up.
@@ -253,7 +257,7 @@ local function GroupNames(group)
         base = stem
         numbers[i] = tonumber(number)
     end
-    if numbered then
+    if numbered and #group > 1 then
         table.sort(numbers)
         if numbers[#numbers] - numbers[1] == #numbers - 1 then
             return string.format("%s %d-%d", base, numbers[1], numbers[#numbers])
@@ -699,6 +703,425 @@ local function StoryRow(row, width)
     }
 end
 
+--The numbers (2.2): the prototype's receipt. One fact per line, every number in one column
+--on the right, each total under a line, in the order things resolved: the roll, then each
+--target, then triggers and costs. Wordings are COPY.md C3, C4 and Z1-Z7.
+
+--A signed number. A plain "-": the bold font has no minus sign.
+local function Signed(value)
+    if value < 0 then
+        return string.format("-%d", -value)
+    end
+    return string.format("+%d", value)
+end
+
+--Edges and banes as the rules net them: up to two of each count, then they cancel one for
+--one (Heroes book; GetRollModFromEdgesAndBanes agrees). Nil when there are none.
+--- @return {label: string, value: string, side: string|nil, count: integer, note: string|nil, aside: string|nil}|nil
+local function NetEdges(edges, banes)
+    edges, banes = edges or 0, banes or 0
+    if edges == 0 and banes == 0 then
+        return nil
+    end
+    local e, b = math.min(edges, 2), math.min(banes, 2)
+    local net
+    if b == 0 then
+        net = e == 1 and {label = "Edge", value = "+2", side = "edge", count = 1}
+            or {label = "Double edge", value = "+1 tier", side = "edge", count = 2}
+    elseif e == 0 then
+        net = b == 1 and {label = "Bane", value = "-2", side = "bane", count = 1}
+            or {label = "Double bane", value = "-1 tier", side = "bane", count = 2}
+    elseif e > b then
+        net = {label = "Edge", value = "+2", side = "edge", count = 1}
+    elseif e < b then
+        net = {label = "Bane", value = "-2", side = "bane", count = 1}
+    else
+        net = {label = "Cancelled out", value = "0", count = 0}
+    end
+
+    if e == 2 and b == 1 then
+        net.note = "A maximum of two edges count (a double edge); with one bane, the roll is made with one edge."
+    elseif b == 2 and e == 1 then
+        net.note = "A maximum of two banes count (a double bane); with one edge, the roll is made with one bane."
+    elseif e > 0 and e == b then
+        net.note = "Edges and banes cancel out: the roll is made without either."
+    elseif edges > 2 then
+        net.note = "A maximum of two edges count (a double edge)."
+    elseif banes > 2 then
+        net.note = "A maximum of two banes count (a double bane)."
+    end
+
+    if edges + banes > 1 then
+        local parts = {}
+        if edges > 0 then
+            parts[#parts + 1] = string.format("%d %s", edges, edges == 1 and "edge" or "edges")
+        end
+        if banes > 0 then
+            parts[#parts + 1] = string.format("%d %s", banes, banes == 1 and "bane" or "banes")
+        end
+        net.aside = "(" .. table.concat(parts, ", ") .. ")"
+    end
+    return net
+end
+
+--The roll dialog's arrows: the image points down (a bane) and is flipped for an edge; a
+--double stacks two.
+local function Chevrons(side, count)
+    local arrows = {}
+    for i = 1, count do
+        arrows[i] = gui.Panel{
+            classes = {cond(side == "edge", "historyEdgeIcon", "historyBaneIcon")},
+            bgimage = "drawsteel/Icons_Nav_CollapseArrow.png",
+            width = 14,
+            height = 14,
+            scale = side == "edge" and {x = 1, y = -1} or nil,
+            y = count == 2 and cond(i == 1, 2, -2) or 0,
+            interactable = false,
+        }
+    end
+    return gui.Panel{
+        flow = "none",
+        width = 14,
+        height = 14,
+        rmargin = 5,
+        halign = "left",
+        valign = "center",
+        children = arrows,
+    }
+end
+
+local function Die(face)
+    return gui.Label{
+        classes = {"historyDie"},
+        bgimage = "panels/square.png",
+        text = tostring(face),
+        width = 24,
+        height = 20,
+        rmargin = 4,
+        borderWidth = 1,
+        cornerRadius = 4,
+        borderBox = true,
+        halign = "left",
+        valign = "center",
+        textAlignment = "center",
+    }
+end
+
+--One line of the receipt. lead is panels before the label (dice, arrows, a face); a total
+--sits under a line.
+--- @param args {label: string|nil, lead: Panel[]|nil, aside: string|nil, badge: integer|nil, value: string|nil, valueClass: string|nil, labelClass: string|nil, total: boolean|nil}
+local function ReceiptLine(width, args)
+    local left = {}
+    for _, panel in ipairs(args.lead or {}) do
+        left[#left + 1] = panel
+    end
+    if args.label ~= nil then
+        left[#left + 1] = gui.Label{
+            classes = {"historyReceipt", args.labelClass},
+            text = args.label,
+            width = "auto",
+            maxWidth = width - VALUE_WIDTH - 8,
+            height = "auto",
+            halign = "left",
+            valign = "center",
+        }
+    end
+    if args.aside ~= nil then
+        left[#left + 1] = gui.Label{
+            classes = {"historyReceiptAside"},
+            text = args.aside,
+            width = "auto",
+            height = "auto",
+            lmargin = 5,
+            halign = "left",
+            valign = "center",
+        }
+    end
+    if args.badge ~= nil and args.badge > 0 then
+        left[#left + 1] = History.TierBadge(args.badge)
+    end
+
+    local children = {
+        gui.Panel{
+            flow = "horizontal",
+            wrap = true,
+            width = width - VALUE_WIDTH - 8,
+            height = "auto",
+            halign = "left",
+            valign = "center",
+            children = left,
+        },
+    }
+    if args.value ~= nil then
+        children[2] = gui.Label{
+            classes = {"historyReceiptValue", args.valueClass},
+            text = args.value,
+            width = VALUE_WIDTH,
+            height = "auto",
+            halign = "right",
+            valign = "center",
+            textAlignment = "right",
+        }
+    end
+    local row = gui.Panel{
+        flow = "none",
+        width = width,
+        height = "auto",
+        vpad = 2,
+        borderBox = true,
+        children = children,
+    }
+    if not args.total then
+        return row
+    end
+    return gui.Panel{
+        flow = "vertical",
+        width = width,
+        height = "auto",
+        tmargin = 3,
+        gui.Panel{
+            classes = {"historyReceiptRule"},
+            bgimage = "panels/square.png",
+            width = width,
+            height = 1,
+            bmargin = 2,
+        },
+        row,
+    }
+end
+
+--A rule note sits indented under its line; a cost (historyReceiptMore) starts at the edge.
+local function ReceiptNote(width, text, class)
+    local indent = class == nil and 16 or 0
+    return gui.Label{
+        classes = {class or "historyReceiptNote"},
+        text = text,
+        width = width - indent,
+        height = "auto",
+        lmargin = indent,
+        tmargin = class == nil and 0 or 4,
+        bmargin = 3,
+        halign = "left",
+        textAlignment = "left",
+    }
+end
+
+--A heading inside the numbers: Power roll, a target (with its face) or Triggered.
+local function SubHead(text, width, who)
+    local children = {}
+    if who ~= nil then
+        local face = History.Face(who, 18)
+        face.selfStyle.rmargin = 6
+        face.selfStyle.halign = "left"
+        children[1] = face
+    end
+    children[#children + 1] = gui.Label{
+        classes = {"historySmallCaps"},
+        text = text,
+        width = "auto",
+        maxWidth = width - 40,
+        height = "auto",
+        halign = "left",
+        valign = "center",
+    }
+    return gui.Panel{
+        flow = "horizontal",
+        width = width,
+        height = "auto",
+        tmargin = 8,
+        bmargin = 3,
+        children = children,
+    }
+end
+
+local function AddEdgeLines(rows, width, edges, banes, forTarget)
+    local net = NetEdges(edges, banes)
+    if net == nil then
+        return
+    end
+    local label = net.label
+    if forTarget and net.side ~= nil then
+        label = label .. " for this target"
+    end
+    rows[#rows + 1] = ReceiptLine(width, {
+        lead = net.side ~= nil and {Chevrons(net.side, net.count)} or nil,
+        label = label,
+        labelClass = net.side == "edge" and "historyEdgeText" or net.side == "bane" and "historyBaneText" or nil,
+        aside = net.aside,
+        value = net.value,
+    })
+    if net.note ~= nil then
+        rows[#rows + 1] = ReceiptNote(width, net.note)
+    end
+end
+
+--"Damage immunity 2", "Fire immunity 3", "Fire weakness 3" (Z5).
+local function ResistWords(immunity)
+    local typeWord = immunity.damagetype == "damage" and "Damage"
+        or (string.upper(string.sub(immunity.damagetype, 1, 1)) .. string.sub(immunity.damagetype, 2))
+    if immunity.amount > 0 then
+        return string.format("%s immunity %d", typeWord, immunity.amount)
+    end
+    return string.format("%s weakness %d", typeWord, -immunity.amount)
+end
+
+--One target's sum: its own roll if it had one, what the tier dealt, what changed it, and
+--what landed. count > 1 for numbered creatures that all got the same.
+local function AddTargetLines(rows, width, entry, who, count)
+    if who.roll ~= nil then
+        AddEdgeLines(rows, width, who.roll.edges, who.roll.banes, true)
+        rows[#rows + 1] = ReceiptLine(width, {label = "Their roll", badge = who.tier, value = tostring(who.roll.total), total = true})
+    end
+    --what dealt it: the tier against this target, or the ability when nothing was rolled.
+    local source = (who.tier ~= nil and who.tier > 0) and string.format("Tier %d", who.tier) or entry.ability.name
+
+    local taken = who.taken or 0
+    if taken > 0 then
+        local immunity = who.immunity
+        local changed = immunity ~= nil and immunity.amount or 0
+        local first = true
+        local function Dealt(label, raw)
+            rows[#rows + 1] = ReceiptLine(width, {label = label, value = first and tostring(raw) or Signed(raw)})
+            first = false
+        end
+        local typeNames = {}
+        for name in pairs(who.types or {}) do
+            typeNames[#typeNames + 1] = name
+        end
+        table.sort(typeNames)
+        local typed = 0
+        for _, name in ipairs(typeNames) do
+            local landed = who.types[name]
+            typed = typed + landed
+            Dealt(string.format("%s: %s", source, name), landed + ((immunity ~= nil and immunity.damagetype == name) and changed or 0))
+        end
+        if taken > typed or #typeNames == 0 then
+            local typedImmunity = immunity ~= nil and who.types ~= nil and who.types[immunity.damagetype] ~= nil
+            Dealt(source, taken - typed + (typedImmunity and 0 or changed))
+        end
+        if changed ~= 0 then
+            rows[#rows + 1] = ReceiptLine(width, {label = ResistWords(immunity), value = Signed(-changed)})
+        end
+        rows[#rows + 1] = ReceiptLine(width, {
+            label = count > 1 and "Taken, each" or "Taken",
+            value = tostring(taken),
+            valueClass = "historyHurt",
+            total = true,
+        })
+    end
+
+    local healed = who.healed or 0
+    if healed > 0 then
+        rows[#rows + 1] = ReceiptLine(width, {label = source, value = tostring(healed)})
+        rows[#rows + 1] = ReceiptLine(width, {label = "Regained", value = tostring(healed), valueClass = "historyHealed", total = true})
+    end
+end
+
+--Targets with the same numbers share one sum ("Goblin 1-4", "Taken, each").
+local function ReceiptKey(who)
+    if (who.taken or 0) == 0 and (who.healed or 0) == 0 and who.roll == nil then
+        return nil
+    end
+    local types = {}
+    for name, amount in pairs(who.types or {}) do
+        types[#types + 1] = name .. amount
+    end
+    table.sort(types)
+    local immunity = who.immunity ~= nil and (who.immunity.damagetype .. who.immunity.amount) or ""
+    local roll = who.roll ~= nil and string.format("%d/%d/%d", who.roll.edges or 0, who.roll.banes or 0, who.roll.total) or ""
+    return string.format("%s|%d|%d|%s|%s|%s", tostring(who.tier), who.taken or 0, who.healed or 0, table.concat(types, ","), immunity, roll)
+end
+
+--- The receipt's rows for an action entry; empty when it has nothing to add up.
+--- @param entry HistoryEntry
+--- @param kids HistoryEntry[]|nil
+--- @param width number
+--- @return Panel[]
+local function NumbersRows(entry, kids, width)
+    local rows = {}
+    local targets = entry.targets or {}
+
+    local roll = entry.roll
+    if roll ~= nil then
+        rows[#rows + 1] = SubHead("Power roll", width)
+        if roll.natural ~= nil and roll.low ~= nil and roll.high ~= nil then
+            rows[#rows + 1] = ReceiptLine(width, {lead = {Die(roll.low), Die(roll.high)}, value = tostring(roll.natural)})
+            if roll.characteristic ~= nil then
+                rows[#rows + 1] = ReceiptLine(width, {label = roll.characteristic.name, value = Signed(roll.characteristic.value)})
+            end
+            if roll.bonus ~= nil then
+                rows[#rows + 1] = ReceiptLine(width, {label = "Bonus", value = Signed(roll.bonus)})
+            end
+        end
+        AddEdgeLines(rows, width, roll.edges, roll.banes, false)
+        --the tier of the roll itself: a target with edges or banes of its own got another.
+        local tier = roll.tier
+        for _, who in ipairs(targets) do
+            if who.roll == nil and who.tier ~= nil then
+                tier = who.tier
+                break
+            end
+        end
+        rows[#rows + 1] = ReceiptLine(width, {label = "Total", badge = tier, value = tostring(roll.total), total = true})
+    end
+
+    local groups = {}
+    local byKey = {}
+    for _, who in ipairs(targets) do
+        local key = ReceiptKey(who)
+        if key ~= nil then
+            if byKey[key] == nil then
+                byKey[key] = {}
+                groups[#groups + 1] = byKey[key]
+            end
+            table.insert(byKey[key], who)
+        end
+    end
+    for _, group in ipairs(groups) do
+        rows[#rows + 1] = SubHead(GroupNames(group), width, group[1])
+        AddTargetLines(rows, width, entry, group[1], #group)
+    end
+
+    local triggered = {}
+    for _, kid in ipairs(kids or {}) do
+        if kid.kind == "trigger" and kid.actor ~= nil then
+            local net = 0
+            for _, who in ipairs(kid.targets or {}) do
+                net = net - (who.taken or 0) + (who.healed or 0)
+            end
+            if net ~= 0 then
+                local face = History.Face(kid.actor, 18)
+                face.selfStyle.rmargin = 6
+                face.selfStyle.halign = "left"
+                triggered[#triggered + 1] = ReceiptLine(width, {
+                    lead = {face},
+                    label = History.ShownName(kid.actor) .. History.DOT .. kid.ability.name,
+                    value = Signed(net),
+                    valueClass = cond(net < 0, "historyHurt", "historyHealed"),
+                })
+            end
+        end
+    end
+    if #triggered > 0 then
+        rows[#rows + 1] = SubHead("Triggered", width)
+        for _, row in ipairs(triggered) do
+            rows[#rows + 1] = row
+        end
+    end
+
+    if entry.costs ~= nil then
+        local names = {}
+        for name in pairs(entry.costs) do
+            names[#names + 1] = name
+        end
+        table.sort(names)
+        for _, name in ipairs(names) do
+            rows[#rows + 1] = ReceiptNote(width, "Cost: " .. History.ResourceWords(entry.costs[name].amount, name), "historyReceiptMore")
+        end
+    end
+    return rows
+end
+
 --- Builds the card for one row. It is rebuilt to change it: the sections have a different
 --- shape for every action, and a scroll bar only works if it is there on its first frame.
 --- tail is the card's edge that faces History ("left" or "right"). The tail comes back in
@@ -714,6 +1137,15 @@ function History.CreateCard(args)
     local body = {SectionHead("What happened", WHAT_HAPPENED_WIDTH, inner)}
     for _, row in ipairs(History.Story(entry, args.kids)) do
         body[#body + 1] = StoryRow(row, inner)
+    end
+    if entry.kind == "action" then
+        local numbers = NumbersRows(entry, args.kids, inner)
+        if #numbers > 0 then
+            body[#body + 1] = SectionHead("The numbers", THE_NUMBERS_WIDTH, inner)
+            for _, row in ipairs(numbers) do
+                body[#body + 1] = row
+            end
+        end
     end
     local footer = FooterWords(entry)
     if footer ~= nil then

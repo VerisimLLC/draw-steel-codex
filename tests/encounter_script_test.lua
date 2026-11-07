@@ -2647,4 +2647,358 @@ Appeals: Nothing
     check(EncounterScript.NegotiationOfferInterest("Perhaps") == nil, "an unknown offer")
 end)()
 
+--Gauntlets: "# Gauntlet" sections, routes, party-size tags, custom event
+--points, No Roll options and the arrival-scene PC rule (GAUNTLET_PLAN.md).
+;(function()
+    local function has(warnings, fragment)
+        for _, w in ipairs(warnings) do
+            if string.find(w, fragment, 1, true) ~= nil then
+                return true
+            end
+        end
+        return false
+    end
+
+    local parsed = EncounterScript.Parse([==[
+# Gauntlet: The Wyrmwood
+
+The road east runs through the Wyrmwood.
+
+## The Rushing River
+
+Snowmelt has swollen the river.
+
+Go to: The Fork
+
+### Build a raft
+
+|Build a Raft: Reason (Alertness, Endurance)
+|It breaks up => Each party member loses 1 recovery
+|It holds => You lose 1 recovery
+|A sturdy craft
+
+### Fly a rope across
+
+|Allow: you can fly
+|Rope Line: Agility (Climb)
+|The rope slips => Each party member loses 4 stamina
+|A wet crossing
+|A taut line => +1 hero token
+
+### Swim it
+
+|Swim the Torrent: Might (Swim)
+|Swept away. You lose 2 recoveries. Go to The Rapids
+|Exhausting. You lose 1 recovery
+|Strong strokes
+
+## The Rapids (Detour)
+
+You wash up a mile downstream.
+
+Go to: The Fork
+
+### Climb back up the bank
+
+|Climb: Might (Climb)
+|You lose 3 stamina
+|You lose 1 stamina
+|An easy climb
+
+## The Fork
+
+Choose together: The path splits around a hill.
+
+### Take the high path
+
+Go to: The Old Watchtower
+
+### Take the low path
+
+|+1 hero token. Go to The Bramble Hollow
+
+## The Old Watchtower
+
+Go to: The Clearing
+
+### Search the tower
+
+|Search the Tower: Intuition (Search)
+|You lose 2 stamina
+|Dust and bones
+|You gain 1 Healing Potion
+
+### Walk past
+
+## The Bramble Hollow
+
+Exotic berries hang heavy on the thorns.
+
+### Pick and eat them
+
+|Forage: Intuition (Nature)
+|You lose 3 stamina
+|You heal 5 stamina
+|Each party member heals 5 stamina
+
+### Leave them
+
+## Custom Event: Campfire
+
+## The Clearing
+
+---
+
+Wolf (Wolf) enters
+PC: Easy now.
+The wolf watches PC.
+Wolf: Grr.
+if PC speaks Caelian then
+Wolf: (in Caelian) Who are you?
+end
+
+### Back away slowly
+
+|Calm the Wolf: Presence (Handle Animals)
+|You lose 4 stamina
+|You lose 1 stamina
+|It lets you pass
+
+## Wolves on the Ridge (5+ Players)
+
+### Fight them off
+
+|Fight the Pack: Might (Endurance)
+|Each party member loses 3 stamina
+|You lose 2 stamina
+|They scatter
+]==])
+    local beat = parsed.beats[1]
+    check(beat.kind == "montage" and beat.gauntlet == true, "gauntlet: a montage beat in gauntlet mode")
+    check(beat.name == "The Wyrmwood", "gauntlet: the name after the colon")
+    check(beat.intro == "The road east runs through the Wyrmwood.", "gauntlet: intro prose")
+    local sections = EncounterScript.GauntletSections(beat)
+    check(#sections == 8, "gauntlet: eight sections, got " .. #sections)
+    check(#beat.rounds == 1 and EncounterScript.RoundCount(beat) == 1, "gauntlet: one implicit round")
+    check(#EncounterScript.MontageEntries(beat) == 8, "gauntlet: the montage sees the sections as entries")
+
+    local river, rapids, fork, tower, hollow, event, clearing, wolves =
+        sections[1], sections[2], sections[3], sections[4], sections[5], sections[6], sections[7], sections[8]
+    check(river.id == "g-the-rushing-river" and EncounterScript.FindEntry(beat, river.id) == river, "gauntlet: section ids and FindEntry")
+    check(river.kind == "challenge" and river.exitId == fork.id, "gauntlet: a challenge with its own exit")
+    check(river.description == "Snowmelt has swollen the river.", "gauntlet: the exit line is not card text")
+    check(#river.options == 3, "gauntlet: river has three options")
+    check(EncounterScript.OptionIsSecret(river.options[2]), "gauntlet: the flying option is secret")
+    check(EncounterScript.GotoTarget(river.options[3].roll.effects[1]) == rapids.id, "gauntlet: tier 1 of Swim routes to the Rapids")
+    check(EncounterScript.GotoTarget(river.options[3].roll.effects[2]) == nil, "gauntlet: tier 2 of Swim does not route")
+    local kinds = {}
+    for _, e in ipairs(river.options[3].roll.effects[1]) do
+        kinds[#kinds + 1] = e.kind
+    end
+    check(table.concat(kinds, ",") == "narrative,loserecovery,goto", "gauntlet: tier 1 clauses, got " .. table.concat(kinds, ","))
+    local shown = EncounterScript.VisibleText(river.options[3].roll.tiers[1])
+    check(shown == "Swept away. You lose 2 recoveries.", "gauntlet: the route is hidden from players, got " .. shown)
+    check(EncounterScript.VisibleText(river.options[3].roll.tiers[4]) == "Strong strokes. The party gains an additional hero token.", "gauntlet: the automatic critical is untouched")
+
+    check(rapids.detour == true and rapids.exitId == fork.id, "gauntlet: a detour with an exit")
+    check(rapids.options[1].routeId == nil, "gauntlet: an exit above the options is not an option route")
+
+    check(fork.kind == "choice" and fork.prompt == "The path splits around a hill.", "gauntlet: Choose together makes a vote")
+    check(fork.options[1].routeId == tower.id, "gauntlet: a vote option's Go to line")
+    local low = fork.options[2]
+    check(low.free ~= nil and EncounterScript.GotoTarget(low.free.effects) == hollow.id, "gauntlet: a go to clause on a rules line")
+    check(low.free.effects[1].kind == "herotoken", "gauntlet: the rest of the rules line still applies")
+
+    local walk = tower.options[2]
+    check(walk.roll == nil and walk.free ~= nil and walk.free.text == "" and #walk.free.effects == 0, "gauntlet: an option with nothing is No Roll")
+    check(EncounterScript.OptionTakeable == nil or EncounterScript.OptionTakeable(walk), "gauntlet: a No Roll option is takeable")
+
+    check(event.kind == "event" and event.label == "Campfire" and event.id == "g-event-campfire", "gauntlet: a custom event point")
+    check(#event.options == 0, "gauntlet: an event point has no options")
+
+    check(wolves.minPlayers == 5 and wolves.maxPlayers == nil and wolves.name == "Wolves on the Ridge", "gauntlet: a party-size tag")
+
+    --the arrival scene keeps only the lines that need no hero.
+    local kept = {}
+    for _, step in ipairs(clearing.scene or {}) do
+        kept[#kept + 1] = step.kind .. ":" .. tostring(step.speaker or step.name or step.text)
+    end
+    check(table.concat(kept, "|") == "enter:Wolf|say:Wolf", "gauntlet: PC lines dropped from the arrival, got " .. table.concat(kept, "|"))
+    check(has(parsed.warnings, "PC: Easy now."), "gauntlet: PC speaking in the arrival warns")
+    check(has(parsed.warnings, "The wolf watches PC."), "gauntlet: narration naming PC in the arrival warns")
+    check(has(parsed.warnings, "'if ...' uses PC"), "gauntlet: an if on PC in the arrival warns")
+
+    for _, fragment in ipairs({ "loop", "never reached", "falls through", "names no section", "has no options" }) do
+        check(not has(parsed.warnings, fragment), "gauntlet: no '" .. fragment .. "' warning in the sample")
+    end
+
+    --routing, for a party of four and of five.
+    local function Name(s)
+        return s ~= nil and s.name or "END"
+    end
+    check(Name(EncounterScript.GauntletFirst(beat, 4)) == "The Rushing River", "route: first section")
+    check(Name(EncounterScript.GauntletNext(beat, river, river.options[1], nil, 4)) == "The Fork", "route: the section exit")
+    check(Name(EncounterScript.GauntletNext(beat, river, river.options[3], rapids.id, 4)) == "The Rapids", "route: a tier clause wins")
+    check(Name(EncounterScript.GauntletNext(beat, rapids, rapids.options[1], nil, 4)) == "The Fork", "route: the detour rejoins")
+    check(Name(EncounterScript.GauntletNext(beat, fork, fork.options[1], nil, 4)) == "The Old Watchtower", "route: an option's Go to")
+    check(Name(EncounterScript.GauntletNext(beat, fork, low, EncounterScript.GotoTarget(low.free.effects), 4)) == "The Bramble Hollow", "route: a clause on a vote option")
+    check(Name(EncounterScript.GauntletNext(beat, tower, walk, nil, 4)) == "The Clearing", "route: the watchtower's exit")
+    check(Name(EncounterScript.GauntletNext(beat, hollow, hollow.options[2], nil, 4)) == "Custom Event: Campfire", "route: falls through to the event point")
+    check(Name(EncounterScript.GauntletNext(beat, event, nil, nil, 4)) == "The Clearing", "route: an event point with nothing ready")
+    check(Name(EncounterScript.GauntletNext(beat, clearing, clearing.options[1], nil, 5)) == "Wolves on the Ridge", "route: five heroes meet the wolves")
+    check(Name(EncounterScript.GauntletNext(beat, clearing, clearing.options[1], nil, 4)) == "END", "route: four heroes skip the wolves and finish")
+    check(Name(EncounterScript.GauntletNext(beat, wolves, wolves.options[1], nil, 5)) == "END", "route: the last section ends it")
+    check(Name(EncounterScript.GauntletNext(beat, river, river.options[1], EncounterScript.GAUNTLET_END, 4)) == "END", "route: go to End")
+
+    --party-size tags and Go to lines.
+    local function Range(text)
+        local lo, hi = EncounterScript.ParsePartySizeTag(text)
+        return tostring(lo) .. "-" .. tostring(hi)
+    end
+    check(Range("5+ Players") == "5-nil", "size tag: 5+")
+    check(Range("3-4 players") == "3-4", "size tag: range")
+    check(Range("6 Player") == "6-6", "size tag: exact")
+    check(Range("4 - 2 Players") == "nil-nil", "size tag: backwards range")
+    check(Range("Detour") == "nil-nil", "size tag: not one")
+    check(EncounterScript.ParseGotoLine("Go to: The Fork.") == "The Fork", "go to line")
+    check(EncounterScript.ParseGotoLine("go to:") == "", "go to line with no name")
+    check(EncounterScript.ParseGotoLine("Going to the fork") == nil, "not a go to line")
+
+    --outside a Gauntlet "go to" is prose, as it always was; a Go to line warns.
+    local montage = EncounterScript.Parse([==[
+# Montage
+
+## Opportunity: Market
+
+### Haggle
+
+Go to: The Docks
+
+|Haggle: Presence (Persuade)
+|Go to the docks
+|Fine
+|Better
+]==])
+    local haggle = montage.beats[1].rounds[1].entries[1].options[1]
+    check(haggle.roll.effects[1][1].kind == "narrative", "montage: 'go to' stays prose")
+    check(has(montage.warnings, "'Go to: The Docks' only works in a Gauntlet"), "montage: a Go to line warns")
+    check(haggle.routeId == nil and haggle.route == nil, "montage: no route recorded")
+
+    --problems the parser reports.
+    local function WarningsOf(text)
+        return EncounterScript.Parse(text).warnings
+    end
+    local loop = WarningsOf([==[
+# Gauntlet
+## A
+Go to: B
+### Go on
+## B
+Go to: A
+### Go back
+]==])
+    check(has(loop, "makes a loop: A -> B -> A"), "warn: a loop")
+
+    local unknown = WarningsOf([==[
+# Gauntlet
+## A
+### Leap
+|Leap: Agility (Jump)
+|Go to Nowhere
+|Fine
+|Better
+]==])
+    check(has(unknown, "'Go to Nowhere' names no section"), "warn: an unknown target")
+    local unknownCount = 0
+    for _, w in ipairs(unknown) do
+        if string.find(w, "Go to Nowhere", 1, true) then
+            unknownCount = unknownCount + 1
+        end
+    end
+    check(unknownCount == 1, "warn: an unknown target warns once despite the automatic critical")
+
+    local detour = WarningsOf([==[
+# Gauntlet
+## A
+### Go on
+## B (Detour)
+### Climb out
+]==])
+    check(has(detour, "section 'A' falls through into the detour 'B'"), "warn: falling into a detour")
+
+    local unreachable = WarningsOf([==[
+# Gauntlet
+## A
+Go to: End
+### Go on
+## B
+### Climb
+]==])
+    check(has(unreachable, "section 'B' is never reached"), "warn: an unreachable section")
+
+    local misc = WarningsOf([==[
+# Gauntlet
+## Round 1
+## A (Required)
+### Fly
+|Allow: you can fly
+## B
+Choose together: Which way?
+### Left
+|Left: Might (Climb)
+|x
+|y
+|z
+## C
+Choose individually:
+### Go
+## Custom Event
+### Not allowed
+## Custom Event: Second
+Stray prose.
+## D
+Consequence: Everyone loses 2 stamina.
+## End
+### Go
+## E
+### Tomb
+Delve: The Tomb
+]==])
+    check(has(misc, "a Gauntlet has no rounds"), "warn: a round heading")
+    check(has(misc, "'(Required)' is a montage tag"), "warn: a montage tag")
+    check(has(misc, "section 'A': every option is secret"), "warn: every option secret")
+    check(has(misc, "option 'Left' is in a vote"), "warn: a roll in a vote")
+    check(has(misc, "a Gauntlet has no individual choices"), "warn: an individual choice")
+    check(has(misc, "custom event point 'Custom Event' cannot have options"), "warn: options on an event point")
+    check(has(misc, "takes only a 'Go to:' line; 'Stray prose.'"), "warn: prose on an event point")
+    check(has(misc, "a Gauntlet has no 'Consequence:'"), "warn: a consequence")
+    check(has(misc, "section 'D' has no options"), "warn: a challenge with no options")
+    check(has(misc, "a section named 'End' can never be reached"), "warn: a section named End")
+    check(has(misc, "a Gauntlet cannot enter a delve"), "warn: a delve option")
+    local scened = EncounterScript.Parse([==[
+# Gauntlet
+
+[[scene]]
+
+## A
+
+[[scene:river]]
+
+### Go
+]==]).beats[1]
+    check(scened.sceneTag == "scene" and scened.sections[1].sceneTag == "scene:river", "a section's own [[scene]]")
+
+    local misc2 = EncounterScript.Parse([==[
+# Gauntlet
+## B
+Choose together: Which way?
+### Left
+|Left: Might (Climb)
+|x
+|y
+|z
+]==]).beats[1]
+    check(misc2.sections[1].options[1].roll == nil and misc2.sections[1].options[1].free ~= nil, "a vote option's roll is dropped")
+end)()
+
 print(string.format("encounter_script_test: %d checks passed", passed))

@@ -1284,7 +1284,7 @@ text("author.script.unlock.outside_narrative", [['Unlock: {feature}' only works 
 text("author.script.intelligence_not_unlocked", [['{clause}' but nothing unlocks Intelligence; write 'Unlock: Intelligence' in a narrative beat or the party can never spend it]])
 
 --Beats and their headings. {title} is the heading as written.
-text("author.script.unknown_beat", [[unknown beat '{title}' (expected Montage, Narrative, Encounter, Delve: <name>, Part <n>: <title>, Results, Town Gate, Conclusion or Defeat); ignored]])
+text("author.script.unknown_beat", [[unknown beat '{title}' (expected Montage, Gauntlet, Narrative, Encounter, Delve: <name>, Part <n>: <title>, Results, Town Gate, Conclusion or Defeat); ignored]])
 text("author.script.second_story", [[a second '# {title}'; only the first is used]])
 --{part} is the part number already given.
 text("author.script.second_part", [[a second '# {title}'; a script is one part, so only '# Part {part}' counts (give each part its own document)]])
@@ -1423,6 +1423,32 @@ text("author.script.delve.section_options", [['## {section}' of delve '{delve}' 
 text("author.script.delve.obstacle_no_options", [[obstacle '{obstacle}' has no options]])
 text("author.script.delve.option_no_rules", [[option '{option}' has no power roll and no rules]])
 text("author.script.delve.option_nested_delve", [[option '{option}' is inside a delve already; 'Delve: {delve}' is ignored]])
+
+--Gauntlets ("# Gauntlet"). {section} is a "## <Name>" section's name,
+--{option} an option's name, {target} the name after "Go to", {tag} a heading
+--tag as written, {path} a list of section names joined by arrows.
+text("author.script.gauntlet.empty", [[the Gauntlet has no '## <Name>' sections]])
+text("author.script.gauntlet.round_heading", [['## {title}': a Gauntlet has no rounds; its sections play one after another]])
+text("author.script.gauntlet.montage_tag", [[section '{section}': '({tag})' is a montage tag and does nothing in a Gauntlet]])
+text("author.script.gauntlet.duplicate_name", [[a second section named '{section}'; a 'Go to' naming it finds the first]])
+text("author.script.gauntlet.section_named_end", [[a section named '{section}' can never be reached by 'Go to' ('Go to: End' ends the Gauntlet); rename it]])
+text("author.script.gauntlet.no_options", [[section '{section}' has no options; a hero must take one to get past it (add a '### ...' option, with or without a roll)]])
+text("author.script.gauntlet.vote_no_options", [[section '{section}' is a vote ('Choose together:') but has no options]])
+text("author.script.gauntlet.vote_roll_ignored", [[option '{option}' is in a vote ('Choose together:'); votes have no tests, so its power roll is ignored]])
+text("author.script.gauntlet.individual_vote", [[section '{section}': a Gauntlet has no individual choices; write 'Choose together:' for a vote, or leave it out for a challenge a hero takes on]])
+text("author.script.gauntlet.all_secret", [[section '{section}': every option is secret (an 'Allow' rider), so a party with no hero who qualifies cannot get past; add an option anyone can take]])
+text("author.script.gauntlet.delve_option", [[option '{option}': a Gauntlet cannot enter a delve; 'Delve: {delve}' is ignored]])
+text("author.script.gauntlet.consequence", [[section '{section}': a Gauntlet has no 'Consequence:'; write the cost into the tier text instead (fail forward)]])
+text("author.script.gauntlet.event_body", [[custom event point '{section}' takes only a 'Go to:' line; '{text}' is ignored]])
+text("author.script.gauntlet.event_options", [[custom event point '{section}' cannot have options; the game writes the event that plays there]])
+text("author.script.gauntlet.goto_empty", [['Go to:' names no section]])
+text("author.script.gauntlet.goto_twice", [[a second 'Go to:' for '{section}'; the first one counts]])
+text("author.script.gauntlet.goto_unknown", [['Go to {target}' names no section of this Gauntlet (nor 'End')]])
+text("author.script.gauntlet.goto_outside", [['Go to: {target}' only works in a Gauntlet; ignored]])
+text("author.script.gauntlet.loop", [['Go to' makes a loop: {path}. A Gauntlet may only go forward or sideways]])
+text("author.script.gauntlet.unreachable", [[section '{section}' is never reached: nothing goes to it and the section above never falls through to it]])
+text("author.script.gauntlet.falls_into_detour", [[section '{from}' falls through into the detour '{section}' below it; give '{from}' a 'Go to:' line (above its options) so the party only takes the detour when sent there]])
+text("author.script.gauntlet.arrival_pc", [[section '{section}': '{text}' uses PC, but no hero has stepped up while the party arrives; PC belongs in an option's own lines. This line is not played]])
 
 ----------------------------------------------------------------------------
 -- THE MONTAGE BUILDER: the outcome picker's list of rules

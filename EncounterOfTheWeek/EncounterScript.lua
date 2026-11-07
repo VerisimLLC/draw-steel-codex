@@ -458,9 +458,21 @@ end
 --(a declaration may come after a clause that uses it). nil outside Parse.
 local g_trackEffects = nil
 local g_parseLine = 0
+--While Parse is inside a "# Gauntlet" beat: "go to <section>" is a routing
+--clause there. Everywhere else it stays prose, as it always was.
+local g_gauntletClauses = false
 
 local function ParseClause(clause)
     local lc = lower(clause)
+
+    --"Go to The Rapids" / "go to End": in a Gauntlet, where the party goes
+    --next (resolved to a section id after the parse: effect.targetId).
+    if g_gauntletClauses then
+        local target = string.match(clause, "^[Gg][Oo]%s+[Tt][Oo]%s+(.-)%s*$")
+        if target ~= nil and target ~= "" then
+            return { kind = "goto", name = target, key = EncounterScript.MatchKey(target), text = clause }
+        end
+    end
 
     --"Edge on Capture Them": a standing edge or bane on another test of
     --this montage, for whoever takes it. Matched FIRST because the generic
@@ -2698,6 +2710,478 @@ function EncounterScript.RoundHasScaling(beat, roundNumber)
     return false
 end
 
+--- gauntlets ------------------------------------------------------------------
+--
+--A "# Gauntlet" is a montage beat (kind "montage", gauntlet = true) whose one
+--implicit round holds its "## <Name>" sections, in document order, so the
+--montage turn engine finds them with FindEntry. The party meets them one at a
+--time; these helpers decide which comes next. Design: GAUNTLET_PLAN.md at the
+--dmhub repo root.
+
+--Where "Go to: End" (or the clause "go to End") sends the party: out of the
+--Gauntlet. Never a section id (those all start "g-").
+EncounterScript.GAUNTLET_END = "end"
+
+--A Gauntlet's "go to <Section>" clauses wrapped as hidden "{...}" clauses:
+--they still route, but the stage and the roll dialog never show players
+--where a result leads before it lands (the stage says "Next: ..." then).
+function EncounterScript.HideRouteClauses(text)
+    text = string.gsub(text or "", "^(%s*)([Gg][Oo]%s+[Tt][Oo]%s+[^%.,;!%?{}]+)", "%1{%2}")
+    text = string.gsub(text, "([%.,;!%?]%s*)([Gg][Oo]%s+[Tt][Oo]%s+[^%.,;!%?{}]+)", "%1{%2}")
+    return text
+end
+
+--Can an entry of this kind hold "### options" with tests, riders, rules
+--lines and dice tables? Montage opportunities and threats, delve obstacles,
+--and every kind of Gauntlet section (a custom event point's options are
+--refused later, in FinishGauntlet).
+function EncounterScript.IsTestEntryKind(kind)
+    return kind == "opportunity" or kind == "threat" or kind == "obstacle"
+        or kind == "challenge" or kind == "choice" or kind == "event"
+end
+
+--"5+ Players" / "3-4 players" / "6 Players" (a section heading tag) ->
+--min, max (max nil = no upper limit), or nil when it is not a party-size tag.
+---@param text string
+---@return number|nil, number|nil
+function EncounterScript.ParsePartySizeTag(text)
+    local lc = lower(trim(text or ""))
+    local range = string.match(lc, "^(%d[%d%s%-+]*)%s*players?$")
+        or string.match(lc, "^(%d[%d%s%-+]*)%s*heroe?s?$")
+    if range == nil then
+        return nil, nil
+    end
+    range = trim(range)
+    local lo, hi = string.match(range, "^(%d+)%s*%-%s*(%d+)$")
+    if lo ~= nil then
+        lo, hi = tonumber(lo), tonumber(hi)
+        if hi < lo then
+            return nil, nil
+        end
+        return lo, hi
+    end
+    local plus = string.match(range, "^(%d+)%s*%+$")
+    if plus ~= nil then
+        return tonumber(plus), nil
+    end
+    if string.match(range, "^%d+$") then
+        return tonumber(range), tonumber(range)
+    end
+    return nil, nil
+end
+
+--"Go to: The Fork" -> "The Fork" ("" when nothing follows the colon), or
+--nil when the line is not a Go to line.
+---@param line string
+---@return string|nil
+function EncounterScript.ParseGotoLine(line)
+    local rest = string.match(trim(line or ""), "^[Gg][Oo]%s+[Tt][Oo]%s*:%s*(.-)%s*$")
+    if rest == nil then
+        return nil
+    end
+    return (string.gsub(rest, "%.$", ""))
+end
+
+--The sections of a Gauntlet beat, in document order.
+---@return table[]
+function EncounterScript.GauntletSections(beat)
+    return (beat and beat.gauntlet and beat.sections) or {}
+end
+
+--A section by id, or nil.
+function EncounterScript.FindGauntletSection(beat, id)
+    for _, s in ipairs(EncounterScript.GauntletSections(beat)) do
+        if s.id == id then
+            return s
+        end
+    end
+    return nil
+end
+
+--Is this section played for a party of `partySize`? A "(5+ Players)" section
+--is passed over by a smaller party, as if it were not written.
+function EncounterScript.GauntletSectionFits(section, partySize)
+    if section == nil then
+        return false
+    end
+    local n = tonumber(partySize) or 0
+    if section.minPlayers ~= nil and n < section.minPlayers then
+        return false
+    end
+    if section.maxPlayers ~= nil and n > section.maxPlayers then
+        return false
+    end
+    return true
+end
+
+--The section id a list of applied effects routes to: the last "go to"
+--clause among them (its resolved targetId), or nil when none routes.
+function EncounterScript.GotoTarget(effects)
+    local target = nil
+    for _, effect in ipairs(effects or {}) do
+        if effect.kind == "goto" and effect.targetId ~= nil then
+            target = effect.targetId
+        end
+    end
+    return target
+end
+
+--Where a section's own exit leads when nothing more specific routes: its
+--"Go to:" line, else the next section written.
+local function GauntletFallthrough(beat, section)
+    if section.exitId ~= nil then
+        return section.exitId
+    end
+    local sections = EncounterScript.GauntletSections(beat)
+    for i, s in ipairs(sections) do
+        if s == section then
+            local nextSection = sections[i + 1]
+            return nextSection ~= nil and nextSection.id or EncounterScript.GAUNTLET_END
+        end
+    end
+    return EncounterScript.GAUNTLET_END
+end
+
+--Follow `id` until it names a section this party plays: a section too big
+--for the party is passed through via its own exit. Returns the section, or
+--nil for the end of the Gauntlet. The step limit only guards a script the
+--parser already warned about (a loop).
+local function GauntletLanding(beat, id, partySize)
+    local steps = 0
+    while id ~= nil and id ~= EncounterScript.GAUNTLET_END do
+        local section = EncounterScript.FindGauntletSection(beat, id)
+        if section == nil then
+            return nil
+        end
+        if EncounterScript.GauntletSectionFits(section, partySize) then
+            return section
+        end
+        steps = steps + 1
+        if steps > #EncounterScript.GauntletSections(beat) then
+            return nil
+        end
+        id = GauntletFallthrough(beat, section)
+    end
+    return nil
+end
+
+--Does a scene condition test the hero ("PC speaks X", "PC is a Fury", "PC
+--chose Y")? Story and tier atoms do not.
+local PC_CONDITION_OPS = { speaks = true, skilled = true, has = true, req = true, is = true, chose = true }
+local function ConditionUsesPC(node)
+    if node == nil then
+        return false
+    end
+    if PC_CONDITION_OPS[node.op] then
+        return true
+    end
+    return ConditionUsesPC(node.a) or ConditionUsesPC(node.b)
+end
+
+--A section's arrival scene with every line that needs a hero taken out
+--(nobody has stepped up yet): PC speaking or emoting, narration naming PC,
+--and any "if" block that tests PC. Each one warns.
+local function DropArrivalPC(steps, section, warn)
+    local kept = {}
+    for _, step in ipairs(steps or {}) do
+        local usesPC = false
+        local shown = step.text or ""
+        if step.kind == "say" then
+            usesPC = step.speaker == "PC"
+            shown = string.format("%s: %s", tostring(step.speaker), tostring(step.text))
+        elseif step.kind == "emote" then
+            usesPC = step.name == "PC"
+            shown = string.format("PC is %s", tostring(step.emote))
+        elseif step.kind == "narrate" then
+            usesPC = string.find(step.text or "", "%f[%w]PC%f[%W]") ~= nil
+        elseif step.kind == "if" then
+            for _, branch in ipairs(step.branches or {}) do
+                if ConditionUsesPC(branch.cond) then
+                    usesPC = true
+                end
+            end
+            shown = "if ..."
+            if not usesPC then
+                for _, branch in ipairs(step.branches or {}) do
+                    branch.steps = DropArrivalPC(branch.steps, section, warn)
+                end
+                if step.elseSteps ~= nil then
+                    step.elseSteps = DropArrivalPC(step.elseSteps, section, warn)
+                end
+            end
+        end
+        if usesPC then
+            warn(step.line or section.line, "%s", T("author.script.gauntlet.arrival_pc", { section = section.name, text = shown }))
+        else
+            kept[#kept + 1] = step
+        end
+    end
+    return kept
+end
+
+--Post-parse work on a Gauntlet beat, once every line has been read and the
+--scenes compiled: settle each section's kind, give No Roll options their
+--empty rules, resolve every "Go to" to a section id (or GAUNTLET_END), and
+--warn about routes that loop, sections never reached, and a section that
+--falls through into a detour.
+function EncounterScript.FinishGauntlet(beat, warn)
+    local sections = beat.sections or {}
+    if #sections == 0 then
+        warn(beat.line, "%s", T("author.script.gauntlet.empty"))
+        return
+    end
+
+    for _, s in ipairs(sections) do
+        if s.kind == "event" then
+            if #s.options > 0 then
+                warn(s.options[1].line or s.line, "%s", T("author.script.gauntlet.event_options", { section = s.name }))
+                s.options = {}
+            end
+        elseif s.choose then
+            s.kind = "choice"
+            if #s.options == 0 then
+                warn(s.line, "%s", T("author.script.gauntlet.vote_no_options", { section = s.name }))
+            end
+        elseif #s.options == 0 then
+            warn(s.line, "%s", T("author.script.gauntlet.no_options", { section = s.name }))
+        end
+        local anyOpen = false
+        for _, o in ipairs(s.options) do
+            if o.delve ~= nil then
+                warn(o.delveLine or o.line, "%s", T("author.script.gauntlet.delve_option", { option = o.name, delve = o.delve }))
+                o.delve = nil
+                o.delveLine = nil
+            end
+            if s.kind == "choice" and o.roll ~= nil then
+                warn(o.roll.line or o.line, "%s", T("author.script.gauntlet.vote_roll_ignored", { option = o.name }))
+                o.roll = nil
+            end
+            --an option with no roll and no rules is a No Roll option: taking
+            --it costs nothing and does nothing but move the party on.
+            if o.roll == nil and o.free == nil then
+                o.free = { text = "", effects = {}, line = o.line, lines = {} }
+            end
+            if not EncounterScript.OptionIsSecret(o) then
+                anyOpen = true
+            end
+            EncounterScript.CheckOptionKnacks(o, warn)
+        end
+        if s.kind == "challenge" and #s.options > 0 and not anyOpen then
+            warn(s.line, "%s", T("author.script.gauntlet.all_secret", { section = s.name }))
+        end
+        if s.scene ~= nil then
+            s.scene = DropArrivalPC(s.scene, s, warn)
+        end
+    end
+
+    --names -> ids. A custom event point answers to its full heading and to
+    --its label alone; the first section of a name wins.
+    local byKey = {}
+    local endKey = EncounterScript.MatchKey("End")
+    for _, s in ipairs(sections) do
+        local key = EncounterScript.MatchKey(s.name)
+        if key == endKey then
+            warn(s.line, "%s", T("author.script.gauntlet.section_named_end", { section = s.name }))
+        elseif byKey[key] ~= nil then
+            warn(s.line, "%s", T("author.script.gauntlet.duplicate_name", { section = s.name }))
+        else
+            byKey[key] = s
+        end
+        if s.label ~= nil then
+            local labelKey = EncounterScript.MatchKey(s.label)
+            if byKey[labelKey] == nil and labelKey ~= endKey then
+                byKey[labelKey] = s
+            end
+        end
+    end
+    --an automatic critical repeats tier 3's clauses, so the same unknown
+    --name can come round twice for one line: warn once.
+    local warnedUnknown = {}
+    local function Resolve(key, name, line)
+        if key == endKey then
+            return EncounterScript.GAUNTLET_END
+        end
+        local s = byKey[key]
+        if s == nil then
+            local seen = string.format("%s|%s", tostring(line), key)
+            if not warnedUnknown[seen] then
+                warnedUnknown[seen] = true
+                warn(line, "%s", T("author.script.gauntlet.goto_unknown", { target = name }))
+            end
+            return nil
+        end
+        return s.id
+    end
+    for _, s in ipairs(sections) do
+        if s.exit ~= nil then
+            s.exitId = Resolve(s.exit.key, s.exit.name, s.exit.line)
+        end
+        for _, o in ipairs(s.options) do
+            if o.route ~= nil then
+                o.routeId = Resolve(o.route.key, o.route.name, o.route.line)
+            end
+            for _, effects in ipairs(EncounterScript.OptionEffectLists(o, true, true)) do
+                for _, effect in ipairs(effects) do
+                    if effect.kind == "goto" and effect.targetId == nil then
+                        effect.targetId = Resolve(effect.key, effect.name, o.line)
+                    end
+                end
+            end
+        end
+        for _, tableRoll in pairs(s.tables or {}) do
+            for _, row in ipairs(tableRoll.rows or {}) do
+                for _, effect in ipairs(row.effects or {}) do
+                    if effect.kind == "goto" and effect.targetId == nil then
+                        effect.targetId = Resolve(effect.key, effect.name, row.line)
+                    end
+                end
+            end
+        end
+    end
+
+    --Every route out of each section: tier and table clauses, option lines,
+    --and the fall-through (the section's exit, else the next section),
+    --which is used unless every option names its own route. A section a
+    --small party skips, or an event point with nothing ready, falls through.
+    local indexOf = {}
+    for i, s in ipairs(sections) do
+        indexOf[s.id] = i
+    end
+    local edges = {}
+    for i, s in ipairs(sections) do
+        local list = {}
+        local function Add(id, how)
+            if id ~= nil and id ~= EncounterScript.GAUNTLET_END and indexOf[id] ~= nil then
+                list[#list + 1] = { to = indexOf[id], how = how }
+            end
+        end
+        local everyOptionRoutes = #s.options > 0
+        for _, o in ipairs(s.options) do
+            Add(o.routeId, "option")
+            if o.routeId == nil then
+                everyOptionRoutes = false
+            end
+            for _, effects in ipairs(EncounterScript.OptionEffectLists(o, true, true)) do
+                for _, effect in ipairs(effects) do
+                    if effect.kind == "goto" then
+                        Add(effect.targetId, "clause")
+                    end
+                end
+            end
+        end
+        for _, tableRoll in pairs(s.tables or {}) do
+            for _, row in ipairs(tableRoll.rows or {}) do
+                for _, effect in ipairs(row.effects or {}) do
+                    if effect.kind == "goto" then
+                        Add(effect.targetId, "clause")
+                    end
+                end
+            end
+        end
+        local fallthroughUsed = not everyOptionRoutes or s.minPlayers ~= nil or s.maxPlayers ~= nil
+        if fallthroughUsed then
+            if s.exitId ~= nil then
+                Add(s.exitId, "exit")
+            elseif sections[i + 1] ~= nil then
+                list[#list + 1] = { to = i + 1, how = "next" }
+            end
+        end
+        edges[i] = list
+    end
+
+    --loops: a depth-first walk; an edge back to a section still on the walk
+    --closes a loop. Each closing edge is reported once.
+    local state = {}
+    local stack = {}
+    local reported = {}
+    local function Visit(i)
+        state[i] = "open"
+        stack[#stack + 1] = i
+        for _, e in ipairs(edges[i]) do
+            if state[e.to] == "open" then
+                local key = string.format("%d>%d", i, e.to)
+                if not reported[key] then
+                    reported[key] = true
+                    local names = {}
+                    local from = 1
+                    for k, idx in ipairs(stack) do
+                        if idx == e.to then
+                            from = k
+                        end
+                    end
+                    for k = from, #stack do
+                        names[#names + 1] = sections[stack[k]].name
+                    end
+                    names[#names + 1] = sections[e.to].name
+                    warn(sections[i].line, "%s", T("author.script.gauntlet.loop", { path = table.concat(names, " -> ") }))
+                end
+            elseif state[e.to] == nil then
+                Visit(e.to)
+            end
+        end
+        stack[#stack] = nil
+        state[i] = "done"
+    end
+    for i = 1, #sections do
+        if state[i] == nil then
+            Visit(i)
+        end
+    end
+
+    --reachable from the first section, whatever the party size.
+    local reached = { [1] = true }
+    local queue = { 1 }
+    local head = 1
+    while head <= #queue do
+        local i = queue[head]
+        head = head + 1
+        for _, e in ipairs(edges[i]) do
+            if not reached[e.to] then
+                reached[e.to] = true
+                queue[#queue + 1] = e.to
+            end
+        end
+    end
+    for i, s in ipairs(sections) do
+        if not reached[i] then
+            warn(s.line, "%s", T("author.script.gauntlet.unreachable", { section = s.name }))
+        end
+        for _, e in ipairs(edges[i]) do
+            if e.how == "next" and sections[e.to].detour then
+                warn(s.line, "%s", T("author.script.gauntlet.falls_into_detour", { from = s.name, section = sections[e.to].name }))
+            end
+        end
+    end
+end
+
+--The first section this party plays (nil: none at all).
+function EncounterScript.GauntletFirst(beat, partySize)
+    local first = EncounterScript.GauntletSections(beat)[1]
+    if first == nil then
+        return nil
+    end
+    return GauntletLanding(beat, first.id, partySize)
+end
+
+--The section the party goes to after `section`, or nil when the Gauntlet is
+--over. First that is set: `tierTarget` (a "go to" clause in the result that
+--landed, see GotoTarget), the taken option's "Go to:" line, the section's
+--own "Go to:" line, the next section written. `option` is nil for a section
+--with nothing taken (a custom event point with no event ready).
+function EncounterScript.GauntletNext(beat, section, option, tierTarget, partySize)
+    if section == nil then
+        return nil
+    end
+    local target = tierTarget
+    if target == nil and option ~= nil then
+        target = option.routeId
+    end
+    if target == nil then
+        target = GauntletFallthrough(beat, section)
+    end
+    return GauntletLanding(beat, target, partySize)
+end
+
 --The entry ids a montage beat removes for a party of `partySize`, as
 --{ [entryId] = true }. Candidates are only the entries the directive's own
 --round INTRODUCES -- never one carried over from an earlier round -- and
@@ -3787,6 +4271,7 @@ function EncounterScript.Parse(text)
 
     g_trackEffects = {}
     g_parseLine = 0
+    g_gauntletClauses = false
     --a "When <condition>:" line with nothing after the colon, waiting for
     --the [[encounter]] island or "## Reinforcements:" heading it gates.
     local pendingGate = nil
@@ -3957,6 +4442,114 @@ function EncounterScript.Parse(text)
             beat.rounds[#beat.rounds + 1] = round
         end
         return round
+    end
+
+    --"## The Rushing River (Detour, 5+ Players)" in a Gauntlet: a new section.
+    --Trailing "(...)" groups made only of known tags are stripped from the
+    --name; "## Custom Event" / "## Custom Event: <label>" is a point where the
+    --game may insert an event of its own (kind "event"). The kind of any other
+    --section ("challenge", or "choice" once a "Choose together:" line is
+    --seen) is settled in FinishGauntlet.
+    local function StartGauntletSection(title, lineIndex)
+        ---@cast beat -nil
+        local name = trim(title)
+        local tags = {}
+        while true do
+            local beforeTag, tag = string.match(name, "^(.-)%s*%(([^()]*)%)%s*$")
+            if beforeTag == nil or trim(beforeTag) == "" then
+                break
+            end
+            local found, known = {}, true
+            for word in string.gmatch(tag, "[^,;]+") do
+                local w = trim(word)
+                local lw = lower(w)
+                local minPlayers, maxPlayers = EncounterScript.ParsePartySizeTag(w)
+                if lw == "detour" then
+                    found[#found + 1] = { detour = true }
+                elseif minPlayers ~= nil then
+                    found[#found + 1] = { minPlayers = minPlayers, maxPlayers = maxPlayers }
+                elseif lw == "required" or lw == "locked" or lw == "temporary" then
+                    found[#found + 1] = { montageTag = w }
+                else
+                    known = false
+                end
+            end
+            if not known or #found == 0 then
+                break
+            end
+            for _, f in ipairs(found) do
+                tags[#tags + 1] = f
+            end
+            name = trim(beforeTag)
+        end
+
+        local eventLabel = string.match(name, "^[Cc]ustom%s+[Ee]vent%s*:%s*(.+)$")
+        local isEvent = eventLabel ~= nil or lower(name) == "custom event"
+        local s = {
+            kind = cond(isEvent, "event", "challenge"),
+            name = name,
+            label = eventLabel ~= nil and trim(eventLabel) or nil,
+            round = 1,
+            line = lineIndex,
+            description = "",
+            approach = "",
+            consequence = nil,
+            options = {},
+        }
+        for _, f in ipairs(tags) do
+            if f.detour then
+                s.detour = true
+            elseif f.montageTag ~= nil then
+                Warn(lineIndex, "%s", T("author.script.gauntlet.montage_tag", { section = name, tag = f.montageTag }))
+            elseif f.minPlayers ~= nil then
+                s.minPlayers = f.minPlayers
+                s.maxPlayers = f.maxPlayers
+            end
+        end
+        --no "/" in an id (see the note on montage entry ids). "g-" marks a
+        --Gauntlet section; a repeated name gets its position appended.
+        local id = "g-" .. Slug(cond(isEvent, "event " .. (s.label or ""), name))
+        for _, other in ipairs(beat.sections) do
+            if other.id == id then
+                id = string.format("%s-%d", id, #beat.sections + 1)
+                break
+            end
+        end
+        s.id = id
+        EnsureRound(lineIndex)
+        ---@cast round -nil
+        round.entries[#round.entries + 1] = s
+        beat.sections[#beat.sections + 1] = s
+        return s
+    end
+
+    --A Gauntlet's "Go to: <Section>" lines, taken out of a paragraph: each is
+    --handed to `sink(name, lineIndex)`; the other lines come back.
+    local function TakeGotoLines(text, firstLine, sink)
+        local rest = {}
+        local lineIndex = firstLine
+        for _, l in ipairs(SplitLines(text)) do
+            local target = EncounterScript.ParseGotoLine(l)
+            if target ~= nil then
+                sink(target, lineIndex)
+            else
+                rest[#rest + 1] = l
+            end
+            lineIndex = lineIndex + 1
+        end
+        return trim(table.concat(rest, "\n"))
+    end
+
+    --Record a "Go to:" line on `holder` (a section's own exit or an option's
+    --route). The first one counts.
+    local function SetGoto(holder, field, target, lineIndex)
+        if target == "" then
+            Warn(lineIndex, "%s", T("author.script.gauntlet.goto_empty"))
+        elseif holder[field] ~= nil then
+            Warn(lineIndex, "%s", T("author.script.gauntlet.goto_twice", { section = holder.name or "?" }))
+        else
+            holder[field] = { name = target, key = EncounterScript.MatchKey(target), line = lineIndex }
+        end
     end
 
     --Where a paragraph sat: holder[key] collects {first, last} line spans so
@@ -4148,6 +4741,57 @@ function EncounterScript.Parse(text)
         if beat.kind ~= "montage" and beat.kind ~= "delve" then
             return
         end
+        if beat.gauntlet and entry ~= nil then
+            --"Go to: <Section>": under an option (or one of its knacks) it is
+            --where that option leads; above the first option it is the
+            --section's own exit.
+            text = TakeGotoLines(text, spanFirst, function(target, lineIndex)
+                if option ~= nil then
+                    SetGoto(option, "route", target, lineIndex)
+                else
+                    SetGoto(entry, "exit", target, lineIndex)
+                end
+            end)
+            if text == "" then
+                return
+            end
+            if entry.kind == "event" then
+                Warn(paragraphLine, "%s", T("author.script.gauntlet.event_body", { section = entry.name, text = text }))
+                return
+            end
+            if option == nil then
+                --"Choose together: Which way?" makes the section a party vote.
+                local label, rest = string.match(text, "^([%a][%a \t'%-]*):%s*(.*)$")
+                local mode = label ~= nil and NarrativeMode(label) or nil
+                if mode == "together" then
+                    entry.choose = true
+                    rest = trim(rest or "")
+                    if rest ~= "" then
+                        entry.prompt = cond((entry.prompt or "") == "", rest, (entry.prompt or "") .. "\n\n" .. rest)
+                    end
+                    AddSpan(entry, "promptLines")
+                    return
+                elseif mode == "individual" then
+                    Warn(paragraphLine, "%s", T("author.script.gauntlet.individual_vote", { section = entry.name }))
+                    return
+                end
+                local key = label ~= nil and lower(label) or nil
+                if key == "consequence" or key == "consequences" then
+                    Warn(paragraphLine, "%s", T("author.script.gauntlet.consequence", { section = entry.name }))
+                    return
+                end
+            end
+        elseif beat.kind == "montage" and not beat.gauntlet then
+            --a montage has no routes: say so, and keep the line as prose.
+            local lineIndex = spanFirst
+            for _, l in ipairs(SplitLines(text)) do
+                local target = EncounterScript.ParseGotoLine(l)
+                if target ~= nil then
+                    Warn(lineIndex, "%s", T("author.script.gauntlet.goto_outside", { target = target }))
+                end
+                lineIndex = lineIndex + 1
+            end
+        end
         if knack ~= nil then
             --prose under a knack heading is that version's description.
             knack.text = cond(knack.text == "", text, knack.text .. "\n\n" .. text)
@@ -4317,9 +4961,15 @@ function EncounterScript.Parse(text)
             local kind = lower(title)
             local delveName = string.match(title, "^[Dd]elve:%s*(.+)$")
             local negotiationName = string.match(title, "^[Nn]egotiation:%s*(.+)$")
+            --"# Gauntlet" or "# Gauntlet: The Wyrmwood".
+            local gauntletName = string.match(title, "^[Gg][Aa][Uu][Nn][Tt][Ll][Ee][Tt]%s*:%s*(.+)$")
+            local isGauntlet = kind == "gauntlet" or gauntletName ~= nil
             local storyKey = EncounterScript.STORY_SECTIONS[kind]
             local partNumber, partTitle = EncounterScript.ParsePartHeading(title)
-            if delveName ~= nil then
+            if isGauntlet then
+                --a Gauntlet is played by the montage runtime (see "gauntlets").
+                kind = "montage"
+            elseif delveName ~= nil then
                 kind = "delve"
             elseif negotiationName ~= nil then
                 kind = "negotiation"
@@ -4334,9 +4984,15 @@ function EncounterScript.Parse(text)
                 kind = "unknown"
             end
             beat = { kind = kind, title = title, line = i, tags = {} }
+            g_gauntletClauses = isGauntlet
             if kind == "montage" then
                 beat.intro = ""
                 beat.rounds = {}
+                if isGauntlet then
+                    beat.gauntlet = true
+                    beat.name = gauntletName ~= nil and trim(gauntletName) or nil
+                    beat.sections = {}
+                end
             elseif kind == "narrative" then
                 beat.intro = ""
                 beat.sections = {}
@@ -4471,6 +5127,14 @@ function EncounterScript.Parse(text)
                     --no "/" in an id: it becomes a document key (see entry.id).
                     reinforcement.id = string.format("rf%d-%s", #beat.reinforcements + 1, Slug(reinforcement.name))
                     beat.reinforcements[#beat.reinforcements + 1] = reinforcement
+                end
+            elseif beat ~= nil and beat.gauntlet then
+                if string.match(lower(title), "^round%s+%d+$") then
+                    Warn(i, "%s", T("author.script.gauntlet.round_heading", { title = title }))
+                    entry, option = nil, nil
+                else
+                    entry = StartGauntletSection(title, i)
+                    option = nil
                 end
             elseif beat == nil or beat.kind ~= "montage" then
                 Warn(i, "%s", T("author.script.section_outside_beat", { title = title }))
@@ -4611,6 +5275,12 @@ function EncounterScript.Parse(text)
                     round.sceneTag = tagText
                     round.sceneLine = i
                 end
+                --inside a Gauntlet section it is that section's backdrop
+                --while the party is there.
+                if beat.gauntlet and tagName == "scene" and entry ~= nil and entry.sceneTag == nil then
+                    entry.sceneTag = tagText
+                    entry.sceneLine = i
+                end
                 if beat.kind == "narrative" and tagName == "scene" then
                     --inside a section it is that section's backdrop; above
                     --them all it is the beat's.
@@ -4685,7 +5355,7 @@ function EncounterScript.Parse(text)
             if dice == nil then
                 riderEffect, riderReq, riderRound = EncounterScript.ParseRiderLine(trim(line))
             end
-            local inEntry = entry ~= nil and (entry.kind == "opportunity" or entry.kind == "threat" or entry.kind == "obstacle")
+            local inEntry = entry ~= nil and EncounterScript.IsTestEntryKind(entry.kind)
             local rollHeader = name ~= nil and dice == nil and riderEffect == nil and EncounterScript.IsRollHeaderAttr(attr)
             if riderEffect ~= nil and holder ~= nil and inEntry then
                 if riderReq == "" then
@@ -4703,6 +5373,9 @@ function EncounterScript.Parse(text)
                 --(or free knack), whose clauses apply with no test. Lines
                 --after the first rules line are its outcome scene.
                 local rulesText = trim(string.gsub(string.match(line, "^|(.*)$") or "", "|%s*$", ""))
+                if g_gauntletClauses then
+                    rulesText = EncounterScript.HideRouteClauses(rulesText)
+                end
                 if rulesText ~= "" then
                     local first = holder.free == nil
                     holder.free = holder.free or { text = "", effects = {}, line = i, lines = {} }
@@ -4755,7 +5428,7 @@ function EncounterScript.Parse(text)
                     else
                         entry.table = tableRoll
                     end
-                elseif entry ~= nil and (entry.kind == "opportunity" or entry.kind == "threat" or entry.kind == "obstacle") then
+                elseif entry ~= nil and EncounterScript.IsTestEntryKind(entry.kind) then
                     --a montage entry's (or delve obstacle's) own table, rolled
                     --on by a "roll twice on <name>" clause in one of its tiers.
                     local key = EncounterScript.MatchKey(tableRoll.name)
@@ -4829,6 +5502,9 @@ function EncounterScript.Parse(text)
                         line = i, tierLines = tierLines, lastLine = j - 1 }
                     for t, tierText in ipairs(tiers) do
                         local teaser, fullText = EncounterScript.SplitTeaser(tierText)
+                        if g_gauntletClauses then
+                            fullText = EncounterScript.HideRouteClauses(fullText)
+                        end
                         if teaser == "" then
                             Warn(i + t, "%s", T("author.script.roll.empty_teaser", { tier = t, roll = trim(name) }))
                             teaser = nil
@@ -4857,7 +5533,17 @@ function EncounterScript.Parse(text)
             --"Consequence:" paragraphs still mean what they always did.
             local label = string.match(line, "^(%a+):")
             label = label ~= nil and lower(label) or nil
-            if sceneTarget == (entry ~= nil and entry.sceneLines or nil)
+            local gotoTarget = (beat ~= nil and beat.gauntlet and entry ~= nil) and EncounterScript.ParseGotoLine(line) or nil
+            if gotoTarget ~= nil then
+                --a Gauntlet route among scene lines: the section's exit while
+                --its arrival scene is read, else the option's.
+                ---@cast entry -nil
+                if sceneTarget == entry.sceneLines or option == nil then
+                    SetGoto(entry, "exit", gotoTarget, i)
+                else
+                    SetGoto(option, "route", gotoTarget, i)
+                end
+            elseif sceneTarget == (entry ~= nil and entry.sceneLines or nil)
                 and (label == "options" or label == "option" or label == "consequence" or label == "consequences") then
                 FlushParagraph()
                 paragraph = { line }
@@ -4881,6 +5567,7 @@ function EncounterScript.Parse(text)
         i = i + 1
     end
     FlushParagraph()
+    g_gauntletClauses = false
 
     --scenes: compiled once the whole entry has been read, because speech is
     --recognized from the characters the entry brings on anywhere in it. A
@@ -4966,7 +5653,9 @@ function EncounterScript.Parse(text)
 
     --post-parse checks
     for _, b in ipairs(result.beats) do
-        if b.kind == "montage" then
+        if b.kind == "montage" and b.gauntlet then
+            EncounterScript.FinishGauntlet(b, Warn)
+        elseif b.kind == "montage" then
             if #b.rounds == 0 then
                 Warn(b.line, "%s", T("author.script.montage.empty"))
             end
@@ -5013,6 +5702,8 @@ function EncounterScript.Parse(text)
                     end
                 end
             end
+        end
+        if b.kind == "montage" then
             --Clauses that name something else in the montage have to
             --find it: an "Unlock <name>" that names no "(Locked)" entry
             --does nothing, a locked entry nothing unlocks is a card the

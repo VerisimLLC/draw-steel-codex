@@ -45,6 +45,7 @@ local DEFAULT_CODE = {
     --the main game's Hero Builder and its Skills & Languages, which EotW runs too.
     "Draw Steel Character Builder/HeroBuilder.lua",
     "Draw Steel Character Builder/HeroSkillsLanguages.lua",
+    "EncounterOfTheWeek/EncounterGauntlet.lua",
     "EncounterOfTheWeek/EncounterMontage.lua",
     "EncounterOfTheWeek/EncounterMontageBuilder.lua",
     "EncounterOfTheWeek/EncounterMontageStage.lua",

@@ -854,6 +854,90 @@ text("montage.assassin.tier1", [[The assassin slips away into the shadows.]])
 text("montage.assassin.dice_label", [[Assassin's blade]])
 
 ----------------------------------------------------------------------------
+-- GAUNTLET: the words on a Gauntlet's rolls (EncounterGauntlet.lua)
+----------------------------------------------------------------------------
+--The fatigue chip on a roll: every roll a hero has made in this Gauntlet
+--adds a bane. {count} is how many rolls they have made so far.
+text("gauntlet.chip.weary_one", [[Weary (1 roll so far)]])
+text("gauntlet.chip.weary_many", [[Weary ({count} rolls so far)]])
+text("gauntlet.chip.weary_description", [[Every roll you have already made in this Gauntlet puts a bane on this one (at most a double bane).]])
+--The assist chip on the main roll. {hero} assisted; {tier} is the tier
+--their assist roll landed on.
+text("gauntlet.chip.assist_bane", [[Bane: {hero} assisted]])
+text("gauntlet.chip.assist_edge", [[Edge: {hero} assisted]])
+text("gauntlet.chip.assist_doubleedge", [[Double edge: {hero} assisted]])
+text("gauntlet.chip.assist_description", [[{hero} assisted and rolled tier {tier}.]])
+text("gauntlet.chip.assist_fallback", [[A hero]])
+--The assist roll itself. {hero} is the hero being helped, {test} the test.
+text("gauntlet.assist.roll_title", [[Assist {hero}: {test}]])
+text("gauntlet.assist.tier1", [[The test has a bane on it.]])
+text("gauntlet.assist.tier2", [[The test has an edge on it.]])
+text("gauntlet.assist.tier3", [[The test has a double edge on it.]])
+--Secret Twin's assassin, met at a Gauntlet's custom event point: tier 3.
+text("gauntlet.assassin.driven_off", [[The assassin is driven off.]])
+
+----------------------------------------------------------------------------
+-- GAUNTLET: the stage (EncounterMontageStage.lua, "the Gauntlet stage")
+----------------------------------------------------------------------------
+--The title. {name} is the Gauntlet's name ("# Gauntlet: The Wyrmwood").
+text("stage.gauntlet.title", [[Gauntlet]])
+text("stage.gauntlet.title_named", [[Gauntlet: {name}]])
+--Over the scene while a hero takes an option. {hero}, {option}.
+text("stage.gauntlet.title_claim", [[{hero} takes on {option}]])
+text("stage.gauntlet.arriving_title", [[The party is on its way]])
+text("stage.gauntlet.arriving_hint", [[The Gauntlet starts once everyone has arrived.]])
+text("stage.gauntlet.done_title", [[The Gauntlet is behind you]])
+text("stage.gauntlet.done_hint", [[The story carries on in a moment.]])
+--Under a challenge, above its options.
+text("stage.gauntlet.board_hint", [[Any hero may take on one way through. The first to claim it goes.]])
+--Beside a secret option: the heroes who may take it. Beside a knack: the
+--heroes who would take a better version.
+text("stage.gauntlet.only", [[Only]])
+text("stage.gauntlet.better_for", [[Better for]])
+text("stage.gauntlet.undertake_button", [[Undertake]])
+text("stage.gauntlet.undertake_as_button", [[Undertake as {hero}]])
+--For a player with several heroes who could take it: opens a list of them.
+text("stage.gauntlet.undertake_choose_button", [[Undertake...]])
+text("stage.gauntlet.undertake_tooltip", [[Take this on. The first hero to claim an option goes. Every roll a hero makes in a Gauntlet puts a bane on their later rolls.]])
+--A vote. {players} lists the players still to vote.
+text("stage.gauntlet.vote_how", [[Choose together: one vote per player.]])
+text("stage.gauntlet.vote_button", [[Vote for this]])
+text("stage.gauntlet.your_vote_button", [[Your vote]])
+text("stage.gauntlet.your_vote_tooltip", [[Click to take your vote back.]])
+text("stage.gauntlet.waiting_on", [[Waiting on: {players}]])
+--The result. {hero}, {option}, {tier} ("tier 2", "critical"), {player}.
+text("stage.gauntlet.result_test", [[{hero} took on {option}: {tier}]])
+text("stage.gauntlet.result_free", [[{hero} chose {option}]])
+text("stage.gauntlet.result_nothing", [[Nothing else comes of it.]])
+text("stage.gauntlet.result_vote", [[The party chose: {option}]])
+text("stage.gauntlet.result_decided", [[{player} decided]])
+--Where the party goes next. {section} is the next section's name.
+text("stage.gauntlet.next", [[Next: {section}]])
+text("stage.gauntlet.next_unknown", [[The party moves on.]])
+text("stage.gauntlet.next_end", [[That was the last of the Gauntlet.]])
+--The assist step, in the scene's dialog box. {hero} takes the test,
+--{helper} assists, {tier} is the assist roll's tier, {list} what is on the roll.
+text("stage.gauntlet.assist_open", [[Another hero may assist {hero} before the roll.]])
+text("stage.gauntlet.assist_rolling", [[{helper} is rolling to assist {hero}.]])
+text("stage.gauntlet.assist_done", [[{helper} assisted: tier {tier}.]])
+text("stage.gauntlet.on_roll", [[On this roll: {list}.]])
+text("stage.gauntlet.on_roll_assist_edge", [[an edge from {helper}]])
+text("stage.gauntlet.on_roll_assist_doubleedge", [[a double edge from {helper}]])
+text("stage.gauntlet.on_roll_assist_bane", [[a bane from {helper}'s assist]])
+text("stage.gauntlet.on_roll_weary_one", [[a bane for being Weary]])
+text("stage.gauntlet.on_roll_weary_many", [[a double bane for being Weary]])
+text("stage.gauntlet.make_test_button", [[Make the test]])
+text("stage.gauntlet.make_test_tooltip", [[Roll now. Nobody can assist once the dice are out.]])
+text("stage.gauntlet.step_back_button", [[Step back]])
+text("stage.gauntlet.step_back_tooltip", [[Let someone else take this on.]])
+--On the other heroes' cards while a test is open to an assist.
+text("stage.gauntlet.assist_button", [[Assist]])
+text("stage.gauntlet.assist_tooltip", [[Roll to help: 11 or less gives the test a bane, 12-16 an edge, 17+ a double edge. An assist is a roll, so it adds to your Weary.]])
+--Above a hero's card: their fatigue.
+text("stage.gauntlet.weary_one", [[Weary: a bane]])
+text("stage.gauntlet.weary_double", [[Weary: double bane]])
+
+----------------------------------------------------------------------------
 -- MONTAGE: boons and curses on the character sheet (the ongoing effects an
 -- outcome puts on a hero). Each is made once per game, so a change only
 -- shows in games where it has not been made yet. {amount} is the number.

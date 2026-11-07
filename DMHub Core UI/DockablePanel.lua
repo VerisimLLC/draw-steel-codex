@@ -2317,8 +2317,6 @@ DockablePanel = {
 	--lock window resizing on that axis (default: both freely resizable);
 	--minWidth/maxWidth bound the window's width; defaultWidth is the width
 	--a new window opens at (PanelDocument.DefaultWidth otherwise).
-	--dragInPlace = true keeps the window in its layer while dragged, so a
-	--window with a lot of content is not restyled whole every frame.
 	--popoutHeight (content px) gives the panel's native OS popout window
 	--its own default height, instead of inheriting the in-app window's
 	--footprint when popping out.

@@ -7139,6 +7139,9 @@ function CustomDocument.CreateTabbedViewer(placement)
         halign = "left",
         valign = "top",
         draggable = true,
+        --stay in the documents layer while dragged: a lifted window is restyled
+        --whole every frame (a long document dragged at 83 ms a frame, 19 in place).
+        dragInPlace = true,
         drag = function(element)
             --while popped out the OS window is what moves; a release of a
             --(suppressed) drag must not teleport the panel inside it.
@@ -8080,8 +8083,9 @@ function CustomDocument:PresentDocument(args)
     if self:has_key("_tmp_location") and self._tmp_location.screenx == dmhub.screenDimensionsBelowTitlebar.x and self._tmp_location.screeny == dmhub.screenDimensionsBelowTitlebar.y then
         loc.x = self._tmp_location.x or loc.x
         loc.y = self._tmp_location.y or loc.y
-        loc.width = self._tmp_location.width or loc.width
-        loc.height = self._tmp_location.height or loc.height
+        --stored from selfStyle, which this function only sets to pixel numbers.
+        loc.width = (self._tmp_location.width or loc.width) --[[@as number]]
+        loc.height = (self._tmp_location.height or loc.height) --[[@as number]]
         userPlaced = self._tmp_location.moved == true and self._tmp_location.x ~= nil and self._tmp_location.y ~= nil
     end
 
@@ -8159,6 +8163,9 @@ function CustomDocument:PresentDocument(args)
         --unaffected -- swallowPress only stops PARENT propagation.
         swallowPress = true,
         draggable = true,
+        --stay in the documents layer while dragged: a lifted window is restyled
+        --whole every frame (the Bestiary dragged at 160 ms a frame, 24 in place).
+        dragInPlace = true,
         drag = function(element)
             --pinned windows still receive drag events (they only clear
             --dragMove -- see refreshPanelPinned); dropping the event here
@@ -9014,10 +9021,8 @@ function PanelDocument:PresentPanel(args)
     --a panel laid out for one width (History) registers defaultWidth for its first window.
     local reg = DockablePanel.GetRegistration(self:try_get("panelName") or "")
     local defaultWidth = nil
-    local dragInPlace = false
     pcall(function()
         defaultWidth = reg ~= nil and reg.defaultWidth or nil
-        dragInPlace = reg ~= nil and reg.dragInPlace == true
     end)
     args.width = args.width or defaultWidth or PanelDocument.DefaultWidth
     args.height = PanelDocument.ClampHeight(
@@ -9036,11 +9041,6 @@ function PanelDocument:PresentPanel(args)
     self._tmp_dialog = dialog
     --map windows stay under rail panel windows (PanelDocument.ABOVE_MAP_WINDOWS).
     dialog:SetClass("panelDocumentWindow", true)
-    --a dragged window is otherwise lifted out of its layer and restyled whole every frame:
-    --History's drag measured 64 ms a frame without this, 15 ms with it.
-    if dragInPlace then
-        dialog.dragInPlace = true
-    end
     GameHud.instance.documentsPanel:AddChild(dialog)
     --apply the rail-mode window zoom now that the window is attached
     --(pivot writes need an attached panel -- see setWindowScale).

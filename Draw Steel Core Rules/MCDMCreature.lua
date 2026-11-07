@@ -4453,7 +4453,7 @@ end
 
 --- Inflict a condition on a creature. (Or purge the condition using the 'purge' argument.)
 --- @param conditionid string
---- @param args {duration:string, force: nil|boolean, purge: nil|boolean, silent: nil|boolean, riders: nil|(string[]), sourceDescription: string, casterInfo:nil|{tokenid:string, timestamp: string|number|nil}, cast: ActivatedAbilityCast}
+--- @param args {duration:string, fullNextTurn: nil|boolean, force: nil|boolean, purge: nil|boolean, silent: nil|boolean, riders: nil|(string[]), sourceDescription: string, casterInfo:nil|{tokenid:string, timestamp: string|number|nil}, cast: ActivatedAbilityCast}
 --- When purge=true and casterInfo is provided, only removes the condition if it was inflicted by that caster.
 function creature:InflictCondition(conditionid, args)
     local immunities = self:GetConditionImmunities()
@@ -4535,6 +4535,13 @@ function creature:InflictCondition(conditionid, args)
         entry.stacks = 1
         entry.sourceDescription = args.sourceDescription
         entry.duration = args.duration
+        --fullNextTurn: an EoT imposed on the target's own turn survives this turn's
+        --end and expires at the end of their next one. The End Turn Effects rule
+        --(MCDMAbilitySaveBehavior) clears the flag instead of purging, once.
+        entry.skipTurnEnd = nil
+        if args.fullNextTurn and args.duration == "eot" and self:IsOurTurn() then
+            entry.skipTurnEnd = true
+        end
         entry.casterInfo = args.casterInfo
         if entry.casterInfo ~= nil then
             entry.casterInfo.timestamp = ServerTimestamp()

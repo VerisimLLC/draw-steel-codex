@@ -76,7 +76,7 @@ Only what moved the result away from the plain roll.
 | T12 | Chips | Edge / Double edge / Bane / Double bane / Cancelled out / {n} surges / {n} surges: potency +1 / {n} Malice / {n} {Heroic Resource} / Critical / Hit an ally | |
 | T13 | Ally group | Ally hit | |
 | T14 | Captions | Push {n} / Push {n} · fell {n} / Winded / Dying / Killed / {k} of {m} killed / Squad destroyed / {n} minions / Cover: bane / {n} fire, {n} cold / Fire immunity -{n} / Fire weakness +{n} / {n} soaked by temporary Stamina / Resisted / Immune to frightened / {Condition} + Ended tag | changed 2026-11-06: was "Grabbed ended"; change: "Immune: frightened" -> "Immune to frightened", "Ended Grabbed" -> "Grabbed ended" |
-| T15 | Trigger rows | Before the roll / After the roll / Triggered / Free · {Owner} · {trigger}: {effect} | |
+| T15 | Trigger rows | Before the roll / After the roll / Triggered / Free · {Owner} · {trigger} › {result} | One line (James, 2026-11-07): the result goes after a caret (a portrait and amount, "Clarity +1", "Prone"); a long name shortens with "…" and shows whole on hover |
 | T16 | Turn lines | {Resource} +{n} · Start of turn ({die}) / saved against {Condition} · End of turn: rolled {n} ({target} or more ends it) / {Condition} + Ended tag · End of turn / ... · {cause} | see Round 4 |
 | T17 | Hidden roll (Director only) | Director rolled {dice} · Hidden from players | |
 | T18 | Player view | Unknown creature | hidden monsters |

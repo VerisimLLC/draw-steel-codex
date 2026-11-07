@@ -156,6 +156,11 @@ Goal: why it happened, one click from the row.
   every rail window `dragInPlace` is a separate change. The table item and the `Tabletop.lua` additions
   from 0.4 and 2.1 are gone. The card is placed from the window's position; popped out, it opens inside.
   The roll card that folds into History later (S5) aims at this window.
+- **2.1c, rows (James, 2026-11-07):** a hairline above every action, folded turn and turn group (@border at
+  31%, the prototype's 5% white); the seam under a round heading and in the card at 75% (12%). Trigger rows
+  are one line: the result after a caret is never cut, the "{Owner} · {trigger}" part shortens with an
+  ellipsis and shows whole on hover. Widths are estimated per character, generously, because the engine
+  can't measure text before layout. Tested on the seven-trigger Brutal Slam turn.
 
 ## Stage 3: getting to it
 

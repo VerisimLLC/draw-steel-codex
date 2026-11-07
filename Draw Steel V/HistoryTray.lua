@@ -195,6 +195,11 @@ local function Styles()
             color = "@fgMuted",
         },
         {
+            selectors = {"label", "historyTriggerResult"},
+            fontSize = 12,
+            color = "@fg",
+        },
+        {
             selectors = {"label", "historyTriggerNumber"},
             fontSize = 11,
             bold = true,
@@ -241,10 +246,17 @@ local function Styles()
             border = {x1 = 3, y1 = 0, x2 = 0, y2 = 0},
             borderColor = "@fg",
         },
+        --@border is white at 16% in the default theme: the seam under a round heading
+        --comes to 12%, the line between rows to 5%, as in the prototype.
         {
             selectors = {"historySeam"},
             bgcolor = "@border",
-            opacity = 0.35,
+            opacity = 0.75,
+        },
+        {
+            selectors = {"historyRule"},
+            bgcolor = "@border",
+            opacity = 0.31,
         },
         {
             selectors = {"historyChevron"},
@@ -739,8 +751,32 @@ local function SharedTier(entry)
     return shared, false
 end
 
---A trigger nested under an action (T15): who, which, and what it did to whom.
+--The engine can't measure text before layout, so one-line rows estimate it per character.
+--Generous: a row never wraps, a long name just shortens a little sooner.
+local function TextWidth(text, perChar)
+    return math.ceil(#text * perChar)
+end
+
+--Room for a trigger row: the action's text column, less the row's own left pad.
+local TRIGGER_ROW_WIDTH = TRAY_WIDTH - 52 - 12 - 9
+
+--The hairline above an action or a folded turn (the prototype's row separator).
+local function Rule()
+    return gui.Panel{
+        classes = {"historyRule"},
+        bgimage = "panels/square.png",
+        width = "100%",
+        height = 1,
+    }
+end
+
+--A trigger nested under an action (T15), on one line: number, owner, Triggered or Free,
+--"{Owner} . {trigger}", then after a caret what it did. The name shortens with "..." so the
+--result stays in view; hovering the name shows it whole, and the card has the full sentence.
+--entry.result is a change to the owner itself, such as "Clarity +1".
 local function TriggerRow(index, entry)
+    local tagText = cond(entry.ability.free, "Free", "Triggered")
+    local used = 15 + 6 + TextWidth(tagText, 7.5) + 5
     --- @type Panel[]
     local children = {
         gui.Label{
@@ -759,20 +795,58 @@ local function TriggerRow(index, entry)
         local face = Face(entry.actor, 20)
         face.selfStyle.lmargin = 6
         children[#children + 1] = face
+        used = used + 26
     end
-    local owner = entry.actor ~= nil and (ShownName(entry.actor) .. DOT) or ""
     children[#children + 1] = gui.Label{
         classes = {"historySmallCaps"},
-        text = cond(entry.ability.free, "Free", "Triggered"),
+        text = tagText,
         width = "auto",
         height = "auto",
         lmargin = 6,
         halign = "left",
         valign = "center",
     }
-    --what it did beyond the numbers (T15).
-    local effects = {}
+
+    --what it did, each part after a caret; resultWidth is their estimated width.
+    local results = {}
+    local resultWidth = 0
+    local function AddCaret()
+        results[#results + 1] = gui.Panel{
+            classes = {"historyCaret"},
+            bgimage = "phosphor/caret-right-bold.png",
+            width = 9,
+            height = 9,
+            lmargin = 6,
+            halign = "left",
+            valign = "center",
+        }
+        resultWidth = resultWidth + 15
+    end
+    local function AddWords(text)
+        results[#results + 1] = gui.Label{
+            classes = {"historyTriggerResult"},
+            text = text,
+            width = "auto",
+            height = "auto",
+            lmargin = 4,
+            textWrap = false,
+            halign = "left",
+            valign = "center",
+        }
+        resultWidth = resultWidth + 4 + TextWidth(text, 6.5)
+    end
+    local function AddAmount(value, healed)
+        local amount = Amount(value, healed, 13)
+        amount.selfStyle.lmargin = 3
+        results[#results + 1] = amount
+        resultWidth = resultWidth + 3 + TextWidth(tostring(value), 8) + 8
+    end
+    if entry.result ~= nil then
+        AddCaret()
+        AddWords(entry.result)
+    end
     for _, who in ipairs(entry.targets) do
+        local effects = {}
         for _, condition in ipairs(who.conds or {}) do
             effects[#effects + 1] = condition.name
         end
@@ -785,43 +859,43 @@ local function TriggerRow(index, entry)
         if who.moved ~= nil then
             effects[#effects + 1] = MovedWords(who.moved)
         end
-    end
-    local effectText = #effects > 0 and (": " .. table.concat(effects, ", ")) or ""
-    children[#children + 1] = gui.Label{
-        classes = {"historyTriggerText"},
-        text = owner .. entry.ability.name .. effectText,
-        width = "auto",
-        height = "auto",
-        lmargin = 5,
-        halign = "left",
-        valign = "center",
-    }
-    for _, who in ipairs(entry.targets) do
-        if (who.taken or 0) > 0 or (who.healed or 0) > 0 then
-            children[#children + 1] = gui.Panel{
-                classes = {"historyCaret"},
-                bgimage = "phosphor/caret-right-bold.png",
-                width = 9,
-                height = 9,
-                lmargin = 6,
-                halign = "left",
-                valign = "center",
-            }
+        local taken, healed = who.taken or 0, who.healed or 0
+        if taken > 0 or healed > 0 or #effects > 0 then
+            AddCaret()
             local face = Face(who, 20)
             face.selfStyle.lmargin = 4
-            children[#children + 1] = face
-            if (who.taken or 0) > 0 then
-                local amount = Amount(who.taken, false, 13)
-                amount.selfStyle.lmargin = 3
-                children[#children + 1] = amount
+            results[#results + 1] = face
+            resultWidth = resultWidth + 24
+            if taken > 0 then
+                AddAmount(taken, false)
             end
-            if (who.healed or 0) > 0 then
-                local amount = Amount(who.healed, true, 13)
-                amount.selfStyle.lmargin = 3
-                children[#children + 1] = amount
+            if healed > 0 then
+                AddAmount(healed, true)
+            end
+            if #effects > 0 then
+                AddWords(table.concat(effects, ", "))
             end
         end
     end
+
+    local name = (entry.actor ~= nil and (ShownName(entry.actor) .. DOT) or "") .. entry.ability.name
+    children[#children + 1] = gui.Label{
+        classes = {"historyTriggerText"},
+        text = name,
+        width = "auto",
+        maxWidth = math.max(60, TRIGGER_ROW_WIDTH - used - resultWidth - 4),
+        height = "auto",
+        lmargin = 5,
+        textWrap = false,
+        textOverflow = "ellipsis",
+        halign = "left",
+        valign = "center",
+        linger = gui.Tooltip{text = name, fontSize = 13},
+    }
+    for _, panel in ipairs(results) do
+        children[#children + 1] = panel
+    end
+    --wrap only as a last resort, for results too wide for any line.
     return gui.Panel{
         flow = "horizontal",
         wrap = true,
@@ -907,7 +981,8 @@ local function BuildAction(item)
         elseif kid.family == "resource" then
             triggers[#triggers + 1] = {
                 actor = kid.who,
-                ability = {name = string.format("%s: %s %+d", kid.causetext or "", kid.name, kid.amount)},
+                ability = {name = kid.causetext or ""},
+                result = string.format("%s %+d", kid.name, kid.amount),
                 targets = {},
             }
         else
@@ -956,58 +1031,64 @@ local function BuildAction(item)
         flow = "vertical",
         width = "100%",
         height = "auto",
-        lpad = 52,
-        rpad = 12,
-        tpad = 4,
-        bpad = 9,
-        borderBox = true,
         linger = opens.linger,
         click = opens.click,
-        gui.Panel{
-            flow = "none",
-            width = "100%",
-            height = "auto",
-            bmargin = 4,
-            gui.Panel{
-                flow = "horizontal",
-                wrap = true,
-                width = inner - ACTION_WORDS_WIDTH,
-                height = "auto",
-                halign = "left",
-                valign = "center",
-                children = titleChildren,
-            },
-            action ~= nil and gui.Label{
-                classes = {"historyMuted"},
-                text = action,
-                width = "auto",
-                height = "auto",
-                rmargin = 14,
-                halign = "right",
-                valign = "center",
-            } or nil,
-            gui.Panel{
-                classes = {"historyChevron"},
-                bgimage = "phosphor/caret-right-bold.png",
-                width = 10,
-                height = 10,
-                halign = "right",
-                valign = "center",
-            },
-        },
-        gui.Panel{
-            flow = "horizontal",
-            wrap = true,
-            width = "100%",
-            height = "auto",
-            children = cells,
-        },
+        Rule(),
         gui.Panel{
             flow = "vertical",
             width = "100%",
             height = "auto",
-            tmargin = 3,
-            children = triggerRows,
+            lpad = 52,
+            rpad = 12,
+            tpad = 4,
+            bpad = 9,
+            borderBox = true,
+            gui.Panel{
+                flow = "none",
+                width = "100%",
+                height = "auto",
+                bmargin = 4,
+                gui.Panel{
+                    flow = "horizontal",
+                    wrap = true,
+                    width = inner - ACTION_WORDS_WIDTH,
+                    height = "auto",
+                    halign = "left",
+                    valign = "center",
+                    children = titleChildren,
+                },
+                action ~= nil and gui.Label{
+                    classes = {"historyMuted"},
+                    text = action,
+                    width = "auto",
+                    height = "auto",
+                    rmargin = 14,
+                    halign = "right",
+                    valign = "center",
+                } or nil,
+                gui.Panel{
+                    classes = {"historyChevron"},
+                    bgimage = "phosphor/caret-right-bold.png",
+                    width = 10,
+                    height = 10,
+                    halign = "right",
+                    valign = "center",
+                },
+            },
+            gui.Panel{
+                flow = "horizontal",
+                wrap = true,
+                width = "100%",
+                height = "auto",
+                children = cells,
+            },
+            gui.Panel{
+                flow = "vertical",
+                width = "100%",
+                height = "auto",
+                tmargin = 3,
+                children = triggerRows,
+            },
         },
     }
 end
@@ -1317,22 +1398,28 @@ local function BuildGroupFold(item)
     return gui.Panel{
         classes = {"historyFold"},
         bgimage = "panels/square.png",
-        flow = "horizontal",
+        flow = "vertical",
         width = "100%",
-        height = 30,
-        hpad = 12,
-        borderBox = true,
+        height = "auto",
         click = item.toggle,
-        Caret(false),
-        gui.Label{
-            classes = {"historyMuted"},
-            text = item.text,
-            width = "auto",
-            height = "auto",
-            halign = "left",
-            valign = "center",
+        Rule(),
+        gui.Panel{
+            flow = "horizontal",
+            width = "100%",
+            height = 29,
+            hpad = 12,
+            borderBox = true,
+            Caret(false),
+            gui.Label{
+                classes = {"historyMuted"},
+                text = item.text,
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                valign = "center",
+            },
+            MiniFaces(item.tally),
         },
-        MiniFaces(item.tally),
     }
 end
 
@@ -1340,25 +1427,31 @@ local function BuildTurnFold(item)
     return gui.Panel{
         classes = {"historyFold"},
         bgimage = "panels/square.png",
-        flow = "horizontal",
+        flow = "vertical",
         width = "100%",
-        height = 36,
-        hpad = 12,
-        borderBox = true,
+        height = "auto",
         click = item.toggle,
-        Caret(false),
-        gui.Label{
-            classes = {"historyMuted"},
-            text = tostring(item.number),
-            width = 26,
-            height = "auto",
-            halign = "left",
-            valign = "center",
-            rmargin = 7,
-            textAlignment = "right",
+        Rule(),
+        gui.Panel{
+            flow = "horizontal",
+            width = "100%",
+            height = 35,
+            hpad = 12,
+            borderBox = true,
+            Caret(false),
+            gui.Label{
+                classes = {"historyMuted"},
+                text = tostring(item.number),
+                width = 26,
+                height = "auto",
+                halign = "left",
+                valign = "center",
+                rmargin = 7,
+                textAlignment = "right",
+            },
+            Face(item.owner, 26),
+            MiniFaces(item.tally),
         },
-        Face(item.owner, 26),
-        MiniFaces(item.tally),
     }
 end
 
@@ -2080,7 +2173,6 @@ DockablePanel.Register{
     minWidth = TRAY_WIDTH + EDGE_STRIP,
     maxWidth = TRAY_WIDTH + EDGE_STRIP,
     resizableWidth = false,
-    dragInPlace = true,
     content = function()
         return CreateFace()
     end,

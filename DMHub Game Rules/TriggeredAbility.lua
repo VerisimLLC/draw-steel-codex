@@ -1082,7 +1082,7 @@ local g_departureTriggers = {
 --location before draining its triggeredEvents queue -- so measure from
 --path.steps[1], the square it left. No path, or any other trigger, uses the
 --live token.
-local function SubjectRangeDistance(triggerName, subjectToken, casterToken, symbols)
+local function RawSubjectRangeDistance(triggerName, subjectToken, casterToken, symbols)
     if not g_departureTriggers[triggerName] then
         return subjectToken:Distance(casterToken)
     end
@@ -1119,6 +1119,21 @@ local function SubjectRangeDistance(triggerName, subjectToken, casterToken, symb
     end
 
     return result
+end
+
+--Safe wrapper: token:Distance can raise or return nil when either token's
+--map object is gone or not yet built (a minion Explosive Parade just removed,
+--a monster EotW is still spawning). Treat that as out of range, so the
+--trigger is skipped instead of erroring and aborting the caller (it used to
+--kill the EotW host beat that spawns the next part's monsters).
+---@return number
+local function SubjectRangeDistance(triggerName, subjectToken, casterToken, symbols)
+    local ok, distance = pcall(RawSubjectRangeDistance, triggerName, subjectToken, casterToken, symbols)
+    distance = ok and tonumber(distance) or nil
+    if distance == nil then
+        return math.huge
+    end
+    return distance
 end
 
 --- Options for TriggeredAbility:Trigger. Every field is optional (nil options = {}).

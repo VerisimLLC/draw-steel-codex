@@ -49,6 +49,11 @@ local ACTION_WORDS = {
 local CARD_GAP = 12
 local CARD_HEIGHT = 914
 
+--The card's tail points at its row's title line, ROW_TITLE down the row; the tail sits
+--TAIL_DOWN down the card, level with the card's own title, when the card can line up.
+local ROW_TITLE = 14
+local TAIL_DOWN = 26
+
 --The icon rail runs down the screen's left edge; a card can't go under it.
 local RAIL_LEFT = 62
 
@@ -240,11 +245,11 @@ local function Styles()
             selectors = {"historyCaret"},
             bgcolor = "@fgMuted",
         },
+        --solid on purpose: with Transparent UI, a see-through fill shows the table behind
+        --the window rather than a lighter row.
         {
             selectors = {"historyFold", "historySelected"},
-            bgcolor = "@bgAlt",
-            border = {x1 = 3, y1 = 0, x2 = 0, y2 = 0},
-            borderColor = "@fg",
+            bgcolor = "@bgRaised",
         },
         --@border is white at 16% in the default theme: the seam under a round heading
         --comes to 12%, the line between rows to 5%, as in the prototype.
@@ -266,15 +271,26 @@ local function Styles()
             selectors = {"historyChevron", "parent:hover"},
             bgcolor = "@fg",
         },
+        --the rail windows' frame (framedPanel in DocumentWindowStyles), so the card
+        --matches History; its blurred backdrop is set on the panel.
         {
-            selectors = {"historyCardEdge"},
-            bgcolor = "@fg",
+            selectors = {"historyCardFrame"},
+            bgcolor = "white",
+            gradient = "@surfaceLinear",
+            cornerRadius = 10,
+            opacity = 0.98,
+            borderWidth = 0,
             boxShadow = Tabletop.shadows.rest,
         },
         {
-            selectors = {"historyCard"},
-            bgcolor = "@bg",
-            borderColor = "@borderSolid",
+            selectors = {"historyCardFrame", "historyCardSolid"},
+            opacity = 1,
+            cornerRadius = 0,
+            boxShadow = false,
+        },
+        {
+            selectors = {"historyCardTail"},
+            bgcolor = "@bgAlt",
         },
         {
             selectors = {"historyCardClose"},
@@ -1920,7 +1936,8 @@ local function CreateFace()
                 x = -(History.CARD_WIDTH + CARD_GAP)
             end
             if x ~= nil then
-                local room = math.floor((rect.layerHeight - rect.top) / rect.scale) - CARD_GAP
+                --the card slides up or down to stay on the screen, so the screen's height bounds it.
+                local room = math.floor((rect.layerHeight - 2 * CARD_GAP) / rect.scale)
                 return {x = x, width = History.CARD_WIDTH, maxHeight = math.min(room, CARD_HEIGHT), inTray = false}
             end
         end
@@ -1931,6 +1948,10 @@ local function CreateFace()
 
     local function DropCard()
         if card ~= nil and card.valid then
+            local tail = card.data.tail
+            if tail ~= nil and tail.valid then
+                tail:DestroySelf()
+            end
             card:DestroySelf()
         end
         card = nil
@@ -1947,11 +1968,61 @@ local function CreateFace()
             width = place.width,
             maxHeight = place.maxHeight,
             inTray = place.inTray,
+            tail = not place.inTray and cond(place.x > 0, "left", "right") or nil,
             close = function()
                 Select(nil)
             end,
         }
+        --the tail goes in first, so the card covers its inner half.
+        if card.data.tail ~= nil then
+            face:AddChild(card.data.tail)
+        end
         face:AddChild(card)
+        --line it up once it has a height (layout takes a frame or two).
+        face:ScheduleEvent("alignCard", 0.03)
+        face:ScheduleEvent("alignCard", 0.15)
+    end
+
+    --Lines the card up with its row and points the tail at it. Runs when the card opens,
+    --when the list scrolls and once a second; the row's place comes from its distance
+    --to the screen's edges (x left, y bottom, z right, w top, in screen pixels).
+    local function AlignCard()
+        if card == nil or not card.valid or cardPlace == nil or cardPlace.inTray or selected == nil then
+            return
+        end
+        local row = rows[selected.key]
+        local rect = WindowRect()
+        local tail = card.data.tail
+        if row == nil or not row.panel.valid or rect == nil or tail == nil or not tail.valid then
+            return
+        end
+        local faceEdges = face.distancesToScreenEdge
+        local faceScreenHeight = dmhub.screenHeight - faceEdges.w - faceEdges.y
+        if faceScreenHeight <= 0 then
+            return
+        end
+        --screen pixels to this face's own units.
+        local k = face.renderedHeight / faceScreenHeight
+        local rowTop = (row.panel.distancesToScreenEdge.w - faceEdges.w) * k
+        local listTop = (list.distancesToScreenEdge.w - faceEdges.w) * k
+        local listBottom = listTop + list.renderedHeight
+        local target = rowTop + ROW_TITLE
+
+        --as close to level as the screen allows; a row scrolled out of sight holds the card
+        --at the edge of the list rather than leaving it beside nothing.
+        local inSight = target >= listTop and target <= listBottom
+        local level = math.max(listTop, math.min(target, listBottom))
+        local cardHeight = card.renderedHeight
+        local minY = CARD_GAP - rect.top / rect.scale
+        local maxY = (rect.layerHeight - rect.top) / rect.scale - CARD_GAP - cardHeight
+        local y = math.max(minY, math.min(level - TAIL_DOWN, maxY))
+        card.y = y
+
+        --no tail when its row is out of sight, or the card couldn't reach it.
+        local tailCenter = target - y
+        local shown = inSight and tailCenter >= 14 and tailCenter <= cardHeight - 14
+        tail:SetClass("collapsed", not shown)
+        tail.y = y + tailCenter - tail.renderedHeight / 2
     end
 
     --The tray moved or changed height, or the table did: the card may need a new place.
@@ -2042,6 +2113,7 @@ local function CreateFace()
 
         --at the top with more to show: build the next rows and hold the view still.
         scroll = function(element)
+            AlignCard()
             if hasOlder and not loadingOlder and element.vscrollPosition >= 0.98 then
                 loadingOlder = true
                 anchor = rowsPanel.children[1]
@@ -2128,6 +2200,11 @@ local function CreateFace()
                 Refresh()
             end
             KeepCardPlaced()
+            AlignCard()
+        end,
+
+        alignCard = function(element)
+            AlignCard()
         end,
 
         destroy = function()

@@ -17,8 +17,10 @@ local mod = dmhub.GetModLoading()
 History.CARD_WIDTH = 384
 local CARD_PAD = 14
 
+--The tail's square: turned 45 degrees it points about 11 px out, across the 12 px gap.
+local TAIL_SIZE = 16
+
 --The coloured edge down the card's left side, which ties it to the selected row.
-local EDGE_WIDTH = 3
 
 local STORY_FACE = 24
 local STORY_GAP = 9
@@ -541,7 +543,7 @@ end
 
 local function Header(entry, width, inTray, close)
     local children = {}
-    local titleWidth = width - EDGE_WIDTH - 12 - 8 - 22
+    local titleWidth = width - 12 - 8 - 22
     if inTray then
         children[1] = gui.Label{
             classes = {"historyButton"},
@@ -699,12 +701,15 @@ end
 
 --- Builds the card for one row. It is rebuilt to change it: the sections have a different
 --- shape for every action, and a scroll bar only works if it is there on its first frame.
---- @param args {entry: HistoryEntry, kids: HistoryEntry[]|nil, x: number, width: number, maxHeight: number, inTray: boolean, close: function}
+--- tail is the card's edge that faces History ("left" or "right"). The tail comes back in
+--- card.data.tail, not attached: the caller adds it to the card's parent BEFORE the card, so
+--- the card hides its inner half, and moves it to the row. None inside the window.
+--- @param args {entry: HistoryEntry, kids: HistoryEntry[]|nil, x: number, width: number, maxHeight: number, inTray: boolean, tail: "left"|"right"|nil, close: function}
 --- @return Panel
 function History.CreateCard(args)
     local entry = args.entry
     local width = args.width
-    local inner = width - EDGE_WIDTH - 2 * CARD_PAD
+    local inner = width - 2 * CARD_PAD
 
     local body = {SectionHead("What happened", WHAT_HAPPENED_WIDTH, inner)}
     for _, row in ipairs(History.Story(entry, args.kids)) do
@@ -722,51 +727,60 @@ function History.CreateCard(args)
         }
     end
 
+    --- @type Panel|nil
+    local tail = nil
+    if args.tail ~= nil then
+        --a square turned 45 degrees, centred on the card's edge: the half outside is the point.
+        tail = gui.Panel{
+            classes = {"historyCardTail"},
+            bgimage = "panels/square.png",
+            floating = true,
+            width = TAIL_SIZE,
+            height = TAIL_SIZE,
+            rotate = 45,
+            halign = "left",
+            valign = "top",
+            x = cond(args.tail == "left", args.x, args.x + width) - TAIL_SIZE / 2,
+            interactable = false,
+        }
+    end
+
     return gui.Panel{
-        classes = {"historyCardEdge"},
-        bgimage = "panels/square.png",
+        classes = {"historyCardFrame", cond(args.inTray, "historyCardSolid", nil)},
+        bgimage = true,
+        --beside the window, Transparent UI shows the map through it as through the rail
+        --windows; over the list it is solid, or the rows would show through.
+        blurBackground = not args.inTray,
         floating = true,
         flow = "vertical",
         x = args.x,
         width = width,
         height = cond(args.inTray, args.maxHeight, "auto"),
-        lpad = EDGE_WIDTH,
-        borderBox = true,
-        cornerRadius = 6,
         halign = "left",
         valign = "top",
+        data = {tail = tail},
 
+        Header(entry, width, args.inTray, args.close),
         gui.Panel{
-            classes = {"historyCard"},
+            classes = {"historySeam"},
             bgimage = "panels/square.png",
+            width = "100%",
+            height = 1,
+        },
+        gui.Panel{
             flow = "vertical",
             width = "100%",
-            height = cond(args.inTray, "100%", "auto"),
-            borderWidth = 1,
-            cornerRadius = 6,
-
-            Header(entry, width, args.inTray, args.close),
-            gui.Panel{
-                classes = {"historySeam"},
-                bgimage = "panels/square.png",
-                width = "100%",
-                height = 1,
-            },
+            height = "auto",
+            maxHeight = args.maxHeight - 62,
+            vscroll = true,
             gui.Panel{
                 flow = "vertical",
                 width = "100%",
                 height = "auto",
-                maxHeight = args.maxHeight - 62,
-                vscroll = true,
-                gui.Panel{
-                    flow = "vertical",
-                    width = "100%",
-                    height = "auto",
-                    hpad = CARD_PAD,
-                    bpad = 12,
-                    borderBox = true,
-                    children = body,
-                },
+                hpad = CARD_PAD,
+                bpad = 12,
+                borderBox = true,
+                children = body,
             },
         },
     }

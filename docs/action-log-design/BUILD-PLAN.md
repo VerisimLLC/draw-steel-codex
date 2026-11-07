@@ -161,6 +161,13 @@ Goal: why it happened, one click from the row.
   are one line: the result after a caret is never cut, the "{Owner} · {trigger}" part shortens with an
   ellipsis and shows whole on hover. Widths are estimated per character, generously, because the engine
   can't measure text before layout. Tested on the seven-trigger Brutal Slam turn.
+- **2.1d, the card (James, 2026-11-07):** the rail windows' frame (gradient, rounded, blurred backdrop,
+  shadow); no white edge on the card or the selected row, which is marked by @bgRaised instead (a
+  see-through fill shows the table behind the window under Transparent UI). A tail, a square turned 45
+  degrees behind the card, points at the row. The card lines up with its row from the panels'
+  distancesToScreenEdge, slides to stay on screen, follows the list as it scrolls, and holds at the list's
+  edge with no tail when the row scrolls out of sight. Over the list (popped out, or no room) it is solid
+  and has no tail.
 
 ## Stage 3: getting to it
 

@@ -371,6 +371,20 @@ function CharacterDeityChoice:CanRepeat()
     return false
 end
 
+--The Builder calls this when the deity pick goes. The domain pick goes with it:
+--a Hero's domains are read from every pick made, so a leftover one would keep
+--granting the old deity's domain until the player picked a new one.
+---@param hero character
+---@param option table the deity being removed
+---@return boolean stopRemove always false, so the deity pick itself is removed as normal
+function CharacterDeityChoice:RemoveSelection(hero, option)
+    local levelChoices = hero:GetLevelChoices()
+    if levelChoices ~= nil then
+        levelChoices[string.format("%s-domains", self.guid)] = nil
+    end
+    return false
+end
+
 function CharacterDeityChoice:FillChoice(choices, result)
 	local choiceidList = choices[self.guid]
 	if choiceidList == nil then

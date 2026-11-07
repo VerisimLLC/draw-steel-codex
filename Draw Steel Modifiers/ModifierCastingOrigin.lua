@@ -53,12 +53,16 @@ CharacterModifier.TypeInfo.castingorigin = {
 						output = "boolean",
 						examples = {
 							{
-								script = "Caster is Self.Summoner",
+								script = "Caster = Self.Summoner",
 								text = "Only the creature that summoned this creature can cast through it.",
 							},
 							{
-								script = "Caster is Self.Summoner or Caster.Summoned",
+								script = "Caster = Self.Summoner or Caster.Summoned",
 								text = "The summoner, and any summoned creature, can cast through this creature.",
+							},
+							{
+								script = "Caster = Self.Mentor",
+								text = "Only this retainer's mentor can cast through it. A condition that never mentions Caster lets every creature through.",
 							},
 						},
 						subject = creature.helpSymbols,

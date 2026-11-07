@@ -168,6 +168,12 @@ Goal: why it happened, one click from the row.
   distancesToScreenEdge, slides to stay on screen, follows the list as it scrolls, and holds at the list's
   edge with no tail when the row scrolls out of sight. Over the list (popped out, or no room) it is solid
   and has no tail.
+- **Performance after the feedback rounds (James: feels fine, 2026-11-07):** on a freshly started
+  Codex, idle runs at the frame cap with History open or closed; a card opens in 23-26 ms; dragging
+  runs at 14 ms a frame; wheel scrolling at 14 ms. Two one-frame hitches stay: opening History from
+  the rail (~95 ms) and Show all (120-140 ms for ~33 rows, 29 ms of it Lua). Spreading Show all over
+  frames is 6.2's. Measure on a fresh start: after a day of reloads and pop outs the Codex itself
+  slowed to ~4 frames a second, which made Show all look like a 2.7 s stall.
 
 ## Stage 3: getting to it
 

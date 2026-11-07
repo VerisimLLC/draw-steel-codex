@@ -1220,6 +1220,23 @@ text("author.validator.report.scaling", [[scaling: {text}]])
 --nothing). The tag words are below.
 text("author.validator.report.entry_threat", [[Threat: {name}{tags}]])
 text("author.validator.report.entry_opportunity", [[Opportunity: {name}{tags}]])
+--A Gauntlet section. {kind} is one of the three kinds below, {name} the
+--section, {tags} its tags in brackets (or nothing).
+text("author.validator.report.gauntlet_section", [[{kind}: {name}{tags}]])
+text("author.validator.report.gauntlet_kind_challenge", [[Challenge]])
+text("author.validator.report.gauntlet_kind_vote", [[Vote]])
+text("author.validator.report.gauntlet_kind_event", [[Custom event point]])
+text("author.validator.report.gauntlet_tag_detour", [[detour]])
+--{min} and {max} are numbers of players.
+text("author.validator.report.gauntlet_tag_min", [[{min}+ players]])
+text("author.validator.report.gauntlet_tag_range", [[{min}-{max} players]])
+--{prompt} is the vote's question.
+text("author.validator.report.gauntlet_prompt", [[asks: {prompt}]])
+--{count} is how many lines the arrival scene plays.
+text("author.validator.report.gauntlet_arrival", [[arrival scene: {count} lines]])
+--{target} is a section's name (or End).
+text("author.validator.report.gauntlet_exit", [[leaves to '{target}']])
+text("author.validator.report.gauntlet_option_route", [[this option goes to '{target}']])
 text("author.validator.report.tag_required", [[Required]])
 text("author.validator.report.tag_locked", [[Locked]])
 text("author.validator.report.tag_temporary", [[Temporary]])
@@ -1259,6 +1276,20 @@ text("author.validator.coverage.opportunities", [[Opportunities with a secret op
 --{entry} is an opportunity's name.
 text("author.validator.coverage.opportunity_none", [[none: {entry}]])
 text("author.validator.coverage.threats", [[Threats with a secret option or knack: {with} of {total} (standard: some)]])
+text("author.validator.coverage.gauntlet_challenges", [[Gauntlet challenges with a secret option or knack: {with} of {total} (standard: all)]])
+
+--The route map of a Gauntlet. {number} is the beat's number, {title} its
+--heading; {heroes} a party size; {routes} how many ways through; {fewest}
+--and {most} the tests along the shortest and longest of them; {path} the
+--sections of one route joined by arrows, {count} its tests; {rolls} how many
+--rolls the busiest hero must make at least; {count} routes not listed.
+text("author.validator.routes.heading", [[Gauntlet routes: beat {number} ({title})]])
+text("author.validator.routes.party", [[{heroes} heroes: {routes} ways through, {fewest} to {most} tests each]])
+text("author.validator.routes.weary", [[The longest way has {tests} tests for {heroes} heroes: someone makes at least {rolls} of them, so is Weary for some (assists add more rolls)]])
+text("author.validator.routes.route.one", [[{path}  ({count} test)]])
+text("author.validator.routes.route.other", [[{path}  ({count} tests)]])
+text("author.validator.routes.more", [[... and {count} more]])
+text("author.validator.routes.truncated", [[(there are more ways through than were counted)]])
 --{hooks} is how many knacks in all, {list} the overused requirements.
 text("author.validator.coverage.leaning", [[Leaning on one knack (over 15% of {hooks} hooks): {list}]])
 --{count} is how many heroes are listed below it.
@@ -1448,6 +1479,7 @@ text("author.script.gauntlet.goto_outside", [['Go to: {target}' only works in a 
 text("author.script.gauntlet.loop", [['Go to' makes a loop: {path}. A Gauntlet may only go forward or sideways]])
 text("author.script.gauntlet.unreachable", [[section '{section}' is never reached: nothing goes to it and the section above never falls through to it]])
 text("author.script.gauntlet.falls_into_detour", [[section '{from}' falls through into the detour '{section}' below it; give '{from}' a 'Go to:' line (above its options) so the party only takes the detour when sent there]])
+text("author.script.gauntlet.size_tag_bad", [['({tag})' looks like a party size but is not one the Gauntlet reads (write '(5+ Players)', '(3-4 Players)' or '(6 Players)'); it stays part of the section's name]])
 text("author.script.gauntlet.arrival_pc", [[section '{section}': '{text}' uses PC, but no hero has stepped up while the party arrives; PC belongs in an option's own lines. This line is not played]])
 
 ----------------------------------------------------------------------------

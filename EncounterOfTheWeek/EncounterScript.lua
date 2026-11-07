@@ -2785,7 +2785,7 @@ end
 --The sections of a Gauntlet beat, in document order.
 ---@return table[]
 function EncounterScript.GauntletSections(beat)
-    return (beat and beat.gauntlet and beat.sections) or {}
+    return (beat and beat.gauntlet and beat.gauntletSections) or {}
 end
 
 --A section by id, or nil.
@@ -2925,7 +2925,7 @@ end
 --warn about routes that loop, sections never reached, and a section that
 --falls through into a detour.
 function EncounterScript.FinishGauntlet(beat, warn)
-    local sections = beat.sections or {}
+    local sections = beat.gauntletSections or {}
     if #sections == 0 then
         warn(beat.line, "%s", T("author.script.gauntlet.empty"))
         return
@@ -3152,6 +3152,87 @@ function EncounterScript.FinishGauntlet(beat, warn)
             end
         end
     end
+end
+
+--Does taking this section mean a roll? A challenge with at least one test
+--option (a No Roll option may still be taken instead).
+function EncounterScript.GauntletSectionHasTest(section)
+    for _, o in ipairs((section or {}).options or {}) do
+        if o.roll ~= nil then
+            return true
+        end
+        for _, k in ipairs(o.knacks or {}) do
+            if k.roll ~= nil then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+--Every way through a Gauntlet for a party of `partySize`, for authors:
+--{ { sections = { section, ... }, tests = n }, ... }, `tests` counting the
+--sections on the route that may need a roll. Branches come from every
+--option's own route and every "go to" in any of its results, so a route is
+--a way the party CAN go, not one it must. At most `limit` routes (default
+--50); the second result is true when there were more. A loop (which the
+--parser already warns about) ends its route.
+function EncounterScript.GauntletRoutes(beat, partySize, limit)
+    limit = limit or 50
+    local routes, truncated = {}, false
+
+    --the distinct places the party can go from `section`; false is the end.
+    local function Successors(section)
+        local seen, list = {}, {}
+        local function Add(nextSection)
+            local key = nextSection ~= nil and nextSection.id or EncounterScript.GAUNTLET_END
+            if not seen[key] then
+                seen[key] = true
+                list[#list + 1] = nextSection or false
+            end
+        end
+        if #(section.options or {}) == 0 then
+            Add(EncounterScript.GauntletNext(beat, section, nil, nil, partySize))
+        end
+        for _, o in ipairs(section.options or {}) do
+            local lists = EncounterScript.OptionEffectLists(o, true, true)
+            if #lists == 0 then
+                Add(EncounterScript.GauntletNext(beat, section, o, nil, partySize))
+            end
+            for _, effects in ipairs(lists) do
+                Add(EncounterScript.GauntletNext(beat, section, o, EncounterScript.GotoTarget(effects), partySize))
+            end
+        end
+        return list
+    end
+
+    local function Walk(section, path, onPath, tests)
+        if #routes >= limit then
+            truncated = true
+            return
+        end
+        if section == nil or onPath[section.id] then
+            routes[#routes + 1] = { sections = path, tests = tests }
+            return
+        end
+        local nextPath = {}
+        for i, s in ipairs(path) do
+            nextPath[i] = s
+        end
+        nextPath[#nextPath + 1] = section
+        local nextOnPath = {}
+        for id in pairs(onPath) do
+            nextOnPath[id] = true
+        end
+        nextOnPath[section.id] = true
+        local nextTests = tests + cond(EncounterScript.GauntletSectionHasTest(section), 1, 0)
+        for _, nextSection in ipairs(Successors(section)) do
+            Walk(nextSection or nil, nextPath, nextOnPath, nextTests)
+        end
+    end
+
+    Walk(EncounterScript.GauntletFirst(beat, partySize), {}, {}, 0)
+    return routes, truncated
 end
 
 --The first section this party plays (nil: none at all).
@@ -4472,6 +4553,11 @@ function EncounterScript.Parse(text)
                     found[#found + 1] = { montageTag = w }
                 else
                     known = false
+                    --"(Five Players)", "(5 + players)": meant as a party
+                    --size, but it would silently stay part of the name.
+                    if string.find(lw, "player", 1, true) or string.find(lw, "hero", 1, true) then
+                        Warn(lineIndex, "%s", T("author.script.gauntlet.size_tag_bad", { tag = w }))
+                    end
                 end
             end
             if not known or #found == 0 then
@@ -4509,9 +4595,9 @@ function EncounterScript.Parse(text)
         --no "/" in an id (see the note on montage entry ids). "g-" marks a
         --Gauntlet section; a repeated name gets its position appended.
         local id = "g-" .. Slug(cond(isEvent, "event " .. (s.label or ""), name))
-        for _, other in ipairs(beat.sections) do
+        for _, other in ipairs(beat.gauntletSections) do
             if other.id == id then
-                id = string.format("%s-%d", id, #beat.sections + 1)
+                id = string.format("%s-%d", id, #beat.gauntletSections + 1)
                 break
             end
         end
@@ -4519,7 +4605,7 @@ function EncounterScript.Parse(text)
         EnsureRound(lineIndex)
         ---@cast round -nil
         round.entries[#round.entries + 1] = s
-        beat.sections[#beat.sections + 1] = s
+        beat.gauntletSections[#beat.gauntletSections + 1] = s
         return s
     end
 
@@ -4991,7 +5077,9 @@ function EncounterScript.Parse(text)
                 if isGauntlet then
                     beat.gauntlet = true
                     beat.name = gauntletName ~= nil and trim(gauntletName) or nil
-                    beat.sections = {}
+                    --its own name, not "sections": code for narrative beats
+                    --walks beat.sections and must never see these.
+                    beat.gauntletSections = {}
                 end
             elseif kind == "narrative" then
                 beat.intro = ""
@@ -6746,6 +6834,8 @@ function EncounterScript.DescribeEffect(effect)
         return EncounterScript.DescribeRevealZones(effect.zone)
     elseif effect.kind == "unlock" then
         return T("script.effect.unlock", { entry = effect.name })
+    elseif effect.kind == "goto" then
+        return T("script.effect.goto", { section = effect.name })
     elseif effect.kind == "uncover" then
         return T("script.effect.uncover", { clue = effect.name })
     elseif effect.kind == "testmod" then

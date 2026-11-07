@@ -2850,6 +2850,29 @@ end
     check(Name(EncounterScript.GauntletNext(beat, wolves, wolves.options[1], nil, 5)) == "END", "route: the last section ends it")
     check(Name(EncounterScript.GauntletNext(beat, river, river.options[1], EncounterScript.GAUNTLET_END, 4)) == "END", "route: go to End")
 
+    --every way through, for authors (the validator's route map).
+    local function Routes(size)
+        local list = {}
+        local routes = EncounterScript.GauntletRoutes(beat, size)
+        for _, r in ipairs(routes) do
+            local names = {}
+            for _, s in ipairs(r.sections) do
+                names[#names + 1] = s.name
+            end
+            list[#list + 1] = string.format("%s (%d)", table.concat(names, " > "), r.tests)
+        end
+        return list
+    end
+    local four = Routes(4)
+    check(#four == 4, "routes: four ways through for four heroes, got " .. #four)
+    check(four[1] == "The Rushing River > The Fork > The Old Watchtower > The Clearing (3)", "routes: the first route, got " .. tostring(four[1]))
+    check(four[4] == "The Rushing River > The Rapids > The Fork > The Bramble Hollow > Custom Event: Campfire > The Clearing (4)", "routes: the long way round, got " .. tostring(four[4]))
+    local five = Routes(5)
+    check(#five == 4 and string.find(five[1], "Wolves on the Ridge (4)", 1, true) ~= nil, "routes: five heroes meet the wolves too, got " .. tostring(five[1]))
+    local capped, more = EncounterScript.GauntletRoutes(beat, 4, 2)
+    check(#capped == 2 and more == true, "routes: the cap")
+    check(EncounterScript.DescribeEffect(river.options[3].roll.effects[1][3]) == "the party goes to 'The Rapids'", "routes: a go to described")
+
     --party-size tags and Go to lines.
     local function Range(text)
         local lo, hi = EncounterScript.ParsePartySizeTag(text)
@@ -2975,6 +2998,12 @@ Delve: The Tomb
     check(has(misc, "section 'D' has no options"), "warn: a challenge with no options")
     check(has(misc, "a section named 'End' can never be reached"), "warn: a section named End")
     check(has(misc, "a Gauntlet cannot enter a delve"), "warn: a delve option")
+    local badSize = WarningsOf([==[
+# Gauntlet
+## Wolves (Five Players)
+### Run
+]==])
+    check(has(badSize, "'(Five Players)' looks like a party size"), "warn: an unreadable party-size tag")
     local scened = EncounterScript.Parse([==[
 # Gauntlet
 
@@ -2986,7 +3015,7 @@ Delve: The Tomb
 
 ### Go
 ]==]).beats[1]
-    check(scened.sceneTag == "scene" and scened.sections[1].sceneTag == "scene:river", "a section's own [[scene]]")
+    check(scened.sceneTag == "scene" and scened.gauntletSections[1].sceneTag == "scene:river", "a section's own [[scene]]")
 
     local misc2 = EncounterScript.Parse([==[
 # Gauntlet
@@ -2998,7 +3027,8 @@ Choose together: Which way?
 |y
 |z
 ]==]).beats[1]
-    check(misc2.sections[1].options[1].roll == nil and misc2.sections[1].options[1].free ~= nil, "a vote option's roll is dropped")
+    check(misc2.gauntletSections[1].options[1].roll == nil and misc2.gauntletSections[1].options[1].free ~= nil, "a vote option's roll is dropped")
+    check(EncounterScript.NarrativeSections(misc2) ~= nil and #EncounterScript.NarrativeSections(misc2) == 0, "a Gauntlet's sections are not narrative sections")
 end)()
 
 print(string.format("encounter_script_test: %d checks passed", passed))

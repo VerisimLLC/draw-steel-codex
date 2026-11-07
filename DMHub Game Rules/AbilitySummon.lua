@@ -1585,6 +1585,18 @@ function ActivatedAbilitySummonBehavior:CastDuplicate(ability, casterToken, targ
     ability:CommitToPaying(casterToken, args)
 end
 
+--- Floats a red "limit reached" label over the Summoner. The chat line alone was
+--- easy to miss, which made a capped summon look like a lost click.
+--- @param casterToken CharacterToken
+--- @param summonsCapped table { what = "minions"|"minion squads" } from the strict limit check.
+local function FloatSummonLimitReached(casterToken, summonsCapped)
+    if casterToken == nil or not casterToken.valid then
+        return
+    end
+    local label = summonsCapped.what == "minions" and "Minion limit reached" or "Minion squad limit reached"
+    casterToken.properties:FloatLabel(label, "#ff0000")
+end
+
 --- Prompts the user to place summons. When squadCtx is provided, also renders an
 --- inline squad chip bar.
 --- @param casterToken CharacterToken
@@ -2659,6 +2671,17 @@ function ActivatedAbilitySummonBehavior:CastSummons(ability, casterToken, target
         local strictSummonLimits = isSummoner and (not dmhub.isDM) and dmhub.GetSettingValue("strict:resources") == true
         local summonsCapped = nil
 
+        --True when one more minion would go over the Summoner's limit. The
+        --caster's minion list only updates when the cast ends, so minions
+        --placed earlier in this cast (summonerEntries) are counted as well.
+        local function MinionLimitReached()
+            if summonerMaxMinions <= 0 then
+                return false
+            end
+            local minionsAfter = #casterToken.properties:GetLiveSummonedEntries() + #summonerEntries + 1
+            return minionsAfter > summonerMaxMinions
+        end
+
         --set when the placement UI is torn down externally mid-cast: the
         --remaining summons auto-place near the target/caster instead of
         --prompting, so the summons are never stranded.
@@ -2697,6 +2720,13 @@ function ActivatedAbilitySummonBehavior:CastSummons(ability, casterToken, target
                 if dialogOptions.allSame then
                     allSame = true
                 end
+            end
+
+            --Strict rules: stop before asking the player to place a minion that
+            --the limit would refuse, so they never click a square for nothing.
+            if strictSummonLimits and chosenOption.properties:try_get("minion", false) and MinionLimitReached() then
+                summonsCapped = { count = j - 1, limit = summonerMaxMinions, what = "minions" }
+                break
             end
 
             local squadNameForSpawn = nil
@@ -2874,10 +2904,8 @@ function ActivatedAbilitySummonBehavior:CastSummons(ability, casterToken, target
             end
 
             --Strict rules: a Summoner summons up to their minion and squad limits
-            --and no further. Their list of minions only updates when the cast
-            --ends, so summons placed earlier in this same cast are counted too.
+            --and no further. Squads opened earlier in this cast are counted as well.
             if strictSummonLimits and chosenOption.properties:try_get("minion", false) then
-                local minionsAfter = #casterToken.properties:GetLiveSummonedEntries() + #summonerEntries + 1
                 local squadNames = {}
                 for name, _ in pairs(casterToken.properties:GetSummonedSquadsByType(nil)) do
                     squadNames[name] = true
@@ -2891,7 +2919,9 @@ function ActivatedAbilitySummonBehavior:CastSummons(ability, casterToken, target
                     squadNames[squadNameForSpawn] = true
                 end
                 local squadsAfter = #table.keys(squadNames)
-                if summonerMaxMinions > 0 and minionsAfter > summonerMaxMinions then
+                --Still checked here: an inline creature pick in the placement
+                --picker can switch to a minion after the check above the prompt.
+                if MinionLimitReached() then
                     summonsCapped = { count = j - 1, limit = summonerMaxMinions, what = "minions" }
                     break
                 elseif summonerMaxSquads > 0 and squadsAfter > summonerMaxSquads then
@@ -3144,6 +3174,7 @@ function ActivatedAbilitySummonBehavior:CastSummons(ability, casterToken, target
             end
 
             if summonsCapped ~= nil then
+                FloatSummonLimitReached(casterToken, summonsCapped)
                 chat.Send(string.format("%s has reached their limit of %d %s; only %d of %d summons arrived.",
                     casterToken.description, summonsCapped.limit, summonsCapped.what, summonsCapped.count, numSummons))
             elseif not strictSummonLimits then
@@ -3172,6 +3203,7 @@ function ActivatedAbilitySummonBehavior:CastSummons(ability, casterToken, target
         elseif summonsCapped ~= nil then
             --The limit was hit before the first summon. Tell the player, or the
             --ability looks like it did nothing.
+            FloatSummonLimitReached(casterToken, summonsCapped)
             chat.Send(string.format("%s has reached their limit of %d %s; none of the %d summons arrived.",
                 casterToken.description, summonsCapped.limit, summonsCapped.what, numSummons))
         end

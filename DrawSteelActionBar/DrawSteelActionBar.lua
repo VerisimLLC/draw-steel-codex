@@ -1573,6 +1573,44 @@ function DrawSteelActionBar.GetOperation()
     return DrawSteelActionBar._operate.operation
 end
 
+--- Warning text for a channeled-resource chip (e.g. Call Forth's essence) when
+--- spending that much would summon a Summoner past their minion limit, else nil.
+--- Warn only: the chip stays selectable. Strict rules cap the summons at placement.
+--- On the global table: this file is at the 200-local limit.
+--- @param ability ActivatedAbility the ability being cast.
+--- @param caster creature the casting creature.
+--- @param symbols table the cast's current symbols (mode etc.).
+--- @param charges number the charges this chip would spend.
+--- @return string|nil
+function DrawSteelActionBar.MinionLimitWarning(ability, caster, symbols, charges)
+    local maxMinions = caster:CalculateNamedCustomAttribute("MaximumMinions") or 0
+    if maxMinions <= 0 then
+        return nil
+    end
+
+    --Only fixed counts are checked; a rolled number of summons is unknown until cast.
+    local summonCount = 0
+    for _, behavior in ipairs(ability:try_get("behaviors") or {}) do
+        --Same mode filter the cast uses: a behavior tied to other modes won't run.
+        local behaviorModes = behavior:try_get("modesSelected", {})
+        local inMode = (not ability.multipleModes) or #behaviorModes == 0 or table.contains(behaviorModes, symbols.mode)
+        if inMode and behavior.typeName == "ActivatedAbilitySummonBehavior" and not behavior:try_get("ignoreSummonerLimits", false) then
+            local chipSymbols = { mode = symbols.mode, charges = charges }
+            local result = dmhub.EvalGoblinScript(behavior:try_get("numSummons", "1"), GenerateSymbols(caster, chipSymbols), "Minion limit preview for " .. ability.name)
+            summonCount = summonCount + math.floor(tonumber(result) or 0)
+        end
+    end
+    if summonCount <= 0 then
+        return nil
+    end
+
+    local limitInfo = caster:GetSummonerLimitInfo(0, summonCount)
+    if not limitInfo.exceededMinions then
+        return nil
+    end
+    return string.format("You have a minion limit of %d.", limitInfo.maxMinions)
+end
+
 --An object caster turning to face its target while an ability with "Turn to
 --Face Target" is aimed (a Field Ballista's Release Bolt). The engine eases the
 --turn at the object's Turn Speed and streams it live to the other players; the
@@ -11889,6 +11927,14 @@ CreateAbilityController = function()
                 borderColor = "#ff999955",
                 bgcolor = "#ff999922",
             },
+            --Essence amounts that would put the Summoner over their minion limit. Still
+            --selectable; amber so it doesn't look like the light red used for going below zero.
+            {
+                selectors = { "levelPanel", "overMinionLimit" },
+                color = "#ffcc66",
+                borderColor = "#ffcc6655",
+                bgcolor = "#ffcc6622",
+            },
             {
                 selectors = { "levelPanel", "~invalid", "hover" },
                 borderColor = "#ffffffaa",
@@ -11960,10 +12006,17 @@ CreateAbilityController = function()
                     data = {
                         nresources = nresources,
                         ncharges = ncharges,
+                        limitWarning = nil,
                     },
                     press = function(element)
                         if element:HasClass("invalid") == false then
                             g_channeledResourcePanel:FireEventTree("select", element.data.ncharges)
+                        end
+                    end,
+                    hover = function(element)
+                        if element.data.limitWarning ~= nil then
+                            --valign top: the default sits below the chip, under the cursor.
+                            gui.Tooltip{ text = element.data.limitWarning, valign = "top" }(element)
                         end
                     end,
                 }
@@ -11983,6 +12036,14 @@ CreateAbilityController = function()
                 children[i]:SetClass("collapsed", (i - 1) * channelIncrement > resourcesSpendable or (i - 1) * channelIncrement > maxChannel)
                 children[i]:SetClass("negative", (i - 1) * channelIncrement > resourcesAvailable)
                 children[i]:SetClass("selected", (i - 1) == g_currentSymbols.charges)
+
+                --Hidden chips can't be picked, so skip the minion-limit check for them.
+                local limitWarning = nil
+                if not children[i]:HasClass("collapsed") then
+                    limitWarning = DrawSteelActionBar.MinionLimitWarning(g_currentAbility, g_token.properties, g_currentSymbols, i - 1)
+                end
+                children[i].data.limitWarning = limitWarning
+                children[i]:SetClass("overMinionLimit", limitWarning ~= nil)
             end
 
             if added then

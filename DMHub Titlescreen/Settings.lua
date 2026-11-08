@@ -35,16 +35,16 @@ setting{
     default = true,
 }
 
---Gates the in-development Discord features on the titlescreen: the Discord
---card in the Infernal Contract dialog and the Discord friends button. Off by
---default; no editor field, so it never appears in the settings menus. Turn it
---on with /set discordsocial true (restart the titlescreen to see the button).
---Not "discord": that id is the engine's Discord Integration checkbox.
+--Gates the Discord social features: the Discord card in the Infernal Contract
+--dialog, the Discord friends button, and Discord friends in the EotW town rail.
+--On by default since 0.0.879; no editor field, so it never appears in the
+--settings menus. Turn it off with /set discordsocial false (restart the
+--titlescreen). Not "discord": that id is the engine's Discord Integration checkbox.
 setting{
     id = "discordsocial",
     description = "Show the Discord features.",
     storage = "preference",
-    default = false,
+    default = true,
 }
 
 --ADMIN ONLY, hidden. When on, an admin account is treated as a top-tier

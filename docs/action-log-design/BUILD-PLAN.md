@@ -261,7 +261,8 @@ Goal: why it happened, one click from the row.
   entries for every line. The hooks in DMHub Game Rules (heal, purge, replenish) were not reloaded
   live; they load on the next restart.
 - **Found in 2.3c-2:** the Wode Elf Troubadour's drama trigger is named with its whole rule ("Whenever a
-  creature rolls a natural 2 ..."), so its lead reads as a sentence; raised with James.
+  creature rolls a natural 2 ..."), so its lead read as a sentence. James chose G7a: a name ending in
+  a full stop or past 40 characters leads as "{Owner}'s trigger"; the rule shows on the hover.
 
 ## Stage 3: getting to it
 

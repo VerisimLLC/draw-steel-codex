@@ -1398,6 +1398,9 @@ end
 --Conditions whose name doesn't follow "cannot be" (G5).
 local CONDITION_PHRASES = {prone = "knocked prone"}
 
+--A trigger name longer than this is taken for its rule text, not a name (G7a).
+local TRIGGER_NAME_MAX = 40
+
 --What one trigger nested under an action did, in What happened's words ("Human Talent took
 --1 damage.", "Lv2 Human Null gained 1 Discipline."). Nil when it did nothing to show.
 --- @param kid HistoryEntry
@@ -1565,9 +1568,16 @@ function History.Why(entry, kids)
             owner, name = kid.triggerby or kid.who, kid.trigger or kid.causetext
         end
         local effect = name ~= nil and TriggerEffect(kid) or nil
-        if effect ~= nil then
+        if name ~= nil and effect ~= nil then
+            --some content names a trigger with its whole rule ("Whenever a creature rolls a
+            --natural 2 ..."); that reads badly as a lead, so it says "trigger" (G7a).
+            local lead = name
+            if string.find(name, "[%.!?]%s*$") ~= nil or #name > TRIGGER_NAME_MAX then
+                lead = "Trigger"
+                name = "trigger"
+            end
             rows[#rows + 1] = {
-                lead = owner ~= nil and string.format("%s's %s", History.ShownName(owner), name) or name,
+                lead = owner ~= nil and string.format("%s's %s", History.ShownName(owner), name) or lead,
                 who = owner,
                 text = "Triggered by this action: " .. effect,
             }

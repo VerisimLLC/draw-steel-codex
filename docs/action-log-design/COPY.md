@@ -392,4 +392,5 @@ e.g. "Conduit's Word of Guidance / It gave an edge, which moved the roll from Ti
 | ID | Lead | Sentence |
 |---|---|---|
 | G7 | {Owner}'s {trigger}, with the owner's face | Triggered by this action: {what it did, in What happened's words}, e.g. Lv2 Human Null gained 1 Discipline. |
+| G7a | {Owner}'s trigger, when the trigger's name is its rule text (ends in a full stop, or runs past 40 characters; James 2026-11-08) | as G7; the rule shows on the hover |
 | G8 | (none) | A note typed on the action's steps or its triggers' steps, as written, in normal text; each once; skipped when it only repeats the ability's name. |

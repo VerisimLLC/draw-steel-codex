@@ -1134,6 +1134,48 @@ local function ResistWords(immunity)
     return string.format("%s weakness %d", typeWord, -immunity.amount)
 end
 
+--One thing besides the tier that made a target's damage (COPY.md Round 10): a kit (K1), a
+--roll dialog modifier named as its badge (K2, a trigger's owner with a face) or surges
+--(C3s, behind the roll dialog's surge bolt).
+--- @param part HistoryDamagePart
+local function DamagePartLine(width, part)
+    if part.kind == "kit" then
+        return ReceiptLine(width, {label = string.format("%s kit", part.name or ""), value = Signed(part.amount)})
+    end
+    if part.kind == "surge" then
+        local count = part.count or 0
+        local aside = nil
+        if part.characteristic ~= nil then
+            aside = string.format(count == 1 and "(%s %d)" or "(%s %d each)", part.characteristic, part.each or 0)
+        end
+        return ReceiptLine(width, {
+            lead = {gui.Panel{
+                classes = {"historySurgeIcon"},
+                bgimage = "game-icons/surge.png",
+                width = 14,
+                height = 14,
+                rmargin = 5,
+                halign = "left",
+                valign = "center",
+                interactable = false,
+            }},
+            label = count == 1 and "Spent 1 surge" or string.format("Spent %d surges", count),
+            aside = aside,
+            value = Signed(part.amount),
+        })
+    end
+    local lead = nil
+    local text = SpoilerName(part.name or "")
+    if part.who ~= nil then
+        local face = History.Face(part.who, 18)
+        face.selfStyle.rmargin = 6
+        face.selfStyle.halign = "left"
+        lead = {face}
+        text = string.format("%s's %s", History.ShownName(part.who), text)
+    end
+    return ReceiptLine(width, {lead = lead, label = text, value = Signed(part.amount)})
+end
+
 --One target's sum: its own roll if it had one, what the tier dealt, what changed it, and
 --what landed. count > 1 for numbered creatures that all got the same.
 local function AddTargetLines(rows, width, entry, who, count)
@@ -1148,25 +1190,62 @@ local function AddTargetLines(rows, width, entry, who, count)
     if taken > 0 then
         local immunity = who.immunity
         local changed = immunity ~= nil and immunity.amount or 0
-        local first = true
-        local function Dealt(label, raw)
-            rows[#rows + 1] = ReceiptLine(width, {label = label, value = first and tostring(raw) or Signed(raw)})
-            first = false
-        end
         local typeNames = {}
         for name in pairs(who.types or {}) do
             typeNames[#typeNames + 1] = name
         end
         table.sort(typeNames)
+
+        --what each damage line dealt before immunity, by type ("untyped" for the rest).
+        local dealt = {}
         local typed = 0
         for _, name in ipairs(typeNames) do
             local landed = who.types[name]
             typed = typed + landed
-            Dealt(string.format("%s: %s", source, name), landed + ((immunity ~= nil and immunity.damagetype == name) and changed or 0))
+            dealt[name] = landed + ((immunity ~= nil and immunity.damagetype == name) and changed or 0)
         end
         if taken > typed or #typeNames == 0 then
             local typedImmunity = immunity ~= nil and who.types ~= nil and who.types[immunity.damagetype] ~= nil
-            Dealt(source, taken - typed + (typedImmunity and 0 or changed))
+            dealt.untyped = taken - typed + (typedImmunity and 0 or changed)
+        end
+
+        --the kit, modifiers and surges come off the line of the type they added to (2.3b),
+        --leaving the tier's own damage. If they don't fit the lines, the line stays whole.
+        local parts = who.parts or {}
+        local base = {}
+        for name, amount in pairs(dealt) do
+            base[name] = amount
+        end
+        for _, part in ipairs(parts) do
+            local key = part.damagetype or "untyped"
+            if base[key] == nil then
+                base = dealt
+                parts = {}
+                break
+            end
+            base[key] = base[key] - part.amount
+        end
+        for _, amount in pairs(base) do
+            if amount < 0 then
+                base = dealt
+                parts = {}
+                break
+            end
+        end
+
+        local first = true
+        local function Dealt(label, raw)
+            rows[#rows + 1] = ReceiptLine(width, {label = label, value = first and tostring(raw) or Signed(raw)})
+            first = false
+        end
+        for _, name in ipairs(typeNames) do
+            Dealt(string.format("%s: %s", source, name), base[name])
+        end
+        if base.untyped ~= nil then
+            Dealt(source, base.untyped)
+        end
+        for _, part in ipairs(parts) do
+            rows[#rows + 1] = DamagePartLine(width, part)
         end
         if changed ~= 0 then
             rows[#rows + 1] = ReceiptLine(width, {label = ResistWords(immunity), value = Signed(-changed)})
@@ -1206,7 +1285,13 @@ local function ReceiptKey(who)
         end
         roll = string.format("%d/%d/%d/%s", who.roll.edges or 0, who.roll.banes or 0, who.roll.total, table.concat(names, ","))
     end
-    return string.format("%s|%d|%d|%s|%s|%s", tostring(who.tier), who.taken or 0, who.healed or 0, table.concat(types, ","), immunity, roll)
+    local parts = {}
+    for _, part in ipairs(who.parts or {}) do
+        parts[#parts + 1] = string.format("%s/%s/%s/%d/%s", part.kind, part.name or "", part.who ~= nil and part.who.id or "",
+            part.amount, part.damagetype or "")
+    end
+    return string.format("%s|%d|%d|%s|%s|%s|%s", tostring(who.tier), who.taken or 0, who.healed or 0, table.concat(types, ","), immunity, roll,
+        table.concat(parts, ","))
 end
 
 --- The receipt's rows for an action entry; empty when it has nothing to add up.

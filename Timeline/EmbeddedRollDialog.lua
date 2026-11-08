@@ -1147,6 +1147,7 @@ function GameHud.CreateEmbeddedRollDialog()
     --- @field modifiers EmbeddedRollModifierEntry[]
     --- @field modifiersUsed nil|CharacterModifier[] snapshot of the roll's active modifiers.
     --- @field edgeSources nil|EmbeddedRollEdgeSource[] what gave this target's roll its edges and banes.
+    --- @field damageSources nil|EmbeddedRollDamageSource[] what each modifier added to this target's tier damage.
     --- @field rollProperties nil|RollProperties
     --- @field triggers table[] free-form trigger records.
 
@@ -1611,6 +1612,17 @@ function GameHud.CreateEmbeddedRollDialog()
     --- @type EmbeddedRollEdgeSource[]
     local m_edgeSources = {}
 
+    --- A modifier that changed the power table's damage (the Mark, "+1 on Fire abilities"),
+    --- named as its badge in this dialog. History splits the Tier line with these.
+    --- @class EmbeddedRollDamageSource
+    --- @field name string The modifier's name, spoiler markup kept.
+    --- @field charid nil|string On a trigger: the creature whose trigger it is.
+    --- @field tiers table<integer, table<string, number>> Per tier, the damage it added by type ("untyped" for none); negative when it took damage away.
+
+    --- Rebuilt by each CalculateRollText, beside m_edgeSources.
+    --- @type EmbeddedRollDamageSource[]
+    local m_damageSources = {}
+
     local m_rollResults
     local m_customContainer
     local m_tableContainer
@@ -2001,12 +2013,55 @@ function GameHud.CreateEmbeddedRollDialog()
         return after
     end
 
+    --Each tier's damage by type, to measure what one modifier adds to the power table.
+    local function TierDamage(props)
+        local result = {}
+        for i, tier in ipairs(props.tiers) do
+            result[i] = RollPropertiesPowerTable.DamageByType(tier)
+        end
+        return result
+    end
+
+    --What one modifier's ModifyRollProperties added to the damage, kept when it changed any.
+    local function RecordDamageSource(mod, before, after)
+        local tiers = {}
+        local changed = false
+        for i, afterTier in ipairs(after) do
+            local beforeTier = before[i] or {}
+            local delta = {}
+            for typeName, amount in pairs(afterTier) do
+                local d = amount - (beforeTier[typeName] or 0)
+                if d ~= 0 then
+                    delta[typeName] = d
+                    changed = true
+                end
+            end
+            for typeName, amount in pairs(beforeTier) do
+                if afterTier[typeName] == nil then
+                    delta[typeName] = -amount
+                    changed = true
+                end
+            end
+            tiers[i] = delta
+        end
+        if not changed then
+            return
+        end
+        local name = mod.modifier.name or ""
+        local charid = mod.modifier:try_get("_tmp_triggerCharid")
+        if mod.modFromTarget and charid == nil then
+            name = string.format("Target is %s", name)
+        end
+        m_damageSources[#m_damageSources + 1] = {name = name, charid = charid, tiers = tiers}
+    end
+
     --this is the current 'base roll' that is being calculated based on.
     local baseRoll = '1d6'
     --requirementPass: set only by the rebuild below, so the text is rebuilt at most once.
     CalculateRollText = function(calculationOptions, requirementPass)
         m_activeModifiers = {}
         m_edgeSources = {}
+        m_damageSources = {}
 
         local rollDisallowed = nil
 
@@ -2157,8 +2212,13 @@ function GameHud.CreateEmbeddedRollDialog()
 
             rollProperties:ResetMods()
 
+            local measure = rollProperties.typeName == "RollPropertiesPowerTable" and rollProperties:try_get("tiers") ~= nil
             for i, mod in ipairs(enabledModifiers) do
+                local before = measure and TierDamage(rollProperties) or nil
                 mod.modifier:ModifyRollProperties(mod.context, creature, rollProperties, targetCreature)
+                if before ~= nil then
+                    RecordDamageSource(mod, before, TierDamage(rollProperties))
+                end
             end
         end
 
@@ -5944,6 +6004,7 @@ function GameHud.CreateEmbeddedRollDialog()
 
             m_multitargets[index].modifiersUsed = DeepCopy(m_activeModifiers)
             m_multitargets[index].edgeSources = m_edgeSources
+            m_multitargets[index].damageSources = m_damageSources
             m_multitargets[index].rollProperties = DeepCopy(rollProperties)
             m_multitargets[index].rollProperties.multitargets = nil
             m_multitargets[index].boons = (rollInfo.boons or 0)
@@ -6108,6 +6169,7 @@ function GameHud.CreateEmbeddedRollDialog()
                     CalculateRollText{surges = m_multitargets[index].surges or 0}
                     m_multitargets[index].modifiersUsed = DeepCopy(m_activeModifiers)
                     m_multitargets[index].edgeSources = m_edgeSources
+                    m_multitargets[index].damageSources = m_damageSources
                     m_multitargets[index].rollProperties = DeepCopy(rollProperties)
                 end
             end

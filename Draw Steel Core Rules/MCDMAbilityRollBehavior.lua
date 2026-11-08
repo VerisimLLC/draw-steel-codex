@@ -2316,6 +2316,24 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
                         local targetSources = options.symbols.cast:get_or_add("targetSources", {})
                         targetSources[targetToken.charid] = multitarget.edgeSources
                     end
+                    --what the dialog's modifiers added to this target's damage, and its surges, so
+                    --History can split the Tier line. Each surge adds the highest characteristic,
+                    --of the type a surge modifier names (as the roll dialog's surge icons do).
+                    if multitarget.damageSources ~= nil and #multitarget.damageSources > 0 then
+                        local targetDamage = options.symbols.cast:get_or_add("targetDamageSources", {})
+                        targetDamage[targetToken.charid] = multitarget.damageSources
+                    end
+                    if surges > 0 then
+                        local surgeType = nil
+                        for _, mod in ipairs(multitarget.modifiersUsed or {}) do
+                            local damageType = mod:try_get("surgeDamageType")
+                            if mod:try_get("rollRequirement") == "surges" and damageType ~= nil and damageType ~= "untyped" then
+                                surgeType = damageType
+                            end
+                        end
+                        local targetSurges = options.symbols.cast:get_or_add("targetSurges", {})
+                        targetSurges[targetToken.charid] = {count = surges, each = casterToken.properties:HighestCharacteristic(), damagetype = surgeType}
+                    end
 
                     --Check modifiers actually applied to roll for this target
                     for _, mod in ipairs(m_rollInfo.properties.multitargets[numTarget].modifiersUsed or {}) do
@@ -3146,6 +3164,24 @@ function RollPropertiesPowerTable:GetDamageTypes()
         return nil
     end
 
+    return result
+end
+
+--- The damage written in one tier's text, summed by type, so callers can measure what a
+--- kit, a modifier or a surge added by comparing before and after. Untyped damage is
+--- keyed "untyped"; a choice of types keys under its words as written ("cold, fire, or sonic").
+--- @param tier string|nil
+--- @return table<string, number>
+function RollPropertiesPowerTable.DamageByType(tier)
+    local result = {}
+    --the optional dice part keeps "3 + 1d6 damage" reading as 3, as ModifyDamage does.
+    for _, match in ipairs(regex.MatchAll(tier or "", "(\\d+)\\s+(?:\\+\\s*\\d+d\\d+\\s+)?" .. g_tierDamageTypes .. "damage")) do
+        local typeName = string.lower(trim(match[3] or ""))
+        if typeName == "" then
+            typeName = "untyped"
+        end
+        result[typeName] = (result[typeName] or 0) + (tonumber(match[2]) or 0)
+    end
     return result
 end
 

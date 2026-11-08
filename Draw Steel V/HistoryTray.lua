@@ -325,6 +325,11 @@ local function Styles()
             opacity = 0.8,
         },
         {
+            --the roll dialog's surge bolt, in front of "Spent 2 surges".
+            selectors = {"historySurgeIcon"},
+            bgcolor = "@fg",
+        },
+        {
             --an edge or bane that did not count, crossed out; its value drops out of the column.
             selectors = {"label", "historyStruck"},
             strikethrough = true,

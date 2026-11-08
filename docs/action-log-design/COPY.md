@@ -354,3 +354,14 @@ which, so the remover gets its own muted line last, with no arrows.
 | C5i | The line when every edge or bane was taken away | ~~Edge~~ Ignored by {name}, its value (+2, +1 tier, -2, -1 tier) crossed out and muted; each source under it crossed out with no reason (~~Prone~~), since the reason is the whole line's; on a target's own roll, ~~Edge for this target~~ |
 | C5r | The reason, or the remover's own line when only some were removed | Ignored by {name} (Ignore) / Removed by {name} (Remove one); several join: Ignored by X, removed by Y |
 | C5o | A remover that belongs to the target | {Target}'s {name}, e.g. Ignored by Ajax's Steadfast; the target's face shows only on a remover's own line, not in an inline reason |
+
+## Round 10: the Tier line split (signed off 2026-11-08)
+
+A target's sum lists what made its damage, in the order it applied: the tier's own damage (characteristic
+included), the kit, the roll dialog's damage modifiers, then surges, then immunity or weakness and Taken.
+Each addition comes off the damage type it was added to. Entries written before this keep one Tier line.
+| ID | Where | Text |
+|---|---|---|
+| K1 | A kit's damage bonus | {Kit} kit, e.g. Panther kit .......... +2 (one line per kit) |
+| K2 | A damage modifier from the roll dialog | its badge name, as C5 / C5t: Mark, {Owner}'s {trigger} with the owner's face .......... +4 |
+| C3s | Surges spent on damage | the surge bolt, Spent 2 surges, then (Might 2 each) muted .......... +4; a tie for highest names the first in sheet order |

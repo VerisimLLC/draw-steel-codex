@@ -221,6 +221,22 @@ Goal: why it happened, one click from the row.
 - **Found in 2.3a2:** `MCDMCreature.lua` wraps `creature.ApplyOngoingEffect` with no reload guard, so
   every hot reload of that file stacks another wrapper and one effect writes one History line per
   reload. Dev-only (a fresh start has one wrapper); restart before judging effect lines.
+- **2.3b, the Tier line split (COPY.md Round 10):** each damaged target's sum lists the tier's own damage,
+  then the kit (K1), the roll dialog's damage modifiers (K2, named as their badges, a trigger's owner
+  with a face), then surges (C3s behind the surge bolt), then immunity and Taken. Each part comes off
+  the line of the type it added to; if the parts don't fit the lines (a negative remainder, or a type
+  with no line) the line stays whole. Sources: the kit from the ability's `modificationLog` note (the
+  kit's type is the tier's first damage, as MCDMKit matches it); modifiers measured around each
+  `ModifyRollProperties` in CalculateRollText with `RollPropertiesPowerTable.DamageByType`, kept per
+  target as `damageSources` and on the cast as `targetDamageSources`; surges as `targetSurges` (count,
+  the highest characteristic, the type a surge modifier names). Entries written before keep one line.
+- **Tested in 2.3b:** a real Brutal Slam with 2 surges at Tier 3 (20; Tier 3 11, Panther kit +4, Spent 2
+  surges (Might 2 each) +4, Taken 19) and a fed entry with the Mark and its owner's face, typed fire
+  parts with fire immunity, one surge, and parts that don't fit. Not tried live: a real damage modifier
+  (none on the Fury's Brutal Slam), so the dialog's measurement has only run with nothing to record.
+- **Found in 2.3b:** resource lines stack the same way after reloads (one surge gain or spend wrote
+  eight lines). Surges spent on accepting the roll also write their own "spent 2 surges" line beside
+  the action, which the receipt now repeats; worth folding into the action as a cost later.
 
 ## Stage 3: getting to it
 

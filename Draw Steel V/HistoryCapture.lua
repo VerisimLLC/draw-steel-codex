@@ -27,6 +27,7 @@ local mod = dmhub.GetModLoading()
 --- @field soaked? number On a target: how much of the damage temporary Stamina took.
 --- @field types? table<string, number> On a target: damage by type, typed damage only.
 --- @field immunity? {damagetype: string, amount: number} On a target: what immunity took off, or weakness added (negative).
+--- @field parts? HistoryDamagePart[] On a target: what made its damage besides the tier, in the order it applied.
 --- @field pool? {before: number, after: number} On a target: temporary Stamina that grew.
 --- @field conds? {name: string, icon: string|nil, duration: string|nil, iscondition: boolean|nil}[] On a target: conditions and effects it started.
 --- @field ended? string[] On a target: names of what it ended.
@@ -38,6 +39,17 @@ local mod = dmhub.GetModLoading()
 --- @field squad? string On a minion: the name of its squad.
 --- @field moved? {kind: string, distance: number, fell: number, collision: number, walls: number, path: table|nil} On a target: how another creature moved it. The path is for the side view.
 --- @field landedon? boolean On a target: a creature fell on it.
+
+--- Something besides the tier itself that made a target's damage (2.3b).
+--- @class HistoryDamagePart
+--- @field kind "kit"|"modifier"|"surge"
+--- @field amount number The damage it added; negative when it took damage away.
+--- @field damagetype? string The type it added to; nil for untyped.
+--- @field name? string A kit's name, or a modifier's as the roll dialog's badge showed it.
+--- @field who? HistoryCreature On a trigger: whose trigger it is.
+--- @field count? integer On surges: how many were spent.
+--- @field each? number On surges: the damage each dealt (the highest characteristic).
+--- @field characteristic? string On surges: that characteristic's name.
 
 --- Something that added or took away edges or banes, as the roll dialog named it.
 --- @class HistoryEdgeSource
@@ -329,6 +341,111 @@ local function RollCharacteristic(ability, caster)
     return nil, nil
 end
 
+--The ability's kit damage bonuses, read from the notes kits leave on an ability ("Includes
+--+1 reach, +2/+5/+7 damage from Panther kit", MCDMKit.lua). A kit adds to the first damage
+--in the tier, so that damage's type is the kit's (nil for untyped).
+--- @return {name: string, bonuses: number[], damagetypes: table<integer, string>}[]
+local function KitBonuses(ability)
+    local result = {}
+    local tiers = nil
+    for _, behavior in ipairs(ability.behaviors or {}) do
+        if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+            tiers = behavior.tiers
+            break
+        end
+    end
+    for _, note in ipairs(ability:try_get("modificationLog", {})) do
+        local name = string.match(note, "from (.+) kit$")
+        if name ~= nil then
+            local bonuses = {0, 0, 0}
+            for a, b, c in string.gmatch(note, "%+(%d+)/%+(%d+)/%+(%d+) damage") do
+                bonuses[1] = bonuses[1] + tonumber(a)
+                bonuses[2] = bonuses[2] + tonumber(b)
+                bonuses[3] = bonuses[3] + tonumber(c)
+            end
+            if bonuses[1] + bonuses[2] + bonuses[3] > 0 then
+                local damagetypes = {}
+                for i = 1, 3 do
+                    --the same match MCDMKit uses ("13 + M fire damage"); the type is the last
+                    --word, unless that is a characteristic letter (M, A, R, I, P).
+                    local match = tiers ~= nil and tiers[i] ~= nil and regex.MatchGroups(tiers[i], "\\d+(?<words> [ A-Za-z,+]+)? damage") or nil
+                    local words = match ~= nil and type(match.words) == "string" and string.lower(match.words) or ""
+                    local last = string.match(words, "(%a+)[^%a]*$")
+                    damagetypes[i] = (last ~= nil and #last > 1) and last or nil
+                end
+                result[#result + 1] = {name = name, bonuses = bonuses, damagetypes = damagetypes}
+            end
+        end
+    end
+    return result
+end
+
+--The name of the characteristic that gives this value, first in sheet order on a tie.
+local function CharacteristicNamed(caster, value)
+    if caster == nil then
+        return nil
+    end
+    for _, attrid in ipairs(creature.attributeIds) do
+        if caster:AttributeMod(attrid) == value then
+            return creature.attributesInfo[attrid].description
+        end
+    end
+    return nil
+end
+
+--What made each damaged target's damage besides the tier (2.3b): the kit, the roll dialog's
+--damage modifiers, then surges, each with the type it added to. The card takes them off
+--the Tier line.
+local function AddDamageParts(entry, cast, ability, caster)
+    local kits = KitBonuses(ability)
+    local targetDamage = cast:try_get("targetDamageSources", {})
+    local targetSurges = cast:try_get("targetSurges", {})
+    for _, who in ipairs(entry.targets) do
+        local tier = who.tier
+        if tier ~= nil and tier > 0 and (who.taken or 0) > 0 then
+            --- @type HistoryDamagePart[]
+            local parts = {}
+            for _, kit in ipairs(kits) do
+                if kit.bonuses[tier] ~= 0 then
+                    parts[#parts + 1] = {kind = "kit", name = kit.name, amount = kit.bonuses[tier], damagetype = kit.damagetypes[tier]}
+                end
+            end
+            for _, source in ipairs(targetDamage[who.id] or {}) do
+                local byType = source.tiers[tier] or {}
+                local typeNames = {}
+                for typeName in pairs(byType) do
+                    typeNames[#typeNames + 1] = typeName
+                end
+                table.sort(typeNames)
+                local owner = source.charid ~= nil and dmhub.GetCharacterById(source.charid) or nil
+                for _, typeName in ipairs(typeNames) do
+                    parts[#parts + 1] = {
+                        kind = "modifier",
+                        name = source.name,
+                        who = owner ~= nil and History.Creature(owner) or nil,
+                        amount = byType[typeName],
+                        damagetype = typeName ~= "untyped" and typeName or nil,
+                    }
+                end
+            end
+            local surges = targetSurges[who.id]
+            if surges ~= nil then
+                parts[#parts + 1] = {
+                    kind = "surge",
+                    count = surges.count,
+                    each = surges.each,
+                    characteristic = CharacteristicNamed(caster, surges.each),
+                    amount = surges.count * surges.each,
+                    damagetype = surges.damagetype,
+                }
+            end
+            if #parts > 0 then
+                who.parts = parts
+            end
+        end
+    end
+end
+
 local function AddRoll(entry, cast, ability, caster)
     local total = cast:try_get("total")
     if total == nil then
@@ -447,6 +564,7 @@ local function CastFinished(ability, casterToken, options)
                 end
             end
         end
+        AddDamageParts(entry, cast, ability, casterToken ~= nil and casterToken.valid and casterToken.properties or nil)
     end
     History.Write(entry)
 end

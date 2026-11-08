@@ -9930,14 +9930,6 @@ local function CreateTargetInfo(spell)
                 end
             end
 
-            --A target-first ability's target rejected by its own rules can't be picked even
-            --without strict targeting (the hover tooltip says why), so the player can press
-            --Escape instead of spending the action on a cast that does nothing.
-            if targetToken.sheet ~= nil and targetToken.sheet.data.targetRuleBlockReason ~= nil
-                and not list_contains(g_targetsChosen, targetToken.id) then
-                return
-            end
-
             -- Strict-targeting: players cannot select invalid targets (out of
             -- range, forbidden, etc). The reticule still lights up with the
             -- invalid styling so they get feedback on why, but the click is
@@ -10236,7 +10228,6 @@ local function RemoveTokenTargeting()
         if token.valid and token.sheet ~= nil and token.sheet.data.targetInfo == g_targetInfo then
             token.sheet:FireEvent("untarget")
             token.sheet.data.targetInfo = nil
-            token.sheet.data.targetRuleBlockReason = nil
         end
     end
 
@@ -11793,13 +11784,13 @@ CreateAbilityController = function()
     g_castMessageContainer = gui.TooltipFrame(g_castMessage, {
     })
 
-    --Switches the cast in progress to mode i: swaps in that mode's variation,
+    --Switches the cast in progress to modeIndex: swaps in that mode's variation,
     --re-arms targeting (chosen targets are kept) and refreshes cost and prompt.
-    local function SelectCastMode(i)
+    local function SelectCastMode(modeIndex)
         if g_currentAbility == nil or g_token == nil then return end
-        g_currentSymbols.mode = i
+        g_currentSymbols.mode = modeIndex
 
-        g_currentAbility = g_currentAbility:SwitchModes(i)
+        g_currentAbility = g_currentAbility:SwitchModes(modeIndex)
 
         g_targetInfo = CreateTargetInfo(g_currentAbility)
 
@@ -11856,7 +11847,7 @@ CreateAbilityController = function()
         end
     end
 
-    local function ModeButton(i, mode, selected, onPress)
+    local function ModeButton(modeIndex, mode, selected, onPress)
         return gui.Label {
             classes = { "enumSliderOption", cond(selected, "selected") },
             text = mode.text,
@@ -11876,7 +11867,7 @@ CreateAbilityController = function()
             end,
 
             press = function(element)
-                onPress(i)
+                onPress(modeIndex)
             end,
         }
     end
@@ -13067,7 +13058,6 @@ CreateAbilityController = function()
                     if tok ~= nil and tok.valid and tok.sheet ~= nil then
                         tok.sheet.data.targetInfo = nil
                         tok.sheet.data.targetValid = nil
-                        tok.sheet.data.targetRuleBlockReason = nil
                         tok.sheet:FireEvent("untarget")
                     end
                 end
@@ -13159,7 +13149,6 @@ CreateAbilityController = function()
                     tok.sheet.data.targetInfo = targetInfo
                     local reason = reasons[tok.charid]
                     tok.sheet.data.targetValid = reason == nil
-                    tok.sheet.data.targetRuleBlockReason = nil
                     if reason ~= nil then
                         tok.sheet:FireEvent("target", { valid = false, reason = reason, classes = { 'invalid' } })
                     else
@@ -15282,18 +15271,11 @@ local function CalculateSpellTargetFocusing(symbols)
                 end
 
                 local failReason = nil
-                --On a target-first ability (Heal), a Reasoned Filter rejection blocks the
-                --click for everyone, since the cast would do nothing. Other abilities keep
-                --the old behaviour: invalid styling, clickable unless strict targeting is on.
-                local ruleBlockReason = nil
 
                 if canTarget then
                     canTarget, failReason = spell:TargetPassesFilter(g_token, targetToken, symbols)
                     if failReason ~= nil then
                         canTarget = true
-                        if g_currentAbility.chooseModeAfterTargeting then
-                            ruleBlockReason = failReason
-                        end
                     end
                 end
 
@@ -15408,7 +15390,6 @@ local function CalculateSpellTargetFocusing(symbols)
                         --record validity so click handlers can reject invalid
                         --targets when strict-targeting is enforced for players.
                         targetToken.sheet.data.targetValid = valid
-                        targetToken.sheet.data.targetRuleBlockReason = ruleBlockReason
                         --out-of-range and line of effect are shown as arrow labels instead of a token tooltip.
                         local tooltipReason = failReason
                         if tooltipReason ~= nil and (string.starts_with(tooltipReason, "Out of range")
@@ -15442,7 +15423,6 @@ local function CalculateSpellTargetFocusing(symbols)
                     end
                     tok.sheet.data.targetInfo = g_targetInfo
                     tok.sheet.data.targetValid = true
-                    tok.sheet.data.targetRuleBlockReason = nil
                     tok.sheet:FireEvent("target", { valid = true })
                 end
             end
@@ -15529,7 +15509,8 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
             and not g_manualTargetChosen
         --Target-then-mode abilities (Heal) never cast on the target click: the mode
         --buttons that appear afterwards are what cast (they pass forceCast).
-        if g_currentAbility.multipleModes and g_currentAbility.chooseModeAfterTargeting then
+        local modeAfterTargeting = g_currentAbility.multipleModes and g_currentAbility.chooseModeAfterTargeting
+        if modeAfterTargeting then
             hasPromptOverride = true
         end
         --A chooser shell (e.g. "Make Melee Free Strike") is targetType self, so one
@@ -15651,7 +15632,8 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
                 shownTargets = m_positionTargetsChosen
             end
 
-            local modeAfterTargeting = g_currentAbility.multipleModes and g_currentAbility.chooseModeAfterTargeting
+            --Target-first abilities cast from their mode buttons, so there is no Confirm
+            --button; the prompt asks the player to pick an option for the chosen target.
             local canConfirm = g_currentAbility:CanCastAsIs(g_token, shownTargets, g_currentSymbols) and
                 not (synthesizedSpells ~= nil and #synthesizedSpells > 0) and not modeAfterTargeting
             g_castButton:FireEvent("setVisible", canConfirm)

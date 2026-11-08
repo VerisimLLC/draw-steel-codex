@@ -48,6 +48,7 @@ end
 --- @field legendary boolean If true, this is a legendary action.
 --- @field categorization string Ability category string (e.g. "none", "action", "maneuver").
 --- @field multipleModes boolean|string If true, the ability has multiple selectable modes.
+--- @field chooseModeAfterTargeting boolean If true, the mode buttons appear only once a target is chosen, and pressing one casts. A modeList entry's targetCondition (GoblinScript, Target = the chosen creature) hides that mode for targets it fails, showing its targetUnavailableText instead. Targets failing a reasonedFilter can't be clicked at all (the hover tooltip gives the reason).
 --- @field domains table<string, boolean> Domain set this ability belongs to.
 --- @field isSpell boolean If true, this ability is treated as a spell.
 --- @field abilityModification boolean If true, this is a modification of another ability rather than a standalone ability.
@@ -274,6 +275,7 @@ ActivatedAbilityApplyOngoingEffectBehavior.inheritDuration = false
 ActivatedAbilityBehavior.durationUntilEndOfTurn = false
 
 ActivatedAbility.multipleModes = false
+ActivatedAbility.chooseModeAfterTargeting = false
 
 ActivatedAbility.domains = {}
 ActivatedAbility.isSpell = false

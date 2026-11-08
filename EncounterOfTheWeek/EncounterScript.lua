@@ -2150,8 +2150,9 @@ EncounterScript.AUTO_CRITICAL_BONUS = "The party gains an additional hero token.
 
 --What a tier row should read for a viewer: the full text when the tier has
 --landed (or has no teaser), the teaser otherwise. With `heroName`, "PC"
---reads as the hero taking the test, as it does in scenes.
-function EncounterScript.TierDisplayText(roll, t, landed, heroName)
+--reads as the hero taking the test, as it does in scenes, and the pronoun
+--tokens use `pronouns` (the sheet's Pronouns text).
+function EncounterScript.TierDisplayText(roll, t, landed, heroName, pronouns)
     local teaser = roll.teasers ~= nil and roll.teasers[t] or nil
     local text
     if landed or teaser == nil then
@@ -2159,10 +2160,7 @@ function EncounterScript.TierDisplayText(roll, t, landed, heroName)
     else
         text = EncounterScript.VisibleText(teaser)
     end
-    if heroName ~= nil then
-        text = EncounterScript.SubstitutePC(text, heroName)
-    end
-    return text
+    return EncounterScript.SubstitutePC(text, heroName, pronouns)
 end
 
 --Parse a tier line (or a Consequence: line) into its effects, each with
@@ -2913,13 +2911,13 @@ local function DropArrivalPC(steps, section, warn)
         local usesPC = false
         local shown = step.text or ""
         if step.kind == "say" then
-            usesPC = step.speaker == "PC"
+            usesPC = step.speaker == "PC" or EncounterScript.UsesPC(step.text)
             shown = string.format("%s: %s", tostring(step.speaker), tostring(step.text))
         elseif step.kind == "emote" then
             usesPC = step.name == "PC"
             shown = string.format("PC is %s", tostring(step.emote))
         elseif step.kind == "narrate" then
-            usesPC = string.find(step.text or "", "%f[%w]PC%f[%W]") ~= nil
+            usesPC = EncounterScript.UsesPC(step.text)
         elseif step.kind == "if" then
             for _, branch in ipairs(step.branches or {}) do
                 if ConditionUsesPC(branch.cond) then
@@ -4238,11 +4236,82 @@ function EncounterScript.FlattenScene(steps, env, cast)
     return out
 end
 
---Replace the word "PC" (and "PC's") with the hero's name.
-function EncounterScript.SubstitutePC(text, heroName)
-    local result = string.gsub(text or "", "%f[%w]PC%f[%W]", function()
-        return heroName
+--Pronoun sets by subject word. Each set lists the words for the five
+--pronoun tokens.
+EncounterScript.PRONOUN_SETS = {
+    they = { subject = "they", object = "them", possessive = "their", possessivealone = "theirs", reflexive = "themself" },
+    she = { subject = "she", object = "her", possessive = "her", possessivealone = "hers", reflexive = "herself" },
+    he = { subject = "he", object = "him", possessive = "his", possessivealone = "his", reflexive = "himself" },
+    it = { subject = "it", object = "it", possessive = "its", possessivealone = "its", reflexive = "itself" },
+    ze = { subject = "ze", object = "zir", possessive = "zir", possessivealone = "zirs", reflexive = "zirself" },
+    xe = { subject = "xe", object = "xem", possessive = "xyr", possessivealone = "xyrs", reflexive = "xemself" },
+    ey = { subject = "ey", object = "em", possessive = "eir", possessivealone = "eirs", reflexive = "emself" },
+    fae = { subject = "fae", object = "faer", possessive = "faer", possessivealone = "faers", reflexive = "faerself" },
+    ve = { subject = "ve", object = "ver", possessive = "vis", possessivealone = "vis", reflexive = "verself" },
+}
+
+--"ze/hir" is its own set; other "ze" spellings use zir.
+local ZE_HIR = { subject = "ze", object = "hir", possessive = "hir", possessivealone = "hirs", reflexive = "hirself" }
+
+--The pronoun set for what a player typed in the sheet's Pronouns field
+--("she/her", "They/Them", "he"). Only the first set counts ("she/they" is
+--she). An unknown slash pair like "ne/nem" uses the first word as subject
+--and the second for the rest. Anything else ("any", "N/A", blank) is they.
+function EncounterScript.PronounSet(text)
+    local lc = string.lower(text or "")
+    local first = string.match(lc, "%a+")
+    local second = string.match(lc, "^%s*%a+%s*/%s*(%a+)")
+    if first == "ze" and second == "hir" then
+        return ZE_HIR
+    end
+    local known = first ~= nil and EncounterScript.PRONOUN_SETS[first] or nil
+    if known ~= nil then
+        return known
+    end
+    --a made-up pair needs the slash and two real words ("n/a" is not one).
+    if second ~= nil and #first >= 2 and #second >= 2 and EncounterScript.PRONOUN_SETS[second] == nil then
+        return { subject = first, object = second, possessive = second, possessivealone = second .. "s", reflexive = second .. "self" }
+    end
+    return EncounterScript.PRONOUN_SETS.they
+end
+
+--True when the text has "PC" or a pronoun token (pcsubject, Pcobject...),
+--so it needs a hero to read.
+function EncounterScript.UsesPC(text)
+    if string.find(text or "", "%f[%w]PC%f[%W]") ~= nil then
+        return true
+    end
+    for role in string.gmatch(text or "", "%f[%w][Pp][Cc](%a+)%f[%W]") do
+        if EncounterScript.PRONOUN_SETS.they[string.lower(role)] ~= nil then
+            return true
+        end
+    end
+    return false
+end
+
+--Replace the word "PC" (and "PC's") with the hero's name, and the pronoun
+--tokens with the hero's pronouns: pcsubject (they), pcobject (them),
+--pcpossessive (their), pcpossessivealone (theirs), pcreflexive (themself).
+--A token written with a capital first letter ("Pcsubject") gives a
+--capital word. `pronouns` is the sheet's Pronouns text; nil or blank is
+--they. With no heroName, "PC" is kept and the pronouns read as they.
+function EncounterScript.SubstitutePC(text, heroName, pronouns)
+    local set = EncounterScript.PronounSet(pronouns)
+    local result = string.gsub(text or "", "%f[%w]([Pp][Cc])(%a+)%f[%W]", function(pc, role)
+        local word = set[string.lower(role)]
+        if word == nil then
+            return nil
+        end
+        if string.sub(pc, 1, 1) == "P" then
+            word = string.upper(string.sub(word, 1, 1)) .. string.sub(word, 2)
+        end
+        return word
     end)
+    if heroName ~= nil then
+        result = string.gsub(result, "%f[%w]PC%f[%W]", function()
+            return heroName
+        end)
+    end
     return result
 end
 

@@ -6448,6 +6448,12 @@ Consequence: You begin the encounter surprised
 - **Scenes**: a `---` line in an entry (above its first option) ends the card
   text and starts its scene; every non-blank line after it is one step.
   - `PC` is the approaching hero.
+  - Pronoun tokens (2026-11-08): `pcsubject`/`pcobject`/`pcpossessive`/
+    `pcpossessivealone`/`pcreflexive` read as the hero's sheet Pronouns
+    (`EncounterScript.PronounSet`; first set wins, blank or unknown =
+    they/them, an unknown pair "ne/nem" builds its own set). A capital first
+    letter capitalizes. Swapped by `EncounterScript.SubstitutePC` wherever
+    `PC` is; with no hero they read as they. Verbs are not conjugated.
   - `Name (Monster) enters`/`appears`/`arrives` and `Name exits`/`leaves`/
     `departs`. The monster gives the portrait; a bare name is its own monster.
   - `Name: text` is speech (only for `PC` or a character who enters

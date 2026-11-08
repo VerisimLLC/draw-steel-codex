@@ -319,6 +319,12 @@ Parties are 4-6 heroes: author each round for 6 and trim for 4 and 5.
 **Scenes.** A `---` line in an entry (above its first option) ends the card text
 and starts a scripted scene; each non-blank line after it is one step:
 - `PC` = the approaching hero.
+- Pronoun tokens read as that hero's sheet Pronouns (Description tab), and
+  as they/them when it is blank or unknown: `pcsubject` (they), `pcobject`
+  (them), `pcpossessive` (their), `pcpossessivealone` (theirs), `pcreflexive`
+  (themself). A capital first letter gives a capital word (`Pcsubject`).
+  They work wherever `PC` does (scenes, tiers, free results). Verbs are not
+  changed, so write around them ("Pcsubject drew", not "Pcsubject draws").
 - `Name (Monster) enters` / `appears` / `arrives`; `Name exits` / `leaves` /
   `departs`. The monster (a bestiary name) gives the portrait; a bare `Name`
   must itself be a monster name.

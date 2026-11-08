@@ -2746,10 +2746,11 @@ function EncounterMontage.ApplyEffects(effects, ctx)
     local runIndex, runText, runSep = nil, nil, ""
     --"PC" in a montage turn's prose (a tier, a delve obstacle, a chest)
     --reads as the hero who took it, as it does in the scenes. A Consequence:
-    --has no hero and keeps the word.
-    local proseHeroName = nil
+    --has no hero: it keeps the word, and pronoun tokens read as they.
+    local proseHeroName, proseHeroPronouns = nil, nil
     if ctx.montage ~= nil and ctx.heroEntry ~= nil and ctx.heroEntries == nil then
         proseHeroName = ctx.heroEntry.name
+        proseHeroPronouns = EncounterMontage.HeroPronouns(ctx.heroEntry.charid)
     end
 
     --dice the players rolled for this pass (EncounterMontage.PendingDice
@@ -3370,10 +3371,7 @@ function EncounterMontage.ApplyEffects(effects, ctx)
                 --off. Because that removal restores #applied, the prose on
                 --either side of it still joins -- which is what
                 --EncounterScript.VisibleText shows.
-                local prose = effect.text
-                if proseHeroName ~= nil then
-                    prose = EncounterScript.SubstitutePC(prose, proseHeroName)
-                end
+                local prose = EncounterScript.SubstitutePC(effect.text, proseHeroName, proseHeroPronouns)
                 if effect.hidden then
                     applied[#applied + 1] = prose
                 else
@@ -3694,13 +3692,32 @@ end
 --the critical (tier 4, which every montage test has), but the roll is shown
 --with secretCritical (ShowMontageRoll), so the dialog keeps that row hidden
 --until the dice land on a natural 19-20. "PC" reads as `heroName`, the hero
---taking the test.
-function EncounterMontage.TeaserTiers(roll, heroName)
+--taking the test, and the pronoun tokens use `pronouns`.
+function EncounterMontage.TeaserTiers(roll, heroName, pronouns)
     local tiers = {}
     for t in ipairs(roll.tiers) do
-        tiers[t] = EncounterScript.TierDisplayText(roll, t, false, heroName)
+        tiers[t] = EncounterScript.TierDisplayText(roll, t, false, heroName, pronouns)
     end
     return tiers
+end
+
+--What the hero's sheet says in its Pronouns field, or nil (read as they).
+function EncounterMontage.HeroPronouns(heroid)
+    if heroid == nil then
+        return nil
+    end
+    local tok = dmhub.GetCharacterById(heroid)
+    local props = (tok ~= nil and tok.valid) and tok.properties or nil
+    if props == nil or not props:IsHero() then
+        return nil
+    end
+    --IsHero() is true only on character instances.
+    ---@cast props character
+    local desc = props:Description()
+    if desc == nil then
+        return nil
+    end
+    return desc:GetPronouns()
 end
 
 --A natural 19-20 is the critical tier (4), whatever the modifiers say.
@@ -3918,8 +3935,9 @@ local function BuildScenePart(m, t, entry, option, part, tier)
     else
         steps = EncounterScript.FlattenScene(option.postScene, env, cast)
     end
+    local pronouns = EncounterMontage.HeroPronouns(t.heroid)
     for _, step in ipairs(steps) do
-        step.text = EncounterScript.SubstitutePC(step.text, heroName)
+        step.text = EncounterScript.SubstitutePC(step.text, heroName, pronouns)
         step.line = nil
         for _, e in ipairs(step.emotes or {}) do
             if e.name == "PC" then
@@ -4173,9 +4191,7 @@ local function ApplyResolution(m, doc, t, entry, option, tierIndex, heroes, user
     else
         t.tierText = EncounterScript.VisibleText((option.free or {}).text or "")
     end
-    if t.heroName ~= nil then
-        t.tierText = EncounterScript.SubstitutePC(t.tierText, t.heroName)
-    end
+    t.tierText = EncounterScript.SubstitutePC(t.tierText, t.heroName, EncounterMontage.HeroPronouns(t.heroid))
     t.applied = applied
     --a result that is only prose (no item, token, unlock... not even a
     --hidden one) is said to be no reward, so players are not left wondering
@@ -7361,7 +7377,7 @@ local function LaunchRoll(turn, entry, option, heroToken)
         roll = roll,
         modifiers = modifiers,
         --the dialog's power table shows teasers, never the hidden text
-        tiers = EncounterMontage.TeaserTiers(option.roll, turn.heroName),
+        tiers = EncounterMontage.TeaserTiers(option.roll, turn.heroName, EncounterMontage.HeroPronouns(turn.heroid)),
         secretCritical = true,
         rollSeq = turn.rollSeq,
         expectedStatus = "rolling",
@@ -7417,7 +7433,7 @@ local function LaunchPardonRoll(turn, entry, option, token)
         rollType = rollType,
         roll = roll,
         modifiers = modifiers,
-        tiers = EncounterMontage.TeaserTiers(option.roll, turn.heroName),
+        tiers = EncounterMontage.TeaserTiers(option.roll, turn.heroName, EncounterMontage.HeroPronouns(turn.heroid)),
         secretCritical = true,
         rollSeq = p.rollSeq,
         expectedStatus = "pardon",

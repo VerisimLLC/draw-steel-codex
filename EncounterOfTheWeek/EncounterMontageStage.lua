@@ -1840,8 +1840,8 @@ local RULES_COLOR_DIM = "#5d7a5d"
 --coloured the applied-effect green, so a player can see at a glance which
 --words the montage will actually act on and which are flavour. A teaser is
 --never marked: the grammar only ever parses the full text.
-local function TierText(roll, t, landed, dim, heroName)
-    local text = EncounterScript.TierDisplayText(roll, t, landed, heroName)
+local function TierText(roll, t, landed, dim, heroName, pronouns)
+    local text = EncounterScript.TierDisplayText(roll, t, landed, heroName, pronouns)
     local teaser = roll.teasers ~= nil and roll.teasers[t] or nil
     if (not landed) and teaser ~= nil then
         return text
@@ -1854,7 +1854,7 @@ end
 --has one, and what it gives is a surprise until it is rolled. With
 --`hiddenCritical` its row is built collapsed instead, for SetLandedTier to
 --open when the dice land on it (the live rows of a roll in progress).
-local function TierRows(roll, landedTier, dimOthers, heroName, hiddenCritical)
+local function TierRows(roll, landedTier, dimOthers, heroName, hiddenCritical, pronouns)
     local rows = {}
     for t in ipairs(roll.tiers) do
         local hidden = t > 3 and landedTier ~= t
@@ -1864,7 +1864,7 @@ local function TierRows(roll, landedTier, dimOthers, heroName, hiddenCritical)
         local range = TIER_RANGES[t] or ""
         local landed = landedTier == t
         local dim = dimOthers and landedTier ~= nil and not landed
-        local tierText = TierText(roll, t, landed, dim, heroName)
+        local tierText = TierText(roll, t, landed, dim, heroName, pronouns)
         rows[#rows + 1] = gui.Panel{
             classes = Classes(hidden and "collapsed"),
             width = "100%",
@@ -1892,7 +1892,7 @@ local function TierRows(roll, landedTier, dimOthers, heroName, hiddenCritical)
                 end
             end,
         }
-        rows[#rows].data = { roll = roll, tier = t, shown = tierText, heroName = heroName }
+        rows[#rows].data = { roll = roll, tier = t, shown = tierText, heroName = heroName, pronouns = pronouns }
     end
     return rows
 end
@@ -1918,7 +1918,7 @@ local function SetLandedTier(rows, landedTier, reveal)
         local d = row.data
         if d ~= nil and d.roll ~= nil then
             local showFull = landed and reveal == true
-            local text = TierText(d.roll, t, showFull, dim, d.heroName)
+            local text = TierText(d.roll, t, showFull, dim, d.heroName, d.pronouns)
             if text ~= d.shown then
                 local teaser = d.roll.teasers ~= nil and d.roll.teasers[t] or nil
                 d.shown = text
@@ -1947,8 +1947,8 @@ end
 --The roller's own client reads the same document it writes, so every
 --client runs the one code path. Falls back to plain rows on a core
 --without the share exports.
-local function LiveTierRows(roll, heroName)
-    local rows = TierRows(roll, nil, true, heroName, true)
+local function LiveTierRows(roll, heroName, pronouns)
+    local rows = TierRows(roll, nil, true, heroName, true, pronouns)
     if CharacterPanel.AbilityShareDocPath == nil or CharacterPanel.GetAbilityShareData == nil then
         return rows
     end
@@ -2685,11 +2685,8 @@ end
 
 --The rules of a free version (no roll), marked up like a landed tier once
 --they have been applied.
-local function FreeRulesRow(free, applied, heroName)
-    local text = EncounterScript.VisibleText(free.text or "")
-    if heroName ~= nil then
-        text = EncounterScript.SubstitutePC(text, heroName)
-    end
+local function FreeRulesRow(free, applied, heroName, pronouns)
+    local text = EncounterScript.SubstitutePC(EncounterScript.VisibleText(free.text or ""), heroName, pronouns)
     local markup = EncounterScript.MarkupRules(text, string.format("<color=%s>", RULES_COLOR), "</color>")
     return gui.Panel{
         width = "100%",
@@ -2719,6 +2716,7 @@ local function OptionCard(entry, option, index, m, extra)
     local heroid = m.turn ~= nil and m.turn.heroid or nil
     --"PC" in the outcomes reads as that hero.
     local heroName = m.turn ~= nil and m.turn.heroName or nil
+    local pronouns = EncounterMontage.HeroPronouns(heroid)
     local version = option
     local knackReason = nil
     if chosen then
@@ -2770,9 +2768,9 @@ local function OptionCard(entry, option, index, m, extra)
         end
         local rows
         if chosen and (m.turn.status == "rolling" or m.turn.status == "pardon") then
-            rows = LiveTierRows(version.roll, heroName)
+            rows = LiveTierRows(version.roll, heroName, pronouns)
         else
-            rows = TierRows(version.roll, landed, true, heroName)
+            rows = TierRows(version.roll, landed, true, heroName, nil, pronouns)
         end
         for _, row in ipairs(rows) do
             children[#children + 1] = row
@@ -2782,7 +2780,7 @@ local function OptionCard(entry, option, index, m, extra)
         for _, row in ipairs(RiderRows(EncounterScript.VersionRiders(option, version), verdict)) do
             children[#children + 1] = row
         end
-        children[#children + 1] = FreeRulesRow(version.free, chosen and m.turn.status == "resolved", heroName)
+        children[#children + 1] = FreeRulesRow(version.free, chosen and m.turn.status == "resolved", heroName, pronouns)
     end
     local takeable = version.roll ~= nil or version.free ~= nil or (option.delve ~= nil and (m.turn == nil or m.turn.delve == nil))
     local args = {

@@ -371,6 +371,9 @@ function CBClassDetail._overviewPanel()
                 local classId = state:Get(SELECTOR .. ".selectedId")
                 if classId then
                     local textItems = {}
+                    --A feature list often wraps one child with the same name and text
+                    --(e.g. Conduit's Burgeoning Saint), so show each summary only once.
+                    local seenText = {}
 
                     local featureCache = state:Get(SELECTOR .. ".featureCache")
                     local filterLevel = _parseOverviewLevel(state:Get(SELECTOR .. ".category.selectedId"))
@@ -391,7 +394,8 @@ function CBClassDetail._overviewPanel()
                         end
                         if include then
                             local s = item.feature:GetDetailedSummaryText()
-                            if s ~= nil and #s > 0 then
+                            if s ~= nil and #s > 0 and not seenText[s] then
+                                seenText[s] = true
                                 textItems[#textItems+1] = s
                             end
                         end

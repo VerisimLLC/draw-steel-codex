@@ -3599,9 +3599,8 @@ end
 --- @param sys nil|MeasurementSystem Units to show distances in. Defaults to the viewer's chosen units.
 function ActivatedAbility:DescribeRange(castingCreature, sys)
     if self:try_get("rangeTextOverride", "") ~= "" then
-        if castingCreature == nil then
-            return self.rangeTextOverride
-        end
+        --With no caster (builder, compendium) {formula|fallback} shows its
+        --fallback; a {formula} with no fallback shows the formula without braces.
         return StringInterpolateGoblinScript(self.rangeTextOverride, castingCreature)
     end
 

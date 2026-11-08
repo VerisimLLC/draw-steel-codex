@@ -164,6 +164,13 @@ Use `MonsterAI:RegisterMove{}` for scoreable on-turn actions and combos.
   not mutate game state.
 - Put calculated locations, targets, modes, or combo state in the scoring-info
   table for execution.
+- Multi-mode abilities: pick the mode in `score` (check each mode's `condition`
+  and, for target-dependent modes, its `targetCondition` with `Target` set to
+  `GenerateSymbols(target.properties)`), choose among the modes that pass by
+  their tactical value for this target (not list order), return `nil` with a
+  reason if none passes, and pass it as `ai:ExecuteAbility(token, ability,
+  targets, {symbols = {mode = N}})`. The cast does not check or prompt for the
+  mode; omitted, it runs mode 1.
 - Let existing affordability checks handle normal resource costs, but
   explicitly score rule-specific timing, thresholds, and setup/payoff
   constraints.

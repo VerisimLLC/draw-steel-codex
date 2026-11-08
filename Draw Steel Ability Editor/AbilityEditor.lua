@@ -2255,6 +2255,26 @@ _buildModesBlock = function(ability, fireChange)
                 bmargin = 8,
             }
 
+            -- Target first, then mode (Heal): turning this on adds a Target Condition
+            -- and Unavailable Text to every mode below.
+            local modeAfterTargeting = ability:try_get("chooseModeAfterTargeting", false) == true
+            modeChildren[#modeChildren + 1] = gui.Panel{
+                classes = {"nae-field-row-inline"},
+                children = {
+                    gui.Check{
+                        classes = {"nae-toggle-check"},
+                        text = "Choose Mode After Targeting",
+                        value = modeAfterTargeting,
+                        hover = gui.Tooltip("The player picks a target first. The mode buttons then appear, and pressing one casts. A mode whose Target Condition fails for that target shows its Unavailable Text instead of a button."),
+                        change = function(el)
+                            ability.chooseModeAfterTargeting = el.value
+                            fireChange()
+                            modesListPanel:FireEventTree("refreshModes")
+                        end,
+                    },
+                },
+            }
+
             -- Existing mode entries
             for i, modeEntry in ipairs(ability.modeList) do
                 local idx = i
@@ -2383,6 +2403,67 @@ _buildModesBlock = function(ability, fireChange)
                         },
                     },
                 }
+
+                if modeAfterTargeting then
+                    -- Checked against the chosen target once one is picked (unlike
+                    -- Mode Condition, which only sees the caster).
+                    modeChildren[#modeChildren + 1] = _makeFieldRow("Target Condition",
+                        gui.GoblinScriptInput{
+                            classes = {"nae-field-input"},
+                            width = 280,
+                            value = entry.targetCondition or "",
+                            change = function(el)
+                                entry.targetCondition = el.value
+                                fireChange()
+                            end,
+                            documentation = {
+                                domains = ability:try_get("domains"),
+                                help = "GoblinScript checked against the chosen target. If it is false, this mode shows its Unavailable Text instead of a button. Leave blank to always offer the mode.",
+                                output = "boolean",
+                                examples = {
+                                    {
+                                        script = "Target.Recoveries Available to Spend > 0",
+                                        text = "Offered only if the target has a Recovery to spend.",
+                                    },
+                                },
+                                subject = creature.helpSymbols,
+                                subjectDescription = "The creature using the ability.",
+                                symbols = {
+                                    subject = {
+                                        name = "Subject",
+                                        type = "creature",
+                                        desc = "The creature using the ability.",
+                                    },
+                                    target = {
+                                        name = "Target",
+                                        type = "creature",
+                                        desc = "The creature chosen as the target.",
+                                    },
+                                },
+                            },
+                        }
+                    )
+
+                    modeChildren[#modeChildren + 1] = gui.Panel{
+                        classes = {"nae-field-row"},
+                        children = {
+                            gui.Label{
+                                classes = {"nae-field-label"},
+                                text = "Unavailable Text",
+                            },
+                            gui.Input{
+                                classes = {"nae-field-input"},
+                                characterLimit = 200,
+                                placeholderText = "Shown when the target fails the condition",
+                                text = entry.targetUnavailableText or "",
+                                change = function(el)
+                                    entry.targetUnavailableText = el.text
+                                    fireChange()
+                                end,
+                            },
+                        },
+                    }
+                end
 
                 -- "Has Ability" checkbox + Edit button (variations only)
                 modeChildren[#modeChildren + 1] = gui.Panel{

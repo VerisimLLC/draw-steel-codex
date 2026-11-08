@@ -1,11 +1,12 @@
 local mod = dmhub.GetModLoading()
 
---Encounter of the Week: the Gauntlet runtime.
+--Encounter of the Week: the narrative runtime on the montage engine (built
+--as the Gauntlet, which folded into Narrative on 2026-11-07).
 --
---A "# Gauntlet" beat is parsed as a montage beat with gauntlet = true
---(EncounterScript.lua, "gauntlets") and played by the montage runtime
---(EncounterMontage.lua), which calls in here at the few points where the
---rules differ. Design: GAUNTLET_PLAN.md at the dmhub repo root.
+--A "# Narrative" beat is parsed into sections (EncounterScript.lua,
+--"narrative sections", beat.gauntlet = true) and played by the montage
+--runtime (EncounterMontage.lua), which calls in here at the few points where
+--the rules differ. Design: GAUNTLET_PLAN.md at the dmhub repo root.
 --
 --How it plays: the party meets one section at a time.
 --  * A CHALLENGE shows every option at once. Any player claims one for one
@@ -14,13 +15,20 @@ local mod = dmhub.GetModLoading()
 --    (one other hero may assist: "assist" / "assistRolled"), then the roll
 --    once the claiming player presses Make the test ("proceedTest"), then
 --    perks, dice and the outcome, exactly as a montage test does.
---  * A CHOICE ("Choose together:") is a party vote, one per player, settled
---    like a narrative vote (a split goes to a random voter).
+--  * A CHOICE ("Choose together:", or no marker and no test) is a party
+--    vote, one per player (a split goes to a random voter). A section with
+--    no options is a choice of one: the implicit Proceed.
+--  * An INDIVIDUAL section ("Choose individually:") takes one choice per
+--    hero; each option is applied once, for the heroes who took it.
+--  * "Unlock: <Feature>" turns a feature on as its section arrives (the
+--    beat's own lines as the beat starts) and hangs its explanation on the
+--    stage until that section is decided (m.announce, ActiveAnnounce).
 --  * A custom event point ("## Custom Event") plays the first registered
 --    event that is ready (EncounterGauntlet.RegisterCustomEvent), or is
 --    passed over silently.
---  * Every roll a hero makes in the Gauntlet (assists and Pardon My Friend
---    included) adds a bane to their later rolls ("Weary").
+--  * Every roll a hero makes in the beat (assists and Pardon My Friend
+--    included) adds a bane to their later rolls in it ("Weary"); the count
+--    starts again with the next beat.
 --  After each section the party moves on by its route
 --  (EncounterScript.GauntletNext); past the last section the beat is done.
 --
@@ -38,13 +46,42 @@ local mod = dmhub.GetModLoading()
 --    skipped   = { section id, ... },   -- event points with nothing ready
 --    rolls     = { [charid] = n },      -- rolls made: the fatigue count
 --    events    = { [pointId] = { eventId, record } | false },
---    vote      = nil | { sectionId, choices = { [voterKey] = { optionIndex,
---                  userid, at } }, decision = nil | { candidates, winner,
+--    vote      = nil | { sectionId, individual = bool,
+--                  choices = { [voterKey] = { optionIndex, userid, heroid,
+--                  at } }, -- voterKey: a userid (or "PARTY"), a hero
+--                  charid in an individual section (EncounterNarrative.Voters)
+--                  decision = nil | { candidates, winner,
 --                  winnerName, optionIndex, optionName, startedAt },
 --                  result = nil | { optionIndex, optionName, decidedBy,
---                  applied, at } },
+--                  applied, at, groups = nil | { { optionIndex,
+--                  optionName, heroNames, applied }, ... } } },
 --    ritualUsed = { [charid] = true },  -- Ritualist: once per Gauntlet
+--    lastClaim = nil | { heroid, userid, heroName }, -- who took the last
+--                                          option of a challenge
+--    spotlight = nil | { sectionId, heroid, userid, heroName, autoTried },
+--                                       -- a "(Spotlight)" section on the
+--                                          board: only this hero may take it
+--    group = nil | { sectionId, startedAt, order = { charid, ... },
+--                  heroes = { [charid] = { heroName, userid, rollSeq,
+--                  status = "rolling"|"done", startedAt, tier, total,
+--                  tierText, applied, knackReason, auto } },
+--                  result = nil | { at, applied = n } },
+--                                       -- an "Everyone rolls:" section: every
+--                                          hero makes its test at once
+--    cast = nil | { { name, monster }, ... }, -- the characters on stage after
+--                                          the latest scene part (arrival or
+--                                          option lines). They stay on the
+--                                          right through later sections until
+--                                          an "exits" line or the beat ends.
+--    heroEmote = nil | { heroid, emote, seq, part }, -- the hero's last
+--                                          "alert" / "alarmed" (an interrupted
+--                                          roll sets "alarmed"); held on their
+--                                          portrait until a test of theirs
+--                                          lands (not one whose own outcome
+--                                          lines, part "outcome", gave it)
 --  }
+--  m.announce = nil | { feature, name, text, at, sectionId } -- a feature
+--    that just arrived (sectionId nil: the beat's own line).
 --  turn.gauntlet = true on every turn a Gauntlet makes. turn.arrival = true
 --  on the turn that only plays a section's arrival scene (no hero). The
 --  assist rides on the turn:
@@ -56,12 +93,35 @@ EncounterGauntlet = rawget(_G, "EncounterGauntlet") or {}
 
 local T = UIText.T
 
+--Is the narrative beat at `index` the one the montage state is playing?
+--(Across a handover the previous beat's state is briefly still there.)
+function EncounterGauntlet.RunsNarrative(index)
+    local m = EncounterMontage.GetState()
+    if m == nil or index == nil or m.beatIndex ~= index then
+        return false
+    end
+    local script = EncounterMontage.FindMapScript()
+    local beat = script ~= nil and script.parse ~= nil and script.parse.beats[index] or nil
+    return beat ~= nil and beat.kind == "narrative"
+end
+
 --how long a section's result stays on screen before the party moves on.
 local RESULT_LINGER_SECONDS = 4
---the same, for a result that applied nothing worth reading.
+--the same, for a test result that applied nothing (its roll is still worth
+--a look).
 local RESULT_LINGER_QUIET = 1.5
+--and for a choice that applied nothing (a plain "Proceed"): turning a page,
+--not waiting out a timer.
+local CHOICE_LINGER_QUIET = 0.4
 --a claimed assist that is never rolled is handed back after this long.
 local ASSIST_ROLL_SECONDS = 300
+--an "Everyone rolls:" hero whose player never rolls is rolled for by the
+--host after this long, so one absent player cannot stall the party.
+local GROUP_ROLL_SECONDS = 240
+--an interrupted test has no result worth reading: its lines were the
+--result, so the party moves on in the same host change that ends them (no
+--"resolved" screen flashes past between the scene and the next section).
+local RESULT_LINGER_INTERRUPTED = 0
 
 --assist tier -> what it does to the test it helps. Put Your Back Into It!
 --turns the tier 1 bane into nothing.
@@ -84,8 +144,8 @@ end
 --  priority  higher goes first when several are ready (default 0)
 --  available function(heroes, doc) -> record | nil: ready to play? The
 --            record is plain data saved on the document (strings, numbers).
---  text      function(record) -> the event as Gauntlet script text: a
---            "# Gauntlet" heading and ONE "## <Name>" section.
+--  text      function(record) -> the event as script text: a
+--            "# Narrative" heading and ONE "## <Name>" section.
 --  adjust    optional function(entry, record): change the parsed section
 --            (effects the grammar cannot write).
 --  played    optional function(doc, record): the host, inside an open
@@ -178,25 +238,18 @@ local function EventEntry(pointId, played)
     return entry
 end
 
---Put the sections of the events this Gauntlet has played into its parsed
---beat, so FindEntry finds them (EncounterMontage.FindMapScript calls this on
---every read of the script, like the montage's assassin threats).
+--Put the sections of the events this beat has played into its parsed beat
+--(beat.eventEntries, beside its sections, so routing never sees them) where
+--FindEntry finds them. EncounterMontage.FindMapScript calls this on every
+--read of the script, like the montage's assassin threats.
 local function AddEventEntries(beat, m)
-    local round = (beat.rounds or {})[1]
-    if round == nil then
-        return
-    end
-    for i = #round.entries, 1, -1 do
-        if round.entries[i].gauntletEvent then
-            table.remove(round.entries, i)
-        end
-    end
+    beat.eventEntries = {}
     local g = type(m) == "table" and m.gauntlet or nil
     for pointId, played in pairs((g ~= nil and g.events) or {}) do
         if type(played) == "table" then
             local entry = EventEntry(pointId, played)
             if entry ~= nil then
-                round.entries[#round.entries + 1] = entry
+                beat.eventEntries[#beat.eventEntries + 1] = entry
             end
         end
     end
@@ -227,6 +280,89 @@ function EncounterGauntlet.CurrentSection(beat, m)
         return nil
     end
     return EncounterScript.FindEntry(beat, g.section)
+end
+
+--The section the party met last (the end of its path), or nil. Once the
+--beat is done there is no section on the board, but its end screen keeps
+--the last one's name and scene.
+function EncounterGauntlet.LastSection(beat, m)
+    local path = (m ~= nil and m.gauntlet or {}).path or {}
+    if beat == nil or #path == 0 then
+        return nil
+    end
+    return EncounterScript.FindEntry(beat, path[#path])
+end
+
+--- who is on stage ---------------------------------------------------------------
+--Characters who have entered and not exited stay on the right of the stage
+--through the sections after the scene that brought them on (the board and
+--the claimed test screens), until an "exits" line or the end of the beat.
+--The host keeps them in g.cast so every client shows the same cast.
+
+--A plain copy of a cast list ({ { name, monster }, ... }); nil -> {}.
+function EncounterGauntlet.CopyCast(cast)
+    local copy = {}
+    for i, c in ipairs(cast or {}) do
+        copy[i] = { name = c.name, monster = c.monster }
+    end
+    return copy
+end
+
+--The characters on stage in this beat right now (never nil).
+function EncounterGauntlet.Cast(m)
+    local g = m ~= nil and m.gauntlet or nil
+    return (g ~= nil and g.cast) or {}
+end
+
+--The emote held on hero `heroid`'s portrait ("alert" / "alarmed"), or nil.
+function EncounterGauntlet.HeldEmote(m, heroid)
+    local held = m ~= nil and m.gauntlet ~= nil and m.gauntlet.heroEmote or nil
+    if type(held) ~= "table" or heroid == nil or held.heroid ~= heroid then
+        return nil
+    end
+    return held.emote
+end
+
+--Emotes that can be held on a portrait ("scared" is a shake, not a mark).
+local HELD_EMOTES = { alert = true, alarmed = true }
+
+--The last holdable emote on the hero (the left side) in a built scene
+--part, or nil.
+local function LastHeroEmote(scene)
+    local found = nil
+    for _, step in ipairs((scene or {}).steps or {}) do
+        for _, e in ipairs(step.emotes or {}) do
+            if e.side == "left" and HELD_EMOTES[e.emote] then
+                found = e.emote
+            end
+        end
+    end
+    return found
+end
+
+--Host: turn `t`'s scene part has been read to the end. Its last emote on
+--the hero is held from now on.
+function EncounterGauntlet.NoteSceneEnded(m, t)
+    if m.gauntlet == nil or t == nil or t.heroid == nil then
+        return
+    end
+    local emote = LastHeroEmote(t.scene)
+    if emote ~= nil then
+        m.gauntlet.heroEmote = { heroid = t.heroid, emote = emote, seq = t.seq, part = (t.scene or {}).part }
+    end
+end
+
+--Host: the roll on turn `t` was interrupted and its lines are built. The
+--roller is alarmed from that moment on, unless the author wrote an emote
+--for PC in those lines (theirs is held once read: NoteSceneEnded).
+function EncounterGauntlet.NoteInterrupted(m, t)
+    if m.gauntlet == nil or t == nil or t.heroid == nil then
+        return
+    end
+    if t.status == "scene" and LastHeroEmote(t.scene) ~= nil then
+        return
+    end
+    m.gauntlet.heroEmote = { heroid = t.heroid, emote = "alarmed", seq = t.seq }
 end
 
 --How many rolls this hero has made in the Gauntlet (the fatigue count).
@@ -267,6 +403,59 @@ end
 function EncounterGauntlet.OptionVisible(option, heroes)
     local who = EncounterGauntlet.OptionHeroes(option, heroes)
     return not who.secret or #who.allowed > 0
+end
+
+--- unlocks ----------------------------------------------------------------------
+
+--"Unlock: Intelligence" on `holder` (the beat, or a section as it arrives):
+--turn the feature on, and announce one that just arrived so the stage shows
+--its explanation and the strip blinks its pool. Host, inside an open change
+--of `doc`; `m` is doc.data.montage.
+function EncounterGauntlet.ApplyUnlocks(m, doc, holder, sourceName, sectionId)
+    for _, u in ipairs((holder or {}).unlocks or {}) do
+        if EncounterMontage.UnlockFeature(doc, u.feature, sourceName) then
+            printf("EotW narrative: %s is unlocked (%s)", tostring(u.name), tostring(sourceName))
+            local record = EncounterScript.FEATURES[u.feature]
+            if record ~= nil and record.explanation ~= nil then
+                m.announce = {
+                    feature = u.feature,
+                    name = record.name,
+                    text = record.explanation,
+                    at = Now(),
+                    sectionId = sectionId,
+                }
+            end
+        end
+    end
+end
+
+--Has the section on the board been decided (a test resolved, a choice
+--settled)? Until then its callout stays up.
+local function SectionDecided(m)
+    local t = m.turn
+    if t ~= nil and t.gauntlet and not t.arrival and t.status == "resolved" then
+        return true
+    end
+    local vote = m.gauntlet ~= nil and m.gauntlet.vote or nil
+    return vote ~= nil and (vote.result ~= nil or vote.decision ~= nil)
+end
+
+--The feature callout that should be on screen, or nil: from the moment it
+--arrives until the party has decided the section it arrived with (the
+--beat's own line: the first section).
+function EncounterGauntlet.ActiveAnnounce(m)
+    local announce = m ~= nil and m.announce or nil
+    if type(announce) ~= "table" or announce.text == nil then
+        return nil
+    end
+    ---@cast m -nil
+    if m.phase == "arriving" then
+        return announce
+    end
+    if m.phase ~= "rounds" or SectionDecided(m) then
+        return nil
+    end
+    return announce
 end
 
 --- entering sections (host) -----------------------------------------------------
@@ -310,8 +499,12 @@ local function BuildArrival(m, t, section, heroes)
             return false
         end,
     }
-    local cast = {}
+    --whoever is still on stage from earlier sections starts the scene; its
+    --entrances and exits carry on to the sections after it (even an
+    --arrival of nothing but "X exits", which plays no line).
+    local cast = EncounterGauntlet.CopyCast(m.gauntlet.cast)
     local steps = EncounterScript.FlattenScene(section.scene, env, cast)
+    m.gauntlet.cast = EncounterGauntlet.CopyCast(cast)
     for _, step in ipairs(steps) do
         step.line = nil
         for _, e in ipairs(step.emotes or {}) do
@@ -338,6 +531,11 @@ local function EnterSection(m, doc, beat, section, heroes)
     g.vote = nil
     g.eventPoint = nil
     m.turn = nil
+    --the last section's callout goes with it; the beat's own stays for the
+    --first section.
+    if #(g.path or {}) > 0 then
+        m.announce = nil
+    end
     local guard = 0
     while section ~= nil and section.kind == "event" do
         guard = guard + 1
@@ -373,6 +571,18 @@ local function EnterSection(m, doc, beat, section, heroes)
     g.path = g.path or {}
     g.path[#g.path + 1] = section.id
     printf("EotW gauntlet: the party reaches '%s'", tostring(section.name))
+    --"(Spotlight)": the hero who took the last test must take this one too
+    --(if they are still here; else anyone may, as in any challenge).
+    g.spotlight = nil
+    g.group = nil
+    if section.spotlight and g.lastClaim ~= nil then
+        local hero = M().HeroByCharid(heroes, g.lastClaim.heroid)
+        if hero ~= nil then
+            g.spotlight = { sectionId = section.id, heroid = hero.charid, userid = g.lastClaim.userid, heroName = hero.name }
+        end
+    end
+    --whatever the section unlocks arrives with it.
+    EncounterGauntlet.ApplyUnlocks(m, doc, section, section.name, section.id)
 
     if section.scripted and section.scene ~= nil and #section.scene > 0 then
         m.seq = (m.seq or 0) + 1
@@ -389,8 +599,13 @@ local function EnterSection(m, doc, beat, section, heroes)
             m.turn = t
         end
     end
-    if section.kind == "choice" then
-        g.vote = { sectionId = section.id, choices = {}, startedAt = Now() }
+    if section.kind == "choice" or section.kind == "individual" then
+        g.vote = { sectionId = section.id, individual = section.kind == "individual", choices = {}, startedAt = Now() }
+    end
+    --a spotlight section with one way through is claimed in this same host
+    --change, so the board never flashes up for a tick before the claim.
+    if m.turn == nil and section.kind == "challenge" then
+        EncounterGauntlet.SpotlightAutoClaim(m, doc, beat, section, heroes)
     end
 end
 
@@ -420,6 +635,17 @@ local function PartyScoped(effects)
         result[#result + 1] = copy
     end
     return result
+end
+
+--The option a settled choice leaves by and the effects whose "go to" counts:
+--a vote's option (aimed at the party); an individual section leaves by its
+--own exit (each hero took their own way, so no option routes).
+local function VoteRoute(section, vote)
+    if vote.individual then
+        return nil, nil
+    end
+    local option = section.options[vote.result.optionIndex]
+    return option, PartyScoped((option ~= nil and option.free or {}).effects)
 end
 
 --The section the party goes to after `section` resolved with `option` (nil:
@@ -465,10 +691,70 @@ function EncounterGauntlet.UpcomingSection(beat, m)
     end
     local vote = g.vote
     if section ~= nil and vote ~= nil and vote.result ~= nil then
-        local option = section.options[vote.result.optionIndex]
-        return NextAfter(beat, m, section, option, PartyScoped((option ~= nil and option.free or {}).effects), partySize), true
+        local option, effects = VoteRoute(section, vote)
+        return NextAfter(beat, m, section, option, effects, partySize), true
+    end
+    --everyone has rolled a group test: it leaves by its own exit.
+    if section ~= nil and g.group ~= nil and g.group.sectionId == section.id and g.group.result ~= nil then
+        return NextAfter(beat, m, section, nil, {}, partySize), true
     end
     return nil, false
+end
+
+--Does a fight come straight after the narrative at beatIndex? Then its end
+--screen says "Draw Steel!" and waits for a click (HoldDone).
+function EncounterGauntlet.FightFollows(script, beatIndex)
+    if script == nil or script.parse == nil or beatIndex == nil then
+        return false
+    end
+    local nextBeat = script.parse.beats[beatIndex + 1]
+    return nextBeat ~= nil and nextBeat.kind == "encounter"
+end
+
+--For the stage: does this section's implicit Proceed end the narrative?
+--Then its button is the narrative's last click.
+function EncounterGauntlet.ProceedEnds(beat, m, section)
+    if section == nil or not section.implicitOption then
+        return false
+    end
+    return NextAfter(beat, m, section, section.options[1], {}, #EncounterMontage.Heroes()) == nil
+end
+
+--Host, from the montage's tick while the beat is done: true holds the end
+--screen until someone presses its "Draw Steel!" (a "drawSteel" request).
+--Only when a fight follows; any other end moves on by itself.
+function EncounterGauntlet.HoldDone(doc, script, beatIndex)
+    local m = doc.data.montage
+    if type(m) ~= "table" or m.doneAck or not EncounterGauntlet.FightFollows(script, beatIndex) then
+        return false
+    end
+    local clicked = {}
+    for userid, req in pairs(m.requests or {}) do
+        if type(req) == "table" and (tonumber(req.seq) or 0) > (tonumber((m.handled or {})[userid]) or 0) then
+            clicked[#clicked + 1] = { userid = userid, seq = req.seq, kind = req.kind }
+        end
+    end
+    if #clicked == 0 then
+        return true
+    end
+    local go = false
+    doc:BeginChange()
+    m = doc.data.montage
+    m.handled = m.handled or {}
+    for _, c in ipairs(clicked) do
+        --every request is used up here; only a "drawSteel" moves on.
+        m.handled[c.userid] = c.seq
+        if c.kind == "drawSteel" then
+            go = true
+        end
+    end
+    if go then
+        m.doneAck = true
+        m.doneAt = Now()
+        printf("EotW narrative: Draw Steel! pressed; the fight begins")
+    end
+    doc:CompleteChange("Narrative: Draw Steel!", { undoable = false })
+    return not go
 end
 
 --The backdrop while the party is at a section: its own [[scene]], else the
@@ -479,6 +765,9 @@ function EncounterGauntlet.SceneImage(script, beat)
     if m ~= nil and beat ~= nil and m.beatIndex ~= nil and script ~= nil and script.parse ~= nil
         and script.parse.beats[m.beatIndex] == beat then
         section = EncounterGauntlet.CurrentSection(beat, m)
+        if section == nil and m.phase == "done" then
+            section = EncounterGauntlet.LastSection(beat, m)
+        end
         if section ~= nil and section.gauntletEvent then
             section = EncounterScript.FindGauntletSection(beat, section.eventPoint)
         end
@@ -493,6 +782,82 @@ function EncounterGauntlet.SceneImage(script, beat)
 end
 
 --- votes (host) -------------------------------------------------------------------
+
+--How many effects landed in a settled choice (all groups together).
+local function VoteApplied(result)
+    local n = #((result or {}).applied or {})
+    for _, group in ipairs((result or {}).groups or {}) do
+        n = n + #(group.applied or {})
+    end
+    return n
+end
+
+--An individual section: every hero has chosen. Each option is applied once,
+--for the heroes who took it, so a party-wide clause on it does not land
+--once per hero.
+local function ResolveIndividual(m, doc, section, heroes)
+    local g = m.gauntlet
+    local order, byOption = {}, {}
+    for _, hero in ipairs(heroes) do
+        local choice = (g.vote.choices or {})[hero.charid]
+        local index = choice ~= nil and tonumber(choice.optionIndex) or nil
+        local option = index ~= nil and section.options[index] or nil
+        if index ~= nil and option ~= nil then
+            if byOption[index] == nil then
+                byOption[index] = { optionIndex = index, optionName = option.name, heroes = {}, heroNames = {} }
+                order[#order + 1] = index
+            end
+            local group = byOption[index]
+            group.heroes[#group.heroes + 1] = hero
+            group.heroNames[#group.heroNames + 1] = hero.name
+        end
+    end
+    table.sort(order)
+    local groups = {}
+    for _, index in ipairs(order) do
+        local group = byOption[index]
+        local applied, newAllies = EncounterMontage.ApplyEffects((section.options[index].free or {}).effects or {}, {
+            heroEntries = group.heroes,
+            heroEntry = group.heroes[1],
+            userid = group.heroes[1] ~= nil and group.heroes[1].ownerId or nil,
+            entryName = section.name,
+            entryId = section.id,
+            source = T("narrative.effect_source"),
+            montage = m,
+            doc = doc,
+        })
+        for _, charid in ipairs(newAllies or {}) do
+            EncounterMontage.RecordAlly(doc, group.heroes[1].charid, charid)
+        end
+        groups[#groups + 1] = { optionIndex = index, optionName = group.optionName, heroNames = group.heroNames, applied = applied }
+    end
+    g.vote.result = { groups = groups, applied = {}, at = Now() }
+    m.log = m.log or {}
+    m.log[#m.log + 1] = {
+        round = 1,
+        choice = true,
+        individual = true,
+        entryId = section.id,
+        entryName = section.name,
+        groups = groups,
+    }
+    --analytics: how many heroes took each option ("2,1,0" by option order).
+    local counts = {}
+    for i = 1, #section.options do
+        counts[i] = "0"
+    end
+    for _, group in ipairs(groups) do
+        counts[group.optionIndex] = tostring(#group.heroNames)
+    end
+    EotwAnalytics.Track("eotw_narrative_choice", {
+        section = section.name,
+        mode = "individual",
+        options = #section.options,
+        landed = VoteApplied(g.vote.result),
+        optionCounts = table.concat(counts, ","),
+    })
+    printf("EotW narrative: every hero has chosen at '%s'", tostring(section.name))
+end
 
 local function ResolveVote(m, doc, section, heroes, optionIndex, decidedBy)
     local g = m.gauntlet
@@ -512,6 +877,7 @@ local function ResolveVote(m, doc, section, heroes, optionIndex, decidedBy)
         userid = anchor ~= nil and anchor.ownerId or nil,
         entryName = section.name,
         entryId = section.id,
+        source = T("narrative.effect_source"),
         montage = m,
         --the whole party chose this, so its Intelligence is everyone's.
         splitIntelligence = true,
@@ -540,14 +906,15 @@ local function ResolveVote(m, doc, section, heroes, optionIndex, decidedBy)
         applied = applied,
         decidedBy = decidedBy,
     }
-    EotwAnalytics.Track("eotw_gauntlet_vote", {
-        beat = doc.data.beat,
+    --the narrative's own event, as it has always been sent.
+    EotwAnalytics.Track("eotw_narrative_choice", {
         section = section.name,
+        mode = "together",
+        options = #section.options,
+        landed = #applied,
         option = option.name,
         optionIndex = optionIndex,
-        options = #section.options,
-        split = decidedBy ~= nil,
-        landed = #applied,
+        decidedBy = decidedBy,
     })
     printf("EotW gauntlet: the party takes '%s' at '%s'", tostring(option.name), tostring(section.name))
 end
@@ -591,10 +958,16 @@ end
 local function TickVote(m, doc, beat, section, heroes)
     local vote = m.gauntlet.vote
     if vote.result ~= nil then
-        local linger = cond(#(vote.result.applied or {}) > 0, RESULT_LINGER_SECONDS, RESULT_LINGER_QUIET)
+        local linger = cond(VoteApplied(vote.result) > 0, RESULT_LINGER_SECONDS, CHOICE_LINGER_QUIET)
         if Now() - (tonumber(vote.result.at) or 0) >= linger then
-            local option = section.options[vote.result.optionIndex]
-            MoveOn(m, doc, beat, heroes, section, option, PartyScoped((option ~= nil and option.free or {}).effects))
+            local option, effects = VoteRoute(section, vote)
+            MoveOn(m, doc, beat, heroes, section, option, effects)
+            --the last section's Proceed was already the party's "Draw
+            --Steel!" click (the stage labels it so): the end screen does
+            --not wait for a second one.
+            if m.phase == "done" and section.implicitOption then
+                m.doneAck = true
+            end
         end
         return
     end
@@ -602,6 +975,14 @@ local function TickVote(m, doc, beat, section, heroes)
         local flash = EncounterNarrative.DECIDE_FLASH_SECONDS or 3.2
         if Now() - (tonumber(vote.decision.startedAt) or 0) >= flash then
             ResolveVote(m, doc, section, heroes, vote.decision.optionIndex, vote.decision.winner)
+        end
+        return
+    end
+    --a section with no options (the implicit Proceed) is not a choice: any
+    --one player's click moves the whole party on.
+    if section.implicitOption then
+        if next(vote.choices or {}) ~= nil then
+            ResolveVote(m, doc, section, heroes, 1, nil)
         end
         return
     end
@@ -621,10 +1002,186 @@ local function TickVote(m, doc, beat, section, heroes)
             split = true
         end
     end
+    if vote.individual then
+        ResolveIndividual(m, doc, section, heroes)
+        return
+    end
     if split and BeginDecision(m, section, heroes) then
         return
     end
     ResolveVote(m, doc, section, heroes, first or 1, nil)
+end
+
+--- group tests: "Everyone rolls:" (host) -------------------------------------------
+--Every hero makes the section's one test at the same time, each on their
+--own player's screen. Each result applies to that hero alone ("you lose 2
+--recoveries" is the roller's), with their own knack version, riders and
+--Weary. When every hero has rolled the party leaves by the section's exit.
+
+--The version of a group test a hero rolls (their first knack, else the test).
+local function GroupVersion(section, charid)
+    local option = section.options[1]
+    if option == nil then
+        return nil, nil, nil
+    end
+    local knackIndex = EncounterMontage.KnackIndex(charid, option)
+    return EncounterScript.OptionVersion(option, knackIndex), option, knackIndex
+end
+
+--Host: the dice come out for every hero present.
+local function OpenGroup(m, section, heroes)
+    local option = section.options[1]
+    local group = { sectionId = section.id, startedAt = Now(), order = {}, heroes = {} }
+    for _, hero in ipairs(heroes) do
+        m.seq = (m.seq or 0) + 1
+        --a hero the whole party shares is rolled by the host's player.
+        local userid = hero.ownerId
+        if userid == nil or userid == "" or userid == "PARTY" then
+            userid = dmhub.loginUserid
+        end
+        local knackIndex = EncounterMontage.KnackIndex(hero.charid, option)
+        group.order[#group.order + 1] = hero.charid
+        group.heroes[hero.charid] = {
+            heroName = hero.name,
+            userid = userid,
+            rollSeq = m.seq,
+            status = "rolling",
+            startedAt = Now(),
+            knackReason = EncounterMontage.KnackReason(hero.charid, option, knackIndex),
+        }
+    end
+    m.gauntlet.group = group
+    printf("EotW narrative: everyone rolls at '%s' (%d heroes)", tostring(section.name), #group.order)
+end
+
+--Host: one hero's group roll has landed (or the host rolled it for them).
+local function LandGroupRoll(m, doc, section, heroes, charid, tier, total, natural, auto)
+    local g = m.gauntlet
+    local rec = g.group.heroes[charid]
+    local version, option = GroupVersion(section, charid)
+    if rec == nil or version == nil or version.roll == nil or option == nil then
+        return
+    end
+    local tierIndex = M().TierIndexForRoll(version.roll, tier, natural)
+    local hero = M().HeroByCharid(heroes, charid)
+    local applied = {}
+    if hero ~= nil then
+        local newAllies
+        applied, newAllies = EncounterMontage.ApplyEffects(EncounterMontage.VersionEffects(version, tierIndex), {
+            heroEntry = hero,
+            userid = rec.userid,
+            entryName = section.name,
+            entryId = section.id,
+            entry = section,
+            montage = m,
+            doc = doc,
+        })
+        for _, allyid in ipairs(newAllies or {}) do
+            EncounterMontage.RecordAlly(doc, charid, allyid)
+        end
+    end
+    CountRoll(m, charid)
+    rec.status = "done"
+    rec.tier = tierIndex
+    rec.total = total
+    rec.auto = auto or nil
+    rec.tierText = EncounterScript.SubstitutePC(EncounterScript.VisibleText(version.roll.tiers[tierIndex] or ""), rec.heroName)
+    rec.applied = applied
+    m.log = m.log or {}
+    m.log[#m.log + 1] = {
+        round = 1,
+        group = true,
+        heroid = charid,
+        heroName = rec.heroName,
+        entryId = section.id,
+        entryName = section.name,
+        optionName = option.name,
+        tier = tierIndex,
+        total = total,
+        tierText = rec.tierText,
+        applied = applied,
+        knack = rec.knackReason,
+    }
+    EotwAnalytics.Track("eotw_montage_test", {
+        beat = doc.data.beat,
+        round = 1,
+        entry = section.name,
+        entryKind = "group",
+        option = option.name,
+        attr = version.roll.attr,
+        rolled = true,
+        tier = tierIndex,
+        total = total,
+        natural = natural,
+        knack = rec.knackReason ~= nil,
+        owner = rec.userid,
+        effects = #applied,
+        auto = auto or nil,
+    })
+    printf("EotW narrative: %s rolled tier %d at '%s'%s", tostring(rec.heroName), tierIndex, tostring(section.name),
+        cond(auto, " (rolled by the host)", ""))
+end
+
+--Host: roll a group test for a hero whose player has not (2d10 + the
+--best listed characteristic; no edges or banes).
+local function AutoRollFor(m, doc, section, heroes, charid)
+    local version = GroupVersion(section, charid)
+    local modifier = 0
+    pcall(function()
+        local attrid = EncounterMontage.TestCharacteristic(charid, version)
+        local tok = dmhub.GetCharacterById(charid)
+        local attr = attrid ~= nil and tok ~= nil and tok.properties:GetAttribute(attrid) or nil
+        if attr ~= nil then
+            modifier = attr:Modifier()
+        end
+    end)
+    local natural = math.random(1, 10) + math.random(1, 10)
+    local total = natural + modifier
+    local tier = 3
+    if total <= 11 then
+        tier = 1
+    elseif total <= 16 then
+        tier = 2
+    end
+    LandGroupRoll(m, doc, section, heroes, charid, tier, total, natural, true)
+end
+
+--Host, every tick while a group test is on the board.
+local function TickGroup(m, doc, beat, section, heroes)
+    local g = m.gauntlet
+    local group = g.group
+    if group == nil or group.sectionId ~= section.id then
+        OpenGroup(m, section, heroes)
+        return
+    end
+    if group.result ~= nil then
+        local linger = cond((group.result.applied or 0) > 0, RESULT_LINGER_SECONDS, RESULT_LINGER_QUIET)
+        if Now() - (tonumber(group.result.at) or 0) >= linger then
+            MoveOn(m, doc, beat, heroes, section, nil, {})
+        end
+        return
+    end
+    local waiting = false
+    for _, hero in ipairs(heroes) do
+        --a hero who joined after the dice came out sits this one out.
+        local rec = group.heroes[hero.charid]
+        if rec ~= nil and rec.status ~= "done" then
+            if Now() - (tonumber(rec.startedAt) or Now()) >= GROUP_ROLL_SECONDS then
+                printf("EotW narrative: %s never rolled at '%s'; the host rolls for them", tostring(rec.heroName), tostring(section.name))
+                AutoRollFor(m, doc, section, heroes, hero.charid)
+            else
+                waiting = true
+            end
+        end
+    end
+    if waiting then
+        return
+    end
+    local applied = 0
+    for _, rec in pairs(group.heroes) do
+        applied = applied + #(rec.applied or {})
+    end
+    group.result = { at = Now(), applied = applied }
 end
 
 --- the host tick ------------------------------------------------------------------
@@ -661,6 +1218,17 @@ function EncounterGauntlet.HostTick(m, doc, beat, heroes)
     --read, on to the next section.
     if t ~= nil and t.gauntlet and not t.arrival and t.status == "resolved" then
         local linger = cond(#(t.applied or {}) > 0, RESULT_LINGER_SECONDS, RESULT_LINGER_QUIET)
+        if t.interrupted then
+            linger = RESULT_LINGER_INTERRUPTED
+        end
+        --a test that really landed ends the emote held on its hero (an
+        --interrupted roll is not a test that landed), unless this test's own
+        --outcome lines gave it: that one is the hero's latest.
+        local held = m.gauntlet.heroEmote
+        if not t.interrupted and type(held) == "table" and held.heroid == t.heroid
+            and not (held.seq == t.seq and held.part == "outcome") then
+            m.gauntlet.heroEmote = nil
+        end
         if Now() - (tonumber(t.resolvedAt) or 0) >= linger then
             local entry = EncounterMontage.TurnEntry(beat, t)
             local version = EncounterMontage.TurnOption(entry, t)
@@ -670,9 +1238,72 @@ function EncounterGauntlet.HostTick(m, doc, beat, heroes)
         return
     end
 
-    if m.turn == nil and section.kind == "choice" and m.gauntlet.vote ~= nil then
+    if m.turn == nil and (section.kind == "choice" or section.kind == "individual") and m.gauntlet.vote ~= nil then
         TickVote(m, doc, beat, section, heroes)
     end
+    --everyone rolls (once any arrival scene has been read).
+    if m.turn == nil and section.kind == "group" then
+        TickGroup(m, doc, beat, section, heroes)
+    end
+    --a spotlight section with one way through: its hero steps up at once.
+    if m.turn == nil and section.kind == "challenge" then
+        EncounterGauntlet.SpotlightAutoClaim(m, doc, beat, section, heroes)
+    end
+end
+
+--Host: "(Spotlight)": when the spotlight hero can take exactly one of the
+--section's options, it is claimed for them (they are forced to take it).
+--With a choice of options, the claim is theirs to make.
+function EncounterGauntlet.SpotlightAutoClaim(m, doc, beat, section, heroes)
+    local s = m.gauntlet.spotlight
+    if s == nil or s.sectionId ~= section.id or s.autoTried then
+        return
+    end
+    s.autoTried = true
+    local I = M()
+    local hero = I.HeroByCharid(heroes, s.heroid)
+    if hero == nil then
+        m.gauntlet.spotlight = nil
+        return
+    end
+    local only = nil
+    for i, option in ipairs(section.options) do
+        local verdict = EncounterMontage.RiderVerdict(hero.charid, option, nil)
+        if verdict == nil or verdict.allowed then
+            if only ~= nil then
+                return
+            end
+            only = i
+        end
+    end
+    if only == nil then
+        --nothing this hero can take: the section is open to everyone.
+        m.gauntlet.spotlight = nil
+        return
+    end
+    local userid = hero.ownerId
+    if userid == nil or userid == "" or userid == "PARTY" then
+        userid = s.userid
+    end
+    m.seq = (m.seq or 0) + 1
+    m.turn = {
+        seq = m.seq,
+        gauntlet = true,
+        forced = true,
+        userid = userid,
+        heroid = hero.charid,
+        heroName = hero.name,
+        entryId = section.id,
+        status = "choosing",
+        startedAt = Now(),
+    }
+    local line = I.ChooseOption(m, doc, m.turn, beat, only, heroes, userid)
+    if m.turn ~= nil and m.turn.status == "choosing" then
+        m.turn = nil
+    else
+        m.gauntlet.lastClaim = { heroid = hero.charid, userid = userid, heroName = hero.name }
+    end
+    printf("EotW narrative: %s is in the spotlight at '%s': %s", tostring(hero.name), tostring(section.name), tostring(line))
 end
 
 --- requests (host) ----------------------------------------------------------------
@@ -695,7 +1326,11 @@ function EncounterGauntlet.HandleRequest(m, doc, userid, req, beat, heroes)
     --montage still handles the request itself.
     if kind == "rolled" then
         if t ~= nil and t.gauntlet and t.status == "rolling" and t.userid == userid and t.rollSeq == req.rollSeq then
-            CountRoll(m, t.heroid)
+            --an interrupted roll never happened, so it is no Weary.
+            local option = EncounterMontage.TurnOption(EncounterMontage.TurnEntry(beat, t), t)
+            if option == nil or option.roll == nil or not option.roll.interrupted then
+                CountRoll(m, t.heroid)
+            end
         end
         return false
     elseif kind == "pardonRolled" then
@@ -707,7 +1342,8 @@ function EncounterGauntlet.HandleRequest(m, doc, userid, req, beat, heroes)
     end
 
     local gauntletKinds = { claim = true, unclaim = true, cancel = true, assist = true, assistRolled = true,
-        assistCancel = true, proceedTest = true, bless = true, vote = true, unvote = true }
+        assistCancel = true, proceedTest = true, bless = true, vote = true, unvote = true,
+        groupRolled = true, groupCancel = true }
     if not gauntletKinds[kind] then
         return false
     end
@@ -723,12 +1359,16 @@ function EncounterGauntlet.HandleRequest(m, doc, userid, req, beat, heroes)
         if t ~= nil then
             return true, "ignored claim: an option is already being taken (or the party is still arriving)"
         end
-        if section.kind == "choice" then
-            return true, "ignored claim: this section is a vote"
+        if section.kind ~= "challenge" then
+            return true, "ignored claim: this section is decided by choosing, not taken on"
         end
         local hero = I.HeroByCharid(heroes, req.heroid)
         if hero == nil or not I.UserControlsHero(userid, hero) then
             return true, "ignored claim: not your hero"
+        end
+        local spot = g.spotlight
+        if spot ~= nil and spot.sectionId == section.id and spot.heroid ~= hero.charid then
+            return true, string.format("ignored claim: %s is in the spotlight here", tostring(spot.heroName))
         end
         local index = tonumber(req.optionIndex)
         local option = index ~= nil and section.options[index] or nil
@@ -751,33 +1391,73 @@ function EncounterGauntlet.HandleRequest(m, doc, userid, req, beat, heroes)
             --refused (a secret option this hero does not qualify for, ...):
             --the board stays open.
             m.turn = nil
+        else
+            --a later "(Spotlight)" section belongs to this hero.
+            g.lastClaim = { heroid = hero.charid, userid = userid, heroName = hero.name }
         end
         return true, line
     end
 
+    if kind == "groupRolled" or kind == "groupCancel" then
+        local group = g.group
+        local rec = group ~= nil and group.heroes[req.heroid or ""] or nil
+        if section.kind ~= "group" or group == nil or group.sectionId ~= section.id or rec == nil then
+            return true, string.format("ignored %s: no group test", kind)
+        end
+        if rec.status ~= "rolling" or rec.rollSeq ~= req.rollSeq then
+            return true, string.format("ignored %s: stale", kind)
+        end
+        local hero = I.HeroByCharid(heroes, req.heroid)
+        if rec.userid ~= userid and (hero == nil or not I.UserControlsHero(userid, hero)) then
+            return true, string.format("ignored %s: not your hero", kind)
+        end
+        if kind == "groupCancel" then
+            --the roll dialog closed unthrown; it comes back (the test is not
+            --optional).
+            return true, string.format("%s put the dice down", tostring(rec.heroName))
+        end
+        LandGroupRoll(m, doc, section, heroes, req.heroid, req.tier, req.total, req.natural, false)
+        return true, string.format("%s rolled at %s", tostring(rec.heroName), section.name)
+    end
+
     if kind == "vote" or kind == "unvote" then
         local vote = g.vote
-        if section.kind ~= "choice" or vote == nil or t ~= nil then
+        if (section.kind ~= "choice" and section.kind ~= "individual") or vote == nil or t ~= nil then
             return true, "ignored vote: not voting"
         end
         if vote.decision ~= nil or vote.result ~= nil then
             return true, "ignored vote: the vote is settled"
         end
-        local key = EncounterNarrative.VoterKeyForUser(userid, heroes)
+        --a vote is the player's (one voice however many heroes they run);
+        --an individual choice is a hero's, so it names the hero.
+        local key = nil
+        if vote.individual then
+            local hero = I.HeroByCharid(heroes, req.heroid)
+            if hero == nil or not I.UserControlsHero(userid, hero) then
+                return true, "ignored choice: not your hero"
+            end
+            key = hero.charid
+        else
+            key = EncounterNarrative.VoterKeyForUser(userid, heroes)
+        end
+        --anyone may press an implicit Proceed, the Director included.
+        if key == nil and section.implicitOption then
+            key = userid
+        end
         if key == nil then
             return true, "ignored vote: controls no hero"
         end
         vote.choices = vote.choices or {}
         if kind == "unvote" then
             vote.choices[key] = nil
-            return true, string.format("%s took their vote back", tostring(key))
+            return true, string.format("%s took their choice back", tostring(key))
         end
         local index = tonumber(req.optionIndex)
         if index == nil or section.options[index] == nil then
             return true, "ignored vote: no such option"
         end
-        vote.choices[key] = { optionIndex = index, userid = userid, at = Now() }
-        return true, string.format("%s votes for '%s'", tostring(key), section.options[index].name)
+        vote.choices[key] = { optionIndex = index, userid = userid, heroid = req.heroid, at = Now() }
+        return true, string.format("%s chose '%s'", tostring(key), section.options[index].name)
     end
 
     --everything below acts on the claimed turn.
@@ -788,6 +1468,9 @@ function EncounterGauntlet.HandleRequest(m, doc, userid, req, beat, heroes)
     if kind == "unclaim" then
         if t.userid ~= userid then
             return true, "ignored unclaim: not your claim"
+        end
+        if t.forced then
+            return true, "ignored unclaim: the hero in the spotlight cannot step back"
         end
         local early = (t.status == "scene" and t.scene ~= nil and t.scene.part == "option") or t.status == "assist"
         if not early then
@@ -890,7 +1573,8 @@ function EncounterGauntlet.BeginAssist(m, t, beat)
         pcall(function() t.testAttrid = EncounterMontage.TestCharacteristic(t.heroid, option) end)
     end
     t.status = "assist"
-    if #EncounterMontage.Heroes() <= 1 then
+    --an interrupted test is a fake: nobody gets the chance to help.
+    if #EncounterMontage.Heroes() <= 1 or (option ~= nil and option.roll ~= nil and option.roll.interrupted) then
         M().StartRoll(m, t)
     end
 end
@@ -1000,6 +1684,94 @@ function EncounterGauntlet.ClientTick(m, t)
     LaunchAssistRoll(t, option, token)
 end
 
+--the group-test roll this client has out (one at a time: a player with two
+--heroes rolls them one after the other), and when a closed one may come back.
+local m_groupRollSeq = nil
+local m_groupRetryAt = {}
+--a group roll dialog closed without throwing reopens after this long.
+local GROUP_RETRY_SECONDS = 2
+
+--Client (EncounterMontage.ClientTick, while no turn is out): roll this
+--user's heroes in an "Everyone rolls:" section.
+function EncounterGauntlet.GroupClientTick(m)
+    local group = m.gauntlet ~= nil and m.gauntlet.group or nil
+    if group == nil or group.result ~= nil then
+        m_groupRollSeq = nil
+        return
+    end
+    --the roll out is still wanted: wait for it to land.
+    if m_groupRollSeq ~= nil then
+        for _, rec in pairs(group.heroes) do
+            if rec.rollSeq == m_groupRollSeq and rec.status == "rolling" then
+                return
+            end
+        end
+        m_groupRollSeq = nil
+    end
+    local beat = EncounterMontage.CurrentBeat()
+    local section = beat ~= nil and EncounterGauntlet.CurrentSection(beat, m) or nil
+    if section == nil or section.kind ~= "group" or section.id ~= group.sectionId then
+        return
+    end
+    for _, charid in ipairs(group.order or {}) do
+        local rec = group.heroes[charid]
+        if rec ~= nil and rec.status == "rolling" and rec.userid == dmhub.loginUserid
+            and dmhub.Time() >= (m_groupRetryAt[rec.rollSeq] or 0) then
+            local token = dmhub.GetCharacterById(charid)
+            local version, option = GroupVersion(section, charid)
+            if token ~= nil and token.valid and version ~= nil and version.roll ~= nil and option ~= nil then
+                m_groupRollSeq = rec.rollSeq
+                EncounterGauntlet.LaunchGroupRoll(rec, charid, token, option, version)
+                return
+            end
+        end
+    end
+end
+
+--Show one hero's group-test roll: the montage's test roll (best listed
+--characteristic, Skilled, features, riders) plus their Weary.
+function EncounterGauntlet.LaunchGroupRoll(rec, charid, token, option, version)
+    local I = M()
+    local built = EncounterMontage.BuildTestRoll(token, version.roll.attr, version.roll.name,
+        EncounterMontage.RiderVerdict(charid, option, version))
+    EncounterGauntlet.AppendRollModifiers(built.modifiers, nil, charid, false)
+    local rollSeq = rec.rollSeq
+    local function StillWanted()
+        local m = EncounterMontage.GetState()
+        local group = m ~= nil and m.gauntlet ~= nil and m.gauntlet.group or nil
+        local now = group ~= nil and group.heroes[charid] or nil
+        return now ~= nil and now.status == "rolling" and now.rollSeq == rollSeq
+    end
+    I.ShowMontageRoll {
+        creature = token.properties,
+        heroToken = token,
+        title = string.format("%s: %s", rec.heroName or token.name or "?", built.title),
+        rollType = built.rollType,
+        roll = built.roll,
+        modifiers = built.modifiers,
+        tiers = EncounterMontage.TeaserTiers(version.roll, rec.heroName),
+        secretCritical = true,
+        rollSeq = rollSeq,
+        stillWanted = StillWanted,
+        completeKind = "groupRolled",
+        cancelKind = "groupCancel",
+        extra = { heroid = charid },
+        onNotShown = function()
+            m_groupRollSeq = nil
+        end,
+        send = function(kind, args)
+            if kind == "groupCancel" then
+                --closed unthrown: it comes back shortly.
+                m_groupRetryAt[rollSeq] = dmhub.Time() + GROUP_RETRY_SECONDS
+                m_groupRollSeq = nil
+            end
+            args = args or {}
+            args.heroid = charid
+            return EncounterMontage.SendRequest(kind, args)
+        end,
+    }
+end
+
 --- Secret Twin's assassin (the first custom event) ---------------------------------
 --
 --A town respite can mark a Secret Twin hero (EncounterMontage's
@@ -1032,7 +1804,7 @@ EncounterGauntlet.RegisterCustomEvent{
         local heroName = I.AssassinHeroName(record.name)
         local consequence = T("montage.assassin.consequence", { hero = heroName })
         return table.concat({
-            "# Gauntlet",
+            "# Narrative",
             "",
             "## " .. I.AssassinThreatName(record.name),
             "",
@@ -1063,8 +1835,60 @@ EncounterGauntlet.RegisterCustomEvent{
 
 --- dev --------------------------------------------------------------------------
 
+--Host: settle the choice on the board on the choices already in, without
+--waiting for a missing player ("/eotwnarrative force"). A vote takes the
+--first option anyone chose (option 1 if nobody has); an individual section
+--applies what the heroes who chose took.
+function EncounterGauntlet.ForceResolve()
+    local beat = EncounterMontage.CurrentBeat()
+    local doc = EncounterMontage.GetDoc()
+    local m = doc.data.montage
+    local g = type(m) == "table" and m.gauntlet or nil
+    if beat ~= nil and g ~= nil and g.group ~= nil and g.group.result == nil and m.turn == nil then
+        --"Everyone rolls:": the host rolls for every hero still to roll.
+        local section = EncounterGauntlet.CurrentSection(beat, m)
+        if section == nil or section.kind ~= "group" then
+            return false, "no section"
+        end
+        local heroes = EncounterMontage.Heroes()
+        doc:BeginChange()
+        m = doc.data.montage
+        for _, charid in ipairs(m.gauntlet.group.order or {}) do
+            local rec = m.gauntlet.group.heroes[charid]
+            if rec ~= nil and rec.status == "rolling" then
+                AutoRollFor(m, doc, section, heroes, charid)
+            end
+        end
+        doc:CompleteChange("Narrative: forced group rolls", { undoable = false })
+        return true
+    end
+    if beat == nil or g == nil or g.vote == nil or g.vote.result ~= nil or m.turn ~= nil then
+        return false, "no choice is waiting"
+    end
+    local section = EncounterGauntlet.CurrentSection(beat, m)
+    if section == nil then
+        return false, "no section"
+    end
+    local heroes = EncounterMontage.Heroes()
+    doc:BeginChange()
+    m = doc.data.montage
+    g = m.gauntlet
+    if g.vote.individual then
+        ResolveIndividual(m, doc, section, heroes)
+    else
+        local chosen = nil
+        for _, choice in pairs(g.vote.choices or {}) do
+            chosen = chosen or tonumber(choice.optionIndex)
+        end
+        g.vote.decision = nil
+        ResolveVote(m, doc, section, heroes, chosen or 1, nil)
+    end
+    doc:CompleteChange("Narrative: forced", { undoable = false })
+    return true
+end
+
 --"/eotwgauntlet state": where the party is, the fatigue counts and the turn.
-local function PrintState()
+function EncounterGauntlet.PrintState()
     local m = EncounterMontage.GetState()
     local g = m ~= nil and m.gauntlet or nil
     if g == nil then
@@ -1102,13 +1926,13 @@ pcall(function()
     Commands.RegisterMacro{
         name = "eotwgauntlet",
         summary = "inspect the Encounter of the Week Gauntlet beat",
-        doc = "Usage: /eotwgauntlet state | json\nstate prints the section on the board, the path so far, each hero's roll count (fatigue) and the turn; json prints the raw state. Run a Gauntlet with /eotwmontage start (a Gauntlet is a montage beat).",
+        doc = "Usage: /eotwgauntlet state | json\nstate prints the section on the board, the path so far, each hero's roll count (fatigue) and the turn; json prints the raw state. Run the map's first narrative here with /eotwnarrative start.",
         command = function(str)
             local arg = string.lower(string.gsub(str or "", "^%s*(.-)%s*$", "%1"))
             if arg == "json" then
                 print(json(EncounterGauntlet.GetState()))
             else
-                PrintState()
+                EncounterGauntlet.PrintState()
             end
         end,
     }

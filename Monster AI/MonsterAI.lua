@@ -151,10 +151,48 @@ local function AbilityKeyOfTrigger(trigger)
     return "text:" .. tostring(trigger:GetText())
 end
 
+--Seconds an accepted save may go unfinished before the banner offers Skip.
+local STUCK_SAVE_SKIP_SECONDS = 30
+
+--"Skip save" for a save that was accepted but whose cast never reported back
+--(its client crashed, disconnected or errored mid-roll). The card is already
+--gone, so without this nobody has a button and the AI waits forever
+--(EMHPEMCY). Offered to the host and the hero's controller. Skipping only
+--releases the AI: the effect stays, and a roll still running resolves normally.
+---@param doc table the monsterAIWaiting document snapshot
+---@param token CharacterToken the hero being waited on
+---@return nil|{text: string, press: fun()}
+local function StuckSaveSkip(doc, token)
+    local reactionId = doc.data.triggerid
+    if doc.data.key ~= "save" or type(reactionId) ~= "string" then
+        return nil
+    end
+    if not (IsDMOrPlayerHost() or token.canControlAsUser) then
+        return nil
+    end
+    local entry = token.properties:try_get("pendingAIActivityReactions", {})[reactionId]
+    if type(entry) ~= "table" or entry.state ~= "resolving"
+        or token.properties:try_get("availableTriggers", {})[reactionId] ~= nil then
+        return nil
+    end
+    --Markers from before resolvingSince existed only carry the card's post time.
+    local age = EventTimestampAge(entry.resolvingSince or entry.timestamp)
+    if age == nil or age < STUCK_SAVE_SKIP_SECONDS then
+        return nil
+    end
+    return {
+        text = "Skip save",
+        press = function()
+            token.properties:CompletePendingAIActivityReaction(entry.activityId, reactionId)
+        end,
+    }
+end
+
 --The banner buttons (see the notice channel in GameHud.lua). Only the player
 --who answers the waited-on hero's prompts gets any: "Select <hero>" while the
 --hero is not selected, and Dismiss when the wait is on a prompt they can
---dismiss, which dismisses the prompt itself. Everyone else gets no buttons.
+--dismiss, which dismisses the prompt itself. Everyone else gets no buttons,
+--except "Skip save" on a stuck save (StuckSaveSkip).
 local function WaitingNoticeControls(doc)
     local controls = {}
     local charid = doc.data.charid
@@ -162,11 +200,18 @@ local function WaitingNoticeControls(doc)
         return controls
     end
     local token = dmhub.GetTokenById(charid)
+    if token == nil or not token.valid or token.properties == nil then
+        return controls
+    end
+    local skip = StuckSaveSkip(doc, token)
+    if skip ~= nil then
+        controls.action = skip
+        return controls
+    end
     --activeControllerId is nil when this user is the one best suited to
     --answer the token's prompts; canControlAsUser rules out a player host
     --whose control comes only from hosting the game.
-    if token == nil or not token.valid or token.properties == nil
-        or not token.canControlAsUser or token.activeControllerId ~= nil then
+    if not token.canControlAsUser or token.activeControllerId ~= nil then
         return controls
     end
 
@@ -236,6 +281,14 @@ Tip.notices["monster-ai-waiting"] = {
             return nil
         end
         local doc = mod:GetDocumentSnapshot(WAITING_DOC)
+        --Every client polls this, so the hero's own client is the one to notice
+        --that the save the AI waits on was accepted by its previous run.
+        if doc.data.key == "save" and type(doc.data.charid) == "string" then
+            local waitedOn = dmhub.GetTokenById(doc.data.charid)
+            if waitedOn ~= nil and waitedOn.valid and waitedOn.properties ~= nil then
+                waitedOn.properties:CompleteReactionsOrphanedByRestart()
+            end
+        end
         local text = doc.data.text
         if type(text) ~= "string" or text == "" then
             m_noticeText = nil
@@ -4119,12 +4172,30 @@ function MonsterAI.LiveHeroCast()
     return nil
 end
 
+--A hero (not AI run) holding an immediate action grant -- a critical hit off
+--turn lets them take a main action now (creature:GrantImmediateAction in
+--MCDMActivatedAbility.lua). Shaped like LiveHeroCast's info, or nil. Synced
+--through the token, so it also covers heroes played on other clients.
+function MonsterAI.PendingHeroImmediateAction()
+    for _,token in ipairs(dmhub.allTokens) do
+        if token.playerControlled and token.valid and token.properties ~= nil
+            and not creature.IsTokenAIControlled(token.charid) then
+            local grants = token.properties:GetImmediateActionGrants(true)
+            if #grants > 0 then
+                local source = grants[1].source
+                return {casterToken = token, ability = {name = (source ~= nil and source ~= "") and source or "extra action"}}
+            end
+        end
+    end
+    return nil
+end
+
 --After an AI cast, wait while a hero's cast it set off is still running here,
 --so the next monster does not act, and roll dice, under the hero's target
 --prompt or roll. A player can take their time, so the limit is generous, as
 --for end-of-turn casts. Returns false, reason when the AI is stopped meanwhile.
 function MonsterAI:WaitForHeroCasts(timeout)
-    if MonsterAI.LiveHeroCast() == nil then
+    if MonsterAI.LiveHeroCast() == nil and MonsterAI.PendingHeroImmediateAction() == nil then
         return true
     end
 
@@ -4145,7 +4216,7 @@ function MonsterAI:WaitForHeroCasts(timeout)
                 or "Monster AI stop requested"
         end
 
-        local info = MonsterAI.LiveHeroCast()
+        local info = MonsterAI.LiveHeroCast() or MonsterAI.PendingHeroImmediateAction()
         if info == nil then
             idleSince = idleSince or dmhub.Time()
             if dmhub.Time() - idleSince >= 0.3 then
@@ -8364,7 +8435,7 @@ function MonsterAI:StrikePairIsLegal(ability, actor, target, symbols)
     end
     local range = ability:GetRange(actor.properties, symbols)
     return MonsterAI.TargetDistance(ability:GetRangeSource(actor), target) <= range
-        and ability:TargetPassesFilter(actor, target, symbols)
+        and ability:TargetPassesFilter(actor, target, symbols or {})
         and actor:GetLineOfSight(target, actor.properties:GetPierceWalls()) > 0
 end
 

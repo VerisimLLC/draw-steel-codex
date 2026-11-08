@@ -5678,6 +5678,16 @@ end
 --no montage therefore behaves as before, except that the spawn now happens
 --here, on the first tick after every player has arrived, instead of during
 --the host's arrival setup. Unknown beats are skipped.
+--The runtime that plays a narrative beat: the montage engine, by
+--EncounterGauntlet's rules (nil when the montage runtime is not loaded).
+---@diagnostic disable-next-line: unused-local
+function EncounterOfTheWeekGame.NarrativeRuntime(index)
+    if rawget(_G, "EncounterGauntlet") == nil or rawget(_G, "EncounterMontage") == nil then
+        return nil
+    end
+    return EncounterMontage
+end
+
 --Finish a stage beat (a montage or a narrative -- the two that own the
 --full-screen stage) and open the next one. When the next beat is also a
 --stage beat we do NOT hide: we seed it and present it under the same dialog
@@ -5686,8 +5696,9 @@ end
 --runs here too, so the new beat opens on its first section/round instead of
 --sitting in "arriving" until the next tick. Only a beat that hands back to
 --the map -- the encounter, or the end of the script -- hides the stage.
-local function AdvanceFromStageBeat(script, index, montage, narrative)
+local function AdvanceFromStageBeat(script, index, montage)
     local nextBeat = script.parse.beats[index + 1]
+    local narrative = EncounterOfTheWeekGame.NarrativeRuntime(index + 1)
 
     --Order matters: SEED the next beat's state first, and only then stamp the
     --beat index. The stage picks its body from the beat index, so stamping it
@@ -5828,13 +5839,13 @@ local function RunScriptBeat(ctx)
         if status == "done" then
             printf("EotW: montage beat %d complete", index)
             AnalyticsMontageEnd(montage, index, beat)
-            AdvanceFromStageBeat(script, index, montage, rawget(_G, "EncounterNarrative"))
+            AdvanceFromStageBeat(script, index, montage)
         end
         return
     end
 
     if beat.kind == "narrative" then
-        local narrative = rawget(_G, "EncounterNarrative")
+        local narrative = EncounterOfTheWeekGame.NarrativeRuntime(index)
         if narrative == nil then
             --an older module without the narrative runtime: skip the beat
             --rather than stalling the script forever.
@@ -5846,7 +5857,7 @@ local function RunScriptBeat(ctx)
         local status = narrative.HostTick(script, beat, index)
         if status == "done" then
             printf("EotW: narrative beat %d complete", index)
-            AdvanceFromStageBeat(script, index, montage, narrative)
+            AdvanceFromStageBeat(script, index, montage)
         end
         return
     end
@@ -5862,7 +5873,7 @@ local function RunScriptBeat(ctx)
         local status = negotiation.HostTick(script, beat, index)
         if status == "done" then
             printf("EotW: negotiation beat %d complete", index)
-            AdvanceFromStageBeat(script, index, montage, rawget(_G, "EncounterNarrative"))
+            AdvanceFromStageBeat(script, index, montage)
         end
         return
     end
@@ -6566,6 +6577,21 @@ function EncounterOfTheWeekGame.LateHeroesHostTick()
         for _, h in ipairs(heroes) do
             doc.data.known[h.charid] = true
         end
+        --a member's hero tokens can reach the host after their arrival does
+        --(different stores), so also count every hero the party recorded as
+        --placed; otherwise those heroes would be taken for latecomers.
+        local placedHeroes = mod:GetDocumentSnapshot(STATE_DOC_ID).data.placedHeroes
+        if type(placedHeroes) == "table" then
+            for _, mine in pairs(placedHeroes) do
+                if type(mine) == "table" then
+                    for _, charid in pairs(mine) do
+                        if type(charid) == "string" then
+                            doc.data.known[charid] = true
+                        end
+                    end
+                end
+            end
+        end
         doc:CompleteChange("Encounter of the Week: the party is in", { undoable = false })
         return
     end
@@ -6819,13 +6845,13 @@ local function OpenOpeningBeatWhenPartyIn()
             pcall(EnsureArrivalItems)
             local ok, err = pcall(function()
                 local montage = rawget(_G, "EncounterMontage")
-                local narrative = rawget(_G, "EncounterNarrative")
                 local script = montage.FindMapScript()
                 local index = GetBeatIndex()
                 local beat = script.parse.beats[index]
                 if beat == nil then
                     return
                 end
+                local narrative = EncounterOfTheWeekGame.NarrativeRuntime(index)
                 if beat.kind == "montage" then
                     montage.HostTick(script, beat, index)
                 elseif beat.kind == "narrative" and narrative ~= nil then
@@ -6934,8 +6960,8 @@ local function BeginOpeningMontage()
         end
         if beat.kind == "montage" then
             montage.Begin(script, beat, 1)
-        elseif beat.kind == "narrative" and narrative ~= nil then
-            narrative.Begin(script, beat, 1)
+        elseif beat.kind == "narrative" and EncounterOfTheWeekGame.NarrativeRuntime(1) ~= nil then
+            EncounterOfTheWeekGame.NarrativeRuntime(1).Begin(script, beat, 1)
         elseif beat.kind == "negotiation" and rawget(_G, "EncounterNegotiation") ~= nil then
             EncounterNegotiation.Begin(script, beat, 1)
         end
@@ -8190,7 +8216,7 @@ local function TestArrival(pending)
 
     --the chosen beat. Stage beats go up now; the encounter beat starts on
     --the host tick.
-    local narrative = rawget(_G, "EncounterNarrative")
+    local narrative = EncounterOfTheWeekGame.NarrativeRuntime(index)
     if beat.kind == "montage" then
         montage.Begin(script, beat, index)
     elseif beat.kind == "narrative" and narrative ~= nil then

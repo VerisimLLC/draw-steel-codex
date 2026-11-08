@@ -3621,8 +3621,10 @@ local function StorySignature()
         local doc = EncounterMontage.GetDoc().data
         local m = EncounterMontage.GetState()
         local n = rawget(_G, "EncounterNarrative") ~= nil and EncounterNarrative.GetState() or nil
-        sig = string.format("%s|%s:%s|%s:%s", tostring(doc.beat),
-            tostring(m and m.beatIndex), tostring(m and m.round),
+        --(a narrative on the montage engine moves by section: m.gauntlet.section)
+        local g = m ~= nil and m.gauntlet or nil
+        sig = string.format("%s|%s:%s:%s|%s:%s", tostring(doc.beat),
+            tostring(m and m.beatIndex), tostring(m and m.round), tostring(g and g.section),
             tostring(n and n.beatIndex), tostring(n and n.sectionIndex))
     end)
     return sig

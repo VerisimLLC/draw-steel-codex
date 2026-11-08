@@ -151,7 +151,9 @@ local function NameChecks(parse)
         end
         for _, section in ipairs(EncounterScript.NarrativeSections(beat)) do
             for _, o in ipairs(section.options) do
-                CollectZones(o.effects)
+                for _, effects in ipairs(EncounterScript.OptionEffectLists(o)) do
+                    CollectZones(effects)
+                end
             end
         end
         for _, entry in ipairs(EncounterScript.MontageEntries(beat)) do
@@ -675,7 +677,7 @@ function EncounterScriptValidator.KnackCoverage(parse, partyid)
                 threatWith = threatWith + 1
             end
         elseif entry.kind == "challenge" and EncounterScript.GauntletSectionHasTest(entry) then
-            --a Gauntlet challenge with a test, held to the opportunity
+            --a narrative challenge with a test, held to the opportunity
             --standard: some hero's knack or secret option should make it
             --theirs. (One with only No Roll options asks for no skill.)
             challengeTotal = challengeTotal + 1
@@ -688,6 +690,10 @@ function EncounterScriptValidator.KnackCoverage(parse, partyid)
     for _, beat in ipairs(parse.beats or {}) do
         for _, entry in ipairs(EncounterScript.MontageEntries(beat)) do
             Visit(entry.name, entry, entry.round)
+        end
+        --a narrative's sections (only a challenge's tests count).
+        for _, entry in ipairs(EncounterScript.GauntletSections(beat)) do
+            Visit(entry.name, entry, nil)
         end
     end
     for _, delve in pairs(parse.delves or {}) do
@@ -744,7 +750,8 @@ local ROUTE_PARTY_SIZES = { 3, 4, 5 }
 --How many routes are spelled out per party size (all are counted).
 local ROUTE_LIST_LIMIT = 8
 
---Rows for every "# Gauntlet" beat: per party size, the routes through it
+--Rows for every narrative beat with a choice of route or a test: per party
+--size, the routes through it
 --(EncounterScript.GauntletRoutes) and how many tests the longest one asks
 --for, against the number of heroes (every roll after a hero's first is a
 --Weary bane).
@@ -753,8 +760,18 @@ function GauntletRouteRows(parse)
     local function Row(depth, class, text)
         rows[#rows + 1] = { depth = depth, class = class, text = text }
     end
+    --a narrative read straight through with no tests has nothing to map.
+    local function WorthMapping(beat)
+        for _, size in ipairs(ROUTE_PARTY_SIZES) do
+            local routes = EncounterScript.GauntletRoutes(beat, size)
+            if #routes > 1 or (routes[1] ~= nil and routes[1].tests > 0) then
+                return true
+            end
+        end
+        return false
+    end
     for bi, beat in ipairs(parse.beats or {}) do
-        if beat.gauntlet then
+        if beat.gauntlet and WorthMapping(beat) then
             Row(0, "beat", T("author.validator.routes.heading", { number = bi, title = tostring(beat.title or "") }))
             for _, size in ipairs(ROUTE_PARTY_SIZES) do
                 local routes, more = EncounterScript.GauntletRoutes(beat, size)

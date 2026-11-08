@@ -6895,6 +6895,187 @@ function GameHud:NextInitiative(oncomplete)
 	end
 end
 
+--Hold the ended turn open while a hero has a trigger prompt nobody has
+--answered (playtest 2026-11-05, note N4).
+--
+--A non-hostile prompt lives only for the turn that raised it: the watcher in
+--TriggeredAbility.lua ends it 6s after the turn id changes, because a triggered
+--action belongs to the moment its trigger happened. That rule is right, but the
+--turn used to pass the instant the active player clicked End Turn, so an ally
+--who dealt damage and ended their turn straight away took the Tactician's
+--"Mark: Benefit" prompt with them before its owner had answered it. At a table
+--the turn does not pass while someone is still saying "wait, I have a
+--trigger"; this is that wait. The monsters already hold their next turn choice
+--for open hero prompts (FindPendingPlayerTrigger in MonsterAIPanel.lua); this
+--covers every turn end, including a hero's.
+--
+--Runs on the client ending the turn, which sees every hero's prompts through
+--the synced availableTriggers. Its banner says who the table is waiting for
+--and offers Continue, which passes the turn anyway (the prompt then ends by the
+--6s rule). Bounded by the prompt age-out (600s, Creature.lua): a prompt nobody
+--answers leaves GetAvailableTriggers then, so the wait ends with it.
+local END_TURN_PROMPT_WAIT_SECONDS = 600
+
+--The wait in progress on this client: {text = string|nil, released = boolean},
+--or nil. Read by the banner notice below; Continue sets released.
+local g_heroPromptWait = nil
+
+--Whether this hero prompt holds the end of a turn. It must be one the player
+--can still answer and one the turn change would end: hostile prompts survive
+--turn changes, roll modifiers belong to a roll in progress (its dialog ends
+--them), and the hidden members of a merged prompt are answered by its front card.
+---@param trigger ActiveTrigger
+---@return boolean
+local function PromptHoldsTurnEnd(trigger)
+	return not trigger.triggered
+		and not trigger.dismissed
+		and not trigger:try_get("hostile", false)
+		and trigger:try_get("powerRollModifier", false) == false
+		and trigger:try_get("mergedInto", false) == false
+end
+
+--A hero for this purpose: a player's token, or any creature fighting on the
+--players' side. Party-owned heroes outside the default party are not
+--playerControlled, but their initiative entry is still the players'.
+---@param token CharacterToken
+---@param q InitiativeQueue|nil
+---@return boolean
+local function IsHeroSide(token, q)
+	if token.playerControlled then
+		return true
+	end
+	local initiativeid = q ~= nil and InitiativeQueue.GetInitiativeId(token) or nil
+	return initiativeid ~= nil and q ~= nil and q.entries[initiativeid] ~= nil and q:IsEntryPlayer(initiativeid) == true
+end
+
+--The first hero holding an open prompt, and that prompt; nil when none.
+---@return CharacterToken|nil, ActiveTrigger|nil
+function GameHud.FindOpenHeroTriggerPrompt()
+	local q = dmhub.initiativeQueue
+	if q ~= nil and q.hidden then
+		q = nil
+	end
+	for _,token in ipairs(dmhub.allTokens) do
+		if token.valid and token.properties ~= nil and IsHeroSide(token, q) then
+			for _,trigger in pairs(token.properties:GetAvailableTriggers(true) or {}) do
+				if PromptHoldsTurnEnd(trigger) then
+					return token, trigger
+				end
+			end
+		end
+	end
+	return nil, nil
+end
+
+---@param token CharacterToken
+---@param trigger ActiveTrigger
+---@return string
+local function HeroPromptWaitText(token, trigger)
+	local name = trigger.abilityName
+	if type(name) ~= "string" or name == "" then
+		local ok, text = pcall(function() return trigger:GetText() end)
+		name = (ok and type(text) == "string" and text ~= "") and text or "trigger"
+	end
+	return string.format("Waiting for %s's %s", token.name or "a hero", name)
+end
+
+--Returns why the wait ended: "none", "answered", "continued", "turn moved on"
+--or "deadline".
+---@param context table
+---@return string
+function GameHud.WaitForHeroTriggerPrompts(context)
+	local q = context ~= nil and context.initiativeQueue or nil
+	local endedId = context ~= nil and context.endedInitiativeId or nil
+	local deadline = dmhub.Time() + END_TURN_PROMPT_WAIT_SECONDS
+	local wait = nil
+	local result = nil
+	while result == nil do
+		local claimedBy = q ~= nil and q:try_get("currentTurn") or nil
+		if q == nil or dmhub.initiativeQueue ~= q or q.hidden
+			or (claimedBy and claimedBy ~= endedId) then
+			--Combat ended, or a hero claimed the turn during the hold
+			--(Hesitation Is Weakness): NextInitiative handles both.
+			result = "turn moved on"
+		elseif (wait ~= nil and wait.released) or (context ~= nil and context.heroPromptsContinued) then
+			--Continue covers the whole handoff, so the second pass does not
+			--hold again for the prompt the player chose to pass over.
+			result = "continued"
+			if context ~= nil then
+				context.heroPromptsContinued = true
+			end
+		elseif dmhub.Time() >= deadline then
+			result = "deadline"
+		else
+			local token, trigger = GameHud.FindOpenHeroTriggerPrompt()
+			if token == nil or trigger == nil then
+				result = wait == nil and "none" or "answered"
+			else
+				local text = HeroPromptWaitText(token, trigger)
+				if wait == nil then
+					wait = {text = text, released = false}
+					g_heroPromptWait = wait
+					printf("ENDTURN:: holding turn %s: %s", tostring(endedId), text)
+				end
+				wait.text = text
+				coroutine.yield(0.2)
+			end
+		end
+	end
+
+	if wait ~= nil then
+		printf("ENDTURN:: released turn %s held for hero prompts: %s", tostring(endedId), result)
+		if g_heroPromptWait == wait then
+			g_heroPromptWait = nil
+		end
+	end
+	return result
+end
+
+--Once after the ending creature's casts settle (End Turn Casts, priority 0) and
+--before the villain-action window (50), so triggers raised during the turn
+--resolve first; and again after it, for prompts a villain action raised.
+GameHud.RegisterBetweenTurnHandler{
+	id = "End Turn Hero Prompts",
+	priority = 10,
+	run = function(context)
+		GameHud.WaitForHeroTriggerPrompts(context)
+	end,
+}
+
+GameHud.RegisterBetweenTurnHandler{
+	id = "End Turn Hero Prompts After Villain Actions",
+	priority = 60,
+	run = function(context)
+		GameHud.WaitForHeroTriggerPrompts(context)
+	end,
+}
+
+--The banner for the player whose turn is being held. Registered by direct table
+--insert, like the Monster AI's notice, so load order against GameHud.lua does
+--not matter; GameHud.lua keeps an existing Tip.notices table.
+Tip = rawget(_G, "Tip") or {}
+Tip.notices = Tip.notices or {}
+Tip.notices["end-turn-hero-prompt"] = {
+	id = "end-turn-hero-prompt",
+	--Above the Monster AI's "Waiting for..." (1000), below choosing minion
+	--deaths (1100), which this client may need to do first.
+	priority = 1050,
+	text = function()
+		local wait = g_heroPromptWait
+		if wait == nil or wait.released or type(wait.text) ~= "string" then
+			return nil
+		end
+		return wait.text, {
+			action = {
+				text = "Continue",
+				press = function()
+					wait.released = true
+				end,
+			},
+		}
+	end,
+}
+
 local g_beginRoundStyles = {
     gui.Style{
         selectors = {"leftSword","new"},

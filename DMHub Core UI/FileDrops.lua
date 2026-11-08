@@ -49,6 +49,19 @@ function FileDrops.IsMapFile(path)
     return false
 end
 
+--- A Universal VTT file's map size in tiles, read from the start of the file
+--- (instant, even for a huge file), or nil if it is not there. For shaping
+--- the outline while the file is dragged and the window it will open in.
+--- @param path string
+--- @return nil|{width: number, height: number}
+function FileDrops.MapFileSize(path)
+    local header = assets:ReadUniversalVTTHeader(path)
+    if header == nil then
+        return nil
+    end
+    return {width = header.width, height = header.height}
+end
+
 --- True for a document file (by extension; see DOCUMENT_EXTENSIONS).
 --- @param path string
 --- @return boolean

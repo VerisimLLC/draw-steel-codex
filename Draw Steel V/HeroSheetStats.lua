@@ -1935,8 +1935,10 @@ local function WordsRow(layout, editing)
     --where they come from: slow to work out, so read when a card first shows
     --and kept until the band repaints.
     local skillFrom, skillByHand, languageFrom = nil, nil, nil
+    --display name -> in-world name, for languages Plain Language Names renames.
+    local languageInWorld = nil
     OnUpdate(function()
-        skillFrom, skillByHand, languageFrom = nil, nil, nil
+        skillFrom, skillByHand, languageFrom, languageInWorld = nil, nil, nil, nil
     end)
     local function Hero()
         local token = HeroSheet.Token()
@@ -1979,17 +1981,23 @@ local function WordsRow(layout, editing)
         local hero = Hero()
         if languageFrom == nil then
             languageFrom = {}
+            languageInWorld = {}
             if hero ~= nil then
                 pcall(function()
                     for _, row in ipairs(rawget(_G, "HeroSkillsLanguages").LanguageSources(hero --[[@as character]])) do
                         languageFrom[row.label] = row.value
+                        languageInWorld[row.label] = row.inWorld
                     end
                 end)
             end
         end
         local rows = {}
         for _, name in ipairs(Languages()) do
-            rows[#rows+1] = {label = name, value = languageFrom[name] or ""}
+            local label = name
+            if languageInWorld ~= nil and languageInWorld[name] ~= nil then
+                label = string.format("%s (%s)", name, languageInWorld[name])
+            end
+            rows[#rows+1] = {label = label, value = languageFrom[name] or ""}
         end
         return CardBody{title = "Languages", rows = rows, pinned = pinned, hint = EditHint(pinned)}
     end

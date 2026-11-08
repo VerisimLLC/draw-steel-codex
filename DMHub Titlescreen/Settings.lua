@@ -2000,11 +2000,17 @@ setting{
 	-- Only relevant for the Ruler and Cross Section when snapping to the grid,
 	-- since the choice only affects how diagonal grid steps are counted (both
 	-- report tile-stepping distances). Without snapping they already report the
-	-- straight-line (Euclidean) length.
-	monitorVisible = {'measure:shape', 'measure:snap'},
+	-- straight-line (Euclidean) length. Hidden on hex maps: hexes have no
+	-- diagonals, so the engine always counts whole hexes there.
+	monitorVisible = {'measure:shape', 'measure:snap', 'maplayout:tiletype', 'maplayout:stagger'},
 	visible = function()
 		local shape = dmhub.GetSettingValue('measure:shape')
-		return (shape == "ruler" or shape == "crosssection") and dmhub.GetSettingValue('measure:snap') ~= "none"
+		if (shape ~= "ruler" and shape ~= "crosssection") or dmhub.GetSettingValue('measure:snap') == "none" then
+			return false
+		end
+		--This file loads before DMHub Game Rules (at the title screen), so look it up at call time.
+		local measurement = rawget(_G, "MeasurementSystem")
+		return measurement == nil or not measurement.IsHexMap()
 	end,
 
 	enum = {

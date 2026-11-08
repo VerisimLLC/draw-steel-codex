@@ -11565,6 +11565,10 @@ end
 
 local g_aiActivityReactionExpirySeconds = 600
 
+--Identifies this run of the app: kept in _G across Lua reloads, new on every
+--launch. See creature:CompleteReactionsOrphanedByRestart.
+g_appLaunchId = rawget(_G, "g_appLaunchId") or dmhub.GenerateGuid()
+
 --The Monster AI activity (a move or an ability cast) currently in flight on
 --this client, or nil. MonsterAI sets it around each action it takes; while it
 --is set, every event DispatchEvent raises on a player-controlled creature
@@ -12441,14 +12445,34 @@ function creature:CompletePendingAIActivityReaction(activityId, reactionId)
     }
 end
 
+--Who accepted the reaction and when are stamped on the marker, so a cast that
+--never reports back can be told apart from one still running (EMHPEMCY): the
+--banner offers Skip once it is old, and the accepter's next launch clears it.
 function creature:SetAIActivityReactionResolving(activityId, reactionId)
     local entry = self:try_get("pendingAIActivityReactions", {})[reactionId]
     local token = dmhub.LookupToken(self)
     if token ~= nil and entry ~= nil and entry.activityId == activityId and entry.state ~= "completed" then
         token:ModifyProperties{
             description = "Resolve AI Reaction", undoable = false,
-            execute = function() entry.state = "resolving" end,
+            execute = function()
+                entry.state = "resolving"
+                entry.resolvingSince = ServerTimestamp()
+                entry.resolvingBy = dmhub.userid
+                entry.resolvingLaunch = g_appLaunchId
+            end,
         }
+    end
+end
+
+--Completes the "resolving" markers this user accepted in an earlier run of the
+--app. Their casts died with that run (a crash or restart mid-roll), so nothing
+--else would complete them. Markers from before the stamps were added are left.
+function creature:CompleteReactionsOrphanedByRestart()
+    for id,entry in pairs(self:try_get("pendingAIActivityReactions", {})) do
+        if type(entry) == "table" and entry.state == "resolving" and entry.resolvingBy == dmhub.userid
+            and entry.resolvingLaunch ~= nil and entry.resolvingLaunch ~= g_appLaunchId then
+            self:CompletePendingAIActivityReaction(entry.activityId, id)
+        end
     end
 end
 
@@ -14768,13 +14792,25 @@ function creature:Render(args, options)
 		--languages.
 		gui.Label{
 			classes = "description",
+			--with plain language names on, hovering lists the in-world names.
+			hover = function(element)
+				local known = {}
+				local languagesTable = GetTableCached(Language.tableName)
+				for langid,b in pairs(self:LanguagesKnown()) do
+					known[#known+1] = languagesTable[langid]
+				end
+				local hover = Language.ListTooltipHover(known)
+				if hover ~= nil then
+					hover(element)
+				end
+			end,
 			create = function(element)
 				local textItems = {}
 				local languagesTable = GetTableCached(Language.tableName)
 				for langid,b in pairs(self:LanguagesKnown()) do
 					local lang = languagesTable[langid]
 					if lang ~= nil then
-						textItems[#textItems+1] = lang.name
+						textItems[#textItems+1] = lang:DisplayName()
 					end
 				end
 

@@ -5895,7 +5895,7 @@ end
 --- on the table, say) through the import wizard, where the user sets the
 --- grid. The new map is travelled to once made.
 --- @param paths string[] Local file paths, one per floor.
---- @param options nil|{name: nil|string, imported: nil|fun(width: number, height: number), created: nil|fun(mapid: string), variations: nil|string[], done: nil|fun(mapid: string)} name: the map's name; imported: called with the map's size in tiles once the files are read, before the map is made; created: called once the map exists, just before travelling to it; variations: more files that become the map's alternate appearances (same size as paths[1], which should then be the only path); done: called once the images are placed on the map.
+--- @param options nil|{name: nil|string, imported: nil|fun(width: number, height: number), created: nil|fun(mapid: string), variations: nil|string[], done: nil|fun(mapid: string), progress: nil|fun(stage: string, fraction: number), failed: nil|fun(message: string)} name: the map's name; imported: called with the map's size in tiles once the files are read, before the map is made; created: called once the map exists, just before travelling to it; variations: more files that become the map's alternate appearances (same size as paths[1], which should then be the only path); done: called once the images are placed on the map. Universal VTT files only (they import in the background with no wizard): progress follows the import ("reading", then "uploading" with a fraction 0 to 1), failed reports an error instead of the error dialog.
 function ImportMapFromFiles(paths, options)
     options = options or {}
     if paths == nil or #paths == 0 then
@@ -5906,6 +5906,8 @@ function ImportMapFromFiles(paths, options)
         tileType = "squares",
         nofade = true,
         paths = paths,
+        progress = options.progress,
+        failed = options.failed,
         finish = function(info)
             if options.imported ~= nil then
                 options.imported(tonumber(info.width) or 0, tonumber(info.height) or 0)

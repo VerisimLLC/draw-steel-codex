@@ -368,7 +368,7 @@ function DescribeFollower(follower)
             local langs = dmhub.GetTable(Language.tableName)
             for id, _ in pairs(follower.languages) do
                 if #sList > 0 then sList = sList .. ", " end
-                sList = sList .. langs[id].name
+                sList = sList .. langs[id]:DisplayName()
             end
             s = s .. sList
         end

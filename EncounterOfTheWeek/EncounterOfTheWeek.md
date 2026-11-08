@@ -1038,7 +1038,7 @@ already has natural homes (fractions of the 6160x4480 canvas):
 | Location | Where | Notes |
 |---|---|---|
 | **Town Gate** | the walled city gate, top centre (~0.53, 0.13) | labeled "City Gate" on the source map |
-| **Graveyard** | the green churchyard beside the Cathedral (~0.31, 0.85) | |
+| **Graveyard** | the south-east corner, just north of the southern river (0.89, 0.86) | moved 2026-11-06 (user direction) from the green churchyard beside the Cathedral (0.31, 0.86), which the hero cards along the bottom covered |
 | **Hall of Heroes** | placeholder (0.33, 0.2), between the Inn and the Gate | BUILT 2026-10-21, not run; spot not yet checked against the art |
 | **Town Hall** | placeholder (0.6, 0.3), between the Gate and the Proving Pits | BUILT 2026-10-26 (staging only); spot and art are placeholders |
 | **Hero's Guild** | the small walled green island with a lone building in the canal (0.44, 0.42) | chosen when building (2026-10-02); the Safe House block (~0.54, 0.60) was the alternative |
@@ -1402,7 +1402,8 @@ map, so every panel over it is fully opaque (`ff`).
 - **Hero's Guild** (0.44, 0.42), the walled canal island; `phosphor/shield-star-fill.png`.
 - **Town Gate** (0.53, 0.135); `sword-fill`. Locked until the roster has
   been listed and holds at least one living hero.
-- **Graveyard** (0.31, 0.86); `hands-praying-fill`.
+- **Graveyard** (0.89, 0.86), the south-east corner on the southern river's
+  north bank, right of the hero cards; `hands-praying-fill`.
 
 **Working copies.** A town hero is a character in the per-player **lobby
 game** whose charid **is** its city heroid, tagged `properties.eotwHero`.
@@ -1607,6 +1608,156 @@ DMHub Core UI codemod after `GuiUtils`, Firebase confirmed):
 Verified after the final engine build: the town opened right at boot waits
 for the lobby game (no import errors), then the hero card appears. The Guild
 panel is opaque.
+
+## The social rail: friends, public games and Town Chat everywhere in town (BUILT + engine built 2026-11-06; partly tested; deploys pending)
+
+User direction (2026-11-06): the Town Chat is visible everywhere in town (the
+map and every location), with the player's **friends** at the top: Steam and
+Discord friends who own the Codex, online first, each with a status line. A
+friend playing a game shows it, with Join / Watch buttons when the game allows
+them; **private games still let friends ask to join or watch**. Then (after
+seeing the mockups, "go ahead and implement"): a **Public Games** section
+listing every public game, the ones open to join at the top, and a party whose
+host **blows the horn lights up for several seconds with a horn icon**.
+
+**Mockups** (signed off): `C:/dev/dmhub/design-mockups/eotw-town-social/`
+(01-map ... 13-states), source `C:/dev/eotw/mockups/town-social/town.html`
+(`?s=map`, `mapmini`, `gate`, `party`, `guild`, `inn`, `market`, `danger`,
+`hall`, `townhall`, `training`, `graveyard`, `states`; `shoot.sh <outdir>
+<screens>` renders them with headless Edge). Public Games was added after
+them and has no mockup.
+
+### Layout (as built)
+- **The rail** (`Codex Titlescreen/EotwSocialRail.lua`, `EotwSocialRail.Create`)
+  is 380 wide, full height, on the right. Top to bottom: a header (Blackbottom,
+  heroes in town, collapse, leave the town), **Friends**, **Public Games**,
+  then **Town Chat** filling the rest (at least 330). Friends and Public Games
+  are sized to their rows (caps 340 and 250) and fold by clicking their titles;
+  the chat gives way last. The chat is the old drawer's body (`chatPanel` in
+  `EncounterOfTheWeek.lua`), with the Town Chat | Game Chat tabs in a party
+  view; the drawer and its Chat button are gone, and the chat counts as seen
+  whenever the rail is open (`SetChatOpen` follows the rail).
+- **Collapsed** (76 wide): the expand button, up to 8 online friends' faces
+  with status dots, and a chat button with a red unread mark. Not remembered
+  between visits.
+- **The stage**: the map, plaque, hero strip and every location scene sit in
+  `Rail.stage`, the screen less the rail (`Rail.ContentWidth()`). **The map is
+  sized to fill the stage's width** (David, 2026-11-06), at least as tall as
+  the screen: with the rail open it is about 1540 wide and pans only a little
+  up and down; opening or collapsing the rail re-fits it (`Rail.FitMap`: map
+  and node layer re-sized, the nodes moved by their `x`/`y`, the pan scaled).
+  A side effect was the Graveyard node (then at x 0.31) sitting behind the
+  hero strip; it moved to the south-east corner (0.89, 0.86) on 2026-11-06,
+  clear of the strip (at most `EotwRoster.MAX_ACTIVE` = 4 cards) with its
+  label on screen at the default pan.
+  Opening or collapsing the rail rebuilds the Gate and Proving Pits scenes and
+  reopens the location that was open (`Rail.Relayout`; analytics skipped via
+  the `silent` flag of `OpenLocation` / `CloseLocation`).
+- **Card widths**: Gate and Proving Pits lists 900, Guild 860, Inn / Market /
+  building sites 820, Hall and Town Hall 900, Training Grounds 860.
+- **Party view**: the card spans the stage (`Rail.PartyCardWidth()`, the stage
+  less 88) and the scene header turns into one line, Back to Town plus the
+  place's name (the `sceneCompact` event, fired by `SetCardWidth`).
+- Not built from the mockups: friends' faces on the map's location nodes (the
+  City's presence does not say where in town anyone is), friend search / add
+  friend, and an Invite button.
+
+### Friends
+- **Who**: Steam friends (`dmhub.GetSteamFriends`, new engine API) and Discord
+  friends (`dmhub.DiscordGetRelationships`, only while the `discordsocial`
+  preference is on and Discord is linked). A friend counts when the
+  **`codexFriendsLookup`** cloud function (new) maps their id to a Codex
+  account, or when Steam / Discord shows them in the Codex right now. Steam and
+  Discord rows for the same Codex account merge, with both glyphs. Until the
+  lookup answers, a Steam friend's account is taken to be `steam-<SteamID64>`.
+  The lookup is asked when new ids appear (at most once a minute) and every 10
+  minutes, 500 ids of each kind at most.
+- **Status, best source first**: their EotW party in the City (forming /
+  under way, encounter, host, slots, public or private), being in town (the
+  City's `/presence`), Steam rich presence (the Codex's own status line) or
+  Discord activity, then plain online / away / busy / another game / offline.
+  So the presence source is the platforms plus the City: no presence record
+  of our own and no privacy setting yet (open question 1 below).
+- **Order**: joinable, in a game, in town, in the Codex, online, away; offline
+  folded under "Offline (N)".
+- **Rows**: face with status dot, name and platform glyphs, the status line,
+  and for a party a third line (host, slots, Private). Buttons sit in a column
+  at the row's right (David, 2026-11-06: "Unnecessary to take up space putting
+  the Join button below"): one full-size, or two smaller stacked. Public Games
+  rows use the same column.
+- **Buttons**: a friend's EotW party gets the boards' own actions
+  (`Rail.DescribeGame`): Join a public party forming; under way, Join / Watch
+  (public) or **Ask to Join / Ask to Watch** (private), all late-join requests
+  the host accepts in game; Open for our own party. A private party still
+  forming is joined through the friend's Steam Join Game (their connect string
+  carries the invite code; `dmhub.JoinSteamFriend`), else Ask to Join through
+  Discord (`DiscordFriends.AskToJoin`). A friend in a campaign with a Steam
+  connect string gets Join (Steam's own Join Game, straight in).
+- **Private games take late requests now** (this reverses "Public games
+  only" under "Joining a game under way"): the lobby records `lateJoin` for
+  private games and `request-late-join` no longer refuses them; the host's
+  Accept is the gate. `Late.Of` dropped its public test; the boards still list
+  a private party to its members only.
+
+### Public Games
+- Every `public` party in `/state/games`. Order: forming with room and the horn
+  sounding, forming with room, under way and taking requests, the rest; newest
+  first within each. Each row: the party's name, Forming / Under way (or
+  "Horn m:ss" while it sounds), the encounter, host and slots, and the same
+  buttons as above.
+- **The horn**: a party whose `hornUntil` changes while the town is open
+  flashes gold for 6 seconds (`hornFlash`, pulsing) with a Notify.Ping; while
+  the horn sounds the row keeps a gold tint, a horn icon and "Horn m:ss". The
+  icon is `phosphor/megaphone-fill.png` for now: `game-icons/hunting-horn.png`
+  exists in `Assets/Imported/Wesnoth-UI/game-icons/` but is not among the
+  game-icons the app ships (the list in `ImageManager.cs`), and Phosphor has no
+  horn. The first look at the City only learns what is already sounding (no
+  flash).
+
+### What is left (2026-11-06)
+- **Engine build** for `dmhub.GetSteamFriends` / `steamFriendsRevision` /
+  `JoinSteamFriend` and the `#steamavatar:` images
+  (`Assets/Scripts/LuaInterfaceSteamFriends.cs`, `SteamFriendsList.cs`,
+  `SteamAvatars.cs`, hooks in `ImageDownloader.cs` and `SteamManager.cs`).
+  The rail calls them unguarded, so the town errors until the build.
+- **Deploys**: the lobby change (`cloudflare-game-server/src/lobby-core.ts`,
+  444 tests pass) to staging then release; the cloud functions
+  (`codexFriendsLookup`, plus `discordLink` / `discordDevicePoll` /
+  `discordToken` / `discordUnlink`, which now keep the `/discordUserLinks`
+  reverse index), then the backfill script
+  (`functions/scripts/backfill-discord-user-links.mjs`, dry run first).
+- **Tested 2026-11-06** (engine built with -DevKey, so no Steam; friends fed
+  through the test seam `EotwSocialRail.sources` = {steamRevision,
+  steamFriends, discordFriends}, and a second rail built over a fake City
+  connection): the rail on the map, the Guild, the Town Gate and the Proving
+  Pits; collapse (faces + status dots, the map widens to the Training Grounds,
+  an open location rebuilds and stays open) and expand; the chat opening on
+  its newest messages; friend rows of every kind (campaign Join through Steam,
+  a friend's public party, a private game's Ask to Join / Ask to Watch, in
+  town, in the Codex, busy/away dots); Public Games order, the horn tint,
+  icon, countdown and the 6-second pulse; the one-line header with a
+  full-width card (driven by hand, not by a real party view). No Lua errors.
+- **Not tested**: a real party view (forming one would have deleted the
+  account's game in progress), the friends lookup and real Steam friends /
+  avatars (need the deploys and a Steam build), Discord friends, any Join /
+  Ask / Watch button doing its job, private late join end to end.
+- **Fixed while testing**: the chat opened on its oldest messages (layout's
+  own scroll events cleared the stick-to-bottom flag: `Rail.chatSettleUntil`
+  ignores them for half a second after a refill or a resize); a game row built
+  an action column it did not use (the leak sweep flagged it).
+- Virtual MCP clicks on a map node can land the release on a button of the
+  scene that opens under it (the Proving Pits' Form a Party sits under the
+  node now). A real mouse should not: Unity only clicks the object that got
+  the press. Not verified by hand.
+
+**Open questions:**
+1. Presence privacy: an "appear offline" / "hide what I'm playing" setting.
+   Nothing is shown that Steam and Discord did not already show, plus the
+   City's records, which every town client already receives.
+2. Watching a private **campaign** is not offered (spoilers; only Steam's Join
+   Game exists for campaigns, and it enters straight in).
+3. Friends' faces on the map would need the City's presence to carry the
+   location each player is in.
 
 ## Progression (OPEN -- needs its own design pass)
 
@@ -2670,7 +2821,7 @@ manage any of it.
 | D2 | When a part is won, the result is saved for **every account in the party**, not only the host's. | A member who later hosts the next part brings the run they played. |
 | D3 | **Latest win counts.** Each part keeps its own result row; a later win of that part replaces it. A defeat saves nothing. | Replays can fix a bad run. Replaying Part 1 changes only Part 1's share of the track. |
 | D4 | **Danger Room and Town Gate stories are separate**, like the unlocks. A series promoted to the Week starts with a clean story. | Consistent with "Danger Room wins do not carry over". |
-| D5 | **The montage outcome covers every montage in the part.** Score = tier-3 results (crits included) − tier-1 results − threats left unvanquished. Each event counts once, and tests on Opportunities count too. | The user's definition: successes, minus failures and complications (an unvanquished threat is a complication). |
+| D5 | **The montage outcome covers every montage in the part**, and (David, 2026-11-07) every narrative challenge test too, now that narratives play on the montage engine; votes and individual choices never count. Score = tier-3 results (crits included) − tier-1 results − threats left unvanquished. Each event counts once, and tests on Opportunities count too. | The user's definition: successes, minus failures and complications (an unvanquished threat is a complication). |
 | D6 | Outcome = the score **per hero** (divided by the number of heroes who began the part) against two bars: **total success at or above the first, partial at or above the second, failure below**. Written `Outcome: total success at 1, partial at 0` in `# Results`, per hero. **Default: total at 0.5, partial at −0.25** (the old raw +2 / −1 at four heroes). | The user picked net score + thresholds, then per hero after the critique (2026-10-18): six heroes make about 50% more tests than four, so raw bars favoured big parties. |
 | D7 | The **round the fight was won in** is recorded (wins only) and is readable by later parts. It does not feed the outcome. | The user wants it tracked; keeping it apart keeps the outcome about the montage. |
 | D8 | Tracks are **declared**: `Track: Rite's Progress` in each part document that uses one, or `Track: Rite's Progress (Hidden)`. **No range.** Ordinary clauses change them wherever clauses go, and `{...}` hides a change as usual. | The validator can then catch typos. The user declined a range. |
@@ -2968,7 +3119,9 @@ the app. The City (step 4) and the town (step 5) wait on step 0.
    (tier 3-4 success, tier 1 failure, each logged consequence an
    unvanquished threat; delve and passed turns have no tier), stamped into
    `data.montageTotals["b<beat>"]` by `HostTick` when a montage reaches
-   "done"; `PartTotals` sums them, plus a montage still running.
+   "done"; `PartTotals` sums them, plus a montage still running. A narrative
+   beat is stamped the same way (it plays on the montage engine), so its
+   challenge tests count (D5).
 3. **Game** (BUILT except the City calls): the live story lives in the
    SCRIPT document (`eotwscript` `data.story`, next to the beat index and
    the montage state, where effects already write), not in `eotwstate` as
@@ -5696,8 +5849,9 @@ with **Accept / Decline**. When newcomers may bring heroes:
 Decisions (2026-11-06, with the user):
 - **The host must accept** (not just a notice). No answer within 75s lapses
   the request (the city) and the newcomer gives up at 90s (the town).
-- **Public games only.** A private game's invite code does not open it
-  once it has set out.
+- **Public games only** (superseded 2026-11-06: private games take
+  requests too, so friends can ask from the social rail; the host's
+  Accept is the gate. See "The social rail").
 - **Combat round 1: rebalance to the new count.** Every group is recomputed
   for the larger party with the counts the author set for each party size;
   only the difference spawns, next to the group and in its initiative. Nothing
@@ -6311,6 +6465,13 @@ Consequence: You begin the encounter surprised
     scene and the lines below are its outcome scene. **Effects apply after
     the outcome scene has been read.**
   - Entries without a scene get an automatic intro.
+  - In a `# Narrative` (2026-11-07, playtest N12/N13) the cast carries over:
+    a character who enters stays on the right through later sections (board
+    and claimed test screens) until `exits` or the end of the beat. The host
+    keeps it in `m.gauntlet.cast`, and every section knows the whole beat's
+    characters, so a later section can make one speak or exit. The hero's
+    last alert/alarmed holds on their portrait (`m.gauntlet.heroEmote`) until
+    a test of theirs lands. An interrupted roll sets "alarmed" by itself.
 - **Delves**: an option line `Delve: <Name>` (the option has no roll) enters a
   `# Delve: <Name>` section anywhere in the document:
   - `Chest: every 1-2 obstacles`;
@@ -6373,6 +6534,7 @@ coloured.
 | `reveal <zone>s [during the next combat]` | that zone type becomes player-visible at the encounter beat |
 | `unlock <name>` | a `(Locked)` entry joins the board |
 | `edge on <option>` (`double edge`, `bane`, `double bane`) | a standing edge/bane on that `###` test for whoever takes it; stacks with riders |
+| `edge on <option>: <reason>` | the same, and the option card says "Edge: <reason>" instead of "Edge: earned at <entry>" (`testmods[key][i].reason`); the reason cannot hold `. , ; ! ?` |
 | `you fail the test`, anything unmatched | narrative only |
 
 Initiative rules: `doc.data.initiative` (last outcome wins) decides who goes
@@ -6475,6 +6637,76 @@ knack rows are the montage builder's, as `ctx.AttrEditor` and `ctx.RiderRows`.
 and knack coverage does not count negotiation arguments yet. To try the builder
 in a Director-less game, use a `--director` window on a throwaway document not
 filed under the map.
+
+## Gauntlet beats (BUILT phases 0-4 2026-11-07; NOW FOLDING INTO NARRATIVE)
+
+**Direction change (David, 2026-11-07):** the Gauntlet is not its own beat.
+Narrative absorbs every Gauntlet feature (challenge sections with claims,
+assists and Weary; Go to routes; detours; party-size tags; custom event
+points), played by one runtime (the Gauntlet's, on the montage turn
+engine); `# Gauntlet` is removed; Weary counts per narrative beat. The merge
+plan (phases N0-N5) is "Merging into Narrative" in `GAUNTLET_PLAN.md`.
+N0 (parity inventory) and N1 (parser) are DONE 2026-11-07, UNCOMMITTED:
+`# Narrative` is read by the sectioned parse (sections with challenges,
+routes, tags, event points, arrival scenes; ids `s<n>-<slug>`; the old
+narrative fields kept), and `# Gauntlet` is an unknown beat. Narratives still
+play on the montage engine (N2, DONE 2026-11-07, UNCOMMITTED; no setting, by
+David's direction): votes, individual choices, challenges, Proceed, Unlock
+callouts, with a stopgap stage until N3.
+Details: "N1 results" and "N2 results" in `GAUNTLET_PLAN.md`. The record of
+what was built for the Gauntlet follows.
+
+
+User direction 2026-11-07: a `# Gauntlet` beat as an alternative to a montage.
+The party travels a path one obstacle at a time. The whole party arrives at
+each obstacle and sees every option at once; any hero claims one (first
+claim wins, and someone must), makes its montage-format test, and one other
+hero may assist. Every roll a hero has made this Gauntlet, assists included,
+adds a bane. Tests fail forward; a No Roll option is the author's way to let
+the party walk past. Secret (`Allow`) options show to everyone only when a
+hero present qualifies, with that hero's portrait beside the option.
+`Go to` routes give branching paths, forward or sideways only (a fork section
+is a party vote; a tier can route into a detour), and `(5+ Players)` tags
+drop sections for small parties. The plan, the grammar and David's decisions
+(2026-11-07) are in `GAUNTLET_PLAN.md` at the dmhub repo root. Recommended
+build: a montage mode (`beat.kind = "montage"`, `beat.gauntlet = true`) with
+the Gauntlet rules in a new `EncounterGauntlet.lua`, so the montage turn
+engine is reused unchanged. Assists come back for Gauntlets only, one helper
+per test; montages stay assist-free. Phase 0 DONE 2026-11-07 (reading only):
+a Gauntlet parses as a montage beat with one implicit round whose entries are
+its sections, and needs 19 small hooks into the montage runtime and stage;
+the removed assist code comes back from `4162b942^`. Montage mode confirmed.
+David answered Phase 0's questions 2026-11-07: any other hero may assist
+(Skilled +2 only if trained in a listed skill); `## Custom Event` points let
+the game insert events from outside the script, Secret Twin's assassin first
+(a point with nothing ready is ignored); `PC` is not valid in an arrival
+scene. Phase 1 (parser) DONE 2026-11-07, unit-tested, NOT run in the app,
+UNCOMMITTED: `EncounterScript.lua` parses `# Gauntlet` into
+`beat.gauntlet = true` with `beat.gauntletSections` (kinds `challenge` / `choice` /
+`event`, ids `g-<slug>`), resolves every `Go to` (option field `route`, since
+`goto` is a Lua keyword; a section's own exit goes above its first option),
+and has the pure routing helpers `GauntletFirst` / `GauntletNext`; warnings
+are `author.script.gauntlet.*`. Phase 2 (runtime) DONE 2026-11-07,
+UNCOMMITTED: new `EncounterGauntlet.lua` (registered in the CodeMod after
+`EncounterMontage`; needs a restart to load) holds claims, the assist step,
+fatigue chips, votes, routing and the custom-event registry (Secret Twin's
+assassin is the first event); 12 hooks in `EncounterMontage.lua`, which
+shares private helpers through `EncounterMontage.Internal`. The host logic
+was played end to end in the app over MCP. Phase 3 (stage) DONE 2026-11-07. Phases 1-3 committed in codex 9743d95e (not pushed; this note itself is not committed):
+`CreateGauntletStage` in `EncounterMontageStage.lua` (trail, board with
+Undertake buttons and Only / Better for portraits, votes, results with
+"Next: ...", the scene panel for the turn with the assist step in its box,
+Weary lines and Assist buttons on the hero cards), built from the mockup
+David signed off (https://claude.ai/artifact/1UKnPKnt963ajknibinKPW). Route
+clauses are now hidden from players until the result names the next section.
+Played end to end on the real stage in the app with an in-memory script. Not
+yet played by two players or from a journal script in an EotW game. Phase 4
+(validator) DONE 2026-11-07, UNCOMMITTED: the Encounter Script panel shows
+Gauntlet sections, a route map for 3/4/5 heroes with test counts and Weary
+notes, and Gauntlet challenges in knack coverage; the section list was
+renamed `beat.gauntletSections` because narrative code walking
+`beat.sections` crashed on it. Next: Phase 5 (authoring). Details: "Phase 2/3/4
+results" in `GAUNTLET_PLAN.md`.
 
 ## Narrative beats
 

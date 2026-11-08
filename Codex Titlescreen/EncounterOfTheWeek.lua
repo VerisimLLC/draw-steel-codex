@@ -495,7 +495,10 @@ local CITY_LOCATIONS = {
         id = "graveyard",
         label = T("eotw.locations.graveyard.label"),
         icon = "phosphor/hands-praying-fill.png",
-        x = 0.31,
+        --the south-east corner, just north of the southern river and clear of
+        --the hero cards (moved 2026-11-06 from the Cathedral's churchyard,
+        --(0.31, 0.86), which the cards covered).
+        x = 0.89,
         y = 0.86,
         open = function(ctx) ctx.OpenGraveyard() end,
     },
@@ -3267,6 +3270,12 @@ end
 --by CreateScreen for each screen it builds.
 local Late = {}
 
+--The town screen's social rail (EotwSocialRail.lua) and the layout around
+--it, filled in by CreateScreen for each screen it builds: width is the
+--rail's current width; the town (map, plaque, hero strip, location scenes)
+--lays out in the stage, the space left of it.
+local Rail = {}
+
 --Builds the full-screen EotW panel: overview text, the games list driven by
 --the lobby's /state/games roster, and the lobby chat + presence column.
 CreateScreen = function(args)
@@ -3284,6 +3293,20 @@ CreateScreen = function(args)
         panelWidth = dialog.width / uiscale
     end
 
+    Rail.width = EotwSocialRail.WIDTH
+    Rail.chatPlaced = false
+    Rail.panel = nil
+    Rail.stage = nil
+    --the town's own width: the screen less the rail.
+    Rail.ContentWidth = function()
+        return panelWidth - Rail.width
+    end
+    --a party view's card spans the stage, as the scene's header shrinks to
+    --a line (see SceneHeader) to make room for a full party's six heroes.
+    Rail.PartyCardWidth = function()
+        return Rail.ContentWidth() - 88
+    end
+
     --The lobby connection. nil when the running engine predates the
     --lobbies bridge; the screen then shows a needs-update note instead.
     local lobbiesApi = rawget(_G, "lobbies")
@@ -3292,17 +3315,6 @@ CreateScreen = function(args)
         m_conn = lobbiesApi:Connect(LOBBY_ID, EotwRoster.CityOptions())
         EotwRoster.Attach(m_conn)
     end
-
-    local areaStyles = {
-        {
-            selectors = { "eotw-area" },
-            --opaque, matching the guild dialogs: these float over the town map.
-            bgcolor = "#14110dff",
-            borderWidth = 2,
-            borderColor = "#8c7a55",
-            cornerRadius = 10,
-        },
-    }
 
     --forward-declared refresh targets (assigned when the panels are built).
     local chatMessagesPanel = nil
@@ -3313,10 +3325,10 @@ CreateScreen = function(args)
     local chatTabRow = nil
     local chatInput = nil
 
-    --whether the chat drawer is open, and per channel the last-viewed mark
-    --taken when it opened: newer messages sit below the New divider until
-    --the drawer closes (or we post).
-    local m_chatOpen = false
+    --whether the chat is showing (the social rail is open), and per channel
+    --the last-viewed mark taken when it showed: newer messages sit below the
+    --New divider until it hides (or we post).
+    local m_chatOpen = true
     local m_chatDividers = {}
     --follow new messages to the bottom unless the player has scrolled up
     --to read history; reset on opening the drawer or changing channel.
@@ -3465,8 +3477,7 @@ CreateScreen = function(args)
     --tower, the Proving Pits' monster) stays clear, and wide in a party view,
     --where a full party's six hero cards need one row. The list panel sits in
     --the board, which sits in the card.
-    local CARD_WIDTH_LIST = { gate = 1000, danger = 900 }
-    local CARD_WIDTH_PARTY = 1240
+    local CARD_WIDTH_LIST = { gate = 900, danger = 900 }
     local SetCardWidth = function(mode, width)
         local ui = m_partyUI[mode]
         if width == ui.cardWidth or ui.list == nil or not ui.list.valid then
@@ -3477,6 +3488,10 @@ CreateScreen = function(args)
         if card ~= nil then
             ui.cardWidth = width
             card.selfStyle.width = width
+            --the scene's header shrinks to one line beside the party.
+            if card.parent ~= nil then
+                card.parent:FireEventTree("sceneCompact", width == Rail.PartyCardWidth())
+            end
         end
     end
 
@@ -4230,7 +4245,7 @@ CreateScreen = function(args)
 
     --What a newcomer may do in this party now: "join", "observe" or nil.
     Late.Of = function(record)
-        if record == nil or record.status == "open" or record.public ~= true then
+        if record == nil or record.status == "open" then
             return nil
         end
         if record.lateJoin == "join" or record.lateJoin == "observe" then
@@ -6265,6 +6280,7 @@ CreateScreen = function(args)
     end
 
     RefreshGames = function()
+        EotwSocialRail.CityChanged(Rail.panel)
         local any = false
         for _,mode in ipairs(PARTY_MODES) do
             local list = m_partyUI[mode].list
@@ -6315,7 +6331,7 @@ CreateScreen = function(args)
                 local inView = mode == viewMode
                 if inView then
                     ---@cast viewRecord -nil
-                    SetCardWidth(mode, CARD_WIDTH_PARTY)
+                    SetCardWidth(mode, Rail.PartyCardWidth())
                     ui.list.children = BuildGameView(m_viewGameid, viewRecord)
                 else
                     SetCardWidth(mode, CARD_WIDTH_LIST[mode])
@@ -6578,7 +6594,7 @@ CreateScreen = function(args)
             end
             children[#children+1] = gui.Label{
                 text = string.format("%s%s %s%s", stamp, name, body, edited),
-                fontSize = 18,
+                fontSize = 16,
                 color = Styles.textColor,
                 width = "96%",
                 height = "auto",
@@ -6604,9 +6620,13 @@ CreateScreen = function(args)
         end
         chatMessagesPanel.children = children
         if m_chatStickBottom then
-            --set again once layout has measured the new children.
+            --set again once layout has measured the new children. Laying
+            --them out reports scrolls of its own (from the top), which are
+            --not the player's: they are ignored for a moment.
+            Rail.chatSettleUntil = dmhub.Time() + 0.5
             chatMessagesPanel.vscrollPosition = 0
             chatMessagesPanel:ScheduleEvent("moveToBottom", 0.05)
+            chatMessagesPanel:ScheduleEvent("moveToBottom", 0.3)
         end
     end
 
@@ -8478,10 +8498,13 @@ CreateScreen = function(args)
     --The map covers the screen (it is wider than tall but not as wide as
     --16:9) and pans by dragging. Everything on it -- the location nodes --
     --is a child of the map panel, so it moves with it.
-    local mapW = math.max(panelWidth, panelHeight * CITY_MAP_ASPECT)
+    --The map spans the stage (the screen less the social rail) and is at
+    --least as tall as the screen: it is re-sized when the rail opens or
+    --collapses (Rail.FitMap), so it always fills the width left of the rail.
+    local mapW = math.max(Rail.ContentWidth(), panelHeight * CITY_MAP_ASPECT)
     local mapH = mapW / CITY_MAP_ASPECT
     --start with the town gate and the guild in view.
-    local m_panX = (mapW - panelWidth) / 2
+    local m_panX = (mapW - Rail.ContentWidth()) / 2
     local m_panY = 0
     local m_dragStartX = 0
     local m_dragStartY = 0
@@ -8517,17 +8540,17 @@ CreateScreen = function(args)
     local m_trainingGroundsScene = nil
     local gateScene = nil
     local dangerScene = nil
+    --- @type Panel
     local locationHost = nil
     local townViewport = nil
     local townPlaque = nil
-    local chatButton = nil
-    ---@type fun(id: string)
+    ---@type fun(id: string, silent?: boolean)
     local OpenLocation = nil
-    ---@type fun()
+    ---@type fun(silent?: boolean)
     local CloseLocation = nil
 
     local ApplyPan = function()
-        m_panX = math.max(0, math.min(mapW - panelWidth, m_panX))
+        m_panX = math.max(0, math.min(mapW - Rail.ContentWidth(), m_panX))
         m_panY = math.max(0, math.min(mapH - panelHeight, m_panY))
         for _,layer in ipairs({ mapPanel, nodeLayer }) do
             if layer ~= nil and layer.valid then
@@ -8535,6 +8558,33 @@ CreateScreen = function(args)
                 layer.selfStyle.y = -m_panY
             end
         end
+    end
+
+    --Fit the map to the stage's width (the rail opened or collapsed): the
+    --map and its node layer take the new size, the nodes move with it, and
+    --the view keeps the same part of the town in the middle.
+    Rail.FitMap = function()
+        local newW = math.max(Rail.ContentWidth(), panelHeight * CITY_MAP_ASPECT)
+        if newW == mapW then
+            return
+        end
+        local scale = newW / mapW
+        mapW = newW
+        mapH = newW / CITY_MAP_ASPECT
+        m_panX = m_panX * scale
+        m_panY = m_panY * scale
+        for _,layer in ipairs({ mapPanel, nodeLayer }) do
+            if layer ~= nil and layer.valid then
+                layer.selfStyle.width = mapW
+                layer.selfStyle.height = mapH
+            end
+        end
+        for _,node in pairs(m_nodePanels) do
+            if node.valid then
+                node:FireEvent("placeOnMap")
+            end
+        end
+        ApplyPan()
     end
 
     local townContext = {
@@ -8589,6 +8639,12 @@ CreateScreen = function(args)
             valign = "top",
             x = loc.x * mapW - NODE_WIDTH / 2,
             y = loc.y * mapH - 40,
+            --the map was re-sized (Rail.FitMap).
+            --(x and y are the panel's own offsets; selfStyle.x/y would add to them.)
+            placeOnMap = function(element)
+                element.x = loc.x * mapW - NODE_WIDTH / 2
+                element.y = loc.y * mapH - 40
+            end,
             width = NODE_WIDTH,
             height = "auto",
             flow = "vertical",
@@ -8914,7 +8970,7 @@ CreateScreen = function(args)
         --pan so the inn sits in the upper part of the screen, clear of the
         --dialog box.
         local fromX, fromY = m_panX, m_panY
-        local toX = math.max(0, math.min(mapW - panelWidth, inn.x * mapW - panelWidth / 2))
+        local toX = math.max(0, math.min(mapW - Rail.ContentWidth(), inn.x * mapW - Rail.ContentWidth() / 2))
         local toY = math.max(0, math.min(mapH - panelHeight, inn.y * mapH - panelHeight * 0.32))
 
         --"pan" -> "type" -> "drop" -> "settle" -> "wait" (for a click) -> "closing"
@@ -9618,13 +9674,12 @@ CreateScreen = function(args)
 
     ---- locations: full-screen scenes over the map ----
 
-    --The card holding a location's controls sits on the right, clear of the
-    --creator credit + chat button below it.
+    --The card holding a location's controls sits on the right of the stage
+    --(left of the social rail), clear of the creator credit below it.
     local SCENE_CARD_TOP = 76
     local SCENE_CARD_BOTTOM = 104
     local SCENE_CARD_MARGIN = 40
-    --The creator badge's inset from a scene's right edge; the chat button
-    --moves left of the badge while a scene is up (see ApplyLocationMode).
+    --The creator badge's inset from a scene's right edge.
     local SCENE_BADGE_HMARGIN = 28
 
     local sceneStyles = {
@@ -9703,7 +9758,9 @@ CreateScreen = function(args)
     end
 
     --The top-left of a scene: the way back to the map, then the place's
-    --name over a cream rule and a line about it.
+    --name over a cream rule and a line about it. In a party view (the
+    --sceneCompact event) the name moves up beside the back button and the
+    --rest folds away, so the party's card can span the scene.
     local SceneHeader = function(scene, side)
         return gui.Panel{
             floating = true,
@@ -9714,10 +9771,33 @@ CreateScreen = function(args)
             width = 620,
             height = "auto",
             flow = "vertical",
+            sceneCompact = function(element, compact)
+                element.selfStyle.vmargin = cond(compact, 18, 40)
+                element.selfStyle.width = cond(compact, 1200, 620)
+            end,
 
-            BackButton(T("eotw.scene.back_to_town"), function()
-                CloseLocation()
-            end),
+            gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+                BackButton(T("eotw.scene.back_to_town"), function()
+                    CloseLocation()
+                end),
+                gui.Label{
+                    classes = { "collapsed" },
+                    text = "<cspace=0.2em><size=60%>" .. T("eotw.scene.overline") .. "</size></cspace>   " .. scene.title,
+                    fontFace = "display",
+                    fontSize = 30,
+                    color = "#f6ead0",
+                    width = "auto",
+                    height = "auto",
+                    valign = "center",
+                    lmargin = 20,
+                    sceneCompact = function(element, compact)
+                        element:SetClass("collapsed", not compact)
+                    end,
+                },
+            },
 
             gui.Label{
                 text = "<cspace=0.3em>" .. T("eotw.scene.overline") .. "</cspace>",
@@ -9727,8 +9807,14 @@ CreateScreen = function(args)
                 width = "auto",
                 height = "auto",
                 tmargin = 34,
+                sceneCompact = function(element, compact)
+                    element:SetClass("collapsed", compact)
+                end,
             },
             gui.Label{
+                sceneCompact = function(element, compact)
+                    element:SetClass("collapsed", compact)
+                end,
                 text = scene.title,
                 fontFace = "display",
                 fontSize = 68,
@@ -9740,6 +9826,9 @@ CreateScreen = function(args)
             },
             --a cream rule, fading out to the right.
             gui.Panel{
+                sceneCompact = function(element, compact)
+                    element:SetClass("collapsed", compact)
+                end,
                 width = 340,
                 height = 2,
                 tmargin = 6,
@@ -9756,6 +9845,9 @@ CreateScreen = function(args)
                 },
             },
             gui.Label{
+                sceneCompact = function(element, compact)
+                    element:SetClass("collapsed", compact)
+                end,
                 text = scene.tagline,
                 fontSize = 20,
                 italics = true,
@@ -9784,7 +9876,8 @@ CreateScreen = function(args)
             fadeFrom, fadeTo = 1, 0
         end
         return CreatorCredit.Backdrop{
-            width = panelWidth,
+            --the stage: the screen less the social rail.
+            width = Rail.ContentWidth(),
             height = panelHeight,
             image = scene.art,
             video = scene.video,
@@ -10081,8 +10174,7 @@ CreateScreen = function(args)
     dangerScene = LocationScene(CityLocation("danger"), CARD_WIDTH_LIST.danger, PartyBoard("danger"))
     dangerScene:SetClass("collapsed", true)
 
-    --Hides the town's own furniture while a scene is up, and moves the chat
-    --button clear of the scene's creator credit.
+    --Hides the town's own furniture while a scene is up.
     local ApplyLocationMode = function()
         local inLocation = m_locationId ~= nil
         for _,p in ipairs({ townViewport, townPlaque, heroStrip }) do
@@ -10090,25 +10182,14 @@ CreateScreen = function(args)
                 p:SetClass("collapsed", inLocation)
             end
         end
-        if chatButton ~= nil and chatButton.valid then
-            --the badge's width depends on the creator: a licence watermark
-            --spans a share of the screen (Czepeku's is a quarter of it).
-            local hmargin = 20
-            if m_locationId ~= nil then
-                local info = CreatorCredit.ForArt(CityLocation(m_locationId).scene.art)
-                if info ~= nil then
-                    hmargin = SCENE_BADGE_HMARGIN + CreatorCredit.BadgeWidth(info.id, panelWidth) + 24
-                end
-            end
-            chatButton.selfStyle.hmargin = hmargin
-        end
     end
 
-    CloseLocation = function()
+    --silent: closed only to be rebuilt (the rail resized), so no analytics.
+    CloseLocation = function(silent)
         if m_locationId == nil then
             return
         end
-        if m_locationOpenedAt ~= nil then
+        if m_locationOpenedAt ~= nil and not silent then
             EotwAnalytics.Track("eotw_location_close", {
                 location = m_locationId,
                 seconds = math.floor(dmhub.Time() - m_locationOpenedAt),
@@ -10148,14 +10229,17 @@ CreateScreen = function(args)
         ApplyLocationMode()
     end
 
-    OpenLocation = function(id)
+    --silent: reopened after a rebuild (the rail resized), so no analytics.
+    OpenLocation = function(id, silent)
         if m_locationId == id or locationHost == nil or not locationHost.valid then
             return
         end
         CloseLocation()
         m_locationId = id
-        m_locationOpenedAt = dmhub.Time()
-        EotwAnalytics.Track("eotw_location_open", { location = id })
+        if not silent then
+            m_locationOpenedAt = dmhub.Time()
+            EotwAnalytics.Track("eotw_location_open", { location = id })
+        end
         if id == "gate" then
             gateScene:SetClass("collapsed", false)
             CreatorCredit.ReplayFade(gateScene)
@@ -10203,7 +10287,7 @@ CreateScreen = function(args)
             local loc = CityLocation("hall")
             if EotwRoster.HallBuilt() then
                 loc.scene = HALL_SCENE
-                m_hallScene = LocationScene(loc, 980, EotwRoster.HallPanel(resultPanel))
+                m_hallScene = LocationScene(loc, 900, EotwRoster.HallPanel(resultPanel))
             else
                 loc.scene = CONSTRUCTION_SCENE
                 m_hallScene = LocationScene(loc, 820, EotwDowntime.ConstructionPanel(resultPanel))
@@ -10215,7 +10299,7 @@ CreateScreen = function(args)
             local loc = CityLocation("townhall")
             if EotwRoster.TownHallBuilt() then
                 loc.scene = TOWN_HALL_SCENES.built
-                m_townHallScene = LocationScene(loc, 980, EotwTownHall.Panel(resultPanel))
+                m_townHallScene = LocationScene(loc, 900, EotwTownHall.Panel(resultPanel))
             else
                 loc.scene = TOWN_HALL_SCENES.site
                 m_townHallScene = LocationScene(loc, 820, EotwDowntime.TownHallConstructionPanel(resultPanel))
@@ -10239,32 +10323,34 @@ CreateScreen = function(args)
         ApplyLocationMode()
     end
 
-    --Town chat + who is in town, in a drawer over the bottom-right corner.
+    --Town chat + who is in town: the bottom section of the social rail,
+    --which sizes it (see EotwSocialRail.lua).
     chatPanel = gui.Panel{
-        classes = { "eotw-area", "collapsed" },
-        floating = true,
-        bgimage = "panels/square.png",
-        width = 520,
-        height = 560,
-        halign = "right",
-        valign = "bottom",
-        hmargin = 20,
-        bmargin = 80,
+        width = "100%",
+        height = "100%",
         flow = "vertical",
-        styles = areaStyles,
-        cornerRadius = 10,
 
-        AreaTitle(T("eotw.chat.title"), function(element)
-            chatTitleLabel = element
-        end),
+        gui.Label{
+            text = string.upper(T("eotw.chat.title")),
+            fontSize = 15,
+            bold = true,
+            color = "#d9b56a",
+            width = "94%",
+            height = 34,
+            halign = "center",
+            textAlignment = "left",
+            create = function(element)
+                chatTitleLabel = element
+            end,
+        },
 
         --in a party view the title gives way to Town Chat | Game Chat tabs.
         gui.Panel{
             classes = { "collapsed" },
             width = "94%",
-            height = 40,
+            height = 34,
             halign = "center",
-            vmargin = 16,
+            vmargin = 6,
             flow = "horizontal",
             styles = {
                 {
@@ -10313,7 +10399,7 @@ CreateScreen = function(args)
 
         gui.Panel{
             width = "94%",
-            height = "100%-214",
+            height = "100%-158",
             halign = "center",
             flow = "vertical",
             vscroll = true,
@@ -10330,6 +10416,9 @@ CreateScreen = function(args)
                 end
             end,
             scroll = function(element)
+                if dmhub.Time() < (Rail.chatSettleUntil or 0) then
+                    return
+                end
                 m_chatStickBottom = element.vscrollPosition <= 0.02
             end,
         },
@@ -10389,13 +10478,105 @@ CreateScreen = function(args)
         },
     }
 
-    --closing forgets the dividers, so the next open places them afresh.
+    --The chat shows whenever the social rail is open; hiding it (collapsing
+    --the rail) forgets the dividers, so the next look places them afresh.
     local SetChatOpen = function(open)
         m_chatOpen = open
         m_chatDividers = {}
         m_chatStickBottom = true
-        chatPanel:SetClass("collapsed", not open)
         RefreshChat()
+    end
+
+    --One party as the social rail shows it (in Public Games, or as what a
+    --friend is doing): its encounter, a line of detail, and the buttons the
+    --boards would offer us.
+    Rail.DescribeGame = function(gameid, record)
+        local member = IsMemberOf(record)
+        local isOpen = record.status == "open"
+        local filled = record.slotsFilled or 0
+        local total = math.min(record.slotsTotal or MAX_HEROES, MAX_HEROES)
+        local encounter = record.name or "?"
+        if type(record.encounter) == "string" and record.encounter ~= "" then
+            encounter = EncounterOfTheWeek.EncounterDisplayName(record.encounter)
+            if record.challenge == true then
+                encounter = T("eotw.party.challenge_suffix", { encounter = encounter })
+            end
+        end
+        local public = record.public == true
+        local slots = { host = record.hostName or "?", filled = filled, total = total }
+        local detail = cond(public, T("eotw.rail.party_detail_public", slots), T("eotw.rail.party_detail_private", slots))
+
+        local buttons = {}
+        local joinable = false
+        if member then
+            buttons[#buttons+1] = { text = T("eotw.rail.open_button"), click = function() Rail.ShowParty(gameid, record) end }
+        elseif isOpen then
+            if public and filled < total then
+                joinable = true
+                buttons[#buttons+1] = { text = T("eotw.rail.join_button"), click = function()
+                    Rail.ShowParty(gameid, record, true)
+                    JoinGame(gameid)
+                end }
+            end
+        else
+            --under way: joining opens its view to pick the heroes to bring;
+            --watching asks the host straight away. A private party's host
+            --is asked the same way.
+            local late = Late.Of(record)
+            if late ~= nil then
+                joinable = true
+                if late == "join" then
+                    buttons[#buttons+1] = { text = cond(public, T("eotw.rail.join_button"), T("eotw.rail.ask_join_button")), click = function()
+                        Rail.ShowParty(gameid, record)
+                    end }
+                end
+                buttons[#buttons+1] = { text = cond(public, T("eotw.rail.watch_button"), T("eotw.rail.ask_watch_button")), click = function()
+                    Late.Send(gameid, "observe")
+                    Rail.ShowParty(gameid, record)
+                end }
+            end
+        end
+        return { encounter = encounter, detail = detail, buttons = buttons, member = member, joinable = joinable }
+    end
+
+    --Into a party's board (the Gate's or the Proving Pits') and its view.
+    --listOnly opens the board alone (a Join opens the view once it lands).
+    Rail.ShowParty = function(gameid, record, listOnly)
+        OpenLocation(cond(PartyMode(record) == "danger", "danger", "gate"))
+        if not listOnly then
+            OpenGameView(gameid)
+        end
+    end
+
+    --The rail opened or collapsed: the stage takes the rest of the screen,
+    --and the scenes (built to the stage's width) are rebuilt.
+    Rail.Relayout = function()
+        if Rail.stage == nil or not Rail.stage.valid then
+            return
+        end
+        Rail.stage.selfStyle.width = Rail.ContentWidth()
+        Rail.FitMap()
+        ApplyPan()
+        local openId = m_locationId
+        CloseLocation(true)
+        for _,mode in ipairs(PARTY_MODES) do
+            m_partyUI[mode] = {}
+        end
+        if gateScene ~= nil and gateScene.valid then
+            gateScene:DestroySelf()
+        end
+        if dangerScene ~= nil and dangerScene.valid then
+            dangerScene:DestroySelf()
+        end
+        gateScene = LocationScene(CityLocation("gate"), CARD_WIDTH_LIST.gate, PartyBoard("gate"))
+        gateScene:SetClass("collapsed", true)
+        dangerScene = LocationScene(CityLocation("danger"), CARD_WIDTH_LIST.danger, PartyBoard("danger"))
+        dangerScene:SetClass("collapsed", true)
+        locationHost:AddChild(gateScene)
+        locationHost:AddChild(dangerScene)
+        if openId ~= nil then
+            OpenLocation(openId, true)
+        end
     end
 
     resultPanel = gui.Panel{
@@ -10431,12 +10612,8 @@ CreateScreen = function(args)
         --dialogs sit at EXIT_MODAL_DIALOG.
         escapePriority = 4,
         escape = function(element)
-            --close the topmost town panel first: the chat drawer, then
-            --an open location, and the town itself last.
-            if chatPanel ~= nil and chatPanel.valid and not chatPanel:HasClass("collapsed") then
-                SetChatOpen(false)
-                return
-            end
+            --close the topmost town panel first: an open location, then
+            --the town itself.
             if m_locationId ~= nil then
                 CloseLocation()
                 return
@@ -10544,195 +10721,231 @@ CreateScreen = function(args)
             end
         end,
 
-        --the map, pannable by dragging anywhere that is not a location.
-        gui.Panel{
-            floating = true,
-            width = "100%",
-            height = "100%",
-            halign = "center",
-            valign = "center",
-            flow = "none",
-            clip = true,
-            bgimage = "panels/square.png",
-            --must be opaque: a clip panel whose own background is fully
-            --transparent hides all of its children.
-            bgcolor = "black",
-            draggable = true,
-            dragMove = false,
-            dragThreshold = 4,
-            --Keep the normal cursor while draggable so panning doesn't show the
-            --"forbidden" drag cursor (a draggable panel with no drop target).
-            hoverCursor = "default",
-            styles = townStyles,
-            create = function(element)
-                townViewport = element
-            end,
-            events = {
-                press = function(element)
-                    m_dragStartX = m_panX
-                    m_dragStartY = m_panY
-                end,
-                dragging = function(element)
-                    local dd = element.dragDelta
-                    m_panX = m_dragStartX - dd.x
-                    m_panY = m_dragStartY - dd.y
-                    ApplyPan()
-                end,
-            },
-
-            gui.Panel{
-                floating = true,
-                halign = "left",
-                valign = "top",
-                width = mapW,
-                height = mapH,
-                flow = "none",
-                bgimage = CITY_MAP_IMAGE,
-                bgcolor = "white",
-                interactable = false,
-                create = function(element)
-                    mapPanel = element
-                    ApplyPan()
-                end,
-            },
-            --the nodes ride on their own layer over the map, moved with it
-            --(the map image panel is not interactable, so its children
-            --would not be either).
-            gui.Panel{
-                floating = true,
-                halign = "left",
-                valign = "top",
-                width = mapW,
-                height = mapH,
-                flow = "none",
-                create = function(element)
-                    nodeLayer = element
-                    ApplyPan()
-                end,
-                children = nodes,
-            },
-        },
-
-        --top-left: the way back to the titlescreen, then the town's name
-        --plaque, who is here, and the connection state. Collapsed together
-        --while a scene (with its own back button) is up.
+        --the stage: the town, left of the social rail.
         gui.Panel{
             floating = true,
             halign = "left",
             valign = "top",
-            hmargin = 20,
-            vmargin = 20,
-            width = 440,
-            height = "auto",
-            flow = "vertical",
-            create = function(element)
-                townPlaque = element
-            end,
-
-            BackButton(T("eotw.town.back_to_title"), function(element)
-                element:FireEventOnParents("closeEncounterOfTheWeek")
-            end),
-
-            gui.Panel{
-                classes = { "eotwPlaque" },
-                tmargin = 12,
-                width = 440,
-                height = "auto",
-                flow = "vertical",
-                styles = townStyles,
-                gui.Label{
-                    text = T("eotw.town.plaque_name"),
-                    fontSize = 40,
-                    bold = true,
-                    color = "#f6ead0",
-                    width = "auto",
-                    height = "auto",
-                },
-                gui.Label{
-                    text = T("eotw.town.plaque_subtitle"),
-                    fontSize = 18,
-                    italics = true,
-                    color = "#c9bfa9",
-                    width = "auto",
-                    height = "auto",
-                },
-                gui.Label{
-                    fontSize = 16,
-                    color = "#c9bfa9",
-                    width = "100%",
-                    height = "auto",
-                    tmargin = 6,
-                    text = "",
-                    data = { seen = nil },
-                    thinkTime = 1,
-                    think = function(element)
-                        if m_conn == nil then
-                            return
-                        end
-                        local presence = m_conn:GetPath("/presence")
-                        local n = 0
-                        for _,_ in pairs(presence or {}) do
-                            n = n + 1
-                        end
-                        --we are always present ourselves, so 0 means the
-                        --snapshot has not arrived yet: stay blank until it does.
-                        if n == 0 then
-                            element.text = ""
-                            return
-                        end
-                        element.text = TP("eotw.town.plaque_adventurers", n)
-                    end,
-                },
-                --connection status line (blank while healthy).
-                gui.Label{
-                    fontSize = 16,
-                    color = "#ffcc66",
-                    width = "100%",
-                    height = "auto",
-                    create = function(element)
-                        statusLabel = element
-                        RefreshStatus()
-                    end,
-                },
-            },
-        },
-
-        heroStrip,
-
-        --the open location's full-screen scene, over the town and under the
-        --chat (see OpenLocation).
-        gui.Panel{
-            floating = true,
-            width = "100%",
+            width = Rail.ContentWidth(),
             height = "100%",
             flow = "none",
             create = function(element)
-                locationHost = element
+                Rail.stage = element
             end,
-            gateScene,
-            dangerScene,
+
+            --the map, pannable by dragging anywhere that is not a location.
+            gui.Panel{
+                floating = true,
+                width = "100%",
+                height = "100%",
+                halign = "center",
+                valign = "center",
+                flow = "none",
+                clip = true,
+                bgimage = "panels/square.png",
+                --must be opaque: a clip panel whose own background is fully
+                --transparent hides all of its children.
+                bgcolor = "black",
+                draggable = true,
+                dragMove = false,
+                dragThreshold = 4,
+                --Keep the normal cursor while draggable so panning doesn't show the
+                --"forbidden" drag cursor (a draggable panel with no drop target).
+                hoverCursor = "default",
+                styles = townStyles,
+                create = function(element)
+                    townViewport = element
+                end,
+                events = {
+                    press = function(element)
+                        m_dragStartX = m_panX
+                        m_dragStartY = m_panY
+                    end,
+                    dragging = function(element)
+                        local dd = element.dragDelta
+                        m_panX = m_dragStartX - dd.x
+                        m_panY = m_dragStartY - dd.y
+                        ApplyPan()
+                    end,
+                },
+
+                gui.Panel{
+                    floating = true,
+                    halign = "left",
+                    valign = "top",
+                    width = mapW,
+                    height = mapH,
+                    flow = "none",
+                    bgimage = CITY_MAP_IMAGE,
+                    bgcolor = "white",
+                    interactable = false,
+                    create = function(element)
+                        mapPanel = element
+                        ApplyPan()
+                    end,
+                },
+                --the nodes ride on their own layer over the map, moved with it
+                --(the map image panel is not interactable, so its children
+                --would not be either).
+                gui.Panel{
+                    floating = true,
+                    halign = "left",
+                    valign = "top",
+                    width = mapW,
+                    height = mapH,
+                    flow = "none",
+                    create = function(element)
+                        nodeLayer = element
+                        ApplyPan()
+                    end,
+                    children = nodes,
+                },
+            },
+
+            --top-left: the way back to the titlescreen, then the town's name
+            --plaque, who is here, and the connection state. Collapsed together
+            --while a scene (with its own back button) is up.
+            gui.Panel{
+                floating = true,
+                halign = "left",
+                valign = "top",
+                hmargin = 20,
+                vmargin = 20,
+                width = 440,
+                height = "auto",
+                flow = "vertical",
+                create = function(element)
+                    townPlaque = element
+                end,
+
+                BackButton(T("eotw.town.back_to_title"), function(element)
+                    element:FireEventOnParents("closeEncounterOfTheWeek")
+                end),
+
+                gui.Panel{
+                    classes = { "eotwPlaque" },
+                    tmargin = 12,
+                    width = 440,
+                    height = "auto",
+                    flow = "vertical",
+                    styles = townStyles,
+                    gui.Label{
+                        text = T("eotw.town.plaque_name"),
+                        fontSize = 40,
+                        bold = true,
+                        color = "#f6ead0",
+                        width = "auto",
+                        height = "auto",
+                    },
+                    gui.Label{
+                        text = T("eotw.town.plaque_subtitle"),
+                        fontSize = 18,
+                        italics = true,
+                        color = "#c9bfa9",
+                        width = "auto",
+                        height = "auto",
+                    },
+                    gui.Label{
+                        fontSize = 16,
+                        color = "#c9bfa9",
+                        width = "100%",
+                        height = "auto",
+                        tmargin = 6,
+                        text = "",
+                        data = { seen = nil },
+                        thinkTime = 1,
+                        think = function(element)
+                            if m_conn == nil then
+                                return
+                            end
+                            local presence = m_conn:GetPath("/presence")
+                            local n = 0
+                            for _,_ in pairs(presence or {}) do
+                                n = n + 1
+                            end
+                            --we are always present ourselves, so 0 means the
+                            --snapshot has not arrived yet: stay blank until it does.
+                            if n == 0 then
+                                element.text = ""
+                                return
+                            end
+                            element.text = TP("eotw.town.plaque_adventurers", n)
+                        end,
+                    },
+                    --connection status line (blank while healthy).
+                    gui.Label{
+                        fontSize = 16,
+                        color = "#ffcc66",
+                        width = "100%",
+                        height = "auto",
+                        create = function(element)
+                            statusLabel = element
+                            RefreshStatus()
+                        end,
+                    },
+                },
+            },
+
+            heroStrip,
+
+            --the open location's full-screen scene, over the town (the social
+            --rail stays beside it; see OpenLocation).
+            gui.Panel{
+                floating = true,
+                width = "100%",
+                height = "100%",
+                flow = "none",
+                create = function(element)
+                    locationHost = element
+                end,
+                gateScene,
+                dangerScene,
+            },
         },
 
-        --chat drawer toggle, bottom-right (left of a scene's creator credit).
-        gui.Button{
-            text = T("eotw.town.chat_button"),
-            fontSize = 18,
-            floating = true,
-            halign = "right",
-            valign = "bottom",
-            hmargin = 20,
-            bmargin = 20,
-            width = 160,
-            height = 44,
-            create = function(element)
-                chatButton = element
+        --friends, public games and the chat, down the right edge.
+        EotwSocialRail.Create{
+            height = panelHeight,
+            created = function(panel)
+                Rail.panel = panel
             end,
-            click = function(element)
-                SetChatOpen(chatPanel:HasClass("collapsed"))
+            conn = function()
+                return m_conn
+            end,
+            chat = chatPanel,
+            DescribeGame = Rail.DescribeGame,
+            OnWidthChanged = function(width)
+                Rail.width = width
+                Rail.Relayout()
+            end,
+            OnChatShown = function(shown)
+                SetChatOpen(shown)
+            end,
+            --a resize keeps the newest messages in view (unless the player
+            --scrolled up to read). The first sizing always lands on them: the
+            --list laid out before it reports a scroll at the top, which reads
+            --as the player having scrolled away.
+            OnChatResized = function()
+                if not Rail.chatPlaced then
+                    Rail.chatPlaced = true
+                    m_chatStickBottom = true
+                end
+                if chatMessagesPanel ~= nil and chatMessagesPanel.valid and m_chatStickBottom then
+                    Rail.chatSettleUntil = dmhub.Time() + 0.5
+                    chatMessagesPanel.vscrollPosition = 0
+                    chatMessagesPanel:ScheduleEvent("moveToBottom", 0.05)
+                    chatMessagesPanel:ScheduleEvent("moveToBottom", 0.3)
+                end
+            end,
+            ChatUnread = function()
+                return m_conn ~= nil and ChatUnread("town", m_conn:GetPath("/chat"))
+            end,
+            CloseTown = function()
+                if resultPanel ~= nil and resultPanel.valid then
+                    resultPanel:FireEvent("closeEncounterOfTheWeek")
+                end
             end,
         },
-
-        chatPanel,
 
         --watches for the moment to play the Blue Fish Inn's reveal.
         gui.Panel{
@@ -10861,6 +11074,8 @@ CreateScreen = function(args)
             elseif string.starts_with(path, "/gamechat") then
                 RefreshChat()
             elseif string.starts_with(path, "/presence") then
+                --who is in town: the rail's friends read it.
+                EotwSocialRail.CityChanged(Rail.panel)
                 RefreshPresence()
             elseif string.starts_with(path, "/state") then
                 --roster changes can also end a game lobby view (record

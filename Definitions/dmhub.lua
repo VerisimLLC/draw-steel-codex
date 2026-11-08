@@ -242,6 +242,7 @@
 --- @field debugPropertyOutput string Engine debugging and performance information.
 --- @field discordStatus {account: 'unsupported'|'off'|'notlinked'|'linking'|'connecting'|'ready'|'error', accountError: string|nil, displayName: string|nil, deviceCode: string|nil, deviceUrl: string|nil, deviceExpiresIn: number|nil, voice: 'off'|'joining'|'connecting'|'connected'|'disconnected', voiceError: string|nil, muted: boolean, pushToTalk: boolean|nil, deafened: boolean|nil, transmitting: boolean, inputVolume: number|nil, outputVolume: number|nil, noiseSuppression: boolean|nil, krisp: boolean|nil, autoGainControl: boolean|nil, echoCancellation: boolean|nil, sensitivityAutomatic: boolean|nil, sensitivity: number|nil, participants: {id: string, userid: string|nil, name: string, speaking: boolean, isSelf: boolean, volume: number|nil, localMute: boolean|nil}[], discordId: string|nil, avatar: string|nil, socialRevision: integer|nil, messageRevision: integer|nil, unreadTotal: integer|nil, joinable: boolean|nil, joinSecret: string|nil, inviteRevision: integer|nil} (read-only, PROTOTYPE) The Discord account link and voice state. account is 'unsupported' outside the MCDM white label on Windows/macOS and 'off' when the Discord integration is off; 'ready' means signed in to Discord. While a code sign-in (DiscordLinkWithCode) waits, deviceCode is the code to show, deviceUrl the page to enter it on, and deviceExpiresIn the seconds left. voice describes this game's Discord call. muted is the user's choice; pushToTalk is true while the Push to Talk key is held (the mic is open then even when muted); transmitting is true while our own voice is going out. inputVolume is 0-100, outputVolume 0-200. sensitivityAutomatic and sensitivity (dB, -100 to 0) are the input sensitivity. krisp is true when noise suppression uses Krisp noise cancellation (its library and models shipped with this build). participants are the people in the call: id is their Discord id, userid their Codex userid (when they joined with one), volume (0-200, 100 normal) and localMute are how this user hears them. Friends and messages: discordId and avatar (a bgimage) are the linked user's; socialRevision goes up whenever a friend, request, block or a friend's presence changes, and messageRevision whenever a direct message arrives or is sent, so a panel can poll them and re-read; unreadTotal counts direct messages not yet read (see DiscordMarkRead); joinable is true while our presence can be joined, which DiscordSendInvite needs, and joinSecret is then what friends get to join us (the Steam connect string: dshub1:<gameid> for a game, dshub2:<kind>:<payload> for a party Lua advertises). inviteRevision goes up whenever a Discord invite or Ask to Join request arrives, changes or is answered (DiscordGetInvites).
 --- @field discordMicLevel number|nil (read-only, PROTOTYPE) The user's microphone level in dB, -100 (silence) to 0 (loudest), on the same scale as the input sensitivity threshold. Measured from the audio Discord captures, so it is nil when not in a call or while Discord is not capturing. Smoothed: it rises at once and falls at 60 dB a second.
+--- @field steamFriendsRevision integer (read-only) Goes up whenever the Steam friends list changes: a friend added or removed, a friend's online state, name or game, their rich presence, or an avatar finishing loading. Poll it and re-read dmhub.GetSteamFriends() only when it moves. Stays 0 without Steam.
 --- @field mergedTitleBarAvailable boolean True when this platform supports merging the native title bar into the app's own bar (Windows standalone). Gate all merged-title-bar UI on this.
 --- @field titleBarChromeMode string Which merged-title-bar implementation is active: 'nccalcsize' (keep the captioned window style, reclaim the caption's pixels via WM_NCCALCSIZE -- the default) or 'strip' (legacy WS_CAPTION removal). 'unsupported' where merging is unavailable.
 --- @field windowMaxButtonState string Interaction state of the native maximize-button zone registered via SetTitleBarHitRegions: 'none', 'hover' or 'pressed'. The engine fires the 'windowMaxButtonState' global event when this changes; read it there to drive the control's hover/press visuals, since the app's gui never receives mouse events over a native zone.
@@ -1434,6 +1435,15 @@ function dmhub.DebugGameServerDrop() end
 --- @param connect? string
 function dmhub.SimulateSteamJoin(connect) end
 
+--- The player's Steam friends (immediate friends only), read live from Steam (nothing is stored), in Steam's order. steamId is the SteamID64 as a decimal string. name is the nickname the player gave them, else their Steam name. state is their Steam status ('Looking to Trade/Play' count as 'online'). playingCodex is true while they are in the Codex, playingOther while they are in some other game. Only while playingCodex: status is their Codex presence line, connect what joining them enters (see JoinSteamFriend), groupSize how many are in their game or party. avatar is a bgimage of their Steam avatar (empty while it loads or when they have none). Empty without Steam. Re-read when dmhub.steamFriendsRevision changes.
+--- @return {steamId: string, name: string, state: 'online'|'away'|'busy'|'snooze'|'offline', playingCodex: boolean, playingOther: boolean, status: string|nil, connect: string|nil, groupSize: integer|nil, avatar: string}[]
+function dmhub.GetSteamFriends() end
+
+--- Joins a Steam friend who is in the Codex exactly as clicking 'Join Game' on them in Steam does: their connect string 'dshub1:<gameid>' enters that game, 'dshub2:<kind>:<payload>' hands the invite to the Lua feature that owns kind (dmhub.TakeSteamInvite). From inside another game it asks first. steamId is one from GetSteamFriends. Returns false when Steam is unavailable or the friend is not in the Codex or has nothing to join.
+--- @param steamId string
+--- @return boolean
+function dmhub.JoinSteamFriend(steamId) end
+
 --- True if this account has a Patreon entitlement to the given creator organization. Honors the creator's persist-on-lapse policy.
 --- @param orgid string The id of the creator organization.
 --- @return boolean
@@ -2279,20 +2289,22 @@ function dmhub.DiscordSendJoinRequest(userId, callback) end
 --- @return {id: integer, type: 'invite'|'joinrequest', senderId: string, senderName: string, avatar: string|nil, valid: boolean, age: number}[]
 function dmhub.DiscordGetInvites() end
 
---- (PROTOTYPE) Accepts a received invite or Ask to Join request (an id from DiscordGetInvites). Accepting an invite joins the sender's game or party, the same way as a Steam join (asking first when in another game); accepting a request lets the friend join us. It is removed from the list either way. callback gets nil on success or Discord's error message. Returns false when the id is unknown or no Discord account is ready.
+--- (PROTOTYPE) Accepts a received invite or Ask to Join request (an id from DiscordGetInvites). Accepting an invite joins the sender's game or party, the same way as a Steam join (asking first when in another game, unless leaveCurrentGame is true because the player already agreed to leave it); accepting a request lets the friend join us. It is removed from the list either way. callback gets nil on success or Discord's error message. Returns false when the id is unknown or no Discord account is ready.
 --- @param id integer
 --- @param callback nil|fun(error: string|nil)
+--- @param leaveCurrentGame nil|boolean
 --- @return boolean
-function dmhub.DiscordAcceptInvite(id, callback) end
+function dmhub.DiscordAcceptInvite(id, callback, leaveCurrentGame) end
 
 --- (PROTOTYPE) Drops a received invite or Ask to Join request (an id from DiscordGetInvites) without answering it. Discord tells the sender nothing.
 --- @param id integer
 function dmhub.DiscordDismissInvite(id) end
 
---- (PROTOTYPE) Accepts an invite the Codex stored for us (the discordInvitesList cloud function): enters its connect string exactly as an accepted Steam or Discord join does. 'dshub1:<gameid>' enters that game (asking first when in another one); 'dshub2:<kind>:<payload>' hands the invite to the Lua feature that owns kind (dmhub.TakeSteamInvite). Returns false for anything that is not a connect string.
+--- (PROTOTYPE) Accepts an invite the Codex stored for us (the discordInvitesList cloud function): enters its connect string exactly as an accepted Steam or Discord join does. 'dshub1:<gameid>' enters that game; 'dshub2:<kind>:<payload>' hands the invite to the Lua feature that owns kind (dmhub.TakeSteamInvite). From inside another game it asks first, unless leaveCurrentGame is true because the player already agreed to leave it. Returns false for anything that is not a connect string.
 --- @param connect string
+--- @param leaveCurrentGame nil|boolean
 --- @return boolean
-function dmhub.DiscordJoin(connect) end
+function dmhub.DiscordJoin(connect, leaveCurrentGame) end
 
 --- (PROTOTYPE) Fetches the most recent direct messages with a Discord user (up to limit, at most 200), oldest first. sent is in seconds since the epoch (for os.date). sentFromGame is false for messages written in Discord itself; disclosure marks Discord's notice that these messages are visible in Discord; hasAttachment marks content the game cannot show (images, embeds), which canOpenInDiscord messages can open in Discord (DiscordOpenMessageInDiscord). Returns false when no Discord account is ready.
 --- @param userId string

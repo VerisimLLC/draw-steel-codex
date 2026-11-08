@@ -1877,7 +1877,7 @@ local function StripSpoilers(text, ink)
 
                     local canSpeak = false
                     if bestLanguage ~= nil then
-                        result = result .. string.format("(in %s) ", bestLanguage.name)
+                        result = result .. string.format("(in %s) ", bestLanguage:DisplayName())
 
                         if not dmhub.isDM then
                             local token = dmhub.currentToken

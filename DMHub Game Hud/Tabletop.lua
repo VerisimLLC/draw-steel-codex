@@ -7162,9 +7162,10 @@ end
 --snapshot (or loading-screen art). Built non-interactive, since it rides
 --under the mouse and must not count as a panel there.
 --options (optional): name, the title when mapid is nil (a map not in the
---game yet); loading, show "Loading map..." in the body (Tabletop.ShowLoadingWindow).
+--game yet); loading, show "Loading map..." in the body (Tabletop.ShowLoadingWindow);
+--statusLabel, a line shown under it with a spinner above (an import's progress).
 --- @param mapid string|nil
---- @param options nil|{name: nil|string, loading: nil|boolean}
+--- @param options nil|{name: nil|string, loading: nil|boolean, statusLabel: nil|Panel}
 local function BuildMapDropPreview(mapid, width, height, options)
     options = options or {}
     local layer = DocumentsLayer()
@@ -7174,6 +7175,22 @@ local function BuildMapDropPreview(mapid, width, height, options)
     local image, placeholder = "panels/square.png", true
     if mapid ~= nil then
         image, placeholder = FrozenImage({mapid = mapid})
+    end
+    local loadingChildren = {}
+    if options.statusLabel ~= nil then
+        loadingChildren[#loadingChildren+1] = gui.LoadingIndicator{height = 32}
+    end
+    loadingChildren[#loadingChildren+1] = gui.Label{
+        width = "auto",
+        height = "auto",
+        halign = "center",
+        bold = true,
+        color = "#e8e0d2",
+        fontSize = 16,
+        text = "Loading map...",
+    }
+    if options.statusLabel ~= nil then
+        loadingChildren[#loadingChildren+1] = options.statusLabel
     end
     local panel = gui.Panel{
         flow = "vertical",
@@ -7211,16 +7228,14 @@ local function BuildMapDropPreview(mapid, width, height, options)
             bgimage = image,
             bgcolor = cond(placeholder, "#1b1814ff", "#8a8a8aff"),
             saturation = cond(placeholder, 1, 0.12),
-            gui.Label{
+            gui.Panel{
                 classes = {cond(options.loading, nil, "collapsed")},
                 width = "auto",
                 height = "auto",
                 halign = "center",
                 valign = "center",
-                bold = true,
-                color = "#e8e0d2",
-                fontSize = 16,
-                text = "Loading map...",
+                flow = "vertical",
+                children = loadingChildren,
             },
         },
     }
@@ -7536,8 +7551,8 @@ end
 --- added to the game (an encounter's Map Library map). Pass the handle to
 --- Tabletop.MapRowDropped as options.at to open the real window in its place,
 --- then Close it. nil when the table is not showing.
---- @param options {name: string, aspect: nil|number, atMouse: nil|boolean} atMouse: centred on the mouse (a drop); else in the middle of the table.
---- @return nil|{x: number, y: number, width: number, height: number, Close: fun()}
+--- @param options {name: string, aspect: nil|number, atMouse: nil|boolean, at: nil|{x: number, y: number}, status: nil|string} atMouse: centred on the mouse (a drop); at: centred there instead (table units), kept on the table; else in the middle of the table. status: a progress line under "Loading map...", with a spinner (change it with SetStatus).
+--- @return nil|{x: number, y: number, width: number, height: number, Close: fun(), SetStatus: fun(text: string)}
 function Tabletop.ShowLoadingWindow(options)
     if not Tabletop.IsActive() then
         return nil
@@ -7545,6 +7560,18 @@ function Tabletop.ShowLoadingWindow(options)
     local x, y, width, height
     if options.atMouse then
         x, y, width, height = MapDropRect(nil, options.aspect)
+    elseif options.at ~= nil then
+        --placed as Tabletop.AddFilesAsMap places the map's window.
+        if options.aspect ~= nil and options.aspect > 0 then
+            local bw, bh = Tabletop.ShapedBox()
+            width, height = Tabletop.ShapeWindow(bw, bh, options.aspect)
+        else
+            local _, _, w, h = DefaultPlacement()
+            width, height = w, h
+        end
+        local tw, th = LayerSize()
+        x = math.max(0, math.min(math.floor(options.at.x - width / 2), tw - width))
+        y = math.max(0, math.min(math.floor(options.at.y - height / 2), th - height))
     else
         if options.aspect ~= nil and options.aspect > 0 then
             local bw, bh = Tabletop.ShapedBox()
@@ -7557,7 +7584,19 @@ function Tabletop.ShowLoadingWindow(options)
         x = math.floor((tw - width) / 2)
         y = math.floor((th - height) / 2)
     end
-    local panel = BuildMapDropPreview(nil, width, height, {name = options.name, loading = true})
+    local statusLabel = nil
+    if options.status ~= nil then
+        statusLabel = gui.Label{
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            tmargin = 4,
+            color = "#b8ae9e",
+            fontSize = 14,
+            text = options.status,
+        }
+    end
+    local panel = BuildMapDropPreview(nil, width, height, {name = options.name, loading = true, statusLabel = statusLabel})
     if panel == nil then
         return nil
     end
@@ -7572,6 +7611,11 @@ function Tabletop.ShowLoadingWindow(options)
         Close = function()
             if panel.valid then
                 panel:DestroySelf()
+            end
+        end,
+        SetStatus = function(text)
+            if statusLabel ~= nil and statusLabel.valid then
+                statusLabel.text = text
             end
         end,
     }
@@ -12023,6 +12067,8 @@ end
 --- the one base image); name, the map's name (else the first file's);
 --- created(mapid), called once the map exists; shared, make the map
 --- viewable by every player once it exists.
+--- Universal VTT files import in the background: a loading window shaped
+--- like the map holds the spot meanwhile, and the map's window replaces it.
 --- @param paths string[]
 --- @param mx number
 --- @param my number
@@ -12031,9 +12077,58 @@ function Tabletop.AddFilesAsMap(paths, mx, my, options)
     options = options or {}
     local rec = nil
     local aspect = options.aspect
+    local name = options.name or FileDrops.BaseName(paths[1])
+
+    --a Universal VTT file's map size is at the start of the file, so the
+    --loading window can take the map's shape before the import reads it.
+    local loading = nil
+    if FileDrops.IsMapFile(paths[1]) then
+        if aspect == nil then
+            local size = FileDrops.MapFileSize(paths[1])
+            if size ~= nil then
+                aspect = size.width / size.height
+            end
+        end
+        loading = Tabletop.ShowLoadingWindow{name = name, aspect = aspect, at = {x = mx, y = my}, status = "Reading file..."}
+    end
+    local function CloseLoading()
+        if loading ~= nil then
+            loading.Close()
+            loading = nil
+        end
+    end
+
+    local progress = nil
+    local failed = nil
+    if loading ~= nil then
+        progress = function(stage, fraction)
+            if loading == nil then
+                return
+            end
+            if stage == "uploading" then
+                if fraction >= 1 then
+                    loading.SetStatus("Building the map...")
+                else
+                    loading.SetStatus(string.format("Uploading %d%%", math.floor(fraction * 100)))
+                end
+            else
+                loading.SetStatus("Reading file...")
+            end
+        end
+        failed = function(message)
+            CloseLoading()
+            gui.ModalMessage{
+                title = "Error Importing",
+                message = message,
+            }
+        end
+    end
+
     ImportMapFromFiles(paths, {
-        name = options.name or FileDrops.BaseName(paths[1]),
+        name = name,
         variations = options.variations,
+        progress = progress,
+        failed = failed,
         --no aspect given (a Universal VTT file, whose picture is inside it):
         --take the shape of the map the import read.
         imported = function(width, height)
@@ -12042,6 +12137,9 @@ function Tabletop.AddFilesAsMap(paths, mx, my, options)
             end
         end,
         created = function(mapid)
+            --the map's window opens where the loading window was (both are
+            --centred on the drop and shaped by the same aspect).
+            CloseLoading()
             if mod.unloaded or WindowForMap(mapid) ~= nil then
                 return
             end

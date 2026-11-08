@@ -919,6 +919,13 @@ check(ModOf("you gain an edge on Capture Them").name == "Capture Them", "a lead-
 check(ModOf("You gain a Rope").kind == "item", "an ordinary grant is still an item")
 check(ModOf("Edge on").kind == "narrative", "'Edge on' with no name is not a modifier")
 check(ModOf("You have the edge").kind == "narrative", "flavour about an edge is not a modifier")
+check(ModOf("The party has a bane on Investigate the Corpse: the body is charred").name == "Investigate the Corpse", "a reason after a colon is not part of the name")
+check(ModOf("The party has a bane on Investigate the Corpse: the body is charred").reason == "the body is charred", "and is kept as the reason")
+check(ModOf("The party has a bane on Investigate the Corpse: the body is charred").key == EncounterScript.MatchKey("investigate the corpse"), "and the key is the name's")
+check(ModOf("Bane on Capture Them").reason == nil, "no colon, no reason")
+check(ModOf("Bane on Capture Them:").reason == nil and ModOf("Bane on Capture Them:").name == "Capture Them", "an empty reason is none")
+check(ModOf("{The party has a bane on Investigate the Corpse: the body is charred}").hidden == true, "a braced clause with a reason is hidden")
+check(EncounterScript.ClauseText({ kind = "testmod", effect = "bane", name = "Investigate the Corpse", reason = "the body is charred" }) == "The party has a bane on Investigate the Corpse: the body is charred", "the composer writes the reason back")
 check(EncounterScript.DescribeTestMod("edge", "Capture Them") == "The party has an edge on Capture Them", "the applied line reads naturally")
 check(EncounterScript.DescribeTestMod("bane", "Capture Them") == "The party has a bane on Capture Them", "and picks the right article")
 check(EncounterScript.DescribeTestMod("doubleedge", "Capture Them") == "The party has a double edge on Capture Them", "and for a double edge")
@@ -1262,6 +1269,15 @@ check(hut.scene[5].kind == "say" and hut.scene[5].speaker == "Witch" and hut.sce
     and hut.scene[5].text == "Please, spare me!", "'Witch (scared): ...' is speech with an emote")
 check(hut.scene[6].kind == "narrate", "'The forest is alert.' names no character: narration")
 check(hut.scene[7].kind == "narrate", "an unknown emote word is narration")
+do
+    local angryParse = EncounterScript.Parse(table.concat({
+        "# Montage", "## Opportunity: Shore", "---",
+        "Revenant (Zombie) enters", "Revenant is angry", "Revenant: Rarrgh!",
+        "### Run", "|Run: Agility", "|a", "|b", "|c",
+    }, string.char(10)))
+    local shore = EncounterScript.MontageEntries(angryParse.beats[1])[1]
+    check(shore.scene[2].kind == "emote" and shore.scene[2].name == "Revenant" and shore.scene[2].emote == "angry", "'Revenant is angry' is an emote")
+end
 local emoteLines = EncounterScript.FlattenScene(hut.scene, { actors = hut.actors, test = function() return false end }, {})
 check(#emoteLines == 4, "emote directions are not lines of their own, got " .. #emoteLines)
 check(emoteLines[1].emotes ~= nil and #emoteLines[1].emotes == 2 and emoteLines[1].emotes[1].emote == "alarmed"
@@ -2647,8 +2663,9 @@ Appeals: Nothing
     check(EncounterScript.NegotiationOfferInterest("Perhaps") == nil, "an unknown offer")
 end)()
 
---Gauntlets: "# Gauntlet" sections, routes, party-size tags, custom event
---points, No Roll options and the arrival-scene PC rule (GAUNTLET_PLAN.md).
+--Narrative sections as the Gauntlet built them (it folded into Narrative):
+--challenges, routes, party-size tags, custom event points, No Roll options
+--and the arrival-scene PC rule (GAUNTLET_PLAN.md).
 ;(function()
     local function has(warnings, fragment)
         for _, w in ipairs(warnings) do
@@ -2660,7 +2677,7 @@ end)()
     end
 
     local parsed = EncounterScript.Parse([==[
-# Gauntlet: The Wyrmwood
+# Narrative
 
 The road east runs through the Wyrmwood.
 
@@ -2774,19 +2791,20 @@ end
 |They scatter
 ]==])
     local beat = parsed.beats[1]
-    check(beat.kind == "montage" and beat.gauntlet == true, "gauntlet: a montage beat in gauntlet mode")
-    check(beat.name == "The Wyrmwood", "gauntlet: the name after the colon")
+    check(beat.kind == "narrative" and beat.gauntlet == true, "gauntlet: a narrative beat, read as sections")
     check(beat.intro == "The road east runs through the Wyrmwood.", "gauntlet: intro prose")
     local sections = EncounterScript.GauntletSections(beat)
     check(#sections == 8, "gauntlet: eight sections, got " .. #sections)
-    check(#beat.rounds == 1 and EncounterScript.RoundCount(beat) == 1, "gauntlet: one implicit round")
-    check(#EncounterScript.MontageEntries(beat) == 8, "gauntlet: the montage sees the sections as entries")
+    check(EncounterScript.NarrativeSections(beat) == sections, "gauntlet: the narrative's sections are the same list")
+    check(beat.rounds == nil and #EncounterScript.MontageEntries(beat) == 0, "gauntlet: a narrative has no rounds")
 
     local river, rapids, fork, tower, hollow, event, clearing, wolves =
         sections[1], sections[2], sections[3], sections[4], sections[5], sections[6], sections[7], sections[8]
-    check(river.id == "g-the-rushing-river" and EncounterScript.FindEntry(beat, river.id) == river, "gauntlet: section ids and FindEntry")
+    check(river.id == "s1-the-rushing-river" and EncounterScript.FindEntry(beat, river.id) == river, "gauntlet: section ids and FindEntry")
+    check(rapids.id == "s2-the-rapids", "gauntlet: a tag is not part of the id, got " .. rapids.id)
     check(river.kind == "challenge" and river.exitId == fork.id, "gauntlet: a challenge with its own exit")
     check(river.description == "Snowmelt has swollen the river.", "gauntlet: the exit line is not card text")
+    check(river.text == river.description and river.mode == "together" and not river.modeExplicit, "gauntlet: the narrative's section text")
     check(#river.options == 3, "gauntlet: river has three options")
     check(EncounterScript.OptionIsSecret(river.options[2]), "gauntlet: the flying option is secret")
     check(EncounterScript.GotoTarget(river.options[3].roll.effects[1]) == rapids.id, "gauntlet: tier 1 of Swim routes to the Rapids")
@@ -2805,15 +2823,17 @@ end
 
     check(fork.kind == "choice" and fork.prompt == "The path splits around a hill.", "gauntlet: Choose together makes a vote")
     check(fork.options[1].routeId == tower.id, "gauntlet: a vote option's Go to line")
+    check(fork.mode == "together" and fork.modeExplicit == true and fork.choose == true, "gauntlet: a vote is a together section")
     local low = fork.options[2]
     check(low.free ~= nil and EncounterScript.GotoTarget(low.free.effects) == hollow.id, "gauntlet: a go to clause on a rules line")
     check(low.free.effects[1].kind == "herotoken", "gauntlet: the rest of the rules line still applies")
+    check(low.effects == low.free.effects and low.ruleLines ~= nil and #low.ruleLines == 1, "gauntlet: a narrative option's effects and rules lines")
 
     local walk = tower.options[2]
     check(walk.roll == nil and walk.free ~= nil and walk.free.text == "" and #walk.free.effects == 0, "gauntlet: an option with nothing is No Roll")
     check(EncounterScript.OptionTakeable == nil or EncounterScript.OptionTakeable(walk), "gauntlet: a No Roll option is takeable")
 
-    check(event.kind == "event" and event.label == "Campfire" and event.id == "g-event-campfire", "gauntlet: a custom event point")
+    check(event.kind == "event" and event.label == "Campfire" and event.id == "s6-custom-event-campfire", "gauntlet: a custom event point, got " .. event.id)
     check(#event.options == 0, "gauntlet: an event point has no options")
 
     check(wolves.minPlayers == 5 and wolves.maxPlayers == nil and wolves.name == "Wolves on the Ridge", "gauntlet: a party-size tag")
@@ -2828,7 +2848,8 @@ end
     check(has(parsed.warnings, "The wolf watches PC."), "gauntlet: narration naming PC in the arrival warns")
     check(has(parsed.warnings, "'if ...' uses PC"), "gauntlet: an if on PC in the arrival warns")
 
-    for _, fragment in ipairs({ "loop", "never reached", "falls through", "names no section", "has no options" }) do
+    check(hollow.kind == "challenge" and tower.kind == "challenge", "gauntlet: a section with a test and no marker is a challenge")
+    for _, fragment in ipairs({ "loop", "never reached", "falls through", "names no section", "does not say 'Choose together:'" }) do
         check(not has(parsed.warnings, fragment), "gauntlet: no '" .. fragment .. "' warning in the sample")
     end
 
@@ -2887,7 +2908,7 @@ end
     check(EncounterScript.ParseGotoLine("go to:") == "", "go to line with no name")
     check(EncounterScript.ParseGotoLine("Going to the fork") == nil, "not a go to line")
 
-    --outside a Gauntlet "go to" is prose, as it always was; a Go to line warns.
+    --outside a narrative "go to" is prose, as it always was; a Go to line warns.
     local montage = EncounterScript.Parse([==[
 # Montage
 
@@ -2904,7 +2925,7 @@ Go to: The Docks
 ]==])
     local haggle = montage.beats[1].rounds[1].entries[1].options[1]
     check(haggle.roll.effects[1][1].kind == "narrative", "montage: 'go to' stays prose")
-    check(has(montage.warnings, "'Go to: The Docks' only works in a Gauntlet"), "montage: a Go to line warns")
+    check(has(montage.warnings, "'Go to: The Docks' only works in a narrative"), "montage: a Go to line warns")
     check(haggle.routeId == nil and haggle.route == nil, "montage: no route recorded")
 
     --problems the parser reports.
@@ -2912,7 +2933,7 @@ Go to: The Docks
         return EncounterScript.Parse(text).warnings
     end
     local loop = WarningsOf([==[
-# Gauntlet
+# Narrative
 ## A
 Go to: B
 ### Go on
@@ -2923,7 +2944,7 @@ Go to: A
     check(has(loop, "makes a loop: A -> B -> A"), "warn: a loop")
 
     local unknown = WarningsOf([==[
-# Gauntlet
+# Narrative
 ## A
 ### Leap
 |Leap: Agility (Jump)
@@ -2941,7 +2962,7 @@ Go to: A
     check(unknownCount == 1, "warn: an unknown target warns once despite the automatic critical")
 
     local detour = WarningsOf([==[
-# Gauntlet
+# Narrative
 ## A
 ### Go on
 ## B (Detour)
@@ -2950,7 +2971,7 @@ Go to: A
     check(has(detour, "section 'A' falls through into the detour 'B'"), "warn: falling into a detour")
 
     local unreachable = WarningsOf([==[
-# Gauntlet
+# Narrative
 ## A
 Go to: End
 ### Go on
@@ -2960,7 +2981,7 @@ Go to: End
     check(has(unreachable, "section 'B' is never reached"), "warn: an unreachable section")
 
     local misc = WarningsOf([==[
-# Gauntlet
+# Narrative
 ## Round 1
 ## A (Required)
 ### Fly
@@ -2981,31 +3002,51 @@ Choose individually:
 Stray prose.
 ## D
 Consequence: Everyone loses 2 stamina.
+Go to: End
 ## End
 ### Go
 ## E
 ### Tomb
 Delve: The Tomb
 ]==])
-    check(has(misc, "a Gauntlet has no rounds"), "warn: a round heading")
     check(has(misc, "'(Required)' is a montage tag"), "warn: a montage tag")
     check(has(misc, "section 'A': every option is secret"), "warn: every option secret")
-    check(has(misc, "option 'Left' is in a vote"), "warn: a roll in a vote")
-    check(has(misc, "a Gauntlet has no individual choices"), "warn: an individual choice")
+    check(has(misc, "option 'Left' is in a section the party decides by choosing"), "warn: a roll in a vote")
     check(has(misc, "custom event point 'Custom Event' cannot have options"), "warn: options on an event point")
     check(has(misc, "takes only a 'Go to:' line; 'Stray prose.'"), "warn: prose on an event point")
-    check(has(misc, "a Gauntlet has no 'Consequence:'"), "warn: a consequence")
-    check(has(misc, "section 'D' has no options"), "warn: a challenge with no options")
     check(has(misc, "a section named 'End' can never be reached"), "warn: a section named End")
-    check(has(misc, "a Gauntlet cannot enter a delve"), "warn: a delve option")
+    check(has(misc, "a narrative cannot enter a delve"), "warn: a delve option")
+    --what a narrative has always allowed: a section called "Round 1", an
+    --individual choice, "Consequence:" as prose, a section with no options.
+    local miscBeat = EncounterScript.Parse([==[
+# Narrative
+## Round 1
+## C
+Choose individually:
+### Go
+|Climb: Might (Climb)
+|x
+|y
+|z
+### Stay
+## D
+Consequence: Everyone loses 2 stamina.
+]==])
+    local mb = miscBeat.beats[1]
+    check(mb.sections[1].name == "Round 1" and mb.sections[1].implicitOption == true, "narrative: 'Round 1' is a section name")
+    check(mb.sections[2].kind == "individual" and mb.sections[2].mode == "individual", "narrative: Choose individually")
+    check(mb.sections[2].options[1].roll == nil, "narrative: an individual choice has no tests")
+    check(mb.sections[3].text == "Consequence: Everyone loses 2 stamina.", "narrative: 'Consequence:' is prose")
+    check(mb.sections[3].options[1].implicit == true and mb.sections[3].kind == "choice", "narrative: a section with no options proceeds")
+    check(not has(miscBeat.warnings, "has no options"), "narrative: no warning for a section with no options")
     local badSize = WarningsOf([==[
-# Gauntlet
+# Narrative
 ## Wolves (Five Players)
 ### Run
 ]==])
     check(has(badSize, "'(Five Players)' looks like a party size"), "warn: an unreadable party-size tag")
     local scened = EncounterScript.Parse([==[
-# Gauntlet
+# Narrative
 
 [[scene]]
 
@@ -3018,7 +3059,7 @@ Delve: The Tomb
     check(scened.sceneTag == "scene" and scened.gauntletSections[1].sceneTag == "scene:river", "a section's own [[scene]]")
 
     local misc2 = EncounterScript.Parse([==[
-# Gauntlet
+# Narrative
 ## B
 Choose together: Which way?
 ### Left
@@ -3028,7 +3069,208 @@ Choose together: Which way?
 |z
 ]==]).beats[1]
     check(misc2.gauntletSections[1].options[1].roll == nil and misc2.gauntletSections[1].options[1].free ~= nil, "a vote option's roll is dropped")
-    check(EncounterScript.NarrativeSections(misc2) ~= nil and #EncounterScript.NarrativeSections(misc2) == 0, "a Gauntlet's sections are not narrative sections")
+    check(misc2.gauntletSections[1].kind == "choice", "a section with Choose together is a vote even with a test")
+    --"# Gauntlet" is gone: Narrative has every feature it had.
+    local gone = EncounterScript.Parse("# Gauntlet\n## A\n### Go\n")
+    check(gone.beats[1].kind == "unknown" and has(gone.warnings, "Gauntlet"), "'# Gauntlet' is an unknown beat")
+end)()
+
+--Interrupted rolls, (Spotlight) sections and "Everyone rolls:" tests
+--(the Horizon's Grave narrative, 2026-11-07).
+;(function()
+    local function has(list, needle)
+        for _, w in ipairs(list) do
+            if string.find(w, needle, 1, true) then
+                return true
+            end
+        end
+        return false
+    end
+
+    local parse = EncounterScript.Parse([==[
+# Narrative
+
+## The Body
+
+### Investigate the Body
+
+|Investigate the Body: Intuition (Alertness, Search) -> Interrupted
+|You find nothing
+|Something of interest...
+|Something of interest and more!
+
+Sailor Revenant (Zombie Lumberer) enters
+Sailor Revenant: Rarrrrgh!
+
+## The Lunge (Spotlight)
+
+### Avoid the Lunge
+
+|Avoid the Lunge: Agility (Alertness)
+|You lose 8 stamina
+|You lose 4 stamina
+|You avoid it
+
+## Swim
+
+All party members make this roll:
+
+### Swim Across
+
+|Swim Across: Might (Endurance, Swim)
+|You lose 2 recoveries
+|You lose a recovery
+|You swim across without trouble
+|Edge: you can fly or teleport
+
+## The Cave
+
+Draw steel.
+]==])
+    local real = {}
+    for _, w in ipairs(parse.warnings) do
+        if not string.find(w, "unrecognized effect", 1, true) then
+            real[#real + 1] = w
+        end
+    end
+    check(#real == 0, "interrupted/spotlight/everyone parse clean: " .. table.concat(real, " | "))
+    local sections = parse.beats[1].gauntletSections
+    local investigate = sections[1].options[1]
+    check(investigate.roll ~= nil and investigate.roll.interrupted == true, "'-> Interrupted' marks the roll")
+    check(investigate.roll.attr == "Intuition (Alertness, Search)", "the marker is stripped from the characteristic")
+    check(investigate.roll.tiers[4] == nil and not investigate.roll.critAuto, "an interrupted roll has no critical")
+    check(#investigate.roll.effects[1] == 0 and #investigate.roll.effects[3] == 0, "an interrupted roll's tiers apply nothing")
+    check(investigate.roll.teasers[1] == "You find nothing" or investigate.roll.tiers[1] == "You find nothing", "its tiers are still shown")
+    check(sections[1].kind == "challenge", "an interrupted test is a challenge")
+    check(sections[2].spotlight == true and sections[2].name == "The Lunge", "(Spotlight) is a tag, stripped from the name")
+    check(sections[3].kind == "group" and sections[3].options[1].roll ~= nil, "'All party members make this roll:' is a group test")
+    check(#sections[3].options[1].roll.riders == 1, "a group test keeps its riders")
+    local routes = EncounterScript.GauntletRoutes(parse.beats[1], 4)
+    check(#routes == 1, "a straight narrative has one route")
+
+    --"|Interrupted" as a line, and with no tiers at all.
+    local line = EncounterScript.Parse("# Narrative\n## A\n### Look\n|Look: Reason (Search)\n|Interrupted\n")
+    check(#line.warnings == 0, "a bare interrupted roll needs no tiers: " .. table.concat(line.warnings, " | "))
+    check(line.beats[1].gauntletSections[1].options[1].roll.interrupted == true, "'|Interrupted' marks the roll")
+
+    --what does not fit warns.
+    local bad = EncounterScript.Parse([==[
+# Narrative
+## A (Spotlight)
+Choose together: Which?
+### Left
+### Right
+## B
+Everyone rolls:
+### Climb
+|Climb: Might (Climb)
+|You lose a recovery. Go to D
+|x
+|y
+### Rest
+## C
+### Peek
+|Peek: Reason (Search) -> Interrupted
+|+1 hero token
+|x
+|y
+## D
+]==])
+    check(has(bad.warnings, "(Spotlight)"), "spotlight on a vote warns")
+    check(bad.beats[1].gauntletSections[1].spotlight == nil, "and the tag is dropped")
+    check(has(bad.warnings, "option 'Rest' is ignored"), "a group test's extra options warn")
+    check(has(bad.warnings, "leaves by the section's own exit"), "a group test's route warns")
+    check(has(bad.warnings, "never lands"), "a reward on an interrupted roll warns")
+    local montage = EncounterScript.Parse("# Montage\n## Opportunity: X\n### Look\n|Look: Reason (Search) -> Interrupted\n|a\n|b\n|c\n")
+    check(has(montage.warnings, "only works in a narrative"), "an interrupted roll outside a narrative warns")
+end)()
+
+--A narrative's cast stays on stage from section to section (playtest
+--N12/N13, 2026-11-07): every section knows the characters the whole beat
+--brings on, so a later section can make one exit or speak.
+;(function()
+    local parse = EncounterScript.Parse([==[
+# Narrative
+
+## The Body
+
+---
+
+### Investigate the Body
+
+|Investigate the Body: Intuition (Search) -> Interrupted
+
+Sailor Revenant (Zombie Lumberer) enters
+Sailor Revenant: Rarrrrgh!
+
+## A Dark Foe
+
+A dark foe to fight.
+
+---
+
+Sailor Revenant: Dieeee!
+
+### Destroy the Revenant
+
+|Destroy the Revenant: Might
+|You lose 6 stamina
+|You lose 3 stamina
+|Destroyed
+
+## From Whence It Came
+
+A foul thing.
+
+---
+
+Sailor Revenant exits
+
+### Look Around
+
+|Look Around: Reason (Search)
+|a
+|b
+|c
+]==])
+    local sections = parse.beats[1].gauntletSections
+    local foe, whence = sections[2], sections[3]
+    check(foe.actors["sailor revenant"] ~= nil and foe.actors["sailor revenant"].monster == "Zombie Lumberer",
+        "a later section knows a character the beat brought on earlier")
+    check(whence.scene[1] ~= nil and whence.scene[1].kind == "exit", "'X exits' in a later section is an exit, not narration")
+    local env = { actors = whence.actors, test = function() return false end }
+    local cast = { { name = "Sailor Revenant", monster = "Zombie Lumberer" } }
+    local steps = EncounterScript.FlattenScene(whence.scene, env, cast)
+    check(#steps == 0 and #cast == 0, "an arrival of only an exit plays no line but empties the cast")
+    local foeSteps = EncounterScript.FlattenScene(foe.scene, { actors = foe.actors, test = function() return false end },
+        { { name = "Sailor Revenant", monster = "Zombie Lumberer" } })
+    check(#foeSteps == 1 and foeSteps[1].kind == "say" and #foeSteps[1].cast == 1, "a carried character speaks without entering again")
+    --a montage keeps each entry's characters to itself.
+    local montage = EncounterScript.Parse([==[
+# Montage
+## Round 1
+## Opportunity: A
+---
+Witch (Hag) enters
+Witch: Hello.
+### Talk
+|Talk: Presence
+|a
+|b
+|c
+## Opportunity: B
+---
+Witch exits
+### Look
+|Look: Reason
+|a
+|b
+|c
+]==])
+    local entries = EncounterScript.MontageEntries(montage.beats[1])
+    local b = entries[2]
+    check(b ~= nil and b.actors["witch"] == nil and b.scene[1] ~= nil and b.scene[1].kind ~= "exit",
+        "a montage entry does not know another entry's characters")
 end)()
 
 print(string.format("encounter_script_test: %d checks passed", passed))

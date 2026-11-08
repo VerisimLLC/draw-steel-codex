@@ -1151,19 +1151,46 @@ RegisterMastSpin("Spin The Mast (Back Mast)")
 
 local flingObjects = 3
 
+--Returns the objects to fling, plus counts of the objects passed over and why
+--(for the decision log: which objects the AI thinks are loose, N5 playtest).
 local function FlingObjects(token, ability)
     local enemies = HostileCreatures(token)
     local result = {}
+    local skipped = {filter = 0, noEnemyNear = 0, notChecked = 0}
     for _,object in ipairs(dmhub.allObjectTokens) do
-        if object.valid and ability:TargetPassesFilter(token, object, {})
-            and NearestEnemyWithin(object.loc, enemies, 3) ~= nil then
-            result[#result+1] = object
-            if #result >= flingObjects then
-                break
+        if #result >= flingObjects then
+            skipped.notChecked = skipped.notChecked + 1
+        elseif object.valid then
+            if not ability:TargetPassesFilter(token, object, {}) then
+                skipped.filter = skipped.filter + 1
+            elseif NearestEnemyWithin(object.loc, enemies, 3) == nil then
+                skipped.noEnemyNear = skipped.noEnemyNear + 1
+            else
+                result[#result+1] = object
             end
         end
     end
-    return result
+    return result, skipped, enemies
+end
+
+--One log line per object: what it is, where it is, and the enemy it would fly at.
+local function LogFlingObjects(ai, event, objects, enemies, extra)
+    for i,object in ipairs(objects) do
+        local enemy = NearestEnemyWithin(object.loc, enemies, 3)
+        local fields = {
+            object = string.format("%d/%d %s", i, #objects, MonsterAI.TokenLogName(object)),
+            objectid = object.charid,
+            loc = MonsterAI.LocLogName(object.loc),
+            corpse = object.isCorpse,
+            attackable = object.isAttackableObject,
+            nearestEnemy = MonsterAI.TokenLogName(enemy),
+            enemyDistance = enemy ~= nil and enemy:Distance(object.loc) or nil,
+        }
+        for key,value in pairs(extra or {}) do
+            fields[key] = value
+        end
+        ai:LogDecision(event, fields)
+    end
 end
 
 MonsterAI:RegisterMaliceAbility{
@@ -1172,7 +1199,15 @@ MonsterAI:RegisterMaliceAbility{
     abilities = {"Paranormal Fling"},
     description = "Spend 3 Malice to fling up to three loose objects at nearby enemies, when at least two objects have a target. A full three-object fling goes ahead even while saving for Dread March.",
     score = function(self, ai, token, ability, context)
-        local objects = FlingObjects(token, ability)
+        local objects, skipped, enemies = FlingObjects(token, ability)
+        ai:LogDecision("FLING CANDIDATES", {
+            found = #objects,
+            skippedByFilter = skipped.filter,
+            skippedNoEnemyWithin3 = skipped.noEnemyNear,
+            notChecked = skipped.notChecked,
+            objectTokens = #dmhub.allObjectTokens,
+        })
+        LogFlingObjects(ai, "FLING CANDIDATE", objects, enemies)
         if #objects < 2 then
             return nil, "fewer than two loose objects near an enemy"
         end
@@ -1187,13 +1222,31 @@ MonsterAI:RegisterMaliceAbility{
         return {score = cond(strong, 0.9, 0.75), objects = #objects}
     end,
     execute = function(self, ai, token, scoringInfo, ability, context)
+        local objects, _, enemies = FlingObjects(token, ability)
         local targets = {}
-        for _,object in ipairs(FlingObjects(token, ability)) do
+        local startLocs = {}
+        for _,object in ipairs(objects) do
             targets[#targets+1] = {token = object}
+            startLocs[object.charid] = MonsterAI.LocLogName(object.loc)
         end
+        LogFlingObjects(ai, "FLING TARGET", objects, enemies)
         if #targets == 0 then
             return
         end
+        local maliceBefore = CharacterResource.GetMalice()
         ai:ExecuteAbility(token, ability, targets, {sleep = abilityPause})
+
+        --Where each object ended up: "moved=false" is a fling that did nothing.
+        for i,object in ipairs(objects) do
+            local endLoc = object.valid and MonsterAI.LocLogName(object.loc) or "gone"
+            ai:LogDecision("FLING RESULT", {
+                object = string.format("%d/%d %s", i, #objects, MonsterAI.TokenLogName(object)),
+                objectid = object.charid,
+                from = startLocs[object.charid],
+                to = endLoc,
+                moved = endLoc ~= startLocs[object.charid],
+                maliceSpent = maliceBefore - CharacterResource.GetMalice(),
+            })
+        end
     end,
 }

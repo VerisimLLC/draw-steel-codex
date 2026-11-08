@@ -223,6 +223,8 @@ text("stage.round.summary_delve", [[{hero} delved into {entry}: {obstacles} met,
 text("stage.round.summary_passed", [[{hero} approached {entry} and did nothing.]])
 text("stage.round.summary_no_roll", [[{hero}: {entry} ({option}, no roll)]])
 text("stage.round.summary_tier", [[{hero}: {entry} ({option}, {tier})]])
+--Under the summary when the result granted nothing (only words).
+text("stage.round.summary_no_reward", [[No reward from this result.]])
 --A small line under the summary: the hero used a knack. {knack} says which.
 text("stage.round.summary_knack", [[Knack: {knack}]])
 --A temporary Threat that ran out at the end of the round. {threat} is its
@@ -314,6 +316,8 @@ text("stage.scene.option_ping_tooltip", [[Ping this option for everyone: suggest
 --The last option: do nothing. Short: a button.
 text("stage.scene.leave_button", [[Leave]])
 text("stage.scene.leave_tooltip", [[Leave without doing anything. This passes your turn -- not very heroic.]])
+--Turns the page to the next line of the scene. Short: a button.
+text("stage.scene.continue_button", [[Continue]])
 --The option to step back out of a wrong choice. Short: a button.
 text("stage.scene.back_out_button", [[Oops, back out]])
 text("stage.scene.back_out_tooltip", [[Wrong place? Step back and choose again. This does not use your turn.]])
@@ -330,6 +334,9 @@ text("stage.option.rider_locked", [[You are missing a requirement for this optio
 --An edge or bane an earlier outcome gave this test. {label} is like "Edge",
 --{entry} where it was earned.
 text("stage.option.granted_at", [[{label}: earned at {entry}]])
+--The same when the script gave a reason ("Bane on X: the body is charred").
+--{reason} is the author's words, shown instead of where it was earned.
+text("stage.option.granted_reason", [[{label}: {reason}]])
 --The hero has a knack that changes this option. {knack} says which.
 text("stage.option.knack", [[Knack: {knack}]])
 --A Ritualist blessed this test. {hero} is the Ritualist; the second entry
@@ -556,6 +563,8 @@ text("montage.script.implicit_encounter_title", [[Encounter]])
 --threat that has no scene of its own. {hero} is the hero's name, {entry}
 --the opportunity or threat.
 text("montage.scene.approaches", [[{hero} approaches {entry}...]])
+--The result of an interrupted ("fake") test: the roll never landed.
+text("montage.interrupted.result", [[Interrupted!]])
 --Stands in for the hero's name in scene lines when it is missing.
 text("montage.scene.hero_fallback", [[The hero]])
 
@@ -860,7 +869,7 @@ text("montage.assassin.dice_label", [[Assassin's blade]])
 --adds a bane. {count} is how many rolls they have made so far.
 text("gauntlet.chip.weary_one", [[Weary (1 roll so far)]])
 text("gauntlet.chip.weary_many", [[Weary ({count} rolls so far)]])
-text("gauntlet.chip.weary_description", [[Every roll you have already made in this Gauntlet puts a bane on this one (at most a double bane).]])
+text("gauntlet.chip.weary_description", [[Every roll you have already made in this part of the story puts a bane on this one (at most a double bane).]])
 --The assist chip on the main roll. {hero} assisted; {tier} is the tier
 --their assist roll landed on.
 text("gauntlet.chip.assist_bane", [[Bane: {hero} assisted]])
@@ -879,31 +888,31 @@ text("gauntlet.assassin.driven_off", [[The assassin is driven off.]])
 ----------------------------------------------------------------------------
 -- GAUNTLET: the stage (EncounterMontageStage.lua, "the Gauntlet stage")
 ----------------------------------------------------------------------------
---The title. {name} is the Gauntlet's name ("# Gauntlet: The Wyrmwood").
-text("stage.gauntlet.title", [[Gauntlet]])
-text("stage.gauntlet.title_named", [[Gauntlet: {name}]])
 --Over the scene while a hero takes an option. {hero}, {option}.
 text("stage.gauntlet.title_claim", [[{hero} takes on {option}]])
 text("stage.gauntlet.arriving_title", [[The party is on its way]])
-text("stage.gauntlet.arriving_hint", [[The Gauntlet starts once everyone has arrived.]])
-text("stage.gauntlet.done_title", [[The Gauntlet is behind you]])
+text("stage.gauntlet.arriving_hint", [[The story starts once everyone has arrived.]])
+--The end of a narrative that does not lead straight into a fight.
+text("stage.gauntlet.done_title", [[The way ahead is clear]])
 text("stage.gauntlet.done_hint", [[The story carries on in a moment.]])
+--The end of a narrative that leads straight into a fight: one button (any
+--player's click starts the fight), then the same words as a title. Also the
+--Proceed of a last section with no options before a fight.
+text("stage.gauntlet.draw_steel_button", [[Draw Steel!]])
+--A section with no options: the one button under its text. Anyone's click
+--moves the whole party on.
+text("stage.gauntlet.proceed_button", [[Proceed]])
 --Under a challenge, above its options.
-text("stage.gauntlet.board_hint", [[Any hero may take on one way through. The first to claim it goes.]])
+text("stage.gauntlet.board_hint", [[Drag a hero onto a test]])
 --Beside a secret option: the heroes who may take it. Beside a knack: the
 --heroes who would take a better version.
 text("stage.gauntlet.only", [[Only]])
 text("stage.gauntlet.better_for", [[Better for]])
-text("stage.gauntlet.undertake_button", [[Undertake]])
-text("stage.gauntlet.undertake_as_button", [[Undertake as {hero}]])
---For a player with several heroes who could take it: opens a list of them.
-text("stage.gauntlet.undertake_choose_button", [[Undertake...]])
-text("stage.gauntlet.undertake_tooltip", [[Take this on. The first hero to claim an option goes. Every roll a hero makes in a Gauntlet puts a bane on their later rolls.]])
 --A vote. {players} lists the players still to vote.
 text("stage.gauntlet.vote_how", [[Choose together: one vote per player.]])
+text("stage.gauntlet.individual_how", [[Choose individually: one choice per hero.]])
 text("stage.gauntlet.vote_button", [[Vote for this]])
 text("stage.gauntlet.your_vote_button", [[Your vote]])
-text("stage.gauntlet.your_vote_tooltip", [[Click to take your vote back.]])
 text("stage.gauntlet.waiting_on", [[Waiting on: {players}]])
 --The result. {hero}, {option}, {tier} ("tier 2", "critical"), {player}.
 text("stage.gauntlet.result_test", [[{hero} took on {option}: {tier}]])
@@ -911,10 +920,13 @@ text("stage.gauntlet.result_free", [[{hero} chose {option}]])
 text("stage.gauntlet.result_nothing", [[Nothing else comes of it.]])
 text("stage.gauntlet.result_vote", [[The party chose: {option}]])
 text("stage.gauntlet.result_decided", [[{player} decided]])
+--An individual section's result, one line per option taken: {option} its
+--name, {heroes} the heroes who took it.
+text("stage.gauntlet.result_group", [[{option}: {heroes}]])
 --Where the party goes next. {section} is the next section's name.
 text("stage.gauntlet.next", [[Next: {section}]])
 text("stage.gauntlet.next_unknown", [[The party moves on.]])
-text("stage.gauntlet.next_end", [[That was the last of the Gauntlet.]])
+text("stage.gauntlet.next_end", [[That is the end of this part of the story.]])
 --The assist step, in the scene's dialog box. {hero} takes the test,
 --{helper} assists, {tier} is the assist roll's tier, {list} what is on the roll.
 text("stage.gauntlet.assist_open", [[Another hero may assist {hero} before the roll.]])
@@ -927,15 +939,22 @@ text("stage.gauntlet.on_roll_assist_bane", [[a bane from {helper}'s assist]])
 text("stage.gauntlet.on_roll_weary_one", [[a bane for being Weary]])
 text("stage.gauntlet.on_roll_weary_many", [[a double bane for being Weary]])
 text("stage.gauntlet.make_test_button", [[Make the test]])
-text("stage.gauntlet.make_test_tooltip", [[Roll now. Nobody can assist once the dice are out.]])
 text("stage.gauntlet.step_back_button", [[Step back]])
-text("stage.gauntlet.step_back_tooltip", [[Let someone else take this on.]])
 --On the other heroes' cards while a test is open to an assist.
 text("stage.gauntlet.assist_button", [[Assist]])
 text("stage.gauntlet.assist_tooltip", [[Roll to help: 11 or less gives the test a bane, 12-16 an edge, 17+ a double edge. An assist is a roll, so it adds to your Weary.]])
---Above a hero's card: their fatigue.
+--The Weary chip on a hero's card: its tooltip's first line.
 text("stage.gauntlet.weary_one", [[Weary: a bane]])
 text("stage.gauntlet.weary_double", [[Weary: double bane]])
+--A "(Spotlight)" section: one hero must take it.
+text("stage.gauntlet.spotlight_hint", [[{hero} is in the spotlight: only they can take this on.]])
+--An "Everyone rolls:" section: every hero makes the test at once.
+text("stage.gauntlet.group_hint", [[Everyone makes this test.]])
+text("stage.gauntlet.group_waiting", [[Waiting on: {heroes}]])
+text("stage.gauntlet.group_landed", [[{hero}: {tier}]])
+text("stage.gauntlet.group_auto", [[(rolled for them)]])
+--The big word across the stage when an interrupted roll fades mid-throw.
+text("stage.gauntlet.interrupted_banner", [[Interrupted!]])
 
 ----------------------------------------------------------------------------
 -- MONTAGE: boons and curses on the character sheet (the ongoing effects an

@@ -1504,7 +1504,7 @@ function HeroSheetDowntimeWindows.NewProject(token, opts)
         local langIds = LangIds(source)
         for _, id in ipairs(langIds) do
             if langTable[id] ~= nil then
-                langNames[#langNames+1] = langTable[id].name
+                langNames[#langNames+1] = langTable[id]:DisplayName()
             end
         end
         langsDetail.value.text = cond(#langNames == 0, "None", table.concat(langNames, ", "))

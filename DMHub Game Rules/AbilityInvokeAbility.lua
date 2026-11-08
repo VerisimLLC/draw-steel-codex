@@ -2831,10 +2831,15 @@ function AbilityInvocation:Invoke()
 	local options = {
         targetingFormula = self.targetingFormula,
     }
-	ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abilityClone, casterToken, self.targeting, self.symbols, options)
 	--ExecuteInvoke returns once the cast finishes or the player cancels it; a
-	--cancel never reaches the OnFinishCast above.
+	--cancel never reaches the OnFinishCast above. An error must release the AI
+	--too: it waits on an end-turn save with no timer (EMHPEMCY). pcall yields.
+	local ok, err = pcall(ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke,
+		invokerToken, abilityClone, casterToken, self.targeting, self.symbols, options)
 	CompleteAIReaction()
+	if not ok then
+		error(err, 0)
+	end
 	return true
 end
 

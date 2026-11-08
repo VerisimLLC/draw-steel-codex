@@ -38,6 +38,7 @@ local DEFAULT_CODE = {
     "Codex Titlescreen/EotwMarket.lua",
     "Codex Titlescreen/EotwModeration.lua",
     "Codex Titlescreen/EotwRoster.lua",
+    "Codex Titlescreen/EotwSocialRail.lua",
     "Codex Titlescreen/EotwTownHall.lua",
     "Codex Titlescreen/EotwTrainingGrounds.lua",
     --EotW's build engine, shared with the main game's Builder.

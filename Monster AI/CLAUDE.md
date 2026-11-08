@@ -112,8 +112,16 @@ Before selecting or playing a turn, the background process also waits for
 player combatants' end-of-turn saving throws. Save prompts carry the shared
 `end-turn-save` activity ID: the card blocks while unanswered, and its reaction
 marker blocks after acceptance until the invocation's cast finishes on the
-accepting client. Dismissal completes the marker. This wait has no timer and
-does not stop monster trigger polling or cooperative AI shutdown. Run
+accepting client (however `AbilityInvocation:Invoke` ends, an error included).
+Dismissal completes the marker. This wait has no timer and does not stop
+monster trigger polling or cooperative AI shutdown. A cast that never reports
+back (its client crashed or disconnected mid-roll, EMHPEMCY) would hold the
+table for good, so accepting stamps the marker with `resolvingSince`,
+`resolvingBy` and `resolvingLaunch` (`g_appLaunchId`, new each app launch):
+after 30s with no card the banner offers the host and the hero's controller
+"Skip save" (`StuckSaveSkip` in `MonsterAI.lua`), and the accepter's client
+completes a marker its previous launch left (`CompleteReactionsOrphanedByRestart`).
+Skipping only releases the AI; the effect stays for the next save. Run
 `../dependencies/lua/bin/lua.exe tests/ai_end_turn_save_test.lua` from the codex
 root for prompt lifecycle and process wait/resume/stop coverage.
 

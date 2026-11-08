@@ -245,6 +245,7 @@ text("herobuilder.detail.skill", [[Skill]])
 --The small capitals over a language, and the label of its speakers.
 text("herobuilder.detail.language", [[Language]])
 text("herobuilder.detail.spoken_by", [[Spoken by]])
+text("herobuilder.detail.in_world_name", [[In-world name]])
 --Under a hover card too long to show whole.
 text("herobuilder.detail.pin_hint", [[Click the (i) to pin this and scroll.]])
 --A kit's card: the small capitals over its parts, then one line per bonus.

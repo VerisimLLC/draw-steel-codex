@@ -2115,6 +2115,8 @@ end
 local STORE_POLL_SECONDS = 10 * 60
 --after a live invite, wait this long so the sender's stored copy is there.
 local STORE_AFTER_LIVE_SECONDS = 3
+--the longest a new Discord invite waits for its stored copy (see TooEarlyToShow).
+local LIVE_HOLD_SECONDS = 10
 
 --- What we would invite a friend into right now, for the stored invite and
 --- the receiver's dialog: the campaign's name, or a description of the party.
@@ -2236,13 +2238,31 @@ end
 --live = a DiscordGetInvites entry or nil, stored = a stored invite or nil}.
 --Join requests are kept apart, under "req:" .. senderId.
 local g_inbox = {}
---stored invite ids hidden with "Not now" (until the Codex next starts).
-local g_snoozed = {}
+--stored invite ids hidden with "Not now", space-separated, until the Codex
+--next starts. Transient (engine memory), so it outlives the Lua reload that
+--entering or leaving a game does; a local table was forgotten there.
+local g_snoozedSetting = setting{
+    id = "discordinvitessnoozed",
+    storage = "transient",
+    default = "",
+}
+
+local function IsSnoozed(inviteid)
+    return string.find(" " .. tostring(g_snoozedSetting:Get()) .. " ", " " .. inviteid .. " ", 1, true) ~= nil
+end
+
+local function Snooze(inviteid)
+    if not IsSnoozed(inviteid) then
+        g_snoozedSetting:Set(tostring(g_snoozedSetting:Get()) .. " " .. inviteid)
+    end
+end
 --the invite dialog on screen, and the inbox key it shows.
 local g_dialog = nil
 local g_dialogKey = nil
 local g_dialogLayer = nil
 local g_dialogHost = nil
+--DialogText of the item when its dialog was built, to spot when it changes.
+local g_dialogText = nil
 
 local g_lastInviteRev = nil
 local g_lastAccount = nil
@@ -2282,11 +2302,39 @@ local function MergeLive()
     end
 end
 
+--Tells the store a stored invite is answered (accepted or declined).
+local function AnswerStored(invite)
+    net.Post{
+        url = dmhub.cloudFunctionsBaseUrl .. "/discordInviteAnswer",
+        data = {id = invite.id},
+    }
+end
+
+--Whether a stored invite's connect string points at the game or party we are
+--already in: we got there another way (e.g. the Encounter of the Week town
+--took the same invite from Steam or Discord), so it is answered, not shown.
+local function AlreadyThere(connect)
+    if type(connect) ~= "string" then
+        return false
+    end
+    --our presence advertises exactly this (we are in that party).
+    if connect == Status().joinSecret then
+        return true
+    end
+    if dmhub.isLobbyGame or dmhub.gameid == nil then
+        return false
+    end
+    --a game ("dshub1:<gameid>"), or the game an EotW party plays in.
+    local gameid = string.match(connect, "^dshub1:(.+)$") or string.match(connect, "^dshub2:eotw:([^:]+):")
+    return gameid == dmhub.gameid
+end
+
 local function FetchStored()
     if g_fetching then
         return
     end
     g_fetching = true
+    local startedAt = dmhub.Time()
     net.Post{
         url = dmhub.cloudFunctionsBaseUrl .. "/discordInvitesList",
         data = {},
@@ -2302,6 +2350,13 @@ local function FetchStored()
                 g_nextStoreFetch = dmhub.Time() + 5
                 return
             end
+            --live invites that were already here when we asked: had a stored
+            --copy existed, this answer would have it.
+            for _, item in pairs(g_inbox) do
+                if item.arrived <= startedAt then
+                    item.storeChecked = true
+                end
+            end
             for key, item in pairs(g_inbox) do
                 item.stored = nil
                 if item.live == nil then
@@ -2311,8 +2366,16 @@ local function FetchStored()
             for _, invite in ipairs(response.invites or {}) do
                 local friend = friends[invite.fromDiscordId]
                 local key = invite.fromDiscordId
+                if AlreadyThere(invite.connect) then
+                    AnswerStored(invite)
+                    --Discord's own copy of it says nothing new either.
+                    local item = g_inbox[key]
+                    if item ~= nil and item.stored == nil and item.live ~= nil and item.live.type ~= "joinrequest" then
+                        dmhub.DiscordDismissInvite(item.live.id)
+                        g_inbox[key] = nil
+                    end
                 --one invite per sender: the newest (the list is newest first).
-                if friend ~= nil and not g_snoozed[invite.id] and (g_inbox[key] == nil or g_inbox[key].stored == nil) then
+                elseif friend ~= nil and not IsSnoozed(invite.id) and (g_inbox[key] == nil or g_inbox[key].stored == nil) then
                     local item = g_inbox[key] or {senderId = key, arrived = dmhub.Time()}
                     item.stored = invite
                     item.name = friend.displayName or invite.fromName
@@ -2324,14 +2387,6 @@ local function FetchStored()
         error = function(message)
             g_fetching = false
         end,
-    }
-end
-
---Tells the store a stored invite is answered (accepted or declined).
-local function AnswerStored(invite)
-    net.Post{
-        url = dmhub.cloudFunctionsBaseUrl .. "/discordInviteAnswer",
-        data = {id = invite.id},
     }
 end
 
@@ -2359,6 +2414,7 @@ local function CloseDialog()
     g_dialogKey = nil
     g_dialogLayer = nil
     g_dialogHost = nil
+    g_dialogText = nil
     if layer ~= nil then
         gui.CloseModalInLayer(layer)
     elseif dialog ~= nil and dialog.valid then
@@ -2368,7 +2424,7 @@ end
 
 --What the dialog says about an inbox item: title, message, and whether it can
 --still be accepted.
-local function DescribeItem(item)
+local function DescribeInvite(item)
     local name = item.name or "A friend"
     if item.live ~= nil and item.live.type == "joinrequest" then
         return "Ask to Join", string.format("%s wants to join you.", name), true
@@ -2393,6 +2449,38 @@ local function DescribeItem(item)
     return "Invitation", string.format("%s invited you to play with them in the Codex.", name), true
 end
 
+--DescribeInvite, plus a warning when accepting takes us out of the game we
+--are in (Join leaves it straight away, with no second question).
+local function DescribeItem(item)
+    local title, message, canAccept = DescribeInvite(item)
+    local isRequest = item.live ~= nil and item.live.type == "joinrequest"
+    local sameGame = item.stored ~= nil and item.stored.connect == "dshub1:" .. tostring(dmhub.gameid)
+    if canAccept and not isRequest and not sameGame and DialogHost() == "game" then
+        message = message .. " Joining requires leaving your current game."
+    end
+    return title, message, canAccept
+end
+
+--Everything DescribeItem says, as one string (the dialog is rebuilt when it changes).
+local function DialogText(item)
+    local title, message, canAccept = DescribeItem(item)
+    return string.format("%s|%s|%s", title, message, tostring(canAccept))
+end
+
+--A Discord invite that only just arrived waits (up to LIVE_HOLD_SECONDS) for
+--its stored copy: accepting without it would leave the stored copy unanswered,
+--to pop up again later. And Discord may not have resolved the sender's party
+--yet, so an unjoinable one waits that long before saying so.
+local function TooEarlyToShow(item)
+    if item.stored ~= nil or item.live == nil or item.live.type == "joinrequest" then
+        return false
+    end
+    if dmhub.Time() - item.arrived >= LIVE_HOLD_SECONDS then
+        return false
+    end
+    return item.storeChecked ~= true or item.live.valid == false
+end
+
 --Answers an item: "accept", "decline" or "later". The item leaves the inbox.
 local function Answer(key, item, answer)
     g_inbox[key] = nil
@@ -2406,13 +2494,14 @@ local function Answer(key, item, answer)
             if live ~= nil then
                 dmhub.DiscordDismissInvite(live.id)
             end
-            dmhub.DiscordJoin(stored.connect)
+            --true: the dialog already said Join leaves the current game.
+            dmhub.DiscordJoin(stored.connect, true)
         elseif live ~= nil then
             dmhub.DiscordAcceptInvite(live.id, function(err)
                 if err ~= nil then
                     printf("Discord: could not accept the invite: %s", err)
                 end
-            end)
+            end, live.type ~= "joinrequest")
         end
         return
     end
@@ -2424,7 +2513,7 @@ local function Answer(key, item, answer)
         if answer == "decline" then
             AnswerStored(stored)
         else
-            g_snoozed[stored.id] = true
+            Snooze(stored.id)
         end
     end
 end
@@ -2534,6 +2623,7 @@ local function ShowDialog(key, item, host)
 
     g_dialogKey = key
     g_dialogHost = host
+    g_dialogText = DialogText(item)
     if host == "game" then
         g_dialog = backdrop
         g_dialogLayer = gui.ShowModal(backdrop)
@@ -2595,13 +2685,20 @@ local function PollInvites()
     if g_dialog ~= nil and host ~= g_dialogHost then
         CloseDialog()
     end
+    --the shown invite changed (Discord now says it is joinable, or its stored
+    --copy arrived): rebuild the dialog so its text and buttons match.
+    if g_dialog ~= nil and g_inbox[g_dialogKey] ~= nil and DialogText(g_inbox[g_dialogKey]) ~= g_dialogText then
+        CloseDialog()
+    end
     if g_dialog ~= nil or host == nil then
         return
     end
     --the one that reached us first.
     local bestKey, bestItem = nil, nil
     for key, item in pairs(g_inbox) do
-        if bestItem == nil or item.arrived < bestItem.arrived then
+        if TooEarlyToShow(item) then
+            --checked again next poll.
+        elseif bestItem == nil or item.arrived < bestItem.arrived then
             bestKey, bestItem = key, item
         end
     end

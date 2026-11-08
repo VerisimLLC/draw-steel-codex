@@ -211,12 +211,13 @@ Loc.lookupSymbols = {
             end
 
 			if type(other) ~= "table" or rawget(other, "_tmp_loc") == nil then
-				if type(other) == "table" and rawget(other, "typeName") ~= nil then
+				--A creature: measure from the nearest square of its token's footprint.
+				--(Creatures carry no raw typeName, so look the token up directly.)
+				if type(other) == "table" then
 					local otherToken = dmhub.LookupToken(other)
-					if otherToken == nil then
-						return 0
+					if otherToken ~= nil and otherToken.valid then
+						return otherToken:Distance(c._tmp_loc)
 					end
-					return other:Distance(c._tmp_loc)
 				end
 				return 0
 			end

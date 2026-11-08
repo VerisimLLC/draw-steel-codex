@@ -2342,8 +2342,8 @@ local function BuildHeroCard(data)
 
     -- The fun role the hero earned this encounter: the role name as a small
     -- accent header with the detail line under it, and the role's fun-fact on
-    -- a hover tooltip. When the hero earned no role both labels render blank
-    -- (auto height collapses them to nothing). The title label is the one
+    -- a hover tooltip. When the hero earned no role both labels are collapsed
+    -- (an empty label could still draw stray glyphs: playtest N11). The title label is the one
     -- interactable element on an otherwise click-through card, so the tooltip
     -- can receive hover.
     local roleTitleLabel = gui.Label{
@@ -2376,6 +2376,8 @@ local function BuildHeroCard(data)
         fontFace = "Book",
         fontSize = 13,
     }
+    roleTitleLabel:SetClass("collapsed", data.role == nil)
+    roleTextLabel:SetClass("collapsed", data.role == nil)
 
     -- Lines registered by other modules (DSVictoryScreen.RegisterHeroCardNote).
     local noteLines = data.notes or {}
@@ -2791,6 +2793,19 @@ local function BuildMonsterCard(data)
         fontSize = 13,
     }
 
+    --minionLabel may be nil, so append rather than list it in a constructor. A
+    --group that earned no role gets no role labels at all (playtest N11: the
+    --empty pair drew stray glyph fragments under the "All Defeated" bar).
+    local children = { portraitPanel, nameLabel }
+    if minionLabel ~= nil then
+        children[#children + 1] = minionLabel
+    end
+    children[#children + 1] = survivorsBar
+    if data.role ~= nil then
+        children[#children + 1] = roleTitleLabel
+        children[#children + 1] = roleTextLabel
+    end
+
     return gui.Panel{
         classes = {"panel", "surfaceRadial", "border", "victoryHeroCard", "scalein", "victoryFade"},
         interactable = false,
@@ -2815,7 +2830,7 @@ local function BuildMonsterCard(data)
             { selectors = {"scalein", "~shown"}, transitionTime = 0.6, scale = 1.3,},
         },
 
-        children = { portraitPanel, nameLabel, minionLabel, survivorsBar, roleTitleLabel, roleTextLabel },
+        children = children,
 
         fadeOut = function(card)
             card:SetClassTree("shown", false)

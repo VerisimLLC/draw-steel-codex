@@ -8505,7 +8505,9 @@ ActionMenu = function()
                     if resourcesAvailable > 0 then
                         g_token.properties:ConsumeResource(CharacterResource.triggerResourceId, "round", 1)
                     else
-                        g_token.properties:RefreshResource(CharacterResource.triggerResourceId, "round", 1)
+                        --A trigger charged twice in a round leaves usage above the maximum. Give back
+                        --enough that one trigger is free; refreshing only 1 used to need a second click.
+                        g_token.properties:RefreshResource(CharacterResource.triggerResourceId, "round", 1 - resourcesAvailable)
                     end
                 end,
             }

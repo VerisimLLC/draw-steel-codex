@@ -2029,7 +2029,9 @@ local function BuildLooks()
         width = "100%",
         height = TILE_H,
         flow = "horizontal",
-        --the room changes with a resize, Font Size or the row pairing.
+        --the room changes with a resize, Font Size or the row pairing:
+        --refit as soon as it is laid out, and check a few times a second.
+        rendered = HeroSheetWindow.ThinkOnResize,
         thinkTime = 0.25,
         think = FitCount,
         probe,
@@ -3662,6 +3664,7 @@ local function BuildFitIt()
             width = "100%",
             height = "auto",
             flow = "horizontal",
+            rendered = HeroSheetWindow.ThinkOnResize,
             thinkTime = 0.25,
             think = FitItAdapt(tokenColumn, lines),
             tokenColumn,
@@ -5474,6 +5477,7 @@ local function MapPreview(source)
             Drop()
         end,
         --a resize, a tier change or Font Size: crop again once laid out.
+        rendered = HeroSheetWindow.ThinkOnResize,
         thinkTime = 0.25,
         think = function(element)
             local renderedWidth = element.renderedWidth
@@ -9637,6 +9641,7 @@ local function BuildSummons(bus, Row)
                     flow = "horizontal",
                     data = {width = -1},
                     --as many as fit, checked when the row's width changes.
+                    rendered = HeroSheetWindow.ThinkOnResize,
                     thinkTime = 0.25,
                     think = function(element)
                         local renderedWidth = element.renderedWidth
@@ -9663,6 +9668,7 @@ local function BuildSummons(bus, Row)
             width = "100%",
             height = "auto",
             flow = "horizontal",
+            rendered = HeroSheetWindow.ThinkOnResize,
             thinkTime = 0.25,
             think = FitItAdapt(tokenColumn, fitLines),
             tokenColumn,
@@ -10139,9 +10145,12 @@ local function BuildBody(state, bus)
             height = "auto",
             flow = "horizontal",
             bmargin = 12,
-            --the room and a plate's height change with a resize, Font Size or
-            --content (a card row shown), so the row checks a few times a
-            --second (cheap, and hidden panels do not think).
+            --a new width (resize, maximize) refits before the frame is drawn,
+            --so the halves never show a frame paired for the old width.
+            rendered = HeroSheetWindow.ThinkOnResize,
+            --a plate's height changes with Font Size or content (a card row
+            --shown), so the row also checks a few times a second (cheap, and
+            --hidden panels do not think).
             thinkTime = 0.25,
             think = function(element)
                 local perUnit = probe.renderedHeight / 100

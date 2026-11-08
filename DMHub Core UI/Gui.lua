@@ -2098,6 +2098,15 @@ function gui.Slider(args)
 
 	sliderPanel = gui.Panel({
 		id = 'slider-panel',
+		-- A new track width (first layout, a resize) moves the handle and fill
+		-- before the frame is drawn; the handle's think is the fallback.
+		rendered = function(element)
+			gui.AfterLayout(function()
+				if handle.valid then
+					handle:FireEvent("think")
+				end
+			end)
+		end,
 		style = {
 			cornerRadius = 0,
 			width = sliderTrackWidth,

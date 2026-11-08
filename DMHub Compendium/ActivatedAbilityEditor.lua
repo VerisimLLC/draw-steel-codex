@@ -660,8 +660,10 @@ function ActivatedAbility:TargetTypeEditor()
 					},
 
 					--Target first, then mode (Heal): turning this on adds a Target
-					--Condition and Unavailable Text to every mode below.
+					--Condition and Unavailable Text to every mode below. Not offered for
+					--Ability Variations, which swap in a whole other ability per mode.
 					gui.Check{
+						classes = {cond(self.multipleModes == true, nil, "collapsed")},
 						text = "Choose Mode After Targeting",
 						value = self.chooseModeAfterTargeting == true,
 						hover = gui.Tooltip("The player picks a target first. The mode buttons then appear, and pressing one casts. A mode whose Target Condition fails for that target shows its Unavailable Text instead of a button."),
@@ -768,7 +770,7 @@ function ActivatedAbility:TargetTypeEditor()
 
 						--Checked against the chosen target (Mode Condition only sees the caster).
 						gui.Panel{
-							classes = {"formPanel", cond(not self.chooseModeAfterTargeting, "collapsed")},
+							classes = {"formPanel", cond(self.multipleModes == true and self.chooseModeAfterTargeting, nil, "collapsed")},
 							gui.Label{
 								classes = "formLabel",
 								text = "Target Condition:",
@@ -813,7 +815,7 @@ function ActivatedAbility:TargetTypeEditor()
 						},
 
 						gui.Panel{
-							classes = {"formPanel", cond(not self.chooseModeAfterTargeting, "collapsed")},
+							classes = {"formPanel", cond(self.multipleModes == true and self.chooseModeAfterTargeting, nil, "collapsed")},
 							gui.Label{
 								classes = "formLabel",
 								text = "Unavailable Text:",

@@ -2256,10 +2256,12 @@ _buildModesBlock = function(ability, fireChange)
             }
 
             -- Target first, then mode (Heal): turning this on adds a Target Condition
-            -- and Unavailable Text to every mode below.
-            local modeAfterTargeting = ability:try_get("chooseModeAfterTargeting", false) == true
+            -- and Unavailable Text to every mode below. Not offered for Ability
+            -- Variations, which swap in a whole other ability when a mode is picked.
+            local plainModes = ability:try_get("multipleModes") == true
+            local modeAfterTargeting = plainModes and ability:try_get("chooseModeAfterTargeting", false) == true
             modeChildren[#modeChildren + 1] = gui.Panel{
-                classes = {"nae-field-row-inline"},
+                classes = {"nae-field-row-inline", cond(plainModes, nil, "collapsed")},
                 children = {
                     gui.Check{
                         classes = {"nae-toggle-check"},
@@ -2444,25 +2446,18 @@ _buildModesBlock = function(ability, fireChange)
                         }
                     )
 
-                    modeChildren[#modeChildren + 1] = gui.Panel{
-                        classes = {"nae-field-row"},
-                        children = {
-                            gui.Label{
-                                classes = {"nae-field-label"},
-                                text = "Unavailable Text",
-                            },
-                            gui.Input{
-                                classes = {"nae-field-input"},
-                                characterLimit = 200,
-                                placeholderText = "Shown when the target fails the condition",
-                                text = entry.targetUnavailableText or "",
-                                change = function(el)
-                                    entry.targetUnavailableText = el.text
-                                    fireChange()
-                                end,
-                            },
-                        },
-                    }
+                    modeChildren[#modeChildren + 1] = _makeFieldRow("Unavailable Text",
+                        gui.Input{
+                            classes = {"nae-field-input"},
+                            characterLimit = 200,
+                            placeholderText = "Shown when the target fails the condition",
+                            text = entry.targetUnavailableText or "",
+                            change = function(el)
+                                entry.targetUnavailableText = el.text
+                                fireChange()
+                            end,
+                        }
+                    )
                 end
 
                 -- "Has Ability" checkbox + Edit button (variations only)

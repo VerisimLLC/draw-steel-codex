@@ -11915,7 +11915,7 @@ CreateAbilityController = function()
             --A cast is in progress, so g_token is its caster.
             ---@cast g_token -nil
 
-            if g_currentAbility.chooseModeAfterTargeting then
+            if g_currentAbility.multipleModes == true and g_currentAbility.chooseModeAfterTargeting then
                 --Target first, then mode (e.g. Heal): nothing to show until a target is
                 --picked. Then each mode is checked against that target; a mode it can't
                 --use shows why instead of a button, and pressing a button casts.
@@ -15508,8 +15508,9 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
         local hasPromptOverride = (g_currentAbility:try_get("promptOverride") ~= nil or awaitsModeChoice)
             and not g_manualTargetChosen
         --Target-then-mode abilities (Heal) never cast on the target click: the mode
-        --buttons that appear afterwards are what cast (they pass forceCast).
-        local modeAfterTargeting = g_currentAbility.multipleModes and g_currentAbility.chooseModeAfterTargeting
+        --buttons that appear afterwards are what cast (they pass forceCast). Plain
+        --Multiple Modes only; Ability Variations swap in another ability per mode.
+        local modeAfterTargeting = g_currentAbility.multipleModes == true and g_currentAbility.chooseModeAfterTargeting
         if modeAfterTargeting then
             hasPromptOverride = true
         end

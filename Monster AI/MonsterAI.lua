@@ -2964,9 +2964,9 @@ function MonsterAI:WaitForActivityReactionsUnguarded(activityId)
     return true
 end
 
---Seconds a monster turn waits for its creatures to finish starting their turn.
---Normally well under a second; a turn start that errors early never reports
---back, and must not hold the table forever.
+--Seconds to wait for the turn's creatures to finish starting their turn. This
+--is normally instant; the cap stops a turn start that never finishes from
+--holding the table for good.
 local g_turnStartWaitSeconds = 30
 
 --- Holds a monster turn the AI just began until its start has played out, so

@@ -10859,9 +10859,9 @@ end
 --- start has played out:
 ---   aiActivityId: tags the turn start's events, so a hero prompt they raise holds
 ---     the AI until the player answers it and the cast it starts finishes.
----   onComplete: called when BeginTurn's own work is done, even if a trigger errored.
----     "beginturn" triggers may still be running; the AI waits for those through
----     aiActivityId.
+---   onComplete: called once BeginTurn has finished, even if a trigger errored.
+---     Prompts its triggers raised may still be open; the AI waits on those
+---     because they carry aiActivityId.
 --- @param options? {aiActivityId: string|nil, onComplete: fun()|nil}
 function creature:BeginTurn(options)
 	local aiActivityId = options ~= nil and options.aiActivityId or nil

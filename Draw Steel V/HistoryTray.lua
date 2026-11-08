@@ -325,6 +325,13 @@ local function Styles()
             opacity = 0.8,
         },
         {
+            --"Ignored by ...": a step dimmer than the sources it cancels.
+            selectors = {"label", "historyReceiptRemoved"},
+            fontSize = 13,
+            color = "@fg",
+            opacity = 0.6,
+        },
+        {
             selectors = {"label", "historyReceiptNote"},
             fontSize = 12,
             italics = true,

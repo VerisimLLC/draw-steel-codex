@@ -1595,13 +1595,16 @@ function GameHud.CreateEmbeddedRollDialog()
 
     local m_activeModifiers = {}
 
-    --- One thing that added edges or banes to the roll, named as its badge in this dialog.
+    --- One thing that added or took away edges or banes, named as its badge in this dialog.
     --- History shows them under the roll's edge and bane line.
     --- @class EmbeddedRollEdgeSource
     --- @field name string The modifier's name, spoiler markup kept; "" when set by hand.
     --- @field edges nil|integer Edges it added.
     --- @field banes nil|integer Banes it added.
-    --- @field charid nil|string On a trigger: the creature whose trigger it is.
+    --- @field removedEdges nil|integer Edges it took away (Remove Edge, Ignore Edges, Edge becomes Bane).
+    --- @field removedBanes nil|integer Banes it took away.
+    --- @field ignore nil|boolean It ignores every edge or bane, rather than removing one.
+    --- @field charid nil|string Whose it is: a trigger's owner, or the target when the target's own modifier took edges or banes away.
     --- @field hand nil|boolean Set with the dialog's edge and bane buttons.
 
     --- Rebuilt by each CalculateRollText, beside m_activeModifiers.
@@ -1961,8 +1964,9 @@ function GameHud.CreateEmbeddedRollDialog()
         end
     end
 
-    --What each modifier adds to the edges and banes, measured as it is applied, so the
-    --sources always add up to the roll's counts. Only the additions are kept.
+    --What each modifier adds to or takes from the edges and banes, measured as it is applied,
+    --so the sources always add up to the roll's counts. History uses the removals to show an
+    --edge that was there but did not count.
     local function RecordEdgeSource(mod, before, rollText)
         local after = dmhub.ParseRoll(rollText)
         if before == nil or after == nil then
@@ -1970,18 +1974,30 @@ function GameHud.CreateEmbeddedRollDialog()
         end
         local edges = (after.boons or 0) - (before.boons or 0)
         local banes = (after.banes or 0) - (before.banes or 0)
-        if edges > 0 or banes > 0 then
-            local name = mod.modifier.name or ""
-            if mod.modFromTarget then
-                name = string.format("Target is %s", name)
-            end
-            m_edgeSources[#m_edgeSources + 1] = {
-                name = name,
-                edges = edges > 0 and edges or nil,
-                banes = banes > 0 and banes or nil,
-                charid = mod.modifier:try_get("_tmp_triggerCharid"),
-            }
+        if edges == 0 and banes == 0 then
+            return after
         end
+        local name = mod.modifier.name or ""
+        local charid = mod.modifier:try_get("_tmp_triggerCharid")
+        local removes = edges < 0 or banes < 0
+        if mod.modFromTarget and removes and charid == nil then
+            --a remover is named as its owner's ("Ajax's Steadfast"), with the target's face.
+            local targetToken = dmhub.LookupToken(targetCreature)
+            charid = targetToken ~= nil and targetToken.charid or nil
+        end
+        if mod.modFromTarget and charid == nil then
+            name = string.format("Target is %s", name)
+        end
+        local modtype = mod.modifier:try_get("modtype")
+        m_edgeSources[#m_edgeSources + 1] = {
+            name = name,
+            edges = edges > 0 and edges or nil,
+            banes = banes > 0 and banes or nil,
+            removedEdges = edges < 0 and -edges or nil,
+            removedBanes = banes < 0 and -banes or nil,
+            ignore = (modtype == "ignore_edges" or modtype == "ignore_banes") or nil,
+            charid = charid,
+        }
         return after
     end
 

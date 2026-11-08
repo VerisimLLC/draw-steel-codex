@@ -39,12 +39,15 @@ local mod = dmhub.GetModLoading()
 --- @field moved? {kind: string, distance: number, fell: number, collision: number, walls: number, path: table|nil} On a target: how another creature moved it. The path is for the side view.
 --- @field landedon? boolean On a target: a creature fell on it.
 
---- Something that added edges or banes to a roll, as the roll dialog named it.
+--- Something that added or took away edges or banes, as the roll dialog named it.
 --- @class HistoryEdgeSource
 --- @field name string The modifier's name, spoiler markup kept; "" when set by hand.
 --- @field edges? integer Edges it added.
 --- @field banes? integer Banes it added.
---- @field who? HistoryCreature On a trigger: whose trigger it is.
+--- @field removedEdges? integer Edges it took away.
+--- @field removedBanes? integer Banes it took away.
+--- @field ignore? boolean It ignores every edge or bane ("Ignored by"), rather than removing one ("Removed by").
+--- @field who? HistoryCreature Whose it is: a trigger's owner, or a target whose own modifier took edges or banes away.
 --- @field hand? boolean Set with the roll dialog's edge and bane buttons.
 
 --- The creature a token shows now, as plain data for an entry.
@@ -356,7 +359,7 @@ local function AddRoll(entry, cast, ability, caster)
     end
 end
 
---The roll dialog's sources for one target (2.3a), with a trigger's owner as it looks now.
+--The roll dialog's sources for one target (2.3a), with each owner as it looks now.
 --- @return HistoryEdgeSource[]
 local function EdgeSources(sources)
     local result = {}
@@ -366,6 +369,9 @@ local function EdgeSources(sources)
             name = source.name or "",
             edges = source.edges,
             banes = source.banes,
+            removedEdges = source.removedEdges,
+            removedBanes = source.removedBanes,
+            ignore = source.ignore,
             who = owner ~= nil and History.Creature(owner) or nil,
             hand = source.hand,
         }

@@ -341,3 +341,14 @@ the player saw. This replaces C5.
 | C5 | A modifier | its badge name: Flanking / High Ground / Cover / Prone / Target is {name} |
 | C5t | Another creature's trigger | {Owner}'s {trigger}, e.g. Reactor 1's Test 5 |
 | C5h | The dialog's edge and bane buttons | Set by hand |
+
+## Round 9: removed edges and banes (signed off 2026-11-08)
+
+Ignore Edges, Ignore Banes, Remove Edge, Remove Bane and the removing half of Edge becomes Bane are listed
+too, so the card explains an edge that was there but did not count. The remover goes last under the line
+it changed, dimmed, with no arrows.
+| ID | Where | Text |
+|---|---|---|
+| C5i | The line when every edge or bane was taken away | Edge, ignored / Double edge, ignored / Bane, ignored / Double bane, ignored (value 0); on a target's own roll, Edge for this target, ignored |
+| C5r | The remover | Ignored by {name} (Ignore) / Removed by {name} (Remove one) |
+| C5o | A remover that belongs to the target | {Target}'s {name}, with the target's face, e.g. Ignored by Ajax's Steadfast |

@@ -195,11 +195,25 @@ Goal: why it happened, one click from the row.
   keeps the list on each target row as `edgeSources`; the power roll copies it onto the cast as
   `targetSources`; capture keeps it on the roll (from a target with no roll of its own) and on a
   target's own roll. Spoilered names stay redacted for players, as in the dialog.
-- **Limits of 2.3a:** a source that only removes edges or banes (Ignore Edges) is not listed. Two targets
-  with the same counts from different sources show the first one's under Power roll.
+- **Limits of 2.3a:** two targets with the same counts from different sources show the first one's under
+  Power roll. (Removers were not listed either; 2.3a2 adds them.)
 - **Found in 2.3a:** pressing the dialog's Roll Dice by its text over the bridge hits the side tab's
   label, not the button; click it with the virtual mouse. 2.2's `targetRolls` path is live (it sits in
   the same per-target block, which a real cast reaches).
+- **For 2.3c (James, 2026-11-08):** the card should say which trigger caused a nested gain (Y15). A
+  resource line keeps only the trigger's name (`causetext`, e.g. "Discipline"); capture must also keep
+  the trigger's own text, which lives on the TriggeredAbility's `description` (the Null's reads "You
+  gain 1 discipline the first time in a round that an enemy uses Malice.").
+- **2.3a2, removed edges and banes (James, 2026-11-08; COPY.md Round 9):** the roll dialog also records
+  what each modifier takes away (`removedEdges`, `removedBanes`, `ignore` for the Ignore modtypes, which
+  run last with `lateness = 100`). A target's own remover carries the target as its owner. The card
+  lists a remover last under its line, dimmed, as "Ignored by" or "Removed by"; a side that lost every
+  edge or bane keeps its line ("Edge, ignored", value 0). Tested with a real Brutal Slam while the
+  Dwarf Fury was Twisted (Prone's edge, Ignored by Twisted, Tier 2) and a fed entry with a target's
+  remover, a partial removal and an ignored bane on a target's own roll.
+- **Found in 2.3a2:** `MCDMCreature.lua` wraps `creature.ApplyOngoingEffect` with no reload guard, so
+  every hot reload of that file stacks another wrapper and one effect writes one History line per
+  reload. Dev-only (a fresh start has one wrapper); restart before judging effect lines.
 
 ## Stage 3: getting to it
 

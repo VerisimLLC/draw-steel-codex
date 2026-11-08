@@ -772,6 +772,20 @@ local function DocumentText(doc)
     return text
 end
 
+--The length of a document's text without building the text: ScriptSignature
+--runs on every FindMapScript call (many per second), and building every
+--candidate's text each time made enough garbage to stall the GC.
+local function DocumentTextLength(doc)
+    local n = nil
+    pcall(function()
+        local storage = doc.textStorage
+        if storage ~= nil and getmetatable(storage) ~= nil then
+            n = storage:GetContentLength()
+        end
+    end)
+    return n or #DocumentText(doc)
+end
+
 local function IsMarkdown(doc)
     return type(doc) == "table" and doc.typeName == "MarkdownDocument"
 end
@@ -858,7 +872,7 @@ local function ScriptSignature(candidates, included)
         if doc == nil then
             parts[#parts + 1] = docid .. "=missing"
         else
-            parts[#parts + 1] = string.format("%s=%s:%d", docid, tostring(doc.description), #DocumentText(doc))
+            parts[#parts + 1] = string.format("%s=%s:%d", docid, tostring(doc.description), DocumentTextLength(doc))
         end
     end
     for _, c in ipairs(candidates) do

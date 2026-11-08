@@ -4763,6 +4763,24 @@ What the 2026-10-08 work changed, besides the fast launch:
 - Lua: pregens paste in one batch; the character sheet's Inventory tab is
   built when first shown.
 
+2026-11-07 pass (solo private party, The Bound Minotaur, 4 heroes, 4 Hero
+modules): Begin to stage 6.2s -> 4.2s; the hold behind the loading screen
+4.1s -> 2.2s. Changes: Hero modules install all at once (they were one at a
+time, ~0.35s each) and start right after the member host-wait, overlapping
+the encounter install and the travel (`StartHeroModuleInstall`); the host
+fetches a community module's info first (`PrefetchEncounterModuleInfo`)
+instead of queuing it behind the Hero module queries; setup polls at 0.05s
+and the post-travel settle is 0.2s (was 0.5s). The engine reserves each
+install's `modulesImported` ord, so concurrent installs never share one.
+Montage to combat: the encounter's monsters spawn one group per frame
+(`SpawnEncounterMonsters(n, {async = true})`, a 660ms frame before); the
+setup and spawn start behind Tactical Preparation's result screen, which
+holds 1.5s instead of 4s when nothing was bought; Proceed to Draw Steel
+5.7s -> 3.3s. The 30-75ms stalls every 1-2s through montages were GC debt
+from `TextStorage:GetContent` (quadratic concatenation), which
+`FindMapScript`'s cache check ran on every map document many times a second;
+fixed in TextStorage and `ScriptSignature`.
+
 ## Setup on arrival (`SetupOnArrival`)
 
 On every member's client, inside the arrival coroutine:

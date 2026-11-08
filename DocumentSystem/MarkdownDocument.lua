@@ -2767,6 +2767,13 @@ end
 --
 --Note: pattern-based rich tags (RichTag.pattern) are not specially handled here;
 --they do not carry stored annotations, so they never contribute to the result.
+--The annotation keys GetReferencedAnnotations found in each document's text,
+--{ text = <text tokenized>, keys = { key, ... } }, for calls with no options.
+--Tokenizing a long document costs 10-40 ms and the encounter finders ask
+--several times a second; the keys only change when the text does. Weak keys:
+--a document dropped by a table refresh drops its entry.
+local g_referencedKeysCache = setmetatable({}, { __mode = "k" })
+
 function MarkdownDocument:GetReferencedAnnotations(options)
     local result = {}
     local annotations = self:try_get("annotations")
@@ -2774,8 +2781,26 @@ function MarkdownDocument:GetReferencedAnnotations(options)
         return result
     end
 
-    local tokens = BreakdownRichTags(self:GetTextContent(), nil, options or {})
+    local text = self:GetTextContent()
+    --a "???" conditional line is evaluated against the game state as the text
+    --is tokenized, so its tags can change while the text does not: never cache.
+    local cacheable = options == nil and string.find(text, "???", 1, true) == nil
+    if cacheable then
+        local cached = g_referencedKeysCache[self]
+        if cached ~= nil and cached.text == text then
+            for _, key in ipairs(cached.keys) do
+                local annotation = annotations[key]
+                if annotation ~= nil then
+                    result[#result + 1] = { key = key, annotation = annotation }
+                end
+            end
+            return result
+        end
+    end
+
+    local tokens = BreakdownRichTags(text, nil, options or {})
     local tagsSeen = {}
+    local keys = {}
     for _, token in ipairs(tokens) do
         if token.type == "tag" then
             local fullname = token.text
@@ -2789,6 +2814,7 @@ function MarkdownDocument:GetReferencedAnnotations(options)
                     index = index + 1
                 end
                 tagsSeen[candidate] = true
+                keys[#keys + 1] = candidate
 
                 local annotation = annotations[candidate]
                 if annotation ~= nil then
@@ -2798,6 +2824,9 @@ function MarkdownDocument:GetReferencedAnnotations(options)
         end
     end
 
+    if cacheable then
+        g_referencedKeysCache[self] = { text = text, keys = keys }
+    end
     return result
 end
 

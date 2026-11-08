@@ -875,8 +875,9 @@ local function WaitForMapDocuments(mapid)
                 return
             end
         end
-        coroutine.yield(0.2)
-        waited = waited + 0.2
+        --short polls: this is on the loading screen's critical path.
+        coroutine.yield(0.05)
+        waited = waited + 0.05
     end
     printf("EotW: no documents arrived for the encounter map within %d seconds", MODULE_DOCUMENTS_TIMEOUT_SECONDS)
 end
@@ -906,27 +907,28 @@ local function EnsureEncounterModule(moduleid, mapName, part)
     printf("EotW: installing the encounter module %s", moduleid)
     local installed = false
     local failure = nil
-    module.DownloadModuleInfo{
-        moduleid = moduleid,
-        success = function(info)
-            local ok, err = pcall(function()
-                info:Install{
-                    success = function()
-                        installed = true
-                    end,
-                    error = function(message)
-                        failure = message or "the install failed"
-                    end,
-                }
-            end)
-            if not ok then
-                failure = tostring(err)
-            end
-        end,
-        failure = function(message)
+    --the module's info download was usually started first thing in setup
+    --(EncounterOfTheWeekGame.PrefetchEncounterModuleInfo), ahead of the Hero
+    --module queries that would otherwise queue in front of it.
+    EncounterOfTheWeekGame.WithEncounterModuleInfo(moduleid, function(info, message)
+        if info == nil then
             failure = message or "the module was not found"
-        end,
-    }
+            return
+        end
+        local ok, err = pcall(function()
+            info:Install{
+                success = function()
+                    installed = true
+                end,
+                error = function(message)
+                    failure = message or "the install failed"
+                end,
+            }
+        end)
+        if not ok then
+            failure = tostring(err)
+        end
+    end)
 
     --the install's success can land before its maps reach game.maps, so
     --wait for the map itself, with a grace period after a success.
@@ -961,14 +963,14 @@ local function EnsureEncounterModule(moduleid, mapName, part)
             return plainMap
         end
         if plainMap ~= nil then
-            sincePlainMap = (sincePlainMap or 0) + 0.2
+            sincePlainMap = (sincePlainMap or 0) + 0.05
         end
         if failure ~= nil then
             printf("EotW: could not install the encounter module %s: %s", moduleid, tostring(failure))
             return nil
         end
         if installed then
-            sinceInstalled = sinceInstalled + 0.2
+            sinceInstalled = sinceInstalled + 0.05
             if sinceInstalled > 10 then
                 --installed but no new map: the module was already in the
                 --game (its maps keep their ids), so take its map by name.
@@ -979,8 +981,8 @@ local function EnsureEncounterModule(moduleid, mapName, part)
                 return map
             end
         end
-        coroutine.yield(0.2)
-        waited = waited + 0.2
+        coroutine.yield(0.05)
+        waited = waited + 0.05
     end
     printf("EotW: the encounter module %s did not install within %d seconds", moduleid, MODULE_INSTALL_TIMEOUT_SECONDS)
     return nil
@@ -1069,8 +1071,8 @@ local function EnsureOnEncounterMap(requested)
     --generous window; a switch that never lands is logged, not fatal.
     local waited = 0
     while game.currentMapId ~= map.id and waited < 60 do
-        coroutine.yield(0.1)
-        waited = waited + 0.1
+        coroutine.yield(0.03)
+        waited = waited + 0.03
     end
     if game.currentMapId ~= map.id then
         printf("EotW: travel to \"%s\" did not complete; continuing on the current map", name)
@@ -1078,7 +1080,9 @@ local function EnsureOnEncounterMap(requested)
     end
 
     --let the new map's floors and markup settle before anyone reads them.
-    coroutine.yield(0.5)
+    --The switch has already synced the map's details, so a few frames do;
+    --this was 0.5s, all of it spent behind the loading screen.
+    coroutine.yield(0.2)
     return key, map.id
 end
 
@@ -3902,7 +3906,15 @@ end
 --island (so its Run Encounter / Save and Remove buttons work) and readies
 --the encounter for the combat-setup dialog.
 --Returns true if monsters are (now or already) on the map, else false+error.
-function EncounterOfTheWeekGame.SpawnEncounterMonsters(numHeroes)
+--options.async: spawn one group per frame in a coroutine instead of all in
+--this frame (a big encounter froze the screen for ~0.7 s at the montage's end).
+--It then returns false, EncounterOfTheWeekGame.SPAWNING until the coroutine
+--has recorded the spawns; call again (each host tick) to learn when it has.
+EncounterOfTheWeekGame.SPAWNING = "spawning"
+--The async spawn under way: { gameid, mapid, finished }. A table field: this
+--file's main chunk is at the 200-local limit.
+EncounterOfTheWeekGame.spawnJob = nil
+function EncounterOfTheWeekGame.SpawnEncounterMonsters(numHeroes, options)
     --Challenge Mode balances for one more hero, or levels up (ChallengeBalance).
     local levelUp
     numHeroes, levelUp = EncounterOfTheWeekGame.ChallengeBalance(numHeroes)
@@ -3921,6 +3933,35 @@ function EncounterOfTheWeekGame.SpawnEncounterMonsters(numHeroes)
         end
     end
 
+    --an async spawn is still placing groups (its spawns are recorded at the end).
+    local job = EncounterOfTheWeekGame.spawnJob
+    if job ~= nil and not job.finished and job.gameid == dmhub.gameid and job.mapid == game.currentMapId then
+        return false, EncounterOfTheWeekGame.SPAWNING
+    end
+
+    local async = options ~= nil and options.async == true
+    if async then
+        job = { gameid = dmhub.gameid, mapid = game.currentMapId, finished = false }
+        EncounterOfTheWeekGame.spawnJob = job
+        dmhub.Coroutine(function()
+            local ok, err = pcall(EncounterOfTheWeekGame.SpawnEncounterGroups, entry, numHeroes, levelUp, job)
+            if not ok then
+                printf("EotW: encounter spawn failed: %s", tostring(err))
+            end
+            job.finished = true
+        end)
+        return false, EncounterOfTheWeekGame.SPAWNING
+    end
+
+    EncounterOfTheWeekGame.SpawnEncounterGroups(entry, numHeroes, levelUp, nil)
+    return true
+end
+
+--The body of SpawnEncounterMonsters: place every non-wave group, then record
+--the spawns on the island. With a job (inside a coroutine), yields a frame
+--after each group and gives up if the game or map changed meanwhile.
+function EncounterOfTheWeekGame.SpawnEncounterGroups(entry, numHeroes, levelUp, job)
+    local richEncounter = entry.richEncounter
     Encounter.SetReadiedEncounter(entry.encounter)
 
     local spawns = {}
@@ -3931,6 +3972,13 @@ function EncounterOfTheWeekGame.SpawnEncounterMonsters(numHeroes)
     --(EncounterOfTheWeekGame.RebalanceForLateHeroes).
     local balance = { heroes = numHeroes, levelUp = levelUp, part = tostring(EncounterOfTheWeekGame.ActivePart()), groups = {} }
     for groupIndex,group in ipairs(entry.encounter.groups) do
+        if job ~= nil and #spawns > 0 then
+            coroutine.yield()
+            if mod.unloaded or dmhub.gameid ~= job.gameid or game.currentMapId ~= job.mapid then
+                printf("EotW: the encounter spawn stopped: the game or map changed")
+                return
+            end
+        end
         if group.wave == nil and Encounter.AdjustedGroupCount(group, numHeroes) > 0 then
             local anchor = (group.spawnlocs or {})[1] or dmhub.cameraPosition
             local groupid, charids, entries = Encounter.SpawnGroupForReal(group, numHeroes, anchor)
@@ -3954,13 +4002,19 @@ function EncounterOfTheWeekGame.SpawnEncounterMonsters(numHeroes)
         EncounterOfTheWeekGame.LevelUpStrongestHalf(spawns)
     end
 
+    --frames have passed in an async spawn, and a journal update in between
+    --replaces the island's annotation object: record on the current one.
+    if job ~= nil then
+        local fresh = FindMapEncounter()
+        if fresh ~= nil and fresh.richEncounter ~= nil then
+            richEncounter = fresh.richEncounter
+        end
+    end
     richEncounter.spawns = spawns
     richEncounter:UploadDocument()
     game.UpdateCharacterTokens()
 
     EncounterOfTheWeekGame.RecordSpawnBalance(balance)
-
-    return true
 end
 
 --- hero placement -----------------------------------------------------
@@ -5824,48 +5878,60 @@ local function RunScriptBeat(ctx)
     --surprise, the traps and the enemy's health. It runs BEFORE the setup
     --below because what they buy decides it -- a trap reveal is banked here
     --and applied with the rest when the zones go down.
+    local zones = rawget(_G, "EncounterZones")
+    local numHeroes = tonumber(dmhub.GetSettingValue("numheroes")) or 5
+
+    --The battlefield, behind the stage: the When lines, the script's setup
+    --instructions (traps placed in their zones, the spare zones trimmed away)
+    --and the spawn. All idempotent, so every tick may call it; the spawn
+    --runs one group per frame (async) and reports SPAWNING until it is done.
+    local function ReadyBattlefield()
+        --a series part's "When <condition>:" lines (more Malice for a rite
+        --gone further), once, before anything is set up.
+        if beat.when ~= nil and #beat.when > 0 then
+            local okWhen, errWhen = pcall(function()
+                local doc = montage.GetDoc()
+                if not (doc.data.whenApplied or {})["b" .. tostring(index)] then
+                    doc:BeginChange()
+                    local applied, applyErr = pcall(montage.ApplyWhenLines, doc, beat, index, nil)
+                    doc:CompleteChange("Encounter of the Week: When lines", { undoable = false })
+                    if not applied then
+                        error(applyErr)
+                    end
+                end
+            end)
+            if not okWhen then
+                printf("EotW story: When lines failed: %s", tostring(errWhen))
+            end
+        end
+        if zones ~= nil then
+            local okSetup, errSetup = pcall(zones.RunEncounterSetup, beat)
+            if not okSetup then
+                printf("EotW: encounter zone setup failed: %s", tostring(errSetup))
+            end
+        end
+        return EncounterOfTheWeekGame.SpawnEncounterMonsters(numHeroes, { async = true })
+    end
+
     local prep = rawget(_G, "EncounterPrep")
     if prep ~= nil and prep.Required() then
         EncounterOfTheWeekGame.AnalyticsPhase("prep", index)
         local status = prep.HostTick(script, beat, index)
         if status ~= "done" then
+            --the party has bought what they will: get the battlefield ready
+            --behind the result screen, so it is waiting when that screen ends.
+            local state = nil
+            pcall(function() state = prep.GetState() end)
+            if type(state) == "table" and state.phase == "resolved" then
+                ReadyBattlefield()
+            end
             return
         end
     end
 
-    --a series part's "When <condition>:" lines (more Malice for a rite
-    --gone further), once, before anything is set up.
-    if beat.when ~= nil and #beat.when > 0 then
-        local okWhen, errWhen = pcall(function()
-            local doc = montage.GetDoc()
-            if not (doc.data.whenApplied or {})["b" .. tostring(index)] then
-                doc:BeginChange()
-                local applied, applyErr = pcall(montage.ApplyWhenLines, doc, beat, index, nil)
-                doc:CompleteChange("Encounter of the Week: When lines", { undoable = false })
-                if not applied then
-                    error(applyErr)
-                end
-            end
-        end)
-        if not okWhen then
-            printf("EotW story: When lines failed: %s", tostring(errWhen))
-        end
-    end
-
-    --then the script's setup instructions (traps placed in their zones, the
-    --spare zones trimmed away) and the spawn (idempotent -- already-present
-    --monsters are left alone), then Draw Steel once both sides exist.
-    local zones = rawget(_G, "EncounterZones")
-    if zones ~= nil then
-        local okSetup, errSetup = pcall(zones.RunEncounterSetup, beat)
-        if not okSetup then
-            printf("EotW: encounter zone setup failed: %s", tostring(errSetup))
-        end
-    end
-    local numHeroes = tonumber(dmhub.GetSettingValue("numheroes")) or 5
-    local ok, err = EncounterOfTheWeekGame.SpawnEncounterMonsters(numHeroes)
+    local ok, err = ReadyBattlefield()
     if not ok then
-        if m_reportedBeat ~= index then
+        if err ~= EncounterOfTheWeekGame.SPAWNING and m_reportedBeat ~= index then
             m_reportedBeat = index
             printf("EotW: encounter spawn failed: %s", tostring(err))
         end
@@ -6565,22 +6631,101 @@ function EncounterOfTheWeekGame.LoadingScreenHoldRenewer()
 end
 
 local HERO_MODULES_TIMEOUT_SECONDS = 20
-local function InstallMyHeroModules()
+
+--Starts bringing this player's Hero modules into the game and returns the
+--handle InstallMyHeroModules waits on. Setup starts it early, so the installs
+--run while the encounter module installs and the map travels, instead of
+--after them. A table field: this file's main chunk is at the 200-local limit.
+function EncounterOfTheWeekGame.StartHeroModuleInstall()
+    local started = { done = false }
     local heroModules = rawget(_G, "HeroModules")
     if heroModules == nil or heroModules.InstallIntoGame == nil then
-        return
+        started.done = true
+        return started
     end
-    local done = false
     --a member can't add a module with code to the host's game, so it asks
     --the host's client to (HeroModules.ServeOwnerRequests) -- A9C9NGB8.
     heroModules.InstallIntoGame(function()
-        done = true
+        started.done = true
     end, HERO_MODULES_TIMEOUT_SECONDS, { askOwner = true })
+    return started
+end
+
+--Waits (inside the setup coroutine) for the installs StartHeroModuleInstall
+--began, starting them now if nothing did.
+local function InstallMyHeroModules(started)
+    started = started or EncounterOfTheWeekGame.StartHeroModuleInstall()
     local renewHold = EncounterOfTheWeekGame.LoadingScreenHoldRenewer()
-    while not done and not mod.unloaded do
+    while not started.done and not mod.unloaded do
         renewHold()
-        coroutine.yield(0.1)
+        coroutine.yield(0.03)
     end
+end
+
+--The community encounter module's info, downloaded once per game:
+--{ moduleid, gameid, info, message, done, waiters }.
+EncounterOfTheWeekGame.encounterModuleInfo = nil
+
+--Host, first thing in setup: start downloading a community encounter's
+--module info, so it is not queued behind the Hero module queries (the
+--engine runs only a few downloads at once). Does nothing for an official
+--encounter or one already installed in this game.
+function EncounterOfTheWeekGame.PrefetchEncounterModuleInfo(encounterKey)
+    if type(encounterKey) ~= "string" or encounterKey == "" then
+        return
+    end
+    local moduleid = ParseEncounterKey(encounterKey)
+    if moduleid == nil or moduleid == OFFICIAL_MODULE then
+        return
+    end
+    if mod:GetDocumentSnapshot(STATE_DOC_ID).data.encounterModule == moduleid then
+        return
+    end
+    local entry = { moduleid = moduleid, gameid = dmhub.gameid, done = false, waiters = {} }
+    EncounterOfTheWeekGame.encounterModuleInfo = entry
+    local function Land(info, message)
+        entry.info = info
+        entry.message = message
+        entry.done = true
+        local waiters = entry.waiters
+        entry.waiters = {}
+        for _, waiter in ipairs(waiters) do
+            waiter(info, message)
+        end
+    end
+    module.DownloadModuleInfo{
+        moduleid = moduleid,
+        success = function(info)
+            Land(info, nil)
+        end,
+        failure = function(message)
+            Land(nil, message)
+        end,
+    }
+end
+
+--Calls callback(info) or callback(nil, message) with the module's info: the
+--prefetched download when there is one for this game, else a new one.
+function EncounterOfTheWeekGame.WithEncounterModuleInfo(moduleid, callback)
+    local entry = EncounterOfTheWeekGame.encounterModuleInfo
+    EncounterOfTheWeekGame.encounterModuleInfo = nil
+    if entry ~= nil and entry.moduleid == moduleid and entry.gameid == dmhub.gameid then
+        if entry.done then
+            callback(entry.info, entry.message)
+        else
+            entry.waiters[#entry.waiters + 1] = callback
+        end
+        return
+    end
+    module.DownloadModuleInfo{
+        moduleid = moduleid,
+        success = function(info)
+            callback(info, nil)
+        end,
+        failure = function(message)
+            callback(nil, message)
+        end,
+    }
 end
 
 local HOST_SETUP_TIMEOUT_SECONDS = 120
@@ -6810,6 +6955,12 @@ function EncounterOfTheWeekGame.SetupOnArrival(args)
 
         EotwProf("SetupOnArrival begin (%s)", IsDMOrPlayerHost() and "host" or "member")
 
+        --a community encounter's module info first: its install and the map
+        --travel after it are what the loading screen waits on.
+        if IsDMOrPlayerHost() then
+            pcall(EncounterOfTheWeekGame.PrefetchEncounterModuleInfo, args.encounterMap)
+        end
+
         --the Hero modules' info downloads (InstallMyHeroModules, below) start
         --now, so they overlap the map travel and the encounter install instead
         --of adding to them.
@@ -6845,6 +6996,11 @@ function EncounterOfTheWeekGame.SetupOnArrival(args)
             EotwProf("member: host setup ready")
             waitForHost = false
         end
+
+        --this player's Hero modules install from now on, alongside the
+        --encounter module install and the map travel below; hero placement
+        --waits for them (InstallMyHeroModules).
+        local heroModuleInstall = EncounterOfTheWeekGame.StartHeroModuleInstall()
 
         --the host is the game's owner and keeps real hosting status
         --(IsDMOrPlayerHost -- true even in player-host mode, when dmhub.isDM
@@ -6938,7 +7094,7 @@ function EncounterOfTheWeekGame.SetupOnArrival(args)
 
         --a hero built with a class or ancestry from one of this player's Hero
         --modules needs the module in this game before it lands.
-        InstallMyHeroModules()
+        InstallMyHeroModules(heroModuleInstall)
         EotwProf("hero modules installed")
 
         local myPasted, anchor = PlaceMyHeroes(args.heroes, args.clipboardIds)

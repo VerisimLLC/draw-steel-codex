@@ -457,29 +457,32 @@ local function ExecuteDamage(behavior, ability, casterToken, targetToken, option
 end
 
 local g_tablesLookup = {}
+local g_concat = table.concat
 
 local function GetTableNameRegex(tableName, key, nameKey)
     nameKey = nameKey or "name"
     local table = dmhub.GetTable(tableName) or {}
     --rows of whichever table was named; only their name fields are read.
     ---@cast table table<string, table>
-    g_tablesLookup[tableName] = {}
-    local pattern = ""
+    local lookup = {}
+    g_tablesLookup[tableName] = lookup
+    --names gathered into a list and joined once: appending to one string per
+    --row copied the growing pattern every time (quadratic; ~90 ms for the
+    --~1000 ongoing effects on every refresh). string.gsub strips the same
+    --characters as the old regex.ReplaceAll without a C# call per row.
+    local names = {}
     for k,v in pairs(table) do
         if not v:try_get("hidden", false) and (key == nil or v:try_get(key, false)) then
-            local name = regex.ReplaceAll(string.lower(v[nameKey]), "[^a-z0-9 ]", "")
+            local name = string.gsub(string.lower(v[nameKey]), "[^a-z0-9 ]", "")
             if name ~= "" then
-                if pattern ~= "" then
-                    pattern = pattern .. "|"
-                end
-
-                pattern = pattern .. name
-                g_tablesLookup[tableName][name] = k
+                names[#names + 1] = name
+                lookup[name] = k
             end
         end
     end
 
-    return pattern
+    --g_concat: `table` is the data table here (it shadows the library).
+    return g_concat(names, "|")
 end
 
 --- "(end of next turn)" on a condition is EoT that always lasts through the

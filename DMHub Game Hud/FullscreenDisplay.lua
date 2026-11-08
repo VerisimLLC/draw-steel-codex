@@ -8,14 +8,15 @@ FullscreenDisplay.docid = "fullscreen_display"
 
 --What is on show: the "fullscreen_display" document.
 --  show            false, true (the players) or "all" (the Director too)
---  belowui         drawn under the game's UI rather than over it
+--  aboveui         drawn over all the game's UI rather than among its windows
 --  coverart        the picture: an image asset id (a still or a video)
 --  coverartCredit  the "Art by" creator id, or false
 --  caption, subtitle   text drawn over the picture, or false
 --  sceneid         the Scenes library scene on show (ScenesPanel.lua), or false
 --  fit             {image, mode}: mode "contain" shows all of that image, letterboxed; otherwise it fills and crops
 --Game Controls, [[scene]] journal tags and maximized tabletop scene windows
---all write it; GameHud mounts one display under the UI and one over it.
+--all write it; GameHud mounts one display among the windows (as a maximized
+--map stacks) and one over all the UI.
 
 --Is this image asset a video? Videos are streamed through their own looping
 --player; a still is a plain bgimage.
@@ -29,10 +30,10 @@ function FullscreenDisplay.IsVideo(imageid)
 end
 
 --- Whether this client sees the display now: the Director only for "all".
---- belowui (optional) also requires that layer.
---- @param belowui nil|boolean
+--- aboveui (optional) also requires that layer.
+--- @param aboveui nil|boolean
 --- @return boolean
-function FullscreenDisplay.IsShowingHere(belowui)
+function FullscreenDisplay.IsShowingHere(aboveui)
     local data = mod:GetDocumentSnapshot(FullscreenDisplay.docid).data
     if data == nil or not data.show then
         return false
@@ -40,7 +41,7 @@ function FullscreenDisplay.IsShowingHere(belowui)
     if data.show ~= "all" and dmhub.isDM then
         return false
     end
-    if belowui ~= nil and (data.belowui == true) ~= belowui then
+    if aboveui ~= nil and (data.aboveui == true) ~= aboveui then
         return false
     end
     --a library scene the Director shares with only some players.
@@ -387,8 +388,12 @@ end
 local PRESENTATION_ID = "fullscreen_display"
 local g_presentationSignature = nil
 
+--options.aboveui: the display over all the UI (GameHud mounts it near the top
+--of the hud). Otherwise it goes in the documents layer and stacks as a
+--maximized map does: it comes up over the maps, scenes and journals when it
+--goes on show, and the icon rails and their panel windows stay over it.
 function FullscreenDisplay.Create(options)
-    local belowui = options.belowui or false
+    local aboveui = options.aboveui or false
     --a new hud: the title bar's control is put back on the next refresh.
     g_presentationSignature = nil
     local doc = mod:GetDocumentSnapshot(FullscreenDisplay.docid)
@@ -410,12 +415,15 @@ function FullscreenDisplay.Create(options)
         end,
     }
 
-    return gui.Panel{
-        classes = {"hidden", cond(belowui, "belowui", "aboveui")},
+    local panel = gui.Panel{
+        classes = {"hidden", cond(aboveui, "aboveui", "belowui")},
         width = "100%",
         height = "100%",
         halign = "center",
         valign = "center",
+        --among the windows: a press on it brings it back over them.
+        raiseOnPress = not aboveui,
+        data = {shown = nil},
         view,
         shareMonitor,
 
@@ -423,14 +431,20 @@ function FullscreenDisplay.Create(options)
 
         refreshGame = function(element)
             local data = mod:GetDocumentSnapshot(FullscreenDisplay.docid).data or {}
-            local hide = not FullscreenDisplay.IsShowingHere(belowui)
+            local hide = not FullscreenDisplay.IsShowingHere(aboveui)
             element:SetClass("hidden", hide)
-            --under the UI on the tabletop it is the table's background: the
-            --mouse goes through to the table layer behind it, so things
-            --dropped on it land on the table (Tabletop.CreateLayer).
-            view.interactable = not (belowui and Tabletop.IsActive())
-            --its cards stay live; drops on it come through the table.
-            view:FireEvent("setBackground", not hide and belowui and Tabletop.IsActive())
+            --going on show, or a new picture on show, brings it up over the
+            --windows; after that they stack by click order.
+            local shown = nil
+            if not hide then
+                shown = tostring(data.sceneid) .. "|" .. tostring(data.coverart)
+            end
+            if shown ~= element.data.shown and (aboveui or element.parent ~= nil) then
+                element.data.shown = shown
+                if shown ~= nil and not aboveui then
+                    element:SetAsLastSibling()
+                end
+            end
             if not hide then
                 local fit = "cover"
                 if type(data.fit) == "table" and data.fit.image == data.coverart and data.fit.mode == "contain" then
@@ -448,9 +462,16 @@ function FullscreenDisplay.Create(options)
             FullscreenDisplay.UpdatePresentationBar()
         end,
     }
+    if not aboveui then
+        --as a maximized map: under the rails and their panel windows, and
+        --under any dialog that was over it when it is raised.
+        panel.raiseBelowClasses = PanelDocument.ABOVE_MAP_WINDOWS
+        panel.raiseUnderNonWindows = true
+    end
+    return panel
 end
 
---The Director's control in the title bar: Hide / Players / All and Below UI,
+--The Director's control in the title bar: Hide / Players / All and Above UI,
 --for whatever is on show. A maximized tabletop scene window has its own
 --(Players / All) in its strip under the title bar (Tabletop.lua), so while
 --there is one the bar shows none.
@@ -470,10 +491,10 @@ function FullscreenDisplay.UpdatePresentationBar()
         value = data.show
     end
 
-    local belowui = data.belowui == true
+    local aboveui = data.aboveui == true
     local signature = nil
     if value ~= nil then
-        signature = string.format("%s|%s", tostring(value), tostring(belowui))
+        signature = string.format("%s|%s", tostring(value), tostring(aboveui))
     end
     if signature == g_presentationSignature then
         return
@@ -505,10 +526,10 @@ function FullscreenDisplay.UpdatePresentationBar()
                 d.show = newValue
             end)
         end,
-        belowui = belowui,
-        onbelowui = function(newValue)
-            WriteDisplay("Show Below UI", function(d)
-                d.belowui = newValue == true
+        aboveui = aboveui,
+        onaboveui = function(newValue)
+            WriteDisplay("Show Above UI", function(d)
+                d.aboveui = newValue == true
             end)
         end,
     }
@@ -1089,7 +1110,7 @@ function DramaticBanner.Create()
                 portraitPanel.bgimage = portrait
                 local rect = nil
                 if not token.hasSpineAnimation then
-                    rect = token:GetPortraitRectForAspect(Styles.portraitWidthPercentOfHeight*0.01, portrait)
+                    rect = CardPortraitRect(token, Styles.portraitWidthPercentOfHeight*0.01, portrait)
                 end
                 portraitPanel.selfStyle.imageRect = rect
 

@@ -40,6 +40,7 @@ Everything is case-insensitive unless noted. A journal soft break
 |---|---|
 | `# Narrative` | a story beat on the stage: sections, choices, votes |
 | `# Montage` | a montage of rounds: opportunities and threats, tests |
+| `# Negotiation: <NPC>` | a negotiation on the stage: arguments, clues, a deal |
 | `# Encounter` | the fight: setup instructions (traps, bystanders, an extra `Victory:`), then the `[[encounter]]` island, then any `## Reinforcements: <Name>` sections |
 
 Not beats (can sit anywhere, including in a sub-document):
@@ -96,6 +97,7 @@ dialog, log). Use it for hidden mechanics.
 | `reveal traps` / `reveal the trap zones during the next combat` / `traps are revealed` | that zone type becomes visible to players at the encounter beat |
 | `unlock Interrogate the Goblin` / `you unlock ...` | a `(Locked)` entry joins the board |
 | `you gain an edge on Climb the Cliff` / `the party has a double bane on Sneak Past` | standing edge/bane on that `###` option's test for whoever takes it |
+| `the party has a bane on Investigate the Corpse: the body is charred` | the same, with a reason after the colon: the option card shows "Bane: the body is charred" (and the roll chip says it) instead of "Bane: earned at <section>". The reason ends with the clause, so no `. , ; ! ?` in it. Usually braced: `{The party has a bane on X: why}` |
 | `roll twice on Tinkerer's Wares` / `roll on Herb Pouch` / `you roll 3 times on X` | rolls the entry's own dice table (see "Dice tables in an entry") that many times on the host and applies each row landed on |
 | `your rolled damage is increased by 1` / `+1 to rolled damage` / `each party member's rolled damage is increased by 1` | +N to the damage of every damaging power roll, until the next respite |
 | `your maximum Stamina is reduced by 5` / `you lose 5 maximum stamina` / `each party member's maximum stamina is reduced by 5` | Stamina maximum curse, until the next respite |
@@ -257,6 +259,21 @@ roll nobody makes within 45 seconds is rolled by the host. A hidden
 roll block (a blank line between them is still tidier). A `roll on` that
 names no table of its entry warns.
 
+**Mystery tables.** Add `(Mystery)` after the dice to hide a treasure table's
+rows until they are won, like a delve chest:
+
+```
+|Grave Goods: 1d6 (Mystery)
+|1-3: You gain 1 Healing Potion
+|4-6: +1 hero token
+```
+
+Rows the party has never landed on read `???` on the dice card; when the dice
+land on a new row, it types its prize in. Rows stay known for the rest of the
+game. The name stays `Grave Goods`, so `roll on Grave Goods` still finds it.
+Leave the tag off tables the players should read before rolling, such as
+damage tables. In the montage builder it is the "Mystery" tick box on a table.
+
 **Knacks: riders, secret options, knack versions.** Reward what makes each hero
 different. The full vocabulary, the perks the montage plays by their real
 rules, and the authoring STANDARD are in `EncounterOfTheWeek/KNACKS_REFERENCE.md`
@@ -277,6 +294,8 @@ rules, and the authoring STANDARD are in `EncounterOfTheWeek/KNACKS_REFERENCE.md
 - **Requirements** are INTENT, joined by `or`: `you can teleport` (a speed OR
   an ability such as Black Ash Teleport), `you can speak with animals`,
   `you can use telepathy`, `you can go unnoticed`, `you can make light`,
+  `you can deal fire damage` (any ability of theirs deals it; `you can deal
+  fire or holy damage` is two alternatives),
   `you are immune to fire`, `you have fire weakness`, `you have the Lucky Dog
   perk`, `you were a Farmer`, `you were raised in the Wilderness`, `you worship
   Grole the One-Handed`, `you serve the Life domain`, `your kit is Mountain`,
@@ -305,7 +324,8 @@ and starts a scripted scene; each non-blank line after it is one step:
   must itself be a monster name.
 - `Name: text` = speech (PC, or a character who enters in this entry).
   `Name: (in Hyrallic) text` is garbled for anyone whose hero does not speak it.
-- Emotes: `Witch is alert` / `alarmed` / `scared`, or `Goblin (scared): text`.
+- Emotes: `Witch is alert` / `alarmed` / `scared` / `angry`, or `Goblin (scared): text`.
+  `scared` trembles, `angry` shakes harder; `alert` and `alarmed` put a mark over the head.
 - Off-stage voice: `??? (offstage): Who goes there?` / `Guard (offstage): Halt!`
   -- a speaker who never enters: their name shows over the line, no portrait.
   Without `(offstage)`, a speaker who never entered is plain narration.
@@ -313,7 +333,9 @@ and starts a scripted scene; each non-blank line after it is one step:
 - Branches: `if <cond> then` ... `elseif <cond> then` ... `else` ... `end`.
   Conditions: `PC speaks X`, `PC is X` (class/ancestry, or `PC is small` /
   `PC is immune to fire`), `PC has X` (anything by name: skill, perk, ability,
-  item...), `PC is skilled in X`, `PC can X` (any capability: `PC can fly`),
+  item...), `PC is skilled in X`, `PC can X` (any capability: `PC can fly`,
+  `PC can deal fire damage`; a condition's `or` joins whole conditions, so
+  write `PC can deal fire damage or PC can deal holy damage`),
   `PC was a X` (career), `PC carries X`, `PC worships X`, `PC chose <option>`,
   `tier1`/`tier2`/`tier3`, `crit`, combined with `not`, `and`, `or` and
   parentheses. In a series part, the story conditions work too
@@ -459,11 +481,130 @@ Arrows hiss from the trees. Draw steel!
 - Together: rules text is aimed at the whole party; a split vote is settled by
   a random voter (with a dramatic flash). Individually: each option applies once
   for the group that took it.
+- **Interrupted (fake) test.** `|Search the Body: Intuition (Search) ->
+  Interrupted` (or a `|Interrupted` line in the roll block) in a narrative
+  challenge: the hero claims it and throws the dice, but the dice fade 0.8 s
+  into the throw, the stage flashes "Interrupted!" with the Malice sting, and
+  the option's lines after the roll play (the corpse leaps up). The roll never
+  lands: no tier, no effects, no Weary, no assist step, no critical. Tier lines
+  are optional and only dress the roll dialog; a reward in them warns. The
+  fade needs an engine with `dmhub.Roll{ interruptAfter }` (without one the
+  dice land and the result is ignored). The roller is shown **alarmed**
+  automatically (a `PC is alert` / `alarmed` in those lines wins), and the
+  party goes straight from those lines into the next section.
+- **The cast stays on stage.** In a narrative, a character who `enters` stays
+  on the right through the following sections (their boards and the claimed
+  test screens) until an `exits` line or the end of the beat. Every section
+  knows the characters the whole beat brings on, so `Sailor Revenant exits`
+  (or a line of their speech) works in a later section's scene. An arrival
+  scene of only `X exits` plays no line, so the character simply leaves as
+  that section comes up. The hero's last `alert` / `alarmed` stays on their
+  portrait until a test of theirs lands.
+- **`(Spotlight)` section tag.** Only the hero who took the last challenge's
+  option may take this section's test ("it attacks YOU"). With one option they
+  can take, it is claimed for them at once and they cannot step back; with
+  several, only they may claim. Others may still assist. A spotlight on the
+  first section, or with that hero gone, is open to anyone.
+- **Everyone rolls.** A marker paragraph `Everyone rolls:` (also `All party
+  members make this roll:`, `Each hero rolls:`) makes the section a group
+  test: every hero makes its first option's test at the same time on their
+  own player's screen, with their own knack version, riders and Weary. Each
+  result applies to that roller ("You lose 2 recoveries"). No assists, no
+  option routes: the party leaves by the section's exit once everyone has
+  rolled (a player who never rolls is rolled for by the host after 4 minutes;
+  `/eotwnarrative force` rolls for everyone left).
 - `Unlock: Intelligence` (a paragraph in a narrative beat or section) turns on
   the Intelligence pool and the Tactical Preparation screen for the rest of the
   game; earn it with `+N intelligence` clauses. With it on, the party starts
   with no enemy Stamina display and can buy it, surprise and trap knowledge
   with Intelligence before the fight.
+
+## Negotiation beats
+
+A `# Negotiation: <NPC>` beat runs with no Director. The party picks who speaks
+and which authored argument they make, and the book's rules work out interest
+and patience. You write what people say, not the numbers.
+
+```
+# Negotiation: Hask
+
+[[scene]]
+
+Played by: Human Bandit Chief
+Pronouns: he
+Attitude: Suspicious
+Language: Zaliac
+Impression: 1
+Renown: Unknown
+Want: Get the party across before the Golden Hand arrives.
+Opening: Bridge is closed. Toll is what I say it is.
+
+## Motivation: Greed
+Clue: He never takes his hand off the strongbox.
+
+## Pitfall: Higher Authority
+Start: Known
+
+## Pitfall: Justice
+Start: Unlocked by the ledger
+
+## Argument: Offer him a cut of what the road earns
+Appeals: Greed
+PC: There is more in this road than you are collecting.
+|Test: Presence (Persuade)
+|Edge: you speak Zaliac
+Lands: Now that is a sound I know.
+Falls short: Show me coin, not promises.
+
+## Argument: Show him the baron's writ
+Appeals: Higher Authority
+PC: By order of the baron.
+Fails: The baron is three days away and I am standing right here.
+
+## Argument: Share a drink with his crew
+Appeals: Nothing
+|Test: Presence (Flirt)
+Lands: Ha! That earns you a hearing.
+Falls short: Drink your own.
+Backfires: You think I can be bought with bad wine?
+
+## Offer: Yes, but
+You may cross, for 20 gold a head.
+|The encounter begins with a fair roll
+```
+
+- **NPC fields:** `Attitude` is Hostile, Suspicious, Neutral, Open, Friendly or
+  Trusting. `Played by` is the bestiary monster that gives the portrait.
+  `Language` is the NPC's native language: one speaker in the party adds 1
+  patience, three add 2, and Caelian never counts. `Renown` says whether the NPC
+  knows the heroes: `Famous` gives a hero whose Renown reaches `Impression` an
+  edge on Flirt, Lead and Persuade arguments, `Infamous` on Brag, Interrogate and
+  Intimidate.
+- **Traits:** `Clue:` is the hint players see before they have confirmed
+  anything. `Start:` is `Hidden`, `Known` or `Unlocked by <label>`; a montage or
+  narrative clause `You uncover <label>` unlocks it.
+- **Arguments:** `Appeals:` names a motivation, a pitfall or `Nothing`, and is
+  never shown. Every argument needs a test except a pitfall, which fails
+  whatever is rolled. Riders work as in montages, and `|Allow:` makes an argument
+  secret to the heroes who qualify. Replies are `Lands:`, `Falls short:` and
+  `Backfires:` (`Fails:` is the same line on a pitfall). A missing reply uses a
+  stock line.
+- **Offers:** `## Offer: No, and`, `No`, `No, but`, `Yes, but`, `Yes`, `Yes, and`,
+  for interest 0 to 5. `|` lines are effect clauses, applied to the whole party
+  if the party takes that deal. `No, and` applies when interest reaches 0.
+- **Intelligence:** if the feature is unlocked, a player may spend 1 before the
+  first argument to reveal a trait, motivations first.
+- **Writing it well:** knowing the NPC matters more than anything else. Simulated
+  with 4 motivations, 4 pitfalls and 4 neutral arguments, a Suspicious NPC reaches
+  interest 3 about 1 time in 5 when the party knows nothing, and about 4 in 5 when
+  it knows two of each and reads them. Give every motivation a clue, and let
+  earlier beats uncover something.
+- **The builder:** Game > Encounter Builder has "+ Negotiation" and a form for
+  all of the above, with stock arguments and "Test this negotiation" (a rehearsal:
+  its deal applies nothing). The validator also checks that every `Unlocked by`
+  label has a `You uncover` somewhere in the script.
+- **Testing:** `/eotwnegotiation preview` plays a built-in scene on the real
+  stage, and `endpreview` closes it.
 
 ## The encounter beat
 
@@ -490,6 +631,17 @@ Trap: Place 4 Snare Trap objects in Trap zones and delete the other Trap zones.
   the Monster AI never targets them, and they do not count as monsters to
   defeat. Pair it with an Encounter Script on the `[[encounter]]` (e.g. a
   hostage rescue) for what happens to them.
+- **Monster AI behaviors**: `Monster AI: Bully on`, `Monster AI: Avoid
+  Opportunity Attacks off for Goblin Sniper`, `Monster AI: turn on Bully for
+  Goblin Sniper and Goblin Spinecleaver` (the label may also be `AI:`). Each
+  line switches one of the Monster AI's behavior modules on or off for this
+  fight, for every monster (no `for`, or `for every monster`) or the ones named
+  (token name, `<name> 2`, or bestiary type, as for bystanders). Later lines win
+  over earlier ones, so `... on` then `... off for Goblin Sniper` means
+  everyone but the snipers. Behaviors: **Bully** (goes after the heroes with
+  the smallest share of their Stamina left) and **Avoid Opportunity Attacks**
+  (won't walk away from an adjacent hero unless it gains a lot by it). The
+  validator flags a behavior name it does not know.
 - **Arranging the heroes**: when the heroes win the initiative (the die, or
   `you win initiative` / `you surprise the enemy`), the fight pauses after the
   Draw Steel banner so players can move their heroes anywhere in the start
@@ -499,6 +651,13 @@ Trap: Place 4 Snare Trap objects in Trap zones and delete the other Trap zones.
 - **Encounter Scripts** on the `[[encounter]]` (the encounter builder's
   Scripts section, or `EncounterScriptInstance` in Lua) run on the EotW host
   and may replace the victory condition and add a defeat condition.
+- **Victories**: a win is worth the encounter builder's "Victories awarded"
+  on the opening `[[encounter]]` (default 1; Challenge Mode adds one; a hero
+  who already won the encounter gets none). To make an ending worth more, an
+  Encounter Script calls `ctx:SetVictories(2)` BEFORE its victory condition
+  is met (the award reads the number a few seconds after the victory screen
+  appears). The validator shows the number and warns when a Challenge Mode
+  win would be worth more than 3.
 - The **first** `[[encounter]]` island is the start-of-combat fight; its monsters
   spawn behind the stage at their saved positions, scaled to the party size,
   then the stage dissolves and Draw Steel begins.
@@ -580,6 +739,12 @@ time).
   feature do not offer it at all. A series can ship with its first parts
   playable and the rest as placeholders. Remove the line and publish an update
   to open it.
+- **Rests and later parts**: by default a part is playable only while the
+  part before it is still fresh: won since the account last rested at the
+  inn (Catching Breath keeps it). A rest locks it again until that part is won
+  again. For a series where heroes may rest between parts, put
+  `Rest does not lock this part` under the heading of each later part: once
+  the part before is won, it stays unlocked.
 - Each part is a whole script: its own beats, its own `# Encounter` and
   `[[encounter]]` island, and its own `# Town Gate` / `# Conclusion` /
   `# Defeat`. Sub-documents work as usual, per part.

@@ -117,6 +117,12 @@ function EotwAnalytics.Track(eventType, fields, run)
     end)
 end
 
+--Is `runid` a run of the game `gameid` (the game itself, or a later part
+--played on in it)?
+local function RunOfGame(runid, gameid)
+    return type(runid) == "string" and (runid == gameid or string.sub(runid, 1, #gameid + 5) == gameid .. "-part")
+end
+
 --- the town ----------------------------------------------------------------
 
 local m_townOpenAt = nil
@@ -132,7 +138,7 @@ function EotwAnalytics.ReconcileRuns(resumableGameid, how)
     if type(run) ~= "table" or run.runid == nil then
         return
     end
-    if resumableGameid ~= nil and run.runid == resumableGameid then
+    if resumableGameid ~= nil and RunOfGame(run.runid, resumableGameid) then
         return
     end
     EotwAnalytics.Track("eotw_run_end", {
@@ -152,7 +158,7 @@ end
 ---@return boolean
 function EotwAnalytics.HasOpenRun(gameid)
     local run = ReadRuns()[dmhub.loginUserid]
-    return type(run) == "table" and run.runid ~= nil and run.runid == gameid
+    return type(run) == "table" and RunOfGame(run.runid, gameid)
 end
 
 --The town gave up `gameid` (the resume row's Abandon, or a new party
@@ -161,7 +167,7 @@ end
 ---@param how string
 function EotwAnalytics.CloseRun(gameid, how)
     local run = ReadRuns()[dmhub.loginUserid]
-    if type(run) == "table" and run.runid ~= nil and run.runid == gameid then
+    if type(run) == "table" and RunOfGame(run.runid, gameid) then
         EotwAnalytics.ReconcileRuns(nil, how)
     end
 end
@@ -196,6 +202,23 @@ end
 
 --- the run (game side) -----------------------------------------------------
 
+--The run's id: the game's id, or "<gameid>-part<n>" once a series party has
+--gone straight on to its next part in the same game (EncounterOfTheWeek.lua
+--Series.StartNextPart), so each part played is its own run.
+local m_runIdOverride = nil
+
+---@param runid string
+function EotwAnalytics.SetRunId(runid)
+    m_runIdOverride = { gameid = dmhub.gameid, runid = runid }
+end
+
+local function CurrentRunId()
+    if m_runIdOverride ~= nil and m_runIdOverride.gameid == dmhub.gameid then
+        return m_runIdOverride.runid
+    end
+    return dmhub.gameid
+end
+
 --Open this client's run in the current EotW game. info: encounter (key),
 --board ("gate"|"pits"), week, part, practice, host (bool), plus anything to
 --report on eotw_run_start (party size, this player's heroes...). A second
@@ -203,13 +226,14 @@ end
 --than once per sitting: only the first does anything.
 ---@param info table
 function EotwAnalytics.BeginRun(info)
-    if m_run ~= nil and m_run.runid == dmhub.gameid then
+    local runid = CurrentRunId()
+    if m_run ~= nil and m_run.runid == runid then
         return
     end
 
     local runs = ReadRuns()
     local prior = runs[dmhub.loginUserid]
-    local resume = type(prior) == "table" and prior.runid == dmhub.gameid
+    local resume = type(prior) == "table" and prior.runid == runid
 
     --a run in another game was never closed: it is over now.
     if type(prior) == "table" and prior.runid ~= nil and not resume then
@@ -225,7 +249,7 @@ function EotwAnalytics.BeginRun(info)
 
     ---@type EotwAnalyticsRun
     local run = {
-        runid = dmhub.gameid,
+        runid = runid,
         encounter = info.encounter,
         board = info.board,
         week = info.week,
@@ -258,7 +282,7 @@ function EotwAnalytics.BeginRun(info)
 end
 
 function EotwAnalytics.InRun()
-    return m_run ~= nil and m_run.runid == dmhub.gameid and not m_run.ended
+    return m_run ~= nil and m_run.runid == CurrentRunId() and not m_run.ended
 end
 
 --Keep the run record's minutes current, so a run closed from the town after

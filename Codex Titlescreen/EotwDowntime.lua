@@ -230,6 +230,212 @@ EotwDowntime.PROJECTS = {
             },
         },
     },
+    --The second COMMUNITY project, built at its own site (4000 points, in
+    --city-core.ts); completing it opens the Town Hall's votes and petitions.
+    ["build-town-hall"] = {
+        id = "build-town-hall",
+        scope = "community",
+        title = T("downtime.projects.build_town_hall.title"),
+        icon = "phosphor/hammer-fill.png",
+        location = "townhall",
+        locationName = T("downtime.projects.build_town_hall.place"),
+        characteristics = { "mgt", "rea", "prs" },
+        skills = { "Architecture", "Lead", "Persuade", "Society" },
+        benefit = T("downtime.projects.build_town_hall.benefit"),
+        completeBanner = { text = T("downtime.projects.build_town_hall.complete_banner"), subtitle = T("downtime.projects.build_town_hall.complete_subtitle") },
+        blurb = function(state)
+            if state ~= nil and state.maxed then
+                return T("downtime.projects.build_town_hall.blurb_maxed")
+            end
+            return T("downtime.projects.build_town_hall.blurb")
+        end,
+        rollLines = {
+            early = {
+                hopeful = {
+                    T("downtime.lines.town_hall.early_hopeful_1"),
+                    T("downtime.lines.town_hall.early_hopeful_2"),
+                    T("downtime.lines.town_hall.early_hopeful_3"),
+                },
+                neutral = {
+                    T("downtime.lines.town_hall.early_neutral_1"),
+                    T("downtime.lines.town_hall.early_neutral_2"),
+                    T("downtime.lines.town_hall.early_neutral_3"),
+                },
+                frustrated = {
+                    T("downtime.lines.town_hall.early_frustrated_1"),
+                    T("downtime.lines.town_hall.early_frustrated_2"),
+                    T("downtime.lines.town_hall.early_frustrated_3"),
+                },
+            },
+            mid = {
+                hopeful = {
+                    T("downtime.lines.town_hall.mid_hopeful_1"),
+                    T("downtime.lines.town_hall.mid_hopeful_2"),
+                    T("downtime.lines.town_hall.mid_hopeful_3"),
+                },
+                neutral = {
+                    T("downtime.lines.town_hall.mid_neutral_1"),
+                    T("downtime.lines.town_hall.mid_neutral_2"),
+                    T("downtime.lines.town_hall.mid_neutral_3"),
+                },
+                frustrated = {
+                    T("downtime.lines.town_hall.mid_frustrated_1"),
+                    T("downtime.lines.town_hall.mid_frustrated_2"),
+                    T("downtime.lines.town_hall.mid_frustrated_3"),
+                },
+            },
+            late = {
+                hopeful = {
+                    T("downtime.lines.town_hall.late_hopeful_1"),
+                    T("downtime.lines.town_hall.late_hopeful_2"),
+                    T("downtime.lines.town_hall.late_hopeful_3"),
+                },
+                neutral = {
+                    T("downtime.lines.town_hall.late_neutral_1"),
+                    T("downtime.lines.town_hall.late_neutral_2"),
+                    T("downtime.lines.town_hall.late_neutral_3"),
+                },
+                frustrated = {
+                    T("downtime.lines.town_hall.late_frustrated_1"),
+                    T("downtime.lines.town_hall.late_frustrated_2"),
+                    T("downtime.lines.town_hall.late_frustrated_3"),
+                },
+            },
+            done = {
+                T("downtime.lines.town_hall.done_1"),
+                T("downtime.lines.town_hall.done_2"),
+                T("downtime.lines.town_hall.done_3"),
+            },
+        },
+    },
+    --The third COMMUNITY project, built at its own site (6000 points, in
+    --city-core.ts); completing it opens the Training Grounds, where heroes
+    --Level up. It is built in two STAGES: planning (Reason or Presence),
+    --then building (Might or Agility). The City knows only the total; the
+    --stages are this table's (see EotwDowntime.ProjectStage).
+    ["build-training-grounds"] = {
+        id = "build-training-grounds",
+        scope = "community",
+        title = T("downtime.projects.build_training_grounds.title"),
+        icon = "phosphor/hammer-fill.png",
+        location = "traininggrounds",
+        locationName = T("downtime.projects.build_training_grounds.place"),
+        --the first stage's; what the town reads goes through the stages.
+        characteristics = { "rea", "prs" },
+        skills = { "Architecture", "Lead", "Strategy", "Society" },
+        stages = {
+            {
+                upTo = 0.5,
+                name = T("downtime.projects.build_training_grounds.stage_planning"),
+                blurb = T("downtime.projects.build_training_grounds.stage_planning_blurb"),
+                characteristics = { "rea", "prs" },
+                skills = { "Architecture", "Lead", "Strategy", "Society" },
+            },
+            {
+                name = T("downtime.projects.build_training_grounds.stage_building"),
+                blurb = T("downtime.projects.build_training_grounds.stage_building_blurb"),
+                characteristics = { "mgt", "agl" },
+                skills = { "Blacksmithing", "Carpentry", "Fletching", "Mechanics" },
+                --shown to the hero whose roll begins this stage.
+                banner = { text = T("downtime.projects.build_training_grounds.stage_banner"), subtitle = T("downtime.projects.build_training_grounds.stage_subtitle") },
+            },
+        },
+        benefit = T("downtime.projects.build_training_grounds.benefit"),
+        completeBanner = { text = T("downtime.projects.build_training_grounds.complete_banner"), subtitle = T("downtime.projects.build_training_grounds.complete_subtitle") },
+        blurb = function(state)
+            if state ~= nil and state.maxed then
+                return T("downtime.projects.build_training_grounds.blurb_maxed")
+            end
+            local stage = EotwDowntime.ProjectStage(EotwDowntime.PROJECTS["build-training-grounds"], state)
+            if stage ~= nil and stage.blurb ~= nil and stage.blurb ~= "" then
+                return stage.blurb
+            end
+            return T("downtime.projects.build_training_grounds.blurb")
+        end,
+        rollLines = {
+            --by progress, in place of early/mid/late: each band covers
+            --progress below its upTo (the last runs to the end). The halves
+            --of each stage: planning 0-25%, 25-50%, building 50-75%, 75-100%.
+            bands = {
+                {
+                    upTo = 0.25,
+                    hopeful = {
+                        T("downtime.lines.training_grounds.planning_early_hopeful_1"),
+                        T("downtime.lines.training_grounds.planning_early_hopeful_2"),
+                        T("downtime.lines.training_grounds.planning_early_hopeful_3"),
+                    },
+                    neutral = {
+                        T("downtime.lines.training_grounds.planning_early_neutral_1"),
+                        T("downtime.lines.training_grounds.planning_early_neutral_2"),
+                        T("downtime.lines.training_grounds.planning_early_neutral_3"),
+                    },
+                    frustrated = {
+                        T("downtime.lines.training_grounds.planning_early_frustrated_1"),
+                        T("downtime.lines.training_grounds.planning_early_frustrated_2"),
+                        T("downtime.lines.training_grounds.planning_early_frustrated_3"),
+                    },
+                },
+                {
+                    upTo = 0.5,
+                    hopeful = {
+                        T("downtime.lines.training_grounds.planning_late_hopeful_1"),
+                        T("downtime.lines.training_grounds.planning_late_hopeful_2"),
+                        T("downtime.lines.training_grounds.planning_late_hopeful_3"),
+                    },
+                    neutral = {
+                        T("downtime.lines.training_grounds.planning_late_neutral_1"),
+                        T("downtime.lines.training_grounds.planning_late_neutral_2"),
+                        T("downtime.lines.training_grounds.planning_late_neutral_3"),
+                    },
+                    frustrated = {
+                        T("downtime.lines.training_grounds.planning_late_frustrated_1"),
+                        T("downtime.lines.training_grounds.planning_late_frustrated_2"),
+                        T("downtime.lines.training_grounds.planning_late_frustrated_3"),
+                    },
+                },
+                {
+                    upTo = 0.75,
+                    hopeful = {
+                        T("downtime.lines.training_grounds.building_early_hopeful_1"),
+                        T("downtime.lines.training_grounds.building_early_hopeful_2"),
+                        T("downtime.lines.training_grounds.building_early_hopeful_3"),
+                    },
+                    neutral = {
+                        T("downtime.lines.training_grounds.building_early_neutral_1"),
+                        T("downtime.lines.training_grounds.building_early_neutral_2"),
+                        T("downtime.lines.training_grounds.building_early_neutral_3"),
+                    },
+                    frustrated = {
+                        T("downtime.lines.training_grounds.building_early_frustrated_1"),
+                        T("downtime.lines.training_grounds.building_early_frustrated_2"),
+                        T("downtime.lines.training_grounds.building_early_frustrated_3"),
+                    },
+                },
+                {
+                    hopeful = {
+                        T("downtime.lines.training_grounds.building_late_hopeful_1"),
+                        T("downtime.lines.training_grounds.building_late_hopeful_2"),
+                        T("downtime.lines.training_grounds.building_late_hopeful_3"),
+                    },
+                    neutral = {
+                        T("downtime.lines.training_grounds.building_late_neutral_1"),
+                        T("downtime.lines.training_grounds.building_late_neutral_2"),
+                        T("downtime.lines.training_grounds.building_late_neutral_3"),
+                    },
+                    frustrated = {
+                        T("downtime.lines.training_grounds.building_late_frustrated_1"),
+                        T("downtime.lines.training_grounds.building_late_frustrated_2"),
+                        T("downtime.lines.training_grounds.building_late_frustrated_3"),
+                    },
+                },
+            },
+            done = {
+                T("downtime.lines.training_grounds.done_1"),
+                T("downtime.lines.training_grounds.done_2"),
+                T("downtime.lines.training_grounds.done_3"),
+            },
+        },
+    },
 }
 
 --A Draw Steel test's tier from a 2d10 roll: 11 or less, 12-16, 17+, and a
@@ -253,6 +459,15 @@ function EotwDowntime.GetProject(projectid)
     return m_projects[projectid]
 end
 
+--Drop every cached project. EotwRoster.Attach calls this for each new city
+--connection: the cache belongs to one server, and a project only staging
+--knows (build-training-grounds) must not stay listed after a switch to release.
+function EotwDowntime.ForgetProjects()
+    m_projects = {}
+    m_listing = {}
+    Bump()
+end
+
 --Ask the City for this account's projects and the town's community ones,
 --and cache them.
 function EotwDowntime.RefreshProjects()
@@ -267,6 +482,10 @@ function EotwDowntime.RefreshProjects()
                 action = "list-projects",
                 args = { scope = scope },
                 success = function(result)
+                    --a reply from a connection replaced since (server switch) is stale.
+                    if EotwRoster.Connection() ~= conn then
+                        return
+                    end
                     m_listing[scope] = false
                     for _, project in ipairs(result.projects or {}) do
                         m_projects[project.projectid] = project
@@ -282,11 +501,73 @@ function EotwDowntime.RefreshProjects()
     end
 end
 
+--- project stages -------------------------------------------------------------
+
+--The stage a project with `stages` is in at this progress (0-1), and its
+--number. Each stage covers progress below its upTo; the last runs to the end.
+local function StageAt(project, progress)
+    for i, stage in ipairs(project.stages) do
+        if stage.upTo == nil or progress < stage.upTo then
+            return stage, i
+        end
+    end
+    return project.stages[#project.stages], #project.stages
+end
+
+--How far along a project is (0-1) by a state the City reported.
+local function ProjectProgress(state)
+    if state == nil then
+        return 0
+    end
+    if state.maxed then
+        return 1
+    end
+    local goal = tonumber(state.goal) or 0
+    if goal <= 0 then
+        return 0
+    end
+    return (tonumber(state.points) or 0) / goal
+end
+
+--A project built in stages (the Training Grounds: planning, then building)
+--asks for different characteristics and skills as it goes. Returns the stage
+--it is in by `state` (default: the City's last-known state) and the stage's
+--number, or nil for a project without stages.
+function EotwDowntime.ProjectStage(project, state)
+    if project == nil or project.stages == nil then
+        return nil, nil
+    end
+    if state == nil then
+        state = EotwDowntime.GetProject(project.id)
+    end
+    return StageAt(project, ProjectProgress(state))
+end
+
+--The stage a project is in at this progress (0-1), or nil without stages.
+function EotwDowntime.ProjectStageAt(project, progress)
+    if project == nil or project.stages == nil then
+        return nil, nil
+    end
+    return StageAt(project, progress)
+end
+
+--The characteristics and skills a project needs right now (its stage's, if
+--it has stages). Every roll is judged by the points it saw when it was made.
+local function NeededCharacteristics(project)
+    local stage = EotwDowntime.ProjectStage(project)
+    return (stage ~= nil and stage.characteristics) or project.characteristics
+end
+
+local function NeededSkills(project)
+    local stage = EotwDowntime.ProjectStage(project)
+    return (stage ~= nil and stage.skills) or project.skills
+end
+
 --The ids of the characteristics a project allows, with display names, in
 --the game system's own order: { {id, name}, ... }.
 local function ProjectCharacteristics(project)
     local result = {}
-    for _, attrid in ipairs(project.characteristics) do
+    for _, attrid in ipairs(NeededCharacteristics(project)) do
         local info = creature.attributesInfo[attrid]
         result[#result+1] = { id = attrid, name = info ~= nil and info.description or attrid }
     end
@@ -305,7 +586,7 @@ local function TrainedProjectSkills(tok, project)
     local trained = {}
     pcall(function()
         for _, skill in ipairs(Skill.SkillsInfo) do
-            for _, name in ipairs(project.skills) do
+            for _, name in ipairs(NeededSkills(project)) do
                 if skill.name == name and tok.properties:ProficientInSkill(skill) then
                     trained[#trained+1] = name
                 end
@@ -338,7 +619,16 @@ function EotwDowntime.PickRollLine(projectid, tier, progress, completed)
         pool = lines.done
     else
         local band = lines.early
-        if progress >= 0.67 then
+        if lines.bands ~= nil then
+            --a project with its own bands (the Training Grounds' stages).
+            band = lines.bands[#lines.bands]
+            for _, b in ipairs(lines.bands) do
+                if b.upTo ~= nil and progress < b.upTo then
+                    band = b
+                    break
+                end
+            end
+        elseif progress >= 0.67 then
             band = lines.late
         elseif progress >= 0.34 then
             band = lines.mid
@@ -349,7 +639,8 @@ function EotwDowntime.PickRollLine(projectid, tier, progress, completed)
         elseif tier <= 1 then
             mood = "frustrated"
         end
-        pool = band[mood]
+        --a band also holds its upTo (a number); the moods are the line lists.
+        pool = band[mood] --[[@as string[]?]]
     end
     if pool == nil or #pool == 0 then
         return nil
@@ -513,6 +804,14 @@ local function RollSecretTwin(tok)
     end
 end
 
+--Whether a respite only banks XP and leaves the Level-up to the Training
+--Grounds: only once the town has built them. Until then a respite raises
+--the Level itself, so no Hero is left with no way to level.
+local function RespiteBanksXp()
+    return EotwRoster.TrainingGroundsBuilt()
+end
+EotwDowntime.RespiteBanksXp = RespiteBanksXp
+
 --Rest one hero's working copy for this respite, unless it already has.
 local function RestHero(tok, respiteid, victories)
     local done = false
@@ -529,7 +828,7 @@ local function RestHero(tok, respiteid, victories)
         execute = function()
             local props = tok.properties
             --heals, turns Victories into XP and refreshes Recoveries.
-            props:Rest("long")
+            props:Rest("long", false, RespiteBanksXp())
             RollSecretTwin(tok)
             local stamps = {}
             local old = rawget(props, "eotwRespites")
@@ -1259,7 +1558,7 @@ local function Portrait(tok, width, height)
         }
     end
     local rect = nil
-    pcall(function() rect = tok:GetPortraitRectForAspect(width / height, portrait) end)
+    pcall(function() rect = CardPortraitRect(tok, width / height, portrait) end)
     return gui.Panel{
         interactable = false,
         width = width,
@@ -1343,8 +1642,9 @@ end
 
 --The best characteristic for this hero on this project.
 local function BestCharacteristic(tok, project)
-    local best, bestValue = project.characteristics[1], nil
-    for _, attrid in ipairs(project.characteristics) do
+    local needed = NeededCharacteristics(project)
+    local best, bestValue = needed[1], nil
+    for _, attrid in ipairs(needed) do
         local v = CharacteristicValue(tok, attrid)
         if bestValue == nil or v > bestValue then
             best, bestValue = attrid, v
@@ -1456,6 +1756,11 @@ function EotwDowntime.ShowRollDialog(host, projectid)
         local breakthrough = EotwDowntime.OpenBreakthrough(projectid, state.heroid)
         local before = EotwDowntime.GetProject(projectid)
         local goalBefore = before ~= nil and tonumber(before.goal) or 0
+        --a project built in stages: the stage this roll was made in.
+        local progressBefore = 0
+        if before ~= nil and goalBefore > 0 then
+            progressBefore = (tonumber(before.points) or 0) / goalBefore
+        end
         EotwDowntime.Roll{
             previewPanel = cage,
             projectid = projectid,
@@ -1525,6 +1830,19 @@ function EotwDowntime.ShowRollDialog(host, projectid)
                         end
                         ShowBanner(host, T("downtime.roll.breakthrough_banner"), subtitle)
                     end
+                    --this roll moved a staged project into its next stage.
+                    if not result.completed and project.stages ~= nil then
+                        local goalNow = tonumber(p.goal) or 0
+                        local _, stageBefore = EotwDowntime.ProjectStageAt(project, progressBefore)
+                        local stageNow, stageNowNumber = EotwDowntime.ProjectStageAt(project, cond(goalNow > 0, (tonumber(p.points) or 0) / math.max(1, goalNow), 0))
+                        if stageNow ~= nil and stageNowNumber ~= stageBefore and stageNow.banner ~= nil then
+                            dmhub.Schedule(cond(result.breakthrough, 4.5, 0), function()
+                                if not mod.unloaded then
+                                    ShowBanner(host, stageNow.banner.text, stageNow.banner.subtitle)
+                                end
+                            end)
+                        end
+                    end
                     if result.completed then
                         local text = T("downtime.roll.complete_banner", { project = project.title })
                         local subtitle = T("downtime.roll.complete_subtitle")
@@ -1560,6 +1878,11 @@ function EotwDowntime.ShowRollDialog(host, projectid)
                 local progress = 1
                 if not result.completed and goal > 0 then
                     progress = (tonumber(p.points) or 0) / goal
+                end
+                --a staged project: the line belongs to the stage the roll
+                --worked on, not the one it may have just opened.
+                if not result.completed and project.stages ~= nil then
+                    progress = progressBefore
                 end
                 local tier = EotwDowntime.TestTier(state.natural or 0, state.total or 0)
                 local text = EotwDowntime.PickRollLine(projectid, tier, progress, result.completed == true)
@@ -1611,6 +1934,19 @@ function EotwDowntime.ShowRollDialog(host, projectid)
                 if w.hero.heroid == state.heroid then
                     chosen = w
                 end
+            end
+        end
+        --a project built in stages may have moved on (this dialog's roll or
+        --another player's): choose again from what the new stage needs.
+        if chosen ~= nil and not state.rolling and project.stages ~= nil then
+            local allowed = false
+            for _, c in ipairs(ProjectCharacteristics(project)) do
+                if c.id == state.characteristic then
+                    allowed = true
+                end
+            end
+            if not allowed then
+                SelectHero(chosen)
             end
         end
 
@@ -1806,7 +2142,7 @@ function EotwDowntime.ShowRollDialog(host, projectid)
                     end,
                 },
                 gui.Label{
-                    text = cond(#trained == 0, T("downtime.roll.skills_none_trained", { skills = table.concat(project.skills, ", ") }), table.concat(project.skills, ", ")),
+                    text = cond(#trained == 0, T("downtime.roll.skills_none_trained", { skills = table.concat(NeededSkills(project), ", ") }), table.concat(NeededSkills(project), ", ")),
                     fontSize = 13,
                     italics = true,
                     color = DIM,
@@ -2410,12 +2746,16 @@ function EotwDowntime.ProjectCard(host, projectid)
         height = "auto",
         vmargin = 4,
     }
-    local characteristicNames = {}
-    for _, c in ipairs(ProjectCharacteristics(project)) do
-        characteristicNames[#characteristicNames+1] = c.name
+    --what it takes; a project built in stages changes it as it goes.
+    local function NeedsText()
+        local characteristicNames = {}
+        for _, c in ipairs(ProjectCharacteristics(project)) do
+            characteristicNames[#characteristicNames+1] = c.name
+        end
+        return T("downtime.card.needs", { characteristics = table.concat(characteristicNames, T("downtime.card.characteristic_separator")), skills = table.concat(NeededSkills(project), ", ") })
     end
     local needsLabel = gui.Label{
-        text = T("downtime.card.needs", { characteristics = table.concat(characteristicNames, T("downtime.card.characteristic_separator")), skills = table.concat(project.skills, ", ") }),
+        text = NeedsText(),
         fontSize = 14,
         color = DIM,
         width = "100%",
@@ -2453,8 +2793,14 @@ function EotwDowntime.ProjectCard(host, projectid)
     local function Refresh()
         local state = EotwDowntime.GetProject(projectid)
         blurbLabel.text = project.blurb(state)
-        --no "expansion N of M": how many there can be is not shown.
+        needsLabel.text = NeedsText()
+        --no "expansion N of M": how many there can be is not shown. A
+        --project built in stages says which one it is in.
         stepLabel.text = ""
+        local stage, stageNumber = EotwDowntime.ProjectStage(project, state)
+        if stage ~= nil and not (state ~= nil and state.maxed) then
+            stepLabel.text = T("downtime.card.stage", { number = string.format("%d", stageNumber), count = string.format("%d", #project.stages), stage = stage.name })
+        end
         if state ~= nil then
             --a gain eases into place; anything else shows at once.
             barCtl.Update(tonumber(state.points) or 0, tonumber(state.goal) or 0)
@@ -2599,6 +2945,227 @@ function EotwDowntime.ProjectSidePanel(host, projectid, width)
     }
 end
 
+--- Tribute to the Builders ------------------------------------------------------
+
+--Text shown as typed: rich-text tags in a player's name are not applied.
+local function PlainName(text)
+    return "<noparse>" .. string.gsub(tostring(text or ""), "</?[nN][oO][pP][aA][rR][sS][eE]>", "") .. "</noparse>"
+end
+
+--A builder's name, or the stand-in for rolls made before names were kept.
+local function BuilderName(name)
+    if type(name) ~= "string" or name == "" then
+        return T("tribute.unknown_player")
+    end
+    return PlainName(name)
+end
+
+local function BuilderHeroName(name)
+    if type(name) ~= "string" or name == "" then
+        return T("tribute.unknown_hero")
+    end
+    return PlainName(name)
+end
+
+--The cornerstone or capstone: who placed it, with which hero, and when.
+local function StoneBox(heading, subtitle, stone)
+    return gui.Panel{
+        width = "48%",
+        height = "auto",
+        flow = "vertical",
+        halign = "center",
+        hmargin = 6,
+        bgimage = "panels/square.png",
+        bgcolor = "#d9b56a1c",
+        borderWidth = 1,
+        borderColor = "#d9b56a66",
+        cornerRadius = 8,
+        pad = 12,
+        borderBox = true,
+        gui.Label{ text = heading, fontSize = 20, bold = true, color = GOLD, width = "100%", height = "auto", textAlignment = "center" },
+        gui.Label{ text = subtitle, fontSize = 14, italics = true, color = DIM, width = "100%", height = "auto", textAlignment = "center" },
+        gui.Label{ text = BuilderName(stone.name), fontSize = 22, bold = true, color = TEXT, width = "100%", height = "auto", textAlignment = "center", tmargin = 6 },
+        gui.Label{
+            text = T("tribute.stone_detail", { hero = BuilderHeroName(stone.heroName), when = DescribeServerTimestamp(stone.at) }),
+            fontSize = 14,
+            color = DIM,
+            width = "100%",
+            height = "auto",
+            textAlignment = "center",
+        },
+    }
+end
+
+--One ranked builder: place, name and points; hovering lists their heroes.
+local function BuilderRow(rank, builder)
+    local lines = { T("tribute.heroes_heading") }
+    for _, hero in ipairs(builder.heroes or {}) do
+        lines[#lines+1] = TP("tribute.hero_line", tonumber(hero.points) or 0, { hero = BuilderHeroName(hero.name) })
+    end
+    local mine = builder.userid == dmhub.loginUserid
+    return gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        bgimage = "panels/square.png",
+        bgcolor = cond(mine, "#2a2418cc", "#ffffff0a"),
+        styles = {
+            { selectors = {"hover"}, bgcolor = cond(mine, "#3a3220dd", "#ffffff18") },
+        },
+        cornerRadius = 6,
+        hpad = 10,
+        vpad = 6,
+        borderBox = true,
+        vmargin = 2,
+        hover = gui.Tooltip(table.concat(lines, "\n")),
+        gui.Label{ text = string.format("#%d", rank), fontSize = 17, bold = true, color = cond(rank <= 3, GOLD, DIM), width = 54, height = "auto", valign = "center" },
+        gui.Label{ text = BuilderName(builder.name), fontSize = 17, bold = mine, color = TEXT, width = "100%-190", height = "auto", valign = "center" },
+        gui.Label{ text = TP("tribute.points", tonumber(builder.points) or 0), fontSize = 16, color = TEXT, width = 130, height = "auto", valign = "center", textAlignment = "right" },
+    }
+end
+
+--The Tribute to the Builders for a project: its cornerstone (the first
+--roll), its capstone once complete (the roll that finished it), and every
+--builder ranked by Project Points. Read from the City's
+--list-project-builders. host mounts the dialog.
+function EotwDowntime.ShowTribute(host, projectid)
+    local project = EotwDowntime.PROJECTS[projectid]
+    local body = nil
+    local dlg
+    local function Show(children)
+        if body ~= nil and body.valid then
+            body.children = children
+        end
+    end
+    dlg = gui.Panel{
+        floating = true,
+        width = 760,
+        height = "auto",
+        halign = "center",
+        valign = "center",
+        bgimage = "panels/square.png",
+        bgcolor = "#14110dff",
+        borderWidth = 2,
+        borderColor = "#8c7a55",
+        cornerRadius = 10,
+        flow = "vertical",
+        pad = 24,
+        borderBox = true,
+        styles = { Styles.Default },
+        captureEscape = true,
+        escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+        escape = function(element)
+            element:DestroySelf()
+        end,
+        gui.Label{ text = T("tribute.title"), fontSize = 30, bold = true, color = TEXT, width = "100%", height = "auto", textAlignment = "center" },
+        gui.Label{ text = project ~= nil and project.title or "", fontSize = 18, italics = true, color = DIM, width = "100%", height = "auto", textAlignment = "center", bmargin = 10 },
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            create = function(element)
+                body = element
+                Show{ gui.Label{ text = T("tribute.loading"), fontSize = 18, color = DIM, width = "100%", height = "auto", textAlignment = "center", vmargin = 20 } }
+            end,
+        },
+        gui.Button{
+            text = T("tribute.close_button"),
+            fontSize = 18,
+            width = 180,
+            height = 40,
+            halign = "center",
+            tmargin = 12,
+            click = function()
+                dlg:DestroySelf()
+            end,
+        },
+    }
+    host:AddChild(dlg)
+
+    local conn = EotwRoster.Connection()
+    if conn == nil or not conn.connected then
+        Show{ gui.Label{ text = T("tribute.error"), fontSize = 18, color = RED, width = "100%", height = "auto", textAlignment = "center", vmargin = 20 } }
+        return
+    end
+    conn:Request{
+        action = "list-project-builders",
+        args = { projectid = projectid },
+        success = function(result)
+            if mod.unloaded or dlg == nil or not dlg.valid then
+                return
+            end
+            local builders = result.builders or {}
+            if #builders == 0 then
+                Show{ gui.Label{ text = T("tribute.empty"), fontSize = 18, color = DIM, width = "100%", height = "auto", textAlignment = "center", vmargin = 20 } }
+                return
+            end
+            ---@type Panel[]
+            local stones = {}
+            if type(result.cornerstone) == "table" then
+                stones[#stones+1] = StoneBox(T("tribute.cornerstone"), T("tribute.cornerstone_subtitle"), result.cornerstone)
+            end
+            if type(result.capstone) == "table" then
+                stones[#stones+1] = StoneBox(T("tribute.capstone"), T("tribute.capstone_subtitle"), result.capstone)
+            end
+            ---@type Panel[]
+            local rows = {}
+            for i, builder in ipairs(builders) do
+                rows[#rows+1] = BuilderRow(i, builder)
+            end
+            local more = (tonumber(result.builderCount) or #builders) - #builders
+            if more > 0 then
+                rows[#rows+1] = gui.Label{ text = TP("tribute.more_builders", more), fontSize = 15, italics = true, color = DIM, width = "100%", height = "auto", textAlignment = "center", vmargin = 4 }
+            end
+            Show{
+                gui.Panel{ width = "100%", height = "auto", flow = "horizontal", halign = "center", children = stones },
+                gui.Label{
+                    text = T("tribute.summary", { builders = TP("tribute.builder_count", tonumber(result.builderCount) or #builders), points = TP("tribute.points", tonumber(result.totalPoints) or 0) }),
+                    fontSize = 16,
+                    color = TEXT,
+                    width = "100%",
+                    height = "auto",
+                    textAlignment = "center",
+                    vmargin = 10,
+                },
+                gui.Label{ text = T("tribute.ranked_heading"), fontSize = 18, bold = true, color = GOLD, width = "100%", height = "auto", bmargin = 4 },
+                gui.Panel{
+                    width = "100%",
+                    height = "auto",
+                    maxHeight = 420,
+                    flow = "vertical",
+                    vscroll = true,
+                    rpad = 10,
+                    borderBox = true,
+                    children = rows,
+                },
+            }
+        end,
+        error = function(message)
+            printf("EotW town: could not list the builders of %s: %s", projectid, tostring(message))
+            if not mod.unloaded then
+                Show{ gui.Label{ text = T("tribute.error"), fontSize = 18, color = RED, width = "100%", height = "auto", textAlignment = "center", vmargin = 20 } }
+            end
+        end,
+    }
+end
+
+--The small "Tribute to the Builders" button under a community project, and
+--on the building it became.
+function EotwDowntime.TributeButton(host, projectid)
+    return gui.Button{
+        text = T("tribute.button"),
+        fontSize = 12,
+        width = 160,
+        height = 22,
+        halign = "right",
+        tmargin = 8,
+        click = function()
+            audio.FireSoundEvent("Mouse.Click")
+            EotwDowntime.ShowTribute(host, projectid)
+        end,
+    }
+end
+
 --- the Construction (the Hall of Heroes being built) --------------------------
 
 --The Construction scene's card: what is being built, and the town's shared
@@ -2627,6 +3194,65 @@ function EotwDowntime.ConstructionPanel(host)
             bmargin = 16,
         },
         EotwDowntime.ProjectCard(host, "build-hall-of-heroes"),
+        EotwDowntime.TributeButton(host, "build-hall-of-heroes"),
+    }
+end
+
+--The Town Hall's building site: the same, for the town's shared project
+--Build the Town Hall.
+function EotwDowntime.TownHallConstructionPanel(host)
+    return gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        gui.Label{
+            text = T("downtime.town_hall_site.intro"),
+            fontSize = 20,
+            italics = true,
+            color = TEXT,
+            width = "100%",
+            height = "auto",
+            bmargin = 12,
+        },
+        gui.Label{
+            text = T("downtime.town_hall_site.community"),
+            fontSize = 15,
+            color = DIM,
+            width = "100%",
+            height = "auto",
+            bmargin = 16,
+        },
+        EotwDowntime.ProjectCard(host, "build-town-hall"),
+        EotwDowntime.TributeButton(host, "build-town-hall"),
+    }
+end
+
+--The Training Grounds' building site: the same, for the town's shared
+--project Build the Training Grounds (planned, then built: see its stages).
+function EotwDowntime.TrainingGroundsConstructionPanel(host)
+    return gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        gui.Label{
+            text = T("downtime.training_grounds_site.intro"),
+            fontSize = 20,
+            italics = true,
+            color = TEXT,
+            width = "100%",
+            height = "auto",
+            bmargin = 12,
+        },
+        gui.Label{
+            text = T("downtime.training_grounds_site.community"),
+            fontSize = 15,
+            color = DIM,
+            width = "100%",
+            height = "auto",
+            bmargin = 16,
+        },
+        EotwDowntime.ProjectCard(host, "build-training-grounds"),
+        EotwDowntime.TributeButton(host, "build-training-grounds"),
     }
 end
 

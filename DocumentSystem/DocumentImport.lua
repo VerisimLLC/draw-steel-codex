@@ -1297,15 +1297,21 @@ end
 
 --Calls fn(entryid) once the entry has reached the journal (an upload's
 --record arrives a moment after its callback), giving up after timeout
---seconds.
-local function WhenInJournal(entryid, timeout, fn)
+--seconds (then gaveUp, if given, is called instead).
+local function WhenInJournal(entryid, timeout, fn, gaveUp)
     if fn == nil then
         return
     end
     dmhub.Coroutine(function()
         local deadline = dmhub.Time() + timeout
         while CustomDocument.FindJournalEntry(entryid) == nil do
-            if mod.unloaded or dmhub.Time() > deadline then
+            if mod.unloaded then
+                return
+            end
+            if dmhub.Time() > deadline then
+                if gaveUp ~= nil then
+                    gaveUp()
+                end
                 return
             end
             coroutine.yield(0.1)
@@ -1386,25 +1392,44 @@ local function StartOperation(description)
     return operation
 end
 
-local function ImportPDF(path, parentFolder, ready)
-    local operation = StartOperation("Uploading Document")
+--- @class DocumentImportWatch
+--- @field progress fun(fraction: number) how far the upload has got (0 to 1)
+--- @field failed fun() the upload failed or never reached the journal
+
+--watch (optional): the caller shows the upload itself (the table's placeholder),
+--so there is no app-locking progress dialog.
+--- @param watch nil|DocumentImportWatch
+local function ImportPDF(path, parentFolder, ready, watch)
+    local operation = nil
+    if watch == nil then
+        operation = StartOperation("Uploading Document")
+    end
+    local function SetProgress(f)
+        if operation ~= nil then
+            operation.progress = f
+            operation:Update()
+        end
+        if watch ~= nil then
+            watch.progress(f)
+        end
+    end
     local name = FileDrops.BaseName(path)
     assets.UploadPDFDocumentAsset{
         path = path,
         parentFolder = parentFolder,
         description = CleanTitle(name),
         progress = function(f)
-            operation.progress = math.min(0.99, f)
-            operation:Update()
+            SetProgress(math.min(0.99, f))
         end,
         upload = function(guid)
-            operation.progress = 1
-            operation:Update()
-            WhenInJournal(guid, 60, ready)
+            SetProgress(1)
+            WhenInJournal(guid, 60, ready, watch and watch.failed)
         end,
         error = function(message)
-            operation.progress = 1
-            operation:Update()
+            SetProgress(1)
+            if watch ~= nil then
+                watch.failed()
+            end
             ShowError("Could not import " .. name, message)
         end,
     }
@@ -1917,8 +1942,11 @@ end
 --- user's private documents). options.ready(entryid, index): called when
 --- the index-th file's main entry is in the journal (the document itself; a
 --- zip's readme/index/first document), so the caller can put it on the table.
+--- options.uploading(index, name): called as the index-th file starts a
+--- slow upload (a PDF); returning a DocumentImportWatch shows its progress
+--- there instead of in the app-locking upload dialog.
 --- @param paths string[]
---- @param options nil|{parentFolder: nil|string, ready: nil|fun(entryid: string, index: integer)}
+--- @param options nil|{parentFolder: nil|string, ready: nil|fun(entryid: string, index: integer), uploading: nil|fun(index: integer, name: string): nil|DocumentImportWatch}
 function DocumentImport.ImportFiles(paths, options)
     options = options or {}
     local parentFolder = options.parentFolder or DocumentImport.DefaultFolder()
@@ -1942,7 +1970,11 @@ function DocumentImport.ImportFiles(paths, options)
                     options.ready(entryid, myIndex)
                 end
             end
-            fn(path, parentFolder, ready)
+            local watch = nil
+            if fn == ImportPDF and options.uploading ~= nil then
+                watch = options.uploading(myIndex, CleanTitle(FileDrops.BaseName(path)))
+            end
+            fn(path, parentFolder, ready, watch)
         end
     end
 end

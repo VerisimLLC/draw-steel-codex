@@ -179,6 +179,210 @@ local function PropsPackBundlesLoading()
 	return false
 end
 
+--propspacks hands out plain image URLs, which bgimage does not load; "md5:"
+--in front of one makes the image manager download it (as chat images do).
+local function PropsPackImageId(url)
+	if url == nil or url == "" then
+		return nil
+	end
+	return "md5:" .. url
+end
+
+--A props pack object's small preview, used as its icon so a folder or a
+--search full of props downloads previews rather than full images (the full
+--image comes with the tooltip, or when the prop is placed). nil for any
+--other object; the pack check skips the lookup in games with no packs.
+local function PropsPackPreview(nodeid)
+	--GetPreview is missing on engine builds older than the previews.
+	if #propspacks.packs == 0 or propspacks.GetPreview == nil then
+		return nil
+	end
+	return PropsPackImageId(propspacks.GetPreview(nodeid))
+end
+
+--True for a props pack folder, or one of its bundle folders, that this
+--account cannot use. Those stay out of the tree: their props only show up
+--under "From Patreon Creators..." when a search matches them.
+local function IsLockedPropsPackFolder(folderNode)
+	if not folderNode.fromMapPack then
+		return false
+	end
+	local info = PropsPackFolderInfo(folderNode.id)
+	if info == nil then
+		return false
+	end
+	if info.bundle ~= nil then
+		return not info.bundle.access
+	end
+	return not info.pack.access
+end
+
+--"Requires the X tier of the Y Patreon" for the bundle a search hit is in.
+local function PropsPackHitRequirement(hit, creatorName)
+	local pack = propspacks.GetPack(hit.pack)
+	if pack == nil then
+		return nil
+	end
+	local tier = pack.tier
+	local tierName = pack.tierName
+	for _,bundle in ipairs(pack.bundles) do
+		if bundle.key == hit.bundle and bundle.tier > 0 then
+			tier = bundle.tier
+			tierName = bundle.tierName
+		end
+	end
+	return mod.shared.MapPackPatreonText({tier = tier, tierName = tierName, owned = false}, creatorName)
+end
+
+--Sizes an image panel to its picture's aspect ratio inside its square parent.
+local function FitImageToAspect(element)
+	local maxDim = max(element.bgsprite.dimensions.x, element.bgsprite.dimensions.y)
+	if maxDim > 0 then
+		element.selfStyle.width = tostring(element.bgsprite.dimensions.x/maxDim*100) .. '%'
+		element.selfStyle.height = tostring(element.bgsprite.dimensions.y/maxDim*100) .. '%'
+	end
+end
+
+--Shown when someone without the pledge tries to place a prop from a props
+--pack: invites them to support the creator. hit is a propspacks.Search row.
+local function ShowSupportCreatorDialog(hit)
+	mod.shared.GetMapPackCreator({pack = hit.pack}, function(creator)
+		local creatorName = creator.displayName
+		local who = cond(creatorName ~= nil and creatorName ~= "", creatorName, "this creator")
+		local pack = propspacks.GetPack(hit.pack)
+		local count = pack ~= nil and pack.count or 0
+		local access = mappacks.GetPackAccess(hit.pack)
+
+		local text = string.format("<b>%s</b> is one of %d props %s makes for their supporters on Patreon.", hit.name, count, who)
+		local requirement = PropsPackHitRequirement(hit, creatorName)
+		if requirement ~= nil then
+			text = text .. " " .. requirement .. "."
+		end
+		text = text .. " Patrons get the whole library in the Objects panel of every game they run."
+		if not access.linked then
+			text = text .. "\n\nAlready a patron? Link your Patreon account and it unlocks straight away."
+		end
+
+		local function OpenPatreon()
+			local url = creator.campaignUrl
+			if url == nil or url == "" then
+				url = creator.url
+			end
+			if url ~= nil and url ~= "" then
+				dmhub.OpenURL(url)
+			end
+		end
+
+		local options = {}
+		if not access.linked then
+			options[#options+1] = {
+				text = "Link Patreon",
+				execute = function()
+					dmhub.ShowPlayerSettings{tab = "Account"}
+				end,
+			}
+		end
+		options[#options+1] = {text = "Visit Patreon", execute = OpenPatreon}
+		options[#options+1] = {text = "Not Now"}
+
+		gui.ModalMessage{
+			title = string.format("Support %s", who),
+			panel = gui.Panel{
+				width = 460,
+				height = "auto",
+				flow = "vertical",
+				children = {
+					gui.Panel{
+						width = 160,
+						height = 160,
+						halign = "center",
+						flow = "none",
+						gui.Panel{
+							bgimageStreamed = PropsPackImageId(hit.preview),
+							bgcolor = "white",
+							halign = "center",
+							valign = "center",
+							width = "100%",
+							height = "100%",
+							imageLoaded = FitImageToAspect,
+						},
+					},
+					gui.Label{
+						text = text,
+						width = 460,
+						height = "auto",
+						textWrap = true,
+						fontSize = 16,
+						tmargin = 12,
+					},
+				},
+			},
+			options = options,
+		}
+	end)
+end
+
+--Hover card for a locked prop: its preview, size and who it is from.
+local function ShowLockedPropTooltip(element, hit, creatorName)
+	local dock = element:FindParentWithClass("dock")
+	if dock == nil then
+		return
+	end
+	element.tooltipParent = dock
+	local who = cond(creatorName ~= nil and creatorName ~= "", creatorName, "the creator")
+	element.tooltip = gui.TooltipFrame(
+		gui.Panel{
+			interactable = false,
+			width = 300,
+			height = "auto",
+			flow = "vertical",
+			children = {
+				gui.Label{
+					text = hit.name,
+					fontSize = 18,
+					color = "white",
+					width = "auto",
+					maxWidth = 280,
+					height = "auto",
+					halign = "left",
+				},
+				gui.Panel{
+					width = 240,
+					height = 240,
+					halign = "center",
+					vmargin = 8,
+					flow = "none",
+					gui.Panel{
+						bgimageStreamed = PropsPackImageId(hit.preview),
+						bgcolor = "white",
+						halign = "center",
+						valign = "center",
+						width = "100%",
+						height = "100%",
+						imageLoaded = FitImageToAspect,
+					},
+				},
+				gui.Label{
+					text = string.format("%g x %g squares. For supporters of %s on Patreon: click to find out more.", hit.width, hit.height, who),
+					fontSize = 13,
+					color = "#bbbbbb",
+					width = "90%",
+					height = "auto",
+					textWrap = true,
+				},
+			},
+		},
+		{
+			valign = "center",
+			halign = dock.data.TooltipAlignment(),
+		}
+	)
+end
+
+--how many locked props one search lists at most (the search reads the
+--index, so this caps what the grid builds, not what is downloaded).
+local MAX_PATREON_SEARCH_PROPS = 120
+
 mod.shared.selectedObjectEntries = {}
 
 local ObjectPanelHeight = 30
@@ -603,7 +807,7 @@ local function CreateObjectEntry(nodeid, parentElement, options)
 
 
 	local objImagePanel = gui.Panel{
-		bgimageStreamed = node.thumbnailId,
+		bgimageStreamed = PropsPackPreview(nodeid) or node.thumbnailId,
 
 		bgcolor = 'white',
 		halign = 'center',
@@ -768,7 +972,7 @@ local function CreateObjectEntry(nodeid, parentElement, options)
 					return
 				end
 				node = refreshed
-				objImagePanel.bgimageStreamed = node.thumbnailId
+				objImagePanel.bgimageStreamed = PropsPackPreview(nodeid) or node.thumbnailId
 
 				if element:HasClass('focus') then
 					element:FireEvent('focus')
@@ -1056,6 +1260,221 @@ local DragHandleStyles = {
 	},
 }
 
+--One prop the account cannot use, in the "From Patreon Creators..." grid.
+--It is not an object in the library, so it cannot be dragged or placed:
+--clicking it explains how to get it instead.
+local function CreateLockedPropEntry(hit, creatorName)
+	return gui.Panel{
+		bgimage = 'panels/square.png',
+		styles = g_objectEntryStyles,
+		press = function(element)
+			ShowSupportCreatorDialog(hit)
+		end,
+		linger = function(element)
+			ShowLockedPropTooltip(element, hit, creatorName)
+		end,
+		children = {
+			gui.Panel{
+				bgimageStreamed = PropsPackImageId(hit.preview),
+				bgcolor = 'white',
+				halign = 'center',
+				valign = 'center',
+				width = '100%',
+				height = '100%',
+				interactable = false,
+				imageLoaded = FitImageToAspect,
+			},
+			gui.Panel{
+				bgimage = "phosphor/patreon-logo-fill.png",
+				bgcolor = "white",
+				width = 10,
+				height = 10,
+				halign = "right",
+				valign = "bottom",
+				interactable = false,
+			},
+		},
+	}
+end
+
+--Root only: search matches from props packs this account cannot use, in a
+--folder below everything else that starts collapsed. Its grid is built only
+--when opened, so a search downloads no previews unless someone looks.
+--data.search(text) is called by the root's search box.
+local function CreatePatreonSearchPanel()
+	local m_hits = {}
+	local m_total = 0
+	local m_expanded = false
+	local m_builtFor = nil
+	local m_text = ""
+
+	local body = gui.Panel{
+		classes = {"collapsed"},
+		x = Indent(1),
+		width = 290,
+		height = "auto",
+		flow = "vertical",
+		halign = "left",
+	}
+
+	local headerLabel = gui.Label{
+		text = "",
+		fontSize = "70%",
+		width = "auto",
+		height = "auto",
+		halign = "left",
+		valign = "center",
+		interactable = false,
+	}
+
+	local triangle = gui.Panel{
+		bgimage = 'panels/triangle.png',
+		classes = {"triangle"},
+		interactable = false,
+		styles = {
+			{rotate = 90},
+			{selectors = {'expanded'}, transitionTime = 0.2, rotate = 0},
+		},
+	}
+
+	--one group per pack: who it is from, then the grid of its props.
+	local function BuildBody()
+		local groups = {}
+		local order = {}
+		for _,hit in ipairs(m_hits) do
+			if groups[hit.pack] == nil then
+				groups[hit.pack] = {}
+				order[#order+1] = hit.pack
+			end
+			table.insert(groups[hit.pack], hit)
+		end
+
+		local children = {}
+		for _,packid in ipairs(order) do
+			local logo = gui.Panel{
+				classes = {"collapsed"},
+				width = 16,
+				height = 16,
+				valign = "center",
+				hmargin = 4,
+				bgcolor = "white",
+			}
+			local creditLabel = gui.Label{
+				width = "auto",
+				height = "auto",
+				maxWidth = 260,
+				valign = "center",
+				fontSize = 12,
+				italics = true,
+				color = "#bbbbbb",
+				text = "",
+			}
+			local grid = gui.Panel{
+				width = 280,
+				height = "auto",
+				flow = "horizontal",
+				wrap = true,
+				halign = "left",
+			}
+			children[#children+1] = gui.Panel{
+				width = "auto",
+				height = "auto",
+				halign = "left",
+				flow = "horizontal",
+				vmargin = 2,
+				children = {logo, creditLabel},
+			}
+			children[#children+1] = grid
+
+			local hits = groups[packid]
+			mod.shared.GetMapPackCreator({pack = packid}, function(creator)
+				if not grid.valid then
+					return
+				end
+				local name = creator.displayName or ""
+				creditLabel.text = string.format("%d from %s", #hits, cond(name ~= "", name, packid))
+				if (creator.logo or "") ~= "" then
+					logo.bgimage = creator.logo
+					logo:SetClass("collapsed", false)
+				end
+				local entries = {}
+				for _,hit in ipairs(hits) do
+					entries[#entries+1] = CreateLockedPropEntry(hit, name)
+				end
+				grid.children = entries
+			end)
+		end
+		body.children = children
+		m_builtFor = m_text
+	end
+
+	local resultPanel
+	local function Refresh()
+		resultPanel:SetClass("collapsed", #m_hits == 0)
+		if #m_hits == 0 then
+			return
+		end
+		local more = cond(m_total > #m_hits, string.format(" (first %d of %d)", #m_hits, m_total), string.format(" (%d)", #m_hits))
+		headerLabel.text = "From Patreon Creators..." .. more
+		triangle:SetClass("expanded", m_expanded)
+		body:SetClass("collapsed", not m_expanded)
+		if m_expanded and m_builtFor ~= m_text then
+			BuildBody()
+		end
+	end
+
+	resultPanel = gui.Panel{
+		classes = {"collapsed"},
+		width = "100%",
+		height = "auto",
+		flow = "vertical",
+		halign = "left",
+		tmargin = 6,
+		data = {
+			search = function(text)
+				m_text = text
+				m_hits = {}
+				m_total = 0
+				if text == "" then
+					m_expanded = false
+					m_builtFor = nil
+					body.children = {}
+					Refresh()
+					return
+				end
+				local access = {}
+				for _,pack in ipairs(propspacks.packs) do
+					for _,bundle in ipairs(pack.bundles) do
+						access[pack.id .. "/" .. bundle.key] = bundle.access
+					end
+				end
+				for _,hit in ipairs(propspacks.Search{text = text, maxResults = 2000}) do
+					if access[hit.pack .. "/" .. hit.bundle] == false then
+						m_total = m_total + 1
+						if #m_hits < MAX_PATREON_SEARCH_PROPS then
+							m_hits[#m_hits+1] = hit
+						end
+					end
+				end
+				Refresh()
+			end,
+		},
+		children = {
+			gui.Panel{
+				bgimage = 'panels/square.png',
+				classes = {'folderHeader'},
+				press = function(element)
+					m_expanded = not m_expanded
+					Refresh()
+				end,
+				children = {triangle, headerLabel},
+			},
+			body,
+		},
+	}
+	return resultPanel
+end
+
 local function CreateObjectFolder(nodeid, parentElement, options)
 	local matchesSearch = true
 	local searchActive = false
@@ -1087,9 +1506,15 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 	--block clears the search through it. The clear x itself is built into
 	--gui.SearchInput now, so there is no separate clear button any more.
 	local searchInput = nil
+	--root only: props this account cannot use that match the search.
+	local patreonPanel = nil
 	if nodeid == '' then
 
 		isCollapsed = false
+
+		if not options.hideobjects and not options.selectfolders then
+			patreonPanel = CreatePatreonSearchPanel()
+		end
 
 		local updateSearch
 		updateSearch = function(element)
@@ -1140,6 +1565,9 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 				})
 			end
 			folderPane.data.search(text)
+			if patreonPanel ~= nil then
+				patreonPanel.data.search(text)
+			end
 		end
 
 		--the canonical search field; look comes from DefaultStyles'
@@ -1830,8 +2258,10 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 				if (not isCollapsed) or searchNodes ~= nil then
 					local newElements = {}
 					for i,v in ipairs(node.children) do
-						--a folder picker (selectfolders) never offers map-pack folders.
-						if ((not options.hideobjects) or v.isfolder) and not (options.selectfolders and v.fromMapPack) then
+						--a folder picker (selectfolders) never offers map-pack folders,
+						--and props pack folders this account cannot use are left out.
+						if ((not options.hideobjects) or v.isfolder) and not (options.selectfolders and v.fromMapPack)
+								and not (v.isfolder and IsLockedPropsPackFolder(v)) then
 							--if we are searching, only create the elements that match the search.
 							if elements[v.id] == nil and ((not isCollapsed) or searchNodes == nil or searchNodes[v.id]) then
 								newElements[v.id] = CreateObjectNode(v, folderPane, options)
@@ -1893,6 +2323,9 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 
 					newChildren[#newChildren+1] = palettePanel
 					palettePanel.children = newPalette
+					if patreonPanel ~= nil then
+						newChildren[#newChildren+1] = patreonPanel
+					end
 
 					elements = newElements
 
@@ -1909,6 +2342,7 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 			headerPanel,
 			rootPanel or creditPanel,
 			palettePanel,
+			patreonPanel,
 		}
 	})
 

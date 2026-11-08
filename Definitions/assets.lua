@@ -189,11 +189,17 @@ function assets:DuplicateTilesheet(tileid) end
 --- @return nil|string
 function assets:DuplicateWall(wallid) end
 
---- Imports one or more Universal VTT map files, uploading their images and creating map objects.
+--- Imports one or more Universal VTT map files (.uvtt / .dd2vtt, or Foundry-style JSON with width/height/grid), uploading their pictures and creating map objects, one per file. Reading the files and preparing their pictures runs on worker threads, so the app keeps running even for a huge file; callback, error and progress are all called later, on the main thread.
 --- @param pathsList string[] List of file paths to UVTT files.
---- @param callback function Called on success with info table containing objids, width, height, and uvttData.
+--- @param callback function Called on success with info table containing objids, width and height (the first file's map size in tiles), and uvttData (each file's fields, without its embedded picture).
 --- @param error function Called on error with an error message string.
-function assets:ImportUniversalVTT(pathsList, callback, error) end
+--- @param progress nil|fun(stage: string, fraction: number) Called as the import goes: stage 'reading' while the files are read and their pictures prepared, then 'uploading' with fraction going from 0 to 1.
+function assets:ImportUniversalVTT(pathsList, callback, error, progress) end
+
+--- Reads a Universal VTT file's map size from the start of the file, without reading the picture inside it, so it is instant even for a huge file (for previews while the file is dragged). Returns {width, height, pixelsPerGrid}: the map's size in tiles and its picture's pixels per tile, or nil if the file is missing or its size is not near the start (Dungeondraft and most exporters write it first).
+--- @param path string A local file path.
+--- @return nil|{width: number, height: number, pixelsPerGrid: number}
+function assets:ReadUniversalVTTHeader(path) end
 
 --- Creates a new bestiary entry locally and returns its GUID.
 --- @return string

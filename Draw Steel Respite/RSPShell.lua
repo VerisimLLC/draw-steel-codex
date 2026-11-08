@@ -104,7 +104,10 @@ end
 --- Every Respite window is hosted by the launchable panel, whichever way it
 --- was opened, so the host paints the frame and owns the close control and the
 --- shell stays transparent underneath it.
---- @param args {steps: table[]} each step carries a phase plus its own step args
+--- @param args {steps: table[], width: nil|number, handOff: nil|fun(phase: string): boolean} each
+--- step carries a phase plus its own step args; width overrides the window's;
+--- handOff is asked on every change of phase and closes the window when it
+--- says another surface has taken over
 --- @return Panel
 function RSPShell.Create(args)
     local phase = CurrentPhase()
@@ -147,7 +150,7 @@ function RSPShell.Create(args)
     dlg = DialogShell.CreateNew{
         classes = {"rspShell", "launchablePanel"},
         title = RSPConstants.panelName,
-        width = RSPConstants.windowWidth,
+        width = args.width or RSPConstants.windowWidth,
         height = RSPConstants.windowHeight,
         footerCells = {100},
         close = "host",
@@ -171,6 +174,11 @@ function RSPShell.Create(args)
             -- host owns the lifetime, so this asks rather than destroys.
             if session == nil and sawRespite then
                 sawRespite = false
+                shell:Close()
+                return
+            end
+
+            if args.handOff ~= nil and args.handOff(current) then
                 shell:Close()
                 return
             end

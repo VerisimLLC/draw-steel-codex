@@ -57,7 +57,7 @@ shadow-elves.lua
    - If the actual actor is outside the usable map view, pan and sync the camera before it begins. Shared initiative entries can therefore pan again as each distinct monster acts without recentering monsters that are already visible.
    - Minions: find their Signature Ability and execute it as a coordinated squad strike (`ExecuteSquadStrike`). The squad moves as one: every member is planned before any moves, with the squares and charge lanes already claimed by squad-mates held in a reservation table (`ReserveSquadOption` / `SquadOptionIsFree`) so no two members end on one square or charge through each other. The captain (or a member) calls the attack and two or three members shout back (`AnnounceSquadStrike`, which writes bubbles directly through `SpeakNow`), then all members move side by side, each starting `squadMoveStagger` (0.2s) after the last (`RunConcurrently`). Chargers move to their charge start, then all shout "Charge!" and charge together. Each member's plan is checked after movement; a second round re-plans members that advanced, failed, or gained a target slot from a fallen squad-mate. Run `../dependencies/lua/bin/lua.exe tests/ai_squad_volley_test.lua`. Reassess members who advanced before firing so they can join the same volley, including sharing targets within the normal limit. The rules layer spends the action for every active squad member, including nonparticipants. Reconsider up to 6 action cycles so critical-hit extra actions are used. Each cycle selects a surviving member with an affordable signature; only affordable members join its target pairs, and movement uses the remaining turn budget.
    - Non-minions: iterate up to 6 times calling `FindAndExecuteMove()`, which scores every registered move and executes the best one. A scoring or execution error quarantines that move for the actor; `"failed"` continues to another cycle, while `"none"` or `"unsafe"` stops the actor.
-5. After all tokens act, initiative advances automatically. Before each actor and after each move cycle, the turn checks that its entry is still the current one. If something else took the turn (a hero's turn-grab ability, a host clicking the initiative bar), it stops with `TURN PAUSED` and does **not** advance, because `NextInitiative` would end the new entry's turn.
+5. After all tokens act, initiative advances automatically. Before each actor, right before each chosen move executes (`TurnTakenBeforeMove`, including a minion squad's moves and strike), and after each move cycle, the turn checks that its entry is still the current one. If something else took the turn (a hero's turn-grab ability, a host clicking the initiative bar), it stops with `TURN PAUSED` and does **not** advance, because `NextInitiative` would end the new entry's turn.
 
 When no registered or synthesized move scores above zero, the actor advances
 toward the enemy with the cheapest complete traversable route to an unoccupied
@@ -112,8 +112,16 @@ Before selecting or playing a turn, the background process also waits for
 player combatants' end-of-turn saving throws. Save prompts carry the shared
 `end-turn-save` activity ID: the card blocks while unanswered, and its reaction
 marker blocks after acceptance until the invocation's cast finishes on the
-accepting client. Dismissal completes the marker. This wait has no timer and
-does not stop monster trigger polling or cooperative AI shutdown. Run
+accepting client (however `AbilityInvocation:Invoke` ends, an error included).
+Dismissal completes the marker. This wait has no timer and does not stop
+monster trigger polling or cooperative AI shutdown. A cast that never reports
+back (its client crashed or disconnected mid-roll, EMHPEMCY) would hold the
+table for good, so accepting stamps the marker with `resolvingSince`,
+`resolvingBy` and `resolvingLaunch` (`g_appLaunchId`, new each app launch):
+after 30s with no card the banner offers the host and the hero's controller
+"Skip save" (`StuckSaveSkip` in `MonsterAI.lua`), and the accepter's client
+completes a marker its previous launch left (`CompleteReactionsOrphanedByRestart`).
+Skipping only releases the AI; the effect stays for the next save. Run
 `../dependencies/lua/bin/lua.exe tests/ai_end_turn_save_test.lua` from the codex
 root for prompt lifecycle and process wait/resume/stop coverage.
 
@@ -130,17 +138,14 @@ check runs again just before `SelectTurn`. The "Waiting for Fox's Showdown"
 banner offers the hero's player Select and Dismiss; dismissing the prompt, or
 its 10-minute expiry, releases the wait.
 
-Accepting the prompt clears its card before the cast it starts has finished: an
-ability that asks for a target asks after the card is gone. To cover that, while the AI
-runs anywhere, every "beginround" goes out through `creature:DispatchBeginRound`
-(`DMHub Game Rules/Creature.lua`) stamped with the round's AI activity ID,
-`creature.RoundStartAIActivityId(queue)` (`round-start:<queue guid>:<round>`).
-Every client derives the same ID, so it does not matter which machine started the
-round. The prompt then carries a reaction marker on the hero's token that stays
-"resolving" until the cast, target pick included, finishes there, and the same
-check holds the monsters on it ("Waiting for Fox's reaction to finish:
-<ability>"). A marker that reports a failure (undelivered, or past its 10-minute
-expiry) releases the wait instead of stalling the table.
+Accepting the prompt does not release it. The card is removed at once, but the
+cast runs afterwards and may claim the turn (Hesitation Is Weakness moves
+initiative only after its cast completes). So the write that removes an
+accepted card also adds a `turn-claim` marker to the hero's
+`pendingAIActivityReactions` (in `TriggeredAbility.lua`), completed by the
+cast's normal AI-reaction completion path. The AI keeps waiting while that
+marker is resolving (up to 60s) and for 2s after it completes, with the banner
+"Waiting for Iswyln's Hesitation Is Weakness to finish" (BR8M9Z2W).
 
 Once the AI has picked a group, it also waits for that turn's start to play out
 before acting. It calls `creature:BeginTurn{aiActivityId, onComplete}` with a
@@ -188,6 +193,14 @@ and multiple prompts are handled as one barrier. If a reaction leaves a minion
 squad owing deaths, the barrier also remains up while the red-skull choices and
 their Monster Death removals resolve. Stopping the AI while it waits aborts the
 remaining monster turn without advancing initiative.
+
+A minion offered a trigger shows no skull, and the panel's trigger poll cannot
+run during a turn. So while only minion deaths hold the barrier,
+`AnswerMinionTriggersDuringWait` answers the AI-run minions' triggers with
+`HandleAvailableTrigger` (an angulotl pushed through a Clawfish offers it
+Leapfrog; QNT42FK4). A trigger with no AI handler is still covered: the
+"choose-minion-deaths" banner in `DrawSteelTokenHud.lua` counts minions whose
+skull a trigger hides, so "Choose for me" can resolve them.
 
 Delivery failures, orphaned prompt markers, and evaluation errors stop the AI
 without advancing initiative. The panel explains the specific client/ability
@@ -407,6 +420,43 @@ altitude before breaking ties tactically.
 A **tactic** is a passive scoring modifier that adjusts the edge count when evaluating strike targets. Tactics don't execute anything -- they bias which target/position the AI prefers.
 - `id`, `description`
 - `score(self, token, tokenLoc, enemy, ability)` -- returns a number (typically 0 or 1) added to the target's edge score, or `nil`
+
+#### Behavior modules (`MonsterAI:RegisterBehavior{}`)
+
+A **behavior** is a switchable piece of a monster's personality. Unlike a
+tactic it is **off** unless switched on: by the monster types in its
+`monsters` list (or `allMonsters = true`), or by a behavior source. The two
+built in, registered at the bottom of `MonsterAITactics.lua`, are (Bully has
+an empty `monsters` list, so it is off by default; Avoid Opportunity Attacks
+has `allMonsters = true`, so every monster uses it unless it is turned off):
+
+- **Bully**: `targetEdges` adds up to `MonsterAI.bullyMaxEdges` (6) edges to a
+  target as its share of Stamina falls to 0 (dying counts as 0), and cancels
+  `TargetStaminaBias`. A behavior with `targetEdges` is also stored in
+  `tactics`, so every strike planner, squad and free strike uses it.
+  Area planners that score targets without edges do not see it.
+- **Avoid Opportunity Attacks**: when the creature starts next to enemies who
+  could make an opportunity attack (`ai:OpportunityAttackers`, mirroring the
+  checks in `creature:OnMove`), `FindAndExecuteMove` scores every move twice
+  (`ChooseAvoidingOpportunityAttacks`): from only the squares that provoke
+  nothing, then from every square. The second plan wins only when its
+  destination provokes and it still scores higher after paying
+  `MonsterAI.opportunityAttackPenalty` (0.8) per attack. A safe choice keeps
+  the safe squares for the move's execution (`_tmp_oaSafeOnly`, honored by
+  `CalculateMovementPaths`). `CalculateMovementPaths` marks each square's
+  `provokes`; the advance fallback skips squares that provoke, and a minion
+  squad member never takes a strike position that provokes (a free strike
+  kills a minion): with no unclaimed target reachable safely it holds and
+  sits the strike out. It is an estimate from start and end squares: a route that
+  walks past an enemy it did not start next to is not seen.
+
+`MonsterAI.HasBehavior(token, id)` answers whether it is on: behavior sources
+first (the last one with an answer wins), then the `monsters` list; the panel's
+per-type switch can still turn it off. `MonsterAI.RegisterBehaviorSource(id,
+fn)` adds a source; Encounter of the Week registers `"eotw"`, which reads the
+script's `Monster AI:` lines. `MonsterAI.FindBehavior(name)` matches an id or
+alias ignoring case and punctuation. Run
+`../dependencies/lua/bin/lua.exe tests/ai_behavior_modules_test.lua`.
 
 #### 5. Trigger handlers (`MonsterAI:RegisterTrigger{}`)
 
@@ -765,6 +815,35 @@ MonsterAI:RegisterMove{
 
 Use `ai:SetTargetsForExpectedPrompt{}` if the first ability triggers a prompt that should be auto-resolved for the combo.
 
+## "Similar to": borrowing another monster's AI
+
+A monster's properties can name another monster type in `aiSimilarTo` (a
+`monster_type` string). The AI then plays it with that monster's hand-written
+AI, for every ability the two share by name. It is for reskinned or homebrew
+monsters built from a book stat block. Authors set it in the **Monster AI** tab
+of the character sheet in an EotW authoring game
+(`EncounterOfTheWeek/EncounterMonsterAssessment.lua`). The tab also lists what
+the AI will do with each part of the kit.
+
+The helpers are at the "Similar to" section of `MonsterAI.lua`:
+
+- `MonsterAI.AIMonsterTypes(props)` returns `{own, similar}`. Registrations
+  listing either type apply: moves, Malice, villain actions, tactics and
+  behaviors (through `MoveMatchesMonster` / `HasBehavior`), plus the
+  monster-qualified trigger and prompt lookups (own type first).
+- `MonsterAI.AIMonsterType(props)` returns the similar type, or the monster's
+  own type when it has none. Band code that asks "which monster is this?" must
+  use it, not `monster_type` (the band `MonsterType` helpers already do).
+- The Monster AI panel's per-type switches (`disabledForMonsters`) stay keyed
+  by the monster's own type.
+- `AssessSupport` counts the similar type's registrations as the monster's
+  own, and never reports them as stale. Its result carries `similarTo`.
+
+Not covered: `monsterGroups` Malice registrations match the monster's own
+group, so a reskin in a different monster group does not use the base's band
+Malice. Run `../dependencies/lua/bin/lua.exe tests/ai_behavior_modules_test.lua`
+and `tests/ai_support_assessment_test.lua` for coverage.
+
 ## Bestiary support assessment
 
 `MonsterAISupport.lua` works out, from a bestiary entry with no token or
@@ -838,6 +917,13 @@ its charge segment's zero-altitude `loc` with straight-line walking; the absolut
 `expectedLoc`/destination is used to verify arrival. Jump-assisted charge plans
 are not currently selected by the AI. Synthetic leap combos retain their separate
 probe and ability execution.
+
+A charge never squeezes: the engine's charge planner rejects any step the full
+creature cannot fit at, so a 2x2 cannot end a charge beside a pillar half a
+square off the grid (7V75VX52, E7ZM6G6F). `CalculateMovementPaths` also always
+offers the creature's own square at cost 0, because the engine's path search
+drops every square the full creature cannot fit at, its own included, and a
+creature stuck squeezed or boxed in used to pass every turn.
 
 A charge moves the creature once, so every target of a multi-target Charge
 strike must be hit from one landing. `FindValidTargetsOfStrike` still plans a

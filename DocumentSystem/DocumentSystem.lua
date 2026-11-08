@@ -8378,8 +8378,8 @@ function CustomDocument:PresentDocument(args)
         --same event.
         refreshPanelPinned = function(element)
             element.dragMove = not DialogPinned()
-            --a maximized map stays under pinned windows; the engine looks for
-            --this on the window root (PanelDocument.ABOVE_MAXIMIZED_MAP).
+            --map windows stay under pinned windows; the engine looks for
+            --this on the window root (PanelDocument.ABOVE_MAP_WINDOWS).
             element:SetClass("panelDocumentPinned", DialogPinned())
             local resize = element.data.resizePanel
             if resize ~= nil and resize.valid then
@@ -8657,17 +8657,18 @@ local g_onPanelPinnedChanged
 --adds a badge to one button and takes another off the rail entirely.
 local g_onPanelGroupChanged
 
---The documents-layer panels a maximized tabletop map stays under (its
---raiseBelowClasses, Tabletop.lua): the rails and what they float on the
---layer, the chat preview bubble, and pinned panel windows (David,
---2026-10-24). Every other window stacks with the map by click order.
---presentedDialog is a dialog presented to the players (GameHud), such as
---the Encounter of the Week stage: a player whose client builds the forced
---map after the stage would otherwise be left looking at the map.
-PanelDocument.ABOVE_MAXIMIZED_MAP = {
+--The documents-layer panels every tabletop map or scene window stays under,
+--windowed or maximized (its raiseBelowClasses, Tabletop.lua): the rails and
+--what they float on the layer, the chat preview bubble, and rail panel
+--windows, pinned or not (panelDocumentWindow, PresentPanel; David,
+--2026-10-24/25). Journals and other windows stack with the maps by click
+--order. presentedDialog is a dialog presented to the players (GameHud),
+--such as the Encounter of the Week stage: a player whose client builds the
+--forced map after the stage would otherwise be left looking at the map.
+PanelDocument.ABOVE_MAP_WINDOWS = {
     "iconRail", "iconRailGhost", "iconRailGhostLine", "iconRailCardGhost", "iconRailTrash",
     "iconRailViewChip", "iconRailViewToast", "iconRailToolkitStrip", "chatSpeechBubble",
-    "panelDocumentPinned", "presentedDialog",
+    "panelDocumentWindow", "panelDocumentPinned", "presentedDialog",
 }
 
 function PanelDocument.IsPinned(key)
@@ -9025,6 +9026,8 @@ function PanelDocument:PresentPanel(args)
 
     local dialog = self:PresentDocument(args)
     self._tmp_dialog = dialog
+    --map windows stay under rail panel windows (PanelDocument.ABOVE_MAP_WINDOWS).
+    dialog:SetClass("panelDocumentWindow", true)
     GameHud.instance.documentsPanel:AddChild(dialog)
     --apply the rail-mode window zoom now that the window is attached
     --(pivot writes need an attached panel -- see setWindowScale).
@@ -14876,6 +14879,11 @@ local function IconRailStyles()
     })
 end
 
+--Shared so rail-style buttons outside the rail (the titlescreen's Discord
+--button) look like rail buttons. A field, not a local: this file is at
+--Lua's 200-locals limit.
+PanelDocument.IconRailStyles = IconRailStyles
+
 --The buttons currently shifted to open a drag gap ({panel, base}), and
 --the signature of the shift so a drag hovering the same slot doesn't
 --re-apply margins every frame. (selfStyle properties are write-mostly:
@@ -15044,7 +15052,7 @@ local function CreateCharacterCardVisual(charid)
             portraitIcon = portrait
             portraitTint = "white"
             pcall(function()
-                portraitRect = charToken:GetPortraitRectForAspect(1, portrait)
+                portraitRect = CardPortraitRect(charToken, 1, portrait)
             end)
         end
     end
@@ -15660,6 +15668,12 @@ function RailRightColumnWidth()
     return result
 end
 
+--The tabletop asks this every tick (the Director's Screen measures the right
+--rail), and a full RailLayout() per call was most of the app's idle Lua
+--garbage. The answer is reused for up to a second; BuildIconRails clears it
+--so a rail edit shows at once. A global: the main chunk is at 200 locals.
+g_railOccupiedCache = { untilTime = 0, sides = {} }
+
 --Whether a rail side ("left" or "right") shows anything: panel buttons, or
 --a custom-interface widget (assumed present whenever one is active). An
 --empty rail still has a wrapper with a width, so RailRightColumnWidth alone
@@ -15670,8 +15684,14 @@ function RailSideOccupied(side)
     if GameHud.CustomInterface() ~= nil then
         return true
     end
-    local sides = RailLayout()
-    return #(sides[side] or {}) > 0
+    local cache = g_railOccupiedCache
+    local now = dmhub.Time()
+    if now >= cache.untilTime then
+        local sides = RailLayout()
+        cache.sides = { left = #(sides.left or {}) > 0, right = #(sides.right or {}) > 0 }
+        cache.untilTime = now + 1
+    end
+    return cache.sides[side] == true
 end
 
 --Whether a registered panel currently has a rail button.
@@ -22482,7 +22502,7 @@ local function CreateIconRail(side, entries, opts)
                     buttonIcon = portrait
                     buttonIconTint = "white"
                     pcall(function()
-                        buttonIconRect = token:GetPortraitRectForAspect(1, portrait)
+                        buttonIconRect = CardPortraitRect(token, 1, portrait)
                     end)
                 end
             end
@@ -22583,7 +22603,9 @@ local function CreateIconRail(side, entries, opts)
             end
             if GroupShadowHidden() then
                 groupShadow:SetClass("groupOpen", true)
-            else
+            elseif groupShadow:HasClass("groupOpen") then
+                --(nothing to clear otherwise: rails refresh many times a second,
+                --and an unneeded deferred clear is a scheduled call each time.)
                 --clears are deferred a frame and re-checked: a press that
                 --opens the group's window collapses the strip (clear) and
                 --refreshes the rails (set) in the same call stack, and the
@@ -25658,6 +25680,7 @@ PanelDocument.BuildCustomInterfaceRails = function(layer)
 end
 
 local function BuildIconRails()
+    g_railOccupiedCache.untilTime = 0
     local layer = DocumentsLayer()
     if layer == nil then
         return
@@ -25906,6 +25929,38 @@ function MapButtons.Unregister(id)
     end
     MapButtons.registry[id] = nil
     MapButtons.Refresh()
+end
+
+--- Press a registered map button from code, wherever it is drawn (the
+--- MapButtons bar or a map rail), e.g. to open its popup. Returns true when
+--- the drawn button was found (and pressed, unless its popup is already
+--- up); false while it is not on screen yet, so callers can retry.
+--- @param id string
+--- @return boolean
+function MapButtons.Open(id)
+    local layer = DocumentsLayer()
+    if layer == nil or MapButtons.registry[id] == nil then
+        return false
+    end
+    --bar buttons carry data.mapButtonId; rail buttons carry their rail
+    --entry key (RailEntryTypes.mapbutton) in data.key.
+    local railKey = "mapbutton:" .. id
+    local button = layer:FindChildRecursive(function(p)
+        local data = p.data
+        return data ~= nil and (data.mapButtonId == id or data.key == railKey)
+    end)
+    if button == nil then
+        return false
+    end
+    if button.popup ~= nil then
+        return true
+    end
+    if button.data.mapButtonId == id then
+        button:FireEvent("click")
+    else
+        button:FireEvent("activateRailButton")
+    end
+    return true
 end
 
 --the entries this client shows, in display order: explicit ord first,

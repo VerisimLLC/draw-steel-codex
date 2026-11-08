@@ -243,6 +243,8 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                 featureId = featureId,
                 itemIndex = itemIndex,
                 option = nil,
+                --a saved pick the feature no longer offers (see refreshBuilderState)
+                staleId = nil,
                 expanded = false,
             },
             doubleclick = function(element)
@@ -277,7 +279,13 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                 if cachedFeature then
                     local optionId = cachedFeature:GetSelected()[element.data.itemIndex]
                     element.data.option = optionId and cachedFeature:GetOption(optionId) or nil
-                    visible = element.data.option ~= nil or element.data.itemIndex <= cachedFeature:GetMaxVisibleTargets()
+                    --A saved id with no matching option (the content changed) still holds
+                    --the slot; it reads "Unassigned" but gets Remove like a filled slot.
+                    element.data.staleId = nil
+                    if element.data.option == nil and optionId ~= nil and optionId ~= "" then
+                        element.data.staleId = optionId
+                    end
+                    visible = element.data.option ~= nil or element.data.staleId ~= nil or element.data.itemIndex <= cachedFeature:GetMaxVisibleTargets()
                 end
 
                 element:SetClass("collapsed", not visible)
@@ -317,7 +325,7 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                     isSelected = cachedFeature:GetSelectedOptionId() == option:GetGuid()
                 end
                 element:FireEventTree("customPanel", panelFn)
-                element:SetClass("filled", option ~= nil)
+                element:SetClass("filled", option ~= nil or element.data.staleId ~= nil)
                 element:SetClass("selected", isSelected)
 
                 -- Enable dragging for filled target slots
@@ -330,6 +338,11 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                     local controller = getFeatureSelController(element)
                     if controller then
                         controller:FireEvent("removeItem", element.data.option)
+                    end
+                elseif element.data.staleId then
+                    local controller = getFeatureSelController(element)
+                    if controller then
+                        controller:FireEvent("removeStale", element.data.staleId)
                     end
                 end
             end,
@@ -954,6 +967,33 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                         })
                         _fireControllerEvent("tokenDataChanged")
                     end
+                end
+            end
+        end,
+        --Drop a saved pick the feature no longer offers. Features that keep
+        --their pick elsewhere (a kit keeps kitid) remove it from a stand-in
+        --option; the rest come straight out of levelChoices.
+        removeStale = function(element, optionId)
+            local creature = _getCreature()
+            if creature == nil then return end
+            local state = _getState()
+            local cachedFeature = state and getCachedFeature(state, element.data.featureId)
+            if cachedFeature ~= nil then
+                local stub = { guid = optionId, id = optionId }
+                local feature = cachedFeature:GetFeature()
+                local removeFn = CharacterBuilder._hasFn(feature, "RemoveSelection")
+                if removeFn ~= nil and removeFn(feature, creature, stub) == true then
+                    _fireControllerEvent("tokenDataChanged")
+                    return
+                end
+            end
+            local levelChoice = (creature:GetLevelChoices() or {})[element.data.featureId]
+            if levelChoice == nil then return end
+            for i = #levelChoice, 1, -1 do
+                if levelChoice[i] == optionId then
+                    table.remove(levelChoice, i)
+                    _fireControllerEvent("tokenDataChanged")
+                    return
                 end
             end
         end,

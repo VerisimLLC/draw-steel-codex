@@ -6,7 +6,10 @@ MonsterAI:RegisterTactic{
     score = function(self, token, tokenLoc, enemy, ability)
         local flanking = false
         for _,ally in ipairs(self.allyTokens) do
-            if ally.charid ~= token.charid and MonsterAI.TargetDistance(ally, enemy) <= 1 then
+            --allyTokens is only rebuilt by RefreshCombatants, so an ally deleted
+            --earlier in this turn (killed during a plan preview) is still listed;
+            --measuring from it errors (HUJUSEJG), and the dead don't flank.
+            if ally.charid ~= token.charid and MonsterAI.TokenIsLiveCombatant(ally) and MonsterAI.TargetDistance(ally, enemy) <= 1 then
                 if (enemy.loc.y - tokenLoc.y) == (ally.loc.y - enemy.loc.y) and (enemy.loc.x - tokenLoc.x) == (ally.loc.x - enemy.loc.x) then
                     flanking = true
                     break
@@ -147,4 +150,45 @@ MonsterAI:RegisterTactic{
             end
         end
     end,
+}
+
+--Behavior modules (MonsterAI:RegisterBehavior in MonsterAI.lua) ---------------
+--Each is off unless its `monsters` list names the monster type, or an
+--Encounter of the Week script switches it ("Monster AI: Bully on for Goblin
+--Sniper"; see the eotw skill's script reference).
+
+--Bully: prefers the enemies with the smallest share of their Stamina left.
+--A target at full Stamina gets nothing; one at 0 or below (dying) gets
+--bullyMaxEdges. It also cancels TargetStaminaBias, the usual slight lean
+--toward healthy targets, so only weakness counts. An edge is worth 0.1 of
+--a target's score, so 6 edges make a dying hero worth 1.6 targets.
+MonsterAI.bullyMaxEdges = 6
+
+MonsterAI:RegisterBehavior{
+    id = "Bully",
+    aliases = {"Bullies", "Bullying"},
+    description = "Prefers to attack the enemies with the smallest share of their Stamina left, more strongly the closer they are to 0.",
+    monsters = {},
+    targetEdges = function(self, token, tokenLoc, enemy, ability)
+        if enemy.isObject or enemy.properties == nil or token:IsFriend(enemy) then
+            return nil
+        end
+        local maxStamina = enemy.properties:MaxHitpoints()
+        if maxStamina <= 0 then
+            return nil
+        end
+        local share = math.max(0, math.min(1, enemy.properties:CurrentHitpoints()/maxStamina))
+        return MonsterAI.bullyMaxEdges*(1 - share) - MonsterAI.TargetStaminaBias(enemy)/0.1
+    end,
+}
+
+--Avoid Opportunity Attacks: the work is in MonsterAI.lua (OpportunityAttackers,
+--ChooseAvoidingOpportunityAttacks); the size of the penalty is
+--MonsterAI.opportunityAttackPenalty. On for every monster; turn it off per type
+--in the Monster AI panel, with SetMoveEnabledForMonster, or in an EotW script.
+MonsterAI:RegisterBehavior{
+    id = MonsterAI.avoidOpportunityAttacksBehavior,
+    aliases = {"Avoids Opportunity Attacks", "Avoid OAs", "Avoids OAs"},
+    description = "Will not walk away from an adjacent enemy who could make an opportunity attack, unless the plan that does is worth far more than any that does not.",
+    allMonsters = true,
 }

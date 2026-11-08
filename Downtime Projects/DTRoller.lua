@@ -7,7 +7,6 @@
 --- @field skills table List of skills the roller knows in id,text pairs
 --- @field object creature The source object: a hero (character) or a follower
 --- @field mentorId string|nil The id of the object's mentor if a follower
---- @field _adjustRolls fun(self: DTRoller, amount: number) Adjusts available rolls (private)
 DTRoller = RegisterGameType("DTRoller")
 
 --- Creates a new downtime roller instance
@@ -30,28 +29,8 @@ function DTRoller.CreateNew(object, mentorId)
     instance.languages = DTHelpers.MergeFlagLists(languages, _object:LanguagesKnown(), true)
     instance.skills = DTRoller._charSkillsToList(_object)
     instance.object = _object
-    if DTRoller._isCharacterType(_object) then
-        instance._adjustRolls = function(self, amount)
-            local downtimeInfo = self.object:GetDowntimeInfo()
-            if downtimeInfo then
-                downtimeInfo:SetAvailableRolls(downtimeInfo:GetAvailableRolls() + amount)
-            end
-        end
-    elseif DTRoller._isFollowerType(_object) then
+    if DTRoller._isFollowerType(_object) then
         instance.mentorId = foundMentorId
-        instance._adjustRolls = function(self, amount)
-            -- Token in character sheet context is always the mentor
-            local token = CharacterSheet.instance.data.info.token
-            if token and token.properties and token.properties:IsHero() then
-                local downtimeInfo = token.properties:GetDowntimeInfo()
-                if downtimeInfo then
-                    local followerId = self:GetFollowerID()
-                    if followerId then
-                        downtimeInfo:GrantFollowerRolls(followerId, amount)
-                    end
-                end
-            end
-        end
     end
 
     return instance
@@ -86,14 +65,6 @@ end
 --- @return table skills The skills known
 function DTRoller:GetSkillsKnown()
     return self.skills
-end
-
---- Adjust the follower's number of available rolls
---- @param amount number The amount to adjust the rolls by
---- @return DTRoller self For chaining
-function DTRoller:AdjustRolls(amount)
-    self:_adjustRolls(amount)
-    return self
 end
 
 --- Returns the token / character id of the rolling entity

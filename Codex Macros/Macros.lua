@@ -777,6 +777,13 @@ Commands.RegisterMacro{
                 token:ModifyProperties {
                     description = "Set Slow Start Level",
                     execute = function()
+                        --Moving a Hero up the slow start notes the rung they left, so Level up
+                        --shows each new rung. A Hero who already has a note keeps it.
+                        local build = rawget(_G, "HeroBuild")
+                        local before = nil
+                        if build ~= nil then
+                            before = build.main.hero.SlowStartStep(token.properties)
+                        end
                         token.properties.levelOverride = 1
                         local info = token.properties:ExtraLevelInfo()
                         info.encounter = tonumber(str) or 1
@@ -784,6 +791,9 @@ Commands.RegisterMacro{
                             info.encounter = nil
                         end
                         token.properties.extraLevelInfo = info
+                        if before ~= nil and token.properties:try_get("rungSeen") == nil and build.main.hero.SlowStartStep(token.properties) > before then
+                            token.properties.rungSeen = before
+                        end
                     end,
                 }
             end
@@ -1377,7 +1387,7 @@ local function languageCompletions(args, argIndex)
     local langTable = dmhub.GetTable(Language.tableName)
     local result = {}
     for k, v in unhidden_pairs(langTable) do
-        result[#result+1] = {text = k, summary = v.name}
+        result[#result+1] = {text = k, summary = v:DisplayNameWithDetail()}
     end
     table.sort(result, function(a, b) return a.summary < b.summary end)
     return result

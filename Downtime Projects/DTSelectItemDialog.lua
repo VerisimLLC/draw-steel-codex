@@ -17,16 +17,7 @@ function DTSelectItemDialog._createPanel(callbacks)
     local craftableItems = {}
     local allItems = dmhub.GetTableVisible(equipment.tableName)
     for key, item in pairs(allItems) do
-        -- Filter items to only craftable items with required properties
-        local projectGoal = item:try_get("projectGoal")
-        local projectSource = item:try_get("projectSource")
-        local itemPrerequisite = item:try_get("itemPrerequisite")
-        local projectRollChar = item:try_get("projectRollCharacteristic")
-
-        if projectGoal and type(projectGoal) == "string" and #projectGoal > 0 and
-           projectSource and type(projectSource) == "string" and #projectSource > 0 and
-           itemPrerequisite and type(itemPrerequisite) == "string" and #itemPrerequisite > 0 and
-           projectRollChar and type(projectRollChar) == "table" and next(projectRollChar) ~= nil then
+        if DTBusinessRules.IsCraftable(item) then
             craftableItems[#craftableItems + 1] = { id = key, text = item.name }
         end
     end

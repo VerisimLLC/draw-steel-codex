@@ -187,6 +187,21 @@ setting{
 --Cached once true: a game cannot stop being an EotW game mid-session.
 local m_isEotwGame = false
 
+--A "no" is re-checked at most once a second, per game: the panel rail asks
+--many times per tick, and each full check fetches the state doc (a fresh
+--table when the doc does not exist yet). The host's stamp can still land
+--later, so the answer is not cached forever.
+--A field, not a local: this file's main chunk is at Lua's 200-local ceiling.
+EncounterOfTheWeekGame._notEotw = { gameid = nil, untilTime = 0 }
+
+function EncounterOfTheWeekGame._notEotw.ReadSlotGameid()
+    return lobby.eotwGameid
+end
+
+function EncounterOfTheWeekGame._notEotw.ReadStateMarked()
+    return mod:GetDocumentSnapshot(STATE_DOC_ID).data.eotw == true
+end
+
 --True in real EotW games only, on every member's client. Two signals, either
 --suffices: the game occupies this account's dedicated EotW slot (set by the
 --create/join flows on the titlescreen), or the host stamped the shared state
@@ -197,20 +212,23 @@ function EncounterOfTheWeekGame.IsEotwGame()
         return true
     end
 
-    local slotid = nil
-    pcall(function() slotid = lobby.eotwGameid end)
-    if slotid ~= nil and slotid == dmhub.gameid then
-        m_isEotwGame = true
-        return true
-    end
+    local now = dmhub.Time()
+    local check = EncounterOfTheWeekGame._notEotw
+    if check.gameid ~= dmhub.gameid or now >= check.untilTime then
+        local okSlot, slotid = pcall(check.ReadSlotGameid)
+        if okSlot and slotid ~= nil and slotid == dmhub.gameid then
+            m_isEotwGame = true
+            return true
+        end
 
-    local marked = false
-    pcall(function() marked = (mod:GetDocumentSnapshot(STATE_DOC_ID).data.eotw == true) end)
-    if marked then
-        m_isEotwGame = true
-    end
-    if m_isEotwGame then
-        return true
+        local okMarked, marked = pcall(check.ReadStateMarked)
+        if okMarked and marked then
+            m_isEotwGame = true
+            return true
+        end
+
+        check.gameid = dmhub.gameid
+        check.untilTime = now + 1
     end
 
     --an authoring test (see "the authoring test"): this client plays the
@@ -747,17 +765,34 @@ function Series.NextPart()
     end
     local _, mapName, part = ParseEncounterKey(key)
     local number = part + 1
-    local found, title = false, nil
+    local found = nil
     for _, p in ipairs(EncounterOfTheWeekGame.SeriesParts()) do
         if p.number == number then
-            found, title = true, p.title
+            found = p
         end
     end
-    if not found and FindMapByName(Series.PartMapName(mapName, number)) == nil then
+    if found == nil then
+        --the next part on its own part map: read that map's script.
+        local partMap = FindMapByName(Series.PartMapName(mapName, number))
+        if partMap == nil then
+            return nil
+        end
+        found = { number = number }
+        pcall(function()
+            for _, script in ipairs(EncounterMontage.ScriptForMap(partMap.id).parts or {}) do
+                local p = script.parse.part
+                if p.number == number then
+                    found = { number = number, title = p.title, comingSoon = p.comingSoon ~= nil, restFree = p.restFree == true }
+                end
+            end
+        end)
+    end
+    --a "Coming soon" part cannot be played yet, so it is not offered.
+    if found.comingSoon then
         return nil
     end
     local seriesKey = key:match("^(.-)#%d+$") or key
-    return { number = number, title = title, key = string.format("%s#%d", seriesKey, number) }
+    return { number = number, title = found.title, restFree = found.restFree == true, key = string.format("%s#%d", seriesKey, number) }
 end
 
 --"Part 2: Lush Garden" (or "Part 2") for Series.NextPart's answer.
@@ -780,6 +815,19 @@ function Series.SetContinue(key)
     end)
     all[dmhub.loginUserid] = cond(key ~= nil, { key = key, at = os.time() }, nil)
     dmhub.SetSettingValue("eotw:continueSeries", dmhub.ToJson(all))
+end
+
+--The id the town and the City know this part's play by. A game starts with
+--its own id; a party that goes straight on to the next part in the same game
+--(Series.StartNextPart) gets "<gameid>-part<n>", so the City records each
+--part's outcomes, Hall entry and debrief separately (all are once per id).
+function Series.RunId()
+    local runId = nil
+    pcall(function() runId = mod:GetDocumentSnapshot(STATE_DOC_ID).data.runId end)
+    if type(runId) == "string" and runId ~= "" then
+        return runId
+    end
+    return dmhub.gameid
 end
 
 local function FindMapById(mapid)
@@ -827,8 +875,9 @@ local function WaitForMapDocuments(mapid)
                 return
             end
         end
-        coroutine.yield(0.2)
-        waited = waited + 0.2
+        --short polls: this is on the loading screen's critical path.
+        coroutine.yield(0.05)
+        waited = waited + 0.05
     end
     printf("EotW: no documents arrived for the encounter map within %d seconds", MODULE_DOCUMENTS_TIMEOUT_SECONDS)
 end
@@ -858,27 +907,28 @@ local function EnsureEncounterModule(moduleid, mapName, part)
     printf("EotW: installing the encounter module %s", moduleid)
     local installed = false
     local failure = nil
-    module.DownloadModuleInfo{
-        moduleid = moduleid,
-        success = function(info)
-            local ok, err = pcall(function()
-                info:Install{
-                    success = function()
-                        installed = true
-                    end,
-                    error = function(message)
-                        failure = message or "the install failed"
-                    end,
-                }
-            end)
-            if not ok then
-                failure = tostring(err)
-            end
-        end,
-        failure = function(message)
+    --the module's info download was usually started first thing in setup
+    --(EncounterOfTheWeekGame.PrefetchEncounterModuleInfo), ahead of the Hero
+    --module queries that would otherwise queue in front of it.
+    EncounterOfTheWeekGame.WithEncounterModuleInfo(moduleid, function(info, message)
+        if info == nil then
             failure = message or "the module was not found"
-        end,
-    }
+            return
+        end
+        local ok, err = pcall(function()
+            info:Install{
+                success = function()
+                    installed = true
+                end,
+                error = function(message)
+                    failure = message or "the install failed"
+                end,
+            }
+        end)
+        if not ok then
+            failure = tostring(err)
+        end
+    end)
 
     --the install's success can land before its maps reach game.maps, so
     --wait for the map itself, with a grace period after a success.
@@ -913,14 +963,14 @@ local function EnsureEncounterModule(moduleid, mapName, part)
             return plainMap
         end
         if plainMap ~= nil then
-            sincePlainMap = (sincePlainMap or 0) + 0.2
+            sincePlainMap = (sincePlainMap or 0) + 0.05
         end
         if failure ~= nil then
             printf("EotW: could not install the encounter module %s: %s", moduleid, tostring(failure))
             return nil
         end
         if installed then
-            sinceInstalled = sinceInstalled + 0.2
+            sinceInstalled = sinceInstalled + 0.05
             if sinceInstalled > 10 then
                 --installed but no new map: the module was already in the
                 --game (its maps keep their ids), so take its map by name.
@@ -931,8 +981,8 @@ local function EnsureEncounterModule(moduleid, mapName, part)
                 return map
             end
         end
-        coroutine.yield(0.2)
-        waited = waited + 0.2
+        coroutine.yield(0.05)
+        waited = waited + 0.05
     end
     printf("EotW: the encounter module %s did not install within %d seconds", moduleid, MODULE_INSTALL_TIMEOUT_SECONDS)
     return nil
@@ -970,15 +1020,18 @@ end
 --Returns the encounter key now in play and its map id (nil, nil if no map
 --was found).
 local function EnsureOnEncounterMap(requested)
-    local stampedKey, stampedId = nil, nil
+    local stampedKey, stampedId, wentOn = nil, nil, false
     pcall(function()
         local data = mod:GetDocumentSnapshot(STATE_DOC_ID).data
         stampedKey = data.encounterMap
         stampedId = data.encounterMapId
+        wentOn = type(data.seriesContinue) == "table"
     end)
 
     local key = requested
-    if type(key) ~= "string" or key == "" then
+    --a party that went on to a later part in this game (Series.StartNextPart)
+    --is playing that part; the lobby record still names the first.
+    if type(key) ~= "string" or key == "" or (wentOn and type(stampedKey) == "string" and stampedKey ~= "") then
         key = stampedKey
     end
     if type(key) ~= "string" or key == "" then
@@ -1018,8 +1071,8 @@ local function EnsureOnEncounterMap(requested)
     --generous window; a switch that never lands is logged, not fatal.
     local waited = 0
     while game.currentMapId ~= map.id and waited < 60 do
-        coroutine.yield(0.1)
-        waited = waited + 0.1
+        coroutine.yield(0.03)
+        waited = waited + 0.03
     end
     if game.currentMapId ~= map.id then
         printf("EotW: travel to \"%s\" did not complete; continuing on the current map", name)
@@ -1027,7 +1080,9 @@ local function EnsureOnEncounterMap(requested)
     end
 
     --let the new map's floors and markup settle before anyone reads them.
-    coroutine.yield(0.5)
+    --The switch has already synced the map's details, so a few frames do;
+    --this was 0.5s, all of it spent behind the loading screen.
+    coroutine.yield(0.2)
     return key, map.id
 end
 
@@ -1044,7 +1099,9 @@ end
 --True once every expected player has arrived (and the newest arrival has had
 --a moment to settle, so the last client in actually sees the Draw Steel
 --banner appear rather than loading into mid-roll).
-function EncounterOfTheWeekGame.AllPlayersArrived()
+--skipSettle: true for the loading-screen reveal, which needs everyone in but not
+--the 3 s settle (that holds back the encounter's start, not the view of the map).
+function EncounterOfTheWeekGame.AllPlayersArrived(skipSettle)
     local doc = mod:GetDocumentSnapshot(STATE_DOC_ID)
     local expected = doc.data.expectedUsers
     if type(expected) ~= "table" or #expected == 0 then
@@ -1070,7 +1127,7 @@ function EncounterOfTheWeekGame.AllPlayersArrived()
     --No settle while an opening stage beat waits on the party: every
     --player's loading screen is held until that beat opens (RevealReady), so
     --nobody can load into the middle of anything.
-    if newest ~= nil and not EncounterOfTheWeekGame.OpeningStageArriving() and math.abs(dmhub.serverTime - newest) < 3 then
+    if newest ~= nil and not skipSettle and not EncounterOfTheWeekGame.OpeningStageArriving() and math.abs(dmhub.serverTime - newest) < 3 then
         return false
     end
     return true
@@ -1277,31 +1334,70 @@ end
 --the game switch). Requests fail immediately while the connection is still
 --opening, so poll for auth first (give up after ~30s). onDone(ok, result)
 --is optional; the connection is dropped either way.
---A connection opened ahead of time by PrewarmLobbyConnection, taken by the
---next SendLobbyRequest so the request does not wait on a cold connect + auth.
-local m_prewarmedLobbyConn = nil
+--Every lobby request and the late-join watcher (EncounterPresence) share one
+--connection, counted by its users: the engine hands every lobbies:Connect for
+--the same city the SAME underlying connection, so one user's Disconnect would
+--close it under the others. The last Release disconnects.
+--  conn      the shared connection, or nil
+--  users     how many users hold it
+--  prewarmed a user taken ahead of time by PrewarmLobbyConnection, handed to
+--            the next SendLobbyRequest so it does not wait on a cold connect
+---@type {conn: LuaLobbyConnection|nil, users: integer, prewarmed: boolean}
+local m_lobbyShare = { conn = nil, users = 0, prewarmed = false }
 
-local function PrewarmLobbyConnection()
-    local lobbies = rawget(_G, "lobbies")
-    if lobbies == nil or m_prewarmedLobbyConn ~= nil then
-        return
-    end
-    m_prewarmedLobbyConn = lobbies:Connect(LOBBY_ID, EotwLobbyOptions())
-end
-
-local function SendLobbyRequest(action, args, onDone)
+---@return LuaLobbyConnection|nil
+function EncounterOfTheWeekGame.AcquireLobbyConnection()
     local lobbies = rawget(_G, "lobbies")
     if lobbies == nil then
-        printf("EotW: engine has no lobbies API; cannot send %s", tostring(action))
+        return nil
+    end
+    --a connection the engine closed for good never reconnects.
+    if m_lobbyShare.conn ~= nil and m_lobbyShare.conn.status == "closed" then
+        m_lobbyShare.conn:Disconnect()
+        m_lobbyShare.conn = nil
+    end
+    if m_lobbyShare.conn == nil then
+        m_lobbyShare.conn = lobbies:Connect(LOBBY_ID, EotwLobbyOptions())
+        if m_lobbyShare.conn == nil then
+            return nil
+        end
+    end
+    m_lobbyShare.users = m_lobbyShare.users + 1
+    return m_lobbyShare.conn
+end
+
+function EncounterOfTheWeekGame.ReleaseLobbyConnection()
+    m_lobbyShare.users = math.max(0, m_lobbyShare.users - 1)
+    if m_lobbyShare.users == 0 and m_lobbyShare.conn ~= nil then
+        m_lobbyShare.conn:Disconnect()
+        m_lobbyShare.conn = nil
+    end
+end
+
+local function PrewarmLobbyConnection()
+    if m_lobbyShare.prewarmed then
         return
     end
+    if EncounterOfTheWeekGame.AcquireLobbyConnection() ~= nil then
+        m_lobbyShare.prewarmed = true
+    end
+end
 
-    local conn = m_prewarmedLobbyConn
-    m_prewarmedLobbyConn = nil
-    if conn == nil then
-        conn = lobbies:Connect(LOBBY_ID, EotwLobbyOptions())
+--Send one request to the EotW lobby over the shared connection above (the
+--titlescreen's connection closed when its screen was destroyed during the
+--game switch). Requests fail immediately while the connection is still
+--opening, so poll for auth first (give up after ~30s). onDone(ok, result)
+--is optional; this request's use of the connection ends either way.
+local function SendLobbyRequest(action, args, onDone)
+    local conn = nil
+    if m_lobbyShare.prewarmed and m_lobbyShare.conn ~= nil then
+        m_lobbyShare.prewarmed = false
+        conn = m_lobbyShare.conn
+    else
+        conn = EncounterOfTheWeekGame.AcquireLobbyConnection()
     end
     if conn == nil then
+        printf("EotW: no lobby connection; cannot send %s", tostring(action))
         return
     end
 
@@ -1318,7 +1414,7 @@ local function SendLobbyRequest(action, args, onDone)
 
         if not conn.connected then
             printf("EotW: lobby connection never became ready; %s not sent", tostring(action))
-            conn:Disconnect()
+            EncounterOfTheWeekGame.ReleaseLobbyConnection()
             return
         end
 
@@ -1327,13 +1423,13 @@ local function SendLobbyRequest(action, args, onDone)
             action = action,
             args = args,
             success = function(result)
-                conn:Disconnect()
+                EncounterOfTheWeekGame.ReleaseLobbyConnection()
                 if onDone ~= nil then
                     onDone(true, result)
                 end
             end,
             error = function(err)
-                conn:Disconnect()
+                EncounterOfTheWeekGame.ReleaseLobbyConnection()
                 if onDone ~= nil then
                     onDone(false, err)
                 end
@@ -1464,7 +1560,9 @@ local function UpdateStartZoneConfinement()
     m_restrictionZonesSeq = zonesSeq
     --pcall: an engine build without the Movement Restriction API degrades to
     --no confinement (the zone outline below still draws).
-    pcall(function() dmhub.SetMovementRestriction{ locs = locs } end)
+    --teleportBetweenAreas: when the start zones are separate areas, a hero
+    --dragged onto another one hops there (older engines ignore the flag).
+    pcall(function() dmhub.SetMovementRestriction{ locs = locs, teleportBetweenAreas = true } end)
     m_zoneMarker = dmhub.MarkLocs{
         locs = locs,
         color = START_ZONE_COLOR,
@@ -1474,9 +1572,21 @@ end
 
 --- coming home ---------------------------------------------------------
 
---The Victories a won encounter is worth, to each hero who has not won it
---before (DSVictoryScreen.AwardVictories on the host; the town write-back).
-local ENCOUNTER_VICTORIES = 1
+--The encounter builder's "Victories awarded", read at award time because a script can change it mid-fight (ctx:SetVictories).
+---@param live? LiveEncounter
+---@return integer
+local function EncounterVictories(live)
+    local victories = 1
+    pcall(function()
+        if live == nil then
+            live = dmhub.initiativeQueue:try_get("liveEncounter")
+        end
+        if type(live) == "table" then
+            victories = tonumber(live:try_get("victories", 1)) or 1
+        end
+    end)
+    return math.max(0, math.floor(victories))
+end
 
 --"victory" or "defeat": the outcome this client saw on the victory screen.
 local m_outcomeKind = nil
@@ -1500,17 +1610,21 @@ local function AlreadyCompletedHeroes()
     return result
 end
 
---The Victories this hero's win is worth: one the first time; in Challenge
---Mode one more for the challenge's first win -- both at once for a hero who
---never won the normal mode, and nothing for one who has won the challenge.
+--The extra Victory Challenge Mode is worth; the script validator reads it too.
+EncounterOfTheWeekGame.CHALLENGE_VICTORIES = 1
+
+--The Victories this hero's win is worth: the encounter's Victories the first
+--time; in Challenge Mode one more for the challenge's first win -- both at
+--once for a hero who never won the normal mode, and nothing for one who has
+--won the challenge.
 function EncounterOfTheWeekGame.VictoryAward(charid)
-    --the extra Victory Challenge Mode is worth.
-    local CHALLENGE_VICTORIES = 1
+    local CHALLENGE_VICTORIES = EncounterOfTheWeekGame.CHALLENGE_VICTORIES
     if AlreadyCompletedHeroes()[charid] then
         return 0
     end
+    local encounterVictories = EncounterVictories()
     if not EncounterOfTheWeekGame.IsChallenge() then
-        return ENCOUNTER_VICTORIES
+        return encounterVictories
     end
     --heroes whose owners' town says they won the normal mode (data.completedNormal).
     local wonNormal = false
@@ -1521,7 +1635,7 @@ function EncounterOfTheWeekGame.VictoryAward(charid)
     if wonNormal then
         return CHALLENGE_VICTORIES
     end
-    return ENCOUNTER_VICTORIES + CHALLENGE_VICTORIES
+    return encounterVictories + CHALLENGE_VICTORIES
 end
 
 --After hero placement: stamp which of MY heroes the town says already won
@@ -1605,7 +1719,7 @@ local function AutoAwardVictories(live, now)
     --elevated: the award writes every player's heroes, and the host is a
     --player in an EotW game.
     ElevateToHostPermissions()
-    local ok, err = pcall(DSVictoryScreen.AwardVictories, live, ENCOUNTER_VICTORIES, exemptions, amounts)
+    local ok, err = pcall(DSVictoryScreen.AwardVictories, live, EncounterVictories(live), exemptions, amounts)
     DropHostPermissions()
     if not ok then
         printf("EotW: the Victory award failed: %s", tostring(err))
@@ -1836,10 +1950,12 @@ pcall(function()
     end)
 end)
 
---A won series part invites the player straight on to the next one, which
---stays open only until their next respite (the town's inn warns too). The
---button records the choice for the town (Series.SetContinue) and presses
---Proceed; the story screen offers the same choice again.
+--A won series part invites the party straight on to the next one. When it
+--plays on this map the party stays in this game, and the HOST chooses for
+--everyone (Series.ChooseContinue): the other players see who decides and no
+--button. Otherwise each player's choice goes to the town (Series.SetContinue),
+--where the part stays open only until their next respite (the inn warns too).
+--The button presses Proceed, and the story screen offers the same choice.
 pcall(function()
     DSVictoryScreen.RegisterFooterPanel("eotw-series-next", function(outcome, pressProceed)
         if outcome ~= "victory" or not EncounterOfTheWeekGame.IsEotwGame() or EncounterOfTheWeekGame.IsTestPlayer() then
@@ -1849,8 +1965,16 @@ pcall(function()
         if nextPart == nil then
             return nil
         end
+        local here = Series.ContinuesHere(nextPart)
         local label = Series.PartLabel(nextPart)
         local chosen = false
+        --in this game only the host decides.
+        local decides = not here or IsDMOrPlayerHost()
+        local body = UIText.T(cond(nextPart.restFree, "encounter.series_next.body_rest_free", "encounter.series_next.body"))
+        if here then
+            body = cond(decides, UIText.T("encounter.series_next.body_here"),
+                UIText.T("encounter.series_next.body_member", { host = Series.HostName() }))
+        end
         return gui.Panel{
             width = 640,
             height = "auto",
@@ -1864,7 +1988,7 @@ pcall(function()
             borderColor = "#d9b56a",
             cornerRadius = 8,
             gui.Label{
-                text = UIText.T("encounter.series_next.title", { part = label }),
+                text = UIText.T(cond(here, "encounter.series_next.title_here", "encounter.series_next.title"), { part = label }),
                 fontSize = 26,
                 bold = true,
                 color = "#ffd66b",
@@ -1873,7 +1997,7 @@ pcall(function()
                 textAlignment = "center",
             },
             gui.Label{
-                text = UIText.T("encounter.series_next.body"),
+                text = body,
                 fontSize = 16,
                 color = "#efe4cc",
                 width = "100%",
@@ -1883,7 +2007,7 @@ pcall(function()
                 textWrap = true,
             },
             gui.Button{
-                classes = {"sizeM"},
+                classes = {"sizeM", cond(decides, nil, "collapsed")},
                 text = UIText.T("encounter.series_next.button", { part = label }),
                 width = 320,
                 height = 44,
@@ -1895,7 +2019,11 @@ pcall(function()
                     end
                     chosen = true
                     audio.FireSoundEvent("Mouse.Click")
-                    Series.SetContinue(nextPart.key)
+                    if here then
+                        Series.ChooseContinue(nextPart.key)
+                    else
+                        Series.SetContinue(nextPart.key)
+                    end
                     pressProceed()
                 end,
             },
@@ -1932,8 +2060,14 @@ end
 --(OfferAbsentOutcomes).
 local function OutcomesFor(userid, encounter, result)
     local completed = AlreadyCompletedHeroes()
+    --heroes who fell in an earlier part played in this game were buried then.
+    local buried = {}
+    pcall(function() buried = mod:GetDocumentSnapshot(STATE_DOC_ID).data.buriedHeroes or {} end)
     local entries = {}
     for key, charid in pairs(GetPlacedHeroes(userid)) do
+        if buried[charid] then
+            goto continue
+        end
         --town heroes travel as "lobby:<heroid>" (see PlaceMyHeroes).
         local heroid = string.match(key, "^lobby:(.+)$")
         --a dead hero is usually despawned into a corpse by the Hero Death
@@ -1987,6 +2121,7 @@ local function OutcomesFor(userid, encounter, result)
         if #entries > before and montage ~= nil and montage.AssassinSent(charid) then
             entries[#entries].outcome.assassinMet = true
         end
+        ::continue::
     end
     return entries
 end
@@ -2021,10 +2156,11 @@ local function RecordPendingOutcomes(result)
         return
     end
 
+    local runId = Series.RunId()
     local entries = {}
     for _, e in ipairs(OutcomesFor(dmhub.loginUserid, encounter, result)) do
         entries[#entries + 1] = {
-            gameid = dmhub.gameid,
+            gameid = runId,
             heroid = e.heroid,
             stage = "new",
             outcome = e.outcome,
@@ -2049,6 +2185,17 @@ local function RecordPendingOutcomes(result)
         all[dmhub.loginUserid] = mine
     end
     for _, entry in ipairs(entries) do
+        --an earlier part of this game that is still waiting to go home took
+        --the hero's wounds then; this part's are the ones they come home with.
+        if runId ~= dmhub.gameid then
+            for _, older in pairs(mine) do
+                if type(older) == "table" and older.heroid == entry.heroid and type(older.outcome) == "table"
+                    and older.gameid ~= runId
+                    and (older.gameid == dmhub.gameid or string.sub(tostring(older.gameid), 1, #dmhub.gameid + 5) == dmhub.gameid .. "-part") then
+                    older.outcome.wounds = nil
+                end
+            end
+        end
         mine[entry.gameid .. "|" .. entry.heroid] = entry
     end
     dmhub.SetSettingValue("eotw:pendingOutcomes", dmhub.ToJson(all))
@@ -2078,7 +2225,7 @@ local function OfferAbsentOutcomes(result)
         if type(rec) == "table" and not rec.abandoned and not presence.HasAbandoned(userid) then
             local entries = OutcomesFor(userid, encounter, result)
             if #entries > 0 then
-                SendLobbyRequest("offer-outcomes", { userid = userid, gameid = dmhub.gameid, entries = entries }, function(ok, result)
+                SendLobbyRequest("offer-outcomes", { userid = userid, gameid = Series.RunId(), entries = entries }, function(ok, result)
                     if ok then
                         printf("EotW: left %d hero result(s) with the city for %s, who was away", #entries, tostring(userid))
                     else
@@ -2111,7 +2258,7 @@ local function RecordPendingDebrief(outcome)
         end
     end
     all[dmhub.loginUserid] = {
-        gameid = dmhub.gameid,
+        gameid = Series.RunId(),
         encounter = encounter,
         result = outcome or "",
     }
@@ -2249,11 +2396,19 @@ local function GameRounds()
     local q = dmhub.initiativeQueue
     local rounds = (q ~= nil and tonumber(q.round)) or 0
     local currentId = q ~= nil and q:try_get("guid") or nil
+    --battles of earlier parts played in this game (Series.StartNextPart).
+    local prior = {}
+    pcall(function()
+        local list = mod:GetDocumentSnapshot(STATE_DOC_ID).data.priorBattles
+        if type(list) == "table" then
+            prior = list
+        end
+    end)
     local battleLog = rawget(_G, "BattleLog")
     if battleLog ~= nil then
         pcall(function()
             for _, battle in ipairs(battleLog.GetBattles()) do
-                if battle.id ~= currentId then
+                if battle.id ~= currentId and not prior[battle.id] then
                     rounds = rounds + (tonumber(battle.rounds) or 0)
                 end
             end
@@ -2266,13 +2421,18 @@ end
 --players in the order their first hero appears. Also how many heroes died.
 local function HallParty()
     local heroes, players, seen, deaths = {}, {}, {}, 0
-    local placed = {}
-    pcall(function() placed = mod:GetDocumentSnapshot(STATE_DOC_ID).data.placedHeroes or {} end)
+    local placed, buried = {}, {}
+    pcall(function()
+        local data = mod:GetDocumentSnapshot(STATE_DOC_ID).data
+        placed = data.placedHeroes or {}
+        --fell in an earlier part of this game: not of this part's party.
+        buried = data.buriedHeroes or {}
+    end)
     local roster = rawget(_G, "EotwRoster")
     for userid, mine in pairs(placed) do
         for _, charid in pairs(type(mine) == "table" and mine or {}) do
             local tok = dmhub.GetCharacterById(charid)
-            if tok ~= nil then
+            if tok ~= nil and not buried[charid] then
                 local dead = false
                 pcall(function() dead = tok.properties:IsDead() end)
                 if dead then
@@ -2331,10 +2491,13 @@ RecordHallOfHeroes = function(live)
         title = string.match(game.currentMap.description or "", "^[^:]+:%s*(.+)$")
     end)
     BankPlaytime()
+    --a part played on in the same game counts from where it began.
+    local partStart = 0
+    pcall(function() partStart = tonumber(mod:GetDocumentSnapshot(STATE_DOC_ID).data.partStartSeconds) or 0 end)
     local entry = {
-        gameid = dmhub.gameid,
+        gameid = Series.RunId(),
         encounter = encounter,
-        seconds = math.floor(EncounterOfTheWeekGame.PlaySeconds()),
+        seconds = math.max(0, math.floor(EncounterOfTheWeekGame.PlaySeconds() - partStart)),
         rounds = GameRounds(),
         deaths = deaths,
         summary = { title = title, heroes = heroes, players = players },
@@ -2347,7 +2510,8 @@ end
 
 --Leave a survey invitation for the town after this game. outcome is
 --"victory", "defeat" or "abandoned". Skipped in tests, outside EotW, and
---for games shorter than SURVEY_MIN_SECONDS. A later game replaces it.
+--for games shorter than SURVEY_MIN_SECONDS. A later game replaces it, and
+--the town drops it if the app is restarted before it is shown.
 function EncounterOfTheWeekGame.RecordPendingSurvey(outcome)
     if not EOTW_BETA_SURVEY or not EncounterOfTheWeekGame.IsEotwGame() or EncounterOfTheWeekGame.IsTestPlayer() then
         return
@@ -2394,6 +2558,9 @@ function EncounterOfTheWeekGame.RecordPendingSurvey(outcome)
         minutes = math.floor(seconds / 60 + 0.5),
         players = players,
         heroes = heroes,
+        --when this run of the app started (unix seconds): the town only
+        --invites in the same run, never after a restart.
+        appStart = math.floor(os.time() - dmhub.Time()),
     }
     dmhub.SetSettingValue("eotw:pendingSurvey", dmhub.ToJson(all))
     printf("EotW: beta survey (%s, %d min) waiting for the town", outcome, math.floor(seconds / 60))
@@ -2499,6 +2666,13 @@ end
 --player's heroes are down. Called after arrival and from the 1s driver (the
 --backstop for a game entered without an arrival, e.g. a relaunch into it).
 local function EnsureAnalyticsRun()
+    --a later part played on in this game is its own run (also on a resume).
+    pcall(function()
+        local runId = Series.RunId()
+        if runId ~= dmhub.gameid then
+            EotwAnalytics.SetRunId(runId)
+        end
+    end)
     if not AnalyticsActive() or EotwAnalytics.InRun() then
         return
     end
@@ -2682,6 +2856,30 @@ local function OutcomeStory(outcome)
     return copy, script
 end
 
+--This client has seen an awarded outcome on the live queue: note it for the
+--conclusion watcher below, and once the Victory has landed, for the town.
+--Also called by the host just before it tears combat down for a relayed
+--Proceed, since that can happen before the 1s watcher ever sees the outcome
+--(8KRBSRC2: the host was then never sent home).
+function Series.NoteOutcome(live, outcome)
+    local awarded = false
+    pcall(function() awarded = live:try_get("victoriesAwarded", false) == true end)
+    if outcome ~= nil and not m_outcomeSeen then
+        m_outcomeSeen = true
+        m_outcomeKind = outcome
+        if outcome == "victory" then
+            OfferAbsentOutcomes(outcome)
+        end
+    end
+    --the Victory has landed: note it for the town now, not only on the
+    --way out, so a crash on the victory screen does not lose it. A
+    --defeat waits for the way out: a hero's Recovery on Death prompt can
+    --still be open under the defeat screen, and must not bury them.
+    if outcome == "victory" and awarded and not EncounterOfTheWeekGame.IsTestPlayer() then
+        RecordPendingOutcomes(outcome)
+    end
+end
+
 --Watch the encounter conclude: once this client has seen the victory/defeat
 --screen (an awarded outcome on the live queue), the local user has pressed
 --Proceed, and the queue has hidden (combat torn down), leave for the
@@ -2700,28 +2898,12 @@ local function UpdateEncounterConclusion()
 
     local queue = dmhub.initiativeQueue
     if queue ~= nil and not queue.hidden then
-        local outcome, awarded = nil, false
         pcall(function()
             local live = queue:try_get("liveEncounter")
             if type(live) == "table" then
-                outcome = live:GetAwardedOutcome()
-                awarded = live:try_get("victoriesAwarded", false) == true
+                Series.NoteOutcome(live, live:GetAwardedOutcome())
             end
         end)
-        if outcome ~= nil and not m_outcomeSeen then
-            m_outcomeSeen = true
-            m_outcomeKind = outcome
-            if outcome == "victory" then
-                OfferAbsentOutcomes(outcome)
-            end
-        end
-        --the Victory has landed: note it for the town now, not only on the
-        --way out, so a crash on the victory screen does not lose it. A
-        --defeat waits for the way out: a hero's Recovery on Death prompt can
-        --still be open under the defeat screen, and must not bury them.
-        if outcome == "victory" and awarded and not testing then
-            RecordPendingOutcomes(outcome)
-        end
         return
     end
 
@@ -2761,7 +2943,7 @@ local function UpdateEncounterConclusion()
 
     if m_outcomeSeen and m_localProceeded then
         m_exitScheduled = true
-        printf("EotW: encounter concluded; returning to the titlescreen")
+        Series.concludedAt = dmhub.Time()
 
         --a victory whose award this client never saw (the host tore combat
         --down in the same moment) is still a victory for the town; a defeat
@@ -2770,44 +2952,30 @@ local function UpdateEncounterConclusion()
             RecordPendingOutcomes(m_outcomeKind)
             OfferAbsentOutcomes(m_outcomeKind)
         end
-        RecordPendingDebrief(m_outcomeKind)
-        EncounterOfTheWeekGame.RecordPendingSurvey(m_outcomeKind)
-        pcall(EncounterOfTheWeekGame.AnalyticsEndRun, m_outcomeKind, "conclusion")
 
-        --hand the finished game to the titlescreen: it destroys the game /
-        --clears the account slot on its next refresh, so a decided
-        --encounter is never offered for resume.
-        pcall(function() dmhub.SetSettingValue("eotw:concludedgame", dmhub.gameid) end)
-
-        --and drop out of the lobby roster now: the HOST's leave removes the
-        --game's record (and its chat) for the whole lobby, and members'
-        --leaves stop their returning screens' heartbeats from keeping a
-        --stale record alive. Best-effort -- the titlescreen cleanup sends
-        --leave-game again if this one loses the race with LeaveGame.
-        SendLobbyRequest("leave-game", { gameid = dmhub.gameid }, function(ok, result)
-            if not ok then
-                printf("EotW: conclusion leave-game not accepted: %s", tostring(result))
-            end
-        end)
-
-        --deferred: LeaveGame synchronously unloads this codemod, so let the
-        --frame (and the victory screen's fade) finish first. With a story
-        --screen the player leaves when they press on, but never before
-        --EXIT_DELAY, so the host's end-of-combat writes still flush.
-        local leaveAt = dmhub.Time() + EXIT_DELAY
-        local function Leave()
-            dmhub.Schedule(math.max(0.2, leaveAt - dmhub.Time()), function()
-                if mod.unloaded then
-                    return
-                end
-                dmhub.LeaveGame()
-            end)
+        --a won series part whose next part plays on this map can be played
+        --on in this game: what only a departure does waits until this
+        --player chooses to go home (Series.LeaveForTown).
+        local nextPart = cond(m_outcomeKind == "victory", Series.NextPart(), nil)
+        local here = nextPart ~= nil and Series.ContinuesHere(nextPart)
+        if here then
+            ---@cast nextPart -nil
+            printf("EotW: part won; the party may go straight on to %s", nextPart.key)
+            Series.offered = nextPart
+        else
+            printf("EotW: encounter concluded; returning to the titlescreen")
+            Series.ConcludeForTown()
         end
 
         local section, script = OutcomeStory(m_outcomeKind)
         local stage = rawget(_G, "EncounterMontageStage")
+        if here and section == nil then
+            --no Conclusion text: the screen is still where the choice is made.
+            ---@cast nextPart -nil
+            section = { text = UIText.T("encounter.series_next.no_story", { part = Series.PartLabel(nextPart) }) }
+        end
         if section == nil or stage == nil or stage.ShowStoryScreen == nil then
-            Leave()
+            Series.LeaveForTown()
             return
         end
 
@@ -2833,30 +3001,58 @@ local function UpdateEncounterConclusion()
                     title = cond(title ~= nil, UIText.T("encounter.story.title_with_part", { title = title or "", part = partName }), partName)
                 end
             end)
-            --a won series part offers the next one (see "eotw-series-next").
+            --a won series part offers the next one (see "eotw-series-next"):
+            --in this game when it plays here, else through the town.
             local choice = nil
-            local nextPart = cond(m_outcomeKind == "victory", Series.NextPart(), nil)
             if nextPart ~= nil then
                 local label = Series.PartLabel(nextPart)
-                choice = {
-                    text = UIText.T("encounter.series_next.button", { part = label }),
-                    note = UIText.T("encounter.series_next.story_note", { part = label }),
-                    onChoose = function()
-                        Series.SetContinue(nextPart.key)
-                    end,
-                }
+                if here and IsDMOrPlayerHost() then
+                    --the host chooses for the whole party.
+                    choice = {
+                        text = UIText.T("encounter.series_next.button", { part = label }),
+                        note = UIText.T("encounter.series_next.story_note_here", { part = label }),
+                        busyText = UIText.T("encounter.series_next.waiting_button"),
+                        stay = true,
+                        chosen = Series.MyChoice(nextPart.key) == "continue",
+                        status = function()
+                            return Series.WaitingText(nextPart)
+                        end,
+                        onChoose = function()
+                            Series.ChooseContinue(nextPart.key)
+                        end,
+                    }
+                elseif here then
+                    --everyone else follows the host: no button, a line that
+                    --says who decides (or that they went home).
+                    choice = {
+                        note = UIText.T("encounter.series_next.story_note_member", { host = Series.HostName(), part = label }),
+                        status = function()
+                            return Series.WaitingText(nextPart)
+                        end,
+                    }
+                else
+                    choice = {
+                        text = UIText.T("encounter.series_next.button", { part = label }),
+                        note = UIText.T(cond(nextPart.restFree, "encounter.series_next.story_note_rest_free", "encounter.series_next.story_note"), { part = label }),
+                        onChoose = function()
+                            Series.SetContinue(nextPart.key)
+                        end,
+                    }
+                end
             end
-            local ok, err = pcall(stage.ShowStoryScreen, {
+            local ok, result = pcall(stage.ShowStoryScreen, {
                 outcome = m_outcomeKind,
                 title = title,
                 section = section,
                 script = script,
                 choice = choice,
-                onContinue = Leave,
+                onContinue = Series.LeaveForTown,
             })
-            if not ok then
-                printf("EotW: could not show the %s story: %s", tostring(m_outcomeKind), tostring(err))
-                Leave()
+            if ok then
+                Series.storyScreen = result
+            else
+                printf("EotW: could not show the %s story: %s", tostring(m_outcomeKind), tostring(result))
+                Series.LeaveForTown()
             end
         end)
     end
@@ -2883,6 +3079,7 @@ local m_busyStampTime = nil
 --from the exact predicates the invoke pipeline (AbilityInvokeAbility.lua),
 --the Monster AI's WaitForAbilityIdle, and the death gate
 --(AbilityRemoveCreature.lua) already trust. Every probe is pcall-guarded.
+--The second return names what is busy, for the award-held log line.
 local function AbilityActivityInFlight()
     --any live cast coroutine (covers post-roll prompts, forced-movement
     --placement, spend-recovery, invoked sub-abilities). On the host this
@@ -2890,7 +3087,7 @@ local function AbilityActivityInFlight()
     local activeCasts = 0
     pcall(function() activeCasts = ActivatedAbility.CountActiveCasts() end)
     if activeCasts > 0 then
-        return true
+        return true, "an ability cast"
     end
 
     --the action bar is targeting / awaiting Confirm. The new bar returns
@@ -2902,7 +3099,7 @@ local function AbilityActivityInFlight()
         end
     end)
     if casting ~= nil and casting ~= false then
-        return true
+        return true, "action bar targeting"
     end
 
     --any of the three roll surfaces (legacy singleton, embedded ability
@@ -2910,14 +3107,14 @@ local function AbilityActivityInFlight()
     local rolling = false
     pcall(function() rolling = CharacterPanel.AnyRollDialogShown() end)
     if rolling then
-        return true
+        return true, "a roll dialog"
     end
 
     --a modal prompt is up (recovery selection, confer condition, fall...).
     local modal = nil
     pcall(function() modal = gui.GetModal() end)
     if modal ~= nil then
-        return true
+        return true, "a modal prompt"
     end
 
     --an unanswered trigger / invocation prompt card on a creature this
@@ -2925,8 +3122,12 @@ local function AbilityActivityInFlight()
     --monsters its Monster AI answers for. tok.canControl is elevation-aware
     --(false for monsters in the host's un-elevated tick), so ask under host
     --permissions -- a state read, no UI. Hostile prompts never age out, so
-    --they must not block forever (same carve-out as the death gate).
-    local pending = false
+    --they must not block forever (same carve-out as the death gate), and
+    --any other prompt blocks only while it is fresh: a prompt raised again
+    --every turn (My Life For Yours) is never answered, and with no limit it
+    --held a won fight open for good (WNQZG7EW).
+    local TRIGGER_PROMPT_HOLD_SECONDS = 30
+    local pending = nil
     ElevateToHostPermissions()
     for _,tok in ipairs(dmhub.allTokens) do
         if tok.valid and tok.canControl and tok.properties ~= nil then
@@ -2934,20 +3135,22 @@ local function AbilityActivityInFlight()
             pcall(function() triggers = tok.properties:GetAvailableTriggers(true) end)
             if triggers ~= nil then
                 for _,t in pairs(triggers) do
-                    if not t.hostile then
-                        pending = true
+                    local age = nil
+                    pcall(function() age = EventTimestampAge(t.timestamp) end)
+                    if not t.hostile and age ~= nil and age < TRIGGER_PROMPT_HOLD_SECONDS then
+                        pending = string.format("%s's trigger prompt", tok.name or "a creature")
                         break
                     end
                 end
             end
         end
-        if pending then
+        if pending ~= nil then
             break
         end
     end
     DropHostPermissions()
 
-    return pending
+    return pending ~= nil, pending
 end
 
 local function WriteBusyStamp()
@@ -2970,14 +3173,21 @@ local function ClearBusyStamp()
 end
 
 --Per-client, from the 1s driver: mirror local ability activity into the
---state doc while combat is live. Writes only on transitions plus a
---BUSY_REFRESH_INTERVAL keep-alive, so idle ticks cost nothing.
+--state doc while combat is live, and while the heroes arrange (a Catch
+--Breath or Null Field in flight holds the start of combat; see
+--ArrangeHostTick). Writes only on transitions plus a BUSY_REFRESH_INTERVAL
+--keep-alive, so idle ticks cost nothing.
 local function UpdateBusyMirror()
     if not EncounterOfTheWeekGame.IsEotwGame() then
         return
     end
+    local arranging = false
+    pcall(function()
+        local arrange = mod:GetDocumentSnapshot(STATE_DOC_ID).data.arrange
+        arranging = type(arrange) == "table" and arrange.phase == "arranging"
+    end)
     local queue = dmhub.initiativeQueue
-    if queue == nil or queue.hidden then
+    if (queue == nil or queue.hidden) and not arranging then
         if m_busyStampTime ~= nil then
             ClearBusyStamp()
         end
@@ -2995,21 +3205,22 @@ end
 
 --Host-side award gate: true while this client is busy (checked live, so AI
 --casts on the host are always fresh) or any other client's mirror stamp is
---recent.
+--recent. The second return names what is busy.
 local function AnyClientAbilityBusy()
-    if AbilityActivityInFlight() then
-        return true
+    local localBusy, localReason = AbilityActivityInFlight()
+    if localBusy then
+        return true, localReason
     end
     local stamps = mod:GetDocumentSnapshot(STATE_DOC_ID).data.abilityBusy
     if type(stamps) == "table" then
         local myUserid = dmhub.loginUserid
         for userid,t in pairs(stamps) do
             if userid ~= myUserid and type(t) == "number" and math.abs(dmhub.serverTime - t) < BUSY_STALE_SECONDS then
-                return true
+                return true, "ability activity on client " .. tostring(userid)
             end
         end
     end
-    return false
+    return false, nil
 end
 
 --Player-host mode is NOT switched on from here. EotW games are created
@@ -3045,7 +3256,7 @@ local function UpdateDirectorUIHatch()
 end
 
 --- arranging the heroes -------------------------------------------------
---When a montage decides the initiative (no die is rolled), the Draw Steel
+--Once the initiative is decided (by a montage, or by the die), the Draw Steel
 --banner announces it and then HOLDS the start of combat: the party may move
 --their heroes anywhere inside the start zone (plus any zone a clause
 --unlocked) before the first turn. Each player presses Ready; when every
@@ -3083,6 +3294,35 @@ end
 local function ArrangeHeroesWin(state)
     return state.heroesWin ~= false
 end
+
+--The only abilities players may use while arranging (David, 2026-11-05),
+--by ability guid. A table field, not a local: this file is at Lua's
+--200-local limit.
+EncounterOfTheWeekGame.ARRANGE_ABILITY_IDS = {
+    ["ca322ca9-4729-46b2-81bc-d3ac4098fc47"] = true, --Catch Breath (global rule mod)
+    ["8dbe876d-7e72-4e8c-8d11-ab51bffe9bd6"] = true, --Null Field (Null class feature)
+}
+
+--While the heroes arrange, a player's hero may prepare but not fight: every
+--other ability is greyed with the reason below (core cast gate; binds only
+--players under strict rules, which EotW forces). Catch Breath is limited only
+--by Recoveries: with no initiative queue a maneuver is never used up.
+ActivatedAbility.RegisterCastGate("eotw-arrange", function(ability, casterCreature, casterToken)
+    local state = ArrangeState()
+    if state == nil or state.phase ~= "arranging" then
+        return nil
+    end
+    --an "arranging" doc with a live queue is stale (see UpdateArrangePanel).
+    local queue = dmhub.initiativeQueue
+    if queue ~= nil and not queue.hidden then
+        return nil
+    end
+    local guid = ability:try_get("guid")
+    if guid ~= nil and EncounterOfTheWeekGame.ARRANGE_ABILITY_IDS[guid] then
+        return nil
+    end
+    return UIText.T("encounter.arrange.cast_blocked")
+end)
 
 local function ArrangeVoters()
     local voters = {}
@@ -3132,8 +3372,8 @@ function EncounterOfTheWeekGame.SetArrangeReady(ready)
     doc:CompleteChange("Encounter of the Week: heroes arranged", {undoable = false})
 end
 
---The banner resolved: hold for the arrangement, whichever side won. Only
---passed when no die was rolled (see StartEncounterCombat).
+--The banner resolved: hold for the arrangement, whichever side won (see
+--StartEncounterCombat).
 local function HoldForArrangement(heroesWin, begin)
     m_arrangeBegin = begin
     local doc = mod:GetDocumentSnapshot(STATE_DOC_ID)
@@ -3226,10 +3466,12 @@ local function CreateArrangePanel()
         bgcolor = "#0c0f14e6",
         width = 560,
         height = "auto",
-        --at the bottom, clear of the starting area the camera centres on.
+        --at the top, clear of the starting area the camera centres on. Not at
+        --the bottom: it covered the action bar's menus and cast prompt, and
+        --heroes may Catch Breath / raise Null Field while arranging.
         halign = "center",
-        valign = "bottom",
-        bmargin = 60,
+        valign = "top",
+        tmargin = 80,
         flow = "vertical",
         hpad = 20,
         vpad = 16,
@@ -3267,6 +3509,18 @@ local function CreateArrangePanel()
                 textWrap = true,
                 fontSize = 16,
             },
+            gui.Label{
+                classes = {"fg"},
+                text = UIText.T("encounter.arrange.prepare_hint"),
+                width = "100%",
+                height = "auto",
+                halign = "center",
+                tmargin = 4,
+                textAlignment = "center",
+                textWrap = true,
+                fontSize = 14,
+                opacity = 0.8,
+            },
             statusLabel,
             readyButton,
         },
@@ -3275,11 +3529,16 @@ local function CreateArrangePanel()
 end
 
 --Show the arrangement panel to every player with heroes while the heroes
---are arranging, and take it down when the arrangement ends.
+--are arranging, and take it down when the arrangement ends or combat is
+--already running (Y8US7UC9, EZ5XMXFA: the panel blocked the action bar).
+--An arrangement always ends before the queue is created, so an "arranging"
+--doc with a live queue is stale.
 local function UpdateArrangePanel()
     local state = ArrangeState()
+    local queue = dmhub.initiativeQueue
     local want = (EncounterOfTheWeekGame.IsEotwGame() or m_devEncounter) and state ~= nil
         and state.phase == "arranging" and ArrangeVoterKey() ~= nil
+        and (queue == nil or queue.hidden)
     local shown = m_arrangePanel ~= nil and m_arrangePanel.valid
     if want and not shown then
         if GameHud.instance ~= nil and GameHud.instance.parentPanel ~= nil then
@@ -3310,10 +3569,26 @@ dmhub.Coroutine(function()
             return
         end
         pcall(UpdateDirectorUIHatch)
+        --EotW allows no undo but Turn Rewind: the ordinary undo stack is per client
+        --and blind to other players' writes, so one Ctrl+Z could delete the whole
+        --combat (FM2VP7AK). Follows IsEotwGame, so it lifts when an authoring test ends.
+        pcall(function()
+            local want = EncounterOfTheWeekGame.IsEotwGame()
+            if dmhub.undoDisabled ~= want then
+                dmhub.undoDisabled = want
+            end
+        end)
         pcall(UpdateStartZoneConfinement)
         pcall(UpdateArrangePanel)
         pcall(UpdateBusyMirror)
         pcall(UpdateEncounterConclusion)
+        --a won series part going straight on to the next one in this game.
+        do
+            local ok, err = pcall(function() Series.ContinueTick() end)
+            if not ok then
+                printf("EotW: next-part tick failed: %s", tostring(err))
+            end
+        end
         pcall(UpdatePlayClock)
         pcall(EnsureAnalyticsRun)
         pcall(MirrorAnalyticsPhase)
@@ -3327,6 +3602,10 @@ dmhub.Coroutine(function()
             local montage = rawget(_G, "EncounterMontage")
             if montage ~= nil then
                 montage.ClientTick()
+                local negotiation = rawget(_G, "EncounterNegotiation")
+                if negotiation ~= nil then
+                    negotiation.ClientTick()
+                end
             end
         end)
         --zones the script revealed: this client's zone overlay shows them.
@@ -3533,10 +3812,25 @@ function EncounterOfTheWeekGame.PlayArea()
         area.region = entry.encounter:GetRegion()
         area.startLocs = Encounter.StartLocsOnCurrentMap(entry.encounter:GetHeroStartLocs())
     end)
+    --A member cannot read the map's journal folder, where the encounter
+    --lives, so it uses the copy the host shared (Series.SharePlayArea).
+    local shared = nil
+    if area.encounter == nil then
+        pcall(function()
+            local stamp = mod:GetDocumentSnapshot(STATE_DOC_ID).data.playArea
+            if type(stamp) == "table" and stamp.mapid == mapid and stamp.part == part then
+                shared = stamp
+                if type(stamp.region) == "table" and stamp.region.x1 ~= nil then
+                    area.region = { x1 = stamp.region.x1, y1 = stamp.region.y1, x2 = stamp.region.x2, y2 = stamp.region.y2 }
+                end
+                area.startLocs = Encounter.StartLocsOnCurrentMap(stamp.startLocs)
+            end
+        end)
+    end
     --an encounter not found yet is never cached: a freshly installed module's
     --documents land after its map, and a cached miss would place the heroes
     --at the camera even once they had arrived (BBNAFSHD).
-    if area.encounter ~= nil then
+    if area.encounter ~= nil or shared ~= nil then
         m_playArea = area
     else
         m_playArea = nil
@@ -3558,8 +3852,30 @@ end
 --the rest of the map. The core restores the original bounds only when told
 --(hold) -- an EotW game is thrown away afterwards; an authoring test puts
 --them back at its end (ReleasePlayRegion).
+--Host: copy the play area's region and start tiles into the state doc. Only
+--the host can read the encounter (it lives in the map's journal folder), so
+--without this a member's heroes land at its camera with no start area to
+--see or move in. Written before RecordSetupReady, which members wait for.
+---@param area EotwPlayArea
+function Series.SharePlayArea(area)
+    if area.encounter == nil then
+        return
+    end
+    local region = area.region
+    local doc = mod:GetDocumentSnapshot(STATE_DOC_ID)
+    doc:BeginChange()
+    doc.data.playArea = {
+        mapid = area.mapid,
+        part = area.part,
+        region = region ~= nil and { x1 = region.x1, y1 = region.y1, x2 = region.x2, y2 = region.y2 } or nil,
+        startLocs = DeepCopy(area.encounter:GetHeroStartLocs()),
+    }
+    doc:CompleteChange("Encounter of the Week: the play area", {undoable = false})
+end
+
 local function ApplyPlayRegion()
     local area = EncounterOfTheWeekGame.PlayArea()
+    pcall(Series.SharePlayArea, area)
     if area.region == nil or area.encounter == nil then
         return
     end
@@ -3590,7 +3906,15 @@ end
 --island (so its Run Encounter / Save and Remove buttons work) and readies
 --the encounter for the combat-setup dialog.
 --Returns true if monsters are (now or already) on the map, else false+error.
-function EncounterOfTheWeekGame.SpawnEncounterMonsters(numHeroes)
+--options.async: spawn one group per frame in a coroutine instead of all in
+--this frame (a big encounter froze the screen for ~0.7 s at the montage's end).
+--It then returns false, EncounterOfTheWeekGame.SPAWNING until the coroutine
+--has recorded the spawns; call again (each host tick) to learn when it has.
+EncounterOfTheWeekGame.SPAWNING = "spawning"
+--The async spawn under way: { gameid, mapid, finished }. A table field: this
+--file's main chunk is at the 200-local limit.
+EncounterOfTheWeekGame.spawnJob = nil
+function EncounterOfTheWeekGame.SpawnEncounterMonsters(numHeroes, options)
     --Challenge Mode balances for one more hero, or levels up (ChallengeBalance).
     local levelUp
     numHeroes, levelUp = EncounterOfTheWeekGame.ChallengeBalance(numHeroes)
@@ -3609,16 +3933,60 @@ function EncounterOfTheWeekGame.SpawnEncounterMonsters(numHeroes)
         end
     end
 
+    --an async spawn is still placing groups (its spawns are recorded at the end).
+    local job = EncounterOfTheWeekGame.spawnJob
+    if job ~= nil and not job.finished and job.gameid == dmhub.gameid and job.mapid == game.currentMapId then
+        return false, EncounterOfTheWeekGame.SPAWNING
+    end
+
+    local async = options ~= nil and options.async == true
+    if async then
+        job = { gameid = dmhub.gameid, mapid = game.currentMapId, finished = false }
+        EncounterOfTheWeekGame.spawnJob = job
+        dmhub.Coroutine(function()
+            local ok, err = pcall(EncounterOfTheWeekGame.SpawnEncounterGroups, entry, numHeroes, levelUp, job)
+            if not ok then
+                printf("EotW: encounter spawn failed: %s", tostring(err))
+            end
+            job.finished = true
+        end)
+        return false, EncounterOfTheWeekGame.SPAWNING
+    end
+
+    EncounterOfTheWeekGame.SpawnEncounterGroups(entry, numHeroes, levelUp, nil)
+    return true
+end
+
+--The body of SpawnEncounterMonsters: place every non-wave group, then record
+--the spawns on the island. With a job (inside a coroutine), yields a frame
+--after each group and gives up if the game or map changed meanwhile.
+function EncounterOfTheWeekGame.SpawnEncounterGroups(entry, numHeroes, levelUp, job)
+    local richEncounter = entry.richEncounter
     Encounter.SetReadiedEncounter(entry.encounter)
 
     local spawns = {}
     --every spawned token tagged with its (group, slot), so monsters saved riding
     --another monster get seated once the whole encounter is down.
     local mountEntries = {}
+    --what each group placed, so heroes joining late can be met with more
+    --(EncounterOfTheWeekGame.RebalanceForLateHeroes).
+    local balance = { heroes = numHeroes, levelUp = levelUp, part = tostring(EncounterOfTheWeekGame.ActivePart()), groups = {} }
     for groupIndex,group in ipairs(entry.encounter.groups) do
+        if job ~= nil and #spawns > 0 then
+            coroutine.yield()
+            if mod.unloaded or dmhub.gameid ~= job.gameid or game.currentMapId ~= job.mapid then
+                printf("EotW: the encounter spawn stopped: the game or map changed")
+                return
+            end
+        end
         if group.wave == nil and Encounter.AdjustedGroupCount(group, numHeroes) > 0 then
             local anchor = (group.spawnlocs or {})[1] or dmhub.cameraPosition
-            local _, charids, entries = Encounter.SpawnGroupForReal(group, numHeroes, anchor)
+            local groupid, charids, entries = Encounter.SpawnGroupForReal(group, numHeroes, anchor)
+            local counts = {}
+            for monsterid, quantity in pairs(group.monsters or {}) do
+                counts[monsterid] = Encounter.AdjustedMonsterQuantity(group, monsterid, quantity, numHeroes)
+            end
+            balance.groups[EncounterOfTheWeekGame.BalanceGroupKey(groupIndex)] = { groupid = groupid, counts = counts }
             for _,charid in ipairs(charids) do
                 spawns[#spawns+1] = charid
             end
@@ -3634,28 +4002,34 @@ function EncounterOfTheWeekGame.SpawnEncounterMonsters(numHeroes)
         EncounterOfTheWeekGame.LevelUpStrongestHalf(spawns)
     end
 
+    --frames have passed in an async spawn, and a journal update in between
+    --replaces the island's annotation object: record on the current one.
+    if job ~= nil then
+        local fresh = FindMapEncounter()
+        if fresh ~= nil and fresh.richEncounter ~= nil then
+            richEncounter = fresh.richEncounter
+        end
+    end
     richEncounter.spawns = spawns
     richEncounter:UploadDocument()
     game.UpdateCharacterTokens()
 
-    return true
+    EncounterOfTheWeekGame.RecordSpawnBalance(balance)
 end
 
 --- hero placement -----------------------------------------------------
 
---Force a placed hero to exactly level 1.
+--Bring a placed hero up to a FULL Level, keeping the Level they have.
 --
---Heroes arrive from wherever their owner built them, and the weekly
---encounter is tuned for a level-1 party, so two directions have to be
---corrected on the game's COPY of the hero:
---  * ABOVE level 1: a lobby or campaign hero can be any level. Note that
---    CharacterLevel() is max(sum of class levels, levelOverride), so the
---    class entries have to come down too -- levelOverride alone cannot
---    lower a level-6 hero.
---  * BELOW level 1: the Draw Steel "slow start" track sits at level 1 with
---    extraLevelInfo.encounter = 1..4 -- the "First Encounter".."Fourth
---    Encounter" rungs, which grant only part of a level-1 hero's features.
---    Clearing .encounter promotes them to a full level 1.
+--Heroes Level up in Blackbottom (the Training Grounds, or a respite before
+--those are built), so a town hero plays at its own Level. Until 2026-11-04
+--this clamped every hero to exactly Level 1, because the weekly encounter
+--is tuned for a Level-1 party; that clamp is off (David's decision; the
+--encounter is not yet rebalanced for higher Levels -- a later step).
+--What remains is the "slow start" track: Draw Steel's level 1 with
+--extraLevelInfo.encounter = 1..4 (the "First Encounter".."Fourth
+--Encounter" rungs) grants only part of a level-1 hero's features, and
+--clearing .encounter promotes such a hero to a full Level.
 --The owner's original hero (in their lobby game or campaign) is never
 --touched: this runs on the pasted duplicate that lives in the EotW game.
 --Mirrors the character builder's level dropdown (Draw Steel Character
@@ -3666,53 +4040,25 @@ local function NormalizeHeroLevel(token)
         return
     end
 
-    --decide first, so a hero that is already level 1 (every well-authored
-    --pregen) costs nothing and leaves no upload behind.
+    --decide first, so a hero with nothing to fix (every well-authored pregen
+    --and town hero) costs nothing and leaves no upload behind.
     local extra = props:ExtraLevelInfo()
-    local clearEncounter = extra.encounter ~= nil
-    local setOverride = props:try_get("levelOverride", 1) ~= 1
-
-    local classes = props:try_get("classes", {})
-    local lowerClasses = false
-    for _,entry in ipairs(classes) do
-        if entry.level ~= 1 then
-            lowerClasses = true
-        end
-    end
-
-    if #classes > 1 then
-        --Draw Steel has no multiclassing, so this should not happen; the
-        --level would sum to #classes and no per-entry clamp can fix it.
-        --Leave the classes alone (deleting one is destructive) and say so.
-        printf("EotW: hero %s has %d classes; level cannot be forced to 1", tostring(token.name), #classes)
-    end
-
-    if not (clearEncounter or setOverride or lowerClasses) then
+    if extra.encounter == nil then
         return
     end
 
     token:ModifyProperties{
-        --setup, not a player action: an undo must not put the hero back to
-        --the level the encounter is not balanced for.
-        description = "Encounter of the Week: level 1",
+        --setup, not a player action: an undo must not put the hero back on
+        --the slow-start track.
+        description = "Encounter of the Week: full level",
         undoable = false,
         execute = function()
-            if clearEncounter then
-                --the field existed, so this is the stored table and not
-                --try_get's throwaway default; write it back to persist the
-                --clear.
-                local info = props:ExtraLevelInfo()
-                info.encounter = nil
-                props.extraLevelInfo = info
-            end
-
-            if setOverride then
-                props.levelOverride = 1
-            end
-
-            for _,entry in ipairs(props:try_get("classes", {})) do
-                entry.level = 1
-            end
+            --the field existed, so this is the stored table and not
+            --try_get's throwaway default; write it back to persist the
+            --clear.
+            local info = props:ExtraLevelInfo()
+            info.encounter = nil
+            props.extraLevelInfo = info
         end,
     }
 end
@@ -3772,7 +4118,7 @@ local function ClaimPastedHero(charid, description)
                 token:UploadToken(description or "Encounter of the Week hero")
                 --properties patches, issued after the token upload: cut the
                 --copy loose from the lobby hero it was pasted from, then
-                --clamp it to the level the encounter is balanced for.
+                --finish a slow-start hero's level (NormalizeHeroLevel).
                 DetachFromLobbySync(token)
                 NormalizeHeroLevel(token)
                 return
@@ -4086,6 +4432,60 @@ function EncounterOfTheWeekGame.DeployMyCompanions(charids)
     end
 end
 
+--Seconds to wait for the encounter map's terrain before placing heroes anyway.
+EncounterOfTheWeekGame.TERRAIN_WAIT = 10
+
+--Wait until the current map's terrain (its heightmap) has reached this
+--client. A map just entered reads as flat ground at altitude 0 until then,
+--so heroes pasted onto a raised or sunken Start zone would float above it
+--or stand inside it. Yields; call from a coroutine.
+function EncounterOfTheWeekGame.WaitForMapTerrain()
+    local waited = 0
+    while not game.currentMap.terrainLoaded do
+        if mod.unloaded then
+            return
+        end
+        if waited >= EncounterOfTheWeekGame.TERRAIN_WAIT then
+            printf("EotW: the map's terrain has not loaded after %ds; placing heroes anyway", EncounterOfTheWeekGame.TERRAIN_WAIT)
+            return
+        end
+        coroutine.yield(0.1)
+        waited = waited + 0.1
+    end
+    if waited > 0 then
+        printf("EotW: waited %.1fs for the map's terrain", waited)
+    end
+end
+
+--Stand a token on the ground under it when it shows the terrain race: placed
+--while the map's terrain had not loaded, it sits at altitude 0 over ground
+--that is not at 0. Anything else is left alone -- a token flying, riding,
+--on a platform deck (a bridge) or over water is where it means to be, and
+--withGroundAltitude ignores decks and the water surface. Moving another
+--player's token needs the host's authority (ElevateToHostPermissions).
+--  tokens: CharacterToken[]; reason: for the log.
+function EncounterOfTheWeekGame.GroundTokens(tokens, reason)
+    local water = game.currentMap ~= nil and game.currentMap.water or nil
+    for _, token in ipairs(tokens or {}) do
+        if token ~= nil and token.valid and token.properties ~= nil and token.loc.isOnMap
+                and token.loc.altitude == 0
+                and (token.mountedOn == nil or token.mountedOn == "")
+                and token.loc.platformAltitude ~= 0
+                and not token.properties:IsFlying() then
+            local ground = token.loc.withGroundAltitude
+            local underWater = water ~= nil and ground.altitude < water.level
+            if ground.altitude ~= 0 and not underWater then
+                printf("EotW: %s (%s) stood at altitude %d over ground at %d; grounding it (%s)",
+                    tostring(token.name), token.charid, token.loc.altitude, ground.altitude, tostring(reason))
+                local ok, err = pcall(function() token:ChangeLocation(ground) end)
+                if not ok then
+                    printf("EotW: could not ground %s: %s", token.charid, tostring(err))
+                end
+            end
+        end
+    end
+end
+
 --Place the local player's claimed heroes into the Start zone.
 --  heroes:       full claim list, {kind, id, name} each, in claim order.
 --  clipboardIds: ids of the "lobby" heroes copied to the token clipboard at
@@ -4108,6 +4508,10 @@ local function PlaceMyHeroes(heroes, clipboardIds)
         local cam = dmhub.cameraPosition
         anchor = core.Loc{ x = round(cam.x), y = round(cam.y), floorIndex = game.currentFloorIndex }
     end
+
+    --the paste stands each hero on the ground under its tile, which reads as
+    --altitude 0 until the map's terrain arrives.
+    EncounterOfTheWeekGame.WaitForMapTerrain()
 
     local changed = false
     --every hero this call put on the map, for the stacking repair below.
@@ -4415,6 +4819,76 @@ function EncounterOfTheWeekGame.IsBystander(token, names)
     return false
 end
 
+--The Monster AI's "eotw" behavior source, kept in its own block because this
+--file is near Lua's 200-local ceiling.
+do
+    --The script's "Monster AI:" lines ("Monster AI: Bully on for Goblin Sniper"),
+    --in order, from every "# Encounter" beat; each { behavior, enabled, names }
+    --with names lower-cased (nil = every monster). Cached per game update: the
+    --Monster AI asks once per creature per behavior as it plans.
+    local m_aiBehaviorLines = nil
+    local m_aiBehaviorUpdate = nil
+    local function AIBehaviorLines()
+        if m_aiBehaviorLines ~= nil and m_aiBehaviorUpdate == dmhub.ngameupdate then
+            return m_aiBehaviorLines
+        end
+        local lines = {}
+        pcall(function()
+            local montage = rawget(_G, "EncounterMontage")
+            if montage == nil then
+                return
+            end
+            for _, beat in ipairs(montage.FindMapScript().parse.beats or {}) do
+                if beat.kind == "encounter" then
+                    for _, instruction in ipairs(beat.setup or {}) do
+                        if instruction.kind == "aibehavior" then
+                            local names = nil
+                            if instruction.names ~= nil then
+                                names = {}
+                                for _, name in ipairs(instruction.names) do
+                                    names[#names + 1] = string.lower(name)
+                                end
+                            end
+                            lines[#lines + 1] = { behavior = instruction.behavior, enabled = instruction.enabled, names = names }
+                        end
+                    end
+                end
+            end
+        end)
+        m_aiBehaviorLines = lines
+        m_aiBehaviorUpdate = dmhub.ngameupdate
+        return lines
+    end
+
+    --The Monster AI's "eotw" behavior source: whether the script switches this
+    --behavior on (true) or off (false) for this creature, or nil when it says
+    --nothing. The last matching line wins. Only in EotW games and tests.
+    local function ScriptAIBehaviorSetting(token, behaviorId)
+        if not (EncounterOfTheWeekGame.IsEotwGame() or EncounterOfTheWeekGame.IsTestRunning()) then
+            return nil
+        end
+        local result = nil
+        for _, line in ipairs(AIBehaviorLines()) do
+            --IsBystander is only the script's name match here (token name,
+            --"<name> 2", or bestiary type), the same rule bystander lines use.
+            local behavior = MonsterAI.FindBehavior(line.behavior)
+            if behavior ~= nil and behavior.id == behaviorId
+                and (line.names == nil or EncounterOfTheWeekGame.IsBystander(token, line.names)) then
+                result = line.enabled
+            end
+        end
+        return result
+    end
+
+    --Monster AI loads before this mod; without it the lines just do nothing.
+    local registeredAIBehaviors = pcall(function()
+        MonsterAI.RegisterBehaviorSource("eotw", ScriptAIBehaviorSetting)
+    end)
+    if not registeredAIBehaviors then
+        print("EotW: Monster AI behavior source not registered; script 'Monster AI:' lines will be ignored")
+    end
+end
+
 --Bystanders stand outside the fight: they make no opportunity attacks and
 --provoke none. Both the movement dispatch (creature:OnMove) and the token
 --HUD's opportunity-attack preview ask creature:CanOpportunityAttack, so
@@ -4573,14 +5047,21 @@ local function StartEncounterCombat(sides, options)
         immediateResult = options.forceResult
     end
 
-    --When a montage decided the initiative (no die), the heroes get the
-    --arrangement pause whether they won or lost, so they can still use a
-    --start zone the montage opened. When the die is rolled they arrange (still
-    --confined to the start area) while the banner waits for someone to roll.
+    --Once the initiative is decided -- by a montage or by the die -- the
+    --heroes get the arrangement pause whether they won or lost: they place
+    --themselves in the start area (and any zone a montage opened) knowing who
+    --acts first, then press Ready.
     local holdBeforeQueue = nil
-    if immediateResult ~= nil and not options.noArrange then
+    if not options.noArrange then
         holdBeforeQueue = HoldForArrangement
     end
+
+    --last chance to fix a hero left at the wrong height (placed before the
+    --map's terrain loaded, or moved by a resume repair): no one is flying
+    --or diving yet. Every player's tokens, so with the host's authority.
+    ElevateToHostPermissions()
+    EncounterOfTheWeekGame.GroundTokens(sides.playerTokens, "combat start")
+    DropHostPermissions()
 
     --elevated: the surprised condition goes on monsters too, and the host
     --is a player in an EotW game.
@@ -4615,6 +5096,16 @@ local function ArrangeHostTick()
     end
     if not ArrangeComplete(state) then
         return true
+    end
+    --a Catch Breath or Null Field still being cast finishes first, but for
+    --at most 30s past the deadline so a stuck prompt can't hold the fight.
+    local overtime = state.deadline ~= nil and dmhub.serverTime >= state.deadline + 30
+    if not overtime then
+        local busy, busyReason = AnyClientAbilityBusy()
+        if busy then
+            printf("EotW: the heroes are in position; waiting for %s before combat", tostring(busyReason))
+            return true
+        end
     end
     local doc = mod:GetDocumentSnapshot(STATE_DOC_ID)
     doc:BeginChange()
@@ -4682,9 +5173,9 @@ local function RecoverLostCombatStart(sides)
     local outcome = nil
     pcall(function() outcome = Encounter.DrawSteelRollOutcome(sides.playerTokens) end)
     if outcome ~= nil then
-        --the die was rolled; no arrangement, as for any rolled initiative.
+        --the die was rolled: keep its side, and still let the heroes arrange.
         printf("EotW: combat never started after the Draw Steel roll; starting it now with the %s first", outcome)
-        StartEncounterCombat(sides, { forceResult = outcome, noArrange = true })
+        StartEncounterCombat(sides, { forceResult = outcome })
     else
         printf("EotW: combat never started; showing the Draw Steel banner again")
         StartEncounterCombat(sides)
@@ -4869,8 +5360,14 @@ end
 --Consecutive host ticks the met outcome condition has been observed with
 --every client ability-idle; the award waits for AWARD_HOLD_TICKS of them so
 --the fight visibly settles (and any just-started prompt's busy stamp has
---time to replicate) before the screen takes over.
-local m_awardHoldTicks = 0
+--time to replicate) before the screen takes over. heldLoggedFor is the
+--m_outcomeMetTime whose held award was logged, so the "award held by" line
+--prints once per met outcome rather than every tick. metTime is when the
+--outcome now on screen was first met (m_outcomeMetTime, kept past the award),
+--so a Proceed stamped before it is known to be stale (8KRBSRC2). One table,
+--not more locals: this file's main chunk is at Lua's 200-local limit.
+---@type {holdTicks: integer, heldLoggedFor: number|nil, metTime: number|nil}
+local m_award = {holdTicks = 0, heldLoggedFor = nil, metTime = nil}
 local AWARD_HOLD_TICKS = 2
 
 --When the outcome condition was FIRST observed met (whether or not clients
@@ -4928,11 +5425,28 @@ local function CheckEncounterOutcome(queue)
         --full Director teardown on their behalf -- after the Victory award,
         --which must never be skipped by a quick Proceed.
         local doc = mod:GetDocumentSnapshot(STATE_DOC_ID)
-        if outcome == "victory" then
-            AutoAwardVictories(live, doc.data.proceedRequested ~= nil)
+        local requested = doc.data.proceedRequested
+        --a stamp from before this outcome was first met belongs to an earlier
+        --screen (a lagging client's late press on the last series part's
+        --victory, 8KRBSRC2); acting on it would end this fight unseen. Drop it.
+        --m_award.metTime is nil after a host reload: trust the stamp then.
+        local metTime = m_award.metTime
+        if type(requested) == "number" and metTime ~= nil and requested < metTime then
+            printf("EotW: ignoring a stale Proceed request (%.1fs before this outcome)", metTime - requested)
+            doc:BeginChange()
+            doc.data.proceedRequested = nil
+            doc:CompleteChange("Encounter of the Week: stale proceed dropped", {undoable = false})
+            requested = nil
         end
-        if doc.data.proceedRequested ~= nil then
+        if outcome == "victory" then
+            AutoAwardVictories(live, requested ~= nil)
+        end
+        if requested ~= nil then
             printf("EotW: a player pressed Proceed; ending the encounter")
+            --the teardown below can come before this client's 1s conclusion
+            --watcher has seen the outcome; note it now, or the host is never
+            --sent home.
+            pcall(function() Series.NoteOutcome(live, outcome) end)
             pcall(function() DSVictoryScreen.ProceedEndCombat() end)
             doc:BeginChange()
             doc.data.proceedRequested = nil
@@ -4969,7 +5483,7 @@ local function CheckEncounterOutcome(queue)
     end
 
     if not victory and not defeat then
-        m_awardHoldTicks = 0
+        m_award.holdTicks = 0
         m_outcomeMetTime = nil
         return
     end
@@ -4983,18 +5497,23 @@ local function CheckEncounterOutcome(queue)
     end
 
     local busy = false
-    pcall(function() busy = AnyClientAbilityBusy() end)
+    local busyReason = nil
+    pcall(function() busy, busyReason = AnyClientAbilityBusy() end)
     if busy then
-        m_awardHoldTicks = 0
+        m_award.holdTicks = 0
+        if m_award.heldLoggedFor ~= m_outcomeMetTime then
+            m_award.heldLoggedFor = m_outcomeMetTime
+            printf("EotW: %s met; award held by %s", victory and "victory" or "defeat", tostring(busyReason))
+        end
         return
     end
 
-    m_awardHoldTicks = m_awardHoldTicks + 1
-    if m_awardHoldTicks < AWARD_HOLD_TICKS then
+    m_award.holdTicks = m_award.holdTicks + 1
+    if m_award.holdTicks < AWARD_HOLD_TICKS then
         return
     end
     --cap the counter so later ticks re-enter here while the linger holds.
-    m_awardHoldTicks = AWARD_HOLD_TICKS
+    m_award.holdTicks = AWARD_HOLD_TICKS
 
     --idle hold satisfied; also let the moment breathe -- the banner waits
     --OUTCOME_LINGER_SECONDS from the killing blow. math.abs so a serverTime
@@ -5003,7 +5522,8 @@ local function CheckEncounterOutcome(queue)
         return
     end
 
-    m_awardHoldTicks = 0
+    m_award.holdTicks = 0
+    m_award.metTime = m_outcomeMetTime
     m_outcomeMetTime = nil
 
     if victory then
@@ -5062,7 +5582,7 @@ end
 --them regardless.
 local g_forcedGameSettings = {
     { id = "strictmovementrules", value = true },  --Strictly Enforce Movement Rules (engine)
-    { id = "strict:movement", value = true },      --Strictly Enforce Forced Movement Rules
+    { id = "strict:movement", value = true },      --Strictly Enforce Ability Movement Rules
     { id = "strict:targeting", value = true },     --Strictly Enforce Targeting Rules
     { id = "strict:resources", value = true },     --Strictly Enforce Action Economy and Resource Costs
     { id = "strict:inventory", value = true },     --Strict Inventory Management
@@ -5158,6 +5678,16 @@ end
 --no montage therefore behaves as before, except that the spawn now happens
 --here, on the first tick after every player has arrived, instead of during
 --the host's arrival setup. Unknown beats are skipped.
+--The runtime that plays a narrative beat: the montage engine, by
+--EncounterGauntlet's rules (nil when the montage runtime is not loaded).
+---@diagnostic disable-next-line: unused-local
+function EncounterOfTheWeekGame.NarrativeRuntime(index)
+    if rawget(_G, "EncounterGauntlet") == nil or rawget(_G, "EncounterMontage") == nil then
+        return nil
+    end
+    return EncounterMontage
+end
+
 --Finish a stage beat (a montage or a narrative -- the two that own the
 --full-screen stage) and open the next one. When the next beat is also a
 --stage beat we do NOT hide: we seed it and present it under the same dialog
@@ -5166,8 +5696,9 @@ end
 --runs here too, so the new beat opens on its first section/round instead of
 --sitting in "arriving" until the next tick. Only a beat that hands back to
 --the map -- the encounter, or the end of the script -- hides the stage.
-local function AdvanceFromStageBeat(script, index, montage, narrative)
+local function AdvanceFromStageBeat(script, index, montage)
     local nextBeat = script.parse.beats[index + 1]
+    local narrative = EncounterOfTheWeekGame.NarrativeRuntime(index + 1)
 
     --Order matters: SEED the next beat's state first, and only then stamp the
     --beat index. The stage picks its body from the beat index, so stamping it
@@ -5185,6 +5716,13 @@ local function AdvanceFromStageBeat(script, index, montage, narrative)
         narrative.Begin(script, nextBeat, index + 1)
         SetBeatIndex(index + 1)
         pcall(narrative.HostTick, script, nextBeat, index + 1)
+        return
+    end
+    local negotiation = rawget(_G, "EncounterNegotiation")
+    if nextBeat ~= nil and nextBeat.kind == "negotiation" and negotiation ~= nil then
+        negotiation.Begin(script, nextBeat, index + 1)
+        SetBeatIndex(index + 1)
+        pcall(negotiation.HostTick, script, nextBeat, index + 1)
         return
     end
 
@@ -5301,13 +5839,13 @@ local function RunScriptBeat(ctx)
         if status == "done" then
             printf("EotW: montage beat %d complete", index)
             AnalyticsMontageEnd(montage, index, beat)
-            AdvanceFromStageBeat(script, index, montage, rawget(_G, "EncounterNarrative"))
+            AdvanceFromStageBeat(script, index, montage)
         end
         return
     end
 
     if beat.kind == "narrative" then
-        local narrative = rawget(_G, "EncounterNarrative")
+        local narrative = EncounterOfTheWeekGame.NarrativeRuntime(index)
         if narrative == nil then
             --an older module without the narrative runtime: skip the beat
             --rather than stalling the script forever.
@@ -5319,7 +5857,23 @@ local function RunScriptBeat(ctx)
         local status = narrative.HostTick(script, beat, index)
         if status == "done" then
             printf("EotW: narrative beat %d complete", index)
-            AdvanceFromStageBeat(script, index, montage, narrative)
+            AdvanceFromStageBeat(script, index, montage)
+        end
+        return
+    end
+
+    if beat.kind == "negotiation" then
+        local negotiation = rawget(_G, "EncounterNegotiation")
+        if negotiation == nil then
+            printf("EotW: skipping negotiation beat %d (this client has no negotiation runtime)", index)
+            SetBeatIndex(index + 1)
+            return
+        end
+        EncounterOfTheWeekGame.AnalyticsPhase("negotiation", index, { title = beat.title })
+        local status = negotiation.HostTick(script, beat, index)
+        if status == "done" then
+            printf("EotW: negotiation beat %d complete", index)
+            AdvanceFromStageBeat(script, index, montage)
         end
         return
     end
@@ -5335,48 +5889,60 @@ local function RunScriptBeat(ctx)
     --surprise, the traps and the enemy's health. It runs BEFORE the setup
     --below because what they buy decides it -- a trap reveal is banked here
     --and applied with the rest when the zones go down.
+    local zones = rawget(_G, "EncounterZones")
+    local numHeroes = tonumber(dmhub.GetSettingValue("numheroes")) or 5
+
+    --The battlefield, behind the stage: the When lines, the script's setup
+    --instructions (traps placed in their zones, the spare zones trimmed away)
+    --and the spawn. All idempotent, so every tick may call it; the spawn
+    --runs one group per frame (async) and reports SPAWNING until it is done.
+    local function ReadyBattlefield()
+        --a series part's "When <condition>:" lines (more Malice for a rite
+        --gone further), once, before anything is set up.
+        if beat.when ~= nil and #beat.when > 0 then
+            local okWhen, errWhen = pcall(function()
+                local doc = montage.GetDoc()
+                if not (doc.data.whenApplied or {})["b" .. tostring(index)] then
+                    doc:BeginChange()
+                    local applied, applyErr = pcall(montage.ApplyWhenLines, doc, beat, index, nil)
+                    doc:CompleteChange("Encounter of the Week: When lines", { undoable = false })
+                    if not applied then
+                        error(applyErr)
+                    end
+                end
+            end)
+            if not okWhen then
+                printf("EotW story: When lines failed: %s", tostring(errWhen))
+            end
+        end
+        if zones ~= nil then
+            local okSetup, errSetup = pcall(zones.RunEncounterSetup, beat)
+            if not okSetup then
+                printf("EotW: encounter zone setup failed: %s", tostring(errSetup))
+            end
+        end
+        return EncounterOfTheWeekGame.SpawnEncounterMonsters(numHeroes, { async = true })
+    end
+
     local prep = rawget(_G, "EncounterPrep")
     if prep ~= nil and prep.Required() then
         EncounterOfTheWeekGame.AnalyticsPhase("prep", index)
         local status = prep.HostTick(script, beat, index)
         if status ~= "done" then
+            --the party has bought what they will: get the battlefield ready
+            --behind the result screen, so it is waiting when that screen ends.
+            local state = nil
+            pcall(function() state = prep.GetState() end)
+            if type(state) == "table" and state.phase == "resolved" then
+                ReadyBattlefield()
+            end
             return
         end
     end
 
-    --a series part's "When <condition>:" lines (more Malice for a rite
-    --gone further), once, before anything is set up.
-    if beat.when ~= nil and #beat.when > 0 then
-        local okWhen, errWhen = pcall(function()
-            local doc = montage.GetDoc()
-            if not (doc.data.whenApplied or {})["b" .. tostring(index)] then
-                doc:BeginChange()
-                local applied, applyErr = pcall(montage.ApplyWhenLines, doc, beat, index, nil)
-                doc:CompleteChange("Encounter of the Week: When lines", { undoable = false })
-                if not applied then
-                    error(applyErr)
-                end
-            end
-        end)
-        if not okWhen then
-            printf("EotW story: When lines failed: %s", tostring(errWhen))
-        end
-    end
-
-    --then the script's setup instructions (traps placed in their zones, the
-    --spare zones trimmed away) and the spawn (idempotent -- already-present
-    --monsters are left alone), then Draw Steel once both sides exist.
-    local zones = rawget(_G, "EncounterZones")
-    if zones ~= nil then
-        local okSetup, errSetup = pcall(zones.RunEncounterSetup, beat)
-        if not okSetup then
-            printf("EotW: encounter zone setup failed: %s", tostring(errSetup))
-        end
-    end
-    local numHeroes = tonumber(dmhub.GetSettingValue("numheroes")) or 5
-    local ok, err = EncounterOfTheWeekGame.SpawnEncounterMonsters(numHeroes)
+    local ok, err = ReadyBattlefield()
     if not ok then
-        if m_reportedBeat ~= index then
+        if err ~= EncounterOfTheWeekGame.SPAWNING and m_reportedBeat ~= index then
             m_reportedBeat = index
             printf("EotW: encounter spawn failed: %s", tostring(err))
         end
@@ -5437,7 +6003,7 @@ local function SkipToCombatTarget()
         local beats = montage.FindMapScript().parse.beats
         local index = GetBeatIndex()
         local beat = beats[index]
-        if beat == nil or (beat.kind ~= "montage" and beat.kind ~= "narrative") then
+        if beat == nil or (beat.kind ~= "montage" and beat.kind ~= "narrative" and beat.kind ~= "negotiation") then
             return
         end
         for i = index + 1, #beats do
@@ -5523,6 +6089,14 @@ function EncounterOfTheWeekGame.MapScriptHostThink(ctx)
         end
     end
 
+    --heroes who joined the game under way get room made for them.
+    do
+        local ok, err = pcall(EncounterOfTheWeekGame.LateHeroesHostTick)
+        if not ok then
+            printf("EotW: late join tick failed: %s", tostring(err))
+        end
+    end
+
     --equippable treasure a hero just gained goes on while there is room.
     do
         local ok, err = pcall(AutoEquipTreasure)
@@ -5542,6 +6116,28 @@ function EncounterOfTheWeekGame.MapScriptHostThink(ctx)
         --stamped independently of the stage flip so a host handover between
         --the flip and the stamp still lifts the players' confinement.
         RecordCombatStarted()
+        --an arrangement still "arranging" now can never finish (ArrangeHostTick
+        --only runs before combat): a queue started before the hold, or a server
+        --reset lost the "done" write. Close it, and drop the held begin() so it
+        --cannot start a second queue.
+        do
+            local ok, err = pcall(function()
+                local arrange = ArrangeState()
+                if arrange == nil or arrange.phase ~= "arranging" then
+                    return
+                end
+                m_arrangeBegin = nil
+                local doc = mod:GetDocumentSnapshot(STATE_DOC_ID)
+                doc:BeginChange()
+                doc.data.arrange.phase = "done"
+                doc.data.arrange.endedAt = dmhub.serverTime
+                doc:CompleteChange("Encounter of the Week: arrangement closed, combat is live", {undoable = false})
+                printf("EotW: closed an arrangement left open after combat began")
+            end)
+            if not ok then
+                printf("EotW: arrangement heal failed: %s", tostring(err))
+            end
+        end
         --surges the montage banked can only be granted with a live queue
         --(they are a clearOutsideOfCombat resource); this is a no-op once
         --the bank is empty.
@@ -5594,7 +6190,23 @@ function EncounterOfTheWeekGame.MapScriptHostThink(ctx)
     --end of the game knows what treasure they won.
     pcall(EnsureArrivalItems)
 
-    --a montage decided the initiative and the heroes are arranging: the held
+    --Once per part, a few seconds after the last player arrived (so their own
+    --placement repairs have settled): any hero still off the start tiles is
+    --moved onto them. The host's arrival-time repair ran before members landed.
+    local strayKey = tostring(dmhub.gameid) .. "|" .. tostring(EncounterOfTheWeekGame.ActivePart())
+    if Series.strayRepairKey ~= strayKey then
+        Series.strayRepairAt = Series.strayRepairAt or dmhub.Time()
+        if dmhub.Time() - Series.strayRepairAt >= 5 then
+            Series.strayRepairKey = strayKey
+            Series.strayRepairAt = nil
+            local ok, err = pcall(MoveStrayHeroesIntoPlay)
+            if not ok then
+                printf("EotW: stray hero repair failed: %s", tostring(err))
+            end
+        end
+    end
+
+    --the heroes are arranging after the initiative was decided: the held
     --combat starts from here once they are ready.
     local arranging, arrangeResult = pcall(ArrangeHostTick)
     if not arranging then
@@ -5604,6 +6216,397 @@ function EncounterOfTheWeekGame.MapScriptHostThink(ctx)
     end
 
     RunScriptBeat(ctx)
+end
+
+--- heroes joining a game under way --------------------------------------
+--A public game takes newcomers while it plays: the host accepts or declines
+--each request (EncounterPresence, "joining a game under way"). Heroes may
+--join before combat and in combat round 1; from round 2 newcomers may only
+--watch. A latecomer's client places their heroes in the Start zone on
+--arrival like anyone's (SetupOnArrival). The host's tick below then makes
+--room for each hero who arrives once the party was in: the Number of Heroes
+--setting (read by the spawn, reinforcements and series scoring), a Hero
+--Token, a montage recount, more monsters for the larger party, and in
+--combat a place in the initiative.
+--
+--Document "eotwlatejoin" (the host is its only writer):
+--  data.known   = { [charid] = true } every hero counted so far: the party
+--                 once everyone was in, then each latecomer
+--  data.late    = { [charid] = { at, owner, phase, combat } } the latecomers;
+--                 combat = the guid of the combat they were put into
+--  data.balance = { heroes, levelUp, part, groups = { ["g<index>"] = { groupid,
+--                 counts = { [monsterid] = quantity } } } } what the
+--                 encounter's spawn placed (SpawnEncounterMonsters), raised as
+--                 latecomers are met with more monsters
+--Design: EncounterOfTheWeek.md, "Joining a game under way".
+
+--(a do-block, so its helpers do not count against the main chunk's 200
+--locals.)
+do
+local LATE_DOC_ID = "eotwlatejoin"
+
+local function LateDoc()
+    return mod:GetDocumentSnapshot(LATE_DOC_ID)
+end
+
+--The key of a group's entry in data.balance.groups. Not the bare index: the
+--document stores keys "1", "2", ... as a list, and reloads it as one.
+---@param groupIndex integer
+---@return string
+function EncounterOfTheWeekGame.BalanceGroupKey(groupIndex)
+    return "g" .. tostring(groupIndex)
+end
+
+--Host, from SpawnEncounterMonsters: what the encounter's spawn placed.
+---@param balance table
+function EncounterOfTheWeekGame.RecordSpawnBalance(balance)
+    local doc = LateDoc()
+    doc:BeginChange()
+    doc.data.balance = balance
+    doc:CompleteChange("Encounter of the Week: the encounter's spawn", { undoable = false })
+end
+
+--What a newcomer may do now: "join" (bring heroes), "observe" (watch only)
+--or "closed" (the encounter is decided).
+---@return "join"|"observe"|"closed"
+function EncounterOfTheWeekGame.LateJoinPhase()
+    if m_outcomeSeen or Series.concluded then
+        return "closed"
+    end
+    local queue = dmhub.initiativeQueue
+    if queue ~= nil and not queue.hidden then
+        --round is 1 in the first round (GetCombatRound counts from 0).
+        if (tonumber(queue.round) or 1) <= 1 then
+            return "join"
+        end
+        return "observe"
+    end
+    if EncounterOfTheWeekGame.CombatStarted() then
+        return "observe"
+    end
+    return "join"
+end
+
+--New minions join a squad of their kind already in the group (the smallest),
+--rather than the lone squad SpawnPrepMonsters starts when it cannot tell
+--which of the group's monsters are of that kind.
+---@param charids string[]
+---@param existing CharacterToken[]
+local function JoinExistingSquads(charids, existing)
+    for _, charid in ipairs(charids) do
+        local tok = dmhub.GetTokenById(charid)
+        local props = tok ~= nil and tok.properties or nil
+        if props ~= nil and props.minion then
+            local sizes = {}
+            for _, other in ipairs(existing) do
+                local op = other.properties
+                if op ~= nil and op.minion and op.monster_type == props.monster_type then
+                    local squad = op:try_get("minionSquad")
+                    if squad ~= nil then
+                        sizes[squad] = (sizes[squad] or 0) + 1
+                    end
+                end
+            end
+            local best, bestSize = nil, nil
+            for squad, n in pairs(sizes) do
+                if bestSize == nil or n < bestSize then
+                    best, bestSize = squad, n
+                end
+            end
+            if best ~= nil and props:try_get("minionSquad") ~= best then
+                ---@cast tok -nil
+                tok:ModifyProperties{
+                    description = "Encounter of the Week: reinforcing a squad",
+                    undoable = false,
+                    execute = function()
+                        tok.properties.minionSquad = best
+                    end,
+                }
+            end
+        end
+    end
+end
+
+--Host only. Bring the encounter's monsters up to what numHeroes calls for:
+--each group gets the difference between its count for the larger party and
+--what it placed, beside its own monsters and in its own initiative. Monsters
+--already fallen are not replaced and nothing is removed. Before the spawn
+--this does nothing (the spawn reads the Number of Heroes setting itself).
+--Returns the number of monsters spawned.
+---@param numHeroes number
+---@return number
+function EncounterOfTheWeekGame.RebalanceForLateHeroes(numHeroes)
+    local doc = LateDoc()
+    local balance = doc.data.balance
+    --a series part's balance says nothing about the next part's encounter.
+    if type(balance) ~= "table" or type(balance.groups) ~= "table"
+            or balance.part ~= tostring(EncounterOfTheWeekGame.ActivePart()) then
+        return 0
+    end
+    local target = EncounterOfTheWeekGame.ChallengeBalance(numHeroes)
+    if target <= (tonumber(balance.heroes) or 0) then
+        return 0
+    end
+    local entry = FindMapEncounter()
+    if entry == nil then
+        return 0
+    end
+    local queue = dmhub.initiativeQueue
+    local queueLive = queue ~= nil and not queue.hidden
+    local spawned = {}
+    local placedNow = {}
+
+    ElevateToHostPermissions()
+    local ok, err = pcall(function()
+        for groupIndex, group in ipairs(entry.encounter.groups) do
+            local key = EncounterOfTheWeekGame.BalanceGroupKey(groupIndex)
+            local placed = balance.groups[key]
+            if group.wave == nil and Encounter.AdjustedGroupCount(group, target) > 0 then
+                local groupid = placed ~= nil and placed.groupid or nil
+                local existing = {}
+                if groupid ~= nil then
+                    for _, tok in ipairs(dmhub.allTokens) do
+                        if tok ~= nil and tok.valid and tok.properties ~= nil and tok.properties:try_get("initiativeGrouping") == groupid then
+                            existing[#existing + 1] = tok
+                        end
+                    end
+                end
+                local counts = {}
+                for monsterid, quantity in pairs(placed ~= nil and placed.counts or {}) do
+                    counts[monsterid] = quantity
+                end
+                local monsterids = {}
+                for monsterid, _ in pairs(group.monsters or {}) do
+                    monsterids[#monsterids + 1] = monsterid
+                end
+                table.sort(monsterids)
+                local anchor = (group.spawnlocs or {})[1] or dmhub.cameraPosition
+                local groupSpawned = {}
+                for _, monsterid in ipairs(monsterids) do
+                    local want = Encounter.AdjustedMonsterQuantity(group, monsterid, group.monsters[monsterid], target)
+                    local have = tonumber(counts[monsterid]) or 0
+                    if want > have then
+                        local charids = Encounter.SpawnPrepMonsters(group, monsterid, want - have, target, existing, false,
+                            { x = anchor.x, y = anchor.y })
+                        JoinExistingSquads(charids, existing)
+                        for _, charid in ipairs(charids) do
+                            spawned[#spawned + 1] = charid
+                            groupSpawned[#groupSpawned + 1] = charid
+                            --the group's next monster type takes its
+                            --initiative from these (a group the smaller
+                            --party never met has no other monsters yet).
+                            local tok = dmhub.GetTokenById(charid)
+                            if tok ~= nil then
+                                existing[#existing + 1] = tok
+                            end
+                        end
+                        counts[monsterid] = want
+                    end
+                end
+                --a group the smaller party never met has its own new initiative.
+                if groupid == nil and #groupSpawned > 0 then
+                    local first = dmhub.GetTokenById(groupSpawned[1])
+                    groupid = first ~= nil and first.properties:try_get("initiativeGrouping") or nil
+                end
+                if queueLive and groupid ~= nil and #groupSpawned > 0 then
+                    ---@cast queue -nil
+                    if not queue:HasInitiative(groupid) then
+                        queue:SetInitiative(groupid, 0, 0)
+                    end
+                end
+                placedNow[key] = { groupid = groupid, counts = counts }
+            elseif placed ~= nil then
+                placedNow[key] = placed
+            end
+        end
+    end)
+    DropHostPermissions()
+    if not ok then
+        printf("EotW late join: rebalancing for %d heroes failed: %s", numHeroes, tostring(err))
+    end
+
+    if queueLive then
+        ---@cast queue -nil
+        pcall(function()
+            local live = queue:try_get("liveEncounter")
+            if type(live) == "table" and #spawned > 0 then
+                live:RecordOnsetMonsterGroups(spawned)
+            end
+        end)
+        pcall(function() dmhub:UploadInitiativeQueue() end)
+    end
+    game.UpdateCharacterTokens()
+
+    doc = LateDoc()
+    doc:BeginChange()
+    doc.data.balance.heroes = target
+    doc.data.balance.groups = placedNow
+    doc:CompleteChange("Encounter of the Week: monsters for the larger party", { undoable = false })
+    printf("EotW late join: %d monsters join the encounter for %d heroes", #spawned, target)
+    return #spawned
+end
+
+--Host only: count heroes who arrived after the party was in, and make room.
+---@param newcomers {charid: string, token: CharacterToken, name: string, ownerId: string}[]
+local function AdmitLateHeroes(newcomers)
+    local phase = EncounterOfTheWeekGame.LateJoinPhase()
+    local doc = LateDoc()
+    doc:BeginChange()
+    doc.data.late = doc.data.late or {}
+    local charids = {}
+    for _, h in ipairs(newcomers) do
+        doc.data.known[h.charid] = true
+        doc.data.late[h.charid] = { at = dmhub.serverTime, owner = h.ownerId, phase = phase }
+        charids[#charids + 1] = h.charid
+    end
+    doc:CompleteChange("Encounter of the Week: heroes joined", { undoable = false })
+
+    local count = #newcomers
+    --the setting only accepts 3..7.
+    local numHeroes = math.max(3, math.min(7, (tonumber(dmhub.GetSettingValue("numheroes")) or 5) + count))
+    dmhub.SetSettingValue("numheroes", numHeroes)
+
+    --one Hero Token per hero, as the party's were seeded (SeedHeroTokens).
+    local ok, err = pcall(function()
+        local have = tonumber(CharacterResource.GetGlobalResource(CharacterResource.heroTokenId)) or 0
+        CharacterResource.SetGlobalResource(CharacterResource.heroTokenId, have + count,
+            UIText.T("encounter.late.hero_tokens_note", { count = count }))
+    end)
+    if not ok then
+        printf("EotW late join: could not add Hero Tokens: %s", tostring(err))
+    end
+
+    local montage = rawget(_G, "EncounterMontage")
+    if montage ~= nil and montage.OnHeroesJoined ~= nil then
+        local okJoin, restored, twice = pcall(montage.OnHeroesJoined, charids)
+        if not okJoin then
+            printf("EotW late join: montage recount failed: %s", tostring(restored))
+        elseif twice then
+            local names = {}
+            for _, h in ipairs(newcomers) do
+                names[#names + 1] = h.name
+            end
+            local presence = rawget(_G, "EncounterPresence")
+            if presence ~= nil and presence.AnnounceLateHeroes ~= nil then
+                pcall(presence.AnnounceLateHeroes, names)
+            end
+        end
+    end
+
+    if phase == "join" then
+        ok, err = pcall(EncounterOfTheWeekGame.RebalanceForLateHeroes, numHeroes)
+        if not ok then
+            printf("EotW late join: rebalance failed: %s", tostring(err))
+        end
+    end
+
+    --a stage redraws its heroes (and votes) only when the script document
+    --changes, which heroes arriving do not do; touch it once the newcomers'
+    --ownership has landed.
+    dmhub.Schedule(3, function()
+        if mod.unloaded or montage == nil then
+            return
+        end
+        local scriptDoc = montage.GetDoc()
+        scriptDoc:BeginChange()
+        scriptDoc.data.heroesJoinedAt = dmhub.serverTime
+        scriptDoc:CompleteChange("Encounter of the Week: heroes joined", { undoable = false })
+    end)
+    printf("EotW late join: %d heroes joined (%s); the party now counts %d", count, phase, numHeroes)
+end
+
+--Host only, in combat: each latecomer takes a place in the initiative, once
+--per combat (a hero who later leaves the fight is not put back).
+local function AddLateHeroesToInitiative()
+    local queue = dmhub.initiativeQueue
+    if queue == nil or queue.hidden then
+        return
+    end
+    local late = LateDoc().data.late
+    if type(late) ~= "table" then
+        return
+    end
+    local combat = queue.guid
+    local added = {}
+    for charid, rec in pairs(late) do
+        if type(rec) == "table" and rec.combat ~= combat then
+            local tok = dmhub.GetTokenById(charid)
+            local id = tok ~= nil and tok.valid and InitiativeQueue.GetInitiativeId(tok) or nil
+            if id ~= nil then
+                if not queue:HasInitiative(id) then
+                    local entry = queue:SetInitiative(id, 0, 0)
+                    entry.player = true
+                end
+                added[#added + 1] = charid
+            end
+        end
+    end
+    if #added == 0 then
+        return
+    end
+    pcall(function() dmhub:UploadInitiativeQueue() end)
+    local doc = LateDoc()
+    doc:BeginChange()
+    for _, charid in ipairs(added) do
+        doc.data.late[charid].combat = combat
+    end
+    doc:CompleteChange("Encounter of the Week: latecomers join the initiative", { undoable = false })
+    printf("EotW late join: %d heroes join the initiative", #added)
+end
+
+--Host, every map-script tick of a real game.
+function EncounterOfTheWeekGame.LateHeroesHostTick()
+    if EncounterOfTheWeekGame.IsTestRunning() or not EncounterOfTheWeekGame.IsEotwGame() then
+        return
+    end
+    local montage = rawget(_G, "EncounterMontage")
+    if montage == nil then
+        return
+    end
+    local heroes = montage.Heroes()
+    local doc = LateDoc()
+    local known = doc.data.known
+    if type(known) ~= "table" then
+        --the party as it was once everyone was in is the baseline; the
+        --heroes who turn up after it are the latecomers.
+        if not (EncounterOfTheWeekGame.AllPlayersArrived() or EncounterOfTheWeekGame.CombatStarted()) then
+            return
+        end
+        doc:BeginChange()
+        doc.data.known = {}
+        for _, h in ipairs(heroes) do
+            doc.data.known[h.charid] = true
+        end
+        --a member's hero tokens can reach the host after their arrival does
+        --(different stores), so also count every hero the party recorded as
+        --placed; otherwise those heroes would be taken for latecomers.
+        local placedHeroes = mod:GetDocumentSnapshot(STATE_DOC_ID).data.placedHeroes
+        if type(placedHeroes) == "table" then
+            for _, mine in pairs(placedHeroes) do
+                if type(mine) == "table" then
+                    for _, charid in pairs(mine) do
+                        if type(charid) == "string" then
+                            doc.data.known[charid] = true
+                        end
+                    end
+                end
+            end
+        end
+        doc:CompleteChange("Encounter of the Week: the party is in", { undoable = false })
+        return
+    end
+
+    local newcomers = {}
+    for _, h in ipairs(heroes) do
+        if not known[h.charid] then
+            newcomers[#newcomers + 1] = h
+        end
+    end
+    if #newcomers > 0 then
+        AdmitLateHeroes(newcomers)
+    end
+    AddLateHeroesToInitiative()
+end
 end
 
 --- lobby ready signal -------------------------------------------------
@@ -5636,31 +6639,125 @@ end
 --game, from inside the arrival coroutine. Each client installs its own, so a
 --member's modules arrive with the member. Renews the loading screen hold while
 --it waits; HeroModules gives up after HERO_MODULES_TIMEOUT_SECONDS.
+--Returns a function to call on every wait-loop pass: it renews the engine's
+--loading-screen hold once ~5 s of REAL time have passed. The engine's 20 s
+--backstop runs on real time, but coroutine.yield(0.1) waits game time, which
+--barely moves through long frames, so loops that counted their yields renewed
+--too late and the screen was force-cleared mid-setup (7 of 545 real entries,
+--Oct-Nov 2026 bug-report logs). A table field, not a local: this file's main
+--chunk is at Lua's 200-local limit.
+function EncounterOfTheWeekGame.LoadingScreenHoldRenewer()
+    local watch = dmhub.Stopwatch()
+    return function()
+        if watch.milliseconds >= 5000 then
+            pcall(function() dmhub.HoldLoadingScreen() end)
+            watch = dmhub.Stopwatch()
+        end
+    end
+end
+
 local HERO_MODULES_TIMEOUT_SECONDS = 20
-local function InstallMyHeroModules()
+
+--Starts bringing this player's Hero modules into the game and returns the
+--handle InstallMyHeroModules waits on. Setup starts it early, so the installs
+--run while the encounter module installs and the map travels, instead of
+--after them. A table field: this file's main chunk is at the 200-local limit.
+function EncounterOfTheWeekGame.StartHeroModuleInstall()
+    local started = { done = false }
     local heroModules = rawget(_G, "HeroModules")
     if heroModules == nil or heroModules.InstallIntoGame == nil then
+        started.done = true
+        return started
+    end
+    --a member can't add a module with code to the host's game, so it asks
+    --the host's client to (HeroModules.ServeOwnerRequests) -- A9C9NGB8.
+    heroModules.InstallIntoGame(function()
+        started.done = true
+    end, HERO_MODULES_TIMEOUT_SECONDS, { askOwner = true })
+    return started
+end
+
+--Waits (inside the setup coroutine) for the installs StartHeroModuleInstall
+--began, starting them now if nothing did.
+local function InstallMyHeroModules(started)
+    started = started or EncounterOfTheWeekGame.StartHeroModuleInstall()
+    local renewHold = EncounterOfTheWeekGame.LoadingScreenHoldRenewer()
+    while not started.done and not mod.unloaded do
+        renewHold()
+        coroutine.yield(0.03)
+    end
+end
+
+--The community encounter module's info, downloaded once per game:
+--{ moduleid, gameid, info, message, done, waiters }.
+EncounterOfTheWeekGame.encounterModuleInfo = nil
+
+--Host, first thing in setup: start downloading a community encounter's
+--module info, so it is not queued behind the Hero module queries (the
+--engine runs only a few downloads at once). Does nothing for an official
+--encounter or one already installed in this game.
+function EncounterOfTheWeekGame.PrefetchEncounterModuleInfo(encounterKey)
+    if type(encounterKey) ~= "string" or encounterKey == "" then
         return
     end
-    local done = false
-    heroModules.InstallIntoGame(function()
-        done = true
-    end, HERO_MODULES_TIMEOUT_SECONDS)
-    local sinceRenew = 0
-    while not done and not mod.unloaded do
-        if sinceRenew >= 5 then
-            sinceRenew = 0
-            pcall(function() dmhub.HoldLoadingScreen() end)
-        end
-        coroutine.yield(0.1)
-        sinceRenew = sinceRenew + 0.1
+    local moduleid = ParseEncounterKey(encounterKey)
+    if moduleid == nil or moduleid == OFFICIAL_MODULE then
+        return
     end
+    if mod:GetDocumentSnapshot(STATE_DOC_ID).data.encounterModule == moduleid then
+        return
+    end
+    local entry = { moduleid = moduleid, gameid = dmhub.gameid, done = false, waiters = {} }
+    EncounterOfTheWeekGame.encounterModuleInfo = entry
+    local function Land(info, message)
+        entry.info = info
+        entry.message = message
+        entry.done = true
+        local waiters = entry.waiters
+        entry.waiters = {}
+        for _, waiter in ipairs(waiters) do
+            waiter(info, message)
+        end
+    end
+    module.DownloadModuleInfo{
+        moduleid = moduleid,
+        success = function(info)
+            Land(info, nil)
+        end,
+        failure = function(message)
+            Land(nil, message)
+        end,
+    }
+end
+
+--Calls callback(info) or callback(nil, message) with the module's info: the
+--prefetched download when there is one for this game, else a new one.
+function EncounterOfTheWeekGame.WithEncounterModuleInfo(moduleid, callback)
+    local entry = EncounterOfTheWeekGame.encounterModuleInfo
+    EncounterOfTheWeekGame.encounterModuleInfo = nil
+    if entry ~= nil and entry.moduleid == moduleid and entry.gameid == dmhub.gameid then
+        if entry.done then
+            callback(entry.info, entry.message)
+        else
+            entry.waiters[#entry.waiters + 1] = callback
+        end
+        return
+    end
+    module.DownloadModuleInfo{
+        moduleid = moduleid,
+        success = function(info)
+            callback(info, nil)
+        end,
+        failure = function(message)
+            callback(nil, message)
+        end,
+    }
 end
 
 local HOST_SETUP_TIMEOUT_SECONDS = 120
 local function WaitForHostSetup()
     local waited = 0
-    local sinceRenew = 0
+    local renewHold = EncounterOfTheWeekGame.LoadingScreenHoldRenewer()
     while waited < HOST_SETUP_TIMEOUT_SECONDS do
         if mod.unloaded then
             return
@@ -5672,13 +6769,9 @@ local function WaitForHostSetup()
         if ready then
             return
         end
-        if sinceRenew >= 5 then
-            sinceRenew = 0
-            pcall(function() dmhub.HoldLoadingScreen() end)
-        end
+        renewHold()
         coroutine.yield(0.1)
         waited = waited + 0.1
-        sinceRenew = sinceRenew + 0.1
     end
     printf("EotW: the host's setup was not ready after %d seconds; continuing", HOST_SETUP_TIMEOUT_SECONDS)
 end
@@ -5752,17 +6845,19 @@ local function OpenOpeningBeatWhenPartyIn()
             pcall(EnsureArrivalItems)
             local ok, err = pcall(function()
                 local montage = rawget(_G, "EncounterMontage")
-                local narrative = rawget(_G, "EncounterNarrative")
                 local script = montage.FindMapScript()
                 local index = GetBeatIndex()
                 local beat = script.parse.beats[index]
                 if beat == nil then
                     return
                 end
+                local narrative = EncounterOfTheWeekGame.NarrativeRuntime(index)
                 if beat.kind == "montage" then
                     montage.HostTick(script, beat, index)
                 elseif beat.kind == "narrative" and narrative ~= nil then
                     narrative.HostTick(script, beat, index)
+                elseif beat.kind == "negotiation" and rawget(_G, "EncounterNegotiation") ~= nil then
+                    EncounterNegotiation.HostTick(script, beat, index)
                 end
             end)
             if not ok then
@@ -5780,20 +6875,19 @@ end
 --while waiting.
 local function WaitForPartyThenRelease()
     local waited = 0
-    local sinceRenew = 0
+    local renewHold = EncounterOfTheWeekGame.LoadingScreenHoldRenewer()
     while waited < REVEAL_WAIT_MAX_SECONDS and not mod.unloaded do
         local arrived = false
-        pcall(function() arrived = EncounterOfTheWeekGame.AllPlayersArrived() end)
+        --no settle here: once everyone is in, show them the map; the encounter
+        --itself still waits out the settle before it starts (the bug-report
+        --logs had every no-stage entry sitting ~3 s on a finished load).
+        pcall(function() arrived = EncounterOfTheWeekGame.AllPlayersArrived(true) end)
         if arrived then
             break
         end
-        if sinceRenew >= 5 then
-            sinceRenew = 0
-            pcall(function() dmhub.HoldLoadingScreen() end)
-        end
+        renewHold()
         coroutine.yield(0.1)
         waited = waited + 0.1
-        sinceRenew = sinceRenew + 0.1
     end
     EotwProf("party in; releasing the loading screen")
     ReleaseLoadingScreen()
@@ -5866,8 +6960,10 @@ local function BeginOpeningMontage()
         end
         if beat.kind == "montage" then
             montage.Begin(script, beat, 1)
-        elseif beat.kind == "narrative" and narrative ~= nil then
-            narrative.Begin(script, beat, 1)
+        elseif beat.kind == "narrative" and EncounterOfTheWeekGame.NarrativeRuntime(1) ~= nil then
+            EncounterOfTheWeekGame.NarrativeRuntime(1).Begin(script, beat, 1)
+        elseif beat.kind == "negotiation" and rawget(_G, "EncounterNegotiation") ~= nil then
+            EncounterNegotiation.Begin(script, beat, 1)
         end
     end)
     if not ok then
@@ -5884,6 +6980,22 @@ function EncounterOfTheWeekGame.SetupOnArrival(args)
         end
 
         EotwProf("SetupOnArrival begin (%s)", IsDMOrPlayerHost() and "host" or "member")
+
+        --a community encounter's module info first: its install and the map
+        --travel after it are what the loading screen waits on.
+        if IsDMOrPlayerHost() then
+            pcall(EncounterOfTheWeekGame.PrefetchEncounterModuleInfo, args.encounterMap)
+        end
+
+        --the Hero modules' info downloads (InstallMyHeroModules, below) start
+        --now, so they overlap the map travel and the encounter install instead
+        --of adding to them.
+        pcall(function()
+            local heroModules = rawget(_G, "HeroModules")
+            if heroModules ~= nil and heroModules.PrefetchInventory ~= nil then
+                heroModules.PrefetchInventory()
+            end
+        end)
 
         --what KeepMyArrivalRecorded restores belongs to this game only.
         m_myExpectedUsers = nil
@@ -5911,6 +7023,11 @@ function EncounterOfTheWeekGame.SetupOnArrival(args)
             waitForHost = false
         end
 
+        --this player's Hero modules install from now on, alongside the
+        --encounter module install and the map travel below; hero placement
+        --waits for them (InstallMyHeroModules).
+        local heroModuleInstall = EncounterOfTheWeekGame.StartHeroModuleInstall()
+
         --the host is the game's owner and keeps real hosting status
         --(IsDMOrPlayerHost -- true even in player-host mode, when dmhub.isDM
         --reads false), so it identifies exactly one client to run game-wide
@@ -5925,7 +7042,37 @@ function EncounterOfTheWeekGame.SetupOnArrival(args)
             if (type(members) ~= "table" or #members == 0) and type(recorded) ~= "table" then
                 members = { dmhub.loginUserid }
             end
+            --a later part played on in this game waits only for the players
+            --who went on with it, not the whole launch roster.
+            if type(recorded) == "table" and type(mod:GetDocumentSnapshot(STATE_DOC_ID).data.seriesContinue) == "table" then
+                members = recorded
+            end
             RecordExpectedUsers(members)
+
+            --install the Hero modules members ask for (a module with code
+            --only the owner can add), from before any member can arrive and
+            --ask. A module's pregens come with it: re-sweep after each.
+            pcall(function()
+                local heroModules = rawget(_G, "HeroModules")
+                if heroModules ~= nil and heroModules.ServeOwnerRequests ~= nil then
+                    heroModules.ServeOwnerRequests(function()
+                        SweepPlayersParty()
+                    end)
+                end
+            end)
+
+            --an EotW game hosted by an admin has Discord voice on for everyone
+            --in it (Draw Steel V/DiscordVoice.lua). Once per game, so it stays
+            --off across resumes if someone switches it off later.
+            if dmhub.isAdminAccount then
+                local stateDoc = mod:GetDocumentSnapshot(STATE_DOC_ID)
+                if stateDoc.data.adminVoiceEnabled ~= true then
+                    stateDoc:BeginChange()
+                    stateDoc.data.adminVoiceEnabled = true
+                    stateDoc:CompleteChange("Encounter of the Week: Discord voice", {undoable = false})
+                    dmhub.SetSettingValue("discordvoice", true)
+                end
+            end
 
             --NOTE: nothing here switches on player-host mode. The game was
             --created directorless, so the engine already had it on before this
@@ -5973,11 +7120,27 @@ function EncounterOfTheWeekGame.SetupOnArrival(args)
 
         --a hero built with a class or ancestry from one of this player's Hero
         --modules needs the module in this game before it lands.
-        InstallMyHeroModules()
+        InstallMyHeroModules(heroModuleInstall)
         EotwProf("hero modules installed")
 
         local myPasted, anchor = PlaceMyHeroes(args.heroes, args.clipboardIds)
-        RecordCompletedHeroes(args.heroes)
+        --a hero whose Hero module could not be added would otherwise just
+        --show 0 Stamina: tell the player why, once the game is revealed.
+        pcall(function()
+            local heroModules = rawget(_G, "HeroModules")
+            if heroModules ~= nil and heroModules.WarnIfHeroesMissingContent ~= nil then
+                local charids = {}
+                for _,charid in pairs(GetPlacedHeroes(dmhub.loginUserid)) do
+                    charids[#charids+1] = charid
+                end
+                heroModules.WarnIfHeroesMissingContent(charids)
+            end
+        end)
+        --the party record says who won its first part; a later part played
+        --on in this game was stamped when it began (Series.OnNewPart).
+        if type(mod:GetDocumentSnapshot(STATE_DOC_ID).data.seriesContinue) ~= "table" then
+            RecordCompletedHeroes(args.heroes)
+        end
         EotwProf("heroes placed")
 
         if IsDMOrPlayerHost() then
@@ -6056,6 +7219,13 @@ function EncounterOfTheWeekGame.SetupOnArrival(args)
         --a beastheart brings their companion.
         EncounterOfTheWeekGame.DeployMyCompanions(myPasted)
 
+        --heroes pasted after the terrain wait gave up stand at the wrong height.
+        local myTokens = {}
+        for _, charid in ipairs(myPasted) do
+            myTokens[#myTokens + 1] = dmhub.GetCharacterById(charid)
+        end
+        EncounterOfTheWeekGame.GroundTokens(myTokens, "arrival")
+
         --the loading screen stays up until the whole party is in. With an
         --opening stage, the stage releases it once the beat has opened
         --(EncounterOfTheWeekGame.RevealReady); without one, release once
@@ -6067,6 +7237,551 @@ function EncounterOfTheWeekGame.SetupOnArrival(args)
         end
         EotwProf("SetupOnArrival done")
     end)
+end
+
+--- going straight on to a series' next part ----------------------------
+--User direction 2026-10-26: when a series' next part plays on the same map,
+--a party that wins a part goes straight on to the next one in THIS game,
+--with no trip to the town, no new party and no survey in between. The HOST
+--chooses for the party, on the story screen (or the victory screen's
+--button): "Continue to Part N" takes everyone still in the game straight on
+--(Series.StartNextPart), whatever screen they are on; "Return to
+--Blackbottom" ends the game, and the others are told the host went home and
+--press their own Return. Any other player may still go home alone with
+--their own Return button; their heroes leave with them.
+--A next part with its own part map still goes through the town.
+
+Series.NEXT_PART_DOC_PREFIX = "eotwnext-"
+
+--A player's choice for the part `key`: "continue", "home" or nil. Each
+--player writes only their own document, so choices never collide.
+function Series.ChoiceOf(userid, key)
+    local choice = nil
+    pcall(function()
+        local data = mod:GetDocumentSnapshot(Series.NEXT_PART_DOC_PREFIX .. userid).data
+        if data.key == key then
+            choice = data.choice
+        end
+    end)
+    return choice
+end
+
+function Series.MyChoice(key)
+    return Series.ChoiceOf(dmhub.loginUserid, key)
+end
+
+function Series.WriteNextPartChoice(key, choice)
+    local doc = mod:GetDocumentSnapshot(Series.NEXT_PART_DOC_PREFIX .. dmhub.loginUserid)
+    if doc.data.key == key and doc.data.choice == choice then
+        return
+    end
+    doc:BeginChange()
+    doc.data.key = key
+    doc.data.choice = choice
+    doc.data.at = dmhub.serverTime
+    doc:CompleteChange("Encounter of the Week: next part choice", {undoable = false})
+    printf("EotW: chose %s for %s", tostring(choice), tostring(key))
+end
+
+function Series.ChooseContinue(key)
+    Series.WriteNextPartChoice(key, "continue")
+end
+
+--Does `nextPart` (Series.NextPart) play on in this game? Its map must be
+--the one the party is on, and the party must have a hero still standing.
+function Series.ContinuesHere(nextPart)
+    if nextPart == nil then
+        return false
+    end
+    local _, mapName = ParseEncounterKey(nextPart.key)
+    local map = Series.FindPartMap(mapName, nextPart.number)
+    if map == nil or map.id ~= game.currentMapId then
+        return false
+    end
+    local placed = {}
+    pcall(function() placed = mod:GetDocumentSnapshot(STATE_DOC_ID).data.placedHeroes or {} end)
+    for _, mine in pairs(placed) do
+        for _, charid in pairs(type(mine) == "table" and mine or {}) do
+            local tok = dmhub.GetCharacterById(charid)
+            local alive = false
+            pcall(function() alive = tok ~= nil and tok.valid and tok.properties ~= nil and not tok.properties:IsDead() end)
+            if alive then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+--The host's userid, as the presence tick last recorded it.
+function Series.HostUserid()
+    local presence = rawget(_G, "EncounterPresence")
+    local host = presence ~= nil and presence.GetData().host or nil
+    if type(host) == "string" then
+        return host
+    end
+    return nil
+end
+
+--The host's display name, for "X chooses whether the party goes on".
+function Series.HostName()
+    local name = nil
+    pcall(function()
+        local host = Series.HostUserid()
+        if host ~= nil then
+            name = dmhub.GetDisplayName(host)
+        end
+    end)
+    if name == nil or name == "" then
+        return UIText.T("encounter.series_next.host_fallback")
+    end
+    return name
+end
+
+--Who goes on with the host to the part `key`: every expected player still in
+--the game, except one who chose to go home (or abandoned).
+function Series.PartyGoingOn(key)
+    local going = {}
+    local expected = {}
+    pcall(function() expected = mod:GetDocumentSnapshot(STATE_DOC_ID).data.expectedUsers or {} end)
+    local presence = rawget(_G, "EncounterPresence")
+    for _, userid in ipairs(expected) do
+        local here = userid == dmhub.loginUserid
+        if not here and presence ~= nil then
+            pcall(function() here = presence.IsOnline(userid) and not presence.HasAbandoned(userid) end)
+        end
+        if here and Series.ChoiceOf(userid, key) ~= "home" then
+            going[#going + 1] = userid
+        end
+    end
+    return going
+end
+
+--The line above the story screen's buttons, or nil to keep the note: on the
+--host, once they chose to go on, that the part is starting; on everyone
+--else, that the host went home instead.
+function Series.WaitingText(nextPart)
+    if IsDMOrPlayerHost() then
+        if Series.MyChoice(nextPart.key) == "continue" then
+            return UIText.T("encounter.series_next.starting", { part = Series.PartLabel(nextPart) })
+        end
+        return nil
+    end
+    local host = Series.HostUserid()
+    if host ~= nil and Series.ChoiceOf(host, nextPart.key) == "home" then
+        return UIText.T("encounter.series_next.host_went_home", { host = Series.HostName() })
+    end
+    return nil
+end
+
+--What only a departure does: the Proving Pits debrief, the beta survey, the
+--end of this player's analytics run, the game handed to the titlescreen to
+--clear, and leaving the lobby roster. Once.
+function Series.ConcludeForTown()
+    if Series.concluded then
+        return
+    end
+    Series.concluded = true
+    RecordPendingDebrief(m_outcomeKind)
+    EncounterOfTheWeekGame.RecordPendingSurvey(m_outcomeKind)
+    pcall(EncounterOfTheWeekGame.AnalyticsEndRun, m_outcomeKind, "conclusion")
+
+    --hand the finished game to the titlescreen: it destroys the game /
+    --clears the account slot on its next refresh, so a decided
+    --encounter is never offered for resume.
+    pcall(function() dmhub.SetSettingValue("eotw:concludedgame", dmhub.gameid) end)
+
+    --and drop out of the lobby roster now: the HOST's leave removes the
+    --game's record (and its chat) for the whole lobby, and members'
+    --leaves stop their returning screens' heartbeats from keeping a
+    --stale record alive. Best-effort -- the titlescreen cleanup sends
+    --leave-game again if this one loses the race with LeaveGame.
+    Series.leaveSentAt = dmhub.Time()
+    SendLobbyRequest("leave-game", { gameid = dmhub.gameid }, function(ok, result)
+        Series.leaveAnswered = true
+        if not ok then
+            printf("EotW: conclusion leave-game not accepted: %s", tostring(result))
+        end
+    end)
+end
+
+--Go home to the town. Never before EXIT_DELAY after the conclusion, so the
+--host's end-of-combat writes still flush. A player turning down the next
+--part says so first, so the party does not wait for them.
+function Series.LeaveForTown()
+    if Series.leaving then
+        return
+    end
+    Series.leaving = true
+    if Series.offered ~= nil then
+        Series.WriteNextPartChoice(Series.offered.key, "home")
+        Series.ConcludeForTown()
+    end
+    --and, when leave-game went out only now, until the lobby has had it (at
+    --most LEAVE_ANSWER_SECONDS): LeaveGame drops the connection carrying it,
+    --and a host's lost leave leaves the party's record up in the town.
+    local LEAVE_ANSWER_SECONDS = 4
+    local leaveAt = (Series.concludedAt or dmhub.Time()) + EXIT_DELAY
+    local function TryLeave()
+        if mod.unloaded then
+            return
+        end
+        local now = dmhub.Time()
+        local waitingForLobby = Series.leaveSentAt ~= nil and not Series.leaveAnswered
+            and now < Series.leaveSentAt + LEAVE_ANSWER_SECONDS
+        if now < leaveAt or waitingForLobby then
+            dmhub.Schedule(0.2, TryLeave)
+            return
+        end
+        dmhub.LeaveGame()
+    end
+    dmhub.Schedule(0.2, TryLeave)
+end
+
+--The story so far, in the shape SeedStory takes, with the part just won
+--added: what the next part starts from.
+function Series.CarriedStory()
+    local carried = { parts = {}, tracks = {} }
+    local montage = rawget(_G, "EncounterMontage")
+    if montage == nil then
+        return carried
+    end
+    local story = montage.Story()
+    for n, p in pairs(story.parts or {}) do
+        carried.parts[n] = p
+    end
+    if story.this ~= nil then
+        carried.parts[EncounterOfTheWeekGame.ActivePart()] = story.this
+    end
+    local raw = montage.GetDoc().data.story
+    for _, rec in pairs(type(raw) == "table" and raw.tracks or {}) do
+        if type(rec) == "table" and rec.key ~= nil then
+            carried.tracks[rec.key] = tonumber(rec.value) or 0
+        end
+    end
+    return carried
+end
+
+--Host, inside a coroutine: clear the part just won and set up `nextPart`
+--on this map for the players in `continuing`. Errors are raised.
+function Series.StartNextPartNow(nextPart, continuing)
+    local montage = EncounterMontage
+    for _ = 1, 50 do
+        local q = dmhub.initiativeQueue
+        if q == nil or q.hidden then
+            break
+        end
+        coroutine.yield(0.2)
+    end
+    local q = dmhub.initiativeQueue
+    if q ~= nil and not q.hidden then
+        error("combat is still running")
+    end
+
+    local state = mod:GetDocumentSnapshot(STATE_DOC_ID)
+    local fromKey = state.data.encounterMap
+    local fromRunId = Series.RunId()
+    local carried = Series.CarriedStory()
+
+    --the earlier fights stay in the battle log; the Hall of Heroes counts
+    --only this part's rounds.
+    local priorBattles = {}
+    pcall(function()
+        for id, _ in pairs(state.data.priorBattles or {}) do
+            priorBattles[id] = true
+        end
+        local battleLog = rawget(_G, "BattleLog")
+        if battleLog ~= nil then
+            for _, battle in ipairs(battleLog.GetBattles()) do
+                if battle.id ~= nil then
+                    priorBattles[battle.id] = true
+                end
+            end
+        end
+    end)
+
+    --who goes on: their heroes stay where they are for now. The fallen
+    --stay listed (a resume must not paste them in again) but are noted as
+    --buried, which the part just won did. Heroes of a player who went home
+    --leave with them.
+    local going = {}
+    for _, userid in ipairs(continuing) do
+        going[userid] = true
+    end
+    local buried = {}
+    for charid, _ in pairs(state.data.buriedHeroes or {}) do
+        buried[charid] = true
+    end
+    local placed, remove, removed = {}, {}, {}
+    local living = 0
+    for userid, mine in pairs(state.data.placedHeroes or {}) do
+        for _, charid in pairs(type(mine) == "table" and mine or {}) do
+            local tok = dmhub.GetCharacterById(charid)
+            local dead = true
+            if tok ~= nil then
+                pcall(function() dead = tok.properties == nil or tok.properties:IsDead() end)
+            end
+            if going[userid] then
+                if dead then
+                    buried[charid] = true
+                else
+                    living = living + 1
+                end
+            elseif tok ~= nil and not dead then
+                remove[#remove + 1] = charid
+                removed[charid] = true
+            end
+        end
+        if going[userid] then
+            placed[userid] = mine
+        end
+    end
+    for _, tok in ipairs(dmhub.allTokens) do
+        local companion = false
+        pcall(function() companion = tok.valid and removed[tok.summonerid] and tok.properties ~= nil and tok.properties:IsCompanion() end)
+        if companion then
+            remove[#remove + 1] = tok.charid
+        end
+    end
+
+    --everything the finished part put on the map, its script state, the
+    --combat flags, the malice and the map script. The heroes keep their
+    --wounds: no respite between parts. No yield from here until the new
+    --part is stamped, so the map script cannot restart on the old part.
+    if not montage.ResetTest({ keepHeroes = true }) then
+        error("the finished part could not be cleared")
+    end
+    if #remove > 0 then
+        ElevateToHostPermissions()
+        local ok, err = pcall(game.DeleteCharacters, remove)
+        DropHostPermissions()
+        if ok then
+            printf("EotW: %d heroes went home with their players", #remove)
+        else
+            printf("EotW: could not remove the heroes of players who went home: %s", tostring(err))
+        end
+    end
+
+    local now = dmhub.serverTime
+    local arrived = {}
+    for _, userid in ipairs(continuing) do
+        arrived[userid] = now
+    end
+    local _, _, toPart = ParseEncounterKey(nextPart.key)
+    state:BeginChange()
+    local data = state.data
+    data.encounterMap = nextPart.key
+    data.encounterMapId = game.currentMapId
+    data.runId = string.format("%s-part%d", dmhub.gameid, toPart)
+    data.seriesContinue = { from = fromKey, fromRunId = fromRunId, to = nextPart.key, at = now }
+    data.partStartSeconds = EncounterOfTheWeekGame.PlaySeconds()
+    data.priorBattles = priorBattles
+    data.expectedUsers = continuing
+    data.placedHeroes = placed
+    data.buriedHeroes = buried
+    data.arrived = arrived
+    data.arrange = nil
+    data.combatStarted = nil
+    data.proceedRequested = nil
+    data.arrivalItems = nil
+    data.autoEquip = nil
+    data.alreadyCompleted = nil
+    data.completedNormal = nil
+    data.abilityBusy = nil
+    data.heroTokensSeeded = nil
+    data.analyticsPhase = nil
+    data.analyticsPhaseKey = nil
+    data.analyticsPhaseAt = nil
+    state:CompleteChange("Encounter of the Week: on to the next part", {undoable = false})
+    m_myExpectedUsers = continuing
+    m_myPlacedHeroes = placed[dmhub.loginUserid]
+    printf("EotW: the party goes on from %s to %s (%d players)", tostring(fromKey), nextPart.key, #continuing)
+
+    --the part's own setup, as at arrival: its story, its region, the
+    --heroes onto its start tiles, the party's size and Hero Tokens, and its
+    --opening beat.
+    Series.SeedSeriesStory(carried)
+    ApplyPlayRegion()
+    MoveStrayHeroesIntoPlay()
+    ElevateToHostPermissions()
+    pcall(function()
+        for _, tok in ipairs(dmhub.allTokens) do
+            local companion = false
+            pcall(function() companion = tok.valid and tok.properties ~= nil and tok.properties:IsCompanion() end)
+            local hero = companion and dmhub.GetCharacterById(tok.summonerid) or nil
+            if hero ~= nil and hero.valid then
+                local dest = EncounterOfTheWeekGame.FreeStartTileNear(hero.loc)
+                if dest ~= nil then
+                    tok:ChangeLocation(dest.withGroundAltitude)
+                end
+            end
+        end
+    end)
+    DropHostPermissions()
+
+    local numHeroes = math.max(3, math.min(7, living))
+    dmhub.SetSettingValue("numheroes", numHeroes)
+    SeedHeroTokens(numHeroes)
+
+    BeginOpeningMontage()
+
+    --the reset detached the map script; let that land before it attaches
+    --fresh, so the script starts again from the new part's first beat.
+    coroutine.yield(1.5)
+    AttachMapScript()
+    if MontageStageExpected() then
+        OpenOpeningBeatWhenPartyIn()
+    end
+end
+
+function Series.StartNextPart(nextPart, continuing)
+    if Series.starting ~= nil then
+        return
+    end
+    Series.starting = nextPart.key
+    dmhub.Coroutine(function()
+        local ok, err = pcall(Series.StartNextPartNow, nextPart, continuing)
+        if not ok then
+            printf("EotW: could not start %s in this game: %s", nextPart.key, tostring(err))
+            --try again on a later tick.
+            Series.starting = nil
+        end
+    end)
+end
+
+--This player's heroes who have already won the part now being played,
+--from the City (the town sends them with a new party; here there is none):
+--the Victory award skips them, as at an arrival.
+function Series.StampCompletedForPart(key)
+    if next(GetPlacedHeroes(dmhub.loginUserid)) == nil then
+        return
+    end
+    local challenge = EncounterOfTheWeekGame.IsChallenge()
+    SendLobbyRequest("list-heroes", {}, function(ok, result)
+        if not ok or type(result) ~= "table" then
+            printf("EotW: could not read which heroes already won %s: %s", tostring(key), tostring(result))
+            return
+        end
+        local heroes = {}
+        for _, h in pairs(result.heroes or {}) do
+            if type(h) == "table" and type(h.heroid) == "string" then
+                local won = {}
+                for _, k in pairs(h.completed or {}) do
+                    won[tostring(k)] = true
+                end
+                local entry = { id = h.heroid }
+                if challenge then
+                    entry.completed = won[key .. "!challenge"] == true
+                    entry.completedNormal = won[key] == true
+                else
+                    entry.completed = won[key] == true
+                end
+                heroes[#heroes + 1] = entry
+            end
+        end
+        RecordCompletedHeroes(heroes)
+    end)
+end
+
+--Every client, when the host has moved the game on to the next part: start
+--this client's end-of-encounter bookkeeping afresh and put the story screen
+--away.
+function Series.OnNewPart(data)
+    printf("EotW: the party goes on to %s in this game", tostring(data.encounterMap))
+    local from = type(data.seriesContinue) == "table" and data.seriesContinue or {}
+
+    --the finished part's analytics run closes; the driver opens the next
+    --one (EnsureAnalyticsRun) under the new run id.
+    pcall(EncounterOfTheWeekGame.AnalyticsEndRun, "victory", "continue")
+    pcall(function() EotwAnalytics.SetRunId(Series.RunId()) end)
+
+    m_outcomeSeen = false
+    m_outcomeKind = nil
+    m_outcomesRecorded = false
+    m_exitScheduled = false
+    m_localProceeded = false
+    m_victorySeenAt = nil
+    m_award.holdTicks = 0
+    m_award.metTime = nil
+    m_outcomeMetTime = nil
+    m_absentOffered = false
+    m_hallRecorded = false
+    m_arrangeBegin = nil
+    m_reportedBeat = nil
+    m_montageReported = {}
+    Series.offered = nil
+    Series.leaving = false
+    Series.concluded = false
+    Series.concludedAt = nil
+    Series.starting = nil
+
+    --a player still on the victory screen goes on with the party too.
+    pcall(function() DSVictoryScreen.DismissHeld() end)
+    local screen = Series.storyScreen
+    Series.storyScreen = nil
+    if screen ~= nil and screen.valid then
+        pcall(function()
+            if gui.GetModal() == screen then
+                gui.CloseModal()
+            else
+                screen:DestroySelf()
+            end
+        end)
+    end
+
+    if EncounterOfTheWeekGame.IsPracticeGame() then
+        --the town's debrief would have counted the won part for this
+        --account; with no trip home, say so here.
+        if type(from.from) == "string" then
+            SendLobbyRequest("record-practice-win", { encounter = from.from, gameid = from.fromRunId or dmhub.gameid }, function(ok, result)
+                if not ok then
+                    printf("EotW: could not record the Proving Pits win of %s: %s", tostring(from.from), tostring(result))
+                end
+            end)
+        end
+    elseif type(data.encounterMap) == "string" then
+        Series.StampCompletedForPart(data.encounterMap)
+    end
+
+    dmhub.Schedule(1.5, function()
+        if mod.unloaded then
+            return
+        end
+        local anchor = StartZoneAnchor()
+        if anchor ~= nil then
+            dmhub.CenterOnLoc{ x = anchor.x, y = anchor.y, smooth = true }
+        end
+    end)
+end
+
+--Every client, from the 1s driver: notice the move to a new part; on the
+--host, start it once the party has chosen; on a member, follow a host who
+--went home.
+function Series.ContinueTick()
+    if not EncounterOfTheWeekGame.IsEotwGame() or EncounterOfTheWeekGame.IsTestPlayer() then
+        return
+    end
+    local data = mod:GetDocumentSnapshot(STATE_DOC_ID).data
+    local runId = Series.RunId()
+    if Series.seenRunId == nil then
+        Series.seenRunId = runId
+    elseif Series.seenRunId ~= runId then
+        Series.seenRunId = runId
+        Series.OnNewPart(data)
+        return
+    end
+
+    local offered = Series.offered
+    if offered == nil or Series.leaving then
+        return
+    end
+    --the host decides for everyone; the rest follow when it starts.
+    if not IsDMOrPlayerHost() or Series.starting ~= nil then
+        return
+    end
+    if Series.MyChoice(offered.key) == "continue" then
+        Series.StartNextPart(offered, Series.PartyGoingOn(offered.key))
+    end
 end
 
 --- the authoring test --------------------------------------------------
@@ -6245,6 +7960,9 @@ function EncounterOfTheWeekGame.StartTest(options)
     --titlescreen hands a real arrival over (EotwPendingArrival).
     _G.EotwPendingTest = {
         gameid = dmhub.gameid,
+        --the refresh loads a player-host onto the map of a token it owns, else
+        --the first map in the list, so the setup travels back to this one.
+        mapid = game.currentMapId,
         mode = options.mode,
         part = tonumber(options.part) or 1,
         heroes = options.heroes,
@@ -6498,11 +8216,13 @@ local function TestArrival(pending)
 
     --the chosen beat. Stage beats go up now; the encounter beat starts on
     --the host tick.
-    local narrative = rawget(_G, "EncounterNarrative")
+    local narrative = EncounterOfTheWeekGame.NarrativeRuntime(index)
     if beat.kind == "montage" then
         montage.Begin(script, beat, index)
     elseif beat.kind == "narrative" and narrative ~= nil then
         narrative.Begin(script, beat, index)
+    elseif beat.kind == "negotiation" and rawget(_G, "EncounterNegotiation") ~= nil then
+        EncounterNegotiation.Begin(script, beat, index)
     end
     SetBeatIndex(index)
 
@@ -6547,6 +8267,25 @@ local function RunTestSetup(pending)
             return
         end
         _G.EotwPendingTest = nil
+        --back onto the map the test was started from (see StartTest), and
+        --wait for it to finish loading.
+        if pending.mapid ~= nil and game.currentMapId ~= pending.mapid then
+            local map = game.GetMap(pending.mapid)
+            if map ~= nil then
+                game.ChangeMap(map)
+                for _ = 1, 150 do
+                    if mod.unloaded then
+                        return
+                    end
+                    local progress = dmhub.gameLoadingProgress
+                    if game.currentMapId == pending.mapid and game.currentMap ~= nil and (progress == nil or progress >= 1) then
+                        break
+                    end
+                    coroutine.yield(0.2)
+                end
+                coroutine.yield(1)
+            end
+        end
         local ok, err = pcall(TestArrival, pending)
         m_testSetupRunning = false
         if not ok then
@@ -6736,7 +8475,8 @@ local function TestTeardown()
     m_exitScheduled = false
     m_localProceeded = false
     m_victorySeenAt = nil
-    m_awardHoldTicks = 0
+    m_award.holdTicks = 0
+    m_award.metTime = nil
     m_outcomeMetTime = nil
 end
 

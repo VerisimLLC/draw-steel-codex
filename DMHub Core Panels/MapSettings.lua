@@ -84,6 +84,54 @@ setting{
 	max = 3,
 }
 
+--Whose art the map is (CreatorCredit.MAP_SETTING). Encounter of the Week
+--shows the credit as a watermark on the map window; a partner's licence can
+--require it (Czepeku: a quarter of the art's width, bottom-right).
+setting{
+	id = "map:creatorcredit",
+	description = "Watermark",
+	help = "The creator credit shown on this map in Encounter of the Week games. Map Pack Default credits the creator of the map pack the map was added from (no watermark for a map that is not from one). Choose the creator for a partner's map that was imported by hand.",
+	classes = {"dmonly"},
+	storage = "map",
+	editor = "dropdown",
+	default = "default",
+	getOptions = function()
+		return CreatorCredit.MapWatermarkOptions()
+	end,
+}
+
+--The Watermark row. Map pack organizations are named only once their
+--credits are looked up, so it starts those lookups (syncing the map pack
+--index first if need be) and refreshes its options as each comes back.
+local function CreateWatermarkEditor(stackedOpts)
+	local editor = CreateSettingsEditor("map:creatorcredit", stackedOpts)
+	if editor == nil then
+		return nil
+	end
+	local function LookUpOrgs()
+		for _,org in ipairs(CreatorCredit.MapPackOrgs()) do
+			CreatorCredit.ForOrganization(org, function()
+				if editor.valid then
+					editor:FireEventTree("refreshAssets")
+				end
+			end)
+		end
+	end
+	if mappacks.synced then
+		LookUpOrgs()
+	elseif not mappacks.syncing then
+		mappacks.Sync{
+			success = function()
+				if not mod.unloaded and editor.valid then
+					editor:FireEventTree("refreshAssets")
+					LookUpOrgs()
+				end
+			end,
+		}
+	end
+	return editor
+end
+
 local function track(eventType, fields)
 	if dmhub.GetSettingValue("telemetry_enabled") == false then
 		return
@@ -1201,6 +1249,17 @@ local function CreateMapTypeControls()
 	}
 end
 
+--The UVTT Import Settings section's controls, or nil when the current map
+--was not imported from a Universal VTT file or Map Scripts are not loaded.
+---@return Panel[]|nil
+local function UVTTSettingsControls()
+	local mapScript = rawget(_G, "MapScript")
+	if mapScript == nil then
+		return nil
+	end
+	return mapScript.UVTT.CreateSettingsControls()
+end
+
 CreateMapSettings = function()
 
 	local stackedOpts = {stacked = true, height = 28}
@@ -1233,6 +1292,13 @@ CreateMapSettings = function()
 
 		local floorRows, floorCount = CreateFloorRows()
 		sections[#sections+1] = CreateSection("floors", "Floors", floorRows, { count = floorCount })
+
+		--only for maps imported from a Universal VTT file (MapScript.UVTT;
+		--Map Scripts are in the Draw Steel module set, hence rawget).
+		local uvtt = UVTTSettingsControls()
+		if uvtt ~= nil then
+			sections[#sections+1] = CreateSection("uvtt", "UVTT Import Settings", uvtt)
+		end
 
 		sections[#sections+1] = CreateSection("players", "Players", Editors{
 			"map:playerviewable",
@@ -1271,10 +1337,12 @@ CreateMapSettings = function()
 
 		sections[#sections+1] = CreateSection("water", "Water", CreateWaterSection())
 
-		sections[#sections+1] = CreateSection("display", "Display", Editors{
+		local display = Editors{
 			"map:parallaxscale",
 			"editor:showpathfinding",
-		})
+		}
+		display[#display+1] = CreateWatermarkEditor(stackedOpts)
+		sections[#sections+1] = CreateSection("display", "Display", display)
 
 		--Map Scripts live in the Draw Steel module set; rawget so this core panel
 		--still works when that module is not loaded.
@@ -1287,9 +1355,13 @@ CreateMapSettings = function()
 	end
 
 	--What the map-specific sections were built from: the map, the floor we
-	--are on (the appearance gallery is per floor), and each floor's id and name.
+	--are on (the appearance gallery is per floor), whether the UVTT section
+	--shows (its script starts a tick after the map does), and each floor's
+	--id and name.
 	local function Signature()
-		local parts = { game.currentMapId or "", game.currentFloorId or "" }
+		local mapScript = rawget(_G, "MapScript")
+		local uvtt = mapScript ~= nil and mapScript.UVTT.GetContext() ~= nil
+		local parts = { game.currentMapId or "", game.currentFloorId or "", cond(uvtt, "uvtt", "") }
 		for _, floor in ipairs(game.currentMap.floors or {}) do
 			parts[#parts+1] = string.format("%s=%s", floor.floorid, floor.description or "")
 		end

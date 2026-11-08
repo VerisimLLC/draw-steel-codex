@@ -220,7 +220,7 @@ local function Figure(image, tok, side)
             element.selfStyle.bgcolor = "white"
             if tok ~= nil then
                 local rect = nil
-                pcall(function() rect = tok:GetPortraitRectForAspect(FIGURE_WIDTH / FIGURE_HEIGHT * (1 - FIGURE_FADE), portrait) end)
+                pcall(function() rect = CardPortraitRect(tok, FIGURE_WIDTH / FIGURE_HEIGHT * (1 - FIGURE_FADE), portrait) end)
                 if rect ~= nil then
                     local y1 = math.max(FIGURE_FADE, rect.y1 + (rect.y2 - rect.y1) * FIGURE_FADE)
                     rect = { x1 = rect.x1, y1 = y1, x2 = rect.x2, y2 = rect.y2 }

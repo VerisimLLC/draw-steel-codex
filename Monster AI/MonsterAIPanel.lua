@@ -90,35 +90,38 @@ local function HasRelayedTriggerInFlight(token)
     return false
 end
 
---Description of a start-of-round reaction this hero has not finished, or nil.
---When a hero accepts a trigger prompt, its card is removed before they have picked
---targets, so this also checks the reaction record on the hero. If that record
---can't be confirmed we stop waiting, so a lost reaction can't stall the table.
+--An accepted prompt's cast holds the monsters too: its card is gone, but a
+--turn-claim cast (Hesitation Is Weakness) has not moved initiative yet. The
+--move lands just after the cast completes, hence the settle time. The limit
+--stops a completion lost in transit from holding the table for good.
+local g_acceptedTriggerWaitSeconds = 60
+local g_acceptedTriggerSettleSeconds = 2
+
+--The name of the hero's accepted trigger whose cast still holds the monsters
+--(see the "turn-claim" marker in TriggeredAbility.lua), or nil.
 ---@param token CharacterToken
----@param activityId string|nil
----@return string|nil description
-local function PendingRoundStartReaction(token, activityId)
-    if activityId == nil then
-        return nil
+---@return string|nil
+local function AcceptedTriggerResolving(token)
+    for _,entry in pairs(token.properties:try_get("pendingAIActivityReactions", {})) do
+        if type(entry) == "table" and entry.activityId == "turn-claim" then
+            local age = EventTimestampAge(entry.timestamp)
+            local limit = entry.state == "completed" and g_acceptedTriggerSettleSeconds or g_acceptedTriggerWaitSeconds
+            if age ~= nil and age < limit then
+                return type(entry.ability) == "string" and entry.ability or "trigger"
+            end
+        end
     end
-    local ok, pending, description, failure = pcall(token.properties.GetAIActivityReactionStatus, token.properties, activityId)
-    if not ok or failure ~= nil or pending == 0 then
-        return nil
-    end
-    return description or "reaction"
+    return nil
 end
 
 --A hero's trigger the monsters wait for before choosing their next turn: a
 --hero may use it to claim the turn or to act before the monsters do. Returns
---the token and its prompt; the token, nil and a description while a
---start-of-round reaction is still resolving; or the token and nil while a
---relayed event is still being evaluated on its player's client. Data-driven,
---so custom classes work.
+--the token and its prompt; the token, nil and the ability's name while an
+--accepted trigger is resolving; or the token and nil while a relayed event is
+--still being evaluated on its player's client. Data-driven, so custom classes work.
 ---@return CharacterToken|nil, ActiveTrigger|nil, string|nil
 local function FindPendingPlayerTrigger(queue)
     local relayToken = nil
-    local reactionToken, reactionText = nil, nil
-    local roundActivityId = creature.RoundStartAIActivityId(queue)
     for _,token in ipairs(dmhub.allTokens) do
         if MonsterAI.TokenIsLiveCombatant(token) and token.playerControlled then
             local initiativeid = InitiativeQueue.GetInitiativeId(token)
@@ -128,11 +131,9 @@ local function FindPendingPlayerTrigger(queue)
                         return token, trigger
                     end
                 end
-                if reactionToken == nil then
-                    local description = PendingRoundStartReaction(token, roundActivityId)
-                    if description ~= nil then
-                        reactionToken, reactionText = token, description
-                    end
+                local resolving = AcceptedTriggerResolving(token)
+                if resolving ~= nil then
+                    return token, nil, resolving
                 end
                 if relayToken == nil and HasRelayedTriggerInFlight(token) then
                     relayToken = token
@@ -141,21 +142,18 @@ local function FindPendingPlayerTrigger(queue)
         end
     end
 
-    if reactionToken ~= nil then
-        return reactionToken, nil, reactionText
-    end
-    return relayToken, nil, nil
+    return relayToken, nil
 end
 
 --The banner text for a FindPendingPlayerTrigger result.
 ---@param token CharacterToken
 ---@param trigger ActiveTrigger|nil
----@param reactionText string|nil
-local function PendingPlayerTriggerText(token, trigger, reactionText)
+---@param resolving string|nil
+local function PendingPlayerTriggerText(token, trigger, resolving)
+    if resolving ~= nil then
+        return string.format("Waiting for %s's %s to finish", token.name or "a hero", resolving)
+    end
     if trigger == nil then
-        if reactionText ~= nil then
-            return string.format("Waiting for %s's %s", token.name or "a hero", reactionText)
-        end
         return string.format("Waiting for %s's triggers", token.name or "a hero")
     end
     local name = trigger.abilityName
@@ -357,11 +355,11 @@ local function MonsterAIThread(process)
             and not GameHud.BetweenTurnTransitionInProgress() and (not queue:IsPlayersTurn()) then
             local initiativeid = queue:CurrentInitiativeId()
             if initiativeid == nil then
-                local claimToken, claimTrigger, claimReaction = FindPendingPlayerTrigger(queue)
+                local claimToken, claimTrigger, claimResolving = FindPendingPlayerTrigger(queue)
                 if claimToken ~= nil then
                     --Tell the table why the monsters are not moving. The banner's
                     --Dismiss (offered when there is a prompt) releases the wait.
-                    local text = PendingPlayerTriggerText(claimToken, claimTrigger, claimReaction)
+                    local text = PendingPlayerTriggerText(claimToken, claimTrigger, claimResolving)
                     if not turnClaimWaiting then
                         lifecycleAI:LogDecision("INITIATIVE WAITING", {
                             actor = MonsterAI.TokenLogName(claimToken),
@@ -850,7 +848,7 @@ MonsterAIPanel = function()
                                 setanalysis = function(element, entry)
                                     local text = entry.monsterType
                                     if entry.language ~= nil then
-                                        text = string.format("<b><u>%s</u></b>\nCommunicates in %s", text, entry.language.name)
+                                        text = string.format("<b><u>%s</u></b>\nCommunicates in %s", text, entry.language:DisplayNameWithDetail())
                                     else
                                         text = string.format("<b><u>%s</u></b>\nNo language", text)
                                     end

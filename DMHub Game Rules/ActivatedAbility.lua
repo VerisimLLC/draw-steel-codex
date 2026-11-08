@@ -29,6 +29,10 @@ end
 --- @field operatorTokenId nil|string Charid of the creature operating the object, stamped on an operated ability's clone; that creature pays the action.
 --- @field grantingObjectTokenId nil|string Charid of the object that granted this clone; the only token it can target.
 --- @field grantedToTokenId nil|string Charid of the creature a granted clone belongs to (its caster).
+--- @field finishTargetsLater boolean Used on your turn against fewer targets than it allows, the rest can be targeted later that turn, free, with the same dice (Dual Wielder's Double Strike). See "Finish targets later" in MCDMActivatedAbility.lua.
+--- @field followUpOf nil|string On the clone that finishes a finishTargetsLater ability: the guid of the ability it finishes.
+--- @field followUpDice nil|{numFaces: number, result: number}[] On that clone: the die faces its power roll lands on instead of rolling fresh.
+--- @field excludedTargetTokenIds nil|table<string, boolean> Charids this clone may not target (the creatures the first use already hit).
 --- @field aimCasterAtTarget boolean An object caster turns to face its target while this is aimed, and keeps that facing (a Field Ballista's Release Bolt).
 --- @field _tmp_boundCaster nil|creature The creature a temporary clone was generated for.
 --- @field forcedMovementStraightUp boolean A forced-movement clone that moves its creature straight up ("vertical push straight up N").
@@ -86,6 +90,7 @@ end
 --- @field OnFinishCast? fun(ability: ActivatedAbility, options: table) Runtime hook run when the cast finishes.
 --- @field invoker? creature Creature that invoked this ability clone (invoke-ability behavior).
 --- @field invokerActionResourceId? string Action resource of the invoking ability, on an invoked clone.
+--- @field invokerCanCriticalHit? boolean If true, this free invoked clone's power roll can be its invoker's Critical Hit. Only Critical Hit reads it; the clone still is not a main action for other rules.
 --- @field baseActionResourceId? string The strike's own action resource, saved when an augment (e.g. Make Free Strike) replaces actionResourceId with its own cost.
 --- @field rangeUsesInvoker? boolean If true, an invoked clone measures range from the invoker.
 --- @field disableSquadCoordination? boolean If true, an invoked clone does not coordinate with the minion squad.
@@ -367,6 +372,8 @@ ActivatedAbility.proximityRange = "5"
 
 --default for abilities serialized before this field existed; Create() sets it explicitly.
 ActivatedAbility.repeatTargets = false
+
+ActivatedAbility.finishTargetsLater = false
 
 ActivatedAbility.sequentialTargeting = false
 
@@ -1464,6 +1471,28 @@ function ActivatedAbility:TargetLocMaxElevationChangeFunction(casterToken, symbo
 
 end
 
+local g_verticalForcedMovement = {vertical_push = true, vertical_pull = true, vertical_slide = true}
+
+--- True for the forced movement types whose target carries a chosen altitude.
+--- @param forcedMovement string|nil
+--- @return boolean
+function ActivatedAbility.IsVerticalForcedMovement(forcedMovement)
+    return g_verticalForcedMovement[forcedMovement or ""] == true
+end
+
+--- The loc to hand CharacterToken:Move / MarkMovementArrow for a vertical forced move.
+--- The calculators above return ABSOLUTE altitudes, but the engine reads a straight-line
+--- move's loc altitude as height above the ground at the destination. Handing it the
+--- absolute value counted raised ground twice: a pull of 4 from ground 3 went to 10 and
+--- fell 7 (TYXFY9RY). A pick below the ground clamps to it (0 = no vertical part).
+--- Convert only at that hand-off; the picked loc itself stays absolute.
+--- @param loc Loc
+--- @return Loc
+function ActivatedAbility.VerticalForcedMovementEngineLoc(loc)
+    local ground = loc.withGroundAltitude.altitude
+    return loc:WithAltitude(math.max(0, loc.altitude - ground))
+end
+
 --returns a predicate function saying if a target loc passes the filter.
 function ActivatedAbility:TargetLocPassesFilterPredicate(casterToken, symbols)
 
@@ -1677,6 +1706,12 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
 		return false
 	end
 
+	--Finishing a Double Strike: the creatures the first strike hit are not new targets.
+	local excludedids = self:try_get("excludedTargetTokenIds")
+	if excludedids ~= nil and excludedids[targetToken.charid] then
+		return false
+	end
+
 	if targetToken.properties:CalculateNamedCustomAttribute("Untargetable") > 0 then
 		return false
 	end
@@ -1689,7 +1724,31 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
 	end
 
     if self.targetType == "all" and casterToken.floorIndex == targetToken.floorIndex and casterToken:GetLineOfSight(targetToken, casterToken.properties:GetPierceWalls()) <= 0 then
-        return false
+        --A sight-blocking object (a boulder, a solid block) hides its own square, so the engine reports no
+        --sight to it. It still counts as reached if the line to one of its squares is stopped only at that
+        --square's own edge (within 1 tile of its centre), not by something further out such as a wall.
+        --Limit: a wall flush against the object's near face stops the line in the same place, so it is not told apart.
+        local seen = false
+        if targetToken.isObject then
+            local pierce = casterToken.properties:GetPierceWalls()
+            local casterRadius = casterToken.tileSize * 0.5
+            for _,loc in ipairs(targetToken.locsOccupying) do
+                local info = casterToken:GetLineOfSightToSpaceInfo(loc, pierce)
+                --obstructionDist is a fraction of the sightline from the caster's EDGE to the square's centre,
+                --so scale it by that length. A square's own edge is at most ~0.71 tiles from its centre; a
+                --grid wall that does not touch the square is at least 1.5 away, so 1 tile splits the two.
+                local dx = loc.x - casterToken.loc.x
+                local dy = loc.y - casterToken.loc.y
+                local sightline = math.max(0, math.sqrt(dx*dx + dy*dy) - casterRadius)
+                if info.cover > 0 or sightline * (1 - info.obstructionDist) <= 1 then
+                    seen = true
+                    break
+                end
+            end
+        end
+        if not seen then
+            return false
+        end
     elseif self.targetType ~= "map" and symbols.targetArea ~= nil and targetToken:GetLineOfSight(symbols.targetArea.origin, targetToken.properties:GetPierceWalls()) <= 0 then
         return false
     end
@@ -2211,6 +2270,19 @@ function ActivatedAbility:FireUseAbility(casterToken, options)
 			}
 		end
 
+		--Remember the ability for "used this round" rules (Flashback). Skipped when
+		--it is already recorded, so repeat uses don't upload anything.
+		if casterToken.properties:AbilitiesUsedThisRound()[self.name] == nil
+			and dmhub.initiativeQueue ~= nil and not dmhub.initiativeQueue.hidden then
+			casterToken:ModifyProperties{
+				description = "Use Ability",
+				undoable = false,
+				execute = function()
+					casterToken.properties:RecordAbilityUsedThisRound(self)
+				end,
+			}
+		end
+
         casterToken.properties:DispatchEvent("useability", {usedability = self, cast = options.symbols and options.symbols.cast, partofanotherability = self:IsPartOfAnotherAbility(casterToken, options)})
 
         for _,target in ipairs(options.targets or {}) do
@@ -2294,8 +2366,10 @@ function ActivatedAbility:GetCost(casterToken, options)
 		result.canAfford = false
 	end
 
+	--An action count of 0 lists the ability under its action type but spends nothing
+	--(the free second strike of Double Strike sits in the Main Action drawer).
 	local actionResource = self:ActionResource()
-	if actionResource ~= nil and actionResource ~= "none" and resourcesTable[actionResource] ~= nil then
+	if actionResource ~= nil and actionResource ~= "none" and resourcesTable[actionResource] ~= nil and self:GetNumberOfActionsCost(creature, { mode = options.mode or 1 }) > 0 then
 		--An operated object's action (main action, maneuver...) comes out of the
 		--operator's action economy, not the object's.
 		local payerToken = self:GetOperatorToken()
@@ -3137,6 +3211,16 @@ function ActivatedAbility:Cast(casterToken, targets, options)
 	--check: the Monster AI's casts on a player host must never be refused.
 	if dmhub.frozen and not IsDMOrPlayerHost() then
 		print("Cast:: refused; the game is frozen")
+		--The cast never starts, but its caller may be waiting on it: a triggered
+		--ability's finish handlers complete the Monster AI's reaction wait and
+		--release event waits (237AHPF5 hung on Judgment). Run them as an abort.
+		if options ~= nil and not options.executedFinish then
+			options.executedFinish = true
+			options.abort = true
+			for _,handler in ipairs(options.OnFinishCastHandlers or {}) do
+				handler(self, casterToken, options)
+			end
+		end
 		return
 	end
 
@@ -3217,6 +3301,10 @@ function ActivatedAbility:Cast(casterToken, targets, options)
             --serialized form and let WithinArea silently return false on the
             --receiving side.
             _tmp_targetArea = options.targetArea,
+            --How far a negated push, pull or slide would have moved its target.
+            --Only set for the follow-up of a trigger that negates forced movement.
+            negatedForcedMovement = options.symbols.negatedforcedmovement,
+            negatedForcedMovementType = options.symbols.negatedforcedmovementtype,
 		}
 	end
 
@@ -3475,8 +3563,27 @@ local function PlayerIsResolvingCast()
     if gamehud.rollDialog ~= nil and gamehud.rollDialog.valid and gamehud.rollDialog.data.IsShown() then
         return true
     end
-    if gamehud.actionBarPanel ~= nil and gamehud.actionBarPanel.valid and gamehud.actionBarPanel.data.IsCastingSpell() then
-        return true
+    if gamehud.actionBarPanel ~= nil and gamehud.actionBarPanel.valid then
+        local data = gamehud.actionBarPanel.data
+        if data.IsCastingSpell() then
+            return true
+        end
+        --A target chooser mid-cast (Lightfall's ally teleport, JY7WM9BQ).
+        if data.IsPrompting ~= nil and data.IsPrompting() then
+            return true
+        end
+    end
+    --Ability rolls show in the Timeline's embedded dialog, not gamehud.rollDialog
+    --(R79SNQ4Y). Only a SHOWN dialog counts: AnyRollDialogShown also reports a
+    --not-yet-shown roll owned by a live cast, which is exactly a stranded cast.
+    if CharacterPanel ~= nil and CharacterPanel.FindEmbeddedRollDialog ~= nil then
+        local embedded = CharacterPanel.FindEmbeddedRollDialog()
+        if embedded ~= nil and embedded.valid and embedded.data ~= nil and embedded.data.IsShown ~= nil and embedded.data.IsShown() then
+            return true
+        end
+        if CharacterPanel.StandaloneRollShown ~= nil and CharacterPanel.StandaloneRollShown() then
+            return true
+        end
     end
     return false
 end
@@ -3506,17 +3613,35 @@ end
 local AWAITING_TRIGGERS_ACTIVITY = "awaitingtriggers"
 ActivatedAbility.AWAITING_TRIGGERS_ACTIVITY = AWAITING_TRIGGERS_ACTIVITY
 
+--True if this cast is by the token or targets it.
+local function CastInvolvesToken(info, token)
+    if info.casterToken ~= nil and info.casterToken.valid and info.casterToken.charid == token.charid then
+        return true
+    end
+    for _,target in ipairs(info.targets or {}) do
+        if target.token ~= nil and target.token.valid and target.token.charid == token.charid then
+            return true
+        end
+    end
+    return false
+end
+
 --Runs fn once every ability cast that was active when this was called has
 --finished, including the calling cast if invoked from inside one. Runs fn
 --immediately when no casts are active.
 --opts.casterid names the creature fn will cast for, so HasDeferredCastFor can
 --report that the creature still has work queued.
+--opts.involving waits only for the calling cast and casts by or targeting
+--that creature, not for unrelated ones.
 --- @param fn function
---- @param opts nil|{casterid: string|nil}
+--- @param opts nil|{casterid: string|nil, involving: CharacterToken|nil}
 function ActivatedAbility.RunWhenCastsComplete(fn, opts)
+    local involving = opts ~= nil and opts.involving or nil
+    local running = involving ~= nil and coroutine.running() or nil
     local casts = {}
     for co,info in pairs(ActivatedAbility.coroutineStorage) do
-        if coroutine.status(co) ~= "dead" and info.activity ~= AWAITING_TRIGGERS_ACTIVITY then
+        if coroutine.status(co) ~= "dead" and info.activity ~= AWAITING_TRIGGERS_ACTIVITY
+            and (involving == nil or co == running or CastInvolvesToken(info, involving)) then
             casts[co] = true
         end
     end
@@ -3854,6 +3979,7 @@ function ActivatedAbility.CastCoroutine(self, casterToken, targets, options)
         end
 
         for _,behavior in ipairs(strainedAbility.behaviors) do
+            behavior._tmp_noCommit = true
             behavior:Cast(self, casterToken, {{ token = casterToken }}, options)
         end
     end
@@ -3987,6 +4113,9 @@ function ActivatedAbility.CastCoroutine(self, casterToken, targets, options)
                         outcome = tier,
                         roll = castInfo:try_get("total", 0),
                         attacker = GenerateSymbols(attackerProperties),
+                        --effects this strike applied stay on. Without this, a strike that
+                        --gives "the next attack against the target has an edge" ended it at once.
+                        keepOngoingEffects = castInfo:try_get("appliedOngoingEffects"),
                     })
                 end
 			end
@@ -4020,13 +4149,28 @@ function ActivatedAbility:IsPartOfAnotherAbility(casterToken, options)
         return false
     end
 
+    --Each cast runs on its own coroutine, so an outer ability by this same creature
+    --that is still resolving shows up here as another live cast.
+    local hasOuterCastBySameCreature = function()
+        for co,info in pairs(ActivatedAbility.coroutineStorage) do
+            if co ~= coroutine.running() and coroutine.status(co) ~= "dead"
+                and not rawequal(info.ability, self)
+                and info.casterToken ~= nil and info.casterToken.valid and info.casterToken.charid == casterToken.charid then
+                return true
+            end
+        end
+        return false
+    end
+
     --Invoked straight from an invoke behavior: the clone names who invoked it.
+    --The Monster AI casts every ability with the monster named as its own invoker,
+    --so that alone does not make this a nested cast: an outer cast must still be running.
     local invoker = self:try_get("invoker")
     if type(invoker) == "function" then
         invoker = invoker("self")
     end
     if invoker ~= nil and dmhub.LookupTokenId(invoker) == casterToken.charid then
-        return true
+        return hasOuterCastBySameCreature()
     end
 
     --A prompt (Charge's "Choose Charging Attack", Riposte's free strike) casts a
@@ -4037,14 +4181,7 @@ function ActivatedAbility:IsPartOfAnotherAbility(casterToken, options)
     if cast == nil or cast:try_get("ability") == nil or rawequal(cast.ability, self) then
         return false
     end
-    for co,info in pairs(ActivatedAbility.coroutineStorage) do
-        if co ~= coroutine.running() and coroutine.status(co) ~= "dead"
-            and not rawequal(info.ability, self)
-            and info.casterToken ~= nil and info.casterToken.valid and info.casterToken.charid == casterToken.charid then
-            return true
-        end
-    end
-    return false
+    return hasOuterCastBySameCreature()
 end
 
 --- @return boolean
@@ -5733,6 +5870,10 @@ function ActivatedAbilityApplyOngoingEffectBehavior:Cast(ability, casterToken, t
                             sourceDescription = sourceDescription,
 						})
 						if newEffect ~= nil then
+							if options.symbols.cast ~= nil then
+								options.symbols.cast:RecordAppliedOngoingEffect(newEffect)
+							end
+
 							if ongoingDC ~= nil then
 								newEffect.ongoingDC = ongoingDC
 							end
@@ -5896,12 +6037,15 @@ function ActivatedAbilityApplyOngoingEffectBehavior:CastFromFormula(ability, cas
                     target.token:ModifyProperties{
                         description = "Applied Ongoing Effect",
                         execute = function()
-                            targetCreature:ApplyOngoingEffect(effectId, applyDuration, casterInfo, {
+                            local newEffect = targetCreature:ApplyOngoingEffect(effectId, applyDuration, casterInfo, {
                                 guid = dmhub.GenerateGuid(),
                                 untilEndOfTurn = applyUntilEot,
                                 stacks = stacks,
                                 sourceDescription = sourceDescription,
                             })
+                            if newEffect ~= nil and options.symbols.cast ~= nil then
+                                options.symbols.cast:RecordAppliedOngoingEffect(newEffect)
+                            end
                         end
                     }
                 end

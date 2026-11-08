@@ -633,3 +633,213 @@ if rawget(_G, "CharacterPanel") ~= nil and CharacterPanel.RegisterBestiaryExtens
         searchMatches = EotwMonsterAssessment.SearchMatches,
     }
 end
+
+--Monster AI tab ----------------------------------------------------------------
+--In an authoring game a monster's character sheet gets a "Monster AI" tab.
+--It sets "similar to" (the aiSimilarTo field, read by MonsterAI.AIMonsterType):
+--the AI then plays this monster with the hand-written AI of another monster
+--type, for every ability the two share by name. Below that it lists what the
+--AI will do with each part of the monster's kit, so the effect shows at once.
+
+--Monster types that some hand-written AI registration names.
+local function HandWrittenMonsterTypes()
+    local types = {}
+    local function AddLists(registry)
+        for _, registration in pairs(registry or {}) do
+            for _, name in ipairs(registration.monsters or {}) do
+                types[name] = true
+            end
+        end
+    end
+    AddLists(MonsterAI.moves)
+    AddLists(MonsterAI.villainActions)
+    AddLists(MonsterAI.maliceAbilities)
+    AddLists(MonsterAI.behaviors)
+    AddLists(MonsterAI.tactics)
+    --monster-qualified keys look like "Goblin Warrior:Ability Name".
+    for _, registry in ipairs({ MonsterAI.triggerHandlersByMonsterAbility, MonsterAI.triggerHandlersByMonsterText, MonsterAI.prompts }) do
+        for key, _ in pairs(registry or {}) do
+            local monsterType = string.match(key, "^(.-):")
+            if monsterType ~= nil and monsterType ~= "" then
+                types[monsterType] = true
+            end
+        end
+    end
+    return types
+end
+
+--Dropdown options: none, then every bestiary monster type except its own.
+--current is kept even when no bestiary entry has that type any more.
+--- @param ownType string
+--- @param current string|nil
+--- @return table[]
+local function SimilarToOptions(ownType, current)
+    local handWritten = HandWrittenMonsterTypes()
+    local seen = {}
+    local names = {}
+    local function Add(name)
+        if type(name) == "string" and name ~= "" and name ~= ownType and not seen[name] then
+            seen[name] = true
+            names[#names + 1] = name
+        end
+    end
+    for _, asset in pairs(assets.monsters) do
+        local monsterType = nil
+        pcall(function() monsterType = asset.properties:try_get("monster_type") end)
+        Add(monsterType)
+    end
+    Add(current)
+    table.sort(names)
+
+    local options = { { id = "", text = "None (its own AI)" } }
+    for _, name in ipairs(names) do
+        local text = name
+        if handWritten[name] then
+            text = name .. "  (hand-written AI)"
+        end
+        options[#options + 1] = { id = name, text = text }
+    end
+    return options
+end
+
+local function CreateMonsterAITab()
+    --the kit list is only rebuilt while the tab is showing: assessing the
+    --monster is too slow to repeat on every sheet refresh behind other tabs.
+    local active = false
+    local props = nil
+
+    local summaryLabel = BodyLabel("", { tmargin = 6 })
+    local kitPanel = gui.Panel {
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+    }
+
+    local function RefreshKit()
+        if props == nil or not active then
+            return
+        end
+        local ok, support = pcall(MonsterAI.AssessSupport, props)
+        if not ok or support == nil then
+            summaryLabel.text = "The AI support for this monster could not be worked out."
+            kitPanel.children = {}
+            return
+        end
+        local summary = string.format("AI support: <b>%s</b> (%d%% of its kit).",
+            support.level, math.floor(support.coverage * 100 + 0.5))
+        if support.similarTo ~= nil then
+            summary = string.format("%s It plays like a <b>%s</b>.", summary, support.similarTo)
+        end
+        summaryLabel.text = summary
+
+        local rows = {}
+        for _, entry in ipairs(support.entries) do
+            rows[#rows + 1] = KitRow(entry)
+        end
+        kitPanel.children = rows
+    end
+
+    local dropdown = gui.Dropdown {
+        classes = { "form" },
+        width = 420,
+        hasSearch = true,
+        options = { { id = "", text = "None (its own AI)" } },
+        idChosen = "",
+        change = function(element)
+            ---@cast element Dropdown
+            local info = CharacterSheet.instance.data.info
+            if info == nil or info.token == nil or info.token.properties == nil then
+                return
+            end
+            local chosen = element.idChosen
+            if chosen == "" then
+                info.token.properties.aiSimilarTo = nil
+            else
+                info.token.properties.aiSimilarTo = chosen
+            end
+            --the bestiary badges remember assessments for a minute.
+            MonsterAI.InvalidateSupport()
+            CharacterSheet.instance:FireEvent("refreshAll")
+        end,
+    }
+
+    return gui.Panel {
+        width = "100%",
+        height = "100%",
+        flow = "vertical",
+        styles = ThemeEngine.GetStyles(),
+
+        refreshToken = function(element, info)
+            props = info.token.properties
+            local isMonster = false
+            pcall(function() isMonster = props:IsMonster() end)
+            if not isMonster then
+                return
+            end
+            local ownType = props:try_get("monster_type", "")
+            local current = MonsterAI.SimilarMonsterType(props)
+            dropdown.options = SimilarToOptions(ownType, current)
+            dropdown.idChosen = current or ""
+            RefreshKit()
+        end,
+
+        charsheetActivate = function(element, shown)
+            active = shown
+            RefreshKit()
+        end,
+
+        gui.Panel {
+            width = 1000,
+            height = "100%-60",
+            halign = "center",
+            valign = "top",
+            tmargin = 60,
+            flow = "vertical",
+            vscroll = true,
+
+            gui.Label {
+                classes = { "fgStrong" },
+                width = "100%",
+                height = "auto",
+                fontSize = 26,
+                bold = true,
+                text = "Monster AI",
+            },
+
+            BodyLabel("Pick a monster this one is similar to, and the AI plays it with that monster's hand-written AI: every move, trigger and villain action written for that monster applies to the abilities the two share by name. Use it for a reskinned or homebrew monster built from a book stat block.",
+                { tmargin = 6, bmargin = 10 }),
+
+            gui.Panel {
+                classes = { "formRow" },
+                height = "auto",
+                gui.Label {
+                    classes = { "form" },
+                    text = "Similar to",
+                },
+                dropdown,
+            },
+
+            SectionTitle("What the AI will do"),
+            summaryLabel,
+            kitPanel,
+        },
+    }
+end
+
+if rawget(_G, "CharSheet") ~= nil then
+    CharSheet.RegisterTab {
+        id = "MonsterAI",
+        text = "Monster AI",
+        lazy = true,
+        visible = function(c)
+            if c == nil or not EotwMonsterAssessment.Active() then
+                return false
+            end
+            local isMonster = false
+            pcall(function() isMonster = c:IsMonster() end)
+            return isMonster
+        end,
+        panel = CreateMonsterAITab,
+    }
+    dmhub.RefreshCharacterSheet()
+end

@@ -729,8 +729,11 @@ function CustomDocument.ResolveLink(link)
     end
 
     --"windows" a link can name: dockable panels first (most of them live
-    --there now), then the launchable dialogs that remain.
-    for _,items in ipairs({DockablePanel.GetMenuItems(true, true), LaunchablePanel.GetMenuItems()}) do
+    --there now), then the launchable dialogs that remain. Both include
+    --filtered items: a by-name lookup must find them anyway, and running the
+    --menu filters from here recursed (EotW's Test Encounter filter loads the
+    --map script, whose includes resolve through this function) until it crashed.
+    for _,items in ipairs({DockablePanel.GetMenuItems(true, true), LaunchablePanel.GetMenuItems(true)}) do
         for _,item in ipairs(items) do
             if item.name ~= nil and link == string.lower(item.name) then
                 return CommandDocument.new{

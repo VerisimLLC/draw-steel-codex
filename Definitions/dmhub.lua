@@ -109,6 +109,7 @@
 --- @field tokenInfo SheetHud The SheetHud instance that displays token information in the UI.
 --- @field markupZonesSeq number A sequence number that increments whenever any floor's markup zone records change, locally or remotely. Poll it to invalidate caches built from floor.markupZones.
 --- @field logicalMapSeq number A sequence number that increments whenever the logical map is recalculated (any wall or solid-terrain change on a visible floor, floor changes, map load). Poll it to invalidate caches built from data the logical map derives, such as dmhub.GetWallClimbableTilesOnFloor.
+--- @field terrainRulesSeq number Like tileRulesSeq, but not moved by rebuilds of the aura index, which happen on every game update that touches a character. Creature auras on a tile are per-token state (see CharacterToken.GetAurasTouching); poll this for everything else that feeds the tile rules -- floor data, walls and solids, tilesheet assets, the logical map, the water level. Only equality is meaningful; it is not monotonic.
 --- @field tileRulesSeq number A change serial for the built-in tile rules on the current map: it moves whenever anything that feeds FloorController.GetTileRulesAtLoc could have changed -- floor data patches, building-layer polygon applies (walls, floors, solids), object aura rebuilds (object Floor components move, appear or change), tilesheet asset edits, and logical-map recalculations. Poll it to invalidate caches built from dmhub.GetBuiltinTerrainZonesOnFloor or dmhub.GetWallClimbableTilesOnFloor. Only equality is meaningful; it is not monotonic.
 --- @field supportsDynamicLightZones boolean (read-only) True on engine builds that support dmhub.GetDarkTiles (deterministic map light sampling for dynamic-light markup zones). Probe this before calling it: on older builds unknown dmhub properties read as nil.
 --- @field popoutChildWindowsSupported boolean (read-only) True when the live popout companion process has advertised support for desktop-level child surfaces (tooltip/popup-menu/modal-child native windows parented to a popout window via panel:MoveToNativeWindow{windowType=..., parentPanel=...}). Gate any child-surface promotion on this: false means an old companion (or none attached yet), and promotion must fall back to today's in-window behavior. On older engine builds unknown dmhub properties read as nil, which is equally falsy.
@@ -130,6 +131,10 @@
 --- @field ngameupdate integer (read-only) A sequential integer that is unique to the game being updated from the cloud. Anytime this value changes we have new data from the cloud and the game is in a different state.
 --- @field gameContentUpdateSeq number (read-only) Like ngameupdate, but not advanced by session pings (the periodic /usersToSessions writes every connected client makes). It changes whenever game data that matters to play changes -- characters, initiative, shared documents, map objects -- so poll it to tell whether anything has happened since a value was last seen.
 --- @field checkpointContentSeq number (read-only) Like gameContentUpdateSeq, but only advanced by game updates that touch what a combat checkpoint captures: characters, map objects, initiative, and the documents registered with RegisterDocumentForCheckpointBackups. Background writes to other shared documents (presence heartbeats, settings) leave it alone, so poll it to tell whether the board has changed since a checkpoint was taken.
+--- @field characterUpdateSeq number (read-only) Changes whenever a game update touches any character record (including a character being added or removed). Compare against a saved value to tell whether any character has changed since then.
+--- @field nonCharacterUpdateSeq number (read-only) Changes whenever a game update touches anything other than character records: initiative, shared documents, map objects, map manifests, settings, and so on. Session pings do not count. A value computed only from character records stays valid while this is unchanged and those records are (see CharacterRecordRevision).
+--- @field recentNonCharacterPaths string[] (read-only) Diagnostics: the most recent game update paths (up to 16, newest last, each prefixed with its update number) that advanced nonCharacterUpdateSeq. Each of them makes every creature rebuild its cached modifiers, so look here when they rebuild more often than expected.
+--- @field dependencyWildcardTrace boolean Diagnostics: when true, each dependency scope records the Lua stack of the first token query that made it wildcard, returned by EndDependencyScope as wildcardTrace. Slower; for finding what makes a cached value depend on every token.
 --- @field gameupdateid string (read-only) A guid that is unique to the game being updated from the cloud. Anytime this value changes we have new data from the cloud and the game is in a different state.
 --- @field tooltipsSuppressed boolean Tooltip Suppression Mode: while true, no tooltip is displayed anywhere on this client -- panel hover tooltips, map/tile tooltips, and the token-drag movement tooltip (and with it the movement cross-section diagram it carries). Any tooltip already on screen is dismissed the moment this is set. Client-only and session-scoped: it lives on the game session, so leaving the game always restores tooltips even if a mod forgets to clear it. Intended for a mod that needs an uncluttered phase of play; prefer the core codex wrapper GameHud.SetTooltipsSuppressed(key, value), which also stops the movement cross-section diagram from being rendered at all and lets several mods hold the suppression independently.
 --- @field currentRollGuid nil|string (Read-only) The guid that has been assigned to the current roll that is being previewed.
@@ -157,6 +162,7 @@
 --- @field screenSpaceCursorSurface nil|string Switches shared mouse cursors between world space and screen space. nil (the default) is normal map sharing: everyone's cursor is shared as a position on the current map. Set it to a surface id (any string, e.g. "eotwstage") while a full-screen UI surface is up and this client's cursor is shared as a position on the screen instead, and only other players' cursors on the same surface id are shown, drawn above the UI. Set it back to nil when the surface goes away. Honours the same settings as map cursors (Player/Director Mouse Cursors Shared, Hide Other Player's Cursors). Clients on an engine without this mode do not show screen-space cursors.
 --- @field editorMode boolean (Read-only) returns true if the user is doing some kind of map/game editing, rather than in normal play mode.
 --- @field undoState table (Read-only) Returns a table describing the current undo/redo state for user editing actions.
+--- @field undoDisabled boolean True turns off the ordinary undo/redo stack for the rest of this game: no edit is recorded, and Ctrl+Z / Ctrl+Y, dmhub.Undo() and dmhub.Redo() reach nothing. Setting it true drops anything already on the stacks. Panels that listen for the undo/redo input events (such as Turn Rewind) still receive the keys. Resets when the game is left.
 --- @field connectionErrorStatus ConnectionErrorStatus The current connection error status, if any. Used to display connection issues to the user.
 --- @field writeErrors WriteReceipt[] A list of failed and unconfirmed write receipts that haven't been acknowledged. Each entry is a WriteReceipt with path, method, failureReason, isFailed, isUnconfirmed, and acknowledged fields.
 --- @field pendingWriteCount number The number of writes currently pending (in-flight to the cloud).
@@ -188,12 +194,15 @@
 --- @field primaryCharacter CharacterToken|nil (Read-only) the primary character for the current player. This can be an off-map token.
 --- @field tokenHovered nil|CharacterToken (Read-only) Gets the currently hovered token, or nil if there is none.
 --- @field modMergeInfo nil|{numFiles: number, conflicts: nil|string[]} (Undocumented: engine-internal, not part of the modding API.)
---- @field modKeys {ctrl: nil|boolean, alt: nil|boolean, shift: nil|boolean} Returns which mod keys are currently depressed.
+--- @field modKeys {ctrl: nil|boolean, alt: nil|boolean, shift: nil|boolean} Returns which mod keys are currently depressed. While files dragged in from the operating system are over the window (and in their dropfiles handler) the keys are read from the OS, since the drag source has the keyboard focus.
 --- @field mouseWheel number Returns a positive or negative number if the mousewheel has been moved this frame, based on the direction. Returns 0 if the mousewheel has not been moved this frame.
 --- @field harnessMode nil|string (Read-only) The test-harness name passed via --harness on the command line, or nil when not launched in harness mode. Dev builds only. See TEST_HARNESS_PLAN.md.
 --- @field harnessArgs nil|string (Read-only) The raw string passed via --harness-args on the command line, or nil. Interpretation (typically JSON) is up to the Lua harness.
---- @field screenDimensions Vector2 (Read-only) The current screen dimensions in pixels as a Vector2 (width, height).
---- @field screenDimensionsBelowTitlebar Vector2 (Read-only) The screen dimensions in pixels below the title bar as a Vector2 (width, height).
+--- @field screenDimensions Vector2 (Read-only) The current screen dimensions in pixels as a Vector2 (width, height). Each read makes a new Vector2; per-frame code should read screenWidth and screenHeight instead.
+--- @field screenDimensionsBelowTitlebar Vector2 (Read-only) The screen dimensions in pixels below the title bar as a Vector2 (width, height). Each read makes a new Vector2; per-frame code should read screenWidth and screenHeightBelowTitlebar instead.
+--- @field screenWidth number (Read-only) The screen width in pixels. Unlike screenDimensions, reading it allocates nothing.
+--- @field screenHeight number (Read-only) The screen height in pixels. Unlike screenDimensions, reading it allocates nothing.
+--- @field screenHeightBelowTitlebar number (Read-only) The screen height in pixels below the title bar (screenDimensionsBelowTitlebar.y). Reading it allocates nothing.
 --- @field cursorIds string[] (Read-only) The ids of the registered mouse cursors, as an array of strings. Useful to feature-detect a cursor id before using it in hoverCursor: assigning an id not in this list silently falls back to the default cursor.
 --- @field cameraPosition Vector2 (Read-only) The camera's center position in world coordinates as a Vector2 (x, y). This is the point in the game world that the camera is looking at.
 --- @field cameraZoom number (Read-only) The camera's orthographic size (half the visible height in world units). Smaller values mean more zoomed in. The full visible height is cameraZoom * 2.
@@ -231,6 +240,9 @@
 --- @field inCoroutine boolean Returns true if we are currently running in a coroutine.
 --- @field PlaceholderNil any A stand-in for nil when we want to put it in a table.
 --- @field debugPropertyOutput string Engine debugging and performance information.
+--- @field discordStatus {account: 'unsupported'|'off'|'notlinked'|'linking'|'connecting'|'ready'|'error', accountError: string|nil, displayName: string|nil, deviceCode: string|nil, deviceUrl: string|nil, deviceExpiresIn: number|nil, voice: 'off'|'joining'|'connecting'|'connected'|'disconnected', voiceError: string|nil, muted: boolean, pushToTalk: boolean|nil, deafened: boolean|nil, transmitting: boolean, inputVolume: number|nil, outputVolume: number|nil, noiseSuppression: boolean|nil, krisp: boolean|nil, autoGainControl: boolean|nil, echoCancellation: boolean|nil, sensitivityAutomatic: boolean|nil, sensitivity: number|nil, participants: {id: string, userid: string|nil, name: string, speaking: boolean, isSelf: boolean, volume: number|nil, localMute: boolean|nil}[], discordId: string|nil, avatar: string|nil, socialRevision: integer|nil, messageRevision: integer|nil, unreadTotal: integer|nil, joinable: boolean|nil, joinSecret: string|nil, inviteRevision: integer|nil} (read-only, PROTOTYPE) The Discord account link and voice state. account is 'unsupported' outside the MCDM white label on Windows/macOS and 'off' when the Discord integration is off; 'ready' means signed in to Discord. While a code sign-in (DiscordLinkWithCode) waits, deviceCode is the code to show, deviceUrl the page to enter it on, and deviceExpiresIn the seconds left. voice describes this game's Discord call. muted is the user's choice; pushToTalk is true while the Push to Talk key is held (the mic is open then even when muted); transmitting is true while our own voice is going out. inputVolume is 0-100, outputVolume 0-200. sensitivityAutomatic and sensitivity (dB, -100 to 0) are the input sensitivity. krisp is true when noise suppression uses Krisp noise cancellation (its library and models shipped with this build). participants are the people in the call: id is their Discord id, userid their Codex userid (when they joined with one), volume (0-200, 100 normal) and localMute are how this user hears them. Friends and messages: discordId and avatar (a bgimage) are the linked user's; socialRevision goes up whenever a friend, request, block or a friend's presence changes, and messageRevision whenever a direct message arrives or is sent, so a panel can poll them and re-read; unreadTotal counts direct messages not yet read (see DiscordMarkRead); joinable is true while our presence can be joined, which DiscordSendInvite needs, and joinSecret is then what friends get to join us (the Steam connect string: dshub1:<gameid> for a game, dshub2:<kind>:<payload> for a party Lua advertises). inviteRevision goes up whenever a Discord invite or Ask to Join request arrives, changes or is answered (DiscordGetInvites).
+--- @field discordMicLevel number|nil (read-only, PROTOTYPE) The user's microphone level in dB, -100 (silence) to 0 (loudest), on the same scale as the input sensitivity threshold. Measured from the audio Discord captures, so it is nil when not in a call or while Discord is not capturing. Smoothed: it rises at once and falls at 60 dB a second.
+--- @field steamFriendsRevision integer (read-only) Goes up whenever the Steam friends list changes: a friend added or removed, a friend's online state, name or game, their rich presence, or an avatar finishing loading. Poll it and re-read dmhub.GetSteamFriends() only when it moves. Stays 0 without Steam.
 --- @field mergedTitleBarAvailable boolean True when this platform supports merging the native title bar into the app's own bar (Windows standalone). Gate all merged-title-bar UI on this.
 --- @field titleBarChromeMode string Which merged-title-bar implementation is active: 'nccalcsize' (keep the captioned window style, reclaim the caption's pixels via WM_NCCALCSIZE -- the default) or 'strip' (legacy WS_CAPTION removal). 'unsupported' where merging is unavailable.
 --- @field windowMaxButtonState string Interaction state of the native maximize-button zone registered via SetTitleBarHitRegions: 'none', 'hover' or 'pressed'. The engine fires the 'windowMaxButtonState' global event when this changes; read it there to drive the control's hover/press visuals, since the app's gui never receives mouse events over a native zone.
@@ -538,6 +550,10 @@ function dmhub.SaveFileDialog(options) end
 --- @return any
 function dmhub.GetLoadedTextures() end
 
+--- Developer texture browser, 'All textures' mode: every live texture in the process, not only the ImageManager cache that dmhub.GetLoadedTextures reports -- render targets, font atlases, sprite sheets shipped in the build, map raster/heightmap textures and so on. Sorted largest first. Shape: { summary={count, residentCount, vramMB (resident textures), notResidentMB (render targets defined but not allocated on the GPU), sources={ {source, count, vramMB}, ... } (largest first)}, textures={ {name, source, kind, imageId, width, height, depth, format, compressed, mips, msaa, resident, owner, vramBytes, instanceId}, ... } }. source is 'Image cache' (imageId set: the ImageManager key), 'Render target: <subsystem>' (owner = the camera rendering into it), 'Font atlas', 'Sprite' (UI art and atlases referenced by a Sprite) or 'Other'. vramBytes is estimated from format, dimensions, mips and MSAA, not reported by the driver; a render target that is not resident uses no GPU memory yet and is left out of vramMB. Walks every loaded object, so call it on demand, not per frame.
+--- @return any
+function dmhub.GetAllTextures() end
+
 --- Developer texture browser: given an image id, scans live game objects -- character tokens (portrait/frame/ribbon/background), placed map objects, and UI panels (bgimage) -- and returns an array of usage entries describing where the image is currently in use. Token entries are { kind='token', charid, slot, onmap } (pass charid to dmhub.FocusToken to jump to it); object/panel entries are { kind='object'|'panel', label }. Complements the load trace (call stack at load time) with a 'who references this right now' answer. Resolves asset GUIDs / md5: / thumb: refs to the canonical image key before matching.
 --- @param imageid? string
 --- @return any
@@ -753,6 +769,14 @@ function dmhub.LocalAssetsRevertFile(dirIndex, path, state) end
 --- @param path string The directory or file to reveal.
 function dmhub.RevealInFileBrowser(path) end
 
+--- Opens Explorer / Finder with this session's log file (Player.log) selected, the same as pressing F1. Available outside dev mode and before login, so the titlescreen can offer it when login fails and the user needs to send the log to support.
+--- @return string|nil # The log file's path, or nil when there is no log file.
+function dmhub.RevealLogFile() end
+
+--- The path of this session's log file (Player.log). The previous session's log is Player-prev.log in the same folder.
+--- @return string|nil # The log file's path, or nil when there is no log file.
+function dmhub.GetLogFilePath() end
+
 --- Imports a single object table from YAML files on disk into memory. Reads _table.yaml from the table's subdirectory. Does NOT upload to the cloud -- use UploadAllTables for that. Returns nil if no import source was found.
 --- @param tableName string The name of the table to import into.
 --- @param options nil|{ directory: string }
@@ -823,6 +847,18 @@ function dmhub.MarkLocs(args) end
 --- @return LuaShape
 function dmhub.CalculateShape(args) end
 
+--- Returns a number that changes whenever a game update touches the given character's record (its properties, location, appearance, ...). Equal values mean the record has not changed in between.
+--- @param charid? string
+--- @return number
+function dmhub.CharacterRecordRevision(charid) end
+
+--- Starts recording which tokens Lua reads, for caching a computed value until one of them changes. Every property read or method call on a CharacterToken records its charid, and every query over a set of tokens (all tokens, tokens at a location or in a radius, all characters) marks the scope as depending on every token. Scopes nest, each recording only its own reads. Always pair with EndDependencyScope, even when the computation errors.
+function dmhub.BeginDependencyScope() end
+
+--- Ends the innermost scope started by BeginDependencyScope and returns what it recorded: tokens is a set of the charids read, and wildcard is true if a token query ran, so the result may change when any token moves, appears or disappears. Returns nil if no scope is open (for example because a game update discarded a scope left open by an error).
+--- @return nil|{wildcard: boolean, tokens: table<string, boolean>, wildcardTrace: nil|string}
+function dmhub.EndDependencyScope() end
+
 --- Registers a bonus type used with rolls, e.g. "Circumstance" for circumstance bonuses in pf2e. Once registered, dice rolls may use these identifiers as keywords to identify the type of a bonus.
 --- @param name? string
 function dmhub.RegisterRollBonusType(name) end
@@ -846,8 +882,8 @@ function dmhub.SetAttackCrossSection(args) end
 --- Hides the attack cross-section diagram (see dmhub.SetAttackCrossSection) and releases its render texture. Safe to call when nothing is active.
 function dmhub.ClearAttackCrossSection() end
 
---- Installs a Movement Restriction Mode on this client: while installed, tokens can only be moved within the given tiles. Pathfinding treats any step ending outside the set as impassable, so the drag preview and movement-radius markers clip to the allowed area, and drops outside it are refused -- including for the DM (the dmillegalmoves setting does not bypass it). Forced movement (pushes/slides) is exempt. The restriction applies to all tokens on this client until dmhub.ClearMovementRestriction is called or the game session ends. Calling again replaces the previous set.
---- @param args {locs: Loc[]}
+--- Installs a Movement Restriction Mode on this client: while installed, tokens can only be moved within the given tiles. Pathfinding treats any step ending outside the set as impassable, so the drag preview and movement-radius markers clip to the allowed area, and drops outside it are refused -- including for the DM (the dmillegalmoves setting does not bypass it). Forced movement (pushes/slides) is exempt. With teleportBetweenAreas = true, a token dragged onto an allowed tile that no walk inside the set reaches (the set can be several separate areas) teleports there instead of the drop being refused; no teleport events fire. The restriction applies to all tokens on this client until dmhub.ClearMovementRestriction is called or the game session ends. Calling again replaces the previous set.
+--- @param args {locs: Loc[], teleportBetweenAreas?: boolean}
 function dmhub.SetMovementRestriction(args) end
 
 --- Clears the Movement Restriction Mode installed by dmhub.SetMovementRestriction, restoring normal token movement. Safe to call when no restriction is active.
@@ -1374,16 +1410,39 @@ function dmhub.InviteViaSteam(kind, payload) end
 --- @param kind? string
 --- @param payload? string
 --- @param group? string
---- @param groupSize? integer
+--- @param groupSize? number
 function dmhub.SetSteamJoinTarget(kind, payload, group, groupSize) end
 
 --- Takes (and clears) the Steam invite this player accepted, or returns nil. Set when a friend's InviteViaSteam / SetSteamJoinTarget invite is accepted, including one that launched the app; an invite accepted inside a game is held until the player has left it. Poll it at the titlescreen.
---- @return nil|{kind: string, payload: string}
+--- nil|{kind: string, payload: string}
+--- @return any
 function dmhub.TakeSteamInvite() end
+
+--- Diagnostic: groups every live RenderTexture by name, size, format and depth, largest groups first, logs it as an RTCENSUS:: line and returns the same text. A leak shows as one group with a huge count.
+--- @return string
+function dmhub.DebugRenderTextureCensus() end
+
+--- Testing aid: while hold is true, this client discards every message from the game server for the current game, as if the server had gone silent, so its writes stay unacknowledged. Pair with DebugGameServerDrop to exercise the resend-after-reconnect path. Returns false when the current game has no game-server connection.
+--- @param hold? boolean
+--- @return boolean
+function dmhub.DebugGameServerHoldInbound(hold) end
+
+--- Testing aid: drop this client's game-server socket for the current game exactly as a network failure does. Unacknowledged writes are queued, the client reconnects, and they are resent in the order they were first issued. Also releases DebugGameServerHoldInbound. Returns false when the current game has no game-server connection.
+--- @return boolean
+function dmhub.DebugGameServerDrop() end
 
 --- Testing aid: handle a Steam connect string exactly as if a friend's 'Join Game' or invite had just been accepted ('dshub1:{gameid}' enters a game; 'dshub2:{kind}:{payload}' queues an invite for TakeSteamInvite). Works without Steam, so dev builds can exercise the receiving side.
 --- @param connect? string
 function dmhub.SimulateSteamJoin(connect) end
+
+--- The player's Steam friends (immediate friends only), read live from Steam (nothing is stored), in Steam's order. steamId is the SteamID64 as a decimal string. name is the nickname the player gave them, else their Steam name. state is their Steam status ('Looking to Trade/Play' count as 'online'). playingCodex is true while they are in the Codex, playingOther while they are in some other game. Only while playingCodex: status is their Codex presence line, connect what joining them enters (see JoinSteamFriend), groupSize how many are in their game or party. avatar is a bgimage of their Steam avatar (empty while it loads or when they have none). Empty without Steam. Re-read when dmhub.steamFriendsRevision changes.
+--- @return {steamId: string, name: string, state: 'online'|'away'|'busy'|'snooze'|'offline', playingCodex: boolean, playingOther: boolean, status: string|nil, connect: string|nil, groupSize: integer|nil, avatar: string}[]
+function dmhub.GetSteamFriends() end
+
+--- Joins a Steam friend who is in the Codex exactly as clicking 'Join Game' on them in Steam does: their connect string 'dshub1:<gameid>' enters that game, 'dshub2:<kind>:<payload>' hands the invite to the Lua feature that owns kind (dmhub.TakeSteamInvite). From inside another game it asks first. steamId is one from GetSteamFriends. Returns false when Steam is unavailable or the friend is not in the Codex or has nothing to join.
+--- @param steamId string
+--- @return boolean
+function dmhub.JoinSteamFriend(steamId) end
 
 --- True if this account has a Patreon entitlement to the given creator organization. Honors the creator's persist-on-lapse policy.
 --- @param orgid string The id of the creator organization.
@@ -2003,6 +2062,10 @@ function dmhub.GetDiceStyling(diceset, colorStr) end
 --- @return string
 function dmhub.GetRawImageId(iconid) end
 
+--- Change the properties of several tokens and parties as one write that another client cannot race, such as moving items between a Hero and the party stash. execute changes the holders' properties in place, as in @see CharacterToken.ModifyProperties. Every holder's change is sent in one conditional write together with the values the change replaced: the game server applies all of it only if none of those values has changed meanwhile, otherwise none of it, and the local data is put back to the server's. onSuccess runs when the server accepts the change; onFail(error, step) when it refuses one, where error is "precondition" when another client changed the data first and step is "do", "undo" or "redo". Undo is refused the same way once someone has changed the data since. Firebase games apply the change without the check. Do not call ModifyProperties on the holders inside execute.
+--- @param options {holders: (CharacterToken|LuaPartyInfo)[], execute: (fun():nil), description: nil|string, undoable: nil|boolean, onSuccess: nil|(fun():nil), onFail: nil|(fun(error: string, step: string):nil)}
+function dmhub.AtomicChange(options) end
+
 --- When called, all network changes will be delayed until @see EndTransaction is called and then all changes will be made at once.
 function dmhub.BeginTransaction() end
 
@@ -2026,6 +2089,23 @@ function dmhub.PoolMetrics() end
 --- Diagnostic: validates that every panel parked in the recycling pool is fully inert (no leftover static-list membership, Lua object, style state, or children). Returns 'OK (...)' or a list of violations.
 --- @return string
 function dmhub.PoolAudit() end
+
+--- Diagnostic: compares parked panels in the recycling pool, field by field (every managed field plus RectTransform/Graphic/TMP/material state), against a pristine Instantiate of their prefab. Anything reported that is not deliberately kept is state a recycled panel would carry into its next use. Returns 'IDENTICAL (...)' or the differences. See Assets/POOLING_REFERENCE.md.
+--- @param maxPanels? number How many parked panels to compare (default 400).
+--- @param maxDiffs? number Cap on reported differences (default 60).
+--- @return string
+function dmhub.PoolFreshAudit(maxPanels, maxDiffs) end
+
+--- Diagnostic: deep-compares two live panel trees -- every managed field of every panel and component, RectTransform geometry, Graphic/Image/TMP state and material uniforms -- pairing children by index. Build the same widgets twice, once fresh (pooling off) and once from recycled panels, and any difference is state that leaked across a recycle. Returns 'IDENTICAL (...)' or the differences.
+--- @param a Panel
+--- @param b Panel
+--- @param maxDiffs? number Cap on reported differences (default 60).
+--- @return string
+function dmhub.PanelStateDiff(a, b, maxDiffs) end
+
+--- Diagnostic: one line with the size of every static SheetPanel registry (active, top-level, thinkers, scheduled events, monitors, renderer queue, ...), the live/rebirth counters, every SheetPanel object in memory including parked ones, and the managed heap. Sample it across a long soak: a count that only grows is a leak. Not cheap.
+--- @return string
+function dmhub.PanelRegistryStats() end
 
 --- Diagnostic: zeroes the SheetPanel pooling counters so a measurement can start from a clean slate.
 function dmhub.PoolResetMetrics() end
@@ -2055,7 +2135,7 @@ function dmhub.PanelMaterialInputsGuard(enabled) end
 --- @param legacy? boolean
 function dmhub.PanelSetParentLegacy(legacy) end
 
---- Experimental: when true, new gui widgets are born under an inactive nursery root instead of inside the live canvas, so widget-tree assembly pays no per-child UGUI re-registration; the subtree registers once at final attach. Default false.
+--- Experimental: when true, new gui widgets are born under an inactive nursery root instead of inside the live canvas, so widget-tree assembly pays no per-child UGUI re-registration; the subtree registers once at final attach. Default true (since 2026-10-29); --nursery off at startup restores the legacy birth path.
 --- @param enabled? boolean
 function dmhub.PanelNursery(enabled) end
 
@@ -2083,6 +2163,10 @@ function dmhub.PanelInitProfileCalibrate() end
 --- @param enabled? boolean
 function dmhub.PoolSetEnabled(enabled) end
 
+--- Diagnostic: turns the Lua bridge's typed call stubs on or off at runtime. On (the default), calls from Lua into engine methods, property setters and fields read and write their values straight from the Lua stack without boxing; off, every call takes the general object[] path. For A/B measurement, and as an escape hatch if a stub ever behaves differently from the general path.
+--- @param enabled? boolean
+function dmhub.LuaTypedStubsSetEnabled(enabled) end
+
 --- DebugUserDataReport
 --- (Undocumented: engine-internal, not part of the modding API.)
 function dmhub:DebugUserDataReport() end
@@ -2090,6 +2174,168 @@ function dmhub:DebugUserDataReport() end
 --- MigrateGameFormatV316
 --- @deprecated
 function dmhub.MigrateGameFormatV316() end
+
+--- (PROTOTYPE) Starts linking the user's Discord account: Discord's approval screen opens (in the Discord app or a browser). Watch dmhub.discordStatus.account for the result. Calling it while still waiting for approval abandons that attempt and starts again. Returns false when linking cannot start (unsupported, or the approved link is being set up).
+--- @return boolean
+function dmhub.DiscordLink() end
+
+--- (PROTOTYPE) Starts linking the user's Discord account with a code instead of a browser redirect: once the server has it, dmhub.discordStatus.deviceCode is the code to enter at deviceUrl (discord.com/activate) on any device, and account becomes 'ready' when it is approved, or 'error' when it is declined or expires (deviceExpiresIn counts down). For when the browser sign-in's approval never reaches Codex. Abandons a sign-in already waiting. Returns false when linking cannot start.
+--- @return boolean
+function dmhub.DiscordLinkWithCode() end
+
+--- (PROTOTYPE) Stops waiting for a Discord sign-in (browser or code). A signed-in account stays signed in. Returns false when no sign-in was waiting.
+--- @return boolean
+function dmhub.DiscordCancelLink() end
+
+--- (PROTOTYPE) Opens the code sign-in's Discord page in the browser, with the code filled in. Returns false when no code sign-in is waiting.
+--- @return boolean
+function dmhub.DiscordOpenLinkCodePage() end
+
+--- (PROTOTYPE) Unlinks the user's Discord account: leaves voice, disconnects, and revokes the link on the server. Returns false when Discord is not available.
+--- @return boolean
+function dmhub.DiscordUnlink() end
+
+--- (PROTOTYPE) Joins this game's Discord voice call (needs a linked account and a real game, not the titlescreen). Returns nil when joining started, or a message saying why it cannot.
+--- @return string|nil
+function dmhub.DiscordJoinVoice() end
+
+--- (PROTOTYPE) Leaves the Discord voice call. Leaving the game does this too.
+function dmhub.DiscordLeaveVoice() end
+
+--- (PROTOTYPE) Mutes or unmutes the user's microphone in Discord voice. Saved for next time. While the Push to Talk key is held the mic is open anyway.
+--- @param muted? boolean
+function dmhub.DiscordSetVoiceMuted(muted) end
+
+--- (PROTOTYPE) Deafens (hear nobody) or undeafens the user in Discord voice.
+--- @param deafened? boolean
+function dmhub.DiscordSetVoiceDeafened(deafened) end
+
+--- (PROTOTYPE) Sets the microphone volume, 0-100. Saved for next time.
+--- @param volume? number
+function dmhub.DiscordSetVoiceInputVolume(volume) end
+
+--- (PROTOTYPE) Sets the volume of everyone in the call, 0-200 (100 normal). Saved for next time.
+--- @param volume? number
+function dmhub.DiscordSetVoiceOutputVolume(volume) end
+
+--- (PROTOTYPE) Turns background noise suppression on or off: Krisp noise cancellation when it shipped with this build (discordStatus.krisp), else Discord's basic suppression. Saved for next time.
+--- @param on? boolean
+function dmhub.DiscordSetVoiceNoiseSuppression(on) end
+
+--- (PROTOTYPE) Sets the input sensitivity: how loud the user must be before Discord sends their voice. automatic lets Discord decide; otherwise threshold is used, in dB from -100 (picks up everything) to 0 (Discord's usual manual value is -60). Saved for next time.
+--- @param automatic? boolean
+--- @param threshold? number
+function dmhub.DiscordSetVoiceSensitivity(automatic, threshold) end
+
+--- (PROTOTYPE) Turns Discord's automatic gain control (evening out the mic volume) on or off. Saved for next time.
+--- @param on? boolean
+function dmhub.DiscordSetVoiceAutoGainControl(on) end
+
+--- (PROTOTYPE) Turns Discord's echo cancellation on or off. Saved for next time.
+--- @param on? boolean
+function dmhub.DiscordSetVoiceEchoCancellation(on) end
+
+--- (PROTOTYPE) Sets how loud one call participant is for this user only, 0-200 (100 normal). discordId is a participant id from dmhub.discordStatus. Saved for next time.
+--- @param discordId? string
+--- @param volume? number
+function dmhub.DiscordSetParticipantVolume(discordId, volume) end
+
+--- (PROTOTYPE) Mutes or unmutes one call participant for this user only. Saved for next time.
+--- @param discordId? string
+--- @param mute? boolean
+function dmhub.DiscordSetParticipantLocalMute(discordId, mute) end
+
+--- (PROTOTYPE) Lists the microphones and speakers Discord can use and the ones in use, calling callback when ready. Returns false (and never calls back) when Discord is not available.
+--- @param callback fun(devices: {inputs: {id: string, name: string, isDefault: boolean}[], outputs: {id: string, name: string, isDefault: boolean}[], input: string|nil, output: string|nil})
+--- @return boolean
+function dmhub.DiscordGetAudioDevices(callback) end
+
+--- (PROTOTYPE) Switches Discord voice to the given microphone ('input') or speakers ('output'), a device id from DiscordGetAudioDevices. Saved for next time.
+--- @param kind 'input'|'output'
+--- @param deviceId string
+function dmhub.DiscordSetAudioDevice(kind, deviceId) end
+
+--- (PROTOTYPE) The linked user's Discord friends, friend requests and blocked users, read live from Discord (nothing is stored). Friends come first in Discord's own groups and order: group 'playing' (online in the Codex), 'online' (online elsewhere), 'offline'; then incoming and outgoing requests and blocked users. avatar is a bgimage that shows their Discord profile picture. activity is their presence in the Codex only (Discord does not share activity in other games). spam marks a request Discord flagged as likely spam; unread counts their direct messages not yet read. Empty when no Discord account is linked. Re-read when dmhub.discordStatus.socialRevision changes.
+--- @return {id: string, relationship: 'friend'|'incoming'|'outgoing'|'blocked', group: 'playing'|'online'|'offline'|nil, username: string, displayName: string, status: 'online'|'idle'|'dnd'|'streaming'|'offline'|'blocked', avatar: string|nil, spam: boolean|nil, unread: integer|nil, activity: {name: string, details: string|nil, state: string|nil, joinable: boolean|nil}|nil}[]
+function dmhub.DiscordGetRelationships() end
+
+--- (PROTOTYPE) Changes the relationship with a Discord user: 'accept' or 'reject' their friend request, 'cancel' ours, 'remove' them as a friend, 'block' or 'unblock' them. callback gets nil on success or Discord's error message. Returns false (and never calls back) when no Discord account is ready or the action is unknown.
+--- @param action 'accept'|'reject'|'cancel'|'remove'|'block'|'unblock'
+--- @param userId string
+--- @param callback nil|fun(error: string|nil)
+--- @return boolean
+function dmhub.DiscordRelationshipAction(action, userId, callback) end
+
+--- (PROTOTYPE) Sends a Discord friend request to a Discord username. callback gets nil on success or Discord's error message (no such user, already friends, ...). Returns false when no Discord account is ready or the name is empty.
+--- @param username string
+--- @param callback nil|fun(error: string|nil)
+--- @return boolean
+function dmhub.DiscordSendFriendRequest(username, callback) end
+
+--- (PROTOTYPE) Invites a Discord friend to join us, with an optional message. Only works while dmhub.discordStatus.joinable is true (we are in a game, or Lua advertises a party). Accepting uses the same path as Ask to Join. callback gets nil on success or Discord's error message.
+--- @param userId string
+--- @param message string|nil
+--- @param callback nil|fun(error: string|nil)
+--- @return boolean
+function dmhub.DiscordSendInvite(userId, message, callback) end
+
+--- (PROTOTYPE) Asks to join a Discord friend who is in a joinable Codex game or party (their DiscordGetRelationships activity.joinable). They get the request as an invite to accept; when they do, we join them automatically (within 10 minutes of asking). callback gets nil once the request is sent, or Discord's error message.
+--- @param userId string
+--- @param callback nil|fun(error: string|nil)
+--- @return boolean
+function dmhub.DiscordSendJoinRequest(userId, callback) end
+
+--- (PROTOTYPE) Invites and Ask to Join requests received from Discord friends since the app started, oldest first, not yet accepted or dismissed. type 'invite' is a friend inviting us to their game; 'joinrequest' is a friend asking to join ours. valid is false while the sender is offline or has left the game they invited us to. age is seconds since it arrived. Re-read when dmhub.discordStatus.inviteRevision changes.
+--- @return {id: integer, type: 'invite'|'joinrequest', senderId: string, senderName: string, avatar: string|nil, valid: boolean, age: number}[]
+function dmhub.DiscordGetInvites() end
+
+--- (PROTOTYPE) Accepts a received invite or Ask to Join request (an id from DiscordGetInvites). Accepting an invite joins the sender's game or party, the same way as a Steam join (asking first when in another game, unless leaveCurrentGame is true because the player already agreed to leave it); accepting a request lets the friend join us. It is removed from the list either way. callback gets nil on success or Discord's error message. Returns false when the id is unknown or no Discord account is ready.
+--- @param id integer
+--- @param callback nil|fun(error: string|nil)
+--- @param leaveCurrentGame nil|boolean
+--- @return boolean
+function dmhub.DiscordAcceptInvite(id, callback, leaveCurrentGame) end
+
+--- (PROTOTYPE) Drops a received invite or Ask to Join request (an id from DiscordGetInvites) without answering it. Discord tells the sender nothing.
+--- @param id integer
+function dmhub.DiscordDismissInvite(id) end
+
+--- (PROTOTYPE) Accepts an invite the Codex stored for us (the discordInvitesList cloud function): enters its connect string exactly as an accepted Steam or Discord join does. 'dshub1:<gameid>' enters that game; 'dshub2:<kind>:<payload>' hands the invite to the Lua feature that owns kind (dmhub.TakeSteamInvite). From inside another game it asks first, unless leaveCurrentGame is true because the player already agreed to leave it. Returns false for anything that is not a connect string.
+--- @param connect string
+--- @param leaveCurrentGame nil|boolean
+--- @return boolean
+function dmhub.DiscordJoin(connect, leaveCurrentGame) end
+
+--- (PROTOTYPE) Fetches the most recent direct messages with a Discord user (up to limit, at most 200), oldest first. sent is in seconds since the epoch (for os.date). sentFromGame is false for messages written in Discord itself; disclosure marks Discord's notice that these messages are visible in Discord; hasAttachment marks content the game cannot show (images, embeds), which canOpenInDiscord messages can open in Discord (DiscordOpenMessageInDiscord). Returns false when no Discord account is ready.
+--- @param userId string
+--- @param limit integer
+--- @param callback fun(messages: {id: string, authorId: string, fromSelf: boolean, content: string, sent: number, sentFromGame: boolean, disclosure: boolean|nil, hasAttachment: boolean|nil, canOpenInDiscord: boolean|nil}[]|nil, error: string|nil)
+--- @return boolean
+function dmhub.DiscordGetMessages(userId, limit, callback) end
+
+--- (PROTOTYPE) Sends a direct message to a Discord friend; it also appears in their (and our) Discord DMs. callback gets nil on success or Discord's error message. Returns false when no Discord account is ready or the text is empty.
+--- @param userId string
+--- @param text string
+--- @param callback nil|fun(error: string|nil)
+--- @return boolean
+function dmhub.DiscordSendMessage(userId, text, callback) end
+
+--- (PROTOTYPE) Unread direct messages per Discord user id. Counted since the app started; messages read in Discord itself are not known to us.
+--- @return table<string, integer>
+function dmhub.DiscordUnreadCounts() end
+
+--- (PROTOTYPE) Marks a Discord user's direct messages as read.
+--- @param userId? string
+function dmhub.DiscordMarkRead(userId) end
+
+--- (PROTOTYPE) Tells the engine which conversation is on screen, so its new messages do not count as unread; nil when none is.
+--- @param userId string|nil
+function dmhub.DiscordSetOpenConversation(userId) end
+
+--- (PROTOTYPE) Opens a direct message in the Discord app (for content the Codex cannot show). Returns false when it cannot.
+--- @param messageId? string
+--- @return boolean
+function dmhub.DiscordOpenMessageInDiscord(messageId) end
 
 --- Strip (true) or restore (false) the native Windows caption bar, merging the app's title bar with the window chrome. The app bar must supply drag and window buttons while merged. No-op where unsupported.
 --- @param merged? boolean

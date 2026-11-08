@@ -212,6 +212,12 @@ local function DefaultEventTableId(project, options)
     return DTConstants.EVENTS_TABLE_ID
 end
 
+--The Hero sheet's event window (HeroSheetDowntimeWindows.Event) reads the
+--event tables the same way, so it shares these.
+DTEventRollDialog.EventTextForTotal = EventTextForTotal
+DTEventRollDialog.StripEventTablePrefix = StripEventTablePrefix
+DTEventRollDialog.DefaultEventTableId = DefaultEventTableId
+
 --- Shows the project event dialog
 --- @param args table project The project stopped at a milestone, heroToken The
 ---        token whose sheet this was opened from and who is asked to roll
@@ -238,6 +244,9 @@ function DTEventRollDialog.ShowDialog(args)
     --Forward-declared so the handlers below capture them as upvalues.
     local resultLabel
     local milestoneInput
+    --- @type nil|{total: number, tableRef: table} the last roll, kept with the
+    --- table it was rolled on so a later dropdown change cannot relabel it.
+    local rolled = nil
 
     local function SetResult(text)
         if resultLabel == nil or not resultLabel.valid then
@@ -273,6 +282,7 @@ function DTEventRollDialog.ShowDialog(args)
             creature = heroToken.properties,
             properties = RollOnTableProperties.new{ tableRef = tableRef },
             complete = function(info)
+                rolled = {total = info.total, tableRef = tableRef}
                 SetResult(EventTextForTotal(tableRef, info.total))
             end,
         }
@@ -322,6 +332,7 @@ function DTEventRollDialog.ShowDialog(args)
                 return
             end
 
+            rolled = {total = tokenResult.result or 0, tableRef = tableRef}
             SetResult(EventTextForTotal(tableRef, tokenResult.result or 0))
         end)
     end
@@ -337,6 +348,17 @@ function DTEventRollDialog.ShowDialog(args)
             execute = function()
                 project:SetMilestoneThreshold(value)
                     :SetStatus(DTConstants.STATUS.ACTIVE.key)
+                --the event goes in the project's history, as the Hero sheet's
+                --event window records it, so the Respite feed shows it too.
+                if rolled ~= nil then
+                    local eventsTable = rolled.tableRef:GetTable()
+                    project:AddProjectEvent(DTProjectEvent.CreateNew{
+                        kind = DTProjectEvent.KIND_EVENT,
+                        tableName = eventsTable ~= nil and eventsTable.name or "",
+                        total = rolled.total,
+                        text = EventTextForTotal(rolled.tableRef, rolled.total) or "",
+                    })
+                end
             end,
         }
 
@@ -547,10 +569,15 @@ RollCheck.RegisterCustom{
 
         return result
     end,
-    ShowDialog = function(check, dialogOptions)
+    --Kept apart from ShowDialog so a roll request can give the same options
+    --to the Timeline roller, as resistance rolls already do.
+    PrepareDialog = function(check, dialogOptions)
         dialogOptions.rollProperties = RollProperties.new{
             type = "project_power_roll",
         }
+    end,
+    ShowDialog = function(check, dialogOptions)
+        RollCheck.customChecks.project_power_roll.PrepareDialog(check, dialogOptions)
         return GameHud.instance.rollDialog.data.ShowDialog(dialogOptions)
     end,
 }

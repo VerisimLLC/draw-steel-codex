@@ -35,6 +35,18 @@ setting{
     default = true,
 }
 
+--Gates the Discord social features: the Discord card in the Infernal Contract
+--dialog, the Discord friends button, and Discord friends in the EotW town rail.
+--On by default since 0.0.879; no editor field, so it never appears in the
+--settings menus. Turn it off with /set discordsocial false (restart the
+--titlescreen). Not "discord": that id is the engine's Discord Integration checkbox.
+setting{
+    id = "discordsocial",
+    description = "Show the Discord features.",
+    storage = "preference",
+    default = true,
+}
+
 --ADMIN ONLY, hidden. When on, an admin account is treated as a top-tier
 --patron of every creator organization and of the DMHub campaign: map pack
 --tiers, Patreon-included modules, patronTier. The engine ignores it on
@@ -1440,12 +1452,24 @@ setting{
 --  "class:<classid>:<subclassid>"   playing that subclass
 --  "monster:<groupid>"              controlling a monster of that MonsterGroup
 --                                   (or one inheriting from it)
---Written by the shop inventory's dice equip panel. Consumed by the embedded roll
---dialog: when a roll it shows matches an activation (most specific key first --
---damage type, then subclass, class, monster type), the whole roll is skinned
---with the activated set via dice.SetRollSlotDice.
+--Written by the shop inventory's dice equip panel and by a Hero sheet's Dice
+--window (a class or subclass slot). Consumed by the embedded roll dialog: when a
+--roll it shows matches an activation (most specific key first -- damage type,
+--then subclass, class, monster type), the roll is skinned with the activated set
+--via dice.SetRollLoadout, every die unless diceslotextras gives others.
 setting{
 	id = "diceslotsequipped",
+	storage = "account",
+	default = {},
+}
+
+--Per-die choices for an activated slot: slot key -> {main = <the slot's set when
+--these were chosen>, model2 = <set for the second power d10>, modelD6 = <set for
+--d3 and d6 dice>}. A roll uses them only while main is still the slot's set in
+--diceslotsequipped, so activating another set (in the shop, or on an older build)
+--quietly drops them. Written by a Hero sheet's Dice window.
+setting{
+	id = "diceslotextras",
 	storage = "account",
 	default = {},
 }
@@ -1976,11 +2000,17 @@ setting{
 	-- Only relevant for the Ruler and Cross Section when snapping to the grid,
 	-- since the choice only affects how diagonal grid steps are counted (both
 	-- report tile-stepping distances). Without snapping they already report the
-	-- straight-line (Euclidean) length.
-	monitorVisible = {'measure:shape', 'measure:snap'},
+	-- straight-line (Euclidean) length. Hidden on hex maps: hexes have no
+	-- diagonals, so the engine always counts whole hexes there.
+	monitorVisible = {'measure:shape', 'measure:snap', 'maplayout:tiletype', 'maplayout:stagger'},
 	visible = function()
 		local shape = dmhub.GetSettingValue('measure:shape')
-		return (shape == "ruler" or shape == "crosssection") and dmhub.GetSettingValue('measure:snap') ~= "none"
+		if (shape ~= "ruler" and shape ~= "crosssection") or dmhub.GetSettingValue('measure:snap') == "none" then
+			return false
+		end
+		--This file loads before DMHub Game Rules (at the title screen), so look it up at call time.
+		local measurement = rawget(_G, "MeasurementSystem")
+		return measurement == nil or not measurement.IsHexMap()
 	end,
 
 	enum = {

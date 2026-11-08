@@ -19,6 +19,8 @@ ActivatedAbility.RegisterType
 --casterToken: The token using the ability.
 --targets: A list of target objects (each with a 'token' field in abilities that target tokens).
 --symbols: A table of any symbols defined for the ability. Note the "cast" symbol which contains many useful fields and functions.mod
+--  In a power roll trigger's "Trigger Before" ability, symbols.parenttriggerid is the id of the trigger that started it:
+--  casterToken.properties:GetAvailableTriggers()[symbols.parenttriggerid]
 --
 --Remember you can print out fields using e.g. print("Token:", casterToken) and get more information about the field in the debug console.
             ]],

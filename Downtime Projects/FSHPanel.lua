@@ -178,55 +178,72 @@ local CastRow
 --- @param trip table The Trip
 --- @return Panel[] children The event rows
 function FSHPanel.EventChildren(charid, trip)
-    local children = {}
+    local cards = {}
 
-    for _, event in ipairs(trip.events or {}) do
-        children[#children + 1] = gui.Label{
-            classes = { "tableLabel", "sizeXs" },
+    --- @param classes string[]
+    --- @param text string
+    --- @return Panel
+    local function Line(classes, text)
+        return gui.Label{
+            classes = classes,
             width = "100%",
             height = "auto",
             halign = "left",
-            tmargin = 6,
-            text = string.format("Event %d -- %s", event.roll or 0, event.name or "")
-        }
-
-        children[#children + 1] = gui.Label{
-            classes = { "sizeXxs" },
-            width = "100%",
-            height = "auto",
-            halign = "left",
+            valign = "top",
+            tmargin = 4,
             textWrap = true,
-            text = event.text or ""
+            text = text
+        }
+    end
+
+    --One card per event: its full text has to be readable, since several
+    --results are pure fiction the Director runs.
+    for _, event in ipairs(trip.events or {}) do
+        local children = {
+            gui.Label{
+                classes = { "tableLabel", "sizeL" },
+                width = "100%",
+                height = "auto",
+                halign = "left",
+                valign = "top",
+                text = string.format("Event %d -- %s", event.roll or 0, event.name or "")
+            },
+            Line({ "sizeM" }, event.text or ""),
         }
 
         for _, line in ipairs(event.applied or {}) do
-            children[#children + 1] = gui.Label{
-                classes = { "sizeXxs" },
-                width = "100%",
-                height = "auto",
-                halign = "left",
-                textWrap = true,
-                text = string.format("Applied: %s", line)
-            }
+            children[#children + 1] = Line({ "sizeS" }, string.format("Applied: %s", line))
         end
 
         for _, line in ipairs(event.owed or {}) do
-            children[#children + 1] = gui.Label{
-                classes = { "sizeXxs", "fgMuted" },
-                width = "100%",
-                height = "auto",
-                halign = "left",
-                textWrap = true,
-                text = string.format("Owed: %s", line)
-            }
+            children[#children + 1] = Line({ "sizeS", "fgMuted" }, string.format("Owed: %s", line))
         end
 
         if event.resolved ~= true and FSHTrip.IsOwnedByThisClient(charid) then
             children[#children + 1] = FSHPanel.EventPrompt(charid, event)
         end
+
+        cards[#cards + 1] = gui.Panel{
+            classes = { "bordered" },
+            width = "100%-12",
+            height = "auto",
+            halign = "left",
+            valign = "top",
+            vmargin = 5,
+
+            gui.Panel{
+                width = "100%-24",
+                height = "auto",
+                flow = "vertical",
+                halign = "center",
+                valign = "top",
+                vmargin = 10,
+                children = children
+            },
+        }
     end
 
-    return children
+    return cards
 end
 
 --- Builds the answer controls for an unresolved event
@@ -240,12 +257,12 @@ function FSHPanel.EventPrompt(charid, event)
             height = "auto",
             flow = "horizontal",
             valign = "top",
-            tmargin = 4,
+            tmargin = 10,
 
             gui.Button{
-                classes = { "sizeXs" },
-                width = 130,
-                height = 24,
+                classes = { "sizeM" },
+                width = 160,
+                height = 30,
                 halign = "left",
                 rmargin = 6,
                 text = "Read it aloud",
@@ -255,9 +272,9 @@ function FSHPanel.EventPrompt(charid, event)
             },
 
             gui.Button{
-                classes = { "sizeXs" },
-                width = 130,
-                height = 24,
+                classes = { "sizeM" },
+                width = 160,
+                height = 30,
                 halign = "left",
                 text = "Leave it",
                 click = function()
@@ -276,12 +293,12 @@ function FSHPanel.EventPrompt(charid, event)
             height = "auto",
             flow = "horizontal",
             valign = "top",
-            tmargin = 4,
+            tmargin = 10,
 
             gui.Button{
-                classes = { "sizeXs", cond(waiting, "disabled") },
-                width = 130,
-                height = 24,
+                classes = { "sizeM", cond(waiting, "disabled") },
+                width = 160,
+                height = 30,
                 halign = "left",
                 rmargin = 6,
                 interactable = not waiting,
@@ -293,7 +310,7 @@ function FSHPanel.EventPrompt(charid, event)
             },
 
             gui.Label{
-                classes = { "sizeXxs", "fgMuted" },
+                classes = { "sizeS", "fgMuted" },
                 width = "auto",
                 height = "auto",
                 halign = "left",
@@ -321,7 +338,7 @@ function FSHPanel.ShopChildren(charid, trip)
     local children = {}
 
     children[#children + 1] = gui.Label{
-        classes = { "tableLabel", "sizeXs" },
+        classes = { "tableLabel", "sizeM" },
         width = "100%",
         height = "auto",
         halign = "left",
@@ -333,69 +350,72 @@ function FSHPanel.ShopChildren(charid, trip)
         local affordable = (trip.points or 0) >= reward.cost
         local rewardId = reward.id
 
-        --A tight action line with the description beneath it. The earlier
-        --version stacked the description alongside the button, which is what
-        --made the rows tall enough to push the table off the window.
-        --Inset from the scroll region so the Buy button clears the scrollbar
-        --gutter instead of being clipped by it.
+        --One card per item, wrapping across the table: the name and its cost
+        --on top, what it does beneath, and Buy in the corner.
         children[#children + 1] = gui.Panel{
-            width = "100%-12",
+            classes = { "bordered" },
+            width = 300,
             height = "auto",
             flow = "vertical",
-            valign = "top",
             halign = "left",
-            tmargin = 5,
+            valign = "top",
+            hmargin = 5,
+            vmargin = 5,
 
             gui.Panel{
-                width = "100%",
-                height = 24,
+                width = "100%-20",
+                height = "auto",
                 flow = "horizontal",
+                halign = "center",
                 valign = "top",
+                tmargin = 8,
 
-                --Leaves room for the cost column, its gutter, and the button.
                 gui.Label{
-                    classes = { "sizeXs", cond(not affordable, "fgMuted") },
-                    width = "100%-112",
-                    height = "100%",
+                    classes = { "sizeL", "bold", cond(not affordable, "fgMuted") },
+                    width = "100%-70",
+                    height = "auto",
                     halign = "left",
-                    valign = "center",
+                    valign = "top",
+                    textWrap = true,
                     text = reward.name
                 },
 
                 gui.Label{
-                    classes = { "sizeXs", cond(not affordable, "fgMuted") },
-                    width = 44,
-                    height = "100%",
+                    classes = { "sizeL", "bold", cond(not affordable, "fgMuted") },
+                    width = 70,
+                    height = "auto",
                     halign = "right",
-                    valign = "center",
+                    valign = "top",
                     textAlignment = "right",
-                    rmargin = 8,
                     text = tostring(reward.cost)
                 },
-
-                gui.Button{
-                    classes = { "sizeXs", cond(not affordable, "disabled") },
-                    width = 60,
-                    height = 22,
-                    halign = "right",
-                    valign = "center",
-                    interactable = affordable,
-                    text = "Buy",
-                    click = function()
-                        FSHShop.Buy(charid, rewardId)
-                    end
-                }
             },
 
             gui.Label{
-                classes = { "sizeXxs", "fgMuted" },
-                width = "100%",
+                classes = { "sizeS", "fgMuted" },
+                width = "100%-20",
                 height = "auto",
-                halign = "left",
+                halign = "center",
                 valign = "top",
+                tmargin = 4,
                 textWrap = true,
                 text = reward.detail
-            }
+            },
+
+            gui.Button{
+                classes = { "sizeM", cond(not affordable, "disabled") },
+                width = 100,
+                height = 30,
+                halign = "right",
+                valign = "top",
+                rmargin = 10,
+                vmargin = 8,
+                interactable = affordable,
+                text = "Buy",
+                click = function()
+                    FSHShop.Buy(charid, rewardId)
+                end
+            },
         }
     end
 
@@ -431,24 +451,27 @@ function FSHPanel.TripPane(args)
     --a dialog heading, which is most of the space this line was costing. The
     --section-heading class is what the rest of the Trip already uses.
     local headerLabel = gui.Label{
-        classes = { "tableLabel", "sizeS" },
+        classes = { "tableLabel", "sizeM" },
         width = "100%",
         height = "auto",
         halign = "left",
         text = "Fishing"
     }
 
+    --The catches as tiles, wrapping to as many as fit across.
     local stringerPanel = gui.Panel{
         width = "100%",
         height = "auto",
-        flow = "vertical",
+        flow = "horizontal",
+        wrap = true,
+        halign = "left",
         valign = "top"
     }
 
     --Sized to its own text rather than claiming a share of the row, so adding a
     --button never pushes one off the edge of the window.
     local pointsLabel = gui.Label{
-        classes = { "sizeL" },
+        classes = { "sizeXl", "bold" },
         width = "auto",
         height = "auto",
         halign = "left",
@@ -596,7 +619,7 @@ function FSHPanel.TripPane(args)
     }
 
     local noticeLabel = gui.Label{
-        classes = { "sizeXs", "fgMuted" },
+        classes = { "sizeM", "fgMuted" },
         width = "100%",
         height = "auto",
         halign = "left",
@@ -621,7 +644,8 @@ function FSHPanel.TripPane(args)
         classes = { "collapsed" },
         width = "100%-8",
         height = "auto",
-        flow = "vertical",
+        flow = "horizontal",
+        wrap = true,
         halign = "left",
         valign = "top"
     }
@@ -656,7 +680,7 @@ function FSHPanel.TripPane(args)
             end
             if #rows == 0 then
                 rows[1] = gui.Label{
-                    classes = { "sizeXs", "fgMuted" },
+                    classes = { "sizeM", "fgMuted" },
                     width = "100%",
                     height = "auto",
                     halign = "left",
@@ -866,7 +890,7 @@ function FSHPanel.TripPane(args)
             --where the player is already looking.
             gui.Panel{
                 width = "100%",
-                height = 48,
+                height = 60,
                 flow = "horizontal",
                 valign = "bottom",
                 tmargin = 4,
@@ -994,154 +1018,138 @@ local BAND_GLYPH = {
     ancient = 40
 }
 
---- Builds one row of the stringer
+--- The stringer's tiles, all one size so the grid lines up; the art band fits
+--- the biggest fish.
+local CAST_CARD = {
+    width = 150,
+    height = 176,
+    art = 2 * BAND_GLYPH.ancient + 4,
+}
+
+--- Builds one tile of the stringer
 --- The three outcomes are meant to feel nothing alike, so they do not share a
---- shape: a catch is its species, rendered at its size and colour; a miss is a
+--- look: a catch is its species, drawn at its size and colour; a miss is a
 --- slack grey line; a breakthrough stops looking like fishing at all.
 --- @param cast table The cast record
---- @return Panel row The cast row
+--- @return Panel card The cast tile
 CastRow = function(cast)
-    local seq = gui.Label{
-        classes = { "sizeXxs", "fgMuted" },
-        width = 22,
-        height = "auto",
-        halign = "left",
-        valign = "center",
-        text = string.format("%d.", cast.seq or 0)
-    }
+    --- The tile around whatever this cast shows: its number in the corner,
+    --- the art in a fixed band so the words line up across the row.
+    --- @param art Panel
+    --- @param lines Panel[]
+    --- @return Panel
+    local function Card(art, lines)
+        local children = {
+            gui.Label{
+                classes = { "sizeS", "fgMuted" },
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                valign = "top",
+                floating = true,
+                x = 8,
+                y = 4,
+                text = string.format("#%d", cast.seq or 0)
+            },
+
+            gui.Panel{
+                width = "100%",
+                height = CAST_CARD.art,
+                halign = "center",
+                valign = "top",
+                tmargin = 20,
+
+                art,
+            },
+        }
+        for _, line in ipairs(lines) do
+            children[#children + 1] = line
+        end
+
+        return gui.Panel{
+            classes = { "bordered" },
+            width = CAST_CARD.width,
+            height = CAST_CARD.height,
+            flow = "vertical",
+            halign = "left",
+            valign = "top",
+            hmargin = 5,
+            vmargin = 5,
+            children = children
+        }
+    end
+
+    --- A centred line on a tile.
+    --- @param classes string[]
+    --- @param text string
+    --- @param color nil|string
+    --- @return Panel
+    local function Line(classes, text, color)
+        return gui.Label{
+            classes = classes,
+            width = "100%-12",
+            height = "auto",
+            halign = "center",
+            valign = "top",
+            textAlignment = "center",
+            textWrap = true,
+            color = color,
+            text = text
+        }
+    end
 
     if cast.result == FSHTrip.RESULT.CATCH.key then
         local species = cast.species or {}
-        local size = BAND_GLYPH[species.band or ""] or 24
+        local size = 2 * (BAND_GLYPH[species.band or ""] or 24)
 
-        return gui.Panel{
-            width = "100%",
-            height = "auto",
-            flow = "horizontal",
-            valign = "top",
-            tmargin = 2,
-
-            seq,
-
-            --A fixed cell so the names still line up even though the fish
-            --themselves do not.
+        return Card(
             gui.Panel{
-                width = 44,
-                height = BAND_GLYPH.ancient,
-                halign = "left",
+                width = size,
+                height = size,
+                halign = "center",
                 valign = "center",
-
-                gui.Panel{
-                    width = size,
-                    height = size,
-                    halign = "center",
-                    valign = "center",
-                    bgimage = species.icon or FSHConstants.GENERIC_FISH.icon,
-                    bgcolor = species.color or FSHConstants.GENERIC_FISH.color
-                }
+                bgimage = species.icon or FSHConstants.GENERIC_FISH.icon,
+                bgcolor = species.color or FSHConstants.GENERIC_FISH.color
             },
-
-            gui.Panel{
-                width = "100%-66",
-                height = "auto",
-                flow = "vertical",
-                halign = "left",
-                valign = "center",
-
-                gui.Label{
-                    classes = { "sizeXs" },
-                    width = "100%",
-                    height = "auto",
-                    halign = "left",
-                    text = string.format("%d  %s", cast.points or 0,
-                        species.name or "fish")
-                },
-
-                gui.Label{
-                    classes = { "sizeXxs", "fgMuted" },
-                    width = "100%",
-                    height = "auto",
-                    halign = "left",
-                    text = DTConstants.GetDisplayText(FSHConstants.BAND,
-                        species.band or "")
-                }
-            }
-        }
+            {
+                Line({ "sizeXl", "bold" }, string.format("%d", cast.points or 0)),
+                Line({ "sizeM" }, species.name or "fish"),
+                Line({ "sizeS", "fgMuted" }, DTConstants.GetDisplayText(FSHConstants.BAND,
+                    species.band or "")),
+            })
     end
 
     if cast.result == FSHTrip.RESULT.BREAKTHROUGH.key then
-        return gui.Panel{
-            width = "100%",
-            height = "auto",
-            flow = "horizontal",
-            valign = "top",
-            tmargin = 2,
-
-            seq,
-
+        return Card(
             gui.Panel{
-                width = 44,
-                height = 28,
-                halign = "left",
-                valign = "center",
-
-                gui.Panel{
-                    width = 26,
-                    height = 26,
-                    halign = "center",
-                    valign = "center",
-                    bgimage = "phosphor/waves-fill.png",
-                    bgcolor = "#d9b44a"
-                }
-            },
-
-            gui.Label{
-                classes = { "sizeXs", "bold" },
-                width = "100%-66",
-                height = "auto",
-                halign = "left",
-                valign = "center",
-                color = "#d9b44a",
-                text = string.format("Something else is happening  (%d)",
-                    cast.total or 0)
-            }
-        }
-    end
-
-    return gui.Panel{
-        width = "100%",
-        height = "auto",
-        flow = "horizontal",
-        valign = "top",
-        tmargin = 2,
-
-        seq,
-
-        gui.Panel{
-            width = 44,
-            height = 18,
-            halign = "left",
-            valign = "center",
-
-            gui.Panel{
-                width = 18,
-                height = 2,
+                width = 56,
+                height = 56,
                 halign = "center",
                 valign = "center",
-                bgimage = "panels/square.png",
-                bgcolor = "#6b6b6b"
-            }
-        },
+                bgimage = "phosphor/waves-fill.png",
+                bgcolor = "#d9b44a"
+            },
+            {
+                Line({ "sizeM", "bold" }, "Breakthrough", "#d9b44a"),
+                Line({ "sizeS", "fgMuted" }, string.format("Something else is happening  (%d)",
+                    cast.total or 0)),
+            })
+    end
 
-        gui.Label{
-            classes = { "sizeXxs", "fgMuted" },
-            width = "100%-66",
-            height = "auto",
-            halign = "left",
+    return Card(
+        gui.Panel{
+            width = 40,
+            height = 3,
+            halign = "center",
             valign = "center",
-            text = string.format("the one that got away  (%d)", cast.total or 0)
-        }
-    }
+            bgimage = "panels/square.png",
+            bgcolor = "#6b6b6b"
+        },
+        {
+            Line({ "sizeM", "fgMuted" }, "Got away"),
+            Line({ "sizeS", "fgMuted" }, string.format("the one that got away  (%d)",
+                cast.total or 0)),
+        })
 end
 
 --- Builds the block a finished Trip keeps behind its caret
@@ -1150,7 +1158,14 @@ end
 --- whole outing can be read back without a summary being stored anywhere new.
 --- @param trip table The Trip
 --- @return Panel detail The detail block, collapsed
-local function LogDetail(trip)
+local function LogDetail(trip, large)
+    --- @param small string the size class on the narrow surfaces
+    --- @param big string the size class on the Respite's full screen
+    --- @return string
+    local function Size(small, big)
+        return large and big or small
+    end
+
     local children = {}
 
     local summary = trip.summary
@@ -1167,7 +1182,7 @@ local function LogDetail(trip)
         end
 
         children[#children + 1] = gui.Label{
-            classes = { "sizeXxs", "fgMuted" },
+            classes = { Size("sizeXxs", "sizeS"), "fgMuted" },
             width = "100%",
             height = "auto",
             halign = "left",
@@ -1184,7 +1199,7 @@ local function LogDetail(trip)
 
     if #bought > 0 then
         children[#children + 1] = gui.Label{
-            classes = { "sizeXxs" },
+            classes = { Size("sizeXxs", "sizeS") },
             width = "100%",
             height = "auto",
             halign = "left",
@@ -1195,7 +1210,7 @@ local function LogDetail(trip)
 
     for _, event in ipairs(trip.events or {}) do
         children[#children + 1] = gui.Label{
-            classes = { "sizeXs" },
+            classes = { Size("sizeXs", "sizeM") },
             width = "100%",
             height = "auto",
             halign = "left",
@@ -1204,7 +1219,7 @@ local function LogDetail(trip)
         }
 
         children[#children + 1] = gui.Label{
-            classes = { "sizeXxs", "fgMuted" },
+            classes = { Size("sizeXxs", "sizeS"), "fgMuted" },
             width = "100%",
             height = "auto",
             halign = "left",
@@ -1214,7 +1229,7 @@ local function LogDetail(trip)
 
         for _, line in ipairs(event.applied or {}) do
             children[#children + 1] = gui.Label{
-                classes = { "sizeXxs" },
+                classes = { Size("sizeXxs", "sizeS") },
                 width = "100%",
                 height = "auto",
                 halign = "left",
@@ -1225,7 +1240,7 @@ local function LogDetail(trip)
 
         for _, line in ipairs(event.owed or {}) do
             children[#children + 1] = gui.Label{
-                classes = { "sizeXxs" },
+                classes = { Size("sizeXxs", "sizeS") },
                 width = "100%",
                 height = "auto",
                 halign = "left",
@@ -1237,7 +1252,7 @@ local function LogDetail(trip)
 
     if #children == 0 then
         children[#children + 1] = gui.Label{
-            classes = { "sizeXxs", "fgMuted" },
+            classes = { Size("sizeXxs", "sizeS"), "fgMuted" },
             width = "100%",
             height = "auto",
             halign = "left",
@@ -1268,7 +1283,15 @@ end
 --- @param title string|nil names the row instead of the character; the
 ---   portrait goes with the name, since a surface that knows whose Trips these
 ---   are does not need telling twice
-function FSHPanel.LogRow(trip, expanded, onToggle, title)
+--- @param large boolean|nil larger type, for the Respite's full screen
+function FSHPanel.LogRow(trip, expanded, onToggle, title, large)
+    --- @param small string
+    --- @param big string
+    --- @return string
+    local function Size(small, big)
+        return large and big or small
+    end
+
     local catches = 0
     for _, cast in ipairs(trip.casts or {}) do
         if cast.result == FSHTrip.RESULT.CATCH.key then
@@ -1353,7 +1376,7 @@ function FSHPanel.LogRow(trip, expanded, onToggle, title)
             --centring them leaves it floating against the name rather than
             --sitting on the same line.
             gui.Label{
-                classes = { "sizeXs" },
+                classes = { Size("sizeXs", "sizeM") },
                 width = "auto",
                 height = "auto",
                 halign = "left",
@@ -1362,7 +1385,7 @@ function FSHPanel.LogRow(trip, expanded, onToggle, title)
             },
 
             gui.Label{
-                classes = { "sizeXxs", "fgMuted" },
+                classes = { Size("sizeXxs", "sizeS"), "fgMuted" },
                 width = "auto",
                 height = "auto",
                 halign = "left",
@@ -1373,7 +1396,7 @@ function FSHPanel.LogRow(trip, expanded, onToggle, title)
         },
 
         gui.Label{
-            classes = { "sizeXxs", "fgMuted" },
+            classes = { Size("sizeXxs", "sizeS"), "fgMuted" },
             width = "100%",
             height = "auto",
             halign = "left",
@@ -1388,11 +1411,11 @@ function FSHPanel.LogRow(trip, expanded, onToggle, title)
     -- arrived once the Trip closed. The "*" is what says it is still running.
     local headerChildren = {}
 
-    local detail = LogDetail(trip)
+    local detail = LogDetail(trip, large)
 
     local caret
     caret = gui.ExpandoArrow{
-        classes = { "sizeXs" },
+        classes = { Size("sizeXs", "sizeM") },
         valign = "center",
         hmargin = 3,
         press = function(element)
@@ -1854,26 +1877,67 @@ function FSHPanel.PaintRespitePlayer(args)
         return table.concat(parts, "|")
     end
 
+    --The Earlier Trips column, and the space between it and the main one.
+    local HISTORY_WIDTH = 400
+    local HISTORY_GAP = 16
+
+    --- A message centred in the open space above the action bar.
+    --- @param text string
+    --- @param detail string|nil
+    --- @return Panel
+    local function Message(text, detail)
+        return gui.Panel{
+            width = "100%",
+            height = "100% available",
+            flow = "vertical",
+            halign = "center",
+            valign = "top",
+
+            gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "vertical",
+                halign = "center",
+                valign = "center",
+
+                gui.Label{
+                    classes = { "sizeL", "fgMuted" },
+                    width = "auto",
+                    height = "auto",
+                    halign = "center",
+                    text = text
+                },
+
+                gui.Label{
+                    classes = { "sizeS", "fgMuted", cond(detail == nil, "collapsed") },
+                    width = "auto",
+                    height = "auto",
+                    halign = "center",
+                    tmargin = 6,
+                    text = detail or ""
+                },
+            },
+        }
+    end
+
     local function Rebuild()
         if body == nil or not body.valid then
             return
         end
 
-        if not FSHWater.IsOpen() then
+        if not FSHWater.IsOpen() and not FSHTrip.IsLive(charid) then
             body.children = {
-                gui.Label{
-                    classes = { "sizeM", "fgMuted" },
+                gui.Panel{
                     width = "100%",
-                    height = "auto",
-                    halign = "left",
-                    tmargin = 8,
-                    text = "No water is open."
-                }
+                    height = "100%",
+                    flow = "vertical",
+                    valign = "top",
+
+                    Message("No water is open."),
+                },
             }
             return
         end
-
-        local children = {}
 
         --A record nobody can read is the one thing there is no showing and no
         --carrying on from, and it would otherwise block this hero from fishing
@@ -1886,19 +1950,28 @@ function FSHPanel.PaintRespitePlayer(args)
         local canStart, reason = FSHTrip.CanStart(charid, rollHolderId)
         local token = dmhub.GetCharacterById(charid)
 
-        if canStart and token ~= nil then
-            children[#children + 1] = gui.Panel{
-                width = "100%",
-                height = "auto",
-                flow = "horizontal",
-                halign = "left",
-                bmargin = 6,
-
-                gui.Button{
+        --A live Trip gets the whole of the main column, its own action bar
+        --included. It carries its own water, so it reads correctly after that
+        --water has closed.
+        local main
+        if FSHTrip.IsLive(charid) then
+            main = FSHPanel.TripPane{
+                charid = charid,
+                --Closing up turns the Trip into the newest Earlier Trip, and
+                --Start Fishing comes back in the bar.
+                onClose = function()
+                    m_signature = ""
+                end,
+            }
+        else
+            local startButton = nil
+            if canStart and token ~= nil then
+                startButton = gui.Button{
                     classes = { "sizeM" },
                     width = 150,
                     height = 30,
-                    halign = "left",
+                    halign = "right",
+                    valign = "center",
                     text = "Start Fishing",
                     hover = gui.Tooltip("Costs one downtime roll, taken on your first cast"),
                     click = function()
@@ -1909,95 +1982,117 @@ function FSHPanel.PaintRespitePlayer(args)
                             end,
                         })
                     end
-                },
+                }
+            end
 
-                --Where they would be fishing, not what it costs: the roll
-                --count is already on their row in the list beside this.
-                gui.Label{
-                    classes = { "sizeXs", "fgMuted" },
-                    width = "auto",
-                    height = "auto",
-                    halign = "left",
-                    valign = "center",
-                    lmargin = 8,
-                    text = FSHWater.Describe()
-                },
-            }
-        end
-
-        --The pane is for the outing still going on, whatever water it started
-        --on: it is what blocks starting another, so hiding it is what leaves a
-        --player staring at a refusal with nothing to act on, and the Trip
-        --carries its own water in it so it reads correctly after that water has
-        --closed. A finished Trip does not get the pane - it has become one of
-        --the rows below, which is a better ending than a summary line sitting
-        --where a live Trip used to be.
-        local hasTrip = FSHTrip.IsLive(charid)
-
-        if hasTrip then
-            local pane = FSHPanel.TripPane{
-                charid = charid,
-                --Nothing to close: closing up turns the Trip into the newest
-                --row of the log underneath, and the way back in is Start
-                --Fishing above it.
-                onClose = function()
-                    m_signature = ""
-                end,
-            }
-            children[#children + 1] = gui.Panel{
+            --The same three bands a Trip has, so Start Fishing sits where Cast
+            --will once the line is in the water.
+            main = gui.Panel{
                 width = "100%",
-                height = "100% available",
+                height = "100%",
                 flow = "vertical",
                 halign = "left",
                 valign = "top",
 
-                pane,
-            }
-        elseif not canStart then
-            children[#children + 1] = gui.Label{
-                classes = { "sizeM", "fgMuted" },
-                width = "100%",
-                height = "auto",
-                halign = "left",
-                tmargin = 8,
-                text = reason
+                gui.Label{
+                    classes = { "tableLabel", "sizeM" },
+                    width = "100%",
+                    height = "auto",
+                    halign = "left",
+                    valign = "top",
+                    text = FSHWater.Describe()
+                },
+
+                canStart and Message("No trip underway.",
+                    "Starting a trip costs one downtime roll, taken on your first cast.")
+                    or Message(reason or "You cannot fish right now."),
+
+                gui.Panel{
+                    width = "100%",
+                    height = 60,
+                    flow = "horizontal",
+                    valign = "bottom",
+                    tmargin = 4,
+
+                    startButton,
+                },
             }
         end
 
-        --What they have already caught today. Rendered through the same log row
-        --the Water Log and the Director's feed use, so a Trip reads the same
-        --wherever it is shown.
+        --What they have already caught today, down the side so it stays in
+        --view through a Trip. Rendered through the same log row the Water Log
+        --and the Director's feed use, so a Trip reads the same wherever it is.
         local finished = FinishedTrips()
+        local history = nil
         if #finished > 0 then
-            children[#children + 1] = gui.Label{
-                classes = { "tableLabel", "sizeXs" },
-                width = "100%",
-                height = "auto",
-                halign = "left",
-                tmargin = 8,
-                text = "Earlier Trips"
-            }
-
+            local rows = {}
             for index, entry in ipairs(finished) do
                 local key = string.format("%d", index)
-                children[#children + 1] = FSHPanel.LogRow(entry, m_expanded[key] == true,
+                rows[#rows + 1] = FSHPanel.LogRow(entry, m_expanded[key] == true,
                     function()
                         m_expanded[key] = not (m_expanded[key] == true)
                         m_signature = ""
                     end,
                     --Which outing of theirs, not whose: the player is looking
                     --at their own character.
-                    string.format("Trip %d", index))
+                    string.format("Trip %d", index),
+                    true)
             end
+
+            history = gui.Panel{
+                width = HISTORY_WIDTH,
+                height = "100%",
+                flow = "vertical",
+                halign = "right",
+                valign = "top",
+
+                gui.Label{
+                    classes = { "tableLabel", "sizeM" },
+                    width = "100%",
+                    height = "auto",
+                    halign = "left",
+                    valign = "top",
+                    text = "Earlier Trips"
+                },
+
+                gui.Panel{
+                    width = "100%",
+                    height = "100% available",
+                    flow = "vertical",
+                    halign = "left",
+                    valign = "top",
+                    vscroll = true,
+
+                    gui.Panel{
+                        width = "100%-12",
+                        height = "auto",
+                        flow = "vertical",
+                        halign = "left",
+                        valign = "top",
+                        children = rows,
+                    },
+                },
+            }
         end
 
-        body.children = children
+        body.children = {
+            gui.Panel{
+                width = history ~= nil and string.format("100%%-%d", HISTORY_WIDTH + HISTORY_GAP) or "100%",
+                height = "100%",
+                flow = "vertical",
+                halign = "left",
+                valign = "top",
+
+                main,
+            },
+            history,
+        }
     end
 
     body = gui.Panel{
         width = "100%",
         height = "100%",
-        flow = "vertical",
+        flow = "horizontal",
         halign = "left",
         valign = "top",
 
@@ -2017,6 +2112,70 @@ function FSHPanel.PaintRespitePlayer(args)
     }
 
     return body
+end
+
+--- The Fishing tile on the player's Respite stage: where the water is
+--- @param args table roster accessor
+--- @return Panel
+function FSHPanel.PaintRespiteStation(args)
+    local water = gui.Label{
+        classes = { "sizeM", "fgMuted" },
+        width = "100%",
+        height = "auto",
+        halign = "center",
+        textAlignment = "center",
+        textWrap = true,
+        tmargin = 6,
+        text = "",
+    }
+
+    local function Refresh()
+        if not water.valid then
+            return
+        end
+        water.text = FSHWater.IsOpen() and FSHWater.Describe() or "No water is open."
+    end
+
+    return gui.Panel{
+        width = "100%",
+        height = "100%",
+        flow = "vertical",
+        halign = "center",
+        valign = "center",
+
+        create = Refresh,
+        respiteChanged = Refresh,
+
+        gui.Panel{
+            classes = { "rspStageIcon" },
+            bgimage = "phosphor/fish-simple.png",
+            width = 64,
+            height = 64,
+            halign = "center",
+            bmargin = 12,
+        },
+
+        gui.Label{
+            classes = { "sizeXl", "bold", "fgStrong" },
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            text = "Fishing",
+        },
+
+        water,
+    }
+end
+
+--- Whether a character is out on a Trip, which holds them in Fishing until
+--- they close up. The Trip runs through buying at the Tackle table.
+--- @param args table charid
+--- @return boolean busy, string|nil reason
+function FSHPanel.RespiteBusy(args)
+    if FSHTrip.IsLive(args.charid) then
+        return true, "Finish this fishing trip before leaving."
+    end
+    return false, nil
 end
 
 --- Where the fishing happened, for the Respite's write-up
@@ -2146,12 +2305,14 @@ function FSHPanel.RespitePartyRecord(args)
     since = since or 0
 
     local entries = {}
-    local function Add(at, charid, text)
+    local function Add(at, charid, text, icon, iconColor)
         if (at or 0) >= since then
             entries[#entries + 1] = {
                 at = at,
                 charid = charid,
                 text = text,
+                icon = icon,
+                iconColor = iconColor,
             }
         end
     end
@@ -2174,38 +2335,48 @@ function FSHPanel.RespitePartyRecord(args)
                 local opened = trip.openedAt or 0
                 local catches = 0
 
+                --The stringer's own pictures: a catch is its species in its
+                --colour, a breakthrough the gold waves.
+                local fishIcon = FSHConstants.GENERIC_FISH.icon
+                local wavesIcon = "phosphor/waves-fill.png"
+                local wavesColor = "#d9b44a"
+                local tackleIcon = "phosphor/toolbox-duotone.png"
+
                 local water = trip.waterName or ""
                 if water == "" then
-                    Add(opened, id, string.format("%s went fishing", name))
+                    Add(opened, id, string.format("%s went fishing", name), fishIcon)
                 else
-                    Add(opened, id, string.format("%s went fishing at %s", name, water))
+                    Add(opened, id, string.format("%s went fishing at %s", name, water), fishIcon)
                 end
 
                 for _, cast in ipairs(trip.casts or {}) do
                     local at = cast.at or opened
                     if cast.result == FSHTrip.RESULT.CATCH.key then
                         catches = catches + 1
+                        local species = cast.species or {}
                         Add(at, id, string.format("%s landed a %d-point %s", name, cast.points or 0,
-                            cast.species ~= nil and cast.species.name or "fish"))
+                            species.name or "fish"),
+                            species.icon or FSHConstants.GENERIC_FISH.icon,
+                            species.color or FSHConstants.GENERIC_FISH.color)
                     elseif cast.result == FSHTrip.RESULT.GOTAWAY.key then
                         Add(at, id, string.format("%s's catch got away", name))
                     elseif cast.result == FSHTrip.RESULT.BREAKTHROUGH.key then
-                        Add(at, id, string.format("%s hit a breakthrough", name))
+                        Add(at, id, string.format("%s hit a breakthrough", name), wavesIcon, wavesColor)
                     end
                 end
 
                 for _, event in ipairs(trip.events or {}) do
                     Add(event.at or opened, id, string.format("%s's breakthrough: <b>%s</b>", name,
-                        event.name or "an event"))
+                        event.name or "an event"), wavesIcon, wavesColor)
                 end
 
                 for _, purchase in ipairs(trip.purchases or {}) do
                     if (purchase.cost or 0) > 0 then
                         Add(purchase.at or opened, id, string.format("%s bought %s for %d points",
-                            name, purchase.name or "something", purchase.cost))
+                            name, purchase.name or "something", purchase.cost), tackleIcon)
                     else
                         Add(purchase.at or opened, id, string.format("%s bought %s",
-                            name, purchase.name or "something"))
+                            name, purchase.name or "something"), tackleIcon)
                     end
                 end
 
@@ -2251,6 +2422,8 @@ local function RegisterWithRespite()
         name = "Fishing",
         paint = PaintRespiteFields,
         paintPlayer = FSHPanel.PaintRespitePlayer,
+        paintStation = FSHPanel.PaintRespiteStation,
+        busy = FSHPanel.RespiteBusy,
         paintDirector = FSHPanel.PaintRespiteDirectorFeed,
         needsAttention = FSHPanel.RespiteNeedsAttention,
 

@@ -51,11 +51,42 @@ read those end to end.
   `../dependencies/lua/bin/luac.exe`; from a clone next to the DMHub folder it is
   `../DMHub/dependencies/lua/bin/luac.exe`. If neither exists, say so in the report and
   carry on; do not hunt the disk for one.
-- **Types.** If the DMHub repo has `tools/lua-typing/check.ps1`, run it with `-Changed`
-  and `-CodexRoot <this codex clone>`. Without `-CodexRoot` it checks the DMHub nested
-  copy instead and can report clean for the wrong files. Any problem it reports is a
-  finding. If it fails to start (for example no LuaLS installed), write "not run" and the
-  reason in the report.
+- **Types.** CI (`.github/workflows/lua-typecheck.yml`) fails the PR on any LuaLS
+  problem anywhere in the codex, so run the same check here. Every type problem is a
+  Must fix. Use whichever of these is available, in this order:
+  1. **DMHub developers:** if the DMHub repo has `tools/lua-typing/check.ps1`, run it
+     with `-Changed` and `-CodexRoot <this codex clone>`. Without `-CodexRoot` it checks
+     the DMHub nested copy instead and can report clean for the wrong files.
+  2. **Everyone else:** run LuaLS directly, the way CI does. Find the binary: on `PATH`
+     (`lua-language-server`), or bundled with the VS Code Lua extension at
+     `~/.vscode/extensions/sumneko.lua-*/server/bin/lua-language-server(.exe)`. Its
+     version (`--version`) should match `LUALS_VERSION` in the workflow; if it differs,
+     run anyway and say so in the report, since another version can report different
+     problems. From the codex root, run it in the background (a full run takes a few
+     minutes) and write the result to the scratchpad:
+
+     ```bash
+     lua-language-server --check . --configpath .luarc.json --checklevel=Warning \
+       --num_threads=4 --logpath <scratch>/luals-log --check_out_path <scratch>/luals-check.json
+     python .github/scripts/luals_report.py <scratch>/luals-check.json . <scratch>/luals-log 4
+     ```
+
+     The report script prints every problem with its file and line, and fails if a
+     worker died (out of memory: retry with `--num_threads=2` and pass `2` to the
+     script). `main` checks clean, so any problem is almost certainly from this change;
+     report problems in files the change did not touch too, because an edit (a renamed
+     field, a changed signature) can break typing in another file, and CI fails on
+     those as well.
+  3. **Neither found:** do not download anything. Write "Types: not run (no LuaLS
+     found)" in the report and add a Must fix item: CI will fail the PR on type
+     problems, so install the VS Code Lua extension or a LuaLS release (the version
+     named in the workflow, see "Seeing problems" in `TYPING.md`) and re-run the review
+     before opening the PR.
+
+  Fix suggestions follow `TYPING.md` ("Writing code that checks clean"): annotate, guard
+  or cast. Suppress with `---@diagnostic disable-next-line: <code>` plus a comment only
+  where the problem is deliberate; never suggest a file-wide disable or a `.luarc.json`
+  change.
 - **ASCII only.** Use the Grep tool with the pattern `[^\x00-\x7F]` on each changed
   file. (In Git Bash, plain `grep -P` fails silently without `LC_ALL=C.UTF-8`.) Any hit
   anywhere in a changed file is a must-fix, even on an old line: the runtime cannot load
@@ -264,5 +295,6 @@ yet. Do not change anything until they answer. Then:
 - Write code changes first, then do the comments in a separate pass against section E.
   That includes any comment you wrote yourself while making a fix: put it through the
   same steps as the developer's, and rewrite it before you report back if it fails.
-- Re-run `luac -p` (and the type check if it ran before) on every file you edited.
+- Re-run `luac -p` on every file you edited, and re-run the type check if it ran before.
+  Do not say the changes are ready for a PR until the type check is clean.
 - Do not commit. Tell them what changed so they can review it and commit it themselves.

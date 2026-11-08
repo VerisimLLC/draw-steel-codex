@@ -237,10 +237,17 @@ setting{
 
 --initial is true only for the one-time seed pass that runs when the dialog opens
 --on an existing module. Every other pass comes from the dependency recompute.
+--Whether a dependency on this row ships with the module: only content this
+--game created. A core (or base module) entry this game edited or deleted is
+--already provided by core, and shipping the copy would freeze it over core in
+--every game that installs the module; the author ticks it to ship it anyway.
+--Rows without an op (maps, characters, code, modules) always ship.
+local ShipsAsDependency = function(data)
+	return data.op == nil or data.op == "create"
+end
+
 local includedAssets = function(element, includedAssets, dependencyAssets, signal, initial)
-    --note dependents only include if the element is not a modify, since we don't
-    --have to ship the dependent if we only modified it rather than created it.
-	local dependents = (not element:HasClass("modify")) and dependencyAssets[element.data.assetid]
+	local dependents = ShipsAsDependency(element.data) and dependencyAssets[element.data.assetid]
 
 	local canOverride = not dmhub.GetSettingValue("module:exportignoredependencies")
 
@@ -835,6 +842,7 @@ local CreateObjectTableView = function(tableName, knownAssetsInCore)
 							displayName = entry.name or "(unknown object)",
 							ord = string.lower(entry.name),
 							type = string.format("object:%s", tableName),
+							op = op,
 						},
 					}
 
@@ -1007,6 +1015,7 @@ local function GatherAllAssetsChildren(children, knownAssetsInCore)
 								folderid = entry.folderid,
 								ord = string.lower(description or "(unnamed)"),
 								type = t,
+								op = op,
 							},
 						}
 
@@ -1731,6 +1740,8 @@ local CheckEncounterModule = function(ctx)
 		if info ~= nil then
 			if info.type == "code" then
 				errors[#errors+1] = string.format("An Encounter of the Week module cannot include code (%s): its encounters run on the official module's code.", info.displayName)
+			elseif info.type == "module" then
+				errors[#errors+1] = string.format("An Encounter of the Week module cannot depend on another module (%s): the game it is played in already has the official module.", info.displayName)
 			elseif info.type == "map" and eotw.IsEncounterMapName(info.displayName) then
 				if seenNames[info.displayName] then
 					errors[#errors+1] = string.format("Two maps are named \"%s\". A game finds its encounter map by name, so each must be unique.", info.displayName)
@@ -1793,6 +1804,17 @@ local CheckEncounterModule = function(ctx)
 		else
 			for docid,_ in pairs(found.documents) do
 				ctx.include(docid)
+			end
+
+			--a partner's art must carry their credit (a licence term).
+			local unsetWatermarks = {}
+			for _,wm in ipairs({ m, table.unpack(partMaps[m.name] or {}) }) do
+				if CreatorCredit.MapWatermarkUnset(wm.id) then
+					unsetWatermarks[#unsetWatermarks+1] = wm.name
+				end
+			end
+			for _,name in ipairs(unsetWatermarks) do
+				warnings[#warnings+1] = string.format("%s: no watermark chosen, and it is not from a map pack. If the art is a partner's (e.g. Czepeku), pick them in Map Settings > Display > Watermark; if not, pick None.", name)
 			end
 
 			--the series' parts: this map's, then each part map's (whose
@@ -1861,6 +1883,13 @@ local CheckEncounterModule = function(ctx)
 			local comingSoonParts = {}
 			for _,entry in ipairs(scripts) do
 				local script = entry.script
+
+				--what the script names (items, monsters, objects, zone
+				--types) ships too: the runtime finds them by name.
+				for id,_ in pairs(montage.ReferencedContentIds(script.parse)) do
+					ctx.include(id, true)
+				end
+
 				local hasEncounter = false
 				for _,beat in ipairs(script.parse.beats or {}) do
 					if beat.kind == "encounter" then
@@ -1911,7 +1940,9 @@ local CheckEncounterModule = function(ctx)
 					if comingSoon ~= nil then
 						comingSoonParts[#comingSoonParts+1] = { number = entry.number, title = entry.title, text = comingSoon.text }
 					else
-						parts[#parts+1] = { number = entry.number, title = entry.title, townGate = townGateText, townGateSource = townGateSource, tracks = tracks, map = entry.map }
+						--restFree: a rest does not lock this part again once the part before is won.
+						local restFree = cond(script.parse.part ~= nil and script.parse.part.restFree == true, true, nil)
+						parts[#parts+1] = { number = entry.number, title = entry.title, townGate = townGateText, townGateSource = townGateSource, tracks = tracks, map = entry.map, restFree = restFree }
 					end
 				elseif townGateText ~= nil or townGateSource ~= nil then
 					result.encounters[m.name] = { townGate = townGateText, townGateSource = townGateSource }
@@ -1962,7 +1993,9 @@ local g_heroOptionTables = {
 --                     searcher, covering the checked entries and everything
 --                     they pull in,
 --  assetInfo       = {guid -> {type, displayName}} for every entry shown,
---  include         = function(guid) ticks that entry, if the dialog lists it }.
+--  include         = function(guid, createdOnly) ticks that entry, if the
+--                     dialog lists it (and, with createdOnly, if this game
+--                     created it rather than modifying a core one) }.
 --
 --available (optional) returns false to leave the type out of the dropdown
 --(a module that already has the type still shows it).
@@ -1970,6 +2003,11 @@ local g_heroOptionTables = {
 --publishingProperties (optional) is called with the same ctx when the module
 --is published and returns {key -> value} to store in the module record's
 --publishingProperties.
+--
+--excludedDependencyTypes (optional) is {row type -> true} for entries the
+--dependency search never pulls in. Excluding "module" also keeps out anything
+--an installed module owns, since the search only looks inside modules it may
+--depend on.
 local g_moduleTypes = {
 	{
 		id = "general",
@@ -2055,6 +2093,10 @@ local g_moduleTypes = {
 			pcall(function() enabled = dmhub.GetSettingValue("dev:encounteroftheweek") == true end)
 			return enabled
 		end,
+		--an EotW game already runs the official module and Draw Steel, so the
+		--authoring game's modules (codex-eotwauthor's Trap zone type pulled it
+		--in) and their code must never become dependencies.
+		excludedDependencyTypes = { module = true, code = true },
 		validate = function(ctx)
 			local check = CheckEncounterModule(ctx)
 			local warnings = check.warnings
@@ -2074,7 +2116,7 @@ local g_moduleTypes = {
 		--(see HeroModuleReviewAfterPublish below).
 		id = "hero",
 		text = "Hero Module",
-		description = "Options for building heroes, such as classes, ancestries and kits. Players add a Hero module to their inventory from the titlescreen, and it is added automatically to any game a hero using it enters. Heroes included in it become pregens: they are added to games unclaimed, and offered wherever pregens are, such as Encounter of the Week. A Hero module can't contain maps. If it contains code, an admin must approve each version before players can add it to their inventory; Directors can still install it into a game like any module.",
+		description = "Options for building heroes, such as classes, ancestries and kits. Players add a Hero module to their inventory from the titlescreen, and it is added automatically to any game a hero using it enters. Heroes included in it become pregens: they are added to games unclaimed, and offered wherever pregens are, such as Encounter of the Week. A Hero module can't contain maps. If it contains code, an admin must approve that code before players can add it to their inventory; a later version that uses only code already approved needs no new review. Directors can still install it into a game like any module.",
 		validate = function(ctx)
 			local errors = {}
 			local warnings = {}
@@ -2172,6 +2214,12 @@ local HeroModuleReviewAfterPublish = function(moduleInstance, versionid, codeMod
 				report(string.format("Sending it for review failed: %s", type(data) == "table" and data.error or "invalid response"))
 				return
 			end
+			--the server approves a version at once when an admin has already
+			--approved all of its code mods (heroModuleReviewRequest).
+			if data.status == "approved" then
+				report("Its code was approved for an earlier version, so players can use it as a Hero module now.")
+				return
+			end
 			report("Its code has been sent to an admin for review. Players can add it to their inventory once it is approved; Directors can install it now.")
 		end,
 		error = function(msg)
@@ -2228,6 +2276,22 @@ local showShareModuleDialog = function(options)
 	local addressableAssets = {}
 	local m_dependencyAssets = {}
 
+	--made on the first dependency pass. It downloads the floors of selected
+	--maps this session has not loaded; m_searcherRevision is the revision the
+	--last pass saw, so a finished download triggers another pass.
+	local m_dependencySearcher = nil
+	local m_searcherRevision = 0
+
+	--the module type's excludedDependencyTypes the searcher was made with;
+	--choosing a type with different ones makes a new searcher.
+	local m_searcherExclusions = nil
+
+	--true while the searcher is still downloading map data, so what the
+	--selected maps use is not all known yet.
+	local SearcherPending = function()
+		return m_dependencySearcher ~= nil and m_dependencySearcher.pending > 0
+	end
+
 	--guid -> {type, displayName} for every entry in the dialog, addressable
 	--or not, so module type validators can tell maps from everything else.
 	local assetInfo = {}
@@ -2239,18 +2303,23 @@ local showShareModuleDialog = function(options)
 	--the ctx a module type's validate / publishingProperties receive (see
 	--g_moduleTypes). include ticks an entry the way the author would, so the
 	--dependency pass then runs over it; entries the dialog does not list
-	--(content another module owns) are skipped.
+	--(content another module owns) are skipped. With createdOnly, an entry
+	--this game only modifies or deletes (a core one) is skipped too, as the
+	--dependency pass does.
 	local ModuleTypeContext = function()
 		return {
 			includedAssets = includedAssets,
 			dependencyAssets = m_dependencyAssets,
 			assetInfo = assetInfo,
-			include = function(guid)
+			include = function(guid, createdOnly)
 				if includedAssets[guid] or m_dependencyAssets[guid] then
 					return
 				end
 				local entry = allAssets[guid]
 				if entry == nil or entry.check == nil or not entry.check.valid then
+					return
+				end
+				if createdOnly and entry.check.data.op ~= "create" then
 					return
 				end
 				entry.check.value = true
@@ -2501,7 +2570,10 @@ local showShareModuleDialog = function(options)
 
 					if not dmhub.GetSettingValue("module:exportignoredependencies") then
 						for k,_ in pairs(m_dependencyAssets) do
-							assetsIncludingDependencies[k] = true
+							local entry = allAssets[k]
+							if entry == nil or entry.check == nil or ShipsAsDependency(entry.check.data) then
+								assetsIncludingDependencies[k] = true
+							end
 						end
 					end
 
@@ -3577,6 +3649,10 @@ local showShareModuleDialog = function(options)
 		if typeInfo.validate ~= nil then
 			errors, warnings = typeInfo.validate(ModuleTypeContext())
 		end
+		--holds Proceed until every selected map's content is known.
+		if SearcherPending() then
+			errors[#errors+1] = "Reading the selected maps to find everything they use..."
+		end
 		m_moduleTypeErrors = errors
 
 		local children = {}
@@ -3660,8 +3736,6 @@ local showShareModuleDialog = function(options)
 
 	local m_dependenciesDirty = true
 
-	local m_dependencySearcher = nil
-
 	--One step of m_autoPublish, run by the think handler once the dependency
 	--pass is up to date. "select" ticks every encounter map not claimed by
 	--another of this game's Encounter of the Week modules; after that each
@@ -3688,6 +3762,11 @@ local showShareModuleDialog = function(options)
 					ctx.include(guid)
 				end
 			end
+			return
+		end
+
+		if SearcherPending() then
+			--map data is still downloading; a pass runs when it lands.
 			return
 		end
 
@@ -3914,6 +3993,17 @@ local showShareModuleDialog = function(options)
 		end,
 
 		think = function(element)
+			if m_dependencySearcher ~= nil and m_dependencySearcher.revision ~= m_searcherRevision then
+				m_searcherRevision = m_dependencySearcher.revision
+				m_dependenciesDirty = true
+			end
+
+			local exclusions = GetModuleType(moduleInstance.moduleType).excludedDependencyTypes
+			if m_dependencySearcher ~= nil and m_searcherExclusions ~= exclusions then
+				m_dependencySearcher = nil
+				m_dependenciesDirty = true
+			end
+
 			if m_dependenciesDirty then
 				local count = 0
 				for k,item in pairs(addressableAssets) do
@@ -3921,7 +4011,18 @@ local showShareModuleDialog = function(options)
 				end
 				dmhub.Debug(string.format("ASSETS:: HAVE %d", count))
 				if m_dependencySearcher == nil then
-					m_dependencySearcher = module.CreateDependencySearcher(allAssets)
+					local candidates = allAssets
+					if exclusions ~= nil then
+						candidates = {}
+						for guid,entry in pairs(allAssets) do
+							if not exclusions[entry.check.data.type] then
+								candidates[guid] = entry
+							end
+						end
+					end
+					m_dependencySearcher = module.CreateDependencySearcher(candidates)
+					m_searcherExclusions = exclusions
+					m_searcherRevision = m_dependencySearcher.revision
 				end
 
 				m_dependencyAssets = m_dependencySearcher:Search(addressableAssets)
@@ -5420,6 +5521,36 @@ mod.shared.ShowDownloadShareDialog = function(options)
 		favoriteIcon,
 	}
 
+	local uninstallButton = gui.Panel{
+		classes = {"iconButton", "withDanger", "collapsed"},
+		width = 40,
+		height = 40,
+		halign = "right",
+		tmargin = 40,
+		bgimage = "icons/icon_tool/icon_tool_44.png",
+
+		press = function(element)
+			gui.ModalMessage{
+				title = "Uninstall Module",
+				message = "Uninstalling this module will remove all its compendium content from your game. Any maps or characters imported will remain and have to be manually deleted. If any compendium content from this module is being used in your game, uninstalling the module may result in instability.",
+				options = {
+					{
+						text = "Uninstall",
+						execute = function()
+							local mod = moduleDetailedDisplay.data.moduleInfo
+							mod:Uninstall{}
+						end,
+					},
+					{
+						text = "Cancel",
+						execute = function()
+						end,
+					},
+				}
+			}
+		end,
+	}
+
 	local statsPanel = gui.Panel{
 		classes = {"hidden"},
 		floating = true,
@@ -5433,6 +5564,7 @@ mod.shared.ShowDownloadShareDialog = function(options)
 		installCountPanel,
 		upvoteCountPanel,
 		favoritePanel,
+		uninstallButton,
 	}
 
 	local m_moduleErrors = {}
@@ -5441,7 +5573,6 @@ mod.shared.ShowDownloadShareDialog = function(options)
 	local m_installing = false
 
 	local installLabel
-	local uninstallButton
 
 	local installButton =
 		gui.Button{
@@ -5494,33 +5625,6 @@ mod.shared.ShowDownloadShareDialog = function(options)
 				installLabel:FireEvent("think")
 			end,
 		}
-	
-	uninstallButton = gui.Button{
-		classes = {"deleteButton", "collapsed"},
-		width = 16,
-		height = 16,
-
-		press = function(element)
-			gui.ModalMessage{
-				title = "Uninstall Module",
-				message = "Uninstalling this module will remove all its compendium content from your game. Any maps or characters imported will remain and have to be manually deleted. If any compendium content from this module is being used in your game, uninstalling the module may result in instability.",
-				options = {
-					{
-						text = "Uninstall",
-						execute = function()
-							local mod = moduleDetailedDisplay.data.moduleInfo
-							mod:Uninstall{}
-						end,
-					},
-					{
-						text = "Cancel",
-						execute = function()
-						end,
-					},
-				}
-			}
-		end,
-	}
 
 	--"Get this with a membership" for a premium module a creator includes with
 	--their Patreon. Those modules are listed for everyone, patron or not (see
@@ -5848,7 +5952,7 @@ mod.shared.ShowDownloadShareDialog = function(options)
 				if mod.installedVersion ~= mod.latestVersion and mod.installationBandwidthInKBytes > dmhub.uploadQuotaRemaining/1024 then
 					installButton:SetClass("collapsed", true)
 					element.text = "Not enough bandwidth to install"
-					uninstallButton:SetClass("collapsed", true)
+					uninstallButton:SetClass("collapsed", mod.installedVersion == nil)
 					return
 				end
 
@@ -5861,7 +5965,7 @@ mod.shared.ShowDownloadShareDialog = function(options)
 				end
 
 				if mod.installedVersion ~= mod.latestVersion then
-					uninstallButton:SetClass("collapsed", true)
+					uninstallButton:SetClass("collapsed", false)
 					installButton:SetClass("collapsed", false)
 					installButton.text = "Update"
 					element.text = string.format("Version %s is installed", mod.installedVersion, mod.latestVersion)
@@ -6079,7 +6183,6 @@ mod.shared.ShowDownloadShareDialog = function(options)
 			halign = "right",
 			valign = "bottom",
 			installLabel,
-			uninstallButton,
 		},
 		installButton,
 	}

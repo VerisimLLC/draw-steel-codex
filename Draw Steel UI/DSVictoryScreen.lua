@@ -64,6 +64,23 @@ function DSVictoryScreen.RegisterProceedOverride(override)
     g_proceedOverride = override
 end
 
+-- The HUD's live (non-replay) screen, for DismissHeld.
+local g_liveScreen = nil
+
+-- Close a HELD screen (shown, outcome already gone from the queue, waiting for
+-- the local Proceed) without a Proceed press. Encounter of the Week uses it
+-- when the host takes the party straight on to the next part. Does nothing
+-- when no screen is held.
+function DSVictoryScreen.DismissHeld()
+    local screen = g_liveScreen
+    if screen == nil or not screen.valid or not screen.data.held then
+        return
+    end
+    screen.data.held = false
+    screen.data.shown = false
+    screen:FireEvent("hideVictory")
+end
+
 -- True when a shown screen must survive the outcome leaving the queue and
 -- wait for the local Proceed press instead (see holdUntilLocalProceed).
 local function HoldUntilLocalProceed()
@@ -1236,7 +1253,7 @@ local function ComputeMonsterRolesInternal(live)
     local data = {}
     for _, group in ipairs(groups) do
         local rounds = {}
-        for roundKey, stats in pairs(live:GetStatsForMonsterGroupByRound(group.statKey)) do
+        for roundKey, stats in pairs(live:GetStatsForMonsterGroupByRound(group.statKeys)) do
             local n = tonumber(string.match(tostring(roundKey), "^round(%d+)$"))
             if n ~= nil and type(stats) == "table" then
                 rounds[n] = stats
@@ -1246,7 +1263,7 @@ local function ComputeMonsterRolesInternal(live)
         data[#data+1] = {
             group = group,
             name = group.name or "Monsters",
-            totals = live:GetStatsForMonsterGroup(group.statKey),
+            totals = live:GetStatsForMonsterGroup(group.statKeys),
             rounds = rounds,
         }
     end
@@ -1728,7 +1745,7 @@ Commands.RegisterMacro{
             else
                 print(string.format("  %s (%s): (no role)", group.name, status))
             end
-            local totals = live:GetStatsForMonsterGroup(group.statKey)
+            local totals = live:GetStatsForMonsterGroup(group.statKeys)
             local parts = {}
             for statid, v in pairs(totals) do
                 if type(v) == "number" then
@@ -1878,6 +1895,9 @@ local function ProceedEndCombat()
             end
         end
     end
+
+    --map objects have no initiative entry, so the loop above misses them.
+    TargetableObject.DispatchToObjects("endcombat")
 end
 
 -- Exported for automation (e.g. Encounter of the Week's host runs the teardown
@@ -1978,7 +1998,7 @@ local function SetPortraitFields(data, token)
         data.portrait = token.inspectPortrait
         data.spine = token.hasSpineAnimation == true
         if not data.spine then
-            data.portraitRect = token:GetPortraitRectForAspect(aspect, data.portrait)
+            data.portraitRect = CardPortraitRect(token, aspect, data.portrait)
         end
     end)
     pcall(function()
@@ -1991,7 +2011,7 @@ local function SetPortraitFields(data, token)
             return
         end
         data.savedPortrait = still
-        data.savedPortraitRect = RectFields(token:GetPortraitRectForAspect(aspect, still))
+        data.savedPortraitRect = RectFields(CardPortraitRect(token, aspect, still))
     end)
 end
 
@@ -2322,8 +2342,8 @@ local function BuildHeroCard(data)
 
     -- The fun role the hero earned this encounter: the role name as a small
     -- accent header with the detail line under it, and the role's fun-fact on
-    -- a hover tooltip. When the hero earned no role both labels render blank
-    -- (auto height collapses them to nothing). The title label is the one
+    -- a hover tooltip. When the hero earned no role both labels are collapsed
+    -- (an empty label could still draw stray glyphs: playtest N11). The title label is the one
     -- interactable element on an otherwise click-through card, so the tooltip
     -- can receive hover.
     local roleTitleLabel = gui.Label{
@@ -2356,6 +2376,8 @@ local function BuildHeroCard(data)
         fontFace = "Book",
         fontSize = 13,
     }
+    roleTitleLabel:SetClass("collapsed", data.role == nil)
+    roleTextLabel:SetClass("collapsed", data.role == nil)
 
     -- Lines registered by other modules (DSVictoryScreen.RegisterHeroCardNote).
     local noteLines = data.notes or {}
@@ -2771,6 +2793,19 @@ local function BuildMonsterCard(data)
         fontSize = 13,
     }
 
+    --minionLabel may be nil, so append rather than list it in a constructor. A
+    --group that earned no role gets no role labels at all (playtest N11: the
+    --empty pair drew stray glyph fragments under the "All Defeated" bar).
+    local children = { portraitPanel, nameLabel }
+    if minionLabel ~= nil then
+        children[#children + 1] = minionLabel
+    end
+    children[#children + 1] = survivorsBar
+    if data.role ~= nil then
+        children[#children + 1] = roleTitleLabel
+        children[#children + 1] = roleTextLabel
+    end
+
     return gui.Panel{
         classes = {"panel", "surfaceRadial", "border", "victoryHeroCard", "scalein", "victoryFade"},
         interactable = false,
@@ -2795,7 +2830,7 @@ local function BuildMonsterCard(data)
             { selectors = {"scalein", "~shown"}, transitionTime = 0.6, scale = 1.3,},
         },
 
-        children = { portraitPanel, nameLabel, minionLabel, survivorsBar, roleTitleLabel, roleTextLabel },
+        children = children,
 
         fadeOut = function(card)
             card:SetClassTree("shown", false)
@@ -3722,6 +3757,9 @@ function DSVictoryScreen.Create(options)
     end
 
     rootPanel = gui.Panel(rootArgs)
+    if replay == nil then
+        g_liveScreen = rootPanel
+    end
 
     -- Re-resolve the cascade when the user switches theme / color scheme so the
     -- whole victory screen recolors live. (A short-lived replay keeps the theme

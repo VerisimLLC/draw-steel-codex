@@ -2205,7 +2205,12 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 							local throughCreatures = currentSpell:try_get("forcedMovementThroughCreatures", false)
 							local reboundOptions = token.properties:GetForcedPushOptions()
 							local isVerticalSlidePreview = (currentSymbols.forcedmovement or currentSpell:try_get("forcedMovement")) == "vertical_slide"
-							local movementInfo = token:MarkMovementArrow(loc, {straightline = true, ignorecreatures = (targetingType == "straightpathignorecreatures" or throughCreatures), rebound = reboundOptions.rebound, maxBounces = reboundOptions.maxBounces, slide = isVerticalSlidePreview })
+							--A vertical move's dialed altitude is absolute; the engine wants it above the ground.
+							local previewLoc = loc
+							if ActivatedAbility.IsVerticalForcedMovement(currentSymbols.forcedmovement or currentSpell:try_get("forcedMovement")) then
+								previewLoc = ActivatedAbility.VerticalForcedMovementEngineLoc(loc)
+							end
+							local movementInfo = token:MarkMovementArrow(previewLoc, {straightline = true, ignorecreatures = (targetingType == "straightpathignorecreatures" or throughCreatures), rebound = reboundOptions.rebound, maxBounces = reboundOptions.maxBounces, slide = isVerticalSlidePreview })
 							showingMovementArrow = true
 							clearMovementArrow = false
 
@@ -5591,6 +5596,13 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 			end,
 
 			refresh = function(element)
+				--With a custom action bar (the Draw Steel one) this bar is collapsed under it
+				--(collapseIfCustomActionBar) and never seen, but it still rebuilt the selected
+				--creature's whole ability list and its spell panels on every refresh and game
+				--update -- ~30 ms after each move. Like invokeAbility, do nothing then.
+				if g_customActionBarFunction ~= nil then
+					return
+				end
 				if tokenInfo.selectedToken == nil or tokenInfo.selectedToken.properties == nil then
 					token = nil
 					element.monitorGame = nil
@@ -5613,6 +5625,9 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 
 			--fired whenever the monitored path in the game changes. In this case any character data.
 			refreshGame = function(element)
+				if g_customActionBarFunction ~= nil then
+					return
+				end
 				if self.castingSpell then
 					gameUpdateCameWhileCastingSpell = true
 				else
@@ -5631,7 +5646,7 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 		data = {
 			recalculate = function(element)
 
-                if token == nil then
+                if token == nil or g_customActionBarFunction ~= nil then
                     return
                 end
 

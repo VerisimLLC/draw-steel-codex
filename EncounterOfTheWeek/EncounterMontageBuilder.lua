@@ -2087,6 +2087,13 @@ function B.CreateWindow(session, close)
                 return PickDropdown(OUTCOME_OPTIONS, effect.outcome or "win", function(id) Set("outcome", id) end, { width = 250 })
             elseif param == "damageType" then
                 return PickDropdown(NameOptions(lists.damageTypes, effect.damageType), effect.damageType, function(id) Set("damageType", id) end, { width = 110 })
+            elseif param == "foeDamageType" then
+                --"damage" (all damage) first, then the damage types.
+                local foeTypes = { "damage" }
+                for _, damageType in ipairs(lists.damageTypes) do
+                    foeTypes[#foeTypes + 1] = damageType
+                end
+                return PickDropdown(NameOptions(foeTypes, effect.damageType), effect.damageType, function(id) Set("damageType", id) end, { width = 110 })
             end
             --keyword / zone / object: a dropdown of what exists, or a text box when there is nothing to list.
             local field = cond(param == "object", "object", cond(param == "zone", "zone", "keyword"))
@@ -2205,14 +2212,29 @@ function B.CreateWindow(session, close)
         children[#children + 1] = Row({
             gui.Label{ classes = { "mbFieldLabel" }, width = "auto", height = "auto", valign = "center", rmargin = 8, text = title or T("author.montage_builder.table.title") },
             TextBox(t.name, function(text)
-                Commit(T("author.montage_builder.status.renamed_table"), E.SetLine(parse, t.line, string.format("|%s: %s", trim((string.gsub(E.LineText(text), ":", ""))), t.dice)))
+                Commit(T("author.montage_builder.status.renamed_table"), E.SetLine(parse, t.line, string.format("|%s: %s", trim((string.gsub(E.LineText(text), ":", ""))), E.TableHeaderValue(t.dice, t.mystery))))
             end, { width = 220, height = 24 }),
             TextBox(t.dice, function(text)
-                Commit(T("author.montage_builder.status.changed_table_dice"), E.SetLine(parse, t.line, string.format("|%s: %s", t.name, E.LineText(text))))
+                --typing "1d6 (Mystery)" here works too; don't add the tag twice.
+                local _, typedMystery = EncounterScript.TableHeaderDice(text)
+                Commit(T("author.montage_builder.status.changed_table_dice"), E.SetLine(parse, t.line, string.format("|%s: %s", t.name, E.TableHeaderValue(text, t.mystery and not typedMystery))))
             end, { width = 70, height = 24 }),
             gui.Panel{ width = 8, height = 1 },
             ConfirmButton(T("author.montage_builder.table.delete"), DeleteTable),
         }, { fit = true })
+        --No tick box on a delve chest: its rows are always "???".
+        if entry == nil or entry.section ~= "chest" then
+            children[#children + 1] = gui.Check{
+                classes = { "sizeXs" },
+                width = 400,
+                height = 24,
+                text = T("author.montage_builder.table.mystery"),
+                value = t.mystery == true,
+                change = function(element)
+                    Commit(T("author.montage_builder.status.changed_table_mystery"), E.SetLine(parse, t.line, string.format("|%s: %s", t.name, E.TableHeaderValue(t.dice, element.value))))
+                end,
+            }
+        end
         for _, row in ipairs(t.rows or {}) do
             local r = row
             local range = cond(r.lo == r.hi, tostring(r.lo), string.format("%d-%d", r.lo, r.hi))
@@ -2258,6 +2280,171 @@ function B.CreateWindow(session, close)
         }
     end
 
+    --A test's characteristics and skills: `write(chars, skills)` saves them.
+    local function AttrEditor(attr, Write, children)
+        local chars, skills = B.SplitAttr(attr)
+        local charChecks = {}
+        for _, c in ipairs(CHARACTERISTICS) do
+            local has = false
+            for _, x in ipairs(chars) do
+                if x == c then has = true end
+            end
+            local characteristic = c
+            charChecks[#charChecks + 1] = gui.Check{
+                classes = { "sizeXs" },
+                fontSize = 14,
+                width = 100,
+                height = 24,
+                text = characteristic,
+                value = has,
+                change = function(element)
+                    local list = {}
+                    for _, x in ipairs(CHARACTERISTICS) do
+                        local keep = false
+                        for _, y in ipairs(chars) do
+                            if y == x then keep = true end
+                        end
+                        if x == characteristic then keep = element.value == true end
+                        if keep then list[#list + 1] = x end
+                    end
+                    if #list == 0 then
+                        session.status = T("author.montage_builder.status.test_needs_characteristic")
+                        Refresh()
+                        return
+                    end
+                    Write(list, skills)
+                end,
+            }
+        end
+        children[#children + 1] = Row(charChecks, { fit = true })
+
+        --skills: chips with an x, and a dropdown to add one.
+        local skillChildren = { gui.Label{ classes = { "mbSub" }, width = 60, height = "auto", valign = "center", text = T("author.montage_builder.rules.skills") } }
+        local known = {}
+        for _, s in ipairs(B.SkillOptions()) do
+            known[lower(s)] = true
+        end
+        for si, s in ipairs(skills) do
+            local index = si
+            skillChildren[#skillChildren + 1] = gui.Button{
+                classes = { "sizeXs" },
+                width = "auto",
+                hpad = 8,
+                borderBox = true,
+                height = 24,
+                rmargin = 4,
+                text = s .. "  x",
+                color = cond(known[lower(s)], nil, PROBLEM_COLOR),
+                hover = gui.Tooltip(cond(known[lower(s)], T("author.montage_builder.rules.remove_skill_tooltip"), T("author.montage_builder.rules.unknown_skill_tooltip", { skill = s }))),
+                click = function()
+                    local list = {}
+                    for k, x in ipairs(skills) do
+                        if k ~= index then list[#list + 1] = x end
+                    end
+                    Write(chars, list)
+                end,
+            }
+        end
+        local addOptions = { { id = "", text = T("author.montage_builder.rules.add_skill") } }
+        for _, s in ipairs(B.SkillOptions()) do
+            addOptions[#addOptions + 1] = { id = s, text = s }
+        end
+        skillChildren[#skillChildren + 1] = gui.Dropdown{
+            classes = { "sizeXs" },
+            width = 150,
+            height = 24,
+            options = addOptions,
+            idChosen = "",
+            hasSearch = true,
+            change = function(element)
+                ---@cast element Dropdown
+                local chosen = element.idChosen
+                if type(chosen) == "string" and chosen ~= "" then
+                    local list = {}
+                    for _, x in ipairs(skills) do list[#list + 1] = x end
+                    list[#list + 1] = chosen
+                    Write(chars, list)
+                end
+            end,
+        }
+        children[#children + 1] = Row(skillChildren, { fit = true })
+    end
+
+    --An option's knacks: edge, bane and secret riders, then the buttons that add
+    --them (`hasRoll`: edges and banes need a test). `noRounds` drops the round
+    --picker where there are no rounds to pick.
+    local function RiderRows(holder, riders, hasRoll, children, noRounds)
+        local parse = session.parse
+        local effectOptions = {}
+        for _, eff in ipairs(E.RIDER_EFFECTS) do
+            effectOptions[#effectOptions + 1] = { id = eff, text = E.RiderWord(eff) }
+        end
+        local roundOptions = { { id = "any", text = T("author.montage_builder.rules.any_round") } }
+        if not noRounds then
+            local beat = B.CurrentBeat(session)
+            for r = 1, math.max(1, beat ~= nil and #beat.rounds or 1) do
+                roundOptions[#roundOptions + 1] = { id = tostring(r), text = T("author.montage_builder.rules.round_option", { number = r }) }
+            end
+        end
+        for _, rider in ipairs(riders) do
+            local r = rider
+            local problems = {}
+            pcall(function() problems = EncounterScript.RequirementProblems(r.requirement) end)
+            local row = {
+                gui.Dropdown{
+                    classes = { "sizeXs" },
+                    width = 120,
+                    height = 24,
+                    options = effectOptions,
+                    idChosen = r.effect,
+                    change = function(element)
+                        ---@cast element Dropdown
+                        Commit(T("author.montage_builder.status.edited_knack"), E.SetRider(parse, r, element.idChosen, r.round, r.text))
+                    end,
+                },
+            }
+            if not noRounds then
+                row[#row + 1] = gui.Dropdown{
+                    classes = { "sizeXs" },
+                    width = 100,
+                    height = 24,
+                    lmargin = 4,
+                    options = roundOptions,
+                    idChosen = r.round ~= nil and tostring(r.round) or "any",
+                    change = function(element)
+                        ---@cast element Dropdown
+                        local round = tonumber(element.idChosen)
+                        Commit(T("author.montage_builder.status.edited_knack"), E.SetRider(parse, r, r.effect, round, r.text))
+                    end,
+                }
+            end
+            row[#row + 1] = TextBox(r.text, function(text)
+                Commit(T("author.montage_builder.status.edited_knack"), E.SetRider(parse, r, r.effect, r.round, text))
+            end, { width = cond(noRounds, "100%-196", "100%-300") })
+            row[#row + 1] = SmallButton(T("author.montage_builder.rules.remove_knack"), function()
+                Commit(T("author.montage_builder.status.removed_knack"), E.RemoveRider(parse, r))
+            end)
+            children[#children + 1] = Row(row)
+            for _, p in ipairs(problems or {}) do
+                children[#children + 1] = Label(p, { "mbProblem" })
+            end
+        end
+        local addRow = {}
+        if hasRoll then
+            addRow[#addRow + 1] = SmallButton(T("author.montage_builder.rules.add_edge"), function()
+                Commit(T("author.montage_builder.status.added_knack"), E.AddRider(parse, session.texts, holder, "edge", nil, "you can climb"))
+            end)
+            addRow[#addRow + 1] = SmallButton(T("author.montage_builder.rules.add_bane"), function()
+                Commit(T("author.montage_builder.status.added_knack"), E.AddRider(parse, session.texts, holder, "bane", nil, "you have cold weakness"))
+            end)
+        end
+        addRow[#addRow + 1] = SmallButton(T("author.montage_builder.rules.add_secret"), function()
+            Commit(T("author.montage_builder.status.added_knack"), E.AddRider(parse, session.texts, holder, "allow", nil, "you are a Dwarf"))
+        end)
+        children[#children + 1] = Row(addRow, { fit = true })
+        children[#children + 1] = Label(T("author.montage_builder.rules.requirements_help"), { "mbSub" })
+    end
+
     --- the rules of an option or knack version: its test, or its no-roll rules, and riders ---
     local function RulesEditor(entry, holder, children)
         local parse = session.parse
@@ -2272,91 +2459,7 @@ function B.CreateWindow(session, close)
                 gui.Label{ classes = { "mbSub" }, width = 60, height = "auto", valign = "center", text = T("author.montage_builder.rules.test_name") },
                 TextBox(roll.name, function(text) WriteHeader(text, chars, skills) end, { width = 220 }),
             }, { fit = true })
-            local charChecks = {}
-            for _, c in ipairs(CHARACTERISTICS) do
-                local has = false
-                for _, x in ipairs(chars) do
-                    if x == c then has = true end
-                end
-                local characteristic = c
-                charChecks[#charChecks + 1] = gui.Check{
-                    classes = { "sizeXs" },
-                    fontSize = 14,
-                    width = 100,
-                    height = 24,
-                    text = characteristic,
-                    value = has,
-                    change = function(element)
-                        local list = {}
-                        for _, x in ipairs(CHARACTERISTICS) do
-                            local keep = false
-                            for _, y in ipairs(chars) do
-                                if y == x then keep = true end
-                            end
-                            if x == characteristic then keep = element.value == true end
-                            if keep then list[#list + 1] = x end
-                        end
-                        if #list == 0 then
-                            session.status = T("author.montage_builder.status.test_needs_characteristic")
-                            Refresh()
-                            return
-                        end
-                        WriteHeader(roll.name, list, skills)
-                    end,
-                }
-            end
-            children[#children + 1] = Row(charChecks, { fit = true })
-
-            --skills: chips with an x, and a dropdown to add one.
-            local skillChildren = { gui.Label{ classes = { "mbSub" }, width = 60, height = "auto", valign = "center", text = T("author.montage_builder.rules.skills") } }
-            local known = {}
-            for _, s in ipairs(B.SkillOptions()) do
-                known[lower(s)] = true
-            end
-            for si, s in ipairs(skills) do
-                local index = si
-                skillChildren[#skillChildren + 1] = gui.Button{
-                    classes = { "sizeXs" },
-                    width = "auto",
-                    hpad = 8,
-                    borderBox = true,
-                    height = 24,
-                    rmargin = 4,
-                    text = s .. "  x",
-                    color = cond(known[lower(s)], nil, PROBLEM_COLOR),
-                    hover = gui.Tooltip(cond(known[lower(s)], T("author.montage_builder.rules.remove_skill_tooltip"), T("author.montage_builder.rules.unknown_skill_tooltip", { skill = s }))),
-                    click = function()
-                        local list = {}
-                        for k, x in ipairs(skills) do
-                            if k ~= index then list[#list + 1] = x end
-                        end
-                        WriteHeader(roll.name, chars, list)
-                    end,
-                }
-            end
-            local addOptions = { { id = "", text = T("author.montage_builder.rules.add_skill") } }
-            for _, s in ipairs(B.SkillOptions()) do
-                addOptions[#addOptions + 1] = { id = s, text = s }
-            end
-            skillChildren[#skillChildren + 1] = gui.Dropdown{
-                classes = { "sizeXs" },
-                width = 150,
-                height = 24,
-                options = addOptions,
-                idChosen = "",
-                hasSearch = true,
-                change = function(element)
-                    ---@cast element Dropdown
-                    local chosen = element.idChosen
-                    if type(chosen) == "string" and chosen ~= "" then
-                        local list = {}
-                        for _, x in ipairs(skills) do list[#list + 1] = x end
-                        list[#list + 1] = chosen
-                        WriteHeader(roll.name, chars, list)
-                    end
-                end,
-            }
-            children[#children + 1] = Row(skillChildren, { fit = true })
+            AttrEditor(roll.attr, function(newChars, newSkills) WriteHeader(roll.name, newChars, newSkills) end, children)
 
             --tiers.
             children[#children + 1] = Label(T("author.montage_builder.rules.outcomes_label"), { "mbFieldLabel" })
@@ -2459,69 +2562,7 @@ function B.CreateWindow(session, close)
         for _, r in ipairs(holder.riders or {}) do riders[#riders + 1] = r end
         if roll ~= nil or holder.free ~= nil then
             children[#children + 1] = Label(T("author.montage_builder.rules.knacks_label"), { "mbFieldLabel" })
-            local effectOptions = {}
-            for _, eff in ipairs(E.RIDER_EFFECTS) do
-                effectOptions[#effectOptions + 1] = { id = eff, text = E.RiderWord(eff) }
-            end
-            local roundOptions = { { id = "any", text = T("author.montage_builder.rules.any_round") } }
-            local beat = B.CurrentBeat(session)
-            for r = 1, math.max(1, beat ~= nil and #beat.rounds or 1) do
-                roundOptions[#roundOptions + 1] = { id = tostring(r), text = T("author.montage_builder.rules.round_option", { number = r }) }
-            end
-            for _, rider in ipairs(riders) do
-                local r = rider
-                local problems = {}
-                pcall(function() problems = EncounterScript.RequirementProblems(r.requirement) end)
-                children[#children + 1] = Row({
-                    gui.Dropdown{
-                        classes = { "sizeXs" },
-                        width = 120,
-                        height = 24,
-                        options = effectOptions,
-                        idChosen = r.effect,
-                        change = function(element)
-                            ---@cast element Dropdown
-                            Commit(T("author.montage_builder.status.edited_knack"), E.SetRider(parse, r, element.idChosen, r.round, r.text))
-                        end,
-                    },
-                    gui.Dropdown{
-                        classes = { "sizeXs" },
-                        width = 100,
-                        height = 24,
-                        lmargin = 4,
-                        options = roundOptions,
-                        idChosen = r.round ~= nil and tostring(r.round) or "any",
-                        change = function(element)
-                            ---@cast element Dropdown
-                            local round = tonumber(element.idChosen)
-                            Commit(T("author.montage_builder.status.edited_knack"), E.SetRider(parse, r, r.effect, round, r.text))
-                        end,
-                    },
-                    TextBox(r.text, function(text)
-                        Commit(T("author.montage_builder.status.edited_knack"), E.SetRider(parse, r, r.effect, r.round, text))
-                    end, { width = "100%-300" }),
-                    SmallButton(T("author.montage_builder.rules.remove_knack"), function()
-                        Commit(T("author.montage_builder.status.removed_knack"), E.RemoveRider(parse, r))
-                    end),
-                })
-                for _, p in ipairs(problems or {}) do
-                    children[#children + 1] = Label(p, { "mbProblem" })
-                end
-            end
-            local addRow = {}
-            if roll ~= nil then
-                addRow[#addRow + 1] = SmallButton(T("author.montage_builder.rules.add_edge"), function()
-                    Commit(T("author.montage_builder.status.added_knack"), E.AddRider(parse, session.texts, holder, "edge", nil, "you can climb"))
-                end)
-                addRow[#addRow + 1] = SmallButton(T("author.montage_builder.rules.add_bane"), function()
-                    Commit(T("author.montage_builder.status.added_knack"), E.AddRider(parse, session.texts, holder, "bane", nil, "you have cold weakness"))
-                end)
-            end
-            addRow[#addRow + 1] = SmallButton(T("author.montage_builder.rules.add_secret"), function()
-                Commit(T("author.montage_builder.status.added_knack"), E.AddRider(parse, session.texts, holder, "allow", nil, "you are a Dwarf"))
-            end)
-            children[#children + 1] = Row(addRow, { fit = true })
-            children[#children + 1] = Label(T("author.montage_builder.rules.requirements_help"), { "mbSub" })
+            RiderRows(holder, riders, roll ~= nil, children)
         end
 
         --switch between a test and no roll.
@@ -3272,6 +3313,8 @@ function B.CreateWindow(session, close)
         Do = Do,
         Refresh = function() Refresh() end,
         OutcomeEditor = OutcomeEditor,
+        AttrEditor = AttrEditor,
+        RiderRows = RiderRows,
         PickDropdown = PickDropdown,
         NameOptions = NameOptions,
         Word = Word,

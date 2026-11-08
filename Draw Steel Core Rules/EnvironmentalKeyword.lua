@@ -4025,3 +4025,54 @@ GameSystem.RegisterGoblinScriptField{
 		return LocTouchesWater(token.loc, token.charid)
 	end,
 }
+
+--------------------------------------------------------------------------------
+-- OnWaterSpace: "starts their turn in a space containing water" (e.g. the
+-- Essence of Tides' Water Glide). Unlike AdjacentToWater it looks only at the
+-- squares the creature itself occupies -- never neighbours, never other
+-- creatures -- and any one square of a large creature's footprint is enough.
+--
+-- Water is whatever the tile rules call water: water tile art, the map's deep
+-- water level, and apply-to-all auras flagged water (markup water zones and
+-- ability or creature auras carrying the Water environmental keyword). The
+-- Lua tile-rules bridge passes no altitude and no creature, so a creature
+-- flying over water still counts, and an aura with its own creature filter
+-- does not.
+--------------------------------------------------------------------------------
+GameSystem.RegisterGoblinScriptField{
+	name = "OnWaterSpace",
+	type = "boolean",
+	desc = "True if any square this creature occupies contains water (water terrain, deep map water, a water markup zone, or an aura with the Water keyword). Adjacent squares and nearby water elementals do not count; see AdjacentToWater for that.",
+	seealso = {"AdjacentToWater", "InWater"},
+	examples = {"self.OnWaterSpace"},
+	calculate = function(c)
+		local token = dmhub.LookupToken(c)
+		if token == nil or not token.valid or token.loc == nil then
+			return false
+		end
+
+		local locs = token.locsOccupying
+		if locs == nil or #locs == 0 then
+			locs = { token.loc }
+		end
+
+		for _,loc in ipairs(locs) do
+			--GetTileRulesAtLoc returns nil off-map / where there is no terrain.
+			local rules = dmhub.GetTileRulesAtLoc(loc)
+			if rules ~= nil and rules.water then
+				return true
+			end
+
+			--Image maps have no terrain tiles, so the tile rules above are nil
+			--everywhere and never merge in water auras. Ask the auras directly.
+			for _,instance in ipairs(AuraInstancesCoveringSquare(loc)) do
+				local ok, water = pcall(function() return instance:GetWater() end)
+				if ok and water then
+					return true
+				end
+			end
+		end
+
+		return false
+	end,
+}

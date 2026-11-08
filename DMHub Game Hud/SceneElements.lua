@@ -1755,6 +1755,7 @@ local function Position(layer, item, x, y, w)
     panel.selfStyle.width = W
     panel.selfStyle.height = H
     item.scaler.selfStyle.scale = W / item.nativeW
+    Tabletop.FitCardSelectRing(item.ring, W / item.nativeW)
 end
 
 --The height of an item as a fraction of the stage, at width w.
@@ -2600,13 +2601,14 @@ function SceneElements.CreateLayer(sceneid, options)
         }
 
         local children = {item.scaler}
-        --a creature card: the ring it wears while selected, and the button
-        --that opens its sheet (under the close button's corner).
+        --a creature card: the ring it wears while selected (on the face, so
+        --it turns over with it), and the button that opens its sheet (under
+        --the close button's corner).
         if el.kind == "creature" then
-            item.ring = Tabletop.CardSelectRing(8)
+            item.ring = Tabletop.CardSelectRing()
             Tabletop.ShowCardSelected(item.ring, Tabletop.SelectedCharids()[el.charid] == true)
+            face:AddChild(item.ring)
             item.sheet = Tabletop.CardSheetButton(el.charid, {x = -8, y = 20})
-            children[#children+1] = item.ring
             children[#children+1] = item.sheet
         end
         children[#children+1] = item.close
@@ -2624,6 +2626,11 @@ function SceneElements.CreateLayer(sceneid, options)
             width = 10,
             height = 10,
             cornerRadius = 8,
+            --a clear surface to catch the mouse: a picture's or sound's face
+            --is not interactable, and a panel with no bgimage is never hit,
+            --so without it those could not be hovered, dragged or resized.
+            bgimage = true,
+            bgcolor = "clear",
             flow = "none",
             draggable = true,
             --the drag moves the card itself (Dragging), within the scene.

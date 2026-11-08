@@ -283,6 +283,8 @@ function RollCheck:GetModifiers(creature, rollRequest)
                     mod.hint.result = true
                 end
             end
+        elseif skill == nil and self.type == "test_power_roll" then
+            CharacterModifier.MarkSkilledRollerDecides(result)
         end
         return result
 	elseif self.type == "opposed_power_roll" then
@@ -488,7 +490,22 @@ end
 local g_timelineRollTypes = {
     opposed_power_roll = true,
     resistance_power_roll = true,
+    test_power_roll = true,
+    --downtime project rolls (the Hero sheet and the Respite), shown like a test.
+    project_power_roll = true,
 }
+
+--The creature whose ability asked for this roll, or nil if the request does
+--not say or that creature is not on the map.
+--- @param check RollCheck
+--- @return CharacterToken|nil
+local function RequestCasterToken(check)
+    local casterid = check:try_get("options", {}).casterid
+    if casterid == nil then
+        return nil
+    end
+    return dmhub.GetTokenById(casterid)
+end
 
 --Wraps the old floating dialog so callers can treat both dialogs the same way.
 local function LegacyPromptHandle(rollid)
@@ -524,21 +541,52 @@ local function ShowTimelinePrompt(check, dialogParams)
 
     local checkOptions = check:try_get("options", {})
 
-    local casterToken = nil
-    if checkOptions.casterid ~= nil then
-        casterToken = dmhub.GetTokenById(checkOptions.casterid)
-    end
+    local casterToken = RequestCasterToken(check)
 
     --cardAbility: a roll whose `ability` option feeds modifier filters (a
     --resistance roll) passes the card to show separately.
+    local cardToken = casterToken
+    local cardAbility = checkOptions.cardAbility or checkOptions.ability
+
+    --A test with no ability behind it (the Director's Request Roll dialog) is
+    --shown like a characteristic clicked on the character panel: a synthetic
+    --test card for the creature rolling (creature:ShowCharacteristicRollDialog).
+    --A project roll is shown the same way. A roller that is not on the map has
+    --no card, so it keeps the old dialog.
+    local rollerToken = nil
+    if cardAbility == nil and (check.type == "test_power_roll" or check.type == "project_power_roll") then
+        rollerToken = dmhub.LookupToken(dialogParams.creature)
+        if rollerToken == nil then
+            return nil
+        end
+        cardToken = rollerToken
+        cardAbility = ActivatedAbility.Create{ isTest = true, name = dialogParams.description }
+    end
+
     local mount = CharacterPanel.EmbedPromptRollDialog{
-        token = casterToken,
-        ability = checkOptions.cardAbility or checkOptions.ability,
+        token = cardToken,
+        ability = cardAbility,
+        renderAsAbility = rollerToken ~= nil,
     }
 
     if mount == nil or mount.dialog == nil or not mount.dialog.valid
        or mount.dialog.data == nil or mount.dialog.data.ShowDialog == nil then
         return nil
+    end
+
+    --The roller as its own single target, as on the character panel: the
+    --post-roll edge/bane -> tier refresh only runs for a roll with targets.
+    if rollerToken ~= nil then
+        dialogParams.multitargets = {
+            {
+                token = rollerToken,
+                boons = 0,
+                banes = 0,
+                modifiers = dialogParams.modifiers,
+                triggers = {},
+            },
+        }
+        dialogParams.targetCreature = dialogParams.creature
     end
 
     --The Timeline roller shows no title of its own, so hand it the same two
@@ -616,6 +664,8 @@ local function ShowTimelinePrompt(check, dialogParams)
         dialogParams.cancelRoll = origCancel
         dialogParams.promptHeader = nil
         dialogParams.delay = nil
+        dialogParams.multitargets = nil
+        dialogParams.targetCreature = nil
         Teardown()
         return nil
     end
@@ -748,6 +798,10 @@ function GameHud:RequireRollListenerPanel()
 
 	local autoRollId = nil
 	local autoCancelId = nil
+	--Rolls of a request that were cancelled after the player ticked "Roll all"
+	--and cancelled one. If one is asked for again (the Monster AI asks again
+	--for declined rolls), the player gets a real prompt instead.
+	local autoCancelledRolls = {}
 
 	--tracks the ID of the roll dialog we are showing. This way we can cancel that dialog
 	--if needed due to the roll request being retracted. showingPrompt is the handle
@@ -914,10 +968,35 @@ function GameHud:RequireRollListenerPanel()
 											aiRoll = true
 										end
 									end
+									--Under "Strictly Enforce Rolls" a player cannot decline a
+									--roll that a monster's ability asks of them. The Director
+									--is never bound by strict rules.
+									local noCancel = false
+									if StrictRollsEnforced() then
+										local casterTok = RequestCasterToken(check)
+										noCancel = casterTok ~= nil and casterTok.playerControlled == false
+										if noCancel then
+											dmhub.Debug(string.format("ROLL:: no cancel for %s: strict rolls, asked by a monster", rollid))
+										end
+									end
+
+									--This roll was already auto-cancelled, so it is being asked
+									--for again. Stop auto-cancelling and show a real prompt.
+									if autoCancelId == k and autoCancelledRolls[rollid] then
+										dmhub.Debug(string.format("ROLL:: %s asked for again; stop auto-cancelling request %s", rollid, k))
+										if autoRollId == k then
+											autoRollId = nil
+										end
+										autoCancelId = nil
+										autoCancelledRolls = {}
+									end
 									if autoRollId == k then
 										autoroll = true
-										if autoCancelId == k then
+										--A roll that cannot be cancelled is rolled instead.
+										if autoCancelId == k and not noCancel then
 											autoroll = "cancel"
+											autoCancelledRolls[rollid] = true
+											dmhub.Debug(string.format("ROLL:: auto-cancelling %s", rollid))
 										end
 									--real hosting check: monster resistance rolls must keep
 									--auto-resolving on a player host or the AI stalls on a prompt.
@@ -988,6 +1067,7 @@ function GameHud:RequireRollListenerPanel()
 										end,
 										autoroll = autoroll,
 										aiRoll = aiRoll,
+										noCancel = noCancel,
 										beginRoll = function()
 											local req = dmhub.GetPlayerActionRequest(k)
 											if req ~= nil and req.info.tokens[tokid] ~= nil then
@@ -1041,7 +1121,12 @@ function GameHud:RequireRollListenerPanel()
 										end,
 										cancelRoll = function()
 											if rollAllPromptsSet then
+												if autoCancelId ~= k then
+													autoCancelledRolls = {}
+												end
 												autoCancelId = k
+												autoCancelledRolls[rollid] = true
+												dmhub.Debug(string.format("ROLL:: %s cancelled with Roll all; auto-cancelling the rest of request %s", rollid, k))
 											end
 
 											local req = dmhub.GetPlayerActionRequest(k)
@@ -3632,12 +3717,13 @@ end
 --waiting notice (MonsterAI.SetWaiting). Like the AI's other player waits this
 --has no timer. A declined roll is asked for again. If the AI is stopped while
 --it waits, the request goes to the summary dialog so a person can finish it.
+--If the cast is given up as stuck, the request is dropped.
 --In directorless play it also waits, once every roll is in, for a player to
 --press Continue on the group roll board.
 
---A declined roll is asked for again at most this often. A player who chose
---"roll all" and then cancelled has every later prompt of the request
---auto-cancelled, so without this the re-ask would churn every poll.
+--A declined roll is asked for again at most this often. After "Roll all" plus
+--a cancel, the request's other prompts are cancelled too; asking again then
+--shows the player real prompts.
 local AI_REASK_SECONDS = 2
 
 --The waiting notice names at most this many heroes who still have to roll.
@@ -3717,6 +3803,10 @@ function AwaitAIRequestedActionCoroutine(actionid, resultTable)
 	local reaskedAt = {}
 	--True once this wait has paused the board for Continue (directorless play).
 	local awaitingContinueSet = false
+	--The cast this wait belongs to. If the game gives up on that cast as
+	--stuck, nobody needs these rolls any more, so the wait ends and drops
+	--the request.
+	local castInfo = ActivatedAbility.CurrentCastInfo()
 
 	print("AWAIT:: AI accepting rolls for request", actionid)
 
@@ -3732,6 +3822,14 @@ function AwaitAIRequestedActionCoroutine(actionid, resultTable)
 
 			local action = dmhub.GetPlayerActionRequest(actionid)
 			if action == nil then
+				resultTable.result = false
+				return
+			end
+
+			if castInfo ~= nil and (ActivatedAbility.CurrentCastInfo() ~= castInfo
+					or (castInfo.options ~= nil and castInfo.options.abort)) then
+				print("AWAIT:: cast abandoned; dropping roll request", actionid)
+				dmhub.CancelActionRequest(actionid)
 				resultTable.result = false
 				return
 			end
@@ -3762,6 +3860,17 @@ function AwaitAIRequestedActionCoroutine(actionid, resultTable)
 						reask[#reask+1] = k
 					end
 				end
+			end
+
+			--A hero still has to roll, so the cast is waiting on a person, not
+			--stuck. Without this a player who takes a while to roll on another
+			--machine had their prompt taken away by the check above.
+			if #outstandingHeroes > 0 then
+				ActivatedAbility.MarkCastProgress()
+			end
+
+			if #reask > 0 then
+				print("AWAIT:: asking again for", #reask, "declined roll(s) in request", actionid)
 			end
 
 			if #reask > 0 or #remove > 0 then

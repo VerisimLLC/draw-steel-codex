@@ -220,8 +220,8 @@ function TableMedia.VideoFace(entryid, w, h)
 end
 
 --Waits (up to half a minute) for a just-uploaded entry to reach the journal,
---then puts it on the table.
-local function PlaceWhenReady(entryid, at, scale)
+--then puts it on the table, shared with the players if asked.
+local function PlaceWhenReady(entryid, at, scale, shared)
     dmhub.Coroutine(function()
         local deadline = dmhub.Time() + 30
         while CustomDocument.FindJournalEntry(entryid) == nil do
@@ -234,6 +234,9 @@ local function PlaceWhenReady(entryid, at, scale)
             return
         end
         Tabletop.OpenDocItem(entryid, {at = at, scale = scale, placed = true})
+        if shared then
+            Tabletop.ShareDocItem(entryid)
+        end
     end)
 end
 
@@ -352,6 +355,30 @@ local function ReadFiles(paths)
         files[#files+1] = file
     end
     return files
+end
+
+--Small local pictures of files read this session, keyed by path and size,
+--so the drag card and then the dialog decode each file only once.
+local g_previews = {}
+
+--Gives a picture file its preview (decoded on the main thread: a moment for
+--a big map), once.
+--- @param file TableDropFile
+local function LoadPreview(file)
+    if file.video or file.previewTried then
+        return
+    end
+    file.previewTried = true
+    local key = string.format("%s|%s", file.path, tostring(file.bytes))
+    local cached = g_previews[key]
+    if cached == nil then
+        local loaded = assets:LoadImageFileLocallyResized(file.path, 600)
+        cached = (loaded ~= nil and loaded.image) or false
+        g_previews[key] = cached
+    end
+    if cached then
+        file.preview = cached
+    end
 end
 
 --The map size in squares a picture of w x h pixels fits exactly, or nil.
@@ -647,13 +674,29 @@ local function GridPositions(sizes, mx, my)
     return result
 end
 
---Puts the files on the table as journal pictures and videos, laid out
---around (mx, my).
-local function AddToTable(files, mx, my, loop, audio)
+--The size each picture or video is laid out at on the table, in the
+--table's units: {w, h}.
+--- @param files TableDropFile[]
+--- @return {w: number, h: number}[]
+local function LayoutSizes(files)
     local targetW = cond(#files == 1, DROP_WIDTH_SINGLE, DROP_WIDTH_MULTI)
+    local sizes = {}
+    for _, file in ipairs(files) do
+        local aspect = 1
+        if file.width > 0 and file.height > 0 then
+            aspect = math.max(0.4, math.min(1.6, file.height / file.width))
+        end
+        sizes[#sizes+1] = {w = targetW, h = targetW * aspect}
+    end
+    return sizes
+end
+
+--Puts the files on the table as journal pictures and videos, laid out
+--around (mx, my), shared with the players if asked.
+local function AddToTable(files, mx, my, loop, audio, shared)
     local records = {}
     local placements = {}
-    local sizes = {}
+    local uploaded = {}
     for _, file in ipairs(files) do
         local entryid = FileDrops.UploadImage(file.path, {imageType = "document", parentFolder = "private"})
         if entryid ~= nil then
@@ -665,32 +708,33 @@ local function AddToTable(files, mx, my, loop, audio)
                 loop = loop,
                 audio = audio,
             }
-            local baseW = cond(file.video, VIDEO_BASE_WIDTH, PICTURE_BASE_WIDTH)
-            local scale = targetW / baseW
-            local aspect = 1
-            if file.width > 0 and file.height > 0 then
-                aspect = math.max(0.4, math.min(1.6, file.height / file.width))
-            end
-            placements[#placements+1] = {entryid = entryid, scale = scale}
-            sizes[#sizes+1] = {w = targetW, h = targetW * aspect}
+            placements[#placements+1] = {entryid = entryid, video = file.video}
+            uploaded[#uploaded+1] = file
         end
     end
     if #placements == 0 then
         return
     end
     RecordMedia(records)
+    local sizes = LayoutSizes(uploaded)
     local positions = GridPositions(sizes, mx, my)
     for i, placement in ipairs(placements) do
-        PlaceWhenReady(placement.entryid, positions[i], placement.scale)
+        local scale = sizes[i].w / cond(placement.video, VIDEO_BASE_WIDTH, PICTURE_BASE_WIDTH)
+        PlaceWhenReady(placement.entryid, positions[i], scale, shared)
     end
 end
 
 --- Shows the Add Image / Add Video dialog for files dropped on the table at
---- (mx, my), in the table's units.
+--- (mx, my), in the table's units. options.shared: start with "Share with
+--- players" ticked (the files were dropped with Ctrl held); behindScreen:
+--- dropped behind the Director's Screen, so they stay private and the
+--- dialog does not offer to share them.
 --- @param paths string[] local image and video files
 --- @param mx number
 --- @param my number
-function TableDropDialog.Show(paths, mx, my)
+--- @param options nil|{shared: nil|boolean, behindScreen: nil|boolean}
+function TableDropDialog.Show(paths, mx, my, options)
+    options = options or {}
     local files = ReadFiles(paths)
     if #files == 0 then
         return
@@ -719,6 +763,7 @@ function TableDropDialog.Show(paths, mx, my)
         videoDefaulted = false,
         loop = true,
         audio = false,
+        shared = options.shared == true,
     }
     state.selected = state.analysis.suggestion
 
@@ -1395,20 +1440,21 @@ function TableDropDialog.Show(paths, mx, my)
         if first.width > 0 and first.height > 0 then
             aspect = first.width / first.height
         end
+        local shared = state.shared
         if id == "map" then
-            Tabletop.AddFilesAsMap({first.path}, mx, my, {aspect = aspect})
+            Tabletop.AddFilesAsMap({first.path}, mx, my, {aspect = aspect, shared = shared})
         elseif id == "floors" then
-            Tabletop.AddFilesAsMap(paths, mx, my, {aspect = aspect})
+            Tabletop.AddFilesAsMap(paths, mx, my, {aspect = aspect, shared = shared})
         elseif id == "variations" then
             local rest = {}
             for i = 2, #paths do
                 rest[#rest+1] = paths[i]
             end
-            Tabletop.AddFilesAsMap({first.path}, mx, my, {aspect = aspect, variations = rest})
+            Tabletop.AddFilesAsMap({first.path}, mx, my, {aspect = aspect, variations = rest, shared = shared})
         elseif id == "scenes" then
-            Tabletop.AddFilesAsScenes(paths, mx, my)
+            Tabletop.AddFilesAsScenes(paths, mx, my, {shared = shared})
         else
-            AddToTable(files, mx, my, state.loop, state.audio)
+            AddToTable(files, mx, my, state.loop, state.audio, shared)
         end
     end
 
@@ -1457,11 +1503,7 @@ function TableDropDialog.Show(paths, mx, my)
         think = function(element)
             for _, file in ipairs(files) do
                 if not file.video and not file.previewTried then
-                    file.previewTried = true
-                    local loaded = assets:LoadImageFileLocallyResized(file.path, 600)
-                    if loaded ~= nil then
-                        file.preview = loaded.image
-                    end
+                    LoadPreview(file)
                     FilesChanged(false)
                     return
                 end
@@ -1535,6 +1577,17 @@ function TableDropDialog.Show(paths, mx, my)
                     bmargin = 10,
                 },
                 optionsPanel,
+                (not options.behindScreen) and gui.Check{
+                    text = "Share with players",
+                    value = state.shared,
+                    width = 240,
+                    halign = "left",
+                    tmargin = 14,
+                    hover = gui.Tooltip("Opens it on the players' tables too. Hold Ctrl as you drop files to start with this ticked."),
+                    change = function(element)
+                        state.shared = element.value
+                    end,
+                } or nil,
             },
         },
 
@@ -1641,4 +1694,741 @@ function TableDropDialog.Show(paths, mx, my)
         end
     end
     ReadNextVideo()
+end
+
+----------------------------------------------------------------------
+--The drag card: by the mouse while files from the desktop are over the
+--table (Tabletop.lua's BeginTableFileDrag). It shows what the files are (a
+--picture of the first, what the dialog will suggest, its size), what
+--releasing does, and for the Director whether the drop is shared with the
+--players (Ctrl). A dashed outline on the table shows where the suggestion
+--would land. Every color is a theme token, so it follows the color scheme.
+
+local CARD_WIDTH = 240
+local CARD_THUMB_HEIGHT = 84
+local CARD_ICON_HEIGHT = 56
+local CARD_HPAD = 10
+
+local function DragCardStyles()
+    return {
+        {
+            selectors = {"tableDragCard"},
+            bgcolor = "@bg",
+            borderColor = "@accent",
+            borderWidth = 2,
+            cornerRadius = 6,
+        },
+        {
+            selectors = {"tableDragThumb"},
+            bgcolor = "@bgAlt",
+        },
+        {
+            selectors = {"tableDragBack"},
+            bgcolor = "@bgAlt",
+            borderColor = "@borderSolid",
+            borderWidth = 1,
+            cornerRadius = 6,
+        },
+        {
+            selectors = {"tableDragRule"},
+            bgcolor = "@borderSolid",
+        },
+        {
+            selectors = {"tableDragName"},
+            color = "@fgStrong",
+        },
+        {
+            selectors = {"tableDragMeta"},
+            color = "@fgMuted",
+        },
+        {
+            selectors = {"tableDragGlyph"},
+            bgcolor = "@fgMuted",
+        },
+        {
+            selectors = {"tableDragBadge"},
+            bgcolor = "@bgInverse",
+            cornerRadius = 3,
+        },
+        {
+            selectors = {"tableDragBadgeText"},
+            color = "@fgInverse",
+        },
+        {
+            selectors = {"tableDragActionIcon"},
+            bgcolor = "@accentHover",
+        },
+        {
+            selectors = {"tableDragAction"},
+            color = "@fgStrong",
+        },
+        {
+            selectors = {"tableDragShareIcon"},
+            bgcolor = "@fgMuted",
+        },
+        {
+            selectors = {"tableDragShareIcon", "shared"},
+            bgcolor = "@share",
+        },
+        {
+            selectors = {"tableDragShare"},
+            color = "@fgMuted",
+        },
+        {
+            selectors = {"tableDragShare", "shared"},
+            color = "@share",
+        },
+        {
+            selectors = {"tableDragFootprint"},
+            bgcolor = "clear",
+            borderColor = "@accentHover",
+            borderWidth = 2,
+            borderStyle = "dashed",
+            borderDash = 10,
+            borderGap = 7,
+            cornerRadius = 4,
+        },
+    }
+end
+
+--Screen pixels (top-left origin) to a hud layer's own units: the layers sit
+--below the title bar and may be scaled (as RichItemLink's drop ghost does).
+local function ScreenToHudLayer(layer, px, py)
+    local screen = dmhub.screenDimensions
+    local below = dmhub.screenDimensionsBelowTitlebar
+    if below.y <= 0 then
+        return px, py
+    end
+    local scale = layer.renderedHeight / below.y
+    return px * scale, (py - (screen.y - below.y)) * scale
+end
+
+--Puts the card below and right of the pointer, clear of the drop target hit
+--test, or on the other side where that would run off the layer.
+--- @param card Panel
+--- @param layer Panel
+local function PlaceCard(card, layer)
+    local mouse = dmhub.mouseScreenPosition
+    local x, y = ScreenToHudLayer(layer, mouse.x + 18, mouse.y + 22)
+    if x + card.renderedWidth > layer.renderedWidth then
+        x = ScreenToHudLayer(layer, mouse.x - 18, mouse.y) - card.renderedWidth
+    end
+    if y + card.renderedHeight > layer.renderedHeight then
+        local _, above = ScreenToHudLayer(layer, mouse.x, mouse.y - 12)
+        y = above - card.renderedHeight
+    end
+    card.x = math.max(0, x)
+    card.y = math.max(0, y)
+end
+
+--The part of a picture that fills a w x h box, cropped to its centre (nil
+--draws all of it, for a file of unknown size).
+--- @param file TableDropFile
+local function CoverRect(file, w, h)
+    if file.width <= 0 or file.height <= 0 then
+        return nil
+    end
+    local imageAspect = file.width / file.height
+    local boxAspect = w / h
+    if imageAspect > boxAspect then
+        local f = boxAspect / imageAspect
+        return {x1 = (1 - f) / 2, y1 = 0, x2 = (1 + f) / 2, y2 = 1}
+    end
+    local f = imageAspect / boxAspect
+    return {x1 = 0, y1 = (1 - f) / 2, x2 = 1, y2 = (1 + f) / 2}
+end
+
+--"1 sound" / "3 sounds".
+local function Count(n, one, many)
+    return string.format("%d %s", n, cond(n == 1, one, many))
+end
+
+--The badge on the card's picture: what the dialog will suggest.
+--- @param files TableDropFile[]
+--- @param analysis TableDropAnalysis
+local function SuggestionWord(files, analysis)
+    local s = analysis.suggestion
+    if s == "map" or s == "floors" or s == "variations" then
+        return "Map"
+    elseif s == "scenes" then
+        return cond(#files == 1, "Scene", "Scenes")
+    end
+    return KindWord(#files, analysis.videos, #files == 1)
+end
+
+--The line under the name: the picture's size and the map's squares, or the
+--names of several files.
+--- @param files TableDropFile[]
+--- @param analysis TableDropAnalysis
+local function MediaMeta(files, analysis)
+    local first = files[1]
+    if #files == 1 then
+        local parts = {}
+        if first.width > 0 then
+            parts[#parts+1] = string.format("%d x %d px", first.width, first.height)
+        elseif first.video then
+            parts[#parts+1] = "Video"
+        end
+        local grid = analysis.grid
+        if grid ~= nil and analysis.suggestion == "map" then
+            parts[#parts+1] = string.format("%d x %d %s", grid.tilesW, grid.tilesH, cond(grid.hex, "hexes", "squares"))
+        end
+        return table.concat(parts, "  -  ")
+    end
+    local names = {}
+    for i, file in ipairs(files) do
+        if i > 2 then
+            names[#names+1] = string.format("+%d more", #files - 2)
+            break
+        end
+        names[#names+1] = file.name
+    end
+    return table.concat(names, ", ")
+end
+
+--Where the dialog's suggestion would land for a drop at (mx, my), in the
+--table's units: one rect per window or item, placed as Commit places them.
+--- @param files TableDropFile[]
+--- @param analysis TableDropAnalysis
+--- @param mx number
+--- @param my number
+--- @return {x: number, y: number, w: number, h: number}[]
+local function FootprintRects(files, analysis, mx, my)
+    local area = Tabletop.LayerRect()
+    local function Centred(w, h, cx, cy)
+        return {
+            x = math.max(0, math.min(math.floor(cx - w / 2), area.w - w)),
+            y = math.max(0, math.min(math.floor(cy - h / 2), area.h - h)),
+            w = w,
+            h = h,
+        }
+    end
+    local rects = {}
+    local s = analysis.suggestion
+    local first = files[1]
+    if s == "map" or s == "floors" or s == "variations" then
+        if first.width > 0 and first.height > 0 then
+            local boxW, boxH = Tabletop.ShapedBox()
+            local w, h = Tabletop.ShapeWindow(boxW, boxH, first.width / first.height)
+            rects[1] = Centred(w, h, mx, my)
+        end
+    elseif s == "scenes" then
+        local w, h = Tabletop.SceneWindowSize()
+        for i = 1, #files do
+            local step = 28 * (i - 1)
+            rects[i] = Centred(w, h, mx + step, my + step)
+        end
+    else
+        local sizes = LayoutSizes(files)
+        local positions = GridPositions(sizes, mx, my)
+        for i, size in ipairs(sizes) do
+            rects[i] = {x = positions[i].x - size.w / 2, y = positions[i].y - size.h / 2, w = size.w, h = size.h}
+        end
+    end
+    return rects
+end
+
+--- Whether files dropped on the table at the mouse now would be shared with
+--- the players: "shared" (Ctrl held), "private", or "screen" (over the
+--- Director's Screen, where a drop always stays private).
+--- @return string
+function TableDropDialog.DropShareState()
+    local edge = DirectorScreen.EdgeX()
+    if edge ~= nil then
+        local mouse = dmhub.mouseScreenPosition
+        local x = Tabletop.ScreenToTable(mouse.x, mouse.y)
+        if x >= edge then
+            return "screen"
+        end
+    end
+    if dmhub.modKeys.ctrl then
+        return "shared"
+    end
+    return "private"
+end
+
+--- Shows the card by the mouse while files from the desktop are over the
+--- table, with the outline of where they would land. Both go when isActive
+--- returns false or the card is destroyed.
+--- args: paths, the files over the table; canShare, the Director (the card
+--- says whether the drop is shared); isActive.
+--- @param args {paths: string[], canShare: boolean, isActive: fun(): boolean}
+--- @return nil|Panel
+function TableDropDialog.ShowDragCard(args)
+    local hud = GameHud.instance --[[@as GameHud]]
+    if hud == nil then
+        return nil
+    end
+    --the banner layer sits above every window; the outline goes on the
+    --table among the windows.
+    local layer = hud.bannerLayer
+    if layer == nil or not layer.valid then
+        layer = hud.documentsPanel
+    end
+    local tableLayer = hud.documentsPanel
+    if layer == nil or not layer.valid then
+        return nil
+    end
+
+    local mediaPaths = {}
+    local sounds = {}
+    local documents = {}
+    local mapFiles = {}
+    for _, path in ipairs(args.paths) do
+        if FileDrops.IsAudio(path) then
+            sounds[#sounds+1] = path
+        elseif FileDrops.IsDocument(path) then
+            documents[#documents+1] = path
+        elseif FileDrops.IsMapFile(path) then
+            mapFiles[#mapFiles+1] = path
+        else
+            mediaPaths[#mediaPaths+1] = path
+        end
+    end
+    --Universal VTT files open the map import wizard instead of this dialog
+    --(Tabletop's TableFilesDropped), so pictures dropped with them are not added.
+    local skippedMedia = 0
+    --a Universal VTT file's map size (in tiles) is at the start of the file:
+    --the outline takes the shape of the window the map will open in.
+    local mapSize = nil
+    if #mapFiles > 0 then
+        skippedMedia = #mediaPaths
+        mediaPaths = {}
+        mapSize = FileDrops.MapFileSize(mapFiles[1])
+    end
+    local files = ReadFiles(mediaPaths)
+    local first = files[1]
+
+    --the grid detector starts now, so the dialog has its answer on release.
+    local detectPath = nil
+    if first ~= nil and not first.video and MapGridDetection.CanDetect(first.path) then
+        detectPath = first.path
+    end
+    --- @type nil|TableDropAnalysis
+    local analysis = nil
+    local function Reanalyse()
+        if first ~= nil then
+            local detection = nil
+            if detectPath ~= nil then
+                detection = MapGridDetection.Result(detectPath)
+            end
+            analysis = Analyse(files, detection)
+        end
+    end
+    Reanalyse()
+
+    local thumbHeight = cond(first ~= nil, CARD_THUMB_HEIGHT, CARD_ICON_HEIGHT)
+    local innerW = CARD_WIDTH - 4
+    local textW = CARD_WIDTH - CARD_HPAD * 2 - 4
+
+    --the picture strip: the first file's picture (once read), else a glyph.
+    local glyph
+    if first ~= nil then
+        glyph = cond(first.video, "phosphor/film-strip.png", "phosphor/image.png")
+    elseif #mapFiles > 0 then
+        glyph = "phosphor/map-trifold.png"
+    elseif #documents > 0 then
+        glyph = cond(FileDrops.Extension(documents[1]) == ".pdf", "phosphor/file-pdf.png", "phosphor/file-text.png")
+    else
+        glyph = "phosphor/waveform.png"
+    end
+    local picture = gui.Panel{
+        classes = {"tableDragGlyph"},
+        bgimage = glyph,
+        width = 30,
+        height = 30,
+        halign = "center",
+        valign = "center",
+    }
+
+    local badgeText = gui.Label{
+        classes = {"tableDragBadgeText"},
+        width = "auto",
+        height = "auto",
+        fontSize = 12,
+        bold = true,
+    }
+    local badge = gui.Panel{
+        classes = {"tableDragBadge"},
+        bgimage = "panels/square.png",
+        floating = true,
+        halign = "right",
+        valign = "top",
+        x = -6,
+        y = 6,
+        width = "auto",
+        height = "auto",
+        hpad = 6,
+        vpad = 1,
+        borderBox = true,
+        badgeText,
+    }
+
+    local nameLabel = gui.Label{
+        classes = {"tableDragName"},
+        width = textW,
+        height = "auto",
+        fontSize = 16,
+        textWrap = true,
+    }
+    local metaLabel = gui.Label{
+        classes = {"tableDragMeta"},
+        width = textW,
+        height = "auto",
+        fontSize = 13,
+        textWrap = true,
+        tmargin = 2,
+    }
+
+    --what else the drop brings, beside the files shown.
+    local extras = {}
+    if (first ~= nil or #mapFiles > 0) and #documents > 0 then
+        extras[#extras+1] = "+ " .. Count(#documents, "document", "documents") .. " for the journal"
+    end
+    if (first ~= nil or #documents > 0 or #mapFiles > 0) and #sounds > 0 then
+        extras[#extras+1] = "+ " .. Count(#sounds, "sound", "sounds") .. " to play"
+    end
+    if skippedMedia > 0 then
+        extras[#extras+1] = Count(skippedMedia, "picture", "pictures") .. " not added: drop separately"
+    end
+    local extrasLabel = nil
+    if #extras > 0 then
+        extrasLabel = gui.Label{
+            classes = {"tableDragMeta"},
+            text = table.concat(extras, "\n"),
+            width = textW,
+            height = "auto",
+            fontSize = 13,
+            tmargin = 2,
+        }
+    end
+
+    local actionText
+    if first ~= nil then
+        actionText = cond(#files == 1, "Release to choose how to add it", "Release to choose how to add them")
+    elseif #mapFiles > 0 then
+        actionText = "Release to import as a map"
+    elseif #documents > 0 then
+        actionText = "Release to add to the journal and table"
+    else
+        actionText = cond(#sounds == 1, "Release to put it on the table to play", "Release to put them on the table to play")
+    end
+
+    --An icon and a line of text: what releasing does, and the share line.
+    local function Row(iconClass, icon, labelClass, text)
+        local iconPanel = gui.Panel{
+            classes = {iconClass},
+            bgimage = icon,
+            width = 14,
+            height = 14,
+            valign = "center",
+            rmargin = 6,
+        }
+        local label = gui.Label{
+            classes = {labelClass},
+            text = text,
+            width = textW - 20,
+            height = "auto",
+            fontSize = 13,
+            valign = "center",
+        }
+        local row = gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            tmargin = 6,
+            iconPanel,
+            label,
+        }
+        return row, iconPanel, label
+    end
+
+    local actionRow = Row("tableDragActionIcon", "phosphor/download-simple.png", "tableDragAction", actionText)
+
+    --the Director's share line, for files that make shareable items (sounds
+    --on the table play for everyone and have no share).
+    local shareRow, shareIcon, shareLabel = nil, nil, nil
+    local shareState = nil
+    if args.canShare and (first ~= nil or #documents > 0 or #mapFiles > 0) then
+        shareRow, shareIcon, shareLabel = Row("tableDragShareIcon", "phosphor/share-network.png", "tableDragShare", "")
+        shareRow.selfStyle.tmargin = 4
+    end
+    local function RefreshShare()
+        if shareRow == nil or shareIcon == nil or shareLabel == nil then
+            return
+        end
+        local state = TableDropDialog.DropShareState()
+        if state == shareState then
+            return
+        end
+        shareState = state
+        shareIcon:SetClass("shared", state == "shared")
+        shareLabel:SetClass("shared", state == "shared")
+        if state == "screen" then
+            shareIcon.bgimage = "phosphor/eye-slash.png"
+            shareLabel.text = "Behind your screen: hidden from players"
+        elseif state == "shared" then
+            shareIcon.bgimage = "phosphor/share-network.png"
+            shareLabel.text = "Share with players"
+        else
+            shareIcon.bgimage = "phosphor/share-network.png"
+            shareLabel.text = "Hold Ctrl to share with players"
+        end
+    end
+
+    --the outline on the table: one dashed rect per window or item.
+    --- @type Panel[]
+    local footprints = {}
+    local function ClearFootprints()
+        for _, panel in ipairs(footprints) do
+            if panel.valid then
+                panel:DestroySelf()
+            end
+        end
+        footprints = {}
+    end
+    local function PlaceFootprints()
+        if tableLayer == nil or not tableLayer.valid then
+            return
+        end
+        local mouse = dmhub.mouseScreenPosition
+        local mx, my = Tabletop.ScreenToTable(mouse.x, mouse.y)
+        local rects
+        if first ~= nil and analysis ~= nil then
+            rects = FootprintRects(files, analysis, mx, my)
+        elseif mapSize ~= nil then
+            --placed as Tabletop.AddFilesAsMap places the map's window.
+            local area = Tabletop.LayerRect()
+            local boxW, boxH = Tabletop.ShapedBox()
+            local w, h = Tabletop.ShapeWindow(boxW, boxH, mapSize.width / mapSize.height)
+            rects = {{
+                x = math.max(0, math.min(math.floor(mx - w / 2), area.w - w)),
+                y = math.max(0, math.min(math.floor(my - h / 2), area.h - h)),
+                w = w,
+                h = h,
+            }}
+        else
+            return
+        end
+        if #rects ~= #footprints then
+            ClearFootprints()
+            for _ = 1, #rects do
+                local panel = gui.Panel{
+                    classes = {"tableDragFootprint"},
+                    styles = ThemeEngine.MergeTokens(DragCardStyles()),
+                    bgimage = "panels/square.png",
+                    floating = true,
+                    halign = "left",
+                    valign = "top",
+                }
+                tableLayer:AddChild(panel)
+                panel:MakeNonInteractiveRecursive()
+                panel:SetAsLastSibling()
+                footprints[#footprints+1] = panel
+            end
+        end
+        for i, rect in ipairs(rects) do
+            local panel = footprints[i]
+            panel.x = rect.x
+            panel.y = rect.y
+            panel.selfStyle.width = rect.w
+            panel.selfStyle.height = rect.h
+        end
+    end
+
+    local function RefreshFiles()
+        if first ~= nil and analysis ~= nil then
+            badgeText.text = SuggestionWord(files, analysis)
+            nameLabel.text = cond(#files == 1, first.name,
+                string.format("%d %s", #files, string.lower(KindWord(#files, analysis.videos, false))))
+            metaLabel.text = MediaMeta(files, analysis)
+        elseif #mapFiles > 0 then
+            --the map is named after the first file; each file is a floor.
+            badgeText.text = "Map"
+            nameLabel.text = FileDrops.BaseName(mapFiles[1])
+            metaLabel.text = cond(#mapFiles == 1, "New map with its walls, doors and lights",
+                string.format("New map of %d floors, with walls, doors and lights", #mapFiles))
+            if mapSize ~= nil then
+                local function Tiles(n)
+                    if n == math.floor(n) then
+                        return string.format("%d", math.floor(n))
+                    end
+                    return string.format("%.1f", n)
+                end
+                metaLabel.text = string.format("%s x %s squares. %s", Tiles(mapSize.width), Tiles(mapSize.height), metaLabel.text)
+            end
+        elseif #documents > 0 then
+            badgeText.text = cond(#documents == 1, string.upper(string.sub(FileDrops.Extension(documents[1]), 2)), "Documents")
+            nameLabel.text = cond(#documents == 1, FileDrops.BaseName(documents[1]), Count(#documents, "document", "documents"))
+            metaLabel.text = cond(dmhub.isDM, "Into your private documents", "Into My Private Documents")
+        else
+            badgeText.text = cond(#sounds == 1, "Sound", "Sounds")
+            nameLabel.text = cond(#sounds == 1, FileDrops.BaseName(sounds[1]), Count(#sounds, "sound", "sounds"))
+            metaLabel.text = "Played on the table"
+        end
+    end
+
+    --several pictures: the next two fanned out behind the first.
+    local backs = {}
+    if #files > 1 then
+        for i, angle in ipairs({6, -4}) do
+            backs[#backs+1] = gui.Panel{
+                classes = {"tableDragBack"},
+                bgimage = "panels/square.png",
+                floating = true,
+                halign = "left",
+                valign = "top",
+                x = 4 * (3 - i),
+                y = 4 * (3 - i) - 4,
+                width = CARD_WIDTH,
+                height = thumbHeight,
+                rotate = angle,
+            }
+        end
+    end
+    local countBadge = nil
+    if #files > 1 then
+        countBadge = gui.Panel{
+            classes = {"tableDragBadge"},
+            bgimage = "panels/square.png",
+            floating = true,
+            halign = "left",
+            valign = "top",
+            x = 6,
+            y = 6,
+            width = "auto",
+            height = "auto",
+            hpad = 6,
+            vpad = 1,
+            borderBox = true,
+            gui.Label{
+                classes = {"tableDragBadgeText"},
+                text = tostring(#files),
+                width = "auto",
+                height = "auto",
+                fontSize = 12,
+                bold = true,
+            },
+        }
+    end
+
+    local thumb = gui.Panel{
+        classes = {"tableDragThumb"},
+        bgimage = "panels/square.png",
+        width = innerW,
+        height = thumbHeight,
+        flow = "none",
+        picture,
+        badge,
+        countBadge,
+    }
+
+    local children = {}
+    for _, back in ipairs(backs) do
+        children[#children+1] = back
+    end
+    children[#children+1] = gui.Panel{
+        classes = {"tableDragCard"},
+        bgimage = "panels/square.png",
+        width = CARD_WIDTH,
+        height = "auto",
+        flow = "vertical",
+        pad = 2,
+        borderBox = true,
+        thumb,
+        gui.Panel{
+            classes = {"tableDragRule"},
+            bgimage = "panels/square.png",
+            width = innerW,
+            height = 1,
+        },
+        gui.Panel{
+            width = innerW,
+            height = "auto",
+            flow = "vertical",
+            hpad = CARD_HPAD - 2,
+            tpad = 7,
+            bpad = 8,
+            borderBox = true,
+            nameLabel,
+            metaLabel,
+            extrasLabel,
+            gui.Panel{
+                classes = {"tableDragRule"},
+                bgimage = "panels/square.png",
+                width = "100%",
+                height = 1,
+                tmargin = 8,
+            },
+            actionRow,
+            shareRow,
+        },
+    }
+
+    --the picture is decoded a few frames in, so the card shows at once
+    --(nil once done).
+    --- @type nil|integer
+    local previewIn = 2
+    local detectionChanged = false
+    local card = gui.Panel{
+        styles = ThemeEngine.MergeTokens(DragCardStyles()),
+        halign = "left",
+        valign = "top",
+        width = CARD_WIDTH + 8,
+        height = "auto",
+        flow = "vertical",
+        children = children,
+
+        thinkTime = 0.02,
+        think = function(element)
+            if mod.unloaded or not args.isActive() then
+                if element.valid then
+                    element:DestroySelf()
+                end
+                return
+            end
+            PlaceCard(element, layer)
+
+            if first ~= nil and previewIn ~= nil then
+                previewIn = previewIn - 1
+                if previewIn <= 0 then
+                    previewIn = nil
+                    LoadPreview(first)
+                    if first.preview ~= nil then
+                        picture:SetClass("tableDragGlyph", false)
+                        picture.bgimage = first.preview
+                        picture.selfStyle.bgcolor = "white"
+                        picture.selfStyle.width = innerW
+                        picture.selfStyle.height = thumbHeight
+                        picture.selfStyle.imageRect = CoverRect(first, innerW, thumbHeight)
+                    end
+                end
+            end
+            if detectionChanged then
+                detectionChanged = false
+                Reanalyse()
+                RefreshFiles()
+            end
+            RefreshShare()
+            PlaceFootprints()
+        end,
+        destroy = function(element)
+            ClearFootprints()
+        end,
+    }
+    RefreshFiles()
+    RefreshShare()
+
+    layer:AddChild(card)
+    card:MakeNonInteractiveRecursive()
+    card:SetAsLastSibling()
+    PlaceCard(card, layer)
+    PlaceFootprints()
+
+    if detectPath ~= nil and MapGridDetection.Result(detectPath) == nil then
+        MapGridDetection.Request(detectPath, function(result)
+            detectionChanged = true
+        end)
+    end
+    return card
 end

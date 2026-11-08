@@ -89,11 +89,12 @@ local function LiveCreature(token)
         and token.properties ~= nil and not token.properties:IsDead()
 end
 
+--the "similar to" type when the monster has one (MonsterAI.AIMonsterType).
 local function MonsterType(token)
     if token == nil or token.properties == nil then
         return ""
     end
-    return token.properties:try_get("monster_type", "")
+    return MonsterAI.AIMonsterType(token.properties)
 end
 
 local function IsMinion(token)

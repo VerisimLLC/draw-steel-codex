@@ -3521,6 +3521,26 @@ local function _buildTargetingSection(ability, fireChange)
     }
 
     --------------------------------------------------------------------------
+    -- 7b. Finish Targets Later This Turn (target + multi): Double Strike.
+    --------------------------------------------------------------------------
+    children[#children + 1] = gui.Check{
+        classes = {"nae-toggle-check",
+                   cond(isMultiTarget(), nil, "collapsed-anim")},
+        text = "Finish Targets Later This Turn",
+        value = ability.finishTargetsLater,
+        change = function(element)
+            ability.finishTargetsLater = element.value
+            fireChange()
+        end,
+        refreshAbility = function(element)
+            element:SetClass("collapsed-anim", not isMultiTarget())
+        end,
+        linger = function(element)
+            return gui.Tooltip("If checked, using this on your turn against fewer targets than it allows saves the rest: until the turn ends, the remaining targets can be hit for free with the same dice (each target's own edges and banes still apply).")(element)
+        end,
+    }
+
+    --------------------------------------------------------------------------
     -- 8. Proximity Targeting (target + multi)
     --------------------------------------------------------------------------
     children[#children + 1] = gui.Check{

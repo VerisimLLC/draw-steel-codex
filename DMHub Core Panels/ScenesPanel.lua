@@ -268,7 +268,7 @@ end
 --Showing a scene to the players: it becomes the fullscreen display's
 --picture (the "fullscreen_display" document in FullscreenDisplay.lua):
 --  show       false, true (players) or "all" (the Director too)
---  belowui    under the game's UI rather than over it
+--  aboveui    over all the game's UI rather than among its windows
 --  sceneid    the library scene on show (false for a plain picture)
 --  coverart, coverartCredit, caption, subtitle   copied from the scene
 
@@ -298,18 +298,19 @@ function Scenes.ShowState(id)
 end
 
 --- @return boolean
-function Scenes.IsBelowUI()
+function Scenes.IsAboveUI()
     local data = DisplayDoc().data
-    return data ~= nil and data.belowui == true
+    return data ~= nil and data.aboveui == true
 end
 
---- Whether the display draws under the game's UI or over it.
+--- Whether the display draws over all the game's UI, or among its windows
+--- as a maximized map does (under the icon rails and their panels).
 --- @param value boolean
-function Scenes.SetBelowUI(value)
+function Scenes.SetAboveUI(value)
     local doc = DisplayDoc()
     doc:BeginChange()
-    doc.data.belowui = value == true
-    doc:CompleteChange("Show Below UI")
+    doc.data.aboveui = value == true
+    doc:CompleteChange("Show Above UI")
 end
 
 local function CopySceneFields(data, id, scene)

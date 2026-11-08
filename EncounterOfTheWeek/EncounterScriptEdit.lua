@@ -371,10 +371,22 @@ function E.RollLines(roll)
     return lines
 end
 
---table = { name, dice = "1d6", rows = { {lo, hi, text} } }
+--Must stay in the form EncounterScript.TableHeaderDice parses, or the table silently stops being one.
+---@param dice string
+---@param mystery boolean|nil
+---@return string
+function E.TableHeaderValue(dice, mystery)
+    local value = E.LineText(dice)
+    if mystery then
+        value = value .. " (Mystery)"
+    end
+    return value
+end
+
+--table = { name, dice = "1d6", mystery = nil|true, rows = { {lo, hi, text} } }
 function E.TableLines(t)
     local name = string.gsub(E.LineText(t.name), ":", "")
-    local lines = { string.format("|%s: %s", trim(name), E.LineText(t.dice or "1d6")) }
+    local lines = { string.format("|%s: %s", trim(name), E.TableHeaderValue(t.dice or "1d6", t.mystery)) }
     for _, row in ipairs(t.rows or {}) do
         local range = tostring(row.lo)
         if row.hi ~= nil and row.hi ~= row.lo then
@@ -1319,6 +1331,107 @@ end
 
 function E.ReinforcementBlock(name)
     return { "## Reinforcements: " .. E.LineText(name), "", "Arrive: Round 3", "", "[[encounter]]" }
+end
+
+--- negotiation beats ---------------------------------------------------------------
+
+function E.NegotiationHeading(name)
+    return "# Negotiation: " .. E.LineText(name)
+end
+
+--`kind` is "motivation" or "pitfall".
+function E.NegotiationTraitHeading(kind, name)
+    return cond(kind == "motivation", "## Motivation: ", "## Pitfall: ") .. E.LineText(name)
+end
+
+function E.NegotiationArgumentHeading(name)
+    return "## Argument: " .. E.LineText(name)
+end
+
+--An offer's heading word, as an author writes it: "Yes, but".
+function E.NegotiationOfferName(interest)
+    local name = EncounterScript.NEGOTIATION_OFFERS[interest + 1]
+    return string.upper(string.sub(name, 1, 1)) .. string.sub(name, 2)
+end
+
+function E.NegotiationTraitBlock(kind, name, clue)
+    return { E.NegotiationTraitHeading(kind, name), "Clue: " .. E.LineText(clue) }
+end
+
+function E.NegotiationArgumentBlock(a)
+    local block = { E.NegotiationArgumentHeading(a.name), "Appeals: " .. E.LineText(a.appeals) }
+    if a.say ~= nil and a.say ~= "" then
+        block[#block + 1] = "PC: " .. E.LineText(a.say)
+    end
+    --a pitfall fails whatever is rolled: `attr = false` writes no test.
+    if a.attr ~= false then
+        block[#block + 1] = E.RollHeaderLine("Test", a.attr or "Presence (Persuade)")
+    end
+    return block
+end
+
+function E.NegotiationOfferBlock(interest, text)
+    return { "## Offer: " .. E.NegotiationOfferName(interest), "", E.LineText(text) }
+end
+
+--A whole new negotiation, clean under the validator, so an author starts from
+--something that plays and changes it.
+function E.NegotiationBeatBlock()
+    local block = { E.NegotiationHeading(T("author.script_edit.starter.negotiation.npc")), "",
+        "Attitude: Suspicious",
+        "Want: " .. T("author.script_edit.starter.negotiation.want"),
+        "Opening: " .. T("author.script_edit.starter.negotiation.opening"), "" }
+    local function Add(lines)
+        for _, l in ipairs(lines) do
+            block[#block + 1] = l
+        end
+        block[#block + 1] = ""
+    end
+    Add(E.NegotiationTraitBlock("motivation", "Greed", T("author.script_edit.starter.negotiation.clue_greed")))
+    Add(E.NegotiationTraitBlock("motivation", "Protection", T("author.script_edit.starter.negotiation.clue_protection")))
+    Add(E.NegotiationTraitBlock("pitfall", "Higher Authority", T("author.script_edit.starter.negotiation.clue_authority")))
+    Add(E.NegotiationArgumentBlock{ name = T("author.script_edit.starter.negotiation.argument_greed"), appeals = "Greed", attr = "Presence (Persuade)" })
+    Add(E.NegotiationArgumentBlock{ name = T("author.script_edit.starter.negotiation.argument_protection"), appeals = "Protection", attr = "Reason (Lead)" })
+    Add(E.NegotiationArgumentBlock{ name = T("author.script_edit.starter.negotiation.argument_authority"), appeals = "Higher Authority", attr = false })
+    Add(E.NegotiationArgumentBlock{ name = T("author.script_edit.starter.negotiation.argument_neutral"), appeals = "Nothing", attr = "Presence (Flirt)" })
+    for interest = 0, #EncounterScript.NEGOTIATION_OFFERS - 1 do
+        Add(E.NegotiationOfferBlock(interest, T("author.script_edit.starter.negotiation.offer")))
+    end
+    block[#block] = nil
+    return block
+end
+
+--Set a "Label: value" field of a negotiation beat, trait or argument. `key` is
+--its entry in holder.fieldLines. An empty value removes the line.
+function E.SetNegotiationField(parse, docTexts, holder, key, label, value)
+    local text = E.LineText(value)
+    local line = holder.fieldLines[key]
+    if line ~= nil then
+        if text == "" then
+            return E.DeleteLine(parse, line)
+        end
+        return E.SetLine(parse, line, label .. ": " .. text)
+    end
+    if text == "" then
+        return {}
+    end
+    local last = nil
+    for _, l in pairs(holder.fieldLines) do
+        last = math.max(last or l, l)
+    end
+    if last ~= nil then
+        return One(E.PatchAfter(parse, last, { label .. ": " .. text }))
+    end
+    return One(E.InsertBlockAfter(parse, docTexts, holder.line, { label .. ": " .. text }))
+end
+
+--Give an argument a test, under its fields.
+function E.AddNegotiationTest(parse, argument, attrText)
+    local last = argument.line
+    for _, l in pairs(argument.fieldLines) do
+        last = math.max(last, l)
+    end
+    return One(E.PatchAfter(parse, last, { E.RollHeaderLine("Test", attrText) }))
 end
 
 --- keeping [[tag]] islands on their data -------------------------------------------

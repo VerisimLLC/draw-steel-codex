@@ -38,6 +38,7 @@ EquipmentCategory.LightSourceId = "4c9fc2bb-1c17-4072-babe-c2e3a55faa65"
 EquipmentCategory.PacksId = "659f34f2-14d6-4e71-99c1-89d703d5ba48"
 EquipmentCategory.TrinketId = "659f34f2-14d6-4e71-99c1-89d703d5ba48"
 EquipmentCategory.ImbuementId = "f8795dac-fda0-48a7-ba63-c2618c812d76"
+EquipmentCategory.CraftingIngredientId = "46e550be-a8b6-4839-8215-cf5e7cc9f9b3"
 
 EquipmentCategory.isUnarmored = false
 EquipmentCategory.isTool = false
@@ -297,6 +298,11 @@ end
 function EquipmentCategory.IsLeveledTreasure(item)
     local cat = item:try_get("equipmentCategory", "")
     return cat == EquipmentCategory.LeveledTreasureId
+end
+
+--Recipes are filed under Crafting Ingredient too; this does not tell them apart.
+function EquipmentCategory.IsCraftingIngredient(item)
+    return item:try_get("equipmentCategory", "") == EquipmentCategory.CraftingIngredientId
 end
 
 function EquipmentCategory.IsTrinket(item)

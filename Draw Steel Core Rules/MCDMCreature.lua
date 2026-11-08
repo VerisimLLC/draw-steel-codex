@@ -733,7 +733,7 @@ local g_conditionHiddenId = "31daf7f6-f77c-4f73-8eab-43e2d0f123c0"
 local g_settingHiddenInvisible = setting{
     id = "strict:hiddeninvisible",
     description = "Hidden Creatures are Invisible",
-    help = "While a creature the director controls has the Hidden condition, players do not see it at all: no token, HUD, auras or targeting. It reappears the moment it stops being Hidden, and acting reveals it as the ability begins. Heroes always remain visible.",
+    help = "While a creature the director controls has the Hidden condition, players do not see it at all: no token, HUD, auras or targeting. It reappears the moment it stops being Hidden, and acting reveals it as the ability begins. It cannot stay Hidden while Grabbed or adjacent to a hero: a hero moving next to it finds it. Heroes always remain visible.",
     storage = "game",
     editor = "check",
     default = false,
@@ -866,10 +866,66 @@ end
 --client that is not the Director or its controller. Also undoes the old networked
 --version of this setting (invisibleToPlayers) on tokens it left invisible.
 local g_legacyHiddenClearPending = {}
+local g_adjacentRevealPending = {}
+local g_conditionGrabbedId = "70504ebe-3899-41d3-9f60-74b52ce35e39"
+
+--True while this creature cannot stay Hidden: it is Grabbed, or a hero (a creature a
+--player or party owns that is not its friend) is adjacent. Ownership, not
+--playerControlled: that reads false for heroes outside the default party.
+--- @param token CharacterToken
+--- @return boolean
+local function CannotStayHidden(token)
+    if token.properties:HasCondition(g_conditionGrabbedId) ~= false then
+        return true
+    end
+    for _, nearby in ipairs(token:GetNearbyTokens(1) or {}) do
+        local ownerId = nearby.ownerId
+        if ownerId ~= nil and ownerId ~= "" and (not nearby.isObject) and (not nearby:IsFriend(token)) then
+            return true
+        end
+    end
+    return false
+end
 
 local function RefreshHiddenFromPlayers(c, token)
-    c._tmp_hiddenFromPlayers = g_settingHiddenInvisible:Get() == true and (not token.playerControlled)
+    local hiddenFromPlayers = g_settingHiddenInvisible:Get() == true and (not token.playerControlled)
         and (not token.isObject) and c:HasCondition(g_conditionHiddenId) ~= false
+
+    --Grabbed or next to a hero: every client shows it at once, and the host strips Hidden
+    --for real (6JVBTDAJ: an invisible adjacent slink gave a hero's ranged strike a bane).
+    if hiddenFromPlayers and CannotStayHidden(token) then
+        hiddenFromPlayers = false
+        if IsDMOrPlayerHost() and not g_adjacentRevealPending[token.charid] then
+            local charid = token.charid
+            g_adjacentRevealPending[charid] = true
+            --deferred out of the refresh path to avoid re-entrant uploads.
+            dmhub.Schedule(0.05, function()
+                g_adjacentRevealPending[charid] = nil
+                if mod.unloaded then
+                    return
+                end
+                local tok = dmhub.GetTokenById(charid)
+                if tok == nil or (not tok.valid) or tok.properties == nil
+                    or (not tok.properties:IsHidden()) or (not CannotStayHidden(tok)) then
+                    return
+                end
+                tok:ModifyProperties{
+                    description = "Revealed: grabbed or next to a hero",
+                    undoable = false,
+                    execute = function()
+                        --being found is not an ambush: no Ambush banner for this reveal.
+                        local entry = tok.properties:try_get("inflictedConditions", {})[g_conditionHiddenId]
+                        if entry ~= nil then
+                            entry.hiddenBeforeCombat = nil
+                        end
+                        tok.properties:LoseHidden()
+                    end,
+                }
+            end)
+        end
+    end
+
+    c._tmp_hiddenFromPlayers = hiddenFromPlayers
 
     if c:try_get("hiddenInvisibilityApplied", false) and IsDMOrPlayerHost()
         and not g_legacyHiddenClearPending[token.charid] then
@@ -2339,7 +2395,8 @@ local function GetEnemyCreaturesAtLoc(token, loc, result)
     local tokensAtLoc = dmhub.GetTokensAtLoc(loc)
     if tokensAtLoc ~= nil then
         for _, otherTok in ipairs(tokensAtLoc) do
-            if token.charid ~= otherTok.charid and token:IsFriend(otherTok) == false and otherTok:GetLineOfSight(token, otherTok.properties:GetPierceWalls(), "basic") > 0 and (not otherTok.properties:IsDead()) then
+            --GetLineOfSight returns nil when a token stands on a floor whose data has not loaded (RD3WUFCR).
+            if token.charid ~= otherTok.charid and token:IsFriend(otherTok) == false and (otherTok:GetLineOfSight(token, otherTok.properties:GetPierceWalls(), "basic") or 0) > 0 and (not otherTok.properties:IsDead()) then
                 AddTokenOnce(result, otherTok)
             end
         end
@@ -2458,7 +2515,16 @@ local function LineCrossesOppositeSides(a, b, target)
     return (s0.left and s1.right) or (s0.right and s1.left) or (s0.top and s1.bottom) or (s0.bottom and s1.top)
 end
 
-function creature:GetFlankingTokens(tokensOverride)
+--Sets an adjacent enemy's _tmp_grantsFlanking and, when writes is given, records the write
+--so a cached flanking answer can make it again (see GetFlankingTokens).
+local function SetGrantsFlanking(props, value, writes)
+    props._tmp_grantsFlanking = value
+    if writes ~= nil then
+        writes[#writes+1] = { props = props, value = value }
+    end
+end
+
+local function ComputeFlankingTokens(self, tokensOverride, writes, adjacentOut)
     local token = dmhub.LookupToken(self)
     if token == nil or (not token.valid) then
         return {}
@@ -2470,6 +2536,11 @@ function creature:GetFlankingTokens(tokensOverride)
 
     --copy the override so filtering below doesn't change the caller's table.
     local adjacentEnemies = tokensOverride and { table.unpack(tokensOverride) } or GetEnemiesAdjacentToToken(token)
+    if adjacentOut ~= nil then
+        for _, enemy in ipairs(adjacentEnemies) do
+            adjacentOut[#adjacentOut+1] = enemy.properties
+        end
+    end
     if #adjacentEnemies <= 1 then
         return {}
     end
@@ -2514,9 +2585,9 @@ function creature:GetFlankingTokens(tokensOverride)
         grantedFlanking = adjacentEnemies
         for _, enemy in ipairs(adjacentEnemies) do
             if numGranters == 1 and granterIds[enemy.charid] then
-                enemy.properties._tmp_grantsFlanking = token.charid
+                SetGrantsFlanking(enemy.properties, token.charid, writes)
             else
-                enemy.properties._tmp_grantsFlanking = nil
+                SetGrantsFlanking(enemy.properties, nil, writes)
             end
         end
     end
@@ -2543,7 +2614,7 @@ function creature:GetFlankingTokens(tokensOverride)
         for _, tok in ipairs(result) do
             if tok.charid == enemy.charid then
                 found = true
-                enemy.properties._tmp_grantsFlanking = nil
+                SetGrantsFlanking(enemy.properties, nil, writes)
                 break
             end
         end
@@ -2553,6 +2624,56 @@ function creature:GetFlankingTokens(tokensOverride)
     end
 
     return result
+end
+
+--One game update asks for each creature's flankers several times (its token hud twice, free
+--strike banes, the "flanked" GoblinScript symbol): about 50 calls per move in a 17-creature
+--combat. Positions, walls and line of sight only change with a game update, so the answer
+--is kept for the rest of the update -- unless this creature or one of the adjacent enemies
+--it considered has its modifiers rebuilt in the meantime (CreatureCache serials), since
+--immunity and who can grant flanking come from modifiers. A call made while a creature's
+--modifiers are being built always computes, so that build records the token reads it
+--depends on.
+function creature:GetFlankingTokens(tokensOverride)
+    local top = CreatureCache.stack[#CreatureCache.stack]
+    if tokensOverride ~= nil or (top ~= nil and top.creature ~= false) then
+        return ComputeFlankingTokens(self, tokensOverride, nil, nil)
+    end
+
+    local cache = self:try_get("_tmp_flankingCache")
+    if cache ~= nil and cache.update == dmhub.ngameupdate and cache.epoch == CreatureCache.epoch then
+        local valid = true
+        for c, serial in pairs(cache.serials) do
+            if CreatureCache.SerialOf(c) ~= serial then
+                valid = false
+                break
+            end
+        end
+        if valid then
+            --make the _tmp_grantsFlanking writes a fresh computation would have made.
+            for _, write in ipairs(cache.writes) do
+                write.props._tmp_grantsFlanking = write.value
+            end
+            return { table.unpack(cache.result) }
+        end
+    end
+
+    local writes = {}
+    local adjacent = {}
+    local result = ComputeFlankingTokens(self, nil, writes, adjacent)
+    --read the serials afterwards: the computation itself may rebuild modifiers.
+    local serials = { [self] = CreatureCache.SerialOf(self) }
+    for _, c in ipairs(adjacent) do
+        serials[c] = CreatureCache.SerialOf(c)
+    end
+    self._tmp_flankingCache = {
+        update = dmhub.ngameupdate,
+        epoch = CreatureCache.epoch,
+        serials = serials,
+        result = result,
+        writes = writes,
+    }
+    return { table.unpack(result) }
 end
 
 function creature:FlankedBy(otherToken)
@@ -3495,25 +3616,25 @@ function creature:GetActivatedAbilities(options)
     --the companion when it pulls abilities from its summoner -- the companion
     --doesn't get the kit's full bonus pile, only a chosen melee-damage bonus
     --that gets applied on the companion side instead.
+    --Only the modifiers that can change an ability run (CharacterModifier.AbilityModifiers):
+    --for a hero that is 1-3 of ~100, and calling the rest on every ability cost more than
+    --cloning the abilities did.
+    local abilityModifiers = CharacterModifier.AbilityModifiers(modifiers, options.excludeKitModifications)
     local j = 1
     local nitems = #result
     for i = 1, #result do
         local ability = result[i]
         if ability._tmp_temporaryClone or (not options.characterSheet) then
-            for i, mod in ipairs(modifiers) do
-                if options.excludeKitModifications and mod.mod.behavior == "kitmodifyability" then
-                    --skip
-                else
-                    ability = mod.mod:ModifyAbility(mod, self, ability)
-                    if ability == nil then
-                        break
-                    end
+            for _, mod in ipairs(abilityModifiers) do
+                ability = mod.mod:ModifyAbility(mod, self, ability)
+                if ability == nil then
+                    break
+                end
 
-                    local variations = ability:GetVariations()
-                    if variations ~= nil then
-                        for i = 1, #variations do
-                            mod.mod:ModifyAbility(mod, self, variations[i])
-                        end
+                local variations = ability:GetVariations()
+                if variations ~= nil then
+                    for v = 1, #variations do
+                        mod.mod:ModifyAbility(mod, self, variations[v])
                     end
                 end
             end
@@ -3548,6 +3669,11 @@ function creature:GetActivatedAbilities(options)
         else
             j = j + 1
         end
+    end
+
+    --a Double Strike used on one target this turn offers its free second strike.
+    if not options.characterSheet then
+        self:AddFinishLaterAbilities(result)
     end
 
     return result
@@ -4309,9 +4435,25 @@ local g_conditionImmunitySpeech = {
     ["weakened"] = "I won't be weakened; not by you, not by anybody!",
 }
 
+--A conditionimmunity modifier with `silent: true` blocks the condition without the
+--"I can't be X!" speech. For bookkeeping immunities that exist only to keep an ability
+--from re-applying a condition the target already has (Hampering Roots on a prone target).
+--- @param c creature
+--- @param conditionid string
+--- @return boolean
+local function ConditionImmunityIsSilent(c, conditionid)
+    for _,mod in ipairs(c:GetActiveModifiers()) do
+        local m = mod.mod
+        if m.behavior == "conditionimmunity" and m:try_get("silent", false) and table.contains(m:try_get("conditions", {}), conditionid) then
+            return true
+        end
+    end
+    return false
+end
+
 --- Inflict a condition on a creature. (Or purge the condition using the 'purge' argument.)
 --- @param conditionid string
---- @param args {duration:string, force: nil|boolean, purge: nil|boolean, silent: nil|boolean, riders: nil|(string[]), sourceDescription: string, casterInfo:nil|{tokenid:string, timestamp: string|number|nil}, cast: ActivatedAbilityCast}
+--- @param args {duration:string, fullNextTurn: nil|boolean, force: nil|boolean, purge: nil|boolean, silent: nil|boolean, riders: nil|(string[]), sourceDescription: string, casterInfo:nil|{tokenid:string, timestamp: string|number|nil}, cast: ActivatedAbilityCast}
 --- When purge=true and casterInfo is provided, only removes the condition if it was inflicted by that caster.
 function creature:InflictCondition(conditionid, args)
     local immunities = self:GetConditionImmunities()
@@ -4321,8 +4463,9 @@ function creature:InflictCondition(conditionid, args)
         --give feedback that immunity blocked the condition: the creature "speaks"
         --in character, e.g. "I can't be Slowed!". Falls back to floating text when
         --the creature has no spoken language. Skipped when the application is
-        --silent (e.g. internal bookkeeping) via args.silent.
-        if not args.silent then
+        --silent (e.g. internal bookkeeping) via args.silent, or when the immunity
+        --itself is marked silent (see ConditionImmunityIsSilent).
+        if not args.silent and not ConditionImmunityIsSilent(self, conditionid) then
             local conditionsTable = dmhub.GetTable(CharacterCondition.tableName)
             local conditionInfo = conditionsTable[conditionid]
             if conditionInfo ~= nil then
@@ -4392,6 +4535,13 @@ function creature:InflictCondition(conditionid, args)
         entry.stacks = 1
         entry.sourceDescription = args.sourceDescription
         entry.duration = args.duration
+        --fullNextTurn: an EoT imposed on the target's own turn survives this turn's
+        --end and expires at the end of their next one. The End Turn Effects rule
+        --(MCDMAbilitySaveBehavior) clears the flag instead of purging, once.
+        entry.skipTurnEnd = nil
+        if args.fullNextTurn and args.duration == "eot" and self:IsOurTurn() then
+            entry.skipTurnEnd = true
+        end
         entry.casterInfo = args.casterInfo
         if entry.casterInfo ~= nil then
             entry.casterInfo.timestamp = ServerTimestamp()
@@ -4729,6 +4879,7 @@ function creature:NotifyConditionCaster(token, conditionid)
     if conditionCasterSource[conditionid][token.charid] == nil then
         -- New condition caster data; invalidate modifier cache so it
         -- recalculates with the updated _tmp_conditionCasterSource.
+        self._tmp_ccKey = nil
         self._tmp_modifiersRefresh = nil
         self._tmp_modifiersRefreshExcludingAuras = nil
     end
@@ -5103,6 +5254,7 @@ function creature:ShowCharacteristicRollDialog(attrid)
     local rollType = "test_power_roll"
     local roll = string.format("2d10 + %d", self:GetAttribute(attrid):Modifier())
     local modifiers = self:GetModifiersForPowerRoll(roll, rollType, { attribute = attrid })
+    CharacterModifier.MarkSkilledRollerDecides(modifiers)
 
     local syntheticAbility = ActivatedAbility.Create{ isTest = true, name = title }
 
@@ -5868,10 +6020,9 @@ end
 
 creature.minionDamageTime = 0
 
---Module-local map tracking the largest damage instance any single strike has applied to a given
---minion squad's shared Stamina pool. Outer key is the ActivatedAbilityCast object (weak key so it is
---collected when the strike finishes); inner key is the squad name, value is the largest damage amount
---applied to that squad's pool this cast.
+--Largest damage each strike has dealt to a minion squad's shared pool:
+--g_summonerSquadCastDamage[cast][ability][squadName] = amount. One cast covers a whole activation,
+--including abilities it invokes, so the ability splits a repeated or free strike from the one that triggered it.
 local g_summonerSquadCastDamage = setmetatable({}, {__mode = "k"})
 
 --Batching and confirmation gating for the "squadminiondeaths" trigger.
@@ -6224,17 +6375,24 @@ function creature.TakeDamage(self, amount, note, info)
             --the shared Stamina pool only takes the largest single instance.
             local squadName = self:MinionSquad()
             if squadName ~= nil then
-                local castMap = g_summonerSquadCastDamage[info.cast]
-                if castMap == nil then
-                    castMap = {}
-                    g_summonerSquadCastDamage[info.cast] = castMap
+                local strikesInCast = g_summonerSquadCastDamage[info.cast]
+                if strikesInCast == nil then
+                    strikesInCast = {}
+                    g_summonerSquadCastDamage[info.cast] = strikesInCast
                 end
-                local prev = castMap[squadName] or 0
+                --Damage paths that pass no ability fall back to one entry for the whole cast.
+                local strikeKey = info.ability or info.cast
+                local strikeDamageBySquad = strikesInCast[strikeKey]
+                if strikeDamageBySquad == nil then
+                    strikeDamageBySquad = {}
+                    strikesInCast[strikeKey] = strikeDamageBySquad
+                end
+                local prev = strikeDamageBySquad[squadName] or 0
                 local preClampAmount = amount
                 if amount <= prev then
                     amount = 0
                 else
-                    castMap[squadName] = amount
+                    strikeDamageBySquad[squadName] = amount
                     amount = amount - prev
                 end
                 if amount < preClampAmount then
@@ -6868,6 +7026,15 @@ function creature.Heal(self, amount, note)
 
     if type(amount) ~= 'number' then
         return
+    end
+
+    -- "Regain N less Stamina" effects (e.g. Myxovidan's Stench of Death aura) raise
+    -- this custom attribute; every Stamina regain path goes through here.
+    local reduction = self:CalculateNamedCustomAttribute("Stamina Regain Reduction")
+    if reduction > 0 and amount > 0 then
+        local reduced = math.max(0, amount - reduction)
+        self:FloatLabel(string.format("%d less Stamina regained", math.floor(amount - reduced)), "#ff0000")
+        amount = reduced
     end
 
     if amount <= 0 then
@@ -8479,6 +8646,36 @@ GameSystem.RegisterGoblinScriptField{
                         return true
                     end
                 end
+            end
+        end
+
+        return false
+    end,
+}
+
+--Corpses are object tokens with isCorpse set (the same test Rise, My Minions uses).
+--War Dog Thanatite's Snaking Entrails reads this for its "adjacent to any corpse" rider.
+GameSystem.RegisterGoblinScriptField{
+    target = creature,
+    name = "AdjacentToCorpse",
+    type = "boolean",
+    desc = "True if this creature is within 1 square of a corpse on the same actual floor. Uses the engine's footprint distance, like AdjacentToTargetableObject.",
+    seealso = {"AdjacentToTargetableObject"},
+    examples = {"Target.AdjacentToCorpse"},
+    calculate = function(c)
+        local token = GetDeployedCreatureToken(c)
+        if token == nil then
+            return false
+        end
+
+        local actualFloor = GetTokenActualFloor(token)
+        if actualFloor == nil then
+            return false
+        end
+
+        for _,other in ipairs(dmhub.allObjectTokens or {}) do
+            if other.valid and other.isCorpse and GetTokenActualFloor(other) == actualFloor and token:Distance(other) <= 1 then
+                return true
             end
         end
 

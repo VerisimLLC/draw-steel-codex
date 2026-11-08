@@ -230,6 +230,73 @@ local g_selectedTokens = {}
 if rawget(DrawSteelActionBar, "_operate") ~= nil and DrawSteelActionBar._operate.operation ~= nil then
     pcall(function() dmhub.tokenInfo:PopSelectedTokenOverride() end)
 end
+--The selected token's ability list, reused across bar refreshes while nothing it was built
+--from has changed. The bar refreshes on every game update that touches any character, and
+--GetActivatedAbilities clones and modifies every ability (~8 ms for a hero), so another
+--player moving used to rebuild your hero's list. The key: the token, its record revision,
+--its modifier serial (CreatureCache), game data other than characters, the objects that
+--grant abilities to adjacent creatures, plus any other token the build read (a token query
+--means no reuse). Kept on the global table: this file's main chunk is at Lua's 200-local
+--limit.
+DrawSteelActionBar._abilityList = { key = nil, list = nil, wildcard = true, deps = {} }
+
+--- @param token CharacterToken
+--- @return ActivatedAbility[]
+function DrawSteelActionBar._abilityList.Get(token)
+    local cache = DrawSteelActionBar._abilityList
+    local function Build()
+        return token.properties:GetActivatedAbilities { bindCaster = true, manualTriggers = true }
+    end
+    if not CreatureCache.enabled then
+        cache.list = nil
+        return Build()
+    end
+
+    local function DepState(charid)
+        local tok = dmhub.GetCharacterById(charid)
+        local props = tok and tok.properties
+        return string.format("%d:%d", dmhub.CharacterRecordRevision(charid), props and CreatureCache.SerialOf(props) or -1)
+    end
+
+    local key = string.format("%s|%d|%d|%s|%s|%s", token.charid, dmhub.CharacterRecordRevision(token.charid),
+        CreatureCache.SerialOf(token.properties), CreatureCache.GlobalKey(), tostring(dmhub.isDM),
+        ActivatedAbility.GrantingTokensSignature())
+    if cache.list ~= nil and cache.key == key and not cache.wildcard then
+        local unchanged = true
+        for charid, state in pairs(cache.deps) do
+            if DepState(charid) ~= state then
+                unchanged = false
+                break
+            end
+        end
+        if unchanged then
+            return cache.list
+        end
+    end
+
+    cache.list = nil
+    dmhub.BeginDependencyScope()
+    local ok, result = pcall(Build)
+    local rec = dmhub.EndDependencyScope()
+    if not ok then
+        error(result, 0)
+    end
+
+    local deps = {}
+    if rec ~= nil then
+        for charid, _ in pairs(rec.tokens) do
+            if charid ~= token.charid then
+                deps[charid] = DepState(charid)
+            end
+        end
+    end
+    cache.key = key
+    cache.list = result
+    cache.wildcard = rec == nil or rec.wildcard
+    cache.deps = deps
+    return result
+end
+
 --- @class ActionBarOperate
 --- @field operation nil|{operator: CharacterToken, object: CharacterToken}
 --- @field promptShown nil|boolean True while our "Operating X" prompt is up.
@@ -1504,6 +1571,44 @@ end
 --- @return nil|{operator: CharacterToken, object: CharacterToken}
 function DrawSteelActionBar.GetOperation()
     return DrawSteelActionBar._operate.operation
+end
+
+--- Warning text for a channeled-resource chip (e.g. Call Forth's essence) when
+--- spending that much would summon a Summoner past their minion limit, else nil.
+--- Warn only: the chip stays selectable. Strict rules cap the summons at placement.
+--- On the global table: this file is at the 200-local limit.
+--- @param ability ActivatedAbility the ability being cast.
+--- @param caster creature the casting creature.
+--- @param symbols table the cast's current symbols (mode etc.).
+--- @param charges number the charges this chip would spend.
+--- @return string|nil
+function DrawSteelActionBar.MinionLimitWarning(ability, caster, symbols, charges)
+    local maxMinions = caster:CalculateNamedCustomAttribute("MaximumMinions") or 0
+    if maxMinions <= 0 then
+        return nil
+    end
+
+    --Only fixed counts are checked; a rolled number of summons is unknown until cast.
+    local summonCount = 0
+    for _, behavior in ipairs(ability:try_get("behaviors") or {}) do
+        --Same mode filter the cast uses: a behavior tied to other modes won't run.
+        local behaviorModes = behavior:try_get("modesSelected", {})
+        local inMode = (not ability.multipleModes) or #behaviorModes == 0 or table.contains(behaviorModes, symbols.mode)
+        if inMode and behavior.typeName == "ActivatedAbilitySummonBehavior" and not behavior:try_get("ignoreSummonerLimits", false) then
+            local chipSymbols = { mode = symbols.mode, charges = charges }
+            local result = dmhub.EvalGoblinScript(behavior:try_get("numSummons", "1"), GenerateSymbols(caster, chipSymbols), "Minion limit preview for " .. ability.name)
+            summonCount = summonCount + math.floor(tonumber(result) or 0)
+        end
+    end
+    if summonCount <= 0 then
+        return nil
+    end
+
+    local limitInfo = caster:GetSummonerLimitInfo(0, summonCount)
+    if not limitInfo.exceededMinions then
+        return nil
+    end
+    return string.format("You have a minion limit of %d.", limitInfo.maxMinions)
 end
 
 --An object caster turning to face its target while an ability with "Turn to
@@ -3374,7 +3479,9 @@ local function ActionBarDrawer(args)
                 return
             end
 
-            if args.type ~= "trigger" and (not DrawSteelActionBar._operate.ResourceToken().properties:IsOurTurn()) then
+            local resourceProps = DrawSteelActionBar._operate.ResourceToken().properties
+            if args.type ~= "trigger" and (not resourceProps:IsOurTurn())
+                and not (args.type == "action" and resourceProps:GetImmediateActionGrant(CharacterResource.actionResourceId) ~= nil) then
                 if newToken then
                     resultPanel:SetClassTreeImmediate("available", false)
                 else
@@ -3780,6 +3887,164 @@ local function CreateTriggerReactionPanel()
     }
 end
 
+--- Opens the given drawer's ability menu (e.g. "action" for Main Action),
+--- reopening it if it is already open so its chips are re-evaluated.
+--- @param drawerType string
+function DrawSteelActionBar.OpenDrawerMenu(drawerType)
+    if g_actionBar == nil or not g_actionBar.valid then
+        return
+    end
+    for _, drawer in ipairs(g_actionBar:GetChildrenWithClassRecursive("actionBarDrawer")) do
+        if drawer.data ~= nil and drawer.data.drawerType == drawerType and not drawer:HasClass("collapsed") then
+            if drawer:HasClass("active") then
+                --the menu refuses a second open in the same frame.
+                drawer:FireEvent("press")
+                dmhub.Schedule(0.05, function()
+                    if not mod.unloaded and drawer.valid and not drawer:HasClass("active") then
+                        drawer:FireEvent("press")
+                    end
+                end)
+            else
+                drawer:FireEvent("press")
+            end
+            return
+        end
+    end
+end
+
+--- The prompt shown above the bar while the selected creature has an
+--- immediate action grant (an off-turn critical hit, see creature:GrantImmediateAction
+--- in MCDMActivatedAbility.lua): choose a main action to use now, or decline.
+--- @return Panel
+function DrawSteelActionBar.CreateImmediateActionPrompt()
+    local titleLabel = gui.Label {
+        classes = { "sizeL" },
+        bold = true,
+        width = "auto",
+        height = "auto",
+        halign = "center",
+        text = "",
+    }
+    local bodyLabel = gui.Label {
+        classes = { "sizeS" },
+        width = "auto",
+        maxWidth = 420,
+        height = "auto",
+        halign = "center",
+        textAlignment = "center",
+        textWrap = true,
+        vmargin = 4,
+        text = "Take a main action now, even though it isn't your turn.",
+    }
+
+    local resultPanel
+    --- The selected creature's live main-action grant, with its token.
+    --- @return CharacterToken|nil, ImmediateActionGrant|nil
+    local function Grant()
+        local token = resultPanel.data.token --[[@as CharacterToken|nil]]
+        if token == nil or not token.valid or token.properties == nil then
+            return nil, nil
+        end
+        return token, token.properties:GetImmediateActionGrant(CharacterResource.actionResourceId)
+    end
+
+    --The outer panel is never collapsed or hidden: those stop its think, which
+    --is what notices a grant arriving. Only the frame inside is toggled.
+    local frame
+    resultPanel = gui.Panel {
+        classes = { "immediateActionPrompt" },
+        floating = true,
+        width = "auto",
+        height = "auto",
+        halign = "center",
+        valign = "top",
+        --clear of the drawers and the last-used ability icon above them.
+        y = -250,
+        data = { key = false, token = nil },
+        thinkTime = 0.25,
+        think = function(element)
+            element.data.token = DrawSteelActionBar._operate.SelectedBoardToken()
+            local token, grant = Grant()
+            local key = nil
+            if token ~= nil and grant ~= nil then
+                key = token.charid .. ":" .. grant.id
+            end
+            --out of the way while casting, and while a drawer menu is open (the
+            --menu hides the trigger prompts too, so that is the signal).
+            frame:SetClass("hidden", g_currentAbility ~= nil or (g_triggerPanel ~= nil and g_triggerPanel:HasClass("hidden")))
+            if key == element.data.key then
+                return
+            end
+            element.data.key = key
+            frame:SetClass("collapsed", grant == nil)
+            if grant ~= nil then
+                titleLabel.text = grant.source ~= "" and grant.source or "Immediate Action"
+            end
+            --re-light the Main Action drawer, unless a cast is in progress.
+            if g_currentAbility == nil and #g_casterTokenStack == 0 and g_actionBar ~= nil and g_actionBar.valid then
+                g_actionBar:FireEventTree("refresh")
+            end
+        end,
+    }
+
+    frame = gui.Panel {
+        classes = { "collapsed" },
+        width = "auto",
+        height = "auto",
+        gui.TooltipFrame(gui.Panel {
+            flow = "vertical",
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            pad = 8,
+            borderBox = true,
+            titleLabel,
+            bodyLabel,
+            gui.Panel {
+                flow = "horizontal",
+                width = "auto",
+                height = "auto",
+                halign = "center",
+                vmargin = 4,
+                gui.Button {
+                    classes = { "sizeS" },
+                    text = "Choose Main Action",
+                    width = "auto",
+                    height = "auto",
+                    hpad = 12,
+                    vpad = 4,
+                    borderBox = true,
+                    hmargin = 4,
+                    press = function(element)
+                        local _, grant = Grant()
+                        if grant ~= nil then
+                            DrawSteelActionBar.OpenDrawerMenu("action")
+                        end
+                    end,
+                },
+                gui.Button {
+                    classes = { "sizeS" },
+                    text = "Decline",
+                    width = "auto",
+                    height = "auto",
+                    hpad = 12,
+                    vpad = 4,
+                    borderBox = true,
+                    hmargin = 4,
+                    press = function(element)
+                        local token, grant = Grant()
+                        if token ~= nil and grant ~= nil then
+                            ActivatedAbility.DeclineImmediateAction(token, grant.resourceid)
+                        end
+                    end,
+                },
+            },
+        }, {}),
+    }
+    resultPanel:AddChild(frame)
+    return resultPanel
+end
+
 
 local function CreateActionBar()
     local resultPanel
@@ -4063,7 +4328,7 @@ local function CreateActionBar()
                     end
                     return list
                 end
-                return g_token.properties:GetActivatedAbilities { bindCaster = true, manualTriggers = true }
+                return DrawSteelActionBar._abilityList.Get(g_token)
             end)
             g_abilities = (okAbilities and abilitiesOrErr) or {}
 
@@ -4172,6 +4437,8 @@ local function CreateActionBar()
         resultPanel,
         --Outside resultPanel so it survives the bar hiding itself (no token selected).
         g_castHintPanel,
+        --"Critical Hit! Take a main action now" off turn.
+        DrawSteelActionBar.CreateImmediateActionPrompt(),
     }
 
     return m_containerPanel
@@ -4322,6 +4589,10 @@ local function AbilityHeading(args)
         --An operated object never has a turn; its operator's turn is what counts.
         local caster = ability:GetOperatorToken() or CasterToken(ability)
         if caster == nil or not caster.valid or caster.properties == nil then
+            return false
+        end
+        --an immediate action grant (an off-turn critical hit) lets it act now.
+        if caster.properties:GetImmediateActionGrant(ability:try_get("actionResourceId")) ~= nil then
             return false
         end
         return not caster.properties:IsOurTurn()
@@ -8632,7 +8903,8 @@ ActionMenu = function()
         bgimage = true,
         bgcolor = "clear",
 
-        g_manualSetResourcePanel,
+        --g_manualSetResourcePanel is the LAST child (below the lens bar); it was
+        --listed here as well, putting one panel in children twice.
 
         --casterToken is optional: an AbilityHeading with an args.casterToken
         --override passes its owner so the card renders for that token; every
@@ -9205,7 +9477,7 @@ local function EffectiveArrowRange(sourceToken, targetToken, range, ability)
     if range ~= nil and ability ~= nil and sourceToken ~= nil and targetToken ~= nil then
         local measureToken = ability:GetRangeSource(sourceToken)
         if measureToken ~= sourceToken then
-            local altDiffUnits = math.abs(measureToken.altitude - targetToken.altitude) * dmhub.unitsPerSquare
+            local altDiffUnits = RuleUtils.VerticalGapInTiles(measureToken, targetToken) * dmhub.unitsPerSquare
             if math.max(targetToken:Distance(measureToken), altDiffUnits) >= range + dmhub.unitsPerSquare then
                 return 0
             end
@@ -9230,7 +9502,7 @@ local function EffectiveArrowRange(sourceToken, targetToken, range, ability)
         effective = targetUnits
     end
     if effective ~= nil and sourceToken ~= nil and targetToken ~= nil then
-        local altDiffUnits = math.abs(sourceToken.altitude - targetToken.altitude) * dmhub.unitsPerSquare
+        local altDiffUnits = RuleUtils.VerticalGapInTiles(sourceToken, targetToken) * dmhub.unitsPerSquare
         if altDiffUnits >= effective + dmhub.unitsPerSquare then
             effective = 0
         end
@@ -9304,9 +9576,10 @@ local function AddModifierLabelsToMarker(markers, sourceToken, targetToken, abil
     -- max(horizDist, altDiff). A target on the same floor-plan tile but well
     -- above/below is out of range only when the altitude separation alone
     -- exceeds range; otherwise the horizontal distance is what matters.
+    -- altDiff counts how tall each creature is (RuleUtils.VerticalGapInTiles).
     if range ~= nil then
         local horizDist = targetToken:Distance(originToken)
-        local altDiffUnits = math.abs(originToken.altitude - targetToken.altitude) * dmhub.unitsPerSquare
+        local altDiffUnits = RuleUtils.VerticalGapInTiles(originToken, targetToken) * dmhub.unitsPerSquare
         if math.max(horizDist, altDiffUnits) >= range + dmhub.unitsPerSquare
             and (skipRelays or not CastingOriginCoversTarget(ability, sourceToken, targetToken, range)) then
             markers:AddLabel("Out of Range", "forbidden")
@@ -9677,6 +9950,13 @@ local function CreateTargetInfo(spell)
                 end
             end
 
+            --A burst hits everyone in its area, and the caster is the only token with a
+            --reticule, so clicking them confirms the cast the way the Confirm button does.
+            if g_currentAbility.targetType == 'all' and g_abilityController ~= nil then
+                g_abilityController:FireEvent("mappress")
+                return
+            end
+
             --The caster is added when the ability is cast, so clicking them does nothing.
             if g_currentAbility.forceCasterTarget and targetToken.id == g_token.charid then
                 return
@@ -9914,8 +10194,8 @@ end
 --passed to MarkMovementRadius. CalculateMovementPerimeter runs the identical engine
 --computation that draws the radius, so the legal set and the highlighted radius can
 --never disagree -- no separate/duplicated targeting algorithm. Call this right after
---each forced-move MarkMovementRadius draw so the set stays in sync (including the
---multi-step waypoint re-draw). pcall-guarded: if the engine method is missing (Lua
+--each movement-radius draw for an ability move (forced or not), including the redraw
+--after each waypoint. pcall-guarded: if the engine method is missing (Lua
 --reloaded before the C# build), leave the set nil and fall open instead of erroring.
 local function CaptureForcedMoveLegalLocs(token, range, radiusArgs)
     local ok, perim = pcall(function() return token:CalculateMovementPerimeter(range, radiusArgs) end)
@@ -9956,7 +10236,7 @@ end
 
 
 --- True when strict forced-movement enforcement should currently apply. The
---- "Strictly Enforce Forced Movement Rules" game setting must be on, and the actor must be
+--- "Strictly Enforce Ability Movement Rules" game setting must be on, and the actor must be
 --- a PLAYER -- OR a GM who is currently viewing the world as a player (Show Token
 --- Vision, or logged in as a token). Plain GM view is exempt, matching
 --- strict:resources / strict:targeting. The token-vision/logged-in-as cases let the
@@ -9972,18 +10252,23 @@ local function ForcedMoveEnforcementActive()
     return dmhub.tokenVision ~= nil or dmhub.tokensLoggedInAs ~= nil
 end
 
---- Strict movement enforcement for forced movement (push/pull/slide/knockback).
---- Returns true when enforcement is active (see ForcedMoveEnforcementActive) and `loc`
---- is NOT one of the tiles the forced-move movement radius highlights. The legal-tile
+--- Strict movement: true when a player picks a square outside the drawn radius for a
+--- forced move (push, pull, slide) or a move or shift granted by an ability (pathfind,
+--- vacated targeting, e.g. Dramatic Reversal's "shift 1"). Other targeting is never
+--- rejected. Enforcement must be active (see ForcedMoveEnforcementActive). The legal-tile
 --- set (g_forcedMoveLegalLocs) is captured from the exact same engine computation that
 --- draws the radius, so "what you can target" matches "what is highlighted" tile-for-tile.
 --- When the caller rejects a loc it suppresses the preview arrow / "Click to Confirm"
 --- text and ignores the click. If the legal set is unavailable (forced-move radius not
 --- computed, or the engine method is missing pre-build) we fall OPEN -- do not constrain --
 --- so targeting keeps working rather than blocking everything.
+--- @param targetingType nil|string
 --- @param loc nil|Loc
 --- @return boolean
-local function ForcedMoveLocRejected(loc)
+local function MoveTargetLocRejected(targetingType, loc)
+    if targetingType ~= "straightline" and targetingType ~= "pathfind" and targetingType ~= "vacated" then
+        return false
+    end
     if not ForcedMoveEnforcementActive() then
         return false
     end
@@ -9992,6 +10277,13 @@ local function ForcedMoveLocRejected(loc)
     end
     if loc == nil then
         return true
+    end
+    --Clicking the last waypoint again is how a multi-step move finishes, so never block it.
+    if targetingType ~= "straightline" and #m_positionTargetsChosen > 0 then
+        local lastLoc = m_positionTargetsChosen[#m_positionTargetsChosen].loc
+        if lastLoc ~= nil and lastLoc.x == loc.x and lastLoc.y == loc.y then
+            return false
+        end
     end
     return g_forcedMoveLegalLocs[loc.xyfloorOnly.str] ~= true
 end
@@ -10694,14 +10986,30 @@ local function CreateSynthesizedSpellsPanel()
                 if g_currentSymbols ~= nil and g_currentSymbols.invoked and a:try_get("_tmp_temporaryClone", false) then
                     a._tmp_invokedChoice = true
                 end
+                --A picked choice replaces the prompt as the current cast, so it must
+                --keep the prompt's Skip: Overwatch's free strike may have no legal
+                --target, and without Skip the player was stuck in it.
+                if g_currentSymbols ~= nil and g_currentSymbols.invoked and g_currentAbility:try_get("skippable", false) then
+                    a.skippable = true
+                end
+
+                --Forward the current symbol table so flags like `forcedroll` (set by
+                --InvokeAbility with inheritRoll=true) survive the chip-pick handoff.
+                local symbols = g_currentSymbols
+                --A chip that channels its own resource starts at its own default
+                --charges, not the parent's: Practical Magic's default 1 otherwise
+                --pre-spent 1 essence on its Teleport option (report JF7SAVWU).
+                if symbols ~= nil and symbols.charges ~= nil and a:try_get("channeledResource", "none") ~= "none" then
+                    --Copy so the parent cast's own charges are left alone.
+                    symbols = table.shallow_copy(symbols)
+                    symbols.charges = a:DefaultCharges()
+                end
 
                 local spellOptions = {
                     synthesized = true,
                     cast = cast,
                     ability = a,
-                    --Forward the current symbol table so flags like `forcedroll` (set by
-                    --InvokeAbility with inheritRoll=true) survive the chip-pick handoff.
-                    symbols = g_currentSymbols,
+                    symbols = symbols,
                 }
                 for k, v in pairs(addedSpellOptions or {}) do
                     spellOptions[k] = v
@@ -10744,15 +11052,55 @@ local function CreateTokenSelectionContainer()
     --hovered portrait never strands a ring on the map.
     local m_locatedCharid = nil
 
-    local function SetLocateRing(charid, on)
-        local tok = charid ~= nil and dmhub.GetTokenById(charid) or nil
-        if tok == nil or not tok.valid or tok.bottomsheet == nil or not tok.bottomsheet.valid then
-            return
+    --A static tint over the hovered candidate (the sprite redrawn in yellow). Objects have no locate
+    --ring, and two identical objects are otherwise impossible to tell apart.
+    local m_tintCanvas = nil
+
+    local function ClearTint()
+        if m_tintCanvas ~= nil then
+            m_tintCanvas:Destroy()
+            m_tintCanvas = nil
         end
-        tok.bottomsheet:SetClassTree("locate", on)
     end
 
+    local function SetLocateRing(charid, on)
+        ClearTint()
+
+        local tok = charid ~= nil and dmhub.GetTokenById(charid) or nil
+        if tok == nil or not tok.valid then
+            return
+        end
+
+        local instance = on and tok.isObject and tok.objectInstance or nil
+        --area is nil when the object's map instance has gone.
+        local area = instance ~= nil and instance.area or nil
+        if instance ~= nil and area ~= nil then
+            --Redraw the object's own sprite as a flat tint on top of it, so the highlight has its exact shape.
+            m_tintCanvas = dmhub.CreateCanvasOnMap{
+                point = core.Vector3((area.x1 + area.x2) / 2, (area.y1 + area.y2) / 2, 0),
+                floorIndex = tok.loc.floor,
+                sheet = gui.Panel{
+                    interactable = false,
+                    halign = "center",
+                    valign = "center",
+                    width = area.x2 - area.x1,
+                    height = area.y2 - area.y1,
+                    rotate = instance.rotation,
+                    bgimage = instance.displayImageId,
+                    bgcolor = "#ffe066",
+                    opacity = 0.6,
+                },
+            }
+        end
+
+        if tok.bottomsheet ~= nil and tok.bottomsheet.valid then
+            tok.bottomsheet:SetClassTree("locate", on)
+        end
+    end
+
+    --Always drops the tint, even with no located token, so nothing can strand it on the map.
     local function ClearLocate()
+        ClearTint()
         if m_locatedCharid ~= nil then
             SetLocateRing(m_locatedCharid, false)
             m_locatedCharid = nil
@@ -10877,7 +11225,12 @@ local function CreateTokenSelectionContainer()
                     --ring is no use when the token is off the edge of the screen.
                     rightClick = function(element)
                         if tok.valid then
-                            dmhub.CenterOnToken(tok.charid, { smooth = true })
+                            --CenterOnToken only knows creatures; a map object is centred through its instance.
+                            if tok.isObject and tok.objectInstance ~= nil then
+                                tok.objectInstance:CenterCamera{ smooth = true }
+                            else
+                                dmhub.CenterOnToken(tok.charid, { smooth = true })
+                            end
                         end
                     end,
                     --The engine's own pulse is a brief white flash that is easy to
@@ -11740,6 +12093,14 @@ CreateAbilityController = function()
                 borderColor = "#ff999955",
                 bgcolor = "#ff999922",
             },
+            --Essence amounts that would put the Summoner over their minion limit. Still
+            --selectable; amber so it doesn't look like the light red used for going below zero.
+            {
+                selectors = { "levelPanel", "overMinionLimit" },
+                color = "#ffcc66",
+                borderColor = "#ffcc6655",
+                bgcolor = "#ffcc6622",
+            },
             {
                 selectors = { "levelPanel", "~invalid", "hover" },
                 borderColor = "#ffffffaa",
@@ -11811,10 +12172,17 @@ CreateAbilityController = function()
                     data = {
                         nresources = nresources,
                         ncharges = ncharges,
+                        limitWarning = nil,
                     },
                     press = function(element)
                         if element:HasClass("invalid") == false then
                             g_channeledResourcePanel:FireEventTree("select", element.data.ncharges)
+                        end
+                    end,
+                    hover = function(element)
+                        if element.data.limitWarning ~= nil then
+                            --valign top: the default sits below the chip, under the cursor.
+                            gui.Tooltip{ text = element.data.limitWarning, valign = "top" }(element)
                         end
                     end,
                 }
@@ -11834,6 +12202,14 @@ CreateAbilityController = function()
                 children[i]:SetClass("collapsed", (i - 1) * channelIncrement > resourcesSpendable or (i - 1) * channelIncrement > maxChannel)
                 children[i]:SetClass("negative", (i - 1) * channelIncrement > resourcesAvailable)
                 children[i]:SetClass("selected", (i - 1) == g_currentSymbols.charges)
+
+                --Hidden chips can't be picked, so skip the minion-limit check for them.
+                local limitWarning = nil
+                if not children[i]:HasClass("collapsed") then
+                    limitWarning = DrawSteelActionBar.MinionLimitWarning(g_currentAbility, g_token.properties, g_currentSymbols, i - 1)
+                end
+                children[i].data.limitWarning = limitWarning
+                children[i]:SetClass("overMinionLimit", limitWarning ~= nil)
             end
 
             if added then
@@ -11940,6 +12316,16 @@ CreateAbilityController = function()
                 return g_currentAbility
             end
             gamehud.actionBarPanel.data.IsCastingSpell = element.data.isCasting
+
+            --A target prompt on screen (Lightfall's ally chooser) means a cast is
+            --waiting on the player. The cast watchdog reads this so it does not
+            --abandon a cast the player is still choosing for (JY7WM9BQ).
+            element.data.oldIsPrompting = gamehud.actionBarPanel.data.IsPrompting
+            element.data.isPrompting = function()
+                local prompt = DrawSteelActionBar._openPrompt
+                return prompt ~= nil and prompt.valid
+            end
+            gamehud.actionBarPanel.data.IsPrompting = element.data.isPrompting
         end,
 
         destroy = function(element)
@@ -11948,6 +12334,10 @@ CreateAbilityController = function()
             if gamehud and gamehud.actionBarPanel and gamehud.actionBarPanel.valid
                 and gamehud.actionBarPanel.data.IsCastingSpell == element.data.isCasting then
                 gamehud.actionBarPanel.data.IsCastingSpell = element.data.oldIsCasting
+            end
+            if gamehud and gamehud.actionBarPanel and gamehud.actionBarPanel.valid
+                and gamehud.actionBarPanel.data.IsPrompting == element.data.isPrompting then
+                gamehud.actionBarPanel.data.IsPrompting = element.data.oldIsPrompting
             end
         end,
 
@@ -11958,6 +12348,13 @@ CreateAbilityController = function()
             --Never cancel a cast that claimed the controller after the hide was
             --asked for: this event arrives too late to tell them apart itself.
             if DrawSteelActionBar.HideShouldSkipCancel() then
+                return
+            end
+            --Rolling dice (an AI monster's, on a host who also plays a hero)
+            --hides the whole bar. That is not the player leaving the cast: an
+            --open target prompt comes back with the bar (C7YTDXC6).
+            local prompt = DrawSteelActionBar._openPrompt
+            if dmhub.GetSettingValue("__previewdice") and prompt ~= nil and prompt.valid then
                 return
             end
             element:FireEvent("cancelCasting")
@@ -12452,10 +12849,11 @@ CreateAbilityController = function()
                 end
             end
 
-            -- Only while the Monster AI controls the source: auto-picking for
-            -- anyone else would defeat the "Prompt When Resolving" option on
-            -- PowerRollBehavior.
-            if options.sourceToken ~= nil and creature.IsTokenAIControlled(options.sourceToken.charid) then
+            -- Only when the Monster AI is the one choosing: auto-picking for anyone
+            -- else would skip the "Prompt When Resolving" option on PowerRollBehavior.
+            -- A retarget is chosen by the trigger's owner, not the striking monster.
+            local chooserToken = options.chooserToken or options.sourceToken
+            if chooserToken ~= nil and creature.IsTokenAIControlled(chooserToken.charid) then
                 --auto-pick the first target that isn't filtered out with a reason.
                 local pick = options.targets[1]
                 for _,t in ipairs(options.targets or {}) do
@@ -12482,6 +12880,13 @@ CreateAbilityController = function()
 
             local targets = options.targets or {}
             local promptText = options.prompt or "Choose a target"
+            --Clicking an unlocked object on the map opens it for editing, so point at the portraits instead.
+            for _, candidate in ipairs(targets) do
+                if candidate.valid and candidate.isObject then
+                    promptText = promptText .. " (click the portrait below)"
+                    break
+                end
+            end
             local choose = options.choose or function(target) end
             local cancel = options.cancel or function() end
 
@@ -13227,7 +13632,7 @@ CreateAbilityController = function()
                                 tostring(ForcedMoveEnforcementActive()),
                                 tostring(g_forcedMoveLegalLocs ~= nil and "set" or "nil"),
                                 tostring(g_forcedMoveLegalLocs ~= nil and loc ~= nil and (g_forcedMoveLegalLocs[loc.xyfloorOnly.str] == true)),
-                                tostring((targetingType == "straightline") and ForcedMoveLocRejected(loc))))
+                                tostring(MoveTargetLocRejected(targetingType, loc))))
                         end
                     end
 
@@ -13235,7 +13640,7 @@ CreateAbilityController = function()
                     --outside the tiles the forced-move radius highlights (g_forcedMoveLegalLocs,
                     --captured from the identical engine computation that draws the radius).
                     local movementInfo = nil
-                    if not ((targetingType == "straightline") and ForcedMoveLocRejected(loc)) then
+                    if not MoveTargetLocRejected(targetingType, loc) then
                         local markOptions = {
                             straightline = true,
                             ignorecreatures = (targetingType == "straightpathignorecreatures" or throughCreatures),
@@ -13250,7 +13655,11 @@ CreateAbilityController = function()
                                 markOptions[key] = value
                             end
                         end
-                        movementInfo = g_token:MarkMovementArrow(loc, markOptions)
+                        --A vertical move's dialed altitude is absolute; the engine wants it above the ground.
+                        movementInfo = g_token:MarkMovementArrow(
+                            cond(ActivatedAbility.IsVerticalForcedMovement(g_currentSymbols.forcedmovement or g_currentAbility:try_get("forcedMovement")),
+                                ActivatedAbility.VerticalForcedMovementEngineLoc(loc), loc),
+                            markOptions)
                         --MarkMovementArrow's declared return omits the charge-jump fields the engine
                         --adds when charge options are passed (CharacterToken.cs MarkMovementArrow).
                         ---@cast movementInfo nil|{path: LuaPath, collideWith: nil|CharacterToken[], bounceCollisions: nil|{speed: number, collideWith: CharacterToken[], destination: Loc}[], validCharge: nil|boolean, requiresRoll: nil|boolean, requiredTier: nil|integer, guaranteedTier: nil|integer, jumpLabelLoc: nil|Loc, tierOutcomes: nil|table<integer, table>}
@@ -13938,6 +14347,21 @@ CreateAbilityController = function()
             local selfTarget = g_currentAbility.selfTarget
             local targetTokens = dmhub.tokenInfo.TokensInShape(g_pointTargeting.shape)
 
+            --The engine's line-of-sight shape drops sight-blocking objects (they hide their own
+            --square). Re-add objects in range; TargetPassesFilter then checks where the line to them stops.
+            --Only for a burst centred on the caster: a casterLocOverride moves the burst elsewhere.
+            if g_currentAbility.targetType == "all" and g_currentAbility.objectTarget == true and g_token ~= nil and g_token.valid
+                and g_currentAbility:try_get("casterLocOverride") == nil then
+                local burstRange = g_currentAbility:GetRange(g_token.properties, g_currentSymbols)
+                for _, tok in ipairs(dmhub.allTokensIncludingObjects) do
+                    --objectTarget abilities only take attackable objects, so skip the rest before the sight test.
+                    if tok.valid and tok.isObject and tok.isAttackableObject and targetTokens[tok.charid] == nil
+                        and tok.floorIndex == g_token.floorIndex and g_token:Distance(tok) <= burstRange then
+                        targetTokens[tok.charid] = tok
+                    end
+                end
+            end
+
             -- Partner burst: union tokens from the partner shape into the target dict.
             -- Same-key entries dedupe automatically -- "An enemy in both areas is
             -- only affected once" (Bring the Thunder rules). Also track which
@@ -14052,13 +14476,11 @@ CreateAbilityController = function()
                     g_pointTargeting.partnerRadius = g_pointTargeting.partnerShape:Mark { color = targetColor, video = video }
                 end
 
-                --Strict movement: suppress the "Click to Confirm" affordance when a
-                --player is hovering a square outside the tiles the forced-move radius
-                --highlights, so it doesn't invite a click that will be rejected. The
-                --radius itself still renders.
+                --Strict movement: hide "Click to Confirm" / "Shift" over a square outside
+                --the drawn radius, so the player isn't invited to make a click that will
+                --be ignored. The radius itself still renders.
                 local strictConfirmReject = (g_currentAbility ~= nil)
-                    and (g_currentAbility:try_get("targeting", "direct") == "straightline")
-                    and ForcedMoveLocRejected(loc)
+                    and MoveTargetLocRejected(g_currentAbility:try_get("targeting", "direct"), loc)
                 if g_currentAbility ~= nil and loc ~= nil and g_pointTargeting.shape ~= nil and (not strictConfirmReject) then
                     local numTargets = g_currentAbility:GetNumTargets(g_token, g_currentSymbols)
 
@@ -14318,11 +14740,10 @@ CreateAbilityController = function()
                 end
             end
 
-            --Strict movement: a player (not the DM) may not target a forced-move square
-            --outside the tiles the forced-move radius highlights (g_forcedMoveLegalLocs,
-            --captured from the same engine computation that draws the radius). Tested after
-            --the large-creature offset so it matches the loc the preview/append use.
-            if targetingType == "straightline" and ForcedMoveLocRejected(loc) then
+            --Strict movement: a player can't pick a square outside the drawn radius for a
+            --push or a granted shift/move. Checked after the large-creature offset so it
+            --uses the same square the preview does.
+            if MoveTargetLocRejected(targetingType, loc) then
                 return
             end
 
@@ -14580,10 +15001,8 @@ CreateAbilityController = function()
                             g_radiusMarkers[#g_radiusMarkers + 1] = radiusMarker
 
                             --Strict movement: keep the legal-tile set in sync with this
-                            --freshly-drawn forced-move radius (multi-step path case).
-                            if forcedMovement then
-                                CaptureForcedMoveLegalLocs(g_token, g_range, radiusArgs)
-                            end
+                            --freshly-drawn radius (multi-step path case).
+                            CaptureForcedMoveLegalLocs(g_token, g_range, radiusArgs)
                             return
                         end
                     end
@@ -14791,6 +15210,10 @@ local function CalculateSpellTargetFocusing(symbols)
                             bypass = true
                         end
                     end
+                    --Shadowmeld: a caster in front of the wall the target melded into can see it.
+                    if (not bypass) and RuleUtils.WallMeldSeesTarget(g_token, targetToken) then
+                        bypass = true
+                    end
                     if not bypass then
                         failReason = "Cannot target a hidden creature with a strike"
                     end
@@ -14812,7 +15235,7 @@ local function CalculateSpellTargetFocusing(symbols)
                 --from it (or from the last one chosen, for a chain), at the proximity range.
                 local targetRange = range
                 local targetProximityOrigin = nil
-                if proximityOrigin ~= nil and not list_contains(g_targetsChosen, targetToken.id) then
+                if proximityOrigin ~= nil and not list_contains(g_targetsChosen, targetToken.charid) then
                     targetProximityOrigin = proximityOrigin
                     rangeSource = proximityOrigin
                     directRangeSource = proximityOrigin
@@ -14836,7 +15259,9 @@ local function CalculateSpellTargetFocusing(symbols)
                     --AddModifierLabelsToMarker so arrow greying, the "Out of Range" label, and
                     --the strict-targeting block all agree.
                     if failReason == nil and spell.targetType ~= "areatemplate" and checkStrictRange then
-                        local altDiff = math.abs(rangeSource.altitude - targetToken.altitude)
+                        --The gap between the creatures' heights, so a Size 2 caster
+                        --reaches a target standing 2 squares up (PEK8NNCT).
+                        local altDiff = RuleUtils.VerticalGapInTiles(rangeSource, targetToken)
                         if altDiff > 0 then
                             local horizDist = targetToken:Distance(directRangeSource)
                             local altDiffUnits = altDiff * dmhub.unitsPerSquare
@@ -15004,7 +15429,17 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
             and #g_currentAbility:try_get("modeList", {}) > 1
         local hasPromptOverride = (g_currentAbility:try_get("promptOverride") ~= nil or awaitsModeChoice)
             and not g_manualTargetChosen
-        if forceCast or ((not g_currentAbility:CanSelectMoreTargets(g_token, targets, g_currentSymbols)) and not hasPromptOverride) then --temporarily disabled -David -- and not initialSetup then
+        --A chooser shell (e.g. "Make Melee Free Strike") is targetType self, so one
+        --pre-selected target (an Opportunity Attack's mover) already fills it. Casting
+        --the shell does nothing and cancels silently (5NBZASN4): wait for the player to
+        --pick one of its abilities. Exactly one choice is swapped in by the invoke before
+        --it gets here, and an ability with no choices returns nil and is unaffected.
+        local awaitsSynthChoice = false
+        if (not forceCast) and g_currentAbility:RequiresPromptWhenCast() then
+            local synth = g_currentAbility:SynthesizeAbilities(g_creature)
+            awaitsSynthChoice = synth ~= nil and #synth > 0
+        end
+        if forceCast or ((not g_currentAbility:CanSelectMoreTargets(g_token, targets, g_currentSymbols)) and not hasPromptOverride and not awaitsSynthChoice) then --temporarily disabled -David -- and not initialSetup then
             --we can't select more targets, so cast the spell in here.
             g_token.lookAtMouse = false
             if g_castingEmoteSet and g_token.valid then
@@ -15223,15 +15658,9 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
                 local radiusArgs = { moveFlags = moveFlags, waypoints = waypoints, mask = mask, filter = filterTargetPredicate }
                 g_radiusMarkers[#g_radiusMarkers + 1] = g_token:MarkMovementRadius(range, radiusArgs)
 
-                --Strict movement: for forced movement (straightline), capture the EXACT
-                --tiles this radius is drawn from so targeting can be confined to them.
-                --Other targeting variants (pathfind/vacated normal movement) are not
-                --forced movement -> leave the set nil (no forced-move gating).
-                if g_currentAbility:try_get("targeting", "direct") == "straightline" then
-                    CaptureForcedMoveLegalLocs(g_token, range, radiusArgs)
-                else
-                    g_forcedMoveLegalLocs = nil
-                end
+                --Strict movement: capture the EXACT tiles this radius is drawn from so
+                --forced moves and ability-granted moves/shifts can be confined to them.
+                CaptureForcedMoveLegalLocs(g_token, range, radiusArgs)
             elseif (g_currentAbility.targetType ~= 'line' or g_currentAbility.canChooseLowerRange) and g_currentAbility.targetType ~= 'cone' and g_currentAbility.targetType ~= 'self' and g_currentAbility.targetType ~= 'all' and g_currentAbility.targetType ~= 'map' and g_currentAbility.targetType ~= 'areatemplate' then
                 local loc = g_currentAbility:try_get("casterLocOverride")
 

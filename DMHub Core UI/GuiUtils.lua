@@ -1,7 +1,7 @@
 local mod = dmhub.GetModLoading()
 
 function TextSearch(haystack, needle)
-	if string.find(string.lower(haystack), needle) or string.find(string.lower(tr(haystack)), needle) then
+	if string.find(string.lower(haystack), needle, 1, true) or string.find(string.lower(tr(haystack)), needle, 1, true) then
 		return true
 	else
 		return false

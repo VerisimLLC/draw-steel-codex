@@ -4264,66 +4264,185 @@ end
 if rawget(_G, "Tabletop") == nil then
 	Tabletop = {}
 end
+
+--Audio files dropped on the table that are still uploading: assetid ->
+--{name, progress (0 to 1), uploaded, failed}. Their widget goes on the table at once
+--and shows an upload bar until the asset arrives (AudioDroppedOnTable).
+local g_tableAudioUploads = {}
+
+--The playable pad a table audio widget shows once its clip (or pool) exists.
+local function TableAudioPadFace(key)
+	local pad = CreateSoundboardButton(nil, 0, {
+		surface = "table",
+		source = function()
+			return SplitTableAudioKey(key)
+		end,
+		--the press reaches the table item around it, which is what drags; a
+		--click still plays.
+		passPress = true,
+		margin = 0,
+	})
+	--the GameHud cascade carries no theme, so the face brings it along with the
+	--pad's own rules; the monitors stand in for the soundboard grid's.
+	local root = gui.Panel{
+		styles = ThemeEngine.MergeStyles(AudioSoundboardButtonStyles),
+		width = AUDIO_SB_BUTTON_WIDTH,
+		height = AUDIO_SB_BUTTON_HEIGHT,
+		halign = "left",
+		valign = "top",
+		flow = "none",
+		monitorAssets = "audio",
+		refreshAssets = function(element)
+			pad:FireEvent("refreshGame")
+		end,
+		monitorGame = VariantPools.LoopStatePath(),
+		refreshGame = function(element)
+			pad:FireEvent("refreshPlayingAudio")
+		end,
+		refreshAudio = function(element)
+			pad:FireEvent("refreshPlayingAudio")
+		end,
+		pad,
+	}
+	audio.events:Listen(root)
+	return root
+end
+
+local TABLE_UPLOAD_BAR_WIDTH = AUDIO_SB_BUTTON_WIDTH - 16
+
+local TableAudioUploadStyles = {
+	{ selectors = {"tableAudioUpload"}, bgcolor = "@bgAlt", borderColor = "@borderSolid", border = 1, cornerRadius = 6 },
+	{ selectors = {"tableAudioUploadName"}, fontSize = 11, color = "@fg" },
+	{ selectors = {"tableAudioUploadStatus"}, fontSize = 9, color = "@fgMuted" },
+	{ selectors = {"tableAudioUploadTrack"}, bgcolor = "@bg", cornerRadius = 2 },
+	{ selectors = {"tableAudioUploadFill"}, bgcolor = "@accent", cornerRadius = 2 },
+}
+
+--What a dropped clip's widget shows while it uploads: its name, how far the
+--upload has got, and a bar.
+local function TableAudioUploadingFace(assetid)
+	local upload = g_tableAudioUploads[assetid] or {name = "Audio", progress = 0}
+	local fill = gui.Panel{
+		classes = {"tableAudioUploadFill"},
+		bgimage = "panels/square.png",
+		width = 0,
+		height = "100%",
+		halign = "left",
+	}
+	local status = gui.Label{
+		classes = {"tableAudioUploadStatus"},
+		text = "Uploading...",
+		width = "auto",
+		height = "auto",
+		halign = "center",
+		valign = "bottom",
+		y = -13,
+	}
+	return gui.Panel{
+		styles = ThemeEngine.MergeStyles(TableAudioUploadStyles),
+		classes = {"tableAudioUpload"},
+		bgimage = "panels/square.png",
+		width = AUDIO_SB_BUTTON_WIDTH,
+		height = AUDIO_SB_BUTTON_HEIGHT,
+		halign = "left",
+		valign = "top",
+		flow = "none",
+		thinkTime = 0.1,
+		think = function(element)
+			local fraction = math.max(0, math.min(1, tonumber(upload.progress) or 0))
+			fill.selfStyle.width = math.floor(TABLE_UPLOAD_BAR_WIDTH * fraction)
+			--a finished upload waits a moment for the clip to arrive back.
+			if upload.uploaded or fraction >= 1 then
+				status.text = "Finishing..."
+			else
+				status.text = string.format("Uploading %d%%", math.floor(fraction * 100))
+			end
+		end,
+		gui.Label{
+			classes = {"tableAudioUploadName"},
+			text = upload.name,
+			width = "100%-8",
+			height = "auto",
+			halign = "center",
+			valign = "top",
+			y = 8,
+			textAlignment = "center",
+			textWrap = true,
+			maxVisibleLines = 2,
+			textOverflow = "ellipsis",
+		},
+		status,
+		gui.Panel{
+			classes = {"tableAudioUploadTrack"},
+			bgimage = "panels/square.png",
+			width = TABLE_UPLOAD_BAR_WIDTH,
+			height = 4,
+			halign = "center",
+			valign = "bottom",
+			y = -6,
+			fill,
+		},
+	}
+end
+
 Tabletop.itemKinds = Tabletop.itemKinds or {}
 Tabletop.itemKinds.audio = {
 	available = function()
 		return CanControlAudio()
 	end,
+	--a clip still uploading counts, so its widget can wait on the table for it.
 	exists = function(key)
 		local assetid, poolid = SplitTableAudioKey(key)
 		if poolid ~= nil then
 			return VariantPools.IsPool(poolid)
 		end
 		local asset = assets.audioTable[assetid]
-		return asset ~= nil and not asset.hidden
+		if asset ~= nil then
+			return not asset.hidden
+		end
+		local upload = g_tableAudioUploads[assetid]
+		return upload ~= nil and not upload.failed
 	end,
 	name = function(key)
 		local assetid, poolid = SplitTableAudioKey(key)
 		if poolid ~= nil then
 			return VariantPools.Name(poolid) or "Variant pool"
 		end
-		return DisplayNameForAsset(assets.audioTable[assetid])
+		local asset = assets.audioTable[assetid]
+		if asset == nil and g_tableAudioUploads[assetid] ~= nil then
+			return g_tableAudioUploads[assetid].name
+		end
+		return DisplayNameForAsset(asset)
 	end,
 	size = function(key)
 		return AUDIO_SB_BUTTON_WIDTH, AUDIO_SB_BUTTON_HEIGHT
 	end,
 	--a pad at the soundboard's own size is small on the table.
 	defaultScale = 1.6,
+	--an uploading clip shows its upload bar, and becomes the pad once it arrives.
 	face = function(key)
-		local pad = CreateSoundboardButton(nil, 0, {
-			surface = "table",
-			source = function()
-				return SplitTableAudioKey(key)
-			end,
-			--the press reaches the table item around it, which is what drags; a
-			--click still plays.
-			passPress = true,
-			margin = 0,
-		})
-		--the GameHud cascade carries no theme, so the face brings it along with the
-		--pad's own rules; the monitors stand in for the soundboard grid's.
-		local root = gui.Panel{
-			styles = ThemeEngine.MergeStyles(AudioSoundboardButtonStyles),
+		local assetid = SplitTableAudioKey(key)
+		if assetid == nil or assets.audioTable[assetid] ~= nil then
+			return TableAudioPadFace(key)
+		end
+		local arrived = false
+		return gui.Panel{
 			width = AUDIO_SB_BUTTON_WIDTH,
 			height = AUDIO_SB_BUTTON_HEIGHT,
 			halign = "left",
 			valign = "top",
 			flow = "none",
-			monitorAssets = "audio",
-			refreshAssets = function(element)
-				pad:FireEvent("refreshGame")
+			thinkTime = 0.2,
+			think = function(element)
+				if arrived or assets.audioTable[assetid] == nil then
+					return
+				end
+				arrived = true
+				g_tableAudioUploads[assetid] = nil
+				element.children = {TableAudioPadFace(key)}
 			end,
-			monitorGame = VariantPools.LoopStatePath(),
-			refreshGame = function(element)
-				pad:FireEvent("refreshPlayingAudio")
-			end,
-			refreshAudio = function(element)
-				pad:FireEvent("refreshPlayingAudio")
-			end,
-			pad,
+			TableAudioUploadingFace(assetid),
 		}
-		audio.events:Listen(root)
-		return root
 	end,
 }
 
@@ -7605,44 +7724,63 @@ end
 --moves into the category's folder, as a Studio upload would land.
 --Returns the asset id at once (nil if the file can't be read); onReady(assetid) runs
 --once the asset is in assets.audioTable.
+--options (optional): quiet, no app-locking progress dialog, for a caller that shows
+--the upload itself; progress(fraction) as it uploads (0 to 1); uploaded() once the
+--file is up; failed() if it can't be.
 local DROPPED_EFFECT_MAX_SECONDS = 30
 
-UploadDroppedAudio = function(path, onReady)
+UploadDroppedAudio = function(path, onReady, options)
+	options = options or {}
 	local operation
+	local uploaded = false
+	local failed = false
 	local filename = string.match(path, "[^/\\]+$") or path
 	local assetid = assets:UploadAudioAsset{
 		path = path,
 		description = FileDrops.BaseName(path),
 		error = function(text)
+			failed = true
+			if operation ~= nil then operation.progress = 1; operation:Update() end
+			if options.failed ~= nil then options.failed() end
 			gui.ModalMessage{ title = "Could not add " .. filename, message = text }
 		end,
 		upload = function(id)
+			uploaded = true
 			if operation ~= nil then operation.progress = 1; operation:Update() end
+			if options.uploaded ~= nil then options.uploaded() end
 		end,
 		progress = function(percent)
 			if operation ~= nil then operation.progress = percent; operation:Update() end
+			if options.progress ~= nil then options.progress(percent) end
 		end,
 	}
 	if assetid == nil then
 		return nil
 	end
-	operation = dmhub.CreateNetworkOperation()
-	operation.description = "Uploading Audio..."
-	operation.status = "Uploading..."
-	operation.progress = 0.0
-	operation:Update()
+	if not options.quiet then
+		operation = dmhub.CreateNetworkOperation()
+		operation.description = "Uploading Audio..."
+		operation.status = "Uploading..."
+		operation.progress = 0.0
+		operation:Update()
+	end
 	m_pendingUploadEchoes[assetid] = { name = filename, at = dmhub.Time() }
 
 	--the asset shows up in audioTable only after its cloud echo (see
-	--StampUploadedAudioAsset); a large file can take a while to upload.
+	--StampUploadedAudioAsset). The wait for it starts counting once the file is up,
+	--so a large file can take as long as it needs to upload.
 	local attemptsLeft = 240
 	local function poll()
-		if mod.unloaded then return end
+		if mod.unloaded or failed then return end
 		local asset = assets.audioTable[assetid]
 		if asset == nil then
-			attemptsLeft = attemptsLeft - 1
+			if uploaded then
+				attemptsLeft = attemptsLeft - 1
+			end
 			if attemptsLeft > 0 then
 				dmhub.Schedule(0.5, poll)
+			elseif options.failed ~= nil then
+				options.failed()
 			end
 			return
 		end
@@ -7669,16 +7807,29 @@ UploadDroppedAudio = function(path, onReady)
 end
 
 --Opens audio files dragged from the operating system onto the bare table as audio
---widgets there (Tabletop.lua's table drop). Each file's widget appears once its
---upload arrives, at its own spot around the drop point (screen pixels).
+--widgets there (Tabletop.lua's table drop), each at its own spot around the drop
+--point (screen pixels). A widget goes down at once with an upload bar, and becomes
+--the playable pad when its clip arrives; a failed upload takes it off again.
 AudioDroppedOnTable = function(paths, screenx, screeny)
 	for i, path in ipairs(paths) do
 		local offset = (i - 1) * 40
-		UploadDroppedAudio(path, function(assetid)
-			if rawget(Tabletop, "OpenItem") ~= nil then
-				Tabletop.OpenItem("audio", assetid, {screen = {x = screenx + offset, y = screeny + offset}})
-			end
-		end)
+		local upload = {name = FileDrops.BaseName(path), progress = 0}
+		local assetid = UploadDroppedAudio(path, nil, {
+			quiet = true,
+			progress = function(fraction)
+				upload.progress = fraction
+			end,
+			uploaded = function()
+				upload.uploaded = true
+			end,
+			failed = function()
+				upload.failed = true
+			end,
+		})
+		if assetid ~= nil and not upload.failed then
+			g_tableAudioUploads[assetid] = upload
+			Tabletop.OpenItem("audio", assetid, {screen = {x = screenx + offset, y = screeny + offset}})
+		end
 	end
 end
 

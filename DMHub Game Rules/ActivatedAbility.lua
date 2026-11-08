@@ -1484,13 +1484,21 @@ end
 --- The calculators above return ABSOLUTE altitudes, but the engine reads a straight-line
 --- move's loc altitude as height above the ground at the destination. Handing it the
 --- absolute value counted raised ground twice: a pull of 4 from ground 3 went to 10 and
---- fell 7 (TYXFY9RY). A pick below the ground clamps to it (0 = no vertical part).
---- Convert only at that hand-off; the picked loc itself stays absolute.
+--- fell 7 (TYXFY9RY). Convert only at that hand-off; the picked loc itself stays absolute.
+---
+--- A pick below the destination ground is kept (a negative height) only when it is also
+--- below the mover's own altitude: the player dialed it down, so the engine slams the
+--- creature into the ground. Otherwise it clamps to 0 (no vertical part), so a pull left
+--- level still rides up a gentle slope instead of colliding with it.
 --- @param loc Loc
+--- @param moverAltitude integer absolute altitude of the creature being moved
 --- @return Loc
-function ActivatedAbility.VerticalForcedMovementEngineLoc(loc)
-    local ground = loc.withGroundAltitude.altitude
-    return loc:WithAltitude(math.max(0, loc.altitude - ground))
+function ActivatedAbility.VerticalForcedMovementEngineLoc(loc, moverAltitude)
+    local height = loc.altitude - loc.withGroundAltitude.altitude
+    if height < 0 and loc.altitude >= moverAltitude then
+        height = 0
+    end
+    return loc:WithAltitude(height)
 end
 
 --returns a predicate function saying if a target loc passes the filter.

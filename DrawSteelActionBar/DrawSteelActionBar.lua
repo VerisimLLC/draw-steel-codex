@@ -13658,7 +13658,7 @@ CreateAbilityController = function()
                         --A vertical move's dialed altitude is absolute; the engine wants it above the ground.
                         movementInfo = g_token:MarkMovementArrow(
                             cond(ActivatedAbility.IsVerticalForcedMovement(g_currentSymbols.forcedmovement or g_currentAbility:try_get("forcedMovement")),
-                                ActivatedAbility.VerticalForcedMovementEngineLoc(loc), loc),
+                                ActivatedAbility.VerticalForcedMovementEngineLoc(loc, g_token.loc.altitude), loc),
                             markOptions)
                         --MarkMovementArrow's declared return omits the charge-jump fields the engine
                         --adds when charge options are passed (CharacterToken.cs MarkMovementArrow).

@@ -38,6 +38,8 @@ local g_playObservers = {}
 ---     a list of {conditionid} or {ongoingeffectid}; cause is what EndingEffects was told.
 ---   conditionimmune(creature, conditionid): an infliction was stopped by immunity.
 ---   resisted(creature): a potency test was resisted.
+---   typedmessage(text): an ability step posted the note its author typed (its chatMessage),
+---     inside the cast that ran it.
 ---   saved(creature, info): a saving throw landed. info: name, passed, total, target,
 ---     atturnend, options (the options of the cast that rolled it).
 ---   persistenceended(creature, abilityname, reason): a persistent ability stopped.

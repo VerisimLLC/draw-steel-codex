@@ -248,6 +248,20 @@ Goal: why it happened, one click from the row.
   The numbers as in the prototype: bold lead, sentence, a rule down the left. An action whose only
   change is an edge or bane has no Why section until 2.3c-3. Tested on the real entries (the surge
   Brutal Slam gets G2, Slide One Target G6) and fed entries for every line.
+- **2.3c-2, triggers and typed messages (COPY.md Round 12, G7-G8; James 2026-11-08):** the Why says a
+  trigger fired and what it changed ("{Owner}'s {trigger} / Triggered by this action: ...", in What
+  happened's words); its rules sit behind a hover on its name in 2.3d (a monster's: Director only),
+  so no trigger text is captured. Resource lines an automatic trigger writes now keep `trigger` and
+  `triggerby`. Typed messages: one-line `typedmessage` play-observer hooks where a step posts its
+  author's chatMessage (damage, conferred conditions, healing, purge, temporary Stamina, resource
+  reasons); capture keeps them on the running cast's row (`messages`), skipping the ability's own
+  name and repeats. Triggers that change the roll move to 2.3c-3 with the tier comparison.
+- **Tested in 2.3c-2:** the real Convocation of Chaos card (Lv2 Human Null's Discipline); a real Brutal
+  Slam with notes sent from inside the cast (the ability's own name skipped, a repeat kept once); fed
+  entries for every line. The hooks in DMHub Game Rules (heal, purge, replenish) were not reloaded
+  live; they load on the next restart.
+- **Found in 2.3c-2:** the Wode Elf Troubadour's drama trigger is named with its whole rule ("Whenever a
+  creature rolls a natural 2 ..."), so its lead reads as a sentence; raised with James.
 
 ## Stage 3: getting to it
 

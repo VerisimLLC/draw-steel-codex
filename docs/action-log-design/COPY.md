@@ -381,3 +381,15 @@ condition immunity. Y14 is not built (What happened already says the condition e
 | G4 | Area ability (only when an ally was hit) | It hits every creature in the area, allies included. |
 | G5 | Immune to {condition} | {Target} cannot be {condition}. Prone reads knocked prone. |
 | G6 | (none, muted italics) | Nothing changed the roll or the damage. Only when the action rolled or dealt damage and had no edges, banes, extra damage or immunity (a kit is the hero's normal damage). |
+
+## Round 12: triggers and typed messages in Why (signed off 2026-11-08)
+
+The Why says that a trigger fired and what it changed; its rules sit behind a hover on its name (2.3d:
+a dotted underline, the trigger's card; a monster's trigger shows its card to the Director only). This
+replaces R3 (Y11: "used a triggered action" / "Trigger: ..."); whether it cost a triggered action shows
+on its card. A trigger that changed the roll (an edge or bane) is 2.3c-3's, with the tier comparison,
+e.g. "Conduit's Word of Guidance / It gave an edge, which moved the roll from Tier 1 to Tier 2."
+| ID | Lead | Sentence |
+|---|---|---|
+| G7 | {Owner}'s {trigger}, with the owner's face | Triggered by this action: {what it did, in What happened's words}, e.g. Lv2 Human Null gained 1 Discipline. |
+| G8 | (none) | A note typed on the action's steps or its triggers' steps, as written, in normal text; each once; skipped when it only repeats the ability's name. |

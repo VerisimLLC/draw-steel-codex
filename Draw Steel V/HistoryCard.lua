@@ -1398,13 +1398,34 @@ end
 --Conditions whose name doesn't follow "cannot be" (G5).
 local CONDITION_PHRASES = {prone = "knocked prone"}
 
+--What one trigger nested under an action did, in What happened's words ("Human Talent took
+--1 damage.", "Lv2 Human Null gained 1 Discipline."). Nil when it did nothing to show.
+--- @param kid HistoryEntry
+--- @return string|nil
+local function TriggerEffect(kid)
+    if kid.family == "resource" then
+        return string.format("%s %s %s.", History.ShownName(kid.who), (kid.amount or 0) > 0 and "gained" or "spent",
+            History.ResourceWords(math.abs(kid.amount or 0), kid.name))
+    end
+    local sentences = {}
+    for _, who in ipairs(kid.targets or {}) do
+        local words = Predicate(who)
+        if words ~= nil then
+            sentences[#sentences + 1] = History.ShownName(who) .. words
+        end
+    end
+    return #sentences > 0 and table.concat(sentences, " ") or nil
+end
+
 --- Why an action came out as it did, from what the entry recorded: an area that hit an
---- ally, damage modifiers, surges, immunity, condition immunity (COPY.md Round 11). A line
---- that several targets share is written once, naming them all. G6 when nothing changed it.
---- No gui, so other views can use the same words.
+--- ally, damage modifiers, surges, immunity, condition immunity (COPY.md Round 11), then
+--- the triggers it set off and the notes its author typed (Round 12). A line that several
+--- targets share is written once, naming them all. G6 when nothing changed it. No gui, so
+--- other views can use the same words.
 --- @param entry HistoryEntry
+--- @param kids? HistoryEntry[] What is nested under it.
 --- @return HistoryWhyRow[]
-function History.Why(entry)
+function History.Why(entry, kids)
     local rows = {}
     if entry.kind ~= "action" then
         return rows
@@ -1529,6 +1550,41 @@ function History.Why(entry)
     for _, line in ipairs(order) do
         rows[#rows + 1] = line.make(line.who)
     end
+
+    --G7: each trigger this action set off, named so 2.3d can show its card, and what it did.
+    --A resource line from a trigger written before Round 12 has only its small text.
+    local messages = {}
+    for _, message in ipairs(entry.messages or {}) do
+        messages[#messages + 1] = message
+    end
+    for _, kid in ipairs(kids or {}) do
+        local owner, name = nil, nil
+        if kid.kind == "trigger" and kid.ability ~= nil then
+            owner, name = kid.actor, kid.ability.name
+        elseif kid.family == "resource" and kid.cause ~= nil then
+            owner, name = kid.triggerby or kid.who, kid.trigger or kid.causetext
+        end
+        local effect = name ~= nil and TriggerEffect(kid) or nil
+        if effect ~= nil then
+            rows[#rows + 1] = {
+                lead = owner ~= nil and string.format("%s's %s", History.ShownName(owner), name) or name,
+                who = owner,
+                text = "Triggered by this action: " .. effect,
+            }
+        end
+        for _, message in ipairs(kid.messages or {}) do
+            messages[#messages + 1] = message
+        end
+    end
+
+    --G8: the notes typed on its steps and its triggers' steps, as written, each once.
+    local shown = {}
+    for _, message in ipairs(messages) do
+        if not shown[message] then
+            shown[message] = true
+            rows[#rows + 1] = {text = message}
+        end
+    end
     if #rows > 0 then
         return rows
     end
@@ -1623,7 +1679,7 @@ function History.CreateCard(args)
     for _, row in ipairs(History.Story(entry, args.kids)) do
         body[#body + 1] = StoryRow(row, inner)
     end
-    local why = History.Why(entry)
+    local why = History.Why(entry, args.kids)
     if #why > 0 then
         body[#body + 1] = SectionHead("Why", WHY_WIDTH, inner)
         for _, row in ipairs(why) do

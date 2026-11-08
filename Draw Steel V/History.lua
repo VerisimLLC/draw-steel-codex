@@ -56,6 +56,9 @@ local mod = dmhub.GetModLoading()
 --- @field passed? boolean On a save line: whether it was made.
 --- @field who? HistoryCreature On a line: who it happened to.
 --- @field causetext? string On a line: the small text under it.
+--- @field trigger? string On a resource line an automatic trigger wrote: the trigger's name.
+--- @field triggerby? HistoryCreature On such a line: whose trigger it is.
+--- @field messages? string[] On an action or automatic trigger: notes its author typed on its steps, as written.
 --- @field taken? number On a damage line: what landed.
 --- @field healed? number On a heal line: what was regained.
 --- @field soaked? number On a damage line: how much of it temporary Stamina took.

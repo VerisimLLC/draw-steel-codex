@@ -160,6 +160,7 @@ function ActivatedAbilityConferConditionsBehavior:Cast(ability, casterToken, tar
     -- Optional chat note.
     if self:try_get("chatMessage", "") ~= "" then
         chat.Send(self.chatMessage)
+        GameSystem.NotifyPlayObservers("typedmessage", self.chatMessage)
     end
 end
 

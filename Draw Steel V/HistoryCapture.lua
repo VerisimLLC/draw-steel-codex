@@ -938,7 +938,34 @@ local function OnResource(creature, key, before, after, refreshType, note)
         refreshtype = refreshType,
         causetext = Cause(note),
         cause = state ~= nil and state.automatic and state.entry.cause or nil,
+        trigger = state ~= nil and state.automatic and state.entry.ability.name or nil,
+        triggerby = state ~= nil and state.automatic and state.actorToken ~= nil and History.Creature(state.actorToken) or nil,
     })
+end
+
+--A note an ability's author typed on one of its steps (REVIEW.md decision 5): kept on the
+--running cast's row for the card's Why, as written, unless it only repeats the ability's
+--name. Outside a cast there is no row to keep it on.
+local function OnTypedMessage(text)
+    if not History.Enabled() or type(text) ~= "string" then
+        return
+    end
+    text = trim(text)
+    local state = text ~= "" and OpenCast(nil) or nil
+    if state == nil then
+        return
+    end
+    local entry = state.entry
+    if entry.ability ~= nil and string.lower(text) == string.lower(entry.ability.name or "") then
+        return
+    end
+    entry.messages = entry.messages or {}
+    for _, message in ipairs(entry.messages) do
+        if message == text then
+            return
+        end
+    end
+    entry.messages[#entry.messages + 1] = text
 end
 
 --- Puts a resource line back the way it was. Whoever controls the creature can do this.
@@ -1205,4 +1232,5 @@ GameSystem.RegisterPlayObserver("history", {
     persistenceended = OnPersistenceEnded,
     encounterended = OnEncounterEnded,
     turnended = OnTurnEnded,
+    typedmessage = OnTypedMessage,
 })

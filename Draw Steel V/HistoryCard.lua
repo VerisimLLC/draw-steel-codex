@@ -955,6 +955,26 @@ end
 
 local SOURCE_INDENT = 16
 
+--What a tier modifier did, for its value in The numbers (Z8); nil for a source that only
+--gave or took edges and banes.
+--- @param source HistoryEdgeSource
+--- @return string|nil
+local function TierValue(source)
+    if source.autosuccess then
+        return "Tier 3"
+    elseif source.autofailure then
+        return "Tier 1"
+    elseif (source.tiers or 0) ~= 0 then
+        local count = math.abs(source.tiers)
+        return string.format("%s%d %s", source.tiers > 0 and "+" or "-", count, count == 1 and "tier" or "tiers")
+    elseif source.nottierthree then
+        return "not Tier 3"
+    elseif source.nottierone then
+        return "not Tier 1"
+    end
+    return nil
+end
+
 --A source as the roll dialog named it: "Prone", "Reactor 1's Test 5", "Set by hand".
 --- @param source HistoryEdgeSource
 --- @return string
@@ -1126,6 +1146,21 @@ local function AddEdgeLines(rows, width, edges, banes, forTarget, sources)
     if net ~= nil and net.note ~= nil then
         rows[#rows + 1] = ReceiptNote(width, net.note)
     end
+
+    --Z8: each tier modifier after the edges and banes, a trigger's with its owner's face.
+    for _, source in ipairs(sources) do
+        local value = TierValue(source)
+        if value ~= nil then
+            local lead = nil
+            if source.who ~= nil and not source.hand then
+                local face = History.Face(source.who, 18)
+                face.selfStyle.rmargin = 6
+                face.selfStyle.halign = "left"
+                lead = {face}
+            end
+            rows[#rows + 1] = ReceiptLine(width, {lead = lead, label = SourceText(source), value = value})
+        end
+    end
 end
 
 --"Damage immunity 2", "Fire immunity 3", "Fire weakness 3" (Z5).
@@ -1284,8 +1319,8 @@ local function ReceiptKey(who)
     if who.roll ~= nil then
         local names = {}
         for _, source in ipairs(who.roll.sources or {}) do
-            names[#names + 1] = string.format("%s%s/%d/%d/%d/%d", source.name, source.who ~= nil and source.who.id or "",
-                source.edges or 0, source.banes or 0, source.removedEdges or 0, source.removedBanes or 0)
+            names[#names + 1] = string.format("%s%s/%d/%d/%d/%d/%s", source.name, source.who ~= nil and source.who.id or "",
+                source.edges or 0, source.banes or 0, source.removedEdges or 0, source.removedBanes or 0, TierValue(source) or "")
         end
         roll = string.format("%d/%d/%d/%s", who.roll.edges or 0, who.roll.banes or 0, who.roll.total, table.concat(names, ","))
     end
@@ -1420,6 +1455,200 @@ local function TriggerEffect(kid)
     return #sentences > 0 and table.concat(sentences, " ") or nil
 end
 
+--What the tier modifiers on a roll add up to, as the roll reads them; skip leaves one out.
+--- @param sources HistoryEdgeSource[]
+--- @param skip? HistoryEdgeSource
+local function TierMods(sources, skip)
+    local mods = {tiers = 0}
+    for _, source in ipairs(sources) do
+        if source ~= skip then
+            mods.tiers = mods.tiers + (source.tiers or 0)
+            mods.autosuccess = mods.autosuccess or source.autosuccess
+            mods.autofailure = mods.autofailure or source.autofailure
+            mods.nottierthree = mods.nottierthree or source.nottierthree
+            mods.nottierone = mods.nottierone or source.nottierone
+        end
+    end
+    return mods
+end
+
+--The tier a power roll comes to with these edges, banes and tier modifiers, by the roll's
+--own rules. base is its total without the edge or bane bonus.
+local function TierOf(base, natural, edges, banes, mods)
+    return RollUtils.DiceResultToTier{
+        total = base + ActivatedAbilityPowerRollBehavior.GetRollModFromEdgesAndBanes(edges, banes),
+        naturalRoll = natural,
+        boons = edges,
+        banes = banes,
+        tiers = mods.tiers,
+        autosuccess = mods.autosuccess,
+        autofailure = mods.autofailure,
+        nottierthree = mods.nottierthree,
+        nottierone = mods.nottierone,
+    }
+end
+
+--"an edge", "a double edge", "a bane", "a double bane".
+local function EdgeNoun(side, count)
+    if count >= 2 then
+        return "a double " .. side
+    end
+    return side == "edge" and "an edge" or "a bane"
+end
+
+--- G9-G11: what each side of a roll did to its tier, recomputed without it (COPY.md Round
+--- 13). Nothing when the recomputed tier doesn't match the recorded one, since something
+--- History didn't record set it.
+--- @param rows HistoryWhyRow[]
+--- @param roll {total: number, edges: number|nil, banes: number|nil, sources: HistoryEdgeSource[]|nil}
+--- @param tier integer The tier the roll came to.
+--- @param natural integer The dice, for the natural 19 or 20 rule.
+--- @param against string|nil On a target's own roll (G9t): its name. Its lines then cover only
+--- the sources the main roll didn't have (mainSources).
+--- @param mainSources HistoryEdgeSource[]|nil
+local function AddRollLines(rows, roll, tier, natural, against, mainSources)
+    local sources = roll.sources or {}
+    local edges, banes = roll.edges or 0, roll.banes or 0
+    local base = roll.total - ActivatedAbilityPowerRollBehavior.GetRollModFromEdgesAndBanes(edges, banes)
+    local mods = TierMods(sources)
+    if TierOf(base, natural, edges, banes, mods) ~= tier then
+        return
+    end
+
+    local subject = against ~= nil and "that roll" or "the roll"
+    --G10 names the target on its own roll, where "that roll" would have nothing to point at.
+    local theRoll = against ~= nil and ("the roll against " .. against) or "the roll"
+    local onTarget = against ~= nil and (" against " .. against) or ""
+    local function Ending(without)
+        if without ~= tier then
+            return string.format(", which moved %s from Tier %d to Tier %d.", subject, without, tier)
+        end
+        return string.format("; %s stayed at Tier %d.", subject, tier)
+    end
+    --on a target's own roll, a source the main roll also had is the main roll's to explain.
+    local function Shown(list)
+        if mainSources == nil then
+            return list
+        end
+        local result = {}
+        for _, source in ipairs(list) do
+            local shared = false
+            for _, other in ipairs(mainSources) do
+                if other.name == source.name and other.hand == source.hand
+                    and (other.who and other.who.id) == (source.who and source.who.id) then
+                    shared = true
+                end
+            end
+            if not shared then
+                result[#result + 1] = source
+            end
+        end
+        return result
+    end
+    local function Lead(list)
+        local names = {}
+        for i, source in ipairs(list) do
+            names[i] = SourceText(source)
+        end
+        return JoinWords(names), #list == 1 and not list[1].hand and list[1].who or nil
+    end
+
+    for _, side in ipairs({"edge", "bane"}) do
+        local addField = side == "edge" and "edges" or "banes"
+        local removedField = side == "edge" and "removedEdges" or "removedBanes"
+        local count = side == "edge" and edges or banes
+        local function TierWith(n)
+            if side == "edge" then
+                return TierOf(base, natural, n, banes, mods)
+            end
+            return TierOf(base, natural, edges, n, mods)
+        end
+        local adders, removers = {}, {}
+        local added, removed = 0, 0
+        for _, source in ipairs(sources) do
+            if (source[addField] or 0) > 0 then
+                adders[#adders + 1] = source
+                added = added + source[addField]
+            end
+            if (source[removedField] or 0) > 0 then
+                removers[#removers + 1] = source
+                removed = removed + source[removedField]
+            end
+        end
+
+        --G9 / G9t: what its own edges or banes did, net of anything removed.
+        local shown = Shown(adders)
+        local gave = 0
+        for _, source in ipairs(shown) do
+            gave = gave + source[addField]
+        end
+        if #shown == #adders then
+            gave = added - removed
+        end
+        if gave > 0 and #shown > 0 then
+            local lead, who = Lead(shown)
+            rows[#rows + 1] = {lead = lead, who = who, text = string.format("%s gave %s%s%s", #shown > 1 and "They" or "It",
+                EdgeNoun(side, gave), onTarget, Ending(TierWith(math.max(0, count - gave))))}
+        end
+
+        --G9r: what ignored or removed them.
+        shown = Shown(removers)
+        if removed > 0 and #shown > 0 then
+            local ignored = true
+            for _, source in ipairs(shown) do
+                ignored = ignored and source.ignore == true
+            end
+            local lead, who = Lead(shown)
+            rows[#rows + 1] = {lead = lead, who = who, text = string.format("%s %s %s%s%s", #shown > 1 and "They" or "It",
+                ignored and "ignored" or "removed", EdgeNoun(side, removed), onTarget, Ending(TierWith(count + removed)))}
+        end
+    end
+
+    --G10: each tier modifier, recomputed without it.
+    for _, source in ipairs(Shown(sources)) do
+        if TierValue(source) ~= nil then
+            local without = TierOf(base, natural, edges, banes, TierMods(sources, source))
+            local text
+            if without == tier then
+                local did = string.format("It made %s Tier %d", theRoll, tier)
+                if (source.tiers or 0) > 0 then
+                    did = "It raised " .. theRoll .. " a tier"
+                elseif (source.tiers or 0) < 0 then
+                    did = "It lowered " .. theRoll .. " a tier"
+                elseif source.nottierthree then
+                    did = "It kept " .. theRoll .. " from Tier 3"
+                elseif source.nottierone then
+                    did = "It lifted " .. theRoll .. " off Tier 1"
+                end
+                text = string.format("%s; %s stayed at Tier %d.", did, subject, tier)
+            elseif source.autosuccess or source.autofailure then
+                text = string.format("It made %s Tier %d instead of Tier %d.", theRoll, tier, without)
+            elseif (source.tiers or 0) > 0 then
+                text = string.format("It raised %s a tier, from Tier %d to Tier %d.", theRoll, without, tier)
+            elseif (source.tiers or 0) < 0 then
+                text = string.format("It lowered %s a tier, from Tier %d to Tier %d.", theRoll, without, tier)
+            elseif source.nottierthree then
+                text = string.format("It kept %s from Tier 3: Tier %d instead.", theRoll, tier)
+            else
+                text = string.format("It lifted %s off Tier 1: Tier %d instead.", theRoll, tier)
+            end
+            local lead, who = Lead({source})
+            rows[#rows + 1] = {lead = lead, who = who, text = text}
+        end
+    end
+
+    --G11: a natural 19 or 20 is always Tier 3.
+    if against == nil and natural >= 19 then
+        local without = TierOf(base, 0, edges, banes, mods)
+        if without ~= tier then
+            rows[#rows + 1] = {
+                lead = "Natural " .. natural,
+                text = string.format("A natural 19 or 20 is always Tier 3, so the roll is Tier 3 instead of Tier %d.", without),
+            }
+        end
+    end
+end
+
 --- Why an action came out as it did, from what the entry recorded: an area that hit an
 --- ally, damage modifiers, surges, immunity, condition immunity (COPY.md Round 11), then
 --- the triggers it set off and the notes its author typed (Round 12). A line that several
@@ -1450,6 +1679,28 @@ function History.Why(entry, kids)
     end
     local function TypeWord(damagetype)
         return damagetype ~= nil and (damagetype .. " ") or ""
+    end
+
+    --G9-G11 first: the roll, then each target's own roll. The roll's tier is that of a
+    --target with no roll of its own, as in The numbers.
+    local roll = entry.roll
+    if roll ~= nil then
+        local tier = roll.tier
+        for _, who in ipairs(targets) do
+            if who.roll == nil and who.tier ~= nil then
+                tier = who.tier
+                break
+            end
+        end
+        local natural = roll.natural or 0
+        if tier ~= nil then
+            AddRollLines(rows, roll, tier, natural, nil, nil)
+        end
+        for _, who in ipairs(targets) do
+            if who.roll ~= nil and who.tier ~= nil then
+                AddRollLines(rows, who.roll, who.tier, natural, History.ShownName(who), roll.sources or {})
+            end
+        end
     end
 
     --G4: an area ability that hit one of its user's side.
@@ -1601,7 +1852,6 @@ function History.Why(entry, kids)
 
     --G6: only when the roll and the damage are exactly what the tier says. A kit is the
     --hero's normal damage, so it doesn't count as a change.
-    local roll = entry.roll
     local acted = roll ~= nil
     local changed = roll ~= nil and ((roll.edges or 0) > 0 or (roll.banes or 0) > 0 or (roll.sources ~= nil and #roll.sources > 0))
     for _, who in ipairs(targets) do

@@ -394,3 +394,20 @@ e.g. "Conduit's Word of Guidance / It gave an edge, which moved the roll from Ti
 | G7 | {Owner}'s {trigger}, with the owner's face | Triggered by this action: {what it did, in What happened's words}, e.g. Lv2 Human Null gained 1 Discipline. |
 | G7a | {Owner}'s trigger, when the trigger's name is its rule text (ends in a full stop, or runs past 40 characters; James 2026-11-08) | as G7; the rule shows on the hover |
 | G8 | (none) | A note typed on the action's steps or its triggers' steps, as written, in normal text; each once; skipped when it only repeats the ability's name. |
+
+## Round 13: the tier comparisons (signed off 2026-11-08)
+
+History recomputes the tier with a side of the roll taken away, by the roll's own rules
+(RollUtils.DiceResultToTier), and says what each side did. One Why line per side: edges, banes, what
+ignored or removed them, and each tier modifier; roll lines come first in the Why. Leads name the
+sources as The numbers does (C5, C5t, C5h), joined with "and". Replaces Y1's and Y2's wordings. A
+roll whose recomputed tier doesn't match the recorded one (a row from before this) gets no tier lines.
+| ID | Where | Text |
+|---|---|---|
+| G9 | Why, edges or banes that changed the tier | It gave an edge (a double edge / a bane / a double bane), which moved the roll from Tier 1 to Tier 2. Several sources: They gave ... |
+| G9s | Why, edges or banes that didn't | It gave an edge; the roll stayed at Tier 2. |
+| G9r | Why, what ignored or removed them | It ignored an edge (a double edge), ... / It removed an edge, ... with G9's or G9s's ending |
+| G9t | Why, a target's own edges or banes (target-only sources) | It gave a bane against Reactor 1, which moved that roll from Tier 2 to Tier 1. / ...; that roll stayed at Tier 2. |
+| G10 | Why, tier modifiers | Tier Up: It raised the roll a tier, from Tier 1 to Tier 2. Tier Down: It lowered the roll a tier, from Tier 3 to Tier 2. Tier 3: It made the roll Tier 3 instead of Tier 1. Tier 1: It made the roll Tier 1 instead of Tier 2. Not Tier 3: It kept the roll from Tier 3: Tier 2 instead. Not Tier 1: It lifted the roll off Tier 1: Tier 2 instead. Unchanged: ...; the roll stayed at Tier 3. |
+| G11 | Why, a natural 19 or 20 that changed the tier | Natural 19 / A natural 19 or 20 is always Tier 3, so the roll is Tier 3 instead of Tier 2. |
+| Z8 | The numbers, a tier modifier (after the edge and bane lines; a trigger's with its owner's face) | {name} .... Tier 3 / Tier 1 / +1 tier / -1 tier / not Tier 3 / not Tier 1 |

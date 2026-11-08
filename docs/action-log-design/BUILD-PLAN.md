@@ -263,6 +263,21 @@ Goal: why it happened, one click from the row.
 - **Found in 2.3c-2:** the Wode Elf Troubadour's drama trigger is named with its whole rule ("Whenever a
   creature rolls a natural 2 ..."), so its lead read as a sentence. James chose G7a: a name ending in
   a full stop or past 40 characters leads as "{Owner}'s trigger"; the rule shows on the hover.
+- **2.3c-3, the tier comparisons (COPY.md Round 13, G9-G11, Z8):** the roll dialog also records each
+  modifier's tier effect (Tier Up/Down `tiers`, `autosuccess`, `autofailure`, `nottierthree`,
+  `nottierone`, measured from ParseRoll like the edges; James: they are power roll modifiers, so
+  History can name them). The Why recomputes the tier with one side taken away, through
+  `RollUtils.DiceResultToTier` itself: the edges, the banes, what ignored or removed them, each tier
+  modifier, and the natural 19-20 rule; a target's own roll covers only its target-only sources. Roll
+  lines come first. A roll whose recomputed tier doesn't match the recorded one (rows from before 2.3a)
+  gets none. The numbers lists each tier modifier after the edges and banes (Z8).
+- **Tested in 2.3c-3:** real entries (Prone moved a Brutal Slam from Tier 2 to Tier 3; Twisted's ignored
+  edge; Word of Guidance on Bluster's targets); fed cases for a cancelled double edge with Tier Up, a
+  natural 19 under a double bane, automatic Tier 3, a target's Cover and Not Tier 3, and an
+  unexplained tier (no lines). Not tried live: a real tier modifier in the roll dialog.
+- **Limit of 2.3c-3:** each side is recomputed alone, so two sources that only change the tier together
+  (a bane and a Not Tier 3 on the same target) each read "stayed at". Several targets that got the
+  same target-only source get one line each.
 
 ## Stage 3: getting to it
 

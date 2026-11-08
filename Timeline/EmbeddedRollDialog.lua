@@ -1605,6 +1605,11 @@ function GameHud.CreateEmbeddedRollDialog()
     --- @field removedEdges nil|integer Edges it took away (Remove Edge, Ignore Edges, Edge becomes Bane).
     --- @field removedBanes nil|integer Banes it took away.
     --- @field ignore nil|boolean It ignores every edge or bane, rather than removing one.
+    --- @field tiers nil|integer Tiers it moved the roll (Tier Up +1, Tier Down -1).
+    --- @field autosuccess nil|boolean It made the roll Tier 3.
+    --- @field autofailure nil|boolean It made the roll Tier 1.
+    --- @field nottierthree nil|boolean It kept the roll from Tier 3.
+    --- @field nottierone nil|boolean It kept the roll off Tier 1.
     --- @field charid nil|string Whose it is: a trigger's owner, or the target when the target's own modifier took edges or banes away.
     --- @field hand nil|boolean Set with the dialog's edge and bane buttons.
 
@@ -1986,7 +1991,14 @@ function GameHud.CreateEmbeddedRollDialog()
         end
         local edges = (after.boons or 0) - (before.boons or 0)
         local banes = (after.banes or 0) - (before.banes or 0)
-        if edges == 0 and banes == 0 then
+        --tier modifiers (Tier 3, Tier Up, Not Tier 1...) are measured the same way.
+        local tiers = (after.tiers or 0) - (before.tiers or 0)
+        local function Began(flag)
+            return (after[flag] and not before[flag]) or nil
+        end
+        local autosuccess, autofailure = Began("autosuccess"), Began("autofailure")
+        local nottierthree, nottierone = Began("nottierthree"), Began("nottierone")
+        if edges == 0 and banes == 0 and tiers == 0 and not (autosuccess or autofailure or nottierthree or nottierone) then
             return after
         end
         local name = mod.modifier.name or ""
@@ -2008,6 +2020,11 @@ function GameHud.CreateEmbeddedRollDialog()
             removedEdges = edges < 0 and -edges or nil,
             removedBanes = banes < 0 and -banes or nil,
             ignore = (modtype == "ignore_edges" or modtype == "ignore_banes") or nil,
+            tiers = tiers ~= 0 and tiers or nil,
+            autosuccess = autosuccess,
+            autofailure = autofailure,
+            nottierthree = nottierthree,
+            nottierone = nottierone,
             charid = charid,
         }
         return after

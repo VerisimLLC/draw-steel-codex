@@ -59,6 +59,11 @@ local mod = dmhub.GetModLoading()
 --- @field removedEdges? integer Edges it took away.
 --- @field removedBanes? integer Banes it took away.
 --- @field ignore? boolean It ignores every edge or bane ("Ignored by"), rather than removing one ("Removed by").
+--- @field tiers? integer Tiers it moved the roll (Tier Up +1, Tier Down -1).
+--- @field autosuccess? boolean It made the roll Tier 3.
+--- @field autofailure? boolean It made the roll Tier 1.
+--- @field nottierthree? boolean It kept the roll from Tier 3.
+--- @field nottierone? boolean It kept the roll off Tier 1.
 --- @field who? HistoryCreature Whose it is: a trigger's owner, or a target whose own modifier took edges or banes away.
 --- @field hand? boolean Set with the roll dialog's edge and bane buttons.
 
@@ -489,6 +494,11 @@ local function EdgeSources(sources)
             removedEdges = source.removedEdges,
             removedBanes = source.removedBanes,
             ignore = source.ignore,
+            tiers = source.tiers,
+            autosuccess = source.autosuccess,
+            autofailure = source.autofailure,
+            nottierthree = source.nottierthree,
+            nottierone = source.nottierone,
             who = owner ~= nil and History.Creature(owner) or nil,
             hand = source.hand,
         }

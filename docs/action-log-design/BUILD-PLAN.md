@@ -237,6 +237,17 @@ Goal: why it happened, one click from the row.
 - **Found in 2.3b:** resource lines stack the same way after reloads (one surge gain or spend wrote
   eight lines). Surges spent on accepting the roll also write their own "spent 2 surges" line beside
   the action, which the receipt now repeats; worth folding into the action as a cost later.
+- **2.3c split (James, 2026-11-08):** 2.3c-1 the Why lines from what entries already record; 2.3c-2
+  triggers (Y11, Y15: capture the trigger's own text) and typed messages; 2.3c-3 the tier comparisons
+  (Y1, Y2). Later, outside 2.3: falls (Y7), potency (Y8, Y9), Y5b, minions (Y13, after 2.4), L32,
+  L33, L16.
+- **2.3c-1, the Why section (COPY.md Round 11, G1-G6):** `History.Why(entry)` builds the rows with no
+  gui (area ability that hit an ally, damage modifiers, surges, immunity or weakness, condition
+  immunity), one line per distinct fact, naming every target that shares it; G6 only when the roll and
+  damage are exactly the tier's (a kit doesn't count as a change). Rendered between What happened and
+  The numbers as in the prototype: bold lead, sentence, a rule down the left. An action whose only
+  change is an edge or bane has no Why section until 2.3c-3. Tested on the real entries (the surge
+  Brutal Slam gets G2, Slide One Target G6) and fed entries for every line.
 
 ## Stage 3: getting to it
 

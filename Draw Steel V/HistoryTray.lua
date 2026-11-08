@@ -325,6 +325,33 @@ local function Styles()
             opacity = 0.8,
         },
         {
+            --a Why line (COPY.md N3): a rule down its left, a bold lead, a plain sentence.
+            selectors = {"historyWhy"},
+            bgcolor = "clear",
+            borderColor = "@fgMuted",
+        },
+        {
+            selectors = {"historyWhy", "historyWhyQuiet"},
+            borderColor = "@border",
+        },
+        {
+            selectors = {"label", "historyWhyLead"},
+            fontSize = 14,
+            bold = true,
+            color = "@fgStrong",
+        },
+        {
+            selectors = {"label", "historyWhyText"},
+            fontSize = 14,
+            color = "@fg",
+        },
+        {
+            selectors = {"label", "historyWhyPlain"},
+            fontSize = 14,
+            italics = true,
+            color = "@fgMuted",
+        },
+        {
             --the roll dialog's surge bolt, in front of "Spent 2 surges".
             selectors = {"historySurgeIcon"},
             bgcolor = "@fg",

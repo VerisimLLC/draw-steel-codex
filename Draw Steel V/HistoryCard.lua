@@ -37,6 +37,10 @@ local BACK_TEXT = "\226\128\185 Back"
 --The section heading's words, for the rule that runs on from them.
 local WHAT_HAPPENED_WIDTH = 104
 local THE_NUMBERS_WIDTH = 88
+local WHY_WIDTH = 28
+
+--A Why line's text sits this far in from its rule on the left.
+local WHY_INDENT = 12
 
 --The receipt's number column, on the right of every line.
 local VALUE_WIDTH = 56
@@ -1384,6 +1388,225 @@ local function NumbersRows(entry, kids, width)
     return rows
 end
 
+--- One line of the card's Why (COPY.md R1, Round 11): a bold lead, then one plain sentence.
+--- @class HistoryWhyRow
+--- @field lead string|nil
+--- @field text string
+--- @field who HistoryCreature|nil A face before the lead: the owner of a modifier.
+--- @field plain boolean|nil G6, muted, with no lead.
+
+--Conditions whose name doesn't follow "cannot be" (G5).
+local CONDITION_PHRASES = {prone = "knocked prone"}
+
+--- Why an action came out as it did, from what the entry recorded: an area that hit an
+--- ally, damage modifiers, surges, immunity, condition immunity (COPY.md Round 11). A line
+--- that several targets share is written once, naming them all. G6 when nothing changed it.
+--- No gui, so other views can use the same words.
+--- @param entry HistoryEntry
+--- @return HistoryWhyRow[]
+function History.Why(entry)
+    local rows = {}
+    if entry.kind ~= "action" then
+        return rows
+    end
+    local targets = entry.targets or {}
+    local several = #targets > 1
+
+    --each line is built once its targets are known; make gets their names (L29, L30).
+    local order = {}
+    local byKey = {}
+    local function Add(key, make, who)
+        local line = byKey[key]
+        if line == nil then
+            line = {make = make, who = {}}
+            byKey[key] = line
+            order[#order + 1] = line
+        end
+        line.who[#line.who + 1] = who
+    end
+    local function TypeWord(damagetype)
+        return damagetype ~= nil and (damagetype .. " ") or ""
+    end
+
+    --G4: an area ability that hit one of its user's side.
+    for _, who in ipairs(targets) do
+        if History.IsAllyHit(entry, who) then
+            Add("area", function()
+                return {lead = "Area ability", text = "It hits every creature in the area, allies included."}
+            end, who)
+            break
+        end
+    end
+
+    --G3: what one of the roll dialog's modifiers added to a target's damage.
+    local function AddModifier(part, who)
+        local key = string.format("modifier|%s|%s|%d|%s", part.name or "", part.who ~= nil and part.who.id or "",
+            part.amount, part.damagetype or "")
+        Add(key, function(group)
+            local lead = SpoilerName(part.name or "")
+            if part.who ~= nil then
+                lead = string.format("%s's %s", History.ShownName(part.who), lead)
+            end
+            local to = several and (" to " .. GroupNames(group)) or ""
+            local text = string.format("It dealt %d extra %sdamage%s.", part.amount, TypeWord(part.damagetype), to)
+            if part.amount < 0 then
+                text = string.format("It took %d off the %sdamage%s.", -part.amount, TypeWord(part.damagetype), to)
+            end
+            return {lead = lead, who = part.who, text = text}
+        end, who)
+    end
+
+    --G2: the surges spent on a target.
+    local function AddSurges(part, who)
+        local key = string.format("surge|%d|%d|%s|%s", part.count or 0, part.each or 0, part.damagetype or "", part.characteristic or "")
+        Add(key, function(group)
+            local count = part.count or 0
+            local to = several and (" to " .. GroupNames(group)) or ""
+            local text = string.format("%s %d extra %sdamage%s", count == 1 and "It dealt" or "Each dealt",
+                part.each or 0, TypeWord(part.damagetype), to)
+            if part.characteristic ~= nil and entry.actor ~= nil then
+                text = string.format("%s (%s's highest characteristic, %s %d)", text, History.ShownName(entry.actor),
+                    part.characteristic, part.each or 0)
+            end
+            return {lead = count == 1 and "Spent 1 surge" or string.format("Spent %d surges", count), text = text .. "."}
+        end, who)
+    end
+
+    --modifiers in one pass and surges in the next, so they keep that order across targets.
+    for _, who in ipairs(targets) do
+        for _, part in ipairs(who.parts or {}) do
+            if part.kind == "modifier" then
+                AddModifier(part, who)
+            end
+        end
+    end
+    for _, who in ipairs(targets) do
+        for _, part in ipairs(who.parts or {}) do
+            if part.kind == "surge" then
+                AddSurges(part, who)
+            end
+        end
+    end
+
+    --G1: what immunity took off, or weakness added.
+    for _, who in ipairs(targets) do
+        local immunity = who.immunity
+        if immunity ~= nil and immunity.amount ~= 0 then
+            local landed = who.taken or 0
+            local damagetype = nil
+            if immunity.damagetype ~= "damage" and who.types ~= nil and who.types[immunity.damagetype] ~= nil then
+                damagetype = immunity.damagetype
+                landed = who.types[damagetype]
+            else
+                for _, amount in pairs(who.types or {}) do
+                    landed = landed - amount
+                end
+            end
+            local key = string.format("immunity|%s|%d|%d", immunity.damagetype, immunity.amount, landed)
+            Add(key, function(group)
+                return {
+                    lead = ResistWords(immunity),
+                    text = string.format("%s%s took %d %sdamage instead of %d.", GroupNames(group), #group > 1 and " each" or "",
+                        landed, TypeWord(damagetype), landed + immunity.amount),
+                }
+            end, who)
+        end
+    end
+
+    --G5: a condition the target's immunity stopped.
+    for _, who in ipairs(targets) do
+        for _, name in ipairs(who.immune or {}) do
+            local condition = string.lower(name)
+            Add("immune|" .. condition, function(group)
+                return {
+                    lead = "Immune to " .. condition,
+                    text = string.format("%s cannot be %s.", GroupNames(group), CONDITION_PHRASES[condition] or condition),
+                }
+            end, who)
+        end
+    end
+
+    for _, line in ipairs(order) do
+        rows[#rows + 1] = line.make(line.who)
+    end
+    if #rows > 0 then
+        return rows
+    end
+
+    --G6: only when the roll and the damage are exactly what the tier says. A kit is the
+    --hero's normal damage, so it doesn't count as a change.
+    local roll = entry.roll
+    local acted = roll ~= nil
+    local changed = roll ~= nil and ((roll.edges or 0) > 0 or (roll.banes or 0) > 0 or (roll.sources ~= nil and #roll.sources > 0))
+    for _, who in ipairs(targets) do
+        acted = acted or (who.taken or 0) > 0
+        changed = changed or who.roll ~= nil
+        for _, part in ipairs(who.parts or {}) do
+            changed = changed or part.kind ~= "kit"
+        end
+    end
+    if acted and not changed then
+        rows[1] = {plain = true, text = "Nothing changed the roll or the damage."}
+    end
+    return rows
+end
+
+--One Why line: its lead in bold (after a modifier owner's face) over its sentence, with a
+--thin rule down the left as in the prototype.
+--- @param row HistoryWhyRow
+local function WhyRow(row, width)
+    local inner = width - WHY_INDENT
+    local children = {}
+    if row.lead ~= nil then
+        local lead = {}
+        if row.who ~= nil then
+            local face = History.Face(row.who, 18)
+            face.selfStyle.rmargin = 6
+            face.selfStyle.halign = "left"
+            lead[1] = face
+        end
+        lead[#lead + 1] = gui.Label{
+            classes = {"historyWhyLead"},
+            text = row.lead,
+            width = "auto",
+            maxWidth = inner - (row.who ~= nil and 24 or 0),
+            height = "auto",
+            halign = "left",
+            valign = "center",
+        }
+        children[1] = gui.Panel{
+            flow = "horizontal",
+            width = inner,
+            height = "auto",
+            halign = "left",
+            children = lead,
+        }
+    end
+    children[#children + 1] = gui.Label{
+        classes = {row.plain and "historyWhyPlain" or "historyWhyText"},
+        text = row.text,
+        width = inner,
+        height = "auto",
+        halign = "left",
+        textAlignment = "left",
+    }
+    return gui.Panel{
+        classes = {"historyWhy", row.plain and "historyWhyQuiet" or nil},
+        bgimage = "panels/square.png",
+        border = {x1 = 2, y1 = 0, x2 = 0, y2 = 0},
+        flow = "vertical",
+        width = width,
+        height = "auto",
+        lpad = WHY_INDENT - 2,
+        tpad = 2,
+        bpad = 4,
+        bmargin = 6,
+        borderBox = true,
+        halign = "left",
+        children = children,
+    }
+end
+
 --- Builds the card for one row. It is rebuilt to change it: the sections have a different
 --- shape for every action, and a scroll bar only works if it is there on its first frame.
 --- tail is the card's edge that faces History ("left" or "right"). The tail comes back in
@@ -1399,6 +1622,13 @@ function History.CreateCard(args)
     local body = {SectionHead("What happened", WHAT_HAPPENED_WIDTH, inner)}
     for _, row in ipairs(History.Story(entry, args.kids)) do
         body[#body + 1] = StoryRow(row, inner)
+    end
+    local why = History.Why(entry)
+    if #why > 0 then
+        body[#body + 1] = SectionHead("Why", WHY_WIDTH, inner)
+        for _, row in ipairs(why) do
+            body[#body + 1] = WhyRow(row, inner)
+        end
     end
     if entry.kind == "action" then
         local numbers = NumbersRows(entry, args.kids, inner)

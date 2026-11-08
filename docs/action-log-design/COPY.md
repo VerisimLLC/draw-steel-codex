@@ -365,3 +365,19 @@ Each addition comes off the damage type it was added to. Entries written before 
 | K1 | A kit's damage bonus | {Kit} kit, e.g. Panther kit .......... +2 (one line per kit) |
 | K2 | A damage modifier from the roll dialog | its badge name, as C5 / C5t: Mark, {Owner}'s {trigger} with the owner's face .......... +4 |
 | C3s | Surges spent on damage | the surge bolt, Spent 2 surges, then (Might 2 each) muted .......... +4; a tie for highest names the first in sheet order |
+
+## Round 11: the Why lines History can write now (signed off 2026-11-08)
+
+General forms of R1's examples, for 2.3c-1. Each line is a bold lead with one sentence under it and a
+thin rule on its left, between What happened and The numbers. A line that applies to several targets
+is written once, naming them as What happened does (L29, L30). Order: area, modifiers, surges, immunity,
+condition immunity. Y14 is not built (What happened already says the condition ended); Y2 moves to
+2.3c-3 with Y1; Y4's second sentence is dropped (The numbers lists the parts just below).
+| ID | Lead | Sentence |
+|---|---|---|
+| G1 | Damage immunity 2 / Fire immunity 3 / Fire weakness 3 (Z5) | {Target} took {landed} {type} damage instead of {before}. |
+| G2 | Spent 2 surges / Spent 1 surge | Each dealt 2 extra damage (Dwarf Fury's highest characteristic, Might 2). One surge: It dealt ...; typed: extra fire damage; several targets: ... damage to {Target} (...). |
+| G3 | the modifier's badge name (Mark; High Elf Tactician's Mark with the owner's face) | It dealt 4 extra damage. Lowered: It took 2 off the damage. Several targets: ... to {Target}. |
+| G4 | Area ability (only when an ally was hit) | It hits every creature in the area, allies included. |
+| G5 | Immune to {condition} | {Target} cannot be {condition}. Prone reads knocked prone. |
+| G6 | (none, muted italics) | Nothing changed the roll or the damage. Only when the action rolled or dealt damage and had no edges, banes, extra damage or immunity (a kit is the hero's normal damage). |

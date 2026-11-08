@@ -808,16 +808,19 @@ local function Die(face)
 end
 
 --One line of the receipt. lead is panels before the label (dice, arrows, a face); a total
---sits under a line.
---- @param args {label: string|nil, lead: Panel[]|nil, aside: string|nil, badge: integer|nil, value: string|nil, valueClass: string|nil, labelClass: string|nil, total: boolean|nil}
+--sits under a line; struck crosses out the label and value of something that did not count.
+--- @param args {label: string|nil, lead: Panel[]|nil, aside: string|nil, badge: integer|nil, value: string|nil, valueClass: string|nil, labelClass: string|nil, total: boolean|nil, struck: boolean|nil}
 local function ReceiptLine(width, args)
     local left = {}
     for _, panel in ipairs(args.lead or {}) do
         left[#left + 1] = panel
     end
     if args.label ~= nil then
+        local classes = {"historyReceipt"}
+        classes[#classes + 1] = args.labelClass
+        classes[#classes + 1] = args.struck and "historyStruck" or nil
         left[#left + 1] = gui.Label{
-            classes = {"historyReceipt", args.labelClass},
+            classes = classes,
             text = args.label,
             width = "auto",
             maxWidth = width - VALUE_WIDTH - 8,
@@ -853,8 +856,11 @@ local function ReceiptLine(width, args)
         },
     }
     if args.value ~= nil then
+        local classes = {"historyReceiptValue"}
+        classes[#classes + 1] = args.valueClass
+        classes[#classes + 1] = args.struck and "historyStruck" or nil
         children[2] = gui.Label{
-            classes = {"historyReceiptValue", args.valueClass},
+            classes = classes,
             text = args.value,
             width = VALUE_WIDTH,
             height = "auto",
@@ -945,36 +951,66 @@ end
 
 local SOURCE_INDENT = 16
 
---One thing that gave the roll edges or banes, under the line it changed (C5): its arrows,
---its owner's face, and its name as the roll dialog showed it. A remover reads "Ignored by"
---or "Removed by" (C5r), with no arrows so its name lines up with the others.
+--A source as the roll dialog named it: "Prone", "Reactor 1's Test 5", "Set by hand".
 --- @param source HistoryEdgeSource
---- @param side "edge"|"bane"
---- @param removed? boolean This line is for the edges or banes the source took away.
-local function SourceLine(width, source, side, removed)
-    local lead
-    if removed then
-        lead = gui.Panel{width = 14, height = 14, rmargin = 5, halign = "left", valign = "center", interactable = false}
-    else
-        lead = Chevrons(side, math.min((side == "edge" and source.edges or source.banes) or 0, 2))
+--- @return string
+local function SourceText(source)
+    if source.hand then
+        return "Set by hand"
     end
-    local children = {lead}
-    local text = "Set by hand"
-    if not source.hand then
-        text = SpoilerName(source.name)
-        if source.who ~= nil then
-            local face = History.Face(source.who, 18)
-            face.selfStyle.rmargin = 6
-            face.selfStyle.halign = "left"
-            children[#children + 1] = face
-            text = string.format("%s's %s", History.ShownName(source.who), text)
+    local text = SpoilerName(source.name)
+    if source.who ~= nil then
+        text = string.format("%s's %s", History.ShownName(source.who), text)
+    end
+    return text
+end
+
+--"Ignored by Twisted" (C5r): what took a side's edges or banes away. Several removers
+--share one reason.
+--- @param sources HistoryEdgeSource[]
+--- @param side "edge"|"bane"
+--- @return string|nil
+local function RemovedReason(sources, side)
+    local field = side == "edge" and "removedEdges" or "removedBanes"
+    local parts = {}
+    for _, source in ipairs(sources) do
+        if (source[field] or 0) > 0 then
+            parts[#parts + 1] = string.format(source.ignore and "ignored by %s" or "removed by %s", SourceText(source))
         end
     end
-    if removed then
+    if #parts == 0 then
+        return nil
+    end
+    local reason = table.concat(parts, ", ")
+    return string.upper(string.sub(reason, 1, 1)) .. string.sub(reason, 2)
+end
+
+--One thing that changed the roll's edges or banes, under the line it changed (C5): its
+--arrows, its owner's face, and its name as the roll dialog showed it.
+--- @param source HistoryEdgeSource
+--- @param side "edge"|"bane"
+--- @param struck? boolean Everything it gave was taken away: crossed out, the reason is on the line above.
+--- @param remover? boolean The line for a source that took one of several away ("Removed by", C5r).
+local function SourceLine(width, source, side, struck, remover)
+    local children = {}
+    if remover then
+        --no arrows, so the words line up with the names above.
+        children[1] = gui.Panel{width = 14, height = 14, rmargin = 5, halign = "left", valign = "center", interactable = false}
+    else
+        children[1] = Chevrons(side, math.min((side == "edge" and source.edges or source.banes) or 0, 2))
+    end
+    if source.who ~= nil and not source.hand then
+        local face = History.Face(source.who, 18)
+        face.selfStyle.rmargin = 6
+        face.selfStyle.halign = "left"
+        children[#children + 1] = face
+    end
+    local text = SourceText(source)
+    if remover then
         text = string.format(source.ignore and "Ignored by %s" or "Removed by %s", text)
     end
     children[#children + 1] = gui.Label{
-        classes = {removed and "historyReceiptRemoved" or "historyReceiptSource"},
+        classes = {remover and "historyReceiptAside" or "historyReceiptSource", struck and "historyStruck" or nil},
         text = text,
         width = "auto",
         maxWidth = width - SOURCE_INDENT - 48,
@@ -994,44 +1030,55 @@ local function SourceLine(width, source, side, removed)
     }
 end
 
---What gave one side its edges or banes (set by hand last), then what took any away.
+--What gave one side its edges or banes (set by hand last). When the side lost them all,
+--each is crossed out and the side's line gives the reason; when it lost only some, nobody
+--knows which, so the remover gets its own line instead.
 --- @param sources HistoryEdgeSource[]
 --- @param side "edge"|"bane"
-local function AddSideSources(rows, width, sources, side)
+--- @param struck? boolean The side lost everything.
+local function AddSideSources(rows, width, sources, side, struck)
     local field = side == "edge" and "edges" or "banes"
     for pass = 1, 2 do
         for _, source in ipairs(sources) do
             if (source[field] or 0) > 0 and (source.hand == true) == (pass == 2) then
-                rows[#rows + 1] = SourceLine(width, source, side)
+                rows[#rows + 1] = SourceLine(width, source, side, struck)
             end
         end
+    end
+    if struck then
+        return
     end
     local removedField = side == "edge" and "removedEdges" or "removedBanes"
     for _, source in ipairs(sources) do
         if (source[removedField] or 0) > 0 then
-            rows[#rows + 1] = SourceLine(width, source, side, true)
+            rows[#rows + 1] = SourceLine(width, source, side, nil, true)
         end
     end
 end
 
---A side whose every edge or bane was taken away still gets its line (C5i), so the card
---shows what the roll lost and what took it.
+--A side that lost every edge or bane keeps its line (C5i), crossed out with what it would
+--have been worth and the reason beside it, so the player sees the edge they lost.
 --- @param side "edge"|"bane"
 --- @param removed integer How many edges or banes were taken away.
 --- @param sources HistoryEdgeSource[]
-local function AddIgnoredLine(rows, width, side, removed, forTarget, sources)
-    local double = removed >= 2
-    local label = side == "edge" and (double and "Double edge" or "Edge") or (double and "Double bane" or "Bane")
+local function AddStruckLine(rows, width, side, removed, forTarget, sources)
+    local lost = NetEdges(side == "edge" and removed or 0, side == "bane" and removed or 0)
+    if lost == nil then
+        return
+    end
+    local label = lost.label
     if forTarget then
         label = label .. " for this target"
     end
     rows[#rows + 1] = ReceiptLine(width, {
-        lead = {Chevrons(side, double and 2 or 1)},
-        label = label .. ", ignored",
+        lead = {Chevrons(side, lost.count)},
+        label = label,
         labelClass = side == "edge" and "historyEdgeText" or "historyBaneText",
-        value = "0",
+        aside = RemovedReason(sources, side),
+        value = lost.value,
+        struck = true,
     })
-    AddSideSources(rows, width, sources, side)
+    AddSideSources(rows, width, sources, side, true)
 end
 
 --The net edge or bane line, what gave it each edge and bane (edges first), then the rule
@@ -1047,7 +1094,7 @@ local function AddEdgeLines(rows, width, edges, banes, forTarget, sources)
         removedBanes = removedBanes + (source.removedBanes or 0)
     end
     if edges == 0 and removedEdges > 0 then
-        AddIgnoredLine(rows, width, "edge", removedEdges, forTarget, sources)
+        AddStruckLine(rows, width, "edge", removedEdges, forTarget, sources)
     end
     local net = NetEdges(edges, banes)
     if net ~= nil then
@@ -1070,7 +1117,7 @@ local function AddEdgeLines(rows, width, edges, banes, forTarget, sources)
         end
     end
     if banes == 0 and removedBanes > 0 then
-        AddIgnoredLine(rows, width, "bane", removedBanes, forTarget, sources)
+        AddStruckLine(rows, width, "bane", removedBanes, forTarget, sources)
     end
     if net ~= nil and net.note ~= nil then
         rows[#rows + 1] = ReceiptNote(width, net.note)

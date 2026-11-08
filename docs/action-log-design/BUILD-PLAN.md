@@ -211,6 +211,13 @@ Goal: why it happened, one click from the row.
   edge or bane keeps its line ("Edge, ignored", value 0). Tested with a real Brutal Slam while the
   Dwarf Fury was Twisted (Prone's edge, Ignored by Twisted, Tier 2) and a fed entry with a target's
   remover, a partial removal and an ignored bane on a target's own roll.
+- **2.3a2 feedback (James, 2026-11-08):** a side that lost every edge or bane is crossed out, not
+  relabelled: its line (label and value, the value muted) and each source under it carry a strikethrough,
+  and the reason sits once, after the line, in the aside style ("~~Edge~~ Ignored by Twisted"; James
+  chose the top line only, since Ignore applies to the whole side). Only a partial removal
+  keeps the remover's own line, since nobody knows which edge it took. The old dimmed remover line read
+  brighter than the sources; reasons now use `@fgMuted`. The card's styles live on the tray, so a style
+  change needs the History window closed and reopened after a reload.
 - **Found in 2.3a2:** `MCDMCreature.lua` wraps `creature.ApplyOngoingEffect` with no reload guard, so
   every hot reload of that file stacks another wrapper and one effect writes one History line per
   reload. Dev-only (a fresh start has one wrapper); restart before judging effect lines.

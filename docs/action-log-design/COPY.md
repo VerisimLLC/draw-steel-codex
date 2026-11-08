@@ -345,10 +345,12 @@ the player saw. This replaces C5.
 ## Round 9: removed edges and banes (signed off 2026-11-08)
 
 Ignore Edges, Ignore Banes, Remove Edge, Remove Bane and the removing half of Edge becomes Bane are listed
-too, so the card explains an edge that was there but did not count. The remover goes last under the line
-it changed, dimmed, with no arrows.
+too, so the card explains an edge that was there but did not count. When a side loses every edge or bane,
+its line and each source under it are crossed out, with the reason once, after the line, in the muted aside style
+(James, 2026-11-08: "real visual feedback on it being ignored"). When it loses only some, nobody knows
+which, so the remover gets its own muted line last, with no arrows.
 | ID | Where | Text |
 |---|---|---|
-| C5i | The line when every edge or bane was taken away | Edge, ignored / Double edge, ignored / Bane, ignored / Double bane, ignored (value 0); on a target's own roll, Edge for this target, ignored |
-| C5r | The remover | Ignored by {name} (Ignore) / Removed by {name} (Remove one) |
-| C5o | A remover that belongs to the target | {Target}'s {name}, with the target's face, e.g. Ignored by Ajax's Steadfast |
+| C5i | The line when every edge or bane was taken away | ~~Edge~~ Ignored by {name}, its value (+2, +1 tier, -2, -1 tier) crossed out and muted; each source under it crossed out with no reason (~~Prone~~), since the reason is the whole line's; on a target's own roll, ~~Edge for this target~~ |
+| C5r | The reason, or the remover's own line when only some were removed | Ignored by {name} (Ignore) / Removed by {name} (Remove one); several join: Ignored by X, removed by Y |
+| C5o | A remover that belongs to the target | {Target}'s {name}, e.g. Ignored by Ajax's Steadfast; the target's face shows only on a remover's own line, not in an inline reason |

@@ -325,11 +325,13 @@ local function Styles()
             opacity = 0.8,
         },
         {
-            --"Ignored by ...": a step dimmer than the sources it cancels.
-            selectors = {"label", "historyReceiptRemoved"},
-            fontSize = 13,
-            color = "@fg",
-            opacity = 0.6,
+            --an edge or bane that did not count, crossed out; its value drops out of the column.
+            selectors = {"label", "historyStruck"},
+            strikethrough = true,
+        },
+        {
+            selectors = {"label", "historyReceiptValue", "historyStruck"},
+            color = "@fgMuted",
         },
         {
             selectors = {"label", "historyReceiptNote"},

@@ -805,6 +805,18 @@ RegisterGoblinScriptSymbol(ActivatedAbility, {
 
 })
 
+--A villain action's "Villain Action" action type is a label, not something the monster
+--holds: monsters have 0 of that resource, so counting it made every such ability
+--unaffordable. The encounter's villain action budget (VillainActionState and the
+--villain action strip) is what limits them, so the label costs 0 actions.
+local g_baseGetNumberOfActionsCost = ActivatedAbility.GetNumberOfActionsCost
+function ActivatedAbility:GetNumberOfActionsCost(caster, symbols)
+    if self:ActionResource() == CharacterResource.villainActionId then
+        return 0
+    end
+    return g_baseGetNumberOfActionsCost(self, caster, symbols)
+end
+
 --An ability invoked with suppressInvokedActionCost has its own cost cleared, but it is
 --still made as part of the invoker's action (e.g. Panther's Devastating Rush), so answer
 --with the invoker's action type. Critical Hit depends on this.

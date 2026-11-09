@@ -6783,6 +6783,7 @@ local g_richTagDescriptions = {
     follower = {desc = "Companion or follower", takesName = true},
     setting = {desc = "Game setting toggle", patternExample = "setting:settingid"},
     fishing = {desc = "Fishing activity", takesName = true},
+    sliderpuzzle = {desc = "Sliding tile puzzle made from an image", takesName = true, menuLabel = "slider puzzle"},
 }
 
 -- The document text that inserts (or previews) a pattern-based rich tag, plus
@@ -8555,7 +8556,7 @@ local function CreateMarkdownToolbar(opts)
     local mediaTags  = { "image", "sound", "ability", "scene",
                          "encounter", "party", "follower" }
     local widgetTags = { "dice", "bar", "counter", "checkbox", "macro",
-                         "reminder", "timer", "setting" }
+                         "reminder", "timer", "setting", "sliderpuzzle" }
 
     --The option id stays the internal tag name (the change handler inserts by
     --tag name), but the label shown can differ -- see menuLabel above.

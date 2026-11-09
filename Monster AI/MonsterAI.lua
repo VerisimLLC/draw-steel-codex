@@ -3883,6 +3883,7 @@ function MonsterAI:PlayTurnCoroutine(initiativeid)
                     self._tmp_failedMoves = {}
                     self._tmp_shortMoveRetries = {}
                     self._tmp_failedChargePlans = {}
+                    self._tmp_dashDecision = nil
 					self._tmp_actorInterrupted = nil
 
                     local tacticNames = table.keys(self.activeTactics)
@@ -7272,6 +7273,138 @@ function MonsterAI:ExecuteAdvanceFallback(token, previewed)
     return mover.valid and mover.loc.str ~= origin
 end
 
+--Dash or shoot ---------------------------------------------------------------
+--A monster that cannot reach any enemy with a melee strike this turn picks
+--between a ranged attack now (a ranged strike or a ranged free strike, both a
+--main action) and spending the main action on Use Move Action to close in
+--for next turn's melee. It dashes when the ranged attack is worth less than
+--dashOrShootRatio of its best melee strike. Damage is read from the tiers.
+MonsterAI.dashOrShootRatio = 0.6
+
+--Tier weights for a rough average roll: tier 2 is the most common result.
+local g_dashTierWeights = {0.3, 0.45, 0.25}
+
+---@param ability ActivatedAbility
+---@return boolean
+local function IsMeleeStrike(ability)
+    return (ability:HasKeyword("Strike") and ability:HasKeyword("Melee")) or ability.name == "Melee Free Strike"
+end
+
+---@param ability ActivatedAbility
+---@return boolean
+local function IsRangedStrike(ability)
+    return (ability:HasKeyword("Strike") or ability.name == "Ranged Free Strike") and ability:HasKeyword("Ranged")
+end
+
+--- Rough damage of one hit from the tiers' damage numbers ("5 fire damage"),
+--- weighted toward tier 2. 0 for an ability with no damage tiers.
+---@param ability ActivatedAbility
+---@return number
+function MonsterAI.ExpectedStrikeDamage(ability)
+    for _,behavior in ipairs(ability.behaviors or {}) do
+        if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+            local total = 0
+            for i,tier in ipairs(behavior:try_get("tiers") or {}) do
+                local n = tonumber(string.match(tier or "", "(%d+)%s+%a*%s*damage"))
+                total = total + (n or 0)*(g_dashTierWeights[i] or 0)
+            end
+            return total
+        end
+    end
+    return 0
+end
+
+--- Should this actor dash toward melee instead of attacking at range? Decided
+--- once per turn, at its first move search (before it has moved), and kept.
+---@param token CharacterToken
+---@param abilities ActivatedAbility[]
+---@return boolean
+function MonsterAI:ShouldDashInsteadOfShooting(token, abilities)
+    local decided = self:try_get("_tmp_dashDecision")
+    if decided ~= nil then
+        return decided
+    end
+    local function Decide(dash, reason, details)
+        self._tmp_dashDecision = dash
+        local entry = {reason = reason, result = dash and "dash toward melee" or "attack as usual"}
+        for k,v in pairs(details or {}) do
+            entry[k] = v
+        end
+        self:LogDecision("DASH OR SHOOT", entry)
+        return dash
+    end
+
+    --cheap checks first: most monsters stop at one of these.
+    local meleeStrikes = {}
+    local melee = 0
+    for _,ability in ipairs(abilities) do
+        if IsMeleeStrike(ability) and ability:CanAfford(token) then
+            meleeStrikes[#meleeStrikes+1] = ability
+            melee = math.max(melee, MonsterAI.ExpectedStrikeDamage(ability))
+        end
+    end
+    if melee <= 0 then
+        return Decide(false, "no melee strike worth closing in for")
+    end
+    local dashAbility = FindAbilityByName(token.properties:GetActivatedAbilities(), "Use Move Action")
+    if dashAbility == nil or not dashAbility:CanAfford(token) then
+        return Decide(false, "cannot use Use Move Action")
+    end
+
+    --a melee strike that reaches an enemy this turn: no need to dash.
+    for _,ability in ipairs(meleeStrikes) do
+        local range = ability:GetRange(token.properties)
+        for _,info in pairs(self.paths or {}) do
+            if #self:FindValidTargetsOfStrike(token, ability, info.loc, range) > 0 then
+                return Decide(false, "a melee strike reaches an enemy this turn")
+            end
+        end
+    end
+
+    --its best ranged attack now: damage times the targets it would hit.
+    local ranged = 0
+    for _,ability in ipairs(abilities) do
+        if IsRangedStrike(ability) and ability:CanAfford(token) then
+            local damage = MonsterAI.ExpectedStrikeDamage(ability)
+            local numTargets = ability:GetNumTargets(token)
+            local range = ability:GetRange(token.properties)
+            for _,info in pairs(self.paths or {}) do
+                local hits = math.min(numTargets, #self:FindValidTargetsOfStrike(token, ability, info.loc, range))
+                ranged = math.max(ranged, damage*hits)
+            end
+        end
+    end
+    if ranged <= 0 then
+        return Decide(false, "no ranged attack this turn; the advance handles it")
+    end
+
+    local details = {ranged = ranged, melee = melee}
+    if ranged >= melee*MonsterAI.dashOrShootRatio then
+        return Decide(false, "the ranged attack is worth taking", details)
+    end
+    --dashing must actually get it closer.
+    local mover = self:GetMovementToken(token)
+    local dashPaths = self:CalculateMovementPaths(token, math.max(0, mover.properties:CurrentMovementSpeed())*10)
+    if self:FindAdvancePlan(token, dashPaths) == nil then
+        return Decide(false, "a dash would not get it closer", details)
+    end
+    return Decide(true, "its ranged attack is weak next to its melee", details)
+end
+
+--- Abilities without the strikes a dashing actor gives up (both kinds: no
+--- melee strike reaches this turn, and the ranged ones are not worth it).
+---@param abilities ActivatedAbility[]
+---@return ActivatedAbility[]
+local function WithoutStrikes(abilities)
+    local result = {}
+    for _,ability in ipairs(abilities) do
+        if not IsMeleeStrike(ability) and not IsRangedStrike(ability) then
+            result[#result+1] = ability
+        end
+    end
+    return result
+end
+
 --Move to the cheapest reachable square outside every Avoid zone, using the
 --remaining movement. False when there is none.
 function MonsterAI:ExecuteLeaveAvoidZone(token)
@@ -8115,6 +8248,9 @@ function MonsterAI:FindAndExecuteMove()
     local function ScoreMoves()
         local bestScore = {score = 0}
         local bestMove = nil
+        --far from melee with only a weak ranged attack: no strikes this
+        --turn, so the advance spends the main action on movement.
+        local dashing = self:ShouldDashInsteadOfShooting(token, abilities)
         for _,moveid in ipairs(self:MovesInScoringOrder()) do
             local move = self.moves[moveid]
             local registeredForMonster = self.MoveMatchesMonster(token, move, true)
@@ -8163,6 +8299,20 @@ function MonsterAI:FindAndExecuteMove()
                     end
 
                     usingAbilities[#usingAbilities+1] = ability
+                end
+            end
+
+            if matchesMonster and dashing then
+                for _,ability in ipairs(usingAbilities) do
+                    if IsMeleeStrike(ability) or IsRangedStrike(ability) then
+                        self:SetMoveLogContext(token, move)
+                        self:LogDecision("MOVE REJECTED", {
+                            ability = ability.name,
+                            reason = "dashing toward melee instead of attacking at range",
+                        })
+                        matchesMonster = false
+                        break
+                    end
                 end
             end
 
@@ -8238,7 +8388,7 @@ function MonsterAI:FindAndExecuteMove()
         if not self:try_get("_tmp_synthesizedPlanningFailed", false) then
             local synthesizedOk, synthesizedResult = pcall(
                 self.FindBestSynthesizedAbilityMove, self,
-                token, abilities, self:GetClaimedAbilityNames(token))
+                token, dashing and WithoutStrikes(abilities) or abilities, self:GetClaimedAbilityNames(token))
             if synthesizedOk then
                 synthesizedMove = synthesizedResult
             else

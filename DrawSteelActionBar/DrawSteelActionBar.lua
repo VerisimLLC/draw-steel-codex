@@ -10290,6 +10290,87 @@ local function MoveTargetLocRejected(targetingType, loc)
     return g_forcedMoveLegalLocs[loc.xyfloorOnly.str] ~= true
 end
 
+--- MarkMovementArrow options for a straight-line move by g_token with the current ability
+--- (targeting "straightline", "straightpath" or "straightpathignorecreatures"). They mirror
+--- the real move in AbilityRelocateCreature.lua, so the hover arrow and the straight-path
+--- highlight below agree with where the creature actually ends up.
+--- Lives on the module table because this file's main chunk is at Lua's 200-local limit.
+--- @param targetingType string
+--- @return table options, boolean hasCharge true when charge-jump options were merged in
+function DrawSteelActionBar.StraightMoveArrowOptions(targetingType)
+    ---@cast g_token -nil
+    ---@cast g_currentAbility -nil
+    local throughCreatures = g_currentAbility:try_get("forcedMovementThroughCreatures", false)
+    local reboundOptions = g_token.properties:GetForcedPushOptions()
+    --pass forcedMovementDistance so the preview cost function treats "blocks forced movement"
+    --walls as blocking (same flag the real cast sets in AbilityRelocateCreature.lua).
+    --only applies to the straightline (forced-movement) targeting variant.
+    local previewForcedDist = 0
+    if targetingType == "straightline" then
+        previewForcedDist = g_currentAbility:GetRange(g_token.properties, g_currentSymbols) / dmhub.unitsPerSquare
+    end
+    local options = {
+        straightline = true,
+        moveThroughFriends = (targetingType ~= "straightline"),
+        ignorecreatures = (targetingType == "straightpathignorecreatures" or throughCreatures),
+        rebound = reboundOptions.rebound,
+        maxBounces = reboundOptions.maxBounces,
+        forcedMovementDistance = previewForcedDist,
+        slide = (g_currentSymbols.forcedmovement or g_currentAbility:try_get("forcedMovement")) == "vertical_slide",
+    }
+    local chargeOptions = g_currentAbility:GetChargeJumpOptions(g_token, g_currentSymbols, g_abilities)
+    if chargeOptions ~= nil then
+        for key, value in pairs(chargeOptions) do
+            options[key] = value
+        end
+    end
+    return options, chargeOptions ~= nil
+end
+
+--- For a "Direct Path" move (emptyspace/anyspace with straightpath targeting, e.g. Charge or
+--- Just Passing Through), returns a predicate that is true only for squares the straight move
+--- actually reaches. The plain range circle also lights squares behind walls or blockers,
+--- where the move would stop short. Returns nil for any other targeting, or for very long
+--- ranges where testing every square would stall the client.
+--- @param range nil|number the ability's range in native units
+--- @return nil|fun(loc: Loc): boolean
+function DrawSteelActionBar.StraightPathReachFilter(range)
+    if g_currentAbility == nil or g_token == nil or (not g_token.valid) then
+        return nil
+    end
+    local targetingType = g_currentAbility:try_get("targeting", "direct")
+    if targetingType ~= "straightpath" and targetingType ~= "straightpathignorecreatures" then
+        return nil
+    end
+    if g_currentAbility.targetType ~= "emptyspace" and g_currentAbility.targetType ~= "anyspace" then
+        return nil
+    end
+    --Each square costs one preview path (~1ms); past this the highlight falls back to the circle.
+    if range == nil or range > 12 * dmhub.unitsPerSquare then
+        return nil
+    end
+
+    local token = g_token
+    local options, hasCharge = DrawSteelActionBar.StraightMoveArrowOptions(targetingType)
+    --separate: a throwaway arrow, so the shared hover arrow is left alone.
+    options.separate = true
+    return function(loc)
+        local info = token:MarkMovementArrow(loc, options)
+        ---@cast info nil|{path: LuaPath, marker: nil|LuaMultiObjectReference, validCharge: nil|boolean}
+        if info == nil then
+            return false
+        end
+        if info.marker ~= nil then
+            info.marker:Destroy()
+        end
+        if hasCharge and info.validCharge ~= true then
+            return false
+        end
+        local dest = info.path ~= nil and info.path.destination or nil
+        return dest ~= nil and dest.x == loc.x and dest.y == loc.y
+    end
+end
+
 
 local g_castingEmoteSet = nil
 
@@ -13610,16 +13691,6 @@ CreateAbilityController = function()
 
                     g_currentSymbols.waypoints = waypoints
 
-                    local throughCreatures = g_currentAbility:try_get("forcedMovementThroughCreatures", false)
-                    local reboundOptions = g_token.properties:GetForcedPushOptions()
-                    --pass forcedMovementDistance so the preview cost function treats "blocks forced movement"
-                    --walls as blocking (same flag the real cast sets in AbilityRelocateCreature.lua).
-                    --only applies to the straightline (forced-movement) targeting variant.
-                    local previewForcedDist = 0
-                    if targetingType == "straightline" then
-                        previewForcedDist = g_currentAbility:GetRange(g_token.properties, g_currentSymbols) / dmhub.unitsPerSquare
-                    end
-
                     --[STRICTMOVE] diagnostic: once per hovered square, report whether the
                     --hovered tile is in the captured legal-tile set (the exact tiles the
                     --forced-move radius highlights) and whether enforcement is active.
@@ -13643,20 +13714,7 @@ CreateAbilityController = function()
                     --captured from the identical engine computation that draws the radius).
                     local movementInfo = nil
                     if not MoveTargetLocRejected(targetingType, loc) then
-                        local markOptions = {
-                            straightline = true,
-                            ignorecreatures = (targetingType == "straightpathignorecreatures" or throughCreatures),
-                            rebound = reboundOptions.rebound,
-                            maxBounces = reboundOptions.maxBounces,
-                            forcedMovementDistance = previewForcedDist,
-                            slide = (g_currentSymbols.forcedmovement or g_currentAbility:try_get("forcedMovement")) == "vertical_slide",
-                        }
-                        local chargeOptions = g_currentAbility:GetChargeJumpOptions(g_token, g_currentSymbols, g_abilities)
-                        if chargeOptions ~= nil then
-                            for key, value in pairs(chargeOptions) do
-                                markOptions[key] = value
-                            end
-                        end
+                        local markOptions, hasCharge = DrawSteelActionBar.StraightMoveArrowOptions(targetingType)
                         --A vertical move's dialed altitude is absolute; the engine wants it above the ground.
                         movementInfo = g_token:MarkMovementArrow(
                             cond(ActivatedAbility.IsVerticalForcedMovement(g_currentSymbols.forcedmovement or g_currentAbility:try_get("forcedMovement")),
@@ -13665,11 +13723,11 @@ CreateAbilityController = function()
                         --MarkMovementArrow's declared return omits the charge-jump fields the engine
                         --adds when charge options are passed (CharacterToken.cs MarkMovementArrow).
                         ---@cast movementInfo nil|{path: LuaPath, collideWith: nil|CharacterToken[], bounceCollisions: nil|{speed: number, collideWith: CharacterToken[], destination: Loc}[], validCharge: nil|boolean, requiresRoll: nil|boolean, requiredTier: nil|integer, guaranteedTier: nil|integer, jumpLabelLoc: nil|Loc, tierOutcomes: nil|table<integer, table>}
-                        if chargeOptions ~= nil and (movementInfo == nil or movementInfo.validCharge ~= true) then
+                        if hasCharge and (movementInfo == nil or movementInfo.validCharge ~= true) then
                             g_pointTargeting.chargeJumpUnreachable = true
                             movementInfo = nil
                         end
-                        if chargeOptions ~= nil and movementInfo ~= nil and movementInfo.jumpLabelLoc ~= nil then
+                        if hasCharge and movementInfo ~= nil and movementInfo.jumpLabelLoc ~= nil then
                             --The cross-section still treats the composite path as walking.
                             --The map arrow renders the actual jump segment for this charge.
                             ClearMovementDiagram()
@@ -13988,7 +14046,7 @@ CreateAbilityController = function()
                         end
 
                         --show damage indicators on creatures passed through.
-                        if throughCreatures and path.steps ~= nil then
+                        if g_currentAbility:try_get("forcedMovementThroughCreatures", false) and path.steps ~= nil then
                             local throughTextLabels = {}
                             local throughShapes = {}
                             local hitIds = {}
@@ -15680,6 +15738,16 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
                 if customLocs == nil then
                     local filterTargetPredicate = g_currentAbility:TargetLocPassesFilterPredicate(g_token,
                         g_currentSymbols)
+
+                    --Direct Path moves: light only squares the straight move reaches, not
+                    --ones behind a wall or blocker where it would stop short (WMKCJ5ZV).
+                    local reachFilter = DrawSteelActionBar.StraightPathReachFilter(range)
+                    if reachFilter ~= nil then
+                        local baseFilter = filterTargetPredicate
+                        filterTargetPredicate = function(l)
+                            return (baseFilter == nil or baseFilter(l)) and reachFilter(l)
+                        end
+                    end
 
                     local tierRadii = g_currentAbility:GetTargetingTierRadii(g_token, g_currentSymbols)
                     if tierRadii ~= nil then

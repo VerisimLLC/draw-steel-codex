@@ -18,6 +18,9 @@ local mod = dmhub.GetModLoading()
 --- @field pieces number
 --- @field pretape string
 --- @field boardWidth number
+--- @field source string "image" (tear an uploaded image) or "note" (tear typed text)
+--- @field noteText string the note's text when source is "note"
+--- @field paper string a NOTE_PAPERS key: the note's paper, font and ink
 RichTornPuzzle = RegisterGameType("RichTornPuzzle", "RichTag")
 RichTornPuzzle.tag = "tornpuzzle"
 RichTornPuzzle.identifier = false
@@ -25,6 +28,9 @@ RichTornPuzzle.image = false
 RichTornPuzzle.pieces = 9
 RichTornPuzzle.pretape = "none"
 RichTornPuzzle.boardWidth = 640
+RichTornPuzzle.source = "image"
+RichTornPuzzle.noteText = ""
+RichTornPuzzle.paper = "letter"
 
 local PUZZLE_DOC = "tornpuzzles"
 
@@ -55,6 +61,74 @@ local function ResourceImage(name)
         return string.sub(id, 5)
     end
     return id
+end
+
+--Typed notes: each client renders the note's text onto paper locally (no upload)
+--and the puzzle tears that image like any other. A preset is paper colour, font and
+--ink together, so the Director picks a look rather than mixing colours.
+--charEm is the font's average character width in ems, used to estimate wrapping.
+---@class TornNotePaper
+---@field name string
+---@field paper string
+---@field ink string
+---@field font string
+---@field charEm number
+---@field align string
+
+---@type table<string, TornNotePaper>
+local NOTE_PAPERS = {
+    letter = { name = "Letter", paper = "#e8dcc0", ink = "#3a2a1a", font = "Berling", charEm = 0.5, align = "left" },
+    typed = { name = "Typed", paper = "#fafaf7", ink = "#1b1b1b", font = "Courier", charEm = 0.6, align = "left" },
+    proclamation = { name = "Proclamation", paper = "#e8dcc0", ink = "#3a2a1a", font = "Book", charEm = 0.68, align = "center" },
+    ransom = { name = "Ransom", paper = "#c9b48a", ink = "#2b1d10", font = "Colvillain", charEm = 0.6, align = "center" },
+}
+local NOTE_PAPER_ORDER = { "letter", "typed", "proclamation", "ransom" }
+
+--A note is always this wide (UI units); its height follows the text.
+local NOTE_WIDTH = 600
+local NOTE_PADDING = 48
+local NOTE_FONT_SIZE = 30
+local NOTE_LINE_HEIGHT = 1.35
+--Rendered at this many pixels per UI unit so the text stays crisp on the table.
+local NOTE_RENDER_SCALE = 2
+
+--True when this client's engine can render panels to images (gui.RenderToImage,
+--added in 0.0.880). Older clients get a message instead of a blank table.
+---@return boolean
+local function NotesSupported()
+    local ok, fn = pcall(function()
+        ---@diagnostic disable-next-line: undefined-field -- engine API newer than the Definitions stubs
+        return gui.RenderToImage
+    end)
+    return ok and fn ~= nil
+end
+
+--The note's size and font size. Wrapping is ESTIMATED from character counts rather
+--than measured, so every client computes the same shape from the same text: never
+--shorter than a 3:2 card, never taller than the puzzle's 2.5x cap (past that the
+--font shrinks until it fits).
+---@param text string
+---@param paper TornNotePaper
+---@return number width, number height, number fontSize
+local function NoteLayout(text, paper)
+    local textWidth = NOTE_WIDTH - NOTE_PADDING * 2
+    local maxHeight = NOTE_WIDTH * 2.5
+    local fontSize = NOTE_FONT_SIZE
+    local textHeight = 0
+    for _ = 1, 4 do
+        local lines = 0
+        for paragraph in string.gmatch(text .. "\n", "([^\n]*)\n") do
+            local width = #paragraph * fontSize * paper.charEm
+            lines = lines + math.max(1, math.ceil(width / textWidth))
+        end
+        textHeight = lines * fontSize * NOTE_LINE_HEIGHT
+        if textHeight + NOTE_PADDING * 2 <= maxHeight then
+            break
+        end
+        fontSize = fontSize * math.sqrt((maxHeight - NOTE_PADDING * 2) / textHeight)
+    end
+    local height = math.min(maxHeight, math.max(NOTE_WIDTH * 2 / 3, textHeight + NOTE_PADDING * 2))
+    return NOTE_WIDTH, math.floor(height), fontSize
 end
 
 local PIECE_OPTIONS = { 4, 6, 9, 12 }
@@ -564,8 +638,87 @@ function RichTornPuzzle.CreateDisplay(self)
     local directorRow
     local Refresh
 
+    --Typed notes: the locally rendered image, the text+paper it was rendered from,
+    --a render in flight (its key), and the rendered note's height/width.
+    local m_noteImage = nil ---@type string|nil
+    local m_noteKey = nil ---@type string|nil
+    local m_noteRequested = nil ---@type string|nil
+    local m_noteAspect = 1
+
+    local function IsNote()
+        return self.source == "note"
+    end
+
+    local function NotePaper()
+        return NOTE_PAPERS[self.paper] or NOTE_PAPERS.letter
+    end
+
+    --What the pieces are cut from: the uploaded image, or the rendered note. A note
+    --keeps showing its previous render while an edited version renders.
+    ---@return string|nil
+    local function CurrentImage()
+        if IsNote() then
+            return m_noteImage
+        end
+        return self.image or nil
+    end
+
     local function Interactive()
-        return m_token ~= nil and not m_token.editor and self.image and true or false
+        return m_token ~= nil and not m_token.editor and CurrentImage() ~= nil
+    end
+
+    --Render the note (if its text or paper changed since the last render) on this
+    --client. When it lands, the table re-lays out around the new image; the tear and
+    --the table's progress are untouched because pieces sit in image-relative units.
+    local function RequestNote()
+        local text = self.noteText or ""
+        if not IsNote() or text == "" or not NotesSupported() then
+            return
+        end
+        local paper = NotePaper()
+        local key = string.format("%s|%s", tostring(self.paper), text)
+        if key == m_noteKey or key == m_noteRequested then
+            return
+        end
+        m_noteRequested = key
+
+        local width, height, fontSize = NoteLayout(text, paper)
+        ---@diagnostic disable-next-line: undefined-field -- engine API newer than the Definitions stubs
+        gui.RenderToImage{
+            panel = gui.Panel{
+                width = width,
+                height = height,
+                bgimage = "panels/square.png",
+                bgcolor = paper.paper,
+                gui.Label{
+                    text = text,
+                    fontFace = paper.font,
+                    fontSize = fontSize,
+                    color = paper.ink,
+                    width = width - NOTE_PADDING * 2,
+                    height = "auto",
+                    halign = "center",
+                    valign = "center",
+                    textAlignment = paper.align,
+                },
+            },
+            width = width,
+            height = height,
+            scale = NOTE_RENDER_SCALE,
+            complete = function(imageid)
+                --a newer edit superseded this render; its own render will land.
+                if mod.unloaded or not resultPanel.valid or m_noteRequested ~= key then
+                    return
+                end
+                m_noteImage, m_noteKey, m_noteRequested = imageid, key, nil
+                m_noteAspect = height / width
+                Refresh()
+            end,
+            error = function(message)
+                --leave m_noteRequested set so a failing note is not retried every refresh.
+                print("TornPuzzle: could not render the note:", message)
+            end,
+        }
     end
 
     --A hold by another client that has not gone stale. Staleness is timed from when
@@ -589,6 +742,13 @@ function RichTornPuzzle.CreateDisplay(self)
     end
 
     local function RequestImageShape()
+        if IsNote() then
+            --a rendered note's shape is known exactly; no image query needed.
+            m_imageInfoFor = nil
+            m_aspect = m_noteAspect
+            m_imageSize = { width = NOTE_WIDTH * NOTE_RENDER_SCALE, height = math.floor(NOTE_WIDTH * m_noteAspect) * NOTE_RENDER_SCALE }
+            return
+        end
         if self.image == m_imageInfoFor then
             return
         end
@@ -636,7 +796,11 @@ function RichTornPuzzle.CreateDisplay(self)
             m_tapePanels[i] = gui.Panel{
                 classes = {"hidden"},
                 bgimage = "panels/square.png",
-                bgcolor = "#efe3c2c0",
+                --masking-tape beige with a faint dark edge: the edge keeps it visible on
+                --pale parchment and white paper, where a near-white strip disappeared.
+                bgcolor = "#d8c79bd9",
+                border = 1,
+                borderColor = "#3a2a1a40",
                 halign = "left",
                 valign = "top",
                 interactable = false,
@@ -714,7 +878,7 @@ function RichTornPuzzle.CreateDisplay(self)
                     local piece = shape.pieces[k]
                     local b = piece.bbox
                     local panel = m_piecePanels[k]
-                    panel.bgimage = self.image
+                    panel.bgimage = CurrentImage()
                     panel.bgimageMask = shape.atlas
                     panel.bgimageMaskRect = piece.mask
                     panel.selfStyle.imageRect = { x1 = b[1], x2 = b[3], y1 = 1 - b[4], y2 = 1 - b[2] }
@@ -787,11 +951,26 @@ function RichTornPuzzle.CreateDisplay(self)
         if not resultPanel.valid then
             return
         end
+        RequestNote()
         RequestImageShape()
 
-        local hasImage = self.image and true or false
+        local hasImage = CurrentImage() ~= nil
         table_:SetClass("collapsed", not hasImage)
-        placeholder:SetClass("collapsed", hasImage)
+        --a note that is just rendering shows nothing; one that cannot render says why.
+        local placeholderText = nil
+        if not hasImage then
+            if not IsNote() then
+                placeholderText = "Torn puzzle: choose an image in the annotations strip below."
+            elseif not NotesSupported() then
+                placeholderText = "This note needs a newer version of the Codex."
+            elseif (self.noteText or "") == "" then
+                placeholderText = "Torn puzzle: write the note in the annotations strip below."
+            end
+        end
+        if placeholderText ~= nil then
+            placeholder.text = placeholderText
+        end
+        placeholder:SetClass("collapsed", placeholderText == nil)
         directorRow:SetClass("collapsed", not hasImage or not dmhub.isDM or m_token == nil or m_token.player == true)
         if not hasImage then
             statusLabel.text = ""
@@ -1094,12 +1273,13 @@ function RichTornPuzzle.CreateDisplay(self)
         hmargin = 6,
         valign = "center",
         press = function(element)
-            if not self.image then
+            local image = CurrentImage()
+            if image == nil then
                 return
             end
             local size = m_imageSize or { width = 1024, height = 1024 }
             GameHud.instance:ViewCompendiumEntryModal(ImageDocument.new{
-                imageid = self.image,
+                imageid = image,
                 width = size.width,
                 height = size.height,
             })
@@ -1214,7 +1394,10 @@ function RichTornPuzzle.CreateDisplay(self)
 end
 
 function RichTornPuzzle.CreateEditor(self)
-    return gui.Panel{
+    --forward-declared: the cog's Source dropdown tells the whole strip to swap the
+    --image picker for the note tile.
+    local resultPanel
+    resultPanel = gui.Panel{
         flow = "none",
         width = 96,
         height = "100%",
@@ -1234,6 +1417,61 @@ function RichTornPuzzle.CreateEditor(self)
                 for _, n in ipairs(PIECE_OPTIONS) do
                     pieceOptions[#pieceOptions + 1] = { id = tostring(n), text = tostring(n) }
                 end
+                local paperOptions = {}
+                for _, key in ipairs(NOTE_PAPER_ORDER) do
+                    paperOptions[#paperOptions + 1] = { id = key, text = NOTE_PAPERS[key].name }
+                end
+
+                --the note's text box and paper choice, shown only when Source is Note.
+                local noteControls = gui.Panel{
+                    classes = {cond(self.source == "note", nil, "collapsed")},
+                    width = "auto",
+                    height = "auto",
+                    flow = "vertical",
+                    gui.Label{
+                        classes = {"sizeS"},
+                        width = "auto",
+                        height = "auto",
+                        tmargin = 6,
+                        text = "Note text:",
+                    },
+                    gui.Input{
+                        width = 280,
+                        height = 140,
+                        --a frame so the box reads as editable, not loose text in the popup.
+                        bgimage = "panels/square.png",
+                        bgcolor = "#00000059",
+                        border = 1,
+                        borderColor = "#ffffff47",
+                        hpad = 6,
+                        vpad = 4,
+                        borderBox = true,
+                        multiline = true,
+                        lineType = "MultiLineNewLine",
+                        textAlignment = "topleft",
+                        placeholderText = "Write the note...",
+                        text = self.noteText or "",
+                        change = function(input)
+                            self.noteText = input.text
+                        end,
+                    },
+                    gui.Label{
+                        classes = {"sizeS"},
+                        width = "auto",
+                        height = "auto",
+                        tmargin = 6,
+                        text = "Paper:",
+                    },
+                    gui.Dropdown{
+                        options = paperOptions,
+                        idChosen = NOTE_PAPERS[self.paper] ~= nil and self.paper or "letter",
+                        change = function(dropdown)
+                            ---@cast dropdown Dropdown
+                            self.paper = tostring(dropdown.idChosen)
+                        end,
+                    },
+                }
+
                 element.popupsInheritStyles = true
                 element.popup = gui.Panel{
                     classes = {"bordered", "bg"},
@@ -1246,6 +1484,27 @@ function RichTornPuzzle.CreateEditor(self)
                         classes = {"sizeS"},
                         width = "auto",
                         height = "auto",
+                        text = "Source:",
+                    },
+                    gui.Dropdown{
+                        options = {
+                            { id = "image", text = "Image" },
+                            { id = "note", text = "Note" },
+                        },
+                        idChosen = cond(self.source == "note", "note", "image"),
+                        change = function(dropdown)
+                            ---@cast dropdown Dropdown
+                            self.source = tostring(dropdown.idChosen)
+                            noteControls:SetClass("collapsed", self.source ~= "note")
+                            resultPanel:FireEventTree("sourceChanged")
+                        end,
+                    },
+                    noteControls,
+                    gui.Label{
+                        classes = {"sizeS"},
+                        width = "auto",
+                        height = "auto",
+                        tmargin = 6,
                         text = "Pieces:",
                     },
                     gui.Dropdown{
@@ -1298,6 +1557,7 @@ function RichTornPuzzle.CreateEditor(self)
             end,
         },
         gui.IconEditor{
+            classes = {cond(self.source == "note", "collapsed", nil)},
             width = 64,
             height = 64,
             halign = "center",
@@ -1307,8 +1567,28 @@ function RichTornPuzzle.CreateEditor(self)
             change = function(element)
                 self.image = element.value
             end,
+            sourceChanged = function(element)
+                element:SetClass("collapsed", self.source == "note")
+            end,
+        },
+        --stands in for the image picker when the puzzle tears a note.
+        gui.Label{
+            classes = {cond(self.source == "note", nil, "collapsed"), "sizeS"},
+            width = 64,
+            height = 64,
+            halign = "center",
+            valign = "center",
+            textAlignment = "center",
+            bgimage = "panels/square.png",
+            bgcolor = (NOTE_PAPERS[self.paper] or NOTE_PAPERS.letter).paper,
+            color = (NOTE_PAPERS[self.paper] or NOTE_PAPERS.letter).ink,
+            text = "Note",
+            sourceChanged = function(element)
+                element:SetClass("collapsed", self.source ~= "note")
+            end,
         },
     }
+    return resultPanel
 end
 
 MarkdownDocument.RegisterRichTag(RichTornPuzzle)

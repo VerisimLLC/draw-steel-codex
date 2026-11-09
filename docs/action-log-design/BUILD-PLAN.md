@@ -292,6 +292,13 @@ Goal: why it happened, one click from the row.
 - **Tested in 2.3c-4:** 23 offline cases through the real `TierStory` code with
   `RollUtils.DiceResultToTier` copied in (every row of the signed-off table, set by hand, a remover of
   an edge no part gave, both sides cancelling, Not Tier 1, three parts, the guard).
+  Live 2026-11-10 after the rebase: the real Prone Slam reads "Tier 3, up from Tier 2 / Prone gave
+  an edge."; the Twisted and 16 + Might Slams get no line. A fed card (Rune +2 with Prone ignored by
+  Twisted, two targets held by their own bane) showed the line naming the ignored edge, and the
+  "but" clause putting the bane before "Twisted ignored it"; fixed (a part is named only when it did
+  something against the other side; removers lead the "but" clause). The numbers shows "Rune of
+  Striking +2" after the edges and Bonus +1 for the rest. Not tried live: a real flat bonus in the
+  roll dialog (no modifier on the map adds one); its ParseRoll measure was checked on the bridge.
 
 ## Stage 3: getting to it
 

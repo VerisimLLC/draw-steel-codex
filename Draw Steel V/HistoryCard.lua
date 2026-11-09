@@ -1747,20 +1747,40 @@ local function TierStory(roll, tier, natural)
         end
     end
 
-    local function Side(test)
-        local list, setters = {}, {}
+    --The parts of one side the line names. With filter, only those that did something
+    --against the other side (an edge Twisted ignored did nothing), unless only several
+    --together did. A rule that sets the tier outright is named alone.
+    local function Side(test, other, filter)
+        local list = {}
         for _, part in ipairs(parts) do
             if test(part) then
                 list[#list + 1] = part
-                if SetsTier(part) then
-                    setters[#setters + 1] = part
+            end
+        end
+        if filter then
+            local without = With(other)
+            local kept, keep = {}, {}
+            for _, part in ipairs(list) do
+                if With(function(p) return p == part or other(p) end) ~= without then
+                    kept[#kept + 1] = part
+                    keep[part] = true
                 end
+            end
+            if #kept > 0 and With(function(p) return keep[p] == true or other(p) end) == tier then
+                list = kept
+            end
+        end
+        local setters = {}
+        for _, part in ipairs(list) do
+            if SetsTier(part) then
+                setters[#setters + 1] = part
             end
         end
         return #setters > 0 and setters or list
     end
 
-    local first = Side(toward)
+    --when it held, the side that would have moved it is named whole: that is the point.
+    local first = Side(toward, against, tier ~= plain)
     local named = {}
     local clauses = {}
     for _, part in ipairs(first) do
@@ -1776,8 +1796,18 @@ local function TierStory(roll, tier, natural)
     text = string.upper(string.sub(text, 1, 1)) .. string.sub(text, 2)
 
     if held then
+        --what took edges or banes away comes first, so its "it" sits next to them.
+        local others = Side(against, toward, true)
+        local ordered = {}
+        for pass = 1, 2 do
+            for _, part in ipairs(others) do
+                if (part.kind == "noedges" or part.kind == "nobanes") == (pass == 1) then
+                    ordered[#ordered + 1] = part
+                end
+            end
+        end
         local but = {}
-        for _, part in ipairs(Side(against)) do
+        for _, part in ipairs(ordered) do
             local mentioned = (part.kind == "noedges" and named.edges) or (part.kind == "nobanes" and named.banes) or false
             for _, clause in ipairs(PartClauses(part, parts, mentioned)) do
                 but[#but + 1] = clause

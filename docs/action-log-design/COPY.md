@@ -418,7 +418,7 @@ James 2026-11-08: the Why is a sum, not an explainer line per part. One line per
 landed and what got it there, worked out for all its parts together (each part alone gave
 contradicting claims). "From" is the tier the dice and characteristic gave alone. The line names the
 parts on the side the tier moved, and the other side only when it changed where the roll landed. A
-rule that sets the tier outright (Tier 3, Tier 1, a natural 19 or 20) is named alone. A target with a
+rule that sets the tier outright (Tier 3, Tier 1, a natural 19 or 20) is named alone. Live check 2026-11-10: a part that did nothing against the other side (an edge Twisted ignored) is not named on a side that moved the tier; what took edges or banes away leads the ", but" clause so its "it" sits next to them. A target with a
 roll of its own gets its own whole line, merged with targets that read the same; one that reads like
 the main roll's is left out. No line when nothing moved or held the tier, or when the recorded parts
 don't come to the recorded tier. Worked out when the card opens (James 2026-11-08), so fixes reach old rows.

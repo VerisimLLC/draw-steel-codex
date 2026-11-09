@@ -4579,6 +4579,8 @@ function EncounterScript.Parse(text)
     local reinforcement = nil
     local paragraph = {}  --accumulating prose lines
     local paragraphLine = 0
+    --lines read as "Secret result:" (any other one gets a warning).
+    local secretLines = {}
     --where scene lines go while one is being read (an entry's scene after
     --its "---", or a scripted entry's option above / below its roll); nil
     --when lines are ordinary prose.
@@ -4618,7 +4620,19 @@ function EncounterScript.Parse(text)
             --"Rest does not lock this part": a win of the part before
             --unlocks this one for good, even after the party rests.
             local restFree = string.match(lower(t), "^rest does not lock this part%.?$") ~= nil
-            if soonText ~= nil then
+            --"Secret result: <text>": the line a montage result shows when
+            --its only rules are hidden. Replaces the general line.
+            local secretText = string.match(t, "^[Ss]ecret [Rr]esult:%s*(.-)%s*$")
+            if secretText ~= nil then
+                secretLines[lineIndex] = true
+                if secretText == "" then
+                    Warn(lineIndex, "'Secret result:' needs the line to show (write 'Secret result: You learn something about her.'); ignored")
+                elseif result.secretResult ~= nil then
+                    Warn(lineIndex, "a second 'Secret result:' line; the first one counts")
+                else
+                    result.secretResult = secretText
+                end
+            elseif soonText ~= nil then
                 local mark = { text = cond(soonText ~= "", soonText, nil), line = lineIndex }
                 if result.part ~= nil then
                     result.part.comingSoon = mark
@@ -6190,6 +6204,12 @@ function EncounterScript.Parse(text)
     if pendingComingSoon ~= nil then
         Warn(pendingComingSoon.line, "'Coming soon' only works in a series part (a document with a '# Part N' heading); ignored")
     end
+    --a "Secret result:" line anywhere else is read as prose.
+    for i, l in ipairs(lines) do
+        if not secretLines[i] and string.match(trim(l), "^[Ss]ecret [Rr]esult:") then
+            Warn(i, "'Secret result:' goes above the first heading or under '# Part N'; here it is shown as text")
+        end
+    end
     EncounterScript.CheckStory(result, Warn)
 
     --implicit encounter: no beats at all, but an [[encounter]] island
@@ -6313,6 +6333,23 @@ function EncounterScript.ResolveStoryText(holder, story)
         return holder.text or ""
     end
     return EncounterScript.ResolveStoryBlocks(holder.storyBlocks, story)
+end
+
+--True when every rule in a result is hidden (a hidden story track, a
+--{braced} clause), so players would see no reward. Prose does not count,
+--and neither does a hidden "the threat is vanquished": the threat leaving
+--shows that.
+function EncounterScript.OnlyHiddenRules(effects)
+    local hiddenRule = false
+    for _, effect in ipairs(effects or {}) do
+        if effect.kind ~= "narrative" and effect.kind ~= "vanquish" then
+            if not effect.hidden then
+                return false
+            end
+            hiddenRule = true
+        end
+    end
+    return hiddenRule
 end
 
 --Evaluate a condition made only of story atoms (When lines, gates, "#

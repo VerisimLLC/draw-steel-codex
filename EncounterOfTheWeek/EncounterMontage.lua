@@ -3405,6 +3405,19 @@ function EncounterMontage.ApplyEffects(effects, ctx)
         printf("EotW montage: effect application failed: %s", tostring(err))
         applied[#applied + 1] = T("montage.effect.failed")
     end
+    --a result whose only rules are hidden would show players nothing: tell
+    --them they learned something. Not for a threat's consequence, which
+    --is something that happened to them, not something they found out.
+    if not ctx.consequence and EncounterScript.OnlyHiddenRules(effects) then
+        --the script's own "Secret result:" line, else the general one.
+        --Montage effects always belong to the current map's script.
+        local line = nil
+        pcall(function()
+            local script = EncounterMontage.FindMapScript()
+            line = script ~= nil and script.parse ~= nil and script.parse.secretResult or nil
+        end)
+        applied[#applied + 1] = line or T("montage.effect.secret")
+    end
     return applied, newAllies
 end
 
@@ -3760,6 +3773,7 @@ local function ExpireTemporaryEntries(m, doc, beat, userid)
                         montage = m,
                         doc = doc,
                         challenge = IsChallenge(),
+                        consequence = true,
                     })
                     m.log = m.log or {}
                     m.log[#m.log + 1] = {
@@ -4113,6 +4127,7 @@ local function ApplyConsequence(m, doc, beat, userid, totals)
             montage = m,
             doc = doc,
             challenge = IsChallenge(),
+            consequence = true,
         }
         if totals == nil then
             local rolls = EncounterMontage.PendingDice(entry.consequence.effects, ctx)

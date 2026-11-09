@@ -806,6 +806,14 @@ a condition (the parser warns).
   changes it is stripped from what they read, as if it were in `{...}`, and the
   recap leaves it out. Players only notice what it causes (more Malice, a
   different paragraph, a harder fight).
+- **Secret result line**: when a test or choice result's only rules are
+  hidden, the result shows one extra line so players know they gained
+  something (by default "You learned something. It may matter later."). A
+  threat's consequence never shows it. Set a part's own line with
+  `Secret result: <text>` above the first heading or under `# Part N`, next to
+  the `Track:` lines (`Secret result: You learn something about Velkhara.`).
+  The parser warns about an empty one, a second one (the first counts), or
+  one anywhere else.
 - The town shows no track values. The validator panel lists each declared
   track (and whether it is hidden), and the app log prints every change
   ("EotW story: Alarm +1 -> 2").

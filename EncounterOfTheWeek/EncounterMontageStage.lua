@@ -4361,8 +4361,12 @@ local function CreateSceneStage()
         --(t.forced) skipped the board, so the section's text is read here,
         --typed once, above the test.
         local leadText = nil
-        if t.gauntlet and t.forced and not t.arrival and (entry.description or "") ~= "" then
-            leadText = entry.description
+        if t.gauntlet and t.forced and not t.arrival then
+            --its "If ...:" blocks read for the story so far.
+            local lead = EncounterScript.ResolveStoryText(entry, EncounterMontage.Story())
+            if lead ~= "" then
+                leadText = lead
+            end
         end
         local leadKey = leadText ~= nil and string.format("lead:%s", tostring(t.seq)) or nil
         if leadText ~= nil then
@@ -7692,16 +7696,18 @@ local function GauntletBoardChildren(beat, m, heroes, prose)
         return children
     end
     Add(gui.Label{ classes = {"eotwGauntletSectionName"}, text = section.name })
-    if (section.description or "") ~= "" then
+    --description keeps every "If ...:" block; this reads them for the story.
+    local sectionText = EncounterScript.ResolveStoryText(section, EncounterMontage.Story())
+    if sectionText ~= "" then
         if prose ~= nil and prose.typer ~= nil then
             --keyed by the arrival (path length), so a section met again
             --types again but a rebuild of this one does not.
             local key = string.format("section:%s:%d", tostring(section.id), #(((m.gauntlet or {}).path) or {}))
             Add(prose.typer.Label{ classes = {"eotwNarrativeText"}, halign = "center",
-                prose = section.description, proseKey = key, proseAfter = prose.after })
+                prose = sectionText, proseKey = key, proseAfter = prose.after })
             prose.gateFrom, prose.gateKey = #children + 1, key
         else
-            Add(gui.Label{ classes = {"eotwNarrativeText"}, text = section.description, halign = "center" })
+            Add(gui.Label{ classes = {"eotwNarrativeText"}, text = sectionText, halign = "center" })
         end
     end
 

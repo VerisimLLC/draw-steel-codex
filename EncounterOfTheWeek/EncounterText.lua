@@ -753,6 +753,8 @@ text("montage.effect.consumable_recovery_lost", [[{hero} loses 1 Recovery]])
 
 --Shown when something went wrong applying an outcome.
 text("montage.effect.failed", [[Some effects could not be applied (see log)]])
+--A result whose only rules are hidden (a secret the story uses later).
+text("montage.effect.secret", [[You learned something. It may matter later.]])
 
 --The source written in damage, healing and resource histories.
 --{source} is "Montage" (below) or the beat type, {entry} the opportunity,

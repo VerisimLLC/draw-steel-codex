@@ -744,7 +744,15 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 			--forced tells the engine the creature is being pushed, pulled or slid. The engine
 			--already spots a straight-line shove on its own; this covers a forced move aimed
 			--around a corner, which walks its path like any other move.
-			local path = casterToken:Move(EngineLoc(targets[#targets].loc), { waypoints = waypoints, straightline = (ability.targeting == "straightline" or ability.targeting == "straightpath" or ability.targeting == "straightpathignorecreatures" or ability.targetType == "line"), moveThroughFriends = (ability.targeting ~= "straightline"), ignorecreatures = (ability.targeting == "straightpathignorecreatures" or ability.targetType == "line" or throughCreatures), maxCost = 30000, movementType = movementType, forcedMovementDistance = abilityDist, rebound = forcedPushOptions.rebound, maxBounces = forcedPushOptions.maxBounces, slide = isVerticalSlideCast, freeMovement = true, forced = (options.symbols.forcedmovement ~= nil or ability:try_get("forcedMovement") ~= nil) })
+			local isForcedMovement = options.symbols.forcedmovement ~= nil or ability:try_get("forcedMovement") ~= nil
+			--The engine treats a straight path as forced (no opportunity attacks) when it gets a
+			--forced-movement distance or the movement type "move". A willing straight move
+			--(Charge) is not forced, so it sends no distance and moves as a "walk".
+			local willingStraightMove = (ability.targeting == "straightpath" or ability.targeting == "straightpathignorecreatures")
+				and not isForcedMovement
+			local forcedMoveDist = cond(willingStraightMove, 0, abilityDist)
+			local engineMovementType = cond(willingStraightMove and movementType == "move", "walk", movementType)
+			local path = casterToken:Move(EngineLoc(targets[#targets].loc), { waypoints = waypoints, straightline = (ability.targeting == "straightline" or ability.targeting == "straightpath" or ability.targeting == "straightpathignorecreatures" or ability.targetType == "line"), moveThroughFriends = (ability.targeting ~= "straightline"), ignorecreatures = (ability.targeting == "straightpathignorecreatures" or ability.targetType == "line" or throughCreatures), maxCost = 30000, movementType = engineMovementType, forcedMovementDistance = forcedMoveDist, rebound = forcedPushOptions.rebound, maxBounces = forcedPushOptions.maxBounces, slide = isVerticalSlideCast, freeMovement = true, forced = isForcedMovement })
 
             --A nil path means the engine refused the move outright (no route, or a budget/legality
             --clamp). There is nothing to fall back on here, but the cast used to continue in total

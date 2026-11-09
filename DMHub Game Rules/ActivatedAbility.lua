@@ -1553,9 +1553,11 @@ function ActivatedAbility:TargetLocPassesFilterPredicate(casterToken, symbols)
 			print("MARKER:: COMPEL...")
 			local tok = dmhub.LookupToken(symbols.compeltoward)
 			if tok ~= nil then
-				return function(loc) 
-					local distanceNow = tok:Distance(casterToken.loc)
-					local distanceThen = tok:Distance(loc)
+				--Measure between the creatures' whole bodies, so a mover bigger than one square isn't judged from just one corner square.
+				local distanceFromTarget = ForcedMovementOriginDistanceFunction(tok, tok.loc, casterToken)
+				local distanceNow = distanceFromTarget(casterToken.loc)
+				return function(loc)
+					local distanceThen = distanceFromTarget(loc)
 					local distanceMoved = loc:DistanceInTiles(casterToken.loc)
 					local movedCloser = distanceNow - distanceThen
 					return movedCloser >= distanceMoved
@@ -3829,10 +3831,17 @@ end
 --- @param symbols nil|table
 --- @return nil|string
 function ActivatedAbility:GetMovementType(token, symbols)
+    local mode = symbols ~= nil and symbols.mode or nil
     for _,behavior in ipairs(self.behaviors) do
-        local movementType = behavior:BehaviorMovementType(symbols)
-        if movementType ~= nil then
-            return movementType
+        --Skip behaviors for another mode, e.g. the shift of a "move, or pay to shift instead" choice.
+        local modesSelected = behavior:try_get("modesSelected")
+        local otherMode = self.multipleModes and mode ~= nil and modesSelected ~= nil and #modesSelected > 0
+            and not table.contains(modesSelected, mode)
+        if not otherMode then
+            local movementType = behavior:BehaviorMovementType(symbols)
+            if movementType ~= nil then
+                return movementType
+            end
         end
     end
 

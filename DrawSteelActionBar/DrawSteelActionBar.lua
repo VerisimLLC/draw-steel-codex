@@ -10327,11 +10327,12 @@ function DrawSteelActionBar.StraightMoveArrowOptions(targetingType)
     return options, chargeOptions ~= nil
 end
 
---- For a "Direct Path" move (emptyspace/anyspace with straightpath targeting, e.g. Charge or
---- Just Passing Through), returns a predicate that is true only for squares the straight move
---- actually reaches. The plain range circle also lights squares behind walls or blockers,
---- where the move would stop short. Returns nil for any other targeting, or for very long
---- ranges where testing every square would stall the client.
+--- For a "Direct Path" move (emptyspace/anyspace with straightpath targeting, e.g. Charge),
+--- returns a predicate that is true only for squares the straight move actually reaches.
+--- The plain range circle also lights squares behind walls or blockers, where the move
+--- would stop short. The predicate takes the square the mover's corner lands on, so shift
+--- a large creature's centre square first (TeleportAnchorLoc). Returns nil for any other
+--- targeting, or for very long ranges where testing every square would stall the client.
 --- @param range nil|number the ability's range in native units
 --- @return nil|fun(loc: Loc): boolean
 function DrawSteelActionBar.StraightPathReachFilter(range)
@@ -10345,7 +10346,7 @@ function DrawSteelActionBar.StraightPathReachFilter(range)
     if g_currentAbility.targetType ~= "emptyspace" and g_currentAbility.targetType ~= "anyspace" then
         return nil
     end
-    --Each square costs one preview path (~1ms); past this the highlight falls back to the circle.
+    --Each square needs its own preview path, so long ranges skip this check and show the plain circle.
     if range == nil or range > 12 * dmhub.unitsPerSquare then
         return nil
     end
@@ -10356,7 +10357,7 @@ function DrawSteelActionBar.StraightPathReachFilter(range)
     options.separate = true
     return function(loc)
         local info = token:MarkMovementArrow(loc, options)
-        ---@cast info nil|{path: LuaPath, marker: nil|LuaMultiObjectReference, validCharge: nil|boolean}
+        ---@cast info nil|{path: LuaPath, marker: nil|LuaMultiObjectReference, collideWith: nil|CharacterToken[], bounceCollisions: nil|{speed: number, collideWith: CharacterToken[], destination: Loc}[], validCharge: nil|boolean}
         if info == nil then
             return false
         end
@@ -10427,9 +10428,9 @@ function DrawSteelActionBar.IsTeleportPick()
     return ability:GetMovementType(g_token, g_currentSymbols) == "teleport"
 end
 
---- The loc a teleport pick lands the mover on for the hovered loc. An odd-sized
---- large creature is anchored on its south-west square (mappress shifts the
---- same way before casting); altitude is kept.
+--- The loc a teleport or straight-move pick lands the mover on for the hovered loc.
+--- An odd-sized large creature is aimed by its centre square but anchored on its
+--- south-west square (a map click shifts the same way before casting); altitude is kept.
 --- @param mover CharacterToken
 --- @param loc Loc
 --- @return Loc
@@ -15740,12 +15741,18 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
                         g_currentSymbols)
 
                     --Direct Path moves: light only squares the straight move reaches, not
-                    --ones behind a wall or blocker where it would stop short (WMKCJ5ZV).
-                    local reachFilter = DrawSteelActionBar.StraightPathReachFilter(range)
-                    if reachFilter ~= nil then
+                    --ones behind a wall or creature where it would stop short.
+                    local straightTargeting = g_currentAbility:try_get("targeting", "direct")
+                    if (straightTargeting == "straightpath" or straightTargeting == "straightpathignorecreatures")
+                        and (g_currentAbility.targetType == "emptyspace" or g_currentAbility.targetType == "anyspace") then
+                        local reachFilter = DrawSteelActionBar.StraightPathReachFilter(range)
                         local baseFilter = filterTargetPredicate
-                        filterTargetPredicate = function(l)
-                            return (baseFilter == nil or baseFilter(l)) and reachFilter(l)
+                        local mover = g_token
+                        --A creature bigger than one square is aimed by its centre square but moves by its
+                        --corner square, so shift each square the same way a click does before testing it.
+                        filterTargetPredicate = function(squareLoc)
+                            local anchor = DrawSteelActionBar.TeleportAnchorLoc(mover, squareLoc)
+                            return (baseFilter == nil or baseFilter(anchor)) and (reachFilter == nil or reachFilter(anchor))
                         end
                     end
 

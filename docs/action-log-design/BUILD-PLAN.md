@@ -277,7 +277,21 @@ Goal: why it happened, one click from the row.
   unexplained tier (no lines). Not tried live: a real tier modifier in the roll dialog.
 - **Limit of 2.3c-3:** each side is recomputed alone, so two sources that only change the tier together
   (a bane and a Not Tier 3 on the same target) each read "stayed at". Several targets that got the
-  same target-only source get one line each.
+  same target-only source get one line each. (Both limits gone in 2.3c-4.)
+- **2.3c-4, one tier line per roll (COPY.md Round 14, G12-G12d, Z9):** James found the per-part lines
+  confusing: each claimed its own tier change. The Why is a sum: one line per roll ("Tier 3, up from
+  Tier 2" / "Prone gave an edge."), worked out for all parts together in `TierStory`. Parts are grouped
+  (all edge givers, all bane givers, what removed each, each tier modifier, each flat bonus, a natural
+  19-20); the line names the side the tier moved, and adds ", but ..." only when the other side
+  changed where it landed. A rule that sets the tier outright is named alone. A target's own roll gets
+  a whole line of its own, merged across targets, dropped when it reads like the main roll's. The roll
+  dialog now also records each modifier's flat change to the roll (`bonus`, the sum of ParseRoll's
+  category mods); The numbers shows it after the edges (Z9) and the "Bonus" line keeps the rest.
+  Worked out when the card opens, not stored at the roll (James): same facts and same rule either way,
+  rows stay small, and fixes reach old rows.
+- **Tested in 2.3c-4:** 23 offline cases through the real `TierStory` code with
+  `RollUtils.DiceResultToTier` copied in (every row of the signed-off table, set by hand, a remover of
+  an edge no part gave, both sides cancelling, Not Tier 1, three parts, the guard).
 
 ## Stage 3: getting to it
 

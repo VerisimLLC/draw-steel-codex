@@ -64,6 +64,7 @@ local mod = dmhub.GetModLoading()
 --- @field autofailure? boolean It made the roll Tier 1.
 --- @field nottierthree? boolean It kept the roll from Tier 3.
 --- @field nottierone? boolean It kept the roll off Tier 1.
+--- @field bonus? integer A flat number it added to the roll (negative when it took some off).
 --- @field who? HistoryCreature Whose it is: a trigger's owner, or a target whose own modifier took edges or banes away.
 --- @field hand? boolean Set with the roll dialog's edge and bane buttons.
 
@@ -499,6 +500,7 @@ local function EdgeSources(sources)
             autofailure = source.autofailure,
             nottierthree = source.nottierthree,
             nottierone = source.nottierone,
+            bonus = source.bonus,
             who = owner ~= nil and History.Creature(owner) or nil,
             hand = source.hand,
         }

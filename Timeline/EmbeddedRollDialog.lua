@@ -1610,6 +1610,7 @@ function GameHud.CreateEmbeddedRollDialog()
     --- @field autofailure nil|boolean It made the roll Tier 1.
     --- @field nottierthree nil|boolean It kept the roll from Tier 3.
     --- @field nottierone nil|boolean It kept the roll off Tier 1.
+    --- @field bonus nil|integer A flat number it added to the roll (negative when it took some off).
     --- @field charid nil|string Whose it is: a trigger's owner, or the target when the target's own modifier took edges or banes away.
     --- @field hand nil|boolean Set with the dialog's edge and bane buttons.
 
@@ -1998,7 +1999,16 @@ function GameHud.CreateEmbeddedRollDialog()
         end
         local autosuccess, autofailure = Began("autosuccess"), Began("autofailure")
         local nottierthree, nottierone = Began("nottierthree"), Began("nottierone")
-        if edges == 0 and banes == 0 and tiers == 0 and not (autosuccess or autofailure or nottierthree or nottierone) then
+        --a flat "+2 to the roll" is the change in the roll's fixed modifiers.
+        local function Flat(parsed)
+            local total = 0
+            for _, category in pairs(parsed.categories or {}) do
+                total = total + (category.mod or 0)
+            end
+            return total
+        end
+        local bonus = Flat(after) - Flat(before)
+        if edges == 0 and banes == 0 and tiers == 0 and bonus == 0 and not (autosuccess or autofailure or nottierthree or nottierone) then
             return after
         end
         local name = mod.modifier.name or ""
@@ -2025,6 +2035,7 @@ function GameHud.CreateEmbeddedRollDialog()
             autofailure = autofailure,
             nottierthree = nottierthree,
             nottierone = nottierone,
+            bonus = bonus ~= 0 and bonus or nil,
             charid = charid,
         }
         return after

@@ -395,7 +395,7 @@ e.g. "Conduit's Word of Guidance / It gave an edge, which moved the roll from Ti
 | G7a | {Owner}'s trigger, when the trigger's name is its rule text (ends in a full stop, or runs past 40 characters; James 2026-11-08) | as G7; the rule shows on the hover |
 | G8 | (none) | A note typed on the action's steps or its triggers' steps, as written, in normal text; each once; skipped when it only repeats the ability's name. |
 
-## Round 13: the tier comparisons (signed off 2026-11-08)
+## Round 13: the tier comparisons (signed off 2026-11-08; G9-G11 replaced by Round 14)
 
 History recomputes the tier with a side of the roll taken away, by the roll's own rules
 (RollUtils.DiceResultToTier), and says what each side did. One Why line per side: edges, banes, what
@@ -411,3 +411,22 @@ roll whose recomputed tier doesn't match the recorded one (a row from before thi
 | G10 | Why, tier modifiers | Tier Up: It raised the roll a tier, from Tier 1 to Tier 2. Tier Down: It lowered the roll a tier, from Tier 3 to Tier 2. Tier 3: It made the roll Tier 3 instead of Tier 1. Tier 1: It made the roll Tier 1 instead of Tier 2. Not Tier 3: It kept the roll from Tier 3: Tier 2 instead. Not Tier 1: It lifted the roll off Tier 1: Tier 2 instead. Unchanged: ...; the roll stayed at Tier 3. |
 | G11 | Why, a natural 19 or 20 that changed the tier | Natural 19 / A natural 19 or 20 is always Tier 3, so the roll is Tier 3 instead of Tier 2. |
 | Z8 | The numbers, a tier modifier (after the edge and bane lines; a trigger's with its owner's face) | {name} .... Tier 3 / Tier 1 / +1 tier / -1 tier / not Tier 3 / not Tier 1 |
+
+## Round 14: one tier line per roll (signed off 2026-11-08)
+
+James 2026-11-08: the Why is a sum, not an explainer line per part. One line per roll says where it
+landed and what got it there, worked out for all its parts together (each part alone gave
+contradicting claims). "From" is the tier the dice and characteristic gave alone. The line names the
+parts on the side the tier moved, and the other side only when it changed where the roll landed. A
+rule that sets the tier outright (Tier 3, Tier 1, a natural 19 or 20) is named alone. A target with a
+roll of its own gets its own whole line, merged with targets that read the same; one that reads like
+the main roll's is left out. No line when nothing moved or held the tier, or when the recorded parts
+don't come to the recorded tier. Worked out when the card opens (James 2026-11-08), so fixes reach old rows.
+| ID | Where | Text |
+|---|---|---|
+| G12 | Why lead | Tier 3, up from Tier 2 / Tier 1, down from Tier 2 / Tier 2, not Tier 3 (something held a move) / Tier 2 (both sides would have moved it) / Tier 3 against Gwynhyvyr, up from Tier 2 (a target's own roll) |
+| G12a | Why text, the parts | {names} gave an edge / a double edge / a bane / a double bane; {name} raised it a tier / lowered it a tier / made it Tier 3 / made it Tier 1 / kept it from Tier 3 / kept it off Tier 1; {name} added 2 to the roll / took 2 off the roll; a natural 19 or 20 is always Tier 3 |
+| G12b | Why text, what took edges or banes away | after the edges it took were named: {name} ignored it / removed it / removed one; otherwise: {name} ignored an edge / removed a bane |
+| G12c | Why text, joining | parts joined with ", and" (A, B, and C); the other side after ", but ". e.g. Prone gave an edge, but Twisted ignored it. |
+| G12d | Why text, set by hand (signed off 2026-11-10) | An edge was set by hand. / Prone gave an edge, and another was set by hand. |
+| Z9 | The numbers, a modifier's flat bonus (after the edge and bane lines, with Z8; a trigger's with its owner's face) | {name} .... +2 / -2. The "Bonus" line under the characteristic keeps only what no modifier accounts for. |

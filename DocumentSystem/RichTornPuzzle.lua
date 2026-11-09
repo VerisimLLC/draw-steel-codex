@@ -43,16 +43,19 @@ local HOLD_EXPIRY_SECONDS = 20
 --Loose pieces lie tilted up to this many degrees, like dropped paper.
 local MAX_TILT = 8
 
---Image asset ids of the mask atlases (the tornMask* resources of this mod). Used
---instead of mod.images because resources uploaded since storage moved to R2 have
---URL-form ids, and mod.images turns those into "md5:<url>", which does not load.
---Drop this table once the engine resolves URL-form resource ids.
-local MASK_ASSETS = {
-    tornMask4 = "537557c5-b8ef-4f10-aa72-b6abc4ae9029",
-    tornMask6 = "18d7f05d-c5ab-40bd-8e74-af09cf6d2632",
-    tornMask9 = "721c3010-4b34-43de-aa20-92c68fcb32d2",
-    tornMask12 = "978b29da-4e15-4cfb-bde6-61d507a9cd7e",
-}
+--The image id of one of this mod's image resources (the tornMask* atlases).
+--Resources uploaded since storage moved to R2 have URL-form ids, and mod.images
+--wraps them as "md5:<url>", which does not load; the bare URL loads for every
+--player. Harmless once the engine stops adding the prefix.
+---@param name string
+---@return string|nil
+local function ResourceImage(name)
+    local id = mod.images[name]
+    if type(id) == "string" and string.sub(id, 1, 4) == "md5:" and string.find(id, "://", 1, true) ~= nil then
+        return string.sub(id, 5)
+    end
+    return id
+end
 
 local PIECE_OPTIONS = { 4, 6, 9, 12 }
 local PRETAPE_FRACTION = { none = 0, few = 0.2, half = 0.5 }
@@ -159,7 +162,7 @@ local function ShapeFor(board)
 
     local set = TornPuzzleShapes[board.n]
     local variant = set.variants[board.variant] or set.variants[1]
-    local shape = { pieces = {}, seams = {}, atlas = MASK_ASSETS[set.atlas] or mod.images[set.atlas] }
+    local shape = { pieces = {}, seams = {}, atlas = ResourceImage(set.atlas) }
 
     for i, p in ipairs(variant.pieces) do
         local b, a = p.bbox, p.atlas

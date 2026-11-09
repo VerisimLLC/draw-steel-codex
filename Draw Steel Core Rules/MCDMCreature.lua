@@ -7552,17 +7552,25 @@ function creature:EndPersistentAbilityById(guid)
         local targetToken = dmhub.GetTokenById(targetid)
         if targetToken ~= nil then
             local target = targetToken.properties
-            local ongoingEffects = target:try_get("ongoingEffects", {})
-            for i, effect in ipairs(ongoingEffects) do
-                if effect and effect.casterInfo and effect.casterInfo.persistenceId == guid then
-                    targetToken:ModifyProperties {
-                        description = "End Persistent Ability Target",
-                        undoable = false,
-                        execute = function()
-                            target:RemoveOngoingEffect(ongoingEffects[i].ongoingEffectid)
-                        end,
-                    }
+            --collect first: removing while looping would skip effects.
+            --try_get, since not every effect has casterInfo.
+            local removeIds = {}
+            for _, effect in ipairs(target:try_get("ongoingEffects", {})) do
+                local casterInfo = effect and effect:try_get("casterInfo")
+                if casterInfo ~= nil and casterInfo.persistenceId == guid then
+                    removeIds[#removeIds + 1] = effect.ongoingEffectid
                 end
+            end
+            if #removeIds > 0 then
+                targetToken:ModifyProperties {
+                    description = "End Persistent Ability Target",
+                    undoable = false,
+                    execute = function()
+                        for _, effectid in ipairs(removeIds) do
+                            target:RemoveOngoingEffect(effectid)
+                        end
+                    end,
+                }
             end
         end
     end

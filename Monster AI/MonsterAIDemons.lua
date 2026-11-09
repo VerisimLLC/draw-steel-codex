@@ -1454,42 +1454,27 @@ MonsterAI:RegisterMove{
 --Barbed Tongues reaches 2: striking from 2 away pulls the enemy adjacent,
 --which earns the free strike or grab, so the muceron prefers that square.
 local function FindBarbedTonguesPlan(ai, token, ability)
-    local range = ability:GetRange(token.properties)
-    local enemies = HostileCreatures(token)
     local flesh = AllFleshSquares()
-    --Walking away from adjacent enemies provokes their opportunity attacks.
-    local adjacentNow = AdjacentEnemiesAt(enemies, token.loc)
-    local best = nil
-    for _,info in pairs(ai.paths or {}) do
-        local moving = LocKey(info.loc) ~= LocKey(token.loc)
-        local squareScore = -(info.cost or 0)*0.001
-        if moving then
-            squareScore = squareScore - adjacentNow*0.35
-        end
-        if flesh[LocKey(info.loc)] then
-            squareScore = squareScore - 0.3
-        end
-        for _,targetInfo in ipairs(ai:FindValidTargetsOfStrike(token, ability, info.loc, range)) do
-            local target = targetInfo.token
-            local score = DefaultTargetScore(target, targetInfo.edges) + squareScore
-            if not target.isObject then
-                --Striking from 2 away pulls the enemy adjacent, unless its
-                --stability eats the pull (2 at tier 1, 3 at tier 2).
-                local distance = ai:TargetDistanceFromLoc(token, target, info.loc)
-                local stability = 0
-                pcall(function() stability = target.properties:Stability() or 0 end)
-                if distance >= 2 and stability <= 1 then
-                    score = score + 0.4
-                elseif distance >= 2 and stability == 2 then
-                    score = score + 0.2
-                end
+    return MonsterAI.PlanStrikeFromRange(ai, token, ability, {
+        --Walking away from adjacent enemies provokes their opportunity attacks.
+        adjacentEnemies = AdjacentEnemiesAt(HostileCreatures(token), token.loc),
+        leavePenalty = 0.35,
+        squarePenalty = function(loc)
+            return cond(flesh[LocKey(loc)], 0.3, 0)
+        end,
+        --Striking from 2 away pulls the enemy adjacent, unless its
+        --stability eats the pull (2 at tier 1, 3 at tier 2).
+        targetBonus = function(target, distance)
+            local stability = 0
+            pcall(function() stability = target.properties:Stability() or 0 end)
+            if distance >= 2 and stability <= 1 then
+                return 0.4
+            elseif distance >= 2 and stability == 2 then
+                return 0.2
             end
-            if best == nil or score > best.score then
-                best = {loc = info.loc, target = target, score = score}
-            end
-        end
-    end
-    return best
+            return 0
+        end,
+    })
 end
 
 MonsterAI:RegisterMove{

@@ -6395,6 +6395,65 @@ function MonsterAI.TargetStaminaBias(target)
         stamina*MonsterAI.targetStaminaBiasPerPoint)
 end
 
+--- Plan a strike that cares where it is made from (a pull wants the target
+--- 2+ squares away): try each square the monster can reach and each target
+--- from there, and keep the best.
+--- A target scores 1 + 0.1 per edge + the stamina bias (an object 0.1 + 0.1
+--- per edge), plus opts.targetBonus(target, distance) for a creature.
+--- A square costs 0.001 per movement, opts.leavePenalty per adjacent enemy
+--- (opts.adjacentEnemies) when it is not the current square, and
+--- opts.squarePenalty(loc). opts.paths replaces ai.paths.
+--- Returns {loc, target, score}, or nil when nothing can be struck.
+---@class StrikeFromRangeOptions
+---@field targetBonus? fun(target: CharacterToken, distance: number): number
+---@field squarePenalty? fun(loc: Loc): number
+---@field leavePenalty? number
+---@field adjacentEnemies? number
+---@field paths? table
+
+---@class StrikeFromRangePlan
+---@field loc Loc
+---@field target CharacterToken
+---@field score number
+---@field [string] any callers add their own fields (targets, ...)
+
+---@param ai MonsterAI
+---@param token CharacterToken
+---@param ability ActivatedAbility
+---@param opts StrikeFromRangeOptions
+---@return StrikeFromRangePlan|nil
+function MonsterAI.PlanStrikeFromRange(ai, token, ability, opts)
+    local range = ability:GetRange(token.properties)
+    local hereKey = token.loc.xyfloorOnly.str
+    local leave = (opts.leavePenalty or 0)*(opts.adjacentEnemies or 0)
+    local best = nil
+    for _,info in pairs(opts.paths or ai.paths or {}) do
+        local squareScore = -(info.cost or 0)*0.001
+        if info.loc.xyfloorOnly.str ~= hereKey then
+            squareScore = squareScore - leave
+        end
+        if opts.squarePenalty ~= nil then
+            squareScore = squareScore - opts.squarePenalty(info.loc)
+        end
+        for _,targetInfo in ipairs(ai:FindValidTargetsOfStrike(token, ability, info.loc, range)) do
+            local target = targetInfo.token
+            local score = squareScore + (targetInfo.edges or 0)*0.1
+            if target.isObject or target.properties == nil then
+                score = score + 0.1
+            else
+                score = score + 1 + MonsterAI.TargetStaminaBias(target)
+                if opts.targetBonus ~= nil then
+                    score = score + opts.targetBonus(target, ai:TargetDistanceFromLoc(token, target, info.loc))
+                end
+            end
+            if best == nil or score > best.score then
+                best = {loc = info.loc, target = target, score = score}
+            end
+        end
+    end
+    return best
+end
+
 local function SynthesizedDefaultTargetScore(targetInfo)
     local target = targetInfo.token
     if target.isObject or target.properties == nil then

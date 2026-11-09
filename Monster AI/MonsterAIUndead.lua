@@ -1396,6 +1396,85 @@ MonsterAI:RegisterTrigger{
     end,
 }
 
+--Accursed Bindings (melee 3, pull 1/2/2): pull from 2-3 squares away, since
+--a pull on an adjacent enemy does nothing. Adjacent targets are the fallback.
+local velkharaBindingsPull = {1, 2, 2}
+
+--Worth up to 0.4 when the target is 2+ away: a share for each tier whose
+--pull beats the target's stability.
+local function VelkharaPullBonus(target, distance)
+    if distance < 2 then
+        return 0
+    end
+    local stability = 0
+    pcall(function() stability = target.properties:Stability() or 0 end)
+    local moved = 0
+    for _,pull in ipairs(velkharaBindingsPull) do
+        if pull > stability then
+            moved = moved + 1
+        end
+    end
+    return 0.4*moved/#velkharaBindingsPull
+end
+
+--paths: where she may strike from (nil = anywhere she can move).
+local function VelkharaBindingsPlan(ai, token, ability, paths)
+    return MonsterAI.PlanStrikeFromRange(ai, token, ability, {
+        paths = paths,
+        --leaving an adjacent enemy draws an opportunity attack; that costs
+        --more than a pull is worth.
+        adjacentEnemies = #VelkharaEnemiesWithin(token, 1),
+        leavePenalty = 0.5,
+        targetBonus = VelkharaPullBonus,
+    })
+end
+
+MonsterAI:RegisterMove{
+    id = "Velkhara: Accursed Bindings",
+    category = "Main Actions",
+    monsters = velkharaMonster,
+    abilities = {"Accursed Bindings"},
+    description = "Bind an enemy 2-3 squares away so the pull drags them to her; strike an adjacent enemy only when no one is further out.",
+    score = function(self, ai, token, ability)
+        local plan = VelkharaBindingsPlan(ai, token, ability)
+        if plan == nil then
+            return nil, "no enemy can be struck this turn"
+        end
+        plan.score = 1 + math.min(0.2, math.max(0, plan.score - 1)*0.1)
+        return plan
+    end,
+    execute = function(self, ai, token, scoringInfo, ability)
+        if not ai:MovementTokenIsAtLoc(token, scoringInfo.loc) then
+            ai:MoveToken(token, scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
+            ai.Sleep(movementPause)
+        end
+        --re-find the target from where she ended up.
+        local target = scoringInfo.target
+        local targets = nil
+        for _,info in ipairs(ai:FindValidTargetsOfStrike(token, ability, token.loc)) do
+            if target ~= nil and info.token.charid == target.charid then
+                targets = {info}
+            end
+        end
+        if targets == nil then
+            --the planned target is out of reach: pick again from here.
+            local here = VelkharaBindingsPlan(ai, token, ability, {{loc = token.loc, cost = 0}})
+            if here == nil then
+                return false
+            end
+            for _,info in ipairs(ai:FindValidTargetsOfStrike(token, ability, token.loc)) do
+                if info.token.charid == here.target.charid then
+                    targets = {info}
+                end
+            end
+            if targets == nil then
+                return false
+            end
+        end
+        ai:ExecuteAbility(token, ability, targets, {sleep = abilityPause})
+    end,
+}
+
 --Tethered Soul's teleport: she reforms next to the skull. Pick the free square
 --its filter allows with the fewest enemies beside it, then the furthest from
 --them. With no legal square she stays where she is.

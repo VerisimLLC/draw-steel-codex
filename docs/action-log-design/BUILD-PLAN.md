@@ -187,7 +187,8 @@ Goal: why it happened, one click from the row.
   entry with three edges and a bane, a flat bonus, a target cancelled out on its own roll, typed damage
   with immunity, a weakness, two goblins grouped, healing, a damaging trigger and a Malice cost.
 - **2.3 in four commits:** 2.3a edge and bane sources, 2.3b surges and kit bonuses, 2.3c Why lines and
-  typed messages, 2.3d the ability card on hover.
+  typed messages, 2.3d the ability card on hover, and (James 2026-11-10) a hover on every name in the
+  Why and The numbers: a modifier's recorded dialog text, a trigger's card (COPY.md Round 15).
 - **2.3a, edge and bane sources:** under each edge or bane line, one line per thing that added to it
   (COPY.md Round 8): its arrows, a trigger owner's face, its name as the roll dialog's badge showed it;
   edges first, Set by hand last on each side, then the C4 note. The roll dialog measures each enabled
@@ -305,6 +306,22 @@ Goal: why it happened, one click from the row.
   first letter after a leading tag. Offline: the 27 cases give the same words with the tags stripped.
   Live 2026-11-10: the real Prone Slam reads "PRONE gave an edge."; a fed card showed the tier lines
   and bold small caps modifier and trigger leads.
+- **2.3c-6, a target's line says only what differed (COPY.md Round 16, G14-G14b):** `TierLines` splits
+  each target's sources into what applied to every target (counted as often as the target with fewest
+  has it) and its own. The roll's line names the shared parts; a target's line names its own parts over
+  the shared ones (`TierStory` opts: `named`, `always`, `movedOnly`), only when they changed its tier.
+  The roll used to be whichever target was selected when rolling, so a Prone on that target sat in the
+  roll's line. Capture now keeps a target's own list (`sources`) whenever it differs from the roll's,
+  so two targets with the same edge count owing it to different things (Prone, Restrained) both read
+  right; rows from before read as before (a target without a list had the roll's).
+- **Tested in 2.3c-6:** the 27 tier cases read the same; 12 target cases (James's prone example rolled
+  from either target, the busy card, same count different sources new and old rows, a single target, an
+  own bane that changed nothing, a target-only Not Tier 3, two targets sharing a line, a record that
+  doesn't add up, one edge of a double removed, no targets, every target with its own part). Live: the
+  busy fed card reads as signed off; a real Brutal Slam on Test Monster Z 2 wrote one row (no target
+  list, as it matched the roll). Not tried live: a real multi-target roll whose targets owe the same
+  edges to different things. Follow-up: The numbers still lists the rolled target's sources under the
+  power roll, so for that case it shows Prone where Goblin 2 had Restrained.
 
 ## Stage 3: getting to it
 

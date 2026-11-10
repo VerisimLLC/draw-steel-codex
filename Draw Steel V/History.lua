@@ -102,6 +102,20 @@ function History.DocId(mapid)
     return "history-" .. mapid
 end
 
+--- One roll source as text, so two lists can be compared: equal keys mean the same thing,
+--- with the same owner, doing the same to the roll.
+--- @param source HistoryEdgeSource
+--- @return string
+function History.SourceKey(source)
+    local flags = {}
+    for _, flag in ipairs({"ignore", "hand", "autosuccess", "autofailure", "nottierthree", "nottierone"}) do
+        flags[#flags + 1] = source[flag] and flag or ""
+    end
+    return string.format("%s|%s|%d|%d|%d|%d|%d|%d|%s", source.name or "", source.who ~= nil and source.who.id or "",
+        source.edges or 0, source.banes or 0, source.removedEdges or 0, source.removedBanes or 0, source.tiers or 0,
+        source.bonus or 0, table.concat(flags, ","))
+end
+
 --- The path to monitor for changes to a map's History (monitorGame on a panel).
 --- @param mapid string
 --- @return string

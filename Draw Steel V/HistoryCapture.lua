@@ -19,6 +19,7 @@ local mod = dmhub.GetModLoading()
 --- @field secret? boolean True when players may not see the name.
 --- @field tier? integer On a target: the tier of the roll against it.
 --- @field roll? {edges: number, banes: number, total: number, sources: HistoryEdgeSource[]|nil} On a target: its own roll, when edges or banes against it alone changed the total.
+--- @field sources? HistoryEdgeSource[] On a target without a roll of its own: what applied to its roll, when that differs from the roll's sources (empty when nothing did). Absent means the same as the roll's.
 --- @field turnid? string On a turn owner: the initiative id, which identifies the turn.
 --- @field group? integer On a turn owner: how many creatures share this turn.
 --- @field minions? boolean On a turn owner: true when the group is minions.
@@ -508,6 +509,18 @@ local function EdgeSources(sources)
     return result
 end
 
+--Two source lists with the same key name the same things doing the same to the roll.
+--- @param sources HistoryEdgeSource[]
+--- @return string
+local function SourcesKey(sources)
+    local keys = {}
+    for _, source in ipairs(sources) do
+        keys[#keys + 1] = History.SourceKey(source)
+    end
+    table.sort(keys)
+    return table.concat(keys, ";")
+end
+
 local function CastFinished(ability, casterToken, options)
     local state = g_casts[options]
     if state == nil then
@@ -573,6 +586,18 @@ local function CastFinished(ability, casterToken, options)
                 if who.roll == nil and targetSources[who.id] ~= nil then
                     entry.roll.sources = EdgeSources(targetSources[who.id])
                     break
+                end
+            end
+            --a target can owe the same edge count to different things (Prone on one, Restrained
+            --on another), so it keeps its own list whenever that differs; the card names what
+            --applied to every target once, and each target's own parts on its line (Round 16).
+            local shared = SourcesKey(entry.roll.sources or {})
+            for _, who in ipairs(entry.targets) do
+                if who.roll == nil and who.tier ~= nil then
+                    local own = EdgeSources(targetSources[who.id] or {})
+                    if SourcesKey(own) ~= shared then
+                        who.sources = own
+                    end
                 end
             end
         end

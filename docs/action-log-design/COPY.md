@@ -385,7 +385,7 @@ condition immunity. Y14 is not built (What happened already says the condition e
 ## Round 12: triggers and typed messages in Why (signed off 2026-11-08)
 
 The Why says that a trigger fired and what it changed; its rules sit behind a hover on its name (2.3d:
-a dotted underline, the trigger's card; a monster's trigger shows its card to the Director only). This
+small caps is the cue, per Round 15's hover note; the trigger's card; a monster's trigger shows its card to the Director only). This
 replaces R3 (Y11: "used a triggered action" / "Trigger: ..."); whether it cost a triggered action shows
 on its card. A trigger that changed the roll (an edge or bane) is 2.3c-3's, with the tier comparison,
 e.g. "Conduit's Word of Guidance / It gave an edge, which moved the roll from Tier 1 to Tier 2."
@@ -440,3 +440,25 @@ leaves bold to the lead, and leaves colour and underline free for the hover in 2
 | ID | Where | Text |
 |---|---|---|
 | G13 | Why, every rule or ability name (the tier line's parts, a modifier's lead, a trigger's lead) | The name in small caps; its owner stays plain: PRONE gave an edge. / Dwarf Fury's TWISTED. "Set by hand" and the plain "Trigger" lead are not names. The numbers keeps names plain. |
+
+Hover (James 2026-11-10, chosen over an underline at rest on a busy live render): small caps alone is
+the cue that a name can be hovered; every name with something to show hovers. The underline appears
+only under the name the pointer is on (the text engine draws no dotted underline). A modifier's hover
+shows the text the roll dialog's own hover showed (its name and description, formulas filled in for
+the roller, "Inflicted by"), recorded at the roll, each distinct text stored once per map; a
+trigger's shows its card. Names recorded before this have nothing to show and don't hover. Built in 2.3d.
+
+## Round 16: a target's line says only what differed (signed off 2026-11-10)
+
+James 2026-11-10: on a busy card every target's line repeated the roll's parts. Only modifiers that
+applied are ever named (the dialog records only the modifiers that were on, and only what each changed),
+and a modifier is never named for a target it didn't apply to. The roll's line names what applied to
+every target; a target gets a line only when something that applied to it alone changed its tier, and
+that line names only those things. With no roll line (nothing shared moved the tier), "from" is the
+dice alone. When every target's own parts moved it, the roll's line keeps a tier no target ended on:
+it is what the roll did before anything about a target.
+| ID | Where | Text |
+|---|---|---|
+| G14 | Why lead, a target's line | Tier 2 against Goblin 1, down from Tier 3 ("from" is the roll line's tier) |
+| G14a | Why text, what differed | only that target's own parts: COVER gave a bane. |
+| G14b | Why text, a remover of the roll line's edges or banes | Goblin 2's CAST AWAY ALL HOPE ignored the double edge. / ignored the edge / ignored one edge / removed the bane |

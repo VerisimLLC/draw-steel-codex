@@ -1624,8 +1624,9 @@ end
 --- @param part HistoryTierPart
 --- @param parts HistoryTierPart[] All of the roll's parts, to count what a remover took from.
 --- @param mentioned boolean The edges or banes it took away were named earlier in the line, so "it" points at them.
+--- @param earlier? {edge: integer, bane: integer} On a target's line: the edges and banes the roll's own line had, so a remover of those says "the double edge".
 --- @return string[]
-local function PartClauses(part, parts, mentioned)
+local function PartClauses(part, parts, mentioned, earlier)
     local side = (part.kind == "edges" or part.kind == "noedges") and "edge" or "bane"
     local gaveField = side == "edge" and "edges" or "banes"
     if part.kind == "edges" or part.kind == "banes" then
@@ -1667,6 +1668,13 @@ local function PartClauses(part, parts, mentioned)
                 end
             end
             what = removed >= given and "it" or removed == 1 and "one" or "two"
+        elseif earlier ~= nil and earlier[side] > 0 then
+            local had = earlier[side]
+            if removed >= had then
+                what = string.format("the %s%s", had >= 2 and "double " or "", side)
+            else
+                what = removed == 1 and ("one " .. side) or ("two " .. side .. "s")
+            end
         end
         return {string.format("%s %s %s", JoinWords(names), ignored and "ignored" or "removed", what)}
     end
@@ -1707,6 +1715,13 @@ local function JoinClauses(clauses)
     return table.concat(most, ", ") .. ", and " .. clauses[#clauses]
 end
 
+--- Which of a roll's parts a tier line may name (TierStory).
+--- @class HistoryTierStoryOpts
+--- @field parts? HistoryTierPart[] All the roll's parts; default those of roll.sources.
+--- @field named? fun(part: HistoryTierPart): boolean The parts this line may name.
+--- @field always? fun(part: HistoryTierPart): boolean Parts that stay on under the line, never named.
+--- @field movedOnly? boolean No line unless the named parts moved the tier.
+
 --- @class HistoryTierStory
 --- @field tier integer
 --- @field qualifier string ", up from Tier 2", ", down from Tier 3", ", not Tier 3" or "".
@@ -1718,22 +1733,48 @@ end
 --- where it landed ("but Twisted ignored it"). Nil when nothing moved or held the tier, and
 --- when the recorded parts don't come to the tier the roll got, since something History
 --- didn't record set it.
+---
+--- A line can name only some of the roll's parts (opts.named) over others that stay on
+--- underneath (opts.always): a target's line names what applied to it alone over what
+--- applied to every target, so its "from" is the roll's own line (Round 16).
 --- @param roll {total: number, edges: number|nil, banes: number|nil, sources: HistoryEdgeSource[]|nil}
 --- @param tier integer The tier the roll came to.
 --- @param natural integer The dice, for the natural 19 or 20 rule.
+--- @param opts? HistoryTierStoryOpts Default: every part of roll.sources, all named.
 --- @return HistoryTierStory|nil
-local function TierStory(roll, tier, natural)
-    local parts = TierParts(roll.sources or {}, natural)
+local function TierStory(roll, tier, natural, opts)
+    local all = opts ~= nil and opts.parts or TierParts(roll.sources or {}, natural)
+    local named = opts ~= nil and opts.named or function() return true end
+    local always = opts ~= nil and opts.always or function() return false end
+    local parts = {}
+    --the edges and banes left on underneath, for a remover that took them ("the double edge").
+    local earlier = nil
+    for _, part in ipairs(all) do
+        if named(part) then
+            parts[#parts + 1] = part
+        elseif always(part) and (part.kind == "edges" or part.kind == "banes") then
+            earlier = earlier or {edge = 0, bane = 0}
+            local side = part.kind == "edges" and "edge" or "bane"
+            for _, source in ipairs(part.sources) do
+                earlier[side] = earlier[side] + (source[part.kind] or 0)
+            end
+        end
+    end
     if #parts == 0 then
         return nil
     end
     local function With(include)
-        return TierWith(roll, natural, parts, include)
+        return TierWith(roll, natural, all, function(part)
+            return always(part) or (named(part) and include(part))
+        end)
     end
     if With(function() return true end) ~= tier then
         return nil
     end
     local plain = With(function() return false end)
+    if opts ~= nil and opts.movedOnly and tier == plain then
+        return nil
+    end
     local function Up(part) return part.up end
     local function Down(part) return not part.up end
 
@@ -1797,7 +1838,7 @@ local function TierStory(roll, tier, natural)
     local clauses = {}
     for _, part in ipairs(first) do
         named[part.kind] = true
-        for _, clause in ipairs(PartClauses(part, parts, false)) do
+        for _, clause in ipairs(PartClauses(part, parts, false, earlier)) do
             clauses[#clauses + 1] = clause
         end
     end
@@ -1823,7 +1864,7 @@ local function TierStory(roll, tier, natural)
         local but = {}
         for _, part in ipairs(ordered) do
             local mentioned = (part.kind == "noedges" and named.edges) or (part.kind == "nobanes" and named.banes) or false
-            for _, clause in ipairs(PartClauses(part, parts, mentioned)) do
+            for _, clause in ipairs(PartClauses(part, parts, mentioned, earlier)) do
                 but[#but + 1] = clause
             end
         end
@@ -1832,6 +1873,105 @@ local function TierStory(roll, tier, natural)
         end
     end
     return {tier = tier, qualifier = qualifier, text = text .. "."}
+end
+
+--- An action's tier lines (COPY.md Rounds 14 and 16). The roll's line names only what applied
+--- to every target. A target gets a line only when something that applied to it alone changed
+--- its tier, and that line names only those things, "from" the roll's line. A modifier that
+--- wasn't on, or didn't reach a target, is never in that target's lists, so it is never named.
+--- A target whose recorded parts don't come to its tier gets no line.
+--- @param roll {total: number, edges: number|nil, banes: number|nil, tier: number|nil, natural: number|nil, sources: HistoryEdgeSource[]|nil}
+--- @param targets HistoryCreature[]
+--- @return HistoryTierStory|nil main
+--- @return {who: HistoryCreature, story: HistoryTierStory}[] lines
+local function TierLines(roll, targets)
+    local natural = roll.natural or 0
+    local rolled = {}
+    for _, who in ipairs(targets) do
+        if who.tier ~= nil then
+            rolled[#rolled + 1] = who
+        end
+    end
+    if #rolled == 0 then
+        return roll.tier ~= nil and TierStory(roll, roll.tier, natural) or nil, {}
+    end
+
+    --a target without a list of its own had the roll's (rows from before Round 16 always).
+    local function Sources(who)
+        return (who.roll ~= nil and who.roll.sources) or who.sources or roll.sources or {}
+    end
+    --what applied to every target: each source as many times as the target with fewest has it.
+    --- @type table<string, integer>|nil
+    local common = nil
+    for _, who in ipairs(rolled) do
+        local counts = {}
+        for _, source in ipairs(Sources(who)) do
+            local key = History.SourceKey(source)
+            counts[key] = (counts[key] or 0) + 1
+        end
+        if common == nil then
+            common = counts
+        else
+            for key, count in pairs(common) do
+                common[key] = math.min(count, counts[key] or 0)
+            end
+        end
+    end
+
+    --each target's parts, split into the shared ones and its own.
+    local plans = {}
+    for _, who in ipairs(rolled) do
+        local left = {}
+        for key, count in pairs(common or {}) do
+            left[key] = count
+        end
+        local shared, own = {}, {}
+        for _, source in ipairs(Sources(who)) do
+            local key = History.SourceKey(source)
+            if (left[key] or 0) > 0 then
+                left[key] = left[key] - 1
+                shared[#shared + 1] = source
+            else
+                own[#own + 1] = source
+            end
+        end
+        local parts = TierParts(shared, natural)
+        local isShared = {}
+        for _, part in ipairs(parts) do
+            isShared[part] = true
+        end
+        for _, part in ipairs(TierParts(own, 0)) do
+            parts[#parts + 1] = part
+        end
+        local counts = who.roll or roll
+        if TierWith(counts, natural, parts, function() return true end) == who.tier then
+            plans[#plans + 1] = {who = who, counts = counts, parts = parts, shared = isShared}
+        end
+    end
+    if #plans == 0 then
+        return nil, {}
+    end
+
+    local first = plans[1]
+    local function SharedOf(plan)
+        return function(part) return plan.shared[part] == true end
+    end
+    local rollTier = TierWith(first.counts, natural, first.parts, SharedOf(first))
+    local main = TierStory(first.counts, rollTier, natural, {parts = first.parts, named = SharedOf(first)})
+    local lines = {}
+    for _, plan in ipairs(plans) do
+        local shared = SharedOf(plan)
+        local story = TierStory(plan.counts, plan.who.tier, natural, {
+            parts = plan.parts,
+            named = function(part) return not shared(part) end,
+            always = shared,
+            movedOnly = true,
+        })
+        if story ~= nil then
+            lines[#lines + 1] = {who = plan.who, story = story}
+        end
+    end
+    return main, lines
 end
 
 --- Why an action came out as it did, from what the entry recorded: the tier line (COPY.md
@@ -1867,35 +2007,19 @@ function History.Why(entry, kids)
         return damagetype ~= nil and (damagetype .. " ") or ""
     end
 
-    --The tier line first (Round 14): the roll, then each target with a roll of its own. The
-    --roll's tier is that of a target with no roll of its own, as in The numbers.
+    --The tier lines first (Rounds 14 and 16): the roll's, then each target that something
+    --of its own moved; targets whose lines read the same share one.
     local roll = entry.roll
     if roll ~= nil then
-        local tier = roll.tier
-        for _, who in ipairs(targets) do
-            if who.roll == nil and who.tier ~= nil then
-                tier = who.tier
-                break
-            end
-        end
-        local natural = roll.natural or 0
-        local main = tier ~= nil and TierStory(roll, tier, natural) or nil
-        local mainKey = ""
+        local main, lines = TierLines(roll, targets)
         if main ~= nil then
-            mainKey = string.format("tier|%d|%s|%s", main.tier, main.qualifier, main.text)
             rows[#rows + 1] = {lead = string.format("Tier %d%s", main.tier, main.qualifier), text = main.text}
         end
-        --a target's line is a whole sum of its own; one that reads like the roll's is left out.
-        for _, who in ipairs(targets) do
-            local story = who.roll ~= nil and who.tier ~= nil and TierStory(who.roll, who.tier, natural) or nil
-            if story ~= nil then
-                local key = string.format("tier|%d|%s|%s", story.tier, story.qualifier, story.text)
-                if key ~= mainKey then
-                    Add(key, function(group)
-                        return {lead = string.format("Tier %d against %s%s", story.tier, GroupNames(group), story.qualifier), text = story.text}
-                    end, who)
-                end
-            end
+        for _, line in ipairs(lines) do
+            local story = line.story
+            Add(string.format("tier|%d|%s|%s", story.tier, story.qualifier, story.text), function(group)
+                return {lead = string.format("Tier %d against %s%s", story.tier, GroupNames(group), story.qualifier), text = story.text}
+            end, line.who)
         end
     end
 

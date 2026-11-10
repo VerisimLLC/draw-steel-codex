@@ -442,6 +442,7 @@ function RichSliderPuzzle.CreateDisplay(self)
             m_token = token
             local id = Puzzle.JournalId(self, ID_PREFIX)
             Migrate(self, id)
+            Puzzle.IndexJournal(self, id)
             panel:FireEvent("setPuzzle", id)
             panel:FireEvent("refreshPuzzleFrame")
         end,

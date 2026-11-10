@@ -471,6 +471,7 @@ local g_setupWindows = {}
 ---@param objid string
 local function OpenSetup(id, floorid, objid)
     local lockKey = LockKey(floorid, objid)
+    Puzzle.IndexPuzzle(id, { kind = "lock", floorid = floorid, objid = objid })
     local existing = g_setupWindows[lockKey]
     if existing ~= nil and existing.valid then
         return
@@ -977,6 +978,14 @@ local function DirectorHeader(floorid, objid)
     end
 end
 
+--Open a lock's puzzle with its title-bar buttons (the Director's puzzle list).
+---@param id string
+---@param floorid string
+---@param objid string
+function Puzzle.OpenLockWindow(id, floorid, objid)
+    Puzzle.OpenWindow(id, { header = DirectorHeader(floorid, objid) })
+end
+
 Puzzle.OpenForJoin = function(id)
     Puzzle.OpenWindow(id, { header = DirectorHeader(nil, nil) })
 end
@@ -1011,6 +1020,7 @@ function PuzzleLockInteractive:Interact(controller, token)
             OpenSetup(id, floorid, objid)
             return nil
         end
+        Puzzle.IndexPuzzle(id, { kind = "lock", floorid = floorid, objid = objid })
         Puzzle.OpenWindow(id, { header = DirectorHeader(floorid, objid) })
         return nil
     end

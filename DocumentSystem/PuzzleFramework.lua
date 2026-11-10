@@ -64,6 +64,9 @@ local STATUS_DOC = "puzzlestatus"
 local BOARD_PREFIX = "puzzle-"
 --Who has which puzzle open, and Director pushes. Not checkpointed.
 local PRESENCE_DOC = "puzzlepresence"
+--Every puzzle in the game and where it lives, for the Director's puzzle list
+--(there is no way to list a game's documents from Lua).
+local INDEX_DOC = "puzzleindex"
 
 --A player counts as at a puzzle this long after their window's last heartbeat.
 local PRESENCE_FRESH_SECONDS = 30
@@ -94,6 +97,7 @@ pcall(function()
     CreatureCache.RegisterRulesNeutralDocument(BOARD_PREFIX, nil)
     CreatureCache.RegisterRulesNeutralDocument(STATUS_DOC, nil)
     CreatureCache.RegisterRulesNeutralDocument(PRESENCE_DOC, nil)
+    CreatureCache.RegisterRulesNeutralDocument(INDEX_DOC, nil)
 end)
 
 --Code that reacts to a puzzle's outcome (map locks applying their effects).
@@ -289,6 +293,79 @@ function Puzzle.Exists(id)
     return Puzzle.GetType(id) ~= nil
 end
 
+---@class PuzzleIndexEntry
+---@field kind "lock"|"journal"|nil
+---@field floorid string|nil a lock's floor
+---@field objid string|nil a lock's object
+---@field docid string|nil a journal puzzle's page
+
+--Where every puzzle lives: id -> entry.
+---@return table<string, PuzzleIndexEntry>
+function Puzzle.Index()
+    local result = {}
+    for id, entry in pairs(mod:GetDocumentSnapshot(INDEX_DOC).data) do
+        if type(entry) == "table" then
+            result[id] = entry
+        end
+    end
+    return result
+end
+
+--Record a puzzle (and where it lives) in the index. Writes only when something
+--is new, so surfaces can call it every time they show a puzzle.
+---@param id string
+---@param info PuzzleIndexEntry|nil
+function Puzzle.IndexPuzzle(id, info)
+    local current = mod:GetDocumentSnapshot(INDEX_DOC).data[id]
+    local changed = type(current) ~= "table"
+    if not changed and info ~= nil then
+        for k, v in pairs(info) do
+            if current[k] ~= v then
+                changed = true
+            end
+        end
+    end
+    if not changed then
+        return
+    end
+    local doc = mod:GetDocumentSnapshot(INDEX_DOC)
+    doc:BeginChange()
+    local entry = doc.data[id]
+    if type(entry) ~= "table" then
+        entry = {}
+        doc.data[id] = entry
+    end
+    for k, v in pairs(info or {}) do
+        entry[k] = v
+    end
+    doc:CompleteChange("Index puzzle", {undoable = false})
+end
+
+--Forget a puzzle whose lock or page is gone: clear its board, status, presence
+--and index entry. The documents stay but are empty.
+---@param id string
+function Puzzle.Forget(id)
+    WriteBoardDoc(id, function(data)
+        for k in pairs(data) do
+            data[k] = nil
+        end
+    end, "Remove puzzle")
+    for _, docid in ipairs({ STATUS_DOC, PRESENCE_DOC, INDEX_DOC }) do
+        local doc = mod:GetDocumentSnapshot(docid)
+        if doc.data[id] ~= nil then
+            doc:BeginChange()
+            doc.data[id] = nil
+            doc:CompleteChange("Remove puzzle", {undoable = false})
+        end
+    end
+end
+
+--Paths the puzzle list watches.
+---@return string[]
+function Puzzle.ListMonitorPaths()
+    return { mod:GetDocumentPath(INDEX_DOC), mod:GetDocumentPath(STATUS_DOC), mod:GetDocumentPath(PRESENCE_DOC) }
+end
+
 --Create a puzzle (or change its type). Changing type discards the old board.
 ---@param id string
 ---@param typeid string
@@ -310,6 +387,7 @@ function Puzzle.Create(id, typeid, config, title)
             status[k] = nil
         end
     end, "Set up puzzle")
+    Puzzle.IndexPuzzle(id, nil)
 end
 
 ---@param id string

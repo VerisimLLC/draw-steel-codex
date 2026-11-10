@@ -31,6 +31,20 @@ function Puzzle.JournalId(tag, prefix)
     return Puzzle.SafeId(string.format("%s%s_%s", prefix, tostring(docid), tostring(tag.identifier or "default")))
 end
 
+--Record a journal tag's puzzle (and its page) in the puzzle index.
+---@param tag RichTag
+---@param id string|nil
+function Puzzle.IndexJournal(tag, id)
+    if id == nil or not Puzzle.Exists(id) then
+        return
+    end
+    local doc = tag:GetDocument()
+    local docid = doc ~= nil and doc:try_get("id") or nil
+    if docid ~= nil then
+        Puzzle.IndexPuzzle(id, { kind = "journal", docid = tostring(docid) })
+    end
+end
+
 ---@param seconds number
 ---@return string
 local function FormatTime(seconds)
@@ -938,6 +952,7 @@ function RichPuzzle.CreateDisplay(self)
                     Puzzle.SetTitle(id, tostring(self.identifier))
                 end
             end
+            Puzzle.IndexJournal(self, id)
             panel:FireEvent("setPuzzle", id)
             panel:FireEvent("refreshPuzzleFrame")
         end,

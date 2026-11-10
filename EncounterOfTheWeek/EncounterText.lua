@@ -394,8 +394,6 @@ text("stage.dice.result_yours", [[your roll]])
 text("stage.dice.hint_yours", [[Roll your dice.]])
 text("stage.dice.hint_all_in", [[The dice are in.]])
 text("stage.dice.hint_waiting", [[Waiting on the dice for {heroes}...]])
---The button that rolls. Short: a button.
-text("stage.dice.roll_button", [[Roll]])
 
 ----------------------------------------------------------------------------
 -- THE SCENE STAGE: delves and chests

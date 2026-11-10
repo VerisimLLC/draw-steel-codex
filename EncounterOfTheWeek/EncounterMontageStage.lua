@@ -3230,31 +3230,6 @@ local function DiceHint(m)
     return T("stage.dice.hint_waiting", { heroes = table.concat(waiting, ", ") })
 end
 
---The Roll button for this user's montage dice, or nil when they have none
---waiting (or have already clicked it).
-local function DiceRollButton(halign)
-    if not EncounterMontage.MyDiceWaiting() then
-        return nil
-    end
-    return gui.Panel{
-        classes = {"eotwSceneOption", "actionable"},
-        width = "auto",
-        height = "auto",
-        halign = halign or "left",
-        hpad = 14,
-        vpad = 5,
-        borderBox = true,
-        vmargin = 2,
-        bgimage = "panels/square.png",
-        gui.Label{ classes = {"eotwSceneOptionName"}, text = T("stage.dice.roll_button"), interactable = false },
-        press = function(element)
-            audio.FireSoundEvent("Mouse.Click")
-            element:SetClass("hidden", true)
-            EncounterMontage.RollMyDice()
-        end,
-    }
-end
-
 --- the scene stage -------------------------------------------------------------------
 --
 --While a hero is at an entry the centre panel is a small stage (user
@@ -4456,7 +4431,6 @@ local function CreateSceneStage()
             m_detailDefault = { DiceCard(m, beat) }
             boxExtra.children = {
                 gui.Label{ classes = {"eotwSceneHint"}, text = DiceHint(m) },
-                DiceRollButton(),
             }
         else
             if option ~= nil then
@@ -4707,10 +4681,6 @@ local function BuildTurnChildren(m, beat, consequenceStart)
         if m.dice ~= nil then
             Add(DiceCard(m, beat))
             Add(gui.Label{ classes = {"eotwTurnHint"}, text = DiceHint(m) })
-            local rollButton = DiceRollButton("center")
-            if rollButton ~= nil then
-                Add(rollButton)
-            end
             return children
         end
         Add(gui.Button{

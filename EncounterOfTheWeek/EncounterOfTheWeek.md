@@ -7037,13 +7037,24 @@ The grammar is in the /eotw skill's `script-reference.md`; in short:
   player) and each hero's share of a dice `loserecovery` (key
   `r:<clause>:<charid>`, rolled by that hero's owner). If any, `OpenDice` puts
   `m.dice` out (the turn waits in status `"dice"`; a consequence hides its
-  Continue). The player is prompted: the stage shows a **Roll** button
-  (`DiceRollButton`, while `EncounterMontage.MyDiceWaiting()`), and one click
-  (`EncounterMontage.RollMyDice`) arms that dice seq for this client; until
-  then nothing is thrown (2026-10-17: the dice used to throw themselves the
-  moment they went out). Once armed, `ClientTick` rolls each of this user's
-  dice with `dmhub.Roll`, ONE AT A TIME (the next goes once the host has recorded the last, since
-  `SendRequest` keeps one request slot per user), and sends `diceRolled
+  Continue). The player is prompted with the roll dialog, the way a test
+  is (2026-11-09, user direction; it used to be a **Roll** button on the
+  stage): `ClientTick` -> `LaunchMontageDice` pops each of this user's dice
+  through `ShowMontageRoll{ plain = true }` -- the synthetic ability card in
+  the timeline sidebar with the dialog embedded, `type = "custom"`,
+  `noCancel` (it cannot be closed). The card is shared read-only to the
+  other clients only when one user rolls every die in the set
+  (`share = soleRoller`): `abilityTimelineShare` is one slot for the whole
+  table, and several players sharing at once overwrote each other (the
+  first to finish cleared everyone's). ONE AT
+  A TIME (the next goes once the host has recorded the last, since
+  `SendRequest` keeps one request slot per user). The 45 s fallback counts
+  from the later of `openedAt` and `lastLandedAt` (set as each die lands),
+  so each pop-up in a sequence gets its own 45 s. If the fallback rolls a
+  die first, the dialog's `stillWanted` watch cancels it (before hiding the
+  card, whose teardown would otherwise skip the dialog's cleanup) without
+  sending; a hero with no token falls back to a bare `dmhub.Roll`.
+  Each sends `diceRolled
   { diceSeq, key, total }` -- `diceSeq`, never `seq`, which is SendRequest's
   own request counter (a `seq` arg overwrites it and the host drops the
   request as old). When every total is in, `ResumeDice` re-runs the

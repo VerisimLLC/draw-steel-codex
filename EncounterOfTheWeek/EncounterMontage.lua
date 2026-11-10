@@ -90,15 +90,15 @@
 --                   consequenceIndex (consequence: which one it is for),
 --                   rolls = { { key, kind = "table"|"recovery", dice, label,
 --                               heroid, heroName, userid, total }, ... },
---                   openedAt }
+--                   openedAt, lastLandedAt (when the latest die landed) }
 --                  -- the dice a landed tier or a consequence needs before it
 --                     applies ("roll on Flotsam", "loses 1d3 recoveries"):
 --                     each is rolled on the screen by the player of its hero
 --                     (EncounterMontage.ClientTick), then the effects apply
 --                     with those totals (ApplyEffects' ctx.diceTotals). The
 --                     turn waits in status "dice"; a consequence waits with
---                     its Continue hidden. DICE_ROLL_SECONDS rolls for anyone
---                     who never does.
+--                     its Continue hidden. DICE_ROLL_SECONDS with no die
+--                     landing rolls for anyone who never does.
 --    consequences = { entryId, ... }, consequenceIndex, lastApplied = {...},
 --    requests = { [userid] = { seq, kind, ... } }, handled = { [userid] = seq },
 --    log = { { round, heroid, heroName, entryId, entryName, optionName, tier, applied }, ... },
@@ -6305,6 +6305,10 @@ local function HandleRequest(m, doc, userid, req, beat, heroes)
                 end
                 if all then
                     DiceAllIn(m, doc, beat, heroes)
+                else
+                    --each pop-up gets its own DICE_ROLL_SECONDS: the clock
+                    --restarts whenever a die lands.
+                    d.lastLandedAt = dmhub.serverTime
                 end
                 return line
             end
@@ -6893,7 +6897,10 @@ function EncounterMontage.HostTick(script, beat, beatIndex)
         end
     elseif m.dice ~= nil then
         --dice nobody rolls: the host rolls them, and the wait is over.
-        local age = dmhub.serverTime - (tonumber(m.dice.openedAt) or dmhub.serverTime)
+        --counted from the last die that landed, so a player rolling several
+        --dice one after another is not cut off part-way.
+        local since = math.max(tonumber(m.dice.openedAt) or 0, tonumber(m.dice.lastLandedAt) or 0)
+        local age = dmhub.serverTime - cond(since > 0, since, dmhub.serverTime)
         if age >= DICE_ROLL_SECONDS then
             for _, r in ipairs(m.dice.rolls or {}) do
                 if r.total == nil then
@@ -6992,43 +6999,14 @@ end
 local m_launchedRollSeq = nil
 --the montage dice roll ("<seq>:<key>", see m.dice) this client has out.
 local m_launchedDice = nil
---the m.dice seq this user has clicked Roll for. The dice wait on that
---click (the player is prompted, not rolled for); one click rolls all of
---this user's dice in that set.
-local m_diceArmedSeq = nil
 
---True when m.dice has a die for this user that they have not yet clicked
---Roll for: the stage shows the Roll button while it is.
-function EncounterMontage.MyDiceWaiting()
-    local m = EncounterMontage.GetState()
-    local d = m ~= nil and m.dice or nil
-    if d == nil or m_diceArmedSeq == d.seq then
-        return false
-    end
-    for _, r in ipairs(d.rolls or {}) do
-        if r.total == nil and r.userid == dmhub.loginUserid then
-            return true
-        end
-    end
-    return false
-end
+local ShowMontageRoll
 
---The Roll button: throw this user's montage dice (ClientTick launches them).
-function EncounterMontage.RollMyDice()
-    local m = EncounterMontage.GetState()
-    if m ~= nil and m.dice ~= nil then
-        m_diceArmedSeq = m.dice.seq
-        EncounterMontage.ClientTick()
-    end
-end
-
---Roll this user's next montage die (a table roll, a hero's share of a
---recovery loss), one at a time: the next goes out once the host has
---recorded the last, so no request overwrites another.
+--Pop up the roll dialog for this user's next montage die (a table roll,
+--damage, a hero's share of a stamina or recovery loss), the way a test
+--pops up. One at a time: the next goes out once the host has recorded the
+--last, so no request overwrites another.
 local function LaunchMontageDice(d)
-    if m_diceArmedSeq ~= d.seq then
-        return
-    end
     for _, r in ipairs(d.rolls or {}) do
         if r.total == nil and r.userid == dmhub.loginUserid then
             local mark = string.format("%s:%s", tostring(d.seq), tostring(r.key))
@@ -7037,16 +7015,65 @@ local function LaunchMontageDice(d)
             end
             m_launchedDice = mark
             local seq, key = d.seq, r.key
-            dmhub.Roll{
+            local title = T("montage.dice.roll_description", { hero = r.heroName or T("montage.dice.hero_fallback"), label = r.label or T("montage.dice.label_fallback") })
+            local function Report(total)
+                --diceSeq, not seq: SendRequest numbers its requests in "seq".
+                EncounterMontage.SendRequest("diceRolled", { diceSeq = seq, key = key, total = total })
+            end
+            local tok = dmhub.GetCharacterById(r.heroid)
+            if tok == nil then
+                --no hero token to show the dialog for: just throw the dice.
+                dmhub.Roll{
+                    roll = r.dice or "1d6",
+                    description = title,
+                    tokenid = r.heroid,
+                    complete = function(rollInfo)
+                        if not mod.unloaded then
+                            Report(rollInfo.total)
+                        end
+                    end,
+                }
+                return
+            end
+            --the shared card is one slot for the whole table, so it is used
+            --only when this user rolls every die in the set. When several
+            --players roll at once they would overwrite each other's card;
+            --the stage's dice card shows everyone's results anyway.
+            local soleRoller = true
+            for _, other in ipairs(d.rolls or {}) do
+                if other.userid ~= dmhub.loginUserid then
+                    soleRoller = false
+                end
+            end
+            ShowMontageRoll {
+                plain = true,
+                share = soleRoller,
+                creature = tok.properties,
+                heroToken = tok,
+                title = title,
                 roll = r.dice or "1d6",
-                description = T("montage.dice.roll_description", { hero = r.heroName or T("montage.dice.hero_fallback"), label = r.label or T("montage.dice.label_fallback") }),
-                tokenid = r.heroid,
-                complete = function(rollInfo)
-                    if mod.unloaded then
-                        return
+                rollSeq = seq,
+                --still out and still unrolled (the host rolls it after
+                --DICE_ROLL_SECONDS).
+                stillWanted = function()
+                    local m = EncounterMontage.GetState()
+                    local cur = m ~= nil and m.dice or nil
+                    if cur == nil or cur.seq ~= seq then
+                        return false
                     end
-                    --diceSeq, not seq: SendRequest numbers its requests in "seq".
-                    EncounterMontage.SendRequest("diceRolled", { diceSeq = seq, key = key, total = rollInfo.total })
+                    for _, other in ipairs(cur.rolls or {}) do
+                        if other.key == key then
+                            return other.total == nil
+                        end
+                    end
+                    return false
+                end,
+                completeKind = "diceRolled",
+                extra = { diceSeq = seq, key = key },
+                onNotShown = function()
+                    if m_launchedDice == mark then
+                        m_launchedDice = nil
+                    end
                 end,
             }
             return
@@ -7070,10 +7097,16 @@ end
 --      "interrupted" request goes to the host instead). Another beat's roll
 --      passes stillWanted (replacing the turn check), send (replacing
 --      EncounterMontage.SendRequest) and onNotShown.
-local function ShowMontageRoll(args)
+--      plain: a plain dice roll ("1d3"), not a power roll. No tiers or
+--      modifiers, no cancel, and it reports only the total (plus extra).
+--      Its dialog closes itself, sending nothing, once stillWanted()
+--      turns false (the host rolled it instead).
+--      share = false: do not share the card with the other clients.
+ShowMontageRoll = function(args)
     local c = args.creature
     local title = args.title
     local rollSeq = args.rollSeq
+    local plain = args.plain == true
     local Send = args.send or EncounterMontage.SendRequest
     local function RetryLaunch()
         m_launchedRollSeq = nil
@@ -7081,11 +7114,14 @@ local function ShowMontageRoll(args)
             args.onNotShown()
         end
     end
-    local rollProperties = RollPropertiesPowerTable.new {
-        tiers = args.tiers,
-        fullyImplemented = true,
-        secretCritical = args.secretCritical == true,
-    }
+    local rollProperties = nil
+    if not plain then
+        rollProperties = RollPropertiesPowerTable.new {
+            tiers = args.tiers,
+            fullyImplemented = true,
+            secretCritical = args.secretCritical == true,
+        }
+    end
 
     dmhub.Coroutine(function()
         local waited = 0
@@ -7141,7 +7177,7 @@ local function ShowMontageRoll(args)
         --combat turn. The combat path shares from HighlightAbilitySection,
         --gated on the initiative turn; a montage has no queue, so share
         --explicitly. Also what the stage's live tier highlight reads.
-        if displaying and CharacterPanel.ShareDisplayedAbility ~= nil then
+        if displaying and args.share ~= false and CharacterPanel.ShareDisplayedAbility ~= nil then
             pcall(function() CharacterPanel.ShareDisplayedAbility(rollerToken, syntheticAbility) end)
         end
 
@@ -7169,31 +7205,40 @@ local function ShowMontageRoll(args)
                 RetryLaunch()
                 return
             end
+            --true once the roll is over: landed, cancelled, or closed because
+            --the host rolled it instead.
+            local settled = false
             dialog.data.ShowDialog {
                 title = title,
                 description = title,
                 creature = c,
                 ability = syntheticAbility,
 
-                type = args.rollType,
+                type = cond(plain, "custom", args.rollType),
                 roll = args.roll,
                 modifiers = args.modifiers,
-                multitargets = multitargets,
+                multitargets = cond(plain, nil, multitargets),
                 targetCreature = c,
+                skipDeterministic = plain,
                 showDialogDuringRoll = true,
+                --amendable gives the roll its "pending" step, where Accept
+                --Result shows. Without it a held-open dialog has no Accept.
                 amendable = true,
                 --once the dice are thrown the result stands: no close (X) or
                 --ESC back to the options, where a failed test could be retried.
                 noCancelOnceThrown = true,
+                --a plain roll cannot be closed at all: the dice must be rolled.
+                noCancel = plain,
                 --everyone else's read-only copy shows Accept / Re-roll as
                 --ghost buttons they can click to ping at the roller ("spend
                 --a hero token!").
                 pingButtons = true,
 
                 rollProperties = rollProperties,
-                PopulateCustom = ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom(rollProperties),
+                PopulateCustom = (not plain) and ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom(rollProperties) or nil,
 
                 completeRoll = function(rollInfo)
+                    settled = true
                     Finish()
                     local tier = 1
                     pcall(function() tier = RollUtils.DiceResultToTier(rollInfo) end)
@@ -7202,6 +7247,9 @@ local function ShowMontageRoll(args)
                     local total = nil
                     pcall(function() total = rollInfo.total end)
                     local req = { rollSeq = rollSeq, tier = tier, total = total, natural = natural }
+                    if plain then
+                        req = { total = total }
+                    end
                     for k, v in pairs(args.extra or {}) do
                         req[k] = v
                     end
@@ -7209,7 +7257,20 @@ local function ShowMontageRoll(args)
                 end,
 
                 cancelRoll = function()
+                    if settled then
+                        --closed by the watch below: the host has the total.
+                        return
+                    end
+                    settled = true
                     Finish()
+                    if plain then
+                        --a plain roll offers no cancel, so this is a system
+                        --teardown: let the client tick show it again.
+                        if args.onNotShown ~= nil then
+                            args.onNotShown()
+                        end
+                        return
+                    end
                     --not onNotShown: the host has not heard yet, and a launch
                     --mark cleared now would reopen the roll just cancelled.
                     m_launchedRollSeq = nil
@@ -7224,6 +7285,26 @@ local function ShowMontageRoll(args)
                     Send("interrupted", { rollSeq = rollSeq })
                 end, nil),
             }
+
+            --a plain roll the host stops waiting for (its 45 second
+            --fallback rolled it): close the dialog.
+            if plain and args.stillWanted ~= nil then
+                dmhub.Coroutine(function()
+                    while not settled and not mod.unloaded and dialog.valid do
+                        if not args.stillWanted() then
+                            settled = true
+                            --cancel first: hiding the card destroys the
+                            --embedded dialog, and its cleanup with it.
+                            if dialog.data.IsShown() then
+                                dialog.data.Cancel()
+                            end
+                            Finish()
+                            return
+                        end
+                        coroutine.yield(0.25)
+                    end
+                end)
+            end
         end
 
         --the embedded (timeline) dialog when the sidebar is available, else

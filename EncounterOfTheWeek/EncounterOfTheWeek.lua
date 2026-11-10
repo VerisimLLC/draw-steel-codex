@@ -5804,6 +5804,9 @@ function Series.SeedSeriesStory(carried)
     if montage == nil or montage.SeedStory == nil then
         return
     end
+    --the part's When and Results boons need their effect assets made now,
+    --long before they apply (a part may open straight on its fight).
+    pcall(function() montage.PrepareBoonAssets(nil, montage.FindMapScript()) end)
     local ok, err = pcall(function()
         local part = EncounterOfTheWeekGame.ActivePart()
         local doc = montage.GetDoc()

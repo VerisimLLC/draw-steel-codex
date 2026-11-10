@@ -116,18 +116,30 @@ RegisterWeather{
     description = "Rain falling across the map, under an overcast sky.",
     params = [==[
         { id = "intensity", name = "Rainfall", type = "number", editor = "slider", default = 0.5, min = 0.05, max = 1 },
-        { id = "wind", name = "Wind", type = "number", editor = "slider", default = 0.3, min = -1, max = 1 },
+        { id = "wind", name = "Wind", type = "number", editor = "slider", default = 0, min = -1, max = 1 },
+        { id = "splash", name = "Splashes", type = "number", editor = "slider", default = 0.4, min = 0, max = 1 },
         { id = "overcast", name = "Overcast", type = "number", editor = "slider", default = 0.5, min = 0, max = 1 },
 ]==],
     look = [==[
     local fall = 20 + 12 * p.intensity
+    --Where a drop lands it leaves a ring that spreads and fades. That is the end
+    --of the drop's own life, so the life is that much longer.
+    local splash = p.splash or 0
+    local splashTime = 0
+    if splash > 0 then
+        splashTime = 0.25 + 0.15 * splash
+    end
     local particles = {
         viewMargin = 8,
         rate = 0.3 + 3.2 * p.intensity,
-        lifetime = { val = 0.45, maxVal = 0.75 },
+        lifetime = { val = 0.45 + splashTime, maxVal = 0.75 + splashTime },
         speed = 0,
+        splash = splashTime,
+        splashSize = 0.25 + 0.6 * splash,
+        splashOpacity = 0.5 + 0.7 * splash,
         --Each drop comes down from high above the map to the spot where it lands,
-        --drawn as a streak of its movement; the wind carries it sideways.
+        --drawn as a streak of its movement. With no wind the rain falls toward the
+        --center of the view; wind carries it sideways and moves that point off-center.
         fallHeight = 40,
         streak = 0.08,
         velocity = { x = p.wind * 5, y = 0 },
@@ -140,7 +152,8 @@ RegisterWeather{
         deathSize = 0.09,
         opacity = 0.3 + 0.3 * p.intensity,
         fadein = 0.05,
-        fadeout = 0.15,
+        --a splash does its own fading.
+        fadeout = splashTime > 0 and 0 or 0.15,
         birthColor = "#d5e4ff",
         deathColor = "#d5e4ff",
         maxParticles = 8000,
@@ -166,7 +179,7 @@ RegisterWeather{
     description = "Snowflakes drifting down across the map in cold light.",
     params = [==[
         { id = "intensity", name = "Snowfall", type = "number", editor = "slider", default = 0.4, min = 0.05, max = 1 },
-        { id = "wind", name = "Wind", type = "number", editor = "slider", default = 0.2, min = -1, max = 1 },
+        { id = "wind", name = "Wind", type = "number", editor = "slider", default = 0, min = -1, max = 1 },
         { id = "chill", name = "Cold Light", type = "number", editor = "slider", default = 0.5, min = 0, max = 1 },
 ]==],
     look = [==[

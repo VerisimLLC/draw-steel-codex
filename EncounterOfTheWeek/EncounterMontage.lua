@@ -1069,7 +1069,9 @@ local function PartSummaries(parts)
     local result = {}
     for _, script in ipairs(parts or {}) do
         local part = script.parse.part
-        result[#result + 1] = { number = part.number, title = part.title, comingSoon = part.comingSoon ~= nil, restFree = part.restFree == true }
+        --comingSoonMark: the mark itself, for EncounterScript.ComingSoonLocks.
+        result[#result + 1] = { number = part.number, title = part.title, comingSoon = part.comingSoon ~= nil,
+            comingSoonMark = part.comingSoon, restFree = part.restFree == true }
     end
     return result
 end

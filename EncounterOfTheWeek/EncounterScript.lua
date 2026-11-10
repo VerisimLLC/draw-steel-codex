@@ -3740,6 +3740,19 @@ function EncounterScript.ParseTrackClause(clause)
     return nil, nil
 end
 
+--Does a part's "Coming soon" mark lock it on this board? A plain mark
+--locks everywhere; "Coming soon at the Town Gate" (board "gate") locks it
+--only at the Gate, so the Proving Pits (practice) can still play it.
+---@param mark table|nil a part's comingSoon ({ text, line, board })
+---@param practice boolean true for the Proving Pits
+---@return boolean
+function EncounterScript.ComingSoonLocks(mark, practice)
+    if mark == nil then
+        return false
+    end
+    return mark.board ~= "gate" or not practice
+end
+
 --"Track: Rite's Progress (Hidden) -- how close the cult is" (the text
 --after "Track:") -> { name, key, hidden, secret, description } or nil.
 --The marks in brackets are "Hidden", "Secret" or both ("(Hidden, Secret)").
@@ -4717,10 +4730,25 @@ function EncounterScript.Parse(text)
             local declText = string.match(t, "^[Tt][Rr][Aa][Cc][Kk]:%s*(.*)$")
             --"Coming soon" or "Coming soon: <hover text>": the town shows this
             --part locked until the author removes the line.
-            local soonRest = string.match(t, "^[Cc]oming [Ss]oon(.*)$")
+            --"Coming soon at the Town Gate" locks it at the Gate only; the
+            --Proving Pits can still play it.
+            local soonBoard = nil
+            local gatePrefix = "coming soon at the town gate"
+            local soonRest = nil
+            if lower(t):sub(1, #gatePrefix) == gatePrefix then
+                soonRest = t:sub(#gatePrefix + 1)
+                soonBoard = "gate"
+            else
+                soonRest = string.match(t, "^[Cc]oming [Ss]oon(.*)$")
+            end
             local soonText = nil
             if soonRest ~= nil then
                 soonText = string.match(soonRest, "^:%s*(.-)$") or (string.match(soonRest, "^%.?$") and "" or nil)
+            end
+            --"Coming soon at ..." that is not the Town Gate form (a typo such
+            --as "at the Gate") would leave the part open everywhere: say so.
+            if soonText == nil and string.match(lower(t), "^coming soon at ") then
+                Warn(lineIndex, "'%s' is not a lock: write 'Coming soon at the Town Gate' (or plain 'Coming soon'); read as a note, so the part is open", t)
             end
             --"Rest does not lock this part": a win of the part before
             --unlocks this one for good, even after the party rests.
@@ -4739,7 +4767,7 @@ function EncounterScript.Parse(text)
                     result.secretResultLine = lineIndex
                 end
             elseif soonText ~= nil then
-                local mark = { text = cond(soonText ~= "", soonText, nil), line = lineIndex }
+                local mark = { text = cond(soonText ~= "", soonText, nil), line = lineIndex, board = soonBoard }
                 if result.part ~= nil then
                     result.part.comingSoon = mark
                 else

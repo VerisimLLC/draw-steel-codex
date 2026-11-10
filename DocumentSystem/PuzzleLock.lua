@@ -36,6 +36,9 @@ PuzzleLockInteractive = RegisterGameType("PuzzleLockInteractive", "Interactive")
 PuzzleLockInteractive.id = "PuzzleLock"
 PuzzleLockInteractive.text = "Puzzle Lock"
 PuzzleLockInteractive.puzzleid = ""
+--The lock keeps its own range and lock state; the component's versions would
+--only confuse (see InteractiveContainer.FieldHidden).
+PuzzleLockInteractive.hiddenFields = { locked = true, distance = true }
 
 Interactive.Register(PuzzleLockInteractive)
 
@@ -1040,3 +1043,37 @@ function PuzzleLockInteractive:Interact(controller, token)
     Puzzle.OpenWindow(id, { header = DirectorHeader(floorid, objid) })
     return nil
 end
+
+--------------------------------------------------------------------------------
+-- A player clicked a locked door (engine event, newer builds only)
+--------------------------------------------------------------------------------
+
+--If a puzzle lock opens this door, say so and outline the lock, so players look
+--for the terminal instead of a key.
+dmhub.RegisterEventHandler("lockedDoorClicked", function(info)
+    if mod.unloaded or type(info) ~= "table" or info.floorid == nil then
+        return
+    end
+    local controllers = {}
+    for id, entry in pairs(Puzzle.Index()) do
+        if entry.kind == "lock" and not Puzzle.Status(id).solved then
+            for _, lock in pairs(Locks(id)) do
+                for _, effect in ipairs(lock.onSolve or {}) do
+                    if effect.kind == "door" and effect.floorid == info.floorid
+                        and math.abs((effect.x or 0) - (info.x or 0)) <= DOOR_MATCH_TILES
+                        and math.abs((effect.y or 0) - (info.y or 0)) <= DOOR_MATCH_TILES then
+                        local obj = game.LookupObject(lock.floorid, lock.objid)
+                        if obj ~= nil and obj.valid and not obj.inactive then
+                            controllers[#controllers + 1] = { floorid = lock.floorid, objid = lock.objid, x = obj.x, y = obj.y, kind = "object" }
+                        end
+                    end
+                end
+            end
+        end
+    end
+    if #controllers == 0 then
+        return
+    end
+    Toast("Sealed. Something nearby controls this door.")
+    PointOut(controllers)
+end)

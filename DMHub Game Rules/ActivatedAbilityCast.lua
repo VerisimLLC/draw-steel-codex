@@ -302,6 +302,13 @@ ActivatedAbilityCast.helpSymbols = {
         desc = "The number of unique creatures that were actually force moved by this ability (excludes creatures that resisted due to stability or could not be moved).",
     },
 
+    wasforcemoved = {
+        name = "Was Force Moved",
+        type = "function",
+        desc = "Returns true if the given creature was actually force moved by this ability (false if it resisted due to stability or could not be moved).",
+        examples = {"Was Force Moved(Target)"},
+    },
+
     forcedmovementdamagedealt = {
         name = "Forced Movement Damage Dealt",
         type = "number",
@@ -758,6 +765,26 @@ ActivatedAbilityCast.lookupSymbols = {
                 local tok = dmhub.LookupToken(target)
                 if tok ~= nil then
                     local ids = c:try_get("forcedMovementCreatureCollisionIds", {})
+                    return ids[tok.charid] == true
+                end
+            end
+
+            return false
+        end
+    end,
+
+    -- Per-creature form of Forced Movement Creature Count: reads the ids that
+    -- RecordForcedMovementCreature stores as each forced move resolves.
+    wasforcemoved = function(c)
+        return function(target)
+            if type(target) == "function" then
+                target = target("self")
+            end
+
+            if type(target) == "table" then
+                local tok = dmhub.LookupToken(target)
+                if tok ~= nil then
+                    local ids = c:try_get("forcedMovementCreatureIds", {})
                     return ids[tok.charid] == true
                 end
             end

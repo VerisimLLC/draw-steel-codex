@@ -3981,6 +3981,9 @@ mod.shared.ImportMapToFloorCo = function(info)
                         component:SetProperty("intensity", intensity)
                         component:SetProperty("castsShadows", shadows)
                         component:SetProperty("color", color)
+                        --locked: the invisible light objects stay out of the
+                        --way (and unselectable) except in objects mode.
+                        lightObj.locked = true
                         lightObj:Upload()
                     end
                 end
@@ -4086,8 +4089,9 @@ mod.shared.FinishMapImport = function(mapName, info, created, extra)
         end
 
         --a map imported from a Universal VTT file gets the UVTT Settings
-        --map script attached, which puts a button in the top-right corner
-        --of the map for adjusting the import. Map Scripts belong to the
+        --map script attached, which marks the map as a UVTT import and makes
+        --Map Settings show its UVTT Import Settings section (MapScript.UVTT)
+        --for adjusting the import. Map Scripts belong to the
         --Draw Steel module, so this is guarded like the settings panels
         --(rawget: core modules must not hard-depend on it).
         if info.uvttData ~= nil and rawget(_G, "MapScript") ~= nil then
@@ -4130,16 +4134,11 @@ mod.shared.FinishMapImport = function(mapName, info, created, extra)
             extra.done(guid)
         end
 
-        --open the new map's UVTT Settings so the lighting can be tuned
-        --straight away. Its script starts on the map-script driver's next
-        --tick, so keep trying for a few seconds.
-        if info.uvttData ~= nil and rawget(_G, "MapScript") ~= nil then
-            for i = 1, 40 do
-                if game.currentMapId ~= guid or MapScript.OpenButton("builtin:uvtt-settings", "settings") then
-                    break
-                end
-                coroutine.yield(0.25)
-            end
+        --open Map Settings so the lighting can be tuned straight away. Its
+        --UVTT section appears once the script starts on the map-script
+        --driver's next tick (the panel polls for it).
+        if info.uvttData ~= nil and rawget(_G, "MapScript") ~= nil and game.currentMapId == guid then
+            DockablePanel.ShowPanelByName("Map Settings")
         end
     end)
 end
@@ -5896,7 +5895,7 @@ end
 --- on the table, say) through the import wizard, where the user sets the
 --- grid. The new map is travelled to once made.
 --- @param paths string[] Local file paths, one per floor.
---- @param options nil|{name: nil|string, created: nil|fun(mapid: string), variations: nil|string[], done: nil|fun(mapid: string)} name: the map's name; created: called once the map exists, just before travelling to it; variations: more files that become the map's alternate appearances (same size as paths[1], which should then be the only path); done: called once the images are placed on the map.
+--- @param options nil|{name: nil|string, imported: nil|fun(width: number, height: number), created: nil|fun(mapid: string), variations: nil|string[], done: nil|fun(mapid: string), progress: nil|fun(stage: string, fraction: number), failed: nil|fun(message: string)} name: the map's name; imported: called with the map's size in tiles once the files are read, before the map is made; created: called once the map exists, just before travelling to it; variations: more files that become the map's alternate appearances (same size as paths[1], which should then be the only path); done: called once the images are placed on the map. Universal VTT files only (they import in the background with no wizard): progress follows the import ("reading", then "uploading" with a fraction 0 to 1), failed reports an error instead of the error dialog.
 function ImportMapFromFiles(paths, options)
     options = options or {}
     if paths == nil or #paths == 0 then
@@ -5907,7 +5906,12 @@ function ImportMapFromFiles(paths, options)
         tileType = "squares",
         nofade = true,
         paths = paths,
+        progress = options.progress,
+        failed = options.failed,
         finish = function(info)
+            if options.imported ~= nil then
+                options.imported(tonumber(info.width) or 0, tonumber(info.height) or 0)
+            end
             mod.shared.FinishMapImport(options.name or "New Map", info, options.created, {
                 variations = options.variations,
                 done = options.done,

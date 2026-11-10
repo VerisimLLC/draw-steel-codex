@@ -731,3 +731,24 @@ MonsterAI:RegisterMove{
         ai:ExecuteAbility(token, ability)
     end,
 }
+
+--Stand Up (every creature's maneuver, from the Maneuvers global rule mod):
+--a prone monster stands before anything else, so its strikes lose the bane
+--and melee against it loses the edge. Its own filter skips a creature that
+--is not prone or cannot stand (the Can't Stand rider).
+MonsterAI:RegisterMove{
+    id = "Stand Up",
+    category = "Maneuvers",
+    abilities = {"Stand Up"},
+    description = "Stand up when prone, before striking.",
+    maxScore = 1.5,
+    score = function(self, ai, token, ability)
+        if not ability:TargetPassesFilter(token, token, {}) then
+            return nil, "not prone, or cannot stand"
+        end
+        return {score = 1.5}
+    end,
+    execute = function(self, ai, token, scoringInfo, ability)
+        ai:ExecuteAbility(token, ability, {{token = token}}, {sleep = 0.6})
+    end,
+}

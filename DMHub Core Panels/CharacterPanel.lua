@@ -4402,6 +4402,12 @@ local CreateBestiaryAndPartyPanel = function(noBestiary)
                                 local trackToken = tok
                                 local handler
                                 handler = dmhub.RegisterEventHandler("characterSheetClosed", function()
+                                    --the old sheet fires this as it hands a Hero to the Hero
+                                    --sheet window; track when that window closes instead.
+                                    local heroSheet = rawget(_G, "HeroSheet")
+                                    if heroSheet ~= nil and heroSheet.IsShowing(trackToken.charid) then
+                                        return false
+                                    end
                                     dmhub.DeregisterEventHandler(handler)
                                     handler = nil
                                     local c = trackToken

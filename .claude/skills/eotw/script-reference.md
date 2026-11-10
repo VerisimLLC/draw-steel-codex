@@ -97,6 +97,7 @@ dialog, log). Use it for hidden mechanics.
 | `reveal traps` / `reveal the trap zones during the next combat` / `traps are revealed` | that zone type becomes visible to players at the encounter beat |
 | `unlock Interrogate the Goblin` / `you unlock ...` | a `(Locked)` entry joins the board |
 | `you gain an edge on Climb the Cliff` / `the party has a double bane on Sneak Past` | standing edge/bane on that `###` option's test for whoever takes it |
+| `the party has a bane on Investigate the Corpse: the body is charred` | the same, with a reason after the colon: the option card shows "Bane: the body is charred" (and the roll chip says it) instead of "Bane: earned at <section>". The reason ends with the clause, so no `. , ; ! ?` in it. Usually braced: `{The party has a bane on X: why}` |
 | `roll twice on Tinkerer's Wares` / `roll on Herb Pouch` / `you roll 3 times on X` | rolls the entry's own dice table (see "Dice tables in an entry") that many times on the host and applies each row landed on |
 | `your rolled damage is increased by 1` / `+1 to rolled damage` / `each party member's rolled damage is increased by 1` | +N to the damage of every damaging power roll, until the next respite |
 | `your maximum Stamina is reduced by 5` / `you lose 5 maximum stamina` / `each party member's maximum stamina is reduced by 5` | Stamina maximum curse, until the next respite |
@@ -293,6 +294,8 @@ rules, and the authoring STANDARD are in `EncounterOfTheWeek/KNACKS_REFERENCE.md
 - **Requirements** are INTENT, joined by `or`: `you can teleport` (a speed OR
   an ability such as Black Ash Teleport), `you can speak with animals`,
   `you can use telepathy`, `you can go unnoticed`, `you can make light`,
+  `you can deal fire damage` (any ability of theirs deals it; `you can deal
+  fire or holy damage` is two alternatives),
   `you are immune to fire`, `you have fire weakness`, `you have the Lucky Dog
   perk`, `you were a Farmer`, `you were raised in the Wilderness`, `you worship
   Grole the One-Handed`, `you serve the Life domain`, `your kit is Mountain`,
@@ -316,12 +319,19 @@ Parties are 4-6 heroes: author each round for 6 and trim for 4 and 5.
 **Scenes.** A `---` line in an entry (above its first option) ends the card text
 and starts a scripted scene; each non-blank line after it is one step:
 - `PC` = the approaching hero.
+- Pronoun tokens read as that hero's sheet Pronouns (Description tab), and
+  as they/them when it is blank or unknown: `pcsubject` (they), `pcobject`
+  (them), `pcpossessive` (their), `pcpossessivealone` (theirs), `pcreflexive`
+  (themself). A capital first letter gives a capital word (`Pcsubject`).
+  They work wherever `PC` does (scenes, tiers, free results). Verbs are not
+  changed, so write around them ("Pcsubject drew", not "Pcsubject draws").
 - `Name (Monster) enters` / `appears` / `arrives`; `Name exits` / `leaves` /
   `departs`. The monster (a bestiary name) gives the portrait; a bare `Name`
   must itself be a monster name.
 - `Name: text` = speech (PC, or a character who enters in this entry).
   `Name: (in Hyrallic) text` is garbled for anyone whose hero does not speak it.
-- Emotes: `Witch is alert` / `alarmed` / `scared`, or `Goblin (scared): text`.
+- Emotes: `Witch is alert` / `alarmed` / `scared` / `angry`, or `Goblin (scared): text`.
+  `scared` trembles, `angry` shakes harder; `alert` and `alarmed` put a mark over the head.
 - Off-stage voice: `??? (offstage): Who goes there?` / `Guard (offstage): Halt!`
   -- a speaker who never enters: their name shows over the line, no portrait.
   Without `(offstage)`, a speaker who never entered is plain narration.
@@ -329,7 +339,9 @@ and starts a scripted scene; each non-blank line after it is one step:
 - Branches: `if <cond> then` ... `elseif <cond> then` ... `else` ... `end`.
   Conditions: `PC speaks X`, `PC is X` (class/ancestry, or `PC is small` /
   `PC is immune to fire`), `PC has X` (anything by name: skill, perk, ability,
-  item...), `PC is skilled in X`, `PC can X` (any capability: `PC can fly`),
+  item...), `PC is skilled in X`, `PC can X` (any capability: `PC can fly`,
+  `PC can deal fire damage`; a condition's `or` joins whole conditions, so
+  write `PC can deal fire damage or PC can deal holy damage`),
   `PC was a X` (career), `PC carries X`, `PC worships X`, `PC chose <option>`,
   `tier1`/`tier2`/`tier3`, `crit`, combined with `not`, `and`, `or` and
   parentheses. In a series part, the story conditions work too
@@ -475,6 +487,38 @@ Arrows hiss from the trees. Draw steel!
 - Together: rules text is aimed at the whole party; a split vote is settled by
   a random voter (with a dramatic flash). Individually: each option applies once
   for the group that took it.
+- **Interrupted (fake) test.** `|Search the Body: Intuition (Search) ->
+  Interrupted` (or a `|Interrupted` line in the roll block) in a narrative
+  challenge: the hero claims it and throws the dice, but the dice fade 0.8 s
+  into the throw, the stage flashes "Interrupted!" with the Malice sting, and
+  the option's lines after the roll play (the corpse leaps up). The roll never
+  lands: no tier, no effects, no Weary, no assist step, no critical. Tier lines
+  are optional and only dress the roll dialog; a reward in them warns. The
+  fade needs an engine with `dmhub.Roll{ interruptAfter }` (without one the
+  dice land and the result is ignored). The roller is shown **alarmed**
+  automatically (a `PC is alert` / `alarmed` in those lines wins), and the
+  party goes straight from those lines into the next section.
+- **The cast stays on stage.** In a narrative, a character who `enters` stays
+  on the right through the following sections (their boards and the claimed
+  test screens) until an `exits` line or the end of the beat. Every section
+  knows the characters the whole beat brings on, so `Sailor Revenant exits`
+  (or a line of their speech) works in a later section's scene. An arrival
+  scene of only `X exits` plays no line, so the character simply leaves as
+  that section comes up. The hero's last `alert` / `alarmed` stays on their
+  portrait until a test of theirs lands.
+- **`(Spotlight)` section tag.** Only the hero who took the last challenge's
+  option may take this section's test ("it attacks YOU"). With one option they
+  can take, it is claimed for them at once and they cannot step back; with
+  several, only they may claim. Others may still assist. A spotlight on the
+  first section, or with that hero gone, is open to anyone.
+- **Everyone rolls.** A marker paragraph `Everyone rolls:` (also `All party
+  members make this roll:`, `Each hero rolls:`) makes the section a group
+  test: every hero makes its first option's test at the same time on their
+  own player's screen, with their own knack version, riders and Weary. Each
+  result applies to that roller ("You lose 2 recoveries"). No assists, no
+  option routes: the party leaves by the section's exit once everyone has
+  rolled (a player who never rolls is rolled for by the host after 4 minutes;
+  `/eotwnarrative force` rolls for everyone left).
 - `Unlock: Intelligence` (a paragraph in a narrative beat or section) turns on
   the Intelligence pool and the Tactical Preparation screen for the rest of the
   game; earn it with `+N intelligence` clauses. With it on, the party starts
@@ -701,6 +745,12 @@ time).
   feature do not offer it at all. A series can ship with its first parts
   playable and the rest as placeholders. Remove the line and publish an update
   to open it.
+- **Rests and later parts**: by default a part is playable only while the
+  part before it is still fresh: won since the account last rested at the
+  inn (Catching Breath keeps it). A rest locks it again until that part is won
+  again. For a series where heroes may rest between parts, put
+  `Rest does not lock this part` under the heading of each later part: once
+  the part before is won, it stays unlocked.
 - Each part is a whole script: its own beats, its own `# Encounter` and
   `[[encounter]]` island, and its own `# Town Gate` / `# Conclusion` /
   `# Defeat`. Sub-documents work as usual, per part.
@@ -756,6 +806,14 @@ a condition (the parser warns).
   changes it is stripped from what they read, as if it were in `{...}`, and the
   recap leaves it out. Players only notice what it causes (more Malice, a
   different paragraph, a harder fight).
+- **Secret result line**: when a test or choice result's only rules are
+  hidden, the result shows one extra line so players know they gained
+  something (by default "You learned something. It may matter later."). A
+  threat's consequence never shows it. Set a part's own line with
+  `Secret result: <text>` above the first heading or under `# Part N`, next to
+  the `Track:` lines (`Secret result: You learn something about Velkhara.`).
+  The parser warns about an empty one, a second one (the first counts), or
+  one anywhere else.
 - The town shows no track values. The validator panel lists each declared
   track (and whether it is hidden), and the app log prints every change
   ("EotW story: Alarm +1 -> 2").

@@ -462,7 +462,7 @@ function DTProjectEditor:_createProjectForm()
     for k, v in pairs(langTable) do
         candidateLangs[#candidateLangs + 1] = {
             id = k,
-            text = v.name
+            text = v:DisplayNameWithDetail()
         }
     end
     local languageField = gui.Panel {
@@ -2736,7 +2736,7 @@ function DTProjectEditor._languageNames(project)
     for _, id in ipairs(project:GetProjectSourceLanguages() or {}) do
         local entry = langTable[id]
         if entry ~= nil then
-            names[#names + 1] = entry.name
+            names[#names + 1] = entry:DisplayName()
         end
     end
     if #names == 0 then

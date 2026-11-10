@@ -1484,13 +1484,21 @@ end
 --- The calculators above return ABSOLUTE altitudes, but the engine reads a straight-line
 --- move's loc altitude as height above the ground at the destination. Handing it the
 --- absolute value counted raised ground twice: a pull of 4 from ground 3 went to 10 and
---- fell 7 (TYXFY9RY). A pick below the ground clamps to it (0 = no vertical part).
---- Convert only at that hand-off; the picked loc itself stays absolute.
+--- fell 7 (TYXFY9RY). Convert only at that hand-off; the picked loc itself stays absolute.
+---
+--- A pick below the destination ground is kept (a negative height) only when it is also
+--- below the mover's own altitude: the player dialed it down, so the engine slams the
+--- creature into the ground. Otherwise it clamps to 0 (no vertical part), so a pull left
+--- level still rides up a gentle slope instead of colliding with it.
 --- @param loc Loc
+--- @param moverAltitude integer absolute altitude of the creature being moved
 --- @return Loc
-function ActivatedAbility.VerticalForcedMovementEngineLoc(loc)
-    local ground = loc.withGroundAltitude.altitude
-    return loc:WithAltitude(math.max(0, loc.altitude - ground))
+function ActivatedAbility.VerticalForcedMovementEngineLoc(loc, moverAltitude)
+    local height = loc.altitude - loc.withGroundAltitude.altitude
+    if height < 0 and loc.altitude >= moverAltitude then
+        height = 0
+    end
+    return loc:WithAltitude(height)
 end
 
 --returns a predicate function saying if a target loc passes the filter.
@@ -3613,17 +3621,35 @@ end
 local AWAITING_TRIGGERS_ACTIVITY = "awaitingtriggers"
 ActivatedAbility.AWAITING_TRIGGERS_ACTIVITY = AWAITING_TRIGGERS_ACTIVITY
 
+--True if this cast is by the token or targets it.
+local function CastInvolvesToken(info, token)
+    if info.casterToken ~= nil and info.casterToken.valid and info.casterToken.charid == token.charid then
+        return true
+    end
+    for _,target in ipairs(info.targets or {}) do
+        if target.token ~= nil and target.token.valid and target.token.charid == token.charid then
+            return true
+        end
+    end
+    return false
+end
+
 --Runs fn once every ability cast that was active when this was called has
 --finished, including the calling cast if invoked from inside one. Runs fn
 --immediately when no casts are active.
 --opts.casterid names the creature fn will cast for, so HasDeferredCastFor can
 --report that the creature still has work queued.
+--opts.involving waits only for the calling cast and casts by or targeting
+--that creature, not for unrelated ones.
 --- @param fn function
---- @param opts nil|{casterid: string|nil}
+--- @param opts nil|{casterid: string|nil, involving: CharacterToken|nil}
 function ActivatedAbility.RunWhenCastsComplete(fn, opts)
+    local involving = opts ~= nil and opts.involving or nil
+    local running = involving ~= nil and coroutine.running() or nil
     local casts = {}
     for co,info in pairs(ActivatedAbility.coroutineStorage) do
-        if coroutine.status(co) ~= "dead" and info.activity ~= AWAITING_TRIGGERS_ACTIVITY then
+        if coroutine.status(co) ~= "dead" and info.activity ~= AWAITING_TRIGGERS_ACTIVITY
+            and (involving == nil or co == running or CastInvolvesToken(info, involving)) then
             casts[co] = true
         end
     end
@@ -4131,13 +4157,28 @@ function ActivatedAbility:IsPartOfAnotherAbility(casterToken, options)
         return false
     end
 
+    --Each cast runs on its own coroutine, so an outer ability by this same creature
+    --that is still resolving shows up here as another live cast.
+    local hasOuterCastBySameCreature = function()
+        for co,info in pairs(ActivatedAbility.coroutineStorage) do
+            if co ~= coroutine.running() and coroutine.status(co) ~= "dead"
+                and not rawequal(info.ability, self)
+                and info.casterToken ~= nil and info.casterToken.valid and info.casterToken.charid == casterToken.charid then
+                return true
+            end
+        end
+        return false
+    end
+
     --Invoked straight from an invoke behavior: the clone names who invoked it.
+    --The Monster AI casts every ability with the monster named as its own invoker,
+    --so that alone does not make this a nested cast: an outer cast must still be running.
     local invoker = self:try_get("invoker")
     if type(invoker) == "function" then
         invoker = invoker("self")
     end
     if invoker ~= nil and dmhub.LookupTokenId(invoker) == casterToken.charid then
-        return true
+        return hasOuterCastBySameCreature()
     end
 
     --A prompt (Charge's "Choose Charging Attack", Riposte's free strike) casts a
@@ -4148,14 +4189,7 @@ function ActivatedAbility:IsPartOfAnotherAbility(casterToken, options)
     if cast == nil or cast:try_get("ability") == nil or rawequal(cast.ability, self) then
         return false
     end
-    for co,info in pairs(ActivatedAbility.coroutineStorage) do
-        if co ~= coroutine.running() and coroutine.status(co) ~= "dead"
-            and not rawequal(info.ability, self)
-            and info.casterToken ~= nil and info.casterToken.valid and info.casterToken.charid == casterToken.charid then
-            return true
-        end
-    end
-    return false
+    return hasOuterCastBySameCreature()
 end
 
 --- @return boolean

@@ -2277,7 +2277,29 @@ end
 function creature.InflictDamageInstance(self, amount, damageType, keywords, sourceDescription, symbols)
 	amount = math.floor(amount)
 	local originalAmount = amount
+
+    --continuesInstance = { raw = N, landed = N }: this damage is added onto a hit that
+    --already landed (e.g. Tactician's Mark "the ability deals extra damage"), so the
+    --two count as ONE damage instance. If the hit landed anything, flat immunity and
+    --weakness were fully applied to it already, so the extra goes on unmodified. If it
+    --landed nothing, resist the combined raw amount instead (immunity may be left over).
+    local continuesInstance = symbols ~= nil and symbols.continuesInstance or nil
+    local priorLanded = 0
+    local skipResistance = false
+    if continuesInstance ~= nil then
+        priorLanded = math.max(0, math.floor(continuesInstance.landed or 0))
+        if priorLanded > 0 then
+            skipResistance = true
+        else
+            amount = amount + math.max(0, math.floor(continuesInstance.raw or 0))
+        end
+    end
+
 	local resistanceEntry = self:DamageResistance(damageType, keywords)
+    if skipResistance then
+        --an empty entry makes every resistance step below a no-op.
+        resistanceEntry = {} --[[@as table]]
+    end
 	local resistance = resistanceEntry.resistance
 
 
@@ -2312,7 +2334,12 @@ function creature.InflictDamageInstance(self, amount, damageType, keywords, sour
         ignoreImmunity = true
     end
 
-	local note = string.format('%d damage from %s', amount, sourceDescription)
+	local note = string.format('%d damage from %s', originalAmount, sourceDescription)
+    if skipResistance then
+        note = string.format('%s (added to a hit; its immunity and weakness already applied)', note)
+    elseif continuesInstance ~= nil then
+        note = string.format('%s (added to a hit that dealt no damage; resisted together as %d)', note, amount)
+    end
 
 	if resistanceEntry.percent ~= nil then
 		amount = math.floor(amount * resistanceEntry.percent)
@@ -2372,7 +2399,7 @@ function creature.InflictDamageInstance(self, amount, damageType, keywords, sour
     -- the ATTACKER carrying the "Relentless Damage Penalty" custom attribute, so this whole block
     -- is a no-op for every creature that isn't under the Relentless Taunt effect. Applies to the
     -- already-resistance-reduced amount (like a victim immunity), floored at 0.
-    if attacker ~= nil and amount > 0 then
+    if attacker ~= nil and amount > 0 and not skipResistance then
         local relentlessPenalty = attacker:CalculateNamedCustomAttribute("Relentless Damage Penalty") or 0
         if relentlessPenalty > 0 then
             local exemptToken = attacker:RelentlessDamageCaster()
@@ -11538,6 +11565,10 @@ end
 
 local g_aiActivityReactionExpirySeconds = 600
 
+--Identifies this run of the app: kept in _G across Lua reloads, new on every
+--launch. See creature:CompleteReactionsOrphanedByRestart.
+g_appLaunchId = rawget(_G, "g_appLaunchId") or dmhub.GenerateGuid()
+
 --The Monster AI activity (a move or an ability cast) currently in flight on
 --this client, or nil. MonsterAI sets it around each action it takes; while it
 --is set, every event DispatchEvent raises on a player-controlled creature
@@ -12414,14 +12445,34 @@ function creature:CompletePendingAIActivityReaction(activityId, reactionId)
     }
 end
 
+--Who accepted the reaction and when are stamped on the marker, so a cast that
+--never reports back can be told apart from one still running (EMHPEMCY): the
+--banner offers Skip once it is old, and the accepter's next launch clears it.
 function creature:SetAIActivityReactionResolving(activityId, reactionId)
     local entry = self:try_get("pendingAIActivityReactions", {})[reactionId]
     local token = dmhub.LookupToken(self)
     if token ~= nil and entry ~= nil and entry.activityId == activityId and entry.state ~= "completed" then
         token:ModifyProperties{
             description = "Resolve AI Reaction", undoable = false,
-            execute = function() entry.state = "resolving" end,
+            execute = function()
+                entry.state = "resolving"
+                entry.resolvingSince = ServerTimestamp()
+                entry.resolvingBy = dmhub.userid
+                entry.resolvingLaunch = g_appLaunchId
+            end,
         }
+    end
+end
+
+--Completes the "resolving" markers this user accepted in an earlier run of the
+--app. Their casts died with that run (a crash or restart mid-roll), so nothing
+--else would complete them. Markers from before the stamps were added are left.
+function creature:CompleteReactionsOrphanedByRestart()
+    for id,entry in pairs(self:try_get("pendingAIActivityReactions", {})) do
+        if type(entry) == "table" and entry.state == "resolving" and entry.resolvingBy == dmhub.userid
+            and entry.resolvingLaunch ~= nil and entry.resolvingLaunch ~= g_appLaunchId then
+            self:CompletePendingAIActivityReaction(entry.activityId, id)
+        end
     end
 end
 
@@ -14741,13 +14792,25 @@ function creature:Render(args, options)
 		--languages.
 		gui.Label{
 			classes = "description",
+			--with plain language names on, hovering lists the in-world names.
+			hover = function(element)
+				local known = {}
+				local languagesTable = GetTableCached(Language.tableName)
+				for langid,b in pairs(self:LanguagesKnown()) do
+					known[#known+1] = languagesTable[langid]
+				end
+				local hover = Language.ListTooltipHover(known)
+				if hover ~= nil then
+					hover(element)
+				end
+			end,
 			create = function(element)
 				local textItems = {}
 				local languagesTable = GetTableCached(Language.tableName)
 				for langid,b in pairs(self:LanguagesKnown()) do
 					local lang = languagesTable[langid]
 					if lang ~= nil then
-						textItems[#textItems+1] = lang.name
+						textItems[#textItems+1] = lang:DisplayName()
 					end
 				end
 

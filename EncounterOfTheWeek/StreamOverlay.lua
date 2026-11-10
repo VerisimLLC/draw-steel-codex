@@ -180,6 +180,13 @@ end
 -- Building the summary
 -- ---------------------------------------------------------------------------
 
+--- Stamina can arrive as a float (33.0); the page shows whole numbers.
+--- @param n nil|number
+--- @return integer
+local function Whole(n)
+    return math.floor((tonumber(n) or 0) + 0.5)
+end
+
 --- @param props Creature
 --- @return string "ok" | "winded" | "dying" | "dead"
 local function HeroState(props)
@@ -205,9 +212,9 @@ local function HeroEntry(token, activeTokenIds)
         id = token.charid,
         name = name,
         initials = Initials(name),
-        cur = props:CurrentHitpoints(),
-        max = props:MaxHitpoints(),
-        temp = props:TemporaryHitpoints(),
+        cur = Whole(props:CurrentHitpoints()),
+        max = Whole(props:MaxHitpoints()),
+        temp = Whole(props:TemporaryHitpoints()),
         state = HeroState(props),
         active = activeTokenIds[token.charid] == true,
         conditions = HeroConditions(token),
@@ -295,8 +302,8 @@ local function MonsterSummary(q)
                 group.standing = group.standing + 1
             end
             if squad == nil then
-                group.cur = group.cur + math.max(0, props:CurrentHitpoints())
-                group.max = group.max + props:MaxHitpoints()
+                group.cur = group.cur + math.max(0, Whole(props:CurrentHitpoints()))
+                group.max = group.max + Whole(props:MaxHitpoints())
                 --the most guarded display among a group's members wins.
                 local display = MonsterStaminaDisplay(token)
                 if display ~= "val" then

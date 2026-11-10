@@ -78,6 +78,7 @@ MonsterAI.supportCapableCoverage = 0.6
 
 --- @class MonsterAISupportAssessment
 --- @field monsterType string
+--- @field similarTo string|nil The monster type it borrows AI from ("similar to"), if any.
 --- @field minion boolean
 --- @field entries MonsterAISupportEntry[]
 --- @field registrations MonsterAISupportRegistration[]
@@ -112,13 +113,10 @@ local function RegistrationSource(registration)
         or SourceOf(registration.handler) or SourceOf(registration.execute)
 end
 
-local function ListsMonsterType(registration, monsterType)
-    for _, name in ipairs(registration.monsters or {}) do
-        if name == monsterType then
-            return true
-        end
-    end
-    return false
+--monsterTypes: the monster's own type, then its "similar to" type if any
+--(MonsterAI.AIMonsterTypes).
+local function ListsMonsterType(registration, monsterTypes)
+    return MonsterAI.ListsAnyMonsterType(registration.monsters or {}, monsterTypes)
 end
 
 --The generic AI's reasons for passing an ability over
@@ -301,7 +299,7 @@ end
 --The registered trigger handler for one of the monster's triggers, using
 --FindTriggerHandler's lookup order: guid, monster-qualified ability name,
 --ability name, monster-qualified trigger text, trigger text.
-local function FindTriggerHandlerFor(fakeToken, monsterType, triggerEntry)
+local function FindTriggerHandlerFor(fakeToken, monsterTypes, triggerEntry)
     local ai = MonsterAI
     local function Matching(handler)
         if handler ~= nil and ai.MoveMatchesMonster(fakeToken, handler, true) then
@@ -329,10 +327,20 @@ local function FindTriggerHandlerFor(fakeToken, monsterType, triggerEntry)
     end
     Add(triggerEntry.text)
 
+    local function Qualified(registry, name)
+        for _, monsterType in ipairs(monsterTypes) do
+            local handler = Matching(registry[monsterType .. ":" .. name])
+            if handler ~= nil then
+                return handler
+            end
+        end
+        return nil
+    end
+
     for _, name in ipairs(names) do
-        local handler = Matching(ai.triggerHandlersByMonsterAbility[monsterType .. ":" .. name])
+        local handler = Qualified(ai.triggerHandlersByMonsterAbility, name)
             or Matching(ai.triggerHandlersByAbility[name])
-            or Matching(ai.triggerHandlersByMonsterText[monsterType .. ":" .. name])
+            or Qualified(ai.triggerHandlersByMonsterText, name)
             or Matching(ai.triggerHandlersByText[name])
         if handler ~= nil then
             return handler
@@ -349,6 +357,9 @@ function MonsterAI.AssessSupport(props)
     local ai = MonsterAI
     local status = ai.supportStatus
     local monsterType = props:try_get("monster_type", "")
+    --registrations for its "similar to" type count as its own.
+    local monsterTypes = ai.AIMonsterTypes(props)
+    local ownTypeOnly = { monsterType }
     local minion = props:try_get("minion", false) == true
 
     --the matchers only read token.properties (and token.valid), so a
@@ -368,6 +379,7 @@ function MonsterAI.AssessSupport(props)
     ---@type MonsterAISupportAssessment
     local result = {
         monsterType = monsterType,
+        similarTo = ai.SimilarMonsterType(props),
         minion = minion,
         entries = {},
         registrations = {},
@@ -416,7 +428,7 @@ function MonsterAI.AssessSupport(props)
     local tailoredMoveFor = {}
     local genericMoveFor = {}
     for _, move in pairs(ai.moves) do
-        local own = ListsMonsterType(move, monsterType)
+        local own = ListsMonsterType(move, monsterTypes)
         if own or move.monsters == nil then
             local allPresent = #(move.abilities or {}) > 0
             local missing = nil
@@ -434,7 +446,9 @@ function MonsterAI.AssessSupport(props)
                         genericMoveFor[name] = genericMoveFor[name] or move
                     end
                 end
-            elseif own and missing ~= nil then
+            elseif missing ~= nil and ListsMonsterType(move, ownTypeOnly) then
+                --only the monster's own registrations can be stale: one for
+                --its "similar to" type simply does not apply.
                 result.stale[#result.stale + 1] = { kind = "Move", id = move.id or "?", missing = missing }
             end
         end
@@ -442,11 +456,11 @@ function MonsterAI.AssessSupport(props)
 
     local villainFor = {}
     for _, action in pairs(ai.villainActions) do
-        if ListsMonsterType(action, monsterType) then
+        if ListsMonsterType(action, monsterTypes) then
             local name = (action.abilities or {})[1]
             if name ~= nil and present[name] then
                 villainFor[name] = action
-            elseif name ~= nil then
+            elseif name ~= nil and ListsMonsterType(action, ownTypeOnly) then
                 result.stale[#result.stale + 1] = { kind = "Villain Action", id = action.id or "?", missing = name }
             end
         end
@@ -638,7 +652,7 @@ function MonsterAI.AssessSupport(props)
             kind = "Triggered Action",
             implementation = trigger.implementation,
         }
-        local handler = FindTriggerHandlerFor(fakeToken, monsterType, trigger)
+        local handler = FindTriggerHandlerFor(fakeToken, monsterTypes, trigger)
         if handler ~= nil then
             if handler.monsters ~= nil or #(handler.abilityGuids or {}) > 0 then
                 NoteRegistration("Trigger", handler)
@@ -679,10 +693,14 @@ function MonsterAI.AssessSupport(props)
         end
     end
 
-    --prompt handlers written specifically for this monster.
-    for key, prompt in pairs(ai.prompts) do
-        if monsterType ~= "" and string.sub(key, 1, #prefix) == prefix then
-            NoteRegistration("Prompt", prompt)
+    --prompt handlers written specifically for this monster or the one it is
+    --similar to.
+    for _, aiType in ipairs(monsterTypes) do
+        local typePrefix = aiType .. ":"
+        for key, prompt in pairs(ai.prompts) do
+            if aiType ~= "" and string.sub(key, 1, #typePrefix) == typePrefix then
+                NoteRegistration("Prompt", prompt)
+            end
         end
     end
 

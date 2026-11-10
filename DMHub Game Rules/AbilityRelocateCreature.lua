@@ -629,7 +629,7 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 			local isVerticalForcedMove = ActivatedAbility.IsVerticalForcedMovement(options.symbols.forcedmovement or ability:try_get("forcedMovement", "slide"))
 			local function EngineLoc(targetLoc)
 				if isVerticalForcedMove and targetLoc ~= nil then
-					return ActivatedAbility.VerticalForcedMovementEngineLoc(targetLoc)
+					return ActivatedAbility.VerticalForcedMovementEngineLoc(targetLoc, casterToken.loc.altitude)
 				end
 				return targetLoc
 			end

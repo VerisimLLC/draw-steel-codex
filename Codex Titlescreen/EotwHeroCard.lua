@@ -1600,6 +1600,12 @@ end
 --              NPC card on the tabletop view's table, Tabletop.lua)
 --  displayName    function(tok) -> the name on the card (default: the
 --              hero's name, "Unnamed Hero" when it has none)
+--  extraChips  function(charid) -> a list of extra status chips to show
+--              beside the condition icons, for states that are not real
+--              conditions on the creature (the EotW narrative's Weary).
+--              Each: { key, icon, tooltip, count (a corner badge when >= 2),
+--              tint (icon colour), borderColor }. key must change whenever
+--              the chip's look does; it is what rebuilds the row.
 --  passPress   the card does not swallow presses, so a draggable panel
 --              around it can be dragged by the card (the tabletop view's
 --              NPC cards); the host must swallow them instead
@@ -1650,9 +1656,16 @@ local function CreateHeroCard(entry, opts)
                 return
             end
             local entries = CollectConditions(tok.properties)
+            local extras = {}
+            if opts.extraChips ~= nil then
+                extras = opts.extraChips(charid) or {}
+            end
             local parts = {}
             for _, cond in ipairs(entries) do
                 parts[#parts+1] = tostring(cond.icon)
+            end
+            for _, chip in ipairs(extras) do
+                parts[#parts+1] = tostring(chip.key or chip.icon)
             end
             local sig = table.concat(parts, "|")
             if sig == element.data.signature then
@@ -1660,6 +1673,56 @@ local function CreateHeroCard(entry, opts)
             end
             element.data.signature = sig
             local icons = {}
+            for _, chip in ipairs(extras) do
+                local tooltip = chip.tooltip
+                local count = tonumber(chip.count) or 0
+                icons[#icons+1] = gui.Panel{
+                    halign = "right",
+                    width = CONDITION_CHIP_SIZE,
+                    height = CONDITION_CHIP_SIZE,
+                    lmargin = 3,
+                    bmargin = 3,
+                    bgimage = "panels/square.png",
+                    bgcolor = "#000000cc",
+                    cornerRadius = 6,
+                    border = 2,
+                    borderColor = chip.borderColor or "#cc2222ff",
+                    linger = function(iconElement)
+                        if tooltip ~= nil then
+                            gui.Tooltip(tooltip)(iconElement)
+                        end
+                    end,
+                    gui.Panel{
+                        width = CONDITION_ICON_SIZE,
+                        height = CONDITION_ICON_SIZE,
+                        halign = "center",
+                        valign = "center",
+                        bgimage = chip.icon,
+                        bgcolor = chip.tint or "white",
+                        interactable = false,
+                    },
+                    --how many (a double bane is "2"), in the chip's corner.
+                    gui.Label{
+                        classes = {cond(count >= 2, nil, "collapsed")},
+                        floating = true,
+                        halign = "right",
+                        valign = "bottom",
+                        x = 4,
+                        y = 4,
+                        width = 13,
+                        height = 13,
+                        fontSize = 10,
+                        bold = true,
+                        color = "#ffffff",
+                        textAlignment = "center",
+                        bgimage = "panels/square.png",
+                        bgcolor = chip.borderColor or "#cc2222ff",
+                        cornerRadius = 6,
+                        text = tostring(count),
+                        interactable = false,
+                    },
+                }
+            end
             for _, cond in ipairs(entries) do
                 local condName = cond.name
                 --halign right on every chip is what right-packs the row:

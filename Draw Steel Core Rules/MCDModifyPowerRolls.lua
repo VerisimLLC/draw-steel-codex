@@ -1424,7 +1424,7 @@ CharacterModifier.TypeInfo.power = {
                 tieredText[choiceTier] = StringInterpolateGoblinScript(addTextValue, lookupFunction)
             end
             for i,tier in ipairs(rollProperties.tiers) do
-                rollProperties.tiers[i] = AppendTieredText(tier, tieredText[i])
+                rollProperties.tiers[i] = AppendTieredText(tier, tieredText[math.min(i, #tieredText)])
             end
         end
 
@@ -1432,7 +1432,7 @@ CharacterModifier.TypeInfo.power = {
            self:has_key("replaceText") and trim(self.replaceText) ~= "" then
             local tieredText = BreakTextIntoTiers(StringInterpolateGoblinScript(self.replaceText, lookupFunction))
             for i,tier in ipairs(rollProperties.tiers) do
-                rollProperties.tiers[i] = string.replace_insensitive(rollProperties.tiers[i], self.replacePattern, tieredText[i])
+                rollProperties.tiers[i] = string.replace_insensitive(rollProperties.tiers[i], self.replacePattern, tieredText[math.min(i, #tieredText)])
             end
         end
     end,

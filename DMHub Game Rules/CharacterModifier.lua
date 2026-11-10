@@ -50,7 +50,7 @@ local mod = dmhub.GetModLoading()
 --- @field castingFilter? string "powertabletrigger": GoblinScript filter on the cast.
 --- @field castingCostOverride? string "powertabletrigger": GoblinScript cost override.
 --- @field abilityTargets? string "powertabletrigger": GoblinScript target restriction.
---- @field abilityFilter? string "powertabletrigger", "suppressabilities", "abilityimprovement": GoblinScript ability filter.
+--- @field abilityFilter? string "powertabletrigger", "suppressabilities", "abilityimprovement", "castingorigin": GoblinScript ability filter.
 --- @field targetFilter? string "powertabletrigger": GoblinScript target filter.
 --- @field additionalModifier? CharacterModifier "powertableadditional": the "power" modifier it adds.
 --- @field original? string "powertableadditional": original text.

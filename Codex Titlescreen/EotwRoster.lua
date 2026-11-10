@@ -297,6 +297,8 @@ function EotwRoster.Attach(conn)
     m_leads = nil
     m_carouse = nil
     EotwRoster.lastError = nil
+    --project states are per server too (the town can switch staging/release).
+    EotwDowntime.ForgetProjects()
     Bump()
 end
 
@@ -492,6 +494,18 @@ function EotwRoster.TownHallBuilt()
         return true
     end
     local state = EotwDowntime.GetProject("build-town-hall")
+    return state ~= nil and (tonumber(state.completions) or 0) >= 1
+end
+
+--Has the town finished building the Training Grounds (the community
+--project Build the Training Grounds)? Until then its place on the map is a
+--building site, and a respite Levels heroes up itself; once built, a
+--respite only banks XP and heroes Level up at the Training Grounds.
+function EotwRoster.TrainingGroundsBuilt()
+    if m_unlocks ~= nil and m_unlocks.trainingGrounds == true then
+        return true
+    end
+    local state = EotwDowntime.GetProject("build-training-grounds")
     return state ~= nil and (tonumber(state.completions) or 0) >= 1
 end
 
@@ -1527,8 +1541,8 @@ end
 
 --Recruit one of the player's own titlescreen heroes: a COPY joins the town
 --roster, and the titlescreen hero is never touched. Town heroes start fresh,
---so the copy comes in at level 1 (as NormalizeHeroLevel does in an EotW
---game) with no items (treasure is earned in town); its kit is kept.
+--so the copy comes in at level 1 (and Levels up in town, at the Training
+--Grounds) with no items (treasure is earned in town); its kit is kept.
 function EotwRoster.RecruitTitlescreenHero(source, name, onDone)
     if not EotwRoster.CanAddHero() then
         Fail(EotwRoster.FullRosterMessage())
@@ -1678,8 +1692,8 @@ end
 --who left the builder with choices unmade (not ready, choicesLeft > 0) gets
 --the builder again without a new Level. The player may close it at any time.
 --Returns false, opening nothing, when the Hero can do neither (LevelUpState
---says why). Pair with RESPITE_BANKS_XP in EotwDowntime.lua: turn it on when
---the Training Grounds opens, so a respite stops raising the Level itself.
+--says why). Once the Training Grounds are built a respite stops raising the
+--Level itself (EotwDowntime.RespiteBanksXp), so this is the way to Level.
 --args:
 --  heroid  the roster Hero
 --  host    the panel to mount the builder on (the town screen)
@@ -1796,7 +1810,8 @@ function EotwRoster.SetActive(heroid, active)
     }
 end
 
---One page of the Hall of Heroes. args {encounter?, sort?, offset?, limit?};
+--One page of the Hall of Heroes. args {encounter?, sort?, offset?, limit?,
+--mine?} (mine = only entries with one of this account's heroes);
 --onDone(result) with {entries, more, encounters, sort} (see the city's list-hall).
 function EotwRoster.ListHall(args, onDone)
     if m_conn == nil then
@@ -3324,6 +3339,18 @@ local function HallChip(text, selected, click)
     }
 end
 
+--Style pack for the Hall's gui.Check. The town has no checkbox rules of its
+--own (as with EncounterOfTheWeek.lua's g_CheckboxStyles), so without these
+--the check square never paints.
+local HALL_CHECK_STYLES = {
+    { selectors = {"checkbox"}, bgimage = true, flow = "horizontal", bgcolor = "clear", height = 30, width = "auto", hpad = 4 },
+    { selectors = {"checkBackground"}, bgimage = true, bgcolor = "#080B09", halign = "left", valign = "center", height = "70%", width = "100% height", rmargin = 6, borderColor = DIM, borderWidth = 2 },
+    { selectors = {"checkBackground", "parent:hover"}, borderColor = TEXT },
+    { selectors = {"checkMark"}, bgimage = true, bgcolor = TEXT, halign = "center", valign = "center", width = "50%", height = "50%" },
+    { selectors = {"checkboxLabel"}, halign = "left", valign = "center", textAlignment = "left", borderWidth = 0, width = "auto", height = "auto", fontSize = 16, color = DIM },
+    { selectors = {"checkboxLabel", "parent:hover"}, color = TEXT },
+}
+
 --Open an entry's saved victory screen over `host`.
 local function OpenHallEntry(host, entry)
     audio.FireSoundEvent("Mouse.Click")
@@ -3358,6 +3385,9 @@ function EotwRoster.HallPanel(host)
     --after either changed is dropped (see `generation`).
     local encounter = ""
     local sort = "recent"
+    --My Heroes Only: the city keeps just the entries with one of our heroes
+    --(the tab counts too), so paging and ranks stay right.
+    local mineOnly = false
     local generation = 0
 
     local Rebuild
@@ -3367,7 +3397,7 @@ function EotwRoster.HallPanel(host)
         end
         loading = true
         local g = generation
-        EotwRoster.ListHall({ encounter = encounter, sort = sort, offset = #entries }, function(result)
+        EotwRoster.ListHall({ encounter = encounter, sort = sort, offset = #entries, mine = mineOnly }, function(result)
             if g ~= generation then
                 return
             end
@@ -3487,7 +3517,20 @@ function EotwRoster.HallPanel(host)
                     Reload()
                 end
             end) }
+            --My Heroes Only lists just our encounters; the open tab stays
+            --(at 0) even when none of our heroes won it.
+            local tabs = encounters
+            local found = encounter == ""
             for _,enc in ipairs(encounters) do
+                found = found or enc.encounter == encounter
+            end
+            if not found then
+                tabs = { { encounter = encounter, count = 0 } }
+                for _,enc in ipairs(encounters) do
+                    tabs[#tabs+1] = enc
+                end
+            end
+            for _,enc in ipairs(tabs) do
                 local key = enc.encounter
                 chips[#chips+1] = HallChip(string.format("%s (%d)", HallEncounterName(key), tonumber(enc.count) or 0), encounter == key, function()
                     if encounter ~= key then
@@ -3515,7 +3558,8 @@ function EotwRoster.HallPanel(host)
         end
         local rows = {}
         if #entries == 0 then
-            rows[1] = gui.Label{ text = cond(loading, T("roster.hall.loading"), T("roster.hall.empty")), fontSize = 18, color = DIM, width = "auto", height = "auto", halign = "center", vmargin = 30 }
+            local emptyText = cond(mineOnly, T("roster.hall.empty_mine"), T("roster.hall.empty"))
+            rows[1] = gui.Label{ text = cond(loading, T("roster.hall.loading"), emptyText), fontSize = 18, color = DIM, width = "auto", height = "auto", halign = "center", vmargin = 30 }
         end
         for i,e in ipairs(entries) do
             --a ranked order numbers its rows; newest-first does not
@@ -3545,15 +3589,36 @@ function EotwRoster.HallPanel(host)
                     Rebuild()
                 end,
             },
+            --the sort chips (rebuilt with the list) and, kept out of the
+            --rebuild so it is not destroyed under its own click, My Heroes Only.
             gui.Panel{
                 width = "100%",
                 height = "auto",
                 flow = "horizontal",
                 vmargin = 4,
-                create = function(element)
-                    sortPanel = element
-                    Rebuild()
-                end,
+                gui.Panel{
+                    width = "auto",
+                    height = "auto",
+                    flow = "horizontal",
+                    valign = "center",
+                    create = function(element)
+                        sortPanel = element
+                        Rebuild()
+                    end,
+                },
+                gui.Check{
+                    text = T("roster.hall.mine_check"),
+                    value = mineOnly,
+                    styles = HALL_CHECK_STYLES,
+                    valign = "center",
+                    lmargin = 18,
+                    linger = gui.Tooltip(T("roster.hall.mine_tooltip")),
+                    change = function(element)
+                        audio.FireSoundEvent("Mouse.Click")
+                        mineOnly = element.value == true
+                        Reload()
+                    end,
+                },
             },
             --the tab and sort strips above take about 100 (more if the
             --tabs wrap onto a second row), the tribute button below 45.

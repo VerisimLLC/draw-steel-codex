@@ -151,7 +151,9 @@ local function NameChecks(parse)
         end
         for _, section in ipairs(EncounterScript.NarrativeSections(beat)) do
             for _, o in ipairs(section.options) do
-                CollectZones(o.effects)
+                for _, effects in ipairs(EncounterScript.OptionEffectLists(o)) do
+                    CollectZones(effects)
+                end
             end
         end
         for _, entry in ipairs(EncounterScript.MontageEntries(beat)) do
@@ -245,7 +247,10 @@ end
 --One row of the report: { depth, text, class }. `class` picks the colour
 --(see the styles below); the text may carry rich-text colour tags of its
 --own, which is how a tier line highlights the clauses that are rules.
+local GauntletRouteRows
+
 local function Report(parse)
+    local GauntletSectionRows
     local rows = {}
     local counts = { beats = 0, entries = 0, options = 0, rules = 0, flavour = 0 }
     local problems = {}
@@ -284,6 +289,42 @@ local function Report(parse)
             return ""
         end
         return string.format("  (%s)", table.concat(tags, ", "))
+    end
+
+    --A Gauntlet section: what kind it is, its tags, where it leaves to, the
+    --vote's question and how long its arrival scene is.
+    function GauntletSectionRows(entry)
+        local kind = T("author.validator.report.gauntlet_kind_challenge")
+        if entry.kind == "choice" then
+            kind = T("author.validator.report.gauntlet_kind_vote")
+        elseif entry.kind == "event" then
+            kind = T("author.validator.report.gauntlet_kind_event")
+        end
+        local tags = {}
+        if entry.detour then
+            tags[#tags + 1] = T("author.validator.report.gauntlet_tag_detour")
+        end
+        if entry.minPlayers ~= nil then
+            if entry.maxPlayers == nil then
+                tags[#tags + 1] = T("author.validator.report.gauntlet_tag_min", { min = entry.minPlayers })
+            else
+                tags[#tags + 1] = T("author.validator.report.gauntlet_tag_range", { min = entry.minPlayers, max = entry.maxPlayers })
+            end
+        end
+        local tagText = ""
+        if #tags > 0 then
+            tagText = string.format("  (%s)", table.concat(tags, ", "))
+        end
+        Row(2, "entry", "%s", T("author.validator.report.gauntlet_section", { kind = kind, name = tostring(entry.name), tags = tagText }))
+        if (entry.prompt or "") ~= "" then
+            Row(3, "note", "%s", T("author.validator.report.gauntlet_prompt", { prompt = entry.prompt }))
+        end
+        if entry.scene ~= nil and #entry.scene > 0 then
+            Row(3, "note", "%s", T("author.validator.report.gauntlet_arrival", { count = #entry.scene }))
+        end
+        if entry.exit ~= nil then
+            Row(3, "rule", "%s", T("author.validator.report.gauntlet_exit", { target = tostring(entry.exit.name) }))
+        end
     end
 
     for bi, beat in ipairs(parse.beats or {}) do
@@ -370,14 +411,21 @@ local function Report(parse)
         end
 
         for _, round in ipairs(beat.rounds or {}) do
-            Row(1, "round", "%s", cond(round.implicit, T("author.validator.report.round_implicit", { number = round.number }), T("author.validator.report.round", { number = round.number })))
+            --a Gauntlet's one round is implicit: its sections are what matter.
+            if not beat.gauntlet then
+                Row(1, "round", "%s", cond(round.implicit, T("author.validator.report.round_implicit", { number = round.number }), T("author.validator.report.round", { number = round.number })))
+            end
             for _, d in ipairs(round.scaling or {}) do
                 Row(2, "rule", "%s", T("author.validator.report.scaling", { text = tostring(d.text) }))
             end
             for _, entry in ipairs(round.entries) do
                 counts.entries = counts.entries + 1
-                Row(2, "entry", "%s", cond(entry.kind == "threat", T("author.validator.report.entry_threat", { name = tostring(entry.name), tags = Tags(entry) }),
-                    T("author.validator.report.entry_opportunity", { name = tostring(entry.name), tags = Tags(entry) })))
+                if beat.gauntlet then
+                    GauntletSectionRows(entry)
+                else
+                    Row(2, "entry", "%s", cond(entry.kind == "threat", T("author.validator.report.entry_threat", { name = tostring(entry.name), tags = Tags(entry) }),
+                        T("author.validator.report.entry_opportunity", { name = tostring(entry.name), tags = Tags(entry) })))
+                end
                 if entry.consequence ~= nil then
                     RulesFor(3, T("author.validator.report.consequence_label"), entry.consequence.text)
                 end
@@ -420,6 +468,9 @@ local function Report(parse)
                     counts.options = counts.options + 1
                     Row(3, "option", "%s", cond(EncounterScript.OptionIsSecret(o), T("author.validator.report.option_secret", { name = tostring(o.name) }), o.name))
                     VersionRows(o, o, 4)
+                    if o.route ~= nil then
+                        Row(4, "rule", "%s", T("author.validator.report.gauntlet_option_route", { target = tostring(o.route.name) }))
+                    end
                     for _, k in ipairs(o.knacks or {}) do
                         Row(4, cond(k.requirement.unrecognized, "flavourUnknown", "knack"), "%s", T("author.validator.report.knack", { requirement = tostring(k.requirementText) }))
                         VersionRows(o, k, 5)
@@ -571,6 +622,7 @@ function EncounterScriptValidator.KnackCoverage(parse, partyid)
     local testsTotal, testsBare = 0, {}
     local oppTotal, oppBare = 0, {}
     local threatTotal, threatWith = 0, 0
+    local challengeTotal, challengeBare = 0, {}
     local byRequirement = {}
     local hookTotal = 0
     local perHero = {}
@@ -624,12 +676,24 @@ function EncounterScriptValidator.KnackCoverage(parse, partyid)
             if entrySecrets > 0 then
                 threatWith = threatWith + 1
             end
+        elseif entry.kind == "challenge" and EncounterScript.GauntletSectionHasTest(entry) then
+            --a narrative challenge with a test, held to the opportunity
+            --standard: some hero's knack or secret option should make it
+            --theirs. (One with only No Roll options asks for no skill.)
+            challengeTotal = challengeTotal + 1
+            if entrySecrets == 0 then
+                challengeBare[#challengeBare + 1] = label
+            end
         end
     end
 
     for _, beat in ipairs(parse.beats or {}) do
         for _, entry in ipairs(EncounterScript.MontageEntries(beat)) do
             Visit(entry.name, entry, entry.round)
+        end
+        --a narrative's sections (only a challenge's tests count).
+        for _, entry in ipairs(EncounterScript.GauntletSections(beat)) do
+            Visit(entry.name, entry, nil)
         end
     end
     for _, delve in pairs(parse.delves or {}) do
@@ -647,6 +711,12 @@ function EncounterScriptValidator.KnackCoverage(parse, partyid)
         Row(1, "flavourUnknown", "%s", T("author.validator.coverage.opportunity_none", { entry = e }))
     end
     Row(0, "note", "%s", T("author.validator.coverage.threats", { with = threatWith, total = threatTotal }))
+    if challengeTotal > 0 then
+        Row(0, cond(#challengeBare == 0, "ok", "problem"), "%s", T("author.validator.coverage.gauntlet_challenges", { with = challengeTotal - #challengeBare, total = challengeTotal }))
+        for _, e in ipairs(challengeBare) do
+            Row(1, "flavourUnknown", "%s", T("author.validator.coverage.opportunity_none", { entry = e }))
+        end
+    end
 
     --one requirement carrying too much of the montage (5 Zaliac edges)
     local heavy = {}
@@ -669,6 +739,67 @@ function EncounterScriptValidator.KnackCoverage(parse, partyid)
         end
         table.sort(where)
         Row(1, cond(ph.count >= 3, "ok", "problem"), "%s: %d  %s", hero.name, ph.count, table.concat(where, ", "))
+    end
+    return rows
+end
+
+--- Gauntlet routes -----------------------------------------------------------
+
+--The party sizes the route map is drawn for.
+local ROUTE_PARTY_SIZES = { 3, 4, 5 }
+--How many routes are spelled out per party size (all are counted).
+local ROUTE_LIST_LIMIT = 8
+
+--Rows for every narrative beat with a choice of route or a test: per party
+--size, the routes through it
+--(EncounterScript.GauntletRoutes) and how many tests the longest one asks
+--for, against the number of heroes (every roll after a hero's first is a
+--Weary bane).
+function GauntletRouteRows(parse)
+    local rows = {}
+    local function Row(depth, class, text)
+        rows[#rows + 1] = { depth = depth, class = class, text = text }
+    end
+    --a narrative read straight through with no tests has nothing to map.
+    local function WorthMapping(beat)
+        for _, size in ipairs(ROUTE_PARTY_SIZES) do
+            local routes = EncounterScript.GauntletRoutes(beat, size)
+            if #routes > 1 or (routes[1] ~= nil and routes[1].tests > 0) then
+                return true
+            end
+        end
+        return false
+    end
+    for bi, beat in ipairs(parse.beats or {}) do
+        if beat.gauntlet and WorthMapping(beat) then
+            Row(0, "beat", T("author.validator.routes.heading", { number = bi, title = tostring(beat.title or "") }))
+            for _, size in ipairs(ROUTE_PARTY_SIZES) do
+                local routes, more = EncounterScript.GauntletRoutes(beat, size)
+                local fewest, most = nil, 0
+                for _, r in ipairs(routes) do
+                    fewest = math.min(fewest or r.tests, r.tests)
+                    most = math.max(most, r.tests)
+                end
+                Row(1, "entry", T("author.validator.routes.party", { heroes = size, routes = #routes, fewest = fewest or 0, most = most }))
+                if most > size then
+                    Row(2, "note", T("author.validator.routes.weary", { heroes = size, tests = most, rolls = math.ceil(most / size) }))
+                end
+                for i, r in ipairs(routes) do
+                    if i > ROUTE_LIST_LIMIT then
+                        Row(2, "note", T("author.validator.routes.more", { count = #routes - ROUTE_LIST_LIMIT }))
+                        break
+                    end
+                    local names = {}
+                    for _, s in ipairs(r.sections) do
+                        names[#names + 1] = s.name
+                    end
+                    Row(2, "rule", TP("author.validator.routes.route", r.tests, { path = table.concat(names, " > ") }))
+                end
+                if more then
+                    Row(2, "note", T("author.validator.routes.truncated"))
+                end
+            end
+        end
     end
     return rows
 end
@@ -816,6 +947,8 @@ function EncounterScriptValidator.BuildReport(docid, partyid)
         if parse.part.comingSoon ~= nil then
             note = string.format("Part %d%s of a series: marked 'Coming soon', so the town shows it locked%s", parse.part.number, title,
                 cond(parse.part.comingSoon.text ~= nil, " (\"" .. tostring(parse.part.comingSoon.text) .. "\")", ""))
+        elseif parse.part.restFree then
+            note = note .. "; a rest does not lock it again"
         end
         children[#children + 1] = RowLabel{ depth = 0, class = "note", text = note }
         local encounter = nil
@@ -878,6 +1011,13 @@ function EncounterScriptValidator.BuildReport(docid, partyid)
         for _, w in ipairs(textOnly) do
             children[#children + 1] = RowLabel{ depth = 1, class = "flavourUnknown", text = w }
         end
+    end
+
+    --every way through each Gauntlet, for the party sizes a week usually
+    --sees: how many routes, how many tests along them, and what that means
+    --for Weary banes.
+    for _, row in ipairs(GauntletRouteRows(parse)) do
+        children[#children + 1] = RowLabel(row)
     end
 
     --knack coverage against the chosen party (KNACKS_REFERENCE.md).

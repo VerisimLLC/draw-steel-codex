@@ -538,8 +538,7 @@ function CBCharPanel._explorationPanel(tabId)
                     for k,_ in pairs(langs) do
                         local lang = langTable[k]
                         if lang then
-                            local speakers = (lang.speakers and #lang.speakers > 0) and string.format(" (%s)", lang.speakers) or ""
-                            knownLangs[#knownLangs+1] = lang.name .. speakers
+                            knownLangs[#knownLangs+1] = lang:DisplayNameWithDetail()
                         end
                     end
                     local langString = "--"

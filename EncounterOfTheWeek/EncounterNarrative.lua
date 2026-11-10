@@ -1,5 +1,13 @@
 --Encounter of the Week: the narrative runtime.
 --
+--RETIRED as a runtime (2026-11-07): every narrative beat now plays on the
+--montage engine (EncounterGauntlet.lua; GAUNTLET_PLAN.md, "Merging into
+--Narrative"), and nothing starts this one any more. It stays for the shared
+--voter helpers (Voters, VoterKeyForUser, DECIDE_FLASH_SECONDS), which the
+--montage engine, Tactical Preparation and negotiation use, for
+--ActiveAnnounce and "/eotwnarrative", and until the old narrative stage is
+--retired with it (N3).
+--
 --Runs a "# Narrative" beat of the map's script (EncounterScript.lua): the
 --beat's "## sections" play one at a time, each showing its scene and its
 --text and asking the party to choose. A section either has to be AGREED
@@ -388,6 +396,12 @@ end
 --party reads it and presses on, and pressing on is what dismisses it. No
 --timer -- a callout that timed out would go while somebody was still reading.
 function EncounterNarrative.ActiveAnnounce()
+    --a narrative plays on the montage engine, which keeps its callout.
+    local gauntlet = rawget(_G, "EncounterGauntlet")
+    local montageState = EncounterMontage.GetState()
+    if gauntlet ~= nil and montageState ~= nil and gauntlet.RunsNarrative(montageState.beatIndex) then
+        return gauntlet.ActiveAnnounce(montageState)
+    end
     local m = EncounterNarrative.GetState()
     local announce = m ~= nil and m.announce or nil
     if type(announce) ~= "table" or announce.text == nil then
@@ -957,16 +971,31 @@ pcall(function()
         doc = "Usage: /eotwnarrative start | stop | state | force | reset\nstart runs this map's first narrative beat right here (a dev host tick, for the authoring game); stop halts that driver; state prints who has chosen and who is still to; force resolves the section on the choices already in (a missing player); reset clears the narrative state.",
         command = function(str)
             local arg = string.lower(string.gsub(str or "", "^%s*(.-)%s*$", "%1"))
+            --a narrative on the montage engine: its state, driver and force
+            --live there ("/eotwgauntlet state" for the details).
+            local gauntlet = rawget(_G, "EncounterGauntlet")
+            local onMontage = false
+            if gauntlet ~= nil then
+                local montageState = EncounterMontage.GetState()
+                onMontage = montageState ~= nil and gauntlet.RunsNarrative(montageState.beatIndex)
+            end
             if arg == "start" then
                 --the item snapshot the real host takes on arrival, so a
                 --playtest's treasure is tracked like a real game's.
                 pcall(function() EncounterOfTheWeekGame.EnsureArrivalItems() end)
-                EncounterNarrative.StartDevDriver()
+                EncounterMontage.StartDevDriver("narrative")
             elseif arg == "stop" then
                 EncounterNarrative.StopDevDriver()
+                EncounterMontage.StopDevDriver()
                 print("EotW narrative: dev driver stopped")
             elseif arg == "force" then
-                local ok, err = EncounterNarrative.ForceResolve()
+                local ok, err
+                if onMontage then
+                    ---@cast gauntlet -nil
+                    ok, err = gauntlet.ForceResolve()
+                else
+                    ok, err = EncounterNarrative.ForceResolve()
+                end
                 printf("EotW narrative: force -> %s", tostring(ok and "resolved" or err))
             elseif arg == "reset" then
                 local doc = EncounterNarrative.GetDoc()
@@ -976,6 +1005,9 @@ pcall(function()
                 print("EotW narrative: state cleared")
             elseif arg == "json" then
                 print(json(EncounterNarrative.GetState()))
+            elseif onMontage then
+                ---@cast gauntlet -nil
+                gauntlet.PrintState()
             else
                 PrintState()
             end

@@ -829,7 +829,7 @@ MonsterAIPanel = function()
                                 setanalysis = function(element, entry)
                                     local text = entry.monsterType
                                     if entry.language ~= nil then
-                                        text = string.format("<b><u>%s</u></b>\nCommunicates in %s", text, entry.language.name)
+                                        text = string.format("<b><u>%s</u></b>\nCommunicates in %s", text, entry.language:DisplayNameWithDetail())
                                     else
                                         text = string.format("<b><u>%s</u></b>\nNo language", text)
                                     end

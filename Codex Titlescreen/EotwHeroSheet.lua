@@ -2253,7 +2253,9 @@ local function LevelRow(d, fallen, epicFeature)
         if ready then
             rows[#rows+1] = Text(T("herosheet.card.ready_line"), { "eotwsReadyLine" }, { tmargin = 6 })
         elseif reach then
-            rows[#rows+1] = Text(T("herosheet.card.respite_line"), { "eotwsRespiteLine" }, { tmargin = 6 })
+            --once the Training Grounds stand, a respite only banks the XP.
+            local grounds = EotwRoster ~= nil and EotwRoster.TrainingGroundsBuilt()
+            rows[#rows+1] = Text(cond(grounds, T("herosheet.card.respite_line_grounds"), T("herosheet.card.respite_line")), { "eotwsRespiteLine" }, { tmargin = 6 })
         end
     end
     return rows
@@ -3619,8 +3621,10 @@ local function StorySignature()
         local doc = EncounterMontage.GetDoc().data
         local m = EncounterMontage.GetState()
         local n = rawget(_G, "EncounterNarrative") ~= nil and EncounterNarrative.GetState() or nil
-        sig = string.format("%s|%s:%s|%s:%s", tostring(doc.beat),
-            tostring(m and m.beatIndex), tostring(m and m.round),
+        --(a narrative on the montage engine moves by section: m.gauntlet.section)
+        local g = m ~= nil and m.gauntlet or nil
+        sig = string.format("%s|%s:%s:%s|%s:%s", tostring(doc.beat),
+            tostring(m and m.beatIndex), tostring(m and m.round), tostring(g and g.section),
             tostring(n and n.beatIndex), tostring(n and n.sectionIndex))
     end)
     return sig

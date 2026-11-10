@@ -1249,6 +1249,17 @@ local function CreateMapTypeControls()
 	}
 end
 
+--The UVTT Import Settings section's controls, or nil when the current map
+--was not imported from a Universal VTT file or Map Scripts are not loaded.
+---@return Panel[]|nil
+local function UVTTSettingsControls()
+	local mapScript = rawget(_G, "MapScript")
+	if mapScript == nil then
+		return nil
+	end
+	return mapScript.UVTT.CreateSettingsControls()
+end
+
 CreateMapSettings = function()
 
 	local stackedOpts = {stacked = true, height = 28}
@@ -1281,6 +1292,13 @@ CreateMapSettings = function()
 
 		local floorRows, floorCount = CreateFloorRows()
 		sections[#sections+1] = CreateSection("floors", "Floors", floorRows, { count = floorCount })
+
+		--only for maps imported from a Universal VTT file (MapScript.UVTT;
+		--Map Scripts are in the Draw Steel module set, hence rawget).
+		local uvtt = UVTTSettingsControls()
+		if uvtt ~= nil then
+			sections[#sections+1] = CreateSection("uvtt", "UVTT Import Settings", uvtt)
+		end
 
 		sections[#sections+1] = CreateSection("players", "Players", Editors{
 			"map:playerviewable",
@@ -1337,9 +1355,13 @@ CreateMapSettings = function()
 	end
 
 	--What the map-specific sections were built from: the map, the floor we
-	--are on (the appearance gallery is per floor), and each floor's id and name.
+	--are on (the appearance gallery is per floor), whether the UVTT section
+	--shows (its script starts a tick after the map does), and each floor's
+	--id and name.
 	local function Signature()
-		local parts = { game.currentMapId or "", game.currentFloorId or "" }
+		local mapScript = rawget(_G, "MapScript")
+		local uvtt = mapScript ~= nil and mapScript.UVTT.GetContext() ~= nil
+		local parts = { game.currentMapId or "", game.currentFloorId or "", cond(uvtt, "uvtt", "") }
 		for _, floor in ipairs(game.currentMap.floors or {}) do
 			parts[#parts+1] = string.format("%s=%s", floor.floorid, floor.description or "")
 		end

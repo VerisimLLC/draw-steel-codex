@@ -8639,7 +8639,7 @@ local function KnownLanguages(creature)
             languages[#languages + 1] = language
         end
     end
-    table.sort(languages, function(a, b) return a.name < b.name end)
+    table.sort(languages, function(a, b) return a:DisplayName() < b:DisplayName() end)
     return languages
 end
 
@@ -8743,8 +8743,9 @@ function TacPanel.SkillLanguages()
 
                 -- Languages
                 local names = {}
-                for _, language in ipairs(KnownLanguages(creature)) do
-                    names[#names + 1] = language.name
+                local knownLanguages = KnownLanguages(creature)
+                for _, language in ipairs(knownLanguages) do
+                    names[#names + 1] = language:DisplayName()
                 end
                 if #names > 0 then
                     --The prefix now carries the labelling for monsters too:
@@ -8756,6 +8757,7 @@ function TacPanel.SkillLanguages()
                         textWrap = true,
                         markdown = true,
                         text = ThemeEngine.ResolveTokens(text),
+                        hover = Language.ListTooltipHover(knownLanguages),
                     }
                 end
                 element.children = children

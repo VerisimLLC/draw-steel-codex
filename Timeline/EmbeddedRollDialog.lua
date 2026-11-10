@@ -2279,10 +2279,19 @@ function GameHud.CreateEmbeddedRollDialog()
         if isPowerRoll and rollProperties ~= nil and rollProperties.try_get ~= nil then
             tiers = rollProperties:try_get("tiers")
         end
+        --A secret Critical (RollPropertiesPowerTable.IsCriticalSecret) is shared
+        --only once the dice have landed on it.
+        local critSecret = RollPropertiesPowerTable.IsCriticalSecret(rollProperties)
+        local critLanded = false
+        if tiers ~= nil and tiers[4] ~= nil and rollState == "finished" and m_rollInfo ~= nil then
+            critLanded = (m_rollInfo.naturalRoll or 0) >= 19
+        end
         if tiers ~= nil then
             tierTexts = {}
             for i = 1, #tiers do
-                tierTexts[i] = tiers[i]
+                if i < 4 or critLanded or not critSecret then
+                    tierTexts[i] = tiers[i]
+                end
             end
         end
 
@@ -2299,6 +2308,11 @@ function GameHud.CreateEmbeddedRollDialog()
             end
             local effectiveRoll = EffectiveRollForTarget(currentTarget) --[[@as table]]
             highlightedTier = RollUtils.DiceResultToTier(effectiveRoll)
+            --the roller's power table promotes a natural 19-20 to the 4th
+            --"Critical" row of a table that has one; follow it.
+            if critLanded then
+                highlightedTier = 4
+            end
 
             -- Override tier from roll properties if the caster picked a
             -- different tier manually.
@@ -7783,6 +7797,22 @@ function GameHud.CreateEmbeddedRollDialog()
                     forcedDice = m_options.forcedDice,
                     creature = creature,
                     properties = rollProperties,
+                    --nil normally. An interrupted roll (an Encounter of the Week
+                    --fake test) fades its dice this many seconds into the throw
+                    --and never lands: `complete` never fires, `interrupted` does.
+                    interruptAfter = m_options.interruptAfter,
+                    interrupted = cond(m_options.interruptAfter ~= nil, function(rollInfo)
+                        print("ROLL:: INTERRUPTED")
+                        m_rerolling = false
+                        resultPanel:SetClass('hidden', true)
+                        RelinquishPanel()
+                        if g_activeRoll == activeRoll then
+                            g_activeRoll = nil
+                        end
+                        if m_options ~= nil and m_options.interrupted ~= nil then
+                            m_options.interrupted(rollInfo)
+                        end
+                    end, nil),
                     begin = function(rollInfo)
                         print("ROLL:: BEGIN", rollInfo, rollIsSilent, instant)
                         m_rollInfo = rollInfo

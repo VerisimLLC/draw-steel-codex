@@ -63,6 +63,8 @@ local SPEND_COST = 1
 --party has just read what their Intelligence bought; the traps go down and
 --the monsters spawn behind it either way.
 local RESOLVED_LINGER_SECONDS = 4
+--the same hold when the party bought nothing: there is no new result to read.
+local RESOLVED_EMPTY_LINGER_SECONDS = 1.5
 
 EncounterPrep.TITLE = T("prep.title")
 EncounterPrep.INSTRUCTIONS = T("prep.instructions")
@@ -707,7 +709,11 @@ function EncounterPrep.HostTick(script, beat, beatIndex)
 
     if m.phase == "resolved" then
         local age = dmhub.serverTime - (tonumber(m.resolvedAt) or dmhub.serverTime)
-        if age >= RESOLVED_LINGER_SECONDS then
+        local linger = RESOLVED_LINGER_SECONDS
+        if type(m.applied) ~= "table" or #m.applied == 0 then
+            linger = RESOLVED_EMPTY_LINGER_SECONDS
+        end
+        if age >= linger then
             m.phase = "done"
             m.doneAt = dmhub.serverTime
             m.seq = (tonumber(m.seq) or 0) + 1

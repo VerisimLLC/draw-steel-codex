@@ -59,7 +59,7 @@ local g_fieldFormulas = {
 }
 
 local function FieldSize(token)
-    local formula = g_fieldFormulas[token.properties:try_get("monster_type") or ""] or "PsionicFieldSize"
+    local formula = g_fieldFormulas[MonsterAI.AIMonsterType(token.properties)] or "PsionicFieldSize"
     local value = ExecuteGoblinScript(formula, token.properties:LookupSymbol{}, 0, "Gemstone AI")
     return math.max(0, tonumber(value) or 0)
 end

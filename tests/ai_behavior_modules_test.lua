@@ -23,14 +23,16 @@ function RegistrationCallSite() return "test" end
 
 MonsterAI = {tactics = {}, behaviors = {}, behaviorSources = {}, try_get = try_get,
     LogDecision = noop, SetLogContext = noop, TargetsLogName = tostring, LocLogName = tostring}
+assert(load(section('--"Similar to" ---', "function MonsterAI.MoveMatchesMonster")))()
 assert(load(section("--Behavior modules ---", "--- /testai support")))()
 assert(load(section("--- Choose a move for a creature avoiding opportunity attacks.", "function MonsterAI:CalculateMovementPaths")))()
 MonsterAI.opportunityAttackPenalty = 0.8
 
 --- behavior modules -------------------------------------------------------
-local function Token(monsterType)
+local function Token(monsterType, similarTo)
     return {valid = true, properties = {try_get = function(_, k, default)
         if k == "monster_type" then return monsterType end
+        if k == "aiSimilarTo" then return similarTo or default end
         return default
     end}}
 end
@@ -46,6 +48,9 @@ check(MonsterAI.FindBehavior("avoid opportunity-attacks.") == MonsterAI.behavior
 check(MonsterAI.FindBehavior("Sulk") == nil, "unknown behavior")
 check(MonsterAI.HasBehavior(gnoll, "Bully") and not MonsterAI.HasBehavior(goblin, "Bully"), "on for the listed monster type only")
 check(not MonsterAI.HasBehavior(gnoll, "Avoid Opportunity Attacks"), "off with no monster types")
+check(MonsterAI.HasBehavior(Token("Hyena Man", "Gnoll"), "Bully"), "on for a monster similar to a listed type")
+check(MonsterAI.AIMonsterType(Token("Hyena Man", "Gnoll").properties) == "Gnoll"
+    and MonsterAI.AIMonsterType(gnoll.properties) == "Gnoll", "the AI type is the similar type, else its own")
 
 --an encounter's switches: the source answers; nil leaves the default.
 local switches = {}

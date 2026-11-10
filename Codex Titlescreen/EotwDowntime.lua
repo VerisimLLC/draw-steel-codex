@@ -1026,10 +1026,12 @@ function EotwDowntime.TakeRespite(onDone)
     local grants = {}
     local count = 0
     local wounded = 0
+    local victories = 0
     for _, entry in ipairs(EotwDowntime.RestCandidates()) do
         if entry.canRest then
             grants[entry.hero.heroid] = entry.victories
             count = count + 1
+            victories = victories + entry.victories
             if entry.wounded then
                 wounded = wounded + 1
             end
@@ -1041,9 +1043,10 @@ function EotwDowntime.TakeRespite(onDone)
         end
         return
     end
-    --a respite is for healing: with nobody hurt there is nothing to rest
-    --from (and each respite earns a carouse, so it must not be repeatable).
-    if wounded == 0 then
+    --a respite heals and turns Victories into XP: with nobody hurt and no
+    --Victories there is nothing to rest for (each respite earns a carouse, so
+    --it must not be repeatable; resting zeroes Victories).
+    if wounded == 0 and victories == 0 then
         if onDone ~= nil then
             onDone(false, EotwDowntime.NO_WOUNDS_MESSAGE)
         end
@@ -3484,7 +3487,7 @@ function EotwDowntime.InnPanel(host, openLocation)
         if footerLabel ~= nil and footerLabel.valid then
             if resting == 0 then
                 footerLabel.text = T("inn.footer.nobody_home")
-            elseif wounded == 0 then
+            elseif wounded == 0 and victories == 0 then
                 footerLabel.text = EotwDowntime.NO_WOUNDS_MESSAGE
             else
                 if victories > 0 then
@@ -3496,7 +3499,7 @@ function EotwDowntime.InnPanel(host, openLocation)
         end
         if seriesWarning ~= nil and seriesWarning.valid then
             local lines = {}
-            if resting > 0 and wounded > 0 then
+            if resting > 0 and (wounded > 0 or victories > 0) then
                 for _, held in ipairs(EncounterOfTheWeek.PartsHeldOpen()) do
                     lines[#lines+1] = T("inn.series.warning", held)
                 end
@@ -3506,7 +3509,7 @@ function EotwDowntime.InnPanel(host, openLocation)
         end
         if respiteButton ~= nil and respiteButton.valid then
             --on the button itself: opacity is not inherited from this wrapper.
-            local opacity = cond(resting > 0 and wounded > 0 and not EotwDowntime.RespiteBusy(), 1, 0.45)
+            local opacity = cond(resting > 0 and (wounded > 0 or victories > 0) and not EotwDowntime.RespiteBusy(), 1, 0.45)
             for _, child in ipairs(respiteButton.children) do
                 child.selfStyle.opacity = opacity
             end

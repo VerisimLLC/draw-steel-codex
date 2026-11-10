@@ -3405,18 +3405,21 @@ function EncounterMontage.ApplyEffects(effects, ctx)
         printf("EotW montage: effect application failed: %s", tostring(err))
         applied[#applied + 1] = T("montage.effect.failed")
     end
-    --a result whose only rules are hidden would show players nothing: tell
-    --them they learned something. Not for a threat's consequence, which
-    --is something that happened to them, not something they found out.
-    if not ctx.consequence and EncounterScript.OnlyHiddenRules(effects) then
-        --the script's own "Secret result:" line, else the general one.
-        --Montage effects always belong to the current map's script.
-        local line = nil
-        pcall(function()
-            local script = EncounterMontage.FindMapScript()
-            line = script ~= nil and script.parse ~= nil and script.parse.secretResult or nil
-        end)
-        applied[#applied + 1] = line or T("montage.effect.secret")
+    --a result that raises a track marked Secret tells players they learned
+    --something (the track itself is hidden). Not for a threat's
+    --consequence, which happened to them rather than being found out.
+    local secret = not ctx.consequence and EncounterScript.SecretResultLine(effects) or nil
+    if secret ~= nil then
+        --a table row that already said it (a nested call) is not repeated.
+        local said = false
+        for _, text in ipairs(applied) do
+            if text == secret then
+                said = true
+            end
+        end
+        if not said then
+            applied[#applied + 1] = secret
+        end
     end
     return applied, newAllies
 end

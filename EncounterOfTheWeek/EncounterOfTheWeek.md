@@ -2831,6 +2831,7 @@ manage any of it.
 | D16 | A track may carry a **description**: `Track: Rite's Progress -- how close the cult is to finishing the rite`, shown next to the value in town and on the recap (shown tracks only). | Players can't tell whether "rose to 2" is good without it. The user declined a score breakdown on the recap. |
 | D17 | **Delve tests do not count** toward the score; only the montage board's own tests do. | The user's pick. |
 | D18 | **Replaying an earlier part never clears later parts' results.** Replaying Part 1 after Part 2 replaces Part 1's row only; Part 2's share stays, even if Part 2 branched on the old value. | The user, 2026-10-19. |
+| D19 | A track may be marked **Secret**: `Track: Velkhara's Secret (Hidden, Secret)` (or `(Secret)`, which is also hidden). A test or choice result that raises it shows the part's `Secret result: <text>` header line, or "You learned something that may matter later.", on the landed tier and in the result, even when the result also shows other rules. Not for lowering it, a threat's consequence, or a hidden track without the mark. | Playtest 2026-11-09: results that only raised a hidden clue track showed players nothing. Per track, because Rite's Progress is hidden too but rises on failures (the user picked this over "any hidden track" or "only when the result is empty", 2026-11-10). |
 
 ### The design
 
@@ -2963,7 +2964,8 @@ Track clauses are `<Track> +N` / `<Track> -N`, `<Track> rises by N` /
 against the names the part declares, so they cannot collide with `+2 malice`
 and the rest. **A clause that changes a hidden track is always hidden**, as
 if it were in `{...}`, so it can never print "Rite's Progress +2" on the
-stage.
+stage. A track marked `(Secret)` is hidden the same way, but raising it
+shows the `Secret result:` line instead (D19).
 
 **Reading it (conditions).** There is **one condition parser for every
 place**: these new atoms join `EncounterScript.ParseCondition`, so every atom
@@ -6547,6 +6549,14 @@ Consequence: You begin the encounter surprised
   full text is parsed for effects; tiers not achieved keep their teaser for
   good. `=>` was chosen because `|` breaks the journal's tier regex and `:`
   collides with tier prose.
+- **Authoring standard for tier lines** (user direction 2026-11-10): a tier
+  line is a short label plus effects (`|Shaken => {The threat is
+  vanquished}. You lose 1d3 stamina`), and the narration lives only in the
+  test's `if tier1 ... end` scene block, which plays in the central montage
+  box. Prose in the tier line was said twice (line and scene) and warned once
+  per clause. Effect order: vanquish, costs, rewards. The Road Off the Moor
+  Parts 1 and 2 were converted to this form on 2026-11-10 (Part 3 was already
+  written this way). The validator does not check it yet.
 - **Riders** (`TestRiders.lua`, core): `|<Effect>: <requirement>` after the
   tiers. Effects are `Allow` (aliases `Requires`/`Required`/`Allowed`/
   `Require`), `Edge`, `Double Edge`, `Bane` and `Double Bane`. A requirement

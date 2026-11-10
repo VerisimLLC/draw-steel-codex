@@ -979,7 +979,7 @@ function EncounterScriptValidator.BuildReport(docid, partyid)
 
         --the story it carries forward: its tracks and its "# Results".
         for _, decl in ipairs(parse.tracks or {}) do
-            local text = string.format("story track '%s'%s", decl.name, cond(decl.hidden, " (hidden from players)", ""))
+            local text = string.format("story track '%s'%s", decl.name, cond(decl.secret, " (secret: hidden, and raising it shows the Secret result line)", cond(decl.hidden, " (hidden from players)", "")))
             if decl.description ~= nil then
                 text = text .. " -- " .. decl.description
             end

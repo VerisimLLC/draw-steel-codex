@@ -370,6 +370,14 @@ Puzzle.RegisterOutcomeHandler("locks", {
                     pointOut[#pointOut + 1] = EffectTarget(effect)
                 end
             end
+            if outcome == "solve" and status.bypassWithFail then
+                for i, effect in ipairs(lock.onFail or {}) do
+                    if Puzzle.ClaimEffect(id, string.format("fail:%s:%d", lockKey, i)) then
+                        RunEffect(effect, false)
+                        pointOut[#pointOut + 1] = EffectTarget(effect)
+                    end
+                end
+            end
             if outcome == "solve" and lock.hideWhenSolved and Puzzle.ClaimEffect(id, "hideself:" .. lockKey) then
                 RunEffect({ kind = "hide", floorid = lock.floorid, objid = lock.objid }, false)
             end
@@ -436,6 +444,24 @@ end
 --------------------------------------------------------------------------------
 -- Director setup window
 --------------------------------------------------------------------------------
+
+--A lock's targets as a string in a fixed order, to notice changes made elsewhere.
+---@param lock table|nil
+---@return string
+local function LockSignature(lock)
+    if type(lock) ~= "table" then
+        return ""
+    end
+    local parts = { tostring(lock.range), tostring(lock.hideWhenSolved) }
+    for _, listName in ipairs({ "onSolve", "onFail" }) do
+        parts[#parts + 1] = listName
+        for _, e in ipairs(lock[listName] or {}) do
+            parts[#parts + 1] = string.format("%s/%s/%s/%s/%s/%s", tostring(e.kind), tostring(e.objid),
+                tostring(e.x), tostring(e.y), tostring(e.open), tostring(e.text))
+        end
+    end
+    return table.concat(parts, ";")
+end
 
 ---@type table<string, Panel>
 local g_setupWindows = {}
@@ -692,6 +718,27 @@ local function OpenSetup(id, floorid, objid)
                 WriteLock(current)
             end,
         }
+        local attrOptions = { { id = "none", text = "None" } }
+        local attrs = {}
+        for attrid, info in pairs(creature.attributesInfo) do
+            attrs[#attrs + 1] = { id = attrid, text = info.description, order = info.order or 0 }
+        end
+        table.sort(attrs, function(a, b) return a.order < b.order end)
+        for _, a in ipairs(attrs) do
+            attrOptions[#attrOptions + 1] = { id = a.id, text = a.text }
+        end
+        children[#children + 1] = gui.Label{ classes = {"sizeS"}, width = "auto", height = "auto", tmargin = 6, text = "Bypass test (tier 3 opens it; tier 2 opens it and runs the fail effects):" }
+        children[#children + 1] = gui.Dropdown{
+            width = 200,
+            options = attrOptions,
+            idChosen = lock.bypassAttr or "none",
+            change = function(dropdown)
+                ---@cast dropdown Dropdown
+                local current = ReadLock()
+                current.bypassAttr = cond(dropdown.idChosen == "none", nil, dropdown.idChosen)
+                WriteLock(current)
+            end,
+        }
         children[#children + 1] = gui.Check{
             classes = {"sizeS"},
             width = "auto",
@@ -762,6 +809,18 @@ local function OpenSetup(id, floorid, objid)
         destroy = function(element)
             g_setupWindows[lockKey] = nil
         end,
+        --another client changed the targets or the type: rebuild. Other config
+        --edits (title, grid) are left alone so typing here is never interrupted.
+        monitorGame = Puzzle.MonitorPaths(id),
+        data = { signature = nil },
+        refreshGame = function(element)
+            local signature = tostring(Puzzle.GetTypeId(id)) .. "|" .. LockSignature(Locks(id)[lockKey])
+            if element.data.signature ~= nil and element.data.signature ~= signature then
+                element.data.signature = signature
+                Rebuild()
+            end
+            element.data.signature = signature
+        end,
         gui.Panel{
             flow = "horizontal",
             width = "100%",
@@ -792,14 +851,99 @@ end
 -- Interact
 --------------------------------------------------------------------------------
 
---The title-bar buttons a Director sees on a lock's puzzle window.
+--One of this player's tokens on the lock's floor within range, or nil.
+---@param obj any
+---@param range number
+---@return CharacterToken|nil
+local function TokenInRange(obj, range)
+    for _, tok in ipairs(dmhub.GetTokens{ playerControlled = true } or {}) do
+        local mine = false
+        pcall(function() mine = tok.canControlAsUser == true end)
+        if mine and tok.floorIndex == obj.floorIndex then
+            local loc = tok.loc
+            local reach = range + (tonumber(tok.radiusInTiles) or 0.5)
+            if math.abs(loc.x - obj.x) <= reach and math.abs(loc.y - obj.y) <= reach then
+                return tok
+            end
+        end
+    end
+    return nil
+end
+
+--Roll the lock's bypass test with token and act on the tier.
+---@param id string
+---@param attrid string
+---@param token CharacterToken
+local function RollBypass(id, attrid, token)
+    local props = token.properties
+    if props == nil then
+        return
+    end
+    props:ShowCharacteristicRollDialog(attrid, {
+        onComplete = function(tier)
+            if Puzzle.Status(id).solved then
+                return
+            end
+            if tier >= 3 then
+                Puzzle.Bypass(id)
+            elseif tier == 2 then
+                Puzzle.Bypass(id, { withFail = true })
+            else
+                Toast("It holds.")
+            end
+        end,
+    })
+end
+
+---@param floorid string
+---@param objid string
+---@return Panel|nil
+local function BypassButton(id, floorid, objid)
+    local lock = Locks(id)[LockKey(floorid, objid)]
+    local attrid = type(lock) == "table" and lock.bypassAttr or nil
+    local info = attrid ~= nil and creature.attributesInfo[attrid] or nil
+    if info == nil then
+        return nil
+    end
+    return gui.Button{
+        classes = {"sizeXs"},
+        text = string.format("Try %s", info.description),
+        width = 100,
+        height = 22,
+        hmargin = 2,
+        thinkTime = 0.5,
+        think = function(element)
+            element:SetClass("collapsed", Puzzle.Status(id).solved == true)
+        end,
+        click = function(element)
+            local obj = game.LookupObject(floorid, objid)
+            local range = tonumber(lock.range) or DEFAULT_RANGE
+            local token = obj ~= nil and TokenInRange(obj, range) or nil
+            if token == nil and IsDMOrPlayerHost() then
+                token = (dmhub.selectedOrPrimaryTokens or {})[1]
+            end
+            if token == nil then
+                Toast("Too far away. Move closer.")
+                return
+            end
+            RollBypass(id, attrid --[[@as string]], token)
+        end,
+    }
+end
+
+--The title-bar buttons on a lock's puzzle window: the bypass test for anyone at
+--the lock, and the Director's setup and push buttons.
 ---@param floorid string|nil
 ---@param objid string|nil
 ---@return fun(id: string): Panel|nil
 local function DirectorHeader(floorid, objid)
     return function(id)
+        local bypass = nil
+        if floorid ~= nil and objid ~= nil then
+            bypass = BypassButton(id, floorid, objid)
+        end
         if not IsDMOrPlayerHost() then
-            return nil
+            return bypass
         end
         return gui.Panel{
             flow = "horizontal",
@@ -808,6 +952,7 @@ local function DirectorHeader(floorid, objid)
             halign = "right",
             valign = "center",
             hmargin = 8,
+            bypass,
             (floorid ~= nil and objid ~= nil) and gui.Button{
                 classes = {"sizeXs"},
                 text = "Lock setup",
@@ -836,24 +981,6 @@ Puzzle.OpenForJoin = function(id)
     Puzzle.OpenWindow(id, { header = DirectorHeader(nil, nil) })
 end
 
---True when one of this player's tokens on the lock's floor is within range.
----@param obj any
----@param range number
----@return boolean
-local function InRange(obj, range)
-    for _, tok in ipairs(dmhub.GetTokens{ playerControlled = true } or {}) do
-        local mine = false
-        pcall(function() mine = tok.canControlAsUser == true end)
-        if mine and tok.floorIndex == obj.floorIndex then
-            local loc = tok.loc
-            local reach = range + (tonumber(tok.radiusInTiles) or 0.5)
-            if math.abs(loc.x - obj.x) <= reach and math.abs(loc.y - obj.y) <= reach then
-                return true
-            end
-        end
-    end
-    return false
-end
 
 --The Director's Edit command on the object: straight to the lock setup.
 function PuzzleLockInteractive:Edit(controller)
@@ -896,10 +1023,10 @@ function PuzzleLockInteractive:Interact(controller, token)
     local lock = Locks(id)[LockKey(floorid, objid)]
     local range = (type(lock) == "table" and tonumber(lock.range)) or DEFAULT_RANGE
     local obj = game.LookupObject(floorid, objid)
-    if obj ~= nil and not InRange(obj, range) then
+    if obj ~= nil and TokenInRange(obj, range) == nil then
         Toast("Too far away. Move closer.")
         return nil
     end
-    Puzzle.OpenWindow(id, { header = DirectorHeader(nil, nil) })
+    Puzzle.OpenWindow(id, { header = DirectorHeader(floorid, objid) })
     return nil
 end

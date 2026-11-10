@@ -55,6 +55,7 @@ local mod = dmhub.GetModLoading()
 ---@field hint boolean|nil the Director has revealed the type's hint
 ---@field applied table<string, boolean>|nil effects claimed by the host, so none runs twice
 ---@field effectsDone boolean|nil the outcome handlers have run for this solve or failure
+---@field bypassWithFail boolean|nil bypassed at a cost: run the fail effects as well
 
 Puzzle = {}
 PuzzleType = {}
@@ -534,11 +535,16 @@ end
 
 --Director (or the host of a game with no Director): get past the puzzle without
 --touching the board. Works for every type.
+--opts.withFail: the way through came at a cost; the lock's fail effects run too
+--(a Draw Steel tier 2 bypass test).
 ---@param id string
-function Puzzle.Bypass(id)
+---@param opts {withFail: boolean|nil}|nil
+function Puzzle.Bypass(id, opts)
+    local withFail = opts ~= nil and opts.withFail == true
     WriteStatus(id, function(status)
         status.solved = true
         status.bypassed = true
+        status.bypassWithFail = withFail or nil
         status.failed = nil
         status.announced = nil
         status.effectsDone = nil
@@ -971,7 +977,11 @@ local function HostTick()
                 end
                 if ok then
                     WriteStatus(id, function(s) s.announced = true end, "Announce puzzle")
-                    chat.Send(string.format("The party solved %s.", Puzzle.Title(id)))
+                    if status.bypassed then
+                        chat.Send(string.format("The party got past %s.", Puzzle.Title(id)))
+                    else
+                        chat.Send(string.format("The party solved %s.", Puzzle.Title(id)))
+                    end
                 else
                     --a client claimed a solve the board does not show: undo the claim.
                     WriteStatus(id, function(s)

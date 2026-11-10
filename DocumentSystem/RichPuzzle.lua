@@ -739,13 +739,15 @@ function Puzzle.OpenWindow(id, opts)
         end
     end
     local header = opts.header ~= nil and opts.header(id) or nil
+    --to the side, not centred: a solve outlines its doors and objects on the map.
     window = gui.Panel{
         classes = {"framedPanel"},
         styles = ThemeEngine.GetStyles(),
         width = "auto",
         height = "auto",
-        halign = "center",
+        halign = "right",
         valign = "center",
+        hmargin = 60,
         flow = "vertical",
         pad = 12,
         borderBox = true,

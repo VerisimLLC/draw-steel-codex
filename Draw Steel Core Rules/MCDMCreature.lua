@@ -5248,9 +5248,14 @@ function creature:RollCustomPowerTableTest(title, characteristics, skills, tiers
     end)
 end
 
-function creature:ShowCharacteristicRollDialog(attrid)
+--options (optional): onComplete(tier) is called with 1-3 when the roll lands,
+--for callers that act on the result (a puzzle lock's bypass test).
+---@param attrid string
+---@param options {onComplete: fun(tier: integer)|nil}|nil
+function creature:ShowCharacteristicRollDialog(attrid, options)
     local attrInfo = creature.attributesInfo[attrid]
     local title = string.format("%s Test", attrInfo.description)
+    local onComplete = options ~= nil and options.onComplete or nil
 
     local rollProperties = RollPropertiesPowerTable.new {
         tiers = {
@@ -5317,6 +5322,9 @@ function creature:ShowCharacteristicRollDialog(attrid)
                 end
 
                 local tier = RollUtils.DiceResultToTier(rollInfo)
+                if onComplete ~= nil then
+                    pcall(onComplete, tier)
+                end
 
                 token.properties:DispatchEvent("rollpower", {
                     surges = 0,

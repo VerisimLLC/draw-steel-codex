@@ -1,52 +1,20 @@
 local mod = dmhub.GetModLoading()
 
--- The [[sliderpuzzle:Name]] journal widget: the Director picks an image and a grid
---size in the annotations strip, and the page shows that image cut into tiles
---with one missing. Clicking a tile in the gap's row or column slides it (and
---any tiles between) into the gap. The board is shared: every client reads and
---writes the same shared document, so the whole table solves it together.
-
----@class RichSliderPuzzle: RichTag
---- @field new fun(o?: table): RichSliderPuzzle
---- @field identifier string|false
---- @field image string|false
---- @field grid number
---- @field boardWidth number
-RichSliderPuzzle = RegisterGameType("RichSliderPuzzle", "RichTag")
-RichSliderPuzzle.tag = "sliderpuzzle"
-RichSliderPuzzle.identifier = false
-RichSliderPuzzle.image = false
-RichSliderPuzzle.grid = 3
-RichSliderPuzzle.boardWidth = 360
-
---One shared document holds every puzzle's board, keyed by PuzzleKey.
-local PUZZLE_DOC = "sliderpuzzles"
+-- The slider puzzle type: an image cut into tiles with one missing. Clicking a
+-- tile in the gap's row or column slides it (and any tiles between) into the
+-- gap. Registered with the puzzle framework (PuzzleFramework.lua), which owns
+-- storage, the solved banner and the Director controls.
+--
+-- Also the old [[sliderpuzzle:Name]] journal tag: it now shows a framework
+-- puzzle, copying its setup and saved board across the first time it is opened.
 
 local MIN_GRID = 3
 local MAX_GRID = 6
 
-function RichSliderPuzzle.Create()
-    return RichSliderPuzzle.new{}
-end
-
---The board's key in the shared document: owning journal page + tag name, so
---two puzzles on different pages never share a board. Only characters that are
---legal as cloud keys survive. Nil when the tag has no owning page yet.
----@param tag RichSliderPuzzle
----@return string|nil
-local function PuzzleKey(tag)
-    local doc = tag:GetDocument()
-    if doc == nil then
-        return nil
-    end
-    local raw = string.format("%s_%s", tostring(doc.id), tostring(tag.identifier or "default"))
-    return (string.gsub(raw, "[^%w_%-]", "_"))
-end
-
----@param tag RichSliderPuzzle
+---@param config table
 ---@return integer
-local function GridSize(tag)
-    local n = math.floor(tonumber(tag.grid) or 3)
+local function GridSize(config)
+    local n = math.floor(tonumber(config.grid) or 3)
     return math.max(MIN_GRID, math.min(MAX_GRID, n))
 end
 
@@ -64,7 +32,7 @@ end
 
 ---@param tiles integer[]
 ---@return boolean
-local function IsSolved(tiles)
+local function TilesSolved(tiles)
     for i, t in ipairs(tiles) do
         if t ~= i then
             return false
@@ -102,7 +70,6 @@ end
 
 --Scramble by making random legal moves from the solved board, which always
 --leaves a solvable puzzle (a random permutation is unsolvable half the time).
---random(k) must return an integer in 1..k.
 ---@param n integer
 ---@param random fun(k: integer): integer
 ---@return integer[]
@@ -123,28 +90,15 @@ local function Scramble(n, random)
         previous = gap
         gap = pick
     end
-    if IsSolved(tiles) then
+    if TilesSolved(tiles) then
         local pick = Neighbors(gap, n)[1]
         tiles[gap], tiles[pick] = tiles[pick], tiles[gap]
     end
     return tiles
 end
 
---A small seeded generator so every client computes the SAME opening scramble
---for a puzzle nobody has touched yet, without anyone having to write it first.
----@param seedText string
----@return fun(k: integer): integer
-local function SeededRandom(seedText)
-    local seed = 7
-    for i = 1, #seedText do
-        seed = (seed * 31 + string.byte(seedText, i)) % 2147483648
-    end
-    return function(k)
-        seed = (seed * 1103515245 + 12345) % 2147483648
-        return (seed // 65536) % k + 1
-    end
-end
-
+--Tiles are stored as a comma string: a Lua list would be uploaded whole, and a
+--string arrives exactly as written.
 ---@param text any
 ---@param n integer
 ---@return integer[]|nil
@@ -168,45 +122,11 @@ local function ParseTiles(text, n)
     return tiles
 end
 
---Read this puzzle's board. A board saved for a different grid size (the
---Director changed it) is ignored and the puzzle starts over.
----@param tag RichSliderPuzzle
----@return integer[] tiles
----@return integer moves
-local function ReadBoard(tag)
-    local n = GridSize(tag)
-    local key = PuzzleKey(tag)
-    if key ~= nil then
-        local entry = mod:GetDocumentSnapshot(PUZZLE_DOC).data[key]
-        if type(entry) == "table" and entry.n == n then
-            local tiles = ParseTiles(entry.tiles, n)
-            if tiles ~= nil then
-                return tiles, math.tointeger(entry.moves) or 0
-            end
-        end
-    end
-    return Scramble(n, SeededRandom(string.format("%s:%d", key or "local", n))), 0
-end
-
---Tiles go up as a comma string rather than a list: an int-keyed list can be
---reshaped by the cloud on upload, and a string arrives exactly as written.
----@param tag RichSliderPuzzle
----@param tiles integer[]
----@param moves integer
----@param description string
-local function WriteBoard(tag, tiles, moves, description)
-    local key = PuzzleKey(tag)
-    if key == nil then
-        return
-    end
-    local doc = mod:GetDocumentSnapshot(PUZZLE_DOC)
-    doc:BeginChange()
-    doc.data[key] = {
-        n = GridSize(tag),
-        tiles = table.concat(tiles, ","),
-        moves = moves,
-    }
-    doc:CompleteChange(description, {undoable = false})
+---@param state table
+---@param n integer
+---@return integer[]
+local function StateTiles(state, n)
+    return ParseTiles(state.tiles, n) or SolvedTiles(n)
 end
 
 --Slide the tile at pos toward the gap, carrying every tile between them.
@@ -237,44 +157,38 @@ local function Slide(tiles, n, pos)
     return true
 end
 
-function RichSliderPuzzle.CreateDisplay(self)
-    local m_token = nil
+---@param ctx PuzzleContext
+---@return Panel
+local function Render(ctx)
+    local m_ctx = ctx
     local m_aspect = 1
     local m_imageInfoFor = nil
     local m_builtGrid = nil
-    local m_tilePanels = {}
+    local m_tilePanels = {} ---@type Panel[]
 
     local resultPanel
     local board
     local placeholder
-    local statusLabel
-    local directorRow
-    local Refresh
-
-    --The board's pixel height follows the image's shape, clamped so a very
-    --tall or wide picture still gives clickable tiles.
-    local function BoardHeight()
-        return round(self.boardWidth * math.max(0.4, math.min(2.5, m_aspect)))
-    end
+    local Layout
 
     local function RequestImageShape()
-        if self.image == m_imageInfoFor then
+        local image = m_ctx.config.image
+        if image == m_imageInfoFor then
             return
         end
-        m_imageInfoFor = self.image
+        m_imageInfoFor = image
         m_aspect = 1
-        local requested = self.image
-        if not requested then
+        if not image then
             return
         end
         --GetImageInfo can call back more than once; only the latest image counts.
-        dmhub.GetImageInfo(requested, function(info)
-            if mod.unloaded or not resultPanel.valid or requested ~= self.image then
+        dmhub.GetImageInfo(image, function(info)
+            if mod.unloaded or not resultPanel.valid or image ~= m_ctx.config.image then
                 return
             end
             if info ~= nil and info.width ~= nil and info.width > 0 then
                 m_aspect = info.height / info.width
-                Refresh()
+                Layout()
             end
         end)
     end
@@ -284,9 +198,7 @@ function RichSliderPuzzle.CreateDisplay(self)
         m_tilePanels = {}
         local children = {}
         for t = 1, n * n do
-            local tileNumber = t
-            local tile
-            tile = gui.Panel{
+            local tile = gui.Panel{
                 classes = {"sliderTile"},
                 bgimage = "panels/square.png",
                 bgcolor = "white",
@@ -296,53 +208,64 @@ function RichSliderPuzzle.CreateDisplay(self)
                 borderColor = "#ffffff26",
                 data = { pos = t },
                 press = function(element)
-                    if not self.image or m_token == nil or m_token.editor then
+                    if m_ctx.readonly or not m_ctx.config.image then
                         return
                     end
-                    local tiles, moves = ReadBoard(self)
-                    if IsSolved(tiles) then
-                        return
-                    end
-                    if Slide(tiles, n, element.data.pos) then
-                        WriteBoard(self, tiles, moves + 1, "Slide puzzle move")
-                        Refresh()
-                    end
+                    local pos = element.data.pos
+                    m_ctx:Change(function(state, config)
+                        local size = GridSize(config)
+                        local tiles = StateTiles(state, size)
+                        if not Slide(tiles, size, pos) then
+                            return false
+                        end
+                        state.tiles = table.concat(tiles, ",")
+                        state.moves = (math.tointeger(state.moves) or 0) + 1
+                    end, "Slide puzzle move")
                 end,
+                gui.Label{
+                    classes = {"hidden", "sizeL", "bold"},
+                    width = "auto",
+                    height = "auto",
+                    halign = "center",
+                    valign = "center",
+                    interactable = false,
+                    text = tostring(t),
+                },
             }
-            m_tilePanels[tileNumber] = tile
+            m_tilePanels[t] = tile
             children[#children + 1] = tile
         end
         board.children = children
     end
 
-    Refresh = function()
+    Layout = function()
         if not resultPanel.valid then
             return
         end
+        local ctx = m_ctx
+        local config = ctx.config
         RequestImageShape()
-
-        local hasImage = self.image and true or false
+        local hasImage = config.image and true or false
         board:SetClass("collapsed", not hasImage)
         placeholder:SetClass("collapsed", hasImage)
-        directorRow:SetClass("collapsed", not dmhub.isDM or m_token == nil or m_token.player == true)
-        if not hasImage then
-            statusLabel.text = ""
+        if not hasImage or ctx.state == nil then
             return
         end
 
-        local n = GridSize(self)
+        local n = GridSize(config)
         if m_builtGrid ~= n then
             BuildTiles(n)
         end
 
-        local w = self.boardWidth
-        local h = BoardHeight()
+        local w = tonumber(config.boardWidth) or 360
+        local h = round(w * math.max(0.4, math.min(2.5, m_aspect)))
         board.selfStyle.width = w
         board.selfStyle.height = h
         resultPanel.selfStyle.width = w
 
-        local tiles, moves = ReadBoard(self)
-        local solved = IsSolved(tiles)
+        local tiles = StateTiles(ctx.state, n)
+        local solved = TilesSolved(tiles) or ctx.solved
+        local numbers = ctx:Assist("numbers")
         local cellW = w / n
         local cellH = h / n
 
@@ -354,7 +277,7 @@ function RichSliderPuzzle.CreateDisplay(self)
                 local homeRow = (t - 1) // n
                 local homeCol = (t - 1) % n
                 tile.data.pos = pos
-                tile.bgimage = self.image
+                tile.bgimage = config.image
                 --imageRect is in texture UVs, whose y runs bottom-up.
                 tile.selfStyle.imageRect = {
                     x1 = homeCol / n,
@@ -369,20 +292,15 @@ function RichSliderPuzzle.CreateDisplay(self)
                 --the gap tile stays hidden until the picture is complete.
                 tile:SetClass("hidden", t == n * n and not solved)
                 tile.selfStyle.borderWidth = cond(solved, 0, 1)
+                tile.children[1]:SetClass("hidden", not numbers or solved)
             end
-        end
-
-        if solved then
-            statusLabel.text = cond(moves > 0, string.format("Solved in %d moves!", moves), "Solved")
-        else
-            statusLabel.text = string.format("Moves: %d", moves)
         end
     end
 
     board = gui.Panel{
         flow = "none",
-        width = self.boardWidth,
-        height = self.boardWidth,
+        width = 360,
+        height = 360,
         halign = "left",
         bgimage = "panels/square.png",
         bgcolor = "#00000066",
@@ -392,176 +310,153 @@ function RichSliderPuzzle.CreateDisplay(self)
     }
 
     placeholder = gui.Label{
-        classes = {"collapsed"},
+        classes = {"collapsed", "sizeS", "bordered"},
         width = 340,
         height = 64,
         halign = "left",
-        bgimage = "panels/square.png",
-        bgcolor = "#00000044",
-        border = 1,
-        borderColor = "#99999977",
-        fontSize = 14,
-        color = "#aaaaaa",
         textAlignment = "center",
         text = "Slider puzzle: choose an image in the annotations strip below.",
     }
 
-    statusLabel = gui.Label{
-        classes = {"sizeS"},
-        width = "auto",
-        height = "auto",
-        halign = "left",
-        valign = "center",
-        text = "",
-    }
-
-    directorRow = gui.Panel{
-        flow = "horizontal",
-        width = "auto",
-        height = "auto",
-        halign = "right",
-        valign = "center",
-        gui.Button{
-            classes = {"sizeXs"},
-            text = "Shuffle",
-            width = 72,
-            height = 22,
-            hmargin = 2,
-            press = function(element)
-                WriteBoard(self, Scramble(GridSize(self), math.random), 0, "Shuffle slide puzzle")
-                Refresh()
-            end,
-        },
-        gui.Button{
-            classes = {"sizeXs"},
-            text = "Solve",
-            width = 72,
-            height = 22,
-            hmargin = 2,
-            press = function(element)
-                WriteBoard(self, SolvedTiles(GridSize(self)), 0, "Solve slide puzzle")
-                Refresh()
-            end,
-        },
-    }
-
     resultPanel = gui.Panel{
         flow = "vertical",
-        width = self.boardWidth,
+        width = "auto",
         height = "auto",
         halign = "left",
-        valign = "top",
-        vmargin = 4,
-        monitorGame = mod:GetDocumentPath(PUZZLE_DOC),
-        refreshGame = function(element)
-            Refresh()
+        refreshPuzzle = function(element, ctx)
+            m_ctx = ctx
+            Layout()
         end,
-        refreshTag = function(element, tag, match, token)
-            self = tag or self
-            m_token = token
-            Refresh()
-        end,
-        --the annotation editors change image/grid on the tag object directly
-        --with no event, so poll cheaply while a page is in edit mode.
-        thinkTime = 0.5,
-        think = function(element)
-            if m_token ~= nil and m_token.editor then
-                Refresh()
-            end
-        end,
-
         board,
         placeholder,
-        gui.Panel{
-            flow = "horizontal",
-            width = "100%",
-            height = 26,
-            tmargin = 2,
-            statusLabel,
-            directorRow,
-        },
     }
-
     return resultPanel
 end
 
-function RichSliderPuzzle.CreateEditor(self)
+local gridOptions = {}
+for n = MIN_GRID, MAX_GRID do
+    gridOptions[#gridOptions + 1] = { id = tostring(n), text = string.format("%d x %d", n, n) }
+end
+
+PuzzleType.Register{
+    id = "slider",
+    name = "Slider puzzle",
+    fields = {
+        { id = "image", type = "image", label = "Image", default = false },
+        { id = "grid", type = "choice", label = "Grid", default = "3", options = gridOptions },
+        { id = "boardWidth", type = "number", label = "Board width", default = 360, min = 200, max = 720 },
+    },
+    assists = {
+        { id = "numbers", label = "Show tile numbers" },
+    },
+    ConfigKey = function(config)
+        return tostring(GridSize(config))
+    end,
+    NewState = function(config, ctx)
+        local n = GridSize(config)
+        return { n = n, tiles = table.concat(Scramble(n, ctx.random), ","), moves = 0 }
+    end,
+    IsSolved = function(state, config)
+        local n = GridSize(config)
+        local tiles = ParseTiles(state.tiles, n)
+        return tiles ~= nil and TilesSolved(tiles)
+    end,
+    SolvedState = function(config)
+        local n = GridSize(config)
+        return { n = n, tiles = table.concat(SolvedTiles(n), ","), moves = 0 }
+    end,
+    Status = function(state, config)
+        return string.format("Moves: %d", math.tointeger(state.moves) or 0)
+    end,
+    Render = Render,
+}
+
+--------------------------------------------------------------------------------
+-- The legacy [[sliderpuzzle:Name]] tag
+--------------------------------------------------------------------------------
+
+---@class RichSliderPuzzle: RichTag
+--- @field new fun(o?: table): RichSliderPuzzle
+--- @field identifier string|false
+--- @field image string|false
+--- @field grid number
+--- @field boardWidth number
+RichSliderPuzzle = RegisterGameType("RichSliderPuzzle", "RichTag")
+RichSliderPuzzle.tag = "sliderpuzzle"
+RichSliderPuzzle.identifier = false
+RichSliderPuzzle.image = false
+RichSliderPuzzle.grid = 3
+RichSliderPuzzle.boardWidth = 360
+
+--Where boards were saved before the framework: one document, keyed by page + name.
+local LEGACY_DOC = "sliderpuzzles"
+local ID_PREFIX = "s_"
+
+function RichSliderPuzzle.Create()
+    return RichSliderPuzzle.new{}
+end
+
+--First open of an old tag: copy its setup (stored on the tag) and its saved
+--board (in the old shared document) into a framework puzzle.
+---@param tag RichSliderPuzzle
+---@param id string|nil
+local function Migrate(tag, id)
+    if id == nil or Puzzle.Exists(id) then
+        return
+    end
+    local n = GridSize(tag)
+    Puzzle.Create(id, "slider", {
+        image = tag.image or false,
+        grid = tostring(n),
+        boardWidth = tag.boardWidth,
+    }, tag.identifier and tostring(tag.identifier) or nil)
+
+    local doc = tag:GetDocument()
+    local docid = doc ~= nil and doc:try_get("id") or nil
+    if docid == nil then
+        return
+    end
+    local oldKey = Puzzle.SafeId(string.format("%s_%s", tostring(docid), tostring(tag.identifier or "default")))
+    local entry = mod:GetDocumentSnapshot(LEGACY_DOC).data[oldKey]
+    if type(entry) == "table" and entry.n == n and ParseTiles(entry.tiles, n) ~= nil then
+        local tiles = ParseTiles(entry.tiles, n) --[[@as integer[] ]]
+        local solved = TilesSolved(tiles)
+        Puzzle.ImportState(id, { n = n, tiles = entry.tiles, moves = math.tointeger(entry.moves) or 0 },
+            cond(solved, { solved = true, solvedBy = "director", announced = true }, nil))
+    end
+end
+
+function RichSliderPuzzle.CreateDisplay(self)
+    local m_token = nil
+    local panel = Puzzle.CreatePanel(nil, {
+        editing = function() return m_token ~= nil and m_token.editor == true end,
+    })
     return gui.Panel{
-        flow = "none",
-        width = 96,
-        height = "100%",
-        refreshEditor = function(element, richTag)
-            self = richTag or self
+        flow = "vertical",
+        width = "auto",
+        height = "auto",
+        halign = "left",
+        valign = "top",
+        refreshTag = function(element, tag, match, token)
+            self = tag or self
+            m_token = token
+            local id = Puzzle.JournalId(self, ID_PREFIX)
+            Migrate(self, id)
+            panel:FireEvent("setPuzzle", id)
+            panel:FireEvent("refreshPuzzleFrame")
         end,
-        gui.Button{
-            classes = {"settingsButton", "sizeXxs"},
-            halign = "right",
-            valign = "top",
-            press = function(element)
-                if element.popup ~= nil then
-                    element.popup = nil
-                    return
-                end
-                local gridOptions = {}
-                for n = MIN_GRID, MAX_GRID do
-                    gridOptions[#gridOptions + 1] = { id = tostring(n), text = string.format("%d x %d", n, n) }
-                end
-                element.popupsInheritStyles = true
-                element.popup = gui.Panel{
-                    classes = {"bordered", "bg"},
-                    width = "auto",
-                    height = "auto",
-                    flow = "vertical",
-                    pad = 8,
-                    borderBox = true,
-                    gui.Label{
-                        classes = {"sizeS"},
-                        width = "auto",
-                        height = "auto",
-                        text = "Grid:",
-                    },
-                    gui.Dropdown{
-                        options = gridOptions,
-                        idChosen = tostring(GridSize(self)),
-                        change = function(dropdown)
-                            ---@cast dropdown Dropdown
-                            self.grid = tonumber(dropdown.idChosen) or 3
-                        end,
-                    },
-                    gui.Label{
-                        classes = {"sizeS"},
-                        width = "auto",
-                        height = "auto",
-                        tmargin = 6,
-                        text = "Board width:",
-                    },
-                    gui.Slider{
-                        width = 200,
-                        labelWidth = 48,
-                        height = 20,
-                        minValue = 200,
-                        maxValue = 720,
-                        handleSize = "100%",
-                        value = self.boardWidth,
-                        change = function(slider)
-                            self.boardWidth = round(slider.value)
-                        end,
-                    },
-                }
-            end,
-        },
-        gui.IconEditor{
-            width = 64,
-            height = 64,
-            halign = "center",
-            valign = "center",
-            library = "Avatar",
-            value = self.image or nil,
-            change = function(element)
-                self.image = element.value
-            end,
-        },
+        panel,
     }
+end
+
+function RichSliderPuzzle.CreateEditor(self)
+    return Puzzle.CreateEditor(function()
+        local id = Puzzle.JournalId(self, ID_PREFIX)
+        Migrate(self, id)
+        return id
+    end, function(id, typeid)
+        Puzzle.Create(id, typeid, nil, self.identifier and tostring(self.identifier) or nil)
+    end, function(tag) self = tag end)
 end
 
 MarkdownDocument.RegisterRichTag(RichSliderPuzzle)

@@ -175,12 +175,14 @@ local function Cull(data)
 end
 
 --A short id for a hover text; equal texts get equal ids, so each is stored once.
+--The "h" matters: an all-digit id is a number key to the document, which then saves the
+--whole hovers table as a list and loses every other text.
 local function TextHash(text)
     local h = 5381
     for i = 1, #text do
         h = (h * 33 + string.byte(text, i)) % 4294967296
     end
-    return string.format("%08x", h)
+    return string.format("h%08x", h)
 end
 
 --Moves each roll dialog hover text in an entry (a hovertext field anywhere in it) into the
@@ -233,7 +235,8 @@ local function WriteEntries(mapid, list)
     if type(data.encounters) ~= "table" then
         data.encounters = {}
     end
-    if type(data.hovers) ~= "table" or type(data.hoverused) ~= "table" then
+    --a list here is a table saved before ids had their "h" (see TextHash): start it again.
+    if type(data.hovers) ~= "table" or type(data.hoverused) ~= "table" or data.hovers[1] ~= nil then
         data.hovers = {}
         data.hoverused = {}
     end

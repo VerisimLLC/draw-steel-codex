@@ -52,13 +52,29 @@ function ActivatedAbilityDamageBehavior:Cast(ability, casterToken, targets, opti
 
 	local targetGroups = {}
 
+    --Optional logActorCondition (a condition id): show whoever inflicted that condition on
+    --the damaged creature as the actor on the action log card (e.g. the grabber).
+    local logActorId = casterToken.charid
+    local logActorCondition = self:try_get("logActorCondition", "")
+    if logActorCondition ~= "" then
+        local entry = casterToken.properties:try_get("inflictedConditions", {})[logActorCondition]
+        if entry ~= nil and entry.casterInfo ~= nil and entry.casterInfo.tokenid ~= nil then
+            logActorId = entry.casterInfo.tokenid
+            --remembered so later behaviors can still find the grabber after Grabbed ends
+            --(see caster_grabber in MCDMRules.lua).
+            if options.symbols ~= nil and options.symbols.cast ~= nil then
+                options.symbols.cast._tmp_grabberId = entry.casterInfo.tokenid
+            end
+        end
+    end
+
     local logMessage = nil
     if string.trim(self.chatMessage) ~= "" then
         logMessage = ActivatedAbilityDamageChatMessage.new{
             amount = 0,
             damageType = self:EffectiveDamageType(ability, options),
             chatMessage = self.chatMessage,
-            casterid = casterToken.charid,
+            casterid = logActorId,
             targetids = tokenids,
         }
     end

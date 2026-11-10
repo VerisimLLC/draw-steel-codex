@@ -200,9 +200,13 @@ Goal: why it happened, one click from the row.
 - **Tested 2.3d:** a real Bifurcated Incineration on two Custom Targets, one with Fire immunity (took
   0), one with two damage modifiers, a surge, an edge and a bane cancelling: the modifier hovers in the
   Why and The numbers, the title's ability card, and the Troubadour's trigger card on an older row.
+- **2.3d follow-up (James 2026-11-10):** the card title's ability name is in brackets and only it
+  hovers (option A: the same cue as the Why). Ability and trigger cards open on the side away from the
+  History window (the card's tail says which side that is; the engine gives Lua no screen position).
+  A target whose immunity stopped all its damage now records its parts, so its line names the surge
+  and modifiers behind the damage that immunity took off.
 - **Limits of 2.3d:** cards are looked up live, so a creature that's gone or no longer has the ability
-  shows none. A target that took no damage records no parts, so its line says "down from 6" without
-  naming the surge and modifiers behind the 6.
+  shows none.
 - **2.3a, edge and bane sources:** under each edge or bane line, one line per thing that added to it
   (COPY.md Round 8): its arrows, a trigger owner's face, its name as the roll dialog's badge showed it;
   edges first, Set by hand last on each side, then the C4 note. The roll dialog measures each enabled

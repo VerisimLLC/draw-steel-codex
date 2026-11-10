@@ -556,6 +556,10 @@ local g_linkIds = {}
 --The map whose History the card being built reads, for modifier hover texts. Set by the
 --builders below before they name anything.
 local g_linkMap = nil
+--Which side of a name the big cards (ability, trigger) open on: away from the History
+--window, where the card has room. Nil inside the window. Set by History.CreateCard.
+--- @type nil|"left"|"right"
+local g_cardSide = nil
 
 --- @param text string What the card shows.
 --- @param key string Identifies what the hover shows.
@@ -588,8 +592,9 @@ end
 --- triggered action shows the card its owner's panel shows; an automatic one, its ability card.
 --- @param ownerid string Token id.
 --- @param name string
+--- @param side nil|"left"|"right" Which side of the name the card opens on.
 --- @return nil|fun(): Panel|nil
-local function TriggerCard(ownerid, name)
+local function TriggerCard(ownerid, name, side)
     local token = dmhub.GetTokenById(ownerid)
     if token == nil or token.properties == nil then
         return nil
@@ -597,18 +602,39 @@ local function TriggerCard(ownerid, name)
     local display = token.properties:GetTriggeredActionInfo(name)
     if display ~= nil then
         return function()
-            return gui.TooltipFrame(display:Render{token = token}, {halign = "right", valign = "center"})
+            return gui.TooltipFrame(display:Render{token = token}, {halign = side or "right", valign = "center"})
         end
     end
     for _, triggered in ipairs(token.properties:GetTriggeredAbilities()) do
         local ability = triggered.ability
         if ability ~= nil and ability.name == name then
             return function()
-                return CreateAbilityTooltip(ability, {token = token, width = 480})
+                return CreateAbilityTooltip(ability, {token = token, width = 480, halign = side})
             end
         end
     end
     return nil
+end
+
+--- The card of an ability a creature has now, by name, or nil when it can't be found (the
+--- creature is gone or no longer has it). Falls back to its triggers.
+--- @param ownerid string Token id.
+--- @param name string
+--- @param side nil|"left"|"right" Which side of the name the card opens on.
+--- @return nil|fun(): Panel|nil
+local function AbilityCard(ownerid, name, side)
+    local token = dmhub.GetTokenById(ownerid)
+    if token == nil or token.properties == nil then
+        return nil
+    end
+    for _, ability in ipairs(token.properties:GetActivatedAbilities{bindCaster = true}) do
+        if ability.name == name then
+            return function()
+                return CreateAbilityTooltip(ability, {token = token, width = 480, halign = side})
+            end
+        end
+    end
+    return TriggerCard(ownerid, name, side)
 end
 
 --A trigger's name, hovering to its card. A monster's card is for the Director only.
@@ -617,10 +643,10 @@ end
 --- @param name string The trigger's name.
 --- @return string
 local function TriggerLink(text, owner, name)
-    if owner == nil or (not owner.hero and not dmhub.isDM) or TriggerCard(owner.id, name) == nil then
+    if owner == nil or (not owner.hero and not dmhub.isDM) or TriggerCard(owner.id, name, g_cardSide) == nil then
         return text
     end
-    return HoverLink(text, string.format("t|%s|%s", owner.id, name), {kind = "trigger", owner = owner.id, name = name})
+    return HoverLink(text, string.format("t|%s|%s|%s", owner.id, name, g_cardSide or ""), {kind = "trigger", owner = owner.id, name = name, side = g_cardSide})
 end
 
 --The hover for one link: the recorded text, with spoilers as the roll dialog shows them,
@@ -649,8 +675,9 @@ local function ShowLink(element, link)
             end
         end
         gui.Tooltip{text = text, maxWidth = 600}(element)
-    elseif payload.kind == "trigger" then
-        local card = TriggerCard(payload.owner, payload.name)
+    else
+        local find = payload.kind == "ability" and AbilityCard or TriggerCard
+        local card = find(payload.owner, payload.name, payload.side)
         if card ~= nil then
             element.tooltip = card()
         end
@@ -676,30 +703,6 @@ local function Linked(args)
         element.tooltip = nil
     end
     return args
-end
-
---- The card of the ability an action used, as its user has it now, or nil: an encounter's
---- closing row, a creature that's gone, an ability it no longer has, or a name players
---- may not see.
---- @param entry HistoryEntry
---- @return Panel|nil
-local function AbilityCard(entry)
-    local actor = entry.actor
-    if actor == nil or entry.ability == nil or (actor.secret and not dmhub.isDM) then
-        return nil
-    end
-    local token = dmhub.GetTokenById(actor.id)
-    if token == nil or token.properties == nil then
-        return nil
-    end
-    local name = entry.ability.name
-    for _, ability in ipairs(token.properties:GetActivatedAbilities{bindCaster = true}) do
-        if ability.name == name then
-            return CreateAbilityTooltip(ability, {token = token, width = 480})
-        end
-    end
-    local trigger = TriggerCard(actor.id, name)
-    return trigger ~= nil and trigger() or nil
 end
 
 local function Header(entry, width, inTray, close)
@@ -729,7 +732,15 @@ local function Header(entry, width, inTray, close)
     if entry.actor ~= nil then
         children[#children + 1] = History.Face(entry.actor, 30)
         titleWidth = titleWidth - 39
-        title = History.ShownName(entry.actor) .. History.DOT .. entry.ability.name
+        --the ability's name is bracketed and hovers to its card, as names do in the Why; only
+        --when the card can be found, and not for a creature whose name players may not see.
+        local name = entry.ability.name
+        local actor = entry.actor
+        if not (actor.secret and not dmhub.isDM) and AbilityCard(actor.id, name, g_cardSide) ~= nil then
+            name = HoverLink("[" .. name .. "]", string.format("a|%s|%s|%s", actor.id, name, g_cardSide or ""),
+                {kind = "ability", owner = actor.id, name = name, side = g_cardSide})
+        end
+        title = History.ShownName(actor) .. History.DOT .. name
     end
     children[#children + 1] = gui.Panel{
         flow = "vertical",
@@ -738,22 +749,13 @@ local function Header(entry, width, inTray, close)
         lmargin = entry.actor ~= nil and 9 or 0,
         halign = "left",
         valign = "center",
-        gui.Label{
+        gui.Label(Linked{
             classes = {"historyCardTitle"},
             text = title,
             width = "100%",
             height = "auto",
             textAlignment = "left",
-            hover = function(element)
-                local card = AbilityCard(entry)
-                if card ~= nil then
-                    element.tooltip = card
-                end
-            end,
-            dehover = function(element)
-                element.tooltip = nil
-            end,
-        },
+        }),
         gui.Label{
             classes = {"historyCardMeta"},
             text = MetaWords(entry),
@@ -2559,6 +2561,7 @@ end
 --- @return Panel
 function History.CreateCard(args)
     local entry = args.entry
+    g_cardSide = (args.tail == "left" and "right") or (args.tail == "right" and "left") or nil
     local width = args.width
     local inner = width - 2 * CARD_PAD
 

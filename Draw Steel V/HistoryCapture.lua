@@ -406,14 +406,15 @@ end
 
 --What made each damaged target's damage besides the tier (2.3b): the kit, the roll dialog's
 --damage modifiers, then surges, each with the type it added to. The card takes them off
---the Tier line.
+--the Tier line. A target whose immunity stopped it all still gets them, so its line can say
+--what made the damage that immunity took off.
 local function AddDamageParts(entry, cast, ability, caster)
     local kits = KitBonuses(ability)
     local targetDamage = cast:try_get("targetDamageSources", {})
     local targetSurges = cast:try_get("targetSurges", {})
     for _, who in ipairs(entry.targets) do
         local tier = who.tier
-        if tier ~= nil and tier > 0 and (who.taken or 0) > 0 then
+        if tier ~= nil and tier > 0 and who.taken ~= nil then
             --- @type HistoryDamagePart[]
             local parts = {}
             for _, kit in ipairs(kits) do

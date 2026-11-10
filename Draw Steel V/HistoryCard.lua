@@ -684,8 +684,12 @@ local function ShowLink(element, link)
     end
 end
 
+--How long the pointer rests on a name before its hover opens, so sweeping the pointer
+--across the card doesn't flash cards open.
+local HOVER_DELAY = 0.4
+
 --- Label arguments with hovers for the links in their text: the hovered name is
---- underlined and shows its hover. Other labels pass through untouched.
+--- underlined at once and shows its hover after HOVER_DELAY. Other labels pass through.
 --- @param args table Arguments for gui.Label.
 --- @return table args
 local function Linked(args)
@@ -693,12 +697,21 @@ local function Linked(args)
     if type(text) ~= "string" or string.find(text, "<link=", 1, true) == nil then
         return args
     end
+    --the link waiting for its delay; nil once the pointer leaves it.
+    local pending = nil
     args.links = true
     args.hoverLink = function(element, link)
         element.text = (string.gsub(text, "<link=" .. link .. ">(.-)</link>", "<link=" .. link .. "><u>%1</u></link>", 1))
-        ShowLink(element, link)
+        pending = link
+        element:ScheduleEvent("historyHoverDwell", HOVER_DELAY)
+    end
+    args.historyHoverDwell = function(element)
+        if pending ~= nil and element.linkHovered == pending then
+            ShowLink(element, pending)
+        end
     end
     args.dehoverLink = function(element, link)
+        pending = nil
         element.text = text
         element.tooltip = nil
     end

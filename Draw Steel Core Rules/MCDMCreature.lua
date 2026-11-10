@@ -2851,6 +2851,15 @@ function creature:CanTeleport()
     return false
 end
 
+--- Whether the creature can fly up or down under its own power. False for a creature
+--- that may only fly horizontally (the "Horizontal Flight Only" attribute, set by
+--- the levitation from the Ghost's Spirited Away). Effects that lift or drop it
+--- (rising each turn, falling when the effect ends) don't ask this.
+--- @return boolean
+function creature:CanFlyVertically()
+    return self:CanFly() and self:CalculateNamedCustomAttribute("Horizontal Flight Only") <= 0
+end
+
 creature.stability = 0
 creature.reach = 1
 creature.range = 0

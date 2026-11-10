@@ -250,8 +250,8 @@ local function TableSize()
 end
 
 --How far in from the right the right icon rail reaches: 0 with no rail, or
---when the rail is empty, so the closed tab sits flush to the table's edge
---(Venla, 2026-10-19).
+--when the rail is empty (Venla, 2026-10-19). The open screen's tab keeps
+--clear of it; the closed tab ignores it and sits flush (David, 2026-11-04).
 local function RailReserve()
     local occupied = rawget(_G, "RailSideOccupied")
     if occupied ~= nil and not occupied("right") then
@@ -425,7 +425,9 @@ local function Layout(force)
     --IsOpen is in it: the last frames of a slide shut leave the edge at the
     --table's side while still open, so the edge alone missed the close and
     --the band (and its shadow) stayed up.
-    local signature = string.format("%s|%s|%s|%d|%d|%d|%d", tostring(active), tostring(hidden), tostring(IsOpen()), math.floor(w), math.floor(h), math.floor(edge), math.floor(reserve))
+    --sliding is in it too: the tab is placed differently mid-slide, and a
+    --slide's last frame leaves the edge where it was.
+    local signature = string.format("%s|%s|%s|%s|%d|%d|%d|%d", tostring(active), tostring(hidden), tostring(IsOpen()), tostring(g.slide ~= nil), math.floor(w), math.floor(h), math.floor(edge), math.floor(reserve))
     if signature == g.signature and not force then
         return
     end
@@ -457,8 +459,13 @@ local function Layout(force)
         end
     end
 
-    --the tab hangs off the screen's edge, and never under the right rail.
-    local right = math.min(edge, w - reserve)
+    --the tab hangs off the screen's edge. Closed (and while sliding) it sits
+    --right on the edge, so shut it is flush with the table's right side; open
+    --and still, it is kept clear of the right rail.
+    local right = edge
+    if IsOpen() and g.slide == nil then
+        right = math.min(edge, w - reserve)
+    end
     --no room to hang off the edge (full width): it flips onto the screen and
     --shows an X.
     local flipped = IsOpen() and right < TAB_WIDTH
@@ -541,8 +548,12 @@ local function BeginResize()
     end
     local mx = MouseOnTable()
     local w = TableSize()
-    --closed, the edge is where the tab is drawn, so a pull starts from there.
-    local edge = math.min(Edge(), w - RailReserve())
+    --a pull starts from where the tab is drawn (Layout): on the edge while
+    --closed, kept clear of the right rail while open.
+    local edge = Edge()
+    if IsOpen() then
+        edge = math.min(edge, w - RailReserve())
+    end
     --before: the size to open to again if this drag ends by snapping shut.
     local before = g.lastFraction or DEFAULT_FRACTION
     if IsOpen() then

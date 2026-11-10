@@ -137,6 +137,142 @@ MonsterAI:RegisterMove{
     end,
 }
 
+--Escape Grab ------------------------------------------------------------------
+--The Grabbed condition gives the grabbed creature the Escape Grab maneuver. It
+--has two modes: Careful (1), where a tier 2 result fails safely, and Reckless
+--(2), where a tier 2 result escapes but lets the grabber make a melee free
+--strike first.
+local g_grabbedConditionId = "70504ebe-3899-41d3-9f60-74b52ce35e39"
+local g_escapeGrabCareful = 1
+local g_escapeGrabReckless = 2
+
+--Score when the monster can survive the grabber's free strike. Above a
+--standard signature strike (1.0) on purpose: escaping first gives back the
+--monster's movement and removes the grabbed bane, and its main action is still
+--left for the next cycle. Plus escapeGrabCharacteristicWeight per point of the
+--monster's better of Might and Agility, the roll's characteristic.
+MonsterAI.escapeGrabScore = 1.1
+MonsterAI.escapeGrabCharacteristicWeight = 0.1
+--Score when it can't survive that hit: a Careful attempt (which never provokes
+--the free strike), below free strikes (0.2), so it only happens with a
+--maneuver left over after fighting.
+MonsterAI.escapeGrabLastResortScore = 0.05
+
+--The token that has this creature grabbed, or nil. Read from the condition's
+--caster rather than _tmp_grabbedby, which the engine can wipe mid-turn.
+local function EscapeGrabGrabber(token)
+    local inflicted = token.properties:try_get("inflictedConditions")
+    local grabbed = inflicted ~= nil and inflicted[g_grabbedConditionId] or nil
+    if grabbed == nil then
+        return nil, false
+    end
+    local casterInfo = grabbed.casterInfo
+    local tokenid = casterInfo ~= nil and casterInfo.tokenid or nil
+    local grabber = tokenid ~= nil and dmhub.GetTokenById(tokenid) or nil
+    if grabber == nil or not grabber.valid or grabber.properties == nil then
+        return nil, true
+    end
+    return grabber, true
+end
+
+local g_characteristicLetters = {M = "mgt", A = "agl", R = "rea", I = "inu", P = "prs"}
+
+--Damage of a hero-style free strike tier such as "7 + M or A damage": the
+--number plus the best characteristic named. nil when the text has no damage.
+local function TierTextDamage(creatureProps, text)
+    if type(text) ~= "string" then
+        return nil
+    end
+    local damagePart = string.match(text, "^(.-)damage")
+    if damagePart == nil then
+        return nil
+    end
+    local base = tonumber(string.match(damagePart, "%d+"))
+    if base == nil then
+        return nil
+    end
+    local best = nil
+    for letter in string.gmatch(damagePart, "%f[%a](%u)%f[%A]") do
+        local attrid = g_characteristicLetters[letter]
+        if attrid ~= nil then
+            local value = creatureProps:GetAttribute(attrid):Modifier()
+            if best == nil or value > best then
+                best = value
+            end
+        end
+    end
+    return base + (best or 0)
+end
+
+--The grabber's melee free strike damage on a tier 3 result, or nil when it
+--can't be worked out. A monster's free strike is one flat number; a hero's is
+--the tier 3 row of their melee Basic Attack.
+local function GrabberFreeStrikeTier3Damage(grabber)
+    local props = grabber.properties
+    local flat = 0
+    pcall(function() flat = props:OpportunityAttack() end)
+    if type(flat) == "number" and flat > 0 then
+        return flat
+    end
+
+    local best = nil
+    for _,ability in ipairs(props:GetActivatedAbilities() or {}) do
+        if ability.categorization == "Basic Attack" then
+            local melee = ability
+            if ability.meleeAndRanged then
+                melee = ability.meleeVariation
+            elseif not (ability.name == "Melee Free Strike" or ability:HasKeyword("Melee")) then
+                melee = nil
+            end
+            for _,behavior in ipairs(melee ~= nil and melee:try_get("behaviors", {}) or {}) do
+                if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+                    local damage = TierTextDamage(props, behavior:try_get("tiers", {})[3])
+                    if damage ~= nil and (best == nil or damage > best) then
+                        best = damage
+                    end
+                end
+            end
+        end
+    end
+    return best
+end
+
+MonsterAI:RegisterMove{
+    id = "Escape Grab",
+    category = "Maneuvers",
+    abilities = {"Escape Grab"},
+    description = "Escape Grab: the generic escape maneuver, used only while grabbed. If the monster can survive the grabber's tier 3 free strike, it escapes before acting, accepting the free strike on a tier 2 result (Reckless), and prefers this over most other maneuvers, more so with high Might or Agility. A monster that can't survive that hit fights on, and only tries a Careful escape with a maneuver left over.",
+    score = function(self, ai, token, ability)
+        local grabber, grabbed = EscapeGrabGrabber(token)
+        if not grabbed then
+            return nil, "not grabbed"
+        end
+
+        local props = token.properties
+        local stamina = props:CurrentHitpoints() + props:TemporaryHitpoints()
+        --An unknown grabber or free strike counts as survivable.
+        local hit = grabber ~= nil and GrabberFreeStrikeTier3Damage(grabber) or nil
+        if hit ~= nil and stamina <= hit then
+            return {score = MonsterAI.escapeGrabLastResortScore, loc = token.loc,
+                mode = g_escapeGrabCareful, freeStrikeDamage = hit}
+        end
+
+        local characteristic = math.max(props:GetAttribute("mgt"):Modifier(), props:GetAttribute("agl"):Modifier())
+        return {
+            score = MonsterAI.escapeGrabScore + characteristic*MonsterAI.escapeGrabCharacteristicWeight,
+            loc = token.loc,
+            mode = g_escapeGrabReckless,
+            freeStrikeDamage = hit,
+        }
+    end,
+    execute = function(self, ai, token, scoringInfo, ability)
+        local mode = scoringInfo.mode or g_escapeGrabCareful
+        ai:ExecuteAbility(token, ability:SwitchModes(mode), {{token = token}}, {
+            symbols = {mode = mode},
+        })
+    end,
+}
+
 MonsterAI:RegisterMove{
     id = "Aid Attack",
     category = "Maneuvers",
@@ -729,5 +865,26 @@ MonsterAI:RegisterMove{
         --the invoked standard Teleport prompts for a destination; there is no
         --AI handler for it, so the DM picks the wall to affix to.
         ai:ExecuteAbility(token, ability)
+    end,
+}
+
+--Stand Up (every creature's maneuver, from the Maneuvers global rule mod):
+--a prone monster stands before anything else, so its strikes lose the bane
+--and melee against it loses the edge. Its own filter skips a creature that
+--is not prone or cannot stand (the Can't Stand rider).
+MonsterAI:RegisterMove{
+    id = "Stand Up",
+    category = "Maneuvers",
+    abilities = {"Stand Up"},
+    description = "Stand up when prone, before striking.",
+    maxScore = 1.5,
+    score = function(self, ai, token, ability)
+        if not ability:TargetPassesFilter(token, token, {}) then
+            return nil, "not prone, or cannot stand"
+        end
+        return {score = 1.5}
+    end,
+    execute = function(self, ai, token, scoringInfo, ability)
+        ai:ExecuteAbility(token, ability, {{token = token}}, {sleep = 0.6})
     end,
 }

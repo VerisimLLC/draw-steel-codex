@@ -1387,7 +1387,7 @@ local function languageCompletions(args, argIndex)
     local langTable = dmhub.GetTable(Language.tableName)
     local result = {}
     for k, v in unhidden_pairs(langTable) do
-        result[#result+1] = {text = k, summary = v.name}
+        result[#result+1] = {text = k, summary = v:DisplayNameWithDetail()}
     end
     table.sort(result, function(a, b) return a.summary < b.summary end)
     return result

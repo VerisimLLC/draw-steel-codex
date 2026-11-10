@@ -173,8 +173,9 @@ local function Arrive(script, section, ordinal, queue, live)
             end
         end
     end
-    if levelUp and #spawned > 0 then
-        EncounterOfTheWeekGame.LevelUpStrongestHalf(spawned)
+    --each wave is levelled on its own, like the opening fight.
+    if #spawned > 0 then
+        EncounterOfTheWeekGame.ApplyLevelBoost(spawned, EncounterOfTheWeekGame.LevelBoost(levelUp), "reinforcements")
     end
     game.UpdateCharacterTokens()
 

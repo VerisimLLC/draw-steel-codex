@@ -2208,7 +2208,7 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 							--A vertical move's dialed altitude is absolute; the engine wants it above the ground.
 							local previewLoc = loc
 							if ActivatedAbility.IsVerticalForcedMovement(currentSymbols.forcedmovement or currentSpell:try_get("forcedMovement")) then
-								previewLoc = ActivatedAbility.VerticalForcedMovementEngineLoc(loc)
+								previewLoc = ActivatedAbility.VerticalForcedMovementEngineLoc(loc, token.loc.altitude)
 							end
 							local movementInfo = token:MarkMovementArrow(previewLoc, {straightline = true, ignorecreatures = (targetingType == "straightpathignorecreatures" or throughCreatures), rebound = reboundOptions.rebound, maxBounces = reboundOptions.maxBounces, slide = isVerticalSlidePreview })
 							showingMovementArrow = true

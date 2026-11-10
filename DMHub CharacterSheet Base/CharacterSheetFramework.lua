@@ -77,9 +77,10 @@ print("CharSheetFramework.lua loaded")
 --tab = { id, text, panel = function() -> Panel, order?, visible?, lazy? }.
 --lazy = true builds the tab's panel the first time the tab is shown instead of
 --with the sheet (the sheet is built with every game's hud, so an expensive tab
---costs every game load). Only for a tab whose panel reads what it shows when
---it is activated (charsheetActivate) rather than relying on events fired
---before it existed.
+--costs every game load). When it is built, the tab gets the sheet's last
+--refresh replayed (refreshToken, refreshCharacterInfo or refreshMonster, and
+--refreshAppearance) before charsheetActivate. A tab that relies on any other
+--event fired before it existed must not be lazy.
 function CharSheet.RegisterTab(tab)
 	local index = #CharSheet.TabOptions+1
 	for i,t in ipairs(CharSheet.TabOptions) do
@@ -1097,6 +1098,11 @@ function CharSheet.CreateCharacterSheet(params)
 
 	table.sort(CharSheet.TabOptions, function(a, b) return tostring(a.order or a.text) < tostring(b.order or b.text) end)
 
+	--the sheet's root panel and the token info its last refresh showed, both set
+	--further down. A lazy tab built later is caught up from them (showTab).
+	local resultPanel
+	local contextInfo = nil
+
 	local tabPanels = {}
 	--index -> true while that tab's slot holds a placeholder (see lazy above).
 	local lazyPlaceholders = {}
@@ -1188,6 +1194,22 @@ function CharSheet.CreateCharacterSheet(params)
 					element:AddChild(panel)
 					if placeholder ~= nil and placeholder.valid then
 						placeholder:DestroySelf()
+					end
+					--catch the new tab up on the refresh it missed: refreshAll fires
+					--these on the whole sheet, and this tab did not exist yet. Skipped
+					--while refreshing is deferred (another view owns the token).
+					if contextInfo ~= nil and resultPanel ~= nil and resultPanel.valid and not resultPanel.data.refreshDeferred then
+						local properties = contextInfo.token.properties
+						if properties ~= nil then
+							panel:FireEventTree("refreshToken", contextInfo)
+							--the sheet's characterSheet panel turns refreshToken into these.
+							if properties.typeName == "character" then
+								panel:FireEventTree("refreshCharacterInfo", properties)
+							else
+								panel:FireEventTree("refreshMonster", properties)
+							end
+						end
+						panel:FireEventTree("refreshAppearance", contextInfo)
 					end
 				end
 			end
@@ -1303,10 +1325,6 @@ function CharSheet.CreateCharacterSheet(params)
 	}
 
 	tabsPanel:FireEvent("init")
-
-	local resultPanel
-
-	local contextInfo = nil
 
 	--The top right corner button strip: registered sheet actions first, then the
 	--popout, pop-in and close buttons.

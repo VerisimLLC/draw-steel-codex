@@ -20,7 +20,8 @@ ActivatedAbilityForcedMovementLocBehavior.summary = 'Forced Movement Origin'
 ActivatedAbilityForcedMovementLocBehavior.creatureRange = ""
 ActivatedAbilityForcedMovementLocBehavior.creatureFilter = ""
 
---"Center of Aura" options, for a trigger that does not come from the aura itself (e.g. an
+--"Center of Aura / Area" uses the triggering aura's area, else the area this cast targeted.
+--Options for a trigger that does not come from the aura itself (e.g. an
 --ongoing effect's "attacked" trigger that pulls toward the area placed around its owner):
 --  auraName: when no aura is in the cast's symbols, find a map aura with this name (the
 --    Aura definition's name or the instance's name) that was placed around the creature
@@ -124,13 +125,27 @@ function ActivatedAbilityForcedMovementLocBehavior:Cast(ability, casterToken, ta
             return
         end
 
-        if aura == nil or aura:GetArea() == nil then
-            print("Origin: aura not found")
+        --Not triggered by an aura: use the area this cast targeted (e.g. Gravitic Well's
+        --"pull toward the center of the area"). A Strained re-pick of the area
+        --(addedTargetArea, from the Add New Targets behavior) replaces the original.
+        local area = nil
+        local origin = nil
+        if aura ~= nil and aura:GetArea() ~= nil then
+            area = aura:GetArea()
+            origin = area.origin
+        else
+            area = options.addedTargetArea or options.targetArea
+            if area ~= nil then
+                origin = TriggeredAbility.AreaCenterLoc(area) or area.origin
+            end
+        end
+
+        if area == nil or origin == nil then
+            print("Origin: no aura or cast area found")
             return
         end
 
         if self:try_get("requireLineOfEffect", false) then
-            local area = aura:GetArea()
             for _,target in ipairs(table.shallow_copy(targets)) do
                 if target.token == nil or not HasLineOfEffectToArea(target.token, area) then
                     DropTarget(targets, options, target)
@@ -138,7 +153,6 @@ function ActivatedAbilityForcedMovementLocBehavior:Cast(ability, casterToken, ta
             end
         end
 
-        local origin = aura:GetArea().origin
         options.symbols.forcedMovementOrigin = origin
         options.symbols.forcedMovementOriginTokenId = nil
         print("ORIGIN:: set origin =", origin.str)
@@ -282,7 +296,7 @@ function ActivatedAbilityForcedMovementLocBehavior:EditorItems(parentPanel)
         gui.Dropdown {
             idChosen = self.type or "aura",
             options = {
-                { id = 'aura', text = 'Center of Aura' },
+                { id = 'aura', text = 'Center of Aura / Area' },
                 { id = 'creature', text = 'A Creature' },
                 { id = 'target', text = 'First Target' },
             },

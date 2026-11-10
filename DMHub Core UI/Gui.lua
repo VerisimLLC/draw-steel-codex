@@ -1519,6 +1519,7 @@ end
 --- @field text string
 --- @field customPanel nil|Panel
 --- @field placement nil|"left"|"right"
+--- @field colon? boolean A right-placed box reads "Label: [x]"; false drops the colon.
 --- @field value? boolean Whether the checkbox is checked or not. Defaults to false.
 --- @field tooltip? string|LabelArgs Text (or label args) shown when the pointer lingers, built with gui.Tooltip.
 
@@ -1539,7 +1540,9 @@ function gui.Check(args)
     local tooltip = args.tooltip
     args.tooltip = nil
 
-	local colon = cond(placement == "right", ":", "")
+	--a right-placed box reads as "Label: [x]"; pass colon = false to drop the colon.
+	local colon = cond(placement == "right" and args.colon ~= false, ":", "")
+	args.colon = nil
 	
 	local options = DeepCopy(args)
 	local checked = options.value or false
@@ -2095,6 +2098,15 @@ function gui.Slider(args)
 
 	sliderPanel = gui.Panel({
 		id = 'slider-panel',
+		-- A new track width (first layout, a resize) moves the handle and fill
+		-- before the frame is drawn; the handle's think is the fallback.
+		rendered = function(element)
+			gui.AfterLayout(function()
+				if handle.valid then
+					handle:FireEvent("think")
+				end
+			end)
+		end,
 		style = {
 			cornerRadius = 0,
 			width = sliderTrackWidth,

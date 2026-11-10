@@ -1988,9 +1988,13 @@ function TableDropDialog.ShowDragCard(args)
     --Universal VTT files open the map import wizard instead of this dialog
     --(Tabletop's TableFilesDropped), so pictures dropped with them are not added.
     local skippedMedia = 0
+    --a Universal VTT file's map size (in tiles) is at the start of the file:
+    --the outline takes the shape of the window the map will open in.
+    local mapSize = nil
     if #mapFiles > 0 then
         skippedMedia = #mediaPaths
         mediaPaths = {}
+        mapSize = FileDrops.MapFileSize(mapFiles[1])
     end
     local files = ReadFiles(mediaPaths)
     local first = files[1]
@@ -2184,12 +2188,28 @@ function TableDropDialog.ShowDragCard(args)
         footprints = {}
     end
     local function PlaceFootprints()
-        if first == nil or analysis == nil or tableLayer == nil or not tableLayer.valid then
+        if tableLayer == nil or not tableLayer.valid then
             return
         end
         local mouse = dmhub.mouseScreenPosition
         local mx, my = Tabletop.ScreenToTable(mouse.x, mouse.y)
-        local rects = FootprintRects(files, analysis, mx, my)
+        local rects
+        if first ~= nil and analysis ~= nil then
+            rects = FootprintRects(files, analysis, mx, my)
+        elseif mapSize ~= nil then
+            --placed as Tabletop.AddFilesAsMap places the map's window.
+            local area = Tabletop.LayerRect()
+            local boxW, boxH = Tabletop.ShapedBox()
+            local w, h = Tabletop.ShapeWindow(boxW, boxH, mapSize.width / mapSize.height)
+            rects = {{
+                x = math.max(0, math.min(math.floor(mx - w / 2), area.w - w)),
+                y = math.max(0, math.min(math.floor(my - h / 2), area.h - h)),
+                w = w,
+                h = h,
+            }}
+        else
+            return
+        end
         if #rects ~= #footprints then
             ClearFootprints()
             for _ = 1, #rects do
@@ -2228,6 +2248,15 @@ function TableDropDialog.ShowDragCard(args)
             nameLabel.text = FileDrops.BaseName(mapFiles[1])
             metaLabel.text = cond(#mapFiles == 1, "New map with its walls, doors and lights",
                 string.format("New map of %d floors, with walls, doors and lights", #mapFiles))
+            if mapSize ~= nil then
+                local function Tiles(n)
+                    if n == math.floor(n) then
+                        return string.format("%d", math.floor(n))
+                    end
+                    return string.format("%.1f", n)
+                end
+                metaLabel.text = string.format("%s x %s squares. %s", Tiles(mapSize.width), Tiles(mapSize.height), metaLabel.text)
+            end
         elseif #documents > 0 then
             badgeText.text = cond(#documents == 1, string.upper(string.sub(FileDrops.Extension(documents[1]), 2)), "Documents")
             nameLabel.text = cond(#documents == 1, FileDrops.BaseName(documents[1]), Count(#documents, "document", "documents"))

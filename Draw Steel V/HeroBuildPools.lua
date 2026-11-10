@@ -2812,6 +2812,18 @@ function HeroBuild.Create(options)
     --Every skill (or language) as {id, item}: skills in the game's skill
     --order, languages sorted by name. The screen and Fill walk the same order,
     --so the same random rolls pick the same ones.
+    --The name to show for a skill or language: languages follow the Plain
+    --Language Names setting.
+    ---@param kind string "skill" or "language"
+    ---@param item table
+    ---@return string
+    local function ItemName(kind, item)
+        if kind == "language" then
+            return (item --[[@as Language]]):DisplayName()
+        end
+        return item.name
+    end
+
     ---@param kind string "skill" or "language"
     ---@return {id: string, item: table}[]
     local function AllOfKind(kind)
@@ -2824,7 +2836,7 @@ function HeroBuild.Create(options)
             for id,item in pairs(dmhub.GetTableVisible(Language.tableName) or {}) do
                 result[#result+1] = { id = id, item = item }
             end
-            table.sort(result, function(left, right) return left.item.name < right.item.name end)
+            table.sort(result, function(left, right) return ItemName(kind, left.item) < ItemName(kind, right.item) end)
         end
         return result
     end
@@ -3051,7 +3063,7 @@ function HeroBuild.Create(options)
             end
             entries[#entries+1] = {
                 id = id,
-                name = item.name,
+                name = ItemName(kind, item),
                 --plain read: try_get skips the "crafting" type default, which most
                 --crafting skills rely on rather than storing it
                 category = kind == "skill" and item.category or nil,
@@ -3158,7 +3170,7 @@ function HeroBuild.Create(options)
                 local id = row.id
                 if fixed[id] == nil and not picked[id] and not taken[id] then
                     if MatchPools(pools, WithPick(items, id), prefer) ~= nil then
-                        local candidate = { id = id, name = row.item.name, special = benefits[id] }
+                        local candidate = { id = id, name = ItemName(kind, row.item), special = benefits[id] }
                         candidates[#candidates+1] = candidate
                         if quick[id] then
                             quickOnes[#quickOnes+1] = candidate
@@ -3245,7 +3257,7 @@ function HeroBuild.Create(options)
                                     result.fixed[#result.fixed+1] = T("builder.grants.fixed_skill", { name = skills[id].name })
                                     result.fixedIds[id] = true
                                 elseif subtype == "language" and languages[id] ~= nil then
-                                    result.fixed[#result.fixed+1] = T("builder.grants.fixed_language", { name = languages[id].name })
+                                    result.fixed[#result.fixed+1] = T("builder.grants.fixed_language", { name = languages[id]:DisplayName() })
                                     result.fixedIds[id] = true
                                 end
                             end

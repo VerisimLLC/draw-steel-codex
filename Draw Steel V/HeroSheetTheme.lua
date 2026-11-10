@@ -224,6 +224,7 @@ end
 --- @field cardDanger string
 --- @field cardLabel string the small labels' colour: tan in Default, the scheme's accent in others (EotW's rule)
 --- @field cardLab string the softer labels beside numbers ("Weak", "Average")
+--- @field cardDead string a dead language's chip text (a pale violet), guarded on the card
 --- @field tile string a characteristic tile's see-through ground
 --- @field tileBorder string a tile's edge
 --- @field tierInk string words on a leveled treasure's reached Level block (filled with cardStrong)
@@ -306,6 +307,9 @@ function HeroSheetTheme.Palette()
     local cardDanger = HeroSheetTheme.Readable(get("danger", "#c94040"), cardSurfaces)
     local cardLabel = HeroSheetTheme.Readable(labelSource, cardSurfaces)
     local cardLab = HeroSheetTheme.Readable(labSource, cardSurfaces)
+    --no scheme has a role for it: a fixed hue, apart from the gold/tan
+    --"known" and the status colours, lifted to 4.5:1 like the rest.
+    local cardDead = HeroSheetTheme.Readable("#b3a4e0", cardSurfaces)
     local border = get("borderSolid", get("border", "#66666c"))
     --a reached Level block is filled with cardStrong; its words in the background
     --colour, made readable on that fill (as a picked Builder card).
@@ -338,6 +342,7 @@ function HeroSheetTheme.Palette()
         cardDanger = cardDanger,
         cardLabel = cardLabel,
         cardLab = cardLab,
+        cardDead = cardDead,
         tile = eotw ~= nil and eotw.TILE or "#0000003a",
         tileBorder = eotw ~= nil and eotw.BORDER or border,
         tierInk = tierInk,
@@ -423,6 +428,22 @@ function HeroSheetTheme.Rules()
     local function Tint(hex, alpha)
         return HeroSheetTheme.ToHex(HeroSheetTheme.WithAlpha(hex, 1), alpha)
     end
+    --white at an alpha (0-1) over the background, as the solid colour the
+    --engine shows (it blends in linear light). For bordered rounded buttons:
+    --a see-through fill puts a light fringe on their corners.
+    --- @param alpha number
+    --- @return string
+    local function SolidWhite(alpha)
+        local bg = HeroSheetTheme.ParseHex(palette.bg) or BLACK
+        local function channel(value)
+            local srgb = value / 255
+            local linear = cond(srgb <= 0.04045, srgb / 12.92, ((srgb + 0.055) / 1.055) ^ 2.4)
+            linear = linear + (1 - linear) * alpha
+            srgb = cond(linear <= 0.0031308, linear * 12.92, 1.055 * linear ^ (1 / 2.4) - 0.055)
+            return srgb * 255
+        end
+        return HeroSheetTheme.ToHex({r = channel(bg.r), g = channel(bg.g), b = channel(bg.b), a = 1})
+    end
     local rules = {
         {selectors = {"heroSheetTitle"}, color = palette.strong},
         {selectors = {"heroSheetText"}, color = palette.fg},
@@ -447,7 +468,7 @@ function HeroSheetTheme.Rules()
         {selectors = {"heroSheetDivider"}, bgcolor = palette.border},
         --the top bar's buttons on a faint fill; the tabs one joined group;
         --the open tab (and Done) filled in the scheme's text colour.
-        {selectors = {"heroSheetButton"}, bgcolor = "#ffffff0d", borderColor = palette.border},
+        {selectors = {"heroSheetButton"}, bgcolor = SolidWhite(0.05), borderColor = palette.border},
         {selectors = {"heroSheetButton", "hover"}, borderColor = palette.strong},
         {selectors = {"heroSheetButton", "selected"}, bgcolor = palette.rawFg, borderColor = palette.rawFg},
         {selectors = {"heroSheetSegments"}, bgcolor = "clear", borderColor = palette.border},
@@ -485,7 +506,7 @@ function HeroSheetTheme.Rules()
         {selectors = {"heroSheetMutedIcon"}, bgcolor = palette.cardSub},
         {selectors = {"heroSheetFg"}, bgcolor = palette.cardFg},
         {selectors = {"heroSheetDisabled"}, opacity = 0.5},
-        {selectors = {"heroSheetPlateButton"}, bgcolor = "#ffffff14", borderColor = palette.cardFg, color = palette.cardStrong},
+        {selectors = {"heroSheetPlateButton"}, bgcolor = SolidWhite(0.08), borderColor = palette.cardFg, color = palette.cardStrong},
         {selectors = {"heroSheetCardAppear"}, bgcolor = "#000000b0", borderColor = palette.cardFg, color = palette.cardStrong, hidden = 1},
         {selectors = {"heroSheetCardAppear", "parent:hover"}, hidden = 0},
         {selectors = {"heroSheetXpTrack"}, bgcolor = "#ffffff1f"},
@@ -509,7 +530,7 @@ function HeroSheetTheme.Rules()
         --the Treasures block: item rows, their small buttons and the
         --carried pill (@warning past three).
         {selectors = {"heroSheetItemRow"}, bgcolor = "#00000033", borderColor = palette.border},
-        {selectors = {"heroSheetSmallButton"}, bgcolor = "#ffffff0f", borderColor = palette.border, color = palette.cardFg},
+        {selectors = {"heroSheetSmallButton"}, bgcolor = SolidWhite(0.06), borderColor = palette.border, color = palette.cardFg},
         {selectors = {"heroSheetSmallButton", "hover"}, borderColor = palette.cardStrong, color = palette.cardStrong},
         {selectors = {"heroSheetSmallButton", "heroSheetOff"}, opacity = 0.5},
         {selectors = {"heroSheetSmallButton", "heroSheetOff", "hover"}, borderColor = palette.border, color = palette.cardFg},
@@ -526,9 +547,7 @@ function HeroSheetTheme.Rules()
         {selectors = {"heroSheetHpFill", "winded"}, bgcolor = palette.rawWarning},
         {selectors = {"heroSheetHpFill", "dying"}, bgcolor = palette.rawDanger},
         {selectors = {"heroSheetHpTemp"}, bgcolor = "#e4ddd0ff"},
-        {selectors = {"heroSheetHpTick"}, bgcolor = "#ffffffe6"},
         {selectors = {"heroSheetHpSheen"}, bgcolor = "#ffffff1c"},
-        {selectors = {"heroSheetHpTickRow", "editable", "parent:hover"}, hidden = 1},
         {selectors = {"heroSheetHpZones"}, hidden = 1},
         {selectors = {"heroSheetHpZones", "parent:hover"}, hidden = 0},
         --the bar keeps its dark zones in every scheme, so its text is a
@@ -643,6 +662,9 @@ function HeroSheetTheme.Rules()
         --Titles chips share heroSklChip and keep its plain look). Each state
         --names its hover too, so hovering never lights a picked or flat chip.
         {selectors = {"heroSklChip", "heroSklOption"}, bgcolor = ChipMix(palette.cardFg, 0.075), borderColor = ChipMix(palette.cardFg, 0.42)},
+        --a dead language: violet while open to pick; listed before the state
+        --rules so picked, locked, known and flat chips keep their own look.
+        {selectors = {"heroSklChip", "heroSklOption", "heroSklDead"}, bgcolor = ChipMix(palette.cardDead, 0.075), borderColor = ChipMix(palette.cardDead, 0.42)},
         {selectors = {"heroSklChip", "heroSklOption", "hover"}, bgcolor = ChipMix(palette.cardFg, 0.14), borderColor = palette.cardStrong},
         {selectors = {"heroSklChip", "heroSklOption", "heroSklPicked"}, bgcolor = palette.cardFg, borderColor = palette.cardFg},
         {selectors = {"heroSklChip", "heroSklOption", "heroSklPicked", "hover"}, bgcolor = palette.cardStrong, borderColor = palette.cardStrong},
@@ -655,16 +677,20 @@ function HeroSheetTheme.Rules()
         {selectors = {"heroSklChip", "heroSklOption", "heroSklKnown"}, bgcolor = ChipMix(palette.cardLabel, 0.14), borderColor = ChipMix(palette.cardLabel, 0.62)},
         {selectors = {"heroSklChip", "heroSklOption", "heroSklKnown", "hover"}, bgcolor = ChipMix(palette.cardLabel, 0.14), borderColor = ChipMix(palette.cardLabel, 0.62)},
         {selectors = {"heroSklChipText"}, color = palette.cardFg},
+        {selectors = {"heroSklChipText", "heroSklDead"}, color = palette.cardDead},
         {selectors = {"heroSklChipText", "heroSklPicked"}, color = palette.bg, bold = true},
         {selectors = {"heroSklChipText", "heroSklLocked"}, color = palette.cardStrong, bold = true},
         {selectors = {"heroSklChipText", "heroSklUnav"}, color = palette.cardSub},
+        --a dead language stays violet when nothing is open to pick it with.
+        {selectors = {"heroSklChipText", "heroSklUnav", "heroSklDead"}, color = palette.cardDead},
         {selectors = {"heroSklChipText", "heroSklKnown"}, color = palette.cardLabel},
         {selectors = {"heroSklSizer"}, color = "#00000000"},
         {selectors = {"heroSklChipSpeakers"}, color = palette.cardSub},
         {selectors = {"heroSklChipSpeakers", "heroSklPicked"}, color = palette.bg},
         {selectors = {"heroSklChipMark"}, color = palette.cardLabel},
         {selectors = {"heroSklChipMark", "heroSklPicked"}, color = palette.bg},
-        {selectors = {"heroSklDeadTag"}, bgcolor = "clear", borderColor = palette.border, color = palette.cardSub},
+        {selectors = {"heroSklDeadTag"}, bgcolor = "clear", borderColor = ChipMix(palette.cardDead, 0.5), color = palette.cardDead},
+        {selectors = {"heroSklDeadTag", "heroSklPicked"}, borderColor = palette.bg, color = palette.bg},
         --the lists: ability rows a lighter step of the surface (solid
         --mixes), a pinned card's row edged in the strong colour; the heading
         --tabs muted, the open one strong over a warm underline.

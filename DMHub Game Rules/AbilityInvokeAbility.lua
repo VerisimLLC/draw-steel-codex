@@ -1749,6 +1749,15 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
             aiResolvedTargeting = (targeting ~= "prompt" and targeting ~= "prompt_inherit")
         end
 
+        --The Monster AI could not choose and there is no Director to ask (a
+        --directorless game would show the prompt to its host, a player). End
+        --the invoke unused, as a declined prompt does.
+        if targeting == "skip" then
+            print("INVOKE:: AI skipped the prompt for", abilityClone.name)
+            canceled = true
+            break
+        end
+
         --A prompt handler may resolve a synthesized-ability chooser as well as
         --its targets. Consume the override immediately so it cannot leak into a
         --later invoke that shares the parent cast's options table.
@@ -2831,10 +2840,15 @@ function AbilityInvocation:Invoke()
 	local options = {
         targetingFormula = self.targetingFormula,
     }
-	ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abilityClone, casterToken, self.targeting, self.symbols, options)
 	--ExecuteInvoke returns once the cast finishes or the player cancels it; a
-	--cancel never reaches the OnFinishCast above.
+	--cancel never reaches the OnFinishCast above. An error must release the AI
+	--too: it waits on an end-turn save with no timer (EMHPEMCY). pcall yields.
+	local ok, err = pcall(ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke,
+		invokerToken, abilityClone, casterToken, self.targeting, self.symbols, options)
 	CompleteAIReaction()
+	if not ok then
+		error(err, 0)
+	end
 	return true
 end
 

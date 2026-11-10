@@ -837,6 +837,8 @@ CharSheet.RegisterTab {
 		if c:IsMonster() and c:HasBuilderChoices() then return true end
 		return false
 	end,
-    panel = CharacterBuilder.CreatePanel
+    panel = CharacterBuilder.CreatePanel,
+    --built on first show rather than with every game's character sheet.
+    lazy = true,
 }
 dmhub.RefreshCharacterSheet()

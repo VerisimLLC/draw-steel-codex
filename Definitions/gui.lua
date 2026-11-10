@@ -10,6 +10,15 @@ gui = {}
 --- @return Style
 function gui.Style(args) end
 
+--- Runs fn once this frame's layout is done, before the frame is drawn. Sizes read inside fn (renderedWidth, renderedHeight) are current, and style changes fn makes are laid out before drawing, so a layout that measures and then fits shows no in-between frame. Callbacks queued from inside fn run after a further layout pass in the same frame, up to a few passes; past that they wait for the next frame.
+--- @param fn fun()
+function gui.AfterLayout(fn) end
+
+--- Diagnostic: how often panels were laid out again late in a frame (after the main style pass, at the end of LateUpdate, or just before drawing) and how many gui.AfterLayout callbacks ran. log = true writes each late layout to the console with the C# and Lua stacks that dirtied it; reset = true zeroes the counts; settle = false turns late layout off (gui.AfterLayout callbacks then run in LateUpdate and their changes show next frame), for comparing against the old behaviour. maskChain = a panel id returns, instead, the Unity transform chain above that panel with every clip mask and canvas on it.
+--- @param options nil|{log: nil|boolean, reset: nil|boolean, settle: nil|boolean, maskChain: nil|string}
+--- @return string
+function gui.LayoutSettleDiagnostics(options) end
+
 --- Create a Panel
 --- @param args PanelArgs
 --- @return Panel
@@ -121,6 +130,11 @@ function gui.TryGetImageDimensions(imageid) end
 --- @param imageid string The image asset ID.
 --- @param f function Callback receiving a table with width, height, and ppu.
 function gui.GetImageDimensionsCallback(imageid, f) end
+
+--- Like GetImageDimensionsCallback, but never loads the image as a texture just to measure it: the size comes from the image file's header, or from a thumbnail being made of it (bgimage "thumb:" / "preview:"). Use it where only the size is needed. The callback is not called if the size can't be found within 30 seconds.
+--- @param imageid string The image asset ID, or an image's storage ID.
+--- @param f function Callback receiving a table with width, height, and ppu.
+function gui.GetImageSizeCallback(imageid, f) end
 
 --- Finds a sheet panel by its ID across all top-level sheets. Returns nil if not found.
 --- @param id string The panel ID.

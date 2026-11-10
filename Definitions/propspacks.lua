@@ -36,6 +36,7 @@
 --- @field bundle string bundle key
 --- @field name string
 --- @field image string image URL of its base look
+--- @field preview string URL of a small (256 px) preview of its base look; the same as image when the pack has no previews
 --- @field width number footprint in squares
 --- @field height number footprint in squares
 --- @field looks integer 1 + its Appearance variants
@@ -44,6 +45,7 @@
 
 --- Props packs: creators' prop libraries (Tom Cartos' asset bundles), unlocked by a Patreon pledge and shown in the Director's Object Library in every game without installing anything. Each pack is a folder at the library root with a folder per bundle; a bundle's objects are loaded on demand with LoadBundle. Placing one copies it into the game. See PROPS_PACKS_PLAN.md.
 --- @class propspacks
+--- @field simulateLocked boolean Dev mode only: when true, every props pack bundle reads as locked for this account (prelaunch and owned packs included), to test the non-patron view: the locked folder, the Patreon search sub-folder and the Support dialog. Not saved; false after a restart.
 --- @field synced boolean Whether the props pack index has been synced this session. It syncs by itself the first time this client is the Director in a game. (Read-only)
 --- @field syncing boolean Whether a sync is in progress. (Read-only)
 --- @field packs PropsPackInfo[] The synced props packs with their bundles, access and load status, evaluated live (a pledge landing shows on the next read). (Read-only)
@@ -58,6 +60,11 @@ function propspacks.GetPack(pack) end
 --- @param folderid string an object folder guid
 --- @return PropsPackFolder|nil
 function propspacks.GetFolder(folderid) end
+
+--- The URL of a small (256 px) preview image of a props pack object, for showing it in a folder or search result without downloading the full image. nil for an object that is not from a props pack, or when the pack's index carries no previews.
+--- @param objectid string an object asset guid
+--- @return string|nil
+function propspacks.GetPreview(objectid) end
 
 --- Loads one bundle's objects into the asset tree (downloaded once, then cached on disk), so its folder fills in. Returns false when the bundle cannot be loaded: not in a game as the Director, unknown, or locked for this account. Watch the bundle's status in packs/GetPack; the objects category refreshes when it lands.
 --- @param pack string module fullid

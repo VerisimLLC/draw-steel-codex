@@ -19,6 +19,8 @@ ActivatedAbility = {}
 --and the crit-widened action replenish is exercised through afterCast below.
 ActivatedAbility.SquadMemberParticipates = function() return true end
 ActivatedAbilityReplenishBehavior = {Cast = function() end}
+--The off-turn immediate action grant (same file) is not under test here.
+ActivatedAbility.GrantImmediateActionForCriticalHit = function() end
 CharacterResource = {actionResourceId = "action"}
 --Simulate the base payment for participating attackers, then exercise the real
 --Draw Steel wrapper that also spends nonparticipants' shared action.

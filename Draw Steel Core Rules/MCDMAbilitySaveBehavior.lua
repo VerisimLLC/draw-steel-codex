@@ -61,6 +61,7 @@ function ActivatedAbilitySaveBehavior:GetSaveItems(targetCreature)
                 id = conditionid,
                 name = conditionInfo.name,
                 duration = entry.duration,
+                skipTurnEnd = entry.skipTurnEnd,
             }
         end
     end
@@ -737,7 +738,21 @@ function ActivatedAbilitySaveBehavior:Cast(ability, casterToken, targets, option
 
         for _, item in ipairs(saveItems) do
             -- End-of-turn conditions are auto-purged without a roll.
-            if item.type == "condition" and item.duration == "eot" then
+            if item.type == "condition" and item.duration == "eot" and item.skipTurnEnd and self:try_get("durationScope", "all") == "eot" then
+                -- An "(end of next turn)" condition imposed on this turn: the turn
+                -- end expiry lets it survive this once. Player-facing removal
+                -- ("all" scope) still purges it outright.
+                local props = target.token.properties
+                target.token:ModifyProperties{
+                    description = "Keep condition until end of next turn",
+                    execute = function()
+                        local entry = props:try_get("inflictedConditions", {})[item.id]
+                        if entry ~= nil then
+                            entry.skipTurnEnd = nil
+                        end
+                    end,
+                }
+            elseif item.type == "condition" and item.duration == "eot" then
                 self:PurgeSaveItem(target.token, item)
             elseif self.rollMode == "purge" then
                 self:PurgeSaveItem(target.token, item)

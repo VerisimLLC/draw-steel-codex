@@ -44,6 +44,8 @@ local mod = dmhub.GetModLoading()
 --- shown like the sheet button; args.selection() is the selected {charid, owner} entry or
 --- nil, args.host() the Respite window. The Respite fires rspSelectionChanged down the
 --- panel when the selection moves
+--- @field playerChipActions fun(args: table): Panel a button under a hero card's rolls
+--- counter, drawn in the counter's colours; args as playerActions, selection() is that hero
 --- @field paintStation fun(args: table): Panel the activity's tile on the player stage, which
 --- characters are dropped onto; the Respite draws a plain one from the name when nil
 --- @field busy fun(args: table): boolean, string|nil whether args.charid (args.owner for a
@@ -75,6 +77,7 @@ local m_activities = {}
 ---@field paintIdle? fun(args: table): Panel
 ---@field idleTitle? string
 ---@field playerActions? fun(args: table): Panel
+---@field playerChipActions? fun(args: table): Panel
 ---@field paintStation? fun(args: table): Panel
 ---@field busy? fun(args: table): boolean, string|nil
 
@@ -104,6 +107,7 @@ function RSPActivity.Register(args)
         paintIdle = args.paintIdle,
         idleTitle = args.idleTitle,
         playerActions = args.playerActions,
+        playerChipActions = args.playerChipActions,
         paintStation = args.paintStation,
         busy = args.busy,
     }

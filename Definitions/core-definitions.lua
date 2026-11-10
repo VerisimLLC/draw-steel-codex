@@ -43,6 +43,8 @@ function setting(info) end
 --- @field delay nil|boolean
 --- @field begin nil|function Callback to execute when the roll begins.
 --- @field complete nil|function Callback to execute when the roll ends.
+--- @field interruptAfter nil|number Interrupted roll: seconds of dice playback after the throw starts at which the dice freeze, fade out and vanish. The result is never shown, the roll is kept out of the chat log, and complete/pending/DiceRoll do not fire.
+--- @field interrupted nil|fun(rollInfo: ChatMessageDiceRollInfoLua) Interrupted roll: called once on the rolling client at the interrupt moment (always after begin), instead of complete.
 --- @field tokenid nil|string
 --- @field boons nil|integer
 --- @field banes nil|integer

@@ -201,6 +201,8 @@ end
 --- @field name string
 --- @field group nil|string a skill's group id ("crafting")
 --- @field speakers nil|string a language's speakers
+--- @field inWorld nil|string a language's in-world name, set only while Plain Language Names shows another name
+--- @field tooltip nil|string a language's hover text naming it in-world
 --- @field dead nil|boolean a dead language
 
 --- @class HeroSkillsMark
@@ -486,7 +488,7 @@ function HeroSkillsLanguages.Read(hero, kind, only, engine)
                 ids[#ids+1] = id
             end
         end
-        table.sort(ids, function(left, right) return languages[left].name < languages[right].name end)
+        table.sort(ids, function(left, right) return languages[left]:DisplayName() < languages[right]:DisplayName() end)
         for _, id in ipairs(ids) do
             draft.handOrig[id] = id
             draft.hand[#draft.hand+1] = {
@@ -603,7 +605,11 @@ function HeroSkillsLanguages.Read(hero, kind, only, engine)
             if type(speakers) ~= "string" or speakers == "" then
                 speakers = nil
             end
-            list[#list+1] = {id = id, name = item.name, speakers = speakers, dead = item:try_get("dead", false) == true}
+            local inWorld = nil
+            if item:DisplayName() ~= item.name then
+                inWorld = item.name
+            end
+            list[#list+1] = {id = id, name = item:DisplayName(), speakers = speakers, inWorld = inWorld, tooltip = item:DisplayTooltip(), dead = item:try_get("dead", false) == true}
         end
         table.sort(list, function(left, right) return left.name < right.name end)
         draft.entries = list
@@ -1226,7 +1232,7 @@ end
 --- The Languages card's rows: each language the Hero knows with where it
 --- comes from (Everyone, Ancestry, Career, Added by hand...), by name.
 --- @param hero character
---- @return {label: string, value: string}[]
+--- @return {label: string, value: string, inWorld: nil|string}[]
 function HeroSkillsLanguages.LanguageSources(hero)
     local draft = HeroSkillsLanguages.Read(hero, "language")
     local source = {}
@@ -1246,7 +1252,7 @@ function HeroSkillsLanguages.LanguageSources(hero)
     local rows = {}
     for _, entry in ipairs(draft.entries) do
         if source[entry.id] ~= nil then
-            rows[#rows+1] = {label = entry.name, value = KindWord(source[entry.id])}
+            rows[#rows+1] = {label = entry.name, value = KindWord(source[entry.id]), inWorld = entry.inWorld}
         end
     end
     return rows
@@ -1308,6 +1314,15 @@ local function Caps(text, args)
     end
     return gui.Label(fields)
 end
+
+--The Builder's "Show Dead Languages" checkbox, remembered per user (off by
+--default). Off hides the dead languages' chips, except one the Hero holds.
+--Only the Builder (parts mode) has the checkbox, so only it filters.
+local g_showDeadSetting = setting{
+    id = "heroskills:showdeadlanguages",
+    default = false,
+    storage = "preference",
+}
 
 --Chips built across frames (Panel with args.slice): one queue for every
 --panel, in the order the panels were made, so the Skills chips fill in
@@ -1797,7 +1812,7 @@ function HeroSkillsLanguages.Panel(args)
         --the name sits over a bold copy of itself, so a chip keeps its width
         --when it turns bold on being picked.
         local nameLabel = gui.Label{
-            classes = {"heroSklChipText"},
+            classes = {"heroSklChipText", cond(entry.dead == true, "heroSklDead", nil)},
             text = entry.name,
             fontSize = 13.5,
             italics = entry.dead == true,
@@ -1845,8 +1860,12 @@ function HeroSkillsLanguages.Panel(args)
             labels[#labels+1] = label
             children[#children+1] = label
         end
-        --a known language reads "Caelian known", without its speakers.
-        if entry.speakers ~= nil and not known then
+        --a known language reads "Caelian known", without its speakers. With
+        --plain names the plain name already says who speaks it, so the small
+        --text gives the in-world name instead ("Goblin Szetch").
+        if entry.inWorld ~= nil and not known then
+            Small(entry.inWorld, "heroSklChipSpeakers", 5)
+        elseif entry.speakers ~= nil and not known then
             Small(entry.speakers, "heroSklChipSpeakers", 5)
         end
         if mark ~= nil and mark.suffix ~= nil then
@@ -1870,7 +1889,8 @@ function HeroSkillsLanguages.Panel(args)
             children[#children+1] = star
         end
         if entry.dead then
-            children[#children+1] = gui.Label{
+            --in labels so it takes the chip's state (dark on a picked chip).
+            local deadTag = gui.Label{
                 classes = {"heroSklDeadTag"},
                 bgimage = "panels/square.png",
                 border = 1,
@@ -1886,10 +1906,12 @@ function HeroSkillsLanguages.Panel(args)
                 textWrap = false,
                 interactable = false,
             }
+            labels[#labels+1] = deadTag
+            children[#children+1] = deadTag
         end
         local panel
         panel = gui.Panel{
-            classes = {"heroSklChip", "heroSklOption", "hoverable"},
+            classes = {"heroSklChip", "heroSklOption", "hoverable", cond(entry.dead == true, "heroSklDead", nil)},
             bgimage = "panels/square.png",
             border = 1,
             cornerRadius = 8,
@@ -1905,6 +1927,9 @@ function HeroSkillsLanguages.Panel(args)
             --the Hero (SetDraft) swaps them without building the chip again.
             hover = function(element)
                 local lines = {}
+                if view.entry.tooltip ~= nil then
+                    lines[#lines+1] = view.entry.tooltip
+                end
                 if view.tip ~= nil then
                     lines[#lines+1] = view.tip
                 end
@@ -1940,6 +1965,8 @@ function HeroSkillsLanguages.Panel(args)
     --- @type {label: Panel, group: string, hidden: nil|boolean}[]
     local groupLines = {}
     local searchInput = nil
+    --in parts mode, the search with its checkbox (parts.search)
+    local searchPart = nil
     --With args.slice the chips are not built here: each wrap is made empty
     --and its chips queued (in the order they show) for the frames after, a
     --few ms of them a frame (the queue is QueueSlice, above).
@@ -2021,8 +2048,31 @@ function HeroSkillsLanguages.Panel(args)
                 Refresh()
             end,
         }
-        --the Builder puts the search on its own heading's line.
-        if not args.parts then
+        --the Builder puts the search on its own heading's line, with the
+        --Show Dead Languages checkbox before it.
+        if args.parts then
+            searchPart = gui.Panel{
+                width = "auto",
+                height = "auto",
+                flow = "horizontal",
+                gui.Check{
+                    text = T("heroskills.search.show_dead"),
+                    value = g_showDeadSetting:Get() == true,
+                    tooltip = T("heroskills.search.show_dead_tooltip"),
+                    width = "auto",
+                    height = HeroSheetWindow.TargetSize(28),
+                    minWidth = 0,
+                    fontSize = 12.5,
+                    rmargin = 12,
+                    valign = "center",
+                    change = function(element)
+                        g_showDeadSetting:Set(element.value == true)
+                        Refresh()
+                    end,
+                },
+                searchInput,
+            }
+        else
             chipArea[#chipArea+1] = gui.Panel{
                 width = "100%",
                 height = "auto",
@@ -2066,7 +2116,7 @@ function HeroSkillsLanguages.Panel(args)
             end
             return string.find(string.lower(text), string.lower(query), 1, true) ~= nil
         end
-        local hit = Test(entry.name) or Test(entry.speakers)
+        local hit = Test(entry.name) or Test(entry.speakers) or Test(entry.inWorld)
         if negative then
             return not hit
         end
@@ -2107,6 +2157,11 @@ function HeroSkillsLanguages.Panel(args)
         chip.tip = why
         if not isSkill then
             local hide = not Matches(chip.entry)
+            --a dead language hides while the checkbox is off, unless the Hero holds it.
+            if args.parts and chip.entry.dead == true and g_showDeadSetting:Get() ~= true
+                and state ~= "picked" and state ~= "locked" and state ~= "known" then
+                hide = true
+            end
             if hide ~= chip.hidden then
                 chip.panel:SetClass("collapsed", hide)
                 chip.hidden = hide
@@ -2194,7 +2249,8 @@ function HeroSkillsLanguages.Panel(args)
         for i, newEntry in ipairs(new) do
             local oldEntry = old[i]
             if oldEntry.id ~= newEntry.id or oldEntry.name ~= newEntry.name or oldEntry.group ~= newEntry.group
-                or oldEntry.speakers ~= newEntry.speakers or (oldEntry.dead == true) ~= (newEntry.dead == true) then
+                or oldEntry.speakers ~= newEntry.speakers or oldEntry.inWorld ~= newEntry.inWorld
+                or (oldEntry.dead == true) ~= (newEntry.dead == true) then
                 return false
             end
         end
@@ -2335,7 +2391,7 @@ function HeroSkillsLanguages.Panel(args)
                 end
                 return false
             end,
-            parts = {rows = rowsPanel, known = knownLabel, chips = chipsPanel, search = searchInput},
+            parts = {rows = rowsPanel, known = knownLabel, chips = chipsPanel, search = searchPart},
             SetDraft = SetDraft,
         }
         return rowsPanel, partsControl

@@ -146,7 +146,7 @@ local function GetLanguageOptions()
     for k, language in pairs(langTable) do
         result[#result + 1] = {
             id = k,
-            text = language.name,
+            text = language:DisplayNameWithDetail(),
         }
     end
     return result

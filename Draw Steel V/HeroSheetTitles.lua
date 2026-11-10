@@ -297,14 +297,26 @@ function HeroSheetWindows.OpenTitles(focusid)
         FillHeld()
         FillGrants()
     end
-    local function Pick(choice, optionGuid)
+    --- A nil optionGuid clears the pick, and the pick of any choice nested in
+    --- the cleared option (clearGuids).
+    --- @param choice CharacterFeatureChoice
+    --- @param optionGuid nil|string
+    --- @param clearGuids nil|string[]
+    local function Pick(choice, optionGuid, clearGuids)
         local guid = choice.guid
         HeroSheetWrite.Save{
             charid = token.charid,
-            description = "Choose a title benefit",
+            description = cond(optionGuid == nil, "Clear a title benefit", "Choose a title benefit"),
             execute = function(props)
                 local levelChoices = props:GetLevelChoices()
-                levelChoices[guid] = {optionGuid}
+                if optionGuid == nil then
+                    levelChoices[guid] = nil
+                    for _, clearGuid in ipairs(clearGuids or {}) do
+                        levelChoices[clearGuid] = nil
+                    end
+                else
+                    levelChoices[guid] = {optionGuid}
+                end
             end,
         }
         HeroSheet.Saved()
@@ -321,8 +333,22 @@ function HeroSheetWindows.OpenTitles(focusid)
         local choices = BenefitChoices(title)
         local levelChoices = creature:GetLevelChoices() or {}
         local todo = false
+        --an option can itself be a choice (Elemental Dabbler: a damage type,
+        --then its effect); once picked, it is chosen from in turn.
+        --- @param choice CharacterFeatureChoice
+        --- @return nil|CharacterFeatureChoice
+        local function NestedChoice(choice)
+            local picked = Picked(choice, levelChoices)
+            for _, option in ipairs(Options(choice)) do
+                if option.guid == picked and option.typeName == "CharacterFeatureChoice" then
+                    return option --[[@as CharacterFeatureChoice]]
+                end
+            end
+            return nil
+        end
         for _, choice in ipairs(choices) do
-            if Picked(choice, levelChoices) == nil then
+            local nested = NestedChoice(choice)
+            if Picked(choice, levelChoices) == nil or (nested ~= nil and Picked(nested, levelChoices) == nil) then
                 todo = true
             end
         end
@@ -468,7 +494,6 @@ function HeroSheetWindows.OpenTitles(focusid)
             },
         }
         for _, choice in ipairs(choices) do
-            local picked = Picked(choice, levelChoices)
             --with more than one choice, each group is headed by its own name
             --and description (Characteristic Increase, Forsaken Benefit).
             if #choices > 1 then
@@ -478,57 +503,75 @@ function HeroSheetWindows.OpenTitles(focusid)
                     children[#children+1] = Line(description, {"heroSheetCardSub"}, 13, {tmargin = 1})
                 end
             end
-            for _, option in ipairs(Options(choice)) do
-                local on = option.guid == picked
-                local optionGuid = option.guid
-                children[#children+1] = gui.Panel{
-                    classes = {"heroSheetFeatCard", "heroSheetBenefit", "hoverable", cond(on, "selected", nil)},
-                    bgimage = "panels/square.png",
-                    border = 1,
-                    cornerRadius = 7,
-                    width = "100%",
-                    height = "auto",
-                    flow = "horizontal",
-                    hpad = 12,
-                    vpad = 8,
-                    borderBox = true,
-                    tmargin = 6,
-                    click = function()
-                        if not on then
-                            Pick(choice, optionGuid)
-                        end
-                    end,
-                    gui.Panel{
-                        classes = {"heroSheetRadio", cond(on, "selected", nil)},
+            local nested = NestedChoice(choice)
+            local groups = {choice}
+            if nested ~= nil then
+                groups[2] = nested
+            end
+            for index, group in ipairs(groups) do
+                local groupPicked = Picked(group, levelChoices)
+                if index > 1 then
+                    children[#children+1] = Line(string.format("%s: choose one", group.name or "Benefit"), {"heroSheetCardLabel"}, 12, {bold = true, tmargin = 10})
+                end
+                for _, option in ipairs(Options(group)) do
+                    local on = option.guid == groupPicked
+                    local optionGuid = option.guid
+                    --clearing a pick clears the pick nested under it too.
+                    local clearGuids = {}
+                    if option.typeName == "CharacterFeatureChoice" then
+                        clearGuids[1] = option.guid
+                    end
+                    children[#children+1] = gui.Panel{
+                        classes = {"heroSheetFeatCard", "heroSheetBenefit", "hoverable", cond(on, "selected", nil)},
                         bgimage = "panels/square.png",
                         border = 1,
                         cornerRadius = 7,
-                        width = 14,
-                        height = 14,
-                        valign = "top",
-                        tmargin = 3,
-                        interactable = false,
-                        gui.Panel{
-                            classes = {"heroSheetRadioDot", cond(on, nil, "collapsed")},
-                            bgimage = "panels/square.png",
-                            cornerRadius = 3,
-                            width = 6,
-                            height = 6,
-                            halign = "center",
-                            valign = "center",
-                            interactable = false,
-                        },
-                    },
-                    gui.Panel{
-                        width = "100%-26",
+                        width = "100%",
                         height = "auto",
-                        flow = "vertical",
-                        halign = "right",
-                        interactable = false,
-                        Line(option.name or "", {"heroSheetCardStrong"}, 14, {bold = true}),
-                        Line(Text(option.description), {"heroSheetCardText"}, 13.5, {tmargin = 2}),
-                    },
-                }
+                        flow = "horizontal",
+                        hpad = 12,
+                        vpad = 8,
+                        borderBox = true,
+                        tmargin = 6,
+                        click = function()
+                            if on then
+                                Pick(group, nil, clearGuids)
+                            else
+                                Pick(group, optionGuid)
+                            end
+                        end,
+                        gui.Panel{
+                            classes = {"heroSheetRadio", cond(on, "selected", nil)},
+                            bgimage = "panels/square.png",
+                            border = 1,
+                            cornerRadius = 7,
+                            width = 14,
+                            height = 14,
+                            valign = "top",
+                            tmargin = 3,
+                            interactable = false,
+                            gui.Panel{
+                                classes = {"heroSheetRadioDot", cond(on, nil, "collapsed")},
+                                bgimage = "panels/square.png",
+                                cornerRadius = 3,
+                                width = 6,
+                                height = 6,
+                                halign = "center",
+                                valign = "center",
+                                interactable = false,
+                            },
+                        },
+                        gui.Panel{
+                            width = "100%-26",
+                            height = "auto",
+                            flow = "vertical",
+                            halign = "right",
+                            interactable = false,
+                            Line(option.name or "", {"heroSheetCardStrong"}, 14, {bold = true}),
+                            Line(Text(option.description), {"heroSheetCardText"}, 13.5, {tmargin = 2}),
+                        },
+                    }
+                end
             end
         end
         if #choices == 0 then

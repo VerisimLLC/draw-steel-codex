@@ -3596,4 +3596,6 @@ CharSheet.RegisterTab {
     id = "Appearance",
     text = "Appearance",
     panel = CharSheet.AppearancePanel,
+    --built on first show: ~270 panels the sheet would otherwise build with every game.
+    lazy = true,
 }

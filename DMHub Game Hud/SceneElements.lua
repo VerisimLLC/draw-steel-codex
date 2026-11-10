@@ -2626,6 +2626,11 @@ function SceneElements.CreateLayer(sceneid, options)
             width = 10,
             height = 10,
             cornerRadius = 8,
+            --a clear surface to catch the mouse: a picture's or sound's face
+            --is not interactable, and a panel with no bgimage is never hit,
+            --so without it those could not be hovered, dragged or resized.
+            bgimage = true,
+            bgcolor = "clear",
             flow = "none",
             draggable = true,
             --the drag moves the card itself (Dragging), within the scene.

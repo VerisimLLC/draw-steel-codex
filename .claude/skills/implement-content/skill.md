@@ -303,6 +303,31 @@ prompts and can shift/move between each selection.
 For "move before OR after" (binary choice), use `multipleModes: true` with `variation`
 fields on the modeList entries (see Angulotl Hopper's Leapfrog for this pattern).
 
+### Summon Placement Belongs to the Summon Behavior, Not to Targeting
+
+**CRITICAL:** For "N creatures appear in unoccupied spaces within distance", do NOT
+model the squares as targets (`targetType: emptyspace` + `numTargets: N`). Each target
+runs the Summon behavior separately, so `numSummons`, `allCreaturesTheSame` and squad
+assignment all apply per square: four targets put four minions in four one-minion
+squads (bug NXJXN8UC, Angulotl Daybringer "New Dawn").
+
+Make the ability self-targeted and give the count and distance to the Summon behavior:
+
+```yaml
+targetType: self
+behaviors:
+- __typeName: ActivatedAbilitySummonBehavior
+  bestiaryFilter: beast.name = "Angulotl Pollywog"
+  numSummons: "4"            # the "N" in the rules text
+  allCreaturesTheSame: true
+  choosePlacement: true      # "Place creature N of M" prompt during the cast
+  summonRange: "10"          # the ability's Distance, measured from the caster
+```
+
+Real targets are right only when the summons are anchored on chosen creatures
+("a minion appears adjacent to the target"): use `placementRangeFrom: target` or
+`tweakPlacement: true` there. Details: `MONSTERS.md` > ActivatedAbilitySummonBehavior.
+
 ### Key Ability GoblinScript Fields (for power roll modifier activationCondition)
 
 In power roll modifier context, `Ability` is available with these fields:

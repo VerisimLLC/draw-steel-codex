@@ -100,6 +100,9 @@ end
 
 function creature:GetAdditionalCostModifiersForPowerTableTrigger(modifier)
     local result = {}
+    if type(modifier) ~= "table" then
+        return result
+    end
     for _,mod in ipairs(modifier:try_get("additionalCostModifiers", {})) do
         result[#result+1] = mod
     end

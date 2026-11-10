@@ -78,6 +78,7 @@ MonsterAI.supportCapableCoverage = 0.6
 
 --- @class MonsterAISupportAssessment
 --- @field monsterType string
+--- @field similarTo string|nil The monster type it borrows AI from ("similar to"), if any.
 --- @field minion boolean
 --- @field entries MonsterAISupportEntry[]
 --- @field registrations MonsterAISupportRegistration[]
@@ -112,13 +113,10 @@ local function RegistrationSource(registration)
         or SourceOf(registration.handler) or SourceOf(registration.execute)
 end
 
-local function ListsMonsterType(registration, monsterType)
-    for _, name in ipairs(registration.monsters or {}) do
-        if name == monsterType then
-            return true
-        end
-    end
-    return false
+--monsterTypes: the monster's own type, then its "similar to" type if any
+--(MonsterAI.AIMonsterTypes).
+local function ListsMonsterType(registration, monsterTypes)
+    return MonsterAI.ListsAnyMonsterType(registration.monsters or {}, monsterTypes)
 end
 
 --The generic AI's reasons for passing an ability over
@@ -301,7 +299,7 @@ end
 --The registered trigger handler for one of the monster's triggers, using
 --FindTriggerHandler's lookup order: guid, monster-qualified ability name,
 --ability name, monster-qualified trigger text, trigger text.
-local function FindTriggerHandlerFor(fakeToken, monsterType, triggerEntry)
+local function FindTriggerHandlerFor(fakeToken, monsterTypes, triggerEntry)
     local ai = MonsterAI
     local function Matching(handler)
         if handler ~= nil and ai.MoveMatchesMonster(fakeToken, handler, true) then
@@ -316,18 +314,33 @@ local function FindTriggerHandlerFor(fakeToken, monsterType, triggerEntry)
         end
     end
 
+    --Trimmed like FindTriggerHandler: a stray space in a trigger's name
+    --("End Effect ") must not hide its handler.
     local names = {}
-    for _, name in ipairs(triggerEntry.names) do
-        names[#names + 1] = name
+    local function Add(name)
+        if type(name) == "string" then
+            names[#names + 1] = string.match(name, "^%s*(.-)%s*$")
+        end
     end
-    if triggerEntry.text ~= nil then
-        names[#names + 1] = triggerEntry.text
+    for _, name in ipairs(triggerEntry.names) do
+        Add(name)
+    end
+    Add(triggerEntry.text)
+
+    local function Qualified(registry, name)
+        for _, monsterType in ipairs(monsterTypes) do
+            local handler = Matching(registry[monsterType .. ":" .. name])
+            if handler ~= nil then
+                return handler
+            end
+        end
+        return nil
     end
 
     for _, name in ipairs(names) do
-        local handler = Matching(ai.triggerHandlersByMonsterAbility[monsterType .. ":" .. name])
+        local handler = Qualified(ai.triggerHandlersByMonsterAbility, name)
             or Matching(ai.triggerHandlersByAbility[name])
-            or Matching(ai.triggerHandlersByMonsterText[monsterType .. ":" .. name])
+            or Qualified(ai.triggerHandlersByMonsterText, name)
             or Matching(ai.triggerHandlersByText[name])
         if handler ~= nil then
             return handler
@@ -344,6 +357,9 @@ function MonsterAI.AssessSupport(props)
     local ai = MonsterAI
     local status = ai.supportStatus
     local monsterType = props:try_get("monster_type", "")
+    --registrations for its "similar to" type count as its own.
+    local monsterTypes = ai.AIMonsterTypes(props)
+    local ownTypeOnly = { monsterType }
     local minion = props:try_get("minion", false) == true
 
     --the matchers only read token.properties (and token.valid), so a
@@ -363,6 +379,7 @@ function MonsterAI.AssessSupport(props)
     ---@type MonsterAISupportAssessment
     local result = {
         monsterType = monsterType,
+        similarTo = ai.SimilarMonsterType(props),
         minion = minion,
         entries = {},
         registrations = {},
@@ -411,7 +428,7 @@ function MonsterAI.AssessSupport(props)
     local tailoredMoveFor = {}
     local genericMoveFor = {}
     for _, move in pairs(ai.moves) do
-        local own = ListsMonsterType(move, monsterType)
+        local own = ListsMonsterType(move, monsterTypes)
         if own or move.monsters == nil then
             local allPresent = #(move.abilities or {}) > 0
             local missing = nil
@@ -429,7 +446,9 @@ function MonsterAI.AssessSupport(props)
                         genericMoveFor[name] = genericMoveFor[name] or move
                     end
                 end
-            elseif own and missing ~= nil then
+            elseif missing ~= nil and ListsMonsterType(move, ownTypeOnly) then
+                --only the monster's own registrations can be stale: one for
+                --its "similar to" type simply does not apply.
                 result.stale[#result.stale + 1] = { kind = "Move", id = move.id or "?", missing = missing }
             end
         end
@@ -437,11 +456,11 @@ function MonsterAI.AssessSupport(props)
 
     local villainFor = {}
     for _, action in pairs(ai.villainActions) do
-        if ListsMonsterType(action, monsterType) then
+        if ListsMonsterType(action, monsterTypes) then
             local name = (action.abilities or {})[1]
             if name ~= nil and present[name] then
                 villainFor[name] = action
-            elseif name ~= nil then
+            elseif name ~= nil and ListsMonsterType(action, ownTypeOnly) then
                 result.stale[#result.stale + 1] = { kind = "Villain Action", id = action.id or "?", missing = name }
             end
         end
@@ -633,7 +652,7 @@ function MonsterAI.AssessSupport(props)
             kind = "Triggered Action",
             implementation = trigger.implementation,
         }
-        local handler = FindTriggerHandlerFor(fakeToken, monsterType, trigger)
+        local handler = FindTriggerHandlerFor(fakeToken, monsterTypes, trigger)
         if handler ~= nil then
             if handler.monsters ~= nil or #(handler.abilityGuids or {}) > 0 then
                 NoteRegistration("Trigger", handler)
@@ -674,10 +693,14 @@ function MonsterAI.AssessSupport(props)
         end
     end
 
-    --prompt handlers written specifically for this monster.
-    for key, prompt in pairs(ai.prompts) do
-        if monsterType ~= "" and string.sub(key, 1, #prefix) == prefix then
-            NoteRegistration("Prompt", prompt)
+    --prompt handlers written specifically for this monster or the one it is
+    --similar to.
+    for _, aiType in ipairs(monsterTypes) do
+        local typePrefix = aiType .. ":"
+        for key, prompt in pairs(ai.prompts) do
+            if aiType ~= "" and string.sub(key, 1, #typePrefix) == typePrefix then
+                NoteRegistration("Prompt", prompt)
+            end
         end
     end
 
@@ -733,6 +756,177 @@ function MonsterAI.AssessSupport(props)
     result.rank = rank
     result.level = ai.supportLevels[rank]
 
+    return result
+end
+
+--- @class MonsterAIWeightableMove
+--- @field id string The move id score weights are keyed by (MonsterAI.ScoreWeights).
+--- @field name string What to call it: the move id, or the ability's name for the generic AI.
+--- @field abilities string[] The abilities it uses.
+--- @field status string "tailored", "generic", "synthesized" (supportStatus values), "malice" or "stale".
+--- @field description string
+--- @field disabled boolean Switched off for this monster type in the Monster AI panel.
+--- @field grantedBy? string For a move needing an ability the monster only gets from a condition or ongoing effect: which one, e.g. "the Grabbed condition".
+
+local g_weightableOrder = { tailored = 1, synthesized = 2, malice = 3, generic = 4, stale = 5 }
+
+--Abilities a condition or ongoing effect hands out while it lasts (Grabbed
+--gives Escape Grab), by ability name, with where each comes from. A monster
+--does not have these in its stat block but the AI can still use them.
+--- @return table<string, string>
+local function AbilitiesGrantedByEffects()
+    local result = {}
+    local sources = {
+        { table = CharacterCondition.tableName, kind = "condition" },
+        { table = CharacterOngoingEffect.tableName, kind = "effect" },
+    }
+    for _, source in ipairs(sources) do
+        for _, effect in unhidden_pairs(dmhub.GetTable(source.table) or {}) do
+            for _, modifier in ipairs(effect:try_get("modifiers", {})) do
+                if modifier:try_get("behavior") == "activated" then
+                    local ability = modifier:try_get("activatedAbility")
+                    if ability ~= nil and result[ability.name] == nil then
+                        result[ability.name] = string.format("the %s %s", effect.name, source.kind)
+                    end
+                end
+            end
+        end
+    end
+    return result
+end
+
+--- The turn moves the AI scores for a monster, so each can be given a score
+--- weight: hand-written moves for its type (or its "similar to" type), shared
+--- moves every monster has, and abilities the generic AI plans by itself.
+--- It mirrors FindAndExecuteMove. A move needing an ability that only a
+--- condition or ongoing effect grants (Escape Grab) is listed too, with
+--- grantedBy saying which. Malice registrations for its band are listed
+--- too (status "malice"), even for minions, since one may be the caster.
+--- Weights already set for a move that no longer applies come last as
+--- "stale", so they can be cleared. A minion's turn moves are left out: it
+--- only ever makes squad strikes, which are not weighted.
+--- @param props creature
+--- @return MonsterAIWeightableMove[]
+function MonsterAI.WeightableMoves(props)
+    local ai = MonsterAI
+    local result = {}
+    local minion = props:try_get("minion", false) == true
+    local monsterType = props:try_get("monster_type", "")
+    local monsterTypes = ai.AIMonsterTypes(props)
+    ---@diagnostic disable-next-line: missing-fields
+    local fakeToken = { properties = props, valid = true } --[[@as CharacterToken]]
+
+    local allAbilities = {}
+    pcall(function() allAbilities = props:GetActivatedAbilities() end)
+    local present = {}
+    for _, ability in ipairs(allAbilities) do
+        present[ability.name] = true
+    end
+
+    --Malice the monster can spend: its own plus its band's (as AssessSupport).
+    local maliceNames = {}
+    for _, ability in ipairs(allAbilities) do
+        if IsMalice(ability) then
+            maliceNames[ability.name] = true
+        end
+    end
+    local group = nil
+    pcall(function() group = props:MonsterGroup() end)
+    if group ~= nil then
+        for _, malice in ipairs(group:try_get("maliceAbilities", {})) do
+            maliceNames[malice.name] = true
+        end
+    end
+
+    local seen = {}
+    for id, registration in pairs(ai.maliceAbilities) do
+        local name = (registration.abilities or {})[1]
+        if name ~= nil and maliceNames[name] and ai.MaliceAbilityMatchesMonster(fakeToken, registration, true) then
+            seen[id] = true
+            result[#result + 1] = {
+                id = id,
+                name = id,
+                abilities = { name },
+                status = "malice",
+                description = registration.description or "",
+                disabled = registration.disabledForMonsters ~= nil and registration.disabledForMonsters[monsterType] == true,
+            }
+        end
+    end
+
+    local granted = AbilitiesGrantedByEffects()
+
+    local claimed = {}
+    for id, move in pairs(ai.moves) do
+        if not minion and ai.MoveMatchesMonster(fakeToken, move, true) then
+            --like GetClaimedAbilityNames: a matching move keeps its abilities
+            --from the generic AI even when it cannot run.
+            local allAvailable = true
+            local grantedBy = nil
+            for _, name in ipairs(move.abilities or {}) do
+                claimed[name] = true
+                if not present[name] then
+                    if granted[name] ~= nil then
+                        grantedBy = grantedBy or granted[name]
+                    else
+                        allAvailable = false
+                    end
+                end
+            end
+            if allAvailable then
+                seen[id] = true
+                result[#result + 1] = {
+                    id = id,
+                    name = id,
+                    abilities = move.abilities or {},
+                    status = ListsMonsterType(move, monsterTypes) and ai.supportStatus.tailored or ai.supportStatus.generic,
+                    description = move.description or "",
+                    disabled = move.disabledForMonsters ~= nil and move.disabledForMonsters[monsterType] == true,
+                    grantedBy = grantedBy,
+                }
+            end
+        end
+    end
+
+    for _, ability in ipairs(allAbilities) do
+        local id = ai.SynthesizedMoveId(ability)
+        if not minion and not claimed[ability.name] and not seen[id] then
+            local profile = nil
+            pcall(function() profile = ai:GetSynthesizedAbilityProfile(fakeToken, ability) end)
+            if profile ~= nil then
+                seen[id] = true
+                result[#result + 1] = {
+                    id = id,
+                    name = ability.name,
+                    abilities = { ability.name },
+                    status = ai.supportStatus.synthesized,
+                    description = string.format("The generic AI plans it from its targeting (%s).", profile.reason or "harmful effect"),
+                    disabled = false,
+                }
+            end
+        end
+    end
+
+    for id, _ in pairs(ai.ScoreWeights(props)) do
+        if not seen[id] then
+            result[#result + 1] = {
+                id = id,
+                name = id,
+                abilities = {},
+                status = "stale",
+                description = "This monster no longer has this move, so its weight does nothing.",
+                disabled = false,
+            }
+        end
+    end
+
+    table.sort(result, function(a, b)
+        local orderA, orderB = g_weightableOrder[a.status] or 9, g_weightableOrder[b.status] or 9
+        if orderA ~= orderB then
+            return orderA < orderB
+        end
+        return a.name < b.name
+    end)
     return result
 end
 

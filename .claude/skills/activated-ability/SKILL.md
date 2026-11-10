@@ -231,7 +231,13 @@ Summons creatures from the bestiary.
   allCreaturesTheSame: false
   casterControls: true
   replaceCaster: false
+  choosePlacement: true             # user places each summon during the cast...
+  summonRange: "10"                 # ...within this many squares of the caster
 ```
+
+For "N creatures appear within distance", target self and set `numSummons` and
+`summonRange` on the behavior. Do not use one `emptyspace` target per summon: each
+target runs the behavior again, splitting minions into separate squads (NXJXN8UC).
 
 ### ActivatedAbilityPurgeEffectsBehavior
 Removes conditions or ongoing effects.

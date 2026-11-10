@@ -116,6 +116,10 @@ print("AI advance route and action-economy tests passed")
 local prefix = 'local g_moveResultExecuted="executed"; local g_moveResultNone="none";\n'
 assert(load(prefix .. section("function MonsterAI:FindAndExecuteMove()", "function MonsterAI:DistanceFromNearestEnemy")))()
 assert(load(section("function MonsterAI:MovesInScoringOrder()", "function MonsterAI.MoveMatchesMonster")))()
+--the score weight helpers are file locals in MonsterAI.lua.
+WeightedScoringInfo, ScoreWeightLogSuffix = assert(load(
+    section("local function WeightedScoringInfo", "local function FindMaliceAbilityByName")
+    .. "\nreturn WeightedScoringInfo, ScoreWeightLogSuffix"))()
 MonsterAI.SetMoveLogContext = noop
 MonsterAI.SetLogContext = noop
 MonsterAI.LogMove = noop
@@ -161,6 +165,35 @@ assert(selector:FindAndExecuteMove() == "executed" and selector.attacked and not
 selector.moves.fallback = nil
 selector.moves.strike.score = function() return {score = 0.2} end
 print("AI advance selection priority tests passed")
+
+-- Score weights (aiScoreWeights on the monster) multiply each move's score.
+actor.properties.try_get = try_get
+selector.attacked = false
+selector.moves.other = {id = "other", score = function() return {score = 0.5} end,
+    execute = function() selector.usedOther = true end}
+actor.properties.aiScoreWeights = {{move = "strike", weight = 3}}
+assert(selector:FindAndExecuteMove() == "executed" and selector.attacked and not selector.usedOther,
+    "a favored move (0.2 x 3) beats a better unweighted one (0.5)")
+selector.attacked = false
+actor.properties.aiScoreWeights = {{move = "other", weight = 0}}
+assert(selector:FindAndExecuteMove() == "executed" and selector.attacked and not selector.usedOther,
+    "a move weighted 0% is never used")
+selector.attacked = false
+fallbackScored = false
+selector.moves.other = nil
+selector.moves.strike.score = function() return {score = 0.5} end
+selector.moves.fallback = {id = "fallback", maxScore = 0.2,
+    score = function() fallbackScored = true; return {score = 0.2} end,
+    execute = function() selector.usedFallback = true end}
+actor.properties.aiScoreWeights = {{move = "fallback", weight = 5}}
+assert(selector:FindAndExecuteMove() == "executed" and fallbackScored and selector.usedFallback
+    and not selector.attacked, "a capped move's maxScore is weighted too, so it is still scored")
+selector.moves.fallback = nil
+selector.usedFallback = false
+selector.moves.strike.score = function() return {score = 0.2} end
+actor.properties.aiScoreWeights = nil
+actor.properties.try_get = nil
+print("AI score weight tests passed")
 
 -- Band callbacks historically discard ExecuteAbility's false return. The
 -- execution marker must still quarantine them and allow a lower-scoring move.

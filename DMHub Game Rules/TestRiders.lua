@@ -17,6 +17,8 @@
 --  you are a <class, subclass, ancestry or career> /
 --  you can <capability> (TestRiders.CAPABILITIES: teleport, fly, climb,
 --    speak with animals, sense the supernatural, ...) /
+--  you can deal <damage type> damage (any ability of the hero's deals it;
+--    "you can deal fire or holy damage" is two alternatives) /
 --  you have <anything by name> / you have the <X> perk|complication|
 --    ability|trait|kit|title|domain / you were a <career> /
 --  you were raised in <culture or culture aspect> / you worship <deity> /
@@ -286,9 +288,48 @@ for _, cap in ipairs({
     TestRiders.RegisterCapability(cap)
 end
 
---Damage types an "immune to X" / "X weakness" clause may name.
-local DAMAGE_TYPES = { acid = true, cold = true, corruption = true, fire = true, holy = true, lightning = true,
-    poison = true, psychic = true, sonic = true }
+--Damage types an "immune to X" / "X weakness" / "you can deal X damage"
+--clause may name. The list keeps the order for warnings.
+local DAMAGE_TYPE_LIST = { "acid", "cold", "corruption", "fire", "holy", "lightning", "poison", "psychic", "sonic" }
+local DAMAGE_TYPES = {}
+for _, damageType in ipairs(DAMAGE_TYPE_LIST) do
+    DAMAGE_TYPES[damageType] = true
+end
+
+--"deal fire damage" (what follows "you can"; lower-cased) -> "fire", or nil
+--when the phrase is not a damage clause. Any word is taken before "damage"
+--so RequirementProblems can name a misspelt type; without "damage" ("deal
+--fire") only a real type counts.
+local function ParseDamagePhrase(phrase)
+    phrase = trim(phrase)
+    local damageType = string.match(phrase, "^deal (%a+) damage$") or string.match(phrase, "^do (%a+) damage$")
+        or string.match(phrase, "^inflict (%a+) damage$")
+    if damageType ~= nil then
+        return damageType
+    end
+    damageType = string.match(phrase, "^deal (%a+)$")
+    if damageType ~= nil and DAMAGE_TYPES[damageType] then
+        return damageType
+    end
+    return nil
+end
+
+--Every damage type named in a piece of rules text ("2 + R fire damage;
+--push 2"), passed to add(type) in order. "patron damage" is the Acolyte's
+--placeholder for their patron's type, so it becomes patronType when known.
+function TestRiders.DamageTypesInText(text, add, patronType)
+    if type(text) ~= "string" then
+        return
+    end
+    for word in string.gmatch(lower(text), "(%a+)%s+damage") do
+        if word == "patron" and type(patronType) == "string" then
+            word = lower(patronType)
+        end
+        if DAMAGE_TYPES[word] then
+            add(word)
+        end
+    end
+end
 
 --Sources that make a hero impossible to surprise (a "you cannot be
 --surprised" requirement), on top of a real condition immunity.
@@ -373,7 +414,8 @@ local SIZE_WORDS = {
 --{ kind, name, [min], [max] } (text is added by the caller), or nil when
 --the clause has no recognized form. Kinds: skill, language, kindred,
 --capability, has, perk, complication, ability, trait, kit, title, domain,
---career, culture, deity, item, immunity, weakness, conditionimmunity, stat.
+--career, culture, deity, item, immunity, weakness, conditionimmunity, stat,
+--damage (name = the damage type).
 local function ParseRequirementClause(lc)
     lc = string.gsub(lc, "[%.!]+$", "")
     lc = trim(lc)
@@ -385,6 +427,14 @@ local function ParseRequirementClause(lc)
         or string.match(lc, "^you are immune to the (.+) condition$") or string.match(lc, "^immune to the (.+) condition$")
     if condition ~= nil then
         return { kind = "conditionimmunity", name = TestRiders.NormalizeName(condition) }
+    end
+
+    --"you can deal fire damage", or the bare "deal holy damage" that follows
+    --one in a list ("... or deal holy damage").
+    local damagePhrase = string.match(lc, "^you can (.+)$") or string.match(lc, "^can (.+)$") or lc
+    local damageType = ParseDamagePhrase(damagePhrase)
+    if damageType ~= nil then
+        return { kind = "damage", name = damageType }
     end
 
     --"you can teleport" / "you have a fly speed" / "you are able to read
@@ -555,6 +605,28 @@ function TestRiders.ParseRequirement(text)
         end
         return nil
     end)
+    --"deal fire or holy damage" is two alternatives that share "damage":
+    --spell each out ("deal fire damage or deal holy damage") before the split.
+    work = string.gsub(work, "%f[%a]([dD][eE][aA][lL])%s+([%a%s,;]-)%s+([dD][aA][mM][aA][gG][eE])%f[%A]", function(verb, list, noun)
+        local types = {}
+        for entry in string.gmatch(string.gsub(list, "%s+[oO][rR]%s+", ","), "[^,;]+") do
+            local word = trim(entry)
+            if word ~= "" then
+                if string.find(word, "^%a+$") == nil then
+                    return nil
+                end
+                types[#types + 1] = word
+            end
+        end
+        if #types < 2 then
+            return nil
+        end
+        local parts = {}
+        for _, word in ipairs(types) do
+            parts[#parts + 1] = string.format("%s %s %s", verb, word, noun)
+        end
+        return table.concat(parts, " or ")
+    end)
     --commas and semicolons are alternatives too; "or" is the separator
     work = " " .. string.gsub(work, "[,;]", " or ") .. " "
     work = string.gsub(work, "%s+[oO][rR]%s+", "\1")
@@ -572,7 +644,12 @@ function TestRiders.ParseRequirement(text)
                 local bare = trim((string.gsub(clause, "^[tT]he%s+", "")))
                 local bareName = TestRiders.NormalizeName(bare)
                 local kind = last.kind
-                if kind == "capability" or kind == "unknowncapability" then
+                local damageWord = string.match(lower(bare), "^(%a+) damage$") or string.match(lower(bare), "^(%a+)$")
+                if kind == "damage" and damageWord ~= nil and TestRiders.FindCapability(bare) == nil then
+                    --"you can deal fire damage, cold or holy damage"
+                    alt = { kind = "damage", name = damageWord }
+                    clause = string.format("you can deal %s damage", damageWord)
+                elseif kind == "capability" or kind == "unknowncapability" or kind == "damage" then
                     local cap = TestRiders.FindCapability(bare)
                     if cap ~= nil then
                         alt = { kind = "capability", name = cap.key }
@@ -591,7 +668,11 @@ function TestRiders.ParseRequirement(text)
             if alt == nil then
                 alt = { kind = "unknown", name = TestRiders.NormalizeName(lc) }
             end
-            if alt.kind == "unknown" or alt.kind == "unknowncapability" then
+            if alt.kind == "damage" and string.find(lower(clause), "^you ") == nil then
+                --"deal holy damage" from a list reads as a sentence on a chip
+                clause = string.format("you can deal %s damage", alt.name)
+            end
+            if alt.kind == "unknown" or alt.kind == "unknowncapability" or (alt.kind == "damage" and not DAMAGE_TYPES[alt.name]) then
                 req.unrecognized = true
             end
             alt.text = clause
@@ -624,6 +705,9 @@ function TestRiders.RequirementProblems(req)
             end
             problems[#problems + 1] = string.format("'%s': '%s' is not a known capability (known: %s); never met",
                 alt.text, alt.name, table.concat(phrases, ", "))
+        elseif alt.kind == "damage" and not DAMAGE_TYPES[alt.name] then
+            problems[#problems + 1] = string.format("'%s': '%s' is not a damage type (known: %s); never met",
+                alt.text, alt.name, table.concat(DAMAGE_TYPE_LIST, ", "))
         elseif alt.kind == "unknown" then
             problems[#problems + 1] = string.format("requirement '%s' not understood (see KNACKS_REFERENCE.md: 'you can teleport', 'you speak X', 'you are a X', 'you have the X perk', 'your Wealth is 2 or higher' ...); never met", alt.text)
         end
@@ -640,6 +724,8 @@ end
 --  perk, complication, career, culture (name + aspects), kit, title, deity,
 --  domain, item (carried or equipped), conditionimmunity
 --  abilityTag = { teleport = "Black Ash Teleport" } -- what abilities do
+--  damage = { fire = "Bifurcated Incineration" } -- the damage types the
+--    hero's abilities deal, with the first ability found (true also works)
 --  immunity / weakness = { fire = 5 } -- by damage type
 --  stat = { wealth, renown, level, victories, might, agility, reason,
 --           intuition, presence, size (TestRiders.SIZE_ORDER) }
@@ -710,6 +796,7 @@ function TestRiders.CompleteFacts(facts)
     facts.immunity = facts.immunity or {}
     facts.weakness = facts.weakness or {}
     facts.abilityTag = facts.abilityTag or {}
+    facts.damage = facts.damage or {}
     facts.stat = facts.stat or {}
     if facts.wealth ~= nil and facts.stat.wealth == nil then
         facts.stat.wealth = tonumber(facts.wealth)
@@ -782,6 +869,14 @@ function TestRiders.RequirementMet(req, facts)
         elseif kind == "capability" then
             local why = facts.capability[alt.name]
             if why ~= nil then
+                if type(why) == "string" and why ~= "" then
+                    return true, string.format("%s (%s)", alt.text, why)
+                end
+                return true, alt.text
+            end
+        elseif kind == "damage" then
+            local why = facts.damage[alt.name]
+            if DAMAGE_TYPES[alt.name] and why ~= nil and why ~= false then
                 if type(why) == "string" and why ~= "" then
                     return true, string.format("%s (%s)", alt.text, why)
                 end
@@ -1003,6 +1098,50 @@ local function AbilityTeleports(ability, depth)
     return found
 end
 
+--The damage types an ability deals, passed to add(type): a Damage
+--behaviour's type, every "<type> damage" in its power-roll tiers and
+--command rules, a mode's damage type, and the same for abilities it
+--invokes or swaps in by mode. Untyped damage is skipped.
+local function AbilityDamageTypes(ability, add, patronType, depth)
+    if ability == nil or depth > 4 then
+        return
+    end
+    local function AddType(damageType)
+        if type(damageType) ~= "string" then
+            return
+        end
+        damageType = lower(damageType)
+        if damageType == "patron" and type(patronType) == "string" then
+            damageType = lower(patronType)
+        end
+        if DAMAGE_TYPES[damageType] then
+            add(damageType)
+        end
+    end
+    pcall(function()
+        for _, b in ipairs(ability.behaviors or {}) do
+            local typeName = b.typeName
+            if typeName == "ActivatedAbilityDamageBehavior" then
+                AddType(b.damageType)
+            elseif typeName == "ActivatedAbilityPowerRollBehavior" then
+                for _, tier in ipairs(b:try_get("tiers") or {}) do
+                    TestRiders.DamageTypesInText(tier, add, patronType)
+                end
+            elseif typeName == "ActivatedAbilityDrawSteelCommandBehavior" then
+                TestRiders.DamageTypesInText(b:try_get("rule"), add, patronType)
+            elseif typeName == "ActivatedAbilityInvokeAbilityBehavior" then
+                AbilityDamageTypes(b:try_get("customAbility"), add, patronType, depth + 1)
+            end
+        end
+        for _, mode in ipairs(ability:try_get("modeList") or {}) do
+            if type(mode) == "table" then
+                AddType(mode.damageType)
+                AbilityDamageTypes(mode.variation, add, patronType, depth + 1)
+            end
+        end
+    end)
+end
+
 --What a hero is, for rider requirements (see "facts" above), every name
 --normalized the way the parser does. "climb" means a climb speed at least
 --the creature's walking speed (creature:IsClimber), so the climbing every
@@ -1014,7 +1153,7 @@ function TestRiders.CreatureFacts(c)
     for _, k in ipairs(SET_KINDS) do
         facts[k] = {}
     end
-    facts.immunity, facts.weakness, facts.abilityTag, facts.stat = {}, {}, {}, {}
+    facts.immunity, facts.weakness, facts.abilityTag, facts.damage, facts.stat = {}, {}, {}, {}, {}
     if c == nil then
         return TestRiders.CompleteFacts(facts)
     end
@@ -1176,7 +1315,21 @@ function TestRiders.CreatureFacts(c)
             facts.domain[domain] = true
         end
     end
-    --abilities, and what they do.
+    --abilities, and what they do. "you can deal fire damage" names the
+    --first ability found that deals it, for the roll-dialog chip.
+    local patronType = nil
+    pcall(function()
+        if c.PatronDamageType ~= nil then
+            patronType = c:PatronDamageType()
+        end
+    end)
+    local function NoteDamage(ability, name)
+        AbilityDamageTypes(ability, function(damageType)
+            if facts.damage[damageType] == nil then
+                facts.damage[damageType] = name
+            end
+        end, patronType, 0)
+    end
     pcall(function()
         for _, ability in ipairs(c:GetActivatedAbilities({ excludeGlobal = true }) or {}) do
             local name = nil
@@ -1186,6 +1339,18 @@ function TestRiders.CreatureFacts(c)
                 if facts.abilityTag.teleport == nil and AbilityTeleports(ability, 0) then
                     facts.abilityTag.teleport = name
                 end
+                NoteDamage(ability, name)
+            end
+        end
+    end)
+    --triggered abilities deal damage too (a Censor's Judgment: holy).
+    pcall(function()
+        for _, entry in ipairs(c:GetTriggeredAbilities() or {}) do
+            local ability = entry.ability
+            local name = nil
+            pcall(function() name = ability.name end)
+            if type(name) == "string" and name ~= "" then
+                NoteDamage(ability, name)
             end
         end
     end)

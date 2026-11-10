@@ -1414,7 +1414,40 @@ local function WalkKeywordAuras(zones, signature, footprints, dispelSignature, r
     end
 end
 
+--The walk calls GetAuras on every token, which rebuilds each creature's aura list
+--from its modifiers: most of this file's per-frame garbage. Its inputs only change
+--with game content (casts, expiry, moves), the compendium, or the map, so the
+--every-frame overlay feed reuses the last walk until one of those moves, the zone
+--cache resets the dispel signature, or KEYWORD_AURA_RESCAN_SECONDS pass. The
+--engine's own aura poll (suppressAuraRefresh) always walks.
+local KEYWORD_AURA_RESCAN_SECONDS = 0.5
+local g_keywordWalk = { contentSeq = nil, tablesId = nil, mapid = nil, time = -1 }
+
+local function KeywordAuraWalkIsCurrent()
+    local w = g_keywordWalk
+    if m.dispelState.signature == false then
+        return false
+    end
+    if dmhub.Time() - w.time >= KEYWORD_AURA_RESCAN_SECONDS then
+        return false
+    end
+    return w.contentSeq == dmhub.gameContentUpdateSeq and w.tablesId == dmhub.tablesUpdateId and w.mapid == game.currentMapId
+end
+
+local function NoteKeywordAuraWalk()
+    local w = g_keywordWalk
+    w.contentSeq = dmhub.gameContentUpdateSeq
+    w.tablesId = dmhub.tablesUpdateId
+    w.mapid = game.currentMapId
+    w.time = dmhub.Time()
+end
+
 local function EnsureKeywordAuraZones(suppressAuraRefresh)
+    if not suppressAuraRefresh and m.keywordAuraOverlay.zones ~= nil and KeywordAuraWalkIsCurrent() then
+        return m.keywordAuraOverlay.zones
+    end
+    NoteKeywordAuraWalk()
+
     local zones = {}
     local signature = {}
     local footprints = {}

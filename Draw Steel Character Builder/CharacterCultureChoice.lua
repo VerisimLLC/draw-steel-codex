@@ -192,7 +192,9 @@ function CharacterCultureAggregateChoice.CreateNew(items)
     for _,item in ipairs(items) do
 
         local languageId = item:try_get("languageid")
-        local description = g_descriptionCache[item.id]
+        --keyed by the language display version too: the text names the language.
+        local cacheKey = string.format("%s:%d", item.id, Language.DisplayVersion())
+        local description = g_descriptionCache[cacheKey]
         if description == nil then
             local e = aspectsTable[item.aspects.environment]
             local o = aspectsTable[item.aspects.organization]
@@ -201,12 +203,12 @@ function CharacterCultureAggregateChoice.CreateNew(items)
             local eName = e and e.name or "(not found)"
             local oName = o and o.name or "(not found)"
             local uName = u and u.name or "(not found)"
-            local lName = l and l.name or nil
+            local lName = l and l:DisplayName() or nil
             description = string.format("**Environment:** %s; **Organization:** %s; **Upbringing:** %s", eName, oName, uName)
             if lName then
                 description = string.format("%s; **Language:** %s", description, lName)
             end
-            g_descriptionCache[item.id] = description
+            g_descriptionCache[cacheKey] = description
         end
 
         options[#options+1] = {

@@ -5,7 +5,7 @@ MonsterAI:RegisterTactic{
     monsters = {"Goblin Sniper"},
     description = "Snipers shoot without moving whenever possible, spreading fire among targets reachable from their current positions.",
     score = function(self, token, tokenLoc, enemy, ability)
-        if token.properties:try_get("monster_type", "") ~= "Goblin Sniper"
+        if MonsterAI.AIMonsterType(token.properties) ~= "Goblin Sniper"
             or ability.name ~= "Bow" then
             return
         end

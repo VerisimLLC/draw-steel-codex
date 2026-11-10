@@ -1982,6 +1982,37 @@ function GameHud.CreateEmbeddedRollDialog()
         end
     end
 
+    --A modifier badge's hover text before spoilers: its summary with formulas filled in for
+    --the roller, who inflicted it, and why it applies (green when on, red when off).
+    local function ModifierHoverText(mod, ischecked)
+        local tooltip = mod.modifier:GetSummaryText()
+        if creature ~= nil then
+            --nil only for a nil input, and GetSummaryText returns a string.
+            tooltip = StringInterpolateGoblinScript(tooltip, creature) --[[@as string]]
+        end
+        tooltip = CharacterModifier.AppendSourceText(tooltip, mod.context)
+        local hint = mod.hint
+        for i, justification in ipairs(hint ~= nil and hint.justification or {}) do
+            tooltip = string.format("%s\n<color=%s>%s", tooltip, cond(ischecked, '#aaffaa', '#ffaaaa'),
+                justification)
+        end
+        return tooltip
+    end
+
+    --The hover text History keeps for a modifier that changed the roll (2.3d). Spoilers stay
+    --as markup: History hides them for whoever looks. Nil when it says nothing past the name.
+    local function RecordedHoverText(mod)
+        local description = mod.modifier:try_get("description") or ""
+        local context = mod.context
+        local inflicted = context ~= nil and context.sourceDescription or nil
+        local hint = mod.hint
+        local justified = hint ~= nil and hint.justification ~= nil and #hint.justification > 0
+        if string.find(description, "%S") == nil and (inflicted == nil or inflicted == "") and not justified then
+            return nil
+        end
+        return ModifierHoverText(mod, true)
+    end
+
     --What each modifier adds to or takes from the edges and banes, measured as it is applied,
     --so the sources always add up to the roll's counts. History uses the removals to show an
     --edge that was there but did not count.
@@ -2037,6 +2068,7 @@ function GameHud.CreateEmbeddedRollDialog()
             nottierone = nottierone,
             bonus = bonus ~= 0 and bonus or nil,
             charid = charid,
+            hovertext = RecordedHoverText(mod),
         }
         return after
     end
@@ -2080,7 +2112,7 @@ function GameHud.CreateEmbeddedRollDialog()
         if mod.modFromTarget and charid == nil then
             name = string.format("Target is %s", name)
         end
-        m_damageSources[#m_damageSources + 1] = {name = name, charid = charid, tiers = tiers}
+        m_damageSources[#m_damageSources + 1] = {name = name, charid = charid, tiers = tiers, hovertext = RecordedHoverText(mod)}
     end
 
     --this is the current 'base roll' that is being calculated based on.
@@ -4447,16 +4479,7 @@ function GameHud.CreateEmbeddedRollDialog()
     --it current: the checked state and spoiler reveal are read at hover time.
     local function ModifierTooltipText(mod, ischecked)
         local rawName = mod.modifier.name or ""
-        local tooltip = mod.modifier:GetSummaryText()
-        if creature ~= nil then
-            --nil only for a nil input, and GetSummaryText returns a string.
-            tooltip = StringInterpolateGoblinScript(tooltip, creature) --[[@as string]]
-        end
-        tooltip = CharacterModifier.AppendSourceText(tooltip, mod.context)
-        for i, justification in ipairs(mod.hint.justification) do
-            tooltip = string.format("%s\n<color=%s>%s", tooltip, cond(ischecked, '#aaffaa', '#ffaaaa'),
-                justification)
-        end
+        local tooltip = ModifierHoverText(mod, ischecked)
         if PowerRollSpoilers.HasSpoiler(rawName) then
             local spoilerRevealed = PowerRollSpoilers.IsRevealed(PowerRollSpoilers.Key(rawName), PowerRollSpoilers.DefaultRevealed(rawName))
             if dmhub.isDM or spoilerRevealed then

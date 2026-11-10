@@ -189,6 +189,20 @@ Goal: why it happened, one click from the row.
 - **2.3 in four commits:** 2.3a edge and bane sources, 2.3b surges and kit bonuses, 2.3c Why lines and
   typed messages, 2.3d the ability card on hover, and (James 2026-11-10) a hover on every name in the
   Why and The numbers: a modifier's recorded dialog text, a trigger's card (COPY.md Round 15).
+- **2.3d, hovers:** every name in brackets in the Why, and the same names in The numbers, hovers (the
+  hovered name alone is underlined). A modifier shows the roll dialog's own hover text, recorded at the
+  roll by RecordEdgeSource / RecordDamageSource (summary with formulas filled in for the roller,
+  Inflicted by, justification lines; spoilers applied for whoever looks). History.Write moves each text
+  into the map document's `hovers` (an id per distinct text, `hoverused` for retention) and leaves the
+  id on the source. A modifier with nothing past its name (James 2026-11-10) and rows from before 2.3d
+  don't hover. A trigger name (and G7a's plain "trigger") shows the trigger's card as its owner has it
+  now; a monster's is Director only. The card title shows the ability card, found by name on the actor.
+- **Tested 2.3d:** a real Bifurcated Incineration on two Custom Targets, one with Fire immunity (took
+  0), one with two damage modifiers, a surge, an edge and a bane cancelling: the modifier hovers in the
+  Why and The numbers, the title's ability card, and the Troubadour's trigger card on an older row.
+- **Limits of 2.3d:** cards are looked up live, so a creature that's gone or no longer has the ability
+  shows none. A target that took no damage records no parts, so its line says "down from 6" without
+  naming the surge and modifiers behind the 6.
 - **2.3a, edge and bane sources:** under each edge or bane line, one line per thing that added to it
   (COPY.md Round 8): its arrows, a trigger owner's face, its name as the roll dialog's badge showed it;
   edges first, Set by hand last on each side, then the C4 note. The roll dialog measures each enabled

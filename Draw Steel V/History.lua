@@ -9,6 +9,9 @@ local mod = dmhub.GetModLoading()
 --  entries:    {[key] = json string}, one per event. The key starts with the time,
 --              so sorting the keys sorts the events without parsing any of them.
 --  encounters: {[combat guid] = time of its first entry}, for retention.
+--  hovers:     {[id] = text}, the roll dialog's hover text for each modifier an entry
+--              names, stored once however many entries name it (2.3d).
+--  hoverused:  {[id] = time of the last entry written with it}, for retention.
 --
 --Each entry is a JSON string, not a table, on purpose. BeginChange and
 --CompleteChange copy and compare every value in the document, so nested entries
@@ -168,6 +171,54 @@ local function Cull(data)
     end
 end
 
+--A short id for a hover text; equal texts get equal ids, so each is stored once.
+local function TextHash(text)
+    local h = 5381
+    for i = 1, #text do
+        h = (h * 33 + string.byte(text, i)) % 4294967296
+    end
+    return string.format("%08x", h)
+end
+
+--Moves each roll dialog hover text in an entry (a hovertext field anywhere in it) into the
+--map's shared hovers, leaving its id in hover. used keeps the time each id was last
+--written, so Cull can drop texts no kept entry points at.
+local function StoreHoverTexts(node, hovers, used, t)
+    for _, value in pairs(node) do
+        if type(value) == "table" then
+            StoreHoverTexts(value, hovers, used, t)
+        end
+    end
+    local text = node.hovertext
+    if type(text) == "string" then
+        local id = TextHash(text)
+        while hovers[id] ~= nil and hovers[id] ~= text do
+            id = id .. "x"
+        end
+        hovers[id] = text
+        used[id] = math.max(used[id] or 0, t)
+        node.hovertext = nil
+        node.hover = id
+    end
+end
+
+--Drops the hover texts that only entries older than every kept one used.
+local function CullHoverTexts(data)
+    local oldest = nil
+    for key in pairs(data.entries) do
+        if oldest == nil or key < oldest then
+            oldest = key
+        end
+    end
+    local keepFrom = oldest ~= nil and tonumber(string.sub(oldest, 1, 13)) or math.huge
+    for id, t in pairs(data.hoverused) do
+        if t < keepFrom then
+            data.hoverused[id] = nil
+            data.hovers[id] = nil
+        end
+    end
+end
+
 --Writes every entry waiting for one map, in one change to its document.
 local function WriteEntries(mapid, list)
     local doc = mod:GetDocumentSnapshot(History.DocId(mapid))
@@ -179,13 +230,19 @@ local function WriteEntries(mapid, list)
     if type(data.encounters) ~= "table" then
         data.encounters = {}
     end
+    if type(data.hovers) ~= "table" or type(data.hoverused) ~= "table" then
+        data.hovers = {}
+        data.hoverused = {}
+    end
     for _, entry in ipairs(list) do
+        StoreHoverTexts(entry, data.hovers, data.hoverused, entry.t)
         data.entries[EntryKey(entry)] = dmhub.ToRawJson(entry)
         if entry.encounter ~= nil and data.encounters[entry.encounter] == nil then
             data.encounters[entry.encounter] = entry.t
         end
     end
     Cull(data)
+    CullHoverTexts(data)
     doc:CompleteChange("History", {undoable = false})
 end
 
@@ -279,6 +336,17 @@ function History.Entry(mapid, key)
     return parsed.entry
 end
 
+--- A modifier's roll dialog hover text, by the id its source keeps in hover. Spoiler markup
+--- is kept: format it for the viewer. Nil when the text is gone or was never recorded.
+--- @param mapid string
+--- @param id string
+--- @return string|nil
+function History.HoverText(mapid, id)
+    local hovers = mod:GetDocumentSnapshot(History.DocId(mapid)).data.hovers
+    local text = type(hovers) == "table" and hovers[id] or nil
+    return type(text) == "string" and text or nil
+end
+
 --- Rewrites an entry that is already in History, for a change to what it says.
 --- @param entry HistoryEntry
 function History.Rewrite(entry)
@@ -292,5 +360,7 @@ function History.Clear(mapid)
     doc:BeginChange()
     doc.data.entries = nil
     doc.data.encounters = nil
+    doc.data.hovers = nil
+    doc.data.hoverused = nil
     doc:CompleteChange("Clear History", {undoable = false})
 end

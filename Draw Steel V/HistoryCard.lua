@@ -549,6 +549,159 @@ local function FooterWords(entry)
     return entry.player .. History.DOT .. time
 end
 
+--Hover links in the card's text (2.3d). A name is wrapped in <link=hN>; g_links[N] says
+--what its hover shows, so the same thing named twice shares one id.
+local g_links = {}
+local g_linkIds = {}
+--The map whose History the card being built reads, for modifier hover texts. Set by the
+--builders below before they name anything.
+local g_linkMap = nil
+
+--- @param text string What the card shows.
+--- @param key string Identifies what the hover shows.
+--- @param payload table What the hover shows: {kind = "modifier"|"trigger", ...}.
+--- @return string
+local function HoverLink(text, key, payload)
+    local id = g_linkIds[key]
+    if id == nil then
+        g_links[#g_links + 1] = payload
+        id = "h" .. tostring(#g_links)
+        g_linkIds[key] = id
+    end
+    return string.format("<link=%s>%s</link>", id, text)
+end
+
+--A modifier's name, hovering to the roll dialog's text recorded at the roll. Names recorded
+--before 2.3d have no text and stay plain.
+--- @param text string
+--- @param name string The modifier's name as recorded, spoiler markup kept.
+--- @param hover string|nil
+--- @return string
+local function ModifierLink(text, name, hover)
+    if hover == nil or g_linkMap == nil then
+        return text
+    end
+    return HoverLink(text, string.format("m|%s|%s|%s", g_linkMap, hover, name), {kind = "modifier", map = g_linkMap, hover = hover, name = name})
+end
+
+--- The card for a creature's trigger as it is now, or nil when it can't be found. A
+--- triggered action shows the card its owner's panel shows; an automatic one, its ability card.
+--- @param ownerid string Token id.
+--- @param name string
+--- @return nil|fun(): Panel|nil
+local function TriggerCard(ownerid, name)
+    local token = dmhub.GetTokenById(ownerid)
+    if token == nil or token.properties == nil then
+        return nil
+    end
+    local display = token.properties:GetTriggeredActionInfo(name)
+    if display ~= nil then
+        return function()
+            return gui.TooltipFrame(display:Render{token = token}, {halign = "right", valign = "center"})
+        end
+    end
+    for _, triggered in ipairs(token.properties:GetTriggeredAbilities()) do
+        local ability = triggered.ability
+        if ability ~= nil and ability.name == name then
+            return function()
+                return CreateAbilityTooltip(ability, {token = token, width = 480})
+            end
+        end
+    end
+    return nil
+end
+
+--A trigger's name, hovering to its card. A monster's card is for the Director only.
+--- @param text string
+--- @param owner HistoryCreature|nil
+--- @param name string The trigger's name.
+--- @return string
+local function TriggerLink(text, owner, name)
+    if owner == nil or (not owner.hero and not dmhub.isDM) or TriggerCard(owner.id, name) == nil then
+        return text
+    end
+    return HoverLink(text, string.format("t|%s|%s", owner.id, name), {kind = "trigger", owner = owner.id, name = name})
+end
+
+--The hover for one link: the recorded text, with spoilers as the roll dialog shows them,
+--or a trigger's card.
+--- @param element Panel
+--- @param link string
+local function ShowLink(element, link)
+    local payload = g_links[tonumber(string.sub(link, 2)) or 0]
+    if payload == nil then
+        return
+    end
+    if payload.kind == "modifier" then
+        local text = History.HoverText(payload.map, payload.hover)
+        if text == nil then
+            return
+        end
+        local name = payload.name
+        if PowerRollSpoilers.HasSpoiler(name) then
+            local revealed = PowerRollSpoilers.IsRevealed(PowerRollSpoilers.Key(name), PowerRollSpoilers.DefaultRevealed(name))
+            if dmhub.isDM or revealed then
+                text = PowerRollSpoilers.Format(text, revealed)
+            else
+                --as the dialog: players see only the redacted name, as the summary's own
+                --colour tags would show through the bar.
+                text = PowerRollSpoilers.Format(name, false)
+            end
+        end
+        gui.Tooltip{text = text, maxWidth = 600}(element)
+    elseif payload.kind == "trigger" then
+        local card = TriggerCard(payload.owner, payload.name)
+        if card ~= nil then
+            element.tooltip = card()
+        end
+    end
+end
+
+--- Label arguments with hovers for the links in their text: the hovered name is
+--- underlined and shows its hover. Other labels pass through untouched.
+--- @param args table Arguments for gui.Label.
+--- @return table args
+local function Linked(args)
+    local text = args.text
+    if type(text) ~= "string" or string.find(text, "<link=", 1, true) == nil then
+        return args
+    end
+    args.links = true
+    args.hoverLink = function(element, link)
+        element.text = (string.gsub(text, "<link=" .. link .. ">(.-)</link>", "<link=" .. link .. "><u>%1</u></link>", 1))
+        ShowLink(element, link)
+    end
+    args.dehoverLink = function(element, link)
+        element.text = text
+        element.tooltip = nil
+    end
+    return args
+end
+
+--- The card of the ability an action used, as its user has it now, or nil: an encounter's
+--- closing row, a creature that's gone, an ability it no longer has, or a name players
+--- may not see.
+--- @param entry HistoryEntry
+--- @return Panel|nil
+local function AbilityCard(entry)
+    local actor = entry.actor
+    if actor == nil or entry.ability == nil or (actor.secret and not dmhub.isDM) then
+        return nil
+    end
+    local token = dmhub.GetTokenById(actor.id)
+    if token == nil or token.properties == nil then
+        return nil
+    end
+    local name = entry.ability.name
+    for _, ability in ipairs(token.properties:GetActivatedAbilities{bindCaster = true}) do
+        if ability.name == name then
+            return CreateAbilityTooltip(ability, {token = token, width = 480})
+        end
+    end
+    local trigger = TriggerCard(actor.id, name)
+    return trigger ~= nil and trigger() or nil
+end
+
 local function Header(entry, width, inTray, close)
     local children = {}
     local titleWidth = width - 12 - 8 - 22
@@ -591,6 +744,15 @@ local function Header(entry, width, inTray, close)
             width = "100%",
             height = "auto",
             textAlignment = "left",
+            hover = function(element)
+                local card = AbilityCard(entry)
+                if card ~= nil then
+                    element.tooltip = card
+                end
+            end,
+            dehover = function(element)
+                element.tooltip = nil
+            end,
         },
         gui.Label{
             classes = {"historyCardMeta"},
@@ -823,7 +985,7 @@ local function ReceiptLine(width, args)
         local classes = {"historyReceipt"}
         classes[#classes + 1] = args.labelClass
         classes[#classes + 1] = args.struck and "historyStruck" or nil
-        left[#left + 1] = gui.Label{
+        left[#left + 1] = gui.Label(Linked{
             classes = classes,
             text = args.label,
             width = "auto",
@@ -831,7 +993,7 @@ local function ReceiptLine(width, args)
             height = "auto",
             halign = "left",
             valign = "center",
-        }
+        })
     end
     if args.aside ~= nil then
         left[#left + 1] = gui.Label{
@@ -996,6 +1158,7 @@ local function SourceText(source, why)
     if why then
         text = WhyName(text)
     end
+    text = ModifierLink(text, source.name, source.hover)
     if source.who ~= nil then
         text = string.format("%s's %s", History.ShownName(source.who), text)
     end
@@ -1046,7 +1209,7 @@ local function SourceLine(width, source, side, struck, remover)
     if remover then
         text = string.format(source.ignore and "Ignored by %s" or "Removed by %s", text)
     end
-    children[#children + 1] = gui.Label{
+    children[#children + 1] = gui.Label(Linked{
         classes = {remover and "historyReceiptAside" or "historyReceiptSource", struck and "historyStruck" or nil},
         text = text,
         width = "auto",
@@ -1054,7 +1217,7 @@ local function SourceLine(width, source, side, struck, remover)
         height = "auto",
         halign = "left",
         valign = "center",
-    }
+    })
     return gui.Panel{
         flow = "horizontal",
         width = width - SOURCE_INDENT,
@@ -1222,7 +1385,7 @@ local function DamagePartLine(width, part)
         })
     end
     local lead = nil
-    local text = SpoilerName(part.name or "")
+    local text = ModifierLink(SpoilerName(part.name or ""), part.name or "", part.hover)
     if part.who ~= nil then
         local face = History.Face(part.who, 18)
         face.selfStyle.rmargin = 6
@@ -1358,6 +1521,7 @@ end
 --- @param width number
 --- @return Panel[]
 local function NumbersRows(entry, kids, width)
+    g_linkMap = entry.map
     local rows = {}
     local targets = entry.targets or {}
 
@@ -1999,7 +2163,7 @@ local function DamageBits(who, actor)
         local amount = part.amount or 0
         local typed = part.damagetype ~= nil and (" " .. part.damagetype) or ""
         if part.kind == "modifier" and amount ~= 0 then
-            local name = WhyName(SpoilerName(part.name or ""))
+            local name = ModifierLink(WhyName(SpoilerName(part.name or "")), part.name or "", part.hover)
             if part.who ~= nil then
                 name = string.format("%s's %s", History.ShownName(part.who), name)
             end
@@ -2188,6 +2352,7 @@ end
 --- @return HistoryWhyRow[]
 function History.Why(entry, kids)
     local rows = {}
+    g_linkMap = entry.map
     if entry.kind ~= "action" then
         return rows
     end
@@ -2280,10 +2445,12 @@ function History.Why(entry, kids)
         if name ~= nil and effect ~= nil then
             --some content names a trigger with its whole rule ("Whenever a creature rolls a
             --natural 2 ..."); that reads badly as a lead, so it says "trigger" (G7a).
-            local lead = WhyName(name)
+            --G7a's plain "trigger" hovers too: that is where its rule shows.
+            local triggerName = name
+            local lead = TriggerLink(WhyName(name), owner, triggerName)
             if string.find(name, "[%.!?]%s*$") ~= nil or #name > TRIGGER_NAME_MAX then
-                lead = "Trigger"
-                name = "trigger"
+                lead = TriggerLink("Trigger", owner, triggerName)
+                name = TriggerLink("trigger", owner, triggerName)
             else
                 name = lead
             end
@@ -2341,7 +2508,7 @@ local function WhyRow(row, width)
             face.selfStyle.halign = "left"
             lead[1] = face
         end
-        lead[#lead + 1] = gui.Label{
+        lead[#lead + 1] = gui.Label(Linked{
             classes = {"historyWhyLead"},
             text = row.lead,
             width = "auto",
@@ -2349,7 +2516,7 @@ local function WhyRow(row, width)
             height = "auto",
             halign = "left",
             valign = "center",
-        }
+        })
         children[1] = gui.Panel{
             flow = "horizontal",
             width = inner,
@@ -2358,14 +2525,14 @@ local function WhyRow(row, width)
             children = lead,
         }
     end
-    children[#children + 1] = gui.Label{
+    children[#children + 1] = gui.Label(Linked{
         classes = {row.plain and "historyWhyPlain" or "historyWhyText"},
         text = row.text,
         width = inner,
         height = "auto",
         halign = "left",
         textAlignment = "left",
-    }
+    })
     return gui.Panel{
         classes = {"historyWhy", row.plain and "historyWhyQuiet" or nil},
         bgimage = "panels/square.png",

@@ -51,6 +51,8 @@ local mod = dmhub.GetModLoading()
 --- @field count? integer On surges: how many were spent.
 --- @field each? number On surges: the damage each dealt (the highest characteristic).
 --- @field characteristic? string On surges: that characteristic's name.
+--- @field hovertext? string On a modifier, until History stores it: the roll dialog's hover text.
+--- @field hover? string On a modifier: id of that hover text in the map's History (History.HoverText).
 
 --- Something that added or took away edges or banes, as the roll dialog named it.
 --- @class HistoryEdgeSource
@@ -68,6 +70,8 @@ local mod = dmhub.GetModLoading()
 --- @field bonus? integer A flat number it added to the roll (negative when it took some off).
 --- @field who? HistoryCreature Whose it is: a trigger's owner, or a target whose own modifier took edges or banes away.
 --- @field hand? boolean Set with the roll dialog's edge and bane buttons.
+--- @field hovertext? string Until History stores it: the roll dialog's hover text for the modifier.
+--- @field hover? string Id of that hover text in the map's History (History.HoverText).
 
 --- The creature a token shows now, as plain data for an entry.
 --- @param token CharacterToken
@@ -432,6 +436,7 @@ local function AddDamageParts(entry, cast, ability, caster)
                         who = owner ~= nil and History.Creature(owner) or nil,
                         amount = byType[typeName],
                         damagetype = typeName ~= "untyped" and typeName or nil,
+                        hovertext = source.hovertext,
                     }
                 end
             end
@@ -504,6 +509,7 @@ local function EdgeSources(sources)
             bonus = source.bonus,
             who = owner ~= nil and History.Creature(owner) or nil,
             hand = source.hand,
+            hovertext = source.hovertext,
         }
     end
     return result

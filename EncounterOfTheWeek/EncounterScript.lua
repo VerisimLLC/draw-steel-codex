@@ -284,6 +284,11 @@ end
 --"You fail. Rite's Progress +2" shows as "You fail."
 local g_hiddenTrackKeys = {}
 
+--Story tracks marked "(Secret)": key -> the script's "Secret result:"
+--line, or true for the general one. Raising one tells players they
+--learned something (EncounterScript.SecretResultLine).
+local g_secretTrackKeys = {}
+
 --Adds the parts of a line that change a hidden track to `ranges`.
 local function HiddenTrackRanges(text, ranges)
     local braced = #ranges
@@ -2228,6 +2233,19 @@ function EncounterScript.TierDisplayText(roll, t, landed, heroName, pronouns)
     local text
     if landed or teaser == nil then
         text = EncounterScript.VisibleText(roll.tiers[t])
+        --a tier that raises a Secret track says so, even when the rest of
+        --it is hidden.
+        local effects = roll.effects ~= nil and roll.effects[t] or EncounterScript.ParseEffects(roll.tiers[t])
+        local secret = EncounterScript.SecretResultLine(effects)
+        if secret ~= nil then
+            if text == "" then
+                text = secret
+            elseif string.find(text, "[%.!%?]$") then
+                text = text .. " " .. secret
+            else
+                text = text .. ". " .. secret
+            end
+        end
     else
         text = EncounterScript.VisibleText(teaser)
     end
@@ -3723,7 +3741,9 @@ function EncounterScript.ParseTrackClause(clause)
 end
 
 --"Track: Rite's Progress (Hidden) -- how close the cult is" (the text
---after "Track:") -> { name, key, hidden, description } or nil.
+--after "Track:") -> { name, key, hidden, secret, description } or nil.
+--The marks in brackets are "Hidden", "Secret" or both ("(Hidden, Secret)").
+--A Secret track is also hidden: raising it shows the "Secret result:" line.
 function EncounterScript.ParseTrackDeclaration(rest)
     local text = trim(rest or "")
     local description = nil
@@ -3732,16 +3752,30 @@ function EncounterScript.ParseTrackDeclaration(rest)
         text = trim(before)
         description = trim(after)
     end
-    local hidden = false
-    local bare = string.match(text, "^(.-)%s*%(%s*[Hh][Ii][Dd][Dd][Ee][Nn]%s*%)$")
+    local hidden, secret = false, false
+    local bare, marks = string.match(text, "^(.-)%s*%(([^()]*)%)$")
     if bare ~= nil then
-        text = trim(bare)
-        hidden = true
+        --only a bracket made of known marks counts; "(Old)" stays in the name.
+        local h, s, other = false, false, false
+        for word in string.gmatch(string.lower(marks), "[^,%s]+") do
+            if word == "hidden" then
+                h = true
+            elseif word == "secret" then
+                s = true
+            else
+                other = true
+            end
+        end
+        if (h or s) and not other then
+            text = trim(bare)
+            hidden = true
+            secret = s
+        end
     end
     if text == "" then
         return nil
     end
-    return { name = text, key = EncounterScript.MatchKey(text), hidden = hidden, description = description }
+    return { name = text, key = EncounterScript.MatchKey(text), hidden = hidden, secret = secret, description = description }
 end
 
 local OUTCOME_WORDS = {
@@ -4702,6 +4736,7 @@ function EncounterScript.Parse(text)
                     Warn(lineIndex, "a second 'Secret result:' line; the first one counts")
                 else
                     result.secretResult = secretText
+                    result.secretResultLine = lineIndex
                 end
             elseif soonText ~= nil then
                 local mark = { text = cond(soonText ~= "", soonText, nil), line = lineIndex }
@@ -6423,21 +6458,19 @@ function EncounterScript.ResolveStoryText(holder, story)
     return EncounterScript.ResolveStoryBlocks(holder.storyBlocks, story)
 end
 
---True when every rule in a result is hidden (a hidden story track, a
---{braced} clause), so players would see no reward. Prose does not count,
---and neither does a hidden "the threat is vanquished": the threat leaving
---shows that.
-function EncounterScript.OnlyHiddenRules(effects)
-    local hiddenRule = false
+--The line to show players when a result raises a track marked Secret:
+--the script's "Secret result:" line, else the general one. nil when no
+--Secret track rises (a hidden track without the mark never shows it).
+function EncounterScript.SecretResultLine(effects)
     for _, effect in ipairs(effects or {}) do
-        if effect.kind ~= "narrative" and effect.kind ~= "vanquish" then
-            if not effect.hidden then
-                return false
-            end
-            hiddenRule = true
+        local line = effect.kind == "track" and (effect.delta or 0) > 0 and g_secretTrackKeys[effect.key] or nil
+        if type(line) == "string" then
+            return line
+        elseif line == true then
+            return T("montage.effect.secret")
         end
     end
-    return hiddenRule
+    return nil
 end
 
 --Evaluate a condition made only of story atoms (When lines, gates, "#
@@ -6558,6 +6591,23 @@ function EncounterScript.CheckStory(result, Warn)
             g_hiddenTrackKeys[decl.key] = true
         else
             g_hiddenTrackKeys[decl.key] = nil
+        end
+        if decl.secret then
+            g_secretTrackKeys[decl.key] = result.secretResult or true
+        else
+            g_secretTrackKeys[decl.key] = nil
+        end
+    end
+    --the line only shows for a Secret track, so say so when there is none.
+    if result.secretResult ~= nil and result.secretResultLine ~= nil then
+        local anySecret = false
+        for _, decl in ipairs(result.tracks) do
+            if decl.secret then
+                anySecret = true
+            end
+        end
+        if not anySecret then
+            Warn(result.secretResultLine, "'Secret result:' only shows when a track marked Secret rises (write 'Track: Name (Hidden, Secret)'); no track here is")
         end
     end
     local warned = {}

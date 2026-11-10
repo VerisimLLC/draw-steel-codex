@@ -2192,11 +2192,26 @@ local function CreateFace()
         local first = math.max(1, #items - rowsWanted + 1)
         hasOlder = first > 1
 
+        --an entry rewritten quietly keeps its row and card; it only takes the new signature.
+        local quiet = History.quiet
+        local quietSeen = false
+        local function IsQuiet(item)
+            local id = item.entry ~= nil and item.entry.id or nil
+            if id ~= nil and quiet[id] then
+                quietSeen = true
+                return true
+            end
+            return false
+        end
+
         local children = {}
         local kept = {}
         for i = first, #items do
             local item = items[i]
             local row = rows[item.key]
+            if row ~= nil and row.sig ~= item.sig and row.panel.valid and IsQuiet(item) then
+                row.sig = item.sig
+            end
             if row == nil or row.sig ~= item.sig or not row.panel.valid then
                 row = {panel = g_builders[item.kind](item), sig = item.sig}
             end
@@ -2217,11 +2232,16 @@ local function CreateFace()
                     if item.sig ~= selected.sig then
                         selected.sig = item.sig
                         selected.item = item
-                        ShowCard(item)
+                        if not IsQuiet(item) then
+                            ShowCard(item)
+                        end
                     end
                     break
                 end
             end
+        end
+        if quietSeen then
+            History.quiet = {}
         end
     end
 

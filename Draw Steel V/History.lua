@@ -449,6 +449,19 @@ function History.Rewrite(entry)
     History.Write(entry)
 end
 
+--Entry ids rewritten with nothing on this client's screen changing. The tray keeps their
+--built rows and open card instead of rebuilding them (which flickers), then clears the id.
+--- @type table<string, boolean>
+History.quiet = {}
+
+--- Rewrites an entry whose change shows nothing new to the client making it (the Director
+--- flipping a roll's reveal eye), so the tray does not rebuild it here.
+--- @param entry HistoryEntry
+function History.RewriteQuietly(entry)
+    History.Write(entry)
+    History.quiet[entry.id] = true
+end
+
 --- Empties a map's History, for everyone.
 --- @param mapid string
 function History.Clear(mapid)

@@ -1596,7 +1596,7 @@ local function SecretRollRow(entry, width)
             valign = "center",
             click = function(element)
                 roll.revealed = (not roll.revealed) or nil
-                History.Rewrite(entry)
+                History.RewriteQuietly(entry)
                 element:FireEvent("visible", roll.revealed == true)
             end,
             linger = function(element)

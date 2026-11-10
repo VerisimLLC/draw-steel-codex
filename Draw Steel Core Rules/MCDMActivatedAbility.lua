@@ -1365,7 +1365,7 @@ end
 --flies: a hero pushed off a ledge starts flying and had no obvious way down.
 local g_dropToGroundAbility = nil
 
---- The Drop to Ground ability for creatureToken, or nil when it is not flying.
+--- The Drop to Ground ability for creatureToken, or nil when it is not flying or may only fly horizontally.
 --- @param creatureToken nil|CharacterToken
 --- @return nil|ActivatedAbility
 function ActivatedAbility.GetDropToGroundAbility(creatureToken)
@@ -1373,6 +1373,10 @@ function ActivatedAbility.GetDropToGroundAbility(creatureToken)
         return nil
     end
     if creatureToken.properties:CurrentMoveType() ~= "fly" then
+        return nil
+    end
+    --A horizontal-only flier (Spirited Away's levitation) can't choose to come down.
+    if creatureToken.properties:CanFly() and not creatureToken.properties:CanFlyVertically() then
         return nil
     end
     if g_dropToGroundAbility == nil then

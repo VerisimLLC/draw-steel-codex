@@ -59,6 +59,51 @@ function TacPanel.CanMoveToken(element, token)
     return token.canControl or not TacPanel.IsReadOnly(element)
 end
 
+--- The move type for a voluntary step up or down by a creature that can fly.
+--- A creature that may only fly horizontally (the levitation from the Ghost's
+--- Spirited Away) has to climb instead. With nothing to climb, the step is
+--- refused: a note floats over the token and nil is returned.
+--- @param token CharacterToken
+--- @return nil|string
+function TacPanel.VerticalFlightMoveTypeOrWarn(token)
+    if token.properties:CanFlyVertically() then
+        return "fly"
+    end
+    if token.canCurrentlyClimb then
+        return "climb"
+    end
+    token.properties:FloatLabel("Can only fly horizontally", "#ff8822ff")
+    return nil
+end
+
+--Alt+Up / Alt+Down fly any creature that can fly; send them through the same
+--check as the +/- buttons. Lua reloads don't reset these commands, so the
+--engine originals are kept in a global and only ever wrapped once.
+local g_engineFlyCommands = rawget(_G, "g_engineFlyCommands")
+if g_engineFlyCommands == nil then
+    g_engineFlyCommands = { flyup = rawget(Commands, "flyup"), flydown = rawget(Commands, "flydown") }
+    rawset(_G, "g_engineFlyCommands", g_engineFlyCommands)
+end
+
+for name, engineCommand in pairs(g_engineFlyCommands) do
+    Commands[name] = function(...)
+        local token = dmhub.currentToken
+        if token ~= nil and token.valid and token.properties ~= nil and token.properties:CanFly() then
+            local moveType = TacPanel.VerticalFlightMoveTypeOrWarn(token)
+            if moveType == nil then
+                return
+            end
+            if moveType == "climb" then
+                --The engine command would switch the creature back to flying.
+                token.properties:SetAndUploadCurrentMoveType("climb")
+                token:MoveVertical(token.floorAltitude + (name == "flyup" and 1 or -1))
+                return
+            end
+        end
+        return engineCommand(...)
+    end
+end
+
 local TacPanelSizes = {}
 
 TacPanelSizes.Panels = {
@@ -6011,7 +6056,9 @@ function TacPanel.AltitudeBox()
                             if diving then
                                 --swim up.
                             elseif token.properties:CanFly() then
-                                token.properties:SetAndUploadCurrentMoveType("fly")
+                                local moveType = TacPanel.VerticalFlightMoveTypeOrWarn(token)
+                                if moveType == nil then return end
+                                token.properties:SetAndUploadCurrentMoveType(moveType)
                             elseif token.canCurrentlyClimb then
                                 token.properties:SetAndUploadCurrentMoveType("climb")
                             elseif token.properties:CanBurrow() then
@@ -6046,7 +6093,9 @@ function TacPanel.AltitudeBox()
                             if token.properties:CurrentMoveType() == "swim" then
                                 --in the water, down is a dive (the engine stops it at the bed).
                             elseif token.properties:CanFly() then
-                                token.properties:SetAndUploadCurrentMoveType("fly")
+                                local moveType = TacPanel.VerticalFlightMoveTypeOrWarn(token)
+                                if moveType == nil then return end
+                                token.properties:SetAndUploadCurrentMoveType(moveType)
                             elseif token.canCurrentlyClimb then
                                 token.properties:SetAndUploadCurrentMoveType("climb")
                             elseif token.properties:CanBurrow() then

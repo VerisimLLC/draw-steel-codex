@@ -982,6 +982,7 @@ end
 local function CreateSpendRecoveryButton(charid, barHolder)
     return gui.Panel{
         classes = {"eotwSpendRecovery", "collapsed"},
+        swallowPress = true,
         refreshCard = function(element)
             local show = SpendableRecovery(dmhub.GetCharacterById(charid)) ~= nil
             if show ~= not element:HasClass("collapsed") then

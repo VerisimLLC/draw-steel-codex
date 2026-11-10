@@ -325,6 +325,19 @@ Goal: why it happened, one click from the row.
   list, as it matched the roll). Not tried live: a real multi-target roll whose targets owe the same
   edges to different things. Follow-up: The numbers still lists the rolled target's sources under the
   power roll, so for that case it shows Prone where Goblin 2 had Restrained.
+- **2.3c-7, one damage line that sums it up (COPY.md Round 17, G15-G15c):** `DamageLines` replaces the
+  G1-G3 lines. Each target's modifier, surge and immunity parts become `HistoryDamageBit`s; its tier
+  damage ("from") is what it took with those taken back off, so a kit stays in it. Bits every target
+  that took damage shared (counted as for the tier lines) make the shared line; a target's own bits make
+  its line. Different tier damage: the shared line is "N extra damage", or, when the shared bits took
+  damage off, there is none and each target's line names everything.
+- **Tested in 2.3c-7:** 15 offline damage cases (one target with surges, one surge, same tier with one
+  immune, the busy card's different tiers, tier and kit only, lowered, cancelled out, weakness, surges
+  on one target, different tiers with a shared reduction, an owner's modifier, damage immunity, a miss
+  beside a hit, typed surges, every target immune alike); the tier cases read the same. Live: the busy
+  fed card with Goblin 2 immune to holy reads "12 extra damage" and "15 damage to Goblin 2, down from
+  20 / Holy immunity 5 took 5 off." Known limit: History records what immunity took off, not the
+  creature's immunity value, so capped immunity names the amount it took ("holy immunity 3").
 
 ## Stage 3: getting to it
 

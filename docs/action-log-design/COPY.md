@@ -366,7 +366,7 @@ Each addition comes off the damage type it was added to. Entries written before 
 | K2 | A damage modifier from the roll dialog | its badge name, as C5 / C5t: Mark, {Owner}'s {trigger} with the owner's face .......... +4 |
 | C3s | Surges spent on damage | the surge bolt, Spent 2 surges, then (Might 2 each) muted .......... +4; a tie for highest names the first in sheet order |
 
-## Round 11: the Why lines History can write now (signed off 2026-11-08)
+## Round 11: the Why lines History can write now (signed off 2026-11-08; G1-G3 replaced by Round 17)
 
 General forms of R1's examples, for 2.3c-1. Each line is a bold lead with one sentence under it and a
 thin rule on its left, between What happened and The numbers. A line that applies to several targets
@@ -463,3 +463,22 @@ it is what the roll did before anything about a target.
 | G14 | Why lead, a target's line | Tier 2 against Goblin 1, down from Tier 3 ("from" is the roll line's tier) |
 | G14a | Why text, what differed | only that target's own parts: COVER gave a bane. |
 | G14b | Why text, a remover of the roll line's edges or banes | Goblin 2's CAST AWAY ALL HOPE ignored the double edge. / ignored the edge / ignored one edge / removed the bane |
+
+## Round 17: one damage line that sums it up (signed off 2026-11-10)
+
+Replaces G1-G3 (a line per modifier, surges, immunity). Built like the tier line: what the damage came
+to, "up from" what the tier dealt alone (a kit is the hero's normal damage, so it is in "from" and
+never named), then the parts that changed it. Only when something besides the tier and kit changed the
+damage; G6 is unchanged. The shared line names what changed the damage of every target that took some;
+a target gets a line only for what applied to it alone. When targets started from different tier
+damage, the shared line gives only the extra ("12 extra damage"); if the shared parts took damage
+away there, there is no shared line and each target's line names everything, from its tier damage.
+Targets whose lines read the same share one. Modifier names in brackets (G13); surges and immunity
+plain. Each part says exactly what it changed; a modifier that adds different amounts on different
+tiers is not shared. Order: modifiers, surges, weakness; what lowered it after ", but".
+| ID | Where | Text |
+|---|---|---|
+| G15 | Why lead, the shared damage line | 19 damage, up from 15 / 6 damage, down from 8 / 8 damage (parts cancelled out) / 12 extra damage (targets on different tiers) |
+| G15a | Why text, what raised it | [Empyrean Boon] added 10 holy / [Upholding High Standards] added 2 / 2 surges added 2 each (Dwarf Fury's highest characteristic, Might 2) / 1 surge added 2 (...) / fire weakness 3 added 3 |
+| G15b | Why text, what lowered it, after ", but" | holy immunity 5 took 5 off / damage immunity 2 took 2 off / [Name] took 2 off |
+| G15c | Why lead, a target's damage line | 15 damage to Goblin 2, down from 20 ("from" is what the shared line gave that target) |

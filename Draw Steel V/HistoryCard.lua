@@ -1702,6 +1702,14 @@ local function PartClauses(part, parts, mentioned, earlier)
     return {"a natural 19 or 20 is always Tier 3"}
 end
 
+--A Why sentence starts with a capital; one that opens on a [Name] capitalises inside it.
+--- @param text string
+--- @return string
+local function Capitalise(text)
+    local tag = string.match(text, "^%[") or ""
+    return tag .. string.upper(string.sub(text, #tag + 1, #tag + 1)) .. string.sub(text, #tag + 2)
+end
+
 --"a", "a, and b", "a, b, and c": the clauses hold "and" of their own, so the comma keeps
 --them apart.
 --- @param clauses string[]
@@ -1847,9 +1855,7 @@ local function TierStory(roll, tier, natural, opts)
         return nil
     end
     local text = JoinClauses(clauses)
-    --capitalise the first letter, not the bracket in front of a name.
-    local tag = string.match(text, "^%[") or ""
-    text = tag .. string.upper(string.sub(text, #tag + 1, #tag + 1)) .. string.sub(text, #tag + 2)
+    text = Capitalise(text)
 
     if held then
         --what took edges or banes away comes first, so its "it" sits next to them.
@@ -1975,6 +1981,202 @@ local function TierLines(roll, targets)
     return main, lines
 end
 
+--- One thing besides the tier and kit that changed a target's damage (COPY.md Round 17).
+--- @class HistoryDamageBit
+--- @field key string Equal keys are the same thing doing the same, so targets can share it.
+--- @field amount number What it did: positive added damage, negative took it off.
+--- @field order integer Modifiers, then surges, then weakness or immunity.
+--- @field clause string Its words in the damage line: "[Empyrean Boon] added 10 holy".
+
+--- What changed one target's damage besides its tier and kit. A kit is the hero's normal
+--- damage, so it stays in the "from" number and is never named.
+--- @param who HistoryCreature
+--- @param actor HistoryCreature|nil Whose highest characteristic the surges used.
+--- @return HistoryDamageBit[]
+local function DamageBits(who, actor)
+    local bits = {}
+    for _, part in ipairs(who.parts or {}) do
+        local amount = part.amount or 0
+        local typed = part.damagetype ~= nil and (" " .. part.damagetype) or ""
+        if part.kind == "modifier" and amount ~= 0 then
+            local name = WhyName(SpoilerName(part.name or ""))
+            if part.who ~= nil then
+                name = string.format("%s's %s", History.ShownName(part.who), name)
+            end
+            bits[#bits + 1] = {
+                key = string.format("modifier|%s|%s|%d|%s", part.name or "", part.who ~= nil and part.who.id or "", amount, part.damagetype or ""),
+                amount = amount,
+                order = 1,
+                clause = amount > 0 and string.format("%s added %d%s", name, amount, typed) or string.format("%s took %d off", name, -amount),
+            }
+        elseif part.kind == "surge" and amount ~= 0 then
+            local count = part.count or 0
+            local clause = count == 1 and string.format("1 surge added %d%s", part.each or 0, typed)
+                or string.format("%d surges added %d%s each", count, part.each or 0, typed)
+            if part.characteristic ~= nil and actor ~= nil then
+                clause = string.format("%s (%s's highest characteristic, %s %d)", clause, History.ShownName(actor),
+                    part.characteristic, part.each or 0)
+            end
+            bits[#bits + 1] = {
+                key = string.format("surge|%d|%d|%s|%s", count, part.each or 0, part.damagetype or "", part.characteristic or ""),
+                amount = amount,
+                order = 2,
+                clause = clause,
+            }
+        end
+    end
+    --immunity records what it took off; weakness is the same with a negative amount.
+    local immunity = who.immunity
+    if immunity ~= nil and immunity.amount ~= 0 then
+        local words = string.lower(ResistWords(immunity))
+        bits[#bits + 1] = {
+            key = string.format("immunity|%s|%d", immunity.damagetype, immunity.amount),
+            amount = -immunity.amount,
+            order = 3,
+            clause = immunity.amount > 0 and string.format("%s took %d off", words, immunity.amount)
+                or string.format("%s added %d", words, -immunity.amount),
+        }
+    end
+    return bits
+end
+
+--- One damage sentence: what added, then ", but" what took off, each group in Round 17's order.
+--- @param bits HistoryDamageBit[]
+--- @return string
+local function DamageText(bits)
+    local sorted = {}
+    for i, bit in ipairs(bits) do
+        sorted[i] = {bit = bit, index = i}
+    end
+    table.sort(sorted, function(a, b)
+        if a.bit.order ~= b.bit.order then
+            return a.bit.order < b.bit.order
+        end
+        return a.index < b.index
+    end)
+    local up, down = {}, {}
+    for _, item in ipairs(sorted) do
+        local list = item.bit.amount > 0 and up or down
+        list[#list + 1] = item.bit.clause
+    end
+    local text = #up > 0 and JoinClauses(up) or JoinClauses(down)
+    if #up > 0 and #down > 0 then
+        text = text .. ", but " .. JoinClauses(down)
+    end
+    return Capitalise(text) .. "."
+end
+
+--", up from 15", ", down from 20", or nothing when the parts cancelled out.
+--- @param total number
+--- @param from number
+--- @return string
+local function DamageQualifier(total, from)
+    if total > from then
+        return string.format(", up from %d", from)
+    elseif total < from then
+        return string.format(", down from %d", from)
+    end
+    return ""
+end
+
+--- @class HistoryDamageLine
+--- @field who HistoryCreature
+--- @field total number The damage it took.
+--- @field qualifier string
+--- @field text string
+
+--- An action's damage lines (COPY.md Round 17), shaped like its tier lines. The shared line
+--- names what changed the damage of every target that took some: "19 damage, up from 15"
+--- when they all started from the same tier damage, "12 extra damage" when their tiers
+--- differed. A target gets a line only for what applied to it alone, "from" what the shared
+--- line gave it. When tiers differ and the shared parts took damage away, there is no shared
+--- line and each target's line names everything, from its tier damage.
+--- @param targets HistoryCreature[]
+--- @param actor HistoryCreature|nil
+--- @return {lead: string, text: string}|nil shared
+--- @return HistoryDamageLine[] lines
+local function DamageLines(targets, actor)
+    local dealt = {}
+    for _, who in ipairs(targets) do
+        local bits = DamageBits(who, actor)
+        if (who.taken or 0) > 0 or #bits > 0 then
+            --the tier's damage, kit included: what it took with the named parts taken back off.
+            local base = who.taken or 0
+            for _, bit in ipairs(bits) do
+                base = base - bit.amount
+            end
+            dealt[#dealt + 1] = {who = who, bits = bits, base = base, shared = {}, own = {}}
+        end
+    end
+    if #dealt == 0 then
+        return nil, {}
+    end
+
+    --what every target had: each bit as many times as the target with fewest has it.
+    --- @type table<string, integer>|nil
+    local common = nil
+    for _, item in ipairs(dealt) do
+        local counts = {}
+        for _, bit in ipairs(item.bits) do
+            counts[bit.key] = (counts[bit.key] or 0) + 1
+        end
+        if common == nil then
+            common = counts
+        else
+            for key, count in pairs(common) do
+                common[key] = math.min(count, counts[key] or 0)
+            end
+        end
+    end
+    local sameBase = true
+    for _, item in ipairs(dealt) do
+        local left = {}
+        for key, count in pairs(common or {}) do
+            left[key] = count
+        end
+        for _, bit in ipairs(item.bits) do
+            if (left[bit.key] or 0) > 0 then
+                left[bit.key] = left[bit.key] - 1
+                item.shared[#item.shared + 1] = bit
+            else
+                item.own[#item.own + 1] = bit
+            end
+        end
+        sameBase = sameBase and item.base == dealt[1].base
+    end
+
+    local sharedBits = dealt[1].shared
+    local sharedSum = 0
+    for _, bit in ipairs(sharedBits) do
+        sharedSum = sharedSum + bit.amount
+    end
+    local shared = nil
+    if #sharedBits > 0 then
+        if sameBase then
+            local total = dealt[1].base + sharedSum
+            shared = {lead = string.format("%d damage%s", total, DamageQualifier(total, dealt[1].base)), text = DamageText(sharedBits)}
+        elseif sharedSum > 0 then
+            shared = {lead = string.format("%d extra damage", sharedSum), text = DamageText(sharedBits)}
+        else
+            for _, item in ipairs(dealt) do
+                for _, bit in ipairs(item.shared) do
+                    item.own[#item.own + 1] = bit
+                end
+            end
+        end
+    end
+
+    local lines = {}
+    for _, item in ipairs(dealt) do
+        if #item.own > 0 then
+            local from = item.base + (shared ~= nil and sharedSum or 0)
+            local total = item.who.taken or 0
+            lines[#lines + 1] = {who = item.who, total = total, qualifier = DamageQualifier(total, from), text = DamageText(item.own)}
+        end
+    end
+    return shared, lines
+end
+
 --- Why an action came out as it did, from what the entry recorded: the tier line (COPY.md
 --- Round 14), an area that hit an ally, damage modifiers, surges, immunity, condition
 --- immunity (Round 11), then
@@ -1990,7 +2192,6 @@ function History.Why(entry, kids)
         return rows
     end
     local targets = entry.targets or {}
-    local several = #targets > 1
 
     --each line is built once its targets are known; make gets their names (L29, L30).
     local order = {}
@@ -2003,9 +2204,6 @@ function History.Why(entry, kids)
             order[#order + 1] = line
         end
         line.who[#line.who + 1] = who
-    end
-    local function TypeWord(damagetype)
-        return damagetype ~= nil and (damagetype .. " ") or ""
     end
 
     --The tier lines first (Rounds 14 and 16): the roll's, then each target that something
@@ -2034,79 +2232,18 @@ function History.Why(entry, kids)
         end
     end
 
-    --G3: what one of the roll dialog's modifiers added to a target's damage.
-    local function AddModifier(part, who)
-        local key = string.format("modifier|%s|%s|%d|%s", part.name or "", part.who ~= nil and part.who.id or "",
-            part.amount, part.damagetype or "")
-        Add(key, function(group)
-            local lead = WhyName(SpoilerName(part.name or ""))
-            if part.who ~= nil then
-                lead = string.format("%s's %s", History.ShownName(part.who), lead)
-            end
-            local to = several and (" to " .. GroupNames(group)) or ""
-            local text = string.format("It dealt %d extra %sdamage%s.", part.amount, TypeWord(part.damagetype), to)
-            if part.amount < 0 then
-                text = string.format("It took %d off the %sdamage%s.", -part.amount, TypeWord(part.damagetype), to)
-            end
-            return {lead = lead, who = part.who, text = text}
-        end, who)
+    --The damage lines (Round 17): one sum for what every target that took damage shared, then
+    --each target's own parts; targets whose lines read the same share one.
+    local damage, damageLines = DamageLines(targets, entry.actor)
+    if damage ~= nil then
+        Add("damage|shared", function()
+            return damage
+        end, nil)
     end
-
-    --G2: the surges spent on a target.
-    local function AddSurges(part, who)
-        local key = string.format("surge|%d|%d|%s|%s", part.count or 0, part.each or 0, part.damagetype or "", part.characteristic or "")
-        Add(key, function(group)
-            local count = part.count or 0
-            local to = several and (" to " .. GroupNames(group)) or ""
-            local text = string.format("%s %d extra %sdamage%s", count == 1 and "It dealt" or "Each dealt",
-                part.each or 0, TypeWord(part.damagetype), to)
-            if part.characteristic ~= nil and entry.actor ~= nil then
-                text = string.format("%s (%s's highest characteristic, %s %d)", text, History.ShownName(entry.actor),
-                    part.characteristic, part.each or 0)
-            end
-            return {lead = count == 1 and "Spent 1 surge" or string.format("Spent %d surges", count), text = text .. "."}
-        end, who)
-    end
-
-    --modifiers in one pass and surges in the next, so they keep that order across targets.
-    for _, who in ipairs(targets) do
-        for _, part in ipairs(who.parts or {}) do
-            if part.kind == "modifier" then
-                AddModifier(part, who)
-            end
-        end
-    end
-    for _, who in ipairs(targets) do
-        for _, part in ipairs(who.parts or {}) do
-            if part.kind == "surge" then
-                AddSurges(part, who)
-            end
-        end
-    end
-
-    --G1: what immunity took off, or weakness added.
-    for _, who in ipairs(targets) do
-        local immunity = who.immunity
-        if immunity ~= nil and immunity.amount ~= 0 then
-            local landed = who.taken or 0
-            local damagetype = nil
-            if immunity.damagetype ~= "damage" and who.types ~= nil and who.types[immunity.damagetype] ~= nil then
-                damagetype = immunity.damagetype
-                landed = who.types[damagetype]
-            else
-                for _, amount in pairs(who.types or {}) do
-                    landed = landed - amount
-                end
-            end
-            local key = string.format("immunity|%s|%d|%d", immunity.damagetype, immunity.amount, landed)
-            Add(key, function(group)
-                return {
-                    lead = ResistWords(immunity),
-                    text = string.format("%s%s took %d %sdamage instead of %d.", GroupNames(group), #group > 1 and " each" or "",
-                        landed, TypeWord(damagetype), landed + immunity.amount),
-                }
-            end, who)
-        end
+    for _, line in ipairs(damageLines) do
+        Add(string.format("damage|%d|%s|%s", line.total, line.qualifier, line.text), function(group)
+            return {lead = string.format("%d damage to %s%s", line.total, GroupNames(group), line.qualifier), text = line.text}
+        end, line.who)
     end
 
     --G5: a condition the target's immunity stopped.

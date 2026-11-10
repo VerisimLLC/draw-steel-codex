@@ -329,7 +329,7 @@ end
 
 DockablePanel.Register{
     name = "Puzzles",
-    icon = "icons/standard/Icon_App_Check.png",
+    icon = "phosphor/puzzle-piece.png",
     dmonly = true,
     minHeight = 200,
     vscroll = false,

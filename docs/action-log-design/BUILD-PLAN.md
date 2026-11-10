@@ -393,6 +393,10 @@ Goal: why it happened, one click from the row.
 | Chunk | What | Size |
 |---|---|---|
 | 5.1 | F8 play without an action: tests, Dice panel, tables, macros, montages, negotiation, respite, downtime; the Out of combat section | L |
+
+James, 2026-11-10: replace the "Out of combat" section with the game mode the Initiative bar shows
+(`InitiativeQueue.gameMode`: Exploration, Respite; combat keeps its rounds). Each entry records the
+mode it was written in; a mode change starts a new section. Headings to sign off with 5.1.
 | 5.2 | F9 Director actions: reinforcements, villain actions, overrides, hand edits, reveals; right-click Hide/Reveal, Delete entry, Clear History | M |
 | 5.3 | Revert Turn and Turn Rewind: Reverted rows, the Turn reverted line, out of the totals | M |
 

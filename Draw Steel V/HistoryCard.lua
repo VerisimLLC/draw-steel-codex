@@ -176,7 +176,10 @@ local function Predicate(who, isAlly)
     end
     for _, condition in ipairs(who.conds or {}) do
         local duration = DURATION_PHRASES[condition.duration] or ""
-        if condition.iscondition then
+        if condition.renewed then
+            --it still had it, so the ability only renewed it (L39).
+            notes[#notes + 1] = condition.name .. " was renewed"
+        elseif condition.iscondition then
             adjectives[#adjectives + 1] = string.lower(condition.name) .. duration
         else
             verbs[#verbs + 1] = string.format("gained %s%s", condition.name, duration)

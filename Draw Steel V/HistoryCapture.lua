@@ -30,7 +30,7 @@ local mod = dmhub.GetModLoading()
 --- @field immunity? {damagetype: string, amount: number} On a target: what immunity took off, or weakness added (negative).
 --- @field parts? HistoryDamagePart[] On a target: what made its damage besides the tier, in the order it applied.
 --- @field pool? {before: number, after: number} On a target: temporary Stamina that grew.
---- @field conds? {name: string, icon: string|nil, duration: string|nil, iscondition: boolean|nil, secret: boolean|nil}[] On a target: conditions and effects it started; secret ones are hidden from players.
+--- @field conds? {name: string, icon: string|nil, duration: string|nil, iscondition: boolean|nil, secret: boolean|nil, renewed: boolean|nil}[] On a target: conditions and effects it started, or renewed while it still had them; secret ones are hidden from players.
 --- @field ended? string[] On a target: names of what it ended.
 --- @field endedhidden? table<string, boolean> On a target: names in ended that players may not see.
 --- @field endedconds? table<string, boolean> On a target: which of those names are conditions.
@@ -881,16 +881,27 @@ local function OnEffectStarted(creature, info)
         return
     end
     facts.duration = DURATION_WORDS[info.duration]
+    facts.renewed = info.renewed
 
     local state = OpenCast(nil)
     if state == nil then
-        facts.causetext = Cause(info.source)
-        WriteLine(token, "condition", facts)
+        --a renewal outside any cast is upkeep (an aura re-applying what it gives every
+        --move), not something anyone did, so only casts record one (L39).
+        if not info.renewed then
+            facts.causetext = Cause(info.source)
+            WriteLine(token, "condition", facts)
+        end
         return
     end
     local target = RowTarget(state, token)
     if target ~= nil then
         target.conds = target.conds or {}
+        --an ability applying the same effect twice to one target reads once.
+        for _, existing in ipairs(target.conds) do
+            if existing.name == facts.name then
+                return
+            end
+        end
         target.conds[#target.conds + 1] = facts
     end
 end

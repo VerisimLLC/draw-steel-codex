@@ -497,3 +497,11 @@ Effects hidden from enemies, on a creature off the heroes' side, don't reach pla
 | Z11a | Z11's eye, Director | tooltip: Hidden from players / Visible to everyone (the Action Log's words); clicking shows the roll to players or hides it again |
 | L28 | Secret modifier, Director (built here) | The name with an eye after it, tooltip: Hidden from players |
 | L28a | An effect hidden from enemies, Director's History line | the line with an eye after it, tooltip: Hidden from players |
+
+## Round 19: an effect renewed (signed off 2026-11-10)
+
+| ID | Where | Text |
+|---|---|---|
+| L39 | What happened, and a lone trigger's line: an effect or condition applied by a cast while the creature still had it (the game renews it) | {Creature}'s {effect} was renewed. |
+
+Only a cast records a renewal; one outside any cast (an aura's upkeep) stays quiet. Stacking effects use the same line for now.

@@ -1233,7 +1233,9 @@ local function LineWords(entry)
         return string.format("%s regained %d Stamina", name, entry.healed)
     elseif family == "condition" then
         local duration = entry.duration ~= nil and string.format(" (%s)", entry.duration) or ""
-        if entry.iscondition then
+        if entry.renewed then
+            return string.format("%s's %s was renewed", name, entry.name)
+        elseif entry.iscondition then
             return string.format("%s is %s%s", name, string.lower(entry.name), duration)
         end
         return string.format("%s %s%s", name, entry.name, duration)
@@ -1836,6 +1838,7 @@ local function AddLoneTrigger(items, entry, key)
                 name = condition.name,
                 iscondition = condition.iscondition,
                 duration = condition.duration,
+                renewed = condition.renewed,
             }
         end
         if who.ended ~= nil then

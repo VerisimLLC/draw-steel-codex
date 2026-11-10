@@ -4845,13 +4845,14 @@ function creature:InflictCondition(conditionid, args)
     local result = g_creatureInflictCondition(self, conditionid, args)
     if immune then
         GameSystem.NotifyPlayObservers("conditionimmune", self, conditionid)
-    elseif not hadIt then
+    else
         local entry = self:try_get("inflictedConditions", {})[conditionid]
         if entry ~= nil then
             GameSystem.NotifyPlayObservers("effectstarted", self, {
                 conditionid = conditionid,
                 duration = entry.duration,
                 source = args.sourceDescription,
+                renewed = hadIt or nil,
             })
         end
     end
@@ -4867,11 +4868,12 @@ function creature:ApplyOngoingEffect(ongoingEffectid, duration, casterInfo, opti
         end
     end
     local result = g_creatureApplyOngoingEffect(self, ongoingEffectid, duration, casterInfo, options)
-    if result ~= nil and not hadIt then
+    if result ~= nil then
         GameSystem.NotifyPlayObservers("effectstarted", self, {
             ongoingeffectid = ongoingEffectid,
             duration = duration,
             source = options ~= nil and options.sourceDescription or nil,
+            renewed = hadIt or nil,
         })
     end
     return result

@@ -8018,19 +8018,42 @@ end
 --run by Monster Death and Hero Death). A test notes the ones already on the
 --map and End Test destroys every other, so the deaths leave nothing behind
 --while corpses the author placed stay. { [objid] = obj } on the current map.
-local function CorpseObjects()
+--
+--The same goes for objects an ability made (Create Object can only make
+--"summonable" objects, e.g. the Grasping Hands of The Grasping, the Hungry).
+local function ObjectsWithKeyword(keyword)
     local result = {}
     local assetids = {}
     pcall(function()
-        for _, asset in ipairs(assets:GetObjectsWithKeyword("corpse")) do
+        for _, asset in ipairs(assets:GetObjectsWithKeyword(keyword)) do
             assetids[asset.id] = true
         end
     end)
+
+    --GetObjectsWithKeyword misses some blueprints (it does not list the
+    --Grasping Hands), so also read the keywords on each placed object's own
+    --blueprint, the way the Create Object editor does.
+    local function AssetHasKeyword(assetid)
+        if assetids[assetid] == nil then
+            local found = false
+            pcall(function()
+                local asset = assets.allObjects[assetid]
+                for _, field in ipairs(asset.components["CORE"].fields) do
+                    if field.id == "keywords" and table.contains(field.currentValue or {}, keyword) then
+                        found = true
+                    end
+                end
+            end)
+            assetids[assetid] = found
+        end
+        return assetids[assetid]
+    end
+
     local map = game.currentMap
     for _, floor in ipairs((map and map.floors) or {}) do
         pcall(function()
             for objid, obj in pairs(floor.objects or {}) do
-                if assetids[obj.assetid] then
+                if AssetHasKeyword(obj.assetid) then
                     result[objid] = obj
                 end
             end
@@ -8140,8 +8163,12 @@ local function TestArrival(pending)
     end
     pcall(function() saved.heroTokens = CharacterResource.GetGlobalResource(CharacterResource.heroTokenId) end)
     saved.corpses = {}
-    for objid, _ in pairs(CorpseObjects()) do
+    for objid, _ in pairs(ObjectsWithKeyword("corpse")) do
         saved.corpses[objid] = true
+    end
+    saved.summoned = {}
+    for objid, _ in pairs(ObjectsWithKeyword("summonable")) do
+        saved.summoned[objid] = true
     end
     --auras left on the ground (an Angulotl Slink's Adhesive Sludge); the
     --ones the author placed are noted so End Test keeps them.
@@ -8416,7 +8443,7 @@ local function TestTeardown()
         --corpses were noted has no list, and then nothing is touched).
         if type(saved) == "table" and type(saved.corpses) == "table" then
             local n = 0
-            for objid, obj in pairs(CorpseObjects()) do
+            for objid, obj in pairs(ObjectsWithKeyword("corpse")) do
                 if not saved.corpses[objid] then
                     obj:Destroy()
                     n = n + 1
@@ -8424,6 +8451,20 @@ local function TestTeardown()
             end
             if n > 0 then
                 printf("EotW test: removed %d corpse/loot objects", n)
+            end
+        end
+        --the objects abilities made during the test (an older record has no
+        --list, and then nothing is touched).
+        if type(saved) == "table" and type(saved.summoned) == "table" then
+            local n = 0
+            for objid, obj in pairs(ObjectsWithKeyword("summonable")) do
+                if not saved.summoned[objid] then
+                    obj:Destroy()
+                    n = n + 1
+                end
+            end
+            if n > 0 then
+                printf("EotW test: removed %d ability-made objects", n)
             end
         end
         --the map-anchored auras the fight left (before the casters are

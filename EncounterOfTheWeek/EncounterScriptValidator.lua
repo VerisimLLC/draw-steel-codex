@@ -948,9 +948,13 @@ function EncounterScriptValidator.BuildReport(docid, partyid)
         else
             note = T("author.validator.report.part_later", { number = parse.part.number, previous = parse.part.number - 1 })
         end
-        if parse.part.comingSoon ~= nil then
-            note = string.format("Part %d%s of a series: marked 'Coming soon', so the town shows it locked%s", parse.part.number, title,
-                cond(parse.part.comingSoon.text ~= nil, " (\"" .. tostring(parse.part.comingSoon.text) .. "\")", ""))
+        local soon = parse.part.comingSoon
+        if soon ~= nil then
+            local marked = cond(soon.board == "gate",
+                "marked 'Coming soon at the Town Gate', so the Gate shows it locked and the Proving Pits can play it",
+                "marked 'Coming soon', so the town shows it locked")
+            note = string.format("Part %d%s of a series: %s%s", parse.part.number, title, marked,
+                cond(soon.text ~= nil, " (\"" .. tostring(soon.text) .. "\")", ""))
         elseif parse.part.restFree then
             note = note .. "; a rest does not lock it again"
         end

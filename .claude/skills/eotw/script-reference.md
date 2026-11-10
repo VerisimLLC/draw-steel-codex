@@ -774,6 +774,13 @@ time).
   feature do not offer it at all. A series can ship with its first parts
   playable and the rest as placeholders. Remove the line and publish an update
   to open it.
+- **Locked at the Town Gate only**: `Coming soon at the Town Gate` (or
+  `Coming soon at the Town Gate: <text>`) locks the part at the Gate, where the
+  weekly Encounter of the Week is played, but the Proving Pits can play it,
+  unlocked by a Pits win of the part before as usual. Use it to test later
+  parts in the Pits before they release at the Gate. The publisher treats the
+  part as playable (a missing `# Encounter` is an error), and apps older than
+  this feature still show it locked on both boards.
 - **Rests and later parts**: by default a part is playable only while the
   part before it is still fresh: won since the account last rested at the
   inn (Catching Breath keeps it). A rest locks it again until that part is won

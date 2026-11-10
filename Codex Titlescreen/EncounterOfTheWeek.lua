@@ -863,10 +863,13 @@ end
 local COMING_SOON_TEXT = "Coming soon."
 
 --The parts of a series map from its module record's eotwEncounters entry:
---{ {number, title, townGate, mapName, comingSoon}, ... } sorted by number, or
---nil when the map is not a series. mapName is set for a part on its own part
---map. Parts listed under comingSoonParts come back as locked placeholders
---whose comingSoon field is the hover text.
+--{ {number, title, townGate, mapName, comingSoon, comingSoonBoard}, ... }
+--sorted by number, or nil when the map is not a series. mapName is set for a
+--part on its own part map. Parts listed under comingSoonParts come back with
+--comingSoon set to the hover text: as locked placeholders, or, for one marked
+--gateOnly ("Coming soon at the Town Gate"), with comingSoonBoard "gate" and
+--its townGate, mapName and restFree, so the Proving Pits can play it
+--(see PartLockedOn).
 --Read leniently: Firebase may hand a list back keyed "0", "1".
 local function ReadSeriesParts(story)
     if type(story) ~= "table" then
@@ -903,7 +906,20 @@ local function ReadSeriesParts(story)
             if type(p.text) == "string" and p.text ~= "" then
                 text = p.text
             end
-            parts[#parts+1] = { number = math.floor(number), title = title, comingSoon = text }
+            local part = { number = math.floor(number), title = title, comingSoon = text }
+            --"Coming soon at the Town Gate": locked at the Gate only, so it
+            --carries what the Proving Pits need to play it.
+            if p.gateOnly == true then
+                part.comingSoonBoard = "gate"
+                if type(p.townGate) == "string" and p.townGate ~= "" then
+                    part.townGate = p.townGate
+                end
+                if type(p.map) == "string" and p.map ~= "" then
+                    part.mapName = p.map
+                end
+                part.restFree = p.restFree == true
+            end
+            parts[#parts+1] = part
         end
     end
     if #parts == 0 then
@@ -943,18 +959,29 @@ function EncounterOfTheWeek.PartName(key)
     return T("eotw.series.part", { number = p.number })
 end
 
+--Is this part (an entry from GetPart) locked as "Coming soon" on this board
+--("gate" or "practice")? A plain mark locks both boards; one marked
+--"Coming soon at the Town Gate" (comingSoonBoard "gate") only the Gate.
+function EncounterOfTheWeek.PartLockedOn(entry, board)
+    if entry == nil or entry.comingSoon == nil then
+        return false
+    end
+    return entry.comingSoonBoard ~= "gate" or board == "gate"
+end
+
 --May this account form a party for this key? Part 1 of a series (and any
 --encounter that is not a series) always; part n while part n-1 is OPEN on
 --the same board: won by the account since its last respite
 --(EotwRoster.PartOpen; Catching Breath keeps it open). At the Town Gate any
 --of its heroes' wins count, in the Proving Pits its practice wins. A Proving
 --Pits win does not carry over to the Gate. A part marked "Coming soon" stays
---locked for everyone.
+--locked for everyone; one marked "Coming soon at the Town Gate" only at the
+--Gate (the Proving Pits unlock it as usual).
 --Returns true, or false + the reason to show.
 function EncounterOfTheWeek.PartUnlocked(key)
     local seriesKey, part = EncounterOfTheWeek.SplitPartKey(key)
     local entry = EncounterOfTheWeek.GetPart(key)
-    if entry ~= nil and entry.comingSoon ~= nil then
+    if entry ~= nil and EncounterOfTheWeek.PartLockedOn(entry, EncounterOfTheWeek.PartBoard(key)) then
         return false, entry.comingSoon
     end
     if part <= 1 then
@@ -1061,7 +1088,8 @@ function EncounterOfTheWeek.PartsHeldOpen(list)
             local seriesKey, part = EncounterOfTheWeek.SplitPartKey(key)
             local nextPart = EncounterOfTheWeek.GetPart(seriesKey, part + 1)
             --a rest-free next part stays unlocked, so the inn has nothing to warn about.
-            if nextPart ~= nil and nextPart.comingSoon == nil and not nextPart.restFree then
+            if nextPart ~= nil and not nextPart.restFree
+                and not EncounterOfTheWeek.PartLockedOn(nextPart, item.board) then
                 local nextKey = EncounterOfTheWeek.PartKey(seriesKey, part + 1)
                 result[#result+1] = {
                     series = EncounterOfTheWeek.EncounterTitle(seriesKey),

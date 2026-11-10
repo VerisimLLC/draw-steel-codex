@@ -941,13 +941,15 @@ function Series.NextPart()
             for _, script in ipairs(EncounterMontage.ScriptForMap(partMap.id).parts or {}) do
                 local p = script.parse.part
                 if p.number == number then
-                    found = { number = number, title = p.title, comingSoon = p.comingSoon ~= nil, restFree = p.restFree == true }
+                    found = { number = number, title = p.title, comingSoon = p.comingSoon ~= nil,
+                        comingSoonMark = p.comingSoon, restFree = p.restFree == true }
                 end
             end
         end)
     end
-    --a "Coming soon" part cannot be played yet, so it is not offered.
-    if found.comingSoon then
+    --a "Coming soon" part cannot be played yet, so it is not offered. One
+    --marked "at the Town Gate" still plays in the Proving Pits.
+    if EncounterScript.ComingSoonLocks(found.comingSoonMark, EncounterOfTheWeekGame.IsPracticeGame()) then
         return nil
     end
     local seriesKey = key:match("^(.-)#%d+$") or key
@@ -5986,8 +5988,10 @@ local function RunScriptBeat(ctx)
 
     local script = montage.FindMapScript()
     --A part marked "Coming soon" never plays in a real game, even if a party
-    --somehow reached it. Tests can still play it.
-    if script.parse.part ~= nil and script.parse.part.comingSoon ~= nil and not EncounterOfTheWeekGame.IsTestRunning() then
+    --somehow reached it. Tests can still play it, and so can the Proving
+    --Pits when it is only "Coming soon at the Town Gate".
+    if script.parse.part ~= nil and not EncounterOfTheWeekGame.IsTestRunning()
+        and EncounterScript.ComingSoonLocks(script.parse.part.comingSoon, EncounterOfTheWeekGame.IsPracticeGame()) then
         if not Series.reportedComingSoon then
             Series.reportedComingSoon = true
             printf("EotW: Part %d is marked 'Coming soon', so it does not run outside a test", script.parse.part.number)

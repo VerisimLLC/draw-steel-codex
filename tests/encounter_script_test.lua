@@ -3273,4 +3273,21 @@ Witch exits
         "a montage entry does not know another entry's characters")
 end)()
 
+--- "Level:" under "# Encounter": the hero Level the fight is balanced for.
+;(function()
+    local NL = string.char(10)
+    local P = EncounterScript.ParseHeroLevelInstruction
+    local ins = P("2")
+    check(ins ~= nil and ins.kind == "herolevel" and ins.level == 2, "Level: 2")
+    check((P("Level 3 heroes") or {}).level == 3, "the first number is the Level")
+    check(P("0") == nil and P("11") == nil and P("high") == nil, "out of range or no number is not a Level")
+    local none = EncounterScript.Parse("# Encounter" .. NL .. NL .. "[[encounter]]" .. NL)
+    check(EncounterScript.FindHeroLevel(none) == 1, "no Level line means Level 1")
+    local script = EncounterScript.Parse("# Encounter" .. NL .. NL .. "Hero Level: 4" .. NL .. NL .. "[[encounter]]" .. NL)
+    check(#script.warnings == 0, "a Level line parses clean: " .. table.concat(script.warnings, " | "))
+    check(script.beats[1].setup[1].kind == "herolevel" and EncounterScript.FindHeroLevel(script) == 4, "Hero Level: 4 on the encounter beat")
+    local bad = EncounterScript.Parse("# Encounter" .. NL .. NL .. "Level: very hard" .. NL .. NL .. "[[encounter]]" .. NL)
+    check(#bad.warnings > 0 and bad.beats[1].setup[1].kind == "unknown" and EncounterScript.FindHeroLevel(bad) == 1, "a Level line with no Level warns and leaves Level 1")
+end)()
+
 print(string.format("encounter_script_test: %d checks passed", passed))

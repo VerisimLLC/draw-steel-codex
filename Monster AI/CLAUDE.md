@@ -145,7 +145,14 @@ accepted card also adds a `turn-claim` marker to the hero's
 `pendingAIActivityReactions` (in `TriggeredAbility.lua`), completed by the
 cast's normal AI-reaction completion path. The AI keeps waiting while that
 marker is resolving (up to 60s) and for 2s after it completes, with the banner
-"Waiting for Iswyln's Hesitation Is Weakness to finish" (BR8M9Z2W).
+"Waiting for Iswyln's Hesitation Is Weakness to finish" (BR8M9Z2W). The check
+is `creature:TurnClaimResolving()`, and the end-of-turn handoff
+(`GameHud.WaitForHeroTriggerPrompts` in `MCDMInitiativeBar.lua`) waits on it
+too, so a hero's turn does not pass while an accepted claim is still landing:
+the two initiative writes used to cross, leaving the claimant's entry current
+with the monsters' side to pick (AH6SYXTP). As a last guard, the AI thread
+never plays a current entry that `IsEntryPlayer` says is the players' (it logs
+`TURN REFUSED` once and leaves it to its player).
 
 The turn handoff itself also waits. A hero's mandatory end-of-turn trigger
 whose invoked ability prompts them (Revitalizing Limerick's "choose allies to
@@ -257,7 +264,11 @@ hero's turn used to go to the Director. When the invoker has no AI prompt
 callback, `ExecuteInvoke` (`DMHub Game Rules/AbilityInvokeAbility.lua`) asks
 `MonsterAI.PromptCallbackForCreature(token)`, which returns a handler running
 `HandlePrompt` whenever `RollsForCreature` holds. A prompt with no registered
-handler still falls through to the Director.
+handler still falls through to the Director, except when nobody plays the
+Director (`dmhub.directorlessPlay`): there the Director prompt would go to the
+host, a player, so `HandlePrompt` logs `PROMPT SKIPPED` and returns `"skip"`,
+and `ExecuteInvoke` ends the invoke unused, as a declined prompt does
+(R6ATBX7P: the host was asked to pick the Minotaur's retaliatory strike).
 
 ### "AI is running" status for every client
 
@@ -376,6 +387,7 @@ MonsterAI:RegisterMaliceAbility{
 A **prompt** handles abilities that require a secondary targeting choice during resolution (e.g., a Shift destination after a hit, or a Push/Pull direction). Registered with:
 - `prompts` -- array of ability name strings this handler responds to. Can be plain names (`"Shift"`) or monster-qualified (`"Decrepit Skeleton:Invoked Ability"`)
 - `handler(ai, invokerToken, casterToken, abilityClone, symbols, options)` -- returns a table with `targets` array, or `nil` to fall through to manual prompting
+- `{targets = {}}` does not decline an ability chooser (`Invoked Ability`): with one ability on offer the invoke casts it anyway, with no targets, and any prompt inside it still comes up. The Minotaur's retaliation once declined its Charge this way, so the strike prompt inside Charge found no target and went to a person (R6ATBX7P)
 - `abilityOverride` -- optional ability in the returned table. Use this when the prompt chooses a concrete synthesized ability as well as its targets; the invoke framework casts the override and preserves its begin/finish callbacks
 - `resolvesInvokedAbility` -- optional registration flag. Set it when the handler carries out the whole invoked ability itself (and returns `{targets = {}}`), so the synthesizer does not reject an ability for prompts inside the invoked ability that never come up
 
@@ -518,6 +530,7 @@ The AI's decision-making is score-based:
 1. **Move scoring**: Each move's `score()` is called. The move with the highest `score` value wins. Generic moves like free strikes use low scores (0.2) so monster-specific moves are preferred.
 2. **Target scoring within a move**: `FindBestMoveToUseStrike` iterates every reachable tile, evaluates valid targets from that position, and picks the tile that maximizes `numTargets + edges*0.1 - movementCost*0.001`.
 3. **Edge adjustments**: For each potential target at each position, active tactics add/subtract from the edge score. Line of sight obstruction subtracts 1 edge. Being a ranged attacker adjacent to enemies subtracts 1 edge.
+4. **Score weights**: a monster's properties can carry `aiScoreWeights`, a list of `{move = <move id>, weight = <multiplier>}` set in the EotW Monster AI tab. `FindAndExecuteMove` multiplies each registered move's score (and its `maxScore`, for the skip check) by its weight, and `FindBestSynthesizedAbilityMove` does the same for generic-AI moves, keyed `"Synthesized: <ability name>"` (`MonsterAI.SynthesizedMoveId`). Weight 0 skips the move without scoring it. The weighted scoring info is a copy carrying `unweightedScore` and `scoreWeight`. Malice registrations are weighted by id with the caster's weight: the 0-1 score is clamped, then multiplied, before the `minimumScore` check, and a monster weighted 0% is never picked as the caster (another band member still may be). Villain actions and minion squad strikes are not weighted. Helpers: `MonsterAI.ScoreWeights(props)`, `ScoreWeight`, `SetScoreWeight`, and `MonsterAI.WeightableMoves(props)` (in `MonsterAISupport.lua`) for the list a monster can weight, which includes moves needing an ability a condition or ongoing effect grants (Escape Grab from Grabbed). Tests: `tests/ai_advance_test.lua`.
 
 ### Decision Logging
 

@@ -997,13 +997,9 @@ graveyard.
     pregens (authored at Level 1), so nothing arrives above its town Level.
     Respites already raised Levels before this, so heroes levelled that way
     play at their real Level as soon as this ships.
-  - **For the later balancing step:** hero Encounter Strength is 4 + 2 x Level, and a platoon / leader
-    / solo's EV in `MCDMMonsterScaling` is the same 4 + 2 x Level, so
-    raising every monster by (average party Level - 1) with
-    `monster:SetLevelAdjustment` keeps authored difficulty; the fraction
-    left over can level the strongest monsters by one more until that
-    fraction of the EV is levelled (Challenge Mode's
-    `LevelUpStrongestHalf` pattern), so no rounding rule is needed.
+  - **Level balancing** (David 2026-11-08; BUILT 2026-11-08, luac + parser
+    tests clean, NOT run in the app, UNCOMMITTED): see "Level balancing"
+    under Challenge Mode below.
   - **Shared fix:** a scene's title (`SceneHeader`) now has the header's
     width, so a long name wraps instead of running under the card
     ("Training Grounds Construction" takes three lines).
@@ -3230,7 +3226,8 @@ Mode -- no authoring. Decisions taken with the user:
   normal mode but not the challenge, **2 for a hero who has won neither**
   (who then can earn nothing more from either mode), 0 ("Already Completed")
   for a hero who has won the challenge.
-- **Combat** (`ChallengeBalance`, `LevelUpStrongestHalf`): balanced for one
+- **Combat** (`ChallengeBalance`, then half a Level of `ApplyLevelBoost`;
+  see "Level balancing" below): balanced for one
   more hero. Encounters carry balancing for 4-6 heroes only and nobody
   should have to author a 7-hero setup (no algorithmic extra start
   positions either), so **a party of 6 is balanced for 6 and the strongest
@@ -3238,7 +3235,8 @@ Mode -- no authoring. Decisions taken with the user:
   strongest EV first, until at least half the spawned EV is leveled. A
   minion squad is one unit worth EV/minionsPerSquad per minion, as the
   encounter builder counts it. Reinforcement waves get the same rule as they
-  arrive (half of each wave).
+  arrive (half of each wave). Since level balancing, a late hero who
+  completes a party of 6 brings the half Level too.
 - **Montage**: one more threat. Party-size scaling's removals stand except
   one threat, which comes back (the earliest round's, at random). When the
   scaling removed no threat, an existing threat must be **vanquished twice**:
@@ -3351,6 +3349,119 @@ Mode -- no authoring. Decisions taken with the user:
    list "(Challenge Mode)". Win: a hero new to the encounter gets 2
    Victories, one who had won it 1; back in town both show "Already
    Completed" for the challenge and the normal mode.
+
+---
+
+# Level balancing (BUILT 2026-11-08; luac + parser + typing clean; verified live incl. Test Encounter; reinforcements untested; UNCOMMITTED)
+
+User direction (2026-11-08): encounters balance themselves for the heroes'
+Level. Decisions taken with David:
+
+- **Every encounter has a target hero Level**: a `Level: N` line under
+  `# Encounter` (also `Hero Level:` / `Party Level:`, 1-10). **No line means
+  Level 1** (every encounter so far was built for Level 1). Each series part
+  reads its own script, so parts can differ.
+- **The monsters move by the party's average Level minus the target** (the
+  "level delta"). The whole part levels every monster; the fraction levels
+  the strongest monsters (by EV, strongest first -- David accepted that one
+  big monster can overshoot) by one more until that fraction of the EV is
+  levelled. Average 1.5 in a Level 1 encounter: half the EV is Level 2.
+- **Below the target, monsters level DOWN** the same way (to Level 1 at
+  least; 11 at most).
+- **Victories are ignored** (Draw Steel's extra hero per 2 average Victories
+  is not applied).
+- **Late joiners re-level** the opening fight for the new average.
+- **Mid-fight summons** by the heroes' enemies move by the level delta
+  rounded to a whole Level, halves up: a 1.5 party in a Level 1 encounter
+  meets Level 2 summons. Built as a shift relative to the summon's own
+  Level (a Level 3 summon there becomes Level 4) -- David's example fits
+  both readings; confirm if he meant an absolute Level.
+- **Challenge Mode** keeps its rule: a full party adds half a Level to the
+  boost (it used to be its own `LevelUpStrongestHalf`).
+
+Why it holds: a hero's Encounter Strength is 2 x (Level + 2), and every row
+of `MCDMMonsterScaling`'s table (`Draw Steel Core Rules/MCDMMonster.lua`) has
+EV = k x (Level + 2) (minion/horde 1, platoon 2, elite/leader 4, solo 12).
+Levelling all monsters by N keeps the EV-to-budget ratio exactly; levelling a
+fraction f of the EV by one adds what a party f Levels higher brings.
+
+## How it is built
+
+- **Script** (`EncounterScript.lua`): `LEVEL_LABELS`,
+  `ParseHeroLevelInstruction` (first whole number 1-10, kind `herolevel`),
+  `FindHeroLevel(parse)` (default `DEFAULT_HERO_LEVEL` = 1). A `Level:` line
+  that is not a Level falls back to the other setup instructions (a label is
+  free text), else warns `author.script.encounter.level_not_understood`.
+  Shown in `Describe`, the validator (`author.validator.report.setup_hero_level`)
+  and `EncounterZones.RunEncounterSetup` (no-op entry). The script builder
+  shows it as a plain text row. Tests: `tests/encounter_script_test.lua`.
+- **Game** (`EncounterOfTheWeek.lua`, "level balancing" after
+  `ChallengeBalance`): `TargetHeroLevel`, `PartyLevel` (average
+  `CharacterLevel()` over `EncounterMontage.Heroes()`, nil with none),
+  `LevelDelta` (0 with no heroes), `LevelBoost(levelUp)`,
+  `ApplyLevelBoost(charids, boost, reason)` and `LevelSummon`.
+  `ApplyLevelBoost` is re-runnable: on the first change it stamps each
+  monster's spawn Level and EV (`eotwBaseLevel`, `eotwBaseEV` on the
+  properties) and always sets the Level from those with
+  `monster:SetLevelAdjustment`, so an authored level adjustment is kept and
+  nothing levels twice. Ties sort by charid / squad key so a re-run picks the
+  same monsters.
+- **Call sites**: `SpawnEncounterGroups` (the opening fight; the charids go
+  into `eotwlatejoin` `balance.monsters`), `EncounterReinforcements` `Arrive`
+  (each wave on its own), `RebalanceForLateHeroes` (appends its spawns to
+  `balance.monsters`) then the new `RelevelForLateHeroes` from
+  `AdmitLateHeroes` (runs even when no monster is added).
+- **Summons**: a generic hook in core `DMHub Game Rules/AbilitySummon.lua`
+  (`ActivatedAbilitySummonBehavior.RegisterSummonHook(id, fn)` /
+  `RunSummonHooks(casterToken, token)`, run before the summon's first upload;
+  also called by the table-roll summon in `AbilityTableRoll.lua`). EotW
+  registers `"eotw-level"` -> `LevelSummon`, which acts only in an EotW game,
+  only for a non-hero, non-player-controlled caster, only on monsters.
+
+## Not done / known gaps
+
+- **Verified live 2026-11-08** (Goblin Ambush authoring game e96656f3, after
+  a restart; test goblins spawned beside the pregens, deleted after; no Lua
+  errors): `ApplyLevelBoost` on Monarch 12 + 2 Warriors + a 4-Runner squad +
+  a Level 2 Shadowknife (25 EV): 0.5 levelled Monarch and Shadowknife (16 of
+  25 EV); a re-run changed nothing; 1 levelled all (Monarch EV 12 -> 16,
+  Stamina 80 -> 100 a frame later); 2.5 gave +2 all and +3 for those two;
+  -1 floored everything at Level 1; 0 put each back at its spawn Level
+  (Shadowknife 2). `LevelDelta` with a faked Level 3 target and Level 1
+  heroes = -2. The summon hook with a faked 1.5 party in a faked EotW game:
+  an enemy's summon came out Level 2 (Level 2 stats after upload), a hero's
+  stayed Level 1.
+- **Verified through Test Encounter 2026-11-08** (same game; a leftover
+  round-1 combat was ended first, with David's OK; both tests ended cleanly,
+  no Lua errors): combat test with the "Lv3 Summoner (Graves)" pregen + a
+  Level 1 Dwarf Fury + the two Level 1 heroes on the map: "boost 0.50
+  (party Level 1.5 ...): 4 monsters changed; +1 more on EV 12.0 of 24.0" --
+  2 Assassins + 2 Warriors to Level 2 (EV 4, Stamina 20), `balance.monsters`
+  recorded. `RelevelForLateHeroes(4)` with the same party changed nothing; a
+  faked average of 2 took all 14 to Level 2; back to 1.5 restored the split.
+  Challenge Mode test with 4 picked heroes: boost 0.33 (12 of 36 EV), then
+  `RelevelForLateHeroes(6)` gave 0.83 (Challenge's half Level) and levelled
+  30 of 36 EV.
+- **Test quirk, not this feature:** the authoring test sets `numheroes` from
+  the heroes PICKED (`#placed`), while heroes already on the map also fight
+  and count in `PartyLevel`. With 4 picked + 2 on the map a Challenge test is
+  balanced for 5 and gets no half Level. Real games agree on both counts.
+- **Not yet run:** a reinforcement wave (Goblin Ambush has none), a real late
+  joiner through `AdmitLateHeroes`, and an enemy summon in a real fight. To test: author test a Level 1 encounter with
+  Level 2 pregens (console "EotW level balance (spawn): boost 1.00 ...", every
+  monster +1); a mixed 1/2 party (boost 0.50, about half the EV +1); a
+  `Level: 3` line with Level 1 heroes (monsters down 2, floor Level 1); a
+  reinforcement wave; Challenge Mode with 6 heroes (boost + 0.5); a late
+  joiner in round 1 ("(late join)" line); an enemy summon at boost 0.5
+  (summon +1).
+- Duplicates (duplicate-mode summons) are not levelled: they copy their
+  source's stats, and levelling on top would count twice.
+- Monsters an encounter places some other way (montage allies, delve
+  monsters, map objects that spawn creatures) are not levelled.
+- Reinforcement waves already on the map are not re-levelled by a late
+  joiner (late joins end after round 1).
+- Nothing tells the players the monsters were levelled (the console only),
+  and the town does not show an encounter's Level.
 
 ---
 
@@ -5239,6 +5350,14 @@ the map, they win. Decisions taken:
   non-bystander monster of that keyword / bestiary-type word on the map.
   Minions count (unlike core `CountLiveCombatants`). Reinforcements still to
   come do not count -- the user's "kill all Dwarves PRESENT on the map".
+- **`Parallax: None|Slight|Normal|Pronounced`** (a setup line, `{kind =
+  "parallax", ratio, level}`, added 2026-11-08 for Horizon's Grave: Slight in
+  Parts 1 and 3, None in Part 2). `EnforceStrictRules` (the host tick) reads
+  `EncounterScript.FindParallaxInstruction` on the active part's script and
+  keeps the game setting `parallaxratio` at that value for the whole part,
+  narrative included. No line = the setting is not touched. The per-user
+  `disableparallax` preference still wins (GameConfig.cs). `parallaxratio` is
+  in `TestSettingIds`, so End Test restores it.
 - **A won fight is never snatched back**: the host runs the reinforcement tick
   after `CheckEncounterOutcome` and only while `m_outcomeMetTime` is nil and no
   outcome is awarded, so a map cleared just before a round boundary still

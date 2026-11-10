@@ -47,8 +47,60 @@ local styles = {
 		transitionTime = 0.4,
 		selectors = {"~parent:currentFloor"},
 		opacity = 0.4,
-	}
+	},
+
+	--a bubble with a custom image (info.image) shows just the picture, lit up on hover.
+	{
+		selectors = {"imageBubble"},
+		bgcolor = "white",
+		borderWidth = 0,
+		cornerRadius = 0,
+	},
+	{
+		selectors = {"imageBubble", "hover", "currentFloor"},
+		brightness = 1.25,
+	},
+	{
+		selectors = {"imageBubble", "press", "currentFloor"},
+		brightness = 0.85,
+	},
+	{
+		transitionTime = 0.4,
+		selectors = {"imageBubble", "~currentFloor"},
+		bgcolor = "white",
+		opacity = 0.4,
+	},
 }
+
+--Size in gui units of a bubble's custom image: the bubble canvas has 100 units
+--per tile, and a 0 width or height copies the other (both 0 = 1 tile).
+local function ImageBubbleSize(info)
+	local w = info.width
+	local h = info.height
+	if w <= 0 then w = h end
+	if h <= 0 then h = w end
+	if w <= 0 then
+		w = 1
+		h = 1
+	end
+	return w*100, h*100
+end
+
+--Shows the bubble as its custom image, or as the round icon badge when it has none.
+local function ApplyBubbleLook(element, info)
+	local image = info.image
+	element:SetClass("imageBubble", image ~= nil)
+	if image ~= nil then
+		local w, h = ImageBubbleSize(info)
+		element.bgimage = image
+		element.selfStyle.width = w
+		element.selfStyle.height = h
+	else
+		element.bgimage = 'panels/square.png'
+		element.selfStyle.width = 50
+		element.selfStyle.height = 50
+	end
+end
 
 --DMHub calls this when it wants to create an info bubble.
 function CreateInfoBubble(info)
@@ -63,7 +115,12 @@ function CreateInfoBubble(info)
 		--blocksGameInteraction = false,
 
 		create = function(element)
+			ApplyBubbleLook(element, info)
 			eventHandler = dmhub.RegisterEventHandler("ChangeCurrentFloor", function() element.interactable = info.floorid == game.currentFloorId; element:SetClass("currentFloor", info.floorid == game.currentFloorId) end)
+		end,
+
+		refreshBubble = function(element)
+			ApplyBubbleLook(element, info)
 		end,
 
 		destroy = function(element)
@@ -74,14 +131,15 @@ function CreateInfoBubble(info)
 			gui.Label{
 				interactable = false,
 				blocksGameInteraction = false,
-				text = info.icon,
+				text = cond(info.image == nil, info.icon, ""),
 				selfStyle = {
 					width = "auto",
 					height = "auto",
 				},
 				events = {
 					refreshBubble = function(element)
-						element.text = info.icon
+						--an image bubble's picture is its whole face: no icon text over it.
+						element.text = cond(info.image == nil, info.icon, "")
 					end,
 				},
 			}

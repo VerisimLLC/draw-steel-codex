@@ -131,6 +131,11 @@ function gui.TryGetImageDimensions(imageid) end
 --- @param f function Callback receiving a table with width, height, and ppu.
 function gui.GetImageDimensionsCallback(imageid, f) end
 
+--- Like GetImageDimensionsCallback, but never loads the image as a texture just to measure it: the size comes from the image file's header, or from a thumbnail being made of it (bgimage "thumb:" / "preview:"). Use it where only the size is needed. The callback is not called if the size can't be found within 30 seconds.
+--- @param imageid string The image asset ID, or an image's storage ID.
+--- @param f function Callback receiving a table with width, height, and ppu.
+function gui.GetImageSizeCallback(imageid, f) end
+
 --- Finds a sheet panel by its ID across all top-level sheets. Returns nil if not found.
 --- @param id string The panel ID.
 --- @return nil|Panel

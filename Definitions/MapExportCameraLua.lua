@@ -7,15 +7,15 @@
 --- @field previewDirectory any The directory the current game's map preview JPEGs are cached in.
 MapExportCameraLua = {}
 
---- Switch the export to a map tour: a seamless looping video that sweeps the camera across the map and back, showing parallax, and fading out each floor from the top down to reveal the one beneath (fading them back in on the return). #MapExport shows the tour live. duration is the length of one full loop in seconds.
---- @param options {width: number|nil, height: number|nil, duration: number|nil}
+--- Switch the export to a map tour: a seamless looping video that sweeps the camera across the map and back, showing parallax, and fading out each floor from the top down to reveal the one beneath (fading them back in on the return). #MapExport shows the tour live. duration is the length of one full loop in seconds. bottomFloor (a floor id, not a layer id) stops the fades there: that floor and every floor beneath it stay drawn the whole time, e.g. a starfield floor under a map.
+--- @param options {width: number|nil, height: number|nil, duration: number|nil, bottomFloor: string|nil}
 function MapExportCameraLua:SetMapTourExport(options) end
 
 --- SetFullMapExport
 function MapExportCameraLua:SetFullMapExport() end
 
---- ExportVideo
---- @param options? any
+--- Record the current export (the full map, or the map tour set by SetMapTourExport) as an MP4. hz is the frame rate (default 60) and duration the length in seconds (default 50). progress(fraction) is called as frames are written and complete() when the video is done. Then the video is saved to path if one is given (an .mp4 file; its folder is created), otherwise a Save dialog asks where; error(message) is called if it cannot be saved.
+--- @param options {hz: number|nil, duration: number|nil, path: string|nil, progress: (fun(fraction: number): nil)|nil, complete: (fun(): nil)|nil, error: (fun(message: string): nil)|nil}
 function MapExportCameraLua:ExportVideo(options) end
 
 --- CancelVideoExport

@@ -98,6 +98,9 @@ function goblin.properties:try_get(_, default) return default end
 goblin.charid = "goblin"
 ai.prompts = {[ability.name] = {handler = function() return {targets = {{token = pixie}}} end}}
 assert(ai:HandlePrompt(goblin, goblin, ability, {}, {}) == "prompt", "invalid custom prompt defers to Director")
+dmhub.directorlessPlay = true
+assert(ai:HandlePrompt(goblin, goblin, ability, {}, {}) == "skip", "with no Director the unanswered prompt is skipped")
+dmhub.directorlessPlay = nil
 pixie.loc.altitude = 3
 local options = {}
 assert(ai:HandlePrompt(goblin, goblin, ability, {}, options) == "inherit", "legal custom prompt remains automatic")

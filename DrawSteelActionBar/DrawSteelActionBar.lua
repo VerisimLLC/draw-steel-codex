@@ -1238,6 +1238,76 @@ local function ShowMovementDiagram(token, path, label, alternates, damages, text
     CrossSection.movementShown = true
 end
 
+--Flight wheel: while a FLYING creature picks where an ability's pathfound move (Advance
+--and the like) ends, the mouse wheel sets how far above or below its current altitude the
+--move ends, as it does when dragging the token. The hover handler turns it on for such a
+--pick (active), the poller panel inside the ability controller reads the wheel, and the
+--dialed altitude reaches the move via g_currentSymbols.flightAltitude
+--(AbilityRelocateCreature passes it to token:Move). Kept on a table: this file's main
+--chunk is at Lua's 200-local limit.
+DrawSteelActionBar._flight = {
+    active = false,  --a flier is picking a pathfound move destination right now
+    offset = 0,      --squares above (+) or below (-) its current altitude the move ends at
+    adjusted = false, --the wheel moved since the last preview: snap offset to where it clamped
+    ability = nil,   --the ability the offset was dialed for; a new cast starts again at 0
+}
+
+--- Whether the flight wheel applies to the current pick: a flying creature on an ordinary
+--- (not shift) pathfound move. Shifting keeps its own rules.
+--- @param movementType nil|string from ActivatedAbility:GetMovementType
+--- @return boolean
+function DrawSteelActionBar._flight.Applies(movementType)
+    return g_token ~= nil and g_token.valid and g_token.properties:IsFlying() and movementType ~= "shift"
+end
+
+--- Turn the flight wheel off and forget the dialed height (the cast ended or was cancelled).
+function DrawSteelActionBar._flight.Reset()
+    local flight = DrawSteelActionBar._flight
+    flight.active = false
+    flight.offset = 0
+    flight.adjusted = false
+    flight.ability = nil
+    g_currentSymbols.flightAltitude = nil
+end
+
+--- A tiny panel that polls the map wheel every frame while the flight wheel is active.
+--- It lives in the ability controller, which is collapsed (and so does not think) when
+--- nothing is being cast, so the wheel goes back to zooming the camera on its own.
+--- @return Panel
+function DrawSteelActionBar._flight.CreatePoller()
+    return gui.Panel {
+        width = 1,
+        height = 1,
+        thinkTime = 0.01,
+        think = function(element)
+            local flight = DrawSteelActionBar._flight
+            if not flight.active or g_currentAbility == nil or flight.ability ~= g_currentAbility
+                or g_token == nil or not g_token.valid or not g_token.properties:IsFlying() then
+                return
+            end
+
+            --claims the wheel (no camera zoom) and returns the notches turned over the map.
+            local wheel = dmhub.ConsumeMapWheel()
+            if wheel == 0 then
+                return
+            end
+
+            --A square of climb beyond the squares crossed costs a square of movement, so
+            --never dial more than the ability's distance up or down.
+            local maxSquares = math.max(0, math.floor(g_range / dmhub.unitsPerSquare))
+            local offset = flight.offset + cond(wheel > 0, 1, -1)
+            flight.offset = math.max(-maxSquares, math.min(maxSquares, offset))
+            flight.adjusted = true
+
+            --redraw the arrow and diagram at the new height.
+            if g_abilityController ~= nil and g_abilityController.data.lastHoverLoc ~= nil then
+                g_abilityController:FireEvent("maphover", g_abilityController.data.lastHoverLoc,
+                    g_abilityController.data.lastHoverPoint)
+            end
+        end,
+    }
+end
+
 local function ClearMovementDiagram()
     if not CrossSection.movementShown then
         return
@@ -4340,10 +4410,13 @@ local function CreateActionBar()
                 end
             end
 
-            --break out melee and ranged.
+            --break out melee and ranged, and drop manual trigger copies strict
+            --rules take off a player's bar (Hesitation Is Weakness).
             local abilities = {}
             for _, ability in ipairs(g_abilities) do
-                if ability.meleeAndRanged then
+                if ActivatedAbility.HiddenUnderStrictActionEconomy(ability, g_token) then
+                    --left out
+                elseif ability.meleeAndRanged then
                     abilities[#abilities + 1] = ability.meleeVariation
                     abilities[#abilities + 1] = ability.rangedVariation
                 else
@@ -12265,6 +12338,9 @@ CreateAbilityController = function()
         m_altitudeController,
         m_shiftController,
 
+        --reads the wheel while a flier picks an ability move destination.
+        DrawSteelActionBar._flight.CreatePoller(),
+
         g_ammoChoicePanel,
         g_synthesizedSpellsPanel,
         g_castChargesInput,
@@ -12792,6 +12868,7 @@ CreateAbilityController = function()
             g_castControlState = {}
             m_allowedAltitudeCalculator = nil
             SetAltitudeMode(nil)
+            DrawSteelActionBar._flight.Reset()
 
             if g_actionBar ~= nil then g_actionBar:SetClassTree("invokingAbility", false) end
             if g_abilityController ~= nil then g_abilityController.mapfocus = false end
@@ -13393,9 +13470,35 @@ CreateAbilityController = function()
                     local movementType = g_currentAbility:GetMovementType(g_token, g_currentSymbols)
                     local shifting = (movementType == "shift")
 
+                    --A flier can dial its end altitude on the wheel (DrawSteelActionBar._flight).
+                    local flight = DrawSteelActionBar._flight
+                    if flight.ability ~= g_currentAbility then
+                        flight.ability = g_currentAbility
+                        flight.offset = 0
+                    end
+                    flight.active = flight.Applies(movementType)
+                    local markOptions = { shifting = shifting, waypoints = waypoints }
+                    if flight.active and flight.offset ~= 0 then
+                        markOptions.flightAltitude = g_token.loc.altitude + flight.offset
+                    end
+
                     --this branch is a space target, which hovers with a real loc (only 'all' has none).
                     ---@cast loc -nil
-                    local movementInfo = g_token:MarkMovementArrow(loc, { shifting = shifting, waypoints = waypoints })
+                    local movementInfo = g_token:MarkMovementArrow(loc, markOptions)
+
+                    --The engine clamps the climb to the ground and ceiling at the destination.
+                    --After a wheel turn, take the clamped height as the dial so turns past the
+                    --ground or ceiling are not banked. The cast reads the height from the symbols.
+                    g_currentSymbols.flightAltitude = nil
+                    if markOptions.flightAltitude ~= nil and movementInfo ~= nil then
+                        local endAltitude = movementInfo.path.destination.altitude
+                        if flight.adjusted then
+                            flight.offset = endAltitude - g_token.loc.altitude
+                        end
+                        g_currentSymbols.flightAltitude = endAltitude
+                    end
+                    flight.adjusted = false
+
                     if movementInfo ~= nil then
                         local targets = g_currentAbility:FindTargetsInMovementVicinity(g_token, movementInfo.path) or
                             filteredTargets

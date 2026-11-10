@@ -99,6 +99,154 @@ function DiscordVoice.Link()
     return dmhub.DiscordLink()
 end
 
+--the modal layer of the open link offer, so a second click does not stack another.
+local g_offerLayer = nil
+
+--- Explains what linking Discord gives before sending the player to Discord's
+--- sign-in (Discord requires the benefits to come first). Continue starts the
+--- browser sign-in, or the code sign-in when useCode is true. Not Now keeps an
+--- unlinked player on a provisional account, so Discord features keep working
+--- without one. Outside a real game there is no modal layer to show it on, so
+--- it links straight away (the titlescreen has its own offer, the Infernal
+--- Contract dialog's Discord card).
+--- @param useCode boolean|nil
+function DiscordVoice.OfferLink(useCode)
+    local gh = rawget(_G, "gamehud")
+    if not (dmhub.inGame and not dmhub.isLobbyGame and gh ~= nil) then
+        if useCode then
+            return DiscordVoice.LinkWithCode()
+        end
+        return DiscordVoice.Link()
+    end
+    if g_offerLayer ~= nil then
+        return
+    end
+
+    local function Close()
+        local layer = g_offerLayer
+        g_offerLayer = nil
+        if layer ~= nil then
+            gui.CloseModalInLayer(layer)
+        end
+    end
+
+    local function NotNow()
+        Close()
+        local s = dmhub.discordStatus
+        if s ~= nil and s.account == "notlinked" and s.provisionalUnavailable ~= true then
+            dmhub.DiscordUseProvisional()
+        end
+    end
+
+    local function Line(text, args)
+        args = args or {}
+        return gui.Label{
+            classes = {"modalMessage"},
+            width = "100%",
+            height = "auto",
+            textWrap = true,
+            fontSize = args.fontSize,
+            color = args.color,
+            lmargin = args.lmargin,
+            vmargin = args.vmargin or 3,
+            text = text,
+        }
+    end
+
+    local dialog = gui.Panel{
+        classes = {"framedPanel"},
+        width = 560,
+        height = "auto",
+        halign = "center",
+        valign = "center",
+        flow = "vertical",
+        pad = 24,
+        borderBox = true,
+        swallowPress = true,
+
+        gui.Panel{
+            flow = "horizontal",
+            width = "100%",
+            height = 32,
+            gui.Panel{
+                bgimage = "phosphor/discord-logo-fill.png",
+                bgcolor = "#5865F2",
+                width = 28,
+                height = 28,
+                valign = "center",
+            },
+            gui.Label{
+                fontSize = 22,
+                bold = true,
+                width = "auto",
+                height = "auto",
+                valign = "center",
+                lmargin = 10,
+                text = "Link Discord",
+            },
+        },
+        gui.Panel{
+            flow = "vertical",
+            width = "100%",
+            height = "auto",
+            vmargin = 14,
+            Line("Linking your Discord account lets you:"),
+            Line("- See your Discord friends in the Codex, message them, and invite them to your games.", {lmargin = 12}),
+            Line("- Let your Discord friends see what you're playing and ask to join you.", {lmargin = 12}),
+            Line("- Talk with your party over Discord voice as yourself.", {lmargin = 12}),
+            Line("Discord will ask you to approve the Codex. You can unlink at any time in Settings > Account.", {color = "@fgMuted", fontSize = 14, vmargin = 10}),
+        },
+        gui.Panel{
+            flow = "horizontal",
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            gui.Button{
+                classes = {"sizeL"},
+                text = "Continue to Discord",
+                hmargin = 6,
+                click = function()
+                    Close()
+                    if useCode then
+                        DiscordVoice.LinkWithCode()
+                    else
+                        DiscordVoice.Link()
+                    end
+                end,
+            },
+            gui.Button{
+                classes = {"sizeL"},
+                text = "Not Now",
+                hmargin = 6,
+                click = function()
+                    NotNow()
+                end,
+            },
+        },
+    }
+
+    local backdrop = gui.Panel{
+        width = "100%",
+        height = "100%",
+        halign = "center",
+        valign = "center",
+        bgimage = "panels/square.png",
+        bgcolor = "#000000b0",
+        styles = ThemeEngine.GetStyles(),
+        captureEscape = true,
+        escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+        escape = function()
+            NotNow()
+        end,
+        destroy = function()
+            --swept away by something else (leaving the game).
+            g_offerLayer = nil
+        end,
+        dialog,
+    }
+    g_offerLayer = gui.ShowModal(backdrop)
+end
+
 --- The fallback sign-in: a code the user enters at discord.com/activate on any
 --- device, for when the browser sign-in's approval never reaches Codex.
 function DiscordVoice.LinkWithCode()
@@ -249,6 +397,11 @@ function DiscordVoice.Tick()
         if status.account == "ready" and status.voice == "off" and g_leftGameId ~= dmhub.gameid and now >= g_nextJoinAttempt then
             g_nextJoinAttempt = now + JOIN_RETRY_SECONDS
             dmhub.DiscordJoinVoice()
+        elseif status.account == "notlinked" and status.provisionalUnavailable ~= true and g_leftGameId ~= dmhub.gameid and now >= g_nextJoinAttempt then
+            --joining voice is a use of Discord: a player who has not linked
+            --gets a provisional account, and the branch above joins once it is ready.
+            g_nextJoinAttempt = now + JOIN_RETRY_SECONDS
+            dmhub.DiscordUseProvisional()
         end
     elseif status.voice ~= "off" then
         dmhub.DiscordLeaveVoice()
@@ -386,7 +539,10 @@ end
 --- @return string|nil action
 --- @return string text
 local function VoiceAction(s)
-    if s.account == "notlinked" or s.account == "error" then
+    if s.account == "notlinked" then
+        --first sign-in: explain what linking gives before going to Discord.
+        return "offer", "Link Discord"
+    elseif s.account == "error" then
         return "link", "Link Discord"
     elseif s.account == "linking" and s.deviceCode ~= nil then
         --the code panel has its own Cancel.
@@ -404,7 +560,9 @@ local function VoiceAction(s)
 end
 
 local function RunVoiceAction(action)
-    if action == "link" then
+    if action == "offer" then
+        DiscordVoice.OfferLink(false)
+    elseif action == "link" then
         DiscordVoice.Link()
     elseif action == "join" then
         DiscordVoice.Join()
@@ -443,6 +601,8 @@ end
 --"Use a code instead": the code sign-in, offered until signed in (fire "refreshVoice").
 --The browser sign-in has to get back to Codex through 127.0.0.1, which some
 --browsers and security software block; the code sign-in never needs that.
+--args.offer: a player who has not started signing in sees the link offer
+--first (leave it off where the benefits are already shown beside the button).
 local function CodeLinkButton(args)
     return gui.Button{
         classes = args.classes,
@@ -459,11 +619,42 @@ local function CodeLinkButton(args)
             gui.Tooltip("Sign in by entering a code at discord.com/activate, on this computer or your phone. Use this when the browser sign-in does not come back to Codex.")(element)
         end,
         click = function(element)
-            DiscordVoice.LinkWithCode()
+            if args.offer and DiscordVoice.Status().account == "notlinked" then
+                DiscordVoice.OfferLink(true)
+            else
+                DiscordVoice.LinkWithCode()
+            end
         end,
         refreshVoice = function(element, s)
             local signingIn = s.account == "notlinked" or s.account == "error" or s.account == "linking"
             element:SetClass("collapsed", not signingIn or s.deviceCode ~= nil)
+        end,
+    }
+end
+
+--"Link Discord" for a player on a provisional account, who is signed in
+--(so the action button offers voice) but has no Discord account linked
+--(fire "refreshVoice").
+local function ProvisionalLinkButton(args)
+    return gui.Button{
+        classes = args.classes,
+        text = "Link Discord",
+        width = "auto",
+        height = "auto",
+        hpad = 12,
+        vpad = 4,
+        lmargin = args.lmargin,
+        borderBox = true,
+        halign = args.halign,
+        valign = "center",
+        hover = function(element)
+            gui.Tooltip("You are using voice without a Discord account. Link Discord to use your own Discord account and friends.")(element)
+        end,
+        click = function(element)
+            DiscordVoice.OfferLink(false)
+        end,
+        refreshVoice = function(element, s)
+            element:SetClass("collapsed", not (s.account == "ready" and s.provisional == true))
         end,
     }
 end
@@ -742,7 +933,8 @@ function DiscordVoice.CreateMenu(close)
     }
 
     local actionButton = ActionButton{ classes = {"sizeS"}, halign = "right" }
-    local codeButton = CodeLinkButton{ classes = {"sizeS"}, halign = "right" }
+    local codeButton = CodeLinkButton{ classes = {"sizeS"}, halign = "right", offer = true }
+    local provisionalLinkButton = ProvisionalLinkButton{ classes = {"sizeS"}, halign = "right" }
     local deviceCodePanel = DeviceCodePanel{ halign = "center" }
 
     local muteToggle = MuteToggle()
@@ -813,6 +1005,7 @@ function DiscordVoice.CreateMenu(close)
             statusLabel.text = DiscordVoice.StatusText()
             actionButton:FireEvent("refreshVoice", s)
             codeButton:FireEvent("refreshVoice", s)
+            provisionalLinkButton:FireEvent("refreshVoice", s)
             deviceCodePanel:FireEvent("refreshVoice", s)
             controlsPanel:SetClass("collapsed", s.account ~= "ready")
             RefreshMuteToggles(muteToggle, deafenToggle, s)
@@ -1132,7 +1325,8 @@ function DiscordVoice.CreateSettingsPanel()
         textWrap = true,
     }
     local actionButton = ActionButton{ classes = {"sizeS"}, halign = "left" }
-    local codeButton = CodeLinkButton{ classes = {"sizeS"}, halign = "left", lmargin = 8 }
+    local codeButton = CodeLinkButton{ classes = {"sizeS"}, halign = "left", lmargin = 8, offer = true }
+    local provisionalLinkButton = ProvisionalLinkButton{ classes = {"sizeS"}, halign = "left", lmargin = 8 }
     local deviceCodePanel = DeviceCodePanel{ halign = "left" }
     local unlinkButton = gui.Button{
         classes = {"sizeS"},
@@ -1165,6 +1359,7 @@ function DiscordVoice.CreateSettingsPanel()
             tmargin = 4,
             actionButton,
             codeButton,
+            provisionalLinkButton,
             unlinkButton,
         },
         deviceCodePanel,
@@ -1290,8 +1485,10 @@ function DiscordVoice.CreateSettingsPanel()
             statusLabel.text = DiscordVoice.StatusText()
             actionButton:FireEvent("refreshVoice", s)
             codeButton:FireEvent("refreshVoice", s)
+            provisionalLinkButton:FireEvent("refreshVoice", s)
             deviceCodePanel:FireEvent("refreshVoice", s)
-            unlinkButton:SetClass("collapsed", s.account ~= "ready")
+            --a provisional account has no Discord account to unlink.
+            unlinkButton:SetClass("collapsed", s.account ~= "ready" or s.provisional == true)
             controlsPanel:SetClass("collapsed", s.account ~= "ready")
             --follow changes made elsewhere (the Game tab, another session).
             if canSwitchGameVoice and gameVoiceCheck.value ~= (g_setting:Get() == true) then
@@ -1309,4 +1506,164 @@ function DiscordVoice.CreateSettingsPanel()
         controlsPanel,
     }
     return resultPanel
+end
+
+--- The Discord block of Settings > Account: whether Discord is linked, what
+--- linking gives (shown above the button, before Discord's sign-in, as Discord
+--- requires), Link / Use a code instead, and Unlink with a confirmation.
+--- Discord wants linking and unlinking in a permanent place next to the other
+--- account links, for everyone, not only in voice games. nil when the build has
+--- no Discord or the Discord features are off ("discordsocial").
+--- @return Panel|nil
+function DiscordVoice.CreateAccountSettingsPanel()
+    if dmhub.GetSettingValue("discordsocial") ~= true then
+        return nil
+    end
+    local s0 = dmhub.discordStatus
+    if s0 == nil or s0.account == "unsupported" then
+        return nil
+    end
+
+    --true while the unlink confirmation shows in place of the Unlink button.
+    local m_confirmUnlink = false
+
+    local function AccountText(s)
+        if s.account == "off" then
+            return "Discord Integration is off. Turn it on in the General tab to link Discord."
+        elseif s.account == "ready" and s.provisional == true then
+            return "Not linked. You are using Discord in the Codex without a Discord account."
+        elseif s.account == "ready" then
+            return string.format("Linked to Discord as %s.", s.displayName or "your Discord account")
+        elseif s.account == "notlinked" then
+            return "Not linked."
+        end
+        return DiscordVoice.StatusText()
+    end
+
+    local function Label(args)
+        return gui.Label{
+            width = "100%",
+            maxWidth = 600,
+            height = "auto",
+            fontSize = args.fontSize or 14,
+            color = args.color,
+            textWrap = true,
+            vmargin = 2,
+            text = args.text or "",
+        }
+    end
+
+    local function Button(text, click, lmargin)
+        return gui.Button{
+            text = text,
+            width = "auto",
+            minWidth = 120,
+            height = 30,
+            hpad = 12,
+            borderBox = true,
+            fontSize = 14,
+            halign = "left",
+            valign = "center",
+            lmargin = lmargin,
+            click = click,
+        }
+    end
+
+    local statusLabel = Label{}
+    local benefitsLabel = Label{
+        text = "Link your Discord account to see your Discord friends in the Codex, message them, invite them to your games and let them ask to join you, and talk with your party over Discord voice. Your Discord friends will see what you are playing in the Codex. You can unlink here at any time.",
+    }
+
+    local linkButton = Button("Link Discord", function()
+        DiscordVoice.Link()
+    end)
+    local codeButton = CodeLinkButton{ halign = "left", lmargin = 8 }
+    local unlinkButton = Button("Unlink Discord", function()
+        m_confirmUnlink = true
+    end)
+    local deviceCodePanel = DeviceCodePanel{ halign = "left" }
+
+    local confirmPanel = gui.Panel{
+        classes = {"collapsed"},
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        Label{
+            text = "Unlink your Discord account? Your Discord friends and messages will no longer show in the Codex, and you will leave Discord voice. You can link it again at any time.",
+        },
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            vmargin = 4,
+            Button("Unlink", function()
+                m_confirmUnlink = false
+                DiscordVoice.Unlink()
+            end),
+            Button("Cancel", function()
+                m_confirmUnlink = false
+            end, 8),
+        },
+    }
+
+    local buttonRow = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        vmargin = 4,
+        linkButton,
+        codeButton,
+        unlinkButton,
+    }
+
+    local panel
+    panel = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        vmargin = 16,
+
+        create = function(element)
+            element:FireEvent("think")
+        end,
+
+        thinkTime = 0.2,
+        think = function(element)
+            --the titlescreen has no voice tick to refresh the shared status.
+            g_status = dmhub.discordStatus
+            local s = DiscordVoice.Status()
+            local linked = s.account == "ready" and s.provisional ~= true
+            local signingIn = s.account == "linking"
+            local canLink = s.account == "notlinked" or s.account == "error" or (s.account == "ready" and s.provisional == true)
+
+            statusLabel.text = AccountText(s)
+            benefitsLabel:SetClass("collapsed", linked or s.account == "off" or s.account == "connecting")
+
+            --Try again restarts a browser sign-in whose approval never came back.
+            linkButton:SetClass("collapsed", not (canLink or (signingIn and s.deviceCode == nil)))
+            linkButton.text = cond(signingIn, "Try again", "Link Discord")
+            codeButton:FireEvent("refreshVoice", s)
+            deviceCodePanel:FireEvent("refreshVoice", s)
+
+            if not linked then
+                m_confirmUnlink = false
+            end
+            unlinkButton:SetClass("collapsed", not linked or m_confirmUnlink)
+            confirmPanel:SetClass("collapsed", not m_confirmUnlink)
+        end,
+
+        gui.Label{
+            bold = true,
+            fontSize = 16,
+            width = "auto",
+            height = "auto",
+            text = "Discord",
+        },
+        statusLabel,
+        benefitsLabel,
+        buttonRow,
+        deviceCodePanel,
+        confirmPanel,
+    }
+    return panel
 end

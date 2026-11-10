@@ -287,7 +287,7 @@ function CharacterToken:TryFall() end
 
 --- Move
 --- @param loc Loc The location to move to.
---- @param options {maxCost: nil|number, straightline: nil|boolean, ignorecreatures: nil|boolean, moveThroughFriends: nil|boolean, ignoreFalling: nil|boolean, movementType: nil|MovementType, jumpHeight: nil|number, freeMovement: nil|boolean, playerMovement: nil|boolean, chargeDistance: nil|number, chargeJumpLanding: nil|boolean, chargeJumpOutcome: nil|boolean, chargeJumpDistance: nil|number, objectSpeed: nil|number, objectEase: nil|'linear'|'in'|'out'|'inout'}
+--- @param options {maxCost: nil|number, straightline: nil|boolean, ignorecreatures: nil|boolean, moveThroughFriends: nil|boolean, ignoreFalling: nil|boolean, movementType: nil|MovementType, jumpHeight: nil|number, freeMovement: nil|boolean, playerMovement: nil|boolean, chargeDistance: nil|number, chargeJumpLanding: nil|boolean, chargeJumpOutcome: nil|boolean, chargeJumpDistance: nil|number, objectSpeed: nil|number, objectEase: nil|'linear'|'in'|'out'|'inout', flightAltitude: nil|number}
 --- jumpHeight (only meaningful with movementType='jump'): the jump distance in tiles; the mover clears height-limited walls up to this many tiles tall.
 --- freeMovement: this move is not the creature's move action, so it is exempt from the strict:movement remaining-budget clamp. Set it for ability-granted shifts and moves.
 --- playerMovement: the move was initiated directly by the user (e.g. the arrow keys). It is subject to the same gates as a mouse drag: the user must control the token, the game must not be frozen (unless the user is the Director), and under Strictly Enforce Movement Rules it must be this token's turn in combat. Returns nil when blocked.
@@ -462,7 +462,7 @@ function CharacterToken:CalculateMovementPerimeter(movementAllowance, args) end
 --- @return Loc[]
 function CharacterToken:CalculateJumpReachable(distance, jumpHeight) end
 
---- Draw a movement arrow. options.errorFrom (0-1) draws the arrow in the error color from that fraction of its length on (e.g. where a teleport loses line of effect). options.separate draws a new arrow of its own instead of replacing the one shared movement arrow, so several can show at once; Destroy() the result's marker to remove it (ClearMovementArrow does not). @see ClearMovementArrow to clear the movement arrow.
+--- Draw a movement arrow. options.errorFrom (0-1) draws the arrow in the error color from that fraction of its length on (e.g. where a teleport loses line of effect). options.separate draws a new arrow of its own instead of replacing the one shared movement arrow, so several can show at once; Destroy() the result's marker to remove it (ClearMovementArrow does not). options.flightAltitude (a flying token, pathfound move): the absolute altitude to climb or descend to over the move, spread across the squares crossed and clamped to the ground and ceiling at the destination; the path costs one extra square per square of climb beyond one per square moved, and path.destination carries the altitude it ends at. @see ClearMovementArrow to clear the movement arrow.
 --- @param targetLoc Loc
 --- @param options nil|table
 --- @return nil|{path: LuaPath, marker: nil|LuaMultiObjectReference, collideWith: nil|CharacterToken[], bounceCollisions: nil|{speed: number, collideWith: CharacterToken[], destination: Loc}[]}

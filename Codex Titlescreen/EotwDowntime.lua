@@ -453,10 +453,25 @@ end
 local m_projects = {}
 --scope -> a list request is in flight.
 local m_listing = {}
+--scope -> the City has answered a list of it on this connection.
+local m_listed = {}
 
 --A project's last known state, or nil before the first list.
 function EotwDowntime.GetProject(projectid)
     return m_projects[projectid]
+end
+
+--Is this community project hidden from the town? The City leaves a hidden
+--project (an admin's Hide, or one this server does not have) out of its
+--listing, so once the town's community projects are listed, an absent one
+--is hidden: its place in town, built or not, must not show. False until the
+--first listing arrives.
+function EotwDowntime.CommunityProjectHidden(projectid)
+    local project = EotwDowntime.PROJECTS[projectid]
+    if project == nil or project.scope ~= "community" then
+        return false
+    end
+    return m_listed.community == true and m_projects[projectid] == nil
 end
 
 --Drop every cached project. EotwRoster.Attach calls this for each new city
@@ -465,6 +480,7 @@ end
 function EotwDowntime.ForgetProjects()
     m_projects = {}
     m_listing = {}
+    m_listed = {}
     Bump()
 end
 
@@ -487,6 +503,14 @@ function EotwDowntime.RefreshProjects()
                         return
                     end
                     m_listing[scope] = false
+                    m_listed[scope] = true
+                    --the listing is the whole scope: a project it no longer
+                    --has (an admin hid it) leaves the cache.
+                    for id, state in pairs(m_projects) do
+                        if state.scope == scope then
+                            m_projects[id] = nil
+                        end
+                    end
                     for _, project in ipairs(result.projects or {}) do
                         m_projects[project.projectid] = project
                     end
@@ -3761,12 +3785,17 @@ local function DevHeroName(hero)
     return (tok ~= nil and tok.name) or (hero.summary or {}).name or hero.heroid
 end
 
---Change a roster hero's working copy and push it (dev commands only).
+--Change a roster hero's working copy and push it (dev commands and the
+--admin Set Hero Victories dialog). Returns false when the hero is not loaded.
+---@param hero table a roster hero view (EotwRoster.GetHeroes)
+---@param description string
+---@param execute fun(props: creature)
+---@return boolean
 local function DevModifyHero(hero, description, execute)
     local tok = dmhub.GetCharacterById(hero.heroid)
     if tok == nil or not EotwRoster.IsInStep(hero.heroid) then
         printf("EotW town (dev): %s is not loaded yet; try again in a moment", DevHeroName(hero))
-        return
+        return false
     end
     tok:ModifyProperties{
         description = description,
@@ -3780,7 +3809,9 @@ local function DevModifyHero(hero, description, execute)
             EotwRoster.PushHero(hero.heroid)
         end
     end)
+    return true
 end
+EotwDowntime.DevModifyHero = DevModifyHero
 
 local DEV_USAGE = [[Usage: /eotwdowntime <command> (open the town first)
   grant <n> [hero]      give n Downtime Activities (project rolls) to the hero, or to every hero at home

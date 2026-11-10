@@ -1305,6 +1305,36 @@ local function HasAutomaticTrigger(creatureProps, name)
     return false
 end
 
+--Manual trigger copies taken off a player's action bar entirely under Strictly
+--Enforce Action Economy, not just greyed. Hesitation Is Weakness by hand claims
+--the turn whenever it is pressed, so even its greyed chip invites trouble, and
+--its prompt already offers it at the one moment it is legal (6TTFJWFP). Lower
+--case ability names; only hidden while the creature has the automatic trigger.
+local g_manualTriggersHiddenUnderStrict = {
+    ["hesitation is weakness"] = true,
+}
+
+--- Should the action bar leave this ability out for this caster? True only for a
+--- player-controlled caster's manual copy of a listed trigger, under strict rules.
+--- @param ability ActivatedAbility
+--- @param casterToken CharacterToken|nil
+--- @return boolean
+function ActivatedAbility.HiddenUnderStrictActionEconomy(ability, casterToken)
+    if not g_manualTriggersHiddenUnderStrict[string.lower(ability.name or "")] then
+        return false
+    end
+    if not (ability:try_get("manualVersionOfTrigger", false) or ability.categorization == "Trigger") then
+        return false
+    end
+    if casterToken == nil or not casterToken.playerControlled or casterToken.properties == nil then
+        return false
+    end
+    if not StrictActionEconomyEnforced() then
+        return false
+    end
+    return HasAutomaticTrigger(casterToken.properties, ability.name)
+end
+
 --Cast gates: rules a game mode adds to stop players' creatures using
 --abilities by hand for a while (Encounter of the Week's "Arrange Your
 --Heroes" allows only Catch Breath and Null Field). A gate is

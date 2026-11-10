@@ -227,6 +227,7 @@ end
 queue.IsPlayersTurn = function() return false end
 queue.CurrentInitiativeId = function() return "monster" end
 queue.EntriesUnmoved = function() return {} end
+queue.IsEntryPlayer = function(_, id) return id == "hero" end
 dmhub.initiativeQueue = queue
 local runThread = assert(load(section("Monster AI/MonsterAIPanel.lua",
     "local function MonsterAIThread(process)", "--Programmatic start/stop") .. "\nreturn MonsterAIThread"))()

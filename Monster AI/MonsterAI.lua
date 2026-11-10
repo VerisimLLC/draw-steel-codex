@@ -3303,6 +3303,22 @@ function MonsterAI:HandlePrompt(invokerToken, casterToken, abilityClone, symbols
         end
     end
 
+    --Nobody plays the Director here, so a Director prompt would go to the
+    --host, who is one of the players: they were handed the Minotaur's
+    --retaliatory strike to choose (R6ATBX7P). Skip the choice instead; the
+    --invoke ends as if it were declined.
+    if dmhub.directorlessPlay == true then
+        self:LogDecision("PROMPT SKIPPED", {
+            ability = abilityClone.name,
+            prompt = #attemptedHandlers > 0 and table.concat(attemptedHandlers, ", ")
+                or string.format("%s:%s", invokerMonsterType, abilityClone.name),
+            reason = #attemptedHandlers > 0 and "registered handlers returned no automatic choice"
+                or "no registered AI prompt handler",
+            result = "skipped: no Director to ask",
+        })
+        return "skip"
+    end
+
     if #attemptedHandlers > 0 then
         self:LogDecision("PROMPT DEFERRED", {
             ability = abilityClone.name,
@@ -4027,6 +4043,28 @@ local function FindAbilityByName(abilities, name)
     return nil
 end 
 
+--Score weights (see MonsterAI.ScoreWeights): a copy of a move's scoring info
+--with its score multiplied by weight. A copy, because a score function may
+--hand back a table it keeps.
+local function WeightedScoringInfo(info, weight)
+    local result = {}
+    for key,value in pairs(info) do
+        result[key] = value
+    end
+    result.unweightedScore = info.score
+    result.scoreWeight = weight
+    result.score = info.score*weight
+    return result
+end
+
+--"" when the weight is 1, else " (weight 150%)", for the logs.
+local function ScoreWeightLogSuffix(weight)
+    if weight == 1 then
+        return ""
+    end
+    return string.format(" (weight %d%%)", math.floor(weight*100 + 0.5))
+end
+
 local function FindMaliceAbilityByName(token, name)
     for _,ability in ipairs(token.properties:GetActivatedAbilities()) do
         if ability.name == name and ability.categorization == "Malice" then
@@ -4520,7 +4558,11 @@ function MonsterAI:HandleMaliceAbilityStartOfTurnInternal(initiativeid, actingTo
                 for _,token in ipairs(eligibleCasters) do
                     if pass == 2 or not token.properties.minion then
                         local candidateAbility = FindMaliceAbilityByName(token, registration.abilities[1])
-                        if candidateAbility == nil then
+                        --the band shares its Malice: a monster weighted 0% for
+                        --this one never spends it, but another member may.
+                        if MonsterAI.ScoreWeight(token.properties, registration.id) <= 0 then
+                            RecordUnavailable(token, "has a 0% score weight for it")
+                        elseif candidateAbility == nil then
                             RecordUnavailable(token, "lacks " .. registration.abilities[1])
                         elseif not candidateAbility:CanAfford(token) then
                             RecordUnavailable(token, AIAbilityUnavailableReason(token, candidateAbility))
@@ -4576,20 +4618,28 @@ function MonsterAI:HandleMaliceAbilityStartOfTurnInternal(initiativeid, actingTo
                     end
 
                     if type(scoringInfo) == "table" and type(scoringInfo.score) == "number" then
-                        local score = math.max(0, math.min(1, scoringInfo.score))
+                        --the caster's score weight applies after the 0-1 clamp, so
+                        --a favored ability can clear the threshold more often.
+                        local weight = MonsterAI.ScoreWeight(caster.properties, registration.id)
+                        local score = math.max(0, math.min(1, scoringInfo.score))*weight
+                        if weight ~= 1 then
+                            scoringInfo = WeightedScoringInfo(scoringInfo, weight)
+                            scoringInfo.score = score
+                        end
                         local minimumScore = tonumber(registration.minimumScore) or self.maliceAbilityMinimumScore
                         local repeatPenalty = usedAbilities[MaliceAbilityHistoryKey(ability)]
                             and self.maliceAbilityRepeatPenalty or 0
                         local selectionScore = score - repeatPenalty
                         self:LogMove(caster.properties.monster_type, registration.id,
-                            string.format("Score %.2f; threshold %.2f; repeat penalty %.2f; selection %.2f",
-                                score, minimumScore, repeatPenalty, selectionScore))
+                            string.format("Score %.2f%s; threshold %.2f; repeat penalty %.2f; selection %.2f",
+                                score, ScoreWeightLogSuffix(weight), minimumScore, repeatPenalty, selectionScore))
                         self:LogDecision("MALICE CANDIDATE", {
                             category = self.MoveCategoryLogName(registration),
                             move = registration.id,
                             ability = ability.name,
                             action = self.AbilityActionLogName(ability),
                             score = score,
+                            weight = weight ~= 1 and weight or nil,
                             repeatPenalty = repeatPenalty,
                             selectionScore = selectionScore,
                             threshold = minimumScore,
@@ -6745,11 +6795,20 @@ function MonsterAI:FindBestSynthesizedAbilityMove(token, abilities, claimedAbili
     local best = nil
     local used = self:try_get("_tmp_synthesizedAbilitiesUsed", {})
     local failedMoves = self:try_get("_tmp_failedMoves", {})
+    local scoreWeights = MonsterAI.ScoreWeights(token.properties)
 
     for _,ability in ipairs(abilities) do
         local key = SynthesizedAbilityKey(ability)
         local moveid = SynthesizedMoveId(ability)
-        if not claimedAbilities[ability.name] and not used[key] and not failedMoves[moveid] then
+        local weight = scoreWeights[moveid] or 1
+        if weight <= 0 and not claimedAbilities[ability.name] then
+            self:SetMoveLogContext(token, {id = moveid, category = "Main Actions"})
+            self:LogMove(token.properties.monster_type, moveid, "Score weight is 0%", {onlyIfEmpty = true})
+            self:LogDecision("MOVE REJECTED", {
+                ability = ability.name,
+                reason = "its score weight is 0% for this monster",
+            })
+        elseif not claimedAbilities[ability.name] and not used[key] and not failedMoves[moveid] then
             local profile, profileReason = self:GetSynthesizedAbilityProfile(token, ability)
             local registration = {
                 id = moveid,
@@ -6776,16 +6835,17 @@ function MonsterAI:FindBestSynthesizedAbilityMove(token, abilities, claimedAbili
                     -- Malice on an area ability that only reaches one enemy.
                     if plan ~= nil and not (profile.targetType ~= "target"
                         and maliceCost > 0 and (plan.enemies or 0) < 2) then
-                        plan.score = ScoreSynthesizedAbilityPlan(token, ability, profile, plan)
+                        plan.score = ScoreSynthesizedAbilityPlan(token, ability, profile, plan)*weight
                         plan.ability = ability
                         plan.profile = profile
                         self:LogMove(token.properties.monster_type, moveid, string.format(
-                            "Score: %.2f (confidence %.2f; %s)",
-                            plan.score, profile.confidence, profile.reason))
+                            "Score: %.2f%s (confidence %.2f; %s)",
+                            plan.score, ScoreWeightLogSuffix(weight), profile.confidence, profile.reason))
                         self:LogDecision("MOVE CANDIDATE", {
                             ability = ability.name,
                             action = self.AbilityActionLogName(ability),
                             score = plan.score,
+                            weight = weight ~= 1 and weight or nil,
                             plan = self.ScoringPlanLogName(plan),
                             reason = string.format("synthesized at %.2f confidence from %s",
                                 profile.confidence, profile.reason),
@@ -6961,6 +7021,77 @@ function MonsterAI.ListsAnyMonsterType(monsters, types)
         end
     end
     return false
+end
+
+--Score weights -----------------------------------------------------------
+--A monster's properties can carry `aiScoreWeights`, a list of
+--{move = <move id>, weight = <multiplier>}. When the AI picks what to do on
+--its turn it multiplies that move's score by the weight, so an author can make
+--a monster favor a move (above 1) or avoid it (below 1; 0 = never use it).
+--Abilities the generic AI plans by itself use the id "Synthesized: <ability
+--name>" (MonsterAI.SynthesizedMoveId). Stored as a list rather than a map
+--keyed by id because move ids can hold characters a database key cannot.
+--Set in the Monster AI tab of the character sheet in an EotW authoring game.
+--Malice registrations are weighted by their id too, with the weight of the
+--monster that would spend it (HandleMaliceAbilityStartOfTurnInternal).
+--Villain actions and minion squad strikes are not weighted.
+
+MonsterAI.SynthesizedMoveId = SynthesizedMoveId
+
+--- The score weights set on a creature's properties, by move id. A move that
+--- is not in the result weighs 1.
+--- @param props any creature properties (a bestiary entry's work too)
+--- @return table<string, number>
+function MonsterAI.ScoreWeights(props)
+    local result = {}
+    local list = nil
+    if props ~= nil then
+        --try_get: object tokens' properties are not creatures.
+        pcall(function() list = props:try_get("aiScoreWeights") end)
+    end
+    if type(list) ~= "table" then
+        return result
+    end
+    for _,entry in ipairs(list) do
+        if type(entry) == "table" and type(entry.move) == "string"
+            and type(entry.weight) == "number" and entry.weight >= 0 then
+            result[entry.move] = entry.weight
+        end
+    end
+    return result
+end
+
+--- One move's score weight on a creature's properties (1 when none is set).
+--- @param props any
+--- @param moveid string
+--- @return number
+function MonsterAI.ScoreWeight(props, moveid)
+    return MonsterAI.ScoreWeights(props)[moveid] or 1
+end
+
+--- Set one move's score weight on a creature's properties; 1 removes it.
+--- Outside the character sheet, call it inside token:ModifyProperties.
+--- @param props any
+--- @param moveid string
+--- @param weight number
+function MonsterAI.SetScoreWeight(props, moveid, weight)
+    local list = {}
+    local weights = MonsterAI.ScoreWeights(props)
+    for id,value in pairs(weights) do
+        if id ~= moveid then
+            list[#list+1] = {move = id, weight = value}
+        end
+    end
+    if weight ~= 1 then
+        list[#list+1] = {move = moveid, weight = math.max(0, weight)}
+    end
+    --a stable order, so an unchanged list does not upload as a change.
+    table.sort(list, function(a, b) return a.move < b.move end)
+    if #list == 0 then
+        props.aiScoreWeights = nil
+    else
+        props.aiScoreWeights = list
+    end
 end
 
 function MonsterAI.MoveMatchesMonster(token, move, includeDisabled)
@@ -8245,6 +8376,9 @@ function MonsterAI:FindAndExecuteMove()
     --Scores every registered move and the synthesized fallback against
     --self.paths. Run twice for a creature avoiding opportunity attacks
     --(ChooseAvoidingOpportunityAttacks).
+    --the author's per-move score multipliers (MonsterAI.ScoreWeights).
+    local scoreWeights = MonsterAI.ScoreWeights(token.properties)
+
     local function ScoreMoves()
         local bestScore = {score = 0}
         local bestMove = nil
@@ -8255,6 +8389,7 @@ function MonsterAI:FindAndExecuteMove()
             local move = self.moves[moveid]
             local registeredForMonster = self.MoveMatchesMonster(token, move, true)
             local matchesMonster = registeredForMonster and self.MoveMatchesMonster(token, move)
+            local weight = scoreWeights[moveid] or 1
 
             local usingAbilities = {}
             if registeredForMonster and failedMoves[moveid] then
@@ -8269,6 +8404,14 @@ function MonsterAI:FindAndExecuteMove()
                 self:LogDecision("MOVE REJECTED", {
                     ability = self.AbilitiesLogName(move.abilities),
                     reason = "disabled for this monster in the Monster AI panel",
+                })
+            elseif matchesMonster and weight <= 0 then
+                matchesMonster = false
+                self:SetMoveLogContext(token, move)
+                self:LogMove(self.token.properties.monster_type, moveid, "Score weight is 0%", {onlyIfEmpty = true})
+                self:LogDecision("MOVE REJECTED", {
+                    ability = self.AbilitiesLogName(move.abilities),
+                    reason = "its score weight is 0% for this monster",
                 })
             elseif matchesMonster and move.abilities ~= nil then
                 for i=1,#move.abilities do
@@ -8317,12 +8460,12 @@ function MonsterAI:FindAndExecuteMove()
             end
 
             --A move only replaces the best when it scores strictly higher.
-            if matchesMonster and move.maxScore ~= nil and move.maxScore <= bestScore.score then
+            if matchesMonster and move.maxScore ~= nil and move.maxScore*weight <= bestScore.score then
                 ProfCount("moves skipped: cannot beat best")
                 self:SetMoveLogContext(token, move)
                 self:LogDecision("MOVE SKIPPED", {
                     ability = self.AbilitiesLogName(usingAbilities),
-                    score = move.maxScore,
+                    score = move.maxScore*weight,
                     reason = string.format("its maximum score cannot beat the best so far (%.3f)", bestScore.score),
                 })
                 self:LogMove(self.token.properties.monster_type, moveid,
@@ -8347,6 +8490,9 @@ function MonsterAI:FindAndExecuteMove()
                     usingAbilities[1], usingAbilities[2], usingAbilities[3])
                 self._tmp_strikePlans = nil
                 ProfEnd(scoreProf)
+                if ok and weight ~= 1 and type(score) == "table" and type(score.score) == "number" then
+                    score = WeightedScoringInfo(score, weight)
+                end
                 if not ok then
                     failedMoves[moveid] = true
                     self:LogDecision("MOVE ERROR", {
@@ -8357,11 +8503,13 @@ function MonsterAI:FindAndExecuteMove()
                     self:LogMove(self.token.properties.monster_type, moveid,
                         "Scoring failed: " .. tostring(score))
                 elseif type(score) == "table" and type(score.score) == "number" then
-                    self:LogMove(self.token.properties.monster_type, moveid, string.format("Score: %.2f", score.score))
+                    self:LogMove(self.token.properties.monster_type, moveid,
+                        string.format("Score: %.2f%s", score.score, ScoreWeightLogSuffix(weight)))
                     self:LogDecision("MOVE CANDIDATE", {
                         ability = self.AbilitiesLogName(usingAbilities),
                         action = self.AbilityActionsLogName(usingAbilities),
                         score = score.score,
+                        weight = weight ~= 1 and weight or nil,
                         plan = self.ScoringPlanLogName(score),
                         result = score.score > 0 and "legal candidate" or "non-positive score",
                     })

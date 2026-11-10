@@ -478,6 +478,11 @@ end
 --Build the Hall of Heroes)? Until then its place on the map is the
 --Construction.
 function EotwRoster.HallBuilt()
+    --a hidden project's building is not there, even if built (the City
+    --says so too; this covers the unlocks cached before it was hidden).
+    if EotwDowntime.CommunityProjectHidden("build-hall-of-heroes") then
+        return false
+    end
     if m_unlocks ~= nil and m_unlocks.hallOfHeroes == true then
         return true
     end
@@ -490,6 +495,11 @@ end
 --Has the town finished building the Town Hall (the community project Build
 --the Town Hall)? Until then its place on the map is a building site.
 function EotwRoster.TownHallBuilt()
+    --a hidden project's building is not there, even if built (the City
+    --says so too; this covers the unlocks cached before it was hidden).
+    if EotwDowntime.CommunityProjectHidden("build-town-hall") then
+        return false
+    end
     if m_unlocks ~= nil and m_unlocks.townHall == true then
         return true
     end
@@ -502,6 +512,11 @@ end
 --building site, and a respite Levels heroes up itself; once built, a
 --respite only banks XP and heroes Level up at the Training Grounds.
 function EotwRoster.TrainingGroundsBuilt()
+    --a hidden project's building is not there, even if built (the City
+    --says so too; this covers the unlocks cached before it was hidden).
+    if EotwDowntime.CommunityProjectHidden("build-training-grounds") then
+        return false
+    end
     if m_unlocks ~= nil and m_unlocks.trainingGrounds == true then
         return true
     end

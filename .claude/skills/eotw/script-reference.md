@@ -41,7 +41,7 @@ Everything is case-insensitive unless noted. A journal soft break
 | `# Narrative` | a story beat on the stage: sections, choices, votes |
 | `# Montage` | a montage of rounds: opportunities and threats, tests |
 | `# Negotiation: <NPC>` | a negotiation on the stage: arguments, clues, a deal |
-| `# Encounter` | the fight: setup instructions (traps, bystanders, an extra `Victory:`), then the `[[encounter]]` island, then any `## Reinforcements: <Name>` sections |
+| `# Encounter` | the fight: setup instructions (traps, bystanders, an extra `Victory:`, `Parallax:`, `Level:`), then the `[[encounter]]` island, then any `## Reinforcements: <Name>` sections |
 
 Not beats (can sit anywhere, including in a sub-document):
 
@@ -676,6 +676,22 @@ Trap: Place 4 Snare Trap objects in Trap zones and delete the other Trap zones.
   `enemy`/`monster`/`foe` means every enemy. Bystanders and allies never count,
   and reinforcements still to come do not either: clear the map and the fight
   is won before the next wave arrives.
+- **Parallax**: `Parallax: Slight` (or `None`/`Off`, `Normal`, `Pronounced`)
+  fixes the game's Parallax setting for the whole encounter -- narrative and
+  montage beats included, from the moment the heroes arrive. The host keeps it
+  applied; with no line the game's setting is left alone. Each part of a
+  series reads its own line, so Part 2 can turn parallax off and Part 3 back
+  on. A player's own Disable Parallax preference still wins on their screen.
+  An authoring test puts the old value back when it ends.
+- **Hero Level**: `Level: 2` (also `Hero Level:` / `Party Level:`, 1 to 10)
+  is the hero Level the fight is balanced for; with no line it is Level 1.
+  The game levels every monster by the party's average Level minus this (up
+  for a stronger party, down for a weaker one); the fraction left over levels
+  the strongest monsters (by EV) one more, until that fraction of the EV is
+  levelled. Reinforcement waves are levelled the same way, the opening fight
+  is re-levelled when heroes join late, and monsters an enemy summons
+  mid-fight move by the difference rounded (a 1.5 party in a Level 1
+  encounter meets Level 2 summons). Each part of a series reads its own line.
 - **Reinforcements**: a `## Reinforcements: <Name>` section, written AFTER the
   opening `[[encounter]]` and after every setup line (everything below it
   belongs to it until the next `##` or `#`):

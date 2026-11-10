@@ -83,8 +83,10 @@ Interview briefly (a few questions, not a form):
   reference, "Series" and "Carrying the story forward".
 
 Facts that shape the design:
-- **Party: 4 to 6 heroes, always exactly level 1** (the game normalizes every
-  hero to level 1 on arrival). Build the fight for level 1.
+- **Party: 4 to 6 heroes, at their own Levels.** Build the fight for one hero
+  Level (level 1 unless the author wants otherwise) and write it as `Level: N`
+  under `# Encounter` (no line = Level 1). The game levels the monsters up or
+  down to the party's average Level, so one build serves every party.
 - No Director: the Monster AI plays every monster, the game runs every beat.
 - Treasure: after a victory, every NON-consumable item a hero gained in the
   game (a montage reward, a chest on the map) goes home to town with them and
@@ -141,7 +143,7 @@ groups and saved positions. The author only has to put monsters on the map.
 1. **Choose the monsters** with the author: bestiary entries (toolkit monster
    search), counts for a 6-hero party, and how they group (groups take their
    turns together: a minion squad with its captain, a solo, a pair of elites).
-   Each hero is level 1 and worth 6 to the encounter budget (4 + 2 x level),
+   Each hero is worth 4 + 2 x level to the encounter budget (6 at level 1),
    so aim the EV (`enc:CountEDS()`) at the difficulty the author wants for 6
    heroes.
 2. **Place them** -- the friendliest way: the author drags each monster from the

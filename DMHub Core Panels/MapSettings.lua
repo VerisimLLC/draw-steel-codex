@@ -1290,6 +1290,14 @@ CreateMapSettings = function()
 			sections[#sections+1] = CreateSection("appearance", "Map Appearance", { appearance })
 		end
 
+		--Weather effects are map scripts tagged "weather" (MapWeather.lua); this
+		--is the same list as Map Scripts below, showing only those. rawget as
+		--for Map Scripts: they live in the Draw Steel module set.
+		local weatherScripts = rawget(_G, "MapScript")
+		if weatherScripts ~= nil then
+			sections[#sections+1] = CreateSection("weather", "Weather", { weatherScripts.CreateSettingsPanel{ tag = "weather" } })
+		end
+
 		local floorRows, floorCount = CreateFloorRows()
 		sections[#sections+1] = CreateSection("floors", "Floors", floorRows, { count = floorCount })
 

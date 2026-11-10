@@ -385,7 +385,7 @@ condition immunity. Y14 is not built (What happened already says the condition e
 ## Round 12: triggers and typed messages in Why (signed off 2026-11-08)
 
 The Why says that a trigger fired and what it changed; its rules sit behind a hover on its name (2.3d:
-small caps is the cue, per Round 15's hover note; the trigger's card; a monster's trigger shows its card to the Director only). This
+the brackets are the cue, per Round 15's hover note; the trigger's card; a monster's trigger shows its card to the Director only). This
 replaces R3 (Y11: "used a triggered action" / "Trigger: ..."); whether it cost a triggered action shows
 on its card. A trigger that changed the roll (an edge or bane) is 2.3c-3's, with the tier comparison,
 e.g. "Conduit's Word of Guidance / It gave an edge, which moved the roll from Tier 1 to Tier 2."
@@ -435,14 +435,15 @@ don't come to the recorded tier. Worked out when the card opens (James 2026-11-0
 
 James 2026-11-10: a source named "Target is Restrained" read as words, not a name, in "Target is
 Restrained gave an edge". Marking the name fixes it without changing the prose. Compared live: a tinted
-chip (flush and padded), bold, small caps, italic, gold. Small caps chosen: it reads as a game term,
-leaves bold to the lead, and leaves colour and underline free for the hover in 2.3d.
+chip (flush and padded), bold, small caps, italic, gold. Small caps chosen first; James then compared
+small caps with square brackets on the busy card (2026-11-10) and chose brackets: they show where a
+many-word name starts and ends, and in many games a bracketed name is one you can hover.
 | ID | Where | Text |
 |---|---|---|
-| G13 | Why, every rule or ability name (the tier line's parts, a modifier's lead, a trigger's lead) | The name in small caps; its owner stays plain: PRONE gave an edge. / Dwarf Fury's TWISTED. "Set by hand" and the plain "Trigger" lead are not names. The numbers keeps names plain. |
+| G13 | Why, every rule or ability name (the tier line's parts, a modifier's lead, a trigger's lead) | The name in square brackets; its owner stays outside: [Prone] gave an edge. / Dwarf Fury's [Twisted]. "Set by hand" and the plain "Trigger" lead are not names. The numbers keeps names plain. |
 
-Hover (James 2026-11-10, chosen over an underline at rest on a busy live render): small caps alone is
-the cue that a name can be hovered; every name with something to show hovers. The underline appears
+Hover (James 2026-11-10, chosen over an underline at rest on a busy live render): the name's mark alone
+(now the brackets) is the cue that a name can be hovered; every name with something to show hovers. The underline appears
 only under the name the pointer is on (the text engine draws no dotted underline). A modifier's hover
 shows the text the roll dialog's own hover showed (its name and description, formulas filled in for
 the roller, "Inflicted by"), recorded at the roll, each distinct text stored once per map; a

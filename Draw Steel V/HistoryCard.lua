@@ -975,17 +975,18 @@ local function TierValue(source)
     return nil
 end
 
---A rule's or ability's name inside the Why, in small caps so a name like "Target is
---Restrained" reads as one thing in the sentence around it (COPY.md Round 15).
+--A rule's or ability's name inside the Why, in square brackets so a name like "Target is
+--Restrained" reads as one thing in the sentence around it, and, as in many games, as
+--something that can be hovered (COPY.md Round 15).
 --- @param name string
 --- @return string
 local function WhyName(name)
-    return "<smallcaps>" .. name .. "</smallcaps>"
+    return "[" .. name .. "]"
 end
 
 --A source as the roll dialog named it: "Prone", "Reactor 1's Test 5", "Set by hand".
 --- @param source HistoryEdgeSource
---- @param why? boolean For a Why sentence: the name in small caps, its owner plain.
+--- @param why? boolean For a Why sentence: the name in brackets, its owner plain.
 --- @return string
 local function SourceText(source, why)
     if source.hand then
@@ -1846,8 +1847,8 @@ local function TierStory(roll, tier, natural, opts)
         return nil
     end
     local text = JoinClauses(clauses)
-    --capitalise the first letter, not the small caps tag in front of a name.
-    local tag = string.match(text, "^<smallcaps>") or ""
+    --capitalise the first letter, not the bracket in front of a name.
+    local tag = string.match(text, "^%[") or ""
     text = tag .. string.upper(string.sub(text, #tag + 1, #tag + 1)) .. string.sub(text, #tag + 2)
 
     if held then

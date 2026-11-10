@@ -306,6 +306,9 @@ Goal: why it happened, one click from the row.
   first letter after a leading tag. Offline: the 27 cases give the same words with the tags stripped.
   Live 2026-11-10: the real Prone Slam reads "PRONE gave an edge."; a fed card showed the tier lines
   and bold small caps modifier and trigger leads.
+- **2.3c-5b, names in brackets:** James compared small caps with square brackets on the busy card and
+  chose brackets (COPY.md Round 15): `WhyName` now writes "[Name]"; the tier line capitalises the first
+  letter after a leading bracket.
 - **2.3c-6, a target's line says only what differed (COPY.md Round 16, G14-G14b):** `TierLines` splits
   each target's sources into what applied to every target (counted as often as the target with fewest
   has it) and its own. The roll's line names the shared parts; a target's line names its own parts over

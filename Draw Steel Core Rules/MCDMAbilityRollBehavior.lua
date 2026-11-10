@@ -2050,6 +2050,10 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
             options.symbols.cast.boonsApplied = rollInfo.boons
             options.symbols.cast.banesApplied = rollInfo.banes
             options.symbols.cast.casterid = casterToken.id
+            --a roll the players could not see: History hides its numbers from them too (2.4).
+            local hiddenRoll = false
+            pcall(function() hiddenRoll = rollInfo.gmonly == true end)
+            options.symbols.cast.hiddenRoll = hiddenRoll or nil
         end,
 
         cancelRoll = function()

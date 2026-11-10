@@ -32,7 +32,7 @@ local mod = dmhub.GetModLoading()
 --- @field targets? HistoryCreature[] Who it was aimed at.
 --- @field ability? {name: string, icon: string|nil, action: string|nil, free: boolean|nil, area: boolean|nil} What was used.
 --- @field player? string On an action: the player who used it. Nil means the Director.
---- @field roll? {total: number, low: number|nil, high: number|nil, edges: number, banes: number, tier: number, natural: number|nil, characteristic: {name: string, value: number}|nil, bonus: number|nil, sources: HistoryEdgeSource[]|nil} The power roll. natural is the dice; bonus is what the total adds past the dice, the characteristic and an edge or bane; sources are what gave it its edges and banes.
+--- @field roll? {total: number, low: number|nil, high: number|nil, edges: number, banes: number, tier: number, natural: number|nil, characteristic: {name: string, value: number}|nil, bonus: number|nil, sources: HistoryEdgeSource[]|nil, hidden: boolean|nil, revealed: boolean|nil} The power roll. hidden: the players could not see it; revealed: the Director has since shown it to them. natural is the dice; bonus is what the total adds past the dice, the characteristic and an edge or bane; sources are what gave it its edges and banes.
 --- @field cause? string On an automatic trigger or a minions line: id of the cast behind it.
 --- @field landedby? HistoryCreature On an automatic trigger: the creature that fell on its target.
 --- @field aliases? string[] On an action: ids of casts inside it that have no row of their own.
@@ -52,7 +52,10 @@ local mod = dmhub.GetModLoading()
 --- @field recovered? string On a heal line: "winded" or "dying" if the heal ended it.
 --- @field name? string On a condition, save or persistence line: what it is about.
 --- @field names? string[] On an ended line: what ended.
---- @field ended? {who: HistoryCreature, names: string[]}[] On an encounter's closing line: what ended, by creature.
+--- @field ended? {who: HistoryCreature, names: string[], hidden: table<string, boolean>|nil}[] On an encounter's closing line: what ended, by creature.
+--- @field secret? boolean On a condition line: an effect hidden from enemies, on a creature off the heroes' side. Players don't see the line.
+--- @field hidden? table<string, boolean> On an ended line: names players may not see.
+--- @field secretroll? boolean For a player only: the roll was hidden from players, so it was taken out (History.Entry).
 --- @field icon? string On a condition line: its icon.
 --- @field iscondition? boolean On a condition line: a condition, not some other effect.
 --- @field duration? string On a condition line: "save ends", "EoT" or "EoE".
@@ -309,15 +312,104 @@ end
 --until the map changes, which is a few hundred small tables at worst.
 local g_parsed = {}
 local g_parsedMap = nil
+--Whether the entries in g_parsed were cut down for a player (History.Entry).
+local g_parsedForPlayers = nil
+
+--A list of names without the ones in hidden; nil when none are left.
+local function WithoutHidden(names, hidden)
+    if names == nil or hidden == nil then
+        return names
+    end
+    local kept = {}
+    for _, name in ipairs(names) do
+        if not hidden[name] then
+            kept[#kept + 1] = name
+        end
+    end
+    return #kept > 0 and kept or nil
+end
+
+--Drops the hover text ids from roll sources or damage parts.
+local function WithoutHovers(list)
+    for _, item in ipairs(list or {}) do
+        item.hover = nil
+    end
+end
+
+--Cuts an entry down to what players may see (2.4, REVIEW.md B5: players see what they
+--saw live). Done once as it is parsed, so no view can show more by mistake. Nil when
+--nothing of it is left to show.
+--- @param entry HistoryEntry
+--- @return HistoryEntry|nil
+local function ForPlayers(entry)
+    --effects hidden from enemies, on a creature off the heroes' side.
+    if entry.family == "condition" and entry.secret then
+        return nil
+    end
+    if entry.family == "ended" then
+        entry.names = WithoutHidden(entry.names, entry.hidden)
+        if entry.names == nil then
+            return nil
+        end
+    end
+    if entry.ended ~= nil then
+        local kept = {}
+        for _, item in ipairs(entry.ended) do
+            local names = WithoutHidden(item.names, item.hidden)
+            if names ~= nil then
+                item.names = names
+                kept[#kept + 1] = item
+            end
+        end
+        entry.ended = kept
+    end
+    local hiddenRoll = entry.roll ~= nil and entry.roll.hidden and not entry.roll.revealed
+    if hiddenRoll then
+        entry.roll = nil
+        entry.secretroll = true
+    end
+    --the roll dialog behind a monster's roll was the Director's: players never saw its hovers.
+    local monster = entry.actor ~= nil and not entry.actor.hero
+    if monster and entry.roll ~= nil then
+        WithoutHovers(entry.roll.sources)
+    end
+    for _, who in ipairs(entry.targets or {}) do
+        if who.conds ~= nil then
+            local kept = {}
+            for _, condition in ipairs(who.conds) do
+                if not condition.secret then
+                    kept[#kept + 1] = condition
+                end
+            end
+            who.conds = #kept > 0 and kept or nil
+        end
+        who.ended = WithoutHidden(who.ended, who.endedhidden)
+        if hiddenRoll then
+            --the tier, its own roll and what made its damage all come from the roll.
+            who.tier = nil
+            who.roll = nil
+            who.sources = nil
+            who.parts = nil
+        elseif monster then
+            WithoutHovers(who.sources)
+            WithoutHovers(who.roll ~= nil and who.roll.sources or nil)
+            WithoutHovers(who.parts)
+        end
+    end
+    return entry
+end
 
 --- One entry, parsed on first use. Nil if the key is gone or the entry is unreadable.
 --- @param mapid string
 --- @param key string
 --- @return HistoryEntry|nil
 function History.Entry(mapid, key)
-    if g_parsedMap ~= mapid then
+    --a Director looking through a token's eyes sees what a player would.
+    local forPlayers = not MonsterKnowledge.LocalUserSeesAll()
+    if g_parsedMap ~= mapid or g_parsedForPlayers ~= forPlayers then
         g_parsed = {}
         g_parsedMap = mapid
+        g_parsedForPlayers = forPlayers
     end
     local entries = mod:GetDocumentSnapshot(History.DocId(mapid)).data.entries
     local raw = type(entries) == "table" and entries[key] or nil
@@ -330,7 +422,11 @@ function History.Entry(mapid, key)
         if not ok or not decoded.success then
             return nil
         end
-        parsed = {raw = raw, entry = decoded.result}
+        local entry = decoded.result
+        if forPlayers then
+            entry = ForPlayers(entry)
+        end
+        parsed = {raw = raw, entry = entry}
         g_parsed[key] = parsed
     end
     return parsed.entry

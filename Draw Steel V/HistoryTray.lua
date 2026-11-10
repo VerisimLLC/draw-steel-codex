@@ -1326,6 +1326,7 @@ local function BuildLine(item)
     end
 
     --opacity does not reach a panel's children, so an undone line fades by its text colour.
+    --- @type Panel[]
     local top = {
         gui.Label{
             classes = {cond(entry.undone, "historyUndone", "historyLineText")},
@@ -1339,6 +1340,18 @@ local function BuildLine(item)
         },
     }
     top[2] = tag
+    --an effect hidden from enemies: players don't get this line, or these names (2.4).
+    if dmhub.isDM and (entry.secret or (entry.hidden ~= nil and next(entry.hidden) ~= nil)) then
+        top[#top + 1] = gui.VisibilityPanel{
+            visible = false,
+            width = 14,
+            height = 14,
+            lmargin = 5,
+            halign = "left",
+            valign = "center",
+            linger = gui.Tooltip("Hidden from players"),
+        }
+    end
 
     local words = {
         gui.Panel{

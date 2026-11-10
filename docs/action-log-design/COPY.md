@@ -482,3 +482,18 @@ tiers is not shared. Order: modifiers, surges, weakness; what lowered it after "
 | G15a | Why text, what raised it | [Empyrean Boon] added 10 holy / [Upholding High Standards] added 2 / 2 surges added 2 each (Dwarf Fury's highest characteristic, Might 2) / 1 surge added 2 (...) / fire weakness 3 added 3 |
 | G15b | Why text, what lowered it, after ", but" | holy immunity 5 took 5 off / damage immunity 2 took 2 off / [Name] took 2 off |
 | G15c | Why lead, a target's damage line | 15 damage to Goblin 2, down from 20 ("from" is what the shared line gave that target) |
+
+## Round 18: what players see (signed off 2026-11-10)
+
+The rule (REVIEW.md B5, James 2026-11-10): with Monster Info off, players see what the Action Log
+shows them; with it on, also what Monster Info has revealed. Immunity and weakness always show (the
+damage gives them away). A monster's ability card shows only with Monster Info on and that ability
+revealed; modifier hovers on a monster's roll never reach players; monster triggers stay Director only.
+Effects hidden from enemies, on a creature off the heroes' side, don't reach players.
+| ID | Where | Text |
+|---|---|---|
+| Z10 | The numbers, a monster's power roll | Its characteristic is not named: the stat block gives a flat number, so it joins the Bonus line ("Bonus .... +2"), for everyone. |
+| Z11 | The numbers, a roll hidden from players | Rolled in secret. (players: in place of the roll, with no tier lines in the Why; Director: above the numbers, after an eye) |
+| Z11a | Z11's eye, Director | tooltip: Hidden from players / Visible to everyone (the Action Log's words); clicking shows the roll to players or hides it again |
+| L28 | Secret modifier, Director (built here) | The name with an eye after it, tooltip: Hidden from players |
+| L28a | An effect hidden from enemies, Director's History line | the line with an eye after it, tooltip: Hidden from players |

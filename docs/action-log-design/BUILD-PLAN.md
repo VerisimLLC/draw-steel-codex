@@ -357,6 +357,21 @@ Goal: why it happened, one click from the row.
   20 / Holy immunity 5 took 5 off." Known limit: History records what immunity took off, not the
   creature's immunity value, so capped immunity names the amount it took ("holy immunity 3").
 
+- **2.4, what players see (COPY.md Round 18):** History.Entry cuts each entry down for a player as it is
+  parsed (ForPlayers in History.lua), so no view can show more by mistake; a Director looking through a
+  token's eyes gets the same cut (MonsterKnowledge.LocalUserSeesAll). Cut: condition lines and names of
+  effects hidden from enemies on a creature off the heroes' side (captured as `secret` / `hidden`); a
+  roll hidden from players (the roll message's gmonly, captured on the cast as hiddenRoll) loses its roll,
+  tiers, own rolls and damage parts and gets `secretroll`; a monster's roll loses its modifier hovers.
+  The card title brackets a monster's ability only with Monster Info on and the ability revealed. A
+  monster's characteristic joins Bonus for everyone. The Director's eye on "Rolled in secret." rewrites
+  the entry with roll.revealed.
+- **Tested 2.4:** a real Bifurcated Incineration rolled hidden (privaterolls dm) and revealed with the
+  eye; Not What I Seem on Custom Target Test 2; the player view by swapping LocalUserSeesAll over the
+  bridge (dmhub.isDM stays true, so Malice and DM-only bits still showed there). Not tried live: the L28
+  eye (no unrevealed spoiler modifier on the map), a monster ability card with Monster Info on, a real
+  second client.
+
 ## Stage 3: getting to it
 
 | Chunk | What | Size |

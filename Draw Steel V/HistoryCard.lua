@@ -718,6 +718,30 @@ local function Linked(args)
     return args
 end
 
+--- Whether the local user may see the card of an ability this creature used. A hero's,
+--- always. A monster's, as the Action Log shows players nothing of it: only with Monster Info
+--- on and that ability revealed (using it reveals it). The Director sees every card.
+--- @param actor HistoryCreature
+--- @param name string
+--- @return boolean
+local function PlayersMaySeeAbility(actor, name)
+    if MonsterKnowledge.LocalUserSeesAll() then
+        return true
+    end
+    if actor.secret then
+        return false
+    end
+    if actor.hero then
+        return true
+    end
+    if not MonsterKnowledge.Enabled() then
+        return false
+    end
+    local token = dmhub.GetTokenById(actor.id)
+    local key = token ~= nil and MonsterKnowledge.KeyForToken(token) or nil
+    return key ~= nil and MonsterKnowledge.IsRevealed(key, MonsterKnowledge.EntryKey("ability", name))
+end
+
 local function Header(entry, width, inTray, close)
     local children = {}
     local titleWidth = width - 12 - 8 - 22
@@ -749,7 +773,7 @@ local function Header(entry, width, inTray, close)
         --when the card can be found, and not for a creature whose name players may not see.
         local name = entry.ability.name
         local actor = entry.actor
-        if not (actor.secret and not dmhub.isDM) and AbilityCard(actor.id, name, g_cardSide) ~= nil then
+        if PlayersMaySeeAbility(actor, name) and AbilityCard(actor.id, name, g_cardSide) ~= nil then
             name = HoverLink("[" .. name .. "]", string.format("a|%s|%s|%s", actor.id, name, g_cardSide or ""),
                 {kind = "ability", owner = actor.id, name = name, side = g_cardSide})
         end
@@ -990,7 +1014,7 @@ end
 
 --One line of the receipt. lead is panels before the label (dice, arrows, a face); a total
 --sits under a line; struck crosses out the label and value of something that did not count.
---- @param args {label: string|nil, lead: Panel[]|nil, aside: string|nil, badge: integer|nil, value: string|nil, valueClass: string|nil, labelClass: string|nil, total: boolean|nil, struck: boolean|nil}
+--- @param args {label: string|nil, lead: Panel[]|nil, aside: string|nil, eye: Panel|nil, badge: integer|nil, value: string|nil, valueClass: string|nil, labelClass: string|nil, total: boolean|nil, struck: boolean|nil}
 local function ReceiptLine(width, args)
     local left = {}
     for _, panel in ipairs(args.lead or {}) do
@@ -1010,6 +1034,7 @@ local function ReceiptLine(width, args)
             valign = "center",
         })
     end
+    left[#left + 1] = args.eye
     if args.aside ~= nil then
         left[#left + 1] = gui.Label{
             classes = {"historyReceiptAside"},
@@ -1200,6 +1225,28 @@ local function RemovedReason(sources, side)
     return string.upper(string.sub(reason, 1, 1)) .. string.sub(reason, 2)
 end
 
+--The Director's mark on a modifier players see only as a redaction bar (L28): an eye with
+--"Hidden from players". Nil for everyone else, and once the Director has revealed it.
+--- @param name string The modifier's name as recorded, spoiler markup kept.
+--- @return Panel|nil
+local function SpoilerEye(name)
+    if not dmhub.isDM or not PowerRollSpoilers.HasSpoiler(name) then
+        return nil
+    end
+    if PowerRollSpoilers.IsRevealed(PowerRollSpoilers.Key(name), PowerRollSpoilers.DefaultRevealed(name)) then
+        return nil
+    end
+    return gui.VisibilityPanel{
+        visible = false,
+        width = 14,
+        height = 14,
+        lmargin = 5,
+        halign = "left",
+        valign = "center",
+        linger = gui.Tooltip("Hidden from players"),
+    }
+end
+
 --One thing that changed the roll's edges or banes, under the line it changed (C5): its
 --arrows, its owner's face, and its name as the roll dialog showed it.
 --- @param source HistoryEdgeSource
@@ -1233,6 +1280,7 @@ local function SourceLine(width, source, side, struck, remover)
         halign = "left",
         valign = "center",
     })
+    children[#children + 1] = SpoilerEye(source.name or "")
     return gui.Panel{
         flow = "horizontal",
         width = width - SOURCE_INDENT,
@@ -1354,7 +1402,7 @@ local function AddEdgeLines(rows, width, edges, banes, forTarget, sources)
                 face.selfStyle.halign = "left"
                 lead = {face}
             end
-            rows[#rows + 1] = ReceiptLine(width, {lead = lead, label = SourceText(source), value = value})
+            rows[#rows + 1] = ReceiptLine(width, {lead = lead, label = SourceText(source), eye = SpoilerEye(source.name or ""), value = value})
         end
     end
 end
@@ -1408,7 +1456,7 @@ local function DamagePartLine(width, part)
         lead = {face}
         text = string.format("%s's %s", History.ShownName(part.who), text)
     end
-    return ReceiptLine(width, {lead = lead, label = text, value = Signed(part.amount)})
+    return ReceiptLine(width, {lead = lead, label = text, eye = SpoilerEye(part.name or ""), value = Signed(part.amount)})
 end
 
 --One target's sum: its own roll if it had one, what the tier dealt, what changed it, and
@@ -1530,6 +1578,51 @@ local function ReceiptKey(who)
         table.concat(parts, ","))
 end
 
+--"Rolled in secret." for a roll hidden from players. The Director's copy carries an eye that
+--shows the roll's numbers to players, or hides them again.
+--- @param entry HistoryEntry
+--- @param width number
+--- @return Panel
+local function SecretRollRow(entry, width)
+    local children = {}
+    local roll = entry.roll
+    if roll ~= nil and roll.hidden then
+        children[1] = gui.VisibilityPanel{
+            visible = roll.revealed == true,
+            width = 14,
+            height = 14,
+            rmargin = 6,
+            halign = "left",
+            valign = "center",
+            click = function(element)
+                roll.revealed = (not roll.revealed) or nil
+                History.Rewrite(entry)
+                element:FireEvent("visible", roll.revealed == true)
+            end,
+            linger = function(element)
+                gui.Tooltip(roll.revealed and "Visible to everyone" or "Hidden from players")(element)
+            end,
+        }
+    end
+    children[#children + 1] = gui.Label{
+        classes = {"historyReceiptAside"},
+        text = "Rolled in secret.",
+        width = "auto",
+        height = "auto",
+        halign = "left",
+        valign = "center",
+    }
+    return gui.Panel{
+        flow = "horizontal",
+        width = width,
+        height = "auto",
+        vpad = 2,
+        borderBox = true,
+        halign = "left",
+        children = children,
+    }
+end
+
 --- The receipt's rows for an action entry; empty when it has nothing to add up.
 --- @param entry HistoryEntry
 --- @param kids HistoryEntry[]|nil
@@ -1540,16 +1633,28 @@ local function NumbersRows(entry, kids, width)
     local rows = {}
     local targets = entry.targets or {}
 
+    --a roll hidden from players: they get this line instead of its numbers (2.4); the
+    --Director gets it above the numbers, with the eye that shows them to players.
+    if entry.secretroll or (entry.roll ~= nil and entry.roll.hidden) then
+        rows[#rows + 1] = SecretRollRow(entry, width)
+    end
+
     local roll = entry.roll
     if roll ~= nil then
         rows[#rows + 1] = SubHead("Power roll", width)
         if roll.natural ~= nil and roll.low ~= nil and roll.high ~= nil then
             rows[#rows + 1] = ReceiptLine(width, {lead = {Die(roll.low), Die(roll.high)}, value = tostring(roll.natural)})
-            if roll.characteristic ~= nil then
+            --a monster's stat block gives its roll a flat number, not a characteristic, so its
+            --characteristic goes into Bonus (James 2026-11-10).
+            local monster = entry.actor ~= nil and not entry.actor.hero
+            if roll.characteristic ~= nil and not monster then
                 rows[#rows + 1] = ReceiptLine(width, {label = roll.characteristic.name, value = Signed(roll.characteristic.value)})
             end
             --a bonus a modifier gave has its own line under the edges (Z9); this is the rest.
             local bonus = roll.bonus or 0
+            if monster and roll.characteristic ~= nil then
+                bonus = bonus + roll.characteristic.value
+            end
             for _, source in ipairs(roll.sources or {}) do
                 bonus = bonus - (source.bonus or 0)
             end
@@ -2494,6 +2599,10 @@ function History.Why(entry, kids)
 
     --G6: only when the roll and the damage are exactly what the tier says. A kit is the
     --hero's normal damage, so it doesn't count as a change.
+    --a player doesn't know what changed a roll hidden from them.
+    if entry.secretroll then
+        return rows
+    end
     local acted = roll ~= nil
     local changed = roll ~= nil and ((roll.edges or 0) > 0 or (roll.banes or 0) > 0 or (roll.sources ~= nil and #roll.sources > 0))
     for _, who in ipairs(targets) do

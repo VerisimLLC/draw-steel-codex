@@ -30,8 +30,9 @@ local mod = dmhub.GetModLoading()
 --- @field immunity? {damagetype: string, amount: number} On a target: what immunity took off, or weakness added (negative).
 --- @field parts? HistoryDamagePart[] On a target: what made its damage besides the tier, in the order it applied.
 --- @field pool? {before: number, after: number} On a target: temporary Stamina that grew.
---- @field conds? {name: string, icon: string|nil, duration: string|nil, iscondition: boolean|nil}[] On a target: conditions and effects it started.
+--- @field conds? {name: string, icon: string|nil, duration: string|nil, iscondition: boolean|nil, secret: boolean|nil}[] On a target: conditions and effects it started; secret ones are hidden from players.
 --- @field ended? string[] On a target: names of what it ended.
+--- @field endedhidden? table<string, boolean> On a target: names in ended that players may not see.
 --- @field endedconds? table<string, boolean> On a target: which of those names are conditions.
 --- @field immune? string[] On a target: conditions that its immunity stopped.
 --- @field resisted? boolean|string On a target: it resisted a potency test. A string names the condition it escaped.
@@ -471,6 +472,7 @@ local function AddRoll(entry, cast, ability, caster)
         edges = cast.boonsApplied,
         banes = cast.banesApplied,
         tier = cast.tier,
+        hidden = cast:try_get("hiddenRoll"),
     }
     --what the dice add up to and what is added to them, for the receipt (2.2). The rest of
     --the total past the dice, the characteristic and an edge or bane is a flat bonus.
@@ -850,8 +852,10 @@ local DURATION_WORDS = {
 }
 
 --The name and icon History shows for a condition or an effect. Nil for one it leaves
---out: effects hidden from everyone, and markers that only track rules.
-local function EffectFacts(item)
+--out: effects hidden from everyone, and markers that only track rules. secret marks an
+--effect hidden from enemies on a creature off the heroes' side: players don't see it (2.4).
+--- @param token CharacterToken|nil Whose effect it is.
+local function EffectFacts(item, token)
     if item.conditionid ~= nil then
         local info = GetTableCached(CharacterCondition.tableName)[item.conditionid]
         if info == nil then
@@ -863,15 +867,16 @@ local function EffectFacts(item)
     if info == nil or not info.statusEffect or info.hiddenFromHistory then
         return nil
     end
-    return {name = info.name, icon = info.iconid, iscondition = info.condition ~= "none" or nil}
+    local secret = info.hiddenFromEnemies and token ~= nil and not History.Creature(token).hero
+    return {name = info.name, icon = info.iconid, iscondition = info.condition ~= "none" or nil, secret = secret or nil}
 end
 
 local function OnEffectStarted(creature, info)
     if not History.Enabled() then
         return
     end
-    local facts = EffectFacts(info)
     local token = dmhub.LookupToken(creature)
+    local facts = EffectFacts(info, token)
     if facts == nil or token == nil then
         return
     end
@@ -895,7 +900,8 @@ end
 local g_endedFrame = nil
 local g_endedLines = {}
 
-local function WriteEnded(token, names, causetext)
+--- @param hidden table<string, boolean>|nil Names players may not see.
+local function WriteEnded(token, names, causetext, hidden)
     local frame = dmhub.FrameCount()
     if g_endedFrame ~= frame then
         g_endedFrame = frame
@@ -906,10 +912,14 @@ local function WriteEnded(token, names, causetext)
     if entry ~= nil then
         for _, name in ipairs(names) do
             entry.names[#entry.names + 1] = name
+            if hidden ~= nil and hidden[name] then
+                entry.hidden = entry.hidden or {}
+                entry.hidden[name] = true
+            end
         end
         return
     end
-    g_endedLines[key] = WriteLine(token, "ended", {names = names, causetext = causetext})
+    g_endedLines[key] = WriteLine(token, "ended", {names = names, causetext = causetext, hidden = hidden})
 end
 
 --The closing line of each encounter, while its creatures report what ended (L17).
@@ -1102,11 +1112,17 @@ local function OnEffectsEnded(creature, ended, cause)
     end
     local names = {}
     local conditions = {}
+    --names players may not see, kept beside each list of names as `hidden`.
+    local hidden = nil
     for _, item in ipairs(ended) do
-        local facts = EffectFacts(item)
+        local facts = EffectFacts(item, token)
         if facts ~= nil then
             names[#names + 1] = facts.name
             conditions[facts.name] = facts.iscondition
+            if facts.secret then
+                hidden = hidden or {}
+                hidden[facts.name] = true
+            end
         end
     end
     --the save's own line already says it ended.
@@ -1117,7 +1133,7 @@ local function OnEffectsEnded(creature, ended, cause)
     if cause == "endofencounter" then
         local closing = ClosingEntry(token)
         if closing ~= nil then
-            closing.ended[#closing.ended + 1] = {who = History.Creature(token), names = names}
+            closing.ended[#closing.ended + 1] = {who = History.Creature(token), names = names, hidden = hidden}
         end
         return
     end
@@ -1141,13 +1157,17 @@ local function OnEffectsEnded(creature, ended, cause)
                 for _, name in ipairs(names) do
                     target.ended[#target.ended + 1] = name
                     target.endedconds[name] = conditions[name]
+                    if hidden ~= nil and hidden[name] then
+                        target.endedhidden = target.endedhidden or {}
+                        target.endedhidden[name] = true
+                    end
                 end
             end
             return
         end
         causetext = Cause(nil)
     end
-    WriteEnded(token, names, causetext)
+    WriteEnded(token, names, causetext, hidden)
 end
 
 local function OnConditionImmune(creature, conditionid)

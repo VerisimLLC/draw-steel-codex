@@ -975,14 +975,26 @@ local function TierValue(source)
     return nil
 end
 
+--A rule's or ability's name inside the Why, in small caps so a name like "Target is
+--Restrained" reads as one thing in the sentence around it (COPY.md Round 15).
+--- @param name string
+--- @return string
+local function WhyName(name)
+    return "<smallcaps>" .. name .. "</smallcaps>"
+end
+
 --A source as the roll dialog named it: "Prone", "Reactor 1's Test 5", "Set by hand".
 --- @param source HistoryEdgeSource
+--- @param why? boolean For a Why sentence: the name in small caps, its owner plain.
 --- @return string
-local function SourceText(source)
+local function SourceText(source, why)
     if source.hand then
         return "Set by hand"
     end
     local text = SpoilerName(source.name)
+    if why then
+        text = WhyName(text)
+    end
     if source.who ~= nil then
         text = string.format("%s's %s", History.ShownName(source.who), text)
     end
@@ -1622,7 +1634,7 @@ local function PartClauses(part, parts, mentioned)
             if source.hand then
                 hand = hand + (source[gaveField] or 0)
             else
-                names[#names + 1] = SourceText(source)
+                names[#names + 1] = SourceText(source, true)
                 named = named + (source[gaveField] or 0)
             end
         end
@@ -1640,7 +1652,7 @@ local function PartClauses(part, parts, mentioned)
         local field = side == "edge" and "removedEdges" or "removedBanes"
         local names, removed, ignored = {}, 0, true
         for _, source in ipairs(part.sources) do
-            names[#names + 1] = SourceText(source)
+            names[#names + 1] = SourceText(source, true)
             removed = removed + (source[field] or 0)
             ignored = ignored and source.ignore == true
         end
@@ -1672,11 +1684,11 @@ local function PartClauses(part, parts, mentioned)
         elseif source.nottierthree then
             did = "kept it from Tier 3"
         end
-        return {SourceText(source) .. " " .. did}
+        return {SourceText(source, true) .. " " .. did}
     end
     if part.kind == "bonus" then
         local bonus = source.bonus or 0
-        return {string.format(bonus > 0 and "%s added %d to the roll" or "%s took %d off the roll", SourceText(source), math.abs(bonus))}
+        return {string.format(bonus > 0 and "%s added %d to the roll" or "%s took %d off the roll", SourceText(source, true), math.abs(bonus))}
     end
     return {"a natural 19 or 20 is always Tier 3"}
 end
@@ -1793,7 +1805,9 @@ local function TierStory(roll, tier, natural)
         return nil
     end
     local text = JoinClauses(clauses)
-    text = string.upper(string.sub(text, 1, 1)) .. string.sub(text, 2)
+    --capitalise the first letter, not the small caps tag in front of a name.
+    local tag = string.match(text, "^<smallcaps>") or ""
+    text = tag .. string.upper(string.sub(text, #tag + 1, #tag + 1)) .. string.sub(text, #tag + 2)
 
     if held then
         --what took edges or banes away comes first, so its "it" sits next to them.
@@ -1900,7 +1914,7 @@ function History.Why(entry, kids)
         local key = string.format("modifier|%s|%s|%d|%s", part.name or "", part.who ~= nil and part.who.id or "",
             part.amount, part.damagetype or "")
         Add(key, function(group)
-            local lead = SpoilerName(part.name or "")
+            local lead = WhyName(SpoilerName(part.name or ""))
             if part.who ~= nil then
                 lead = string.format("%s's %s", History.ShownName(part.who), lead)
             end
@@ -2004,10 +2018,12 @@ function History.Why(entry, kids)
         if name ~= nil and effect ~= nil then
             --some content names a trigger with its whole rule ("Whenever a creature rolls a
             --natural 2 ..."); that reads badly as a lead, so it says "trigger" (G7a).
-            local lead = name
+            local lead = WhyName(name)
             if string.find(name, "[%.!?]%s*$") ~= nil or #name > TRIGGER_NAME_MAX then
                 lead = "Trigger"
                 name = "trigger"
+            else
+                name = lead
             end
             rows[#rows + 1] = {
                 lead = owner ~= nil and string.format("%s's %s", History.ShownName(owner), name) or lead,

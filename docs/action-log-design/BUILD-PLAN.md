@@ -299,6 +299,12 @@ Goal: why it happened, one click from the row.
   something against the other side; removers lead the "but" clause). The numbers shows "Rune of
   Striking +2" after the edges and Bonus +1 for the rest. Not tried live: a real flat bonus in the
   roll dialog (no modifier on the map adds one); its ParseRoll measure was checked on the bridge.
+- **2.3c-5, names in small caps (COPY.md Round 15, G13):** every rule or ability name the Why prints
+  (the tier line's parts, modifier and trigger leads) goes through `WhyName`, which wraps it in
+  `<smallcaps>`; owners, "Set by hand" and The numbers stay plain. The tier line capitalises the
+  first letter after a leading tag. Offline: the 27 cases give the same words with the tags stripped.
+  Live 2026-11-10: the real Prone Slam reads "PRONE gave an edge."; a fed card showed the tier lines
+  and bold small caps modifier and trigger leads.
 
 ## Stage 3: getting to it
 

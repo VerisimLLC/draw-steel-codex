@@ -430,3 +430,13 @@ don't come to the recorded tier. Worked out when the card opens (James 2026-11-0
 | G12c | Why text, joining | parts joined with ", and" (A, B, and C); the other side after ", but ". e.g. Prone gave an edge, but Twisted ignored it. |
 | G12d | Why text, set by hand (signed off 2026-11-10) | An edge was set by hand. / Prone gave an edge, and another was set by hand. |
 | Z9 | The numbers, a modifier's flat bonus (after the edge and bane lines, with Z8; a trigger's with its owner's face) | {name} .... +2 / -2. The "Bonus" line under the characteristic keeps only what no modifier accounts for. |
+
+## Round 15: names in the Why (signed off 2026-11-10)
+
+James 2026-11-10: a source named "Target is Restrained" read as words, not a name, in "Target is
+Restrained gave an edge". Marking the name fixes it without changing the prose. Compared live: a tinted
+chip (flush and padded), bold, small caps, italic, gold. Small caps chosen: it reads as a game term,
+leaves bold to the lead, and leaves colour and underline free for the hover in 2.3d.
+| ID | Where | Text |
+|---|---|---|
+| G13 | Why, every rule or ability name (the tier line's parts, a modifier's lead, a trigger's lead) | The name in small caps; its owner stays plain: PRONE gave an edge. / Dwarf Fury's TWISTED. "Set by hand" and the plain "Trigger" lead are not names. The numbers keeps names plain. |

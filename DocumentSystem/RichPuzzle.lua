@@ -535,7 +535,7 @@ end
 ---@param id string
 ---@param onTypeChosen fun(typeid: string)
 ---@return Panel
-local function SetupPanel(id, onTypeChosen)
+function Puzzle.SetupPanel(id, onTypeChosen)
     local def = Puzzle.GetType(id)
     local config = Puzzle.ReadConfig(id)
     local rows = {}
@@ -683,7 +683,7 @@ function Puzzle.CreateEditor(getId, onTypeChosen, setTag)
                     return
                 end
                 element.popupsInheritStyles = true
-                element.popup = SetupPanel(id, function(typeid)
+                element.popup = Puzzle.SetupPanel(id, function(typeid)
                     onTypeChosen(id, typeid)
                     element.popup = nil
                     resultPanel.data.builtFor = nil
@@ -695,6 +695,218 @@ function Puzzle.CreateEditor(getId, onTypeChosen, setTag)
     }
     return resultPanel
 end
+
+--------------------------------------------------------------------------------
+-- Floating puzzle window, Join notices and pushes
+--------------------------------------------------------------------------------
+
+--How often an open window renews this player's presence.
+local HEARTBEAT_SECONDS = 10
+
+---@type table<string, Panel>
+local g_windows = {}
+
+--Puzzles this client has already shown a Join notice for, this session.
+---@type table<string, boolean>
+local g_noticed = {}
+
+--Pushes this client has already acted on (or that predate its arrival).
+---@type table<string, string>
+local g_pushSeen = {}
+
+---@param id string
+---@return boolean
+function Puzzle.IsWindowOpen(id)
+    local window = g_windows[id]
+    return window ~= nil and window.valid
+end
+
+--Open a puzzle in a floating window that does not block the map. One window per
+--puzzle; opening it again leaves the existing one. opts.header(id) may return a
+--panel for the title bar (the map lock adds the Director's setup button there).
+---@param id string
+---@param opts {header: (fun(id: string): Panel|nil)|nil}|nil
+---@return Panel|nil
+function Puzzle.OpenWindow(id, opts)
+    opts = opts or {}
+    if Puzzle.IsWindowOpen(id) then
+        return g_windows[id]
+    end
+    local window
+    local function Close()
+        if window ~= nil and window.valid then
+            window:DestroySelf()
+        end
+    end
+    local header = opts.header ~= nil and opts.header(id) or nil
+    window = gui.Panel{
+        classes = {"framedPanel"},
+        styles = ThemeEngine.GetStyles(),
+        width = "auto",
+        height = "auto",
+        halign = "center",
+        valign = "center",
+        flow = "vertical",
+        pad = 12,
+        borderBox = true,
+        draggable = true,
+        dragMove = true,
+        captureEscape = true,
+        escapePriority = EscapePriority.EXIT_DIALOG,
+        escape = function(element)
+            Close()
+        end,
+        thinkTime = HEARTBEAT_SECONDS,
+        think = function(element)
+            Puzzle.MarkPresent(id, true)
+        end,
+        destroy = function(element)
+            g_windows[id] = nil
+            Puzzle.MarkPresent(id, false)
+        end,
+        gui.Panel{
+            flow = "horizontal",
+            width = "auto",
+            height = "auto",
+            halign = "left",
+            vmargin = 4,
+            gui.Label{
+                classes = {"sizeL", "bold"},
+                width = "auto",
+                height = "auto",
+                valign = "center",
+                text = Puzzle.Title(id),
+            },
+            header,
+            gui.Button{
+                classes = {"closeButton"},
+                valign = "center",
+                hmargin = 8,
+                click = function(element)
+                    Close()
+                end,
+            },
+        },
+        Puzzle.CreatePanel(id, {}),
+    }
+    gui.ShowDialog(mod, window)
+    g_windows[id] = window
+    g_noticed[id] = true
+    Puzzle.MarkPresent(id, true)
+    return window
+end
+
+--Window openers registered by surfaces that know how to open a puzzle with the
+--right header (map locks). Falls back to a plain window.
+---@type (fun(id: string))|nil
+Puzzle.OpenForJoin = nil
+
+---@param id string
+local function OpenFromNotice(id)
+    if Puzzle.OpenForJoin ~= nil then
+        Puzzle.OpenForJoin(id)
+    else
+        Puzzle.OpenWindow(id)
+    end
+end
+
+--A small notice that someone else is working on a puzzle, with a Join button.
+--Shown once per puzzle per session and gone by itself after a while.
+---@param id string
+---@param userid string
+local function ShowJoinNotice(id, userid)
+    local notice
+    notice = gui.Panel{
+        classes = {"framedPanel"},
+        styles = ThemeEngine.GetStyles(),
+        width = "auto",
+        height = "auto",
+        halign = "center",
+        valign = "bottom",
+        vmargin = 120,
+        flow = "horizontal",
+        pad = 8,
+        borderBox = true,
+        data = { born = dmhub.Time() },
+        thinkTime = 1,
+        think = function(element)
+            if dmhub.Time() - element.data.born > 20 then
+                element:DestroySelf()
+            end
+        end,
+        gui.Label{
+            classes = {"sizeM"},
+            width = "auto",
+            height = "auto",
+            valign = "center",
+            hmargin = 6,
+            text = string.format("%s is at %s.", Puzzle.UserName(userid), Puzzle.Title(id)),
+        },
+        gui.Button{
+            classes = {"sizeS"},
+            text = "Join",
+            valign = "center",
+            hmargin = 4,
+            click = function(element)
+                OpenFromNotice(id)
+                notice:DestroySelf()
+            end,
+        },
+        gui.Button{
+            classes = {"closeButton"},
+            valign = "center",
+            click = function(element)
+                notice:DestroySelf()
+            end,
+        },
+    }
+    gui.ShowDialog(mod, notice)
+end
+
+--Every client: notice other players at a puzzle, and open puzzles the Director
+--pushes. Pushes already in the document when this client arrives are ignored.
+local g_seeded = false
+local function PresenceTick()
+    local all = Puzzle.AllPresence()
+    if not g_seeded then
+        g_seeded = true
+        for id, entry in pairs(all) do
+            g_pushSeen[id] = entry.push
+        end
+        return
+    end
+    for id, entry in pairs(all) do
+        if entry.push ~= nil and entry.push ~= g_pushSeen[id] then
+            g_pushSeen[id] = entry.push
+            if Puzzle.Exists(id) then
+                OpenFromNotice(id)
+            end
+        end
+        if not g_noticed[id] and not Puzzle.IsWindowOpen(id) and Puzzle.Exists(id) then
+            for _, userid in ipairs(Puzzle.PresentUsers(id)) do
+                if userid ~= dmhub.userid then
+                    g_noticed[id] = true
+                    ShowJoinNotice(id, userid)
+                    break
+                end
+            end
+        end
+    end
+end
+
+local function SchedulePresenceTick()
+    dmhub.Schedule(2, function()
+        if mod.unloaded then
+            return
+        end
+        local ok, err = pcall(PresenceTick)
+        if not ok then
+            print("PUZZLE:: presence tick failed:", err)
+        end
+        SchedulePresenceTick()
+    end)
+end
+SchedulePresenceTick()
 
 --------------------------------------------------------------------------------
 -- The [[puzzle:Name]] tag

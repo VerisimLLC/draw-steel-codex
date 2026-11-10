@@ -53,12 +53,19 @@ local mod = dmhub.GetModLoading()
 ---@field remaining number|nil seconds left while the timer is paused
 ---@field announced boolean|nil the solve or fail chat line has been posted
 ---@field hint boolean|nil the Director has revealed the type's hint
+---@field applied table<string, boolean>|nil effects claimed by the host, so none runs twice
+---@field effectsDone boolean|nil the outcome handlers have run for this solve or failure
 
 Puzzle = {}
 PuzzleType = {}
 
 local STATUS_DOC = "puzzlestatus"
 local BOARD_PREFIX = "puzzle-"
+--Who has which puzzle open, and Director pushes. Not checkpointed.
+local PRESENCE_DOC = "puzzlepresence"
+
+--A player counts as at a puzzle this long after their window's last heartbeat.
+local PRESENCE_FRESH_SECONDS = 30
 
 --A hold left by a client that vanished mid-move stops blocking others after this.
 local HOLD_EXPIRY_SECONDS = 20
@@ -85,7 +92,20 @@ end)
 pcall(function()
     CreatureCache.RegisterRulesNeutralDocument(BOARD_PREFIX, nil)
     CreatureCache.RegisterRulesNeutralDocument(STATUS_DOC, nil)
+    CreatureCache.RegisterRulesNeutralDocument(PRESENCE_DOC, nil)
 end)
+
+--Code that reacts to a puzzle's outcome (map locks applying their effects).
+--Each handler: { apply = fun(id, outcome, status), undo = fun(id, status) }.
+--apply runs on the host only; undo runs on whichever client presses Reset.
+---@type table<string, {apply: fun(id: string, outcome: string, status: PuzzleStatus), undo: fun(id: string, status: PuzzleStatus)}>
+local g_outcomeHandlers = {}
+
+---@param key string
+---@param handler {apply: fun(id: string, outcome: string, status: PuzzleStatus), undo: fun(id: string, status: PuzzleStatus)}
+function Puzzle.RegisterOutcomeHandler(key, handler)
+    g_outcomeHandlers[key] = handler
+end
 
 local g_timerSetting = setting{
     id = "puzzletimers",
@@ -464,6 +484,13 @@ function Puzzle.Reset(id)
     local state = def.NewState(config, ctx)
     local key = StateKey(def, config)
     g_picked[id] = nil
+    local oldStatus = Puzzle.Status(id)
+    for handlerKey, handler in pairs(g_outcomeHandlers) do
+        local ok, err = pcall(handler.undo, id, oldStatus)
+        if not ok then
+            print("PUZZLE:: undo failed in", handlerKey, err)
+        end
+    end
     WriteBoardDoc(id, function(data)
         data.state = state
         data.stateKey = key
@@ -495,6 +522,8 @@ function Puzzle.Solve(id)
         WriteStatus(id, function(status)
             status.solved = true
             status.failed = nil
+            status.announced = nil
+            status.effectsDone = nil
             status.solvedBy = "director"
             status.solvedAt = dmhub.serverTime
         end, "Solve puzzle")
@@ -511,9 +540,30 @@ function Puzzle.Bypass(id)
         status.solved = true
         status.bypassed = true
         status.failed = nil
+        status.announced = nil
+        status.effectsDone = nil
         status.solvedBy = "director"
         status.solvedAt = dmhub.serverTime
     end, "Bypass puzzle")
+end
+
+--Claim an effect before applying it: true at most once per key until a Reset,
+--so a host handing over mid-way never applies the same effect twice.
+---@param id string
+---@param key string
+---@return boolean
+function Puzzle.ClaimEffect(id, key)
+    local applied = Puzzle.Status(id).applied
+    if type(applied) == "table" and applied[key] then
+        return false
+    end
+    WriteStatus(id, function(status)
+        if type(status.applied) ~= "table" then
+            status.applied = {}
+        end
+        status.applied[key] = true
+    end, "Apply puzzle effect")
+    return true
 end
 
 ---@param id string
@@ -812,6 +862,83 @@ function Puzzle.SetAssist(id, assistid, on)
 end
 
 --------------------------------------------------------------------------------
+-- Presence and pushes
+--------------------------------------------------------------------------------
+
+---@param id string
+---@return table
+local function PresenceEntry(id)
+    local entry = mod:GetDocumentSnapshot(PRESENCE_DOC).data[id]
+    if type(entry) ~= "table" then
+        return {}
+    end
+    return entry
+end
+
+--Record (or clear) that this player has the puzzle open. Windows call this as a
+--heartbeat; a client that drops simply stops renewing and goes stale.
+---@param id string
+---@param present boolean
+function Puzzle.MarkPresent(id, present)
+    local doc = mod:GetDocumentSnapshot(PRESENCE_DOC)
+    doc:BeginChange()
+    local entry = doc.data[id]
+    if type(entry) ~= "table" then
+        entry = {}
+        doc.data[id] = entry
+    end
+    if type(entry.users) ~= "table" then
+        entry.users = {}
+    end
+    entry.users[dmhub.userid] = cond(present, dmhub.serverTime, nil)
+    doc:CompleteChange("Puzzle presence", {undoable = false})
+end
+
+--Userids with the puzzle open right now, this player included.
+---@param id string
+---@return string[]
+function Puzzle.PresentUsers(id)
+    local result = {}
+    local users = PresenceEntry(id).users
+    if type(users) == "table" then
+        local now = dmhub.serverTime
+        for userid, t in pairs(users) do
+            if type(t) == "number" and now - t < PRESENCE_FRESH_SECONDS then
+                result[#result + 1] = userid
+            end
+        end
+    end
+    table.sort(result)
+    return result
+end
+
+--Director: open the puzzle on every client. The nonce tells clients a push is new.
+---@param id string
+function Puzzle.PushToEveryone(id)
+    local doc = mod:GetDocumentSnapshot(PRESENCE_DOC)
+    doc:BeginChange()
+    local entry = doc.data[id]
+    if type(entry) ~= "table" then
+        entry = {}
+        doc.data[id] = entry
+    end
+    entry.push = dmhub.GenerateGuid()
+    doc:CompleteChange("Show puzzle to everyone", {undoable = false})
+end
+
+--Every puzzle with presence or push data: id -> {users, push}.
+---@return table<string, table>
+function Puzzle.AllPresence()
+    local result = {}
+    for id, entry in pairs(mod:GetDocumentSnapshot(PRESENCE_DOC).data) do
+        if type(entry) == "table" then
+            result[id] = entry
+        end
+    end
+    return result
+end
+
+--------------------------------------------------------------------------------
 -- Host watcher
 --------------------------------------------------------------------------------
 
@@ -856,6 +983,16 @@ local function HostTick()
             elseif status.failed and not status.announced then
                 WriteStatus(id, function(s) s.announced = true end, "Announce puzzle")
                 chat.Send(string.format("The party failed %s.", Puzzle.Title(id)))
+            elseif (status.solved or status.failed) and status.announced and not status.effectsDone then
+                --effects run after the announcement, so a rejected solve never opens anything.
+                local outcome = cond(status.solved, "solve", "fail")
+                for handlerKey, handler in pairs(g_outcomeHandlers) do
+                    local ok, err = pcall(handler.apply, id, outcome, status)
+                    if not ok then
+                        print("PUZZLE:: effects failed in", handlerKey, err)
+                    end
+                end
+                WriteStatus(id, function(s) s.effectsDone = true end, "Puzzle effects applied")
             end
         end
     end

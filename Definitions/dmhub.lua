@@ -311,6 +311,11 @@ function dmhub.SanitizeDatabaseKey(key) end
 --- @param instanceGuid? string
 function dmhub.UnloadMod(instanceGuid) end
 
+--- Sends tokens through a map teleporter to the destination the player picked: the second half of dmhub.ChooseTeleporterDestination. args.floorid and args.objid name the teleporter, args.tokens is a list of token ids, args.destination is the id of the chosen destination teleporter. Returns false if the teleporter or destination no longer exists.
+--- @param args {floorid: string, objid: string, tokens: string[], destination: string}
+--- @return boolean
+function dmhub.UseTeleporter(args) end
+
 --- Performs a polygon boolean operation (Clipper, even-odd fill -- the same library the floor editing pipeline uses). Each subject/clip polygon is either a flat {x1,y1,x2,y2,...} ring or a structured {points = ring, holes = {ring,...}} table; coordinates are in whatever space the caller uses (e.g. tile coordinates) and come back in the same space. operation defaults to 'difference' (subjects minus clips). Returns a list of structured {points, holes} polygons; islands nested inside holes come back as separate entries.
 --- @param args {subjects: (number[]|{points: number[], holes: number[][]})[], clips: (number[]|{points: number[], holes: number[][]})[], operation: nil|"difference"|"intersection"|"union"|"xor"}
 --- @return {points: number[], holes: number[][]}[]
@@ -388,11 +393,6 @@ function dmhub.RefreshMapAuras() end
 --- @param args {floorIndex: number, threshold: number, x1: number|nil, y1: number|nil, x2: number|nil, y2: number|nil, locs: number[]|nil, knownState: string|nil, levels: boolean|nil}
 --- @return nil|{state: string, locs: number[], levels: number[]|nil}
 function dmhub.GetDarkTiles(args) end
-
---- Sends tokens through a map teleporter to the destination the player picked: the second half of dmhub.ChooseTeleporterDestination. args.floorid and args.objid name the teleporter, args.tokens is a list of token ids, args.destination is the id of the chosen destination teleporter. Returns false if the teleporter or destination no longer exists.
---- @param args {floorid: string, objid: string, tokens: string[], destination: string}
---- @return boolean
-function dmhub.UseTeleporter(args) end
 
 --- Gets a UI container suitable for putting a UI into for the given floor. panelid is a unique id you can provide for your interface name.
 --- @param floorid string
@@ -1447,15 +1447,6 @@ function dmhub.DebugGameServerDrop() end
 --- @param connect? string
 function dmhub.SimulateSteamJoin(connect) end
 
---- The player's Steam friends (immediate friends only), read live from Steam (nothing is stored), in Steam's order. steamId is the SteamID64 as a decimal string. name is the nickname the player gave them, else their Steam name. state is their Steam status ('Looking to Trade/Play' count as 'online'). playingCodex is true while they are in the Codex, playingOther while they are in some other game. Only while playingCodex: status is their Codex presence line, connect what joining them enters (see JoinSteamFriend), groupSize how many are in their game or party. avatar is a bgimage of their Steam avatar (empty while it loads or when they have none). Empty without Steam. Re-read when dmhub.steamFriendsRevision changes.
---- @return {steamId: string, name: string, state: 'online'|'away'|'busy'|'snooze'|'offline', playingCodex: boolean, playingOther: boolean, status: string|nil, connect: string|nil, groupSize: integer|nil, avatar: string}[]
-function dmhub.GetSteamFriends() end
-
---- Joins a Steam friend who is in the Codex exactly as clicking 'Join Game' on them in Steam does: their connect string 'dshub1:<gameid>' enters that game, 'dshub2:<kind>:<payload>' hands the invite to the Lua feature that owns kind (dmhub.TakeSteamInvite). From inside another game it asks first. steamId is one from GetSteamFriends. Returns false when Steam is unavailable or the friend is not in the Codex or has nothing to join.
---- @param steamId string
---- @return boolean
-function dmhub.JoinSteamFriend(steamId) end
-
 --- True if this account has a Patreon entitlement to the given creator organization. Honors the creator's persist-on-lapse policy.
 --- @param orgid string The id of the creator organization.
 --- @return boolean
@@ -2352,6 +2343,15 @@ function dmhub.DiscordSetOpenConversation(userId) end
 --- @param messageId? string
 --- @return boolean
 function dmhub.DiscordOpenMessageInDiscord(messageId) end
+
+--- The player's Steam friends (immediate friends only), read live from Steam (nothing is stored), in Steam's order. steamId is the SteamID64 as a decimal string. name is the nickname the player gave them, else their Steam name. state is their Steam status ('Looking to Trade/Play' count as 'online'). playingCodex is true while they are in the Codex, playingOther while they are in some other game. Only while playingCodex: status is their Codex presence line, connect what joining them enters (see JoinSteamFriend), groupSize how many are in their game or party. avatar is a bgimage of their Steam avatar (empty while it loads or when they have none). Empty without Steam. Re-read when dmhub.steamFriendsRevision changes.
+--- @return {steamId: string, name: string, state: 'online'|'away'|'busy'|'snooze'|'offline', playingCodex: boolean, playingOther: boolean, status: string|nil, connect: string|nil, groupSize: integer|nil, avatar: string}[]
+function dmhub.GetSteamFriends() end
+
+--- Joins a Steam friend who is in the Codex exactly as clicking 'Join Game' on them in Steam does: their connect string 'dshub1:<gameid>' enters that game, 'dshub2:<kind>:<payload>' hands the invite to the Lua feature that owns kind (dmhub.TakeSteamInvite). From inside another game it asks first. steamId is one from GetSteamFriends. Returns false when Steam is unavailable or the friend is not in the Codex or has nothing to join.
+--- @param steamId string
+--- @return boolean
+function dmhub.JoinSteamFriend(steamId) end
 
 --- Strip (true) or restore (false) the native Windows caption bar, merging the app's title bar with the window chrome. The app bar must supply drag and window buttons while merged. No-op where unsupported.
 --- @param merged? boolean

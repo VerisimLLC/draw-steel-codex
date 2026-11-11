@@ -847,6 +847,12 @@ text("graveyard.subtitle", [[Here lie the heroes of Blackbottom who did not come
 --Shown in place of the graves while they load, and when there are none.
 text("graveyard.loading", [[Reading the headstones...]])
 text("graveyard.empty", [[No one has fallen yet. May it stay that way.]])
+text("graveyard.empty_mine", [[None of your heroes lie here.]])
+text("graveyard.tab_everyone", [[Everyone]])
+text("graveyard.tab_mine", [[Your Fallen]])
+text("graveyard.awaken_button", [[Awaken]])
+text("graveyard.awaken_tooltip", [[This hero's ancestry does not stay dead. Awaken them and bring them back to your roster.]])
+text("graveyard.awaken_no_slots_tooltip", [[You don't have enough hero slots to awaken this hero]])
 --A fallen hero's name when the game cannot find it.
 text("graveyard.hero_fallback", [[Hero]])
 --The line saying where and when a hero fell. {where} is the encounter's

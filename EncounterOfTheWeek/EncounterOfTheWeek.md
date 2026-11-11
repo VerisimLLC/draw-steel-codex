@@ -1272,7 +1272,8 @@ configs; city id for the town: `blackbottom`):
   | `set-active {heroids}` | owner | replace the active set (max 4, living, own) |
   | `record-outcome {heroid, gameid, outcome, died?}` | owner | append to the hero's adventure log, idempotent per (hero, game). `died` sets the hero fallen and inactive and digs a grave whose epitaph comes from the summary + `outcome.encounter` + owner name. `outcome.completed` (with `outcome.encounter`, not dying) records that the hero won that encounter (`city_completions`) |
   | `list-outcomes {userid?, heroid}` | anyone | the hero's adventure log |
-  | `list-graveyard {before?, limit?}` | anyone | graves newest first, paged (50 default, 100 max), `more` flag |
+  | `list-graveyard {before?, limit?, mine?}` | anyone | graves newest first, paged (50 default, 100 max), `more` flag; `mine` = the caller's only (the Graveyard's Your Fallen tab) |
+  | `awaken-hero {heroid}` | owner | a fallen Hakaan / Revenant / Vampire (summary ancestry) back to the roster, living and inactive, if a slot is free; deletes its grave, keeps the outcome log. Record = the last one pushed from town (the fatal game never pushed). Graveyard Awaken button (added 2026-11-11) |
   | `town-heroes {}` | anyone | the active heroes of everyone currently present |
 - **Parties take roster heroes only.** In a city, `join-game`/`set-heroes`
   accept only the caller's own living heroes as `{kind: "roster", id:

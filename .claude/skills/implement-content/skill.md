@@ -404,6 +404,17 @@ All reference docs live in the `data/` submodule under `data/docs/`.
 
 ## Critical Rules
 
+### Nested abilities carry their own implementation status
+
+Every nested/invoked ability (the `customAbility` inside an `ActivatedAbilityInvokeAbilityBehavior`,
+a triggered ability's inner abilities, etc.) shows its own automation badge in the app, and
+an unset one reads "not automated" even when the parent is Gold. Before finishing, walk EVERY
+nested `customAbility` and set `implementation:` honestly (4 when it fully resolves at runtime).
+Also set `hideSightlines: true` on an Invoke of a "Caster May Hide" standard ability so the
+hide-gate arrows draw, and use `targeting: prompt` on an Invoke of the Free Strike Against
+Specific Target standard ability so the player can pick the free-strike target.
+
+
 ### Critical Pitfalls (Read First!)
 
 Before generating any YAML, review the "Common Pitfalls" section in `data/docs/reference/CORE.md`.

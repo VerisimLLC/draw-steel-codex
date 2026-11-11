@@ -68,23 +68,35 @@ function ActivatedAbilityRelocateCreatureBehavior:FindTargetsInMovementVicinity(
 
     print("VICINITY:: SEARCH...")
 
+    --locs maps each x/y/floor square near the path to the altitudes the mover passes at, so a
+    --creature far above or below a flier's path (not truly adjacent in 3D) can be excluded.
     local locs = {}
+    local function noteLoc(loc, altitude)
+        local key = loc.xyfloorOnly.str
+        local list = locs[key]
+        if list == nil then
+            list = {}
+            locs[key] = list
+        end
+        list[#list+1] = altitude
+    end
     for i,loc in ipairs(path.steps) do
         local newLocs = casterToken:LocsOccupyingWhenAt(loc)
         for i,newLoc in ipairs(newLocs) do
-            locs[newLoc.xyfloorOnly.str] = true
+            noteLoc(newLoc, loc.altitude)
             if self.vicinity > 0 then
                 for _,adjLoc in ipairs(newLoc:LocsInRadius(self.vicinity)) do
-                    locs[adjLoc.xyfloorOnly.str] = true
+                    noteLoc(adjLoc, loc.altitude)
                 end
             end
         end
     end
+    local moverHeight = math.max(1, casterToken.characterHeight or 1)
 
     local result = {}
 
     local index = 0
-    for key,_ in pairs(locs) do
+    for key,altitudes in pairs(locs) do
         local loc = core.Loc(key)
         index = index+1
         local tokens = game.GetTokensAtLoc(loc)
@@ -98,7 +110,18 @@ function ActivatedAbilityRelocateCreatureBehavior:FindTargetsInMovementVicinity(
                 end
             end
 
-            if (not alreadyInResult) and token.charid ~= casterToken.charid and ability:TargetPassesFilter(casterToken, token, {}, self.vicinityFilter) then
+            --Vertical adjacency: the mover's body (moverHeight tiles tall) at some path altitude must
+            --come within the vicinity of the other creature's body (its own height tall).
+            local closeEnough = false
+            local targetHeight = math.max(1, token.characterHeight or 1)
+            for _,altitude in ipairs(altitudes) do
+                if altitude <= token.altitude + targetHeight - 1 + self.vicinity and altitude + moverHeight - 1 >= token.altitude - self.vicinity then
+                    closeEnough = true
+                    break
+                end
+            end
+
+            if closeEnough and (not alreadyInResult) and token.charid ~= casterToken.charid and ability:TargetPassesFilter(casterToken, token, {}, self.vicinityFilter) then
                 result[#result+1] = token
             end
         end

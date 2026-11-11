@@ -713,3 +713,203 @@ function ActivatedAbilityConferConditionsBehavior:EditorItems(parentPanel)
 
     return result
 end
+--------------------------------------------------------------------------------
+-- Taunt By Nearest behavior.
+--
+-- Used after a power roll (e.g. a Director malice "each enemy makes a test").
+-- For each target on a selected tier, finds the NEAREST OTHER creature or object
+-- token and inflicts Taunted on the target with that token as the condition
+-- caster (Taunted tracks its caster). Optionally also applies an ongoing effect
+-- (e.g. a double-edge marker) to the target, with its own tier filter.
+--------------------------------------------------------------------------------
+
+--- @class ActivatedAbilityTauntByNearestBehavior:ActivatedAbilityBehavior
+--- @field new fun(o?: table): ActivatedAbilityTauntByNearestBehavior
+--- @field duration string Ongoing-effect style duration: save_ends (default), end_of_next_turn, eoe, endround.
+--- @field alsoApplyOngoingEffect? string Optional ongoing effect id applied to the target alongside Taunted.
+--- @field alsoTiersSelected? number[] Tiers the extra effect applies on; defaults to tiersSelected.
+ActivatedAbilityTauntByNearestBehavior = RegisterGameType("ActivatedAbilityTauntByNearestBehavior", "ActivatedAbilityBehavior")
+
+ActivatedAbilityTauntByNearestBehavior.summary = "Taunt By Nearest"
+ActivatedAbilityTauntByNearestBehavior.duration = "save_ends"
+
+ActivatedAbility.RegisterType
+{
+    id = 'tauntbynearest',
+    text = 'Taunt By Nearest',
+    createBehavior = function()
+        return ActivatedAbilityTauntByNearestBehavior.new{
+            duration = "save_ends",
+        }
+    end,
+}
+
+-- Maps an ongoing-effect duration id to the duration string conditions use.
+local g_tauntConditionDurations = {
+    save_ends = "save",
+    end_of_next_turn = "eot",
+    eoe = "eoe",
+    endround = "eoe",
+}
+
+-- Returns the nearest other live creature or attackable-object token to `token`
+-- (ties: first found), or nil if there is none.
+function ActivatedAbilityTauntByNearestBehavior.FindNearestToken(token)
+    local best = nil
+    local bestDistance = nil
+    for _,other in ipairs(dmhub.allTokensIncludingObjects) do
+        if other.valid and other.charid ~= token.charid and other.properties ~= nil then
+            local eligible = true
+            if other.isObject then
+                eligible = other.isAttackableObject
+            elseif other.properties:IsDead() then
+                eligible = false
+            end
+
+            if eligible then
+                local distance = token:DistanceInFeet(other)
+                if bestDistance == nil or distance < bestDistance then
+                    best = other
+                    bestDistance = distance
+                end
+            end
+        end
+    end
+    return best
+end
+
+function ActivatedAbilityTauntByNearestBehavior:Cast(ability, casterToken, targets, options)
+    local tauntedId = nil
+    for k,v in unhidden_pairs(dmhub.GetTable(CharacterCondition.tableName) or {}) do
+        if string.lower(v.name) == "taunted" then
+            tauntedId = k
+            break
+        end
+    end
+    if tauntedId == nil then
+        return
+    end
+
+    local duration = self:try_get("duration", "save_ends")
+    local conditionDuration = g_tauntConditionDurations[duration] or "save"
+
+    local effectid = self:try_get("alsoApplyOngoingEffect")
+    if effectid ~= nil and (dmhub.GetTable("characterOngoingEffects") or {})[effectid] == nil then
+        effectid = nil
+    end
+    local alsoTiers = self:try_get("alsoTiersSelected", self:try_get("tiersSelected", {}))
+    local tokenToTier = nil
+    if options.symbols.cast ~= nil then
+        tokenToTier = options.symbols.cast:try_get("tokenToTier")
+    end
+
+    local tokenids = {}
+    for _,target in ipairs(targets) do
+        local targetToken = target.token
+        if targetToken ~= nil and targetToken.valid then
+            local nearest = ActivatedAbilityTauntByNearestBehavior.FindNearestToken(targetToken)
+            if nearest ~= nil then
+                ability:CommitToPaying(casterToken, options)
+                tokenids[#tokenids+1] = targetToken.charid
+
+                local applyEffect = effectid ~= nil
+                if applyEffect and #alsoTiers > 0 then
+                    local tier = tokenToTier ~= nil and tokenToTier[targetToken.charid] or nil
+                    applyEffect = tier ~= nil and table.contains(alsoTiers, tier)
+                end
+
+                targetToken:ModifyProperties{
+                    description = "Taunted by nearest",
+                    execute = function()
+                        ability.RecordTokenMessage(targetToken, options, "Taunted")
+                        targetToken.properties:InflictCondition(tauntedId, {
+                            duration = conditionDuration,
+                            sourceDescription = string.format("Inflicted by %s's <b>%s</b> ability", creature.GetTokenDescription(casterToken), ability.name),
+                            casterInfo = {
+                                tokenid = nearest.charid,
+                            },
+                            cast = options.symbols.cast,
+                        })
+
+                        if applyEffect then
+                            local newEffect = targetToken.properties:ApplyOngoingEffect(effectid, duration, {
+                                tokenid = casterToken.charid,
+                                abilityName = ability.name,
+                            }, {
+                                sourceDescription = ActivatedAbility.DescribeEffectSource(ability, casterToken),
+                            })
+                            if newEffect ~= nil and options.symbols.cast ~= nil then
+                                options.symbols.cast:RecordAppliedOngoingEffect(newEffect)
+                            end
+                        end
+                    end,
+                }
+            end
+        end
+    end
+
+    if #tokenids > 0 then
+        game.Refresh{
+            tokens = tokenids,
+        }
+    end
+end
+
+function ActivatedAbilityTauntByNearestBehavior:EditorItems(parentPanel)
+    local result = {}
+    self:ApplyToEditor(parentPanel, result)
+    self:FilterEditor(parentPanel, result)
+
+    result[#result+1] = gui.Panel{
+        classes = {"formPanel"},
+        gui.Label{
+            classes = {"formLabel"},
+            text = "Duration:",
+        },
+        gui.Dropdown{
+            classes = {"formDropdown"},
+            width = 240,
+            options = {
+                {id = "save_ends", text = "Save Ends"},
+                {id = "end_of_next_turn", text = "End of Next Turn"},
+                {id = "eoe", text = "End of Encounter"},
+                {id = "endround", text = "End of Round"},
+            },
+            idChosen = self:try_get("duration", "save_ends"),
+            change = function(element)
+                self.duration = element.idChosen
+            end,
+        },
+    }
+
+    local effectChoices = {{id = "none", text = "None"}}
+    for k,effect in pairs(dmhub.GetTable("characterOngoingEffects") or {}) do
+        if not effect:try_get("hidden") then
+            effectChoices[#effectChoices+1] = {id = k, text = effect.name}
+        end
+    end
+    table.sort(effectChoices, function(a,b) return a.text < b.text end)
+
+    result[#result+1] = gui.Panel{
+        classes = {"formPanel", "formPanel-inline"},
+        gui.Label{
+            classes = {"formLabel"},
+            text = "Also Apply Effect:",
+        },
+        gui.Dropdown{
+            classes = {"formDropdown"},
+            options = effectChoices,
+            hasSearch = true,
+            idChosen = self:try_get("alsoApplyOngoingEffect", "none"),
+            change = function(element)
+                if element.idChosen == "none" then
+                    self.alsoApplyOngoingEffect = nil
+                else
+                    self.alsoApplyOngoingEffect = element.idChosen
+                end
+            end,
+        },
+    }
+
+    return result
+end

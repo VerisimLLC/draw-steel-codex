@@ -296,7 +296,7 @@ function Puzzle.Exists(id)
 end
 
 ---@class PuzzleIndexEntry
----@field kind "lock"|"journal"|nil
+---@field kind "lock"|"journal"|"standalone"|nil standalone: made in the Puzzles panel, lives only there
 ---@field floorid string|nil a lock's floor
 ---@field objid string|nil a lock's object
 ---@field docid string|nil a journal puzzle's page

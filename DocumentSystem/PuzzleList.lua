@@ -3,6 +3,8 @@ local mod = dmhub.GetModLoading()
 -- The Director's "Puzzles" panel: every puzzle in the game (from Puzzle.Index),
 -- its state, who is at it, and where it lives, with Open / Show everyone /
 -- Go to, and Remove for a puzzle whose lock object or journal page is gone.
+-- "New puzzle" makes a standalone puzzle that lives only here: the Director
+-- opens it, or launches it for everyone with Show everyone.
 
 --Which map a floor belongs to, by scanning the game's maps.
 ---@param floorid string
@@ -98,6 +100,8 @@ local function BuildRow(id, entry)
         else
             row.where = string.format("Journal: %s", tostring(page.description))
         end
+    elseif entry.kind == "standalone" then
+        row.where = "In the Puzzles panel"
     else
         row.where = "Location not recorded yet"
     end
@@ -146,6 +150,25 @@ local function GoTo(row)
     end
 end
 
+--The type's setup as a popup under a button: the same setup the journal cog
+--and Lock setup show. Choosing another type starts the puzzle over.
+---@type fun(button: Panel, id: string)
+local ShowSetup
+---@param button Panel
+---@param id string
+ShowSetup = function(button, id)
+    if button.popup ~= nil then
+        button.popup = nil
+        return
+    end
+    button.popupsInheritStyles = true
+    button.popup = Puzzle.SetupPanel(id, function(typeid)
+        Puzzle.Create(id, typeid, nil, Puzzle.Title(id))
+        button.popup = nil
+        ShowSetup(button, id)
+    end)
+end
+
 ---@param row PuzzleListRow
 ---@return Panel
 local function RowPanel(row)
@@ -168,7 +191,15 @@ local function RowPanel(row)
             GoTo(row)
         end)
     end
-    if row.missing then
+    local standalone = row.entry.kind == "standalone"
+    if standalone then
+        local setupButton
+        setupButton = RowButton("Setup", function()
+            ShowSetup(setupButton, id)
+        end)
+        buttons[#buttons + 1] = setupButton
+    end
+    if row.missing or standalone then
         buttons[#buttons + 1] = RowButton("Remove", function()
             GameHud.instance:ModalDialog{
                 title = "Remove this puzzle?",
@@ -252,6 +283,83 @@ local function RowPanel(row)
     }
 end
 
+--"New puzzle": a name and a type, then the type's setup.
+---@param button Panel
+local function ShowNewPuzzle(button)
+    if button.popup ~= nil then
+        button.popup = nil
+        return
+    end
+    local types = {}
+    for _, t in ipairs(PuzzleType.List()) do
+        types[#types + 1] = { id = t.id, text = t.name }
+    end
+    local m_type = types[1] ~= nil and types[1].id or nil
+    local nameInput
+    local function Create()
+        if m_type == nil then
+            return
+        end
+        local def = PuzzleType.Get(m_type)
+        local name = string.gsub(tostring(nameInput.text or ""), "^%s*(.-)%s*$", "%1")
+        if name == "" then
+            name = def ~= nil and def.name or "Puzzle"
+        end
+        local id = "solo_" .. Puzzle.SafeId(dmhub.GenerateGuid())
+        Puzzle.Create(id, m_type, nil, name)
+        Puzzle.IndexPuzzle(id, { kind = "standalone" })
+        button.popup = nil
+        ShowSetup(button, id)
+    end
+    nameInput = gui.Input{
+        width = 240,
+        height = 26,
+        bgimage = "panels/square.png",
+        bgcolor = "#00000059",
+        border = 1,
+        borderColor = "#ffffff47",
+        hpad = 6,
+        borderBox = true,
+        characterLimit = 80,
+        placeholderText = "Name players will see",
+        text = "",
+        submit = function(element)
+            Create()
+        end,
+    }
+    button.popupsInheritStyles = true
+    button.popup = gui.Panel{
+        classes = {"bordered", "bg"},
+        width = "auto",
+        height = "auto",
+        flow = "vertical",
+        pad = 8,
+        borderBox = true,
+        gui.Label{ classes = {"sizeS"}, width = "auto", height = "auto", text = "Name:" },
+        nameInput,
+        gui.Label{ classes = {"sizeS"}, width = "auto", height = "auto", tmargin = 6, text = "Puzzle type:" },
+        gui.Dropdown{
+            options = types,
+            idChosen = m_type,
+            change = function(dropdown)
+                ---@cast dropdown Dropdown
+                m_type = tostring(dropdown.idChosen)
+            end,
+        },
+        gui.Button{
+            classes = {"sizeS"},
+            text = "Create",
+            width = 120,
+            height = 28,
+            halign = "right",
+            tmargin = 8,
+            click = function(element)
+                Create()
+            end,
+        },
+    }
+end
+
 local function CreatePuzzleList()
     local list
     local empty
@@ -294,13 +402,26 @@ local function CreatePuzzleList()
         height = "auto",
         pad = 8,
         borderBox = true,
-        text = "No puzzles yet. Add one to a journal page, or a Puzzle Lock to a map object.",
+        text = "No puzzles yet. Press New puzzle, add one to a journal page, or put a Puzzle Lock on a map object.",
     }
 
     list = gui.Panel{
         flow = "vertical",
         width = "100%",
         height = "auto",
+    }
+
+    local newButton
+    newButton = gui.Button{
+        classes = {"sizeS", cond(dmhub.isDMOrPlayerHost, nil, "collapsed")},
+        text = "New puzzle",
+        width = 140,
+        height = 28,
+        halign = "left",
+        vmargin = 4,
+        click = function(element)
+            ShowNewPuzzle(newButton)
+        end,
     }
 
     return gui.Panel{
@@ -322,6 +443,7 @@ local function CreatePuzzleList()
         think = function(element)
             Refresh()
         end,
+        newButton,
         empty,
         list,
     }
@@ -330,7 +452,8 @@ end
 DockablePanel.Register{
     name = "Puzzles",
     icon = "phosphor/puzzle-piece.png",
-    dmonly = true,
+    --the host of a game with no Director runs its puzzles too.
+    hostonly = true,
     minHeight = 200,
     vscroll = false,
     content = function()

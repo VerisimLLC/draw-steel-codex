@@ -1520,9 +1520,10 @@ end
 --- The Map Scripts configuration section: attached-script rows (name, source
 --- badge, edit/delete, error display, parameter editors) plus the Add picker.
 --- Used by both settings surfaces; sized to fit the narrow dockable panel.
---- With options.tag = "weather" it is the Weather section instead: only the
---- attached scripts tagged as weather, and a picker of weather scripts.
---- Without a tag it leaves those scripts out.
+--- With options.tag = "weather" it is the Weather section instead: one
+--- dropdown that picks the map's single weather script (or none), with that
+--- script's parameter editors under it. Without a tag it leaves weather
+--- scripts out.
 --- @param options? {tag: nil|string}
 function MapScript.CreateSettingsPanel(options)
     local resultPanel
@@ -1762,6 +1763,64 @@ function MapScript.CreateSettingsPanel(options)
 
             local children = {}
 
+            --a tagged section (Weather) holds one script at a time: a dropdown
+            --that swaps the attached script, with "none" for nothing attached.
+            if tag ~= nil then
+                local chosen = "none"
+                if entries[1] ~= nil then
+                    chosen = entries[1].rec.scriptid or ""
+                end
+
+                local selectOptions = { { id = "none", text = "None" } }
+                MapScript.FillPickerOptions(selectOptions, tag)
+
+                --an attached script the picker no longer offers (deleted from
+                --the library, or custom code) still needs an entry to show.
+                local listed = false
+                for _, opt in ipairs(selectOptions) do
+                    if opt.id == chosen then
+                        listed = true
+                        break
+                    end
+                end
+                if not listed then
+                    selectOptions[#selectOptions + 1] = { id = chosen, text = entries[1].rec.name or "Map Script" }
+                end
+
+                children[#children + 1] = gui.Dropdown{
+                    classes = { "form" },
+                    width = "100%",
+                    height = 26,
+                    fontSize = 12,
+                    bmargin = 6,
+                    options = selectOptions,
+                    idChosen = chosen,
+                    change = function(element2)
+                        ---@cast element2 Dropdown
+                        local newid = element2.idChosen
+                        if newid == chosen then
+                            return
+                        end
+                        --one write, so the swap is a single undo step.
+                        MutateRecords(function(records2)
+                            for i = #records2, 1, -1 do
+                                if InSection(select(1, MapScript.GetRecordDefinition(records2[i]))) then
+                                    table.remove(records2, i)
+                                end
+                            end
+                            if newid ~= "none" then
+                                records2[#records2 + 1] = MapScript.CreateRecordFromLibrary(newid)
+                            end
+                        end)
+                        Refresh()
+                    end,
+                }
+            end
+
+            --the name/delete row. A tagged section needs it only for a map
+            --saved with several scripts attached, before it was limited to one.
+            local showRows = tag == nil or #entries > 1
+
             for _, entry in ipairs(entries) do
                 local rec = entry.rec
                 local def = entry.def
@@ -1775,6 +1834,7 @@ function MapScript.CreateSettingsPanel(options)
 
                 local rowChildren = {}
 
+                if showRows then
                 rowChildren[#rowChildren + 1] = gui.Label{
                     fontSize = 13,
                     width = cond(tag ~= nil, "80%", "40%"),
@@ -1835,6 +1895,7 @@ function MapScript.CreateSettingsPanel(options)
                     vmargin = 2,
                     children = rowChildren,
                 }
+                end
 
                 if def == nil then
                     children[#children + 1] = gui.Label{
@@ -1852,7 +1913,7 @@ function MapScript.CreateSettingsPanel(options)
                         paramPanels[#paramPanels + 1] = BuildParamEditor(rec, param)
                     end
                     children[#children + 1] = gui.Panel{
-                        width = "94%",
+                        width = cond(showRows, "94%", "100%"),
                         height = "auto",
                         halign = "right",
                         flow = "vertical",
@@ -1862,14 +1923,17 @@ function MapScript.CreateSettingsPanel(options)
                 end
             end
 
-            --the add picker: built-ins + library scripts + custom. The Weather
-            --section lists weather scripts only; one is written like any other
-            --script, in Map Scripts or the compendium, and tagged "weather".
-            local addOptions = { { id = "none", text = cond(tag == "weather", "Add Weather...", "Add Script...") } }
-            MapScript.FillPickerOptions(addOptions, tag)
-            if tag == nil then
-                addOptions[#addOptions + 1] = { id = "custom", text = "Custom Lua Script..." }
+            --a tagged section picks its one script in the dropdown above.
+            if tag ~= nil then
+                element.children = children
+                return
             end
+
+            --the add picker: built-ins + library scripts + custom. Weather
+            --scripts are left out; they are picked in the Weather section.
+            local addOptions = { { id = "none", text = "Add Script..." } }
+            MapScript.FillPickerOptions(addOptions, nil)
+            addOptions[#addOptions + 1] = { id = "custom", text = "Custom Lua Script..." }
 
             children[#children + 1] = gui.Dropdown{
                 classes = { "form" },

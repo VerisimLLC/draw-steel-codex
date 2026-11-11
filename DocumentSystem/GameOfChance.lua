@@ -249,13 +249,15 @@ local function HeroById(tokenid)
     return nil
 end
 
+--A token's name, or fallback (the player's name in log lines) when it has none.
 ---@param tok CharacterToken
+---@param fallback string|nil
 ---@return string
-local function HeroName(tok)
+local function HeroName(tok, fallback)
     local name = nil
     pcall(function() name = tok.name end)
     if type(name) ~= "string" or name == "" then
-        name = "A hero"
+        name = fallback or "A hero"
     end
     return name
 end
@@ -855,7 +857,7 @@ local function HostTick(game, id)
                             r.bet = { user = userid, tokenid = req.tokenid, called = true }
                             r.reveal = { option = nil, cheated = true, pick = nil }
                             local caller = HeroById(req.tokenid)
-                            AppendLog(state, string.format("Round %d: %s called out the dealer -- won.", state.round, caller ~= nil and HeroName(caller) or name))
+                            AppendLog(state, string.format("Round %d: %s called out the dealer -- won.", state.round, caller ~= nil and HeroName(caller, name) or name))
                             effects[#effects + 1] = { chat = DealerLine(eff, "lineCaught") }
                             FinishRound(state, eff, "win", r.bet, effects)
                         elseif kind == "pull" and inRound and state.phase == "dealing" and r.bet == nil
@@ -863,7 +865,7 @@ local function HostTick(game, id)
                             state.phase = "over"
                             state.result = "pulled"
                             local puller = HeroById(req.tokenid)
-                            local who = puller ~= nil and HeroName(puller) or name
+                            local who = puller ~= nil and HeroName(puller, name) or name
                             AppendLog(state, string.format("Round %d: %s pulled the stake. The dealer packs up.", state.round, who))
                             effects[#effects + 1] = { chat = string.format("%s pulled the stake at %s. The dealer packs up.", who, Puzzle.Title(id)) }
                         elseif kind == "bet" and inRound and state.phase == "dealing" and r.bet == nil
@@ -881,7 +883,7 @@ local function HostTick(game, id)
                                     r.reveal = { option = nil, cheated = cheat, pick = option }
                                     local words = { win = "won", lose = "lost", push = "a draw" }
                                     AppendLog(state, string.format("Round %d: %s bet on %s -- %s%s.", state.round,
-                                        tok ~= nil and HeroName(tok) or name, options[option], words[result] or result,
+                                        tok ~= nil and HeroName(tok, name) or name, options[option], words[result] or result,
                                         cond(cheat and result == "lose", " (" .. game.cheatText .. ")", "")))
                                     FinishRound(state, eff, result, r.bet, effects)
                                 end
@@ -1330,7 +1332,8 @@ local function Render(game, ctx)
         end
         heroLabel:SetClass("collapsed", tok ~= nil or not open)
         mineLabel.text = cond(#mine > 0, "Only you see this:\n" .. table.concat(mine, "\n"), "")
-        mineLabel:SetClass("collapsed", #mine == 0)
+        --test results guide this round's choices; once the game is over they only mislead.
+        mineLabel:SetClass("collapsed", #mine == 0 or state.phase == "over")
 
         local watchers = {}
         for userid in pairs(r.watched or {}) do

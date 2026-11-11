@@ -121,8 +121,10 @@ function Puzzle.CreatePanel(id, opts)
         return opts.editing ~= nil and opts.editing() == true
     end
 
+    --the Director, or the host of a game with no Director (who otherwise has no
+    --way to reset a puzzle the table has lost).
     local function IsDirector()
-        return dmhub.isDM == true
+        return dmhub.isDMOrPlayerHost == true
     end
 
     local function BuildAssists(def)
@@ -289,7 +291,7 @@ function Puzzle.CreatePanel(id, opts)
         timerLabel:SetClass("collapsed", timerLabel.text == "")
 
         directorRow:SetClass("collapsed", not IsDirector())
-        timerButtons:SetClass("collapsed", limit <= 0 or status.solved == true or status.failed == true)
+        timerButtons:SetClass("collapsed", def.noTimeLimit == true or limit <= 0 or status.solved == true or status.failed == true)
         directorRow:FireEventTree("refreshDirector", def, status, left)
     end
 
@@ -614,8 +616,10 @@ function Puzzle.SetupPanel(id, onTypeChosen)
             end
         end
 
-        rows[#rows + 1] = gui.Label{ classes = {"sizeS"}, width = "auto", height = "auto", tmargin = 6, text = "Time limit (minutes, 0 for none):" }
-        rows[#rows + 1] = FieldControl({ id = "timeLimit", type = "number", label = "Time limit", default = 0, min = 0, max = 30 }, config, SetConfig)
+        if not def.noTimeLimit then
+            rows[#rows + 1] = gui.Label{ classes = {"sizeS"}, width = "auto", height = "auto", tmargin = 6, text = "Time limit (minutes, 0 for none):" }
+            rows[#rows + 1] = FieldControl({ id = "timeLimit", type = "number", label = "Time limit", default = 0, min = 0, max = 30 }, config, SetConfig)
+        end
     end
 
     return gui.Panel{

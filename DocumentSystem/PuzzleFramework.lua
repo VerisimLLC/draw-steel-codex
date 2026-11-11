@@ -42,6 +42,8 @@ local mod = dmhub.GetModLoading()
 ---@field ConfigKey? fun(config: table): string boards made for a different key are discarded
 ---@field Render fun(ctx: PuzzleContext): Panel built once; refreshed with the "refreshPuzzle" event
 ---@field CreateEditor? fun(puzzleid: string, config: table, setConfig: fun(changes: table)): Panel|nil
+---@field HostTick? fun(id: string) runs about once a second on the host for every puzzle of this type
+---@field noTimeLimit? boolean the framework's time limit is not offered for this type
 
 ---@class PuzzleStatus
 ---@field solved boolean|nil
@@ -1029,7 +1031,7 @@ end
 --Exactly one client acts for the table: the lowest present Director, or the host
 --of a game with no Director, whichever map they are on (LiveEncounter's election).
 ---@return boolean
-local function IsHost()
+function Puzzle.IsHost()
     local live = rawget(_G, "LiveEncounter")
     if live ~= nil and live.IsElectedHost ~= nil then
         return live.IsElectedHost()
@@ -1086,14 +1088,33 @@ local function HostTick()
     end
 end
 
+--Types with their own host work (games of chance resolving bets) get a tick
+--for each of their puzzles.
+local function TypeHostTicks()
+    local ids = Puzzle.Index()
+    for id in pairs(mod:GetDocumentSnapshot(STATUS_DOC).data) do
+        ids[id] = ids[id] or {}
+    end
+    for id in pairs(ids) do
+        local def = Puzzle.GetType(id)
+        if def ~= nil and def.HostTick ~= nil then
+            local ok, err = pcall(def.HostTick, id)
+            if not ok then
+                print("PUZZLE:: host tick failed for", id, err)
+            end
+        end
+    end
+end
+
 local function ScheduleHostTick()
     dmhub.Schedule(1, function()
         if mod.unloaded then
             return
         end
         local ok, err = pcall(function()
-            if IsHost() then
+            if Puzzle.IsHost() then
                 HostTick()
+                TypeHostTicks()
             end
         end)
         if not ok then

@@ -3800,12 +3800,16 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page, focus)
 
                 press = function(element)
                     if element.data.settingsDialog ~= nil and element.data.settingsDialog.valid then
-                        element.data.settingsDialog:DestroySelf()
+                        gui.CloseModalInLayer(element.data.settingsLayer)
                         element.data.settingsDialog = nil
                         return
                     end
 
                     local dialog
+                    --close through the layer it was shown on, not DestroySelf, so the
+                    --layer hides again; left up, it blocks every click on the table.
+                    --that closes the layer's top modal: this dialog, while it is open.
+                    local settingsLayer
                     dialog = gui.Panel {
                         width = 600,
                         height = 290,
@@ -3827,7 +3831,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page, focus)
                             halign = "right",
                             valign = "top",
                             click = function(element)
-                                dialog:DestroySelf()
+                                gui.CloseModalInLayer(settingsLayer)
                             end,
                         },
 
@@ -3874,7 +3878,10 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page, focus)
 
                     element.data.settingsDialog = dialog
 
-                    gui.ShowModal(dialog)
+                    settingsLayer = gui.ShowModal(dialog)
+                    --the close button uses the local, since its `element` is itself, not
+                    --the gear; a second gear press is a new call and reads element.data.
+                    element.data.settingsLayer = settingsLayer
                 end,
             },
 

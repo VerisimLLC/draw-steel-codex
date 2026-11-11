@@ -146,6 +146,10 @@ banner and chat line, confirm-on-Reset and adjustable timers. Your type must sti
 ## Testing
 
 - `[[puzzle:Name]]` on a scratch journal page is the fastest loop; edit, reload (F4).
+  A page made from Lua also needs the tag's annotation, which the editor adds when you
+  type the tag: `annotations = { ["puzzle:Name"] = tag }` with
+  `tag = RichPuzzle.Create(); tag.identifier = "Name"`. Without it the tag draws nothing.
+- The Director's Panels -> Puzzles -> New puzzle makes a puzzle with no page or lock.
 - A second window as a player: `dmhub.DuplicateWindowInNewProcess{asplayer = true}`.
   A window started before a new file was registered does not load it; restart it.
 - The Director's Panels -> Puzzles list shows every puzzle, its state and who is at it.

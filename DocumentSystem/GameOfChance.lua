@@ -119,6 +119,7 @@ local function LayerFields(game)
         { id = "lineWin", type = "text", label = "Dealer when the party wins", default = "" },
         { id = "lineLose", type = "text", label = "Dealer when the party loses", default = "" },
         { id = "lineCaught", type = "text", label = "Dealer when caught cheating", default = "" },
+        { id = "lineLeave", type = "text", label = "Dealer when the stake is pulled", default = "" },
         { id = "dealer", type = "choice", label = "Dealer", default = "npc", visible = IsCustom, options = {
             { id = "npc", text = "An NPC deals" },
             { id = "director", text = "I deal" },
@@ -206,6 +207,7 @@ local DEFAULT_LINES = {
     lineWin = "Well played. You've a sharp eye.",
     lineLose = "Better luck next time, friend.",
     lineCaught = "Ah... you saw that, did you?",
+    lineLeave = "Suit yourself. The table's closed.",
 }
 
 ---@param config table
@@ -860,8 +862,10 @@ local function HostTick(game, id)
                             and (r.dealer[userid] or 0) >= 2 then
                             state.phase = "over"
                             state.result = "pulled"
-                            AppendLog(state, string.format("Round %d: %s pulled the stake. The dealer packs up.", state.round, name))
-                            effects[#effects + 1] = { chat = string.format("%s pulled the stake at %s. The dealer packs up.", name, Puzzle.Title(id)) }
+                            local puller = HeroById(req.tokenid)
+                            local who = puller ~= nil and HeroName(puller) or name
+                            AppendLog(state, string.format("Round %d: %s pulled the stake. The dealer packs up.", state.round, who))
+                            effects[#effects + 1] = { chat = string.format("%s pulled the stake at %s. The dealer packs up.", who, Puzzle.Title(id)) }
                         elseif kind == "bet" and inRound and state.phase == "dealing" and r.bet == nil
                             and r.openAt ~= nil and now >= r.openAt - 0.5 then
                             local options = game.Options(r.data or {})
@@ -1267,7 +1271,9 @@ local function Render(game, ctx)
         board:FireEventTree("chanceView", view)
 
         --the dealer's line for where the game is.
-        if state.phase == "over" then
+        if state.phase == "over" and state.result == "pulled" then
+            dealerLabel.text = DealerLine(eff, "lineLeave")
+        elseif state.phase == "over" then
             dealerLabel.text = DealerLine(eff, cond(state.result == "won", "lineWin", "lineLose"))
         elseif r.bet ~= nil and r.bet.called then
             dealerLabel.text = DealerLine(eff, "lineCaught")
@@ -1385,6 +1391,8 @@ local function Render(game, ctx)
             text = text,
             width = 150,
             height = 28,
+            --left, not the journal's centred default.
+            halign = "left",
             hmargin = 3,
             vmargin = 2,
             click = function(element)
@@ -1511,7 +1519,10 @@ local function Render(game, ctx)
                 local tok = MyHero()
                 Request({ kind = "call", tokenid = tok ~= nil and tok.charid or nil })
             end),
-            Button("pull", "Pull the stake", function() Request({ kind = "pull" }) end),
+            Button("pull", "Pull the stake", function()
+                local tok = MyHero()
+                Request({ kind = "pull", tokenid = tok ~= nil and tok.charid or nil })
+            end),
             Button("bet", "Place the bet", function() OpenBet() end),
             Button("again", "Play again", function() Request({ kind = "playagain" }) end),
         },

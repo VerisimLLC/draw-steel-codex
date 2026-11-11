@@ -1326,7 +1326,18 @@ mod.shared.CreateTriggerPanel = function()
                                     for _,targetid in ipairs(targetids or trigger.targets or {}) do
                                         local target = dmhub.GetTokenById(targetid)
                                         if target ~= nil then
-                                            local ray = dmhub.MarkLineOfSight(g_token, target, g_token.properties:GetPierceWalls())
+                                            --A hostile prompt posted by another creature (Swooping Torment) lists that
+                                            --creature as its target; point the arrow from it to us, the way the effect flows.
+                                            local invocation = trigger:try_get("invocation")
+                                            local fromInvoker = trigger:try_get("hostile", false) and invocation ~= nil
+                                                and invocation:try_get("invokerid") == target.id
+                                                and target.id ~= g_token.id
+                                            local ray
+                                            if fromInvoker then
+                                                ray = dmhub.MarkLineOfSight(target, g_token, target.properties:GetPierceWalls())
+                                            else
+                                                ray = dmhub.MarkLineOfSight(g_token, target, g_token.properties:GetPierceWalls())
+                                            end
                                             element.data.rays[#element.data.rays+1] = ray
                                         end
                                     end

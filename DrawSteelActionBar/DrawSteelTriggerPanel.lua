@@ -1326,8 +1326,7 @@ mod.shared.CreateTriggerPanel = function()
                                     for _,targetid in ipairs(targetids or trigger.targets or {}) do
                                         local target = dmhub.GetTokenById(targetid)
                                         if target ~= nil then
-                                            --A hostile prompt posted by another creature (Swooping Torment) lists that
-                                            --creature as its target; point the arrow from it to us, the way the effect flows.
+                                            --Hostile cards list their sender as the target; arrow runs sender -> us.
                                             local invocation = trigger:try_get("invocation")
                                             local fromInvoker = trigger:try_get("hostile", false) and invocation ~= nil
                                                 and invocation:try_get("invokerid") == target.id

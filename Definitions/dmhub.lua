@@ -2142,6 +2142,28 @@ function dmhub.PanelSetParentLegacy(legacy) end
 --- @param enabled? boolean
 function dmhub.PanelNursery(enabled) end
 
+--- Diagnostic: how the style cascade finds the rules of each ancestor's styles list that match a panel. 0 = test every rule (the original walk), 1 = test only the rules an index says the panel could match (default), 2 = verify: do both, keep the original result and count any difference. Pass -1 to leave the mode as it is; pass reset=true to zero the counters. Returns the counters. --style-index off|on|verify at startup sets the same switch.
+--- @param mode? integer
+--- @param reset? boolean
+--- @return string
+function dmhub.StyleIndexMode(mode, reset) end
+
+--- Diagnostic: how many plain panels and labels the widget pool is filled to at the title screen and behind the loading screen (before the game HUD is built), so building the HUD rents widgets instead of instantiating them. Pass -1 to leave a count as it is; 0, 0 turns prewarming off (--pool-prewarm off at startup does the same). Returns the settings and the current pool stock.
+--- @param panels? integer
+--- @param labels? integer
+--- @return string
+function dmhub.PoolPrewarm(panels, labels) end
+
+--- Diagnostic: whether panels that look the same share one material (default on; --panel-material-share off at startup turns it off). Sharing is what lets UGUI batch panel backgrounds: each panel's colour, size, brightness, opacity and border colour go in its vertices, not its material. mode: 1 = on, 0 = off, -1 (default) = leave as it is; reset=true zeroes the cache counters. Returns a census of the live panels: how many draw a background, through a shared material or one of their own (and why), how many distinct materials and material+texture pairs they use, and the cache counters.
+--- @param mode? integer
+--- @param reset? boolean
+--- @return string
+function dmhub.PanelMaterialSharing(mode, reset) end
+
+--- Diagnostic: the renderer's per-frame counters -- SetPass calls, draw calls, batches, vertices -- averaged over the frames recorded so far (up to the last 60). Recording starts on the first call, so call once, let a second pass, and call again.
+--- @return string
+function dmhub.RenderStats() end
+
 --- Diagnostic: turns on per-stage timing of gui widget construction (SheetController.InitWidget). Off by default. Read the breakdown with dmhub.PanelInitProfile().
 --- @param enabled? boolean
 function dmhub.PanelInitProfileEnable(enabled) end

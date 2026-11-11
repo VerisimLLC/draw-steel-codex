@@ -8294,6 +8294,18 @@ function CreateSettingsScreen(dialog, args)
 								}
 							end
 
+							--Discord linking (Draw Steel V/DiscordVoice.lua). Discord's
+							--rules want link and unlink in a permanent place beside the
+							--other account links. Absent in builds with no Discord.
+							local discordSectionChildren = {}
+							local discordVoice = rawget(_G, "DiscordVoice")
+							if discordVoice ~= nil and discordVoice.CreateAccountSettingsPanel ~= nil then
+								local discordPanel = discordVoice.CreateAccountSettingsPanel()
+								if discordPanel ~= nil then
+									discordSectionChildren = {discordPanel}
+								end
+							end
+
 							local children = {
 
 						gui.Panel{
@@ -8316,6 +8328,13 @@ function CreateSettingsScreen(dialog, args)
 								width = "100%",
 								height = "auto",
 								children = patreonSectionChildren,
+							},
+
+							gui.Panel{
+								flow = "vertical",
+								width = "100%",
+								height = "auto",
+								children = discordSectionChildren,
 							},
 
 							gui.Label{

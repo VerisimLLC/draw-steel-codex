@@ -1250,3 +1250,280 @@ MonsterAI:RegisterMaliceAbility{
         end
     end,
 }
+
+--------------------------------------------------------------------------------
+-- Velkhara (The Road Off the Moor, Part 3): a level 1 solo mummy whose soul is
+-- bound in a skull (a targetable object with the object keyword "velkhara").
+--------------------------------------------------------------------------------
+
+local velkharaMonster = {"Velkhara"}
+--The skull's object keyword. It must match the keyword on the skull object,
+--Velkhara's Tethered Soul condition and teleport filter, and the Part 3
+--encounter script ("Break the Skull"). Rename all of them together.
+local velkharaSkullKeyword = "velkhara"
+
+--- Enemies whose footprint is within `range` squares of the token.
+--- @param token CharacterToken
+--- @param range number
+--- @return CharacterToken[]
+local function VelkharaEnemiesWithin(token, range)
+    local result = {}
+    for _,enemy in ipairs(HostileCreatures(token)) do
+        if MonsterAI.TargetDistance(token, enemy) <= range then
+            result[#result+1] = enemy
+        end
+    end
+    return result
+end
+
+--- Live skulls on the map (usually one).
+--- @return CharacterToken[]
+local function VelkharaSkulls()
+    local result = {}
+    for _,skull in ipairs(Encounter.GetTargetableObjectsWithKeyword(velkharaSkullKeyword)) do
+        local alive = true
+        pcall(function()
+            alive = skull.properties:CurrentHitpoints() > 0
+        end)
+        if alive then
+            result[#result+1] = skull
+        end
+    end
+    return result
+end
+
+--- True when the token could stand at loc: no other creature and no skull
+--- there. Other objects (corpses, props) do not block.
+--- @param token CharacterToken
+--- @param loc Loc
+--- @param skullIds table<string, boolean>
+--- @return boolean
+local function VelkharaSquareIsFree(token, loc, skullIds)
+    if loc == nil or not loc.valid then
+        return false
+    end
+    for _,occupied in ipairs(token:LocsOccupyingWhenAt(loc)) do
+        for _,other in ipairs(dmhub.GetTokensAtLoc(occupied) or {}) do
+            if other.valid and other.charid ~= token.charid and (skullIds[other.charid] or not other.isObject) then
+                return false
+            end
+        end
+    end
+    return true
+end
+
+--Hands of the Buried (villain action 1): restrains every enemy in a 3 burst.
+MonsterAI:RegisterVillainAction{
+    id = "Velkhara: Hands of the Buried",
+    monsters = velkharaMonster,
+    abilities = {"Hands of the Buried"},
+    description = "Raise the hands of the dead when the burst catches at least one enemy, more eagerly for a crowd.",
+    score = function(self, ai, token, ability, context)
+        local enemies = #VelkharaEnemiesWithin(token, ability:GetRange(token.properties))
+        if enemies == 0 then
+            return nil, "no enemy within the burst"
+        end
+        return {score = math.min(1, 0.55 + enemies*0.12), enemies = enemies}
+    end,
+    execute = function(self, ai, token, scoringInfo, ability, context)
+        ai:ExecuteAbility(token, ability, nil, {sleep = abilityPause})
+    end,
+}
+
+--The Bound Dead Wake (villain action 2): four crawling claws appear around her.
+--Worth more as her allies fall.
+MonsterAI:RegisterVillainAction{
+    id = "Velkhara: The Bound Dead Wake",
+    monsters = velkharaMonster,
+    abilities = {"The Bound Dead Wake"},
+    description = "Wake the bound dead while enemies are near, more eagerly once her other servants have fallen.",
+    score = function(self, ai, token, ability, context)
+        if #HostileCreatures(token) == 0 then
+            return nil, "no enemies in the fight"
+        end
+        local allies = 0
+        for _,ally in ipairs(FriendlyCreatures(token)) do
+            if ally.charid ~= token.charid then
+                allies = allies + 1
+            end
+        end
+        return {score = math.min(0.95, 0.55 + math.max(0, 6 - allies)*0.06), allies = allies}
+    end,
+    execute = function(self, ai, token, scoringInfo, ability, context)
+        ai:ExecuteAbility(token, ability, nil, {sleep = abilityPause})
+    end,
+}
+
+--The Door Opens (villain action 3): damages and pulls every enemy in a 5 burst.
+MonsterAI:RegisterVillainAction{
+    id = "Velkhara: The Door Opens",
+    monsters = velkharaMonster,
+    abilities = {"The Door Opens"},
+    description = "Open the Door when the burst catches at least one enemy, more eagerly for a crowd.",
+    score = function(self, ai, token, ability, context)
+        local enemies = #VelkharaEnemiesWithin(token, ability:GetRange(token.properties))
+        if enemies == 0 then
+            return nil, "no enemy within the burst"
+        end
+        return {score = math.min(1, 0.5 + enemies*0.12), enemies = enemies}
+    end,
+    execute = function(self, ai, token, scoringInfo, ability, context)
+        ai:ExecuteAbility(token, ability, nil, {sleep = abilityPause})
+    end,
+}
+
+--Blast of Mummy Dust: 1 Malice for 5 poison damage to a restrained creature
+--next to her. Always worth it on an enemy; never on a restrained ally.
+MonsterAI:RegisterTrigger{
+    id = "Velkhara: Blast of Mummy Dust",
+    monsters = velkharaMonster,
+    abilities = {"Blast of Mummy Dust"},
+    description = "Blast the weakest restrained enemy next to her; pass if only allies are restrained.",
+    handler = function(ai, token, triggerInfo)
+        local best, bestStamina = nil, nil
+        for _,enemy in ipairs(VelkharaEnemiesWithin(token, 1)) do
+            if enemy.properties:HasNamedCondition("Restrained") then
+                local stamina = enemy.properties:CurrentHitpoints()
+                if bestStamina == nil or stamina < bestStamina then
+                    best, bestStamina = enemy, stamina
+                end
+            end
+        end
+        if best == nil then
+            return {dismiss = true}
+        end
+        return {activate = true, expectedPrompt = {targets = {{token = best}}}}
+    end,
+}
+
+--Accursed Bindings (melee 3, pull 1/2/2): pull from 2-3 squares away, since
+--a pull on an adjacent enemy does nothing. Adjacent targets are the fallback.
+local velkharaBindingsPull = {1, 2, 2}
+
+--Worth up to 0.4 when the target is 2+ away: a share for each tier whose
+--pull beats the target's stability.
+local function VelkharaPullBonus(target, distance)
+    if distance < 2 then
+        return 0
+    end
+    local stability = 0
+    pcall(function() stability = target.properties:Stability() or 0 end)
+    local moved = 0
+    for _,pull in ipairs(velkharaBindingsPull) do
+        if pull > stability then
+            moved = moved + 1
+        end
+    end
+    return 0.4*moved/#velkharaBindingsPull
+end
+
+--paths: where she may strike from (nil = anywhere she can move).
+local function VelkharaBindingsPlan(ai, token, ability, paths)
+    return MonsterAI.PlanStrikeFromRange(ai, token, ability, {
+        paths = paths,
+        --leaving an adjacent enemy draws an opportunity attack; that costs
+        --more than a pull is worth.
+        adjacentEnemies = #VelkharaEnemiesWithin(token, 1),
+        leavePenalty = 0.5,
+        targetBonus = VelkharaPullBonus,
+    })
+end
+
+MonsterAI:RegisterMove{
+    id = "Velkhara: Accursed Bindings",
+    category = "Main Actions",
+    monsters = velkharaMonster,
+    abilities = {"Accursed Bindings"},
+    description = "Bind an enemy 2-3 squares away so the pull drags them to her; strike an adjacent enemy only when no one is further out.",
+    score = function(self, ai, token, ability)
+        local plan = VelkharaBindingsPlan(ai, token, ability)
+        if plan == nil then
+            return nil, "no enemy can be struck this turn"
+        end
+        plan.score = 1 + math.min(0.2, math.max(0, plan.score - 1)*0.1)
+        return plan
+    end,
+    execute = function(self, ai, token, scoringInfo, ability)
+        if not ai:MovementTokenIsAtLoc(token, scoringInfo.loc) then
+            ai:MoveToken(token, scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
+            ai.Sleep(movementPause)
+        end
+        --re-find the target from where she ended up.
+        local target = scoringInfo.target
+        local targets = nil
+        for _,info in ipairs(ai:FindValidTargetsOfStrike(token, ability, token.loc)) do
+            if target ~= nil and info.token.charid == target.charid then
+                targets = {info}
+            end
+        end
+        if targets == nil then
+            --the planned target is out of reach: pick again from here.
+            local here = VelkharaBindingsPlan(ai, token, ability, {{loc = token.loc, cost = 0}})
+            if here == nil then
+                return false
+            end
+            for _,info in ipairs(ai:FindValidTargetsOfStrike(token, ability, token.loc)) do
+                if info.token.charid == here.target.charid then
+                    targets = {info}
+                end
+            end
+            if targets == nil then
+                return false
+            end
+        end
+        ai:ExecuteAbility(token, ability, targets, {sleep = abilityPause})
+    end,
+}
+
+--Tethered Soul's teleport: she reforms next to the skull. Pick the free square
+--its filter allows with the fewest enemies beside it, then the furthest from
+--them. With no legal square she stays where she is.
+MonsterAI:RegisterPrompt{
+    prompts = {"Velkhara:Teleport"},
+    handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
+        local passes = abilityClone:TargetLocPassesFilterPredicate(casterToken, symbols) or function(_) return true end
+        local enemies = HostileCreatures(casterToken)
+        local skulls = VelkharaSkulls()
+        local skullIds = {}
+        for _,skull in ipairs(skulls) do
+            skullIds[skull.charid] = true
+        end
+        local best, bestScore = nil, nil
+        local seen = {}
+        for _,skull in ipairs(skulls) do
+            --the 8 squares around the skull (it fills one square).
+            local around = {}
+            for dx = -1, 1 do
+                for dy = -1, 1 do
+                    if dx ~= 0 or dy ~= 0 then
+                        around[#around+1] = skull.loc:dir(dx, dy).withGroundAltitude
+                    end
+                end
+            end
+            for _,loc in ipairs(around) do
+                local key = LocKey(loc)
+                if not seen[key] then
+                    seen[key] = true
+                    if VelkharaSquareIsFree(casterToken, loc, skullIds) and passes(loc) then
+                        local nearest, adjacent = 999, 0
+                        for _,enemy in ipairs(enemies) do
+                            local distance = enemy:Distance(loc)
+                            nearest = math.min(nearest, distance)
+                            if distance <= 1 then
+                                adjacent = adjacent + 1
+                            end
+                        end
+                        local score = -adjacent*10 + math.min(nearest, 10)
+                        if bestScore == nil or score > bestScore then
+                            best, bestScore = loc, score
+                        end
+                    end
+                end
+            end
+        end
+        if best == nil then
+            return {targets = {}}
+        end
+        return {targets = {{loc = best}}}
+    end,
+}

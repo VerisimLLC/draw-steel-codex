@@ -1719,9 +1719,35 @@ end
 --checked with its series and never listed as an encounter of its own; the
 --series is keyed by the plain name even when no map has it. Parts marked
 --"Coming soon" go in comingSoonParts = { {number, title, text?}, ... }
---instead, so an app that predates them never offers them. Also ticks
+--instead, so an app that predates them never offers them. A part marked
+--"Coming soon at the Town Gate" goes there too, with gateOnly = true and
+--the part's own fields, so a newer town can play it in the Proving Pits
+--while older apps still keep it locked. Also ticks
 --every document a script is built from (ctx.include), since nothing else
 --ties a map to the documents in its journal folder.
+--Where a series part goes in the module record, and what it carries.
+--part: the playable record { number, title, townGate, townGateSource,
+--tracks, map, restFree }. comingSoon: the part's mark, or nil.
+--Returns "parts", part for a playable part; "comingSoonParts" and
+--{ number, title, text } for a "Coming soon" part; and for one marked
+--"Coming soon at the Town Gate", "comingSoonParts" and the whole part with
+--text and gateOnly = true (older apps read only number, title and text).
+local function SeriesPartRecord(comingSoon, part)
+	if comingSoon == nil then
+		return "parts", part
+	end
+	if comingSoon.board == "gate" then
+		local record = {}
+		for k, v in pairs(part) do
+			record[k] = v
+		end
+		record.text = comingSoon.text
+		record.gateOnly = true
+		return "comingSoonParts", record
+	end
+	return "comingSoonParts", { number = part.number, title = part.title, text = comingSoon.text }
+end
+
 local CheckEncounterModule = function(ctx)
 	local result = { errors = {}, warnings = {}, encounters = {} }
 	local errors, warnings = result.errors, result.warnings
@@ -1897,12 +1923,16 @@ local CheckEncounterModule = function(ctx)
 					end
 				end
 				local comingSoon = script.parse.part ~= nil and script.parse.part.comingSoon or nil
-				if comingSoon ~= nil then
+				local gateOnly = comingSoon ~= nil and comingSoon.board == "gate"
+				if gateOnly then
+					warnings[#warnings+1] = string.format("%s: marked 'Coming soon at the Town Gate', so the Gate shows it locked and the Proving Pits can play it.", entry.label)
+				elseif comingSoon ~= nil then
 					warnings[#warnings+1] = string.format("%s: marked 'Coming soon', so players see it locked and cannot play it yet.", entry.label)
 				end
 				if not hasEncounter then
 					local problem = string.format("%s: the script has no # Encounter beat, so the fight never starts.", entry.label)
-					if comingSoon ~= nil then
+					--a Gate-only part still plays in the Proving Pits.
+					if comingSoon ~= nil and not gateOnly then
 						warnings[#warnings+1] = problem
 					else
 						errors[#errors+1] = problem
@@ -1937,12 +1967,14 @@ local CheckEncounterModule = function(ctx)
 						tracks = tracks or {}
 						tracks[#tracks+1] = { name = decl.name, hidden = decl.hidden == true, description = decl.description }
 					end
-					if comingSoon ~= nil then
-						comingSoonParts[#comingSoonParts+1] = { number = entry.number, title = entry.title, text = comingSoon.text }
+					--restFree: a rest does not lock this part again once the part before is won.
+					local restFree = cond(script.parse.part ~= nil and script.parse.part.restFree == true, true, nil)
+					local list, partRecord = SeriesPartRecord(comingSoon, { number = entry.number, title = entry.title, townGate = townGateText,
+						townGateSource = townGateSource, tracks = tracks, map = entry.map, restFree = restFree })
+					if list == "parts" then
+						parts[#parts+1] = partRecord
 					else
-						--restFree: a rest does not lock this part again once the part before is won.
-						local restFree = cond(script.parse.part ~= nil and script.parse.part.restFree == true, true, nil)
-						parts[#parts+1] = { number = entry.number, title = entry.title, townGate = townGateText, townGateSource = townGateSource, tracks = tracks, map = entry.map, restFree = restFree }
+						comingSoonParts[#comingSoonParts+1] = partRecord
 					end
 				elseif townGateText ~= nil or townGateSource ~= nil then
 					result.encounters[m.name] = { townGate = townGateText, townGateSource = townGateSource }

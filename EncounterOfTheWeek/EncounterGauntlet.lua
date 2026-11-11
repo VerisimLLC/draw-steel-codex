@@ -1085,7 +1085,7 @@ local function LandGroupRoll(m, doc, section, heroes, charid, tier, total, natur
     rec.tier = tierIndex
     rec.total = total
     rec.auto = auto or nil
-    rec.tierText = EncounterScript.SubstitutePC(EncounterScript.VisibleText(version.roll.tiers[tierIndex] or ""), rec.heroName)
+    rec.tierText = EncounterScript.SubstitutePC(EncounterScript.VisibleText(version.roll.tiers[tierIndex] or ""), rec.heroName, EncounterMontage.HeroPronouns(charid))
     rec.applied = applied
     m.log = m.log or {}
     m.log[#m.log + 1] = {
@@ -1749,7 +1749,7 @@ function EncounterGauntlet.LaunchGroupRoll(rec, charid, token, option, version)
         rollType = built.rollType,
         roll = built.roll,
         modifiers = built.modifiers,
-        tiers = EncounterMontage.TeaserTiers(version.roll, rec.heroName),
+        tiers = EncounterMontage.TeaserTiers(version.roll, rec.heroName, EncounterMontage.HeroPronouns(charid)),
         secretCritical = true,
         rollSeq = rollSeq,
         stillWanted = StillWanted,

@@ -6967,6 +6967,30 @@ function GameHud.FindOpenHeroTriggerPrompt()
 	return nil, nil
 end
 
+--The first hero whose accepted trigger is still resolving, and its name; nil
+--when none. Its card is already gone, but its cast may claim the turn
+--(Hesitation Is Weakness). Passing the turn before the claim lands crosses the
+--two initiative writes: a client can then see the hero's entry current with
+--the monsters' side to pick, and the Monster AI played the hero's stolen turn
+--and ended it (AH6SYXTP). Holding until the claim lands sends the handoff down
+--NextInitiative's "claimed during the handoff" path instead.
+---@return CharacterToken|nil, string|nil
+function GameHud.FindResolvingHeroTurnClaim()
+	local q = dmhub.initiativeQueue
+	if q ~= nil and q.hidden then
+		q = nil
+	end
+	for _,token in ipairs(dmhub.allTokens) do
+		if token.valid and token.properties ~= nil and IsHeroSide(token, q) then
+			local ability = token.properties:TurnClaimResolving()
+			if ability ~= nil then
+				return token, ability
+			end
+		end
+	end
+	return nil, nil
+end
+
 ---@param token CharacterToken
 ---@param trigger ActiveTrigger
 ---@return string
@@ -7007,10 +7031,18 @@ function GameHud.WaitForHeroTriggerPrompts(context)
 			result = "deadline"
 		else
 			local token, trigger = GameHud.FindOpenHeroTriggerPrompt()
-			if token == nil or trigger == nil then
+			local text = nil
+			if token ~= nil and trigger ~= nil then
+				text = HeroPromptWaitText(token, trigger)
+			else
+				local claimToken, claimAbility = GameHud.FindResolvingHeroTurnClaim()
+				if claimToken ~= nil then
+					text = string.format("Waiting for %s's %s to finish", claimToken.name or "a hero", claimAbility)
+				end
+			end
+			if text == nil then
 				result = wait == nil and "none" or "answered"
 			else
-				local text = HeroPromptWaitText(token, trigger)
 				if wait == nil then
 					wait = {text = text, released = false}
 					g_heroPromptWait = wait

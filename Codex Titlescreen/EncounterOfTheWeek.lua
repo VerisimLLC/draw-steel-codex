@@ -514,6 +514,8 @@ local CITY_LOCATIONS = {
         y = 0.2,
         --replaced by OpenLocation each time it opens.
         scene = CONSTRUCTION_SCENE,
+        --an admin can hide the project (Community Projects...), site and Hall alike.
+        hidden = function(ctx) return EotwDowntime.CommunityProjectHidden("build-hall-of-heroes") end,
         open = function(ctx) ctx.OpenHall() end,
     },
     --The Town Hall's building site until the town has built it
@@ -529,6 +531,8 @@ local CITY_LOCATIONS = {
         y = 0.3,
         --replaced by OpenLocation each time it opens.
         scene = TOWN_HALL_SCENES.site,
+        --an admin can hide the project (Community Projects...), site and Town Hall alike.
+        hidden = function(ctx) return EotwDowntime.CommunityProjectHidden("build-town-hall") end,
         open = function(ctx) ctx.OpenTownHall() end,
     },
     --The Training Grounds' building site until the town has built them
@@ -548,7 +552,8 @@ local CITY_LOCATIONS = {
         scene = TRAINING_GROUNDS_SCENES.site,
         --Hidden until the City lists its project: a game server without
         --build-training-grounds would refuse every roll at the site. Also
-        --hidden while the projects are still being listed.
+        --hidden while the projects are still being listed, and when an admin
+        --hides the project (TrainingGroundsBuilt is then false too).
         hidden = function(ctx)
             return not EotwRoster.TrainingGroundsBuilt() and EotwDowntime.GetProject("build-training-grounds") == nil
         end,
@@ -858,10 +863,13 @@ end
 local COMING_SOON_TEXT = "Coming soon."
 
 --The parts of a series map from its module record's eotwEncounters entry:
---{ {number, title, townGate, mapName, comingSoon}, ... } sorted by number, or
---nil when the map is not a series. mapName is set for a part on its own part
---map. Parts listed under comingSoonParts come back as locked placeholders
---whose comingSoon field is the hover text.
+--{ {number, title, townGate, mapName, comingSoon, comingSoonBoard}, ... }
+--sorted by number, or nil when the map is not a series. mapName is set for a
+--part on its own part map. Parts listed under comingSoonParts come back with
+--comingSoon set to the hover text: as locked placeholders, or, for one marked
+--gateOnly ("Coming soon at the Town Gate"), with comingSoonBoard "gate" and
+--its townGate, mapName and restFree, so the Proving Pits can play it
+--(see PartLockedOn).
 --Read leniently: Firebase may hand a list back keyed "0", "1".
 local function ReadSeriesParts(story)
     if type(story) ~= "table" then
@@ -898,7 +906,20 @@ local function ReadSeriesParts(story)
             if type(p.text) == "string" and p.text ~= "" then
                 text = p.text
             end
-            parts[#parts+1] = { number = math.floor(number), title = title, comingSoon = text }
+            local part = { number = math.floor(number), title = title, comingSoon = text }
+            --"Coming soon at the Town Gate": locked at the Gate only, so it
+            --carries what the Proving Pits need to play it.
+            if p.gateOnly == true then
+                part.comingSoonBoard = "gate"
+                if type(p.townGate) == "string" and p.townGate ~= "" then
+                    part.townGate = p.townGate
+                end
+                if type(p.map) == "string" and p.map ~= "" then
+                    part.mapName = p.map
+                end
+                part.restFree = p.restFree == true
+            end
+            parts[#parts+1] = part
         end
     end
     if #parts == 0 then
@@ -938,18 +959,29 @@ function EncounterOfTheWeek.PartName(key)
     return T("eotw.series.part", { number = p.number })
 end
 
+--Is this part (an entry from GetPart) locked as "Coming soon" on this board
+--("gate" or "practice")? A plain mark locks both boards; one marked
+--"Coming soon at the Town Gate" (comingSoonBoard "gate") only the Gate.
+function EncounterOfTheWeek.PartLockedOn(entry, board)
+    if entry == nil or entry.comingSoon == nil then
+        return false
+    end
+    return entry.comingSoonBoard ~= "gate" or board == "gate"
+end
+
 --May this account form a party for this key? Part 1 of a series (and any
 --encounter that is not a series) always; part n while part n-1 is OPEN on
 --the same board: won by the account since its last respite
 --(EotwRoster.PartOpen; Catching Breath keeps it open). At the Town Gate any
 --of its heroes' wins count, in the Proving Pits its practice wins. A Proving
 --Pits win does not carry over to the Gate. A part marked "Coming soon" stays
---locked for everyone.
+--locked for everyone; one marked "Coming soon at the Town Gate" only at the
+--Gate (the Proving Pits unlock it as usual).
 --Returns true, or false + the reason to show.
 function EncounterOfTheWeek.PartUnlocked(key)
     local seriesKey, part = EncounterOfTheWeek.SplitPartKey(key)
     local entry = EncounterOfTheWeek.GetPart(key)
-    if entry ~= nil and entry.comingSoon ~= nil then
+    if entry ~= nil and EncounterOfTheWeek.PartLockedOn(entry, EncounterOfTheWeek.PartBoard(key)) then
         return false, entry.comingSoon
     end
     if part <= 1 then
@@ -1056,7 +1088,8 @@ function EncounterOfTheWeek.PartsHeldOpen(list)
             local seriesKey, part = EncounterOfTheWeek.SplitPartKey(key)
             local nextPart = EncounterOfTheWeek.GetPart(seriesKey, part + 1)
             --a rest-free next part stays unlocked, so the inn has nothing to warn about.
-            if nextPart ~= nil and nextPart.comingSoon == nil and not nextPart.restFree then
+            if nextPart ~= nil and not nextPart.restFree
+                and not EncounterOfTheWeek.PartLockedOn(nextPart, item.board) then
                 local nextKey = EncounterOfTheWeek.PartKey(seriesKey, part + 1)
                 result[#result+1] = {
                     series = EncounterOfTheWeek.EncounterTitle(seriesKey),
@@ -2569,13 +2602,216 @@ function EncounterOfTheWeek.CodexMenuItems()
                 EotwModeration.ShowAdminDialog()
             end,
         },
+        {
+            text = "Set Hero Victories...",
+            icon = "phosphor/star-fill.png",
+            click = function()
+                EncounterOfTheWeek.ShowHeroVictoriesDialog()
+            end,
+        },
     }
+end
+
+--Admin debug: set any of this account's town heroes' banked Victories to an
+--exact number, to test respites and Level up at the Training Grounds without
+--winning encounters. A respite turns Victories into XP; XP fills the Level.
+--Writes the hero's working copy and pushes it to the city (DevModifyHero).
+function EncounterOfTheWeek.ShowHeroVictoriesDialog()
+    if m_screen == nil or not m_screen.valid then
+        return
+    end
+
+    local dlg
+    local listPanel
+    local statusLabel
+
+    local SetStatus = function(text, isError)
+        if statusLabel ~= nil and statusLabel.valid then
+            statusLabel.text = text or ""
+            statusLabel.selfStyle.color = cond(isError, "#ff8888", Styles.textColor)
+        end
+    end
+
+    local Rebuild
+    Rebuild = function()
+        if listPanel == nil or not listPanel.valid then
+            return
+        end
+        local rows = {}
+        for _, hero in ipairs(EotwRoster.GetHeroes() or {}) do
+            local tok = dmhub.GetCharacterById(hero.heroid)
+            local name = (tok ~= nil and tok.name) or (hero.summary or {}).name or hero.heroid
+            local stateText = "Not loaded yet"
+            local victories = 0
+            if tok ~= nil and tok.properties ~= nil then
+                victories = tok.properties:GetVictories() or 0
+                stateText = string.format("%d Victories", victories)
+                pcall(function()
+                    local xp = EotwHeroSheet.XpProgress(tok.properties)
+                    stateText = string.format("Level %d, XP %d / %d, %d Victories banked",
+                        xp.level, xp.xpIntoLevel, xp.xpPerLevel, victories)
+                end)
+            end
+            local victoriesInput = gui.Input{
+                text = tostring(victories),
+                fontSize = 16,
+                width = 90,
+                height = 30,
+                valign = "center",
+                characterLimit = 4,
+            }
+            rows[#rows+1] = gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+                vmargin = 6,
+                gui.Panel{
+                    width = "100%-230",
+                    height = "auto",
+                    flow = "vertical",
+                    valign = "center",
+                    gui.Label{
+                        text = name,
+                        fontSize = 20,
+                        bold = true,
+                        color = Styles.textColor,
+                        width = "100%",
+                        height = "auto",
+                    },
+                    gui.Label{
+                        text = stateText,
+                        fontSize = 15,
+                        color = "#e6dcc6",
+                        width = "100%",
+                        height = "auto",
+                    },
+                },
+                victoriesInput,
+                gui.Button{
+                    text = "Set",
+                    fontSize = 15,
+                    width = 100,
+                    height = 32,
+                    hmargin = 6,
+                    valign = "center",
+                    click = function(element)
+                        local value = math.floor(tonumber(victoriesInput.text) or -1)
+                        if value < 0 then
+                            SetStatus("Victories must be a whole number of 0 or more.", true)
+                            return
+                        end
+                        local ok = EotwDowntime.DevModifyHero(hero, "Admin: set Victories", function(props)
+                            props:SetVictories(value)
+                        end)
+                        if not ok then
+                            SetStatus(string.format("%s is not loaded yet; try again in a moment.", name), true)
+                            return
+                        end
+                        SetStatus(string.format("%s now has %d Victories.", name, value))
+                        --rebuild after this click returns: it replaces the row holding this button.
+                        dmhub.Schedule(0.05, function()
+                            if not mod.unloaded then
+                                Rebuild()
+                            end
+                        end)
+                    end,
+                },
+            }
+        end
+        if #rows == 0 then
+            rows[1] = gui.Label{ text = "You have no heroes in town.", fontSize = 16, color = Styles.textColor, width = "100%", height = "auto" }
+        end
+        listPanel.children = rows
+    end
+
+    --built here, not via create: create has not run yet when Rebuild first fills it.
+    listPanel = gui.Panel{
+        width = "100%",
+        height = "auto",
+        maxHeight = 600,
+        vscroll = true,
+        flow = "vertical",
+        vmargin = 8,
+        rpad = 12,
+        borderBox = true,
+    }
+
+    dlg = gui.Panel{
+        floating = true,
+        width = 640,
+        height = "auto",
+        halign = "center",
+        valign = "center",
+        bgimage = "panels/square.png",
+        bgcolor = "#111111ff",
+        borderWidth = 2,
+        borderColor = Styles.textColor,
+        flow = "vertical",
+        pad = 16,
+        borderBox = true,
+        styles = { Styles.Default },
+
+        captureEscape = true,
+        escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+        escape = function(element)
+            element:DestroySelf()
+        end,
+
+        gui.Label{
+            text = "Set Hero Victories",
+            fontSize = 32,
+            bold = true,
+            color = Styles.textColor,
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            vmargin = 8,
+        },
+        gui.Label{
+            text = "Debug: sets your heroes' banked Victories. Take a respite to turn them into XP, then Level up at the Training Grounds.",
+            fontSize = 15,
+            color = Styles.textColor,
+            width = "100%",
+            height = "auto",
+            textAlignment = "center",
+            textWrap = true,
+            vmargin = 4,
+        },
+        listPanel,
+        gui.Label{
+            text = "",
+            fontSize = 16,
+            color = Styles.textColor,
+            width = "100%",
+            height = "auto",
+            minHeight = 22,
+            textAlignment = "center",
+            create = function(element)
+                statusLabel = element
+            end,
+        },
+        gui.Button{
+            text = "Close",
+            fontSize = 20,
+            width = 140,
+            height = 42,
+            halign = "center",
+            vmargin = 8,
+            click = function(element)
+                dlg:DestroySelf()
+            end,
+        },
+    }
+
+    m_screen:AddChild(dlg)
+    Rebuild()
 end
 
 --Admin: set how far each community project (the Hall of Heroes, the Town
 --Hall) has got, on the server this town is connected to only (the City's
---admin-set-project). Points at the goal complete it; Reset forgets it.
---Nothing is posted to Discord. The town re-lists on the City's projectsRev.
+--admin-set-project). Points at the goal complete it; Reset forgets it;
+--Hide takes it out of the town for everyone (site and building alike) until
+--Show. Nothing is posted to Discord. The town re-lists on the City's projectsRev.
 function EncounterOfTheWeek.ShowProjectsDialog()
     if m_screen == nil or not m_screen.valid then
         return
@@ -2618,8 +2854,12 @@ function EncounterOfTheWeek.ShowProjectsDialog()
             local maxed = project.maxed == true
             local goal = tonumber(project.goal) or 0
             local points = tonumber(project.points) or 0
+            local hidden = project.hidden == true
             local stateText = cond(maxed, "Complete", string.format("%d / %d points (%d%%)", points, goal,
                 cond(goal > 0, math.floor(points * 100 / math.max(1, goal)), 0)))
+            if hidden then
+                stateText = stateText .. " - <b>Hidden from players</b>"
+            end
             local pointsInput
             pointsInput = gui.Input{
                 text = tostring(cond(maxed, 0, points)),
@@ -2718,6 +2958,17 @@ function EncounterOfTheWeek.ShowProjectsDialog()
                             Apply(title, { projectid = project.projectid, reset = true })
                         end,
                     },
+                    gui.Button{
+                        text = cond(hidden, "Show", "Hide"),
+                        fontSize = 15,
+                        width = 100,
+                        height = 32,
+                        hmargin = 6,
+                        valign = "center",
+                        click = function(element)
+                            Apply(title, { projectid = project.projectid, hidden = not hidden })
+                        end,
+                    },
                 },
             }
         end
@@ -2728,7 +2979,8 @@ function EncounterOfTheWeek.ShowProjectsDialog()
     end
 
     Load = function()
-        CityRequest("list-projects", { scope = "community" }, function(ok, result)
+        --includeHidden: an admin's listing keeps the hidden projects (marked hidden).
+        CityRequest("list-projects", { scope = "community", includeHidden = true }, function(ok, result)
             if dlg == nil or not dlg.valid then
                 return
             end
@@ -3542,6 +3794,67 @@ CreateScreen = function(args)
     --Chat text shown as typed: rich-text tags in it are not applied.
     local ChatPlain = function(text)
         return "<noparse>" .. string.gsub(text, "</?[nN][oO][pP][aA][rR][sS][eE]>", "") .. "</noparse>"
+    end
+
+    --Characters a web address may contain. Spaces, quotes and < > are left
+    --out, so a link ends with its word and can never break the markup.
+    local URL_CHARS = "[%w%-%._~:/%?#%[%]@!%$&%(%)%*%+,;=%%]"
+    local URL_PATTERNS = { "https?://" .. URL_CHARS .. "+", "%f[%w]www%." .. URL_CHARS .. "+" }
+
+    --ChatPlain, but with each web address turned into a link. Returns the
+    --rich text and the list of urls. A link's id is its index in that list,
+    --so the url itself never goes inside a tag.
+    --- @param text string
+    --- @return string richText
+    --- @return string[] urls
+    local ChatLinkify = function(text)
+        local parts = {}
+        local urls = {}
+        local pos = 1
+        while true do
+            local s, e = nil, nil
+            for _,pattern in ipairs(URL_PATTERNS) do
+                local ps, pe = string.find(text, pattern, pos)
+                if ps ~= nil and (s == nil or ps < s) then
+                    s, e = ps, pe
+                end
+            end
+            if s == nil or e == nil then
+                break
+            end
+            local url = string.sub(text, s, e)
+            --punctuation ending a sentence is not part of the address, nor is
+            --a ")" closing a bracket that opened before it.
+            while #url > 0 do
+                local last = string.sub(url, -1)
+                local trim = string.find(".,;:!?", last, 1, true) ~= nil
+                if last == ")" then
+                    local _, opens = string.gsub(url, "%(", "")
+                    local _, closes = string.gsub(url, "%)", "")
+                    trim = closes > opens
+                end
+                if not trim then
+                    break
+                end
+                url = string.sub(url, 1, -2)
+            end
+            if s > pos then
+                parts[#parts+1] = ChatPlain(string.sub(text, pos, s - 1))
+            end
+            if string.find(url, "^https?://%w") or string.find(url, "^www%.%w") then
+                urls[#urls+1] = url
+                parts[#parts+1] = string.format("<link=%d><color=#8fc7ff><u>%s</u></color></link>", #urls, ChatPlain(url))
+                pos = s + #url
+            else
+                --just "http://" or "www." on its own: leave it as text.
+                parts[#parts+1] = ChatPlain(string.sub(text, s, e))
+                pos = e + 1
+            end
+        end
+        if pos <= #text then
+            parts[#parts+1] = ChatPlain(string.sub(text, pos))
+        end
+        return table.concat(parts), urls
     end
 
     --The red line between unread chat messages and those already seen.
@@ -6585,7 +6898,7 @@ CreateScreen = function(args)
             if msg.edited then
                 edited = " <color=#ffffff80><size=80%>" .. T("eotw.chat.edited") .. "</size></color>"
             end
-            local body = ChatPlain(msg.text or "")
+            local body, urls = ChatLinkify(msg.text or "")
             --a horn's announcement reads as one gold line: "Aria blows the horn! ...",
             --as does its close (horn-launched / horn-canceled / horn-expired).
             if type(msg.kind) == "string" and (msg.kind == "horn" or msg.kind:sub(1, 5) == "horn-") then
@@ -6600,6 +6913,19 @@ CreateScreen = function(args)
                 height = "auto",
                 halign = "left",
                 vmargin = 2,
+                --pressing a link opens it. Approved sites open at once; for
+                --any other the engine asks the player first.
+                links = #urls > 0,
+                press = function(element)
+                    local url = urls[tonumber(element.linkHovered or "")]
+                    if url == nil then
+                        return
+                    end
+                    if string.find(url, "^www%.") then
+                        url = "https://" .. url
+                    end
+                    dmhub.OpenURL(url)
+                end,
                 --admins: right-click a player's line to warn or ban them
                 --(not lines bridged in from Discord, which have no account here).
                 rightClick = function(element)

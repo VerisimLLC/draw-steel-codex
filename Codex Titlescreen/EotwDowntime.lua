@@ -453,10 +453,25 @@ end
 local m_projects = {}
 --scope -> a list request is in flight.
 local m_listing = {}
+--scope -> the City has answered a list of it on this connection.
+local m_listed = {}
 
 --A project's last known state, or nil before the first list.
 function EotwDowntime.GetProject(projectid)
     return m_projects[projectid]
+end
+
+--Is this community project hidden from the town? The City leaves a hidden
+--project (an admin's Hide, or one this server does not have) out of its
+--listing, so once the town's community projects are listed, an absent one
+--is hidden: its place in town, built or not, must not show. False until the
+--first listing arrives.
+function EotwDowntime.CommunityProjectHidden(projectid)
+    local project = EotwDowntime.PROJECTS[projectid]
+    if project == nil or project.scope ~= "community" then
+        return false
+    end
+    return m_listed.community == true and m_projects[projectid] == nil
 end
 
 --Drop every cached project. EotwRoster.Attach calls this for each new city
@@ -465,6 +480,7 @@ end
 function EotwDowntime.ForgetProjects()
     m_projects = {}
     m_listing = {}
+    m_listed = {}
     Bump()
 end
 
@@ -487,6 +503,14 @@ function EotwDowntime.RefreshProjects()
                         return
                     end
                     m_listing[scope] = false
+                    m_listed[scope] = true
+                    --the listing is the whole scope: a project it no longer
+                    --has (an admin hid it) leaves the cache.
+                    for id, state in pairs(m_projects) do
+                        if state.scope == scope then
+                            m_projects[id] = nil
+                        end
+                    end
                     for _, project in ipairs(result.projects or {}) do
                         m_projects[project.projectid] = project
                     end
@@ -1002,10 +1026,12 @@ function EotwDowntime.TakeRespite(onDone)
     local grants = {}
     local count = 0
     local wounded = 0
+    local victories = 0
     for _, entry in ipairs(EotwDowntime.RestCandidates()) do
         if entry.canRest then
             grants[entry.hero.heroid] = entry.victories
             count = count + 1
+            victories = victories + entry.victories
             if entry.wounded then
                 wounded = wounded + 1
             end
@@ -1017,9 +1043,10 @@ function EotwDowntime.TakeRespite(onDone)
         end
         return
     end
-    --a respite is for healing: with nobody hurt there is nothing to rest
-    --from (and each respite earns a carouse, so it must not be repeatable).
-    if wounded == 0 then
+    --a respite heals and turns Victories into XP: with nobody hurt and no
+    --Victories there is nothing to rest for (each respite earns a carouse, so
+    --it must not be repeatable; resting zeroes Victories).
+    if wounded == 0 and victories == 0 then
         if onDone ~= nil then
             onDone(false, EotwDowntime.NO_WOUNDS_MESSAGE)
         end
@@ -3460,7 +3487,7 @@ function EotwDowntime.InnPanel(host, openLocation)
         if footerLabel ~= nil and footerLabel.valid then
             if resting == 0 then
                 footerLabel.text = T("inn.footer.nobody_home")
-            elseif wounded == 0 then
+            elseif wounded == 0 and victories == 0 then
                 footerLabel.text = EotwDowntime.NO_WOUNDS_MESSAGE
             else
                 if victories > 0 then
@@ -3472,7 +3499,7 @@ function EotwDowntime.InnPanel(host, openLocation)
         end
         if seriesWarning ~= nil and seriesWarning.valid then
             local lines = {}
-            if resting > 0 and wounded > 0 then
+            if resting > 0 and (wounded > 0 or victories > 0) then
                 for _, held in ipairs(EncounterOfTheWeek.PartsHeldOpen()) do
                     lines[#lines+1] = T("inn.series.warning", held)
                 end
@@ -3482,7 +3509,7 @@ function EotwDowntime.InnPanel(host, openLocation)
         end
         if respiteButton ~= nil and respiteButton.valid then
             --on the button itself: opacity is not inherited from this wrapper.
-            local opacity = cond(resting > 0 and wounded > 0 and not EotwDowntime.RespiteBusy(), 1, 0.45)
+            local opacity = cond(resting > 0 and (wounded > 0 or victories > 0) and not EotwDowntime.RespiteBusy(), 1, 0.45)
             for _, child in ipairs(respiteButton.children) do
                 child.selfStyle.opacity = opacity
             end
@@ -3761,12 +3788,17 @@ local function DevHeroName(hero)
     return (tok ~= nil and tok.name) or (hero.summary or {}).name or hero.heroid
 end
 
---Change a roster hero's working copy and push it (dev commands only).
+--Change a roster hero's working copy and push it (dev commands and the
+--admin Set Hero Victories dialog). Returns false when the hero is not loaded.
+---@param hero table a roster hero view (EotwRoster.GetHeroes)
+---@param description string
+---@param execute fun(props: creature)
+---@return boolean
 local function DevModifyHero(hero, description, execute)
     local tok = dmhub.GetCharacterById(hero.heroid)
     if tok == nil or not EotwRoster.IsInStep(hero.heroid) then
         printf("EotW town (dev): %s is not loaded yet; try again in a moment", DevHeroName(hero))
-        return
+        return false
     end
     tok:ModifyProperties{
         description = description,
@@ -3780,7 +3812,9 @@ local function DevModifyHero(hero, description, execute)
             EotwRoster.PushHero(hero.heroid)
         end
     end)
+    return true
 end
+EotwDowntime.DevModifyHero = DevModifyHero
 
 local DEV_USAGE = [[Usage: /eotwdowntime <command> (open the town first)
   grant <n> [hero]      give n Downtime Activities (project rolls) to the hero, or to every hero at home

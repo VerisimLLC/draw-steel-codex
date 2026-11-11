@@ -92,26 +92,11 @@ end
 
 --An accepted prompt's cast holds the monsters too: its card is gone, but a
 --turn-claim cast (Hesitation Is Weakness) has not moved initiative yet. The
---move lands just after the cast completes, hence the settle time. The limit
---stops a completion lost in transit from holding the table for good.
-local g_acceptedTriggerWaitSeconds = 60
-local g_acceptedTriggerSettleSeconds = 2
-
---The name of the hero's accepted trigger whose cast still holds the monsters
---(see the "turn-claim" marker in TriggeredAbility.lua), or nil.
+--rule lives in creature:TurnClaimResolving, shared with the end-of-turn handoff.
 ---@param token CharacterToken
 ---@return string|nil
 local function AcceptedTriggerResolving(token)
-    for _,entry in pairs(token.properties:try_get("pendingAIActivityReactions", {})) do
-        if type(entry) == "table" and entry.activityId == "turn-claim" then
-            local age = EventTimestampAge(entry.timestamp)
-            local limit = entry.state == "completed" and g_acceptedTriggerSettleSeconds or g_acceptedTriggerWaitSeconds
-            if age ~= nil and age < limit then
-                return type(entry.ability) == "string" and entry.ability or "trigger"
-            end
-        end
-    end
-    return nil
+    return token.properties:TurnClaimResolving()
 end
 
 --A hero's trigger the monsters wait for before choosing their next turn: a
@@ -224,6 +209,8 @@ local function MonsterAIThread(process)
     --document read per iteration.
     local turnClaimWaiting = false
     local saveWaiting = false
+    --The players' entry the AI last refused to play, so the refusal logs once.
+    local refusedPlayerTurn = nil
     MonsterAI.ClearWaiting()
     pcall(MonsterAI.ClearPlanPreview)
     creature.SetAIActivityInProgress(nil)
@@ -491,6 +478,22 @@ local function MonsterAIThread(process)
                         end
                     end
                 end
+            elseif queue:IsEntryPlayer(initiativeid) == true then
+                --The side says monsters but the current entry is the players'.
+                --Crossed initiative writes can leave this (a turn claim landing
+                --as the previous hero's turn passed, AH6SYXTP); playing it would
+                --end the hero's turn with nothing done. Leave it to its player.
+                if refusedPlayerTurn ~= initiativeid then
+                    refusedPlayerTurn = initiativeid
+                    lifecycleAI:SetLogContext(nil, {
+                        turn = initiativeid,
+                        round = queue.round,
+                    })
+                    lifecycleAI:LogDecision("TURN REFUSED", {
+                        reason = "the current initiative entry belongs to the players",
+                        result = "not playing it",
+                    })
+                end
             else
                 local ai = MonsterAI.new{}
                 g_status = "Playing Turn"
@@ -599,7 +602,8 @@ end
 --- not driving at this moment, such as a dying Abyssal Hyena's Death Snap on a
 --- hero's turn: mandatory triggers fire with no AI control installed. Same rule
 --- as RollsForCreature. A prompt with no registered handler still goes to the
---- Director. nil when the AI does not play this creature.
+--- Director, or is skipped when nobody plays the Director. nil when the AI
+--- does not play this creature.
 --- @param token CharacterToken
 --- @return nil|fun(invokerToken: CharacterToken, casterToken: CharacterToken, abilityClone: ActivatedAbility, symbols: table, options: table): string
 function MonsterAI.PromptCallbackForCreature(token)

@@ -1749,6 +1749,15 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
             aiResolvedTargeting = (targeting ~= "prompt" and targeting ~= "prompt_inherit")
         end
 
+        --The Monster AI could not choose and there is no Director to ask (a
+        --directorless game would show the prompt to its host, a player). End
+        --the invoke unused, as a declined prompt does.
+        if targeting == "skip" then
+            print("INVOKE:: AI skipped the prompt for", abilityClone.name)
+            canceled = true
+            break
+        end
+
         --A prompt handler may resolve a synthesized-ability chooser as well as
         --its targets. Consume the override immediately so it cannot leak into a
         --later invoke that shares the parent cast's options table.

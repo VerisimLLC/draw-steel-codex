@@ -702,6 +702,104 @@ local function SimilarToOptions(ownType, current)
     return options
 end
 
+local g_weightKindText = {
+    tailored = "Hand-written AI",
+    generic = "Shared AI move",
+    synthesized = "Generic AI",
+    malice = "Band Malice",
+    stale = "No longer applies",
+}
+
+--One row of the score weights list: the move, what kind of AI it is, and a
+--slider for its weight. Changes are written to the sheet's monster at once.
+--- @param move MonsterAIWeightableMove
+--- @param weight number
+--- @return Panel
+local function ScoreWeightRow(move, weight)
+    local detail = g_weightKindText[move.status] or move.status
+    if move.disabled then
+        detail = detail .. " (switched off in the Monster AI panel)"
+    end
+    if #move.abilities > 0 and not (#move.abilities == 1 and move.abilities[1] == move.name) then
+        detail = detail .. " - uses " .. table.concat(move.abilities, ", ")
+    end
+    if move.grantedBy ~= nil then
+        detail = detail .. " - only with " .. move.grantedBy
+    end
+
+    local tooltip = move.description
+    if move.status == "synthesized" then
+        tooltip = string.format("%s\nWeighted as \"%s\".", tooltip, move.id)
+    elseif move.status == "malice" then
+        tooltip = tooltip .. "\n\nThe band shares its Malice: this weight applies when this monster is the one spending it."
+    end
+
+    return gui.Panel {
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        tmargin = 4,
+
+        gui.Label {
+            width = "100%-330",
+            height = "auto",
+            fontSize = 14,
+            textWrap = true,
+            valign = "center",
+            text = string.format("<b>%s</b>\n<size=80%%>%s</size>", move.name, detail),
+            hover = function(element)
+                if tooltip ~= "" then
+                    gui.Tooltip { text = tooltip, width = 420, halign = "right", valign = "center" }(element)
+                end
+            end,
+        },
+        gui.Slider {
+            width = 260,
+            height = 24,
+            sliderWidth = 200,
+            labelWidth = 50,
+            valign = "center",
+            minValue = 0,
+            maxValue = 3,
+            unclamped = true,
+            value = weight,
+            --shows "150%"; typing 150 into the label sets 1.5.
+            labelFormat = "rawpercent",
+            change = function(element)
+                local info = CharacterSheet.instance.data.info
+                if info == nil or info.token == nil or info.token.properties == nil then
+                    return
+                end
+                --whole percentages, never below zero.
+                local value = math.max(0, math.floor(element.value * 100 + 0.5) / 100)
+                MonsterAI.SetScoreWeight(info.token.properties, move.id, value)
+            end,
+            confirm = function(element)
+                CharacterSheet.instance:FireEvent("refreshAll")
+            end,
+        },
+        gui.Button {
+            text = "Reset",
+            width = "auto",
+            height = 24,
+            fontSize = 13,
+            hpad = 8,
+            borderBox = true,
+            valign = "center",
+            lmargin = 6,
+            classes = weight == 1 and { "hidden" } or {},
+            click = function(element)
+                local info = CharacterSheet.instance.data.info
+                if info == nil or info.token == nil or info.token.properties == nil then
+                    return
+                end
+                MonsterAI.SetScoreWeight(info.token.properties, move.id, 1)
+                CharacterSheet.instance:FireEvent("refreshAll")
+            end,
+        },
+    }
+end
+
 local function CreateMonsterAITab()
     --the kit list is only rebuilt while the tab is showing: assessing the
     --monster is too slow to repeat on every sheet refresh behind other tabs.
@@ -714,6 +812,34 @@ local function CreateMonsterAITab()
         height = "auto",
         flow = "vertical",
     }
+    local weightsPanel = gui.Panel {
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+    }
+
+    local function RefreshWeights()
+        local monster = props --[[@as creature]]
+        local ok, moves = pcall(MonsterAI.WeightableMoves, monster)
+        if not ok then
+            weightsPanel.children = { BodyLabel("The moves the AI scores for this monster could not be worked out.") }
+            return
+        end
+        local rows = {}
+        --a minion's turn is always a squad strike, so only its band's Malice
+        --can be weighted; say so rather than leave the list looking short.
+        if monster:try_get("minion", false) == true then
+            rows[#rows + 1] = BodyLabel("Minions only make squad strikes with their signature ability, which are not weighted.",
+                { classes = { "fgMuted" } })
+        elseif #moves == 0 then
+            rows[#rows + 1] = BodyLabel("The AI has no moves to weight for this monster.", { classes = { "fgMuted" } })
+        end
+        local weights = MonsterAI.ScoreWeights(monster)
+        for _, move in ipairs(moves) do
+            rows[#rows + 1] = ScoreWeightRow(move, weights[move.id] or 1)
+        end
+        weightsPanel.children = rows
+    end
 
     local function RefreshKit()
         if props == nil or not active then
@@ -737,6 +863,7 @@ local function CreateMonsterAITab()
             rows[#rows + 1] = KitRow(entry)
         end
         kitPanel.children = rows
+        RefreshWeights()
     end
 
     local dropdown = gui.Dropdown {
@@ -822,6 +949,11 @@ local function CreateMonsterAITab()
             SectionTitle("What the AI will do"),
             summaryLabel,
             kitPanel,
+
+            SectionTitle("Score weights"),
+            BodyLabel("On its turn the AI scores every move it can make and uses the best, and at the start of a turn it spends Malice when an ability scores well enough. Each score is multiplied by its weight here: raise a weight to make this monster favor that move, lower it to make the move rarer, or set 0% so it is never used.",
+                { classes = { "fgMuted" }, bmargin = 4 }),
+            weightsPanel,
         },
     }
 end

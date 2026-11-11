@@ -6533,11 +6533,17 @@ local g_infernalContractDiscordShownSetting = setting{
 
 --The Discord account state from dmhub.discordStatus: "notlinked", "linking",
 --"connecting", "ready", "error", or "off"/"unsupported" where this build or
---this user's settings have no Discord. pcall: an older engine has no such property.
+--this user's settings have no Discord. "provisional" is "ready" on a
+--provisional account: signed in to Discord, but no Discord account linked.
+--pcall: an older engine has no such property.
 local function DiscordAccountState()
 	local result = "off"
 	pcall(function()
-		result = dmhub.discordStatus.account or "off"
+		local s = dmhub.discordStatus
+		result = s.account or "off"
+		if result == "ready" and s.provisional == true then
+			result = "provisional"
+		end
 	end)
 	return result
 end
@@ -7100,7 +7106,8 @@ local CreateInfernalContractDialog = function(titlescreen, args)
 				RefreshSections()
 			elseif state == "connecting" then
 				SetDiscordStatus("Connecting to Discord...", false)
-			elseif state == "error" then
+			elseif state == "error" or state == "provisional" then
+				--"provisional": the sign-in failed but the provisional account is still up.
 				m_discordWaiting = false
 				discordButton.text = "Link Discord"
 				local message = nil
@@ -7241,6 +7248,17 @@ local CreateInfernalContractDialog = function(titlescreen, args)
 
 		closeContract = function(element)
 			element:DestroySelf()
+
+			--closing without linking is declining Discord: the player goes on
+			--with a provisional account, so voice and friends still work, and can
+			--link later. Does nothing while a link is under way.
+			if m_offerDiscord and not m_discordDone and DiscordAccountState() == "notlinked" then
+				pcall(function()
+					if dmhub.discordStatus.provisionalUnavailable ~= true then
+						dmhub.DiscordUseProvisional()
+					end
+				end)
+			end
 
 			--anything the new-items dialog held back while we were up.
 			dmhub.Schedule(0.3, function()

@@ -2226,7 +2226,7 @@ end
 
 
 --May THIS user have this panel at all? devonly panels need dev mode, dmonly
---panels need the Director.
+--panels need the Director, hostonly panels the Director or a player host.
 --
 --This has to be asked everywhere a panel is instantiated, not just where the
 --Panels menu is built. It previously guarded only the menu, so a player who
@@ -2259,6 +2259,11 @@ local PanelPermittedForUser = function(p)
 	--background processes (DockablePanel.StartProcess) are independent of
 	--this gate, so the EotW host still runs the Monster AI headless.
 	if p.dmonly and not GameHud.DirectorUIVisible() then
+		return false
+	end
+	--hostonly: the Director's UI, or the host of a game with no Director, who
+	--holds the Director's tools there (dmhub.playerHostMode).
+	if p.hostonly and not (GameHud.DirectorUIVisible() or dmhub.playerHostMode) then
 		return false
 	end
 	--a mod-enforced custom interface can suppress panels by name

@@ -124,3 +124,49 @@ dmhub.ShowObjectInteractive = function(objid, interactiveid)
 
     return parentPanel
 end
+
+--A map teleporter that leads to more than one place (several teleporters share its link
+--name, e.g. one stairwell serving three floors) asks where to go, then sends the tokens
+--there with dmhub.UseTeleporter. Returning false lets the engine send them to the first.
+dmhub.ChooseTeleporterDestination = function(info)
+    if gamehud == nil or info == nil or info.destinations == nil or #info.destinations == 0 then
+        return false
+    end
+
+    local dialog
+
+    local destinationButtons = {}
+    for _,dest in ipairs(info.destinations) do
+        destinationButtons[#destinationButtons+1] = gui.Button{
+            classes = {"sizeL"},
+            width = 360,
+            halign = "center",
+            vmargin = 4,
+            text = dest.label,
+            click = function(element)
+                dmhub.UseTeleporter{
+                    floorid = info.floorid,
+                    objid = info.objid,
+                    tokens = info.tokens,
+                    destination = dest.id,
+                }
+                if dialog ~= nil and dialog.valid then
+                    dialog:FireEvent("close")
+                end
+            end,
+        }
+    end
+
+    dialog = gamehud:ModalDialog{
+        title = cond(info.stairwell, "Which Floor?", "Where To?"),
+        width = 520,
+        height = 170 + 50 * #destinationButtons,
+        flow = "vertical",
+        buttons = {
+            { text = "Stay Here", escapeActivates = true },
+        },
+        children = destinationButtons,
+    }
+
+    return true
+end

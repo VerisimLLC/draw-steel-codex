@@ -2851,6 +2851,15 @@ function creature:CanTeleport()
     return false
 end
 
+--- Whether the creature can fly up or down under its own power. False for a creature
+--- that may only fly horizontally (the "Horizontal Flight Only" attribute, set by
+--- the levitation from the Ghost's Spirited Away). Effects that lift or drop it
+--- (rising each turn, falling when the effect ends) don't ask this.
+--- @return boolean
+function creature:CanFlyVertically()
+    return self:CanFly() and self:CalculateNamedCustomAttribute("Horizontal Flight Only") <= 0
+end
+
 creature.stability = 0
 creature.reach = 1
 creature.range = 0
@@ -5239,9 +5248,14 @@ function creature:RollCustomPowerTableTest(title, characteristics, skills, tiers
     end)
 end
 
-function creature:ShowCharacteristicRollDialog(attrid)
+--options (optional): onComplete(tier) is called with 1-3 when the roll lands,
+--for callers that act on the result (a puzzle lock's bypass test).
+---@param attrid string
+---@param options {onComplete: fun(tier: integer)|nil}|nil
+function creature:ShowCharacteristicRollDialog(attrid, options)
     local attrInfo = creature.attributesInfo[attrid]
     local title = string.format("%s Test", attrInfo.description)
+    local onComplete = options ~= nil and options.onComplete or nil
 
     local rollProperties = RollPropertiesPowerTable.new {
         tiers = {
@@ -5308,6 +5322,9 @@ function creature:ShowCharacteristicRollDialog(attrid)
                 end
 
                 local tier = RollUtils.DiceResultToTier(rollInfo)
+                if onComplete ~= nil then
+                    pcall(onComplete, tier)
+                end
 
                 token.properties:DispatchEvent("rollpower", {
                     surges = 0,
@@ -7552,17 +7569,25 @@ function creature:EndPersistentAbilityById(guid)
         local targetToken = dmhub.GetTokenById(targetid)
         if targetToken ~= nil then
             local target = targetToken.properties
-            local ongoingEffects = target:try_get("ongoingEffects", {})
-            for i, effect in ipairs(ongoingEffects) do
-                if effect and effect.casterInfo and effect.casterInfo.persistenceId == guid then
-                    targetToken:ModifyProperties {
-                        description = "End Persistent Ability Target",
-                        undoable = false,
-                        execute = function()
-                            target:RemoveOngoingEffect(ongoingEffects[i].ongoingEffectid)
-                        end,
-                    }
+            --collect first: removing while looping would skip effects.
+            --try_get, since not every effect has casterInfo.
+            local removeIds = {}
+            for _, effect in ipairs(target:try_get("ongoingEffects", {})) do
+                local casterInfo = effect and effect:try_get("casterInfo")
+                if casterInfo ~= nil and casterInfo.persistenceId == guid then
+                    removeIds[#removeIds + 1] = effect.ongoingEffectid
                 end
+            end
+            if #removeIds > 0 then
+                targetToken:ModifyProperties {
+                    description = "End Persistent Ability Target",
+                    undoable = false,
+                    execute = function()
+                        for _, effectid in ipairs(removeIds) do
+                            target:RemoveOngoingEffect(effectid)
+                        end
+                    end,
+                }
             end
         end
     end
@@ -8683,6 +8708,57 @@ GameSystem.RegisterGoblinScriptField{
     end,
 }
 
+--The objects with each keyword, found once per frame: a target filter asks
+--for every square in range, and each search walks every token on the map.
+local g_objectsWithKeywordFrame = nil
+local g_objectsWithKeyword = {}
+
+local function ObjectsWithKeyword(keyword)
+    local frame = dmhub.FrameCount()
+    if frame ~= g_objectsWithKeywordFrame then
+        g_objectsWithKeywordFrame = frame
+        g_objectsWithKeyword = {}
+    end
+    local list = g_objectsWithKeyword[keyword]
+    if list == nil then
+        --GetTargetableObjectsWithKeyword only returns objects on the current map
+        --(object tokens report hasTokenOnThisMap = false, so it can't be used here).
+        list = Encounter.GetTargetableObjectsWithKeyword(keyword)
+        g_objectsWithKeyword[keyword] = list
+    end
+    return list
+end
+
+--Distance in squares to the nearest live Targetable object with this object
+--keyword on the same actual floor, from a token (fromToken, which never
+--counts itself) or from a square (fromLoc). 999 if there is none.
+local function DistanceToObjectWithKeyword(fromToken, fromLoc, actualFloor, keyword)
+    if keyword == nil or keyword == "" then
+        return 999
+    end
+    local best = 999
+    for _,other in ipairs(ObjectsWithKeyword(string.lower(tostring(keyword)))) do
+        if (fromToken == nil or other.charid ~= fromToken.charid) and GetTokenActualFloor(other) == actualFloor then
+            local alive = true
+            pcall(function()
+                alive = other.properties:CurrentHitpoints() > 0
+            end)
+            if alive then
+                local distance
+                if fromToken ~= nil then
+                    distance = tonumber(fromToken:Distance(other)) or 999
+                else
+                    distance = tonumber(other:Distance(fromLoc)) or 999
+                end
+                if distance < best then
+                    best = distance
+                end
+            end
+        end
+    end
+    return best
+end
+
 --Distance in squares from this creature to the nearest live Targetable object whose
 --object keywords include the given keyword, on the same actual floor. Footprint to
 --footprint, like token:Distance. 999 when there is no such object, so a "within N"
@@ -8692,29 +8768,10 @@ creature.RegisterSymbol {
     lookup = function(c)
         return function(keyword)
             local token = GetDeployedCreatureToken(c)
-            if token == nil or keyword == nil or keyword == "" then
+            if token == nil then
                 return 999
             end
-
-            local actualFloor = GetTokenActualFloor(token)
-            local best = 999
-            --GetTargetableObjectsWithKeyword only returns objects on the current map
-            --(object tokens report hasTokenOnThisMap = false, so it can't be used here).
-            for _,other in ipairs(Encounter.GetTargetableObjectsWithKeyword(string.lower(tostring(keyword)))) do
-                if other.charid ~= token.charid and GetTokenActualFloor(other) == actualFloor then
-                    local alive = true
-                    pcall(function()
-                        alive = other.properties:CurrentHitpoints() > 0
-                    end)
-                    if alive then
-                        local distance = tonumber(token:Distance(other)) or 999
-                        if distance < best then
-                            best = distance
-                        end
-                    end
-                end
-            end
-            return best
+            return DistanceToObjectWithKeyword(token, nil, GetTokenActualFloor(token), keyword)
         end
     end,
     help = {
@@ -8723,6 +8780,29 @@ creature.RegisterSymbol {
         desc = "Given an object keyword, the distance in squares to the nearest live targetable object with that keyword on this creature's floor. 999 if there is none.",
         examples = { 'DistanceToObjectWithKeyword("topaz spike") <= 2' },
     },
+}
+
+--The same for a square, so a teleport or placement target filter can keep
+--its destination near an object: target.DistanceToObjectWithKeyword("phylactery") <= 1.
+GameSystem.RegisterGoblinScriptField{
+    target = Loc,
+    name = "DistanceToObjectWithKeyword",
+    type = "function",
+    desc = "Given an object keyword, the distance in squares from this location to the nearest live targetable object with that keyword on the same floor. 999 if there is none.",
+    examples = { 'target.DistanceToObjectWithKeyword("phylactery") <= 1' },
+    calculate = function(c)
+        return function(keyword)
+            local engineLoc = rawget(c, "_tmp_loc")
+            if engineLoc == nil or game.currentMap == nil then
+                return 999
+            end
+            local floor = game.currentMap:GetFloorFromLoc(engineLoc)
+            if floor == nil or not floor.valid then
+                return 999
+            end
+            return DistanceToObjectWithKeyword(nil, engineLoc, floor.actualFloor, keyword)
+        end
+    end,
 }
 
 

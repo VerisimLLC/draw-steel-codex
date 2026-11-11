@@ -12,8 +12,10 @@ local mod = dmhub.GetModLoading()
 --
 --       return {
 --           name = ..., description = ...,
---           params = { {id, name, type, default, min, max, options}, ... },
+--           tags = { "weather" },              -- optional; see WEATHER below
+--           params = { {id, name, type, default, min, max, options, editor}, ... },
 --           onActivate = function(ctx) end,    -- every client, map became active
+--           onParamsChanged = function(ctx) end, -- every client, a parameter changed
 --           onDeactivate = function(ctx) end,  -- every client, guaranteed teardown
 --           think = function(ctx) end,         -- every client, every thinkInterval
 --           thinkInterval = 1,
@@ -34,6 +36,23 @@ local mod = dmhub.GetModLoading()
 --     button panel; `element.popup = gui.Panel{...}` opens UI anchored to
 --     the button with click-away/Escape dismissal. directorOnly defaults
 --     to true.
+--
+--   * PARAMETERS: type is "string", "number", "boolean", "choice" or
+--     "color" (a "#rrggbb" string). A number with min, max and
+--     editor = "slider" is edited with a slider. Changing a value normally
+--     restarts the instance (onDeactivate, then onActivate with the new
+--     ctx.params). A definition with onParamsChanged is NOT restarted:
+--     ctx.params is updated in place and the handler is called, so an effect
+--     can be adjusted while it runs. It is also called while a slider is being
+--     dragged, on the dragging client only, before the value is saved.
+--
+--   * WEATHER: a definition tagged "weather" is a weather effect. It is
+--     attached in the Weather section of Map Settings instead of Map Scripts,
+--     and is otherwise an ordinary map script: it draws with the client-local
+--     effect APIs (dmhub.CreateParticleSystem with followView,
+--     dmhub.CreateWorldAtmosphere, dmhub.CreateWorldDistortion) in onActivate,
+--     adjusts them in onParamsChanged and stops them in onDeactivate. The
+--     built-in ones are in MapWeather.lua.
 --
 --   * Every client viewing the map runs an instance of each attached script.
 --     Exactly one client - the elected HOST, always a director - additionally
@@ -268,13 +287,47 @@ function MapScript.GetBuiltin(id)
     return g_builtinsById[id]
 end
 
+--- True when the script with this library or builtin id carries the tag.
+--- A script whose code does not compile has no tags.
+--- @param scriptid string
+--- @param tag string
+--- @return boolean
+function MapScript.ScriptHasTag(scriptid, tag)
+    local def = select(1, MapScript.GetRecordDefinition{ scriptid = scriptid })
+    return def ~= nil and def.tags[tag] == true
+end
+
 --- Appends built-in scripts, then library scripts, as {id, text} options.
---- Used by the Map Settings Add Script picker.
-function MapScript.FillPickerOptions(options)
-    for _, builtin in ipairs(MapScript.builtins) do
-        options[#options + 1] = { id = builtin.id, text = builtin.name .. " (built-in)" }
+--- Used by the Map Settings Add Script picker. With tag, only scripts that
+--- carry it are listed (the Weather picker); without, weather scripts are
+--- left out, so a weather effect is offered in one place only.
+--- @param options {id: string, text: string}[]
+--- @param tag? string
+function MapScript.FillPickerOptions(options, tag)
+    local function Wanted(scriptid)
+        if tag ~= nil then
+            return MapScript.ScriptHasTag(scriptid, tag)
+        end
+        return not MapScript.ScriptHasTag(scriptid, "weather")
     end
-    MapScript.FillDropdownOptions(options)
+
+    for _, builtin in ipairs(MapScript.builtins) do
+        if Wanted(builtin.id) then
+            local text = builtin.name
+            if tag == nil then
+                text = text .. " (built-in)"
+            end
+            options[#options + 1] = { id = builtin.id, text = text }
+        end
+    end
+
+    local library = {}
+    MapScript.FillDropdownOptions(library)
+    for _, item in ipairs(library) do
+        if Wanted(item.id) then
+            options[#options + 1] = item
+        end
+    end
 end
 
 -- ---------------------------------------------------------------------------
@@ -286,6 +339,7 @@ local g_paramTypes = {
     string = true,
     boolean = true,
     choice = true,
+    color = true,
 }
 
 --Validate and normalize a raw definition table returned by a script chunk.
@@ -298,6 +352,19 @@ local function NormalizeDefinition(def)
     end
     norm.name = def.name
 
+    --tags as a set: norm.tags.weather == true.
+    norm.tags = {}
+    if def.tags ~= nil then
+        if type(def.tags) ~= "table" then
+            return nil, "tags must be a list of strings"
+        end
+        for _, tag in ipairs(def.tags) do
+            if type(tag) ~= "string" then
+                return nil, "tags must be a list of strings"
+            end
+            norm.tags[tag] = true
+        end
+    end
     if def.description ~= nil and type(def.description) ~= "string" then
         return nil, "description must be a string"
     end
@@ -332,6 +399,10 @@ local function NormalizeDefinition(def)
                 min = p.min,
                 max = p.max,
             }
+            --a slider needs both ends; without them it stays a number box.
+            if ptype == "number" and p.editor == "slider" and tonumber(p.min) ~= nil and tonumber(p.max) ~= nil then
+                param.editor = "slider"
+            end
             if ptype == "choice" then
                 if type(p.options) ~= "table" or #p.options == 0 then
                     return nil, string.format("choice parameter \"%s\" needs an options list", p.id)
@@ -348,7 +419,7 @@ local function NormalizeDefinition(def)
         end
     end
 
-    for _, handler in ipairs({ "onActivate", "onDeactivate", "think", "onBecomeHost", "onLoseHost", "hostThink" }) do
+    for _, handler in ipairs({ "onActivate", "onDeactivate", "onParamsChanged", "think", "onBecomeHost", "onLoseHost", "hostThink" }) do
         local fn = def[handler]
         if fn ~= nil and type(fn) ~= "function" then
             return nil, handler .. " must be a function"
@@ -486,7 +557,7 @@ function MapScript.DescribeDefinition(def)
         parts[#parts + 1] = string.format("%d parameters", #def.params)
     end
     local handlers = {}
-    for _, handler in ipairs({ "onActivate", "onDeactivate", "think", "onBecomeHost", "onLoseHost", "hostThink" }) do
+    for _, handler in ipairs({ "onActivate", "onDeactivate", "onParamsChanged", "think", "onBecomeHost", "onLoseHost", "hostThink" }) do
         if def[handler] ~= nil then
             handlers[#handlers + 1] = handler
         end
@@ -662,6 +733,10 @@ function MapScript.ResolveRecordParams(rec, def)
         elseif param.type == "string" then
             if v == nil then v = "" end
             v = tostring(v)
+        elseif param.type == "color" then
+            if type(v) ~= "string" or v == "" then
+                v = "#ffffff"
+            end
         elseif param.type == "choice" then
             local valid = false
             for _, opt in ipairs(param.options or {}) do
@@ -1138,6 +1213,48 @@ local function DestroyInstance(instance)
     end
 end
 
+--Hands new parameter values to a running instance whose definition has
+--onParamsChanged. ctx.params is updated in place, so a handler that kept the
+--table sees the new values too.
+local function ApplyParams(instance, values)
+    local params = instance.ctx.params
+    for k, _ in pairs(params) do
+        params[k] = nil
+    end
+    for k, v in pairs(values) do
+        params[k] = v
+    end
+    local ok, err = pcall(instance.def.onParamsChanged, instance.ctx)
+    if not ok then
+        ReportError(instance, "onParamsChanged", err)
+    end
+end
+
+--- Shows a parameter value on THIS client without saving it: the running
+--- instance's onParamsChanged is called with the value in ctx.params. For an
+--- editor to follow a slider while it is dragged; saving the value afterwards
+--- sends it to everyone. Does nothing for a script without onParamsChanged.
+--- @param guid string the attached record's guid
+--- @param paramid string
+--- @param value any
+function MapScript.PreviewParam(guid, paramid, value)
+    local mapid = nil
+    pcall(function() mapid = game.currentMapId end)
+    if mapid == nil or guid == nil then
+        return
+    end
+    local instance = g_runtime.instances[mapid .. "|" .. guid]
+    if instance == nil or instance.destroyed or instance.def.onParamsChanged == nil or instance.errorReported.onParamsChanged then
+        return
+    end
+    local values = {}
+    for k, v in pairs(instance.ctx.params) do
+        values[k] = v
+    end
+    values[paramid] = value
+    ApplyParams(instance, values)
+end
+
 local function StopAll()
     local all = {}
     for _, instance in pairs(g_runtime.instances) do
@@ -1194,9 +1311,19 @@ local function DriverTick()
     local stale = nil
     for key, instance in pairs(g_runtime.instances) do
         local want = desired[key]
-        if want == nil or want.code ~= instance.code or want.paramsig ~= instance.paramsig then
+        if want == nil or want.code ~= instance.code then
             stale = stale or {}
             stale[#stale + 1] = instance
+        elseif want.paramsig ~= instance.paramsig then
+            if instance.def.onParamsChanged ~= nil and not instance.errorReported.onParamsChanged then
+                --the script adjusts itself to new values; no restart.
+                instance.paramsig = want.paramsig
+                instance.rec = want.rec
+                ApplyParams(instance, MapScript.ResolveRecordParams(want.rec, instance.def))
+            else
+                stale = stale or {}
+                stale[#stale + 1] = instance
+            end
         end
     end
     local staleMaps = nil
@@ -1393,8 +1520,22 @@ end
 --- The Map Scripts configuration section: attached-script rows (name, source
 --- badge, edit/delete, error display, parameter editors) plus the Add picker.
 --- Used by both settings surfaces; sized to fit the narrow dockable panel.
-function MapScript.CreateSettingsPanel()
+--- With options.tag = "weather" it is the Weather section instead: only the
+--- attached scripts tagged as weather, and a picker of weather scripts.
+--- Without a tag it leaves those scripts out.
+--- @param options? {tag: nil|string}
+function MapScript.CreateSettingsPanel(options)
     local resultPanel
+    local tag = options ~= nil and options.tag or nil
+
+    --whether an attached record belongs in this section.
+    local function InSection(def)
+        local isWeather = def ~= nil and def.tags.weather == true
+        if tag ~= nil then
+            return def ~= nil and def.tags[tag] == true
+        end
+        return not isWeather
+    end
 
     local function Refresh()
         if resultPanel ~= nil and resultPanel.valid then
@@ -1436,7 +1577,55 @@ function MapScript.CreateSettingsPanel()
 
         local editor
 
-        if param.type == "number" then
+        if param.type == "number" and param.editor == "slider" then
+            local range = param.max - param.min
+            local labelFormat = "%d"
+            if range <= 2 then
+                labelFormat = "%.2f"
+            elseif range <= 20 then
+                labelFormat = "%.1f"
+            end
+            editor = gui.Slider{
+                minValue = param.min,
+                maxValue = param.max,
+                value = tonumber(current) or tonumber(param.default) or param.min,
+                sliderWidth = 150,
+                labelWidth = 40,
+                labelFormat = labelFormat,
+                style = {
+                    halign = "left",
+                    lmargin = 6,
+                    fontSize = "30%",
+                    height = 24,
+                    width = 200,
+                },
+                events = {
+                    --while dragging: show it here; on release: save it for everyone.
+                    change = function(element)
+                        MapScript.PreviewParam(rec.guid, param.id, element.data.getValue())
+                    end,
+                    confirm = function(element)
+                        CommitParamValue(rec.guid, param.id, element.data.getValue())
+                    end,
+                },
+            }
+        elseif param.type == "color" then
+            local value = current
+            if type(value) ~= "string" or value == "" then
+                value = "#ffffff"
+            end
+            editor = gui.ColorPicker{
+                value = value,
+                hasAlpha = false,
+                width = 24,
+                height = 24,
+                halign = "left",
+                lmargin = 6,
+                confirm = function(element)
+                    CommitParamValue(rec.guid, param.id, tostring(element.value))
+                end,
+            }
+        elseif param.type == "number" then
             editor = gui.Input{
                 classes = { "form" },
                 width = 70,
@@ -1549,6 +1738,9 @@ function MapScript.CreateSettingsPanel()
             local entries = {}
             for _, rec in ipairs(records) do
                 local def, defError = MapScript.GetRecordDefinition(rec)
+                if not InSection(def) then
+                    goto continue
+                end
                 entries[#entries + 1] = { rec = rec, def = def, defError = defError }
                 sigParts[#sigParts + 1] = rec.guid
                 sigParts[#sigParts + 1] = rec.scriptid or ""
@@ -1560,6 +1752,7 @@ function MapScript.CreateSettingsPanel()
                 else
                     sigParts[#sigParts + 1] = "err:" .. tostring(defError)
                 end
+                ::continue::
             end
             local sig = table.concat(sigParts, "|")
             if sig == element.data.sig then
@@ -1584,20 +1777,23 @@ function MapScript.CreateSettingsPanel()
 
                 rowChildren[#rowChildren + 1] = gui.Label{
                     fontSize = 13,
-                    width = "40%",
+                    width = cond(tag ~= nil, "80%", "40%"),
                     height = "auto",
                     valign = "center",
                     textWrap = true,
                     text = rec.name or "Map Script",
                 }
 
-                rowChildren[#rowChildren + 1] = gui.Label{
-                    classes = { "fgMuted", "sizeXxs" },
-                    width = 50,
-                    height = "auto",
-                    valign = "center",
-                    text = source,
-                }
+                --where a script comes from matters for scripts, not for weather.
+                if tag == nil then
+                    rowChildren[#rowChildren + 1] = gui.Label{
+                        classes = { "fgMuted", "sizeXxs" },
+                        width = 50,
+                        height = "auto",
+                        valign = "center",
+                        text = source,
+                    }
+                end
 
                 if MapScript.RecordIsCustom(rec) then
                     rowChildren[#rowChildren + 1] = gui.Label{
@@ -1666,10 +1862,14 @@ function MapScript.CreateSettingsPanel()
                 end
             end
 
-            --the add picker: built-ins + library scripts + custom.
-            local addOptions = { { id = "none", text = "Add Script..." } }
-            MapScript.FillPickerOptions(addOptions)
-            addOptions[#addOptions + 1] = { id = "custom", text = "Custom Lua Script..." }
+            --the add picker: built-ins + library scripts + custom. The Weather
+            --section lists weather scripts only; one is written like any other
+            --script, in Map Scripts or the compendium, and tagged "weather".
+            local addOptions = { { id = "none", text = cond(tag == "weather", "Add Weather...", "Add Script...") } }
+            MapScript.FillPickerOptions(addOptions, tag)
+            if tag == nil then
+                addOptions[#addOptions + 1] = { id = "custom", text = "Custom Lua Script..." }
+            end
 
             children[#children + 1] = gui.Dropdown{
                 classes = { "form" },

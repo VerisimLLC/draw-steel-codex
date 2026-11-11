@@ -376,9 +376,10 @@ end
 --A vertical push/pull target carries an absolute altitude (the ability's own
 --calculator), and stays that way as the prompt's answer. Only the arrow probes
 --need it as height above the destination ground, which the engine expects.
-local function ArrowLoc(forcedMovement, loc)
+--moverToken is the creature being moved (the one the arrow is drawn for).
+local function ArrowLoc(moverToken, forcedMovement, loc)
     if verticalForcedMovementTypes[forcedMovement] then
-        return ActivatedAbility.VerticalForcedMovementEngineLoc(loc)
+        return ActivatedAbility.VerticalForcedMovementEngineLoc(loc, moverToken.loc.altitude)
     end
     return loc
 end
@@ -418,7 +419,7 @@ local function FindBestPullLocation(invokerToken, casterToken, abilityClone, sym
     for _,testLoc in ipairs(shape.locations) do
         if filterTargetPredicate(testLoc) then
             testLoc = preferAltitude(testLoc)
-            local movementInfo = casterToken:MarkMovementArrow(ArrowLoc(forcedMovement, testLoc),
+            local movementInfo = casterToken:MarkMovementArrow(ArrowLoc(casterToken, forcedMovement, testLoc),
                 ForcedMovementArrowOptions(forcedMovement, range))
             if movementInfo ~= nil then
                 local path = movementInfo.path
@@ -590,7 +591,7 @@ MonsterAI:RegisterPrompt{
             local bestLoc = FindBestPullLocation(invokerToken, casterToken, abilityClone,
                 movementSymbols, range, forcedMovement, preferAltitude)
             if bestLoc ~= nil then
-                casterToken:MarkMovementArrow(ArrowLoc(forcedMovement, bestLoc), ForcedMovementArrowOptions(forcedMovement, range))
+                casterToken:MarkMovementArrow(ArrowLoc(casterToken, forcedMovement, bestLoc), ForcedMovementArrowOptions(forcedMovement, range))
                 MonsterAI.Sleep(1)
                 casterToken:ClearMovementArrow()
                 return {
@@ -649,7 +650,7 @@ MonsterAI:RegisterPrompt{
         local bestAltitude = nil
         for _,testLoc in ipairs(possibleLocs) do
             testLoc = preferAltitude(testLoc)
-            local movementInfo = casterToken:MarkMovementArrow(ArrowLoc(forcedMovement, testLoc),
+            local movementInfo = casterToken:MarkMovementArrow(ArrowLoc(casterToken, forcedMovement, testLoc),
                 ForcedMovementArrowOptions(forcedMovement, range))
             if movementInfo ~= nil then
                 local path = movementInfo.path
@@ -692,7 +693,7 @@ MonsterAI:RegisterPrompt{
         end
 
         if bestLoc ~= nil then
-            casterToken:MarkMovementArrow(ArrowLoc(forcedMovement, bestLoc), ForcedMovementArrowOptions(forcedMovement, range))
+            casterToken:MarkMovementArrow(ArrowLoc(casterToken, forcedMovement, bestLoc), ForcedMovementArrowOptions(forcedMovement, range))
             MonsterAI.Sleep(1)
             casterToken:ClearMovementArrow()
 

@@ -401,73 +401,232 @@ function EncounterOfTheWeekGame.ChallengeBalance(numHeroes)
     return numHeroes, true
 end
 
---Challenge Mode with a full party (host, right after a spawn): level up the
---strongest of these monsters by one level until about half their EV has been
---leveled. A minion squad is one unit (a minion counts 1/minionsPerSquad of its
---EV, as the encounter builder counts it). Returns the number of monsters leveled.
-function EncounterOfTheWeekGame.LevelUpStrongestHalf(charids)
+--- level balancing ----------------------------------------------------
+--Each encounter is balanced for a hero Level (its script's "Level:" line under
+--"# Encounter", else 1). A hero's Encounter Strength is 2 x (Level + 2) and
+--every monster's EV is k x (Level + 2) (MCDMMonsterScaling), so levelling the
+--monsters by the party's average Level minus the encounter's keeps the
+--authored difficulty. A fractional part levels the strongest monsters by one
+--more until that fraction of the EV is levelled. Design: EncounterOfTheWeek.md.
+
+--The hero Level the current map's encounter (or series part) is balanced for.
+---@return integer
+function EncounterOfTheWeekGame.TargetHeroLevel()
+    local level = EncounterScript.DEFAULT_HERO_LEVEL
+    pcall(function()
+        local montage = rawget(_G, "EncounterMontage")
+        if montage ~= nil then
+            level = EncounterScript.FindHeroLevel(montage.FindMapScript().parse)
+        end
+    end)
+    return level
+end
+
+--The average Level of the heroes on the map, or nil when there are none.
+---@return number|nil
+function EncounterOfTheWeekGame.PartyLevel()
+    local total, count = 0, 0
+    local montage = rawget(_G, "EncounterMontage")
+    if montage == nil then
+        return nil
+    end
+    for _, hero in ipairs(montage.Heroes()) do
+        local level = nil
+        pcall(function() level = tonumber(hero.token.properties:CharacterLevel()) end)
+        if level ~= nil then
+            total = total + level
+            count = count + 1
+        end
+    end
+    if count == 0 then
+        return nil
+    end
+    return total / count
+end
+
+--How many Levels the monsters move: the party's average Level minus the
+--encounter's. Negative for a party below it (monsters level down). 0 with
+--no heroes on the map.
+---@return number
+function EncounterOfTheWeekGame.LevelDelta()
+    local party = EncounterOfTheWeekGame.PartyLevel()
+    if party == nil then
+        return 0
+    end
+    return party - EncounterOfTheWeekGame.TargetHeroLevel()
+end
+
+--The level boost for a set of monsters spawned together: LevelDelta, plus
+--half a Level when Challenge Mode levels up a full party (ChallengeBalance).
+---@param levelUp boolean|nil
+---@return number
+function EncounterOfTheWeekGame.LevelBoost(levelUp)
+    return EncounterOfTheWeekGame.LevelDelta() + (levelUp and 0.5 or 0)
+end
+
+--Host: level a set of monsters spawned together (the opening fight, or one
+--reinforcement wave) by `boost` Levels. Every monster moves by the whole
+--part; the fraction levels the strongest by one more, strongest EV first,
+--until at least that fraction of the set's EV is levelled. A minion squad is
+--one unit (a minion counts 1/minionsPerSquad of its EV, as the encounter
+--builder counts it).
+--Safe to run again with a new boost (heroes joining late): each monster
+--remembers the Level and EV it spawned with (eotwBaseLevel / eotwBaseEV) and
+--is set from those, never from its current Level. Returns the number of
+--monsters whose Level changed.
+---@param charids string[]
+---@param boost number
+---@param reason string|nil for the console line
+---@return integer
+function EncounterOfTheWeekGame.ApplyLevelBoost(charids, boost, reason)
+    boost = tonumber(boost) or 0
+    --the small epsilon keeps 2.9999999 (a float average) from flooring to 2.
+    local whole = math.floor(boost + 1e-6)
+    local frac = boost - whole
+    if frac < 1e-6 then
+        frac = 0
+    end
+
     local units = {}
     local unitByKey = {}
     local total = 0
     for _, charid in ipairs(charids or {}) do
         local token = dmhub.GetTokenById(charid)
         local props = token ~= nil and token.properties or nil
-        local ev, minion, squad = 0, false, nil
+        local entry = nil
         local ok = props ~= nil and pcall(function()
-            ev = tonumber(props:EV()) or 0
-            minion = props.minion == true
-            squad = props:try_get("minionSquad")
+            if not props:IsMonster() then
+                return
+            end
+            local storedLevel = props:try_get("eotwBaseLevel")
+            local baseEV = tonumber(props:try_get("eotwBaseEV")) or tonumber(props:EV()) or 0
+            entry = {
+                token = token,
+                ev = baseEV,
+                baseEV = baseEV,
+                baseLevel = tonumber(storedLevel) or round(tonumber((props --[[@as monster]]).cr) or 1),
+                stored = storedLevel ~= nil,
+                minion = props.minion == true,
+                squad = props:try_get("minionSquad"),
+            }
         end)
-        if ok and ev > 0 then
+        if ok and entry ~= nil then
             local key = charid
-            if minion then
-                ev = ev / GameSystem.minionsPerSquad
-                if squad ~= nil then
-                    key = "squad:" .. tostring(squad)
+            if entry.minion then
+                entry.ev = entry.ev / GameSystem.minionsPerSquad
+                if entry.squad ~= nil then
+                    key = "squad:" .. tostring(entry.squad)
                 end
             end
             local unit = unitByKey[key]
             if unit == nil then
-                unit = { ev = 0, tokens = {} }
+                unit = { key = key, ev = 0, entries = {} }
                 unitByKey[key] = unit
                 units[#units + 1] = unit
             end
-            unit.ev = unit.ev + ev
-            unit.tokens[#unit.tokens + 1] = token
-            total = total + ev
+            unit.ev = unit.ev + entry.ev
+            unit.entries[#unit.entries + 1] = entry
+            total = total + entry.ev
         end
     end
-    table.sort(units, function(a, b) return a.ev > b.ev end)
-
-    local target = total / 2
-    local leveledEV = 0
-    local leveled = 0
-    for _, unit in ipairs(units) do
-        if leveledEV >= target then
-            break
+    --ties broken by key, so running this again picks the same monsters.
+    table.sort(units, function(a, b)
+        if math.abs(a.ev - b.ev) > 1e-6 then
+            return a.ev > b.ev
         end
-        leveledEV = leveledEV + unit.ev
-        for _, token in ipairs(unit.tokens) do
-            local okLevel, err = pcall(function()
-                token:ModifyProperties{
-                    description = "Challenge Mode: level up",
-                    undoable = false,
-                    execute = function()
-                        local props = token.properties
-                        props:SetLevelAdjustment(round(tonumber(props.cr) or 1) + 1)
-                    end,
-                }
-            end)
-            if okLevel then
-                leveled = leveled + 1
-            else
-                printf("EotW challenge: could not level up %s: %s", tostring(token.name), tostring(err))
+        return a.key < b.key
+    end)
+
+    local target = total * frac
+    local extraEV = 0
+    local changed = 0
+    for _, unit in ipairs(units) do
+        local extra = 0
+        if frac > 0 and extraEV < target - 1e-6 then
+            extra = 1
+            extraEV = extraEV + unit.ev
+        end
+        for _, entry in ipairs(unit.entries) do
+            local want = entry.baseLevel + whole + extra
+            want = math.max(MCDMMonsterScaling.minLevel, math.min(MCDMMonsterScaling.maxLevel, want))
+            local token = entry.token
+            local current = round(tonumber(token.properties.cr) or 1)
+            if want ~= current then
+                local okLevel, err = pcall(function()
+                    token:ModifyProperties{
+                        description = "Encounter of the Week: monster Level",
+                        undoable = false,
+                        execute = function()
+                            local props = token.properties
+                            if props:try_get("eotwBaseLevel") == nil then
+                                props.eotwBaseLevel = entry.baseLevel
+                                props.eotwBaseEV = entry.baseEV
+                            end
+                            props:SetLevelAdjustment(want)
+                        end,
+                    }
+                end)
+                if okLevel then
+                    changed = changed + 1
+                else
+                    printf("EotW level balance: could not level %s: %s", tostring(token.name), tostring(err))
+                end
             end
         end
     end
-    printf("EotW challenge: leveled up %d monsters (EV %.1f of %.1f)", leveled, leveledEV, total)
-    return leveled
+    printf("EotW level balance (%s): boost %.2f (party Level %s, encounter Level %d): %d monsters changed; all +%d, +1 more on EV %.1f of %.1f",
+        tostring(reason or "spawn"), boost, tostring(EncounterOfTheWeekGame.PartyLevel()), EncounterOfTheWeekGame.TargetHeroLevel(),
+        changed, whole, extraEV, total)
+    return changed
 end
+
+--A monster an enemy summons mid-fight moves by LevelDelta rounded to a whole
+--Level, halves rounding up: a Level 1.5 party in a Level 1 encounter meets
+--Level 2 summons. Called through the summon behavior's hook
+--(ActivatedAbilitySummonBehavior.RegisterSummonHook) on the summoner's
+--client, before the new token's first upload, so it sets properties directly.
+---@param casterToken CharacterToken
+---@param token CharacterToken
+function EncounterOfTheWeekGame.LevelSummon(casterToken, token)
+    if not EncounterOfTheWeekGame.IsEotwGame() then
+        return
+    end
+    local props = token.properties
+    if props == nil or casterToken == nil or casterToken.properties == nil then
+        return
+    end
+    --only the heroes' enemies: a hero's own summons (and a monster fighting
+    --for the heroes) keep their Level.
+    local casterIsHero = false
+    pcall(function() casterIsHero = casterToken.properties:IsHero() end)
+    if casterIsHero or casterToken.playerControlled then
+        return
+    end
+    local isMonster = false
+    pcall(function() isMonster = props:IsMonster() end)
+    if not isMonster then
+        return
+    end
+    local shift = math.floor(EncounterOfTheWeekGame.LevelDelta() + 0.5)
+    if shift == 0 then
+        return
+    end
+    --IsMonster said so above.
+    local monsterProps = props --[[@as monster]]
+    local ok, err = pcall(function()
+        local base = round(tonumber(monsterProps.cr) or 1)
+        monsterProps.eotwBaseLevel = base
+        monsterProps:SetLevelAdjustment(base + shift)
+    end)
+    if ok then
+        printf("EotW level balance: summoned %s moves %+d Level(s)", tostring(token.name), shift)
+    else
+        printf("EotW level balance: could not level summoned %s: %s", tostring(token.name), tostring(err))
+    end
+end
+ActivatedAbilitySummonBehavior.RegisterSummonHook("eotw-level", function(casterToken, token)
+    EncounterOfTheWeekGame.LevelSummon(casterToken, token)
+end)
 
 
 --Host only, at setup: the party's Hero Tokens for the session. Draw Steel
@@ -782,13 +941,15 @@ function Series.NextPart()
             for _, script in ipairs(EncounterMontage.ScriptForMap(partMap.id).parts or {}) do
                 local p = script.parse.part
                 if p.number == number then
-                    found = { number = number, title = p.title, comingSoon = p.comingSoon ~= nil, restFree = p.restFree == true }
+                    found = { number = number, title = p.title, comingSoon = p.comingSoon ~= nil,
+                        comingSoonMark = p.comingSoon, restFree = p.restFree == true }
                 end
             end
         end)
     end
-    --a "Coming soon" part cannot be played yet, so it is not offered.
-    if found.comingSoon then
+    --a "Coming soon" part cannot be played yet, so it is not offered. One
+    --marked "at the Town Gate" still plays in the Proving Pits.
+    if EncounterScript.ComingSoonLocks(found.comingSoonMark, EncounterOfTheWeekGame.IsPracticeGame()) then
         return nil
     end
     local seriesKey = key:match("^(.-)#%d+$") or key
@@ -3998,9 +4159,10 @@ function EncounterOfTheWeekGame.SpawnEncounterGroups(entry, numHeroes, levelUp, 
 
     entry.encounter:RestoreMounts(mountEntries)
 
-    if levelUp then
-        EncounterOfTheWeekGame.LevelUpStrongestHalf(spawns)
-    end
+    --level the monsters for the party's Level (and Challenge Mode's full
+    --party); remembered so heroes joining late can re-level them.
+    EncounterOfTheWeekGame.ApplyLevelBoost(spawns, EncounterOfTheWeekGame.LevelBoost(levelUp), "spawn")
+    balance.monsters = spawns
 
     --frames have passed in an async spawn, and a journal update in between
     --replaces the island's annotation object: record on the current one.
@@ -4024,8 +4186,8 @@ end
 --Heroes Level up in Blackbottom (the Training Grounds, or a respite before
 --those are built), so a town hero plays at its own Level. Until 2026-11-04
 --this clamped every hero to exactly Level 1, because the weekly encounter
---is tuned for a Level-1 party; that clamp is off (David's decision; the
---encounter is not yet rebalanced for higher Levels -- a later step).
+--is tuned for a Level-1 party; that clamp is off (David's decision). The
+--monsters are leveled to the party instead: see LevelDelta / ApplyLevelBoost.
 --What remains is the "slow start" track: Draw Steel's level 1 with
 --extraLevelInfo.encounter = 1..4 (the "First Encounter".."Fourth
 --Encounter" rungs) grants only part of a level-1 hero's features, and
@@ -5616,6 +5778,21 @@ local function EnforceStrictRules()
             dmhub.SetSettingValue(entry.id, value)
         end
     end
+
+    --a "Parallax: Slight" line under the script's "# Encounter" fixes the
+    --game's Parallax for the part being played (each part of a series reads
+    --its own script). With no line the game's setting is left alone.
+    local parallax = nil
+    pcall(function()
+        local montage = rawget(_G, "EncounterMontage")
+        if montage ~= nil then
+            parallax = EncounterScript.FindParallaxInstruction(montage.FindMapScript().parse)
+        end
+    end)
+    --(compared with a tolerance in case the value comes back as a float.)
+    if parallax ~= nil and math.abs((tonumber(dmhub.GetSettingValue("parallaxratio")) or -1) - parallax.ratio) > 0.001 then
+        dmhub.SetSettingValue("parallaxratio", parallax.ratio)
+    end
 end
 
 --- a series' story --------------------------------------------------------
@@ -5629,6 +5806,9 @@ function Series.SeedSeriesStory(carried)
     if montage == nil or montage.SeedStory == nil then
         return
     end
+    --the part's When and Results boons need their effect assets made now,
+    --long before they apply (a part may open straight on its fight).
+    pcall(function() montage.PrepareBoonAssets(nil, montage.FindMapScript()) end)
     local ok, err = pcall(function()
         local part = EncounterOfTheWeekGame.ActivePart()
         local doc = montage.GetDoc()
@@ -5808,8 +5988,10 @@ local function RunScriptBeat(ctx)
 
     local script = montage.FindMapScript()
     --A part marked "Coming soon" never plays in a real game, even if a party
-    --somehow reached it. Tests can still play it.
-    if script.parse.part ~= nil and script.parse.part.comingSoon ~= nil and not EncounterOfTheWeekGame.IsTestRunning() then
+    --somehow reached it. Tests can still play it, and so can the Proving
+    --Pits when it is only "Coming soon at the Town Gate".
+    if script.parse.part ~= nil and not EncounterOfTheWeekGame.IsTestRunning()
+        and EncounterScript.ComingSoonLocks(script.parse.part.comingSoon, EncounterOfTheWeekGame.IsPracticeGame()) then
         if not Series.reportedComingSoon then
             Series.reportedComingSoon = true
             printf("EotW: Part %d is marked 'Coming soon', so it does not run outside a test", script.parse.part.number)
@@ -6441,9 +6623,48 @@ function EncounterOfTheWeekGame.RebalanceForLateHeroes(numHeroes)
     doc:BeginChange()
     doc.data.balance.heroes = target
     doc.data.balance.groups = placedNow
+    --the newcomers' monsters are levelled with the rest (RelevelForLateHeroes).
+    local monsters = {}
+    for _, charid in ipairs(doc.data.balance.monsters or {}) do
+        monsters[#monsters + 1] = charid
+    end
+    for _, charid in ipairs(spawned) do
+        monsters[#monsters + 1] = charid
+    end
+    doc.data.balance.monsters = monsters
     doc:CompleteChange("Encounter of the Week: monsters for the larger party", { undoable = false })
     printf("EotW late join: %d monsters join the encounter for %d heroes", #spawned, target)
     return #spawned
+end
+
+--Host only, after heroes join late: level the opening fight's monsters again
+--for the new average party Level (and Challenge Mode's full party, which a
+--late hero can complete). Monsters already set from their spawn Level are
+--re-set, so nothing levels twice. Returns the number of monsters changed.
+---@param numHeroes number
+---@return integer
+function EncounterOfTheWeekGame.RelevelForLateHeroes(numHeroes)
+    local balance = LateDoc().data.balance
+    if type(balance) ~= "table" or balance.part ~= tostring(EncounterOfTheWeekGame.ActivePart()) then
+        return 0
+    end
+    local monsters = {}
+    for _, charid in ipairs(balance.monsters or {}) do
+        monsters[#monsters + 1] = charid
+    end
+    if #monsters == 0 then
+        return 0
+    end
+    local _, levelUp = EncounterOfTheWeekGame.ChallengeBalance(numHeroes)
+    ElevateToHostPermissions()
+    local ok, changed = pcall(EncounterOfTheWeekGame.ApplyLevelBoost, monsters, EncounterOfTheWeekGame.LevelBoost(levelUp), "late join")
+    DropHostPermissions()
+    if not ok then
+        printf("EotW late join: re-levelling failed: %s", tostring(changed))
+        return 0
+    end
+    game.UpdateCharacterTokens()
+    return changed
 end
 
 --Host only: count heroes who arrived after the party was in, and make room.
@@ -6497,6 +6718,12 @@ local function AdmitLateHeroes(newcomers)
         ok, err = pcall(EncounterOfTheWeekGame.RebalanceForLateHeroes, numHeroes)
         if not ok then
             printf("EotW late join: rebalance failed: %s", tostring(err))
+        end
+        --the newcomers change the party's average Level even when no
+        --monsters are added.
+        ok, err = pcall(EncounterOfTheWeekGame.RelevelForLateHeroes, numHeroes)
+        if not ok then
+            printf("EotW late join: re-level failed: %s", tostring(err))
         end
     end
 
@@ -7987,7 +8214,8 @@ end
 --Every game setting a test overrides, saved at the start and put back at the
 --end: the forced EotW settings, plus what SetupOnArrival writes.
 local function TestSettingIds()
-    local ids = { "numheroes", "permission:playersinitiative" }
+    --parallaxratio: a script's "Parallax:" line changes it (EnforceStrictRules).
+    local ids = { "numheroes", "permission:playersinitiative", "parallaxratio" }
     for _, entry in ipairs(g_forcedGameSettings) do
         ids[#ids + 1] = entry.id
     end
@@ -8018,19 +8246,42 @@ end
 --run by Monster Death and Hero Death). A test notes the ones already on the
 --map and End Test destroys every other, so the deaths leave nothing behind
 --while corpses the author placed stay. { [objid] = obj } on the current map.
-local function CorpseObjects()
+--
+--The same goes for objects an ability made (Create Object can only make
+--"summonable" objects, e.g. the Grasping Hands of The Grasping, the Hungry).
+local function ObjectsWithKeyword(keyword)
     local result = {}
     local assetids = {}
     pcall(function()
-        for _, asset in ipairs(assets:GetObjectsWithKeyword("corpse")) do
+        for _, asset in ipairs(assets:GetObjectsWithKeyword(keyword)) do
             assetids[asset.id] = true
         end
     end)
+
+    --GetObjectsWithKeyword misses some blueprints (it does not list the
+    --Grasping Hands), so also read the keywords on each placed object's own
+    --blueprint, the way the Create Object editor does.
+    local function AssetHasKeyword(assetid)
+        if assetids[assetid] == nil then
+            local found = false
+            pcall(function()
+                local asset = assets.allObjects[assetid]
+                for _, field in ipairs(asset.components["CORE"].fields) do
+                    if field.id == "keywords" and table.contains(field.currentValue or {}, keyword) then
+                        found = true
+                    end
+                end
+            end)
+            assetids[assetid] = found
+        end
+        return assetids[assetid]
+    end
+
     local map = game.currentMap
     for _, floor in ipairs((map and map.floors) or {}) do
         pcall(function()
             for objid, obj in pairs(floor.objects or {}) do
-                if assetids[obj.assetid] then
+                if AssetHasKeyword(obj.assetid) then
                     result[objid] = obj
                 end
             end
@@ -8140,8 +8391,12 @@ local function TestArrival(pending)
     end
     pcall(function() saved.heroTokens = CharacterResource.GetGlobalResource(CharacterResource.heroTokenId) end)
     saved.corpses = {}
-    for objid, _ in pairs(CorpseObjects()) do
+    for objid, _ in pairs(ObjectsWithKeyword("corpse")) do
         saved.corpses[objid] = true
+    end
+    saved.summoned = {}
+    for objid, _ in pairs(ObjectsWithKeyword("summonable")) do
+        saved.summoned[objid] = true
     end
     --auras left on the ground (an Angulotl Slink's Adhesive Sludge); the
     --ones the author placed are noted so End Test keeps them.
@@ -8416,7 +8671,7 @@ local function TestTeardown()
         --corpses were noted has no list, and then nothing is touched).
         if type(saved) == "table" and type(saved.corpses) == "table" then
             local n = 0
-            for objid, obj in pairs(CorpseObjects()) do
+            for objid, obj in pairs(ObjectsWithKeyword("corpse")) do
                 if not saved.corpses[objid] then
                     obj:Destroy()
                     n = n + 1
@@ -8424,6 +8679,20 @@ local function TestTeardown()
             end
             if n > 0 then
                 printf("EotW test: removed %d corpse/loot objects", n)
+            end
+        end
+        --the objects abilities made during the test (an older record has no
+        --list, and then nothing is touched).
+        if type(saved) == "table" and type(saved.summoned) == "table" then
+            local n = 0
+            for objid, obj in pairs(ObjectsWithKeyword("summonable")) do
+                if not saved.summoned[objid] then
+                    obj:Destroy()
+                    n = n + 1
+                end
+            end
+            if n > 0 then
+                printf("EotW test: removed %d ability-made objects", n)
             end
         end
         --the map-anchored auras the fight left (before the casters are

@@ -5195,7 +5195,7 @@ function TacPanel.BarAdjustControls(labelPanel)
                 token:ModifyProperties{
                     description = "Set Stamina",
                     execute = function()
-                        token.properties:SetCurrentHitpoints(value)
+                        token.properties:SetStaminaDirect(value)
                     end,
                 }
             end
@@ -11494,7 +11494,7 @@ function TacPanel.StaminaBox()
                             token:ModifyProperties{
                                 description = "Set Stamina",
                                 execute = function()
-                                    token.properties:SetCurrentHitpoints(n)
+                                    token.properties:SetStaminaDirect(n)
                                 end,
                             }
                         end

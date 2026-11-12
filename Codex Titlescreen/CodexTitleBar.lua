@@ -712,6 +712,11 @@ local m_quitConfirmDialog = nil
 --interface (Encounter of the Week) is showing its own confirmation, which
 --quits with dmhub.ForceQuitApplication if the user goes ahead.
 function OnQuitRequested()
+    --the Encounter of the Week town (a titlescreen screen) asks first.
+    local eotw = rawget(_G, "EncounterOfTheWeek")
+    if eotw ~= nil and eotw.ConfirmQuit ~= nil and eotw.ConfirmQuit(function() dmhub.ForceQuitApplication() end) then
+        return true
+    end
     if (not dmhub.inGame) or dmhub.isLobbyGame then
         return false
     end
@@ -724,6 +729,11 @@ end
 
 local function ConfirmCloseWindow()
     if (not dmhub.inGame) or dmhub.isLobbyGame then
+        --the EotW town's confirmation, asked here too so it shows even
+        --where CloseWindow does not route through the quit hook.
+        if OnQuitRequested() then
+            return
+        end
         dmhub.CloseWindow()
         return
     end

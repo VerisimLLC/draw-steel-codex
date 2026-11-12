@@ -1023,6 +1023,47 @@ graveyard.
     - Nothing committed.
     - **Open:** the building-site art (placeholder: the Hall's Construction
       still).
+- **The Great Forge** (PROJECT BUILT 2026-11-10: codex + server; server on
+  STAGING only, version 69587af5; nothing committed). **Hidden by default**
+  (David 2026-11-11): `defaultHidden` in `CITY_PROJECTS`, so on every server
+  it stays hidden until an admin presses Show in Codex menu -> Community
+  Projects... (stored per server in `shownProjects`); showing it on staging
+  leaves release hidden. Raised with the
+  Tinkerer's Guild, a cabal of Gnome tinkerers. What the built Forge does is
+  NOT designed yet (David: the project first, then its function).
+  - **Construction** (David 2026-11-10): the fourth community project,
+    `build-great-forge` (**10000** points, one completion, `autoStart`;
+    effect `greatForge` -> `unlocks.greatForge`, `greatForgeBuilt()`) in
+    `CITY_PROJECTS` (test "building the Great Forge"), "the Great Forge" in
+    `COMMUNITY_PROJECT_NAMES`, the Lua `PROJECTS` entry,
+    `EotwRoster.GreatForgeBuilt()`, `EotwDowntime.GreatForgeConstructionPanel`
+    and the map node `greatforge` (`GREAT_FORGE_SCENES`, `OpenLocation`,
+    `m_buildingReveals`). Hidden until the City lists the project, like the
+    Training Grounds. The Training Grounds' and Great Forge's open scenes
+    share one table, `m_buildingScenes` (the town function is at Lua's
+    200-local limit).
+  - **Two stages:** Planning (0-4999): Presence or Reason; Lead,
+    Architecture, Magic. Building (5000-10000): Might or Agility; Alchemy,
+    Magic, Blacksmithing, Mechanics ("Stonework" from the brief is not a
+    Draw Steel skill).
+  - **Art:** Czepeku "Alchemy Dungeon" (Original Day HD) 30s 1080p video over
+    its first frame, for both the site and the built Forge (core image
+    assets uploaded 2026-11-10: video `df4a22af-6369-4fa9-a0d2-efe2a0f43f3c`,
+    still `7bffe83d-058f-4c90-a211-8ee548550209`; source
+    `C:/dev/eotw/art/great-forge-alchemy-dungeon-day.webm`). The video
+    carries a CZEPEKU.COM watermark, bottom right.
+  - **Map:** PLACEHOLDER spot (0.5, 0.62), south of the Guild, just above the
+    hero cards. Icons: hammer while building, `phosphor/flame-fill.png` once
+    built (no anvil in Phosphor).
+  - **Text:** `Codex Titlescreen/EotwTextGreatForge.lua` (registered in Codex
+    Titlescreen after `EotwTextTrainingGrounds.lua`, Firebase confirmed; in
+    `tests/uitext_check.lua`). Every line is a placeholder draft. **No roll
+    lines yet:** the project has no `rollLines`, so a roll shows no hero line
+    until they are written.
+  - **Tested** on the staging town 2026-11-10: the site shows on the map,
+    opens on the video, the card reads Stage 1 of 2 with 0 / 10000 and the
+    right characteristics and skills; `ProjectStageAt` switches to Building
+    at 50%. No roll made (it would spend a staging hero's Downtime).
 
 ## Locations on the map
 
@@ -1041,6 +1082,7 @@ already has natural homes (fractions of the 6160x4480 canvas):
 | **Blue Fish Inn** | the canal-side building west of the Guild (0.235, 0.455); moved 2026-10-11 (user direction) from the "Drunken Fool" tavern (0.335, 0.575), which the hero cards along the bottom covered | BUILT 2026-10-10 (Downtime); hidden until heroes first come home, then revealed once (2026-10-11, see "The inn's reveal") |
 | **Arcane Market** | the shop the "Front and Back" label points at (0.695, 0.18) | BUILT 2026-10-10; since 2026-10-11 hidden until the player finds it (see "Leads") |
 | **Training Grounds** | the open square in the east district (0.905, 0.44) | BUILT 2026-11-04 (6000-point two-stage build, then Level up; server on staging only) |
+| **Great Forge** | placeholder (0.5, 0.62), south of the Guild | project BUILT 2026-11-10 (10000-point two-stage build; server on staging only); spot not checked against the art |
 | later | the Docks, Bora's Wagon Yard, the Cathedral, the Safe House | |
 
 ## Decisions taken (2026-10-01, with the user)
@@ -3229,17 +3271,20 @@ Mode -- no authoring. Decisions taken with the user:
   normal mode but not the challenge, **2 for a hero who has won neither**
   (who then can earn nothing more from either mode), 0 ("Already Completed")
   for a hero who has won the challenge.
-- **Combat** (`ChallengeBalance`, then half a Level of `ApplyLevelBoost`;
-  see "Level balancing" below): balanced for one
-  more hero. Encounters carry balancing for 4-6 heroes only and nobody
+- **Combat** (`DifficultyBalance`, then `ApplyLevelBoost`; see "Level
+  balancing" below): balanced for one more hero. Challenge Mode is one
+  difficulty notch (see "Difficulty notches" below). Encounters carry balancing for 4-6 heroes only and nobody
   should have to author a 7-hero setup (no algorithmic extra start
-  positions either), so **a party of 6 is balanced for 6 and the strongest
-  monsters are leveled up by one level** (`monster:SetLevelAdjustment`),
-  strongest EV first, until at least half the spawned EV is leveled. A
+  positions either), so **a party of 6 is balanced for 6 and the monsters
+  are leveled by one hero's worth of EV instead**: (party Level + 2) / 6
+  Levels (`monster:SetLevelAdjustment`) -- 0.5 at Level 1, 1.0 at Level 4.
+  The whole part levels every monster; a fraction levels the strongest EV
+  first until that fraction of the spawned EV is leveled. A
   minion squad is one unit worth EV/minionsPerSquad per minion, as the
   encounter builder counts it. Reinforcement waves get the same rule as they
-  arrive (half of each wave). Since level balancing, a late hero who
-  completes a party of 6 brings the half Level too.
+  arrive. Since level balancing, a late hero who completes a party of 6
+  brings the extra Levels too. (Until 2026-11-10 this was a flat half Level,
+  which was only worth a hero at Level 1.)
 - **Montage**: one more threat. Party-size scaling's removals stand except
   one threat, which comes back (the earliest round's, at random). When the
   scaling removed no threat, an existing threat must be **vanquished twice**:
@@ -3379,8 +3424,28 @@ Level. Decisions taken with David:
   meets Level 2 summons. Built as a shift relative to the summon's own
   Level (a Level 3 summon there becomes Level 4) -- David's example fits
   both readings; confirm if he meant an absolute Level.
-- **Challenge Mode** keeps its rule: a full party adds half a Level to the
-  boost (it used to be its own `LevelUpStrongestHalf`).
+- **Challenge Mode** (and every difficulty notch past a full party) adds
+  (party Level + 2) / 6 Levels to the boost (it used to be its own
+  `LevelUpStrongestHalf`, then a flat half Level).
+
+### Difficulty notches
+
+An admin can play any pool encounter up to 3 notches harder or easier
+(Codex menu > Encounter Difficulty..., `EncounterOfTheWeek.ShowDifficultyDialog`;
+David 2026-11-09). One notch is what Challenge Mode adds, and Challenge Mode
+stacks on top (`EncounterOfTheWeekGame.Notches`):
+- **Combat**: balanced for one hero more (or fewer). Past 6 heroes or below 1,
+  each notch is (party Level + 2) / 6 Levels up (or down) instead.
+- **Montage** (`EncounterScript.ChooseNotchThreats`): each notch up brings back
+  a threat the party-size scaling removed, else a threat needs one more
+  vanquish (x2 spread across threats before any x3). Each notch down removes a
+  threat, never a Required/Locked one or a round's last; while notched down,
+  every round waits for the draw. Consequence costs stay Challenge Mode's only.
+- Stored as `publishingProperties.eotwNotches[mapName]` on the module record
+  (like `eotwPulled`), read into the pool entry's `notch`, carried in the
+  arrival args and stamped once into `data.notch` by the host. Players are
+  not told; the console logs it. Unverified: that republishing the official
+  module (Create Module...) keeps `eotwNotches`.
 
 Why it holds: a hero's Encounter Strength is 2 x (Level + 2), and every row
 of `MCDMMonsterScaling`'s table (`Draw Steel Core Rules/MCDMMonster.lua`) has
@@ -4123,6 +4188,11 @@ User direction (2026-10-11):
   should also allow a respite (still unspammable, since they drop to 0).
 - **One carouse per respite, lost at the next respite** (not banked).
   After the last lead is learned no carouse is offered at all.
+  Changed 2026-11-11 (David), with single-hero respites (each inn row has
+  its own Respite button beside Catch Breath): every respite, one hero or
+  the party, closes the account's open series parts, but a respite opens a
+  carouse only when a resting hero banks a Victory. A respite with no
+  Victories leaves an unused carouse open.
 - **Carouse skills** (+2 when trained): Brag, Flirt, Gamble, Music,
   Perform, Rumors (`EotwLeads.CAROUSE_SKILLS`). Tiers are Draw Steel's: 11-,
   12-16, 17+, and a natural 19-20 is tier 3.

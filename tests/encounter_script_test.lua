@@ -775,6 +775,26 @@ check(EncounterScript.ChooseChallengeThreat(sb, { ["r1-opportunity-standing-ston
 check(EncounterScript.ChooseChallengeThreat(EncounterScript.Parse("# Montage\n\n## Opportunity: Rest\n\n### Sit\n|Sit: Might\n|a\n|b\n|c\n").beats[1], {}, first) == nil,
     "a montage with no threat gets no extra one")
 end
+
+--Difficulty notches: each one up is a Challenge Mode pick, each one down removes a threat.
+do
+local first = function(n) return 1 end
+local up = EncounterScript.ChooseNotchThreats(sb, removed, 3, first)
+check(#up.restored == 2 and up.removed["r1-threat-mire"] == nil and up.removed["r1-threat-fog"] == nil,
+    "notches up restore every threat the scaling removed first")
+check(up.times["r1-threat-mire"] == 2 and up.times["r1-threat-fog"] == nil, "the notch left over doubles a threat")
+check(removed["r1-threat-mire"] == true, "the scaling draw passed in is not changed")
+local spread = EncounterScript.ChooseNotchThreats(sb, {}, 3, first)
+check(spread.times["r1-threat-mire"] == 3 and spread.times["r1-threat-fog"] == 2,
+    "doubles spread across the threats before any is tripled")
+local down = EncounterScript.ChooseNotchThreats(sb, {}, -2, first)
+check(#down.dropped == 1 and down.removed["r1-threat-mire"] == true and down.removed["r1-threat-fog"] == nil,
+    "notches down never remove a round's last threat")
+check(next(EncounterScript.ChooseNotchThreats(sb, removed, -1, first).dropped) == nil,
+    "a round already down to one threat loses no more")
+local none = EncounterScript.ChooseNotchThreats(sb, removed, 0, first)
+check(#none.restored == 0 and #none.dropped == 0 and none.removed["r1-threat-mire"] == true, "no notches change nothing")
+end
 check(EncounterScript.HasScaling(sb) and EncounterScript.RoundHasScaling(sb, 2), "HasScaling / RoundHasScaling")
 check(not EncounterScript.HasScaling(EncounterScript.Parse(SAMPLE).beats[1]), "a montage with no directives has no scaling")
 

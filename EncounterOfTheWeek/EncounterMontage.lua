@@ -23,14 +23,15 @@
 --                                              spends this, not `acted`
 --    taken = { [entryId] = true },          -- opportunities consumed
 --    vanquished = { [entryId] = true },     -- threats resolved
---    threatTimes = nil | { [entryId] = n }, -- Challenge Mode: a threat that
---                                              must be vanquished n times
---                                              ("x2"); absent = once
+--    threatTimes = nil | { [entryId] = n }, -- notched up (Challenge Mode):
+--                                              a threat that must be
+--                                              vanquished n times ("x2");
+--                                              absent = once
 --    vanquishHits = nil | { [entryId] = n },-- how many of those times it
 --                                              has been vanquished so far
---    challengeRestored = nil | entryId,     -- Challenge Mode: the threat
---                                              party-size scaling removed
---                                              that came back
+--    notchRestored = nil | { entryId },     -- notched up: threats party-size
+--                                              scaling removed that came back
+--    notchDropped = nil | { entryId },      -- notched down: threats removed
 --    unlocked = { [entryKey] = round },     -- "(Locked)" entries an "Unlock
 --                                              <name>" outcome has let onto
 --                                              the board, and the round it
@@ -1532,7 +1533,8 @@ function EncounterMontage.EntryHidden(m, beat, entry)
     if EncounterMontage.EntryExpired(m, entry) then
         return true
     end
-    if m ~= nil and m.removed == nil and EncounterScript.RoundHasScaling(beat, entry.round) then
+    --a notch down can remove a threat from any round, so every round waits.
+    if m ~= nil and m.removed == nil and (EncounterScript.RoundHasScaling(beat, entry.round) or EncounterMontage.Notches() < 0) then
         return true
     end
     return false
@@ -1594,6 +1596,18 @@ local function IsChallenge()
     return challenge
 end
 EncounterMontage.IsChallenge = IsChallenge
+
+--How many difficulty notches this game plays at (EncounterOfTheWeekGame.Notches):
+--positive is harder, 0 as authored.
+---@return integer
+function EncounterMontage.Notches()
+    local eotw = rawget(_G, "EncounterOfTheWeekGame")
+    local notches = 0
+    if eotw ~= nil and eotw.Notches ~= nil then
+        pcall(function() notches = math.floor(tonumber(eotw.Notches()) or 0) end)
+    end
+    return notches
+end
 
 --Is the floor free for the next approach? No turn at all, or one whose
 --result is already in -- a resolved turn is shown, not waited on.
@@ -6353,19 +6367,27 @@ end
 local function RollRemovals(m, beat)
     local heroes = EncounterMontage.Heroes()
     local removed = EncounterScript.ChooseRemovedEntries(beat, #heroes)
-    --Challenge Mode: one more threat -- one the scaling removed comes back,
-    --else an existing one must be vanquished twice.
-    if IsChallenge() then
-        local pick = EncounterScript.ChooseChallengeThreat(beat, removed)
-        if pick ~= nil and pick.restore ~= nil then
-            removed[pick.restore] = nil
-            m.challengeRestored = pick.restore
-            printf("EotW montage: Challenge Mode keeps threat [%s]", pick.restore)
-        elseif pick ~= nil and pick.double ~= nil then
-            m.threatTimes = { [pick.double] = 2 }
-            printf("EotW montage: Challenge Mode doubles threat [%s] (x2)", pick.double)
-        else
-            printf("EotW montage: Challenge Mode found no threat to add")
+    --difficulty notches (an admin's per-encounter setting, plus one for
+    --Challenge Mode): each notch up is one more threat -- one the scaling
+    --removed comes back, else one must be vanquished once more; each notch
+    --down removes a threat.
+    local notches = EncounterMontage.Notches()
+    if notches ~= 0 then
+        local pick = EncounterScript.ChooseNotchThreats(beat, removed, notches)
+        removed = pick.removed
+        if #pick.restored > 0 then
+            m.notchRestored = pick.restored
+        end
+        if #pick.dropped > 0 then
+            m.notchDropped = pick.dropped
+        end
+        if next(pick.times) ~= nil then
+            m.threatTimes = pick.times
+        end
+        printf("EotW montage: difficulty %+d notch(es) -- restored [%s], dropped [%s]", notches,
+            table.concat(pick.restored, ", "), table.concat(pick.dropped, ", "))
+        for id, n in pairs(pick.times) do
+            printf("EotW montage:   threat [%s] must be vanquished x%d", id, n)
         end
     end
     m.removed = removed

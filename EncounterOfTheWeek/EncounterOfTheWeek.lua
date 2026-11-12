@@ -47,6 +47,9 @@ end
 --  data.challenge     = true  (host-stamped at setup, or by an authoring
 --                       test: the party plays the encounter's Challenge Mode.
 --                       In it alreadyCompleted means "won the challenge".)
+--  data.notch         = n  (host-stamped once at setup: the admin's difficulty
+--                       notches for this encounter, from its pool entry; nil
+--                       = 0. Challenge Mode adds one more, see Notches.)
 --  data.completedNormal = { [charid] = true }  (Challenge Mode: heroes whose
 --                       owners' town says they have won the normal mode, so
 --                       the challenge is worth one Victory to them, not two.)
@@ -366,6 +369,22 @@ local function RecordPartyMode(field, on, description)
     doc:CompleteChange(description, {undoable = false})
 end
 
+--Host, at setup: stamp the admin's difficulty notches for this encounter.
+--Only the first arrival stamps it, so a resume keeps the difficulty the game
+--began with even if an admin has changed the setting since. (A table field:
+--this file's main chunk is at the 200-local limit.)
+function EncounterOfTheWeekGame.RecordPartyNotch(notch)
+    notch = math.floor(tonumber(notch) or 0)
+    local doc = mod:GetDocumentSnapshot(STATE_DOC_ID)
+    if notch == 0 or doc.data.notch ~= nil then
+        return
+    end
+    doc:BeginChange()
+    doc.data.notch = notch
+    doc:CompleteChange("Encounter of the Week: difficulty", {undoable = false})
+    printf("EotW: this encounter plays %+d difficulty notch(es)", notch)
+end
+
 --Is this a Proving Pits game? Practice only: the host awards no Victory,
 --nothing goes home, and each player debriefs the encounter back in town.
 function EncounterOfTheWeekGame.IsPracticeGame()
@@ -374,9 +393,9 @@ function EncounterOfTheWeekGame.IsPracticeGame()
     return practice
 end
 
---Is this game the encounter's Challenge Mode? Combat balances for one more
---hero (or levels up the strongest monsters for a full party, see
---ChallengeBalance), the montage gets one more threat and its consequences
+--Is this game the encounter's Challenge Mode? It plays one difficulty notch
+--harder (Notches: combat balances for one more hero, or levels up the
+--monsters by a hero's worth for a full party; the montage gets one more threat), its consequences
 --cost more (EncounterMontage), and the win is worth an extra Victory.
 function EncounterOfTheWeekGame.IsChallenge()
     local challenge = false
@@ -384,21 +403,38 @@ function EncounterOfTheWeekGame.IsChallenge()
     return challenge
 end
 
+--How many difficulty notches this game plays at: the admin's setting for the
+--encounter (data.notch, stamped by the host at setup from the pool entry)
+--plus one for Challenge Mode. Positive is harder, 0 plays as authored.
+---@return integer
+function EncounterOfTheWeekGame.Notches()
+    local notch = 0
+    pcall(function() notch = math.floor(tonumber(mod:GetDocumentSnapshot(STATE_DOC_ID).data.notch) or 0) end)
+    return notch + cond(EncounterOfTheWeekGame.IsChallenge(), 1, 0)
+end
+
 --How the monsters are balanced for this many heroes: returns the hero count
---to balance for and whether to level up the strongest monsters afterwards.
---Challenge Mode balances for one extra hero, except that a full party
---(nobody authors a 7-hero setup) keeps its own count and levels up instead.
-function EncounterOfTheWeekGame.ChallengeBalance(numHeroes)
+--to balance for and the extra Levels for the strongest monsters (see
+--LevelBoost). Each notch balances for one hero more (or fewer). Past a full
+--party (nobody authors a 7-hero setup) or below one hero, each notch left
+--over levels the monsters instead, by about one hero's worth of EV: a
+--monster's EV is k x (Level + 2), so 1/6 more EV is (Level + 2) / 6 Levels
+--(half a Level for Level 1 heroes, a whole one at Level 4).
+---@param numHeroes number|nil
+---@return number heroes, number extraLevels
+function EncounterOfTheWeekGame.DifficultyBalance(numHeroes)
     --encounters are balanced for parties of up to this many heroes.
-    local CHALLENGE_MAX_BALANCED_HEROES = 6
+    local MAX_BALANCED_HEROES = 6
     numHeroes = tonumber(numHeroes) or 5
-    if not EncounterOfTheWeekGame.IsChallenge() then
-        return numHeroes, false
+    local wanted = numHeroes + EncounterOfTheWeekGame.Notches()
+    --only the notches are clamped: a party already past the range keeps its size.
+    local heroes = math.max(math.min(1, numHeroes), math.min(math.max(MAX_BALANCED_HEROES, numHeroes), wanted))
+    if wanted == heroes then
+        return heroes, 0
     end
-    if numHeroes + 1 <= CHALLENGE_MAX_BALANCED_HEROES then
-        return numHeroes + 1, false
-    end
-    return numHeroes, true
+    --the monsters are levelled to the party's Level, so that is the Level a notch scales by.
+    local level = EncounterOfTheWeekGame.PartyLevel() or EncounterOfTheWeekGame.TargetHeroLevel()
+    return heroes, (wanted - heroes) * (level + 2) / MAX_BALANCED_HEROES
 end
 
 --- level balancing ----------------------------------------------------
@@ -457,11 +493,11 @@ function EncounterOfTheWeekGame.LevelDelta()
 end
 
 --The level boost for a set of monsters spawned together: LevelDelta, plus
---half a Level when Challenge Mode levels up a full party (ChallengeBalance).
----@param levelUp boolean|nil
+--the extra Levels difficulty notches give past a full party (DifficultyBalance).
+---@param extraLevels number|nil
 ---@return number
-function EncounterOfTheWeekGame.LevelBoost(levelUp)
-    return EncounterOfTheWeekGame.LevelDelta() + (levelUp and 0.5 or 0)
+function EncounterOfTheWeekGame.LevelBoost(extraLevels)
+    return EncounterOfTheWeekGame.LevelDelta() + (tonumber(extraLevels) or 0)
 end
 
 --Host: level a set of monsters spawned together (the opening fight, or one
@@ -2688,11 +2724,20 @@ function EncounterOfTheWeekGame.RecordPendingSurvey(outcome)
     end
 
     local encounter, players, heroes = "", 0, 0
+    --which parts of the encounter this game reached: the town asks only
+    --about those.
+    local narrative, combat = false, false
     pcall(function()
         local data = mod:GetDocumentSnapshot(STATE_DOC_ID).data
         if type(data.encounterMap) == "string" then
             encounter = data.encounterMap
         end
+        local parts = data.surveyParts
+        if type(parts) == "table" then
+            narrative = parts.narrative == true
+            combat = parts.combat == true
+        end
+        combat = combat or EncounterOfTheWeekGame.CombatStarted()
         for _,_ in pairs(data.expectedUsers or {}) do
             players = players + 1
         end
@@ -2719,6 +2764,7 @@ function EncounterOfTheWeekGame.RecordPendingSurvey(outcome)
         minutes = math.floor(seconds / 60 + 0.5),
         players = players,
         heroes = heroes,
+        parts = { narrative = narrative, combat = combat },
         --when this run of the app started (unix seconds): the town only
         --invites in the same run, never after a restart.
         appStart = math.floor(os.time() - dmhub.Time()),
@@ -4076,9 +4122,9 @@ EncounterOfTheWeekGame.SPAWNING = "spawning"
 --file's main chunk is at the 200-local limit.
 EncounterOfTheWeekGame.spawnJob = nil
 function EncounterOfTheWeekGame.SpawnEncounterMonsters(numHeroes, options)
-    --Challenge Mode balances for one more hero, or levels up (ChallengeBalance).
-    local levelUp
-    numHeroes, levelUp = EncounterOfTheWeekGame.ChallengeBalance(numHeroes)
+    --difficulty notches balance for more (or fewer) heroes, or level (DifficultyBalance).
+    local extraLevels
+    numHeroes, extraLevels = EncounterOfTheWeekGame.DifficultyBalance(numHeroes)
     local entry = FindMapEncounter()
     if entry == nil then
         return false, "This map's journal has no encounter to spawn."
@@ -4105,7 +4151,7 @@ function EncounterOfTheWeekGame.SpawnEncounterMonsters(numHeroes, options)
         job = { gameid = dmhub.gameid, mapid = game.currentMapId, finished = false }
         EncounterOfTheWeekGame.spawnJob = job
         dmhub.Coroutine(function()
-            local ok, err = pcall(EncounterOfTheWeekGame.SpawnEncounterGroups, entry, numHeroes, levelUp, job)
+            local ok, err = pcall(EncounterOfTheWeekGame.SpawnEncounterGroups, entry, numHeroes, extraLevels, job)
             if not ok then
                 printf("EotW: encounter spawn failed: %s", tostring(err))
             end
@@ -4114,14 +4160,14 @@ function EncounterOfTheWeekGame.SpawnEncounterMonsters(numHeroes, options)
         return false, EncounterOfTheWeekGame.SPAWNING
     end
 
-    EncounterOfTheWeekGame.SpawnEncounterGroups(entry, numHeroes, levelUp, nil)
+    EncounterOfTheWeekGame.SpawnEncounterGroups(entry, numHeroes, extraLevels, nil)
     return true
 end
 
 --The body of SpawnEncounterMonsters: place every non-wave group, then record
 --the spawns on the island. With a job (inside a coroutine), yields a frame
 --after each group and gives up if the game or map changed meanwhile.
-function EncounterOfTheWeekGame.SpawnEncounterGroups(entry, numHeroes, levelUp, job)
+function EncounterOfTheWeekGame.SpawnEncounterGroups(entry, numHeroes, extraLevels, job)
     local richEncounter = entry.richEncounter
     Encounter.SetReadiedEncounter(entry.encounter)
 
@@ -4131,7 +4177,7 @@ function EncounterOfTheWeekGame.SpawnEncounterGroups(entry, numHeroes, levelUp, 
     local mountEntries = {}
     --what each group placed, so heroes joining late can be met with more
     --(EncounterOfTheWeekGame.RebalanceForLateHeroes).
-    local balance = { heroes = numHeroes, levelUp = levelUp, part = tostring(EncounterOfTheWeekGame.ActivePart()), groups = {} }
+    local balance = { heroes = numHeroes, extraLevels = extraLevels, part = tostring(EncounterOfTheWeekGame.ActivePart()), groups = {} }
     for groupIndex,group in ipairs(entry.encounter.groups) do
         if job ~= nil and #spawns > 0 then
             coroutine.yield()
@@ -4161,7 +4207,7 @@ function EncounterOfTheWeekGame.SpawnEncounterGroups(entry, numHeroes, levelUp, 
 
     --level the monsters for the party's Level (and Challenge Mode's full
     --party); remembered so heroes joining late can re-level them.
-    EncounterOfTheWeekGame.ApplyLevelBoost(spawns, EncounterOfTheWeekGame.LevelBoost(levelUp), "spawn")
+    EncounterOfTheWeekGame.ApplyLevelBoost(spawns, EncounterOfTheWeekGame.LevelBoost(extraLevels), "spawn")
     balance.monsters = spawns
 
     --frames have passed in an async spawn, and a journal update in between
@@ -5502,10 +5548,27 @@ local function RecordCombatStarted()
     doc:BeginChange()
     doc.data.combatStarted = true
     doc:CompleteChange("Encounter of the Week: combat started", {undoable = false})
+    EncounterOfTheWeekGame.NoteSurveyPart("combat")
     --the beat index the way GetBeatIndex (declared further down) reads it.
     local beat = nil
     pcall(function() beat = EncounterMontage.GetDoc().data.beat end)
     EncounterOfTheWeekGame.AnalyticsPhase("combat", beat)
+end
+
+--Host only: note that this game reached a part the beta survey asks about
+--("narrative" for any narrative, montage or negotiation beat; "combat").
+--Unlike combatStarted it survives a series' next part, so the survey at the
+--end covers the whole run.
+function EncounterOfTheWeekGame.NoteSurveyPart(part)
+    local doc = mod:GetDocumentSnapshot(STATE_DOC_ID)
+    local parts = doc.data.surveyParts
+    if type(parts) == "table" and parts[part] == true then
+        return
+    end
+    doc:BeginChange()
+    doc.data.surveyParts = doc.data.surveyParts or {}
+    doc.data.surveyParts[part] = true
+    doc:CompleteChange("Encounter of the Week: survey part", {undoable = false})
 end
 
 --Has this game's combat begun, on any client: the host's permanent stamp,
@@ -6017,6 +6080,7 @@ local function RunScriptBeat(ctx)
 
     if beat.kind == "montage" then
         EncounterOfTheWeekGame.AnalyticsPhase("montage", index, { title = beat.title })
+        EncounterOfTheWeekGame.NoteSurveyPart("narrative")
         local status = montage.HostTick(script, beat, index)
         if status == "done" then
             printf("EotW: montage beat %d complete", index)
@@ -6036,6 +6100,7 @@ local function RunScriptBeat(ctx)
             return
         end
         EncounterOfTheWeekGame.AnalyticsPhase("narrative", index, { title = beat.title })
+        EncounterOfTheWeekGame.NoteSurveyPart("narrative")
         local status = narrative.HostTick(script, beat, index)
         if status == "done" then
             printf("EotW: narrative beat %d complete", index)
@@ -6052,6 +6117,7 @@ local function RunScriptBeat(ctx)
             return
         end
         EncounterOfTheWeekGame.AnalyticsPhase("negotiation", index, { title = beat.title })
+        EncounterOfTheWeekGame.NoteSurveyPart("narrative")
         local status = negotiation.HostTick(script, beat, index)
         if status == "done" then
             printf("EotW: negotiation beat %d complete", index)
@@ -6416,7 +6482,7 @@ end
 --                 once everyone was in, then each latecomer
 --  data.late    = { [charid] = { at, owner, phase, combat } } the latecomers;
 --                 combat = the guid of the combat they were put into
---  data.balance = { heroes, levelUp, part, groups = { ["g<index>"] = { groupid,
+--  data.balance = { heroes, extraLevels, part, groups = { ["g<index>"] = { groupid,
 --                 counts = { [monsterid] = quantity } } } } what the
 --                 encounter's spawn placed (SpawnEncounterMonsters), raised as
 --                 latecomers are met with more monsters
@@ -6525,7 +6591,7 @@ function EncounterOfTheWeekGame.RebalanceForLateHeroes(numHeroes)
             or balance.part ~= tostring(EncounterOfTheWeekGame.ActivePart()) then
         return 0
     end
-    local target = EncounterOfTheWeekGame.ChallengeBalance(numHeroes)
+    local target = EncounterOfTheWeekGame.DifficultyBalance(numHeroes)
     if target <= (tonumber(balance.heroes) or 0) then
         return 0
     end
@@ -6655,9 +6721,9 @@ function EncounterOfTheWeekGame.RelevelForLateHeroes(numHeroes)
     if #monsters == 0 then
         return 0
     end
-    local _, levelUp = EncounterOfTheWeekGame.ChallengeBalance(numHeroes)
+    local _, extraLevels = EncounterOfTheWeekGame.DifficultyBalance(numHeroes)
     ElevateToHostPermissions()
-    local ok, changed = pcall(EncounterOfTheWeekGame.ApplyLevelBoost, monsters, EncounterOfTheWeekGame.LevelBoost(levelUp), "late join")
+    local ok, changed = pcall(EncounterOfTheWeekGame.ApplyLevelBoost, monsters, EncounterOfTheWeekGame.LevelBoost(extraLevels), "late join")
     DropHostPermissions()
     if not ok then
         printf("EotW late join: re-levelling failed: %s", tostring(changed))
@@ -7316,6 +7382,7 @@ function EncounterOfTheWeekGame.SetupOnArrival(args)
             RecordEncounterMap(encounterKey, encounterMapId)
             RecordPartyMode("practice", args.practice, "Encounter of the Week: Proving Pits practice")
             RecordPartyMode("challenge", args.challenge, "Encounter of the Week: Challenge Mode")
+            EncounterOfTheWeekGame.RecordPartyNotch(args.notch)
 
             --a series part starts from the story the earlier parts left
             --(the City's, for the host's account): before the region, which
@@ -8361,6 +8428,7 @@ local function ClearTestArrival(data)
     data.abilityBusy = nil
     data.practice = nil
     data.challenge = nil
+    data.notch = nil
 end
 
 --The test's arrival (host, inside a coroutine, already in player-host mode).

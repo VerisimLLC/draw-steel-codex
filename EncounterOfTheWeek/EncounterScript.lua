@@ -3554,15 +3554,27 @@ end
 --a threat, at random. Locked threats are never picked. Returns
 --{ restore = entryId } or { double = entryId }, or nil when the beat has no
 --threat to pick.
-function EncounterScript.ChooseChallengeThreat(beat, removed, rand)
+--`times` (optional, { [entryId] = n }) is how often each threat must already
+--be vanquished: a double then picks among the least-repeated threats, so
+--several notches spread "x2" across threats before any reaches "x3".
+function EncounterScript.ChooseChallengeThreat(beat, removed, rand, times)
     rand = rand or function(n) return math.random(n) end
     removed = removed or {}
+    times = times or {}
     for _, how in ipairs({ "restore", "double" }) do
         for _, r in ipairs((beat and beat.rounds) or {}) do
             local pool = {}
+            local fewest = nil
             for _, e in ipairs(r.entries or {}) do
                 if e.kind == "threat" and not e.locked and (removed[e.id] == true) == (how == "restore") then
-                    pool[#pool + 1] = e.id
+                    local n = tonumber(times[e.id]) or 1
+                    if fewest == nil or n < fewest then
+                        fewest = n
+                        pool = {}
+                    end
+                    if n == fewest then
+                        pool[#pool + 1] = e.id
+                    end
                 end
             end
             if #pool > 0 then
@@ -3571,6 +3583,59 @@ function EncounterScript.ChooseChallengeThreat(beat, removed, rand)
         end
     end
     return nil
+end
+
+--A difficulty notch's montage threats (pure; rand as above). Each notch up
+--is one Challenge Mode pick (ChooseChallengeThreat): a threat the party-size
+--scaling removed comes back, else a threat must be vanquished once more.
+--Each notch down removes one more threat, at random, never a Required or
+--Locked one and never a round's last. `removed` is the scaling draw and is
+--not changed. Returns { removed = {[id]=true}, times = {[id]=n},
+--restored = {ids}, dropped = {ids} } -- removed is the draw after the notches.
+function EncounterScript.ChooseNotchThreats(beat, removed, notches, rand)
+    rand = rand or function(n) return math.random(n) end
+    local result = { removed = {}, times = {}, restored = {}, dropped = {} }
+    for id, on in pairs(removed or {}) do
+        result.removed[id] = on
+    end
+    notches = math.floor(tonumber(notches) or 0)
+    for _ = 1, math.max(0, notches) do
+        local pick = EncounterScript.ChooseChallengeThreat(beat, result.removed, rand, result.times)
+        if pick == nil then
+            break
+        end
+        if pick.restore ~= nil then
+            result.removed[pick.restore] = nil
+            result.restored[#result.restored + 1] = pick.restore
+        else
+            result.times[pick.double] = (result.times[pick.double] or 1) + 1
+        end
+    end
+    for _ = 1, math.max(0, -notches) do
+        local pool = {}
+        for _, r in ipairs((beat and beat.rounds) or {}) do
+            local left = {}
+            for _, e in ipairs(r.entries or {}) do
+                if e.kind == "threat" and not result.removed[e.id] then
+                    left[#left + 1] = e
+                end
+            end
+            if #left >= 2 then
+                for _, e in ipairs(left) do
+                    if not e.required and not e.locked then
+                        pool[#pool + 1] = e.id
+                    end
+                end
+            end
+        end
+        if #pool == 0 then
+            break
+        end
+        local id = pool[rand(#pool)]
+        result.removed[id] = true
+        result.dropped[#result.dropped + 1] = id
+    end
+    return result
 end
 
 --- the document ------------------------------------------------------------

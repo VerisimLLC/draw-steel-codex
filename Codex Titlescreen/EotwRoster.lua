@@ -524,6 +524,20 @@ function EotwRoster.TrainingGroundsBuilt()
     return state ~= nil and (tonumber(state.completions) or 0) >= 1
 end
 
+--Has the town finished building the Great Forge (the community project
+--Build the Great Forge)? Until then its place on the map is a building site.
+function EotwRoster.GreatForgeBuilt()
+    --a hidden project's building is not there, even if built.
+    if EotwDowntime.CommunityProjectHidden("build-great-forge") then
+        return false
+    end
+    if m_unlocks ~= nil and m_unlocks.greatForge == true then
+        return true
+    end
+    local state = EotwDowntime.GetProject("build-great-forge")
+    return state ~= nil and (tonumber(state.completions) or 0) >= 1
+end
+
 --The lead ids this account has learned, as a set; empty while not listed.
 function EotwRoster.LearnedLeads()
     local result = {}

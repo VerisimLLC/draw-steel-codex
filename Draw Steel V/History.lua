@@ -58,6 +58,9 @@ local mod = dmhub.GetModLoading()
 --- @field secretroll? boolean For a player only: the roll was hidden from players, so it was taken out (History.Entry).
 --- @field icon? string On a condition line: its icon.
 --- @field iscondition? boolean On a condition line: a condition, not some other effect.
+--- @field ref? string On a condition line: the ongoing effect's instance id (see History.IsActive).
+--- @field cid? string On a condition line: the condition's id, when it is a bare condition.
+--- @field start? HistoryStart On a lone trigger's line in the tray: the target's start it shows.
 --- @field duration? string On a condition line: "save ends", "EoT" or "EoE".
 --- @field passed? boolean On a save line: whether it was made.
 --- @field who? HistoryCreature On a line: who it happened to.
@@ -444,6 +447,94 @@ function History.HoverText(mapid, id)
     local hovers = mod:GetDocumentSnapshot(History.DocId(mapid)).data.hovers
     local text = type(hovers) == "table" and hovers[id] or nil
     return type(text) == "string" and text or nil
+end
+
+--Active (S6, B8): a condition or effect a row started that is still on. Several rows can
+--name the same one (it was renewed, or applied again after it ended), so only the newest
+--of them can be Active. The tray notes every start in time order before it draws.
+--- @class HistoryStart
+--- @field name string
+--- @field icon? string
+--- @field ref? string An ongoing effect's instance id.
+--- @field cid? string A bare condition's id.
+
+--Newest start by creature and what it is: {[key] = the start's table}.
+--- @type table<string, HistoryStart>
+local g_newestStart = {}
+
+local function StartKey(whoid, start)
+    return string.format("%s|%s", whoid, start.ref or start.cid or start.name)
+end
+
+--- Forgets the starts noted so far, before the tray notes them again.
+function History.ClearStarts()
+    g_newestStart = {}
+end
+
+--- Notes that a row started a condition or effect on a creature; later notes win.
+--- @param whoid string Token id.
+--- @param start HistoryStart
+function History.NoteStart(whoid, start)
+    g_newestStart[StartKey(whoid, start)] = start
+end
+
+--Whether the creature has it now: an effect by its instance, a condition by its id, and
+--rows from before either was saved by name.
+local function StillHas(creature, start)
+    if start.ref ~= nil then
+        for _, instance in ipairs(creature:try_get("ongoingEffects", {})) do
+            if instance.id == start.ref then
+                return not instance:Expired()
+            end
+        end
+        return false
+    end
+    if start.cid ~= nil then
+        return creature:try_get("inflictedConditions", {})[start.cid] ~= nil
+    end
+    local effects = GetTableCached(CharacterOngoingEffect.tableName)
+    for _, instance in ipairs(creature:try_get("ongoingEffects", {})) do
+        local info = effects[instance.ongoingEffectid]
+        if info ~= nil and info.name == start.name and not instance:Expired() then
+            return true
+        end
+    end
+    local conditions = GetTableCached(CharacterCondition.tableName)
+    for conditionid in pairs(creature:try_get("inflictedConditions", {})) do
+        local info = conditions[conditionid]
+        if info ~= nil and info.name == start.name then
+            return true
+        end
+    end
+    return false
+end
+
+--- Whether a start a row recorded is still on: it is the newest row naming it and the
+--- creature has it now. A live read, so call it when a row is drawn, not every frame.
+--- @param whoid string Token id.
+--- @param start HistoryStart
+--- @return boolean
+function History.IsActive(whoid, start)
+    if g_newestStart[StartKey(whoid, start)] ~= start then
+        return false
+    end
+    local token = dmhub.GetTokenById(whoid)
+    if token == nil or token.properties == nil then
+        return false
+    end
+    return StillHas(token.properties, start)
+end
+
+--- The first of a creature's starts in a row that is still on, for its Active tag.
+--- @param who HistoryCreature
+--- @return HistoryStart|nil
+function History.ActiveStart(who)
+    for _, start in ipairs(who.conds or {}) do
+        if History.IsActive(who.id, start) then
+            return start
+        end
+    end
+    return nil
 end
 
 --- Rewrites an entry that is already in History, for a change to what it says.

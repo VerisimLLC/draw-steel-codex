@@ -381,6 +381,16 @@ Goal: why it happened, one click from the row.
 | 3.3 | Minimised block, badges on block and rail, hover preview, History notifications, new-rows markers, nothing moves under the reader | M |
 | 3.4 | History Sidebar Preview and its setting, reusing the chat speech bubble's placement (`DocumentSystem.lua:16400`) | S |
 
+### Stage 3 notes
+
+- **3.1 (built 2026-11-12):**
+  - **Bar:** the search field, with chips and the count on a row under it. Suggestions are grouped Creatures, Abilities, Conditions, Other; arrows/Enter/Escape work as in the global search.
+  - **Matching:** typed words match the card's own sentences. Rows filter in place. Marks use the `@warning` colour at 55 alpha.
+  - **Active:** effects are matched exactly by their instance id (`instanceid` on `effectstarted`); bare conditions by the newest row that started them.
+  - **Show all replaced by Latest** (James): it shows only when you are away from the default view (scrolled up, older rows loaded, a fold changed by hand). It resets the folds and jumps to the newest row.
+  - **Type search** (James, option A): creature suggestions also match a hero's class for everyone, and a monster's organisation, role, keywords and monster name for the Director only. Types are read from the live token. When two or more creatures share a type there is an `All {type}` row and chip. Name matches rank above type matches.
+- **Engine follow-up (Latest bounce):** `SheetScrollView` keeps its wheel smooth-scroll target until the list gets within 0.001 of it. On a short list it can stall at 0.997, and setting `vscrollPosition` from Lua does not clear the target, so the list eases back. Fix in dmhubclient: the setter (`SheetPanel.cs` `vscrollPosition`) clears the target. Nothing on the codex side.
+
 ## Stage 4: movement views
 
 | Chunk | What | Size |

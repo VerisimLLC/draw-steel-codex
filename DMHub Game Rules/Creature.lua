@@ -34,7 +34,7 @@ local g_playObservers = {}
 ---   temporarystamina(creature, before, after, note): the pool grew.
 ---   effectstarted(creature, info): a condition or ongoing effect began. info: conditionid
 ---     or ongoingeffectid, duration, source; renewed = true when the creature already had
----     it and this application only renewed it.
+---     it and this application only renewed it; instanceid = an ongoing effect's instance.
 ---   effectsended(creature, ended, cause): conditions and ongoing effects ended. ended is
 ---     a list of {conditionid} or {ongoingeffectid}; cause is what EndingEffects was told.
 ---   conditionimmune(creature, conditionid): an infliction was stopped by immunity.

@@ -4874,6 +4874,7 @@ function creature:ApplyOngoingEffect(ongoingEffectid, duration, casterInfo, opti
             duration = duration,
             source = options ~= nil and options.sourceDescription or nil,
             renewed = hadIt or nil,
+            instanceid = result.id,
         })
     end
     return result

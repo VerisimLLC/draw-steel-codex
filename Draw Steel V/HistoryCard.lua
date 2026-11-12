@@ -696,6 +696,8 @@ local HOVER_DELAY = 0.4
 --- @param args table Arguments for gui.Label.
 --- @return table args
 local function Linked(args)
+    --while searching, what matched is marked here too (3.1).
+    args.text = History.SearchMark(args.text)
     local text = args.text
     if type(text) ~= "string" or string.find(text, "<link=", 1, true) == nil then
         return args
@@ -869,11 +871,14 @@ local function StoryRow(row, width)
         left[1] = face
         textWidth = textWidth - STORY_FACE - STORY_GAP
     end
+    --what is still on gets Active, always (B8), so "slowed" answers why you are slowed now.
+    local active = not row.ended and row.who[1] ~= nil and History.ActiveStart(row.who[1]) or nil
+    local tagged = row.ended or active ~= nil
     left[#left + 1] = gui.Label{
         classes = {"historyStory"},
-        text = History.StoryText(row),
-        width = row.ended and "auto" or textWidth,
-        maxWidth = row.ended and (textWidth - ENDED_TAG_WIDTH) or nil,
+        text = History.SearchMark(History.StoryText(row)),
+        width = tagged and "auto" or textWidth,
+        maxWidth = tagged and (textWidth - ENDED_TAG_WIDTH) or nil,
         height = "auto",
         lmargin = #left > 0 and STORY_GAP or 0,
         halign = "left",
@@ -882,6 +887,11 @@ local function StoryRow(row, width)
     }
     if row.ended then
         left[#left + 1] = History.Tag("historyEndedTag", "Ended")
+    elseif active ~= nil then
+        local tag = History.ActiveTag(active.icon)
+        tag.selfStyle.valign = "top"
+        tag.selfStyle.tmargin = 3
+        left[#left + 1] = tag
     end
 
     local children = {

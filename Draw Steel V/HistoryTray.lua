@@ -13,8 +13,11 @@ local mod = dmhub.GetModLoading()
 local TRAY_WIDTH = 410
 local EDGE_STRIP = 8
 
---The bar above the list that holds Show all.
+--The bar above the list that holds search and Latest.
 local BAR_HEIGHT = 28
+--Latest is a fixed width, anchored right, so the search field beside it can never run under it.
+local LATEST_WIDTH = 84
+local SEARCH_GAP = 8
 
 --Rows built at first; scrolling to the top adds this many more each time.
 local ROWS_CHUNK = 40
@@ -190,9 +193,68 @@ local function Styles()
             bgcolor = "@warning",
         },
         {
+            selectors = {"historyActiveFrame"},
+            bgcolor = "@warning",
+        },
+        {
+            selectors = {"historyActiveIcon"},
+            bgcolor = "@bg",
+        },
+        {
             selectors = {"historyBadge"},
             bgcolor = "@bg",
             borderColor = "@borderSolid",
+        },
+        --search (3.1).
+        {
+            selectors = {"label", "historySearchCount"},
+            fontSize = 11,
+            color = "@fgMuted",
+        },
+        {
+            selectors = {"historySearchChip"},
+            bgcolor = "@borderSolid",
+        },
+        {
+            selectors = {"label", "historySearchChipText"},
+            fontSize = 12,
+            color = "@fgStrong",
+        },
+        {
+            selectors = {"historySearchX"},
+            bgcolor = "@fgMuted",
+        },
+        {
+            selectors = {"historySearchX", "hover"},
+            bgcolor = "@fgStrong",
+        },
+        {
+            selectors = {"historySuggestions"},
+            bgcolor = "@bg",
+            borderColor = "@borderSolid",
+        },
+        {
+            selectors = {"label", "historySuggestGroup"},
+            fontSize = 11,
+            uppercase = true,
+            color = "@fgMuted",
+        },
+        {
+            selectors = {"historySuggestRow"},
+            bgcolor = "clear",
+        },
+        {
+            selectors = {"historySuggestRow", "hover"},
+            bgcolor = "@borderSolid",
+        },
+        {
+            selectors = {"historySuggestRow", "searchfocus"},
+            bgcolor = "@borderSolid",
+        },
+        {
+            selectors = {"label", "historySuggestText"},
+            fontSize = 13,
+            color = "@fg",
         },
         {
             selectors = {"label", "historyTriggerText"},
@@ -490,6 +552,56 @@ local function Tag(style, text)
     }
 end
 
+--Active with the icon of what is still on, so a cell with two badges says which (B8).
+--- @param icon string|nil
+--- @return Panel
+local function ActiveTag(icon)
+    if icon == nil then
+        return Tag("historyActiveTag", "Active")
+    end
+    return gui.Panel{
+        classes = {"historyActiveFrame"},
+        bgimage = "panels/square.png",
+        flow = "horizontal",
+        width = "auto",
+        height = 14,
+        lpad = 1,
+        rpad = 4,
+        borderBox = true,
+        cornerRadius = 3,
+        lmargin = 5,
+        halign = "left",
+        valign = "center",
+        gui.Panel{
+            classes = {"historyActiveIcon"},
+            bgimage = "panels/square.png",
+            width = 12,
+            height = 12,
+            cornerRadius = 6,
+            rmargin = 2,
+            valign = "center",
+            gui.Panel{
+                bgimage = icon,
+                bgcolor = "white",
+                width = 10,
+                height = 10,
+                halign = "center",
+                valign = "center",
+            },
+        },
+        gui.Label{
+            classes = {"historyActiveTag"},
+            text = "Active",
+            width = "auto",
+            height = "auto",
+            valign = "center",
+            bgcolor = "clear",
+        },
+    }
+end
+
+History.ActiveTag = ActiveTag
+
 --The condition's icon in a small dark circle on the face's top corner.
 local function ConditionBadge(condition, index)
     return gui.Panel{
@@ -718,7 +830,7 @@ local function TargetCell(who, width, showTier, extraTaken, minions, allyHit)
     end
     top[#top + 1] = gui.Label{
         classes = {"historyCellName"},
-        text = ShownName(who),
+        text = History.SearchMark(ShownName(who)),
         width = textWidth - #top * 34,
         height = "auto",
         halign = "left",
@@ -751,7 +863,7 @@ local function TargetCell(who, width, showTier, extraTaken, minions, allyHit)
             classes = {"historyCaption", caption.style},
             bgimage = cond(caption.style == "historyDead", "panels/square.png", nil),
             cornerRadius = 3,
-            text = caption.text,
+            text = History.SearchMark(caption.text),
             width = "auto",
             maxWidth = textWidth,
             height = "auto",
@@ -767,6 +879,12 @@ local function TargetCell(who, width, showTier, extraTaken, minions, allyHit)
             tag.selfStyle.rmargin = 8
             below[#below + 1] = tag
         end
+    end
+    local active = History.ActiveStart(who)
+    if active ~= nil then
+        local tag = ActiveTag(active.icon)
+        tag.selfStyle.lmargin = 0
+        below[#below + 1] = tag
     end
 
     local face = Face(who, 36)
@@ -1049,7 +1167,7 @@ local function BuildAction(item)
         titleChildren[#titleChildren + 1] = Face(entry.actor, 22)
         titleChildren[#titleChildren + 1] = gui.Label{
             classes = {"historyName"},
-            text = ShownName(entry.actor) .. DOT,
+            text = History.SearchMark(ShownName(entry.actor)) .. DOT,
             width = "auto",
             height = "auto",
             lmargin = 5,
@@ -1058,7 +1176,7 @@ local function BuildAction(item)
         }
     end
     titleChildren[#titleChildren + 1] = gui.Label{
-        text = entry.ability.name,
+        text = History.SearchMark(entry.ability.name),
         width = "auto",
         height = "auto",
         lmargin = item.showActor and 4 or 0, --auto width drops the space after the dot.
@@ -1325,6 +1443,12 @@ local function BuildLine(item)
         tag = Tag("historyEndedTag", "Ended")
     elseif entry.family == "save" and not entry.passed then
         tag = Tag("historyActiveTag", "Active")
+    elseif entry.family == "condition" and entry.who ~= nil then
+        --a lone trigger's line carries the target's own start (AddLoneTrigger).
+        local start = entry.start or entry
+        if History.IsActive(entry.who.id, start) then
+            tag = ActiveTag(start.icon)
+        end
     end
 
     --opacity does not reach a panel's children, so an undone line fades by its text colour.
@@ -1332,7 +1456,7 @@ local function BuildLine(item)
     local top = {
         gui.Label{
             classes = {cond(entry.undone, "historyUndone", "historyLineText")},
-            text = LineWords(entry),
+            text = History.SearchMark(LineWords(entry)),
             width = "auto",
             maxWidth = textWidth,
             height = "auto",
@@ -1661,7 +1785,6 @@ local g_builders = {
 --What the user has opened or closed by hand, by section or turn id. A section or turn
 --with no entry here follows the default: only the newest stays open.
 local g_open = {}
-local g_showAll = false
 
 local function Toggle(id, isOpen)
     return function()
@@ -1731,6 +1854,439 @@ local function RootAction(entry, rowsById)
     return nil
 end
 
+--Search (3.1). Chips come from suggestions (or, in 3.2, from History on a token); chips
+--and typed words must all match. A match filters the tray in place, under its round and
+--turn, and the words that matched are marked in the tray and the card.
+--- @class HistorySearchChip
+--- @field kind "creature"|"type"|"ability"|"condition"|"other"
+--- @field key string A creature's token id; a type chip's type, lower case; or the ability's, condition's or other word's name.
+--- @field name string What the chip says.
+--- @field who? HistoryCreature A creature chip's face.
+--- @field icon? string A condition chip's icon.
+--- @field type? string The type a creature suggestion was found by, shown after its name.
+
+--The outcome words (S3) and the stems that find them.
+local OTHER_WORDS = {
+    {name = "Killed", stem = "kill"},
+    {name = "Winded", stem = "winded"},
+    {name = "Triggered", stem = "trigger"},
+    {name = "Surges", stem = "surge"},
+    {name = "Malice", stem = "malice"},
+    {name = "Pushed", stem = "push"},
+    {name = "Fell", stem = "fell"},
+    {name = "Immunity", stem = "immun"},
+    {name = "Resisted", stem = "resist"},
+    {name = "Critical", stem = "critical"},
+}
+local OTHER_STEMS = {}
+for _, other in ipairs(OTHER_WORDS) do
+    OTHER_STEMS[other.name] = other.stem
+end
+
+--What the search holds, kept while the tray closes and opens.
+local g_search = {
+    --- @type HistorySearchChip[]
+    chips = {},
+    text = "",
+}
+
+--- The typed words, lower case, and the turn number in "turn 15" (B8), or nil.
+--- @return string[] words, integer|nil turn
+local function SearchWords()
+    local text = string.lower(g_search.text or "")
+    local turn = nil
+    local number = string.match(text, "turn%s+(%d+)")
+    if number ~= nil then
+        turn = tonumber(number)
+        text = string.gsub(text, "turn%s+%d+", " ")
+    end
+    local words = {}
+    for word in string.gmatch(text, "%S+") do
+        words[#words + 1] = word
+    end
+    return words, turn
+end
+
+--- @return boolean
+local function Searching()
+    return #g_search.chips > 0 or string.find(g_search.text or "", "%S") ~= nil
+end
+
+local function Plain(text)
+    return string.lower((string.gsub(text or "", "<[^>]*>", "")))
+end
+
+--Every creature a row is about: who acted, who it hit, whose trigger, who a line is about.
+local function EachCreature(entry, kids, fn)
+    local function Add(who)
+        if who ~= nil and who.id ~= nil and (not who.secret or dmhub.isDM) then
+            fn(who)
+        end
+    end
+    local function AddEntry(e)
+        Add(e.actor)
+        Add(e.who)
+        Add(e.triggerby)
+        for _, who in ipairs(e.targets or {}) do
+            Add(who)
+        end
+        if type(e.ended) == "table" and e.family == "encounterend" then
+            for _, item in ipairs(e.ended) do
+                Add(item.who)
+            end
+        end
+    end
+    AddEntry(entry)
+    for _, kid in ipairs(kids or {}) do
+        AddEntry(kid)
+    end
+end
+
+--What kind of creature each token is, for type search: a hero's class; for the Director
+--also a monster's organisation, role, keywords and monster name. Read from the token on
+--the map, so a creature no longer there has none. Cleared on each search pass.
+--- @type table<string, string[]>
+local g_types = {}
+
+local function ClearTypes()
+    g_types = {}
+end
+
+--- @param id string A token id.
+--- @return string[] types As the game writes them, e.g. "Summoner", "Undead".
+local function CreatureTypes(id)
+    local kept = g_types[id]
+    if kept ~= nil then
+        return kept
+    end
+    local types = {}
+    local seen = {}
+    local function Add(text)
+        if type(text) == "string" and text ~= "" and not seen[string.lower(text)] then
+            seen[string.lower(text)] = true
+            types[#types + 1] = text
+        end
+    end
+    local token = dmhub.GetTokenById(id)
+    local c = token ~= nil and token.properties or nil
+    if c ~= nil then
+        if c:IsHero() then
+            local class = (c --[[@as character]]):GetClass()
+            if class ~= nil then
+                Add(class.name)
+            end
+        elseif dmhub.isDM then
+            --role holds organisation and role together, e.g. "Minion Defender".
+            for word in string.gmatch(tostring(c:try_get("role", "")), "%S+") do
+                Add(word)
+            end
+            for keyword, on in pairs(c:try_get("keywords", {})) do
+                if on then
+                    Add(keyword)
+                end
+            end
+            Add(c:try_get("monster_type"))
+        end
+    end
+    g_types[id] = types
+    return types
+end
+
+--- The first of a creature's types that holds the typed text, or nil.
+--- @param id string
+--- @param typed string Lower case.
+--- @return string|nil
+local function TypeFound(id, typed)
+    for _, text in ipairs(CreatureTypes(id)) do
+        if string.find(string.lower(text), typed, 1, true) ~= nil then
+            return text
+        end
+    end
+    return nil
+end
+
+--- Whether a creature is of this type (lower case, whole).
+--- @param id string
+--- @param key string
+--- @return boolean
+local function IsOfType(id, key)
+    for _, text in ipairs(CreatureTypes(id)) do
+        if string.lower(text) == key then
+            return true
+        end
+    end
+    return false
+end
+
+--Everything a row says, lower case, for typed words and outcome chips: the card's own
+--sentences, so a row matches on what the card shows. Kept per entry; nested triggers are
+--counted in, as they arrive later.
+--- @type table<table, {count: integer, text: string}>
+local g_rowText = setmetatable({}, {__mode = "k"})
+
+local function RowText(entry, kids)
+    kids = kids or {}
+    local kept = g_rowText[entry]
+    if kept ~= nil and kept.count == #kids then
+        return kept.text
+    end
+    local parts = {}
+    local function Add(text)
+        if text ~= nil and text ~= "" then
+            parts[#parts + 1] = Plain(text)
+        end
+    end
+    EachCreature(entry, kids, function(who)
+        Add(ShownName(who))
+    end)
+    if entry.kind == "line" then
+        Add(LineWords(entry))
+        Add(entry.causetext)
+        Add(entry.trigger)
+        if entry.trigger ~= nil then
+            Add("triggered")
+        end
+        if entry.family == "malice" then
+            Add("malice")
+        end
+    else
+        if entry.ability ~= nil then
+            Add(entry.ability.name)
+        end
+        if entry.kind == "trigger" then
+            Add("triggered")
+        end
+        for _, row in ipairs(History.Story(entry, kids)) do
+            Add(History.StoryText(row))
+        end
+        for _, kid in ipairs(kids) do
+            if kid.kind == "trigger" then
+                Add("triggered")
+                Add(kid.ability.name)
+            end
+        end
+        for name in pairs(entry.costs or {}) do
+            Add(name)
+        end
+        local roll = entry.roll
+        if roll ~= nil then
+            if roll.natural ~= nil and roll.natural >= 19 then
+                Add("critical")
+            end
+            for _, source in ipairs(roll.sources or {}) do
+                if dmhub.isDM or not PowerRollSpoilers.HasSpoiler(source.name) then
+                    Add(source.name)
+                end
+            end
+        end
+        for _, who in ipairs(entry.targets or {}) do
+            for _, part in ipairs(who.parts or {}) do
+                Add(part.kind == "surge" and "surges" or part.name)
+            end
+            if who.immunity ~= nil then
+                Add(who.immunity.amount > 0 and "immunity" or "weakness")
+            end
+            if who.immune ~= nil then
+                Add("immune")
+            end
+            if who.moved ~= nil and (who.moved.fell or 0) > 0 then
+                Add("fell")
+            end
+        end
+    end
+    local text = table.concat(parts, " | ")
+    g_rowText[entry] = {count = #kids, text = text}
+    return text
+end
+
+--Whether a row started a condition on one of these creatures (or one of them gave it).
+local function GaveOrGot(entry, kids, name, ids)
+    local wanted = string.lower(name)
+    local function Has(who)
+        for _, start in ipairs(who.conds or {}) do
+            if string.lower(start.name) == wanted then
+                return true
+            end
+        end
+        return false
+    end
+    local function Check(e)
+        if e.kind == "line" then
+            return e.who ~= nil and ids[e.who.id] and string.find(Plain(LineWords(e)), wanted, 1, true) ~= nil
+        end
+        local actorIn = e.actor ~= nil and ids[e.actor.id]
+        for _, who in ipairs(e.targets or {}) do
+            if Has(who) and (ids[who.id] or actorIn) then
+                return true
+            end
+        end
+        return false
+    end
+    if Check(entry) then
+        return true
+    end
+    for _, kid in ipairs(kids or {}) do
+        if Check(kid) then
+            return true
+        end
+    end
+    return false
+end
+
+--- Whether a row matches these chips and words. With a creature chip, a condition chip
+--- means that creature got (or gave) the condition, as in the prototype.
+--- @param entry HistoryEntry
+--- @param kids HistoryEntry[]|nil
+--- @param chips HistorySearchChip[]
+--- @param words string[]
+--- @param turn integer|nil
+--- @return boolean
+local function RowMatches(entry, kids, chips, words, turn)
+    if turn ~= nil and entry.turn ~= turn then
+        return false
+    end
+    local text = RowText(entry, kids)
+    local creatures = nil
+    for _, chip in ipairs(chips) do
+        if chip.kind == "creature" then
+            creatures = creatures or {}
+            creatures[chip.key] = true
+        elseif chip.kind == "type" then
+            --a type chip stands for every creature of that type in this row.
+            creatures = creatures or {}
+            EachCreature(entry, kids, function(who)
+                if IsOfType(who.id, chip.key) then
+                    creatures[who.id] = true
+                end
+            end)
+        end
+    end
+    for _, chip in ipairs(chips) do
+        if chip.kind == "creature" then
+            local found = false
+            EachCreature(entry, kids, function(who)
+                if who.id == chip.key then
+                    found = true
+                end
+            end)
+            if not found then
+                return false
+            end
+        elseif chip.kind == "type" then
+            local found = false
+            EachCreature(entry, kids, function(who)
+                if IsOfType(who.id, chip.key) then
+                    found = true
+                end
+            end)
+            if not found then
+                return false
+            end
+        elseif chip.kind == "ability" then
+            local found = entry.ability ~= nil and entry.ability.name == chip.key
+            for _, kid in ipairs(kids or {}) do
+                if kid.ability ~= nil and kid.ability.name == chip.key then
+                    found = true
+                end
+            end
+            if not found then
+                return false
+            end
+        elseif chip.kind == "condition" then
+            if creatures ~= nil then
+                if not GaveOrGot(entry, kids, chip.key, creatures) then
+                    return false
+                end
+            elseif string.find(text, string.lower(chip.key), 1, true) == nil then
+                return false
+            end
+        elseif string.find(text, OTHER_STEMS[chip.key] or string.lower(chip.key), 1, true) == nil then
+            return false
+        end
+    end
+    for _, word in ipairs(words) do
+        if string.find(text, word, 1, true) == nil then
+            return false
+        end
+    end
+    return true
+end
+
+--What to mark: the typed words and what the chips name, lower case.
+local function MarkTerms()
+    local words = SearchWords()
+    local terms = {}
+    for _, word in ipairs(words) do
+        terms[#terms + 1] = word
+    end
+    for _, chip in ipairs(g_search.chips) do
+        if chip.kind == "other" then
+            terms[#terms + 1] = OTHER_STEMS[chip.key]
+        elseif chip.kind == "type" then
+            --a type is not written on the row, so there is nothing to mark.
+        else
+            terms[#terms + 1] = string.lower(chip.name)
+        end
+    end
+    return terms
+end
+
+--The marks' colour: the Active tag's, faint enough to read through.
+local function MarkColour()
+    local warning = ThemeEngine.ResolveTokens("@warning")
+    if type(warning) ~= "string" or string.sub(warning, 1, 1) ~= "#" then
+        warning = "#E9C868"
+    end
+    return string.sub(warning, 1, 7) .. "55"
+end
+
+--- The text with what the search matched marked, outside its markup. Unchanged while
+--- nothing is searched. The tray's rows and the card both draw through this.
+--- @param text string
+--- @return string
+function History.SearchMark(text)
+    if type(text) ~= "string" or not Searching() then
+        return text
+    end
+    local terms = MarkTerms()
+    if #terms == 0 then
+        return text
+    end
+    local open = string.format("<mark=%s>", MarkColour())
+    local out = {}
+    --tags pass through untouched; only the words between them are marked.
+    local pos = 1
+    while pos <= #text do
+        local tagStart, tagEnd = string.find(text, "<[^>]*>", pos)
+        local stop = tagStart ~= nil and tagStart - 1 or #text
+        local chunk = string.sub(text, pos, stop)
+        local lower = string.lower(chunk)
+        local i = 1
+        while i <= #chunk do
+            local best, bestEnd = nil, nil
+            for _, term in ipairs(terms) do
+                local s, e = string.find(lower, term, i, true)
+                if s ~= nil and (best == nil or s < best or (s == best and e > bestEnd)) then
+                    best, bestEnd = s, e
+                end
+            end
+            if best == nil then
+                out[#out + 1] = string.sub(chunk, i)
+                break
+            end
+            out[#out + 1] = string.sub(chunk, i, best - 1)
+            out[#out + 1] = open .. string.sub(chunk, best, bestEnd) .. "</mark>"
+            i = bestEnd + 1
+        end
+        if tagStart == nil then
+            break
+        end
+        out[#out + 1] = string.sub(text, tagStart, tagEnd)
+        pos = tagEnd + 1
+    end
+    return table.concat(out)
+end
+
 --Groups entries, oldest first, into sections (a round, or a stretch out of combat)
 --holding turns holding entries. Out of combat has no round, so an encounter between
 --two stretches keeps them apart, and each takes its id from its first entry.
@@ -1738,9 +2294,19 @@ end
 local function BuildSections(mapid)
     local keys = History.Keys(mapid)
     local rowsById = {}
+    History.ClearStarts()
     for _, key in ipairs(keys) do
         local entry = History.Entry(mapid, key)
         if entry ~= nil then
+            --in time order, so the newest start of each condition wins (Active).
+            if entry.family == "condition" and entry.who ~= nil then
+                History.NoteStart(entry.who.id, entry --[[@as HistoryStart]])
+            end
+            for _, who in ipairs(entry.targets or {}) do
+                for _, start in ipairs(who.conds or {}) do
+                    History.NoteStart(who.id, start)
+                end
+            end
             rowsById[entry.id] = entry
             for _, alias in ipairs(entry.aliases or {}) do
                 rowsById[alias] = entry
@@ -1839,6 +2405,8 @@ local function AddLoneTrigger(items, entry, key)
                 iscondition = condition.iscondition,
                 duration = condition.duration,
                 renewed = condition.renewed,
+                icon = condition.icon,
+                start = condition,
             }
         end
         if who.ended ~= nil then
@@ -1864,10 +2432,13 @@ local function AddLoneTrigger(items, entry, key)
     end
 end
 
+--While searching, everything that matched shows unfolded (Appendix U).
+local g_searchOpen = false
+
 local function AddTurnRows(items, turn, isNewest, nested)
     local isOpen = g_open[turn.id]
-    if isOpen == nil then
-        isOpen = g_showAll or isNewest
+    if isOpen == nil or g_searchOpen then
+        isOpen = g_searchOpen or isNewest
     end
     local toggle = Toggle(turn.id, isOpen)
     if turn.owner ~= nil then
@@ -1933,8 +2504,8 @@ end
 
 local function AddSectionRows(items, section, isNewest, nested)
     local isOpen = g_open[section.id]
-    if isOpen == nil then
-        isOpen = g_showAll or isNewest
+    if isOpen == nil or g_searchOpen then
+        isOpen = g_searchOpen or isNewest
     end
     local title = SectionTitle(section)
     if not isOpen then
@@ -1962,13 +2533,13 @@ local function AddSectionRows(items, section, isNewest, nested)
         sig = title .. (right or ""),
         text = title,
         right = right,
-        toggle = (not isNewest or g_open[section.id] == false) and Toggle(section.id, isOpen) or nil,
+        toggle = (not g_searchOpen and (not isNewest or g_open[section.id] == false)) and Toggle(section.id, isOpen) or nil,
     }
 
     local turns = section.turns
     local first = 1
     local groupid = "group-" .. section.id
-    if isNewest and not g_showAll and g_open[groupid] ~= true and #turns > NEWEST_TURNS then
+    if isNewest and not g_searchOpen and g_open[groupid] ~= true and #turns > NEWEST_TURNS then
         local firstNumber, lastNumber = nil, nil
         local entries = {}
         first = #turns - NEWEST_TURNS + 1
@@ -1994,13 +2565,316 @@ local function AddSectionRows(items, section, isNewest, nested)
     end
 end
 
+--What the search is, as text, so a row built for another search redraws its marks.
+local g_searchKey = ""
+
+local function UpdateSearchKey()
+    local parts = {string.lower(g_search.text or "")}
+    for _, chip in ipairs(g_search.chips) do
+        parts[#parts + 1] = chip.kind .. ":" .. chip.key
+    end
+    g_searchKey = Searching() and table.concat(parts, ",") or ""
+end
+
+--Which of a row's starts are still on, so its Active tags redraw when one ends.
+local function ActiveSignature(item)
+    local entry = item.entry
+    if entry == nil then
+        return ""
+    end
+    local bits = {}
+    if entry.family == "condition" and entry.who ~= nil then
+        bits[1] = History.IsActive(entry.who.id, entry.start or entry) and "1" or "0"
+    end
+    for _, who in ipairs(entry.targets or {}) do
+        if who.conds ~= nil then
+            bits[#bits + 1] = History.ActiveStart(who) ~= nil and "1" or "0"
+        end
+    end
+    for _, kid in ipairs(item.triggers or {}) do
+        for _, who in ipairs(kid.targets or {}) do
+            if who.conds ~= nil then
+                bits[#bits + 1] = History.ActiveStart(who) ~= nil and "1" or "0"
+            end
+        end
+    end
+    return table.concat(bits)
+end
+
+--Keeps only the rows that match the search, and the turns and sections that hold them.
+--- @return table[] sections, integer count
+local function SearchSections(sections, nested)
+    local words, turnNumber = SearchWords()
+    local chips = g_search.chips
+    local kept = {}
+    local count = 0
+    for _, section in ipairs(sections) do
+        local turns = {}
+        for _, turn in ipairs(section.turns) do
+            local entries, keys = {}, {}
+            for i, entry in ipairs(turn.entries) do
+                if RowMatches(entry, nested[entry.id], chips, words, turnNumber) then
+                    entries[#entries + 1] = entry
+                    keys[#keys + 1] = turn.keys[i]
+                end
+            end
+            if #entries > 0 then
+                count = count + #entries
+                turns[#turns + 1] = {id = turn.id, number = turn.number, owner = turn.owner, entries = entries, keys = keys}
+            end
+        end
+        if #turns > 0 then
+            local copy = table.shallow_copy(section)
+            copy.turns = turns
+            kept[#kept + 1] = copy
+        end
+    end
+    return kept, count
+end
+
+--- The rows to show, and how many rows matched while searching (nil when not searching).
+--- @return table[] items, integer|nil matches
 local function BuildItems(mapid)
     local items = {}
+    ClearTypes()
     local sections, nested = BuildSections(mapid)
+    local matches = nil
+    g_searchOpen = Searching()
+    if g_searchOpen then
+        sections, matches = SearchSections(sections, nested)
+    end
     for i, section in ipairs(sections) do
         AddSectionRows(items, section, i == #sections, nested)
     end
-    return items
+    g_searchOpen = false
+    return items, matches
+end
+
+--Room for the chips under the search field, while there is a search.
+local CHIP_ROW_HEIGHT = 26
+
+--What the search is called in S5: the chips, then the typed words.
+local function SearchLabel()
+    local parts = {}
+    for _, chip in ipairs(g_search.chips) do
+        parts[#parts + 1] = chip.name
+    end
+    local text = string.match(g_search.text or "", "^%s*(.-)%s*$")
+    if text ~= "" then
+        parts[#parts + 1] = text
+    end
+    return table.concat(parts, " + ")
+end
+
+--S5, in place of the rows when nothing matches.
+local function SearchEmpty()
+    return gui.Label{
+        classes = {"historyMuted"},
+        text = string.format("Nothing matches \"%s\".", SearchLabel()),
+        width = TRAY_WIDTH - 24,
+        height = "auto",
+        halign = "left",
+        valign = "bottom",
+        hmargin = 12,
+        vmargin = 16,
+        italics = true,
+        textAlignment = "left",
+    }
+end
+
+--Every row and what is nested under it, for suggestions and their counts.
+--- @return {entry: HistoryEntry, kids: HistoryEntry[]|nil}[]
+local function AllRows(mapid)
+    local sections, nested = BuildSections(mapid)
+    local list = {}
+    for _, section in ipairs(sections) do
+        for _, turn in ipairs(section.turns) do
+            for _, entry in ipairs(turn.entries) do
+                list[#list + 1] = {entry = entry, kids = nested[entry.id]}
+            end
+        end
+    end
+    return list
+end
+
+--How well a name fits what was typed: starts with it, a word starts with it, or neither.
+local function FitScore(name, typed)
+    local lower = string.lower(name)
+    if string.sub(lower, 1, #typed) == typed then
+        return 0
+    end
+    if string.find(" " .. string.gsub(lower, "[^%w ]", " "), " " .. typed, 1, true) ~= nil then
+        return 1
+    end
+    return 2
+end
+
+--Suggestions while typing (S2): creatures, abilities, conditions and the outcome words that
+--appear in History, best fits first, four a group, each with how many rows it would find.
+--- @param mapid string
+--- @param typed string Lower case.
+--- @return {title: string, items: {chip: HistorySearchChip, count: integer}[]}[]
+local function Suggestions(mapid, typed)
+    if typed == "" then
+        return {}
+    end
+    ClearTypes()
+    local rows = AllRows(mapid)
+    local seen = {}
+    local candidates = {creature = {}, ability = {}, condition = {}, other = {}}
+    --creatures found by type, by the type as written, for the All {type} row.
+    --- @type table<string, table<string, boolean>>
+    local typeMembers = {}
+    local function Offer(chip)
+        local id = chip.kind .. ":" .. chip.key
+        if seen[id] then
+            return
+        end
+        if string.find(string.lower(chip.name), typed, 1, true) == nil then
+            if chip.kind ~= "creature" then
+                return
+            end
+            chip.type = TypeFound(chip.key, typed)
+            if chip.type == nil then
+                return
+            end
+            typeMembers[chip.type] = typeMembers[chip.type] or {}
+            typeMembers[chip.type][chip.key] = true
+        end
+        seen[id] = true
+        for _, existing in ipairs(g_search.chips) do
+            if existing.kind == chip.kind and existing.key == chip.key then
+                return
+            end
+        end
+        table.insert(candidates[chip.kind], chip)
+    end
+    local function OfferStarts(who)
+        for _, start in ipairs(who.conds or {}) do
+            Offer({kind = "condition", key = start.name, name = start.name, icon = start.icon})
+        end
+    end
+    for _, row in ipairs(rows) do
+        EachCreature(row.entry, row.kids, function(who)
+            Offer({kind = "creature", key = who.id, name = ShownName(who), who = who})
+        end)
+        for _, e in ipairs({row.entry, table.unpack(row.kids or {})}) do
+            if e.ability ~= nil and e.ability.name ~= nil and e.ability.name ~= "" then
+                Offer({kind = "ability", key = e.ability.name, name = e.ability.name})
+            end
+            if e.family == "condition" and e.name ~= nil then
+                Offer({kind = "condition", key = e.name, name = e.name, icon = e.icon})
+            end
+            for _, who in ipairs(e.targets or {}) do
+                OfferStarts(who)
+            end
+        end
+    end
+    for _, other in ipairs(OTHER_WORDS) do
+        Offer({kind = "other", key = other.name, name = other.name})
+    end
+    --two or more creatures of one type: offer them all as one chip, ahead of the rest.
+    local typeChips = {}
+    for text, members in pairs(typeMembers) do
+        local key = string.lower(text)
+        local taken = false
+        for _, existing in ipairs(g_search.chips) do
+            if existing.kind == "type" and existing.key == key then
+                taken = true
+            end
+        end
+        local n = 0
+        for _ in pairs(members) do
+            n = n + 1
+        end
+        if n >= 2 and not taken then
+            typeChips[#typeChips + 1] = {kind = "type", key = key, name = text}
+        end
+    end
+    table.sort(typeChips, function(a, b)
+        return a.name < b.name
+    end)
+    for i = #typeChips, 1, -1 do
+        table.insert(candidates.creature, 1, typeChips[i])
+    end
+
+    local _, turn = SearchWords()
+    local groups = {}
+    local order = {{"creature", "Creatures"}, {"ability", "Abilities"}, {"condition", "Conditions"}, {"other", "Other"}}
+    for index, kind in ipairs(order) do
+        local items = {}
+        for _, chip in ipairs(candidates[kind[1]]) do
+            local chips = table.shallow_copy(g_search.chips)
+            chips[#chips + 1] = chip
+            local count = 0
+            for _, row in ipairs(rows) do
+                --the typed text becomes the chip, so it doesn't count against it.
+                if RowMatches(row.entry, row.kids, chips, {}, turn) then
+                    count = count + 1
+                end
+            end
+            if count > 0 then
+                --All {type} rows lead, then names that fit, then creatures found by type.
+                local score = FitScore(chip.name, typed)
+                if chip.type ~= nil then
+                    score = 3 + FitScore(chip.type, typed)
+                elseif chip.kind == "type" then
+                    score = -1
+                end
+                items[#items + 1] = {chip = chip, count = count, score = score}
+            end
+        end
+        table.sort(items, function(a, b)
+            if a.score ~= b.score then
+                return a.score < b.score
+            end
+            return a.chip.name < b.chip.name
+        end)
+        while #items > 4 do
+            table.remove(items)
+        end
+        if #items > 0 then
+            groups[#groups + 1] = {title = kind[2], items = items, best = math.max(0, items[1].score) * 10 + index}
+        end
+    end
+    table.sort(groups, function(a, b)
+        return a.best < b.best
+    end)
+    return groups
+end
+
+
+--A chip's small picture: a creature's face or a condition's icon.
+local function ChipPicture(chip, size)
+    if chip.who ~= nil then
+        local face = Face(chip.who, size)
+        face.selfStyle.borderWidth = 1
+        return face
+    end
+    if chip.icon ~= nil then
+        return gui.Panel{
+            bgimage = chip.icon,
+            bgcolor = "white",
+            width = size,
+            height = size,
+            valign = "center",
+        }
+    end
+    return nil
+end
+
+--A small x that clears something, with its tooltip (S7).
+local function SearchX(tooltip, size, fn)
+    return gui.Panel{
+        classes = {"historySearchX"},
+        bgimage = "phosphor/x-bold.png",
+        width = size,
+        height = size,
+        lmargin = 4,
+        valign = "center",
+        linger = gui.Tooltip(tooltip),
+        click = fn,
+    }
 end
 
 local function CreateFace()
@@ -2009,6 +2883,19 @@ local function CreateFace()
     local loadingOlder = false
     local anchor = nil
     local anchorTries = 0
+    local latestButton = nil
+    local face
+    local list
+
+    --Latest shows only once the view has left the default: scrolled up, older rows
+    --loaded, or a round or turn opened or closed by hand.
+    local function UpdateLatest()
+        if latestButton == nil or not latestButton.valid or list == nil or not list.valid then
+            return
+        end
+        local away = list.vscrollPosition > 0.02 or rowsWanted > ROWS_CHUNK or next(g_open) ~= nil
+        latestButton:SetClass("hidden", not away)
+    end
     local mapid = game.currentMapId
 
     --Built rows by item key: {panel, sig}.
@@ -2021,8 +2908,6 @@ local function CreateFace()
         valign = "bottom",
     }
 
-    local face
-    local list
 
     --The row whose card is open, the card, and where it was put.
     --- @type {key: string, sig: any, item: table}|nil
@@ -2191,9 +3076,18 @@ local function CreateFace()
             return
         end
         local stick = list.vscrollPosition <= 0.02
-        local items = BuildItems(mapid)
+        local items, matches = BuildItems(mapid)
         local first = math.max(1, #items - rowsWanted + 1)
         hasOlder = first > 1
+        face:FireEventTree("searchResults", matches)
+
+        --a row redraws when what is still on changes (Active) or the search does (marks).
+        for _, item in ipairs(items) do
+            local active = ActiveSignature(item)
+            if active ~= "" or g_searchKey ~= "" then
+                item.sig = string.format("%s|%s|%s", tostring(item.sig), active, g_searchKey)
+            end
+        end
 
         --an entry rewritten quietly keeps its row and card; it only takes the new signature.
         local quiet = History.quiet
@@ -2223,10 +3117,14 @@ local function CreateFace()
             row.panel:SetClass("historySelected", selected ~= nil and selected.key == item.key)
         end
         rows = kept
+        if matches == 0 then
+            children = {SearchEmpty()}
+        end
         rowsPanel.children = children
         if stick and not loadingOlder then
             list:ScheduleEvent("toBottom", 0.02)
         end
+        UpdateLatest()
 
         --a trigger landing after the row closed changes what the open card says.
         if selected ~= nil then
@@ -2251,18 +3149,20 @@ local function CreateFace()
     list = gui.Panel{
         flow = "vertical",
         width = TRAY_WIDTH,
-        height = string.format("100%%-%d", BAR_HEIGHT),
+        height = string.format("100%%-%d", BAR_HEIGHT + (Searching() and CHIP_ROW_HEIGHT or 0)),
         halign = "left",
         vscroll = true,
         rowsPanel,
 
         toBottom = function(element)
             element.vscrollPosition = 0
+            UpdateLatest()
         end,
 
         --at the top with more to show: build the next rows and hold the view still.
         scroll = function(element)
             AlignCard()
+            UpdateLatest()
             if hasOlder and not loadingOlder and element.vscrollPosition >= 0.98 then
                 loadingOlder = true
                 anchor = rowsPanel.children[1]
@@ -2299,12 +3199,278 @@ local function CreateFace()
         end,
     }
 
-    local showAllButton
-    showAllButton = gui.Label{
-        classes = {"historyButton"},
+    --Search (3.1): the field beside Latest, chips and the count on a row under it.
+    local searchInput
+    local chipRow
+
+    --The suggestion rows the arrows walk, and the one they're on (0 = none yet).
+    --- @type Panel[]
+    local suggestRows = {}
+    local cursor = 0
+
+    local function ListHeight()
+        local extra = Searching() and CHIP_ROW_HEIGHT or 0
+        return string.format("100%%-%d", BAR_HEIGHT + extra)
+    end
+
+    --The search changed: redraw the chips, filter the rows, start at the newest.
+    local function ApplySearch()
+        UpdateSearchKey()
+        Select(nil)
+        rowsWanted = ROWS_CHUNK
+        chipRow:FireEvent("rebuild")
+        chipRow:SetClass("collapsed", not Searching())
+        list.selfStyle.height = ListHeight()
+        Refresh()
+        list:ScheduleEvent("toBottom", 0.05)
+    end
+
+    local function CloseSuggestions()
+        suggestRows = {}
+        cursor = 0
+        if searchInput ~= nil and searchInput.valid then
+            searchInput.popup = nil
+        end
+    end
+
+    local function AddChip(chip)
+        g_search.chips[#g_search.chips + 1] = chip
+        g_search.text = ""
+        searchInput.textNoNotify = ""
+        CloseSuggestions()
+        ApplySearch()
+    end
+
+    local function MoveCursor(delta)
+        if #suggestRows == 0 then
+            return
+        end
+        if suggestRows[cursor] ~= nil and suggestRows[cursor].valid then
+            suggestRows[cursor]:SetClass("searchfocus", false)
+        end
+        cursor = cursor + delta
+        if cursor < 1 then
+            cursor = #suggestRows
+        elseif cursor > #suggestRows then
+            cursor = 1
+        end
+        suggestRows[cursor]:SetClass("searchfocus", true)
+    end
+
+    local function ShowSuggestions()
+        CloseSuggestions()
+        local typed = string.lower(string.match(g_search.text or "", "^%s*(.-)%s*$"))
+        local groups = Suggestions(mapid, typed)
+        if #groups == 0 then
+            return
+        end
+        local children = {}
+        for _, group in ipairs(groups) do
+            children[#children + 1] = gui.Label{
+                classes = {"historySuggestGroup"},
+                text = group.title,
+                width = "100%",
+                height = "auto",
+                hpad = 10,
+                tmargin = 4,
+                borderBox = true,
+            }
+            for _, item in ipairs(group.items) do
+                local chip = item.chip
+                local picture = ChipPicture(chip, 18)
+                local row = gui.Panel{
+                    classes = {"historySuggestRow"},
+                    bgimage = "panels/square.png",
+                    flow = "horizontal",
+                    width = "100%",
+                    height = "auto",
+                    hpad = 10,
+                    vpad = 3,
+                    borderBox = true,
+                    press = function()
+                        AddChip(chip)
+                    end,
+                    picture,
+                    gui.Label{
+                        classes = {"historySuggestText"},
+                        text = chip.kind == "type" and string.format("All %s", chip.name) or chip.name,
+                        width = "auto",
+                        height = "auto",
+                        lmargin = picture ~= nil and 8 or 0,
+                        valign = "center",
+                    },
+                    --what a creature was found by, when it was not its name.
+                    chip.type ~= nil and gui.Label{
+                        classes = {"historySearchCount"},
+                        text = chip.type,
+                        width = "auto",
+                        height = "auto",
+                        lmargin = 6,
+                        valign = "center",
+                    } or nil,
+                    gui.Label{
+                        classes = {"historySearchCount"},
+                        text = tostring(item.count),
+                        width = "auto",
+                        height = "auto",
+                        halign = "right",
+                        valign = "center",
+                    },
+                }
+                children[#children + 1] = row
+                suggestRows[#suggestRows + 1] = row
+            end
+        end
+        --Enter takes the top suggestion until the arrows pick another, so mark it.
+        cursor = 1
+        suggestRows[1]:SetClass("searchfocus", true)
+        searchInput.popupPositioning = "panel"
+        searchInput.popup = gui.Panel{
+            classes = {"historySuggestions"},
+            styles = ThemeEngine.MergeStyles(Styles()),
+            bgimage = "panels/square.png",
+            flow = "vertical",
+            --grows downward from under the field (see the global search's popup).
+            pivot = {x = 0.5, y = 1},
+            width = searchInput.renderedWidth > 0 and searchInput.renderedWidth or 280,
+            height = "auto",
+            maxHeight = 320,
+            vscroll = true,
+            vpad = 4,
+            borderBox = true,
+            borderWidth = 1,
+            cornerRadius = 5,
+            halign = "center",
+            valign = "bottom",
+            children = children,
+        }
+    end
+
+    searchInput = gui.SearchInput{
+        placeholderText = "Search creatures, abilities, conditions",
+        text = g_search.text,
+        width = TRAY_WIDTH - 12 - 12 - SEARCH_GAP - LATEST_WIDTH,
+        --the theme's hpad 24 must sit inside the width, not on top of it.
+        borderBox = true,
+        height = 22,
+        halign = "left",
+        valign = "center",
+        lmargin = 12,
+        editlag = 0.15,
+        edit = function(element)
+            if element.text == g_search.text then
+                return
+            end
+            g_search.text = element.text
+            ApplySearch()
+            if element.hasInputFocus then
+                ShowSuggestions()
+            end
+        end,
+        --the same search, for text that arrives without an edit event.
+        change = function(element)
+            if element.text ~= g_search.text then
+                g_search.text = element.text
+                ApplySearch()
+            end
+        end,
+        uparrow = function(element)
+            MoveCursor(-1)
+        end,
+        downarrow = function(element)
+            MoveCursor(1)
+        end,
+        submit = function(element)
+            local row = suggestRows[math.max(cursor, 1)]
+            if row ~= nil and row.valid then
+                row:FireEvent("press")
+            end
+        end,
+        --Escape, or a click away: close the suggestions but keep the search. A click on a
+        --suggestion also leaves the field, so wait until its press has landed.
+        deselect = function(element)
+            element:ScheduleEvent("historyCloseSuggest", 0.2)
+        end,
+        historyCloseSuggest = function(element)
+            if not element.hasInputFocus then
+                CloseSuggestions()
+            end
+        end,
+    }
+
+    chipRow = gui.Panel{
+        classes = {cond(Searching(), nil, "collapsed")},
+        flow = "horizontal",
+        width = TRAY_WIDTH,
+        height = CHIP_ROW_HEIGHT,
+        hpad = 12,
+        borderBox = true,
+        halign = "left",
+        rebuild = function(element)
+            local children = {}
+            for i, chip in ipairs(g_search.chips) do
+                local picture = ChipPicture(chip, 16)
+                children[#children + 1] = gui.Panel{
+                    classes = {"historySearchChip"},
+                    bgimage = "panels/square.png",
+                    flow = "horizontal",
+                    width = "auto",
+                    height = 20,
+                    lpad = 3,
+                    rpad = 4,
+                    borderBox = true,
+                    cornerRadius = 10,
+                    rmargin = 4,
+                    valign = "center",
+                    picture,
+                    gui.Label{
+                        classes = {"historySearchChipText"},
+                        text = chip.name,
+                        width = "auto",
+                        height = "auto",
+                        lmargin = picture ~= nil and 4 or 2,
+                        valign = "center",
+                    },
+                    SearchX(string.format("Remove %s", chip.name), 9, function()
+                        table.remove(g_search.chips, i)
+                        ApplySearch()
+                    end),
+                }
+            end
+            children[#children + 1] = gui.Label{
+                classes = {"historySearchCount"},
+                width = "auto",
+                height = "auto",
+                halign = "right",
+                valign = "center",
+                searchResults = function(label, matches)
+                    if matches ~= nil and matches > 0 then
+                        label.text = matches == 1 and "1 match" or string.format("%d matches", matches)
+                    else
+                        label.text = ""
+                    end
+                end,
+            }
+            if #g_search.chips > 0 then
+                children[#children + 1] = SearchX("Clear the search", 10, function()
+                    g_search.chips = {}
+                    g_search.text = ""
+                    searchInput.textNoNotify = ""
+                    ApplySearch()
+                end)
+            end
+            element.children = children
+        end,
+    }
+    chipRow:FireEvent("rebuild")
+    UpdateSearchKey()
+
+    --Jump to latest: back to the default folds, scrolled to the newest row.
+    latestButton = gui.Label{
+        classes = {"historyButton", "hidden"},
         bgimage = "panels/square.png",
-        text = cond(g_showAll, "Show less", "Show all"),
-        width = "auto",
+        text = "Latest",
+        width = LATEST_WIDTH,
         height = 22,
         hpad = 8,
         borderBox = true,
@@ -2314,9 +3480,7 @@ local function CreateFace()
         valign = "center",
         textAlignment = "center",
         click = function(element)
-            g_showAll = not g_showAll
             g_open = {}
-            element.text = cond(g_showAll, "Show less", "Show all")
             rowsWanted = ROWS_CHUNK
             Refresh()
             KeepCardPlaced()
@@ -2362,7 +3526,7 @@ local function CreateFace()
             end
         end,
 
-        --the window's own header names the panel, so this bar only holds Show all.
+        --the window's own header names the panel, so this bar holds search and Latest.
         gui.Panel{
             flow = "none",
             width = TRAY_WIDTH,
@@ -2370,8 +3534,10 @@ local function CreateFace()
             halign = "left",
             rpad = 12,
             borderBox = true,
-            showAllButton,
+            searchInput,
+            latestButton,
         },
+        chipRow,
         list,
     }
 

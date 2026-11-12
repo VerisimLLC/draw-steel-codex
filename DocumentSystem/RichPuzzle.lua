@@ -45,6 +45,29 @@ function Puzzle.IndexJournal(tag, id)
     end
 end
 
+--Every puzzle frame on this client's screen (journal pages and windows):
+--panel -> puzzle id.
+---@type table<Panel, string>
+local g_frames = {}
+
+--True while this client has the puzzle on screen anywhere, so a push need not
+--open a window and a Join notice is not needed.
+---@param id string
+---@return boolean
+function Puzzle.IsShownLocally(id)
+    for panel, pid in pairs(g_frames) do
+        if not panel.valid then
+            g_frames[panel] = nil
+        elseif pid == id then
+            return true
+        end
+    end
+    return false
+end
+
+--How often a frame on screen renews this player's presence, in think ticks.
+local FRAME_HEARTBEAT_TICKS = 20
+
 ---@param seconds number
 ---@return string
 local function FormatTime(seconds)
@@ -432,6 +455,7 @@ function Puzzle.CreatePanel(id, opts)
                 return
             end
             m_id = newId
+            g_frames[element] = newId
             m_builtType = "__rebuild"
             element.monitorGame = newId ~= nil and Puzzle.MonitorPaths(newId) or nil
             Refresh()
@@ -445,7 +469,21 @@ function Puzzle.CreatePanel(id, opts)
             if m_id ~= nil and (Puzzle.TimeLeft(m_id) ~= nil or Puzzle.AnyHolds(m_id) or Editing()) then
                 Refresh()
             end
+            --a puzzle on a journal page counts as being at it, as a window
+            --does: the host waits for this player's view of a game's deal.
+            element.data.ticks = (element.data.ticks or 0) + 1
+            if m_id ~= nil and element.data.ticks % FRAME_HEARTBEAT_TICKS == 1 and not Editing() and Puzzle.Exists(m_id) then
+                Puzzle.MarkPresent(m_id, true)
+            end
         end,
+        destroy = function(element)
+            local id = g_frames[element]
+            g_frames[element] = nil
+            if id ~= nil and not Puzzle.IsShownLocally(id) then
+                Puzzle.MarkPresent(id, false)
+            end
+        end,
+        data = {},
 
         content,
         placeholder,
@@ -464,6 +502,7 @@ function Puzzle.CreatePanel(id, opts)
         directorRow,
     }
 
+    g_frames[resultPanel] = m_id
     Refresh()
     return resultPanel
 end
@@ -782,7 +821,9 @@ function Puzzle.OpenWindow(id, opts)
         end,
         destroy = function(element)
             g_windows[id] = nil
-            Puzzle.MarkPresent(id, false)
+            if not Puzzle.IsShownLocally(id) then
+                Puzzle.MarkPresent(id, false)
+            end
         end,
         gui.Panel{
             flow = "horizontal",
@@ -898,11 +939,12 @@ local function PresenceTick()
     for id, entry in pairs(all) do
         if entry.push ~= nil and entry.push ~= g_pushSeen[id] then
             g_pushSeen[id] = entry.push
-            if Puzzle.Exists(id) then
+            --already on screen (a journal page): the push has nothing to open.
+            if Puzzle.Exists(id) and not Puzzle.IsShownLocally(id) then
                 OpenFromNotice(id)
             end
         end
-        if not g_noticed[id] and not Puzzle.IsWindowOpen(id) and Puzzle.Exists(id) then
+        if not g_noticed[id] and not Puzzle.IsShownLocally(id) and Puzzle.Exists(id) then
             for _, userid in ipairs(Puzzle.PresentUsers(id)) do
                 if userid ~= dmhub.userid then
                     g_noticed[id] = true

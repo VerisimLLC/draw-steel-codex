@@ -36,6 +36,10 @@
 --- @field rayBurstStreaks number Streaky filament texture streaming outward through the landing burst's beams: 0 = clean wedges, 1 = fully smeared fine rays.
 --- @field rayBurstCoreFlash number A soft white-hot flash at the burst's centre during its attack, fading by mid-burst.
 --- @field rayBurstRing number A thin pastel ring that expands with the landing burst's wavefront.
+--- @field rayBurstStyle string The landing burst's look: 'rays' (a fan of light rays) or 'sigil' (a symbol on the floor around the die: one thin ring with spikes pointing inward and a glint in the middle). Sigil uses rayBurstColor/rayBurstSize/rayBurstDuration/rayBurstIntensity plus rayBurstSpikes/rayBurstSpikeLength, and ignores the ray-only settings.
+--- @field rayBurstSpikes number Sigil style only: how many spikes stand on the ring, pointing inward (rounded to a whole number).
+--- @field rayBurstSpikeLength number Sigil style only: how far each spike reaches inward from the ring, as a fraction of the burst's radius (the ring sits at 0.86).
+--- @field rayBurstSigilBlur number Sigil style only: 0 = a crisp ring with triangular spikes, 1 = soft and glowing like the glint in the middle, with the spikes drawn as soft rays pointing inward.
 --- @field mapWarpEnabled boolean Whether each landing die warps the map underneath it, pulling the world image toward the die like a black hole (the die itself stays undistorted on top). See mapWarpStrength/mapWarpRadius/mapWarpSwirl/mapWarpDuration for its feel.
 --- @field mapWarpStrength number How hard the landing warp pulls the map toward the die at its peak (0 = no pull; ~0.35 = a strong visible yank).
 --- @field mapWarpRadius number The landing warp's reach, in multiples of the die's on-screen diameter.
@@ -47,7 +51,7 @@
 --- @field infallHaloBrightness number Brightness multiplier of the infall halo, applied on top of the surface material's Infall Streaks brightness.
 --- @field infallHaloOpacity number Opacity (coverage) multiplier of the infall halo: how solid the filaments read over the map. Brightness only raises their emitted color; this thickens them.
 --- @field trailSpritesEnabled boolean Whether the dice drop procedural trail sprites (petals/stars/sparks/embers/bubbles plus soft haze puffs) along their path while moving. Entirely slider-driven -- see trailShape/trailColorA/trailColorB/trailRate/trailSize/trailSizeVariation/trailLifetime/trailFlutter/trailSpin/trailTwinkle/trailIntensity/trailHaze/trailHazeColor/trailHazeSize.
---- @field trailShape string The trail sprite shape: 'petal', 'star4', 'star5', 'spark', 'ember', or 'bubble'.
+--- @field trailShape string The trail sprite shape: 'petal', 'star4', 'star5', 'spark', 'glint', 'ember', or 'bubble'.
 --- @field trailColorA Color First trail sprite color. Each sprite is born a random blend of trailColorA and trailColorB.
 --- @field trailColorB Color Second trail sprite color. Each sprite is born a random blend of trailColorA and trailColorB.
 --- @field trailRate number Trail sprites emitted per second while the die moves.
@@ -66,7 +70,7 @@
 --- @field trailFall number Downward drift speed of the trail sprites (0 = they hang in the air where dropped).
 --- @field trailSpread number Trail emission radius around the die, in fractions of its diameter.
 --- @field trail2Enabled boolean Whether a second, independent trail sprite layer is emitted alongside the first (e.g. petals over sparks). It has its own shape/colors/rate/size and shares the motion/glow/lifetime sliders.
---- @field trail2Shape string The second trail layer's sprite shape: 'petal', 'star4', 'star5', 'spark', 'ember', or 'bubble'.
+--- @field trail2Shape string The second trail layer's sprite shape: 'petal', 'star4', 'star5', 'spark', 'glint', 'ember', or 'bubble'.
 --- @field trail2ColorA Color The second trail layer's first color.
 --- @field trail2ColorB Color The second trail layer's second color.
 --- @field trail2Rate number The second trail layer's sprites emitted per second while the die moves.

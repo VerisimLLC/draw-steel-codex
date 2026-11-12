@@ -2,7 +2,12 @@ local mod = dmhub.GetModLoading()
 
 --functions called by dmhud to indicate that a token is moving or has finished moving.
 function GameHud.TokenMoving(self, token, path)
-	
+
+	--The token being drag-moved (cleared by FinishTokenMoving), for the
+	--flight wheel input hint. Not a forced (alt) or teleport (ctrl) drag:
+	--those use the wheel for their own altitude.
+	GameHud.dragMovingToken = cond(path.forced or path.teleport, nil, token)
+
 	local diagonals = dmhub.GetSettingValue("truediagonals") and math.floor(path.numDiagonals/2) or 0
 
 	local distance = path.numSteps + diagonals

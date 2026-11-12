@@ -1760,7 +1760,9 @@ function DirectorScreen.Load(saved)
     g.drag = nil
     g.resize = nil
     g.slide = nil
-    g.fraction = DEFAULT_FRACTION
+    --a game with no saved screen starts closed to its tab; the tab opens it to
+    --the default size. After that the per-game layout keeps whatever it was.
+    g.fraction = 0
     g.lastFraction = DEFAULT_FRACTION
     if type(saved) == "table" then
         g.fraction = math.max(0, math.min(MAX_FRACTION, tonumber(saved.fraction) or DEFAULT_FRACTION))

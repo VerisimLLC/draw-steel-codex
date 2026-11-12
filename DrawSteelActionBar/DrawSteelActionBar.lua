@@ -1238,9 +1238,10 @@ local function ShowMovementDiagram(token, path, label, alternates, damages, text
     CrossSection.movementShown = true
 end
 
---Flight wheel: while a FLYING creature picks where an ability's pathfound move (Advance
---and the like) ends, the mouse wheel sets how far above or below its current altitude the
---move ends, as it does when dragging the token. The hover handler turns it on for such a
+--Flight wheel: while a creature that is flying, or can fly and is walking, picks where an
+--ability's pathfound move (Advance and the like) ends, the mouse wheel sets how far above or
+--below its current altitude the move ends, as it does when dragging the token (a walker
+--takes off for a move that ends in the air). The hover handler turns it on for such a
 --pick (active), the poller panel inside the ability controller reads the wheel, and the
 --dialed altitude reaches the move via g_currentSymbols.flightAltitude
 --(AbilityRelocateCreature passes it to token:Move). Kept on a table: this file's main
@@ -1252,13 +1253,46 @@ DrawSteelActionBar._flight = {
     ability = nil,   --the ability the offset was dialed for; a new cast starts again at 0
 }
 
---- Whether the flight wheel applies to the current pick: a flying creature on an ordinary
---- (not shift) pathfound move. Shifting keeps its own rules.
+--- Whether the selected creature can dial a flight altitude: it is flying, or it can fly
+--- and is walking (not swimming, burrowing or climbing, which have their own vertical rules,
+--- matching the engine's drag wheel).
+--- @return boolean
+function DrawSteelActionBar._flight.CreatureCanDial()
+    if g_token == nil or not g_token.valid then
+        return false
+    end
+    local props = g_token.properties
+    return props:IsFlying() or (props:CanFly() and props:CurrentMoveType() == "walk")
+end
+
+--- Whether the flight wheel applies to the current pick: a creature that can dial (see
+--- CreatureCanDial) on an ordinary (not shift) pathfound move. Shifting keeps its own rules.
 --- @param movementType nil|string from ActivatedAbility:GetMovementType
 --- @return boolean
 function DrawSteelActionBar._flight.Applies(movementType)
-    return g_token ~= nil and g_token.valid and g_token.properties:IsFlying() and movementType ~= "shift"
+    return movementType ~= "shift" and DrawSteelActionBar._flight.CreatureCanDial()
 end
+
+--Bottom-of-screen reminder that the wheel flies up or down (InputHint, GameHud.lua): while
+--a creature that can fly is drag-moved (an ordinary drag; the engine gives it the wheel for
+--the same creatures), or while the flight wheel is on for an ability move.
+InputHint.Register{
+    id = "flight-wheel",
+    priority = 10,
+    text = "Use {wheel} to fly up or down",
+    visible = function()
+        local flight = DrawSteelActionBar._flight
+        if flight.active and g_currentAbility ~= nil and flight.ability == g_currentAbility then
+            return flight.CreatureCanDial()
+        end
+        local token = rawget(GameHud, "dragMovingToken")
+        if token == nil or not token.valid then
+            return false
+        end
+        local props = token.properties
+        return props:IsFlying() or (props:CanFly() and props:CurrentMoveType() == "walk")
+    end,
+}
 
 --- Turn the flight wheel off and forget the dialed height (the cast ended or was cancelled).
 function DrawSteelActionBar._flight.Reset()
@@ -1282,7 +1316,7 @@ function DrawSteelActionBar._flight.CreatePoller()
         think = function(element)
             local flight = DrawSteelActionBar._flight
             if not flight.active or g_currentAbility == nil or flight.ability ~= g_currentAbility
-                or g_token == nil or not g_token.valid or not g_token.properties:IsFlying() then
+                or not flight.CreatureCanDial() then
                 return
             end
 
@@ -13565,7 +13599,7 @@ CreateAbilityController = function()
                     local movementType = g_currentAbility:GetMovementType(g_token, g_currentSymbols)
                     local shifting = (movementType == "shift")
 
-                    --A flier can dial its end altitude on the wheel (DrawSteelActionBar._flight).
+                    --A creature that can fly dials its end altitude on the wheel (DrawSteelActionBar._flight).
                     local flight = DrawSteelActionBar._flight
                     if flight.ability ~= g_currentAbility then
                         flight.ability = g_currentAbility

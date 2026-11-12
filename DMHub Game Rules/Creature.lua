@@ -10856,7 +10856,19 @@ function creature:LookupSymbol(symbolTable)
 	return GenerateSymbols(self, symbolTable)
 end
 
-function creature:BeginTurn()
+--- Starts this creature's turn: start-of-turn triggers and aura and effect expiry.
+--- options is passed only by the Monster AI, which must not act until the turn
+--- start has played out:
+---   aiActivityId: tags the turn start's events, so a hero prompt they raise holds
+---     the AI until the player answers it and the cast it starts finishes.
+---   onComplete: called once BeginTurn has finished, even if a trigger errored.
+---     Prompts its triggers raised may still be open; the AI waits on those
+---     because they carry aiActivityId.
+--- @param options? {aiActivityId: string|nil, onComplete: fun()|nil}
+function creature:BeginTurn(options)
+	local aiActivityId = options ~= nil and options.aiActivityId or nil
+	local onComplete = options ~= nil and options.onComplete or nil
+
 	--just in case some linger.
 	self:ClearMomentaryOngoingEffects()
 
@@ -10878,6 +10890,9 @@ function creature:BeginTurn()
     end
 
 	dmhub.Coroutine(function()
+        --Tell the Monster AI this turn start is over, even if something below errors.
+        coroutine.atexit(onComplete)
+
         --The initiative queue has already advanced to this creature's turn before
         --BeginTurn runs, so effects/auras that expire "at the start of this creature's
         --turn" would otherwise expire the instant the prestartturn (Before Start of
@@ -10892,7 +10907,7 @@ function creature:BeginTurn()
         end
 
         local ok, err = pcall(function()
-            self:DispatchEventAndWait("prestartturn", {})
+            self:DispatchEventAndWait("prestartturn", {aiActivityId = aiActivityId})
         end)
 
         --Clear the flag even if a trigger handler errored.
@@ -10958,7 +10973,7 @@ function creature:BeginTurn()
             end
         end
 
-        self:DispatchEvent("beginturn", {order = order})
+        self:DispatchEvent("beginturn", {order = order, aiActivityId = aiActivityId})
 
         --Surface a prestartturn trigger error after cleanup so a buggy trigger does not
         --abort the rest of BeginTurn.

@@ -151,20 +151,41 @@ local function AbilityKeyOfTrigger(trigger)
     return "text:" .. tostring(trigger:GetText())
 end
 
---Seconds an accepted save may go unfinished before the banner offers Skip.
+--Seconds an accepted save or reaction may go unfinished before the banner
+--offers to stop waiting. Long enough for a normal roll and damage to land.
 local STUCK_SAVE_SKIP_SECONDS = 30
+local STUCK_REACTION_SKIP_SECONDS = 30
 
---"Skip save" for a save that was accepted but whose cast never reported back
---(its client crashed, disconnected or errored mid-roll). The card is already
---gone, so without this nobody has a button and the AI waits forever
+--Seconds a hero's prompt card may sit unanswered before the host (when the host
+--is not the one answering it) is offered Dismiss on it.
+local HOST_DISMISS_SECONDS = 30
+
+--After the host dismisses another player's card, seconds to let that player's
+--client act on it (run its On Dismiss steps, complete the AI's marker) before
+--the host assumes the client is gone and clears the card and marker itself.
+local HOST_DISMISS_FALLBACK_SECONDS = 10
+
+--The waits whose banner subject names a reaction marker (triggerid is a key of
+--the hero's pendingAIActivityReactions) and the Skip text each offers.
+local SKIPPABLE_WAITS = {
+    save = {text = "Skip save", seconds = STUCK_SAVE_SKIP_SECONDS},
+    reaction = {text = "Stop waiting", seconds = STUCK_REACTION_SKIP_SECONDS},
+}
+
+--Skip for a save or reaction that was accepted but whose cast has not reported
+--back ("Waiting for Reyne's Opportunity Attack to finish"): its client crashed,
+--disconnected or errored mid-roll, or a player walked away from a roll. The card
+--is already gone, so without this nobody has a button and the AI waits
 --(EMHPEMCY). Offered to the host and the hero's controller. Skipping only
---releases the AI: the effect stays, and a roll still running resolves normally.
+--releases the AI: the cast is not undone or aborted, a roll still running
+--resolves normally, and a skipped save's effect stays for the next save.
 ---@param doc table the monsterAIWaiting document snapshot
 ---@param token CharacterToken the hero being waited on
 ---@return nil|{text: string, press: fun()}
-local function StuckSaveSkip(doc, token)
+local function StuckReactionSkip(doc, token)
     local reactionId = doc.data.triggerid
-    if doc.data.key ~= "save" or type(reactionId) ~= "string" then
+    local wait = SKIPPABLE_WAITS[doc.data.key]
+    if wait == nil or type(reactionId) ~= "string" then
         return nil
     end
     if not (IsDMOrPlayerHost() or token.canControlAsUser) then
@@ -177,22 +198,112 @@ local function StuckSaveSkip(doc, token)
     end
     --Markers from before resolvingSince existed only carry the card's post time.
     local age = EventTimestampAge(entry.resolvingSince or entry.timestamp)
-    if age == nil or age < STUCK_SAVE_SKIP_SECONDS then
+    if age == nil or age < wait.seconds then
         return nil
     end
     return {
-        text = "Skip save",
+        text = wait.text,
         press = function()
             token.properties:CompletePendingAIActivityReaction(entry.activityId, reactionId)
         end,
     }
 end
 
---The banner buttons (see the notice channel in GameHud.lua). Only the player
---who answers the waited-on hero's prompts gets any: "Select <hero>" while the
---hero is not selected, and Dismiss when the wait is on a prompt they can
---dismiss, which dismisses the prompt itself. Everyone else gets no buttons,
---except "Skip save" on a stuck save (StuckSaveSkip).
+--Whether this user may dismiss the hero's open prompt from the banner.
+--answering: this user is the one who answers the hero's prompts (they get
+--Dismiss at once). Otherwise the host gets it once the card has sat unanswered
+--for HOST_DISMISS_SECONDS, so a player who has gone quiet cannot hold the table.
+---@param token CharacterToken
+---@param trigger ActiveTrigger the open card
+---@param answering boolean
+---@return boolean
+local function MayDismissWaitedPrompt(token, trigger, answering)
+    if trigger.dismissed or trigger.triggered or not trigger:CanDismiss() then
+        return false
+    end
+    if answering then
+        return true
+    end
+    if not IsDMOrPlayerHost() then
+        return false
+    end
+    local age = EventTimestampAge(trigger.timestamp)
+    return age ~= nil and age >= HOST_DISMISS_SECONDS
+end
+
+--Dismiss the hero's open prompt (and same-ability stacked copies). The client
+--that posted the card sees the dismissal, runs its On Dismiss steps and releases
+--the AI. byHost: the host dismissed another player's card; if that player's
+--client has not acted on it after HOST_DISMISS_FALLBACK_SECONDS (it is gone),
+--the host clears the card and completes the AI's marker for it itself.
+---@param token CharacterToken
+---@param triggerid string
+---@param byHost boolean
+local function DismissWaitedPrompt(token, triggerid, byHost)
+    token:ModifyProperties{
+        undoable = false,
+        description = "Trigger",
+        execute = function()
+            local triggers = token.properties:try_get("availableTriggers", {})
+            local live = triggers[triggerid]
+            if live == nil or live.dismissed or live.triggered then
+                return
+            end
+            live.triggered = false
+            live.dismissed = true
+            token.properties:DispatchAvailableTrigger(live)
+
+            --one event can stack several prompts of the same ability on a
+            --hero (4x The Breath of Dawn Remembered); the AI waits on each
+            --in turn, so Dismiss clears them all, not just the one named
+            --in the banner (ERRA5PCR). Hidden members of a merged prompt
+            --are left to their front card.
+            local key = AbilityKeyOfTrigger(live)
+            for id,other in pairs(triggers) do
+                if id ~= triggerid and not other.dismissed and not other.triggered
+                    and not other.mergedInto and other:CanDismiss()
+                    and AbilityKeyOfTrigger(other) == key then
+                    other.triggered = false
+                    other.dismissed = true
+                    token.properties:DispatchAvailableTrigger(other)
+                end
+            end
+        end,
+    }
+
+    if not byHost then
+        return
+    end
+    dmhub.Schedule(HOST_DISMISS_FALLBACK_SECONDS, function()
+        if mod.unloaded or not token.valid or token.properties == nil then
+            return
+        end
+        local props = token.properties
+        local live = props:try_get("availableTriggers", {})[triggerid]
+        if live == nil or not live.dismissed then
+            --The card's own client handled it.
+            return
+        end
+        local entry = props:try_get("pendingAIActivityReactions", {})[triggerid]
+        token:ModifyProperties{
+            undoable = false,
+            description = "Clear Trigger",
+            execute = function()
+                props:ClearAvailableTrigger({id = triggerid})
+            end,
+        }
+        if type(entry) == "table" and entry.state ~= "completed" then
+            props:CompletePendingAIActivityReaction(entry.activityId, triggerid)
+        end
+    end)
+end
+
+--The banner buttons (see the notice channel in GameHud.lua). The player who
+--answers the waited-on hero's prompts gets "Select <hero>" while the hero is
+--not selected, and Dismiss when the wait is on a prompt they can dismiss,
+--which dismisses the prompt itself. The host gets Dismiss on a card left
+--unanswered (MayDismissWaitedPrompt), and the host and the hero's controller
+--get Skip on a stuck save or reaction (StuckReactionSkip).
 local function WaitingNoticeControls(doc)
     local controls = {}
     local charid = doc.data.charid
@@ -203,15 +314,27 @@ local function WaitingNoticeControls(doc)
     if token == nil or not token.valid or token.properties == nil then
         return controls
     end
-    local skip = StuckSaveSkip(doc, token)
+    local skip = StuckReactionSkip(doc, token)
     if skip ~= nil then
         controls.action = skip
         return controls
     end
+
+    local triggerid = doc.data.triggerid
+    local trigger = type(triggerid) == "string"
+        and token.properties:try_get("availableTriggers", {})[triggerid] or nil
+
     --activeControllerId is nil when this user is the one best suited to
     --answer the token's prompts; canControlAsUser rules out a player host
     --whose control comes only from hosting the game.
-    if not token.canControlAsUser or token.activeControllerId ~= nil then
+    local answering = token.canControlAsUser and token.activeControllerId == nil
+    if not answering then
+        if trigger ~= nil and MayDismissWaitedPrompt(token, trigger, false) then
+            ---@cast triggerid string
+            controls.dismiss = function()
+                DismissWaitedPrompt(token, triggerid, true)
+            end
+        end
         return controls
     end
 
@@ -231,41 +354,10 @@ local function WaitingNoticeControls(doc)
         }
     end
 
-    local triggerid = doc.data.triggerid
-    local trigger = type(triggerid) == "string"
-        and token.properties:try_get("availableTriggers", {})[triggerid] or nil
-    if trigger ~= nil and not trigger.dismissed and not trigger.triggered and trigger:CanDismiss() then
+    if trigger ~= nil and MayDismissWaitedPrompt(token, trigger, true) then
+        ---@cast triggerid string
         controls.dismiss = function()
-            token:ModifyProperties{
-                undoable = false,
-                description = "Trigger",
-                execute = function()
-                    local triggers = token.properties:try_get("availableTriggers", {})
-                    local live = triggers[triggerid]
-                    if live == nil or live.dismissed or live.triggered then
-                        return
-                    end
-                    live.triggered = false
-                    live.dismissed = true
-                    token.properties:DispatchAvailableTrigger(live)
-
-                    --one event can stack several prompts of the same ability on a
-                    --hero (4x The Breath of Dawn Remembered); the AI waits on each
-                    --in turn, so Dismiss clears them all, not just the one named
-                    --in the banner (ERRA5PCR). Hidden members of a merged prompt
-                    --are left to their front card.
-                    local key = AbilityKeyOfTrigger(live)
-                    for id,other in pairs(triggers) do
-                        if id ~= triggerid and not other.dismissed and not other.triggered
-                            and not other.mergedInto and other:CanDismiss()
-                            and AbilityKeyOfTrigger(other) == key then
-                            other.triggered = false
-                            other.dismissed = true
-                            token.properties:DispatchAvailableTrigger(other)
-                        end
-                    end
-                end,
-            }
+            DismissWaitedPrompt(token, triggerid, false)
         end
     end
     return controls
@@ -282,8 +374,8 @@ Tip.notices["monster-ai-waiting"] = {
         end
         local doc = mod:GetDocumentSnapshot(WAITING_DOC)
         --Every client polls this, so the hero's own client is the one to notice
-        --that the save the AI waits on was accepted by its previous run.
-        if doc.data.key == "save" and type(doc.data.charid) == "string" then
+        --that the save or reaction the AI waits on was accepted by its previous run.
+        if SKIPPABLE_WAITS[doc.data.key] ~= nil and type(doc.data.charid) == "string" then
             local waitedOn = dmhub.GetTokenById(doc.data.charid)
             if waitedOn ~= nil and waitedOn.valid and waitedOn.properties ~= nil then
                 waitedOn.properties:CompleteReactionsOrphanedByRestart()
@@ -2831,11 +2923,30 @@ end
 --may already read as dead.
 ---@param answered table<string, boolean> prompts already tried this wait
 function MonsterAI:AnswerMinionTriggersDuringWait(answered)
+    self:AnswerAITriggersDuringWait(answered, true)
+end
+
+--Answer the trigger prompts of every AI-run (non-player) creature while the AI
+--thread is blocked in a wait, so its own trigger poll cannot run. The turn-start
+--wait uses this: a monster whose Before Start of Turn trigger is a prompt holds
+--its BeginTurn open until the prompt is answered. minionsOnly limits it to
+--minions (the minion-death wait above). Each prompt is tried once per wait.
+---@param answered table<string, boolean> prompts already tried this wait
+---@param minionsOnly? boolean
+function MonsterAI:AnswerAITriggersDuringWait(answered, minionsOnly)
     local work = {}
     for _,token in ipairs(dmhub.allTokens) do
         local props = token.valid and token.properties or nil
-        if props ~= nil and props.minion and not props.minionDead
-            and not token.playerControlled then
+        local eligible = false
+        if props ~= nil and not token.playerControlled then
+            if props.minion then
+                eligible = not props.minionDead
+            elseif not minionsOnly then
+                eligible = not props:IsDead()
+            end
+        end
+        if eligible then
+            ---@cast props creature
             for _,trigger in pairs(props:GetAvailableTriggers(true) or {}) do
                 local key = string.format("%s:%s", tostring(token.charid), tostring(trigger.id))
                 if not answered[key] and not trigger.triggered and not trigger.dismissed then
@@ -2876,7 +2987,7 @@ function MonsterAI:AnswerMinionTriggersDuringWait(answered)
                         category = "Triggered Action",
                         ability = trigger.abilityName,
                         reason = tostring(err),
-                        result = "trigger dismissed while waiting for minion deaths",
+                        result = "trigger dismissed while the AI was waiting",
                     })
                 end)
             end
@@ -2962,6 +3073,56 @@ function MonsterAI:WaitForActivityReactionsUnguarded(activityId)
     MonsterAI.reactionStatus = false
     MonsterAI.ClearWaiting()
     return true
+end
+
+--Seconds to wait for the turn's creatures to finish starting their turn. This
+--is normally instant; the cap stops a turn start that never finishes from
+--holding the table for good.
+local g_turnStartWaitSeconds = 30
+
+--- Holds a monster turn the AI just began until its start has played out, so
+--- the monsters do not act while a hero is still answering, or still resolving,
+--- a trigger that fired when the monster started its turn.
+--- turnStart is what the AI recorded when it began the turn:
+---   activityId: the id passed to BeginTurn, which tags the turn start's events.
+---   pending.count: how many of the turn's creatures have not finished BeginTurn.
+--- Returns true when the turn may go ahead; false (plus a reason) when the AI
+--- was stopped, or a hero's reaction could not be confirmed (the AI is paused).
+--- Stops waiting on a creature that has not reported back after g_turnStartWaitSeconds.
+--- @param turnStart {activityId: string, pending: {count: integer}}
+--- @return boolean, string|nil
+function MonsterAI:WaitForTurnStart(turnStart)
+    if turnStart.pending.count > 0 then
+        self:LogDecision("TURN START WAIT", {activity = turnStart.activityId,
+            result = "waiting for start-of-turn triggers to fire"})
+    end
+    local startedAt = dmhub.Time()
+    local answeredTriggers = {}
+    while turnStart.pending.count > 0 do
+        if mod.unloaded or not MonsterAI.active then
+            MonsterAI.ClearWaiting()
+            return false, "Monster AI stop requested"
+        end
+        --The panel's trigger poll cannot run while this waits, and a monster's
+        --own Before Start of Turn prompt holds its BeginTurn open until answered.
+        self:AnswerAITriggersDuringWait(answeredTriggers)
+        if turnStart.pending.count <= 0 then
+            break
+        end
+        if dmhub.Time() - startedAt >= g_turnStartWaitSeconds then
+            self:LogDecision("TURN START WAIT TIMEOUT", {activity = turnStart.activityId,
+                pending = turnStart.pending.count, result = "playing the turn anyway"})
+            break
+        end
+        MonsterAI.SetWaiting("turnstart", "Waiting for start-of-turn effects")
+        coroutine.yield(0.1)
+    end
+    MonsterAI.ClearWaiting()
+
+    --A trigger fired while another cast is resolving posts its prompt only once
+    --that cast ends, so let casts settle before counting the heroes' prompts.
+    self:WaitForAbilityIdle(5)
+    return self:WaitForActivityReactions(turnStart.activityId)
 end
 
 function MonsterAI:MoveToken(token, loc, options, continueIfActorDies)

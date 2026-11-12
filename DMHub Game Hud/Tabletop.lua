@@ -202,7 +202,28 @@ local function MapName(mapid)
     if type(name) ~= "string" or name == "" then
         return "(unnamed map)"
     end
+    if map.preview then
+        --the variant the preview is showing, which can be switched from its bar.
+        return "Map Preview: " .. (MapPreview.ShownName(mapid) or name)
+    end
     return name
+end
+
+--- True for a Map Preview (MapPreview.lua): a map added only to be looked at
+--- and deleted when its preview ends. Its window is never saved in the layout
+--- or published to players.
+--- @param mapid string
+--- @return boolean
+function Tabletop.IsPreviewMap(mapid)
+    local map = game.GetMap(mapid)
+    return map ~= nil and map.valid and map.preview == true
+end
+
+--- True while a window on the table shows this map (open or minimized).
+--- @param mapid string
+--- @return boolean
+function Tabletop.HasMapWindow(mapid)
+    return WindowForMap(mapid) ~= nil
 end
 
 local function DocumentsLayer()
@@ -230,6 +251,10 @@ local g_layoutWriters = {}
 local function SaveLayout()
     local out = {windows = {}, focused = g_focusedId}
     for _,rec in ipairs(g_windows) do
+        --a Map Preview is gone by the next visit; its window is not kept.
+        if Tabletop.IsPreviewMap(rec.mapid) then
+            goto continue
+        end
         out.windows[#out.windows+1] = {
             id = rec.id,
             mapid = rec.mapid,
@@ -243,6 +268,7 @@ local function SaveLayout()
             iconY = rec.iconY,
             card = rec.card == true or nil,
         }
+        ::continue::
     end
     for _, writer in ipairs(g_layoutWriters) do
         writer(out)
@@ -971,6 +997,24 @@ function g_chrome.Sep()
         hmargin = 8,
         interactable = false,
     }
+end
+
+--The speaker in every map window's titlebar (BuildWindow): shows whether
+--this player has muted the window's map.
+local UNMUTED_ICON = "phosphor/speaker-high-fill.png"
+local MUTED_ICON = "phosphor/speaker-slash-fill.png"
+
+--- @param rec table
+function g_chrome.UpdateMute(rec)
+    local button = rec.muteButton
+    if button == nil or not button.valid then
+        return
+    end
+    local muted = dmhub.IsMapMuted(rec.mapid)
+    if rec.mutedShown ~= muted then
+        rec.mutedShown = muted
+        button:FireEventTree("setIcon", cond(muted, MUTED_ICON, UNMUTED_ICON))
+    end
 end
 
 --Vision Perspective: the Director seeing through tokens' eyes
@@ -2014,7 +2058,7 @@ local function BuildWindow(rec)
         height = "100%",
         valign = "center",
         g_chrome.Sep(),
-        CodexTitleBar.CreateMapPosition{width = 96},
+        CodexTitleBar.CreateMapPosition{width = 192},
     }
 
     --The live map's details after its name: the floor stepper, where the
@@ -2049,9 +2093,27 @@ local function BuildWindow(rec)
         end,
     }
 
+    --mutes this map's sounds for this player only: its Audio objects and
+    --door sounds (dmhub.SetMapMuted, saved on this machine). Reads rec.mapid
+    --each time, since the window can be given another map.
+    local muteButton
+    muteButton = WindowControl{
+        icon = cond(dmhub.IsMapMuted(rec.mapid), MUTED_ICON, UNMUTED_ICON),
+        iconSize = 15,
+        hover = function(element)
+            gui.Tooltip(cond(dmhub.IsMapMuted(rec.mapid), "Unmute this map", "Mute this map"))(element)
+        end,
+        click = function(element)
+            dmhub.SetMapMuted(rec.mapid, not dmhub.IsMapMuted(rec.mapid))
+            g_chrome.UpdateMute(rec)
+            gui.Tooltip(cond(dmhub.IsMapMuted(rec.mapid), "Unmute this map", "Mute this map"))(element)
+        end,
+    }
+
     --the ping, left of the share button: everyone it is shared with sees
     --it flash (DefinePings).
     local controls = {
+        muteButton,
         g_sharing.PingButton(function()
             return g_sharing.LayoutKey(rec)
         end),
@@ -2059,9 +2121,10 @@ local function BuildWindow(rec)
 
     --the Director makes the map Player Viewable, for all players or chosen
     --ones, which opens it on their tables. Sharing again after stopping
-    --also puts it back on tables whose players closed it.
+    --also puts it back on tables whose players closed it. A Map Preview is
+    --never shared.
     local share = nil
-    if dmhub.isDM then
+    if dmhub.isDM and not Tabletop.IsPreviewMap(rec.mapid) then
         share = ShareControl{
             --read each time: the window's map changes when the Maps panel
             --opens another map in it.
@@ -2202,11 +2265,13 @@ local function BuildWindow(rec)
     rec.initiativeSlot = initiativeSlot
     rec.resizePanel = resizePanel
     rec.maximizeButton = maximizeButton
+    rec.muteButton = muteButton
     rec.windowButtons = windowButtons
     rec.roundLabel = roundLabel
     rec.share = share
     rec.combatBadge = combatBadge
     rec.shownState = nil
+    rec.mutedShown = nil
 end
 
 --Puts a built window in the documents layer, mixed in with journals and
@@ -2980,6 +3045,32 @@ function Tabletop.PanelRect(panel)
     return LayerRect(panel)
 end
 
+--- Where the window showing this map sits on the table, in documents-layer
+--- units (the space the icon rail's windows are placed in too): the whole
+--- layer when it is maximized, nil when no window shows it or it is minimized.
+--- @param mapid string
+--- @return nil|{x: number, y: number, w: number, h: number}
+function Tabletop.MapWindowRect(mapid)
+    local rec = WindowForMap(mapid)
+    if rec == nil or rec.minimized then
+        return nil
+    end
+    return WindowRect(rec)
+end
+
+--- Re-reads every map window's title now rather than at the next
+--- once-a-second refresh (a Map Preview switching the variant it shows).
+function Tabletop.RefreshTitles()
+    for _, rec in ipairs(g_windows) do
+        if rec.nameLabel ~= nil and rec.nameLabel.valid then
+            local name = MapName(rec.mapid)
+            if rec.nameLabel.text ~= name then
+                rec.nameLabel.text = name
+            end
+        end
+    end
+end
+
 --- The whole documents layer as a rect (where a maximized window sits).
 --- @return {x: number, y: number, w: number, h: number}
 function Tabletop.LayerRect()
@@ -3372,6 +3463,7 @@ Refresh = function()
             end
 
             rec.combatBadge:SetClass("collapsed", live or not Tabletop.MapInCombat(rec.mapid))
+            g_chrome.UpdateMute(rec)
             UpdateShare(rec.share)
             Tabletop.ApplyCollapsed(rec)
         end
@@ -3536,6 +3628,16 @@ CloseWindow = function(rec)
         dmhub.selectedTokens = keep
     end
     SaveSoon()
+end
+
+--- Closes the window showing this map, if there is one, as its close button
+--- does. The map stays loaded if it was live.
+--- @param mapid string
+function Tabletop.CloseMapWindow(mapid)
+    local rec = WindowForMap(mapid)
+    if rec ~= nil then
+        CloseWindow(rec)
+    end
 end
 
 --A window the Director has forced maximized here cannot be closed.
@@ -7551,7 +7653,7 @@ end
 --- added to the game (an encounter's Map Library map). Pass the handle to
 --- Tabletop.MapRowDropped as options.at to open the real window in its place,
 --- then Close it. nil when the table is not showing.
---- @param options {name: string, aspect: nil|number, atMouse: nil|boolean, at: nil|{x: number, y: number}, status: nil|string} atMouse: centred on the mouse (a drop); at: centred there instead (table units), kept on the table; else in the middle of the table. status: a progress line under "Loading map...", with a spinner (change it with SetStatus).
+--- @param options {name: string, aspect: nil|number, atMouse: nil|boolean, at: nil|{x: number, y: number}, status: nil|string, reserveRight: nil|number} atMouse: centred on the mouse (a drop); at: centred there instead (table units), kept on the table; else in the middle of the table. status: a progress line under "Loading map...", with a spinner (change it with SetStatus). reserveRight (table units, middle-of-the-table placement only): room kept free on the window's right for a panel beside it; the window and that room are centred together, and the window narrows if both do not fit.
 --- @return nil|{x: number, y: number, width: number, height: number, Close: fun(), SetStatus: fun(text: string)}
 function Tabletop.ShowLoadingWindow(options)
     if not Tabletop.IsActive() then
@@ -7581,7 +7683,12 @@ function Tabletop.ShowLoadingWindow(options)
             width, height = w, h
         end
         local tw, th = LayerSize()
-        x = math.floor((tw - width) / 2)
+        local reserve = options.reserveRight or 0
+        if reserve > 0 then
+            --64 left clear at each edge, where the icon rails sit.
+            width = math.min(width, math.floor(tw - 128 - reserve))
+        end
+        x = math.floor((tw - reserve - width) / 2)
         y = math.floor((th - height) / 2)
     end
     local statusLabel = nil
@@ -10941,7 +11048,10 @@ g_sharing.DefineWindowsMenu = function()
     local function OpenKeys()
         local keys = {}
         for _, rec in ipairs(g_windows) do
-            keys["map:" .. rec.mapid] = true
+            --a Map Preview is the Director's alone.
+            if not Tabletop.IsPreviewMap(rec.mapid) then
+                keys["map:" .. rec.mapid] = true
+            end
         end
         for _, scene in ipairs(g_sharing.SceneWindowStates()) do
             keys["scene:" .. scene.sceneid] = true
@@ -11869,11 +11979,35 @@ local function Housekeeping()
     Refresh()
 end
 
+--The live map plays no sound while no window shows it (closed or
+--minimized): the engine is told its id, or nil while it is on screen.
+--Only calls the engine when the answer changes.
+--- @type string|nil|false (false until the first sync)
+local g_hiddenLiveMap = false
+
+--- @param active boolean
+local function SyncHiddenLiveMap(active)
+    local hidden = nil
+    if active then
+        local liveRec = WindowById(g_liveId)
+        local liveShown = liveRec ~= nil and liveRec.panel ~= nil and liveRec.panel.valid and not liveRec.minimized
+        if not liveShown then
+            hidden = game.currentMapId
+        end
+    end
+    if hidden ~= g_hiddenLiveMap then
+        g_hiddenLiveMap = hidden
+        dmhub.SetHiddenLiveMap(hidden)
+    end
+end
+
 local function Sync()
     local active = Tabletop.IsActive()
     if dmhub.tabletopMode ~= active then
         dmhub.tabletopMode = active
     end
+
+    SyncHiddenLiveMap(active)
 
     CheckRowDragEnded()
     UpdateTokenDragPreview()

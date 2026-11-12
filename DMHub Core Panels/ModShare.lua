@@ -6810,6 +6810,16 @@ end
 
 mod.shared.ShowExportDialog = function()
 
+	--a Map Preview is only to be looked at; the engine refuses to save it too.
+	local current = game.currentMap
+	if current ~= nil and current.valid and current.preview then
+		gui.ModalMessage{
+			title = "Export Map",
+			message = "A map preview cannot be exported. Add the map to your game to export it.",
+		}
+		return
+	end
+
 	local MapExport = dmhub.MapExport
 
 	MapExport:SetFullMapExport()

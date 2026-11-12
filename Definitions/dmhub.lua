@@ -546,7 +546,7 @@ function dmhub.FillTerrain(terrainid) end
 --- @return EventSourceLua
 function dmhub.SetMapTool(toolInfo) end
 
---- Open a system file dialog inviting the user to save a file as an image. The named texture will be saved as a PNG. The texture can be any image id resolvable by the UI (e.g. "#MapExport" or a "#PDF:docid|page" page render); both RenderTexture and Texture2D backed images are supported. filename is the default filename offered in the dialog. error is called with a message if the texture is not available or cannot be saved.
+--- Open a system file dialog inviting the user to save a file as an image. The named texture will be saved as a PNG. The texture can be any image id resolvable by the UI (e.g. "#MapExport" or a "#PDF:docid|page" page render); both RenderTexture and Texture2D backed images are supported. filename is the default filename offered in the dialog. error is called with a message if the texture is not available or cannot be saved, or if it is "#MapExport" while the current map is a Map Preview, which cannot be exported.
 --- @param options {texture: string, filename: string|nil, error: (fun(message: string): nil)|nil}
 function dmhub.SaveImageDialog(options) end
 
@@ -881,6 +881,20 @@ function dmhub.SetMovementCrossSection(args) end
 
 --- Hides the movement cross-section diagram (see dmhub.SetMovementCrossSection) and releases its render texture so nothing stays resident while idle. Safe to call when nothing is active.
 function dmhub.ClearMovementCrossSection() end
+
+--- Whether this player has muted the map with the given id (the speaker button in a map window's titlebar). Muting is personal and saved on this machine only: a muted map's Audio objects play nothing and its door sounds are not heard by this player.
+--- @param mapid string
+--- @return boolean
+function dmhub.IsMapMuted(mapid) end
+
+--- Mutes or unmutes the map with the given id for this player only (see dmhub.IsMapMuted). Saved on this machine; never sent to the game.
+--- @param mapid string
+--- @param muted boolean
+function dmhub.SetMapMuted(mapid, muted) end
+
+--- Tells the engine which map is live while no window shows it (its window closed or minimized), or nil when the live map is on screen. That map plays no sound for this player, as if muted (see dmhub.IsMapMuted), but this is not saved and IsMapMuted does not report it. Called by the tabletop window manager.
+--- @param mapid nil|string
+function dmhub.SetHiddenLiveMap(mapid) end
 
 --- Claims the mouse wheel over the map and returns the wheel notches turned there since the last call (positive = wheel up, 0 = none). While claimed the wheel does not zoom the camera; the claim lasts a quarter of a second, so call this every frame you want the wheel (e.g. from a think) and the camera zoom comes back on its own once you stop. Wheel turns over UI panels, outside the map, or with a modifier key held are not claimed.
 --- @return number

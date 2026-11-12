@@ -2687,6 +2687,90 @@ local function WhyRow(row, width)
     }
 end
 
+--- The rail button's hover card (3.3a, M1-M5): what happened since you last looked, in the
+--- detail card's frame and rows. Rows about your own creatures carry a gold edge.
+--- @param args {rows: {row: table, mine: boolean}[], more: integer, width: number}
+--- @return Panel
+function History.CreateSinceCard(args)
+    local inner = args.width - 2 * CARD_PAD
+    local body = {}
+    for _, item in ipairs(args.rows) do
+        --the edge is a fixed height: "100%" of an auto-height row grows to fill the screen.
+        body[#body + 1] = gui.Panel{
+            flow = "horizontal",
+            width = inner,
+            height = "auto",
+            gui.Panel{
+                classes = {cond(item.mine, "historyActiveFrame", nil)},
+                bgimage = "panels/square.png",
+                bgcolor = cond(item.mine, nil, "#00000000"),
+                width = 3,
+                height = STORY_FACE,
+                valign = "top",
+                tmargin = 3,
+                rmargin = 6,
+            },
+            StoryRow(item.row, inner - 9),
+        }
+    end
+    if args.more > 0 then
+        body[#body + 1] = gui.Label{
+            classes = {"historyCardMeta"},
+            text = args.more == 1 and "and 1 more turn" or string.format("and %d more turns", args.more),
+            width = inner,
+            height = "auto",
+            tmargin = 6,
+            textAlignment = "left",
+        }
+    end
+    body[#body + 1] = gui.Label{
+        classes = {"historyCardMeta"},
+        text = "Click to open",
+        width = inner,
+        height = "auto",
+        tmargin = 8,
+        textAlignment = "left",
+    }
+
+    return gui.Panel{
+        classes = {"historyCardFrame"},
+        styles = ThemeEngine.MergeStyles(History.Styles()),
+        bgimage = true,
+        blurBackground = true,
+        flow = "vertical",
+        width = args.width,
+        height = "auto",
+        interactable = false,
+        gui.Label{
+            classes = {"historyCardTitle"},
+            text = "Since you last looked",
+            width = "100%",
+            height = "auto",
+            lpad = CARD_PAD,
+            tpad = 10,
+            bpad = 9,
+            borderBox = true,
+            textAlignment = "left",
+        },
+        gui.Panel{
+            classes = {"historySeam"},
+            bgimage = "panels/square.png",
+            width = "100%",
+            height = 1,
+        },
+        gui.Panel{
+            flow = "vertical",
+            width = "100%",
+            height = "auto",
+            hpad = CARD_PAD,
+            tpad = 8,
+            bpad = 12,
+            borderBox = true,
+            children = body,
+        },
+    }
+end
+
 --- Builds the card for one row. It is rebuilt to change it: the sections have a different
 --- shape for every action, and a scroll bar only works if it is there on its first frame.
 --- tail is the card's edge that faces History ("left" or "right"). The tail comes back in

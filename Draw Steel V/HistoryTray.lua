@@ -197,6 +197,16 @@ local function Styles()
             bgcolor = "@warning",
         },
         {
+            selectors = {"historyNewLine"},
+            bgcolor = "@warning",
+        },
+        {
+            selectors = {"label", "historyNewText"},
+            fontSize = 11,
+            bold = true,
+            color = "@warning",
+        },
+        {
             selectors = {"historyActiveIcon"},
             bgcolor = "@bg",
         },
@@ -1772,7 +1782,38 @@ local function BuildTurnHead(item)
     }
 end
 
+--"New since you last looked" (T9): where the turns you have not seen start.
+local function BuildNewMarker(item)
+    local function Rule()
+        return gui.Panel{
+            classes = {"historyNewLine"},
+            bgimage = "panels/square.png",
+            width = 40,
+            height = 1,
+            valign = "center",
+        }
+    end
+    return gui.Panel{
+        flow = "horizontal",
+        width = "100%",
+        height = 22,
+        hpad = 12,
+        borderBox = true,
+        Rule(),
+        gui.Label{
+            classes = {"historyNewText"},
+            text = "New since you last looked",
+            width = "auto",
+            height = "auto",
+            hmargin = 8,
+            valign = "center",
+        },
+        Rule(),
+    }
+end
+
 local g_builders = {
+    newmarker = BuildNewMarker,
     roundhead = BuildRoundHead,
     roundfold = BuildRoundFold,
     groupfold = BuildGroupFold,
@@ -2435,10 +2476,32 @@ end
 --While searching, everything that matched shows unfolded (Appendix U).
 local g_searchOpen = false
 
+--The newest entry key this user had seen when History opened (3.3a), or nil. Turns with
+--anything newer open unfolded, under the "New since you last looked" marker.
+--- @type string|nil
+local g_since = nil
+--What this user had seen on the shown map when the rail opened History: kept from before the
+--rail marks it seen, until the window reads it. false when they had never looked.
+--- @type string|false|nil
+local g_sinceAtOpen = nil
+--Whether the marker went in during this build (it goes before the first new turn only).
+local g_markerPlaced = false
+
+--- Whether a turn holds anything newer than what this user had seen.
+local function TurnIsNew(turn)
+    local last = turn.keys[#turn.keys]
+    return g_since ~= nil and last ~= nil and last > g_since
+end
+
 local function AddTurnRows(items, turn, isNewest, nested)
+    local isNew = not g_searchOpen and TurnIsNew(turn)
     local isOpen = g_open[turn.id]
     if isOpen == nil or g_searchOpen then
-        isOpen = g_searchOpen or isNewest
+        isOpen = g_searchOpen or isNewest or isNew
+    end
+    if isNew and not g_markerPlaced then
+        g_markerPlaced = true
+        items[#items + 1] = {kind = "newmarker", key = "newmarker", sig = "newmarker"}
     end
     local toggle = Toggle(turn.id, isOpen)
     if turn.owner ~= nil then
@@ -2503,9 +2566,19 @@ local function AddTurnRows(items, turn, isNewest, nested)
 end
 
 local function AddSectionRows(items, section, isNewest, nested)
+    --the first turn this user has not seen, if the section has one.
+    local firstNew = nil
+    if not g_searchOpen then
+        for i, turn in ipairs(section.turns) do
+            if TurnIsNew(turn) then
+                firstNew = i
+                break
+            end
+        end
+    end
     local isOpen = g_open[section.id]
     if isOpen == nil or g_searchOpen then
-        isOpen = g_searchOpen or isNewest
+        isOpen = g_searchOpen or isNewest or firstNew ~= nil
     end
     local title = SectionTitle(section)
     if not isOpen then
@@ -2539,10 +2612,20 @@ local function AddSectionRows(items, section, isNewest, nested)
     local turns = section.turns
     local first = 1
     local groupid = "group-" .. section.id
-    if isNewest and not g_searchOpen and g_open[groupid] ~= true and #turns > NEWEST_TURNS then
+    --the turns before the newest few fold into one line; with new turns, everything before
+    --the first new turn does (Appendix V).
+    local foldTo = nil
+    if not g_searchOpen and g_open[groupid] ~= true then
+        if firstNew ~= nil and firstNew > 1 then
+            foldTo = firstNew
+        elseif isNewest and #turns > NEWEST_TURNS then
+            foldTo = #turns - NEWEST_TURNS + 1
+        end
+    end
+    if foldTo ~= nil then
         local firstNumber, lastNumber = nil, nil
         local entries = {}
-        first = #turns - NEWEST_TURNS + 1
+        first = foldTo
         for i = 1, first - 1 do
             firstNumber = firstNumber or turns[i].number
             lastNumber = turns[i].number
@@ -2637,6 +2720,7 @@ end
 local function BuildItems(mapid)
     local items = {}
     ClearTypes()
+    g_markerPlaced = false
     local sections, nested = BuildSections(mapid)
     local matches = nil
     g_searchOpen = Searching()
@@ -2886,6 +2970,10 @@ local function CreateFace()
     local latestButton = nil
     local face
     local list
+    --true until the first build: History opens on "New since you last looked" when the
+    --new rows don't all fit, so the first one is in view (3.3a).
+    local openAtMarker = true
+    local markerTries = 0
 
     --Latest shows only once the view has left the default: scrolled up, older rows
     --loaded, or a round or turn opened or closed by hand.
@@ -2897,6 +2985,13 @@ local function CreateFace()
         latestButton:SetClass("hidden", not away)
     end
     local mapid = game.currentMapId
+    --what was seen before this opening: kept by the rail's mark if that came first.
+    if g_sinceAtOpen ~= nil then
+        g_since = g_sinceAtOpen or nil
+    else
+        g_since = History.LastLooked(mapid)
+    end
+    g_sinceAtOpen = nil
 
     --Built rows by item key: {panel, sig}.
     local rows = {}
@@ -3078,6 +3173,19 @@ local function CreateFace()
         local stick = list.vscrollPosition <= 0.02
         local items, matches = BuildItems(mapid)
         local first = math.max(1, #items - rowsWanted + 1)
+        --opening on new turns: build back far enough to include the marker.
+        local markerShown = false
+        if openAtMarker then
+            for i, item in ipairs(items) do
+                if item.kind == "newmarker" then
+                    markerShown = true
+                    if i < first then
+                        first = i
+                        rowsWanted = #items - i + 1
+                    end
+                end
+            end
+        end
         hasOlder = first > 1
         face:FireEventTree("searchResults", matches)
 
@@ -3124,6 +3232,13 @@ local function CreateFace()
         if stick and not loadingOlder then
             list:ScheduleEvent("toBottom", 0.02)
         end
+        if openAtMarker then
+            openAtMarker = false
+            if markerShown then
+                markerTries = 0
+                list:ScheduleEvent("toMarker", 0.05)
+            end
+        end
         UpdateLatest()
 
         --a trigger landing after the row closed changes what the open card says.
@@ -3157,6 +3272,33 @@ local function CreateFace()
         toBottom = function(element)
             element.vscrollPosition = 0
             UpdateLatest()
+        end,
+
+        --puts the new-rows marker at the top when what follows it is taller than the list;
+        --otherwise the bottom already shows it. Layout takes a few frames, so it retries.
+        toMarker = function(element)
+            markerTries = markerTries + 1
+            local marker = rows["newmarker"]
+            local windowHeight = element.renderedHeight or 0
+            local contentHeight = rowsPanel.renderedHeight or 0
+            local range = contentHeight - windowHeight
+            if marker ~= nil and marker.panel.valid and range > 0 then
+                local offset = 0
+                for _, row in ipairs(rowsPanel.children) do
+                    if row == marker.panel then
+                        break
+                    end
+                    offset = offset + (row.renderedHeight or 0)
+                end
+                if contentHeight - offset > windowHeight then
+                    element.vscrollPosition = 1 - math.min(offset, range) / range
+                end
+            end
+            if markerTries < 6 then
+                element:ScheduleEvent("toMarker", 0.05)
+            else
+                UpdateLatest()
+            end
         end,
 
         --at the top with more to show: build the next rows and hold the view still.
@@ -3525,7 +3667,8 @@ local function CreateFace()
                 g_tray = nil
             end
             --closing History ends a search: reopening shows the default view, not an old
-            --filter hiding new rows. (Minimising, 3.3, keeps the face and so the search.)
+            --filter hiding new rows.
+            g_since = nil
             g_search.chips = {}
             g_search.text = ""
             g_open = {}
@@ -3559,6 +3702,9 @@ local function CreateFace()
     return face
 end
 
+--The tray's styles, for History panels built outside the window (the rail's hover card).
+History.Styles = Styles
+
 ThemeEngine.OnThemeChanged(mod, function()
     if g_tray ~= nil and g_tray.face.valid then
         g_tray.face.styles = ThemeEngine.MergeStyles(Styles())
@@ -3580,6 +3726,290 @@ function History.OpenFor(token)
     end
 end
 
+--Notifications (3.3a, Appendix V). While History is closed its rail button counts the turns
+--you have not seen: a grey count, or a gold diamond when one of them did something to a
+--creature you control. Hovering the button shows what happened; opening clears it.
+
+--M7: notifications on or off, per user.
+setting{
+    id = "history:notifications",
+    description = "History notifications",
+    editor = "check",
+    default = true,
+    storage = "preference",
+    section = "general",
+}
+
+--The newest entry key this user has seen, per game and map. Kept on their own machine
+--(a preference), so looking at History writes nothing anyone else has to load.
+setting{
+    id = "history:lastlooked",
+    default = {},
+    storage = "preference",
+}
+
+--- The newest entry key this user has seen on a map, or nil before they ever looked.
+--- @param mapid string
+--- @return string|nil
+function History.LastLooked(mapid)
+    local all = dmhub.GetSettingValue("history:lastlooked")
+    local game = type(all) == "table" and all[dmhub.gameid] or nil
+    return type(game) == "table" and game[mapid] or nil
+end
+
+--- Records the newest entry key seen on these maps, writing only when something changed.
+--- @param marks table<string, string> Keys by map id.
+local function SetLooked(marks)
+    local all = dmhub.GetSettingValue("history:lastlooked")
+    all = type(all) == "table" and table.shallow_copy(all) or {}
+    local game = type(all[dmhub.gameid]) == "table" and table.shallow_copy(all[dmhub.gameid]) or {}
+    local changed = false
+    for mapid, key in pairs(marks) do
+        if game[mapid] ~= key then
+            game[mapid] = key
+            changed = true
+        end
+    end
+    if changed then
+        all[dmhub.gameid] = game
+        dmhub.SetSettingValue("history:lastlooked", all)
+    end
+end
+
+--The maps whose fights this user can follow: all of them for the Director; for a player
+--the ones shared with them, and the one they are on.
+local function VisibleMaps()
+    local ids = {}
+    for _, map in ipairs(game.maps) do
+        if dmhub.isDM or map.playerViewable or map.id == game.currentMapId then
+            ids[#ids + 1] = map.id
+        end
+    end
+    return ids
+end
+
+--Whether a creature is this user's own: a player's controlled heroes; for the Director, the
+--monsters (they played those turns themselves, so they saw them).
+local function Mine(who)
+    if who == nil then
+        return false
+    end
+    if dmhub.isDM then
+        return not who.hero
+    end
+    local token = dmhub.GetTokenById(who.id)
+    return token ~= nil and token.canControl
+end
+
+--- @class HistoryUnseen
+--- @field turns integer Turns not seen, the user's own excluded (out of combat: entries).
+--- @field gold boolean A player: one of them did something to a creature they control.
+--- @field lines {row: table, mine: boolean, turn: string}[] What happened, oldest first, as History.Story rows.
+
+--Worked out at most every 0.4 s: the rail asks twice a second and the hover card asks too.
+--- @type HistoryUnseen|nil
+local g_unseen = nil
+local g_unseenAt = -1
+
+--- What this user has not seen yet, across the maps they can follow.
+--- @return HistoryUnseen
+local function Unseen()
+    local now = dmhub.Time()
+    if g_unseen ~= nil and now - g_unseenAt < 0.4 then
+        return g_unseen
+    end
+    --- @type HistoryUnseen
+    local result = {turns = 0, gold = false, lines = {}}
+    g_unseen = result
+    g_unseenAt = now
+    if not History.Enabled() or not dmhub.GetSettingValue("history:notifications") then
+        return result
+    end
+    local turns = {}
+    local baselines = {}
+    for _, mapid in ipairs(VisibleMaps()) do
+        local keys = History.Keys(mapid)
+        local last = History.LastLooked(mapid)
+        if last == nil then
+            --never looked: what is there already is not news.
+            if #keys > 0 then
+                baselines[mapid] = keys[#keys]
+            end
+        else
+            local first = #keys + 1
+            while first > 1 and keys[first - 1] > last do
+                first = first - 1
+            end
+            for i = first, #keys do
+                local entry = History.Entry(mapid, keys[i])
+                if entry ~= nil then
+                    local turnKey, owner
+                    if entry.round ~= nil and entry.turn ~= nil then
+                        turnKey = string.format("%s|%s|%s|%s", mapid, tostring(entry.encounter), entry.round, entry.turn)
+                        owner = entry.owner
+                    else
+                        turnKey = mapid .. "|" .. keys[i]
+                        owner = entry.actor or entry.who
+                    end
+                    if not Mine(owner) then
+                        turns[turnKey] = true
+                        local actorMine = Mine(entry.actor)
+                        local function Add(row, mine)
+                            result.lines[#result.lines + 1] = {row = row, mine = mine, turn = turnKey}
+                        end
+                        if entry.kind == "line" then
+                            local mine = not dmhub.isDM and Mine(entry.who)
+                            local words = LineWords(entry)
+                            if words ~= nil and words ~= "" then
+                                Add({who = {entry.who}, text = words}, mine)
+                            end
+                            if mine then
+                                result.gold = true
+                            end
+                        else
+                            for _, row in ipairs(History.Story(entry, {})) do
+                                local mine = false
+                                if not dmhub.isDM and not actorMine then
+                                    for _, who in ipairs(row.who or {}) do
+                                        if Mine(who) then
+                                            mine = true
+                                        end
+                                    end
+                                end
+                                Add(row, mine)
+                                if mine then
+                                    result.gold = true
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    if next(baselines) ~= nil then
+        SetLooked(baselines)
+    end
+    for _ in pairs(turns) do
+        result.turns = result.turns + 1
+    end
+    return result
+end
+
+--- Marks everything on the maps this user can follow as seen. The rail calls it while
+--- History is on screen.
+local function MarkAllLooked()
+    --the rail marks History seen as it opens it, which can be before the window is built;
+    --keep what was seen before for the window's "New since you last looked".
+    if (g_tray == nil or not g_tray.face.valid) and g_sinceAtOpen == nil then
+        g_sinceAtOpen = History.LastLooked(game.currentMapId) or false
+    end
+    local marks = {}
+    for _, mapid in ipairs(VisibleMaps()) do
+        local keys = History.Keys(mapid)
+        if #keys > 0 then
+            marks[mapid] = keys[#keys]
+        end
+    end
+    SetLooked(marks)
+    g_unseen = nil
+end
+
+--A theme colour as #rrggbb for the rail badge, which takes plain colours.
+local function BadgeColour(token, fallback)
+    local colour = ThemeEngine.ResolveTokens(token)
+    if type(colour) ~= "string" or string.sub(colour, 1, 1) ~= "#" then
+        return fallback
+    end
+    return string.sub(colour, 1, 7)
+end
+
+--How many lines the hover card shows before "and N more turns".
+local PREVIEW_LINES = 3
+--The hover card's width, and how far it stands off the rail button to clear its name label.
+local PREVIEW_WIDTH = 320
+local PREVIEW_CLEAR_LABEL = 80
+--Seconds the pointer rests on the button before the card shows (the detail hovers' delay).
+local PREVIEW_DELAY = 0.4
+
+--- The rail button's hover card (M1-M5): what happened since you last looked, your
+--- creatures first, while History is closed.
+--- @param element Panel The rail button.
+--- @param placement {halign: string, valign: string, inStrip: boolean|nil}
+function History.ShowSincePreview(element, placement)
+    --a short wait, so a pointer passing over the button on its way elsewhere shows nothing.
+    dmhub.Schedule(PREVIEW_DELAY, function()
+        if mod.unloaded or not element.valid or not element:HasClass("hover") then
+            return
+        end
+        if g_tray ~= nil and g_tray.face.valid then
+            return
+        end
+        local unseen = Unseen()
+        --nothing new: the plain name label, as on every other rail button.
+        if unseen.turns == 0 then
+            return
+        end
+        History.ShowSinceCard(element, placement, unseen)
+    end)
+end
+
+--- Puts the hover card on the rail button (see History.ShowSincePreview).
+--- @param element Panel
+--- @param placement {halign: string, valign: string, inStrip: boolean|nil}|nil
+--- @param unseen HistoryUnseen
+function History.ShowSinceCard(element, placement, unseen)
+    local shown = {}
+    for _, line in ipairs(unseen.lines) do
+        if line.mine and #shown < PREVIEW_LINES then
+            shown[#shown + 1] = line
+        end
+    end
+    for _, line in ipairs(unseen.lines) do
+        if not line.mine and #shown < PREVIEW_LINES then
+            shown[#shown + 1] = line
+        end
+    end
+    local more = unseen.turns
+    local counted = {}
+    for _, line in ipairs(shown) do
+        if not counted[line.turn] then
+            counted[line.turn] = true
+            more = more - 1
+        end
+    end
+    local card = History.CreateSinceCard{
+        rows = shown,
+        more = math.max(0, more),
+        width = PREVIEW_WIDTH,
+    }
+    if placement ~= nil and placement.inStrip then
+        --on a group's strip: below the member, clear of the strip and the rail.
+        card.selfStyle.halign = "center"
+        card.selfStyle.valign = "bottom"
+    else
+        --out from the rail like the detail card from the window, past the button's name label.
+        local right = placement == nil or placement.halign ~= "left"
+        card.selfStyle.halign = right and "right" or "left"
+        card.selfStyle.valign = "center"
+        card.x = right and PREVIEW_CLEAR_LABEL or -PREVIEW_CLEAR_LABEL
+    end
+    element.tooltip = card
+    card:MakeNonInteractiveRecursive()
+end
+
+History.Notify = {
+    Unseen = Unseen,
+    MarkAllLooked = MarkAllLooked,
+    --grey count, or a gold diamond when something happened to your own creatures.
+    BadgeStyle = function()
+        if Unseen().gold then
+            return {color = BadgeColour("@warning", "#E9C868"), shape = "diamond"}
+        end
+        return {color = BadgeColour("@fgMuted", "#9A9A9A")}
+    end,
+}
+
 --A rail panel like Chat, so it gets the rail windows' frame, pin, pop out and Font Size zoom.
 DockablePanel.Register{
     name = "History",
@@ -3594,6 +4024,24 @@ DockablePanel.Register{
     resizableWidth = false,
     content = function()
         return CreateFace()
+    end,
+    --the rail button's badge and hover card (3.3a). The rail keeps these functions, so each
+    --looks up History.Notify when called: a reloaded HistoryTray takes effect at once.
+    hasNewContent = function()
+        return History.Notify.Unseen().turns > 0
+    end,
+    newContentCount = function()
+        return History.Notify.Unseen().turns
+    end,
+    newContentStyle = function()
+        return History.Notify.BadgeStyle()
+    end,
+    markContentSeen = function()
+        History.Notify.MarkAllLooked()
+    end,
+    --looked up on each hover, so a reloaded HistoryTray's card is the one shown.
+    railHover = function(element, placement)
+        History.ShowSincePreview(element, placement)
     end,
 }
 

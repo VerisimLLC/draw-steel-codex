@@ -111,7 +111,7 @@ Only what moved the result away from the plain roll.
 | M2 | Hover lines | the "What happened" sentences (N2) |
 | M3 | Hover overflow | and {n} more turns / and 1 more turn |
 | M4 | Hover footer | Click to open |
-| M5 | Hover, nothing new | Nothing new since you last looked. |
+| M5 | Hover, nothing new | (retired 2026-11-12, James: with nothing new the button shows only its name label) |
 | M6 | Screen reader | History, {n} new turns |
 | M7 | Setting | History notifications: On / Off |
 

@@ -22916,6 +22916,11 @@ local function CreateIconRail(side, entries, opts)
                         if UpdateStripCard ~= nil then
                             UpdateStripCard(memberLabel)
                         end
+                        --a member panel's own hover card (railHover), as on the rail
+                        --itself; below the strip, so it covers neither strip nor rail.
+                        if memberReg ~= nil and memberReg.railHover ~= nil and not g_railRearranging then
+                            pcall(memberReg.railHover, element, {halign = "center", valign = "bottom", inStrip = true})
+                        end
                     end,
 
                     --leaving a member re-arms the close; the handler
@@ -23065,6 +23070,7 @@ local function CreateIconRail(side, entries, opts)
                         if g_railRearranging then
                             return
                         end
+                        element.tooltip = nil
                         ToggleGroupMember(memberKey)
                     end,
 
@@ -23581,7 +23587,9 @@ local function CreateIconRail(side, entries, opts)
         --NOT retire by being looked at (novel module content clears only
         --per item, and only from the handful of rows wired to do it).
         --Everything re-checks on the rail's refreshRail cadence, and the
-        --marker hides while the panel itself is shown.
+        --marker hides while the panel itself is shown. newContentStyle()
+        --may return {color = "#rrggbb", shape = "diamond"} to recolour the
+        --marker or make it a diamond (History: grey count, gold diamond).
         local novelMarker = nil
         --a registered entry type's alert(id) drives the same marker: true
         --or a count while it needs attention (a map button's alert).
@@ -23610,7 +23618,9 @@ local function CreateIconRail(side, entries, opts)
             local hasNewContent = alertSource.hasNewContent
             local newContentCount = alertSource.newContentCount
             local markContentSeen = alertSource.markContentSeen
+            local newContentStyle = alertSource.newContentStyle
             local m_shownCount = nil --count the marker currently displays; nil = hidden.
+            local m_shownStyle = nil --"color|shape" of the marker on show.
             --the container is a 1x1 anchor sitting ON the button's
             --top-right corner; the badge centers on it, so it pops out
             --of the button bounds like an iOS app badge. Anchored from
@@ -23651,17 +23661,61 @@ local function CreateIconRail(side, entries, opts)
                             count = 1
                         end
                     end
-                    if count == m_shownCount then
+                    local style = nil
+                    if count ~= nil and newContentStyle ~= nil then
+                        pcall(function() style = newContentStyle() end)
+                    end
+                    local styleKey = style ~= nil and string.format("%s|%s", tostring(style.color), tostring(style.shape)) or ""
+                    if count == m_shownCount and styleKey == m_shownStyle then
                         return
                     end
                     m_shownCount = count
+                    m_shownStyle = styleKey
                     if count == nil then
                         element.children = {}
+                    elseif style ~= nil and style.shape == "diamond" then
+                        --a square turned 45 degrees behind an upright number, so the
+                        --signal has a shape as well as a colour.
+                        element.children = {
+                            gui.Panel{
+                                width = 16,
+                                height = 16,
+                                halign = "center",
+                                valign = "center",
+                                flow = "none",
+                                interactable = false,
+                                gui.Panel{
+                                    bgimage = "panels/square.png",
+                                    bgcolor = style.color or "#ee4444",
+                                    width = 13,
+                                    height = 13,
+                                    cornerRadius = 2,
+                                    rotate = 45,
+                                    halign = "center",
+                                    valign = "center",
+                                    interactable = false,
+                                },
+                                count > 1 and gui.Label{
+                                    text = tostring(math.min(count, 9)),
+                                    fontSize = 14,
+                                    fontWeight = "black",
+                                    color = "black",
+                                    width = "100%",
+                                    height = "auto",
+                                    textAlignment = "center",
+                                    halign = "center",
+                                    valign = "center",
+                                    interactable = false,
+                                    textWrap = false,
+                                } or nil,
+                            },
+                        }
                     else
                         element.children = {
                             gui.NewContentAlert{
                                 count = count,
                                 size = 16,
+                                bgcolor = style ~= nil and style.color or nil,
                                 halign = "center",
                                 valign = "center",
                                 x = 0,
@@ -23949,6 +24003,10 @@ local function CreateIconRail(side, entries, opts)
                     end)
                 elseif docid ~= nil and not missing then
                     CustomDocument.ShowJournalPreview(element, docid, CustomDocument.RailPreviewPlacement(element))
+                elseif reg ~= nil and reg.railHover ~= nil then
+                    --a registered panel may show its own preview card (History:
+                    --what happened since you last looked).
+                    pcall(reg.railHover, element, CustomDocument.RailPreviewPlacement(element))
                 end
                 --A popped-out panel's OS window can be buried under other
                 --windows; arriving on its rail button surfaces it: bring
@@ -24624,6 +24682,8 @@ local function CreateIconRail(side, entries, opts)
                 end
 
                 RailButtonSound("press")
+                --a panel's own hover card (railHover) goes as the press opens it.
+                element.tooltip = nil
 
                 --in rearrange mode presses begin drags, never open.
                 if g_railRearranging then

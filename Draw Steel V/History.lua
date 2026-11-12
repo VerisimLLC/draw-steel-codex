@@ -313,11 +313,12 @@ function History.Keys(mapid)
     return keys
 end
 
---Parsed entries by key, with the string each came from: an entry rewritten under
---the same key must not show its old self. Entries that left the document stay here
---until the map changes, which is a few hundred small tables at worst.
+--Parsed entries by map, then key, with the string each came from: an entry rewritten
+--under the same key must not show its old self. Kept per map so the rail badge, which
+--reads every map, does not throw away the open window's map. A few hundred small tables
+--a map at worst.
+--- @type table<string, table<string, {raw: string, entry: HistoryEntry|nil}>>
 local g_parsed = {}
-local g_parsedMap = nil
 --Whether the entries in g_parsed were cut down for a player (History.Entry).
 local g_parsedForPlayers = nil
 
@@ -412,17 +413,21 @@ end
 function History.Entry(mapid, key)
     --a Director looking through a token's eyes sees what a player would.
     local forPlayers = not MonsterKnowledge.LocalUserSeesAll()
-    if g_parsedMap ~= mapid or g_parsedForPlayers ~= forPlayers then
+    if g_parsedForPlayers ~= forPlayers then
         g_parsed = {}
-        g_parsedMap = mapid
         g_parsedForPlayers = forPlayers
+    end
+    local parsedMap = g_parsed[mapid]
+    if parsedMap == nil then
+        parsedMap = {}
+        g_parsed[mapid] = parsedMap
     end
     local entries = mod:GetDocumentSnapshot(History.DocId(mapid)).data.entries
     local raw = type(entries) == "table" and entries[key] or nil
     if raw == nil then
         return nil
     end
-    local parsed = g_parsed[key]
+    local parsed = parsedMap[key]
     if parsed == nil or parsed.raw ~= raw then
         local ok, decoded = pcall(dmhub.FromJson, raw)
         if not ok or not decoded.success then
@@ -433,7 +438,7 @@ function History.Entry(mapid, key)
             entry = ForPlayers(entry)
         end
         parsed = {raw = raw, entry = entry}
-        g_parsed[key] = parsed
+        parsedMap[key] = parsed
     end
     return parsed.entry
 end

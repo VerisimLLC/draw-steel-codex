@@ -395,6 +395,18 @@ Goal: why it happened, one click from the row.
   - **Placement:** the card chip stays out of the top-left corner, which belongs to the trigger and downtime badges.
   - **Closing:** closing History clears the search and hand-made folds (James); minimising (3.3) will keep them.
   - **Card chip availability:** it is added when the card is built, so turning History on mid-game needs the cards rebuilt.
+- **3.3 split** (James): 3.3a is the closed state (badge, hover card, opening at the marker, setting); 3.3b is the open state (B3, "{n} new below").
+- **3.3a (built 2026-11-12):**
+  - **Rail button as the block:** History is a rail window with no minimise, so the rail button carries Appendix V's signal (James, option A). Grey count of unseen turns, your own excluded; a gold diamond when one of them did something to a creature a player controls.
+  - **Director:** the monsters are theirs, so only the heroes' turns count; their gold waits for hand edits (5.2).
+  - **Hover card:** "Since you last looked" in the detail card's frame and rows, your creatures first with a gold edge, then "and N more turns" and "Click to open".
+    - It waits 0.4 s, shows nothing when nothing is new (M5 retired, James), and closes on press.
+    - It works on a group strip, where it sits below the member.
+  - **Opening:** lands on "New since you last looked", with new turns unfolded and the turns before them folded. When the new rows don't fit, the marker is scrolled to the top.
+  - **Storage:** "last looked" is a per-user preference (`history:lastlooked`). The first sight of a map sets a baseline, so old rows aren't news.
+  - **Rail hooks** (generic, `DocumentSystem.lua`): `newContentStyle()` gives a colour or diamond badge, and `railHover(element, placement)` gives a panel its own hover card. History's hooks look up `History.Notify` when called, so a reload reaches them.
+  - **Race fixed:** the rail marks History seen before the window is built, so the window uses the mark kept from before (`g_sinceAtOpen`).
+  - **Not built:** the M6 screen-reader label; the rail has no accessible names.
 - **Engine follow-up (Latest bounce):** `SheetScrollView` keeps its wheel smooth-scroll target until the list gets within 0.001 of it. On a short list it can stall at 0.997, and setting `vscrollPosition` from Lua does not clear the target, so the list eases back. Fix in dmhubclient: the setter (`SheetPanel.cs` `vscrollPosition`) clears the target. Nothing on the codex side.
 
 ## Stage 4: movement views

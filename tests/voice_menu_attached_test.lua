@@ -46,6 +46,8 @@ assert(load(source, '@' .. path))()
 
 created = {}
 local menu = DiscordVoice.CreateMenu(function() end)
+--menu is the test's Element stub (it records kind), not a real gui.Panel
+---@diagnostic disable-next-line: undefined-field
 assert(type(menu) == 'table' and menu.kind == 'Panel', 'CreateMenu must return a panel')
 
 local reached = {}

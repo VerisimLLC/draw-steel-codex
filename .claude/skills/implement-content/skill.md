@@ -303,6 +303,8 @@ prompts and can shift/move between each selection.
 For "move before OR after" (binary choice), use `multipleModes: true` with `variation`
 fields on the modeList entries (see Angulotl Hopper's Leapfrog for this pattern).
 
+If a single-target ability's modes only suit some targets ("spend a Recovery or make a save"), consider target-then-mode: the activated-ability skill, "Target-Then-Mode".
+
 ### Summon Placement Belongs to the Summon Behavior, Not to Targeting
 
 **CRITICAL:** For "N creatures appear in unoccupied spaces within distance", do NOT

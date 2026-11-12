@@ -2255,6 +2255,28 @@ _buildModesBlock = function(ability, fireChange)
                 bmargin = 8,
             }
 
+            -- Target first, then mode (Heal): turning this on adds a Target Filter
+            -- and Unavailable Text to every mode below. Not offered for Ability
+            -- Variations, which swap in a whole other ability when a mode is picked.
+            local plainModes = ability:try_get("multipleModes") == true
+            local modeAfterTargeting = plainModes and ability:try_get("chooseModeAfterTargeting", false) == true
+            modeChildren[#modeChildren + 1] = gui.Panel{
+                classes = {"nae-field-row-inline", cond(plainModes, nil, "collapsed")},
+                children = {
+                    gui.Check{
+                        classes = {"nae-toggle-check"},
+                        text = "Choose Mode After Targeting",
+                        value = modeAfterTargeting,
+                        hover = gui.Tooltip("Mode buttons appear after the caster chooses their target. When a mode's Target Filter fails for a target, the Unavailable Text is shown instead of its button, explaining why."),
+                        change = function(el)
+                            ability.chooseModeAfterTargeting = el.value
+                            fireChange()
+                            modesListPanel:FireEventTree("refreshModes")
+                        end,
+                    },
+                },
+            }
+
             -- Existing mode entries
             for i, modeEntry in ipairs(ability.modeList) do
                 local idx = i
@@ -2383,6 +2405,36 @@ _buildModesBlock = function(ability, fireChange)
                         },
                     },
                 }
+
+                if modeAfterTargeting then
+                    -- Stored as targetCondition. Checked against the chosen target once one
+                    -- is picked (unlike Mode Condition, which only sees the caster).
+                    modeChildren[#modeChildren + 1] = _makeFieldRow("Target Filter",
+                        gui.GoblinScriptInput{
+                            classes = {"nae-field-input"},
+                            width = 280,
+                            value = entry.targetCondition or "",
+                            change = function(el)
+                                entry.targetCondition = el.value
+                                fireChange()
+                            end,
+                            documentation = ActivatedAbility.ModeTargetFilterDocs(ability:try_get("domains")),
+                        }
+                    )
+
+                    modeChildren[#modeChildren + 1] = _makeFieldRow("Unavailable Text",
+                        gui.Input{
+                            classes = {"nae-field-input"},
+                            characterLimit = 200,
+                            placeholderText = "Shown when the target fails the filter",
+                            text = entry.targetUnavailableText or "",
+                            change = function(el)
+                                entry.targetUnavailableText = el.text
+                                fireChange()
+                            end,
+                        }
+                    )
+                end
 
                 -- "Has Ability" checkbox + Edit button (variations only)
                 modeChildren[#modeChildren + 1] = gui.Panel{

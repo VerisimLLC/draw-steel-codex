@@ -48,6 +48,7 @@ end
 --- @field legendary boolean If true, this is a legendary action.
 --- @field categorization string Ability category string (e.g. "none", "action", "maneuver").
 --- @field multipleModes boolean|string If true, the ability has multiple selectable modes.
+--- @field chooseModeAfterTargeting boolean Target first, then mode. Only used when multipleModes is true (not "variations") and the ability has exactly one creature target for this cast (see UsesTargetFirstModes). The mode buttons appear once a target is chosen, and pressing one casts. A modeList entry's targetCondition (the editor's "Target Filter", GoblinScript with Target = the chosen creature) hides that mode for targets it fails, showing its targetUnavailableText instead; a creature no mode can be used on is an invalid target.
 --- @field domains table<string, boolean> Domain set this ability belongs to.
 --- @field isSpell boolean If true, this ability is treated as a spell.
 --- @field abilityModification boolean If true, this is a modification of another ability rather than a standalone ability.
@@ -274,6 +275,7 @@ ActivatedAbilityApplyOngoingEffectBehavior.inheritDuration = false
 ActivatedAbilityBehavior.durationUntilEndOfTurn = false
 
 ActivatedAbility.multipleModes = false
+ActivatedAbility.chooseModeAfterTargeting = false
 
 ActivatedAbility.domains = {}
 ActivatedAbility.isSpell = false
@@ -2125,6 +2127,133 @@ function ActivatedAbility:SwitchModes(i)
 
     result.modeList = modeList
     return result
+end
+
+--- Whether mode modeIndex can be used. Checks the mode's condition (about the
+--- caster) and, when targetToken is given, its targetCondition (the editor's
+--- "Target Filter", about the target). The action bar and the Monster AI both
+--- check this before offering or casting a mode.
+--- @param casterToken nil|CharacterToken nil skips the caster check
+--- @param targetToken nil|CharacterToken nil skips the target check
+--- @param modeIndex integer
+--- @return boolean available
+--- @return nil|"caster"|"target" failedOn which check failed, when not available
+function ActivatedAbility:ModeAvailableForTarget(casterToken, targetToken, modeIndex)
+    local mode = self:try_get("modeList", {})[modeIndex]
+    if mode == nil or casterToken == nil then
+        return mode ~= nil, nil
+    end
+    if (mode.condition or "") ~= "" then
+        local result = ExecuteGoblinScript(mode.condition, casterToken.properties:LookupSymbol(), 1, "Mode condition")
+        if not (type(result) == "number" and result > 0) then
+            return false, "caster"
+        end
+    end
+    if not self:ModeTargetFilterPasses(casterToken, targetToken, modeIndex) then
+        return false, "target"
+    end
+    return true, nil
+end
+
+--- Only the target half of ModeAvailableForTarget: whether targetToken passes
+--- mode modeIndex's targetCondition (true when the mode has none). Use it when
+--- the caster half was already checked, e.g. once per target in a list.
+--- @param casterToken CharacterToken
+--- @param targetToken nil|CharacterToken nil passes
+--- @param modeIndex integer
+--- @return boolean
+function ActivatedAbility:ModeTargetFilterPasses(casterToken, targetToken, modeIndex)
+    local mode = self:try_get("modeList", {})[modeIndex]
+    if mode == nil or (mode.targetCondition or "") == "" or targetToken == nil or targetToken.properties == nil then
+        return true
+    end
+    local symbols = { target = GenerateSymbols(targetToken.properties) }
+    return GoblinScriptTrue(ExecuteGoblinScript(mode.targetCondition,
+        casterToken.properties:LookupSymbol(symbols), 0, "Mode target filter"))
+end
+
+--- Whether this cast picks its target first and its mode second. Needs the
+--- setting, plain Multiple Modes (a variation swaps in another ability), and
+--- exactly one creature target. numTargets can be a formula, so the count is
+--- worked out for this caster each time; with more targets the ability
+--- behaves like any other multi-mode ability.
+--- @param casterToken nil|CharacterToken
+--- @param symbols nil|table
+--- @return boolean
+function ActivatedAbility:UsesTargetFirstModes(casterToken, symbols)
+    if self.multipleModes ~= true or not self:try_get("chooseModeAfterTargeting", false)
+        or self.targetType ~= "target" then
+        return false
+    end
+    return self:GetNumTargets(casterToken, symbols) == 1
+end
+
+--Shown when no mode of a target-first ability can be used on a creature and
+--none of the failing modes has its own Unavailable Text.
+local g_noModeAvailableText = "No option can be used on this creature."
+
+--Shown instead when every mode failed its caster condition: the problem is the
+--caster, so a reason about the creature would be misleading.
+local g_noModeForCasterText = "You can't use any option of this ability right now."
+
+--- Why no mode of a target-first ability can be used on targetToken, or nil if
+--- at least one can. Joins the Unavailable Text of every mode whose Target
+--- Filter failed; modes the caster can't use add nothing. If every mode failed
+--- on the caster, says so instead of blaming the creature.
+--- @param casterToken nil|CharacterToken nil skips the caster check
+--- @param targetToken CharacterToken
+--- @return nil|string
+function ActivatedAbility:TargetFirstUnavailableReason(casterToken, targetToken)
+    local reasons = {}
+    local anyFailedOnTarget = false
+    for modeIndex, mode in ipairs(self:try_get("modeList", {})) do
+        local available, failedOn = self:ModeAvailableForTarget(casterToken, targetToken, modeIndex)
+        if available then
+            return nil
+        end
+        if failedOn == "target" then
+            anyFailedOnTarget = true
+            if (mode.targetUnavailableText or "") ~= "" then
+                reasons[#reasons + 1] = mode.targetUnavailableText
+            end
+        end
+    end
+    if #reasons == 0 then
+        return cond(anyFailedOnTarget, g_noModeAvailableText, g_noModeForCasterText)
+    end
+    return table.concat(reasons, " ")
+end
+
+--- GoblinScript help for a mode's Target Filter field. Both ability editors
+--- use it so their help text stays the same.
+--- @param domains nil|table
+--- @return table
+function ActivatedAbility.ModeTargetFilterDocs(domains)
+    return {
+        domains = domains,
+        help = "GoblinScript checked against the chosen target. If it is false, this mode shows its Unavailable Text instead of a button. Leave blank to always offer the mode.",
+        output = "boolean",
+        examples = {
+            {
+                script = "Target.Recoveries Available to Spend > 0",
+                text = "Offered only if the target has a Recovery to spend.",
+            },
+        },
+        subject = creature.helpSymbols,
+        subjectDescription = "The creature using the ability.",
+        symbols = {
+            subject = {
+                name = "Subject",
+                type = "creature",
+                desc = "The creature using the ability.",
+            },
+            target = {
+                name = "Target",
+                type = "creature",
+                desc = "The creature chosen as the target.",
+            },
+        },
+    }
 end
 
 

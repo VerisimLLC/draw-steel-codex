@@ -109,11 +109,28 @@ local function _baseStyles()
             color = "@fgStrong",
             bold = false,
         },
-        -- Codex Note callout: full frame, keeping blockQuote's thick left bar.
+        -- Codex Note callout: an even 1px frame drawn as two rounded fills (frame
+        -- colour, then the body inset 1px). The rounded `border` shader leaves stray
+        -- ticks where each corner curve meets a straight edge; rounded fills don't.
         {
-            selectors = {"panel", "blockQuote", "codex-note"},
-            border = {x1 = 4, x2 = 1, y1 = 1, y2 = 1},
+            selectors = {"panel", "codex-note"},
+            bgimage = true,
+            bgcolor = "@fgStrong",
             cornerRadius = 8,
+            pad = 1,
+            borderBox = true,
+            vmargin = 8,
+        },
+        {
+            selectors = {"panel", "codex-note-body"},
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            bgimage = true,
+            bgcolor = "@bgAlt",
+            cornerRadius = 7,
+            hpad = 8,
+            borderBox = true,
         },
         -- Rulebook-style sidebar box (e.g. "Lots of Options!").
         {

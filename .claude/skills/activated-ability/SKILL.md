@@ -409,12 +409,12 @@ modeList:
 - text: Spend a Recovery
   targetCondition: Target.Recoveries Available to Spend > 0
   targetUnavailableText: This creature is out of Recoveries.
-reasonedFilters:                     # targets no mode can help
-- formula: Target.Recoveries Available to Spend > 0 or Target.Save Ends Effects
-  reason: This creature is out of Recoveries and has no Save Ends effects.
 ```
 
-- `condition` sees only the caster; `targetCondition` sees `Target.`.
+- `condition` sees only the caster; `targetCondition` (editor: "Target Filter") sees `Target.`.
+- A creature no mode passes is an invalid target automatically; no `reasonedFilter` needed.
+- Single target only: if `numTargets` works out above 1 for the caster, the ability behaves like normal modes.
+- All modes must share targeting and range; if they don't, don't use this.
 - If the target rolls, invoke a standard ability with `runOnController: true`.
 
 ### Villain Action with Forced Movement

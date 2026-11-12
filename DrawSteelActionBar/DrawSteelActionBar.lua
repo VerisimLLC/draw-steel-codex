@@ -10011,7 +10011,11 @@ local function CreateTargetInfo(spell)
             -- ignored, and the arrow's reason label flashes red for emphasis.
             -- Directors bypass this.
             if (not dmhub.isDM) and dmhub.GetSettingValue("strict:targeting") then
-                if targetToken.sheet ~= nil and targetToken.sheet.data.targetValid == false then
+                -- A target already chosen can always be clicked again to deselect it, so a
+                -- player can drop one that became invalid after they picked it.
+                if targetToken.sheet ~= nil and targetToken.sheet.data.targetValid == false
+                    and not (list_contains(g_targetsChosen, targetToken.id)
+                        and not spell:CanTargetAdditionalTimes(g_token, g_currentSymbols, g_targetsChosen, targetToken)) then
                     if m_markLineOfSight ~= nil and m_markLineOfSightToken == targetToken then
                         m_markLineOfSight:FlashLabels()
                     else
@@ -11861,7 +11865,9 @@ CreateAbilityController = function()
 
     --Switches the cast in progress to modeIndex: swaps in that mode's variation,
     --re-arms targeting (chosen targets are kept) and refreshes cost and prompt.
-    local function SelectCastMode(modeIndex)
+    --castNow: the press is the cast itself (target-first abilities), so cast
+    --straight away instead of running a targeting pass the cast would redo.
+    local function SelectCastMode(modeIndex, castNow)
         if g_currentAbility == nil or g_token == nil then return end
         g_currentSymbols.mode = modeIndex
 
@@ -11900,6 +11906,11 @@ CreateAbilityController = function()
         --CalculateSpellTargeting so a Movement-Speed bump recalculates the
         --pathfind reachable area for the new mode.
         RefreshCastingDurationEffects()
+
+        if castNow then
+            CalculateSpellTargeting(true)
+            return
+        end
 
         CalculateSpellTargeting()
         --TODO: resourcesBar
@@ -11947,15 +11958,6 @@ CreateAbilityController = function()
         }
     end
 
-    --The mode's own condition, which is about the caster (e.g. "has a free hand").
-    local function CasterCanUseMode(mode)
-        if mode.condition == nil or mode.condition == "" or g_token == nil then
-            return true
-        end
-        local result = ExecuteGoblinScript(mode.condition, g_token.properties:LookupSymbol(), 1, "Mode condition")
-        return type(result) == "number" and result > 0
-    end
-
     --Sits above the mode buttons; says why a target-first ability's mode is missing.
     local castModeNotesPanel = gui.Panel {
         classes = { 'collapsed' },
@@ -11990,7 +11992,7 @@ CreateAbilityController = function()
             --A cast is in progress, so g_token is its caster.
             ---@cast g_token -nil
 
-            if g_currentAbility.multipleModes == true and g_currentAbility.chooseModeAfterTargeting then
+            if g_currentAbility:UsesTargetFirstModes(g_token, g_currentSymbols) then
                 --Target first, then mode (e.g. Heal): nothing to show until a target is
                 --picked. Then each mode is checked against that target; a mode it can't
                 --use shows why instead of a button, and pressing a button casts.
@@ -12001,33 +12003,48 @@ CreateAbilityController = function()
                     return
                 end
 
-                local symbols = { target = GenerateSymbols(targetToken.properties) }
-                local notes = {}
+                local noteTexts = {}
                 local buttons = {}
                 for i, mode in ipairs(g_currentAbility.modeList) do
-                    if CasterCanUseMode(mode) then
-                        local targetCondition = mode.targetCondition or ""
-                        if targetCondition == "" or GoblinScriptTrue(ExecuteGoblinScript(targetCondition,
-                                g_token.properties:LookupSymbol(symbols), 0, "Mode target condition")) then
-                            buttons[#buttons + 1] = ModeButton(i, mode, false, function(modeIndex)
-                                SelectCastMode(modeIndex)
-                                CalculateSpellTargeting(true)
-                            end)
-                        elseif (mode.targetUnavailableText or "") ~= "" then
-                            notes[#notes + 1] = gui.Label {
-                                classes = { "warning" },
-                                text = mode.targetUnavailableText,
-                                fontSize = 14,
-                                width = "auto",
-                                maxWidth = 400,
-                                height = "auto",
-                                textWrap = true,
-                                textAlignment = "center",
-                                halign = "center",
-                                vmargin = 1,
-                            }
-                        end
+                    local available, failedOn = g_currentAbility:ModeAvailableForTarget(g_token, targetToken, i)
+                    if available then
+                        buttons[#buttons + 1] = ModeButton(i, mode, false, function(modeIndex)
+                            SelectCastMode(modeIndex, true)
+                        end)
+                    elseif failedOn == "target" and (mode.targetUnavailableText or "") ~= "" then
+                        noteTexts[#noteTexts + 1] = mode.targetUnavailableText
                     end
+                end
+
+                --No mode works on this creature. Targeting marks such a creature invalid,
+                --but a Director (or a player without strict targeting) can still pick it:
+                --say why, and offer a way back to targeting instead of a dead end.
+                if #buttons == 0 then
+                    if #noteTexts == 0 then
+                        noteTexts = { g_currentAbility:TargetFirstUnavailableReason(g_token, targetToken) }
+                    end
+                    buttons[1] = ModeButton(0, { text = "Choose another target" }, false, function()
+                        --A second click on a chosen target deselects it and re-runs targeting.
+                        if targetToken.valid and targetToken.sheet ~= nil then
+                            targetToken.sheet:FireEvent("tokenClick")
+                        end
+                    end)
+                end
+
+                local notes = {}
+                for _, text in ipairs(noteTexts) do
+                    notes[#notes + 1] = gui.Label {
+                        classes = { "warning" },
+                        text = text,
+                        fontSize = 14,
+                        width = "auto",
+                        maxWidth = 400,
+                        height = "auto",
+                        textWrap = true,
+                        textAlignment = "center",
+                        halign = "center",
+                        vmargin = 1,
+                    }
                 end
 
                 --The buttons get the same row as ordinary modes; the notes go above it.
@@ -12042,7 +12059,7 @@ CreateAbilityController = function()
             local children = {}
 
             for i, mode in ipairs(g_currentAbility.modeList) do
-                if CasterCanUseMode(mode) then
+                if g_currentAbility:ModeAvailableForTarget(g_token, nil, i) then
                     children[#children + 1] = ModeButton(i, mode, i == g_currentSymbols.mode, SelectCastMode)
                 elseif i == g_currentSymbols.mode then
                     changeMode = true
@@ -15294,6 +15311,7 @@ local function CalculateSpellTargetFocusing(symbols)
         end
 
         local proximityOrigin, proximityRange = DrawSteelActionBar.ProximityTargetingOrigin(g_currentAbility, g_token)
+        local targetFirstModes = spell:UsesTargetFirstModes(g_token, symbols)
 
         for _, targetToken in ipairs(allTokens) do
             if targetToken.valid and targetToken.sheet ~= nil then
@@ -15467,6 +15485,12 @@ local function CalculateSpellTargetFocusing(symbols)
                             targetProximityOrigin or DrawSteelActionBar.RangeMeasureOrigin(g_currentAbility, g_token, targetToken))
                     end
 
+                    --Target-first abilities (Heal): a creature in reach that no mode can be
+                    --used on is invalid, with each mode's Unavailable Text as the reason.
+                    if failReason == nil and targetFirstModes then
+                        failReason = spell:TargetFirstUnavailableReason(g_token, targetToken)
+                    end
+
                     local valid = failReason == nil
 
                     if targetToken.valid and targetToken.sheet ~= nil then
@@ -15613,9 +15637,8 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
         local hasPromptOverride = (g_currentAbility:try_get("promptOverride") ~= nil or awaitsModeChoice)
             and not g_manualTargetChosen
         --Target-then-mode abilities (Heal) never cast on the target click: the mode
-        --buttons that appear afterwards are what cast (they pass forceCast). Plain
-        --Multiple Modes only; Ability Variations swap in another ability per mode.
-        local modeAfterTargeting = g_currentAbility.multipleModes == true and g_currentAbility.chooseModeAfterTargeting
+        --buttons that appear afterwards are what cast (they pass forceCast).
+        local modeAfterTargeting = g_currentAbility:UsesTargetFirstModes(g_token, g_currentSymbols)
         if modeAfterTargeting then
             hasPromptOverride = true
         end
@@ -15747,7 +15770,14 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
 
             local promptText = g_currentAbility:PromptText(g_token, shownTargets, g_currentSymbols, synthesizedSpells)
             if modeAfterTargeting and #shownTargets > 0 and shownTargets[1].token ~= nil then
-                promptText = string.format("%s %s: choose an option", g_currentAbility.name, creature.GetTokenDescription(shownTargets[1].token))
+                local targetToken = shownTargets[1].token --[[@as CharacterToken]]
+                local targetName = creature.GetTokenDescription(targetToken)
+                --When no mode works on this target, say so rather than asking for a choice.
+                if g_currentAbility:TargetFirstUnavailableReason(g_token, targetToken) ~= nil then
+                    promptText = string.format("%s can't be used on %s", g_currentAbility.name, targetName)
+                else
+                    promptText = string.format("%s %s: choose an option", g_currentAbility.name, targetName)
+                end
             end
             --Abilities that need no targets (targetType 'all', zero targets) have no
             --prompt of their own, which left a bare Confirm button with nothing

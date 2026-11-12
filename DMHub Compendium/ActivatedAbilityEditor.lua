@@ -660,13 +660,13 @@ function ActivatedAbility:TargetTypeEditor()
 					},
 
 					--Target first, then mode (Heal): turning this on adds a Target
-					--Condition and Unavailable Text to every mode below. Not offered for
+					--Filter and Unavailable Text to every mode below. Not offered for
 					--Ability Variations, which swap in a whole other ability per mode.
 					gui.Check{
 						classes = {cond(self.multipleModes == true, nil, "collapsed")},
 						text = "Choose Mode After Targeting",
 						value = self.chooseModeAfterTargeting == true,
-						hover = gui.Tooltip("The player picks a target first. The mode buttons then appear, and pressing one casts. A mode whose Target Condition fails for that target shows its Unavailable Text instead of a button."),
+						hover = gui.Tooltip("Mode buttons appear after the caster chooses their target. When a mode's Target Filter fails for a target, the Unavailable Text is shown instead of its button, explaining why."),
 						change = function(element)
 							self.chooseModeAfterTargeting = element.value
 							resultPanel:FireEventTree("refreshAbility")
@@ -768,12 +768,13 @@ function ActivatedAbility:TargetTypeEditor()
 
 						},
 
-						--Checked against the chosen target (Mode Condition only sees the caster).
+						--Stored as targetCondition. Checked against the chosen target (Mode
+						--Condition only sees the caster).
 						gui.Panel{
 							classes = {"formPanel", cond(self.multipleModes == true and self.chooseModeAfterTargeting, nil, "collapsed")},
 							gui.Label{
 								classes = "formLabel",
-								text = "Target Condition:",
+								text = "Target Filter:",
 							},
 
 							gui.GoblinScriptInput{
@@ -786,31 +787,7 @@ function ActivatedAbility:TargetTypeEditor()
 									resultPanel:FireEventTree("refreshAbility")
 								end,
 
-								documentation = {
-									domains = self.domains,
-									help = "GoblinScript checked against the chosen target. If it is false, this mode shows its Unavailable Text instead of a button. Leave blank to always offer the mode.",
-									output = "boolean",
-									examples = {
-										{
-											script = "Target.Recoveries Available to Spend > 0",
-											text = "Offered only if the target has a Recovery to spend.",
-										},
-									},
-									subject = creature.helpSymbols,
-									subjectDescription = "The creature using the ability.",
-									symbols = {
-										subject = {
-											name = "Subject",
-											type = "creature",
-											desc = "The creature using the ability.",
-										},
-										target = {
-											name = "Target",
-											type = "creature",
-											desc = "The creature chosen as the target.",
-										},
-									},
-								},
+								documentation = ActivatedAbility.ModeTargetFilterDocs(self.domains),
 							},
 						},
 
@@ -825,7 +802,7 @@ function ActivatedAbility:TargetTypeEditor()
 								classes = "formInput",
 								text = modeEntry.targetUnavailableText or "",
 								characterLimit = 200,
-								placeholderText = "Shown when the target fails the condition",
+								placeholderText = "Shown when the target fails the filter",
 								change = function(element)
 									modeEntry.targetUnavailableText = element.text
 									resultPanel:FireEventTree("refreshAbility")

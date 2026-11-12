@@ -9000,6 +9000,35 @@ function MonsterAI:ExecuteAbility(casterToken, ability, targets, options)
         return false
     end
 
+    --A multi-mode ability only casts in a mode its rules allow: the mode's caster
+    --condition and, for each target, its Target Filter. Moves pick the mode; this
+    --stops one that skipped the check (e.g. Heal's save on a creature with nothing to save).
+    local modeList = ability.multipleModes == true and ability:try_get("modeList") or nil
+    if modeList ~= nil and modeList[symbols.mode] ~= nil then
+        local blockedFor = nil
+        if not ability:ModeAvailableForTarget(casterToken, nil, symbols.mode) then
+            blockedFor = "the caster"
+        end
+        for _,targetInfo in ipairs(targets) do
+            if blockedFor == nil and targetInfo.token ~= nil
+                and not ability:ModeAvailableForTarget(casterToken, targetInfo.token, symbols.mode) then
+                blockedFor = self.TokenLogName(targetInfo.token)
+            end
+        end
+        if blockedFor ~= nil then
+            self:LogDecision("ABILITY CAST REJECTED", {
+                actor = self.TokenLogName(casterToken),
+                actorId = casterToken ~= nil and casterToken.charid or nil,
+                ability = ability.name,
+                action = self.AbilityActionLogName(ability),
+                targets = self.TargetsLogName(targets),
+                mode = symbols.mode,
+                reason = string.format("mode %s is not available for %s", tostring(symbols.mode), blockedFor),
+            })
+            return false
+        end
+    end
+
     if targetArea ~= nil and options.telegraphArea ~= false then
         self:TelegraphAreaAbility(ability, targetArea, symbols)
     end

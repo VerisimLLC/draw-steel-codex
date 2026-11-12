@@ -2255,7 +2255,7 @@ _buildModesBlock = function(ability, fireChange)
                 bmargin = 8,
             }
 
-            -- Target first, then mode (Heal): turning this on adds a Target Condition
+            -- Target first, then mode (Heal): turning this on adds a Target Filter
             -- and Unavailable Text to every mode below. Not offered for Ability
             -- Variations, which swap in a whole other ability when a mode is picked.
             local plainModes = ability:try_get("multipleModes") == true
@@ -2267,7 +2267,7 @@ _buildModesBlock = function(ability, fireChange)
                         classes = {"nae-toggle-check"},
                         text = "Choose Mode After Targeting",
                         value = modeAfterTargeting,
-                        hover = gui.Tooltip("The player picks a target first. The mode buttons then appear, and pressing one casts. A mode whose Target Condition fails for that target shows its Unavailable Text instead of a button."),
+                        hover = gui.Tooltip("Mode buttons appear after the caster chooses their target. When a mode's Target Filter fails for a target, the Unavailable Text is shown instead of its button, explaining why."),
                         change = function(el)
                             ability.chooseModeAfterTargeting = el.value
                             fireChange()
@@ -2407,9 +2407,9 @@ _buildModesBlock = function(ability, fireChange)
                 }
 
                 if modeAfterTargeting then
-                    -- Checked against the chosen target once one is picked (unlike
-                    -- Mode Condition, which only sees the caster).
-                    modeChildren[#modeChildren + 1] = _makeFieldRow("Target Condition",
+                    -- Stored as targetCondition. Checked against the chosen target once one
+                    -- is picked (unlike Mode Condition, which only sees the caster).
+                    modeChildren[#modeChildren + 1] = _makeFieldRow("Target Filter",
                         gui.GoblinScriptInput{
                             classes = {"nae-field-input"},
                             width = 280,
@@ -2418,31 +2418,7 @@ _buildModesBlock = function(ability, fireChange)
                                 entry.targetCondition = el.value
                                 fireChange()
                             end,
-                            documentation = {
-                                domains = ability:try_get("domains"),
-                                help = "GoblinScript checked against the chosen target. If it is false, this mode shows its Unavailable Text instead of a button. Leave blank to always offer the mode.",
-                                output = "boolean",
-                                examples = {
-                                    {
-                                        script = "Target.Recoveries Available to Spend > 0",
-                                        text = "Offered only if the target has a Recovery to spend.",
-                                    },
-                                },
-                                subject = creature.helpSymbols,
-                                subjectDescription = "The creature using the ability.",
-                                symbols = {
-                                    subject = {
-                                        name = "Subject",
-                                        type = "creature",
-                                        desc = "The creature using the ability.",
-                                    },
-                                    target = {
-                                        name = "Target",
-                                        type = "creature",
-                                        desc = "The creature chosen as the target.",
-                                    },
-                                },
-                            },
+                            documentation = ActivatedAbility.ModeTargetFilterDocs(ability:try_get("domains")),
                         }
                     )
 
@@ -2450,7 +2426,7 @@ _buildModesBlock = function(ability, fireChange)
                         gui.Input{
                             classes = {"nae-field-input"},
                             characterLimit = 200,
-                            placeholderText = "Shown when the target fails the condition",
+                            placeholderText = "Shown when the target fails the filter",
                             text = entry.targetUnavailableText or "",
                             change = function(el)
                                 entry.targetUnavailableText = el.text

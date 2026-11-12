@@ -60,7 +60,7 @@ local TAIL_DOWN = 26
 --The icon rail runs down the screen's left edge; a card can't go under it.
 local RAIL_LEFT = 62
 
---The open tray: {face, Refresh, Select}.
+--The open tray: {face, Refresh, Select, SetSearch}.
 local g_tray = nil
 
 local function Styles()
@@ -3524,6 +3524,11 @@ local function CreateFace()
             if g_tray ~= nil and g_tray.face == face then
                 g_tray = nil
             end
+            --closing History ends a search: reopening shows the default view, not an old
+            --filter hiding new rows. (Minimising, 3.3, keeps the face and so the search.)
+            g_search.chips = {}
+            g_search.text = ""
+            g_open = {}
         end,
 
         --the window's own header names the panel, so this bar holds search and Latest.
@@ -3541,7 +3546,14 @@ local function CreateFace()
         list,
     }
 
-    g_tray = {face = face, Refresh = Refresh, Select = Select}
+    --SetSearch: g_search was changed from outside (History.OpenFor); show it.
+    local function SetSearch()
+        searchInput.textNoNotify = g_search.text
+        CloseSuggestions()
+        ApplySearch()
+    end
+
+    g_tray = {face = face, Refresh = Refresh, Select = Select, SetSearch = SetSearch}
     list.vscrollPosition = 0
     Refresh()
     return face
@@ -3552,6 +3564,21 @@ ThemeEngine.OnThemeChanged(mod, function()
         g_tray.face.styles = ThemeEngine.MergeStyles(Styles())
     end
 end)
+
+--- Opens History on one creature, from the token radial and hero cards (3.2). The search
+--- becomes just that creature's chip, replacing any search there was, and the window
+--- opens or comes to the front.
+--- @param token CharacterToken
+function History.OpenFor(token)
+    --open first: closing clears the search, so it is set only once the window is up.
+    DockablePanel.ShowPanelByName("History")
+    local who = History.Creature(token)
+    g_search.chips = {{kind = "creature", key = who.id, name = ShownName(who), who = who}}
+    g_search.text = ""
+    if g_tray ~= nil and g_tray.face.valid then
+        g_tray.SetSearch()
+    end
+end
 
 --A rail panel like Chat, so it gets the rail windows' frame, pin, pop out and Font Size zoom.
 DockablePanel.Register{

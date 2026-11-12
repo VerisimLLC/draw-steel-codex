@@ -389,6 +389,12 @@ Goal: why it happened, one click from the row.
   - **Active:** effects are matched exactly by their instance id (`instanceid` on `effectstarted`); bare conditions by the newest row that started them.
   - **Show all replaced by Latest** (James): it shows only when you are away from the default view (scrolled up, older rows loaded, a fold changed by hand). It resets the folds and jumps to the newest row.
   - **Type search** (James, option A): creature suggestions also match a hero's class for everyone, and a monster's organisation, role, keywords and monster name for the Director only. Types are read from the live token. When two or more creatures share a type there is an `All {type}` row and chip. Name matches rank above type matches.
+- **3.2 (built 2026-11-12):**
+  - **Entry points:** a History slot at the top of every token's radial (angle 0), and a History chip just left of the hero card's centred flip button. Both use the rail's History icon in the house look, with no gold (James); the card chip turns gold on hover like the flip button.
+  - **What they do:** `History.OpenFor(token)` replaces the search with that creature's chip and opens or raises the window.
+  - **Placement:** the card chip stays out of the top-left corner, which belongs to the trigger and downtime badges.
+  - **Closing:** closing History clears the search and hand-made folds (James); minimising (3.3) will keep them.
+  - **Card chip availability:** it is added when the card is built, so turning History on mid-game needs the cards rebuilt.
 - **Engine follow-up (Latest bounce):** `SheetScrollView` keeps its wheel smooth-scroll target until the list gets within 0.001 of it. On a short list it can stall at 0.997, and setting `vscrollPosition` from Lua does not clear the target, so the list eases back. Fix in dmhubclient: the setter (`SheetPanel.cs` `vscrollPosition`) clears the target. Nothing on the codex side.
 
 ## Stage 4: movement views

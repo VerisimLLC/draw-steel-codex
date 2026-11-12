@@ -1703,7 +1703,10 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
 		end
 	end
 
-	if not GameSystem.AllowTargeting(casterToken, targetToken, self) then
+	--A refusal with a reason (a Hidden enemy) is a warning the Director or a player may
+	--override. Keep checking so any hard refusal below still wins, and return it at the end.
+	local allowed, warningReason = GameSystem.AllowTargeting(casterToken, targetToken, self)
+	if not allowed and warningReason == nil then
 		return false
 	end
 
@@ -1829,8 +1832,10 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
 
     if filterOverride == nil then
         for _,filter in ipairs(self:try_get("customTargetFilters", {})) do
-            local passes = self:TargetPassesFilter(casterToken, targetToken, symbols, filter)
-            if not passes then
+            local passes, reason = self:TargetPassesFilter(casterToken, targetToken, symbols, filter)
+            --Called again for each custom filter, this returns the Hidden warning too.
+            --Only a different refusal means the custom filter failed.
+            if not passes and (reason == nil or reason ~= warningReason) then
                 return false
             end
         end
@@ -1839,6 +1844,9 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
     local filter = filterOverride or self.targetFilter
     local reasonedFilters = self:try_get("reasonedFilters", {})
     if filter == "" and #reasonedFilters == 0 then
+        if warningReason ~= nil then
+            return false, warningReason
+        end
         return true
     end
 
@@ -1862,6 +1870,10 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
         if not result then
             return false, ActivatedAbility.FormatFilterReason(reasonedFilter, symbols)
         end
+    end
+
+    if warningReason ~= nil then
+        return false, warningReason
     end
 
     return result

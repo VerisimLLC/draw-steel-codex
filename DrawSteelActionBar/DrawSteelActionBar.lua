@@ -15306,22 +15306,11 @@ local function CalculateSpellTargetFocusing(symbols)
                     end
                 end
 
-                if canTarget and targetToken.properties:HasNamedCondition("Hidden") and g_currentAbility:HasKeyword("Strike") then
-                    local ignoreRange = g_token.properties:CalculateNamedCustomAttribute("Ignore Hidden Within Range") or 0
-                    local bypass = false
-                    if ignoreRange > 0 then
-                        local dist = g_token:Distance(targetToken)
-                        if dist <= ignoreRange then
-                            bypass = true
-                        end
-                    end
-                    --Shadowmeld: a caster in front of the wall the target melded into can see it.
-                    if (not bypass) and RuleUtils.WallMeldSeesTarget(g_token, targetToken) then
-                        bypass = true
-                    end
-                    if not bypass then
-                        failReason = "Cannot target a hidden creature with a strike"
-                    end
+                --A warning, not a block, for allies too. For a hidden enemy this swaps the
+                --general Hidden warning for the strike wording.
+                if canTarget and targetToken.properties:HasNamedCondition("Hidden") and g_currentAbility:HasKeyword("Strike")
+                    and not RuleUtils.SeesPastHidden(g_token, targetToken) then
+                    failReason = "Cannot target a hidden creature with a strike"
                 end
 
                 if targetToken.properties:CalculateNamedCustomAttribute("Untargetable") > 0 then

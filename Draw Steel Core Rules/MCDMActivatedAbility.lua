@@ -6000,13 +6000,15 @@ local function IncludedTargetCharids(ability, casterToken, symbols, floorIndex)
 end
 
 function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, filterOverride)
-    local result, reason = g_baseTargetPassesFilter(self, casterToken, targetToken, symbols, filterOverride)
-    if not result then
+    local result, reason, warningKind = g_baseTargetPassesFilter(self, casterToken, targetToken, symbols, filterOverride)
+    --A Hidden target still gets the line-of-effect checks below: "no line of effect"
+    --matters more than "hidden", so it is the reason the player sees.
+    if not result and warningKind ~= "hidden" then
         return result, reason
     end
 
     if casterToken == nil or targetToken == nil or targetToken.isObject then
-        return result, reason
+        return result, reason, warningKind
     end
 
     --Area abilities are exempt from the caster's own line-of-effect denial: they need line
@@ -6042,7 +6044,7 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
     local blocker = RuleUtils.LineOfEffectBlocker(casterToken, targetToken, originLoc,
         IncludedTargetCharids(self, casterToken, symbols, floorIndex))
     if blocker == nil then
-        return result, reason
+        return result, reason, warningKind
     end
 
     return false, string.format("%s blocks line of effect to this creature.", RuleUtils.LineOfEffectBlockerName(blocker))

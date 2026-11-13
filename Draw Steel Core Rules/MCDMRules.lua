@@ -1609,12 +1609,14 @@ end, 10)
 --- reason is a warning: the action bar shows the reason and still lets the target be
 --- picked, unless strict targeting is on and the user is not the Director. A refusal
 --- without one is absolute. Callers that read only the first value (the Monster AI,
---- scripted casts) treat both as a refusal.
+--- scripted casts) treat both as a refusal. The third value is "hidden" when the only
+--- problem is that the target is Hidden, so callers can rank that warning below others.
 --- @param casterToken CharacterToken
 --- @param targetToken CharacterToken
 --- @param ability ActivatedAbility
 --- @return boolean allowed
 --- @return string|nil reason
+--- @return "hidden"|nil warningKind
 function GameSystem.AllowTargeting(casterToken, targetToken, ability)
 	-- Hidden: "While you are hidden from another creature, the creature can't
 	-- target you with abilities that don't have the Area keyword." A creature
@@ -1643,7 +1645,11 @@ function GameSystem.AllowTargeting(casterToken, targetToken, ability)
 			return false
 		end
 		-- Otherwise it is only a warning: the Director or a player can still pick it.
-		hiddenReason = "Cannot target a hidden creature except with an Area ability"
+		if ability:HasKeyword("Strike") then
+			hiddenReason = "Cannot target a hidden creature with a strike"
+		else
+			hiddenReason = "Cannot target a hidden creature except with an Area ability"
+		end
 	end
 
 	-- Untargetable By Strikes (Shadow Veil and similar): a creature with a non-zero
@@ -1671,7 +1677,7 @@ function GameSystem.AllowTargeting(casterToken, targetToken, ability)
 
 	-- Reported last, so a hard refusal above still wins for a creature that is also Hidden.
 	if hiddenReason ~= nil then
-		return false, hiddenReason
+		return false, hiddenReason, "hidden"
 	end
 
 	return true

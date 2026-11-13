@@ -398,7 +398,7 @@ RuleUtils = {
     --- target is within the viewer's "Ignore Hidden Within Range" (the boomdog, demons'
     --- Soulsight), or it is wall-melded and the viewer stands in front of that wall.
     --- The range counts height, so a creature 4 squares straight up is out of a range of 3.
-    --- Every place that applies the Hidden targeting rule asks this, so they all agree.
+    --- Use it before treating a Hidden creature as hidden from a particular viewer.
     --- @param viewerToken CharacterToken
     --- @param targetToken CharacterToken
     --- @return boolean

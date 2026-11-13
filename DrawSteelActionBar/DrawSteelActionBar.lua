@@ -1342,6 +1342,69 @@ function DrawSteelActionBar._flight.CreatePoller()
     }
 end
 
+--Hidden watch: a creature can stop being Hidden while a target is being picked (a charging
+--hero lands next to a hidden monster, and the host's reveal arrives after the attack prompt
+--opened). The target list is built once, so rebuild it when anyone's Hidden state changes.
+DrawSteelActionBar._hiddenWatch = {
+    signature = nil, --Hidden state of the map when the target list was last built
+    pending = false, --a rebuild is already scheduled
+}
+
+--- Lists every creature on the map that is Hidden or invisible to this client, as one
+--- string, so two calls can be compared to see whether anyone's Hidden state changed.
+--- @return string
+function DrawSteelActionBar._hiddenWatch.Signature()
+    local parts = {}
+    for _, token in ipairs(dmhub.allTokens) do
+        if token.valid and not token.isObject and token.properties ~= nil then
+            if token.hiddenFromLocalViewer then
+                parts[#parts + 1] = token.charid .. "!"
+            elseif token.properties:IsHidden() then
+                parts[#parts + 1] = token.charid
+            end
+        end
+    end
+    table.sort(parts)
+    return table.concat(parts, ",")
+end
+
+--- Rebuilds the target list of the ability being cast, if one still is.
+function DrawSteelActionBar._hiddenWatch.Rebuild()
+    if g_currentAbility ~= nil and g_token ~= nil and g_token.valid then
+        CalculateSpellTargeting()
+    end
+end
+
+--- A tiny panel in the ability controller that watches creature changes while a target is
+--- being picked, and rebuilds the target list when someone's Hidden state changed.
+--- @return Panel
+function DrawSteelActionBar._hiddenWatch.CreateWatcher()
+    return gui.Panel {
+        width = 1,
+        height = 1,
+        monitorGame = "/characters",
+        refreshGame = function(element)
+            local watch = DrawSteelActionBar._hiddenWatch
+            if g_currentAbility == nil or watch.pending or watch.signature == nil then
+                return
+            end
+            if watch.Signature() == watch.signature then
+                return
+            end
+            watch.pending = true
+            --Waits a moment: the engine works out who this client can see in its own token
+            --refresh, which may run after this change arrives.
+            dmhub.Schedule(0.1, function()
+                watch.pending = false
+                if mod.unloaded then
+                    return
+                end
+                watch.Rebuild()
+            end)
+        end,
+    }
+end
+
 local function ClearMovementDiagram()
     if not CrossSection.movementShown then
         return
@@ -12469,6 +12532,9 @@ CreateAbilityController = function()
         --reads the wheel while a flier picks an ability move destination.
         DrawSteelActionBar._flight.CreatePoller(),
 
+        --rebuilds the target list when a creature is revealed or hides mid-targeting.
+        DrawSteelActionBar._hiddenWatch.CreateWatcher(),
+
         g_ammoChoicePanel,
         g_synthesizedSpellsPanel,
         g_castChargesInput,
@@ -12923,6 +12989,9 @@ CreateAbilityController = function()
             --Director overview (slice (e)): whatever ended this cast, the
             --pending implicit-claim record dies with it.
             g_overviewCastPending = nil
+
+            --no target list any more, so the Hidden watch has nothing to rebuild.
+            DrawSteelActionBar._hiddenWatch.signature = nil
 
             ClearCastingTriggers()
 
@@ -15428,19 +15497,29 @@ local function CalculateSpellTargetFocusing(symbols)
                 end
 
                 local failReason = nil
+                --The Hidden warning is the least important reason: it is held here and
+                --shown only if range, line of effect and the other checks below all pass.
+                local hiddenReason = nil
 
                 if canTarget then
-                    canTarget, failReason = spell:TargetPassesFilter(g_token, targetToken, symbols)
+                    local warningKind
+                    canTarget, failReason, warningKind = spell:TargetPassesFilter(g_token, targetToken, symbols)
                     if failReason ~= nil then
                         canTarget = true
                     end
+                    if warningKind == "hidden" then
+                        hiddenReason = failReason
+                        failReason = nil
+                    end
                 end
 
-                --A warning, not a block, for allies too. For a hidden enemy this swaps the
-                --general Hidden warning for the strike wording.
-                if canTarget and targetToken.properties:HasNamedCondition("Hidden") and g_currentAbility:HasKeyword("Strike")
+                --The targeting rule treats Hidden creatures as hidden from enemies only, but an
+                --ally may not be able to see a hidden friend either, so warn before a strike on one.
+                if canTarget and hiddenReason == nil and targetToken.charid ~= g_token.charid
+                    and g_token:IsFriend(targetToken) and g_currentAbility:HasKeyword("Strike")
+                    and targetToken.properties:HasNamedCondition("Hidden")
                     and not RuleUtils.SeesPastHidden(g_token, targetToken) then
-                    failReason = "Cannot target a hidden creature with a strike"
+                    hiddenReason = "Cannot target a hidden creature with a strike"
                 end
 
                 if targetToken.properties:CalculateNamedCustomAttribute("Untargetable") > 0 then
@@ -15514,6 +15593,7 @@ local function CalculateSpellTargetFocusing(symbols)
                         failReason = spell:TargetFirstUnavailableReason(g_token, targetToken)
                     end
 
+                    failReason = failReason or hiddenReason
                     local valid = failReason == nil
 
                     if targetToken.valid and targetToken.sheet ~= nil then
@@ -15599,6 +15679,9 @@ local function CalculateSpellTargetFocusing(symbols)
         g_lastTargetDiagLine = diagLine
         print(string.format("%s T=%.2f", diagLine, dmhub.Time()))
     end
+
+    --what the Hidden watch compares against to notice a reveal mid-targeting.
+    DrawSteelActionBar._hiddenWatch.signature = DrawSteelActionBar._hiddenWatch.Signature()
 
     return potentialTargetTokens
 end

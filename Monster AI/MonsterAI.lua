@@ -5444,7 +5444,7 @@ function MonsterAI:FindValidTargetsOfStrike(token, ability, loc, range)
         for i=1,#self.enemyTokens do
             local enemy = self.enemyTokens[i]
             if self.TokenIsLiveCombatant(enemy) then
-                --This also applies the Hidden rule: a hidden enemy only counts when this
+                --TargetPassesFilter applies the Hidden rule too: a hidden enemy counts only when this
                 --creature can see past Hidden from where it stands now, not where it may move.
                 local filterProf = ProfBegin("TargetPassesFilter")
                 local canTarget = ability:TargetPassesFilter(token, enemy, {})

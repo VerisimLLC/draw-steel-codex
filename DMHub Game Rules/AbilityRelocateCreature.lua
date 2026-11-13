@@ -195,11 +195,7 @@ function ActivatedAbilityRelocateCreatureBehavior:HasChargeAttackTarget(casterTo
             local symbols = {caster = props}
             local range = attack:GetRange(props, symbols) + dmhub.unitsPerSquare
             for _, target in ipairs(dmhub.allTokens) do
-                local hiddenFromStrike = target.valid and attack:HasKeyword("Strike")
-                    and target.properties:HasNamedCondition("Hidden")
-                    and not RuleUtils.SeesPastHidden(casterToken, target)
                 if target.valid and attack:TargetPassesFilter(casterToken, target, symbols)
-                    and not hiddenFromStrike
                     and casterToken:Distance(target) < range
                     and math.abs(casterToken.altitude - target.altitude) * dmhub.unitsPerSquare < range
                     and casterToken:GetLineOfSight(target, props:GetPierceWalls()) > 0 then

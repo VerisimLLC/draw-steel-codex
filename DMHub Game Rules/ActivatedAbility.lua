@@ -1686,7 +1686,7 @@ end
 --- @param targetToken CharacterToken
 --- @param symbols table
 --- @param filterOverride nil|string
---- @return boolean, nil|string The first value is true if the target passes the filter, false otherwise. The second value can be a reason why the target does not match the filter.
+--- @return boolean, nil|string, nil|string The first value is true if the target passes the filter, false otherwise. The second value can be a reason why the target does not match the filter. The third is "hidden" when that reason is only the Hidden warning (see GameSystem.AllowTargeting).
 function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, filterOverride)
 
 	local conditionid = self:PrimaryConditionID()
@@ -1707,7 +1707,7 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
 
 	--A refusal with a reason (a Hidden enemy) is a warning the Director or a player may
 	--override. Keep checking so any hard refusal below still wins, and return it at the end.
-	local allowed, warningReason = GameSystem.AllowTargeting(casterToken, targetToken, self)
+	local allowed, warningReason, warningKind = GameSystem.AllowTargeting(casterToken, targetToken, self)
 	if not allowed and warningReason == nil then
 		return false
 	end
@@ -1833,21 +1833,22 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
     end
 
     if filterOverride == nil then
-        for _,filter in ipairs(self:try_get("customTargetFilters", {})) do
-            local passes, reason = self:TargetPassesFilter(casterToken, targetToken, symbols, filter)
-            --Called again for each custom filter, this returns the Hidden warning too.
-            --Only a different refusal means the custom filter failed.
-            if not passes and (reason == nil or reason ~= warningReason) then
-                return false
-            end
+        local passes, filterReason = self:TargetPassesAuthoredFilters(casterToken, targetToken, symbols)
+        if not passes then
+            return false, filterReason
         end
+        if warningReason ~= nil then
+            return false, warningReason, warningKind
+        end
+        return true
     end
 
-    local filter = filterOverride or self.targetFilter
+    --A caller's own filter formula replaces the ability's custom filters and target filter.
+    local filter = filterOverride
     local reasonedFilters = self:try_get("reasonedFilters", {})
     if filter == "" and #reasonedFilters == 0 then
         if warningReason ~= nil then
-            return false, warningReason
+            return false, warningReason, warningKind
         end
         return true
     end
@@ -1875,7 +1876,7 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
     end
 
     if warningReason ~= nil then
-        return false, warningReason
+        return false, warningReason, warningKind
     end
 
     return result

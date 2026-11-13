@@ -538,11 +538,22 @@ MonsterAI:RegisterMaliceAbility{
             return
         end
 
+        --The caster marches last. It invokes every undead's march, and an invoke ends
+        --once its invoker has left the map, so if the caster died partway the undead
+        --after it would not move. The cost: the caster lands where the others left room.
         local targets = {}
         local participants = {}
+        local casterMarches = false
         for _,undead in ipairs(plan.undead) do
-            targets[#targets+1] = {token = undead}
+            if undead.charid == token.charid then
+                casterMarches = true
+            else
+                targets[#targets+1] = {token = undead}
+            end
             participants[undead.charid] = true
+        end
+        if casterMarches then
+            targets[#targets+1] = {token = token}
         end
 
         local promptTokens = {token}

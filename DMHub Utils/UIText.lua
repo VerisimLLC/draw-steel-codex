@@ -23,6 +23,16 @@ local mod = dmhub.GetModLoading()
 --    may look text up while it loads (tables of locations, projects, ...).
 --  * A missing id shows as "[id]" and is reported once in the DebugConsole.
 --
+--  A product that runs this code under another white label can reword any
+--  entry for itself, without touching the shared text file:
+--
+--      local override = UIText.DefineOverrides("DMHubText", "dmhub")
+--      override("inn.carouse.title", [[Carouse at the inn]])
+--
+--  An override counts only when the app runs as that white label, and then
+--  wins over the entry's normal text whichever file loads first. It may use
+--  the normal text's {placeholders} but no others: the code passes only those.
+--
 --tests/uitext_check.lua checks the text files against the code that uses
 --them: every id exists, the placeholders match, nothing is defined twice.
 
@@ -35,6 +45,10 @@ UIText.showIds = false
 --id -> text, and id -> the name of the file that defined it.
 local g_text = {}
 local g_source = {}
+
+--id -> this white label's override text, and id -> the file that defined it.
+local g_override = {}
+local g_overrideSource = {}
 
 --ids already reported missing or broken, so each is reported once.
 local g_reported = {}
@@ -60,11 +74,29 @@ function UIText.Define(sourceName)
     end
 end
 
+--- Returns the function a text file uses to reword entries for one white
+--- label. Entries for any other white label are ignored.
+--- @param sourceName string The text file's name, for duplicate reports.
+--- @param whiteLabel WhiteLabel The white label the overrides are for ("dmhub" or "mcdm").
+--- @return fun(id: string, text: string)
+function UIText.DefineOverrides(sourceName, whiteLabel)
+    return function(id, text)
+        if whiteLabel ~= dmhub.whiteLabel then
+            return
+        end
+        if g_overrideSource[id] ~= nil and g_overrideSource[id] ~= sourceName then
+            Report("dupoverride:" .. id, string.format("'%s' is overridden in both %s and %s", id, g_overrideSource[id], sourceName))
+        end
+        g_override[id] = text
+        g_overrideSource[id] = sourceName
+    end
+end
+
 --- True if the id has text.
 --- @param id string
 --- @return boolean
 function UIText.Has(id)
-    return g_text[id] ~= nil
+    return g_text[id] ~= nil or g_override[id] ~= nil
 end
 
 --Fills {name} placeholders from args. A placeholder with no value is left
@@ -88,7 +120,7 @@ end
 --- @param args? table<string, any>
 --- @return string
 function UIText.T(id, args)
-    local text = g_text[id]
+    local text = g_override[id] or g_text[id]
     if text == nil then
         Report("missing:" .. id, string.format("no text for '%s'", id))
         return "[" .. id .. "]"
@@ -162,6 +194,10 @@ end
 function UIText.All()
     local result = {}
     for k, v in pairs(g_text) do
+        result[k] = v
+    end
+    --this white label's overrides, as T shows them.
+    for k, v in pairs(g_override) do
         result[k] = v
     end
     return result

@@ -15,6 +15,10 @@ CharacterOngoingEffect.durationOptions = {
         text = 'Until End of Next Round',
     },
     {
+        id = 'end_of_any_turn',
+        text = 'Until Any Creature Ends Their Turn',
+    },
+    {
         id = 'end_of_next_turn',
         text = "Until End of Target's Next Turn",
     },

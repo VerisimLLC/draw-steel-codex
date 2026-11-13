@@ -326,6 +326,14 @@ local function Styles()
             selectors = {"historyCaret"},
             bgcolor = "@fgMuted",
         },
+        {
+            selectors = {"historySideView"},
+            bgcolor = "@fgMuted",
+        },
+        {
+            selectors = {"historySideView", "hover"},
+            bgcolor = "@fgStrong",
+        },
         --solid on purpose: with Transparent UI, a see-through fill shows the table behind
         --the window rather than a lighter row.
         {

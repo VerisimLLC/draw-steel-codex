@@ -429,6 +429,18 @@ Goal: why it happened, one click from the row.
 | 4.1 | Engine PR: draw the movement arrow and the side view from a saved start and path (`MarkMovementArrow`, `SetMovementCrossSection`, a way to build a `LuaPath` in Lua) | M |
 | 4.2 | Side-view button on movement captions, arrow, `CreateGhost` at the start square | S |
 
+### Stage 4 notes
+
+- **4.1 (built 2026-11-13, engine d9eb2b9af on dmhubclient `feat/saved-movement-path`, from upstream/master):** `dmhub.CreatePath(steps, {forced, flying, teleport})` builds a `LuaPath` from `{x, y, floor, altitude}` steps (altitude defaults to the ground). `token:MarkMovementArrow(nil, {path = p, separate = true})` draws it as given and returns `{path, marker}`. The side view (`SetMovementCrossSection`) already drew from the path's steps. Checked live in the dev build: arrow, ghost at the start, side view renders, normal arrows unchanged.
+  - **For 4.2:** History saves a path as positional lists `{x, y, floor, altitude}`, so 4.2 maps them to named fields. The ghost (`CreateGhost`) is parented to its token and follows it, which is fine for a hover preview. The side view shows other creatures where they stand now. `Definitions/` needs regenerating from the engine before the type check knows `CreatePath`.
+- **4.2 (built 2026-11-13):**
+  - **Where:** a muted arrow-elbow button at the end of a forced-move row in the card's What happened. Only in the full card, on the map shown, while the moved creature is still there. No button on an engine without `dmhub.CreatePath`.
+  - **Hover:** the arrow along the recorded path, a ghost on the start square (the path's first step, so it keeps its altitude), and the side view alone in a tooltip frame, as a drag shows it, with collision damage. All cleared on dehover.
+  - **L35 (James):** the tooltip has no title, to match the drag tooltip; "Side view" shows only when the move can't be drawn side-on (it crosses floors).
+  - **Several movers in one row:** each gets an arrow and a ghost; the side view is the first's.
+  - **Not built:** L36 (panels have no accessible names); a button on a standalone moved line; fall damage in the side view (History records squares fallen, not the damage).
+  - **Definitions:** only the `CreatePath` and `MarkMovementArrow` stubs from the dev build's regen; the rest of the regen was unrelated engine drift.
+
 ## Stage 5: everything else the old log shows
 
 | Chunk | What | Size |

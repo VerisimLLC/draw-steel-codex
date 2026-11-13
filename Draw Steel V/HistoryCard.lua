@@ -858,8 +858,161 @@ local function SectionHead(text, textWidth, width)
     }
 end
 
-local function StoryRow(row, width)
+--The side view (4.2): a button on a movement row. Hovering it draws the recorded move on
+--the map (the arrow, and a faded ghost on the square it started from) and shows the move
+--side-on, as the drag tooltip does. Needs the engine's dmhub.CreatePath (dmhubclient
+--feat/saved-movement-path); without it there is no button.
+local SIDE_VIEW_ICON = "phosphor/arrow-elbow-right-down-bold.png"
+--The side view is drawn at most this wide, as the drag tooltip's.
+local SIDE_VIEW_MAX_WIDTH = 340
+local g_canDrawPaths = pcall(function() return dmhub.CreatePath ~= nil end)
+
+--- The squares a creature was moved through, start first, as dmhub.CreatePath takes them,
+--- or nil. History saves them as plain {x, y, floor, altitude} lists.
+--- @param moved table|nil
+--- @return nil|{x: integer, y: integer, floor: integer, altitude: integer}[]
+local function MovedSteps(moved)
+    local path = moved ~= nil and moved.path or nil
+    if type(path) ~= "table" or #path < 2 then
+        return nil
+    end
+    local steps = {}
+    for i, step in ipairs(path) do
+        steps[i] = {x = step[1], y = step[2], floor = step[3], altitude = step[4]}
+    end
+    return steps
+end
+
+--- The creatures in a row whose move can be drawn, with their tokens. Only on the map shown.
+--- @param row HistoryStoryRow
+--- @param mapid string|nil
+--- @return {token: CharacterToken, steps: table[], moved: table}[]
+local function RowMovers(row, mapid)
+    local movers = {}
+    if not g_canDrawPaths or mapid == nil or mapid ~= game.currentMapId then
+        return movers
+    end
+    for _, who in ipairs(row.who or {}) do
+        local steps = MovedSteps(who.moved)
+        local token = steps ~= nil and dmhub.GetTokenById(who.id) or nil
+        if token ~= nil and token.valid then
+            movers[#movers + 1] = {token = token, steps = steps, moved = who.moved}
+        end
+    end
+    return movers
+end
+
+--- Draws each mover's recorded move on the map. Returns the markers and ghosts to destroy,
+--- and the first mover's path for the side view.
+--- @param movers {token: CharacterToken, steps: table[], moved: table}[]
+--- @return LuaMultiObjectReference[] shown
+--- @return LuaPath|nil firstPath
+local function ShowMoves(movers)
+    local shown = {}
+    local firstPath = nil
+    for i, mover in ipairs(movers) do
+        local path = dmhub.CreatePath(mover.steps, {forced = true})
+        if path ~= nil then
+            --nil targetLoc: options.path is drawn as given, with no pathfinding.
+            ---@diagnostic disable-next-line: param-type-mismatch
+            local arrow = mover.token:MarkMovementArrow(nil, {path = path, separate = true})
+            if arrow ~= nil and arrow.marker ~= nil then
+                shown[#shown + 1] = arrow.marker
+            end
+            --the path's own first step keeps the altitude it started at (a ledge, a flight).
+            local ghost = mover.token:CreateGhost(path.steps[1])
+            if ghost ~= nil then
+                shown[#shown + 1] = ghost
+            end
+            if i == 1 then
+                firstPath = path
+            end
+        end
+    end
+    return shown, firstPath
+end
+
+--- The side-view button for a row about creatures that were moved, or nil.
+--- @param row HistoryStoryRow
+--- @param mapid string|nil
+--- @return Panel|nil
+local function SideViewButton(row, mapid)
+    local movers = RowMovers(row, mapid)
+    if #movers == 0 then
+        return nil
+    end
+    local side = g_cardSide or "right"
+    --what the hover put on the map, destroyed when it ends.
+    --- @type LuaMultiObjectReference[]
+    local shown = {}
+    local function Clear()
+        for _, item in ipairs(shown) do
+            item:Destroy()
+        end
+        if #shown > 0 then
+            dmhub.ClearMovementCrossSection()
+        end
+        shown = {}
+    end
+    return gui.Panel{
+        classes = {"historySideView"},
+        bgimage = SIDE_VIEW_ICON,
+        width = 14,
+        height = 14,
+        lmargin = 6,
+        tmargin = 4,
+        valign = "top",
+        hover = function(element)
+            Clear()
+            local path
+            shown, path = ShowMoves(movers)
+            local mover = movers[1]
+            local collision = mover.moved.collision or 0
+            local view = path ~= nil and dmhub.SetMovementCrossSection{
+                token = mover.token,
+                path = path,
+                collisionDamage = collision > 0 and collision or nil,
+            } or nil
+            --framed as the drag tooltip frames it; the bare name (L35) only when the
+            --engine can't draw this move side-on (it crosses floors).
+            local contents
+            if view ~= nil then
+                local scale = math.min(1, SIDE_VIEW_MAX_WIDTH / view.width)
+                contents = gui.Panel{
+                    bgimage = view.image,
+                    bgcolor = "white",
+                    width = view.width * scale,
+                    height = view.height * scale,
+                }
+            else
+                contents = gui.Label{
+                    text = "Side view",
+                    fontSize = 14,
+                    width = "auto",
+                    height = "auto",
+                }
+            end
+            element.tooltip = gui.TooltipFrame(contents, {interactable = false, halign = side, valign = "center"})
+        end,
+        dehover = function(element)
+            Clear()
+            element.tooltip = nil
+        end,
+        destroy = function(element)
+            Clear()
+        end,
+    }
+end
+
+--- @param row HistoryStoryRow
+--- @param width number
+--- @param mapid? string The entry's map, for the side-view button (only the full card has it).
+local function StoryRow(row, width, mapid)
     local textWidth = width
+    local sideView = SideViewButton(row, mapid)
+    if sideView ~= nil then
+        textWidth = textWidth - 20
+    end
     if row.amount ~= nil then
         textWidth = textWidth - STORY_NUMBER_WIDTH
     end
@@ -893,6 +1046,7 @@ local function StoryRow(row, width)
         tag.selfStyle.tmargin = 3
         left[#left + 1] = tag
     end
+    left[#left + 1] = sideView
 
     local children = {
         gui.Panel{
@@ -2846,7 +3000,7 @@ function History.CreateCard(args)
 
     local body = {SectionHead("What happened", WHAT_HAPPENED_WIDTH, inner)}
     for _, row in ipairs(History.Story(entry, args.kids)) do
-        body[#body + 1] = StoryRow(row, inner)
+        body[#body + 1] = StoryRow(row, inner, entry.map)
     end
     local why = History.Why(entry, args.kids)
     if #why > 0 then

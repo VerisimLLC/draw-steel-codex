@@ -77,6 +77,10 @@ CharacterOngoingEffect.durationOptions = {
 		text = 'Until End of Turn',
 	},
 	{
+		id = 'end_of_any_turn',
+		text = 'Until Any Creature Ends Their Turn',
+	},
+	{
 		id = 'endround',
 		text = 'Until End of Round',
 	},
@@ -387,6 +391,8 @@ end
 --- @field removeOnShortRest boolean
 --- @field removeAtNextTurnEnd boolean|number true, or a count of turn ends still to pass (2 for "end_of_next_turn_from_turnstart").
 --- @field removeAtRoundEnd boolean|number
+--- @field removeAtAnyTurnEnd boolean true for the end_of_any_turn duration: lasts only for the turn in anyTurnId.
+--- @field anyTurnId nil|string The initiative turn id the effect was applied in.
 --- @field removeOnSave boolean
 --- @field removeOnEoEOrDying boolean
 --- @field removeOnEoE boolean
@@ -402,6 +408,9 @@ CharacterOngoingEffectInstance.removeOnLongRest = false
 CharacterOngoingEffectInstance.removeOnShortRest = false
 CharacterOngoingEffectInstance.removeAtNextTurnEnd = false
 CharacterOngoingEffectInstance.removeAtRoundEnd = false
+--Lasts only for the turn it was applied in (per-turn usage markers). anyTurnId holds the
+--turn id at application; Expired() compares it to the live turn so no token is ever written.
+CharacterOngoingEffectInstance.removeAtAnyTurnEnd = false
 CharacterOngoingEffectInstance.removeOnSave = false
 CharacterOngoingEffectInstance.removeOnEoE = false
 CharacterOngoingEffectInstance.removeOnEoEOrDying = false
@@ -438,6 +447,10 @@ function CharacterOngoingEffectInstance.Create(options)
 		--turn-end (see creature:EndTurn), so it expires at the end of their next turn.
 		options.duration = nil
 		options.removeAtNextTurnEnd = 2
+    elseif options.duration == "end_of_any_turn" then
+		options.duration = nil
+		options.removeAtAnyTurnEnd = true
+		options.anyTurnId = dmhub.initiativeQueue ~= nil and dmhub.initiativeQueue:GetTurnId() or nil
     elseif options.duration == "endround" then
 		options.duration = nil
 		options.removeAtRoundEnd = true
@@ -499,6 +512,10 @@ function CharacterOngoingEffectInstance:Refresh(duration)
         elseif duration == "end_of_next_turn_from_turnstart" then
             self.duration = nil
             self.removeAtNextTurnEnd = 2
+        elseif duration == "end_of_any_turn" then
+            self.duration = nil
+            self.removeAtAnyTurnEnd = true
+            self.anyTurnId = dmhub.initiativeQueue ~= nil and dmhub.initiativeQueue:GetTurnId() or nil
         elseif duration == "endround" then
             self.duration = nil
             self.removeAtRoundEnd = true
@@ -529,6 +546,14 @@ function CharacterOngoingEffectInstance:Refresh(duration)
 end
 
 function CharacterOngoingEffectInstance:Expired()
+	if self.removeAtAnyTurnEnd then
+		--Expires as soon as the turn changes; with no combat running there is no turn, so immediately.
+		local turnId = dmhub.initiativeQueue ~= nil and dmhub.initiativeQueue:GetTurnId() or nil
+		if turnId == nil or turnId ~= self:try_get("anyTurnId") then
+			return true
+		end
+	end
+
 	if self:has_key("countdowns") then
 		for _,v in pairs(self.countdowns) do
 			if v == 0 then

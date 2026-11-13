@@ -931,19 +931,44 @@ mod.shared.CreateTriggerPanel = function()
                                         dismiss = true
                                     end
 
-                                    --set when we start a trigger-before action below: the accept then
-                                    --flags the record as resolving, holding the caster's roll until
-                                    --the complete callback clears it.
-                                    local waitingOnTriggerBefore = false
+                                    --true when this press starts a trigger-before action (e.g. Inertial
+                                    --Shield's Elemental Absorption): the record is flagged resolving,
+                                    --holding the caster's roll until the complete callback clears it.
+                                    local waitingOnTriggerBefore = (not trigger.triggered) and trigger.powerRollModifier and trigger.powerRollModifier.powerRollModifier:try_get("hasTriggerBefore") and true or false
+                                    if waitingOnTriggerBefore then
+                                        --we commit to it if we use the trigger so we disappear the trigger.
+                                        dismiss = true
+                                    end
 
-                                    if (not trigger.triggered) and trigger.powerRollModifier and trigger.powerRollModifier.powerRollModifier:try_get("hasTriggerBefore") then
+                                    --Commit the accept (and the resolving flag) BEFORE starting the
+                                    --trigger-before action. That action can finish synchronously and
+                                    --call complete() at once; if the flag were set afterwards, nothing
+                                    --would clear it and the caster's roll would hang until its backstop.
+									g_token:ModifyProperties{
+										undoable = false,
+										description = "Trigger",
+										execute = function()
+
+                                            trigger.dismissed = dismiss
+
+                                            if trigger.triggered then
+                                                trigger.triggered = false
+                                                trigger.retargetid = nil
+                                            else
+                                                trigger.triggered = true
+                                            end
+
+                                            if waitingOnTriggerBefore then
+                                                trigger.resolving = true
+                                            end
+											g_token.properties:DispatchAvailableTrigger(trigger)
+										end,
+									}
+
+                                    if waitingOnTriggerBefore then
                                         --if we trigger some action before the trigger.
                                         local triggerBefore = trigger.powerRollModifier.powerRollModifier:try_get("triggerBefore")
                                         local triggerToken = g_token
-
-                                        --we commit to it if we use the trigger so we disappear the trigger.
-                                        dismiss = true
-                                        waitingOnTriggerBefore = true
 
                                         --parenttriggerid lets the before-ability find the trigger that started it.
                                         triggerBefore:Trigger(trigger.powerRollModifier.powerRollModifier, g_token.properties, trigger.powerRollModifier.powerRollModifier:AppendSymbols{ parenttriggerid = trigger.id }, nil, { mod = trigger.powerRollModifier }, {
@@ -952,12 +977,13 @@ mod.shared.CreateTriggerPanel = function()
                                                 --which then owns clearing the resolving flag.
                                                 local handedOffToRetarget = false
                                                 if parentElement ~= nil and parentElement.valid then
+                                                    --Bail-outs below skip to the flag clear, never past it.
                                                     if availableTriggers == nil then
-                                                        return
+                                                        goto clearResolving
                                                     end
                                                     local trigger = availableTriggers[key]
                                                     if trigger == nil then
-                                                        return
+                                                        goto clearResolving
                                                     end
 
                                                     local condition = trigger.powerRollModifier and trigger.powerRollModifier.powerRollModifier:try_get("triggerBeforeCondition", "")
@@ -968,7 +994,7 @@ mod.shared.CreateTriggerPanel = function()
                                                         end
                                                         local caster = dmhub.GetTokenById(trigger.casterid)
                                                         if target == nil or caster == nil then
-                                                            return
+                                                            goto clearResolving
                                                         end
                                                         local symbols = {
                                                             triggerer = triggerToken.properties:LookupSymbol{},
@@ -1010,6 +1036,7 @@ mod.shared.CreateTriggerPanel = function()
                                                     end
                                                 end
 
+                                                ::clearResolving::
                                                 --The caster's roll dialog holds its roll while the record's
                                                 --resolving flag is set, so the trigger-before action (e.g.
                                                 --Parry's shift) lands before damage and forced movement.
@@ -1033,30 +1060,6 @@ mod.shared.CreateTriggerPanel = function()
                                             end,
                                         })
                                     end
-
-									g_token:ModifyProperties{
-										undoable = false,
-										description = "Trigger",
-										execute = function()
-
-                                            trigger.dismissed = dismiss
-
-                                            if trigger.triggered then
-                                                trigger.triggered = false
-                                                trigger.retargetid = nil
-                                            else
-                                                trigger.triggered = true
-                                            end
-
-                                            --the trigger-before action (e.g. Parry's shift) is still
-                                            --running: mark the record so the caster's roll dialog holds
-                                            --the roll until the complete callback clears this.
-                                            if waitingOnTriggerBefore then
-                                                trigger.resolving = true
-                                            end
-											g_token.properties:DispatchAvailableTrigger(trigger)
-										end,
-									}
 
 								end,
 								refresh = function(element)
@@ -1440,19 +1443,49 @@ mod.shared.CreateTriggerPanel = function()
                                         dismiss = true
                                     end
 
-                                    --set when we start a trigger-before action below: the accept then
-                                    --flags the record as resolving, holding the caster's roll until
-                                    --the complete callback clears it.
-                                    local waitingOnTriggerBefore = false
+                                    --true when this press starts a trigger-before action (e.g. Inertial
+                                    --Shield's Elemental Absorption): the record is flagged resolving,
+                                    --holding the caster's roll until the complete callback clears it.
+                                    local waitingOnTriggerBefore = (not trigger.triggered) and trigger.powerRollModifier and trigger.powerRollModifier.powerRollModifier:try_get("hasTriggerBefore") and true or false
+                                    if waitingOnTriggerBefore then
+                                        --we commit to it if we use the trigger so we disappear the trigger.
+                                        dismiss = true
+                                    end
 
-                                    if (not trigger.triggered) and trigger.powerRollModifier and trigger.powerRollModifier.powerRollModifier:try_get("hasTriggerBefore") then
+                                    --Commit the accept (and the resolving flag) BEFORE starting the
+                                    --trigger-before action. That action can finish synchronously and
+                                    --call complete() at once; if the flag were set afterwards, nothing
+                                    --would clear it and the caster's roll would hang until its backstop.
+									g_token:ModifyProperties{
+										undoable = false,
+										description = "Trigger",
+										execute = function()
+
+                                            trigger.dismissed = dismiss
+
+                                            if trigger.triggered then
+                                                trigger.triggered = false
+                                                trigger.retargetid = nil
+                                                trigger.chosenTargetId = false
+                                            else
+                                                trigger.triggered = true
+                                                --the pick tells the roll dialog which target's roll this changes.
+                                                if chosenTargetId ~= nil then
+                                                    trigger.chosenTargetId = chosenTargetId
+                                                end
+                                            end
+
+                                            if waitingOnTriggerBefore then
+                                                trigger.resolving = true
+                                            end
+											g_token.properties:DispatchAvailableTrigger(trigger)
+										end,
+									}
+
+                                    if waitingOnTriggerBefore then
                                         --if we trigger some action before the trigger.
                                         local triggerBefore = trigger.powerRollModifier.powerRollModifier:try_get("triggerBefore")
                                         local triggerToken = g_token
-
-                                        --we commit to it if we use the trigger so we disappear the trigger.
-                                        dismiss = true
-                                        waitingOnTriggerBefore = true
 
                                         --parenttriggerid lets the before-ability find the trigger that started it.
                                         triggerBefore:Trigger(trigger.powerRollModifier.powerRollModifier, g_token.properties, trigger.powerRollModifier.powerRollModifier:AppendSymbols{ parenttriggerid = trigger.id }, nil, { mod = trigger.powerRollModifier }, {
@@ -1461,12 +1494,13 @@ mod.shared.CreateTriggerPanel = function()
                                                 --which then owns clearing the resolving flag.
                                                 local handedOffToRetarget = false
                                                 if parentElement ~= nil and parentElement.valid then
+                                                    --Bail-outs below skip to the flag clear, never past it.
                                                     if availableTriggers == nil then
-                                                        return
+                                                        goto clearResolving
                                                     end
                                                     local trigger = availableTriggers[key]
                                                     if trigger == nil then
-                                                        return
+                                                        goto clearResolving
                                                     end
 
                                                     --e.g. Parry: did the shift end adjacent to the target it was used for?
@@ -1478,7 +1512,7 @@ mod.shared.CreateTriggerPanel = function()
                                                         end
                                                         local caster = dmhub.GetTokenById(trigger.casterid)
                                                         if target == nil or caster == nil then
-                                                            return
+                                                            goto clearResolving
                                                         end
                                                         local symbols = {
                                                             triggerer = triggerToken.properties:LookupSymbol{},
@@ -1520,6 +1554,7 @@ mod.shared.CreateTriggerPanel = function()
                                                     end
                                                 end
 
+                                                ::clearResolving::
                                                 --The caster's roll dialog holds its roll while the record's
                                                 --resolving flag is set, so the trigger-before action (e.g.
                                                 --Parry's shift) lands before damage and forced movement.
@@ -1543,35 +1578,6 @@ mod.shared.CreateTriggerPanel = function()
                                             end,
                                         })
                                     end
-
-									g_token:ModifyProperties{
-										undoable = false,
-										description = "Trigger",
-										execute = function()
-
-                                            trigger.dismissed = dismiss
-
-                                            if trigger.triggered then
-                                                trigger.triggered = false
-                                                trigger.retargetid = nil
-                                                trigger.chosenTargetId = false
-                                            else
-                                                trigger.triggered = true
-                                                --the pick tells the roll dialog which target's roll this changes.
-                                                if chosenTargetId ~= nil then
-                                                    trigger.chosenTargetId = chosenTargetId
-                                                end
-                                            end
-
-                                            --the trigger-before action (e.g. Parry's shift) is still
-                                            --running: mark the record so the caster's roll dialog holds
-                                            --the roll until the complete callback clears this.
-                                            if waitingOnTriggerBefore then
-                                                trigger.resolving = true
-                                            end
-											g_token.properties:DispatchAvailableTrigger(trigger)
-										end,
-									}
 
                                     if dismiss then
                                         triggerPanel:SetClass("collapsed", true)

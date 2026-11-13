@@ -22,6 +22,87 @@ setmetatable(gui, {
 --gui.Style objects between panels, so a reused style behaves as before.
 local g_convertedStyles = setmetatable({}, { __mode = "k" })
 
+--Second level: converted styles by CONTENT, kept across codemod reloads (a global). Entering a
+--game re-runs every codemod, so every module-level style table is a new table and the
+--identity cache above misses on all of them: re-converting cost 20-60 ms per game entry. The
+--key spells out every field (strings length-prefixed, floats exact, nested tables recursed),
+--so two tables share a style only when gui.Style would read the same values from them.
+--Userdata and function values are keyed by identity. Theme @tokens are resolved in Lua
+--before a table gets here, so a theme change makes different content, not a stale hit.
+local g_stylesByContent = rawget(_G, "g_guiStylesByContent") or { count = 0, styles = {} }
+g_guiStylesByContent = g_stylesByContent
+--Dynamically built styles (sizes, colours) can make endless distinct keys; start over past this.
+local g_maxStylesByContent = 20000
+
+local g_identityKeyIds = setmetatable({}, { __mode = "k" })
+local g_nextIdentityKeyId = 0
+
+local function StyleKeyLess(a, b)
+	local ta, tb = type(a), type(b)
+	if ta ~= tb then
+		return ta < tb
+	end
+	return a < b
+end
+
+--Appends the content key of v to parts. Returns false when v cannot be keyed (a cycle or deep
+--nesting, or table keys that are not strings or numbers); the caller then skips this cache.
+local function AppendStyleKey(v, parts, depth)
+	local t = type(v)
+	if t == "string" then
+		parts[#parts+1] = "s" .. #v .. ":" .. v
+	elseif t == "number" then
+		if math.type(v) == "integer" then
+			parts[#parts+1] = "i" .. v
+		else
+			parts[#parts+1] = string.format("f%a", v)
+		end
+	elseif t == "boolean" then
+		parts[#parts+1] = v and "T" or "F"
+	elseif t == "table" then
+		if depth > 4 then
+			return false
+		end
+		local keys = {}
+		for k in pairs(v) do
+			local kt = type(k)
+			if kt ~= "string" and kt ~= "number" then
+				return false
+			end
+			keys[#keys+1] = k
+		end
+		table.sort(keys, StyleKeyLess)
+		parts[#parts+1] = "{"
+		for _,k in ipairs(keys) do
+			if not AppendStyleKey(k, parts, depth + 1) then
+				return false
+			end
+			parts[#parts+1] = "="
+			if not AppendStyleKey(v[k], parts, depth + 1) then
+				return false
+			end
+		end
+		parts[#parts+1] = "}"
+	else
+		local id = g_identityKeyIds[v]
+		if id == nil then
+			g_nextIdentityKeyId = g_nextIdentityKeyId + 1
+			id = g_nextIdentityKeyId
+			g_identityKeyIds[v] = id
+		end
+		parts[#parts+1] = "u" .. id
+	end
+	return true
+end
+
+local function StyleContentKey(tbl)
+	local parts = {}
+	if not AppendStyleKey(tbl, parts, 0) then
+		return nil
+	end
+	return table.concat(parts)
+end
+
 local function CachedStyle(tbl)
 	local entry = g_convertedStyles[tbl]
 	if entry ~= nil then
@@ -46,11 +127,23 @@ local function CachedStyle(tbl)
 		snapshot[k] = v
 		n = n + 1
 	end
-	local style = _gui.Style(tbl)
-	--A bgimage still loading converts to no image. Keeping that style would leave every later
-	--panel built from this table without the image for the session, so convert it again next time.
-	if style.bgimagePending then
-		return style
+	local contentKey = StyleContentKey(tbl)
+	local style = contentKey ~= nil and g_stylesByContent.styles[contentKey] or nil
+	if style == nil then
+		style = _gui.Style(tbl)
+		--A bgimage still loading converts to no image. Keeping that style would leave every later
+		--panel built from this table without the image for the session, so convert it again next time.
+		if style.bgimagePending then
+			return style
+		end
+		if contentKey ~= nil then
+			if g_stylesByContent.count >= g_maxStylesByContent then
+				g_stylesByContent.styles = {}
+				g_stylesByContent.count = 0
+			end
+			g_stylesByContent.styles[contentKey] = style
+			g_stylesByContent.count = g_stylesByContent.count + 1
+		end
 	end
 	g_convertedStyles[tbl] = { style = style, snapshot = snapshot, count = n }
 	return style

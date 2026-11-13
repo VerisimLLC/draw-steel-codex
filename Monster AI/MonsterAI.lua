@@ -151,20 +151,41 @@ local function AbilityKeyOfTrigger(trigger)
     return "text:" .. tostring(trigger:GetText())
 end
 
---Seconds an accepted save may go unfinished before the banner offers Skip.
+--Seconds an accepted save or reaction may go unfinished before the banner
+--offers to stop waiting. Long enough for a normal roll and damage to land.
 local STUCK_SAVE_SKIP_SECONDS = 30
+local STUCK_REACTION_SKIP_SECONDS = 30
 
---"Skip save" for a save that was accepted but whose cast never reported back
---(its client crashed, disconnected or errored mid-roll). The card is already
---gone, so without this nobody has a button and the AI waits forever
+--Seconds a hero's prompt card may sit unanswered before the host (when the host
+--is not the one answering it) is offered Dismiss on it.
+local HOST_DISMISS_SECONDS = 30
+
+--After the host dismisses another player's card, seconds to let that player's
+--client act on it (run its On Dismiss steps, complete the AI's marker) before
+--the host assumes the client is gone and clears the card and marker itself.
+local HOST_DISMISS_FALLBACK_SECONDS = 10
+
+--The waits whose banner subject names a reaction marker (triggerid is a key of
+--the hero's pendingAIActivityReactions) and the Skip text each offers.
+local SKIPPABLE_WAITS = {
+    save = {text = "Skip save", seconds = STUCK_SAVE_SKIP_SECONDS},
+    reaction = {text = "Stop waiting", seconds = STUCK_REACTION_SKIP_SECONDS},
+}
+
+--Skip for a save or reaction that was accepted but whose cast has not reported
+--back ("Waiting for Reyne's Opportunity Attack to finish"): its client crashed,
+--disconnected or errored mid-roll, or a player walked away from a roll. The card
+--is already gone, so without this nobody has a button and the AI waits
 --(EMHPEMCY). Offered to the host and the hero's controller. Skipping only
---releases the AI: the effect stays, and a roll still running resolves normally.
+--releases the AI: the cast is not undone or aborted, a roll still running
+--resolves normally, and a skipped save's effect stays for the next save.
 ---@param doc table the monsterAIWaiting document snapshot
 ---@param token CharacterToken the hero being waited on
 ---@return nil|{text: string, press: fun()}
-local function StuckSaveSkip(doc, token)
+local function StuckReactionSkip(doc, token)
     local reactionId = doc.data.triggerid
-    if doc.data.key ~= "save" or type(reactionId) ~= "string" then
+    local wait = SKIPPABLE_WAITS[doc.data.key]
+    if wait == nil or type(reactionId) ~= "string" then
         return nil
     end
     if not (IsDMOrPlayerHost() or token.canControlAsUser) then
@@ -177,22 +198,112 @@ local function StuckSaveSkip(doc, token)
     end
     --Markers from before resolvingSince existed only carry the card's post time.
     local age = EventTimestampAge(entry.resolvingSince or entry.timestamp)
-    if age == nil or age < STUCK_SAVE_SKIP_SECONDS then
+    if age == nil or age < wait.seconds then
         return nil
     end
     return {
-        text = "Skip save",
+        text = wait.text,
         press = function()
             token.properties:CompletePendingAIActivityReaction(entry.activityId, reactionId)
         end,
     }
 end
 
---The banner buttons (see the notice channel in GameHud.lua). Only the player
---who answers the waited-on hero's prompts gets any: "Select <hero>" while the
---hero is not selected, and Dismiss when the wait is on a prompt they can
---dismiss, which dismisses the prompt itself. Everyone else gets no buttons,
---except "Skip save" on a stuck save (StuckSaveSkip).
+--Whether this user may dismiss the hero's open prompt from the banner.
+--answering: this user is the one who answers the hero's prompts (they get
+--Dismiss at once). Otherwise the host gets it once the card has sat unanswered
+--for HOST_DISMISS_SECONDS, so a player who has gone quiet cannot hold the table.
+---@param token CharacterToken
+---@param trigger ActiveTrigger the open card
+---@param answering boolean
+---@return boolean
+local function MayDismissWaitedPrompt(token, trigger, answering)
+    if trigger.dismissed or trigger.triggered or not trigger:CanDismiss() then
+        return false
+    end
+    if answering then
+        return true
+    end
+    if not IsDMOrPlayerHost() then
+        return false
+    end
+    local age = EventTimestampAge(trigger.timestamp)
+    return age ~= nil and age >= HOST_DISMISS_SECONDS
+end
+
+--Dismiss the hero's open prompt (and same-ability stacked copies). The client
+--that posted the card sees the dismissal, runs its On Dismiss steps and releases
+--the AI. byHost: the host dismissed another player's card; if that player's
+--client has not acted on it after HOST_DISMISS_FALLBACK_SECONDS (it is gone),
+--the host clears the card and completes the AI's marker for it itself.
+---@param token CharacterToken
+---@param triggerid string
+---@param byHost boolean
+local function DismissWaitedPrompt(token, triggerid, byHost)
+    token:ModifyProperties{
+        undoable = false,
+        description = "Trigger",
+        execute = function()
+            local triggers = token.properties:try_get("availableTriggers", {})
+            local live = triggers[triggerid]
+            if live == nil or live.dismissed or live.triggered then
+                return
+            end
+            live.triggered = false
+            live.dismissed = true
+            token.properties:DispatchAvailableTrigger(live)
+
+            --one event can stack several prompts of the same ability on a
+            --hero (4x The Breath of Dawn Remembered); the AI waits on each
+            --in turn, so Dismiss clears them all, not just the one named
+            --in the banner (ERRA5PCR). Hidden members of a merged prompt
+            --are left to their front card.
+            local key = AbilityKeyOfTrigger(live)
+            for id,other in pairs(triggers) do
+                if id ~= triggerid and not other.dismissed and not other.triggered
+                    and not other.mergedInto and other:CanDismiss()
+                    and AbilityKeyOfTrigger(other) == key then
+                    other.triggered = false
+                    other.dismissed = true
+                    token.properties:DispatchAvailableTrigger(other)
+                end
+            end
+        end,
+    }
+
+    if not byHost then
+        return
+    end
+    dmhub.Schedule(HOST_DISMISS_FALLBACK_SECONDS, function()
+        if mod.unloaded or not token.valid or token.properties == nil then
+            return
+        end
+        local props = token.properties
+        local live = props:try_get("availableTriggers", {})[triggerid]
+        if live == nil or not live.dismissed then
+            --The card's own client handled it.
+            return
+        end
+        local entry = props:try_get("pendingAIActivityReactions", {})[triggerid]
+        token:ModifyProperties{
+            undoable = false,
+            description = "Clear Trigger",
+            execute = function()
+                props:ClearAvailableTrigger({id = triggerid})
+            end,
+        }
+        if type(entry) == "table" and entry.state ~= "completed" then
+            props:CompletePendingAIActivityReaction(entry.activityId, triggerid)
+        end
+    end)
+end
+
+--The banner buttons (see the notice channel in GameHud.lua). The player who
+--answers the waited-on hero's prompts gets "Select <hero>" while the hero is
+--not selected, and Dismiss when the wait is on a prompt they can dismiss,
+--which dismisses the prompt itself. The host gets Dismiss on a card left
+--unanswered (MayDismissWaitedPrompt), and the host and the hero's controller
+--get Skip on a stuck save or reaction (StuckReactionSkip).
 local function WaitingNoticeControls(doc)
     local controls = {}
     local charid = doc.data.charid
@@ -203,15 +314,27 @@ local function WaitingNoticeControls(doc)
     if token == nil or not token.valid or token.properties == nil then
         return controls
     end
-    local skip = StuckSaveSkip(doc, token)
+    local skip = StuckReactionSkip(doc, token)
     if skip ~= nil then
         controls.action = skip
         return controls
     end
+
+    local triggerid = doc.data.triggerid
+    local trigger = type(triggerid) == "string"
+        and token.properties:try_get("availableTriggers", {})[triggerid] or nil
+
     --activeControllerId is nil when this user is the one best suited to
     --answer the token's prompts; canControlAsUser rules out a player host
     --whose control comes only from hosting the game.
-    if not token.canControlAsUser or token.activeControllerId ~= nil then
+    local answering = token.canControlAsUser and token.activeControllerId == nil
+    if not answering then
+        if trigger ~= nil and MayDismissWaitedPrompt(token, trigger, false) then
+            ---@cast triggerid string
+            controls.dismiss = function()
+                DismissWaitedPrompt(token, triggerid, true)
+            end
+        end
         return controls
     end
 
@@ -231,41 +354,10 @@ local function WaitingNoticeControls(doc)
         }
     end
 
-    local triggerid = doc.data.triggerid
-    local trigger = type(triggerid) == "string"
-        and token.properties:try_get("availableTriggers", {})[triggerid] or nil
-    if trigger ~= nil and not trigger.dismissed and not trigger.triggered and trigger:CanDismiss() then
+    if trigger ~= nil and MayDismissWaitedPrompt(token, trigger, true) then
+        ---@cast triggerid string
         controls.dismiss = function()
-            token:ModifyProperties{
-                undoable = false,
-                description = "Trigger",
-                execute = function()
-                    local triggers = token.properties:try_get("availableTriggers", {})
-                    local live = triggers[triggerid]
-                    if live == nil or live.dismissed or live.triggered then
-                        return
-                    end
-                    live.triggered = false
-                    live.dismissed = true
-                    token.properties:DispatchAvailableTrigger(live)
-
-                    --one event can stack several prompts of the same ability on a
-                    --hero (4x The Breath of Dawn Remembered); the AI waits on each
-                    --in turn, so Dismiss clears them all, not just the one named
-                    --in the banner (ERRA5PCR). Hidden members of a merged prompt
-                    --are left to their front card.
-                    local key = AbilityKeyOfTrigger(live)
-                    for id,other in pairs(triggers) do
-                        if id ~= triggerid and not other.dismissed and not other.triggered
-                            and not other.mergedInto and other:CanDismiss()
-                            and AbilityKeyOfTrigger(other) == key then
-                            other.triggered = false
-                            other.dismissed = true
-                            token.properties:DispatchAvailableTrigger(other)
-                        end
-                    end
-                end,
-            }
+            DismissWaitedPrompt(token, triggerid, false)
         end
     end
     return controls
@@ -282,8 +374,8 @@ Tip.notices["monster-ai-waiting"] = {
         end
         local doc = mod:GetDocumentSnapshot(WAITING_DOC)
         --Every client polls this, so the hero's own client is the one to notice
-        --that the save the AI waits on was accepted by its previous run.
-        if doc.data.key == "save" and type(doc.data.charid) == "string" then
+        --that the save or reaction the AI waits on was accepted by its previous run.
+        if SKIPPABLE_WAITS[doc.data.key] ~= nil and type(doc.data.charid) == "string" then
             local waitedOn = dmhub.GetTokenById(doc.data.charid)
             if waitedOn ~= nil and waitedOn.valid and waitedOn.properties ~= nil then
                 waitedOn.properties:CompleteReactionsOrphanedByRestart()
@@ -2831,11 +2923,30 @@ end
 --may already read as dead.
 ---@param answered table<string, boolean> prompts already tried this wait
 function MonsterAI:AnswerMinionTriggersDuringWait(answered)
+    self:AnswerAITriggersDuringWait(answered, true)
+end
+
+--Answer the trigger prompts of every AI-run (non-player) creature while the AI
+--thread is blocked in a wait, so its own trigger poll cannot run. The turn-start
+--wait uses this: a monster whose Before Start of Turn trigger is a prompt holds
+--its BeginTurn open until the prompt is answered. minionsOnly limits it to
+--minions (the minion-death wait above). Each prompt is tried once per wait.
+---@param answered table<string, boolean> prompts already tried this wait
+---@param minionsOnly? boolean
+function MonsterAI:AnswerAITriggersDuringWait(answered, minionsOnly)
     local work = {}
     for _,token in ipairs(dmhub.allTokens) do
         local props = token.valid and token.properties or nil
-        if props ~= nil and props.minion and not props.minionDead
-            and not token.playerControlled then
+        local eligible = false
+        if props ~= nil and not token.playerControlled then
+            if props.minion then
+                eligible = not props.minionDead
+            elseif not minionsOnly then
+                eligible = not props:IsDead()
+            end
+        end
+        if eligible then
+            ---@cast props creature
             for _,trigger in pairs(props:GetAvailableTriggers(true) or {}) do
                 local key = string.format("%s:%s", tostring(token.charid), tostring(trigger.id))
                 if not answered[key] and not trigger.triggered and not trigger.dismissed then
@@ -2876,7 +2987,7 @@ function MonsterAI:AnswerMinionTriggersDuringWait(answered)
                         category = "Triggered Action",
                         ability = trigger.abilityName,
                         reason = tostring(err),
-                        result = "trigger dismissed while waiting for minion deaths",
+                        result = "trigger dismissed while the AI was waiting",
                     })
                 end)
             end
@@ -2962,6 +3073,56 @@ function MonsterAI:WaitForActivityReactionsUnguarded(activityId)
     MonsterAI.reactionStatus = false
     MonsterAI.ClearWaiting()
     return true
+end
+
+--Seconds to wait for the turn's creatures to finish starting their turn. This
+--is normally instant; the cap stops a turn start that never finishes from
+--holding the table for good.
+local g_turnStartWaitSeconds = 30
+
+--- Holds a monster turn the AI just began until its start has played out, so
+--- the monsters do not act while a hero is still answering, or still resolving,
+--- a trigger that fired when the monster started its turn.
+--- turnStart is what the AI recorded when it began the turn:
+---   activityId: the id passed to BeginTurn, which tags the turn start's events.
+---   pending.count: how many of the turn's creatures have not finished BeginTurn.
+--- Returns true when the turn may go ahead; false (plus a reason) when the AI
+--- was stopped, or a hero's reaction could not be confirmed (the AI is paused).
+--- Stops waiting on a creature that has not reported back after g_turnStartWaitSeconds.
+--- @param turnStart {activityId: string, pending: {count: integer}}
+--- @return boolean, string|nil
+function MonsterAI:WaitForTurnStart(turnStart)
+    if turnStart.pending.count > 0 then
+        self:LogDecision("TURN START WAIT", {activity = turnStart.activityId,
+            result = "waiting for start-of-turn triggers to fire"})
+    end
+    local startedAt = dmhub.Time()
+    local answeredTriggers = {}
+    while turnStart.pending.count > 0 do
+        if mod.unloaded or not MonsterAI.active then
+            MonsterAI.ClearWaiting()
+            return false, "Monster AI stop requested"
+        end
+        --The panel's trigger poll cannot run while this waits, and a monster's
+        --own Before Start of Turn prompt holds its BeginTurn open until answered.
+        self:AnswerAITriggersDuringWait(answeredTriggers)
+        if turnStart.pending.count <= 0 then
+            break
+        end
+        if dmhub.Time() - startedAt >= g_turnStartWaitSeconds then
+            self:LogDecision("TURN START WAIT TIMEOUT", {activity = turnStart.activityId,
+                pending = turnStart.pending.count, result = "playing the turn anyway"})
+            break
+        end
+        MonsterAI.SetWaiting("turnstart", "Waiting for start-of-turn effects")
+        coroutine.yield(0.1)
+    end
+    MonsterAI.ClearWaiting()
+
+    --A trigger fired while another cast is resolving posts its prompt only once
+    --that cast ends, so let casts settle before counting the heroes' prompts.
+    self:WaitForAbilityIdle(5)
+    return self:WaitForActivityReactions(turnStart.activityId)
 end
 
 function MonsterAI:MoveToken(token, loc, options, continueIfActorDies)
@@ -3559,6 +3720,11 @@ function MonsterAI:HandleAvailableTrigger(token, triggerInfo)
                     triggerInfo.triggered = decision.mode - 1
                 else
                     triggerInfo.triggered = true
+                end
+                --a power roll trigger that changes the strike's target names the
+                --creature here, as the trigger panel's picker would.
+                if not decision.dismiss and type(decision.retargetid) == "string" then
+                    triggerInfo.retargetid = decision.retargetid
                 end
 
                 token.properties:DispatchAvailableTrigger(triggerInfo)
@@ -7563,6 +7729,150 @@ function MonsterAI:ExecuteLeaveAvoidZone(token)
     return mover.valid and mover.loc.str ~= origin
 end
 
+--Hidden reposition ----------------------------------------------------------
+--A monster that is Hidden (it just used Hide) does not advance toward the
+--enemy with its leftover movement: that walks it out of cover and gives
+--itself away. It moves to a random reachable square where it stays hidden,
+--along a route on which every square keeps it hidden, so the heroes cannot
+--tell where it went. With nowhere to go it stays put.
+
+--How many candidate destinations have their engine route checked before
+--giving up (each check is one path search).
+MonsterAI.hiddenRepositionRouteTries = 16
+
+--- True when the creature has the Hidden condition.
+--- @param token CharacterToken
+--- @return boolean
+function MonsterAI.ActorIsHidden(token)
+    local hidden = false
+    pcall(function() hidden = token.properties:HasNamedCondition("Hidden") == true end)
+    return hidden
+end
+
+--- Whether `token` would stay Hidden standing at `loc`: it has concealment
+--- there or cover from every relevant enemy (the Hide maneuver's own test, the
+--- canhidehere symbol), and no enemy is adjacent (adjacency reveals it).
+--- @param token CharacterToken
+--- @param loc Loc
+--- @return boolean
+function MonsterAI:StaysHiddenAt(token, loc)
+    local mover = self:GetMovementToken(token)
+    local c = token.properties
+    local result = false
+    --The cover answer is cached on the creature for half a second; keep the
+    --answer for the square it really stands on, not the last one tested.
+    local cachedCover = c:try_get("_tmp_coverFromEnemies")
+    self:ExecuteWithTheoreticalMovementLoc(token, loc, function()
+        for _,enemy in ipairs(self.enemyTokens) do
+            if self.TokenIsLiveCombatant(enemy) and MonsterAI.TargetDistance(mover, enemy) <= 1 then
+                return
+            end
+        end
+        result = c:IsConcealed() or c:CalculateCoverFromEnemies(true).all
+    end)
+    c._tmp_coverFromEnemies = cachedCover
+    return result
+end
+
+--- A random reachable square (with the remaining movement) where the actor
+--- stays hidden, reached by an engine route that keeps it hidden on every
+--- square. Returns {loc, cost} or nil.
+--- @param token CharacterToken
+--- @return nil|{loc: Loc, cost: number}
+function MonsterAI:FindHiddenReposition(token)
+    local mover = self:GetMovementToken(token)
+    local paths = self:CalculateRemainingMovementPaths(token)
+    local reachable = {}
+    local candidates = {}
+    for _,info in pairs(paths) do
+        reachable[info.loc.xyfloorOnly.str] = info
+        if info.cost > 0 and (info.provokes or 0) == 0 then
+            candidates[#candidates+1] = info
+        end
+    end
+    if #candidates == 0 then
+        return nil
+    end
+    --Shuffle (Fisher-Yates) so the choice is random among the hidden squares.
+    for i = #candidates,2,-1 do
+        local j = math.random(1, i)
+        candidates[i], candidates[j] = candidates[j], candidates[i]
+    end
+
+    local hiddenCache = {}
+    local function Hidden(loc)
+        local key = loc.xyfloorOnly.str
+        local known = hiddenCache[key]
+        if known == nil then
+            --a path step carries no altitude data; use the path search's own loc.
+            local info = reachable[key]
+            known = self:StaysHiddenAt(token, info ~= nil and info.loc or loc)
+            hiddenCache[key] = known
+        end
+        return known
+    end
+
+    local origin = mover.loc.xyfloorOnly.str
+    local tries = 0
+    local chosen = nil
+    for _,info in ipairs(candidates) do
+        if Hidden(info.loc) then
+            tries = tries + 1
+            local arrowProf = ProfBegin("engine: MarkMovementArrow")
+            local preview = mover:MarkMovementArrow(info.loc, {})
+            ProfEnd(arrowProf)
+            ---@type LuaPath?
+            local path = preview ~= nil and preview.path or nil
+            if path ~= nil and path.destination.xyfloorOnly.str == info.loc.xyfloorOnly.str then
+                local covered = true
+                for _,step in ipairs(path.steps) do
+                    --the square it starts on is where it already hid.
+                    if step.xyfloorOnly.str ~= origin and not Hidden(step) then
+                        covered = false
+                        break
+                    end
+                end
+                if covered then
+                    chosen = {loc = info.loc, cost = info.cost}
+                    break
+                end
+            end
+            if tries >= MonsterAI.hiddenRepositionRouteTries then
+                break
+            end
+        end
+    end
+    mover:ClearMovementArrow()
+    return chosen
+end
+
+--- Spend the remaining movement moving, unseen, to a random hidden square.
+--- False when it did not move (no such square: it stays put and hidden).
+--- No plan preview and no speech: either would tell the players it moved.
+--- @param token CharacterToken
+--- @return boolean
+function MonsterAI:ExecuteHiddenReposition(token)
+    local mover = self:GetMovementToken(token)
+    local plan = self:FindHiddenReposition(token)
+    if plan == nil then
+        self:LogDecision("HIDDEN REPOSITION", {
+            actor = self.TokenLogName(token),
+            reason = "no reachable square keeps it hidden along the whole route",
+            result = "stays put and hidden",
+        })
+        return false
+    end
+    self:LogDecision("HIDDEN REPOSITION", {
+        actor = self.TokenLogName(token),
+        from = self.LocLogName(mover.loc),
+        to = self.LocLogName(plan.loc),
+        plan = "use remaining movement to a random square, hidden on every square of the route",
+    })
+    local origin = mover.loc.str
+    self:MoveToken(token, plan.loc, {maxCost = 10000, ignoreFalling = false}, true)
+    return mover.valid and mover.loc.str ~= origin
+end
+
 --- True when the creature must stay on its Hold post this turn: it stands on
 --- it, or a path search this frame found it can reach it.
 --- @param token CharacterToken
@@ -8703,15 +9013,45 @@ function MonsterAI:FindAndExecuteMove()
     end
 
     local advanceId = "Advance toward enemy"
+    --A Hidden monster never advances (that walks it out of hiding): it slips
+    --to another hidden square instead, once per turn, or stays put.
+    local hidden = MonsterAI.ActorIsHidden(token)
+    if hidden then
+        self:LogDecision("MOVE NOT SELECTED", {
+            move = advanceId,
+            reason = "it is hidden, so it keeps out of sight instead",
+        })
+        local hiddenId = "Reposition while hidden"
+        local repositioned = self:try_get("_tmp_hiddenRepositioned", {})
+        self._tmp_hiddenRepositioned = repositioned
+        if not failedMoves[hiddenId] and not repositioned[token.charid] then
+            repositioned[token.charid] = true
+            self:SetMoveLogContext(token, {id = hiddenId, category = "Movement"})
+            local moved = false
+            ProfEnd(chooseProf)
+            if self:TurnTakenBeforeMove() then
+                return g_moveResultUnsafe
+            end
+            local executePhase = ProfPhaseBegin("execute: " .. hiddenId)
+            local ok, err = RunYieldingFunction(function()
+                moved = self:ExecuteHiddenReposition(token)
+            end)
+            ProfPhaseEnd(executePhase)
+            if not ok then
+                return self:HandleMoveExecutionFailure(hiddenId, "Hidden Reposition", err)
+            end
+            if moved then return g_moveResultExecuted end
+        end
+    end
     --A monster that already attacked at range this turn stays back.
     local firedAtRange = (self:try_get("_tmp_rangedStrikers") or {})[token.charid] == true
-    if firedAtRange then
+    if firedAtRange and not hidden then
         self:LogDecision("MOVE NOT SELECTED", {
             move = advanceId,
             reason = "made a ranged strike this turn, so it keeps its distance",
         })
     end
-    if not failedMoves[advanceId] and not firedAtRange then
+    if not failedMoves[advanceId] and not firedAtRange and not hidden then
         self:SetMoveLogContext(token, {id = advanceId, category = "Movement"})
         local advanced = false
         ProfEnd(chooseProf)
@@ -8992,6 +9332,36 @@ function MonsterAI:ExecuteAbility(casterToken, ability, targets, options)
             self._tmp_moveFailure = "charge left target outside legal range or line of sight"
         end
         return false
+    end
+
+    --A multi-mode ability only casts in a mode its rules allow: the mode's caster
+    --condition and, for each target, its Target Filter. Moves pick the mode; this
+    --stops one that skipped the check (e.g. Heal's save on a creature with nothing to save).
+    local modeList = ability.multipleModes == true and ability:try_get("modeList") or nil
+    if modeList ~= nil and modeList[symbols.mode] ~= nil then
+        local blockedFor = nil
+        if not ability:ModeAvailableForTarget(casterToken, nil, symbols.mode) then
+            blockedFor = "the caster"
+        end
+        --The caster half is checked once above; per target only the Target Filter is left.
+        for _,targetInfo in ipairs(targets) do
+            if blockedFor == nil and targetInfo.token ~= nil
+                and not ability:ModeTargetFilterPasses(casterToken, targetInfo.token, symbols.mode) then
+                blockedFor = self.TokenLogName(targetInfo.token)
+            end
+        end
+        if blockedFor ~= nil then
+            self:LogDecision("ABILITY CAST REJECTED", {
+                actor = self.TokenLogName(casterToken),
+                actorId = casterToken ~= nil and casterToken.charid or nil,
+                ability = ability.name,
+                action = self.AbilityActionLogName(ability),
+                targets = self.TargetsLogName(targets),
+                mode = symbols.mode,
+                reason = string.format("mode %s is not available for %s", tostring(symbols.mode), blockedFor),
+            })
+            return false
+        end
     end
 
     if targetArea ~= nil and options.telegraphArea ~= false then

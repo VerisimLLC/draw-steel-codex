@@ -12,7 +12,11 @@ local mod = dmhub.GetModLoading()
 --  * The Muceron and Ensnarer strike from 2-3 squares away so the pull drags
 --    the hero adjacent and earns the free strike.
 --  * The Remasch hits and teleports away, and pays for Grasping Shadow to do it
---    twice in a turn.
+--    twice in a turn. With Malice to spare it takes the struck enemy along
+--    and drops them among the other demons (Abyssal Strike's 5 Malice rider).
+--  * Abyssal Rift opens one rift beside the heroes and one behind the demons;
+--    a demon that cannot walk into reach steps into a rift and comes out of
+--    the other (the rift's Demon Portal prompt is answered here too).
 --  * The Chorogaunt slides heroes into its Agonizing Harmony burst first, and
 --    uses each Harmony's free shift on the ally who gains most from it.
 --Minion signature strikes are left to the shared squad logic.
@@ -1077,6 +1081,43 @@ MonsterAI:RegisterMove{
     execute = StrikeExecute(DefaultTargetScore),
 }
 
+--Warp Perceptions: when a creature it weakened makes a strike, the bendrak
+--splits the damage onto a second creature within the strike's distance. It
+--picks another of the demons' enemies (a hero hurting their own ally), never
+--a demon, and passes when there is none.
+MonsterAI:RegisterTrigger{
+    id = "Demon Bendrak: Warp Perceptions Split",
+    monsters = {"Demon Bendrak"},
+    triggers = {"Warp Perceptions"},
+    description = "Split a weakened enemy's strike onto another enemy within its distance.",
+    handler = function(ai, token, triggerInfo)
+        local attacker = dmhub.GetTokenById(triggerInfo.casterid)
+        local struck = {}
+        for _,charid in ipairs(triggerInfo.targets or {}) do
+            struck[charid] = true
+        end
+        local first = triggerInfo.targets ~= nil and dmhub.GetTokenById(triggerInfo.targets[1]) or nil
+        if attacker == nil or first == nil then
+            return {dismiss = true}
+        end
+        local range = tonumber(triggerInfo:try_get("originalAbilityRange")) or 1
+        local best = nil
+        for _,other in ipairs(HostileCreatures(token)) do
+            if not struck[other.charid] and other.charid ~= attacker.charid
+                and MonsterAI.TargetDistance(attacker, other) <= range and CanSee(attacker, other) then
+                local score = DefaultTargetScore(other, 0)
+                if best == nil or score > best.score then
+                    best = {token = other, score = score}
+                end
+            end
+        end
+        if best == nil then
+            return {dismiss = true}
+        end
+        return {activate = true, retargetid = best.token.charid}
+    end,
+}
+
 --How badly a demon needs to disappear: enemies near enough to reach it next
 --round, more so when it is hurt.
 local function VanishNeed(token, enemies)
@@ -1214,13 +1255,58 @@ MonsterAI:RegisterPrompt{
 --------------------------------------------------------------------------------
 
 --What each remasch means to do with its next teleport, by charid:
---{phase = "approach", target = token} before Grasping Shadow's strike, and
---{phase = "done"} once that strike is made.
---
---Abyssal Strike's 5 Malice rider (take an adjacent creature along) is not
---used: in the data its teleport is invoked with inherited targeting, which
---opens a Director prompt the AI cannot answer.
+--{phase = "approach", target = token} before Grasping Shadow's strike,
+--{phase = "done"} once that strike is made, and
+--{phase = "carry", target = token} while Abyssal Strike's 5 Malice rider
+--takes an adjacent enemy along (then landing = where that enemy goes).
 local g_remaschPlans = {}
+
+--The rider is worth 5 Malice only when it drags the enemy in among at least
+--this many other demons.
+local remaschCarryMinimumDemons = 2
+--Malice kept back after paying for the rider.
+local remaschCarryMaliceReserve = 2
+
+--Demons other than the remasch that would stand next to a creature at loc.
+local function DemonsAdjacentTo(remasch, loc)
+    local count = 0
+    for _,demon in ipairs(DemonAllies(remasch)) do
+        if demon.charid ~= remasch.charid and demon:Distance(loc) <= 1 then
+            count = count + 1
+        end
+    end
+    return count
+end
+
+--Where a carried enemy could land when the remasch teleports to dest: a free
+--square beside dest, the one among the most demons. Returns {loc, demons}.
+local function CarryLanding(remasch, carried, dest)
+    local best = nil
+    for _,loc in ipairs(dest:LocsInRadius(1) or {}) do
+        if LocKey(loc) ~= LocKey(dest) and LandingIsFree(carried, loc) then
+            local demons = DemonsAdjacentTo(remasch, loc)
+            if best == nil or demons > best.demons then
+                best = {loc = loc, demons = demons}
+            end
+        end
+    end
+    return best
+end
+
+--The best teleport for the rider within range of the remasch: its
+--destination and the carried enemy's landing. Returns {dest, landing, demons}.
+local function BestCarry(remasch, carried, range)
+    local best = nil
+    for _,dest in ipairs(remasch.loc:LocsInRadius(range) or {}) do
+        if LandingIsFree(remasch, dest) and remasch:GetLineOfSight(dest, remasch.properties:GetPierceWalls()) > 0 then
+            local landing = CarryLanding(remasch, carried, dest)
+            if landing ~= nil and (best == nil or landing.demons > best.demons) then
+                best = {dest = dest, landing = landing.loc, demons = landing.demons}
+            end
+        end
+    end
+    return best
+end
 
 local function GraspingShadowStillToCome(token)
     local ability = FindAbility(token, "Grasping Shadow")
@@ -1279,6 +1365,17 @@ local function RemaschTeleportPrompt(ai, invokerToken, casterToken, abilityClone
     local enemies = HostileCreatures(casterToken)
     local plan = g_remaschPlans[casterToken.charid]
 
+    --the rider: go where the carried enemy lands among the most demons.
+    if plan ~= nil and plan.phase == "carry" and LiveCreature(plan.target) then
+        local carry = BestCarry(casterToken, plan.target, range)
+        if carry ~= nil then
+            plan.landing = carry.landing
+            plan.phase = "carried"
+            ShowMoveArrow(casterToken, carry.dest)
+            return {targets = {{loc = carry.dest}}}
+        end
+    end
+
     local best = nil
     for _,loc in ipairs(TeleportCandidates(casterToken, abilityClone, symbols, range)) do
         local score
@@ -1308,6 +1405,40 @@ MonsterAI:RegisterPrompt{
     id = "Demon Remasch: Teleport",
     prompts = {"Demon Remasch:Teleport", "Demon Remasch:Teleport!"},
     handler = RemaschTeleportPrompt,
+}
+
+--The rider's steps. First: which adjacent creature to take along.
+MonsterAI:RegisterPrompt{
+    id = "Demon Remasch: Rider Carried Creature",
+    prompts = {"Demon Remasch:Choose target to teleport"},
+    handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
+        local plan = g_remaschPlans[casterToken.charid]
+        if plan ~= nil and plan.phase == "carry" and LiveCreature(plan.target)
+            and MonsterAI.TargetDistance(casterToken, plan.target) <= 1 then
+            return {targets = {{token = plan.target}}}
+        end
+        return nil
+    end,
+}
+
+--Then the carried creature is held beside the remasch and teleported: both
+--steps act on that creature alone. Its landing square is asked next, of the
+--creature itself, so the plan's landing is handed over as the expected answer.
+MonsterAI:RegisterPrompt{
+    id = "Demon Remasch: Rider Carry Steps",
+    prompts = {"Demon Remasch:Compel Movement Adjacent", "Demon Remasch:Teleport a specific creature within range"},
+    handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
+        local plan = g_remaschPlans[invokerToken.charid]
+        if abilityClone.name == "Teleport a specific creature within range" and plan ~= nil and plan.landing ~= nil then
+            ai:SetTargetsForExpectedPrompt{casterid = casterToken.charid, targets = {{loc = plan.landing}}}
+            --the landing prompt is the carried creature's own, so the AI
+            --answers for it until the strike ends (see the strike's execute).
+            if plan.control == nil and LiveCreature(casterToken) then
+                plan.control = {token = casterToken, info = ai:BeginTokenControl(casterToken)}
+            end
+        end
+        return {targets = {{token = casterToken}}}
+    end,
 }
 
 --Grasping Shadow opens with an empty wrapper that does nothing; other
@@ -1380,7 +1511,36 @@ MonsterAI:RegisterMove{
         end
         g_remaschPlans[token.charid] = nil
         Speak(ai, token, "abyssalStrike")
-        ai:ExecuteAbility(token, ability, targets, {sleep = abilityPause, symbols = {mode = 1}})
+
+        --The 5 Malice rider: take the struck enemy along and drop it among
+        --the other demons. Planned with tier 1's 2-square teleport, the least
+        --the strike can give.
+        local target = targets[1].token
+        local carry = nil
+        if CharacterResource.GetMalice() >= 5 + remaschCarryMaliceReserve and LiveCreature(target)
+            and MonsterAI.TargetDistance(token, target) <= 1 then
+            carry = BestCarry(token, target, 2)
+            if carry ~= nil and carry.demons < remaschCarryMinimumDemons then
+                carry = nil
+            end
+        end
+        if carry == nil then
+            ai:ExecuteAbility(token, ability, targets, {sleep = abilityPause, symbols = {mode = 1}})
+            return
+        end
+        local plan = {phase = "carry", target = target}
+        g_remaschPlans[token.charid] = plan
+        local ok, err = ai:RunYieldingFunction(function()
+            ai:ExecuteAbility(token, ability, targets, {sleep = abilityPause, symbols = {mode = 2}})
+            ai:WaitForAbilityIdle(30)
+        end)
+        if plan.control ~= nil then
+            pcall(function() ai:EndTokenControl(plan.control.token, plan.control.info) end)
+        end
+        g_remaschPlans[token.charid] = nil
+        if not ok then
+            error(err)
+        end
     end,
 }
 
@@ -2239,6 +2399,42 @@ local function FindEvolutionCandidate(token, ability)
     return best
 end
 
+--The horde demon a minion evolves into: one of its level (as the data's
+--filter asks), preferring a melee demon for a melee minion and a ranged one
+--for a ranged minion. Returns the bestiary name, or nil if there is none.
+local function EvolutionChoice(minion)
+    local level = minion.properties:CR()
+    local wantMelee = StrikeProfile(minion).melee
+    local best, bestScore = nil, nil
+    for k,asset in pairs(assets.monsters) do
+        local node = assets:GetMonsterNode(k)
+        local props = asset.properties
+        if node ~= nil and not node.hidden and props ~= nil and props:has_key("monster_type") then
+            local isHordeDemon = false
+            pcall(function()
+                local keywords = props:Keywords()
+                isHordeDemon = keywords["Demon"] and not keywords["Summoner"]
+                    and props:Organization() == "horde" and props:CR() == level
+            end)
+            if isHordeDemon then
+                local melee = false
+                for _,ability in ipairs(props:try_get("innateActivatedAbilities", {})) do
+                    if ability:try_get("categorization") == "Signature Ability" then
+                        local keywords = ability:try_get("keywords", {})
+                        melee = melee or keywords["Melee"] == true
+                    end
+                end
+                --a match on melee/ranged first, then a stable tie-break by name.
+                local score = cond(melee == wantMelee, 1, 0)
+                if best == nil or score > bestScore or (score == bestScore and props.monster_type < best) then
+                    best, bestScore = props.monster_type, score
+                end
+            end
+        end
+    end
+    return best
+end
+
 MonsterAI:RegisterMaliceAbility{
     id = "Demon Malice: Abyssal Evolution",
     monsterGroups = demonGroup,
@@ -2260,16 +2456,17 @@ MonsterAI:RegisterMaliceAbility{
             return
         end
         --The summon would ask the Director to pick the new demon in a dialog.
-        --Narrow it to the one the AI wants: a ruinant to fight in melee, or a
-        --torlas in place of a ranged minion.
-        local evolved = cond(StrikeProfile(minion).melee, "Demon Ruinant", "Demon Torlas")
+        --Narrow it to the one the AI wants.
+        local evolved = EvolutionChoice(minion)
+        if evolved == nil then
+            return
+        end
         local cast = DeepCopy(ability)
-        --The data summons it with no initiative entry, so it would never
-        --act; give it a fresh entry of its own.
         for _,behavior in ipairs(cast.behaviors or {}) do
             if behavior.typeName == "ActivatedAbilitySummonBehavior" then
-                behavior.bestiaryFilter = string.format('beast.name = "%s"', evolved)
+                behavior.bestiaryFilter = string.format('(%s) and beast.name = "%s"', behavior.bestiaryFilter, evolved)
                 behavior.newInitiativeGroup = true
+                behavior.groupInitiativeWithCaster = false
             end
         end
         Speak(ai, token, "evolution")
@@ -2279,54 +2476,246 @@ MonsterAI:RegisterMaliceAbility{
     end,
 }
 
---Abyssal Rift: two 2x2 rifts where heroes will walk into them, beside the
---heroes nearest the demons.
+--Abyssal Rift: one rift beside the heroes nearest the demons (a hazard for
+--them, and an exit for demons), and one beside the demon furthest from the
+--heroes, so the demons at the back can step in and come out at the front.
+
+--A free 2x2 block within radius of center, as the cast's {loc = } target.
+local function FreeRiftBlockNear(center, radius, reserved)
+    for _,loc in ipairs(center:LocsInRadius(radius) or {}) do
+        local block = {loc, loc.east, loc.south, loc.east.south}
+        local free = true
+        for _,square in ipairs(block) do
+            if not square.valid or reserved[LocKey(square)] then
+                free = false
+                break
+            end
+            for _,other in ipairs(dmhub.GetTokensAtLoc(square) or {}) do
+                if other.valid then
+                    free = false
+                end
+            end
+        end
+        if free then
+            for _,square in ipairs(block) do
+                reserved[LocKey(square)] = true
+            end
+            return {loc = loc}
+        end
+    end
+    return nil
+end
+
 local function RiftSquares(token, count)
     local reserved = {}
     local result = {}
     local enemies = HostileCreatures(token)
+    local demons = DemonAllies(token)
+    if #enemies == 0 then
+        return result
+    end
+    --the exit: beside the hero nearest the demons.
     table.sort(enemies, function(a, b)
-        return NearestDistance(a.loc, DemonAllies(token)) < NearestDistance(b.loc, DemonAllies(token))
+        return NearestDistance(a.loc, demons) < NearestDistance(b.loc, demons)
     end)
     for _,enemy in ipairs(enemies) do
+        local block = FreeRiftBlockNear(enemy.loc, 2, reserved)
+        if block ~= nil then
+            result[#result+1] = block
+            break
+        end
+    end
+    --the entry: beside the demon furthest from the heroes.
+    table.sort(demons, function(a, b)
+        return NearestDistance(a.loc, enemies) > NearestDistance(b.loc, enemies)
+    end)
+    for _,demon in ipairs(demons) do
         if #result >= count then
             break
         end
-        for _,loc in ipairs(enemy.loc:LocsInRadius(2) or {}) do
-            local block = {loc, loc.east, loc.south, loc.east.south}
-            local free = true
-            for _,square in ipairs(block) do
-                if not square.valid or reserved[LocKey(square)] then
-                    free = false
-                    break
-                end
-                for _,other in ipairs(dmhub.GetTokensAtLoc(square) or {}) do
-                    if other.valid then
-                        free = false
-                    end
-                end
-            end
-            if free then
-                for _,square in ipairs(block) do
-                    reserved[LocKey(square)] = true
-                end
-                result[#result+1] = {loc = loc}
-                break
-            end
+        local block = FreeRiftBlockNear(demon.loc, 2, reserved)
+        if block ~= nil then
+            result[#result+1] = block
+        end
+    end
+    return result
+end
+
+local function RiftTokens()
+    local result = {}
+    for _,other in ipairs(dmhub.allTokens) do
+        if other.valid and other.properties ~= nil and other.properties:try_get("monster_type") == "Abyssal Rift"
+            and not other.properties:IsDead() then
+            result[#result+1] = other
         end
     end
     return result
 end
 
 local function RiftsOnMap()
-    local result = 0
-    for _,other in ipairs(dmhub.allTokens) do
-        if other.valid and other.properties ~= nil and other.name == "Abyssal Rift" then
-            result = result + 1
+    return #RiftTokens()
+end
+
+local function RiftAt(loc)
+    for _,other in ipairs(dmhub.GetTokensAtLoc(loc) or {}) do
+        if other.valid and other.properties ~= nil and other.properties:try_get("monster_type") == "Abyssal Rift" then
+            return other
         end
     end
-    return result
+    return nil
 end
+
+--True when token could stand at loc inside a rift: no creature there but
+--rifts (and itself).
+local function RiftLandingIsFree(token, loc)
+    for _,occupied in ipairs(token:LocsOccupyingWhenAt(loc)) do
+        if RiftAt(occupied) == nil then
+            return false
+        end
+        for _,other in ipairs(dmhub.GetTokensAtLoc(occupied) or {}) do
+            if other.valid and other.charid ~= token.charid and not other.isObject
+                and other.properties:try_get("monster_type") ~= "Abyssal Rift" then
+                return false
+            end
+        end
+    end
+    return true
+end
+
+--The best square to come out at in a rift other than fromRift, by how well
+--the creature can attack from there. Returns {loc, utility} or nil.
+local function BestPortalExit(token, fromRift)
+    local enemies = HostileCreatures(token)
+    if #enemies == 0 then
+        return nil
+    end
+    local profile = StrikeProfile(token)
+    local best = nil
+    for _,rift in ipairs(RiftTokens()) do
+        if fromRift == nil or rift.charid ~= fromRift.charid then
+            for _,loc in ipairs(rift.locsOccupying) do
+                if RiftLandingIsFree(token, loc) then
+                    local utility = SquareUtility(loc, profile, enemies)
+                    if best == nil or utility > best.utility then
+                        best = {loc = loc, utility = utility}
+                    end
+                end
+            end
+        end
+    end
+    return best
+end
+
+--Where each demon means to come out of the rift it is walking into, by charid.
+local g_portalPlans = {}
+
+--The portal prompt (Demon Portal, raised by the rift when a demon enters it):
+--go where this turn's plan said, else to the best square in another rift if
+--it beats staying put, else nowhere.
+MonsterAI:RegisterPrompt{
+    id = "Abyssal Rift: Portal",
+    prompts = {"Abyssal Portal"},
+    handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
+        if casterToken == nil or casterToken.playerControlled then
+            return nil
+        end
+        --The rift asks as soon as the demon steps in, while its walk is still
+        --animating; a teleport then would be undone by the walk's last step.
+        local settleBy = dmhub.Time() + 5
+        while casterToken.valid and casterToken.isMoving and dmhub.Time() < settleBy do
+            MonsterAI.Sleep(0.1)
+        end
+        local fromRift = RiftAt(casterToken.loc)
+        local plan = g_portalPlans[casterToken.charid]
+        g_portalPlans[casterToken.charid] = nil
+        if plan ~= nil and RiftLandingIsFree(casterToken, plan) then
+            return {targets = {{loc = plan}}}
+        end
+        local exit = BestPortalExit(casterToken, fromRift)
+        local enemies = HostileCreatures(casterToken)
+        local here = SquareUtility(casterToken.loc, StrikeProfile(casterToken), enemies)
+        if exit ~= nil and exit.utility > here + 0.25 then
+            return {targets = {{loc = exit.loc}}}
+        end
+        return {targets = {}}
+    end,
+}
+
+--Walk into a rift and come out of another one, when that brings an enemy
+--into reach this turn and walking would not.
+MonsterAI:RegisterMove{
+    id = "Demon: Abyssal Rift Portal",
+    category = "Maneuvers",
+    monsters = demonMonsters,
+    abilities = {},
+    description = "Step into an abyssal rift and come out of another one beside the heroes, when walking would not reach them this turn.",
+    score = function(self, ai, token)
+        if IsMinion(token) then
+            return nil, "minions move with their squad"
+        end
+        local rifts = RiftTokens()
+        if #rifts < 2 then
+            return nil, "fewer than two rifts open"
+        end
+        local enemies = HostileCreatures(token)
+        if #enemies == 0 then
+            return nil, "no enemies"
+        end
+        local profile = StrikeProfile(token)
+        local speed = token.properties:CurrentMovementSpeed() or 0
+        if NearestDistance(token.loc, enemies) <= speed + profile.range then
+            return nil, "it can walk into reach"
+        end
+        --the portal opens on entering a rift, so the one it stands in is no use.
+        --Each rift is entered at its nearest square: the walk then ends on the
+        --square where the rift's trigger fires.
+        local standingIn = RiftAt(token.loc)
+        local entries = {}
+        for _,info in pairs(token:CalculatePathfindingArea(speed*10, {})) do
+            local loc = info.loc
+            local rift = loc ~= nil and RiftAt(loc) or nil
+            if rift ~= nil and (standingIn == nil or rift.charid ~= standingIn.charid) then
+                local entry = entries[rift.charid]
+                if entry == nil or (info.cost or 0) < entry.cost then
+                    entries[rift.charid] = {loc = loc, cost = info.cost or 0, rift = rift}
+                end
+            end
+        end
+        local best = nil
+        for _,entry in pairs(entries) do
+            local exit = BestPortalExit(token, entry.rift)
+            local remaining = speed - entry.cost/10
+            if exit ~= nil and NearestDistance(exit.loc, enemies) <= remaining + profile.range then
+                local value = exit.utility - entry.cost*0.002
+                if best == nil or value > best.value then
+                    best = {entry = entry.loc, exit = exit.loc, value = value}
+                end
+            end
+        end
+        if best == nil then
+            return nil, "no rift takes it into reach"
+        end
+        return {score = 0.9, entry = best.entry, exit = best.exit}
+    end,
+    execute = function(self, ai, token, scoringInfo)
+        g_portalPlans[token.charid] = scoringInfo.exit
+        --ai:MoveToken refuses to end on another creature, and the rift is one,
+        --so walk in with the engine's move and wait for it to land.
+        ShowMoveArrow(token, scoringInfo.entry)
+        token:Move(scoringInfo.entry, {maxCost = 10000, ignoreFalling = false})
+        local landBy = dmhub.Time() + 10
+        while token.valid and token.isMoving and dmhub.Time() < landBy do
+            MonsterAI.Sleep(0.1)
+        end
+        MonsterAI.Sleep(movementPause)
+        --the rift's trigger runs the portal as a cast of its own.
+        local deadline = dmhub.Time() + 10
+        while ActivatedAbility.CountActiveCasts() > 0 and dmhub.Time() < deadline do
+            MonsterAI.Sleep(0.1)
+        end
+        g_portalPlans[token.charid] = nil
+    end,
+}
 
 MonsterAI:RegisterMaliceAbility{
     id = "Demon Malice: Abyssal Rift",

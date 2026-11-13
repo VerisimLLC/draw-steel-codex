@@ -279,10 +279,13 @@ RegisterWeather{
         { id = "color", name = "Color", type = "color", default = "#c9d2d8" },
 ]==],
     look = [==[
+    --A battle map has to stay readable through it: even full Density leaves the
+    --thickest banks at about half opacity, and the engine's Patchiness opens clear
+    --gaps between them. (Was 0.15 + 0.6 * density, a veil over the whole map.)
     local atmosphere = {
-        saturation = 1 - 0.35 * p.density,
+        saturation = 1 - 0.2 * p.density,
         fogColor = p.color,
-        fogDensity = 0.15 + 0.6 * p.density,
+        fogDensity = 0.05 + 0.45 * p.density,
         fogScale = p.size,
         fogPatchiness = p.patchiness,
         fogVelocity = { x = p.drift, y = p.drift * 0.35 },

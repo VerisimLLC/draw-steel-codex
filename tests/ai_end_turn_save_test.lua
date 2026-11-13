@@ -179,8 +179,9 @@ props.pendingAIActivityReactions.legacy = nil
 local isHost, ages = false, {}
 stub("IsDMOrPlayerHost", function() return isHost end)
 stub("EventTimestampAge", function(t) return ages[t] end)
-local stuckSaveSkip = assert(load(section("Monster AI/MonsterAI.lua",
-    "local STUCK_SAVE_SKIP_SECONDS", "--The banner buttons (see") .. "\nreturn StuckSaveSkip"))()
+local stuckSaveSkip, mayDismiss, dismissPrompt = assert(load(section("Monster AI/MonsterAI.lua",
+    "local STUCK_SAVE_SKIP_SECONDS", "--The banner buttons (see")
+    .. "\nreturn StuckReactionSkip, MayDismissWaitedPrompt, DismissWaitedPrompt"))()
 props.pendingAIActivityReactions.stuck = {activityId = "end-turn-save", state = "resolving", resolvingSince = "t"}
 local doc = {data = {key = "save", charid = "hero", triggerid = "stuck"}}
 ages.t = 31
@@ -203,6 +204,74 @@ hero.canControlAsUser = true
 props.pendingAIActivityReactions.stuck = {activityId = "end-turn-save", state = "resolving", timestamp = "t"}
 check(stuckSaveSkip(doc, hero) ~= nil, "the hero's controller gets Skip; old markers age from the card")
 props.pendingAIActivityReactions.stuck = nil
+
+--N4 (2026-11-09): "Waiting for Reyne's Opportunity Attack to finish" -- an
+--accepted reaction still resolving -- gets the same Skip, worded for a reaction.
+hero.canControlAsUser = false
+props.pendingAIActivityReactions.oa = {activityId = "move:1", state = "resolving", resolvingSince = "oa"}
+doc = {data = {key = "reaction", charid = "hero", triggerid = "oa"}}
+ages.oa = 31
+check(stuckSaveSkip(doc, hero) == nil, "other players get no Skip on a reaction")
+isHost = true
+ages.oa = 29
+check(stuckSaveSkip(doc, hero) == nil, "no Skip while a reaction's roll is fresh")
+ages.oa = 31
+skip = stuckSaveSkip(doc, hero)
+check(skip ~= nil and skip.text == "Stop waiting", "the host gets Stop waiting on a stuck reaction")
+skip.press()
+check(props.pendingAIActivityReactions.oa.state == "completed", "Stop waiting completes the marker only")
+props.pendingAIActivityReactions.oa = {activityId = "move:1", state = "awaiting_choice", timestamp = "oa"}
+check(stuckSaveSkip(doc, hero) == nil, "an unanswered card is not skipped; it is dismissed")
+props.pendingAIActivityReactions.oa = {activityId = "turn-claim", state = "resolving", resolvingSince = "oa"}
+doc = {data = {key = "turnclaim", charid = "hero", triggerid = "oa"}}
+check(stuckSaveSkip(doc, hero) == nil, "turn claims keep their own capped wait")
+props.pendingAIActivityReactions.oa = nil
+isHost = false
+
+--Dismiss from the banner: at once for the answering player, after a while for
+--a host who is not answering.
+local card = {id = "card", timestamp = "card", dismissed = false, triggered = false,
+    CanDismiss = function() return true end}
+ages.card = 5
+check(mayDismiss(hero, card, true), "the answering player may dismiss at once")
+check(not mayDismiss(hero, card, false), "other players may not dismiss")
+isHost = true
+check(not mayDismiss(hero, card, false), "the host waits before dismissing another's card")
+ages.card = 31
+check(mayDismiss(hero, card, false), "the host may dismiss a card left unanswered")
+card.CanDismiss = function() return false end
+check(not mayDismiss(hero, card, false), "an undismissable card stays")
+card.CanDismiss = function() return true end
+
+--The host's dismiss: the card's own client normally handles it; when that
+--client is gone the host clears the card and the marker itself.
+local scheduled = {}
+dmhub.Schedule = function(_, fn) scheduled[#scheduled+1] = fn end
+stub("AbilityKeyOfTrigger", function(t) return "name:" .. tostring(t.id) end)
+stub("mod", {})
+props.availableTriggers.card = card
+props.pendingAIActivityReactions.card = {activityId = "turn-start:1", state = "awaiting_choice", timestamp = "card"}
+dismissPrompt(hero, "card", true)
+check(card.dismissed and #scheduled == 1, "host dismiss marks the card and schedules the fallback")
+scheduled[1]()
+check(props.availableTriggers.card == nil, "fallback clears a card no client handled")
+check(props.pendingAIActivityReactions.card.state == "completed", "fallback releases the AI")
+card.dismissed = false
+props.availableTriggers.card = card
+props.pendingAIActivityReactions.card = {activityId = "turn-start:1", state = "awaiting_choice", timestamp = "card"}
+dismissPrompt(hero, "card", true)
+props.availableTriggers.card = nil
+props.pendingAIActivityReactions.card.state = "resolving"
+scheduled[2]()
+check(props.pendingAIActivityReactions.card.state == "resolving",
+    "fallback leaves a dismissal its client is running (On Dismiss steps)")
+card.dismissed = false
+props.availableTriggers.card = card
+dismissPrompt(hero, "card", false)
+check(card.dismissed and #scheduled == 2, "the answering player's dismiss needs no fallback")
+props.availableTriggers.card = nil
+props.pendingAIActivityReactions.card = nil
+isHost = false
 
 --Drive the real background loop: a remote save holds an already selected
 --monster turn, resumes after completion, and remains stoppable while waiting.

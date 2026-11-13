@@ -1,8 +1,29 @@
 local mod = dmhub.GetModLoading()
 
+--The usual target score: 1 per target, 0.1 per edge, plus the slight lean
+--toward targets with more Stamina left (MonsterAI.TargetStaminaBias), so
+--monsters spread their damage instead of always striking whoever comes first.
+local function StandardStrikeTargetScore(target, edges)
+    if target.isObject or target.properties == nil then
+        return 0.1
+    end
+    return 1 + (edges or 0)*0.1 + MonsterAI.TargetStaminaBias(target)
+end
+
+--Finds the strike targets from loc, best first by StandardStrikeTargetScore.
+--ExecuteAbility keeps the first ones up to the ability's target count, so the
+--strike goes at the targets the plan scored rather than list order.
+local function FindRankedTargetsOfStrike(ai, token, ability, loc)
+    local targets = ai:FindValidTargetsOfStrike(token, ability, loc)
+    table.sort(targets, function(a, b)
+        return StandardStrikeTargetScore(a.token, a.edges) > StandardStrikeTargetScore(b.token, b.edges)
+    end)
+    return targets
+end
+
 local function GenerateStandardStrikeScoreFunction(score)
     return function(self, ai, token, ability)
-        local loc = ai:FindBestMoveToUseStrike(token, ability)
+        local loc = ai:FindBestMoveToUseStrike(token, ability, StandardStrikeTargetScore)
         if loc ~= nil then
             return {score = score, loc = loc}
         end
@@ -14,7 +35,7 @@ local function GenerateStandardStrikeExecuteFunction()
         local path = ai:MoveToken(token, scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
         ai.Sleep(0.5)
 
-        local targets = ai:FindValidTargetsOfStrike(token, ability, scoringInfo.loc)
+        local targets = FindRankedTargetsOfStrike(ai, token, ability, scoringInfo.loc)
         ai:ExecuteAbility(token, ability, targets)
     end
 end
@@ -339,7 +360,7 @@ MonsterAI:RegisterMove{
         ai:Speech(token, {"Bury the Point!", "I'll bury this spear in you!"})
         ai.Sleep(0.5)
 
-        local targets = ai:FindValidTargetsOfStrike(token, ability, scoringInfo.loc)
+        local targets = FindRankedTargetsOfStrike(ai, token, ability, scoringInfo.loc)
         ai:ExecuteAbility(token, ability, targets)
     end
 }
@@ -492,7 +513,7 @@ MonsterAI:RegisterMove{
     score = GenerateStandardStrikeScoreFunction(1),
     execute = function(self, ai, token, scoringInfo, ability)
         local path = ai:MoveToken(token, scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
-        local targets = ai:FindValidTargetsOfStrike(token, ability, scoringInfo.loc)
+        local targets = FindRankedTargetsOfStrike(ai, token, ability, scoringInfo.loc)
         ai.Sleep(0.5)
         if #targets >= 2 then
             ai:Speech(token, {"Two arrows notched!", "Both of you at once!"})

@@ -2517,6 +2517,12 @@ function ActivatedAbilitySummonBehavior:CastSummons(ability, casterToken, target
         --asking for placement, so we can expose the chosen creature as a symbol
         local choices = {}
         if self.monsterType == "custom" then
+            --The filter can read the creature this summon is for as `target`
+            --(e.g. Abyssal Evolution: "a horde demon of the target's level").
+            local previousTarget = args.symbols.target
+            if target.token ~= nil and target.token.properties ~= nil then
+                args.symbols.target = GenerateSymbols(target.token.properties)
+            end
             for k,monster in pairs(assets.monsters) do
                 --GetMonsterNode can return nil mid-import/reload; skip rather than throw.
                 local node = assets:GetMonsterNode(k)
@@ -2527,6 +2533,7 @@ function ActivatedAbilitySummonBehavior:CastSummons(ability, casterToken, target
                     end
                 end
             end
+            args.symbols.target = previousTarget
         else
             local monster = assets.monsters[self.monsterType]
             if monster ~= nil then

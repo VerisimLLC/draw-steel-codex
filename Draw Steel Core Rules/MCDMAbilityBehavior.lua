@@ -419,6 +419,19 @@ local function ExecuteDamage(behavior, ability, casterToken, targetToken, option
 
         local result
 
+        --A "split" retarget (Warp Perceptions) gives the target half of the
+        --damage, rounded down, and a second creature the rest.
+        local splitToken = nil
+        local splitDamage = 0
+        if options.symbols.cast ~= nil and not noDamage then
+            splitToken = options.symbols.cast:SplitDamageTarget(targetToken)
+            if splitToken ~= nil then
+                local kept = math.floor(damage/2)
+                splitDamage = damage - kept
+                damage = kept
+            end
+        end
+
         local damageMessage = string.format("%d %s damage", damage, damageType)
         if halfCount > 0 then
             local halfText = string.rep("(half) ", halfCount)
@@ -447,11 +460,25 @@ local function ExecuteDamage(behavior, ability, casterToken, targetToken, option
                     --bare "(half)" marker -- so the target is the best available
                     --attribution. TrackHeroStats self-guards, so monster targets
                     --are dropped.
-                    if damage < damageBeforeHalving then
-                        LiveEncounter.TrackHeroStats(targetToken.charid, "damagePrevention", damageBeforeHalving - damage)
+                    --only what (half) modifiers removed: a split's share is dealt below.
+                    local prevented = damageBeforeHalving - damage - splitDamage
+                    if prevented > 0 then
+                        LiveEncounter.TrackHeroStats(targetToken.charid, "damagePrevention", prevented)
                     end
                 end,
             }
+
+            if splitToken ~= nil and splitDamage > 0 then
+                ability.RecordTokenMessage(splitToken, options, string.format("%d %s damage (split)", splitDamage, damageType))
+                splitToken:ModifyProperties{
+                    description = "Inflict Damage",
+                    undoable = false,
+                    execute = function()
+                        local splitResult = splitToken.properties:InflictDamageInstance(splitDamage, damageType, ability.keywords, string.format("%s's %s", selfName, ability.name), { criticalhit = false, attacker = attacker, surges = options.surges, ability = ability, hasability = true, cast = options.symbols.cast, hasrolleddamage = isRolledDamage, damagedice = damageDice, patrondamage = patrondamage, cannotBeReduced = ignoreImmunity})
+                        options.symbols.cast:CountDamage(splitToken, splitResult.damageDealt, splitDamage, isRolledDamage, patrondamage)
+                    end,
+                }
+            end
         end
     end
 end

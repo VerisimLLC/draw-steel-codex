@@ -79,6 +79,12 @@ text("eotw.town.plaque_subtitle", [[Encounter of the Week]])
 --How many players are in town. {count} is the number.
 text("eotw.town.plaque_adventurers.one", [[{count} hero in town]])
 text("eotw.town.plaque_adventurers.other", [[{count} heroes in town]])
+--How many players are away playing an encounter that has started. {count}
+--is the number. Shown after the line above, joined by plaque_counts.
+text("eotw.town.plaque_away.one", [[{count} out on an adventure]])
+text("eotw.town.plaque_away.other", [[{count} out on an adventure]])
+--Both counts on one line: {town} is plaque_adventurers, {away} is plaque_away.
+text("eotw.town.plaque_counts", [[{town}. {away}]])
 
 ----------------------------------------------------------------------------
 -- THE TOWN MAP: the locations
@@ -508,6 +514,13 @@ text("eotw.create.create_failed", [[The game could not be created. Please try ag
 --The button that closes a dialog with no other buttons.
 text("eotw.dialog.close_button", [[Close]])
 
+--Quitting the app (the window's close button, Alt+F4, Quit to Desktop) while
+--the town is open asks first.
+text("eotw.quit.title", [[Quit to Desktop?]])
+text("eotw.quit.body", [[Quitting will close Draw Steel Codex and leave the town.]])
+text("eotw.quit.cancel_button", [[Cancel]])
+text("eotw.quit.quit_button", [[Quit]])
+
 --Past Encounters (the Town Gate's button).
 text("eotw.past.title", [[Past Encounters]])
 text("eotw.past.none", [[There are no past Encounters of the Week yet.]])
@@ -604,6 +617,33 @@ text("eotw.survey.leave.doomed", [[I saw the writing on the wall, I knew I was g
 text("eotw.survey.leave.other", [[Something else]])
 text("eotw.survey.leave.comment_placeholder", [[Anything to add? (optional)]])
 
+--Under each 1-to-5 question: which end is which.
+text("eotw.survey.scale_hint", [[1 = poor, 5 = excellent]])
+--The 1-to-5 comment box, shown for a rating of 3 or lower.
+text("eotw.survey.low_rating_comment_placeholder", [[What could have been better? (optional)]])
+
+--The narrative part of the encounter.
+text("eotw.survey.narrative_fun.prompt", [[How enjoyable was the NARRATIVE PART?]])
+text("eotw.survey.narrative_length.prompt", [[How did you feel about the length of the NARRATIVE PART?]])
+text("eotw.survey.narrative_length.too_short", [[Too short]])
+text("eotw.survey.narrative_length.just_right", [[Just right]])
+text("eotw.survey.narrative_length.too_long", [[Too long]])
+text("eotw.survey.narrative_presentation.prompt", [[How did you find the presentation of the NARRATIVE PART?]])
+text("eotw.survey.narrative_story.prompt", [[How much did you enjoy the storytelling of the NARRATIVE PART?]])
+text("eotw.survey.narrative_stakes.prompt", [[What did you think of the rewards and threats on offer in the NARRATIVE PART?]])
+text("eotw.survey.narrative_stakes.too_punishing", [[Too punishing]])
+text("eotw.survey.narrative_stakes.just_right", [[Just right]])
+text("eotw.survey.narrative_stakes.too_easy", [[Too easy]])
+
+--The combat part of the encounter.
+text("eotw.survey.combat_fun.prompt", [[How enjoyable was the COMBAT PART?]])
+text("eotw.survey.combat_ai.prompt", [[How did you find the behavior of the Monster AI in controlling the monsters?]])
+text("eotw.survey.combat_difficulty.prompt", [[What did you think of the difficulty of the COMBAT PART?]])
+text("eotw.survey.combat_difficulty.too_easy", [[Too easy]])
+text("eotw.survey.combat_difficulty.just_right", [[Just right]])
+text("eotw.survey.combat_difficulty.too_hard", [[Too hard]])
+text("eotw.survey.combat_design.prompt", [[How did you feel about the encounter design of the COMBAT PART?]])
+
 text("eotw.survey.length.prompt", [[How did the length of the session feel?]])
 text("eotw.survey.length.too_short", [[Too short]])
 text("eotw.survey.length.about_right", [[About right]])
@@ -650,11 +690,18 @@ text("eotw.survey.send_failed", [[Could not send: {message}]])
 text("eotw.inn_reveal.line", [[That was a tough challenge! We should head to the Blue Fish Inn to rest before continuing on more adventures.]])
 
 ----------------------------------------------------------------------------
--- WELCOME: the first time a player opens the town
+-- WELCOME: shown when a player opens the town until they accept it
 ----------------------------------------------------------------------------
 
-text("eotw.welcome.title", [[Welcome to Encounter of the Week]])
-text("eotw.welcome.intro", [[Play Draw Steel by yourself or with a few friends, or people you meet along the way. This game mode is experimental and in beta. Please report bugs using Feedback in the menus.]])
+text("eotw.welcome.title", [[Welcome to the Encounter of the Week Playtest]])
+text("eotw.welcome.intro", [[Play Draw Steel by yourself or with a few friends, or people you meet along the way.
+
+- This is an experimental playtest of a new game mode. You should not expect a final or polished experience.
+- Some features will be unbalanced as we look for feedback.
+- Progress will be wiped at the end of the playtest period.
+- Please report bugs in Feedback > Bug Report]])
+--The box the player must tick before Let's Go! works.
+text("eotw.welcome.understood_check", [[I have read and understand this message]])
 --{link} is the link below, underlined.
 text("eotw.welcome.discord", [[Discuss Encounter of the Week in the {link}!]])
 text("eotw.welcome.discord_link", [[DMHub Discord]])
@@ -662,6 +709,8 @@ text("eotw.welcome.be_kind", [[Encounter of the Week does let you play with othe
 --The buttons. Short: buttons.
 text("eotw.welcome.discord_button", [[Join the Discord]])
 text("eotw.welcome.go_button", [[Let's Go!]])
+--Closes the town back to the title screen.
+text("eotw.welcome.cancel_button", [[Cancel]])
 
 ----------------------------------------------------------------------------
 -- STEAM INVITES: joining a friend's party
@@ -847,6 +896,12 @@ text("graveyard.subtitle", [[Here lie the heroes of Blackbottom who did not come
 --Shown in place of the graves while they load, and when there are none.
 text("graveyard.loading", [[Reading the headstones...]])
 text("graveyard.empty", [[No one has fallen yet. May it stay that way.]])
+text("graveyard.empty_mine", [[None of your heroes lie here.]])
+text("graveyard.tab_everyone", [[Everyone]])
+text("graveyard.tab_mine", [[Your Fallen]])
+text("graveyard.awaken_button", [[Awaken]])
+text("graveyard.awaken_tooltip", [[This hero's ancestry does not stay dead. Awaken them and bring them back to your roster.]])
+text("graveyard.awaken_no_slots_tooltip", [[You don't have enough hero slots to awaken this hero]])
 --A fallen hero's name when the game cannot find it.
 text("graveyard.hero_fallback", [[Hero]])
 --The line saying where and when a hero fell. {where} is the encounter's
@@ -981,6 +1036,18 @@ text("inn.respite.button", [[Take a Respite]])
 text("inn.respite.button_confirm", [[Rest Now? (Victories become XP)]])
 --Shown in red under the button when a respite cannot be taken.
 text("inn.respite.nobody_home", [[None of your heroes are at home to rest.]])
+--A single hero's respite was asked for, but that hero is not at home.
+text("inn.respite.hero_not_home", [[That hero is not at home to rest.]])
+
+--A hero's own Take a Respite button on their inn row (the footer button
+--rests everyone). Short: a small button.
+text("inn.hero_respite.button", [[Respite]])
+--After the first click; a second click within a few seconds rests.
+text("inn.hero_respite.button_confirm", [[Rest Now?]])
+text("inn.hero_respite.tooltip", [[This hero alone takes a respite: Victories become XP and Downtime Activities, and Stamina and Recoveries are restored. Like any respite, it closes your open series parts.]])
+--Why the hero's button is dimmed.
+text("inn.hero_respite.no_need", [[Unhurt and no Victories to bank: nothing to rest for.]])
+text("inn.hero_respite.busy", [[A respite is already under way.]])
 
 --An encounter in several parts: winning a part opens the next one only until
 --the player's next respite. {series} is the encounter's title, {won} the part

@@ -128,8 +128,8 @@ local function Arrive(script, section, ordinal, queue, live)
         return {}, index
     end
 
-    --Challenge Mode balances a wave like the opening fight (ChallengeBalance).
-    local numHeroes, levelUp = EncounterOfTheWeekGame.ChallengeBalance(tonumber(dmhub.GetSettingValue("numheroes")) or 5)
+    --difficulty notches balance a wave like the opening fight (DifficultyBalance).
+    local numHeroes, extraLevels = EncounterOfTheWeekGame.DifficultyBalance(tonumber(dmhub.GetSettingValue("numheroes")) or 5)
     local zoneLocs = section.zone ~= nil and ZoneLocs(section.zone) or {}
     if section.zone ~= nil and #zoneLocs == 0 then
         printf("EotW reinforcements: the map has no '%s' zone; '%s' arrive at their saved positions", tostring(section.zone), tostring(section.name))
@@ -175,7 +175,7 @@ local function Arrive(script, section, ordinal, queue, live)
     end
     --each wave is levelled on its own, like the opening fight.
     if #spawned > 0 then
-        EncounterOfTheWeekGame.ApplyLevelBoost(spawned, EncounterOfTheWeekGame.LevelBoost(levelUp), "reinforcements")
+        EncounterOfTheWeekGame.ApplyLevelBoost(spawned, EncounterOfTheWeekGame.LevelBoost(extraLevels), "reinforcements")
     end
     game.UpdateCharacterTokens()
 

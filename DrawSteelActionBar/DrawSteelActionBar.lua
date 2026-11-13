@@ -1238,9 +1238,10 @@ local function ShowMovementDiagram(token, path, label, alternates, damages, text
     CrossSection.movementShown = true
 end
 
---Flight wheel: while a FLYING creature picks where an ability's pathfound move (Advance
---and the like) ends, the mouse wheel sets how far above or below its current altitude the
---move ends, as it does when dragging the token. The hover handler turns it on for such a
+--Flight wheel: while a creature that is flying, or can fly and is walking, picks where an
+--ability's pathfound move (Advance and the like) ends, the mouse wheel sets how far above or
+--below its current altitude the move ends, as it does when dragging the token (a walker
+--takes off for a move that ends in the air). The hover handler turns it on for such a
 --pick (active), the poller panel inside the ability controller reads the wheel, and the
 --dialed altitude reaches the move via g_currentSymbols.flightAltitude
 --(AbilityRelocateCreature passes it to token:Move). Kept on a table: this file's main
@@ -1252,13 +1253,46 @@ DrawSteelActionBar._flight = {
     ability = nil,   --the ability the offset was dialed for; a new cast starts again at 0
 }
 
---- Whether the flight wheel applies to the current pick: a flying creature on an ordinary
---- (not shift) pathfound move. Shifting keeps its own rules.
+--- Whether the selected creature can dial a flight altitude: it is flying, or it can fly
+--- and is walking (not swimming, burrowing or climbing, which have their own vertical rules,
+--- matching the engine's drag wheel).
+--- @return boolean
+function DrawSteelActionBar._flight.CreatureCanDial()
+    if g_token == nil or not g_token.valid then
+        return false
+    end
+    local props = g_token.properties
+    return props:IsFlying() or (props:CanFly() and props:CurrentMoveType() == "walk")
+end
+
+--- Whether the flight wheel applies to the current pick: a creature that can dial (see
+--- CreatureCanDial) on an ordinary (not shift) pathfound move. Shifting keeps its own rules.
 --- @param movementType nil|string from ActivatedAbility:GetMovementType
 --- @return boolean
 function DrawSteelActionBar._flight.Applies(movementType)
-    return g_token ~= nil and g_token.valid and g_token.properties:IsFlying() and movementType ~= "shift"
+    return movementType ~= "shift" and DrawSteelActionBar._flight.CreatureCanDial()
 end
+
+--Bottom-of-screen reminder that the wheel flies up or down (InputHint, GameHud.lua): while
+--a creature that can fly is drag-moved (an ordinary drag; the engine gives it the wheel for
+--the same creatures), or while the flight wheel is on for an ability move.
+InputHint.Register{
+    id = "flight-wheel",
+    priority = 10,
+    text = "Use {wheel} to fly up or down",
+    visible = function()
+        local flight = DrawSteelActionBar._flight
+        if flight.active and g_currentAbility ~= nil and flight.ability == g_currentAbility then
+            return flight.CreatureCanDial()
+        end
+        local token = rawget(GameHud, "dragMovingToken")
+        if token == nil or not token.valid then
+            return false
+        end
+        local props = token.properties
+        return props:IsFlying() or (props:CanFly() and props:CurrentMoveType() == "walk")
+    end,
+}
 
 --- Turn the flight wheel off and forget the dialed height (the cast ended or was cancelled).
 function DrawSteelActionBar._flight.Reset()
@@ -1282,7 +1316,7 @@ function DrawSteelActionBar._flight.CreatePoller()
         think = function(element)
             local flight = DrawSteelActionBar._flight
             if not flight.active or g_currentAbility == nil or flight.ability ~= g_currentAbility
-                or g_token == nil or not g_token.valid or not g_token.properties:IsFlying() then
+                or not flight.CreatureCanDial() then
                 return
             end
 
@@ -10011,7 +10045,11 @@ local function CreateTargetInfo(spell)
             -- ignored, and the arrow's reason label flashes red for emphasis.
             -- Directors bypass this.
             if (not dmhub.isDM) and dmhub.GetSettingValue("strict:targeting") then
-                if targetToken.sheet ~= nil and targetToken.sheet.data.targetValid == false then
+                -- A target already chosen can always be clicked again to deselect it, so a
+                -- player can drop one that became invalid after they picked it.
+                if targetToken.sheet ~= nil and targetToken.sheet.data.targetValid == false
+                    and not (list_contains(g_targetsChosen, targetToken.id)
+                        and not spell:CanTargetAdditionalTimes(g_token, g_currentSymbols, g_targetsChosen, targetToken)) then
                     if m_markLineOfSight ~= nil and m_markLineOfSightToken == targetToken then
                         m_markLineOfSight:FlashLabels()
                     else
@@ -11859,16 +11897,128 @@ CreateAbilityController = function()
     g_castMessageContainer = gui.TooltipFrame(g_castMessage, {
     })
 
+    --Switches the cast in progress to modeIndex: swaps in that mode's variation,
+    --re-arms targeting (chosen targets are kept) and refreshes cost and prompt.
+    --castNow: the press is the cast itself (target-first abilities), so cast
+    --straight away instead of running a targeting pass the cast would redo.
+    local function SelectCastMode(modeIndex, castNow)
+        if g_currentAbility == nil or g_token == nil then return end
+        g_currentSymbols.mode = modeIndex
+
+        g_currentAbility = g_currentAbility:SwitchModes(modeIndex)
+
+        g_targetInfo = CreateTargetInfo(g_currentAbility)
+
+        if g_currentAbility.targetType ~= 'self' and g_currentAbility.targetType ~= 'target' and g_currentAbility.targetType ~= 'all' and g_currentAbility.targetType ~= 'areatemplate' then
+            --make this get map events.
+            g_abilityController.mapfocus = true
+        else
+            g_abilityController.mapfocus = false
+        end
+
+        if g_currentAbility ~= nil and (g_currentAbility.targetType == "emptyspace" or g_currentAbility.targetType == "anyspace") then
+            local movementType = g_currentAbility:GetMovementType(g_token, g_currentSymbols)
+            local shifting = (movementType == "shift")
+            if shifting then
+                m_shiftController:FireEventTree("beginCasting")
+                m_shiftController:SetClass("collapsed", false)
+            else
+                m_shiftController:SetClass("collapsed", true)
+            end
+        else
+            m_shiftController:SetClass("collapsed", true)
+        end
+
+
+
+        g_currentCostProposal = g_currentAbility:GetCost(g_token, g_currentSymbols)
+        AppendImprovementCosts(g_currentCostProposal)
+
+        --re-evaluate instant "apply on casting" duration effects for the
+        --newly-selected mode: apply effects whose filterTarget gate now
+        --passes, remove those whose gate no longer holds. Done before
+        --CalculateSpellTargeting so a Movement-Speed bump recalculates the
+        --pathfind reachable area for the new mode.
+        RefreshCastingDurationEffects()
+
+        if castNow then
+            CalculateSpellTargeting(true)
+            return
+        end
+
+        CalculateSpellTargeting()
+        --TODO: resourcesBar
+        --resourcesBar:FireEventTree("cost", g_currentCostProposal)
+        g_castMessage:FireEvent("refresh")
+        g_castModesPanel:FireEvent("refreshModes")
+        g_forcedMovementTypePanel:FireEvent("refreshForcedMovement")
+        g_channeledResourcePanel:FireEventTree("focusspell")
+
+        --If the spell's render varies depending on the mode (a
+        --variation swap or mode-gated power rolls), re-display the
+        --ability card so it shows the switched mode's content
+        --rather than the mode it was first displayed with. This
+        --also covers the auto-switch when the previously selected
+        --mode's condition fails (see the ScheduleEvent press
+        --below), which otherwise leaves a stale card up through
+        --the whole targeting phase.
+        if g_currentAbility ~= nil and g_currentAbility:RenderVariesWithDifferentModes() then
+            CharacterPanel.DisplayAbility(g_token, g_currentAbility, g_currentSymbols)
+        end
+    end
+
+    local function ModeButton(modeIndex, mode, selected, onPress)
+        return gui.Label {
+            classes = { "enumSliderOption", cond(selected, "selected") },
+            text = mode.text,
+            fontSize = 14,
+            textWrap = true,
+            vpad = 1,
+            hpad = 4,
+            width = "auto",
+            minWidth = 120,
+            maxWidth = 140,
+            height = 35,
+
+            hover = function(element)
+                if mode.rules ~= nil and mode.rules ~= "" and g_token ~= nil then
+                    gui.Tooltip{valign = "top", text = StringInterpolateGoblinScript(mode.rules, g_token.properties)}(element)
+                end
+            end,
+
+            press = function(element)
+                onPress(modeIndex)
+            end,
+        }
+    end
+
+    --Sits above the mode buttons; says why a target-first ability's mode is missing.
+    local castModeNotesPanel = gui.Panel {
+        classes = { 'collapsed' },
+        width = "auto",
+        height = "auto",
+        halign = "center",
+        flow = "vertical",
+        bgimage = "panels/square.png",
+        bgcolor = "#000000bb",
+        hpad = 10,
+        vpad = 4,
+        borderBox = true,
+        vmargin = 4,
+    }
+
     g_castModesPanel = gui.Panel {
         classes = { 'collapsed' },
         width = "auto",
         height = "auto",
+        halign = "center",
         bgimage = "panels/square.png",
         bgcolor = "#000000bb",
         vmargin = 8,
         flow = "horizontal",
 
         refreshModes = function(element)
+            castModeNotesPanel:SetClass("collapsed", true)
             if g_currentAbility == nil or g_currentAbility.multipleModes == false or g_currentAbility:try_get("modeList") == nil then
                 element:SetClass("collapsed", true)
                 return
@@ -11876,97 +12026,75 @@ CreateAbilityController = function()
             --A cast is in progress, so g_token is its caster.
             ---@cast g_token -nil
 
+            if g_currentAbility:UsesTargetFirstModes(g_token, g_currentSymbols) then
+                --Target first, then mode (e.g. Heal): nothing to show until a target is
+                --picked. Then each mode is checked against that target; a mode it can't
+                --use shows why instead of a button, and pressing a button casts.
+                local targetToken = g_targetsChosen[1] ~= nil and dmhub.GetTokenById(g_targetsChosen[1]) or nil
+                if targetToken == nil or (not targetToken.valid) or targetToken.properties == nil then
+                    element.children = {}
+                    element:SetClass("collapsed", true)
+                    return
+                end
+
+                local noteTexts = {}
+                local buttons = {}
+                for i, mode in ipairs(g_currentAbility.modeList) do
+                    local available, failedOn = g_currentAbility:ModeAvailableForTarget(g_token, targetToken, i)
+                    if available then
+                        buttons[#buttons + 1] = ModeButton(i, mode, false, function(modeIndex)
+                            SelectCastMode(modeIndex, true)
+                        end)
+                    elseif failedOn == "target" and (mode.targetUnavailableText or "") ~= "" then
+                        noteTexts[#noteTexts + 1] = mode.targetUnavailableText
+                    end
+                end
+
+                --No mode works on this creature. Targeting marks such a creature invalid,
+                --but a Director (or a player without strict targeting) can still pick it:
+                --say why, and offer a way back to targeting instead of a dead end.
+                if #buttons == 0 then
+                    if #noteTexts == 0 then
+                        noteTexts = { g_currentAbility:TargetFirstUnavailableReason(g_token, targetToken) }
+                    end
+                    buttons[1] = ModeButton(0, { text = "Choose another target" }, false, function()
+                        --A second click on a chosen target deselects it and re-runs targeting.
+                        if targetToken.valid and targetToken.sheet ~= nil then
+                            targetToken.sheet:FireEvent("tokenClick")
+                        end
+                    end)
+                end
+
+                local notes = {}
+                for _, text in ipairs(noteTexts) do
+                    notes[#notes + 1] = gui.Label {
+                        classes = { "warning" },
+                        text = text,
+                        fontSize = 14,
+                        width = "auto",
+                        maxWidth = 400,
+                        height = "auto",
+                        textWrap = true,
+                        textAlignment = "center",
+                        halign = "center",
+                        vmargin = 1,
+                    }
+                end
+
+                --The buttons get the same row as ordinary modes; the notes go above it.
+                castModeNotesPanel.children = notes
+                castModeNotesPanel:SetClass("collapsed", #notes == 0)
+                element.children = buttons
+                element:SetClass("collapsed", #buttons == 0)
+                return
+            end
+
             local changeMode = false
             local children = {}
 
             for i, mode in ipairs(g_currentAbility.modeList) do
-                local available = true
-                if mode.condition ~= nil and mode.condition ~= "" then
-                    local result = ExecuteGoblinScript(mode.condition, g_token.properties:LookupSymbol(), 1,
-                        "Mode condition")
-                    available = type(result) == "number" and result > 0
-                end
-
-                if available then
-                    children[#children + 1] = gui.Label {
-                        classes = { "enumSliderOption", cond(i == g_currentSymbols.mode, "selected") },
-                        text = mode.text,
-                        fontSize = 14,
-                        textWrap = true,
-                        vpad = 1,
-                        hpad = 4,
-                        width = "auto",
-                        minWidth = 120,
-                        maxWidth = 140,
-                        height = 35,
-
-                        hover = function(element)
-                            if mode.rules ~= nil and mode.rules ~= "" then
-                                gui.Tooltip{valign = "top", text = StringInterpolateGoblinScript(mode.rules, g_token.properties)}(element)
-                            end
-                        end,
-
-                        press = function(element)
-                            if g_currentAbility == nil then return end
-                            g_currentSymbols.mode = i
-
-                            g_currentAbility = g_currentAbility:SwitchModes(i)
-
-                            g_targetInfo = CreateTargetInfo(g_currentAbility)
-
-                            if g_currentAbility.targetType ~= 'self' and g_currentAbility.targetType ~= 'target' and g_currentAbility.targetType ~= 'all' and g_currentAbility.targetType ~= 'areatemplate' then
-                                --make this get map events.
-                                g_abilityController.mapfocus = true
-                            else
-                                g_abilityController.mapfocus = false
-                            end
-
-                            if g_currentAbility ~= nil and (g_currentAbility.targetType == "emptyspace" or g_currentAbility.targetType == "anyspace") then
-                                local movementType = g_currentAbility:GetMovementType(g_token, g_currentSymbols)
-                                local shifting = (movementType == "shift")
-                                if shifting then
-                                    m_shiftController:FireEventTree("beginCasting")
-                                    m_shiftController:SetClass("collapsed", false)
-                                else
-                                    m_shiftController:SetClass("collapsed", true)
-                                end
-                            else
-                                m_shiftController:SetClass("collapsed", true)
-                            end
-
-
-
-                            g_currentCostProposal = g_currentAbility:GetCost(g_token, g_currentSymbols)
-                            AppendImprovementCosts(g_currentCostProposal)
-
-                            --re-evaluate instant "apply on casting" duration effects for the
-                            --newly-selected mode: apply effects whose filterTarget gate now
-                            --passes, remove those whose gate no longer holds. Done before
-                            --CalculateSpellTargeting so a Movement-Speed bump recalculates the
-                            --pathfind reachable area for the new mode.
-                            RefreshCastingDurationEffects()
-
-                            CalculateSpellTargeting()
-                            --TODO: resourcesBar
-                            --resourcesBar:FireEventTree("cost", g_currentCostProposal)
-                            g_castMessage:FireEvent("refresh")
-                            g_castModesPanel:FireEvent("refreshModes")
-                            g_forcedMovementTypePanel:FireEvent("refreshForcedMovement")
-                            g_channeledResourcePanel:FireEventTree("focusspell")
-
-                            --If the spell's render varies depending on the mode (a
-                            --variation swap or mode-gated power rolls), re-display the
-                            --ability card so it shows the switched mode's content
-                            --rather than the mode it was first displayed with. This
-                            --also covers the auto-switch when the previously selected
-                            --mode's condition fails (see the ScheduleEvent press
-                            --below), which otherwise leaves a stale card up through
-                            --the whole targeting phase.
-                            if g_currentAbility ~= nil and g_currentAbility:RenderVariesWithDifferentModes() then
-                                CharacterPanel.DisplayAbility(g_token, g_currentAbility, g_currentSymbols)
-                            end
-                        end,
-                    }
+                if g_currentAbility:ModeAvailableForTarget(g_token, nil, i) then
+                    children[#children + 1] = ModeButton(i, mode, i == g_currentSymbols.mode, SelectCastMode)
                 elseif i == g_currentSymbols.mode then
                     changeMode = true
                 end
@@ -12347,6 +12475,7 @@ CreateAbilityController = function()
 
         g_channeledResourcePanel,
 
+        castModeNotesPanel,
         g_castModesPanel,
 
         g_castControlsPanel,
@@ -13470,7 +13599,7 @@ CreateAbilityController = function()
                     local movementType = g_currentAbility:GetMovementType(g_token, g_currentSymbols)
                     local shifting = (movementType == "shift")
 
-                    --A flier can dial its end altitude on the wheel (DrawSteelActionBar._flight).
+                    --A creature that can fly dials its end altitude on the wheel (DrawSteelActionBar._flight).
                     local flight = DrawSteelActionBar._flight
                     if flight.ability ~= g_currentAbility then
                         flight.ability = g_currentAbility
@@ -15216,6 +15345,7 @@ local function CalculateSpellTargetFocusing(symbols)
         end
 
         local proximityOrigin, proximityRange = DrawSteelActionBar.ProximityTargetingOrigin(g_currentAbility, g_token)
+        local targetFirstModes = spell:UsesTargetFirstModes(g_token, symbols)
 
         for _, targetToken in ipairs(allTokens) do
             if targetToken.valid and targetToken.sheet ~= nil then
@@ -15378,6 +15508,12 @@ local function CalculateSpellTargetFocusing(symbols)
                             targetProximityOrigin or DrawSteelActionBar.RangeMeasureOrigin(g_currentAbility, g_token, targetToken))
                     end
 
+                    --Target-first abilities (Heal): a creature in reach that no mode can be
+                    --used on is invalid, with each mode's Unavailable Text as the reason.
+                    if failReason == nil and targetFirstModes then
+                        failReason = spell:TargetFirstUnavailableReason(g_token, targetToken)
+                    end
+
                     local valid = failReason == nil
 
                     if targetToken.valid and targetToken.sheet ~= nil then
@@ -15523,6 +15659,12 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
             and #g_currentAbility:try_get("modeList", {}) > 1
         local hasPromptOverride = (g_currentAbility:try_get("promptOverride") ~= nil or awaitsModeChoice)
             and not g_manualTargetChosen
+        --Target-then-mode abilities (Heal) never cast on the target click: the mode
+        --buttons that appear afterwards are what cast (they pass forceCast).
+        local modeAfterTargeting = g_currentAbility:UsesTargetFirstModes(g_token, g_currentSymbols)
+        if modeAfterTargeting then
+            hasPromptOverride = true
+        end
         --A chooser shell (e.g. "Make Melee Free Strike") is targetType self, so one
         --pre-selected target (an Opportunity Attack's mover) already fills it. Casting
         --the shell does nothing and cancels silently (5NBZASN4): wait for the player to
@@ -15642,12 +15784,24 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
                 shownTargets = m_positionTargetsChosen
             end
 
+            --Target-first abilities cast from their mode buttons, so there is no Confirm
+            --button; the prompt asks the player to pick an option for the chosen target.
             local canConfirm = g_currentAbility:CanCastAsIs(g_token, shownTargets, g_currentSymbols) and
-                not (synthesizedSpells ~= nil and #synthesizedSpells > 0)
+                not (synthesizedSpells ~= nil and #synthesizedSpells > 0) and not modeAfterTargeting
             g_castButton:FireEvent("setVisible", canConfirm)
 
 
             local promptText = g_currentAbility:PromptText(g_token, shownTargets, g_currentSymbols, synthesizedSpells)
+            if modeAfterTargeting and #shownTargets > 0 and shownTargets[1].token ~= nil then
+                local targetToken = shownTargets[1].token --[[@as CharacterToken]]
+                local targetName = creature.GetTokenDescription(targetToken)
+                --When no mode works on this target, say so rather than asking for a choice.
+                if g_currentAbility:TargetFirstUnavailableReason(g_token, targetToken) ~= nil then
+                    promptText = string.format("%s can't be used on %s", g_currentAbility.name, targetName)
+                else
+                    promptText = string.format("%s %s: choose an option", g_currentAbility.name, targetName)
+                end
+            end
             --Abilities that need no targets (targetType 'all', zero targets) have no
             --prompt of their own, which left a bare Confirm button with nothing
             --explaining it. Give the player a sentence naming what they are confirming.

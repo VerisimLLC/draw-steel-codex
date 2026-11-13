@@ -174,6 +174,32 @@ the authoring game's whole journal (Delian Tomb rooms and more) beside the
 week's 17 script documents. Only documents filed under an encounter map are
 published. Review the directory before committing it wholesale.
 
+## Beats after the fight (BUILT 2026-11-12 for NQPHXEAE; UNCOMMITTED, not run in the app)
+
+The script builder always let an author move a narrative/montage/negotiation
+below the `# Encounter`, but nothing played it: combat ending set the host
+stage to "complete". Now (David chose this over forbidding it):
+- Host (`MapScriptHostThink`): when combat ends and this client saw a
+  **victory**, `AfterEncounterBeat(script)` finds the first stage beat after
+  the first encounter; the beat index moves there and the stage becomes
+  `"aftermath"`, where `RunScriptBeat` plays beats with no arrival gate. The
+  end of the script, or a second `# Encounter`, dissolves the stage and sets
+  `"complete"`. A defeat goes straight to "complete" as before.
+- Every client: `UpdateEncounterConclusion` waits while
+  `AfterEncounterPending()` (victory, after-beats exist, and the index has
+  not moved on yet / is on one / the stage is still up). Then the Conclusion
+  story, or in a test the end of the test. A host that never moves the script
+  on is waited out after 30 s (`Series.afterEncounterWaitSince`).
+- Unchanged and worth knowing: `DecideSeriesResult` (series `# Results`) runs
+  at the victory, before these beats; the town award and outcome records too.
+  Treasure gained in them still goes home (heroes are carried as they are at
+  departure) -- not verified.
+- To test: a test with Narrative -> Encounter -> Narrative (win: aftermath
+  plays, then Conclusion, then the test ends; lose: Defeat at once); a real
+  2-player game where one player is still on the victory screen when the
+  other presses Proceed (does the stage cover the held screen sensibly?);
+  dead heroes in an "each hero chooses" aftermath.
+
 ## Known open problems
 
 - **No bare `Encounter` map** in the authoring game. Only `Encounter: Goblin
@@ -1023,6 +1049,47 @@ graveyard.
     - Nothing committed.
     - **Open:** the building-site art (placeholder: the Hall's Construction
       still).
+- **The Great Forge** (PROJECT BUILT 2026-11-10: codex + server; server on
+  STAGING only, version 69587af5; nothing committed). **Hidden by default**
+  (David 2026-11-11): `defaultHidden` in `CITY_PROJECTS`, so on every server
+  it stays hidden until an admin presses Show in Codex menu -> Community
+  Projects... (stored per server in `shownProjects`); showing it on staging
+  leaves release hidden. Raised with the
+  Tinkerer's Guild, a cabal of Gnome tinkerers. What the built Forge does is
+  NOT designed yet (David: the project first, then its function).
+  - **Construction** (David 2026-11-10): the fourth community project,
+    `build-great-forge` (**10000** points, one completion, `autoStart`;
+    effect `greatForge` -> `unlocks.greatForge`, `greatForgeBuilt()`) in
+    `CITY_PROJECTS` (test "building the Great Forge"), "the Great Forge" in
+    `COMMUNITY_PROJECT_NAMES`, the Lua `PROJECTS` entry,
+    `EotwRoster.GreatForgeBuilt()`, `EotwDowntime.GreatForgeConstructionPanel`
+    and the map node `greatforge` (`GREAT_FORGE_SCENES`, `OpenLocation`,
+    `m_buildingReveals`). Hidden until the City lists the project, like the
+    Training Grounds. The Training Grounds' and Great Forge's open scenes
+    share one table, `m_buildingScenes` (the town function is at Lua's
+    200-local limit).
+  - **Two stages:** Planning (0-4999): Presence or Reason; Lead,
+    Architecture, Magic. Building (5000-10000): Might or Agility; Alchemy,
+    Magic, Blacksmithing, Mechanics ("Stonework" from the brief is not a
+    Draw Steel skill).
+  - **Art:** Czepeku "Alchemy Dungeon" (Original Day HD) 30s 1080p video over
+    its first frame, for both the site and the built Forge (core image
+    assets uploaded 2026-11-10: video `df4a22af-6369-4fa9-a0d2-efe2a0f43f3c`,
+    still `7bffe83d-058f-4c90-a211-8ee548550209`; source
+    `C:/dev/eotw/art/great-forge-alchemy-dungeon-day.webm`). The video
+    carries a CZEPEKU.COM watermark, bottom right.
+  - **Map:** PLACEHOLDER spot (0.5, 0.62), south of the Guild, just above the
+    hero cards. Icons: hammer while building, `phosphor/flame-fill.png` once
+    built (no anvil in Phosphor).
+  - **Text:** `Codex Titlescreen/EotwTextGreatForge.lua` (registered in Codex
+    Titlescreen after `EotwTextTrainingGrounds.lua`, Firebase confirmed; in
+    `tests/uitext_check.lua`). Every line is a placeholder draft. **No roll
+    lines yet:** the project has no `rollLines`, so a roll shows no hero line
+    until they are written.
+  - **Tested** on the staging town 2026-11-10: the site shows on the map,
+    opens on the video, the card reads Stage 1 of 2 with 0 / 10000 and the
+    right characteristics and skills; `ProjectStageAt` switches to Building
+    at 50%. No roll made (it would spend a staging hero's Downtime).
 
 ## Locations on the map
 
@@ -1041,6 +1108,7 @@ already has natural homes (fractions of the 6160x4480 canvas):
 | **Blue Fish Inn** | the canal-side building west of the Guild (0.235, 0.455); moved 2026-10-11 (user direction) from the "Drunken Fool" tavern (0.335, 0.575), which the hero cards along the bottom covered | BUILT 2026-10-10 (Downtime); hidden until heroes first come home, then revealed once (2026-10-11, see "The inn's reveal") |
 | **Arcane Market** | the shop the "Front and Back" label points at (0.695, 0.18) | BUILT 2026-10-10; since 2026-10-11 hidden until the player finds it (see "Leads") |
 | **Training Grounds** | the open square in the east district (0.905, 0.44) | BUILT 2026-11-04 (6000-point two-stage build, then Level up; server on staging only) |
+| **Great Forge** | placeholder (0.5, 0.62), south of the Guild | project BUILT 2026-11-10 (10000-point two-stage build; server on staging only); spot not checked against the art |
 | later | the Docks, Bora's Wagon Yard, the Cathedral, the Safe House | |
 
 ## Decisions taken (2026-10-01, with the user)
@@ -1272,7 +1340,8 @@ configs; city id for the town: `blackbottom`):
   | `set-active {heroids}` | owner | replace the active set (max 4, living, own) |
   | `record-outcome {heroid, gameid, outcome, died?}` | owner | append to the hero's adventure log, idempotent per (hero, game). `died` sets the hero fallen and inactive and digs a grave whose epitaph comes from the summary + `outcome.encounter` + owner name. `outcome.completed` (with `outcome.encounter`, not dying) records that the hero won that encounter (`city_completions`) |
   | `list-outcomes {userid?, heroid}` | anyone | the hero's adventure log |
-  | `list-graveyard {before?, limit?}` | anyone | graves newest first, paged (50 default, 100 max), `more` flag |
+  | `list-graveyard {before?, limit?, mine?}` | anyone | graves newest first, paged (50 default, 100 max), `more` flag; `mine` = the caller's only (the Graveyard's Your Fallen tab) |
+  | `awaken-hero {heroid}` | owner | a fallen Hakaan / Revenant / Vampire (summary ancestry) back to the roster, living and inactive, if a slot is free; deletes its grave, keeps the outcome log. Record = the last one pushed from town (the fatal game never pushed). Graveyard Awaken button (added 2026-11-11) |
   | `town-heroes {}` | anyone | the active heroes of everyone currently present |
 - **Parties take roster heroes only.** In a city, `join-game`/`set-heroes`
   accept only the caller's own living heroes as `{kind: "roster", id:
@@ -1433,8 +1502,8 @@ holds.
   conditions are copied as they are (not decided; see below).
   `EotwRoster.FindCopyOf(charid)` finds the living copy that blocks a second
   pick. The list comes from the NEW `TitlescreenHeroes.List()` in
-  `CodexTitlescreen.lua`: the first 8 of `LobbyHeroes()` (the HEROES slots),
-  minus `HeroIsUnstarted` shells. **Create**: `TitlescreenHeroes.Create`, then `JoinRoster`
+  `CodexTitlescreen.lua`: all of `LobbyHeroes()` (the HEROES slots, every
+  page; the 8-hero cap was lifted 2026-11-12), minus `HeroIsUnstarted` shells. **Create**: `TitlescreenHeroes.Create`, then `JoinRoster`
   if the builder kept the hero. **Edit**: `TitlescreenHeroes.Edit`, then
   push on close.
 
@@ -2707,6 +2776,22 @@ the 200-local ceiling):
   for the part just won (the town's debrief would have); at the Gate it stamps
   `alreadyCompleted` for the new part from `list-heroes` (no party record
   carries it here).
+- **Repeat payouts on continued parts (fixed 2026-11-12, not run live).**
+  Analytics showed heroes paid a part's Victories again on a replay, almost
+  only on continued parts (Aixco part 3: 23 of 1,579 heroes). The stamp was a
+  single `list-heroes` with no retry, and a miss paid in full. Now:
+  `Series.StampCompletedForPart` asks again until the City answers (5 s after
+  a failure, 40 s with no answer, 12 attempts) and `Series.ContinueTick`
+  restarts it after a reload; each client writes
+  `data.completionChecked[userid] = runId` when its answer is in, and the
+  host's `AutoAwardVictories` holds the award up to 15 s
+  (`Series.COMPLETION_CHECK_HOLD`) for a missing one, except when Proceed was
+  pressed. A client on an older build never writes the stamp, so a mixed party
+  waits the full 15 s. Why the original lookup was missed is not known; the
+  retry and give-up lines are logged. Also `RecordCompletedHeroes` (arrival and
+  continued parts) now counts this machine's wins still in
+  `eotw:pendingOutcomes` (`Series.PendingWins`): a party could set out again
+  before the town had recorded the last game, and be paid again.
 - **Resume**: a game that went on (`seriesContinue` set) keeps its stamped key
   over the lobby record's, keeps its recorded `expectedUsers`, and does not
   re-stamp completions from the arrival's hero list. `OutcomesFor` and the
@@ -3228,17 +3313,20 @@ Mode -- no authoring. Decisions taken with the user:
   normal mode but not the challenge, **2 for a hero who has won neither**
   (who then can earn nothing more from either mode), 0 ("Already Completed")
   for a hero who has won the challenge.
-- **Combat** (`ChallengeBalance`, then half a Level of `ApplyLevelBoost`;
-  see "Level balancing" below): balanced for one
-  more hero. Encounters carry balancing for 4-6 heroes only and nobody
+- **Combat** (`DifficultyBalance`, then `ApplyLevelBoost`; see "Level
+  balancing" below): balanced for one more hero. Challenge Mode is one
+  difficulty notch (see "Difficulty notches" below). Encounters carry balancing for 4-6 heroes only and nobody
   should have to author a 7-hero setup (no algorithmic extra start
-  positions either), so **a party of 6 is balanced for 6 and the strongest
-  monsters are leveled up by one level** (`monster:SetLevelAdjustment`),
-  strongest EV first, until at least half the spawned EV is leveled. A
+  positions either), so **a party of 6 is balanced for 6 and the monsters
+  are leveled by one hero's worth of EV instead**: (party Level + 2) / 6
+  Levels (`monster:SetLevelAdjustment`) -- 0.5 at Level 1, 1.0 at Level 4.
+  The whole part levels every monster; a fraction levels the strongest EV
+  first until that fraction of the spawned EV is leveled. A
   minion squad is one unit worth EV/minionsPerSquad per minion, as the
   encounter builder counts it. Reinforcement waves get the same rule as they
-  arrive (half of each wave). Since level balancing, a late hero who
-  completes a party of 6 brings the half Level too.
+  arrive. Since level balancing, a late hero who completes a party of 6
+  brings the extra Levels too. (Until 2026-11-10 this was a flat half Level,
+  which was only worth a hero at Level 1.)
 - **Montage**: one more threat. Party-size scaling's removals stand except
   one threat, which comes back (the earliest round's, at random). When the
   scaling removed no threat, an existing threat must be **vanquished twice**:
@@ -3378,8 +3466,28 @@ Level. Decisions taken with David:
   meets Level 2 summons. Built as a shift relative to the summon's own
   Level (a Level 3 summon there becomes Level 4) -- David's example fits
   both readings; confirm if he meant an absolute Level.
-- **Challenge Mode** keeps its rule: a full party adds half a Level to the
-  boost (it used to be its own `LevelUpStrongestHalf`).
+- **Challenge Mode** (and every difficulty notch past a full party) adds
+  (party Level + 2) / 6 Levels to the boost (it used to be its own
+  `LevelUpStrongestHalf`, then a flat half Level).
+
+### Difficulty notches
+
+An admin can play any pool encounter up to 3 notches harder or easier
+(Codex menu > Encounter Difficulty..., `EncounterOfTheWeek.ShowDifficultyDialog`;
+David 2026-11-09). One notch is what Challenge Mode adds, and Challenge Mode
+stacks on top (`EncounterOfTheWeekGame.Notches`):
+- **Combat**: balanced for one hero more (or fewer). Past 6 heroes or below 1,
+  each notch is (party Level + 2) / 6 Levels up (or down) instead.
+- **Montage** (`EncounterScript.ChooseNotchThreats`): each notch up brings back
+  a threat the party-size scaling removed, else a threat needs one more
+  vanquish (x2 spread across threats before any x3). Each notch down removes a
+  threat, never a Required/Locked one or a round's last; while notched down,
+  every round waits for the draw. Consequence costs stay Challenge Mode's only.
+- Stored as `publishingProperties.eotwNotches[mapName]` on the module record
+  (like `eotwPulled`), read into the pool entry's `notch`, carried in the
+  arrival args and stamped once into `data.notch` by the host. Players are
+  not told; the console logs it. Unverified: that republishing the official
+  module (Create Module...) keeps `eotwNotches`.
 
 Why it holds: a hero's Encounter Strength is 2 x (Level + 2), and every row
 of `MCDMMonsterScaling`'s table (`Draw Steel Core Rules/MCDMMonster.lua`) has
@@ -4122,6 +4230,11 @@ User direction (2026-10-11):
   should also allow a respite (still unspammable, since they drop to 0).
 - **One carouse per respite, lost at the next respite** (not banked).
   After the last lead is learned no carouse is offered at all.
+  Changed 2026-11-11 (David), with single-hero respites (each inn row has
+  its own Respite button beside Catch Breath): every respite, one hero or
+  the party, closes the account's open series parts, but a respite opens a
+  carouse only when a resting hero banks a Victory. A respite with no
+  Victories leaves an unused carouse open.
 - **Carouse skills** (+2 when trained): Brag, Flirt, Gamble, Music,
   Perform, Rumors (`EotwLeads.CAROUSE_SKILLS`). Tiers are Draw Steel's: 11-,
   12-16, 17+, and a natural 19-20 is tier 3.

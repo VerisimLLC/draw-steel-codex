@@ -6036,7 +6036,7 @@ local function CreateStage(args)
         local phase = m.phase
         --the draw landing is a rebuild: the entries it let through have to
         --arrive, and the round number has not changed to bring them in.
-        local drawPending = m.removed == nil and EncounterScript.HasScaling(beat)
+        local drawPending = m.removed == nil and (EncounterScript.HasScaling(beat) or EncounterMontage.Notches() < 0)
         local drawLanded = m_entryDrawPending and not drawPending
         m_entryDrawPending = drawPending
         --an "Unlock <name>" outcome can land at any moment; the count only

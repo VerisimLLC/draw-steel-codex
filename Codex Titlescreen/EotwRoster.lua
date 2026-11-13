@@ -524,6 +524,20 @@ function EotwRoster.TrainingGroundsBuilt()
     return state ~= nil and (tonumber(state.completions) or 0) >= 1
 end
 
+--Has the town finished building the Great Forge (the community project
+--Build the Great Forge)? Until then its place on the map is a building site.
+function EotwRoster.GreatForgeBuilt()
+    --a hidden project's building is not there, even if built.
+    if EotwDowntime.CommunityProjectHidden("build-great-forge") then
+        return false
+    end
+    if m_unlocks ~= nil and m_unlocks.greatForge == true then
+        return true
+    end
+    local state = EotwDowntime.GetProject("build-great-forge")
+    return state ~= nil and (tonumber(state.completions) or 0) >= 1
+end
+
 --The lead ids this account has learned, as a set; empty while not listed.
 function EotwRoster.LearnedLeads()
     local result = {}
@@ -1860,15 +1874,65 @@ function EotwRoster.GetHallEntry(gameid, onDone, onFail)
 end
 
 --One page of the shared graveyard. onDone(result) with {graves, more}.
-function EotwRoster.ListGraveyard(before, onDone)
+--mine: only this account's graves.
+function EotwRoster.ListGraveyard(before, onDone, mine)
     if m_conn == nil then
         return
     end
     m_conn:Request{
         action = "list-graveyard",
-        args = { before = before, limit = 50 },
+        args = { before = before, limit = 50, mine = mine == true },
         success = onDone,
         error = Fail,
+    }
+end
+
+--Ancestries whose rules keep them from staying dead (Hakaan rubble, Revenant
+--inertia, Vampires). The city checks the same list in awaken-hero.
+local AWAKENING_ANCESTRIES = { "hakaan", "revenant", "vampire" }
+
+--Can a fallen hero of this ancestry (the grave's epitaph text) be awakened?
+function EotwRoster.CanAwaken(ancestry)
+    if type(ancestry) ~= "string" then
+        return false
+    end
+    local text = string.lower(ancestry)
+    for _,name in ipairs(AWAKENING_ANCESTRIES) do
+        if string.find(text, "%f[%a]" .. name .. "%f[%A]") ~= nil then
+            return true
+        end
+    end
+    return false
+end
+
+--Is there a free roster slot for one more living hero?
+function EotwRoster.HasFreeSlot()
+    return EotwRoster.LivingCount() < EotwRoster.Slots()
+end
+
+--Bring a fallen hero back from the Graveyard to the roster. The city removes
+--the grave; the re-list then brings the working copy back. onDone(ok).
+function EotwRoster.AwakenHero(heroid, onDone)
+    if m_conn == nil then
+        Fail(T("roster.error.not_connected"))
+        onDone(false)
+        return
+    end
+    m_conn:Request{
+        action = "awaken-hero",
+        args = { heroid = heroid },
+        success = function()
+            if mod.unloaded then
+                return
+            end
+            printf("EotW town: awakened %s from the Graveyard", tostring(heroid))
+            EotwRoster.Refresh()
+            onDone(true)
+        end,
+        error = function(message)
+            Fail(message)
+            onDone(false)
+        end,
     }
 end
 
@@ -3135,13 +3199,65 @@ local function OpenFallen(g)
     }
 end
 
---Everyone's fallen heroes, newest first, with this account's marked.
+--The Awaken button on one of this account's graves (a Hakaan, Revenant or
+--Vampire): greyed, with a tooltip saying why, when the roster is full.
+--onAwakened() runs once the city has taken the hero out of the Graveyard.
+local function AwakenButton(g, onAwakened)
+    local busy = false
+    --the town's button theme gives "disabled" no look of its own, so a
+    --disabled Awaken is dimmed by hand.
+    local function SetDisabled(element, disabled)
+        element:SetClass("disabled", disabled)
+        element.selfStyle.opacity = cond(disabled, 0.4, 1)
+    end
+    return gui.Button{
+        text = T("graveyard.awaken_button"),
+        fontSize = 18,
+        width = 130,
+        height = 40,
+        halign = "right",
+        valign = "center",
+        create = function(element)
+            SetDisabled(element, not EotwRoster.HasFreeSlot())
+        end,
+        linger = function(element)
+            if not EotwRoster.HasFreeSlot() then
+                gui.Tooltip(T("graveyard.awaken_no_slots_tooltip"))(element)
+            else
+                gui.Tooltip(T("graveyard.awaken_tooltip"))(element)
+            end
+        end,
+        click = function(element)
+            if busy or not EotwRoster.HasFreeSlot() then
+                return
+            end
+            busy = true
+            SetDisabled(element, true)
+            audio.FireSoundEvent("Mouse.Click")
+            EotwRoster.AwakenHero(g.heroid, function(ok)
+                busy = false
+                if ok then
+                    onAwakened()
+                elseif element.valid then
+                    SetDisabled(element, not EotwRoster.HasFreeSlot())
+                end
+            end)
+        end,
+    }
+end
+
+--Everyone's fallen heroes, newest first, with this account's marked; or,
+--with the Yours tab, only this account's, where a Hakaan, Revenant or Vampire
+--can be awakened.
 function EotwRoster.ShowGraveyard(host)
     local dlg
     local listPanel = nil
     local graves = {}
     local more = false
     local loading = false
+    local mineOnly = false
+    --bumped on a tab switch, so a page asked for by the other tab is dropped
+    local generation = 0
 
     local Rebuild
     local LoadMore = function()
@@ -3149,15 +3265,32 @@ function EotwRoster.ShowGraveyard(host)
             return
         end
         loading = true
+        local asked = generation
         local before = #graves > 0 and graves[#graves].id or nil
         EotwRoster.ListGraveyard(before, function(result)
+            if asked ~= generation then
+                return
+            end
             loading = false
             for _,g in ipairs(result.graves or {}) do
                 graves[#graves+1] = g
             end
             more = result.more == true
             Rebuild()
-        end)
+        end, mineOnly)
+    end
+
+    local function SetMineOnly(value)
+        if mineOnly == value then
+            return
+        end
+        mineOnly = value
+        generation = generation + 1
+        graves = {}
+        more = false
+        loading = false
+        Rebuild()
+        LoadMore()
     end
 
     Rebuild = function()
@@ -3166,7 +3299,8 @@ function EotwRoster.ShowGraveyard(host)
         end
         local rows = {}
         if #graves == 0 then
-            rows[1] = gui.Label{ text = cond(loading, T("graveyard.loading"), T("graveyard.empty")), fontSize = 18, color = DIM, width = "auto", height = "auto", halign = "center", vmargin = 30 }
+            local empty = cond(mineOnly, T("graveyard.empty_mine"), T("graveyard.empty"))
+            rows[1] = gui.Label{ text = cond(loading, T("graveyard.loading"), empty), fontSize = 18, color = DIM, width = "auto", height = "auto", halign = "center", vmargin = 30 }
         end
         for _,g in ipairs(graves) do
             local e = g.epitaph or {}
@@ -3199,6 +3333,18 @@ function EotwRoster.ShowGraveyard(host)
             end
             lines[#lines+1] = fell
             lines[#lines+1] = T("graveyard.played_by", { player = e.owner or "?" })
+            local awaken = nil
+            if mine and EotwRoster.CanAwaken(e.ancestry) then
+                awaken = AwakenButton(g, function()
+                    for i, other in ipairs(graves) do
+                        if other == g then
+                            table.remove(graves, i)
+                            break
+                        end
+                    end
+                    Rebuild()
+                end)
+            end
             rows[#rows+1] = gui.Panel{
                 width = "100%",
                 height = 100,
@@ -3233,7 +3379,7 @@ function EotwRoster.ShowGraveyard(host)
                 vmargin = 3,
                 Portrait(e.portrait, 63, 84),
                 gui.Panel{
-                    width = "100%-90",
+                    width = cond(awaken ~= nil, "100%-230", "100%-90"),
                     height = "100%",
                     flow = "vertical",
                     valign = "center",
@@ -3241,12 +3387,32 @@ function EotwRoster.ShowGraveyard(host)
                     gui.Label{ text = e.name or T("graveyard.hero_fallback"), fontSize = 22, bold = true, color = TEXT, width = "100%", height = "auto" },
                     gui.Label{ text = table.concat(lines, "\n"), fontSize = 14, color = DIM, width = "100%", height = "auto" },
                 },
+                awaken,
             }
         end
         if more then
             rows[#rows+1] = Button(T("graveyard.older_button"), LoadMore, 220)
         end
         listPanel.children = rows
+    end
+
+    local function Tab(text, value)
+        return gui.Button{
+            text = text,
+            fontSize = 18,
+            width = 180,
+            height = 38,
+            hmargin = 4,
+            classes = { cond(mineOnly == value, "selected", nil) },
+            refreshTab = function(element)
+                element:SetClass("selected", mineOnly == value)
+            end,
+            click = function(element)
+                audio.FireSoundEvent("Mouse.Click")
+                SetMineOnly(value)
+                element.parent:FireEventTree("refreshTab")
+            end,
+        }
     end
 
     local titleParts = Title(T("graveyard.title"), T("graveyard.subtitle"))
@@ -3257,8 +3423,33 @@ function EotwRoster.ShowGraveyard(host)
             titleParts[1],
             titleParts[2],
             gui.Panel{
+                width = "auto",
+                height = "auto",
+                flow = "horizontal",
+                halign = "center",
+                tmargin = 6,
+                Tab(T("graveyard.tab_everyone"), false),
+                Tab(T("graveyard.tab_mine"), true),
+            },
+            --a roster change (an awakening, a dismissal) can free or fill a
+            --slot: rebuild so the Awaken buttons are up to date.
+            gui.Panel{
+                floating = true,
+                width = 1,
+                height = 1,
+                interactable = false,
+                data = { seen = EotwRoster.revision },
+                thinkTime = 0.25,
+                think = function(element)
+                    if element.data.seen ~= EotwRoster.revision then
+                        element.data.seen = EotwRoster.revision
+                        Rebuild()
+                    end
+                end,
+            },
+            gui.Panel{
                 width = "94%",
-                height = "100%-190",
+                height = "100%-240",
                 halign = "center",
                 flow = "vertical",
                 vscroll = true,

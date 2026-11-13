@@ -69,6 +69,21 @@ over this fallback. If ordinary movement cannot advance it further, it casts
 the main action is affordable and a route exists. Minions without a reachable
 signature target use the same fallback; squad target caps still take priority.
 
+A monster that is Hidden at this point (it hid this turn: Hide in Concealment)
+never advances, because walking toward the enemy takes it out of cover and
+gives it away. Instead it runs "Reposition while hidden"
+(`ExecuteHiddenReposition`), once per turn: it moves with its remaining
+movement to a random reachable square where it stays hidden, and the engine's
+route there (checked with `MarkMovementArrow`, which shows the path `Move`
+will take) must keep it hidden on every square. `ai:StaysHiddenAt(token, loc)`
+is the per-square test: concealment there or cover from every relevant enemy
+(the `canhidehere` test), and no enemy adjacent. Squares that provoke an
+opportunity attack are skipped. At most `MonsterAI.hiddenRepositionRouteTries`
+(16) routes are checked. With nowhere to go it stays put, still Hidden. It
+shows no plan preview and says nothing, so with "Hidden Creatures are
+Invisible" on the players see nothing move. Logged as `HIDDEN REPOSITION`.
+Run `../dependencies/lua/bin/lua.exe tests/ai_hidden_reposition_test.lua`.
+
 Run `../dependencies/lua/bin/lua.exe tests/ai_advance_test.lua` and
 `../dependencies/lua/bin/lua.exe tests/ai_minion_critical_test.lua` from the codex
 root to check route selection, action economy, attack priority, and squad retries.
@@ -119,11 +134,25 @@ back (its client crashed or disconnected mid-roll, EMHPEMCY) would hold the
 table for good, so accepting stamps the marker with `resolvingSince`,
 `resolvingBy` and `resolvingLaunch` (`g_appLaunchId`, new each app launch):
 after 30s with no card the banner offers the host and the hero's controller
-"Skip save" (`StuckSaveSkip` in `MonsterAI.lua`), and the accepter's client
+"Skip save" (`StuckReactionSkip` in `MonsterAI.lua`), and the accepter's client
 completes a marker its previous launch left (`CompleteReactionsOrphanedByRestart`).
 Skipping only releases the AI; the effect stays for the next save. Run
 `../dependencies/lua/bin/lua.exe tests/ai_end_turn_save_test.lua` from the codex
 root for prompt lifecycle and process wait/resume/stop coverage.
+
+The same Skip covers every reaction wait (banner key `reaction`, from
+`WaitForActivityReactions`): "Waiting for Reyne's Opportunity Attack to finish"
+means the prompt was accepted and its cast is resolving, so there is no card to
+dismiss. After 30s (`STUCK_REACTION_SKIP_SECONDS`) in state `resolving` the host
+and the hero's controller get "Stop waiting", which completes the marker only:
+the cast is not undone or aborted, and a roll still running resolves as normal
+(2026-11-09 playtest N4). `turnclaim` waits are left out; they already give up
+after 60s. For an open card the answering player gets Dismiss at once; the host,
+when it is not the one answering, gets Dismiss once the card has been open for
+30s (`MayDismissWaitedPrompt`). The card's own client runs the dismissal (its
+On Dismiss steps, the marker); if that client has not done so 10s later it is
+taken to be gone, and the host clears the card and completes the marker itself
+(`DismissWaitedPrompt`).
 
 Before the monster side picks its next group, the process also waits while any
 live player combatant has a trigger prompt the player has not answered
@@ -153,6 +182,29 @@ the two initiative writes used to cross, leaving the claimant's entry current
 with the monsters' side to pick (AH6SYXTP). As a last guard, the AI thread
 never plays a current entry that `IsEntryPlayer` says is the players' (it logs
 `TURN REFUSED` once and leaves it to its player).
+
+Once the AI has picked a group, it also waits for that turn's start to play out
+before acting. It calls `creature:BeginTurn{aiActivityId, onComplete}` with a
+fresh `turn-start:<guid>` ID. The ID tags the "prestartturn" and "beginturn"
+events, so a prompt card they raise on a hero (a hero trigger that fires when an
+enemy starts its turn) carries a reaction marker that lasts until the player
+answers it and its cast finishes, on any machine. Each `BeginTurn` call is
+wrapped in `pcall`: one that throws before its coroutine starts is counted as
+reported (`BEGIN TURN ERROR` in the log) and the group's other creatures still
+begin their turns.
+`MonsterAI:WaitForTurnStart` then waits for every creature's `BeginTurn` to report
+back (through `coroutine.atexit`, so an error still reports; at most 30s). While
+it waits it answers the AI-run creatures' own trigger prompts
+(`AnswerAITriggersDuringWait`, the minion-death wait's helper widened to every
+non-player creature), because the panel's trigger poll cannot run then and a
+monster's Before Start of Turn prompt holds its `BeginTurn` open until answered.
+A prompt with no AI handler is still left to the Director, so it costs the 30s
+cap. Then it lets
+this machine's casts settle (at most 5s, so a trigger deferred behind a cast can
+post its card), and calls `WaitForActivityReactions` on the ID. Only
+prompt cards are tracked: a mandatory (automatic) hero trigger gets no marker by
+design (see `TriggeredAbility:Trigger`), so a turn-start trigger that should make
+the monsters wait must be authored as a prompt.
 
 The turn handoff itself also waits. A hero's mandatory end-of-turn trigger
 whose invoked ability prompts them (Revitalizing Limerick's "choose allies to
@@ -464,6 +516,7 @@ The handler receives `(ai, token, triggerInfo)` and returns one of:
 
 - `{activate = true}` -- accept using the default mode.
 - `{activate = true, mode = N}` -- accept using the one-based ability mode.
+- `{activate = true, retargetid = charid}` -- for a power roll trigger that changes the strike's target (`changeTarget`), the creature it picks, as the trigger panel's picker would (the Bendrak's Warp Perceptions split).
 - `{dismiss = true}` -- dismiss the trigger.
 - `nil` -- leave the trigger for the Director.
 
@@ -611,6 +664,7 @@ that load sections of `MonsterAI.lua`; add them to any new test that does so.
 | `ai:RunConcurrently(fns, stagger?)` | Runs yielding actions side by side, each starting `stagger` seconds after the last; raises the first error once all finish |
 | `ai:FindMostSeniorInitiativeGroupMember(tokens)` | Chooses a live initiative-group leader by non-minion status, squad captain status, then highest EV; exact ties retain token order |
 | `ai:FindReachableConcealment()` | Finds the nearest reachable concealed tile |
+| `ai:StaysHiddenAt(token, loc)` | True when the creature would stay Hidden at `loc`: concealment or cover from every relevant enemy, and no enemy adjacent |
 | `ai:FindClosestEnemy()` | Returns the nearest enemy token |
 | `ai:DistanceFromNearestEnemy(token)` | Returns distance to the closest enemy |
 | `ai:SetTargetsForExpectedPrompt(options)` | Pre-sets targets for the next prompt callback (used for complex combos) |

@@ -119,6 +119,44 @@ function UIText.Plural(id, count, args)
     return UIText.T(id .. ".other", filled)
 end
 
+--Game terms: words that differ between products or game systems, such as
+--what the game master is called ("Director" in Draw Steel). Shared UI builds
+--its text from these instead of hard-coding the word:
+--
+--    "Only the " .. UIText.Term("director")
+--
+--The white label gives the default. A game system's rules may replace one
+--with UIText.SetTerm(id, text) while they load.
+local g_termDefaults = {
+    director = { mcdm = "Director", dmhub = "DM" },
+    directors = { mcdm = "Directors", dmhub = "DMs" },
+}
+local g_terms = {}
+
+--- A game term for the current product or game system, e.g. "Director".
+--- @param id "director"|"directors"
+--- @return string
+function UIText.Term(id)
+    local term = g_terms[id]
+    if term ~= nil then
+        return term
+    end
+    local defaults = g_termDefaults[id]
+    if defaults == nil then
+        Report("term:" .. id, string.format("no game term '%s'", id))
+        return "[" .. id .. "]"
+    end
+    return defaults[dmhub.whiteLabel] or defaults.dmhub
+end
+
+--- Replaces a game term, for a game system whose word differs from its white
+--- label's default.
+--- @param id "director"|"directors"
+--- @param text string
+function UIText.SetTerm(id, text)
+    g_terms[id] = text
+end
+
 --- Every id and its text, for exports and checks.
 --- @return table<string, string>
 function UIText.All()

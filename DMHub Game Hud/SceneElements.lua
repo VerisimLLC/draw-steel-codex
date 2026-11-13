@@ -154,7 +154,7 @@ end
 SceneElements.EDIT_MODES = {
     {
         id = "none",
-        text = "Only the Director",
+        text = "Only the " .. UIText.Term("director"),
         icon = "phosphor/lock-simple-fill.png",
         tip = "Only you can change what is in this scene",
     },

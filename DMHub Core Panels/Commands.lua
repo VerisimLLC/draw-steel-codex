@@ -87,7 +87,7 @@ Commands.Register{
 }
 
 Commands.Register{
-    name = "Director Darkvision",
+    name = UIText.Term("director") .. " Darkvision",
     menu = "tools",
     icon = "icons/icon_device/icon_device_57.png",
     group = "gm",
@@ -440,7 +440,7 @@ Commands.Register{
 --(Director UI, vision, no strict rules) into the same game, alongside the
 --player-host window. Identical to the old dmonly behavior everywhere else.
 Commands.Register{
-    name = "New Director Window",
+    name = "New " .. UIText.Term("director") .. " Window",
     group = 'zzz',
     icon = mod.images.newWindow,
     filtered = function()

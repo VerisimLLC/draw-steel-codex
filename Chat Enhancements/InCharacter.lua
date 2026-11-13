@@ -67,7 +67,7 @@ local function getInCharacterName()
         end
 
         -- Usage: This is always a player
-        SendTitledChatMessage("Select one token to chat as or ask your Director to assign a character to you.", "IC-Chat", "#e09c9c", dmhub.userid)
+        SendTitledChatMessage("Select one token to chat as or ask your " .. UIText.Term("director") .. " to assign a character to you.", "IC-Chat", "#e09c9c", dmhub.userid)
     else
         ExtChatMessage.WriteDebug("IC:: UNABLE TO RETRIEVE SI!")
     end

@@ -2303,7 +2303,7 @@ function GameHud:DMGameControlsPanel()
 			end
 		end,
 		hover = function(element)
-			gui.Tooltip(string.format('Director Darkvision: %s', cond(dmhub.GetSettingValue("dmillumination"), 'on', 'off')))(element)
+			gui.Tooltip(string.format('%s Darkvision: %s', UIText.Term("director"), cond(dmhub.GetSettingValue("dmillumination"), 'on', 'off')))(element)
 		end,
 	}
 

@@ -1134,7 +1134,7 @@ function g_chrome.RefreshVisionChip(rec)
     end
     rec.visionPortraits.children = children
     rec.visionLabel.text = cond(loggedIn, "Player Perspective", "Vision Perspective")
-    chip.data.tip = cond(loggedIn, "You are logged in as though you were a player. Close this to return to being the Director.", nil)
+    chip.data.tip = cond(loggedIn, "You are logged in as though you were a player. Close this to return to being the " .. UIText.Term("director") .. ".", nil)
 end
 
 --- Updates the live map window's Vision Perspective chip (VisionPerspective.lua
@@ -3332,7 +3332,7 @@ ShowPreviewTooltip = function(rec, element)
         status[#status+1] = string.format("In combat - Round %d", queue.round)
     end
     if IsShared(rec.mapid) then
-        status[#status+1] = cond(dmhub.isDM, "Shared with players", "Shared by the Director")
+        status[#status+1] = cond(dmhub.isDM, "Shared with players", "Shared by the " .. UIText.Term("director"))
     end
     status[#status+1] = "Click to open"
 
@@ -6307,7 +6307,7 @@ local function BuildCard(card)
         end
         local ownerParty = cond(owner == "PARTY", t.partyId, nil)
         local assign = {
-            Entry("Director Controlled", owner == nil, function()
+            Entry(UIText.Term("director") .. " Controlled", owner == nil, function()
                 if owner ~= nil then
                     t.ownerId = nil
                 end
@@ -11563,7 +11563,7 @@ g_sharing.DefineDirectorLayout = function()
             iconSize = args.iconSize or 14,
             width = args.width,
             passPress = args.passPress,
-            hover = gui.Tooltip("You moved this, so the Director's moves no longer reach it. Click to put it back where the Director has it."),
+            hover = gui.Tooltip("You moved this, so the " .. UIText.Term("director") .. "'s moves no longer reach it. Click to put it back where the " .. UIText.Term("director") .. " has it."),
             click = function(element)
                 local key = keyFn()
                 if key == nil then

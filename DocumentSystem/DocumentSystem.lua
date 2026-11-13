@@ -2012,7 +2012,7 @@ do
         if playerView then
             return nil
         end
-        return setmetatable({ label = field.label .. " (Director only)" }, { __index = field })
+        return setmetatable({ label = field.label .. " (" .. UIText.Term("director") .. " only)" }, { __index = field })
     end
 
     --The fields that other pages in this page's folder show on every page of
@@ -2600,7 +2600,7 @@ do
                 },
                 gui.Check{
                     classes = { "sizeS" }, width = 120, height = 22, minWidth = 0, valign = "center", lmargin = 8,
-                    text = "Director only",
+                    text = UIText.Term("director") .. " only",
                     value = field.directorOnly == true,
                     linger = gui.Tooltip("Hidden from players who open the page."),
                     change = function(element)
@@ -26943,7 +26943,7 @@ local g_viewBuiltins = {
     --rail entry of their own; RailLayout reads membership from `tabs`.
     {
         id = "builtin:director",
-        name = "Director",
+        name = UIText.Term("director"),
         version = 6,
         dmonly = true,
         --Floors & Layers, Measuring Tool, Map Markup and their folders
@@ -27433,7 +27433,7 @@ function ViewsEntryUnavailable(key)
         return { name = key, reason = "not in this game" }
     end
     if reg.dmonly and not dmhub.isDM then
-        return { name = reg.name, reason = "Director only" }
+        return { name = reg.name, reason = UIText.Term("director") .. " only" }
     end
     if reg.devonly then
         return { name = reg.name, reason = "dev only" }
@@ -27905,7 +27905,7 @@ function ViewsPostApplyNotices(id, skipped)
         for i, s in ipairs(skipped) do
             if i <= 4 then
                 local n = s.name
-                if s.reason == "Director only" or s.reason == "deleted" then
+                if s.reason == UIText.Term("director") .. " only" or s.reason == "deleted" then
                     n = string.format("%s (%s)", n, s.reason)
                 end
                 names[#names + 1] = n

@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
---Encounter of the Week: the words of the Temple of Saint Llewellyn -- the town's
+--Encounter of the Week: the words of the Temple of Saint Llewellyn: the town's
 --6000-point community project (first rebuilt, then reconsecrated) and the
 --Temple itself, where fallen heroes are raised by a Rite of Return.
 --
@@ -21,7 +21,7 @@ local mod = dmhub.GetModLoading()
 --    special characters break the file.
 --  * Lines starting with -- are notes for you; the game ignores them.
 --
---EVERY LINE BELOW IS A PLACEHOLDER DRAFT (2026-11-12), waiting for real words.
+--The roll lines further down are still empty, waiting for words.
 --
 --Code: UIText (DMHub Utils/UIText.lua). Design: TEMPLE_BRIEF.md.
 

@@ -1111,6 +1111,7 @@ end
 local m_returned = {}
 --Returns applied this session, still to be announced with a banner: { heroid... }.
 local m_returnsToAnnounce = {}
+--heroids whose return is being pushed to the City right now.
 local m_returning = {}
 
 --Apply each pending return once the hero's working copy is in step with the
@@ -1126,7 +1127,7 @@ ApplyReturns = function()
             outcomeWillPush[entry.heroid] = true
         end
     end
-    for heroid, info in pairs(m_returned) do
+    for heroid, returnInfo in pairs(m_returned) do
         local tok = dmhub.GetCharacterById(heroid)
         local hero = EotwRoster.FindHero(heroid)
         if tok ~= nil and hero ~= nil and revs[heroid] == hero.rev and not m_importing[heroid] and not m_promoting[heroid]
@@ -1137,7 +1138,7 @@ ApplyReturns = function()
                 undoable = false,
                 execute = function()
                     local props = tok.properties
-                    if info.by == "rite" then
+                    if returnInfo.by == "rite" then
                         EotwRoster.SetWounds(props, 0, 0)
                     else
                         local maxStamina = props:MaxHitpoints()
@@ -1998,24 +1999,6 @@ function EotwRoster.ListGraveyard(before, onDone, mine)
     }
 end
 
---Ancestries whose rules keep them from staying dead (Hakaan rubble, Revenant
---inertia, Vampires). The city checks the same list in awaken-hero.
-local AWAKENING_ANCESTRIES = { "hakaan", "revenant", "vampire" }
-
---Can a fallen hero of this ancestry (the grave's epitaph text) be awakened?
-function EotwRoster.CanAwaken(ancestry)
-    if type(ancestry) ~= "string" then
-        return false
-    end
-    local text = string.lower(ancestry)
-    for _,name in ipairs(AWAKENING_ANCESTRIES) do
-        if string.find(text, "%f[%a]" .. name .. "%f[%A]") ~= nil then
-            return true
-        end
-    end
-    return false
-end
-
 --Is there a free roster slot for one more living hero?
 function EotwRoster.HasFreeSlot()
     return EotwRoster.LivingCount() < EotwRoster.Slots()
@@ -2157,6 +2140,9 @@ local function Portrait(portrait, width, height, halign, click)
     }
 end
 
+
+--Shared with the Temple's lists (EotwTemple.lua).
+EotwRoster.Portrait = Portrait
 --- the Hero's Guild ---------------------------------------------------------
 
 --A fresh name for a recruit from its ancestry's name generator, or the
@@ -3327,16 +3313,19 @@ local function ClockTime(at)
     return (string.gsub(tostring(clock), "^0", ""))
 end
 
+--Shared with the Temple, so both show a grave's time the same way.
+EotwRoster.ClockTime = ClockTime
+
 --The line under one of this account's graves saying how (or whether) the hero
 --can come back, from the grave's state as the City lists it (list-graveyard).
 --Always text, never colour alone or a hover tooltip.
-local function GraveStatusText(g)
-    local state = g.state
+local function GraveStatusText(grave)
+    local state = grave.state
     if state == "risen" then
-        local rose = (g.epitaph or {}).rose or {}
-        return T("graveyard.status_risen", { when = DescribeServerTimestamp(tonumber(rose.at) or g.at) })
+        local rose = (grave.epitaph or {}).rose or {}
+        return T("graveyard.status_risen", { when = DescribeServerTimestamp(tonumber(rose.at) or grave.at) })
     elseif state == "waiting" then
-        return T("graveyard.status_waiting", { left = TimeUntil(g.readyAt), clock = ClockTime(g.readyAt) })
+        return T("graveyard.status_waiting", { left = TimeUntil(grave.readyAt), clock = ClockTime(grave.readyAt) })
     elseif state == "ready" then
         if EotwRoster.HasFreeSlot() then
             return T("graveyard.status_ready")
@@ -3565,6 +3554,9 @@ function EotwRoster.ShowGraveyard(host)
                         --a countdown ticks while the Graveyard is open.
                         thinkTime = 30,
                         think = function(element)
+                            if status == nil then
+                                return
+                            end
                             element.text = GraveStatusText(g) or ""
                         end,
                     },

@@ -949,10 +949,9 @@ function Series.FindPartMap(seriesMapName, part)
     return FindMapByName(seriesMapName)
 end
 
---The part after the one this game plays, unfiltered: the part's entry
---(with its comingSoonMark), its number and this game's encounter key, or
---nil when the series has no next part. See Series.NextPart; a field, not a
---local, because this file is at Lua's 200-local limit.
+--The part after this one, even if it is marked "Coming soon". Returns its
+--entry, its number and this game's encounter key, or nil. A field, not a
+--local: this file is at Lua's 200-local limit.
 function Series.FindNextPart()
     local key = nil
     pcall(function() key = mod:GetDocumentSnapshot(STATE_DOC_ID).data.encounterMap end)

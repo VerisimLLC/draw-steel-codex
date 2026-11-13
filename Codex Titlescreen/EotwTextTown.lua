@@ -906,8 +906,8 @@ text("graveyard.yours_name", [[{name} (yours)]])
 --The line under a grave saying how the hero can come back. Undying heroes
 --(Hakaan, Revenant, Vampire) awaken 12 hours after they die. {left} is like
 --"5h 20m", {clock} a time of day like "9:40 PM", {when} like "2 days ago".
-text("graveyard.status_waiting", [[This hero's ancestry does not stay dead. They can awaken in {left} (at {clock}).]])
-text("graveyard.status_ready", [[This hero's ancestry does not stay dead. Awaken them to bring them back to your roster.]])
+text("graveyard.status_waiting", [[This hero does not stay dead. They can awaken in {left} (at {clock}).]])
+text("graveyard.status_ready", [[This hero does not stay dead. Awaken them to bring them back to your roster.]])
 text("graveyard.status_no_slot", [[Ready to awaken, but you have no free hero slot. Expand the Guild, or dismiss a hero.]])
 text("graveyard.status_fire", [[Fire destroyed this hero's body. Only a Rite of Return at the Temple of Saint Llewellyn can bring them back.]])
 text("graveyard.status_beyond", [[This hero met their doom. Nothing can bring them back.]])

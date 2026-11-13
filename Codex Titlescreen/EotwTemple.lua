@@ -78,41 +78,6 @@ local function Heading(text)
     return Label(text, 22, GOLD, { bold = true, tmargin = 14, bmargin = 6 })
 end
 
---A portrait from a hero summary (an image id), or a plain silhouette.
-local function Portrait(portrait, width, height)
-    if type(portrait) ~= "string" or portrait == "" then
-        return gui.Panel{
-            interactable = false,
-            width = width,
-            height = height,
-            valign = "center",
-            bgimage = "panels/square.png",
-            bgcolor = "#ffffff10",
-            cornerRadius = 6,
-            gui.Panel{
-                interactable = false,
-                width = "60%",
-                height = "100% width",
-                halign = "center",
-                valign = "center",
-                bgimage = "phosphor/user-fill.png",
-                bgcolor = "#ffffff2a",
-            },
-        }
-    end
-    return gui.Panel{
-        interactable = false,
-        width = width,
-        height = height,
-        valign = "center",
-        bgimage = portrait,
-        bgcolor = "white",
-        cornerRadius = 6,
-        borderWidth = 1,
-        borderColor = "#8c7a55",
-    }
-end
-
 --"Goal 300 (level 5, about 11 rolls)", plus a line when an earlier rite doubled it.
 local function GoalText(goal, level, priorRites)
     local rolls = math.max(1, math.ceil((tonumber(goal) or 0) / AVERAGE_ROLL))
@@ -160,7 +125,7 @@ local function HelperOptions()
 end
 
 ---The Temple of Saint Llewellyn's panel, for its location scene.
----@param host Panel the town screen (dice and banners mount on it)
+---@param host Panel|nil the town screen (dice and banners mount on it)
 ---@return Panel
 function EotwTemple.Panel(host)
     --nil while loading; the City's list-rites answer after.
@@ -173,6 +138,7 @@ function EotwTemple.Panel(host)
     local helperChoice = {}
     --the /city/projectsRev this board last read; a newer one re-reads it.
     local seenRev = nil
+    --Bumped by each Load, so an older answer that arrives late is ignored.
     local generation = 0
     local listPanel = nil
     local Rebuild
@@ -188,6 +154,9 @@ function EotwTemple.Panel(host)
             errorText = nil
             Rebuild()
         end, function(message)
+            if asked ~= generation then
+                return
+            end
             errorText = message
             Rebuild()
         end)
@@ -205,11 +174,22 @@ function EotwTemple.Panel(host)
         end, Fail)
     end
 
+    --a Rise request is in flight, so a double-click sends only one.
+    local rising = false
+
     local function Rise(heroid)
+        if rising then
+            return
+        end
+        rising = true
         Request("rise-hero", { heroid = heroid }, function()
+            rising = false
             EotwRoster.Refresh()
             Load()
-        end, Fail)
+        end, function(message)
+            rising = false
+            Fail(message)
+        end)
     end
 
     --breakthroughOf: a natural 19+ earns the same hero a free roll on the rite,
@@ -227,6 +207,10 @@ function EotwTemple.Panel(host)
             skill = skill,
             breakthroughOf = breakthroughOf,
             rite = { owner = rite.owner, heroid = rite.heroid, title = T("temple.rite_title", { name = tostring(rite.name) }) },
+            --a throw too weak to count: nothing was spent, so the rites can be rolled again.
+            cancel = function()
+                rolling = false
+            end,
             done = function(ok, result)
                 rolling = false
                 if not ok then
@@ -252,14 +236,14 @@ function EotwTemple.Panel(host)
     end
 
     --One of this account's fallen heroes, and how they can come back.
-    local function FallenRow(entry)
+    --slotFree: the roster has room, so a rite can begin.
+    local function FallenRow(entry, slotFree)
         local summary = type(entry.summary) == "table" and entry.summary or {}
         local name = tostring(summary.name or T("temple.hero_fallback"))
         local status
         local action = nil
-        local free = (tonumber(board.living) or 0) < (tonumber(board.slots) or EotwRoster.BASE_SLOTS)
         if entry.grave == "waiting" then
-            status = T("temple.fallen.awaken_waiting", { clock = os.date("%I:%M %p", math.floor((tonumber(entry.readyAt) or 0) / 1000)) })
+            status = T("temple.fallen.awaken_waiting", { clock = EotwRoster.ClockTime(entry.readyAt) })
         elseif entry.grave == "ready" then
             status = T("temple.fallen.awaken_ready")
         elseif entry.grave == "beyond" then
@@ -271,7 +255,7 @@ function EotwTemple.Panel(host)
             if entry.grave == "fire" then
                 goalText = T("temple.fallen.fire") .. "\n" .. goalText
             end
-            if free then
+            if slotFree then
                 status = goalText
                 action = gui.Button{
                     text = T("temple.fallen.begin_button"),
@@ -311,7 +295,7 @@ function EotwTemple.Panel(host)
             pad = 8,
             borderBox = true,
             vmargin = 3,
-            Portrait(summary.portrait, 54, 72),
+            EotwRoster.Portrait(summary.portrait, 54, 72),
             gui.Panel{
                 width = cond(action ~= nil, "100%-280", "100%-70"),
                 height = "auto",
@@ -335,10 +319,10 @@ function EotwTemple.Panel(host)
         local goal = math.max(1, tonumber(rite.goal) or 1)
         local percent = math.floor(points * 100 / goal)
         local helpers = {}
-        for _, c in ipairs(rite.contributors or {}) do
-            local who = tostring(c.heroName or "?")
-            if type(c.playerName) == "string" and c.playerName ~= "" then
-                who = T("temple.rite.contributor", { hero = who, player = c.playerName })
+        for _, contributor in ipairs(rite.contributors or {}) do
+            local who = tostring(contributor.heroName or "?")
+            if type(contributor.playerName) == "string" and contributor.playerName ~= "" then
+                who = T("temple.rite.contributor", { hero = who, player = contributor.playerName })
             end
             helpers[#helpers+1] = who
         end
@@ -428,7 +412,7 @@ function EotwTemple.Panel(host)
             pad = 8,
             borderBox = true,
             vmargin = 3,
-            Portrait(rite.portrait, 54, 72),
+            EotwRoster.Portrait(rite.portrait, 54, 72),
             gui.Panel{
                 width = "100%-70",
                 height = "auto",
@@ -461,8 +445,9 @@ function EotwTemple.Panel(host)
         if #(board.fallen or {}) == 0 then
             rows[#rows+1] = Label(T("temple.fallen.empty"), 15, DIM)
         end
+        local slotFree = (tonumber(board.living) or 0) < (tonumber(board.slots) or EotwRoster.BASE_SLOTS)
         for _, entry in ipairs(board.fallen or {}) do
-            rows[#rows+1] = FallenRow(entry)
+            rows[#rows+1] = FallenRow(entry, slotFree)
         end
 
         rows[#rows+1] = Heading(T("temple.rites.heading"))

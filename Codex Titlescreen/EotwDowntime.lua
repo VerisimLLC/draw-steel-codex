@@ -481,11 +481,9 @@ EotwDowntime.PROJECTS = {
             return T("downtime.projects.build_great_forge.blurb")
         end,
     },
-    --The fifth COMMUNITY project (6000 points, in city-core.ts): restoring the
-    --Temple of Saint Llewellyn opens it, where fallen heroes are raised by a Rite of
-    --Return (EotwTemple.lua). Two STAGES: rebuilding the walls (Might or
-    --Agility), then reconsecration (Presence or Intuition). No rollLines yet
-    --(EotwTextTemple.lua).
+    --Restore the Temple: a community project that opens the Temple of Saint
+    --Llewellyn, where fallen heroes are raised. Walls first (Might or Agility),
+    --then reconsecration (Presence or Intuition).
     ["restore-temple"] = {
         id = "restore-temple",
         scope = "community",
@@ -493,7 +491,7 @@ EotwDowntime.PROJECTS = {
         icon = "phosphor/hammer-fill.png",
         location = "temple",
         locationName = T("downtime.projects.restore_temple.place"),
-        --the first stage's; what the town reads goes through the stages.
+        --Matches the first stage. The town reads each stage's own list below.
         characteristics = { "mgt", "agl" },
         skills = { "Architecture", "Mechanics", "Religion" },
         stages = {
@@ -3427,7 +3425,7 @@ function EotwDowntime.GreatForgeConstructionPanel(host)
 end
 
 --The Destroyed Temple: the same, for the town's shared project Restore
---the Temple (reconsecrated, then rebuilt: see its stages).
+--the Temple (rebuilt, then reconsecrated: see its stages).
 function EotwDowntime.TempleConstructionPanel(host)
     return gui.Panel{
         width = "100%",

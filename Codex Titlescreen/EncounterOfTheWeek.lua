@@ -359,11 +359,8 @@ local GREAT_FORGE_VIDEO = "df4a22af-6369-4fa9-a0d2-efe2a0f43f3c"
 local GREAT_FORGE_ART = "7bffe83d-058f-4c90-a211-8ee548550209" --the video's first frame, 1920x1080
 CreatorCredit.RegisterArt(GREAT_FORGE_VIDEO, "czepeku")
 CreatorCredit.RegisterArt(GREAT_FORGE_ART, "czepeku")
---The Temple of Saint Llewellyn (Restore the Temple, EotwDowntime.lua; the built panel is
---EotwTemple.lua). The site reuses the Construction still. TEMPLE_ART is the
---finished Temple's still: until Czepeku's chapel interior is uploaded as an
---image asset it is the Construction still too (swap in the uploaded id and
---keep the credit).
+--The Temple's art. TEMPLE_ART is a stand-in (the Construction still) until
+--Czepeku's chapel image is uploaded; swap in its id and keep the credit.
 local TEMPLE_ART = CONSTRUCTION_ART
 CreatorCredit.RegisterArt(TEMPLE_ART, "czepeku")
 local TEMPLE_SCENES = {

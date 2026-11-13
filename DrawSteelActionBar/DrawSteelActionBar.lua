@@ -626,6 +626,8 @@ local g_casterTokenStack = {}
 ---@field teleportLoe nil|{key: string, reason: string, obstructionDist: number} The hovered teleport destination's line-of-effect failure, keyed on the hovered loc; obstructionDist is where (0-1) along the line it is blocked.
 ---@field chargeJumpLabel nil|LuaTargetingMarkers
 ---@field chargeJumpLabelKey nil|string
+---@field reboundLabel nil|LuaTargetingMarkers
+---@field reboundLabelKey nil|string
 ---@field chargeJumpUnreachable nil|boolean
 ---@field chargeJumpRequiresRoll nil|boolean
 ---@field labelsAtThroughCreatures nil|(LuaObjectReference|SheetContainer)[]
@@ -1481,6 +1483,10 @@ local function ClearPointTargeting()
 
     if g_pointTargeting.chargeJumpLabel ~= nil then
         g_pointTargeting.chargeJumpLabel:Destroy()
+    end
+
+    if g_pointTargeting.reboundLabel ~= nil then
+        g_pointTargeting.reboundLabel:Destroy()
     end
 
     if g_pointTargeting.label ~= nil then
@@ -13546,6 +13552,7 @@ CreateAbilityController = function()
             local destroyThroughCreatureLabels = g_pointTargeting.labelsAtThroughCreatures ~= nil
             local destroyFallDamageLabel = g_pointTargeting.fallDamageLabel ~= nil
             local destroyChargeJumpLabel = g_pointTargeting.chargeJumpLabel ~= nil
+            local destroyReboundLabel = g_pointTargeting.reboundLabel ~= nil
             g_pointTargeting.chargeJumpUnreachable = false
             g_pointTargeting.chargeJumpRequiresRoll = false
             local pathfinding = false
@@ -13993,6 +14000,45 @@ CreateAbilityController = function()
                         g_currentSymbols.range = abilityDist
                         local requestDist = math.min(loc:DistanceInTiles(path.origin), abilityDist)
                         local pathDist = path.destination:DistanceInTiles(path.origin)
+
+                        --Rebound length comes from how far along the line the player points, so
+                        --say how far the bounce goes. 0 means they pointed at the obstacle.
+                        if reboundOptions.rebound and targetingType == "straightline" and path.hasCollision then
+                            local bounceSteps = math.max(0, (path.numSteps or 0) - (path.freeMovementSteps or 0))
+                            local reboundText = tr("No rebound")
+                            if bounceSteps > 0 then
+                                reboundText = string.format(tr("Rebound %d"), bounceSteps)
+
+                                --The collision itself costs 1 of the force, so anything left over means
+                                --the bounce was stopped early. Name what is in the way.
+                                local forceLeft = (path.forcedMovementTotalDistance or 0) - (path.freeMovementSteps or 0) - 1
+                                if bounceSteps < forceLeft then
+                                    local stepX = cond(loc.x > path.origin.x, 1, cond(loc.x < path.origin.x, -1, 0))
+                                    local stepY = cond(loc.y > path.origin.y, 1, cond(loc.y < path.origin.y, -1, 0))
+                                    local blocker = nil
+                                    for _, tok in ipairs(game.GetTokensAtLoc(path.destination:dir(-stepX, -stepY)) or {}) do
+                                        if tok.valid and tok.id ~= g_token.id then
+                                            blocker = tok
+                                            break
+                                        end
+                                    end
+                                    if blocker ~= nil then
+                                        reboundText = string.format(tr("Rebound %d, stopped by %s"), bounceSteps, blocker.name or tr("a creature"))
+                                    else
+                                        reboundText = string.format(tr("Rebound %d, stopped short"), bounceSteps)
+                                    end
+                                end
+                            end
+                            local reboundKey = path.destination.str .. reboundText
+                            if g_pointTargeting.reboundLabelKey ~= reboundKey then
+                                if g_pointTargeting.reboundLabel ~= nil then
+                                    g_pointTargeting.reboundLabel:Destroy()
+                                end
+                                g_pointTargeting.reboundLabel = g_token:CreateMapTag(path.destination, reboundText, "buff")
+                                g_pointTargeting.reboundLabelKey = reboundKey
+                            end
+                            destroyReboundLabel = false
+                        end
 
                         -- If the path is actually blocked (collision with wall/creature),
                         -- use full ability distance so collision force preview reflects max available force.
@@ -14868,6 +14914,12 @@ CreateAbilityController = function()
                 g_pointTargeting.chargeJumpLabel:Destroy()
                 g_pointTargeting.chargeJumpLabel = nil
                 g_pointTargeting.chargeJumpLabelKey = nil
+            end
+
+            if destroyReboundLabel and g_pointTargeting.reboundLabel ~= nil then
+                g_pointTargeting.reboundLabel:Destroy()
+                g_pointTargeting.reboundLabel = nil
+                g_pointTargeting.reboundLabelKey = nil
             end
 
             if clearMovementArrow then

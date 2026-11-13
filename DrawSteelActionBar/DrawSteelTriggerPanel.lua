@@ -1329,7 +1329,14 @@ mod.shared.CreateTriggerPanel = function()
                                     for _,targetid in ipairs(targetids or trigger.targets or {}) do
                                         local target = dmhub.GetTokenById(targetid)
                                         if target ~= nil then
-                                            local ray = dmhub.MarkLineOfSight(g_token, target, g_token.properties:GetPierceWalls())
+                                            --Arrows run from this card's owner to its targets. Set arrowFromTarget = true in
+                                            --ActiveTrigger.new{...} to reverse them, for a card about something a target
+                                            --does TO the owner, e.g. targets = { pusher.charid } on the pushed creature's card.
+                                            local from, to = g_token, target
+                                            if trigger:try_get("arrowFromTarget", false) then
+                                                from, to = target, g_token
+                                            end
+                                            local ray = dmhub.MarkLineOfSight(from, to, from.properties:GetPierceWalls())
                                             element.data.rays[#element.data.rays+1] = ray
                                         end
                                     end

@@ -11,6 +11,7 @@
 --- @field name string
 --- @field thumb string image id of the 512px preview (usable as a bgimage)
 --- @field image string image id of the full map image
+--- @field preview string image id of a picture of the whole scene, every floor-level layer composed, for the full-size viewer ("" when image already shows it)
 --- @field tilesW integer
 --- @field tilesH integer
 --- @field tileType string
@@ -29,6 +30,16 @@
 --- @field objectsTierName string the creator's name for that pledge level; "" when free or unnamed
 --- @field objectsOwned boolean whether the current account can use the map's object set
 --- @field defaultMarkup string id of the shared markup set the pack makes this map's default (added with the map unless AddMapToGame passes markupId = "none"); "" when the map has none
+--- @field fullScene boolean the map is a full scene (walls, doors, lights, sounds and floors already set up, converted from a Foundry scene) rather than just a picture
+--- @field sceneStats MapPackSceneStats|nil what a full scene carries; nil when fullScene is false
+
+--- @class MapPackSceneStats What a full-scene map carries, counted over that appearance.
+--- @field floors integer storeys, not counting map layers
+--- @field walls integer wall segments, doors included
+--- @field doors integer
+--- @field lights integer
+--- @field sounds integer
+--- @field features table<string, integer> every imported feature, by key ("secretDoors", "animatedLights", "weather", ...) -> count, 1 = present; empty on older rows
 ---
 --- @class MapPackObjectPreview One object of a map's "Objects for this map" set, for display.
 --- @field id string the object asset's guid
@@ -88,8 +99,8 @@ function mappacks.Search(options) end
 --- @return {org: string, cents: integer, linked: boolean, entitled: boolean, full: boolean}
 function mappacks.GetPackAccess(pack) end
 
---- Adds one map from a map pack to the current game without installing the pack's module: the map's manifest, floors and rasters plus the object and image asset records it references are copied into the game, and the appearance variant at options.variantIndex (default 0) is armed. options.name, when given, becomes the added map's name instead of the pack's. options.markupId, when given, is the id of a shared markup set (see ListMarkup) whose walls, zones, footstep regions, props and markup settings are laid over the map before it is written. When it is omitted the pack's default markup set for the map is used (the index entry's defaultMarkup), if it has one; pass markupId = "none" to add the plain map. Requires access to the chosen appearance (free, unlocked by the account's Patreon pledge to the pack's creator, or the whole pack owned); appearances of the map the account is NOT entitled to are left out of the added map. If the map is already in the game a fresh copy with new ids is added. Calls options.success with the new map id, or options.error with a message.
---- @param options {pack: string, mapid: string, variantIndex: nil|integer, name: nil|string, markupId: nil|string, success: nil|fun(result: string), error: nil|fun(message: string)}
+--- Adds one map from a map pack to the current game without installing the pack's module: the map's manifest, floors and rasters plus the object and image asset records it references are copied into the game, and the appearance variant at options.variantIndex (default 0) is armed. options.name, when given, becomes the added map's name instead of the pack's. options.markupId, when given, is the id of a shared markup set (see ListMarkup) whose walls, zones, footstep regions, props and markup settings are laid over the map before it is written. When it is omitted the pack's default markup set for the map is used (the index entry's defaultMarkup), if it has one; pass markupId = "none" to add the plain map. Requires access to the chosen appearance (free, unlocked by the account's Patreon pledge to the pack's creator, or the whole pack owned); appearances of the map the account is NOT entitled to are left out of the added map. If the map is already in the game a fresh copy with new ids is added. options.preview = true adds it as a Map Preview instead (MAP_PREVIEW_REFERENCE.md): fresh ids, no folder, every appearance whatever the account's Patreon pledge, not undoable, not counted as an add, hidden from game.maps, impossible to duplicate, copy from or export, and deleted with map:DiscardPreview(). Calls options.success with the new map id, or options.error with a message.
+--- @param options {pack: string, mapid: string, variantIndex: nil|integer, name: nil|string, markupId: nil|string, preview: nil|boolean, success: nil|fun(result: string), error: nil|fun(message: string)}
 function mappacks.AddMapToGame(options) end
 
 --- Compares the given map in the current game with the map pack it was added from and reports what markup the game has added on top: wall segments (and the game-local wall types they use), zones, footstep regions (and whether a default footstep setting is set), props, and painted elevation (heightmap zones, each a 4x4-tile area). The map must be the current map so its floors are loaded. options.error fires with a message when the map did not come from a map pack or the pack could not be loaded. The comparison is kept for UploadMarkup.

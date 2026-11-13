@@ -96,7 +96,9 @@ local function FreeStrikeTargetScore(targetInfo)
 end
 
 --onlyTarget (optional) limits the plan to strikes against that one creature.
-local function FindBestImmediateFreeStrike(ai, actor, abilities, onlyTarget)
+--allowedTargets (optional, charid -> true) limits it to the creatures a
+--prompt_inherit invoke offers: the targets of the ability granting the strike.
+local function FindBestImmediateFreeStrike(ai, actor, abilities, onlyTarget, allowedTargets)
     --Death-triggered grants resolve before the creature is removed, so the
     --caster can already report dead while still being allowed this strike.
     if not AIControlledCreature(actor) then
@@ -136,6 +138,7 @@ local function FindBestImmediateFreeStrike(ai, actor, abilities, onlyTarget)
                 actor, scoringAbility, actor.loc, range)) do
                 local utility = FreeStrikeTargetScore(targetInfo)
                 if (onlyTarget == nil or targetInfo.token.charid == onlyTarget.charid)
+                    and (allowedTargets == nil or allowedTargets[targetInfo.token.charid])
                     and (best == nil or utility > best.utility) then
                     local activation = DeepCopy(ability)
                     activation.disableSquadCoordination = true
@@ -322,7 +325,10 @@ local function HandleFreeStrikePrompt(ai, invokerToken, casterToken, abilityClon
         end
     end
 
-    local plan = FindBestImmediateFreeStrike(ai, casterToken, synthesized)
+    --A grant that inherits its targets ("a free strike against one of the
+    --targets") sets allowedtargets; without this the ally could strike anyone.
+    local allowedTargets = symbols ~= nil and symbols.allowedtargets or nil
+    local plan = FindBestImmediateFreeStrike(ai, casterToken, synthesized, nil, allowedTargets)
     if plan == nil then
         return {targets = {}}
     end
@@ -370,9 +376,10 @@ end
 --A vertical push/pull target carries an absolute altitude (the ability's own
 --calculator), and stays that way as the prompt's answer. Only the arrow probes
 --need it as height above the destination ground, which the engine expects.
-local function ArrowLoc(forcedMovement, loc)
+--moverToken is the creature being moved (the one the arrow is drawn for).
+local function ArrowLoc(moverToken, forcedMovement, loc)
     if verticalForcedMovementTypes[forcedMovement] then
-        return ActivatedAbility.VerticalForcedMovementEngineLoc(loc)
+        return ActivatedAbility.VerticalForcedMovementEngineLoc(loc, moverToken.loc.altitude)
     end
     return loc
 end
@@ -412,7 +419,7 @@ local function FindBestPullLocation(invokerToken, casterToken, abilityClone, sym
     for _,testLoc in ipairs(shape.locations) do
         if filterTargetPredicate(testLoc) then
             testLoc = preferAltitude(testLoc)
-            local movementInfo = casterToken:MarkMovementArrow(ArrowLoc(forcedMovement, testLoc),
+            local movementInfo = casterToken:MarkMovementArrow(ArrowLoc(casterToken, forcedMovement, testLoc),
                 ForcedMovementArrowOptions(forcedMovement, range))
             if movementInfo ~= nil then
                 local path = movementInfo.path
@@ -584,7 +591,7 @@ MonsterAI:RegisterPrompt{
             local bestLoc = FindBestPullLocation(invokerToken, casterToken, abilityClone,
                 movementSymbols, range, forcedMovement, preferAltitude)
             if bestLoc ~= nil then
-                casterToken:MarkMovementArrow(ArrowLoc(forcedMovement, bestLoc), ForcedMovementArrowOptions(forcedMovement, range))
+                casterToken:MarkMovementArrow(ArrowLoc(casterToken, forcedMovement, bestLoc), ForcedMovementArrowOptions(forcedMovement, range))
                 MonsterAI.Sleep(1)
                 casterToken:ClearMovementArrow()
                 return {
@@ -643,7 +650,7 @@ MonsterAI:RegisterPrompt{
         local bestAltitude = nil
         for _,testLoc in ipairs(possibleLocs) do
             testLoc = preferAltitude(testLoc)
-            local movementInfo = casterToken:MarkMovementArrow(ArrowLoc(forcedMovement, testLoc),
+            local movementInfo = casterToken:MarkMovementArrow(ArrowLoc(casterToken, forcedMovement, testLoc),
                 ForcedMovementArrowOptions(forcedMovement, range))
             if movementInfo ~= nil then
                 local path = movementInfo.path
@@ -686,7 +693,7 @@ MonsterAI:RegisterPrompt{
         end
 
         if bestLoc ~= nil then
-            casterToken:MarkMovementArrow(ArrowLoc(forcedMovement, bestLoc), ForcedMovementArrowOptions(forcedMovement, range))
+            casterToken:MarkMovementArrow(ArrowLoc(casterToken, forcedMovement, bestLoc), ForcedMovementArrowOptions(forcedMovement, range))
             MonsterAI.Sleep(1)
             casterToken:ClearMovementArrow()
 
@@ -813,8 +820,10 @@ MonsterAI:RegisterPrompt{
             end
         end
 
+        --No legal second target: answer with no targets so the follow-up is
+        --skipped. HandlePrompt only accepts a table (or nil to ask the Director).
         if #possibleTokens == 0 then
-            return "skip"
+            return {targets = {}}
         end
 
         return {
@@ -1037,5 +1046,25 @@ MonsterAI:RegisterTrigger{
             reason = reason,
         })
         return decision
+    end,
+}
+
+--A Beastheart's Covering Fire puts Taking Fire on each target that is not
+--prone: a free triggered action to fall prone, or take extra damage equal to
+--twice the Beastheart's Intuition. It is offered to any creature the hero
+--shoots, so it is registered by its prompt text for every monster. The trigger
+--costs nothing, and prone is the very thing the shot is meant to force, so the
+--monster always ducks.
+MonsterAI:RegisterTrigger{
+    id = "Covering Fire: Fall Prone",
+    triggers = {"Taking Fire"},
+    description = "Fall prone when targeted by a Beastheart's Covering Fire, rather than take the extra damage.",
+    handler = function(ai, token, triggerInfo)
+        ai:LogDecision("TAKING FIRE", {
+            ability = triggerInfo:GetText(),
+            result = "activate",
+            reason = "falling prone avoids twice the Beastheart's Intuition in extra damage",
+        })
+        return {activate = true}
     end,
 }

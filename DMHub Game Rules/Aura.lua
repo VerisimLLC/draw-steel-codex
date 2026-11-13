@@ -3745,6 +3745,47 @@ local LANE_THINK_INTERVAL = 0.25
 --Last initiative turn id seen by the watcher, for start-of-turn slides.
 local g_laneLastTurnId = nil
 
+--The map's directional-lane aura objects, as {obj, comp} entries. Finding them
+--means reading every object on every floor (floor.objects builds a fresh table
+--each call), so the list is kept until map objects can have changed
+--(nonCharacterUpdateSeq moves) or the map changes, with a full rescan at least
+--every LANE_RESCAN_SECONDS in case a floor finished loading in between.
+local LANE_RESCAN_SECONDS = 5
+local g_laneObjects = {}
+local g_laneObjectsMapId = nil
+local g_laneObjectsSeq = nil
+local g_laneObjectsTime = -1
+
+local function LaneObjects(map)
+    local seq = dmhub.nonCharacterUpdateSeq
+    local now = dmhub.Time()
+    if map.id == g_laneObjectsMapId and seq == g_laneObjectsSeq and now - g_laneObjectsTime < LANE_RESCAN_SECONDS then
+        return g_laneObjects
+    end
+
+    local result = {}
+    for _,floor in ipairs(map.floors or {}) do
+        --floor.objects can be transiently nil for floors that are not
+        --currently loaded, and the objects getter itself raises on a
+        --floor that is tearing down, so gate on floor.valid first.
+        for _,obj in pairs((floor.valid and floor.objects) or {}) do
+            local comp = obj:GetComponent("Aura")
+            if comp ~= nil and comp.properties ~= nil and comp.properties:has_key("aura") then
+                local inst = comp.properties.aura
+                if inst:has_key("aura") and inst.aura:try_get("directionalLane", false) then
+                    result[#result+1] = { obj = obj, comp = comp }
+                end
+            end
+        end
+    end
+
+    g_laneObjects = result
+    g_laneObjectsMapId = map.id
+    g_laneObjectsSeq = seq
+    g_laneObjectsTime = now
+    return result
+end
+
 local function LaneThink()
     if mod.unloaded then
         return
@@ -3781,19 +3822,8 @@ local function LaneThink()
             g_laneLastTurnId = nil
         end
 
-        for _,floor in ipairs(map.floors or {}) do
-            --floor.objects can be transiently nil for floors that are not
-            --currently loaded, and the objects getter itself raises on a
-            --floor that is tearing down, so gate on floor.valid first.
-            for _,obj in pairs((floor.valid and floor.objects) or {}) do
-                local comp = obj:GetComponent("Aura")
-                if comp ~= nil and comp.properties ~= nil and comp.properties:has_key("aura") then
-                    local inst = comp.properties.aura
-                    if inst:has_key("aura") and inst.aura:try_get("directionalLane", false) then
-                        ProcessLaneObject(obj, comp, turnStartInitiativeId)
-                    end
-                end
-            end
+        for _,entry in ipairs(LaneObjects(map)) do
+            ProcessLaneObject(entry.obj, entry.comp, turnStartInitiativeId)
         end
     end)
 

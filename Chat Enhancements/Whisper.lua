@@ -164,6 +164,27 @@ local function splitRecipients(recipients)
     return a
 end
 
+--- Whisper's name matching, for other commands that pick characters by name.
+--- @class WhisperMatch: GameType
+--- @field new fun(o?: table): WhisperMatch
+WhisperMatch = RegisterGameType("WhisperMatch")
+
+--- Splits a typed, comma-separated list of names as whisper splits its recipients.
+--- @param names string
+--- @return string[] queries Sanitized names, each ready for WhisperMatch.Matches.
+function WhisperMatch.SplitNames(names)
+    return splitRecipients(names)
+end
+
+--- Whether a typed name matches a name as whisper matches recipients: case and
+--- accents ignored, a whole name segment, or a prefix when the typed name ends in -.
+--- @param query string One typed name.
+--- @param name string The character or player name to test.
+--- @return boolean
+function WhisperMatch.Matches(query, name)
+    return fuzzyMatch(sanitizeString(query), sanitizeString(name))
+end
+
 --- Checks if a recipient string corresponds to a director/GM keyword.
 --- Returns true if the provided recipient matches any predefined director keys ("dm", "gm", "director", "d").
 ---

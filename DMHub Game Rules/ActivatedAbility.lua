@@ -48,6 +48,7 @@ end
 --- @field legendary boolean If true, this is a legendary action.
 --- @field categorization string Ability category string (e.g. "none", "action", "maneuver").
 --- @field multipleModes boolean|string If true, the ability has multiple selectable modes.
+--- @field chooseModeAfterTargeting boolean Target first, then mode. Only used when multipleModes is true (not "variations") and the ability has exactly one creature target for this cast (see UsesTargetFirstModes). The mode buttons appear once a target is chosen, and pressing one casts. A modeList entry's targetCondition (the editor's "Target Filter", GoblinScript with Target = the chosen creature) hides that mode for targets it fails, showing its targetUnavailableText instead; a creature no mode can be used on is an invalid target.
 --- @field domains table<string, boolean> Domain set this ability belongs to.
 --- @field isSpell boolean If true, this ability is treated as a spell.
 --- @field abilityModification boolean If true, this is a modification of another ability rather than a standalone ability.
@@ -274,6 +275,7 @@ ActivatedAbilityApplyOngoingEffectBehavior.inheritDuration = false
 ActivatedAbilityBehavior.durationUntilEndOfTurn = false
 
 ActivatedAbility.multipleModes = false
+ActivatedAbility.chooseModeAfterTargeting = false
 
 ActivatedAbility.domains = {}
 ActivatedAbility.isSpell = false
@@ -1484,13 +1486,21 @@ end
 --- The calculators above return ABSOLUTE altitudes, but the engine reads a straight-line
 --- move's loc altitude as height above the ground at the destination. Handing it the
 --- absolute value counted raised ground twice: a pull of 4 from ground 3 went to 10 and
---- fell 7 (TYXFY9RY). A pick below the ground clamps to it (0 = no vertical part).
---- Convert only at that hand-off; the picked loc itself stays absolute.
+--- fell 7 (TYXFY9RY). Convert only at that hand-off; the picked loc itself stays absolute.
+---
+--- A pick below the destination ground is kept (a negative height) only when it is also
+--- below the mover's own altitude: the player dialed it down, so the engine slams the
+--- creature into the ground. Otherwise it clamps to 0 (no vertical part), so a pull left
+--- level still rides up a gentle slope instead of colliding with it.
 --- @param loc Loc
+--- @param moverAltitude integer absolute altitude of the creature being moved
 --- @return Loc
-function ActivatedAbility.VerticalForcedMovementEngineLoc(loc)
-    local ground = loc.withGroundAltitude.altitude
-    return loc:WithAltitude(math.max(0, loc.altitude - ground))
+function ActivatedAbility.VerticalForcedMovementEngineLoc(loc, moverAltitude)
+    local height = loc.altitude - loc.withGroundAltitude.altitude
+    if height < 0 and loc.altitude >= moverAltitude then
+        height = 0
+    end
+    return loc:WithAltitude(height)
 end
 
 --returns a predicate function saying if a target loc passes the filter.
@@ -2117,6 +2127,133 @@ function ActivatedAbility:SwitchModes(i)
 
     result.modeList = modeList
     return result
+end
+
+--- Whether mode modeIndex can be used. Checks the mode's condition (about the
+--- caster) and, when targetToken is given, its targetCondition (the editor's
+--- "Target Filter", about the target). The action bar and the Monster AI both
+--- check this before offering or casting a mode.
+--- @param casterToken nil|CharacterToken nil skips the caster check
+--- @param targetToken nil|CharacterToken nil skips the target check
+--- @param modeIndex integer
+--- @return boolean available
+--- @return nil|"caster"|"target" failedOn which check failed, when not available
+function ActivatedAbility:ModeAvailableForTarget(casterToken, targetToken, modeIndex)
+    local mode = self:try_get("modeList", {})[modeIndex]
+    if mode == nil or casterToken == nil then
+        return mode ~= nil, nil
+    end
+    if (mode.condition or "") ~= "" then
+        local result = ExecuteGoblinScript(mode.condition, casterToken.properties:LookupSymbol(), 1, "Mode condition")
+        if not (type(result) == "number" and result > 0) then
+            return false, "caster"
+        end
+    end
+    if not self:ModeTargetFilterPasses(casterToken, targetToken, modeIndex) then
+        return false, "target"
+    end
+    return true, nil
+end
+
+--- Only the target half of ModeAvailableForTarget: whether targetToken passes
+--- mode modeIndex's targetCondition (true when the mode has none). Use it when
+--- the caster half was already checked, e.g. once per target in a list.
+--- @param casterToken CharacterToken
+--- @param targetToken nil|CharacterToken nil passes
+--- @param modeIndex integer
+--- @return boolean
+function ActivatedAbility:ModeTargetFilterPasses(casterToken, targetToken, modeIndex)
+    local mode = self:try_get("modeList", {})[modeIndex]
+    if mode == nil or (mode.targetCondition or "") == "" or targetToken == nil or targetToken.properties == nil then
+        return true
+    end
+    local symbols = { target = GenerateSymbols(targetToken.properties) }
+    return GoblinScriptTrue(ExecuteGoblinScript(mode.targetCondition,
+        casterToken.properties:LookupSymbol(symbols), 0, "Mode target filter"))
+end
+
+--- Whether this cast picks its target first and its mode second. Needs the
+--- setting, plain Multiple Modes (a variation swaps in another ability), and
+--- exactly one creature target. numTargets can be a formula, so the count is
+--- worked out for this caster each time; with more targets the ability
+--- behaves like any other multi-mode ability.
+--- @param casterToken nil|CharacterToken
+--- @param symbols nil|table
+--- @return boolean
+function ActivatedAbility:UsesTargetFirstModes(casterToken, symbols)
+    if self.multipleModes ~= true or not self:try_get("chooseModeAfterTargeting", false)
+        or self.targetType ~= "target" then
+        return false
+    end
+    return self:GetNumTargets(casterToken, symbols) == 1
+end
+
+--Shown when no mode of a target-first ability can be used on a creature and
+--none of the failing modes has its own Unavailable Text.
+local g_noModeAvailableText = "No option can be used on this creature."
+
+--Shown instead when every mode failed its caster condition: the problem is the
+--caster, so a reason about the creature would be misleading.
+local g_noModeForCasterText = "You can't use any option of this ability right now."
+
+--- Why no mode of a target-first ability can be used on targetToken, or nil if
+--- at least one can. Joins the Unavailable Text of every mode whose Target
+--- Filter failed; modes the caster can't use add nothing. If every mode failed
+--- on the caster, says so instead of blaming the creature.
+--- @param casterToken nil|CharacterToken nil skips the caster check
+--- @param targetToken CharacterToken
+--- @return nil|string
+function ActivatedAbility:TargetFirstUnavailableReason(casterToken, targetToken)
+    local reasons = {}
+    local anyFailedOnTarget = false
+    for modeIndex, mode in ipairs(self:try_get("modeList", {})) do
+        local available, failedOn = self:ModeAvailableForTarget(casterToken, targetToken, modeIndex)
+        if available then
+            return nil
+        end
+        if failedOn == "target" then
+            anyFailedOnTarget = true
+            if (mode.targetUnavailableText or "") ~= "" then
+                reasons[#reasons + 1] = mode.targetUnavailableText
+            end
+        end
+    end
+    if #reasons == 0 then
+        return cond(anyFailedOnTarget, g_noModeAvailableText, g_noModeForCasterText)
+    end
+    return table.concat(reasons, " ")
+end
+
+--- GoblinScript help for a mode's Target Filter field. Both ability editors
+--- use it so their help text stays the same.
+--- @param domains nil|table
+--- @return table
+function ActivatedAbility.ModeTargetFilterDocs(domains)
+    return {
+        domains = domains,
+        help = "GoblinScript checked against the chosen target. If it is false, this mode shows its Unavailable Text instead of a button. Leave blank to always offer the mode.",
+        output = "boolean",
+        examples = {
+            {
+                script = "Target.Recoveries Available to Spend > 0",
+                text = "Offered only if the target has a Recovery to spend.",
+            },
+        },
+        subject = creature.helpSymbols,
+        subjectDescription = "The creature using the ability.",
+        symbols = {
+            subject = {
+                name = "Subject",
+                type = "creature",
+                desc = "The creature using the ability.",
+            },
+            target = {
+                name = "Target",
+                type = "creature",
+                desc = "The creature chosen as the target.",
+            },
+        },
+    }
 end
 
 
@@ -3613,17 +3750,35 @@ end
 local AWAITING_TRIGGERS_ACTIVITY = "awaitingtriggers"
 ActivatedAbility.AWAITING_TRIGGERS_ACTIVITY = AWAITING_TRIGGERS_ACTIVITY
 
+--True if this cast is by the token or targets it.
+local function CastInvolvesToken(info, token)
+    if info.casterToken ~= nil and info.casterToken.valid and info.casterToken.charid == token.charid then
+        return true
+    end
+    for _,target in ipairs(info.targets or {}) do
+        if target.token ~= nil and target.token.valid and target.token.charid == token.charid then
+            return true
+        end
+    end
+    return false
+end
+
 --Runs fn once every ability cast that was active when this was called has
 --finished, including the calling cast if invoked from inside one. Runs fn
 --immediately when no casts are active.
 --opts.casterid names the creature fn will cast for, so HasDeferredCastFor can
 --report that the creature still has work queued.
+--opts.involving waits only for the calling cast and casts by or targeting
+--that creature, not for unrelated ones.
 --- @param fn function
---- @param opts nil|{casterid: string|nil}
+--- @param opts nil|{casterid: string|nil, involving: CharacterToken|nil}
 function ActivatedAbility.RunWhenCastsComplete(fn, opts)
+    local involving = opts ~= nil and opts.involving or nil
+    local running = involving ~= nil and coroutine.running() or nil
     local casts = {}
     for co,info in pairs(ActivatedAbility.coroutineStorage) do
-        if coroutine.status(co) ~= "dead" and info.activity ~= AWAITING_TRIGGERS_ACTIVITY then
+        if coroutine.status(co) ~= "dead" and info.activity ~= AWAITING_TRIGGERS_ACTIVITY
+            and (involving == nil or co == running or CastInvolvesToken(info, involving)) then
             casts[co] = true
         end
     end
@@ -4131,13 +4286,28 @@ function ActivatedAbility:IsPartOfAnotherAbility(casterToken, options)
         return false
     end
 
+    --Each cast runs on its own coroutine, so an outer ability by this same creature
+    --that is still resolving shows up here as another live cast.
+    local hasOuterCastBySameCreature = function()
+        for co,info in pairs(ActivatedAbility.coroutineStorage) do
+            if co ~= coroutine.running() and coroutine.status(co) ~= "dead"
+                and not rawequal(info.ability, self)
+                and info.casterToken ~= nil and info.casterToken.valid and info.casterToken.charid == casterToken.charid then
+                return true
+            end
+        end
+        return false
+    end
+
     --Invoked straight from an invoke behavior: the clone names who invoked it.
+    --The Monster AI casts every ability with the monster named as its own invoker,
+    --so that alone does not make this a nested cast: an outer cast must still be running.
     local invoker = self:try_get("invoker")
     if type(invoker) == "function" then
         invoker = invoker("self")
     end
     if invoker ~= nil and dmhub.LookupTokenId(invoker) == casterToken.charid then
-        return true
+        return hasOuterCastBySameCreature()
     end
 
     --A prompt (Charge's "Choose Charging Attack", Riposte's free strike) casts a
@@ -4148,14 +4318,7 @@ function ActivatedAbility:IsPartOfAnotherAbility(casterToken, options)
     if cast == nil or cast:try_get("ability") == nil or rawequal(cast.ability, self) then
         return false
     end
-    for co,info in pairs(ActivatedAbility.coroutineStorage) do
-        if co ~= coroutine.running() and coroutine.status(co) ~= "dead"
-            and not rawequal(info.ability, self)
-            and info.casterToken ~= nil and info.casterToken.valid and info.casterToken.charid == casterToken.charid then
-            return true
-        end
-    end
-    return false
+    return hasOuterCastBySameCreature()
 end
 
 --- @return boolean

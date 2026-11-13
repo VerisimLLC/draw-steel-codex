@@ -51,6 +51,13 @@ pregens through dev drivers), so the open risk is in the multi-client paths:
 a second player's turns, rolls and votes, late joiners, and the beat
 handovers on a non-host screen.
 
+**Joining a game under way (2026-11-06):** public parties stay listed after
+they set out; newcomers ask to join (before combat or in combat round 1) or
+watch, and the host accepts or declines in game. Montage recount + two
+actions, round-1 monster rebalance, Hero Tokens, initiative. Live-tested with
+two windows on staging (some paths driven directly); lobby server on release
+since 2026-11-06; committed 2026-11-06. See "Joining a game under way".
+
 **Encounter series (2026-10-17):** one map, several encounters unlocked in
 order, each bounded to its encounter's region. Built across the parser, game,
 town, both publishers and the City; nothing run, not deployed, uncommitted.
@@ -166,6 +173,32 @@ uncommitted entries. The Hero Death rule was renamed by a write-back to
 the authoring game's whole journal (Delian Tomb rooms and more) beside the
 week's 17 script documents. Only documents filed under an encounter map are
 published. Review the directory before committing it wholesale.
+
+## Beats after the fight (BUILT 2026-11-12 for NQPHXEAE; UNCOMMITTED, not run in the app)
+
+The script builder always let an author move a narrative/montage/negotiation
+below the `# Encounter`, but nothing played it: combat ending set the host
+stage to "complete". Now (David chose this over forbidding it):
+- Host (`MapScriptHostThink`): when combat ends and this client saw a
+  **victory**, `AfterEncounterBeat(script)` finds the first stage beat after
+  the first encounter; the beat index moves there and the stage becomes
+  `"aftermath"`, where `RunScriptBeat` plays beats with no arrival gate. The
+  end of the script, or a second `# Encounter`, dissolves the stage and sets
+  `"complete"`. A defeat goes straight to "complete" as before.
+- Every client: `UpdateEncounterConclusion` waits while
+  `AfterEncounterPending()` (victory, after-beats exist, and the index has
+  not moved on yet / is on one / the stage is still up). Then the Conclusion
+  story, or in a test the end of the test. A host that never moves the script
+  on is waited out after 30 s (`Series.afterEncounterWaitSince`).
+- Unchanged and worth knowing: `DecideSeriesResult` (series `# Results`) runs
+  at the victory, before these beats; the town award and outcome records too.
+  Treasure gained in them still goes home (heroes are carried as they are at
+  departure) -- not verified.
+- To test: a test with Narrative -> Encounter -> Narrative (win: aftermath
+  plays, then Conclusion, then the test ends; lose: Defeat at once); a real
+  2-player game where one player is still on the victory screen when the
+  other presses Proceed (does the stage cover the held screen sensibly?);
+  dead heroes in an "each hero chooses" aftermath.
 
 ## Known open problems
 
@@ -685,8 +718,10 @@ All in `Codex Titlescreen/EncounterOfTheWeek.lua`, mounted on
   Measured 2026-10-08 (two clients on one machine, `/debug` off; Begin to
   loading screen gone): host 5.2s -> 3.9s, member 11.8s (bare map, heroes
   at 13.8s) -> 4.5s (straight onto the stage). See "Launch timing" below.
-- While in the game nobody heartbeats the roster record, so it expires about
-  5 minutes after launch.
+- While in the game the host's client heartbeats a started party's record
+  (`set-late-join`, every 30s) so newcomers can still find it, and drops it
+  15s after the encounter is decided; see "Joining a game under way". A
+  record whose host is gone expires 5 minutes after its last heartbeat.
 - **Choosing the encounter.** Since 2026-10-06 the party's encounter is
   chosen by WHERE it is formed, not from a dropdown: the Gate's Form a Party
   sets out for the Encounter of the Week, Past Encounters for an earlier
@@ -899,6 +934,162 @@ graveyard.
     milestone cards do name "the Town Hall"); `dev-reset-account` and
     `scrub-hero` leave Town Hall votes and petitions alone; no comments on
     petitions.
+- **The Training Grounds** (BUILT 2026-11-04: codex + server; server on
+  STAGING only; live-tested on the staging town, see "Status" below). Where
+  heroes Level up. The levelling itself was built by James (handoff
+  2026-11-03, merged): `EotwRoster.LevelUpState(heroid)` (`ready`, `level`,
+  `xp`, `xpIntoLevel`, `xpPerLevel` = 16, `choicesLeft`, `reason` = `xp` /
+  `maxlevel` / `away` / `notonroster` / `notloaded`) and
+  `EotwRoster.LevelUpHero{heroid, host, onDone(finished)}` (one Level per
+  call, saved to the City, opens the main Builder in Level up mode; unmade
+  choices are allowed and reopen later).
+  - **Construction** (David 2026-11-04): the third community project,
+    `build-training-grounds` (scope `community`, **6000** points, one
+    completion, `autoStart`; effect `trainingGrounds` ->
+    `unlocks.trainingGrounds`, `trainingGroundsBuilt()`) in `CITY_PROJECTS`
+    (`city-core.ts`, test "building the Training Grounds" in
+    `test/city-core.test.ts`), "the Training Grounds" in
+    `COMMUNITY_PROJECT_NAMES` (`discord-core.ts`), the Lua `PROJECTS` entry
+    (`EotwDowntime.lua`), `EotwRoster.TrainingGroundsBuilt()`, and the map
+    node `traininggrounds` (`CITY_LOCATIONS`, `TRAINING_GROUNDS_SCENES`,
+    `OpenLocation`/`CloseLocation`, `m_buildingReveals` in
+    `Codex Titlescreen/EncounterOfTheWeek.lua`). The building site card is
+    `EotwDowntime.TrainingGroundsConstructionPanel`. Map icons: hammer while
+    building; once built, crossed swords -- game-icons.net "crossed-swords"
+    (Lorc, CC BY 3.0) uploaded as core image `618787aa-ef05-4311-addd-
+    6e5a59b38fd9`, because the engine's `game-icons/` set (a fixed list in
+    `ImageManager.cs`) does not include it. Map spot **(0.905, 0.44)**, the
+    open square in the east district (David: "an urban area away from other
+    buildings"); seen in the app 2026-11-04: the long site label "Training
+    Grounds Construction" fits, but only just reaches the map's right frame.
+  - **Two stages** (David 2026-11-04). The first half (points 0-2999) is
+    **Planning**: Reason or Presence; Architecture, Lead, Strategy,
+    Society. The second half (3000-6000) is **Building**: Might or
+    Agility; Blacksmithing, Carpentry, Fletching, Mechanics. The server
+    knows only the total (it does not check characteristics or skills).
+    The Lua def has `stages = { {upTo = 0.5, name, blurb, characteristics,
+    skills}, {name, blurb, characteristics, skills, banner} }`;
+    `EotwDowntime.ProjectStage(project, state?)` / `ProjectStageAt(project,
+    progress)` pick the stage, and every reader of the lists
+    (`ProjectCharacteristics`, `TrainedProjectSkills`, `BestCharacteristic`,
+    the roll dialog's skills line, the card's "needs" line) goes through
+    `NeededCharacteristics` / `NeededSkills`. The card shows "Stage N of 2:
+    <name>" (`downtime.card.stage`) and the stage blurb (through the
+    project's `blurb(state)`); the roll dialog re-picks the characteristic
+    if the stage moves on while it is open; the roll that crosses 50% shows
+    the stage's `banner`. Roll lines use `rollLines.bands` (four bands with
+    `upTo` 0.25 / 0.5 / 0.75 / end) instead of early/mid/late, and a staged
+    project's line is chosen by the points BEFORE the roll, so it belongs to
+    the stage the hero worked on.
+  - **Built:** full-screen scene, Czepeku "Jousting Tournament" (Original
+    Day HD) 30s 1080p video over its first frame, Czepeku credit (core image
+    assets uploaded 2026-11-04: video `c07dedf7-5fb4-46bf-bad7-dc70398cdc38`,
+    still `f5beda93-8e05-4c4b-8045-037286245106`; source
+    `C:/dev/eotw/art/training-grounds-jousting-tournament-day.webm`). The
+    card is `EotwTrainingGrounds.Panel` (NEW `Codex Titlescreen/
+    EotwTrainingGrounds.lua`, registered in Codex Titlescreen after
+    `EotwTownHall.lua`, Firebase confirmed): a random trainer greeting, a
+    row per roster hero -- portrait, name, Level, XP bar (`xpIntoLevel` of
+    `xpPerLevel`, green when full), the XP line ("Ready for Level N!" plus
+    "enough for N more Levels" when XP covers several), banked Victories
+    ("rest at the Blue Fish Inn") -- then **Level Up** when `ready`,
+    **Finish Your Level** when not ready but `choicesLeft > 0` and the hero
+    is home, else the reason. Pressing one calls `LevelUpHero` with host
+    `EncounterOfTheWeek.TownScreen()`; `onDone` shows "X is now Level N!"
+    in a banner with a random cheer (or the "training is saved" note when
+    closed with choices left), tracks `eotw_training_grounds_level`, and
+    rebuilds the rows. The rows rebuild on `EotwRoster.revision` /
+    `EotwDowntime.revision`, and not while the Builder is open.
+  - **Text:** every line is in `Codex Titlescreen/EotwTextTrainingGrounds.lua`
+    (David's words, filled in 2026-11-04; registered in Codex Titlescreen
+    after `EotwTextTown.lua`, Firebase confirmed, and in
+    `tests/uitext_check.lua`). The Discord name lives in `discord-core.ts`,
+    not the Lua file. The earlier markdown template
+    `EncounterOfTheWeek/TRAINING_GROUNDS_TEXT.md` is superseded by the Lua
+    file (kept until David says to delete it).
+  - **XP banking:** a respite banks XP only once the Training Grounds stand:
+    `EotwDowntime.RespiteBanksXp()` returns
+    `EotwRoster.TrainingGroundsBuilt()` (it replaced the `RESPITE_BANKS_XP`
+    constant). Until then a respite keeps raising the Level itself. The hero
+    sheet's respite line switches with it (`herosheet.card.respite_line_grounds`).
+  - **Encounter balancing is NOT part of this change** (David 2026-11-04:
+    "I'll worry about that in a later step"). No monster scaling by Level.
+  - **The Level 1 clamp is off** (David 2026-11-04, knowing fights get easier
+    as heroes level until balancing lands). `NormalizeHeroLevel` (game
+    `EncounterOfTheWeek/EncounterOfTheWeek.lua`) now only clears
+    `extraLevelInfo.encounter` (the slow-start rungs); it no longer forces
+    `levelOverride = 1` or `classes[i].level = 1`. Heroes enter EotW games
+    only as town heroes (recruited at Level 1, levelled in town) or module
+    pregens (authored at Level 1), so nothing arrives above its town Level.
+    Respites already raised Levels before this, so heroes levelled that way
+    play at their real Level as soon as this ships.
+  - **Level balancing** (David 2026-11-08; BUILT 2026-11-08, luac + parser
+    tests clean, NOT run in the app, UNCOMMITTED): see "Level balancing"
+    under Challenge Mode below.
+  - **Shared fix:** a scene's title (`SceneHeader`) now has the header's
+    width, so a long name wraps instead of running under the card
+    ("Training Grounds Construction" takes three lines).
+  - **Status / not done:**
+    - Server deployed to **staging only** (2026-11-04, version 45314880);
+      the release town does not have the project until a release deploy
+      (David's go-ahead needed). Until then the release map shows the site
+      at 0/6000 and its rolls are refused by the City.
+    - Tested on the staging town (David's account, 2026-11-04): the site,
+      Stage 1 card, `admin-set-project` to 3000 (Stage 2: Might/Agility and
+      the building skills in the roll dialog), to 6000 (the scene swapped
+      itself to the built Training Grounds, crossed-swords node, hero rows),
+      then reset to 0. The Level Up / Finish rows were checked with a faked
+      `LevelUpState` in that session only; Finish Your Level opened the
+      Builder and its close showed the "saved" note. **Not tested:** a real
+      Level Up press (no staging hero had 16 XP), a real project roll (would
+      spend a staging hero's Downtime), the stage banner on a roll crossing
+      50%, a respite banking XP once built, and an EotW game played with a
+      levelled hero (abilities and Stamina arrive; Victory screen and Hall of
+      Heroes show the right Level).
+    - Nothing committed.
+    - **Open:** the building-site art (placeholder: the Hall's Construction
+      still).
+- **The Great Forge** (PROJECT BUILT 2026-11-10: codex + server; server on
+  STAGING only, version 69587af5; nothing committed). **Hidden by default**
+  (David 2026-11-11): `defaultHidden` in `CITY_PROJECTS`, so on every server
+  it stays hidden until an admin presses Show in Codex menu -> Community
+  Projects... (stored per server in `shownProjects`); showing it on staging
+  leaves release hidden. Raised with the
+  Tinkerer's Guild, a cabal of Gnome tinkerers. What the built Forge does is
+  NOT designed yet (David: the project first, then its function).
+  - **Construction** (David 2026-11-10): the fourth community project,
+    `build-great-forge` (**10000** points, one completion, `autoStart`;
+    effect `greatForge` -> `unlocks.greatForge`, `greatForgeBuilt()`) in
+    `CITY_PROJECTS` (test "building the Great Forge"), "the Great Forge" in
+    `COMMUNITY_PROJECT_NAMES`, the Lua `PROJECTS` entry,
+    `EotwRoster.GreatForgeBuilt()`, `EotwDowntime.GreatForgeConstructionPanel`
+    and the map node `greatforge` (`GREAT_FORGE_SCENES`, `OpenLocation`,
+    `m_buildingReveals`). Hidden until the City lists the project, like the
+    Training Grounds. The Training Grounds' and Great Forge's open scenes
+    share one table, `m_buildingScenes` (the town function is at Lua's
+    200-local limit).
+  - **Two stages:** Planning (0-4999): Presence or Reason; Lead,
+    Architecture, Magic. Building (5000-10000): Might or Agility; Alchemy,
+    Magic, Blacksmithing, Mechanics ("Stonework" from the brief is not a
+    Draw Steel skill).
+  - **Art:** Czepeku "Alchemy Dungeon" (Original Day HD) 30s 1080p video over
+    its first frame, for both the site and the built Forge (core image
+    assets uploaded 2026-11-10: video `df4a22af-6369-4fa9-a0d2-efe2a0f43f3c`,
+    still `7bffe83d-058f-4c90-a211-8ee548550209`; source
+    `C:/dev/eotw/art/great-forge-alchemy-dungeon-day.webm`). The video
+    carries a CZEPEKU.COM watermark, bottom right.
+  - **Map:** PLACEHOLDER spot (0.5, 0.62), south of the Guild, just above the
+    hero cards. Icons: hammer while building, `phosphor/flame-fill.png` once
+    built (no anvil in Phosphor).
+  - **Text:** `Codex Titlescreen/EotwTextGreatForge.lua` (registered in Codex
+    Titlescreen after `EotwTextTrainingGrounds.lua`, Firebase confirmed; in
+    `tests/uitext_check.lua`). Every line is a placeholder draft. **No roll
+    lines yet:** the project has no `rollLines`, so a roll shows no hero line
+    until they are written.
+  - **Tested** on the staging town 2026-11-10: the site shows on the map,
+    opens on the video, the card reads Stage 1 of 2 with 0 / 10000 and the
+    right characteristics and skills; `ProjectStageAt` switches to Building
+    at 50%. No roll made (it would spend a staging hero's Downtime).
 
 ## Locations on the map
 
@@ -910,12 +1101,14 @@ already has natural homes (fractions of the 6160x4480 canvas):
 | Location | Where | Notes |
 |---|---|---|
 | **Town Gate** | the walled city gate, top centre (~0.53, 0.13) | labeled "City Gate" on the source map |
-| **Graveyard** | the green churchyard beside the Cathedral (~0.31, 0.85) | |
+| **Graveyard** | the south-east corner, just north of the southern river (0.89, 0.86) | moved 2026-11-06 (user direction) from the green churchyard beside the Cathedral (0.31, 0.86), which the hero cards along the bottom covered |
 | **Hall of Heroes** | placeholder (0.33, 0.2), between the Inn and the Gate | BUILT 2026-10-21, not run; spot not yet checked against the art |
 | **Town Hall** | placeholder (0.6, 0.3), between the Gate and the Proving Pits | BUILT 2026-10-26 (staging only); spot and art are placeholders |
 | **Hero's Guild** | the small walled green island with a lone building in the canal (0.44, 0.42) | chosen when building (2026-10-02); the Safe House block (~0.54, 0.60) was the alternative |
 | **Blue Fish Inn** | the canal-side building west of the Guild (0.235, 0.455); moved 2026-10-11 (user direction) from the "Drunken Fool" tavern (0.335, 0.575), which the hero cards along the bottom covered | BUILT 2026-10-10 (Downtime); hidden until heroes first come home, then revealed once (2026-10-11, see "The inn's reveal") |
 | **Arcane Market** | the shop the "Front and Back" label points at (0.695, 0.18) | BUILT 2026-10-10; since 2026-10-11 hidden until the player finds it (see "Leads") |
+| **Training Grounds** | the open square in the east district (0.905, 0.44) | BUILT 2026-11-04 (6000-point two-stage build, then Level up; server on staging only) |
+| **Great Forge** | placeholder (0.5, 0.62), south of the Guild | project BUILT 2026-11-10 (10000-point two-stage build; server on staging only); spot not checked against the art |
 | later | the Docks, Bora's Wagon Yard, the Cathedral, the Safe House | |
 
 ## Decisions taken (2026-10-01, with the user)
@@ -1147,7 +1340,8 @@ configs; city id for the town: `blackbottom`):
   | `set-active {heroids}` | owner | replace the active set (max 4, living, own) |
   | `record-outcome {heroid, gameid, outcome, died?}` | owner | append to the hero's adventure log, idempotent per (hero, game). `died` sets the hero fallen and inactive and digs a grave whose epitaph comes from the summary + `outcome.encounter` + owner name. `outcome.completed` (with `outcome.encounter`, not dying) records that the hero won that encounter (`city_completions`) |
   | `list-outcomes {userid?, heroid}` | anyone | the hero's adventure log |
-  | `list-graveyard {before?, limit?}` | anyone | graves newest first, paged (50 default, 100 max), `more` flag |
+  | `list-graveyard {before?, limit?, mine?}` | anyone | graves newest first, paged (50 default, 100 max), `more` flag; `mine` = the caller's only (the Graveyard's Your Fallen tab) |
+  | `awaken-hero {heroid}` | owner | a fallen Hakaan / Revenant / Vampire (summary ancestry) back to the roster, living and inactive, if a slot is free; deletes its grave, keeps the outcome log. Record = the last one pushed from town (the fatal game never pushed). Graveyard Awaken button (added 2026-11-11) |
   | `town-heroes {}` | anyone | the active heroes of everyone currently present |
 - **Parties take roster heroes only.** In a city, `join-game`/`set-heroes`
   accept only the caller's own living heroes as `{kind: "roster", id:
@@ -1273,7 +1467,8 @@ map, so every panel over it is fully opaque (`ff`).
 - **Hero's Guild** (0.44, 0.42), the walled canal island; `phosphor/shield-star-fill.png`.
 - **Town Gate** (0.53, 0.135); `sword-fill`. Locked until the roster has
   been listed and holds at least one living hero.
-- **Graveyard** (0.31, 0.86); `hands-praying-fill`.
+- **Graveyard** (0.89, 0.86), the south-east corner on the southern river's
+  north bank, right of the hero cards; `hands-praying-fill`.
 
 **Working copies.** A town hero is a character in the per-player **lobby
 game** whose charid **is** its city heroid, tagged `properties.eotwHero`.
@@ -1307,8 +1502,8 @@ holds.
   conditions are copied as they are (not decided; see below).
   `EotwRoster.FindCopyOf(charid)` finds the living copy that blocks a second
   pick. The list comes from the NEW `TitlescreenHeroes.List()` in
-  `CodexTitlescreen.lua`: the first 8 of `LobbyHeroes()` (the HEROES slots),
-  minus `HeroIsUnstarted` shells. **Create**: `TitlescreenHeroes.Create`, then `JoinRoster`
+  `CodexTitlescreen.lua`: all of `LobbyHeroes()` (the HEROES slots, every
+  page; the 8-hero cap was lifted 2026-11-12), minus `HeroIsUnstarted` shells. **Create**: `TitlescreenHeroes.Create`, then `JoinRoster`
   if the builder kept the hero. **Edit**: `TitlescreenHeroes.Edit`, then
   push on close.
 
@@ -1479,6 +1674,156 @@ Verified after the final engine build: the town opened right at boot waits
 for the lobby game (no import errors), then the hero card appears. The Guild
 panel is opaque.
 
+## The social rail: friends, public games and Town Chat everywhere in town (BUILT + engine built 2026-11-06; partly tested; deploys pending)
+
+User direction (2026-11-06): the Town Chat is visible everywhere in town (the
+map and every location), with the player's **friends** at the top: Steam and
+Discord friends who own the Codex, online first, each with a status line. A
+friend playing a game shows it, with Join / Watch buttons when the game allows
+them; **private games still let friends ask to join or watch**. Then (after
+seeing the mockups, "go ahead and implement"): a **Public Games** section
+listing every public game, the ones open to join at the top, and a party whose
+host **blows the horn lights up for several seconds with a horn icon**.
+
+**Mockups** (signed off): `C:/dev/dmhub/design-mockups/eotw-town-social/`
+(01-map ... 13-states), source `C:/dev/eotw/mockups/town-social/town.html`
+(`?s=map`, `mapmini`, `gate`, `party`, `guild`, `inn`, `market`, `danger`,
+`hall`, `townhall`, `training`, `graveyard`, `states`; `shoot.sh <outdir>
+<screens>` renders them with headless Edge). Public Games was added after
+them and has no mockup.
+
+### Layout (as built)
+- **The rail** (`Codex Titlescreen/EotwSocialRail.lua`, `EotwSocialRail.Create`)
+  is 380 wide, full height, on the right. Top to bottom: a header (Blackbottom,
+  heroes in town, collapse, leave the town), **Friends**, **Public Games**,
+  then **Town Chat** filling the rest (at least 330). Friends and Public Games
+  are sized to their rows (caps 340 and 250) and fold by clicking their titles;
+  the chat gives way last. The chat is the old drawer's body (`chatPanel` in
+  `EncounterOfTheWeek.lua`), with the Town Chat | Game Chat tabs in a party
+  view; the drawer and its Chat button are gone, and the chat counts as seen
+  whenever the rail is open (`SetChatOpen` follows the rail).
+- **Collapsed** (76 wide): the expand button, up to 8 online friends' faces
+  with status dots, and a chat button with a red unread mark. Not remembered
+  between visits.
+- **The stage**: the map, plaque, hero strip and every location scene sit in
+  `Rail.stage`, the screen less the rail (`Rail.ContentWidth()`). **The map is
+  sized to fill the stage's width** (David, 2026-11-06), at least as tall as
+  the screen: with the rail open it is about 1540 wide and pans only a little
+  up and down; opening or collapsing the rail re-fits it (`Rail.FitMap`: map
+  and node layer re-sized, the nodes moved by their `x`/`y`, the pan scaled).
+  A side effect was the Graveyard node (then at x 0.31) sitting behind the
+  hero strip; it moved to the south-east corner (0.89, 0.86) on 2026-11-06,
+  clear of the strip (at most `EotwRoster.MAX_ACTIVE` = 4 cards) with its
+  label on screen at the default pan.
+  Opening or collapsing the rail rebuilds the Gate and Proving Pits scenes and
+  reopens the location that was open (`Rail.Relayout`; analytics skipped via
+  the `silent` flag of `OpenLocation` / `CloseLocation`).
+- **Card widths**: Gate and Proving Pits lists 900, Guild 860, Inn / Market /
+  building sites 820, Hall and Town Hall 900, Training Grounds 860.
+- **Party view**: the card spans the stage (`Rail.PartyCardWidth()`, the stage
+  less 88) and the scene header turns into one line, Back to Town plus the
+  place's name (the `sceneCompact` event, fired by `SetCardWidth`).
+- Not built from the mockups: friends' faces on the map's location nodes (the
+  City's presence does not say where in town anyone is), friend search / add
+  friend, and an Invite button.
+
+### Friends
+- **Who**: Steam friends (`dmhub.GetSteamFriends`, new engine API) and Discord
+  friends (`dmhub.DiscordGetRelationships`, only while the `discordsocial`
+  preference is on and Discord is linked). A friend counts when the
+  **`codexFriendsLookup`** cloud function (new) maps their id to a Codex
+  account, or when Steam / Discord shows them in the Codex right now. Steam and
+  Discord rows for the same Codex account merge, with both glyphs. Until the
+  lookup answers, a Steam friend's account is taken to be `steam-<SteamID64>`.
+  The lookup is asked when new ids appear (at most once a minute) and every 10
+  minutes, 500 ids of each kind at most.
+- **Status, best source first**: their EotW party in the City (forming /
+  under way, encounter, host, slots, public or private), being in town (the
+  City's `/presence`), Steam rich presence (the Codex's own status line) or
+  Discord activity, then plain online / away / busy / another game / offline.
+  So the presence source is the platforms plus the City: no presence record
+  of our own and no privacy setting yet (open question 1 below).
+- **Order**: joinable, in a game, in town, in the Codex, online, away; offline
+  folded under "Offline (N)".
+- **Rows**: face with status dot, name and platform glyphs, the status line,
+  and for a party a third line (host, slots, Private). Buttons sit in a column
+  at the row's right (David, 2026-11-06: "Unnecessary to take up space putting
+  the Join button below"): one full-size, or two smaller stacked. Public Games
+  rows use the same column.
+- **Buttons**: a friend's EotW party gets the boards' own actions
+  (`Rail.DescribeGame`): Join a public party forming; under way, Join / Watch
+  (public) or **Ask to Join / Ask to Watch** (private), all late-join requests
+  the host accepts in game; Open for our own party. A private party still
+  forming is joined through the friend's Steam Join Game (their connect string
+  carries the invite code; `dmhub.JoinSteamFriend`), else Ask to Join through
+  Discord (`DiscordFriends.AskToJoin`). A friend in a campaign with a Steam
+  connect string gets Join (Steam's own Join Game, straight in).
+- **Private games take late requests now** (this reverses "Public games
+  only" under "Joining a game under way"): the lobby records `lateJoin` for
+  private games and `request-late-join` no longer refuses them; the host's
+  Accept is the gate. `Late.Of` dropped its public test; the boards still list
+  a private party to its members only.
+
+### Public Games
+- Every `public` party in `/state/games`. Order: forming with room and the horn
+  sounding, forming with room, under way and taking requests, the rest; newest
+  first within each. Each row: the party's name, Forming / Under way (or
+  "Horn m:ss" while it sounds), the encounter, host and slots, and the same
+  buttons as above.
+- **The horn**: a party whose `hornUntil` changes while the town is open
+  flashes gold for 6 seconds (`hornFlash`, pulsing) with a Notify.Ping; while
+  the horn sounds the row keeps a gold tint, a horn icon and "Horn m:ss". The
+  icon is `phosphor/megaphone-fill.png` for now: `game-icons/hunting-horn.png`
+  exists in `Assets/Imported/Wesnoth-UI/game-icons/` but is not among the
+  game-icons the app ships (the list in `ImageManager.cs`), and Phosphor has no
+  horn. The first look at the City only learns what is already sounding (no
+  flash).
+
+### What is left (2026-11-06)
+- **Engine build** for `dmhub.GetSteamFriends` / `steamFriendsRevision` /
+  `JoinSteamFriend` and the `#steamavatar:` images
+  (`Assets/Scripts/LuaInterfaceSteamFriends.cs`, `SteamFriendsList.cs`,
+  `SteamAvatars.cs`, hooks in `ImageDownloader.cs` and `SteamManager.cs`).
+  The rail calls them unguarded, so the town errors until the build.
+- **Deploys**: the lobby change (`cloudflare-game-server/src/lobby-core.ts`,
+  444 tests pass) to staging then release; the cloud functions
+  (`codexFriendsLookup`, plus `discordLink` / `discordDevicePoll` /
+  `discordToken` / `discordUnlink`, which now keep the `/discordUserLinks`
+  reverse index), then the backfill script
+  (`functions/scripts/backfill-discord-user-links.mjs`, dry run first).
+- **Tested 2026-11-06** (engine built with -DevKey, so no Steam; friends fed
+  through the test seam `EotwSocialRail.sources` = {steamRevision,
+  steamFriends, discordFriends}, and a second rail built over a fake City
+  connection): the rail on the map, the Guild, the Town Gate and the Proving
+  Pits; collapse (faces + status dots, the map widens to the Training Grounds,
+  an open location rebuilds and stays open) and expand; the chat opening on
+  its newest messages; friend rows of every kind (campaign Join through Steam,
+  a friend's public party, a private game's Ask to Join / Ask to Watch, in
+  town, in the Codex, busy/away dots); Public Games order, the horn tint,
+  icon, countdown and the 6-second pulse; the one-line header with a
+  full-width card (driven by hand, not by a real party view). No Lua errors.
+- **Not tested**: a real party view (forming one would have deleted the
+  account's game in progress), the friends lookup and real Steam friends /
+  avatars (need the deploys and a Steam build), Discord friends, any Join /
+  Ask / Watch button doing its job, private late join end to end.
+- **Fixed while testing**: the chat opened on its oldest messages (layout's
+  own scroll events cleared the stick-to-bottom flag: `Rail.chatSettleUntil`
+  ignores them for half a second after a refill or a resize); a game row built
+  an action column it did not use (the leak sweep flagged it).
+- Virtual MCP clicks on a map node can land the release on a button of the
+  scene that opens under it (the Proving Pits' Form a Party sits under the
+  node now). A real mouse should not: Unity only clicks the object that got
+  the press. Not verified by hand.
+
+**Open questions:**
+1. Presence privacy: an "appear offline" / "hide what I'm playing" setting.
+   Nothing is shown that Steam and Discord did not already show, plus the
+   City's records, which every town client already receives.
+2. Watching a private **campaign** is not offered (spoilers; only Steam's Join
+   Game exists for campaigns, and it enters straight in).
+3. Friends' faces on the map would need the City's presence to carry the
+   location each player is in.
+
 ## Progression (OPEN -- needs its own design pass)
 
 The user wants progression to carry home. That collides with how the weekly
@@ -1497,6 +1842,10 @@ party, scaling only by hero *count*. Options to weigh:
   and delve chests are already concrete items), **titles/renown**, a record
   of encounters survived, and town unlocks. The weekly balance is untouched.
 - A mix: items and renown now, levels later with bands.
+
+**Levels decided 2026-11-04:** Draw Steel-native levelling: heroes Level
+individually at the Training Grounds (see "The Training Grounds" under the
+town's locations). Balancing encounters for levelled heroes is a later step.
 
 **First piece designed 2026-10-10:** wounds carried home, Victories to XP at
 a respite at the Blue Fish Inn, Downtime Activities and projects, with heroes
@@ -2427,6 +2776,22 @@ the 200-local ceiling):
   for the part just won (the town's debrief would have); at the Gate it stamps
   `alreadyCompleted` for the new part from `list-heroes` (no party record
   carries it here).
+- **Repeat payouts on continued parts (fixed 2026-11-12, not run live).**
+  Analytics showed heroes paid a part's Victories again on a replay, almost
+  only on continued parts (Aixco part 3: 23 of 1,579 heroes). The stamp was a
+  single `list-heroes` with no retry, and a miss paid in full. Now:
+  `Series.StampCompletedForPart` asks again until the City answers (5 s after
+  a failure, 40 s with no answer, 12 attempts) and `Series.ContinueTick`
+  restarts it after a reload; each client writes
+  `data.completionChecked[userid] = runId` when its answer is in, and the
+  host's `AutoAwardVictories` holds the award up to 15 s
+  (`Series.COMPLETION_CHECK_HOLD`) for a missing one, except when Proceed was
+  pressed. A client on an older build never writes the stamp, so a mixed party
+  waits the full 15 s. Why the original lookup was missed is not known; the
+  retry and give-up lines are logged. Also `RecordCompletedHeroes` (arrival and
+  continued parts) now counts this machine's wins still in
+  `eotw:pendingOutcomes` (`Series.PendingWins`): a party could set out again
+  before the town had recorded the last game, and be paid again.
 - **Resume**: a game that went on (`seriesContinue` set) keeps its stamped key
   over the lobby record's, keeps its recorded `expectedUsers`, and does not
   re-stamp completions from the arrival's hero list. `OutcomesFor` and the
@@ -2537,7 +2902,7 @@ manage any of it.
 | D2 | When a part is won, the result is saved for **every account in the party**, not only the host's. | A member who later hosts the next part brings the run they played. |
 | D3 | **Latest win counts.** Each part keeps its own result row; a later win of that part replaces it. A defeat saves nothing. | Replays can fix a bad run. Replaying Part 1 changes only Part 1's share of the track. |
 | D4 | **Danger Room and Town Gate stories are separate**, like the unlocks. A series promoted to the Week starts with a clean story. | Consistent with "Danger Room wins do not carry over". |
-| D5 | **The montage outcome covers every montage in the part.** Score = tier-3 results (crits included) − tier-1 results − threats left unvanquished. Each event counts once, and tests on Opportunities count too. | The user's definition: successes, minus failures and complications (an unvanquished threat is a complication). |
+| D5 | **The montage outcome covers every montage in the part**, and (David, 2026-11-07) every narrative challenge test too, now that narratives play on the montage engine; votes and individual choices never count. Score = tier-3 results (crits included) − tier-1 results − threats left unvanquished. Each event counts once, and tests on Opportunities count too. | The user's definition: successes, minus failures and complications (an unvanquished threat is a complication). |
 | D6 | Outcome = the score **per hero** (divided by the number of heroes who began the part) against two bars: **total success at or above the first, partial at or above the second, failure below**. Written `Outcome: total success at 1, partial at 0` in `# Results`, per hero. **Default: total at 0.5, partial at −0.25** (the old raw +2 / −1 at four heroes). | The user picked net score + thresholds, then per hero after the critique (2026-10-18): six heroes make about 50% more tests than four, so raw bars favoured big parties. |
 | D7 | The **round the fight was won in** is recorded (wins only) and is readable by later parts. It does not feed the outcome. | The user wants it tracked; keeping it apart keeps the outcome about the montage. |
 | D8 | Tracks are **declared**: `Track: Rite's Progress` in each part document that uses one, or `Track: Rite's Progress (Hidden)`. **No range.** Ordinary clauses change them wherever clauses go, and `{...}` hides a change as usual. | The validator can then catch typos. The user declined a range. |
@@ -2551,6 +2916,7 @@ manage any of it.
 | D16 | A track may carry a **description**: `Track: Rite's Progress -- how close the cult is to finishing the rite`, shown next to the value in town and on the recap (shown tracks only). | Players can't tell whether "rose to 2" is good without it. The user declined a score breakdown on the recap. |
 | D17 | **Delve tests do not count** toward the score; only the montage board's own tests do. | The user's pick. |
 | D18 | **Replaying an earlier part never clears later parts' results.** Replaying Part 1 after Part 2 replaces Part 1's row only; Part 2's share stays, even if Part 2 branched on the old value. | The user, 2026-10-19. |
+| D19 | A track may be marked **Secret**: `Track: Velkhara's Secret (Hidden, Secret)` (or `(Secret)`, which is also hidden). A test or choice result that raises it shows the part's `Secret result: <text>` header line, or "You learned something that may matter later.", on the landed tier and in the result, even when the result also shows other rules. Not for lowering it, a threat's consequence, or a hidden track without the mark. | Playtest 2026-11-09: results that only raised a hidden clue track showed players nothing. Per track, because Rite's Progress is hidden too but rises on failures (the user picked this over "any hidden track" or "only when the result is empty", 2026-11-10). |
 
 ### The design
 
@@ -2683,7 +3049,8 @@ Track clauses are `<Track> +N` / `<Track> -N`, `<Track> rises by N` /
 against the names the part declares, so they cannot collide with `+2 malice`
 and the rest. **A clause that changes a hidden track is always hidden**, as
 if it were in `{...}`, so it can never print "Rite's Progress +2" on the
-stage.
+stage. A track marked `(Secret)` is hidden the same way, but raising it
+shows the `Secret result:` line instead (D19).
 
 **Reading it (conditions).** There is **one condition parser for every
 place**: these new atoms join `EncounterScript.ParseCondition`, so every atom
@@ -2835,7 +3202,9 @@ the app. The City (step 4) and the town (step 5) wait on step 0.
    (tier 3-4 success, tier 1 failure, each logged consequence an
    unvanquished threat; delve and passed turns have no tier), stamped into
    `data.montageTotals["b<beat>"]` by `HostTick` when a montage reaches
-   "done"; `PartTotals` sums them, plus a montage still running.
+   "done"; `PartTotals` sums them, plus a montage still running. A narrative
+   beat is stamped the same way (it plays on the montage engine), so its
+   challenge tests count (D5).
 3. **Game** (BUILT except the City calls): the live story lives in the
    SCRIPT document (`eotwscript` `data.story`, next to the beat index and
    the montage state, where effects already write), not in `eotwstate` as
@@ -2944,15 +3313,20 @@ Mode -- no authoring. Decisions taken with the user:
   normal mode but not the challenge, **2 for a hero who has won neither**
   (who then can earn nothing more from either mode), 0 ("Already Completed")
   for a hero who has won the challenge.
-- **Combat** (`ChallengeBalance`, `LevelUpStrongestHalf`): balanced for one
-  more hero. Encounters carry balancing for 4-6 heroes only and nobody
+- **Combat** (`DifficultyBalance`, then `ApplyLevelBoost`; see "Level
+  balancing" below): balanced for one more hero. Challenge Mode is one
+  difficulty notch (see "Difficulty notches" below). Encounters carry balancing for 4-6 heroes only and nobody
   should have to author a 7-hero setup (no algorithmic extra start
-  positions either), so **a party of 6 is balanced for 6 and the strongest
-  monsters are leveled up by one level** (`monster:SetLevelAdjustment`),
-  strongest EV first, until at least half the spawned EV is leveled. A
+  positions either), so **a party of 6 is balanced for 6 and the monsters
+  are leveled by one hero's worth of EV instead**: (party Level + 2) / 6
+  Levels (`monster:SetLevelAdjustment`) -- 0.5 at Level 1, 1.0 at Level 4.
+  The whole part levels every monster; a fraction levels the strongest EV
+  first until that fraction of the spawned EV is leveled. A
   minion squad is one unit worth EV/minionsPerSquad per minion, as the
   encounter builder counts it. Reinforcement waves get the same rule as they
-  arrive (half of each wave).
+  arrive. Since level balancing, a late hero who completes a party of 6
+  brings the extra Levels too. (Until 2026-11-10 this was a flat half Level,
+  which was only worth a hero at Level 1.)
 - **Montage**: one more threat. Party-size scaling's removals stand except
   one threat, which comes back (the earliest round's, at random). When the
   scaling removed no threat, an existing threat must be **vanquished twice**:
@@ -3065,6 +3439,139 @@ Mode -- no authoring. Decisions taken with the user:
    list "(Challenge Mode)". Win: a hero new to the encounter gets 2
    Victories, one who had won it 1; back in town both show "Already
    Completed" for the challenge and the normal mode.
+
+---
+
+# Level balancing (BUILT 2026-11-08; luac + parser + typing clean; verified live incl. Test Encounter; reinforcements untested; UNCOMMITTED)
+
+User direction (2026-11-08): encounters balance themselves for the heroes'
+Level. Decisions taken with David:
+
+- **Every encounter has a target hero Level**: a `Level: N` line under
+  `# Encounter` (also `Hero Level:` / `Party Level:`, 1-10). **No line means
+  Level 1** (every encounter so far was built for Level 1). Each series part
+  reads its own script, so parts can differ.
+- **The monsters move by the party's average Level minus the target** (the
+  "level delta"). The whole part levels every monster; the fraction levels
+  the strongest monsters (by EV, strongest first -- David accepted that one
+  big monster can overshoot) by one more until that fraction of the EV is
+  levelled. Average 1.5 in a Level 1 encounter: half the EV is Level 2.
+- **Below the target, monsters level DOWN** the same way (to Level 1 at
+  least; 11 at most).
+- **Victories are ignored** (Draw Steel's extra hero per 2 average Victories
+  is not applied).
+- **Late joiners re-level** the opening fight for the new average.
+- **Mid-fight summons** by the heroes' enemies move by the level delta
+  rounded to a whole Level, halves up: a 1.5 party in a Level 1 encounter
+  meets Level 2 summons. Built as a shift relative to the summon's own
+  Level (a Level 3 summon there becomes Level 4) -- David's example fits
+  both readings; confirm if he meant an absolute Level.
+- **Challenge Mode** (and every difficulty notch past a full party) adds
+  (party Level + 2) / 6 Levels to the boost (it used to be its own
+  `LevelUpStrongestHalf`, then a flat half Level).
+
+### Difficulty notches
+
+An admin can play any pool encounter up to 3 notches harder or easier
+(Codex menu > Encounter Difficulty..., `EncounterOfTheWeek.ShowDifficultyDialog`;
+David 2026-11-09). One notch is what Challenge Mode adds, and Challenge Mode
+stacks on top (`EncounterOfTheWeekGame.Notches`):
+- **Combat**: balanced for one hero more (or fewer). Past 6 heroes or below 1,
+  each notch is (party Level + 2) / 6 Levels up (or down) instead.
+- **Montage** (`EncounterScript.ChooseNotchThreats`): each notch up brings back
+  a threat the party-size scaling removed, else a threat needs one more
+  vanquish (x2 spread across threats before any x3). Each notch down removes a
+  threat, never a Required/Locked one or a round's last; while notched down,
+  every round waits for the draw. Consequence costs stay Challenge Mode's only.
+- Stored as `publishingProperties.eotwNotches[mapName]` on the module record
+  (like `eotwPulled`), read into the pool entry's `notch`, carried in the
+  arrival args and stamped once into `data.notch` by the host. Players are
+  not told; the console logs it. Unverified: that republishing the official
+  module (Create Module...) keeps `eotwNotches`.
+
+Why it holds: a hero's Encounter Strength is 2 x (Level + 2), and every row
+of `MCDMMonsterScaling`'s table (`Draw Steel Core Rules/MCDMMonster.lua`) has
+EV = k x (Level + 2) (minion/horde 1, platoon 2, elite/leader 4, solo 12).
+Levelling all monsters by N keeps the EV-to-budget ratio exactly; levelling a
+fraction f of the EV by one adds what a party f Levels higher brings.
+
+## How it is built
+
+- **Script** (`EncounterScript.lua`): `LEVEL_LABELS`,
+  `ParseHeroLevelInstruction` (first whole number 1-10, kind `herolevel`),
+  `FindHeroLevel(parse)` (default `DEFAULT_HERO_LEVEL` = 1). A `Level:` line
+  that is not a Level falls back to the other setup instructions (a label is
+  free text), else warns `author.script.encounter.level_not_understood`.
+  Shown in `Describe`, the validator (`author.validator.report.setup_hero_level`)
+  and `EncounterZones.RunEncounterSetup` (no-op entry). The script builder
+  shows it as a plain text row. Tests: `tests/encounter_script_test.lua`.
+- **Game** (`EncounterOfTheWeek.lua`, "level balancing" after
+  `ChallengeBalance`): `TargetHeroLevel`, `PartyLevel` (average
+  `CharacterLevel()` over `EncounterMontage.Heroes()`, nil with none),
+  `LevelDelta` (0 with no heroes), `LevelBoost(levelUp)`,
+  `ApplyLevelBoost(charids, boost, reason)` and `LevelSummon`.
+  `ApplyLevelBoost` is re-runnable: on the first change it stamps each
+  monster's spawn Level and EV (`eotwBaseLevel`, `eotwBaseEV` on the
+  properties) and always sets the Level from those with
+  `monster:SetLevelAdjustment`, so an authored level adjustment is kept and
+  nothing levels twice. Ties sort by charid / squad key so a re-run picks the
+  same monsters.
+- **Call sites**: `SpawnEncounterGroups` (the opening fight; the charids go
+  into `eotwlatejoin` `balance.monsters`), `EncounterReinforcements` `Arrive`
+  (each wave on its own), `RebalanceForLateHeroes` (appends its spawns to
+  `balance.monsters`) then the new `RelevelForLateHeroes` from
+  `AdmitLateHeroes` (runs even when no monster is added).
+- **Summons**: a generic hook in core `DMHub Game Rules/AbilitySummon.lua`
+  (`ActivatedAbilitySummonBehavior.RegisterSummonHook(id, fn)` /
+  `RunSummonHooks(casterToken, token)`, run before the summon's first upload;
+  also called by the table-roll summon in `AbilityTableRoll.lua`). EotW
+  registers `"eotw-level"` -> `LevelSummon`, which acts only in an EotW game,
+  only for a non-hero, non-player-controlled caster, only on monsters.
+
+## Not done / known gaps
+
+- **Verified live 2026-11-08** (Goblin Ambush authoring game e96656f3, after
+  a restart; test goblins spawned beside the pregens, deleted after; no Lua
+  errors): `ApplyLevelBoost` on Monarch 12 + 2 Warriors + a 4-Runner squad +
+  a Level 2 Shadowknife (25 EV): 0.5 levelled Monarch and Shadowknife (16 of
+  25 EV); a re-run changed nothing; 1 levelled all (Monarch EV 12 -> 16,
+  Stamina 80 -> 100 a frame later); 2.5 gave +2 all and +3 for those two;
+  -1 floored everything at Level 1; 0 put each back at its spawn Level
+  (Shadowknife 2). `LevelDelta` with a faked Level 3 target and Level 1
+  heroes = -2. The summon hook with a faked 1.5 party in a faked EotW game:
+  an enemy's summon came out Level 2 (Level 2 stats after upload), a hero's
+  stayed Level 1.
+- **Verified through Test Encounter 2026-11-08** (same game; a leftover
+  round-1 combat was ended first, with David's OK; both tests ended cleanly,
+  no Lua errors): combat test with the "Lv3 Summoner (Graves)" pregen + a
+  Level 1 Dwarf Fury + the two Level 1 heroes on the map: "boost 0.50
+  (party Level 1.5 ...): 4 monsters changed; +1 more on EV 12.0 of 24.0" --
+  2 Assassins + 2 Warriors to Level 2 (EV 4, Stamina 20), `balance.monsters`
+  recorded. `RelevelForLateHeroes(4)` with the same party changed nothing; a
+  faked average of 2 took all 14 to Level 2; back to 1.5 restored the split.
+  Challenge Mode test with 4 picked heroes: boost 0.33 (12 of 36 EV), then
+  `RelevelForLateHeroes(6)` gave 0.83 (Challenge's half Level) and levelled
+  30 of 36 EV.
+- **Test quirk, not this feature:** the authoring test sets `numheroes` from
+  the heroes PICKED (`#placed`), while heroes already on the map also fight
+  and count in `PartyLevel`. With 4 picked + 2 on the map a Challenge test is
+  balanced for 5 and gets no half Level. Real games agree on both counts.
+- **Not yet run:** a reinforcement wave (Goblin Ambush has none), a real late
+  joiner through `AdmitLateHeroes`, and an enemy summon in a real fight. To test: author test a Level 1 encounter with
+  Level 2 pregens (console "EotW level balance (spawn): boost 1.00 ...", every
+  monster +1); a mixed 1/2 party (boost 0.50, about half the EV +1); a
+  `Level: 3` line with Level 1 heroes (monsters down 2, floor Level 1); a
+  reinforcement wave; Challenge Mode with 6 heroes (boost + 0.5); a late
+  joiner in round 1 ("(late join)" line); an enemy summon at boost 0.5
+  (summon +1).
+- Duplicates (duplicate-mode summons) are not levelled: they copy their
+  source's stats, and levelling on top would count twice.
+- Monsters an encounter places some other way (montage allies, delve
+  monsters, map objects that spawn creatures) are not levelled.
+- Reinforcement waves already on the map are not re-levelled by a late
+  joiner (late joins end after round 1).
+- Nothing tells the players the monsters were levelled (the console only),
+  and the town does not show an encounter's Level.
 
 ---
 
@@ -3723,6 +4230,11 @@ User direction (2026-10-11):
   should also allow a respite (still unspammable, since they drop to 0).
 - **One carouse per respite, lost at the next respite** (not banked).
   After the last lead is learned no carouse is offered at all.
+  Changed 2026-11-11 (David), with single-hero respites (each inn row has
+  its own Respite button beside Catch Breath): every respite, one hero or
+  the party, closes the account's open series parts, but a respite opens a
+  carouse only when a resting hero banks a Victory. A respite with no
+  Victories leaves an unused carouse open.
 - **Carouse skills** (+2 when trained): Brag, Flirt, Gamble, Music,
   Perform, Rumors (`EotwLeads.CAROUSE_SKILLS`). Tiers are Draw Steel's: 11-,
   12-16, 17+, and a natural 19-20 is tier 3.
@@ -4630,6 +5142,24 @@ What the 2026-10-08 work changed, besides the fast launch:
 - Lua: pregens paste in one batch; the character sheet's Inventory tab is
   built when first shown.
 
+2026-11-07 pass (solo private party, The Bound Minotaur, 4 heroes, 4 Hero
+modules): Begin to stage 6.2s -> 4.2s; the hold behind the loading screen
+4.1s -> 2.2s. Changes: Hero modules install all at once (they were one at a
+time, ~0.35s each) and start right after the member host-wait, overlapping
+the encounter install and the travel (`StartHeroModuleInstall`); the host
+fetches a community module's info first (`PrefetchEncounterModuleInfo`)
+instead of queuing it behind the Hero module queries; setup polls at 0.05s
+and the post-travel settle is 0.2s (was 0.5s). The engine reserves each
+install's `modulesImported` ord, so concurrent installs never share one.
+Montage to combat: the encounter's monsters spawn one group per frame
+(`SpawnEncounterMonsters(n, {async = true})`, a 660ms frame before); the
+setup and spawn start behind Tactical Preparation's result screen, which
+holds 1.5s instead of 4s when nothing was bought; Proceed to Draw Steel
+5.7s -> 3.3s. The 30-75ms stalls every 1-2s through montages were GC debt
+from `TextStorage:GetContent` (quadratic concatenation), which
+`FindMapScript`'s cache check ran on every map document many times a second;
+fixed in TextStorage and `ScriptSignature`.
+
 ## Setup on arrival (`SetupOnArrival`)
 
 On every member's client, inside the arrival coroutine:
@@ -4935,6 +5465,14 @@ the map, they win. Decisions taken:
   non-bystander monster of that keyword / bestiary-type word on the map.
   Minions count (unlike core `CountLiveCombatants`). Reinforcements still to
   come do not count -- the user's "kill all Dwarves PRESENT on the map".
+- **`Parallax: None|Slight|Normal|Pronounced`** (a setup line, `{kind =
+  "parallax", ratio, level}`, added 2026-11-08 for Horizon's Grave: Slight in
+  Parts 1 and 3, None in Part 2). `EnforceStrictRules` (the host tick) reads
+  `EncounterScript.FindParallaxInstruction` on the active part's script and
+  keeps the game setting `parallaxratio` at that value for the whole part,
+  narrative included. No line = the setting is not touched. The per-user
+  `disableparallax` preference still wins (GameConfig.cs). `parallaxratio` is
+  in `TestSettingIds`, so End Test restores it.
 - **A won fight is never snatched back**: the host runs the reinforcement tick
   after `CheckEncounterOutcome` and only while `m_outcomeMetTime` is nil and no
   outcome is awarded, so a map cleared just before a round boundary still
@@ -5042,6 +5580,79 @@ waits for every voter or the deadline, stamps `phase = "done"`, and calls
 `begin()`. If `begin` was lost (a Lua reload on the host), it starts combat
 again with `StartEncounterCombat(sides, { forceHeroes = true, noArrange =
 true })`. `/eotwmontage reset` clears `arrange` and `arrivalItems`.
+
+**Preparing during the arrangement (BUILT + VERIFIED live 2026-11-05, UNCOMMITTED).**
+David's direction: while the heroes arrange, players may use Catch Breath and
+the Null's Null Field, and nothing else. Respite activities are held back:
+they belong in Blackbottom (the town), not here.
+
+- *Core cast gate* (`Draw Steel Core Rules/MCDMActivatedAbility.lua`):
+  `ActivatedAbility.RegisterCastGate(id, fn(ability, casterCreature,
+  casterToken) -> reason|nil)`, run (pcall-guarded) from the
+  `AbilityFilterFailureMessage` override for player-controlled casters
+  under `StrictActionEconomyEnforced()`, never for a `TriggeredAbility`. The
+  action bar already greys a failing chip, shows the reason, and refuses a
+  player's press (`m_suppressed`), so it needed no change. The Director, the
+  Monster AI and trigger prompts are never refused.
+- *EotW's gate* (`EncounterOfTheWeek.lua`, after `ArrangeHeroesWin`): while
+  `arrange.phase == "arranging"` and no live queue, only the guids in
+  `EncounterOfTheWeekGame.ARRANGE_ABILITY_IDS` pass: Catch Breath
+  `ca322ca9-4729-46b2-81bc-d3ac4098fc47` (global rule mod) and Null Field
+  `8dbe876d-7e72-4e8c-8d11-ab51bffe9bd6` (Null class feature; Null Field -
+  Effect is NOT included). Everything else reads
+  `encounter.arrange.cast_blocked`. Outside the arrangement nothing changed.
+  Catch Breath is unlimited (only Recoveries limit it), because with no
+  queue a `"turn"` refresh id is a fresh guid on every call
+  (`creature:GetResourceRefreshId`, `Resource.lua`), so a maneuver is never
+  used up. No potions or other consumables.
+- *Combat waits for casts*: `UpdateBusyMirror` now also mirrors ability
+  activity while arranging, and `ArrangeHostTick` holds `begin()` while
+  `AnyClientAbilityBusy()`, for at most 30s past the deadline.
+- *Panel line*: `encounter.arrange.prepare_hint` under the intro
+  (`EncounterText.lua`).
+- *The panel moved to the top* (`valign = "top"`, `tmargin = 80`). At the
+  bottom it covered the action bar's drawer menus (Null Field's Heroic
+  Abilities column) and the cast prompt's Confirm button.
+
+luac, `uitext_check`, `strict_manual_trigger_test` and `check.ps1 -Changed`
+clean. VERIFIED live 2026-11-05 in two combat authoring tests of Horizon's
+Grave Part 1 (game `e400e9b8`, Human Null + Dwarf Fury + Human Censor
+pregens, the heroes lost the initiative):
+- During the arrangement the menus showed only Catch Breath and Null Field
+  usable; every other chip was red. Pressing Charge was refused
+  (`press-refused ... suppressed=true`).
+- Null Field cast from the bar (the effect landed), then Catch Breath
+  healed 23 -> 27 and spent one Recovery. It stayed usable afterwards.
+  Null Field left the menu once it was up (its own `filterCondition`), so
+  it cannot be stacked.
+- Pressing Ready mid-cast held combat ("waiting for action bar targeting
+  before combat") until the cast ended.
+- After `begin()` the queue went live in round 1, the Null Field aura was
+  still up (drawn on the map while the monsters acted), and strikes passed
+  the filter again.
+- No new console errors.
+NOT seen: a won initiative (same code path), multi-client (a second
+player's cast holding combat through its `abilityBusy` stamp), the 30s
+overtime cap.
+
+Known gap, not fixed (outside the ask): before the arrangement (arrival,
+waiting for players, after a montage) nothing gates casting. With no queue
+every action and maneuver is affordable, so a hero in range could strike a
+monster. A surprised party never arranges, so it gets no preparation.
+
+Respite activities, for when Blackbottom takes them up: abilities whose
+`actionResourceId` is `CharacterResource.respiteActivityId`. The Actions
+global rule mod grants that resource only `when Game Mode = "Respite"`. The
+tagged ones: Revitalizing Ritual, Sanctified Weapon, Oracular Warning, Saint's
+Epiphany (Conduit and Censor domains), Mindlink (Telepathy), Bloodbound Band
+(item), Study the Notebook (Advanced Studies; only the roll is automated),
+Among Our Ranks and Return to the Source (Summoner, not automated). Some
+"each time you finish a respite" abilities are not tagged: Inner Light (Sun
+domain) and Implement of Wrath (Censor 6th level) use no action, so they can
+be cast at any time in any game, and Faith's Sword (Conduit 9th level) is a
+free maneuver. Revitalizing Ritual and Oracular Warning read as
+finish-a-respite benefits, not activities, so one shared resource would make
+them compete.
 
 ## Victory, defeat and leaving
 
@@ -5432,7 +6043,11 @@ leaver from every wait; the host then votes or acts for them.
   plain child was hidden behind the End Turn banner. The popup is rebuilt
   whole whenever a notice comes or goes: popup placement is computed from
   the panel as first shown, and a column grown afterwards spilled upward
-  over the bar. A click elsewhere closes the notices, like any popup.
+  over the bar. A click elsewhere closes the notices, like any popup. In a
+  game (since 2026-11-06) the column lives in `gamehud.popupPanel` instead,
+  top right under the map strip: as a title-bar popup it drew over the hud
+  but lost the mouse to it, so its buttons could not be clicked over a map
+  window or a stage. There a click elsewhere does not close it.
   `CodexTitleBar.OpenPlayersPopout()` opens the plate's popout; a custom
   interface supplies its content through the new `playersPopout` provider
   field (`GameHud.CustomInterfacePlayersPopout`). In a directorless game the
@@ -5450,6 +6065,285 @@ trigger badge jumps to the hero); a prompt that was already open on the
 leaver's screen when they went has not been tested, and the AI's save wait
 has no timeout. Nothing yet tells a player in town that their game went on
 without them (phase 2).
+
+## Joining a game under way (BUILT + live-tested 2026-11-06 on staging; server on release; committed)
+
+User direction 2026-11-06. A **public** party stays on the town's list after
+it sets out, and newcomers may ask to **join** (bring heroes) or **watch**
+(come in controlling nothing). The host gets a notice under the players row
+with **Accept / Decline**. When newcomers may bring heroes:
+
+| The game is in | Newcomers may |
+|---|---|
+| any story beat before combat (narrative, montage, negotiation, Tactical Preparation, the arrangement) | join or watch |
+| combat round 1 | join or watch |
+| combat round 2 on, or between combat and the end | watch only |
+| decided (victory/defeat seen) | nothing; the party leaves the list |
+
+Decisions (2026-11-06, with the user):
+- **The host must accept** (not just a notice). No answer within 75s lapses
+  the request (the city) and the newcomer gives up at 90s (the town).
+- **Public games only** (superseded 2026-11-06: private games take
+  requests too, so friends can ask from the social rail; the host's
+  Accept is the gate. See "The social rail").
+- **Combat round 1: rebalance to the new count.** Every group is recomputed
+  for the larger party with the counts the author set for each party size;
+  only the difference spawns, next to the group and in its initiative. Nothing
+  is removed and fallen monsters are not replaced.
+- **Montage: restored entries appear at once.** The party-size draw is made
+  again for the larger party, for the current round and later ones; an entry
+  the smaller party lost that the larger keeps comes back onto the board now.
+  Entries already on the board are never taken away, earlier rounds are left
+  alone, and a larger party never removes more (a directive that would cut
+  more at the bigger size is ignored for a late join).
+- **Two actions:** a hero who joins in montage round 2 or later acts twice
+  in that round (`m.bonus[charid] = round`; the first action spends it, a
+  pass ends the round outright). A hero joining in round 1 acts once, like
+  everyone.
+- **Observing** is joining as a member with no heroes (the open question
+  under "Open questions" is answered: no separate spectator mechanism). An
+  observer is in no vote or wait (nothing is keyed to them) and sees what any
+  player sees.
+
+**Lobby server** (`cloudflare-game-server/src/lobby-core.ts`; dispatch in
+`lobby.ts`; unit tests "late joining" in `test/lobby-core.test.ts`).
+DEPLOYED to staging 2026-11-06 (version 3183797a); NOT on release.
+- Record fields: `lateJoin` ("join" | "observe"; absent = taking no
+  requests), `requests[userid] = {name, mode, heroes, at}`,
+  `declined[userid] = {at, reason: "declined" | "timeout" | "closed"}`, and an
+  observer's player entry carries `observer: true`.
+- `set-late-join {gameid, mode}`: any member of a launched game (after a host
+  hand-over the lobby cannot tell who hosts). It is also the **in-game
+  heartbeat** that keeps a started game listed (until now only the town
+  screen beat the record, so it expired ~5 min after launch). Going to
+  "observe" refuses waiting joins; "closed" refuses every request. A private
+  game's call only heartbeats. A heartbeat that changes nothing visible is
+  still written to storage (quietly), or a hibernating DO would forget it.
+- `request-late-join {gameid, mode, heroes?}`: non-members of a public game
+  that takes requests. Heroes go through `prepareHeroClaim` (the City's
+  roster check) and must fit the free slots. In `BANNED_ACTIONS`.
+- `cancel-late-join {gameid}`; `answer-late-join {gameid, userid, accept}`
+  (any member; a join is re-checked against the mode and free slots and
+  turned down with `reason` "full" / "too-late" if they changed).
+- `sweepExpired` lapses requests after `LATE_JOIN_REQUEST_TTL_MS` (75s).
+
+**Town** (`Codex Titlescreen/EncounterOfTheWeek.lua`, the `Late` table,
+declared above `CreateScreen` because that function is at the 200-local
+limit; text in `EotwTextTown.lua`, `eotw.late.*`):
+- A party under way shows "(under way -- heroes may still join)" or
+  "(under way -- watch only)" and **Join** (opens its view) / **Watch**
+  (asks at once).
+- Its view, for a newcomer: the heroes they would bring (pre-filled with
+  their free active heroes, as forming a party does; click a card to leave it
+  behind, "+" opens the usual hero picker, which now takes an `onPick`), **Ask
+  to Join**, **Ask to Watch**, **Back**. While waiting: "Waiting for {host}...
+  (Ns)" and **Cancel Request**.
+- `Late.Check` (every roster change, and each second while waiting): our
+  entry in `players` = accepted -> `Late.Enter`: `lobby:JoinGameEotw`,
+  mark the slot, abandon the previous EotW game, wait (10s at most) until
+  `lobby.eotwGameid` shows the engine join landed (the game server admits
+  listed players only), then `EnterWorld`. Our entry in `declined` says why
+  it failed.
+- **Changed for members:** a started party now stays listed for its whole
+  game, so its member view's walk-away is **Abandon** with
+  `{abandon = true}` (the eotwAbandonGame path) for everyone, the host
+  included. The old host button deleted the game outright, which a few
+  minutes after launch was harmless and now would delete it from under the
+  others.
+
+**Game side.**
+- `EncounterOfTheWeek.lua`: one **shared lobby connection, counted by its
+  users** (`EncounterOfTheWeekGame.AcquireLobbyConnection` /
+  `ReleaseLobbyConnection`; `SendLobbyRequest` and the prewarm use it). The
+  engine hands every `lobbies:Connect` for the same city the same underlying
+  connection, so the old per-request `Disconnect` would have closed the
+  watcher's.
+- `EncounterOfTheWeekGame.LateJoinPhase()` -> "join" | "observe" | "closed"
+  (table above; round from `dmhub.initiativeQueue.round`, 1 in the first
+  round).
+- `EncounterPresence.lua`, "newcomers to a game under way": on the host,
+  every 0.5s (`WatchLateJoin`): `set-late-join` every 30s and on a phase
+  change; each waiting request as a sticky notice (in a game the notices
+  live in the hud's popup layer, so their buttons take the mouse; id
+  `eotw-latejoin-<userid>`, re-shown 5s after it is clicked away); Accept
+  adds a "latejoin" presence event ("X is joining the party with A" / "X is
+  coming to watch" on every other screen). Once "closed", 15s later the
+  record's host sends `leave-game` so the party's heroes are free for new
+  parties at once.
+- `EncounterOfTheWeek.lua`, "heroes joining a game under way"
+  (`EncounterOfTheWeekGame.LateHeroesHostTick`, every map-script host tick,
+  not in tests). Host-only document `eotwlatejoin`: `known` (every hero
+  counted: the party once `AllPlayersArrived()` or combat began, then each
+  latecomer), `late[charid] = {at, owner, phase, combat}`, and `balance`
+  (what `SpawnEncounterMonsters` placed: hero count, the series part, and
+  per group its initiative `groupid` and per-monster counts). For each new
+  hero: `numheroes` +1 (clamped 3..7; the spawn, reinforcements and series
+  scoring read it), one Hero Token, `EncounterMontage.OnHeroesJoined` (the
+  recount and two actions; a "latehero" notice when they act twice),
+  `RebalanceForLateHeroes` while the phase is "join" (no-op before the spawn,
+  or when the balance belongs to another series part), and in combat a place
+  in the initiative (`entry.player = true`, once per combat; that is also
+  what makes `GetBattleHeroTokens` count them for the Victory).
+- A latecomer's own client needs nothing new: `EnterWorld` parks their heroes
+  from their roster entry, `SetupOnArrival` pastes them in the Start zone,
+  and the loading screen is released by the montage stage (a beat already
+  open) or at once (combat: the expected party is already in). They are not
+  added to `expectedUsers`, so nothing waits for them.
+
+**Verified live (2026-11-06, staging, two windows on one machine:** the admin
+host in a public Bound Minotaur party, the New Player Window as the partner
+account with `EotwRoster.UseStaging` patched to true at runtime, since that
+account is not an admin):
+- The started party stays listed with the in-game heartbeat, tagged
+  "(under way -- heroes may still join)"; Join opens the view pre-filled with
+  the partner's two free heroes; Ask to Join shows the countdown.
+- The host's notice ("David asks to join with Polder Shadow and Talent.")
+  with Accept / Decline; Accept made them a member, everyone got "David is
+  joining the party with ...", the newcomer's town joined the engine game and
+  entered during the opening narrative. Heroes 4 -> 6 on the map,
+  `numheroes` 4 -> 6, Hero Tokens 4 -> 6, the newcomer a voter.
+- Decline: the newcomer sees "Denivarius declined your request."; an
+  unanswered request lapsed ("timeout") and the view returned to the pick.
+- Watch: the partner (after Abandon from the member view, which left the
+  record and cleared their slot while the game went on) asked to watch, was
+  accepted and came in with no heroes (`observer: true`), seeing combat.
+- Montage recount and two actions (exercised directly on the live state: the
+  montage drawn for 4 heroes, moved to round 2, then `OnHeroesJoined`): round
+  2's removed threat came back, round 1's stayed removed, both newcomers got
+  the bonus; `MarkActed` lets a bonus hero act twice, a normal hero once.
+- Combat round 1 (spawned for 4 heroes through the encounter beat, then the
+  newcomers made "new" again): `numheroes` 4 -> 6, Hero Tokens +2, monsters
+  14 -> 24 (the author's 6-hero groups, never removing: group 3 kept its 8
+  minions where the 6-hero setup has 5), every group in the initiative, new
+  minions in the group's existing squad, the latecomers stamped for the combat.
+- Round 2 turns the record to "observe"; "closed" (the outcome seen) drops
+  the record 15s later.
+
+**Fixed during the test:**
+- *The lobby lost in-game heartbeats.* A heartbeat changed only memory, so
+  when the DO hibernated between beats and woke, the record came back with
+  its old stamp and was swept 5 minutes after its last real change (a party
+  under way vanished mid-test). `heartbeat` and `set-late-join` now persist the
+  state row without broadcasting (`LobbyObject.persistLobbyState`, staging
+  version 3a92154a). The same loss could drop a party idling in town for 5
+  minutes before.
+- *Notices could not be clicked in a game.* The players-row notices were a
+  popup of the title bar, which draws over the game hud but loses the mouse to
+  it (the maximized map window's strip, then an EotW stage). In a game they now
+  live in `gamehud.popupPanel`, top right under the map strip
+  (`CodexTitleBar.lua`, `RebuildPlayersToasts`; out of a game unchanged). This
+  also made the existing Reassign / Claim Host / Reclaim Host buttons
+  clickable; in a game a click elsewhere no longer closes the notices.
+- *Hero picks as cards pushed the buttons off a smaller window*: they are
+  compact chips now ("+ Add a Hero" opens the picker). The board says "A Party
+  Under Way" for a party you are not in.
+- *The stage kept the old hero row*: the narrative stage redraws its heroes
+  only on a script-document change, so the host stamps
+  `eotwscript.data.heroesJoinedAt` 3s after admitting latecomers.
+- *Balance keys*: groups were keyed "1", "2", ..., which the document turns
+  into a list on reload, so after a restart no group matched and a rebalance
+  spawned the whole encounter again. Keys are `EncounterOfTheWeekGame.
+  BalanceGroupKey(i)` = "g<i>" (verified across a restart).
+- *A group new to the larger party* split its monster types into separate
+  initiatives (each `SpawnPrepMonsters` call minted its own); its spawned
+  monsters now join `existing`, so later types follow the first.
+
+**Fixed after David's own test (2026-11-06, release):**
+- *A newcomer arriving mid-montage saw another map's montage* and nothing
+  they dragged worked (the host answered every approach "entry unavailable":
+  the entry ids came from Goblin Ambush's script). A community module's game
+  started members on the module's first map and travelled; the stage, already
+  up for a beat under way, was built from that map's script and kept it. Now
+  a party already set up (record "ready") starts every arrival on its
+  encounter map whatever the module (`EnterWorld`), and the script stage
+  rebuilds its body when the script it shows changes (`CreateScriptStage`,
+  keyed by script document + map).
+- *Errors entering late* (`GameController.isDMOrPlayerHost` NRE from every
+  loading-screen panel; "Could not find game id"): the engine fetches a game's
+  record (GamesMonitor) only once the account slot changes, and the late join
+  entered before it landed. `Late.Enter` now also waits (5s at most) for
+  `lobby.gamesRevision` to move after the slot shows the game.
+- *Leaving a game you only watched asked about Abandon.* `ConfirmExit` now
+  steps aside for a non-host who controls nothing on the map, and the town
+  (`Late.LeaveWatched`, from `RefreshGames`) takes a returning watcher off the
+  party and out of their EotW slot, so the board offers Join / Watch again. A
+  watcher who crashes out must ask again too.
+
+**Seen live after those fixes (2026-11-06, staging, two windows, The Bound
+Minotaur):** Watch -> Accept -> the watcher entered on the encounter map
+(the host's `e8b23317`) with the opening narrative showing and no
+isDMOrPlayerHost errors; Leave Game asked nothing; back in town the watcher
+was taken off the party ("EotW: stopped watching ...") and the stale "Your
+game in progress" bar went with the slot; the board offered Join / Watch
+again; Ask to Join -> Accept brought two heroes in (Hero Tokens 4 -> 6, both
+on the stage, the newcomer a voter whose Ready the host saw). Then, mid-
+montage, the partner's window was killed and came back through Re-join: on
+the right montage, and its drag onto "Keep Up Morale" was taken by the host.
+
+**Fixed during that test:**
+- *A player back mid-montage could not drag their heroes.* The host hands a
+  returning player's heroes back after they arrive ("Welcome back"), which
+  changes no montage document, and the stage decides which cards may be
+  dragged (and "Your move: ...") only on a document change: the cards stayed
+  locked and the line said "Waiting for the other heroes to act" until
+  someone else acted. Not specific to late joining. The montage stage's think
+  now redraws when who controls a hero changes (`OwnerSignature`,
+  EncounterMontageStage.lua). Probably also what David saw in the second
+  window, alongside the wrong-map script.
+- *The late-join watcher stalled on a closed connection* (it held it and only
+  checked `connected`): it now lets a closed one go and takes a fresh one
+  (`WatchLateJoin`, EncounterPresence.lua).
+- *A newcomer looking at a party under way was told "The game is starting ...
+  You will enter automatically"*; that line is now for members only.
+
+**Testing on staging:** set the host's preference `eotw:server` to
+"staging" before the party sets out (the game mod's lobby requests --
+`ready-game`, the late-join heartbeat -- read it; patching
+`EotwRoster.UseStaging` changes only the town screen, and a party whose
+`ready-game` went to the other server stays "launched": no Re-join, members
+never auto-enter). The non-admin partner window still needs the
+`EotwRoster.UseStaging` patch, re-applied after every game exit (the town
+mod reloads). A public party on release is real: a stranger joined the test
+party within seconds.
+
+**Not done / known gaps.**
+- **Release**: the lobby change was deployed to release 2026-11-06 (version
+  63289e52, with David's OK). Codex and game server committed 2026-11-06
+  (unpushed).
+- Not run live: a newcomer joining for real mid-montage after round 1 (only
+  one spare account; the logic was driven directly) or in combat round 1 (the
+  arrival was simulated by clearing `known`), and a real victory or defeat
+  closing the record.
+- **Engine (C#, not fixed): `DOConnection.OnOpen` NullReferenceException**
+  when a client re-enters a game it had a cached connection for (log:
+  "evicting cached connection" then "Connected" then the NRE, crash report
+  uploaded). The open callback of an evicted connection runs after its socket
+  was closed; a null check on `_ws` before `_ws.Send(authMsg)` would do. Seen on
+  the observer's entry; not specific to late joining.
+- **Abandon from the town does not count as abandoning in the game.** Only
+  the in-game Abandon writes `eotwleave-<userid>`; the town's (member view,
+  resume row) just leaves. The host then treats the player as away, and if they
+  come back -- to watch, say -- they are handed their heroes again.
+- Rebalancing never removes, so a party that grows can face more than the
+  author's count for its size (24 vs 20 in The Bound Minotaur at 6 heroes)
+  when the larger setup trims a group. Decided ("never remove"), but worth a
+  look with real encounters.
+- Rebalanced monsters keep the existing monsters' stamina (a group's
+  `balancing[n].stamina` is applied to the newcomers only), and they stand on
+  free tiles beside their group rather than on banked positions.
+- Challenge Mode with a full party (6 balanced as 6 + level-up): a late hero
+  cannot raise the count past 6, and the level-up is not redone.
+- A request in the instant between a hero's acceptance and their arrival in
+  round 2 still lets them in (accepted in round 1 is enough).
+- The host's lobby connection shows the host as present in the town while
+  they play (presence is derived from sockets). Not checked whether the town
+  roster shows them.
+- A series that goes straight on in the same game drops the party from the
+  list at the first part's victory, so later parts take no newcomers.
+- The montage stage shows no hint of a hero's second action beyond the
+  notice.
+- A member's own hero cards in a started party still show the hover trash
+  (set-heroes is refused once launched); harmless, unchanged.
 
 ---
 
@@ -5768,6 +6662,14 @@ Consequence: You begin the encounter surprised
   full text is parsed for effects; tiers not achieved keep their teaser for
   good. `=>` was chosen because `|` breaks the journal's tier regex and `:`
   collides with tier prose.
+- **Authoring standard for tier lines** (user direction 2026-11-10): a tier
+  line is a short label plus effects (`|Shaken => {The threat is
+  vanquished}. You lose 1d3 stamina`), and the narration lives only in the
+  test's `if tier1 ... end` scene block, which plays in the central montage
+  box. Prose in the tier line was said twice (line and scene) and warned once
+  per clause. Effect order: vanquish, costs, rewards. The Road Off the Moor
+  Parts 1 and 2 were converted to this form on 2026-11-10 (Part 3 was already
+  written this way). The validator does not check it yet.
 - **Riders** (`TestRiders.lua`, core): `|<Effect>: <requirement>` after the
   tiers. Effects are `Allow` (aliases `Requires`/`Required`/`Allowed`/
   `Require`), `Edge`, `Double Edge`, `Bane` and `Double Bane`. A requirement
@@ -5788,6 +6690,12 @@ Consequence: You begin the encounter surprised
 - **Scenes**: a `---` line in an entry (above its first option) ends the card
   text and starts its scene; every non-blank line after it is one step.
   - `PC` is the approaching hero.
+  - Pronoun tokens (2026-11-08): `pcsubject`/`pcobject`/`pcpossessive`/
+    `pcpossessivealone`/`pcreflexive` read as the hero's sheet Pronouns
+    (`EncounterScript.PronounSet`; first set wins, blank or unknown =
+    they/them, an unknown pair "ne/nem" builds its own set). A capital first
+    letter capitalizes. Swapped by `EncounterScript.SubstitutePC` wherever
+    `PC` is; with no hero they read as they. Verbs are not conjugated.
   - `Name (Monster) enters`/`appears`/`arrives` and `Name exits`/`leaves`/
     `departs`. The monster gives the portrait; a bare name is its own monster.
   - `Name: text` is speech (only for `PC` or a character who enters
@@ -5805,6 +6713,13 @@ Consequence: You begin the encounter surprised
     scene and the lines below are its outcome scene. **Effects apply after
     the outcome scene has been read.**
   - Entries without a scene get an automatic intro.
+  - In a `# Narrative` (2026-11-07, playtest N12/N13) the cast carries over:
+    a character who enters stays on the right through later sections (board
+    and claimed test screens) until `exits` or the end of the beat. The host
+    keeps it in `m.gauntlet.cast`, and every section knows the whole beat's
+    characters, so a later section can make one speak or exit. The hero's
+    last alert/alarmed holds on their portrait (`m.gauntlet.heroEmote`) until
+    a test of theirs lands. An interrupted roll sets "alarmed" by itself.
 - **Delves**: an option line `Delve: <Name>` (the option has no roll) enters a
   `# Delve: <Name>` section anywhere in the document:
   - `Chest: every 1-2 obstacles`;
@@ -5867,6 +6782,7 @@ coloured.
 | `reveal <zone>s [during the next combat]` | that zone type becomes player-visible at the encounter beat |
 | `unlock <name>` | a `(Locked)` entry joins the board |
 | `edge on <option>` (`double edge`, `bane`, `double bane`) | a standing edge/bane on that `###` test for whoever takes it; stacks with riders |
+| `edge on <option>: <reason>` | the same, and the option card says "Edge: <reason>" instead of "Edge: earned at <entry>" (`testmods[key][i].reason`); the reason cannot hold `. , ; ! ?` |
 | `you fail the test`, anything unmatched | narrative only |
 
 Initiative rules: `doc.data.initiative` (last outcome wins) decides who goes
@@ -5969,6 +6885,76 @@ knack rows are the montage builder's, as `ctx.AttrEditor` and `ctx.RiderRows`.
 and knack coverage does not count negotiation arguments yet. To try the builder
 in a Director-less game, use a `--director` window on a throwaway document not
 filed under the map.
+
+## Gauntlet beats (BUILT phases 0-4 2026-11-07; NOW FOLDING INTO NARRATIVE)
+
+**Direction change (David, 2026-11-07):** the Gauntlet is not its own beat.
+Narrative absorbs every Gauntlet feature (challenge sections with claims,
+assists and Weary; Go to routes; detours; party-size tags; custom event
+points), played by one runtime (the Gauntlet's, on the montage turn
+engine); `# Gauntlet` is removed; Weary counts per narrative beat. The merge
+plan (phases N0-N5) is "Merging into Narrative" in `GAUNTLET_PLAN.md`.
+N0 (parity inventory) and N1 (parser) are DONE 2026-11-07, UNCOMMITTED:
+`# Narrative` is read by the sectioned parse (sections with challenges,
+routes, tags, event points, arrival scenes; ids `s<n>-<slug>`; the old
+narrative fields kept), and `# Gauntlet` is an unknown beat. Narratives still
+play on the montage engine (N2, DONE 2026-11-07, UNCOMMITTED; no setting, by
+David's direction): votes, individual choices, challenges, Proceed, Unlock
+callouts, with a stopgap stage until N3.
+Details: "N1 results" and "N2 results" in `GAUNTLET_PLAN.md`. The record of
+what was built for the Gauntlet follows.
+
+
+User direction 2026-11-07: a `# Gauntlet` beat as an alternative to a montage.
+The party travels a path one obstacle at a time. The whole party arrives at
+each obstacle and sees every option at once; any hero claims one (first
+claim wins, and someone must), makes its montage-format test, and one other
+hero may assist. Every roll a hero has made this Gauntlet, assists included,
+adds a bane. Tests fail forward; a No Roll option is the author's way to let
+the party walk past. Secret (`Allow`) options show to everyone only when a
+hero present qualifies, with that hero's portrait beside the option.
+`Go to` routes give branching paths, forward or sideways only (a fork section
+is a party vote; a tier can route into a detour), and `(5+ Players)` tags
+drop sections for small parties. The plan, the grammar and David's decisions
+(2026-11-07) are in `GAUNTLET_PLAN.md` at the dmhub repo root. Recommended
+build: a montage mode (`beat.kind = "montage"`, `beat.gauntlet = true`) with
+the Gauntlet rules in a new `EncounterGauntlet.lua`, so the montage turn
+engine is reused unchanged. Assists come back for Gauntlets only, one helper
+per test; montages stay assist-free. Phase 0 DONE 2026-11-07 (reading only):
+a Gauntlet parses as a montage beat with one implicit round whose entries are
+its sections, and needs 19 small hooks into the montage runtime and stage;
+the removed assist code comes back from `4162b942^`. Montage mode confirmed.
+David answered Phase 0's questions 2026-11-07: any other hero may assist
+(Skilled +2 only if trained in a listed skill); `## Custom Event` points let
+the game insert events from outside the script, Secret Twin's assassin first
+(a point with nothing ready is ignored); `PC` is not valid in an arrival
+scene. Phase 1 (parser) DONE 2026-11-07, unit-tested, NOT run in the app,
+UNCOMMITTED: `EncounterScript.lua` parses `# Gauntlet` into
+`beat.gauntlet = true` with `beat.gauntletSections` (kinds `challenge` / `choice` /
+`event`, ids `g-<slug>`), resolves every `Go to` (option field `route`, since
+`goto` is a Lua keyword; a section's own exit goes above its first option),
+and has the pure routing helpers `GauntletFirst` / `GauntletNext`; warnings
+are `author.script.gauntlet.*`. Phase 2 (runtime) DONE 2026-11-07,
+UNCOMMITTED: new `EncounterGauntlet.lua` (registered in the CodeMod after
+`EncounterMontage`; needs a restart to load) holds claims, the assist step,
+fatigue chips, votes, routing and the custom-event registry (Secret Twin's
+assassin is the first event); 12 hooks in `EncounterMontage.lua`, which
+shares private helpers through `EncounterMontage.Internal`. The host logic
+was played end to end in the app over MCP. Phase 3 (stage) DONE 2026-11-07. Phases 1-3 committed in codex 9743d95e (not pushed; this note itself is not committed):
+`CreateGauntletStage` in `EncounterMontageStage.lua` (trail, board with
+Undertake buttons and Only / Better for portraits, votes, results with
+"Next: ...", the scene panel for the turn with the assist step in its box,
+Weary lines and Assist buttons on the hero cards), built from the mockup
+David signed off (https://claude.ai/artifact/1UKnPKnt963ajknibinKPW). Route
+clauses are now hidden from players until the result names the next section.
+Played end to end on the real stage in the app with an in-memory script. Not
+yet played by two players or from a journal script in an EotW game. Phase 4
+(validator) DONE 2026-11-07, UNCOMMITTED: the Encounter Script panel shows
+Gauntlet sections, a route map for 3/4/5 heroes with test counts and Weary
+notes, and Gauntlet challenges in knack coverage; the section list was
+renamed `beat.gauntletSections` because narrative code walking
+`beat.sections` crashed on it. Next: Phase 5 (authoring). Details: "Phase 2/3/4
+results" in `GAUNTLET_PLAN.md`.
 
 ## Narrative beats
 
@@ -6293,13 +7279,24 @@ The grammar is in the /eotw skill's `script-reference.md`; in short:
   player) and each hero's share of a dice `loserecovery` (key
   `r:<clause>:<charid>`, rolled by that hero's owner). If any, `OpenDice` puts
   `m.dice` out (the turn waits in status `"dice"`; a consequence hides its
-  Continue). The player is prompted: the stage shows a **Roll** button
-  (`DiceRollButton`, while `EncounterMontage.MyDiceWaiting()`), and one click
-  (`EncounterMontage.RollMyDice`) arms that dice seq for this client; until
-  then nothing is thrown (2026-10-17: the dice used to throw themselves the
-  moment they went out). Once armed, `ClientTick` rolls each of this user's
-  dice with `dmhub.Roll`, ONE AT A TIME (the next goes once the host has recorded the last, since
-  `SendRequest` keeps one request slot per user), and sends `diceRolled
+  Continue). The player is prompted with the roll dialog, the way a test
+  is (2026-11-09, user direction; it used to be a **Roll** button on the
+  stage): `ClientTick` -> `LaunchMontageDice` pops each of this user's dice
+  through `ShowMontageRoll{ plain = true }` -- the synthetic ability card in
+  the timeline sidebar with the dialog embedded, `type = "custom"`,
+  `noCancel` (it cannot be closed). The card is shared read-only to the
+  other clients only when one user rolls every die in the set
+  (`share = soleRoller`): `abilityTimelineShare` is one slot for the whole
+  table, and several players sharing at once overwrote each other (the
+  first to finish cleared everyone's). ONE AT
+  A TIME (the next goes once the host has recorded the last, since
+  `SendRequest` keeps one request slot per user). The 45 s fallback counts
+  from the later of `openedAt` and `lastLandedAt` (set as each die lands),
+  so each pop-up in a sequence gets its own 45 s. If the fallback rolls a
+  die first, the dialog's `stillWanted` watch cancels it (before hiding the
+  card, whose teardown would otherwise skip the dialog's cleanup) without
+  sending; a hero with no token falls back to a bare `dmhub.Roll`.
+  Each sends `diceRolled
   { diceSeq, key, total }` -- `diceSeq`, never `seq`, which is SendRequest's
   own request counter (a `seq` arg overwrites it and the host drops the
   request as old). When every total is in, `ResumeDice` re-runs the
@@ -7396,8 +8393,9 @@ EotW codemod all changed):
 - ~~**A disconnected player** blocks a montage round and a narrative
   section.~~ Decided 2026-10-09: free agents (see "Players leaving and
   coming back").
-- **Observers**: join as a player with no heroes (works today), or a true
-  spectator mechanism?
+- ~~**Observers**: join as a player with no heroes (works today), or a true
+  spectator mechanism?~~ Decided 2026-11-06: a member with no heroes, let in
+  by the host (see "Joining a game under way").
 - **Does the player host see the monsters it runs?** With `canControl`
   elevation-aware the host now sees monsters like a player (no X-ray). If the
   host needs to notice a wedged monster, the debug hatch is the answer.

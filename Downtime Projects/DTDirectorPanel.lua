@@ -589,7 +589,7 @@ local function RegisterWithRespite()
         paintDirector = DTProjectEditor.PaintRespiteDirectorFeed,
         paintIdle = DTProjectEditor.PaintRespiteIdle,
         idleTitle = "Party's Incomplete Downtime Projects",
-        playerActions = DTProjectEditor.PaintRespiteActions,
+        playerChipActions = DTProjectEditor.PaintRespiteChipAction,
         paintStation = DTProjectEditor.PaintRespiteStation,
         needsAttention = DTProjectEditor.RespiteNeedsAttention,
         journalSummary = DTProjectEditor.RespiteJournalSummary,

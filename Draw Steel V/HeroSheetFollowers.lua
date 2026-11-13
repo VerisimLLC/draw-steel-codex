@@ -312,7 +312,7 @@ function HeroSheetWindows.OpenFollowers()
                     return
                 end
                 local props = live.properties --[[@as character]]
-                props:RemoveFollowerFromMentor(charid)
+                props:RemoveFollowerFromMentor(charid, live)
                 Saved()
                 FillList()
                 FillForm()

@@ -6,6 +6,9 @@ local mod = dmhub.GetModLoading()
 -- Uncompressed textures are highlighted red (the main memory lever). Hover a row to preview the
 -- image. VRAM is estimated from the format + dimensions + mips; system memory is what Unity's
 -- Profiler reports (0 for non-readable, GPU-only textures).
+-- The "All textures" checkbox (remembered) lists every live texture instead, from
+-- dmhub.GetAllTextures(): render targets, font atlases, sprite sheets shipped in the build and
+-- the rest, with the image-cache ones still previewable and clickable for their details.
 
 local function FormatBytes(bytes)
     bytes = bytes or 0
@@ -59,6 +62,58 @@ local function FlagsString(t)
 end
 
 local sortFields = { vram = "vramBytes", sys = "sysBytes" }
+
+--"All textures": list every live texture (dmhub.GetAllTextures -- render targets, font
+--atlases, sprite sheets in the build, ...) instead of only the ImageManager cache.
+--Remembered between sessions.
+local g_allTexturesSetting = setting{
+    id = "dev:texturebrowser:alltextures",
+    default = false,
+    storage = "preference",
+}
+
+--In All textures mode only the largest this many get rows (there are ~1700, mostly tiny
+--icons, and a row is 9 panels); the summary still totals every one.
+local MAX_ALL_TEXTURE_ROWS = 400
+
+--"Render target: Main/Post" -> "RT: Main/Post", to fit the Source column.
+local function ShortSource(source)
+    source = source or ""
+    local sub = string.match(source, "^Render target: (.*)$")
+    if sub ~= nil then
+        return "RT: " .. sub
+    end
+    return source
+end
+
+--Unity graphics format names, shortened to fit the Format column:
+--"R16G16B16A16_SFloat" -> "RGBA16F", "RGBA_DXT5_SRGB" -> "DXT5 sRGB",
+--"depth D32_SFloat_S8_UInt" -> "depth D32S8". The click popup shows the full name.
+local function ShortFormat(format)
+    local s = tostring(format or "")
+    s = string.gsub(s, "^RGBA_(%w+)_", "%1_")
+    s = string.gsub(s, "R(%d+)G%d+B%d+A%d+", "RGBA%1")
+    s = string.gsub(s, "R(%d+)G%d+B%d+", "RGB%1")
+    s = string.gsub(s, "R(%d+)G%d+", "RG%1")
+    s = string.gsub(s, "_S8_UInt", "S8")
+    s = string.gsub(s, "_SFloat", "F")
+    s = string.gsub(s, "_UFloat", "UF")
+    s = string.gsub(s, "_UNorm", "")
+    s = string.gsub(s, "_SNorm", " snorm")
+    s = string.gsub(s, "_SRGB", " sRGB")
+    s = string.gsub(s, "_UInt", "UI")
+    return s
+end
+
+local s_kindAbbrev = {
+    Texture2D = "2D",
+    RenderTexture = "RT",
+    CustomRenderTexture = "RT",
+    Cubemap = "Cube",
+    Texture3D = "3D",
+    Texture2DArray = "Array",
+    CubemapArray = "Cubes",
+}
 
 -- Session-persistent set (file-scope, so it survives panel reopens; resets on Lua reload) of image
 -- ids optimized this session. Used to recolor + annotate rows so we can see at a glance what's
@@ -127,6 +182,43 @@ LaunchablePanel.Register{
         local Refresh
         local m_sortKey = "vram"
 
+        --Hover preview of an ImageManager cache entry t (a row of dmhub.GetLoadedTextures).
+        local function ShowImagePreview(element, t)
+            local ref = ImageRef(t.id)
+            -- A video with a captured still (poster frame or first-poll capture) previews
+            -- that still; a video with no texture yet has nothing to show, as do failed /
+            -- not-yet-loaded textures. Gate on hasTexture rather than on "is a video".
+            if ref == nil or not t.hasTexture then
+                return
+            end
+            local maxDim = 256
+            local w = math.max(1, t.width)
+            local h = math.max(1, t.height)
+            local scale = maxDim / math.max(w, h)
+            local iw = math.max(16, math.floor(w * scale))
+            local ih = math.max(16, math.floor(h * scale))
+            element.tooltip = gui.TooltipFrame(
+                gui.Panel{
+                    width = iw + 16,
+                    height = ih + 16,
+                    halign = "center",
+                    valign = "center",
+                    gui.Panel{
+                        width = iw,
+                        height = ih,
+                        halign = "center",
+                        valign = "center",
+                        bgimage = ref,
+                        bgcolor = "white",
+                    },
+                },
+                { halign = "left", valign = "center" }
+            )
+        end
+
+        --The click popup for an ImageManager cache entry t: live usage, optimize, load trace.
+        local ShowImageDetails
+
         local function MakeRow(index, t)
             local uncompressed = (t.compressed == false) and (t.video == false)
             local optimized = g_optimizedThisSession[t.id] == true
@@ -149,39 +241,25 @@ LaunchablePanel.Register{
                 bgcolor = rowColor,
 
                 hover = function(element)
-                    local ref = ImageRef(t.id)
-                    -- A video with a captured still (poster frame or first-poll capture) previews
-                    -- that still; a video with no texture yet has nothing to show, as do failed /
-                    -- not-yet-loaded textures. Gate on hasTexture rather than on "is a video".
-                    if ref == nil or not t.hasTexture then
-                        return
-                    end
-                    local maxDim = 256
-                    local w = math.max(1, t.width)
-                    local h = math.max(1, t.height)
-                    local scale = maxDim / math.max(w, h)
-                    local iw = math.max(16, math.floor(w * scale))
-                    local ih = math.max(16, math.floor(h * scale))
-                    element.tooltip = gui.TooltipFrame(
-                        gui.Panel{
-                            width = iw + 16,
-                            height = ih + 16,
-                            halign = "center",
-                            valign = "center",
-                            gui.Panel{
-                                width = iw,
-                                height = ih,
-                                halign = "center",
-                                valign = "center",
-                                bgimage = ref,
-                                bgcolor = "white",
-                            },
-                        },
-                        { halign = "left", valign = "center" }
-                    )
+                    ShowImagePreview(element, t)
                 end,
 
                 click = function(element)
+                    ShowImageDetails(element, t)
+                end,
+
+                gui.Label{ width = 250, height = "auto", halign = "left", valign = "center", lmargin = 6, fontSize = 14, color = "white", text = ShortId(t.id) },
+                gui.Label{ width = 88, height = "auto", halign = "left", valign = "center", fontSize = 14, color = "#cccccc", text = cond(t.width > 0, string.format("%d x %d", t.width, t.height), "video") },
+                gui.Label{ width = 116, height = "auto", halign = "left", valign = "center", fontSize = 14, color = cond(t.video, "#c79bff", cond(uncompressed, "#ff9090", "#a0e0a0")), text = cond(t.video, "Video", t.format) },
+                gui.Label{ width = 160, height = "auto", halign = "left", valign = "center", fontSize = 13, color = cond(optimized, "#80ff80", "#dddddd"), text = cond(optimized, "OPTIMIZED  ", "") .. FlagsString(t) },
+                gui.Label{ width = 54, height = "auto", halign = "right", valign = "center", fontSize = 13, color = "#999999", text = string.format("%.0fs", t.idleSeconds) },
+                gui.Label{ width = 96, height = "auto", halign = "right", valign = "center", fontSize = 14, color = "#9fd0ff", text = FormatBytes(t.vramBytes) },
+                gui.Label{ width = 96, height = "auto", halign = "right", valign = "center", fontSize = 14, color = "#6f9fbf", text = FormatBytes(t.cumVram) },
+                gui.Label{ width = 96, height = "auto", halign = "right", valign = "center", rmargin = 8, fontSize = 14, color = "#cccccc", text = FormatBytes(t.sysBytes) },
+            }
+        end
+
+        ShowImageDetails = function(element, t)
                     local trace = t.trace
                     if trace == nil or trace == "" then
                         trace = "(no load trace captured -- traces are recorded only in dev mode, at the moment an image is first loaded; reload the image to capture one)"
@@ -317,16 +395,81 @@ LaunchablePanel.Register{
                     contentPanel.children = children
 
                     element.popup = gui.TooltipFrame(contentPanel, { halign = "center", valign = "center" })
+        end
+
+        --Click popup for a texture outside the image cache (All textures mode).
+        local function ShowTextureInfo(element, t)
+            local lines = {
+                "Name: " .. tostring(t.name),
+                "Source: " .. tostring(t.source),
+                "Kind: " .. tostring(t.kind) .. "    instance " .. tostring(t.instanceId),
+                string.format("Size: %d x %d%s    Format: %s    Mips: %s%s",
+                    t.width or 0, t.height or 0, cond((t.depth or 1) > 1, " x " .. tostring(t.depth), ""),
+                    tostring(t.format), tostring(t.mips), cond((t.msaa or 1) > 1, "    MSAA x" .. tostring(t.msaa), "")),
+                string.format("VRAM (estimated): %s%s", FormatBytes(t.vramBytes),
+                    cond(t.resident, "", "    -- NOT allocated on the GPU yet (counts nothing until it is created)")),
+            }
+            if t.owner ~= nil then
+                lines[#lines+1] = cond(t.source == "Font atlas", "Font: ", "Rendered by camera: ") .. tostring(t.owner)
+            end
+            element.popup = gui.TooltipFrame(
+                gui.Label{
+                    width = 600, height = "auto", hpad = 10, vpad = 8, borderBox = true,
+                    fontSize = 13, color = "white",
+                    text = table.concat(lines, "\n"),
+                },
+                { halign = "center", valign = "center" }
+            )
+        end
+
+        --A row of dmhub.GetAllTextures. imageEntry: the matching dmhub.GetLoadedTextures row
+        --for an image-cache texture (gives it the preview and the usage/optimize/trace popup).
+        local function MakeAllRow(index, t, imageEntry)
+            local rowColor
+            if not t.resident then
+                rowColor = "#00000033"
+            elseif string.find(t.source or "", "^Render target") then
+                rowColor = "#1d2f4aaa"   -- blue tint: a render target
+            elseif imageEntry ~= nil and (t.compressed == false) then
+                rowColor = "#4a1d1daa"   -- an uncompressed image-cache texture
+            else
+                rowColor = cond(index % 2 == 0, "#00000055", "#20202055")
+            end
+            local textColor = cond(t.resident, "white", "#777777")
+            local dims = string.format("%d x %d", t.width or 0, t.height or 0)
+            if (t.depth or 1) > 1 then
+                dims = dims .. " x" .. tostring(t.depth)
+            end
+
+            return gui.Panel{
+                flow = "horizontal",
+                width = "100%",
+                height = 26,
+                bgimage = true,
+                bgcolor = rowColor,
+
+                hover = function(element)
+                    if imageEntry ~= nil then
+                        ShowImagePreview(element, imageEntry)
+                    end
                 end,
 
-                gui.Label{ width = 250, height = "auto", halign = "left", valign = "center", lmargin = 6, fontSize = 14, color = "white", text = ShortId(t.id) },
-                gui.Label{ width = 88, height = "auto", halign = "left", valign = "center", fontSize = 14, color = "#cccccc", text = cond(t.width > 0, string.format("%d x %d", t.width, t.height), "video") },
-                gui.Label{ width = 116, height = "auto", halign = "left", valign = "center", fontSize = 14, color = cond(t.video, "#c79bff", cond(uncompressed, "#ff9090", "#a0e0a0")), text = cond(t.video, "Video", t.format) },
-                gui.Label{ width = 160, height = "auto", halign = "left", valign = "center", fontSize = 13, color = cond(optimized, "#80ff80", "#dddddd"), text = cond(optimized, "OPTIMIZED  ", "") .. FlagsString(t) },
-                gui.Label{ width = 54, height = "auto", halign = "right", valign = "center", fontSize = 13, color = "#999999", text = string.format("%.0fs", t.idleSeconds) },
-                gui.Label{ width = 96, height = "auto", halign = "right", valign = "center", fontSize = 14, color = "#9fd0ff", text = FormatBytes(t.vramBytes) },
+                click = function(element)
+                    if imageEntry ~= nil then
+                        ShowImageDetails(element, imageEntry)
+                    else
+                        ShowTextureInfo(element, t)
+                    end
+                end,
+
+                gui.Label{ width = 250, height = "auto", halign = "left", valign = "center", lmargin = 6, fontSize = 14, color = textColor, text = ShortId(t.imageId or t.name) },
+                gui.Label{ width = 88, height = "auto", halign = "left", valign = "center", fontSize = 14, color = "#cccccc", text = dims },
+                gui.Label{ width = 116, height = "auto", halign = "left", valign = "center", fontSize = 14, color = cond(t.compressed, "#a0e0a0", "#dddddd"), text = ShortFormat(t.format) },
+                gui.Label{ width = 160, height = "auto", halign = "left", valign = "center", fontSize = 13, color = "#dddddd", text = ShortSource(t.source) },
+                gui.Label{ width = 54, height = "auto", halign = "right", valign = "center", fontSize = 13, color = "#999999", text = s_kindAbbrev[t.kind] or tostring(t.kind) },
+                gui.Label{ width = 96, height = "auto", halign = "right", valign = "center", fontSize = 14, color = cond(t.resident, "#9fd0ff", "#777777"), text = cond(t.resident, FormatBytes(t.vramBytes), "not alloc.") },
                 gui.Label{ width = 96, height = "auto", halign = "right", valign = "center", fontSize = 14, color = "#6f9fbf", text = FormatBytes(t.cumVram) },
-                gui.Label{ width = 96, height = "auto", halign = "right", valign = "center", rmargin = 8, fontSize = 14, color = "#cccccc", text = FormatBytes(t.sysBytes) },
+                gui.Label{ width = 96, height = "auto", halign = "right", valign = "center", rmargin = 8, fontSize = 14, color = "#cccccc", text = cond((t.msaa or 1) > 1, "x" .. tostring(t.msaa), "") },
             }
         end
 
@@ -362,7 +505,69 @@ LaunchablePanel.Register{
             }
         end
 
+        local function BuildAllHeaders()
+            return {
+                MakeHeader("Name / Image ID", 250, "left", nil),
+                MakeHeader("Dimensions", 88, "left", nil),
+                MakeHeader("Format", 116, "left", nil),
+                MakeHeader("Source", 160, "left", nil),
+                MakeHeader("Kind", 54, "right", nil),
+                MakeHeader("VRAM", 96, "right", "vram"),
+                MakeHeader("Cum VRAM", 96, "right", nil),
+                MakeHeader("MSAA", 96, "right", nil),
+            }
+        end
+
+        --All textures mode: every live texture, largest resident first (the engine's order).
+        local function RefreshAll()
+            local report = dmhub.GetAllTextures()
+            local s = report.summary
+
+            --the image cache's own rows, for the preview and the usage/optimize/trace popup.
+            local imageEntries = {}
+            for _, e in ipairs(dmhub.GetLoadedTextures().textures) do
+                imageEntries[e.id] = e
+            end
+
+            local parts = {}
+            for _, src in ipairs(s.sources) do
+                parts[#parts+1] = string.format("%s %.0f MB (%d)", ShortSource(src.source), src.vramMB, src.count)
+            end
+
+            local shown = math.min(#report.textures, MAX_ALL_TEXTURE_ROWS)
+            summaryLabel.text = string.format(
+                "%d textures (%d on the GPU)      VRAM ~%.0f MB      + %.0f MB of render targets not allocated\n%s%s",
+                s.count, s.residentCount, s.vramMB, s.notResidentMB,
+                table.concat(parts, "    "),
+                cond(shown < #report.textures, string.format("\n(listing the %d largest)", shown), ""))
+
+            headerPanel.children = BuildAllHeaders()
+
+            local rows = {}
+            local cumVram = 0
+            for i, t in ipairs(report.textures) do
+                if i > shown then
+                    break
+                end
+                if t.resident then
+                    cumVram = cumVram + (t.vramBytes or 0)
+                end
+                t.cumVram = cumVram
+                local imageEntry = nil
+                if t.imageId ~= nil then
+                    imageEntry = imageEntries[t.imageId]
+                end
+                rows[#rows+1] = MakeAllRow(i, t, imageEntry)
+            end
+            listPanel.children = rows
+        end
+
         Refresh = function()
+            if g_allTexturesSetting:Get() then
+                RefreshAll()
+                return
+            end
+
             local report = dmhub.GetLoadedTextures()
             local s = report.summary
 
@@ -387,7 +592,7 @@ LaunchablePanel.Register{
         end
 
         summaryLabel = gui.Label{
-            width = 860,
+            width = 820,
             height = "auto",
             halign = "left",
             valign = "center",
@@ -426,7 +631,7 @@ LaunchablePanel.Register{
             gui.Label{
                 width = "auto", height = "auto", halign = "center", valign = "top",
                 fontSize = 12, color = "#999999",
-                text = "hover a row for image preview   |   click a row for its load trace   |   click VRAM / Sys Mem headers to sort",
+                text = "hover a row for image preview   |   click a row for its details   |   click VRAM / Sys Mem headers to sort",
             },
 
             gui.Panel{
@@ -438,15 +643,36 @@ LaunchablePanel.Register{
 
                 summaryLabel,
 
-                gui.Button{
-                    text = "Refresh",
-                    width = 110,
-                    height = 34,
+                --the checkbox stacked over Refresh, so the summary keeps the row's width.
+                gui.Panel{
+                    flow = "vertical",
+                    width = 140,
+                    height = "auto",
                     halign = "right",
                     valign = "center",
-                    click = function()
-                        Refresh()
-                    end,
+
+                    gui.Check{
+                        text = "All textures",
+                        halign = "right",
+                        valign = "center",
+                        value = g_allTexturesSetting:Get(),
+                        change = function(element)
+                            g_allTexturesSetting:Set(element.value)
+                            Refresh()
+                        end,
+                    },
+
+                    gui.Button{
+                        text = "Refresh",
+                        width = 110,
+                        height = 34,
+                        halign = "right",
+                        valign = "center",
+                        tmargin = 6,
+                        click = function()
+                            Refresh()
+                        end,
+                    },
                 },
             },
 

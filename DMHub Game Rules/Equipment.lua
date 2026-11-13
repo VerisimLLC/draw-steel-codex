@@ -34,6 +34,8 @@ local mod = dmhub.GetModLoading()
 --- @field projectSource? string Crafting project: the source text (languages are parsed from it).
 --- @field projectGoal? string Crafting project: goal text, starting with the number of project points.
 --- @field projectRollCharacteristic? table<string, boolean> Crafting project: set of characteristic ids that may be rolled.
+--- @field craftRecipe? string Crafting: the id of the recipe item this item is crafted from.
+--- @field craftComponents? {itemid: string, quantity: number}[] Crafting: the items a craft of this item uses, and how many of each.
 
 --- @class weapon:equipment
 --- @field hands string How many hands required: "One-handed", "Two-handed", or "Versatile".

@@ -202,7 +202,28 @@ local function MapName(mapid)
     if type(name) ~= "string" or name == "" then
         return "(unnamed map)"
     end
+    if map.preview then
+        --the variant the preview is showing, which can be switched from its bar.
+        return "Map Preview: " .. (MapPreview.ShownName(mapid) or name)
+    end
     return name
+end
+
+--- True for a Map Preview (MapPreview.lua): a map added only to be looked at
+--- and deleted when its preview ends. Its window is never saved in the layout
+--- or published to players.
+--- @param mapid string
+--- @return boolean
+function Tabletop.IsPreviewMap(mapid)
+    local map = game.GetMap(mapid)
+    return map ~= nil and map.valid and map.preview == true
+end
+
+--- True while a window on the table shows this map (open or minimized).
+--- @param mapid string
+--- @return boolean
+function Tabletop.HasMapWindow(mapid)
+    return WindowForMap(mapid) ~= nil
 end
 
 local function DocumentsLayer()
@@ -230,6 +251,10 @@ local g_layoutWriters = {}
 local function SaveLayout()
     local out = {windows = {}, focused = g_focusedId}
     for _,rec in ipairs(g_windows) do
+        --a Map Preview is gone by the next visit; its window is not kept.
+        if Tabletop.IsPreviewMap(rec.mapid) then
+            goto continue
+        end
         out.windows[#out.windows+1] = {
             id = rec.id,
             mapid = rec.mapid,
@@ -243,6 +268,7 @@ local function SaveLayout()
             iconY = rec.iconY,
             card = rec.card == true or nil,
         }
+        ::continue::
     end
     for _, writer in ipairs(g_layoutWriters) do
         writer(out)
@@ -971,6 +997,24 @@ function g_chrome.Sep()
         hmargin = 8,
         interactable = false,
     }
+end
+
+--The speaker in every map window's titlebar (BuildWindow): shows whether
+--this player has muted the window's map.
+local UNMUTED_ICON = "phosphor/speaker-high-fill.png"
+local MUTED_ICON = "phosphor/speaker-slash-fill.png"
+
+--- @param rec table
+function g_chrome.UpdateMute(rec)
+    local button = rec.muteButton
+    if button == nil or not button.valid then
+        return
+    end
+    local muted = dmhub.IsMapMuted(rec.mapid)
+    if rec.mutedShown ~= muted then
+        rec.mutedShown = muted
+        button:FireEventTree("setIcon", cond(muted, MUTED_ICON, UNMUTED_ICON))
+    end
 end
 
 --Vision Perspective: the Director seeing through tokens' eyes
@@ -2014,7 +2058,7 @@ local function BuildWindow(rec)
         height = "100%",
         valign = "center",
         g_chrome.Sep(),
-        CodexTitleBar.CreateMapPosition{width = 96},
+        CodexTitleBar.CreateMapPosition{width = 192},
     }
 
     --The live map's details after its name: the floor stepper, where the
@@ -2049,9 +2093,27 @@ local function BuildWindow(rec)
         end,
     }
 
+    --mutes this map's sounds for this player only: its Audio objects and
+    --door sounds (dmhub.SetMapMuted, saved on this machine). Reads rec.mapid
+    --each time, since the window can be given another map.
+    local muteButton
+    muteButton = WindowControl{
+        icon = cond(dmhub.IsMapMuted(rec.mapid), MUTED_ICON, UNMUTED_ICON),
+        iconSize = 15,
+        hover = function(element)
+            gui.Tooltip(cond(dmhub.IsMapMuted(rec.mapid), "Unmute this map", "Mute this map"))(element)
+        end,
+        click = function(element)
+            dmhub.SetMapMuted(rec.mapid, not dmhub.IsMapMuted(rec.mapid))
+            g_chrome.UpdateMute(rec)
+            gui.Tooltip(cond(dmhub.IsMapMuted(rec.mapid), "Unmute this map", "Mute this map"))(element)
+        end,
+    }
+
     --the ping, left of the share button: everyone it is shared with sees
     --it flash (DefinePings).
     local controls = {
+        muteButton,
         g_sharing.PingButton(function()
             return g_sharing.LayoutKey(rec)
         end),
@@ -2059,9 +2121,10 @@ local function BuildWindow(rec)
 
     --the Director makes the map Player Viewable, for all players or chosen
     --ones, which opens it on their tables. Sharing again after stopping
-    --also puts it back on tables whose players closed it.
+    --also puts it back on tables whose players closed it. A Map Preview is
+    --never shared.
     local share = nil
-    if dmhub.isDM then
+    if dmhub.isDM and not Tabletop.IsPreviewMap(rec.mapid) then
         share = ShareControl{
             --read each time: the window's map changes when the Maps panel
             --opens another map in it.
@@ -2202,11 +2265,13 @@ local function BuildWindow(rec)
     rec.initiativeSlot = initiativeSlot
     rec.resizePanel = resizePanel
     rec.maximizeButton = maximizeButton
+    rec.muteButton = muteButton
     rec.windowButtons = windowButtons
     rec.roundLabel = roundLabel
     rec.share = share
     rec.combatBadge = combatBadge
     rec.shownState = nil
+    rec.mutedShown = nil
 end
 
 --Puts a built window in the documents layer, mixed in with journals and
@@ -2249,6 +2314,8 @@ local function PlaceWindow(rec)
         panel.y = rec.y
         panel.selfStyle.width = rec.width
         panel.selfStyle.height = rec.height
+        --the right/bottom grips sit where the last size put them.
+        rec.resizePanel:FireEvent("fitSize", rec.width, rec.height)
     end
 
     rec.titlebar:SetClass("collapsed", rec.maximized == true)
@@ -2980,6 +3047,32 @@ function Tabletop.PanelRect(panel)
     return LayerRect(panel)
 end
 
+--- Where the window showing this map sits on the table, in documents-layer
+--- units (the space the icon rail's windows are placed in too): the whole
+--- layer when it is maximized, nil when no window shows it or it is minimized.
+--- @param mapid string
+--- @return nil|{x: number, y: number, w: number, h: number}
+function Tabletop.MapWindowRect(mapid)
+    local rec = WindowForMap(mapid)
+    if rec == nil or rec.minimized then
+        return nil
+    end
+    return WindowRect(rec)
+end
+
+--- Re-reads every map window's title now rather than at the next
+--- once-a-second refresh (a Map Preview switching the variant it shows).
+function Tabletop.RefreshTitles()
+    for _, rec in ipairs(g_windows) do
+        if rec.nameLabel ~= nil and rec.nameLabel.valid then
+            local name = MapName(rec.mapid)
+            if rec.nameLabel.text ~= name then
+                rec.nameLabel.text = name
+            end
+        end
+    end
+end
+
 --- The whole documents layer as a rect (where a maximized window sits).
 --- @return {x: number, y: number, w: number, h: number}
 function Tabletop.LayerRect()
@@ -3372,6 +3465,7 @@ Refresh = function()
             end
 
             rec.combatBadge:SetClass("collapsed", live or not Tabletop.MapInCombat(rec.mapid))
+            g_chrome.UpdateMute(rec)
             UpdateShare(rec.share)
             Tabletop.ApplyCollapsed(rec)
         end
@@ -3536,6 +3630,16 @@ CloseWindow = function(rec)
         dmhub.selectedTokens = keep
     end
     SaveSoon()
+end
+
+--- Closes the window showing this map, if there is one, as its close button
+--- does. The map stays loaded if it was live.
+--- @param mapid string
+function Tabletop.CloseMapWindow(mapid)
+    local rec = WindowForMap(mapid)
+    if rec ~= nil then
+        CloseWindow(rec)
+    end
 end
 
 --A window the Director has forced maximized here cannot be closed.
@@ -4541,6 +4645,9 @@ g_sharing.WindowLayoutItem = function(rec, followed, minWidth, minHeight)
                 panel.y = rec.y
                 panel.selfStyle.width = rec.width
                 panel.selfStyle.height = rec.height
+                if rec.resizePanel ~= nil and rec.resizePanel.valid then
+                    rec.resizePanel:FireEvent("fitSize", rec.width, rec.height)
+                end
             end
             return true
         end,
@@ -7162,9 +7269,10 @@ end
 --snapshot (or loading-screen art). Built non-interactive, since it rides
 --under the mouse and must not count as a panel there.
 --options (optional): name, the title when mapid is nil (a map not in the
---game yet); loading, show "Loading map..." in the body (Tabletop.ShowLoadingWindow).
+--game yet); loading, show "Loading map..." in the body (Tabletop.ShowLoadingWindow);
+--statusLabel, a line shown under it with a spinner above (an import's progress).
 --- @param mapid string|nil
---- @param options nil|{name: nil|string, loading: nil|boolean}
+--- @param options nil|{name: nil|string, loading: nil|boolean, statusLabel: nil|Panel}
 local function BuildMapDropPreview(mapid, width, height, options)
     options = options or {}
     local layer = DocumentsLayer()
@@ -7174,6 +7282,22 @@ local function BuildMapDropPreview(mapid, width, height, options)
     local image, placeholder = "panels/square.png", true
     if mapid ~= nil then
         image, placeholder = FrozenImage({mapid = mapid})
+    end
+    local loadingChildren = {}
+    if options.statusLabel ~= nil then
+        loadingChildren[#loadingChildren+1] = gui.LoadingIndicator{height = 32}
+    end
+    loadingChildren[#loadingChildren+1] = gui.Label{
+        width = "auto",
+        height = "auto",
+        halign = "center",
+        bold = true,
+        color = "#e8e0d2",
+        fontSize = 16,
+        text = "Loading map...",
+    }
+    if options.statusLabel ~= nil then
+        loadingChildren[#loadingChildren+1] = options.statusLabel
     end
     local panel = gui.Panel{
         flow = "vertical",
@@ -7211,16 +7335,14 @@ local function BuildMapDropPreview(mapid, width, height, options)
             bgimage = image,
             bgcolor = cond(placeholder, "#1b1814ff", "#8a8a8aff"),
             saturation = cond(placeholder, 1, 0.12),
-            gui.Label{
+            gui.Panel{
                 classes = {cond(options.loading, nil, "collapsed")},
                 width = "auto",
                 height = "auto",
                 halign = "center",
                 valign = "center",
-                bold = true,
-                color = "#e8e0d2",
-                fontSize = 16,
-                text = "Loading map...",
+                flow = "vertical",
+                children = loadingChildren,
             },
         },
     }
@@ -7469,7 +7591,7 @@ end
 --- resized so Tabletop.KeepView can show the same area once it has its new
 --- size. nil when the window is not showing its map live.
 --- @param rec table the window record
---- @return nil|{mapid: string, x1: number, y1: number, x2: number, y2: number}
+--- @return nil|{mapid: string, x1: number, y1: number, x2: number, y2: number, maximized: boolean}
 function Tabletop.CaptureView(rec)
     if rec.minimized or Tabletop.LiveWindowId() ~= rec.id then
         return nil
@@ -7478,25 +7600,57 @@ function Tabletop.CaptureView(rec)
     if b == nil then
         return nil
     end
-    return {mapid = game.currentMapId, x1 = b.x1, y1 = b.y1, x2 = b.x2, y2 = b.y2}
+    return {mapid = game.currentMapId, x1 = b.x1, y1 = b.y1, x2 = b.x2, y2 = b.y2, maximized = rec.maximized == true}
 end
 
 --- Zooms a resized window to the area Tabletop.CaptureView read, so the map
 --- fills it as much as it did before (David, 2026-10-17): maximizing a window
 --- framed on the whole map shows the whole map full screen, with bars only
 --- where the shapes differ.
+--- Restoring a maximized window goes back to the view it had before it was
+--- maximized, moved and zoomed by however the view was panned or zoomed while
+--- maximized. Fitting the maximized view back into the window would not: it
+--- includes the letterbox bars, so the map came back far smaller (David,
+--- 2026-11-06).
 --- @param rec table the window record
---- @param view nil|{mapid: string, x1: number, y1: number, x2: number, y2: number}
+--- @param view nil|{mapid: string, x1: number, y1: number, x2: number, y2: number, maximized: boolean}
 function Tabletop.KeepView(rec, view)
+    --rec.restoreView: {mapid, windowed, maximized}, the view before maximizing
+    --and the view maximizing framed. Runtime only, never saved.
+    local restore = rec.restoreView
+    rec.restoreView = nil
     if view == nil then
         return
+    end
+    local goingUp = not view.maximized and rec.maximized == true
+    local target = view
+    if view.maximized and not rec.maximized and restore ~= nil and restore.mapid == view.mapid then
+        --map the windowed view through the pan/zoom made while maximized
+        --(none: exactly the windowed view again).
+        local w, m = restore.windowed, restore.maximized
+        local sx = (view.x2 - view.x1) / (m.x2 - m.x1)
+        local sy = (view.y2 - view.y1) / (m.y2 - m.y1)
+        local dx = (view.x1 + view.x2) / 2 - (m.x1 + m.x2) / 2
+        local dy = (view.y1 + view.y2) / 2 - (m.y1 + m.y2) / 2
+        local cx, cy = (w.x1 + w.x2) / 2 + dx, (w.y1 + w.y2) / 2 + dy
+        local hw, hh = (w.x2 - w.x1) / 2 * sx, (w.y2 - w.y1) / 2 * sy
+        target = {mapid = view.mapid, x1 = cx - hw, y1 = cy - hh, x2 = cx + hw, y2 = cy + hh}
     end
     --a frame for the window's new size to reach the camera.
     dmhub.Schedule(0.1, function()
         if mod.unloaded or Tabletop.LiveWindowId() ~= rec.id or game.currentMapId ~= view.mapid then
             return
         end
-        dmhub.FrameMapArea({world = {x1 = view.x1, y1 = view.y1, x2 = view.x2, y2 = view.y2}})
+        dmhub.FrameMapArea({world = {x1 = target.x1, y1 = target.y1, x2 = target.x2, y2 = target.y2}})
+        --FrameMapArea moves the camera at once, so this is the maximized view.
+        local b = dmhub.cameraUsableBounds
+        if goingUp and rec.maximized and b ~= nil then
+            rec.restoreView = {
+                mapid = view.mapid,
+                windowed = view,
+                maximized = {x1 = b.x1, y1 = b.y1, x2 = b.x2, y2 = b.y2},
+            }
+        end
     end)
 end
 
@@ -7504,8 +7658,8 @@ end
 --- added to the game (an encounter's Map Library map). Pass the handle to
 --- Tabletop.MapRowDropped as options.at to open the real window in its place,
 --- then Close it. nil when the table is not showing.
---- @param options {name: string, aspect: nil|number, atMouse: nil|boolean} atMouse: centred on the mouse (a drop); else in the middle of the table.
---- @return nil|{x: number, y: number, width: number, height: number, Close: fun()}
+--- @param options {name: string, aspect: nil|number, atMouse: nil|boolean, at: nil|{x: number, y: number}, status: nil|string, reserveRight: nil|number} atMouse: centred on the mouse (a drop); at: centred there instead (table units), kept on the table; else in the middle of the table. status: a progress line under "Loading map...", with a spinner (change it with SetStatus). reserveRight (table units, middle-of-the-table placement only): room kept free on the window's right for a panel beside it; the window and that room are centred together, and the window narrows if both do not fit.
+--- @return nil|{x: number, y: number, width: number, height: number, Close: fun(), SetStatus: fun(text: string)}
 function Tabletop.ShowLoadingWindow(options)
     if not Tabletop.IsActive() then
         return nil
@@ -7513,6 +7667,18 @@ function Tabletop.ShowLoadingWindow(options)
     local x, y, width, height
     if options.atMouse then
         x, y, width, height = MapDropRect(nil, options.aspect)
+    elseif options.at ~= nil then
+        --placed as Tabletop.AddFilesAsMap places the map's window.
+        if options.aspect ~= nil and options.aspect > 0 then
+            local bw, bh = Tabletop.ShapedBox()
+            width, height = Tabletop.ShapeWindow(bw, bh, options.aspect)
+        else
+            local _, _, w, h = DefaultPlacement()
+            width, height = w, h
+        end
+        local tw, th = LayerSize()
+        x = math.max(0, math.min(math.floor(options.at.x - width / 2), tw - width))
+        y = math.max(0, math.min(math.floor(options.at.y - height / 2), th - height))
     else
         if options.aspect ~= nil and options.aspect > 0 then
             local bw, bh = Tabletop.ShapedBox()
@@ -7522,10 +7688,27 @@ function Tabletop.ShowLoadingWindow(options)
             width, height = w, h
         end
         local tw, th = LayerSize()
-        x = math.floor((tw - width) / 2)
+        local reserve = options.reserveRight or 0
+        if reserve > 0 then
+            --64 left clear at each edge, where the icon rails sit.
+            width = math.min(width, math.floor(tw - 128 - reserve))
+        end
+        x = math.floor((tw - reserve - width) / 2)
         y = math.floor((th - height) / 2)
     end
-    local panel = BuildMapDropPreview(nil, width, height, {name = options.name, loading = true})
+    local statusLabel = nil
+    if options.status ~= nil then
+        statusLabel = gui.Label{
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            tmargin = 4,
+            color = "#b8ae9e",
+            fontSize = 14,
+            text = options.status,
+        }
+    end
+    local panel = BuildMapDropPreview(nil, width, height, {name = options.name, loading = true, statusLabel = statusLabel})
     if panel == nil then
         return nil
     end
@@ -7540,6 +7723,11 @@ function Tabletop.ShowLoadingWindow(options)
         Close = function()
             if panel.valid then
                 panel:DestroySelf()
+            end
+        end,
+        SetStatus = function(text)
+            if statusLabel ~= nil and statusLabel.valid then
+                statusLabel.text = text
             end
         end,
     }
@@ -9769,6 +9957,8 @@ local function DefineSceneWindows()
             panel.y = rec.y
             panel.selfStyle.width = rec.width
             panel.selfStyle.height = rec.height
+            --the right/bottom grips sit where the last size put them.
+            rec.resizePanel:FireEvent("fitSize", rec.width, rec.height)
         end
         rec.titlebar:SetClass("collapsed", rec.maximized == true)
         rec.resizePanel:SetClass("collapsed", rec.maximized == true)
@@ -10865,7 +11055,10 @@ g_sharing.DefineWindowsMenu = function()
     local function OpenKeys()
         local keys = {}
         for _, rec in ipairs(g_windows) do
-            keys["map:" .. rec.mapid] = true
+            --a Map Preview is the Director's alone.
+            if not Tabletop.IsPreviewMap(rec.mapid) then
+                keys["map:" .. rec.mapid] = true
+            end
         end
         for _, scene in ipairs(g_sharing.SceneWindowStates()) do
             keys["scene:" .. scene.sceneid] = true
@@ -11793,11 +11986,35 @@ local function Housekeeping()
     Refresh()
 end
 
+--The live map plays no sound while no window shows it (closed or
+--minimized): the engine is told its id, or nil while it is on screen.
+--Only calls the engine when the answer changes.
+--- @type string|nil|false (false until the first sync)
+local g_hiddenLiveMap = false
+
+--- @param active boolean
+local function SyncHiddenLiveMap(active)
+    local hidden = nil
+    if active then
+        local liveRec = WindowById(g_liveId)
+        local liveShown = liveRec ~= nil and liveRec.panel ~= nil and liveRec.panel.valid and not liveRec.minimized
+        if not liveShown then
+            hidden = game.currentMapId
+        end
+    end
+    if hidden ~= g_hiddenLiveMap then
+        g_hiddenLiveMap = hidden
+        dmhub.SetHiddenLiveMap(hidden)
+    end
+end
+
 local function Sync()
     local active = Tabletop.IsActive()
     if dmhub.tabletopMode ~= active then
         dmhub.tabletopMode = active
     end
+
+    SyncHiddenLiveMap(active)
 
     CheckRowDragEnded()
     UpdateTokenDragPreview()
@@ -11985,11 +12202,14 @@ end
 --- The files become one new map (a floor each) through the import wizard,
 --- whose window opens at (mx, my) on the table once the map exists.
 --- options (optional): aspect, the image's width over height -- the window
---- takes that shape and frames the whole map once it is placed; variations,
+--- takes that shape and frames the whole map once it is placed (left out,
+--- the shape of the map the import read is used); variations,
 --- more files that become the map's alternate appearances (paths is then
 --- the one base image); name, the map's name (else the first file's);
 --- created(mapid), called once the map exists; shared, make the map
 --- viewable by every player once it exists.
+--- Universal VTT files import in the background: a loading window shaped
+--- like the map holds the spot meanwhile, and the map's window replaces it.
 --- @param paths string[]
 --- @param mx number
 --- @param my number
@@ -11997,15 +12217,74 @@ end
 function Tabletop.AddFilesAsMap(paths, mx, my, options)
     options = options or {}
     local rec = nil
+    local aspect = options.aspect
+    local name = options.name or FileDrops.BaseName(paths[1])
+
+    --a Universal VTT file's map size is at the start of the file, so the
+    --loading window can take the map's shape before the import reads it.
+    local loading = nil
+    if FileDrops.IsMapFile(paths[1]) then
+        if aspect == nil then
+            local size = FileDrops.MapFileSize(paths[1])
+            if size ~= nil then
+                aspect = size.width / size.height
+            end
+        end
+        loading = Tabletop.ShowLoadingWindow{name = name, aspect = aspect, at = {x = mx, y = my}, status = "Reading file..."}
+    end
+    local function CloseLoading()
+        if loading ~= nil then
+            loading.Close()
+            loading = nil
+        end
+    end
+
+    local progress = nil
+    local failed = nil
+    if loading ~= nil then
+        progress = function(stage, fraction)
+            if loading == nil then
+                return
+            end
+            if stage == "uploading" then
+                if fraction >= 1 then
+                    loading.SetStatus("Building the map...")
+                else
+                    loading.SetStatus(string.format("Uploading %d%%", math.floor(fraction * 100)))
+                end
+            else
+                loading.SetStatus("Reading file...")
+            end
+        end
+        failed = function(message)
+            CloseLoading()
+            gui.ModalMessage{
+                title = "Error Importing",
+                message = message,
+            }
+        end
+    end
+
     ImportMapFromFiles(paths, {
-        name = options.name or FileDrops.BaseName(paths[1]),
+        name = name,
         variations = options.variations,
+        progress = progress,
+        failed = failed,
+        --no aspect given (a Universal VTT file, whose picture is inside it):
+        --take the shape of the map the import read.
+        imported = function(width, height)
+            if aspect == nil and width > 0 and height > 0 then
+                aspect = width / height
+            end
+        end,
         created = function(mapid)
+            --the map's window opens where the loading window was (both are
+            --centred on the drop and shaped by the same aspect).
+            CloseLoading()
             if mod.unloaded or WindowForMap(mapid) ~= nil then
                 return
             end
             rec = NewWindowRecord(mapid)
-            local aspect = options.aspect
             if aspect ~= nil and aspect > 0 then
                 --the picture's shape under the titlebar, as big as a map
                 --opened from the Maps panel (Tabletop.ShapedBox).
@@ -12031,7 +12310,7 @@ function Tabletop.AddFilesAsMap(paths, mx, my, options)
         --a window shaped like its picture shows all of it: zoom to the
         --whole map once its window is the live one.
         done = function(mapid)
-            if options.aspect == nil then
+            if aspect == nil then
                 return
             end
             local deadline = dmhub.Time() + 15

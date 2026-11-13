@@ -43,6 +43,30 @@ text("eotw.veil.title", [[Encounter of the Week]])
 text("eotw.veil.loading", [[Loading]])
 
 ----------------------------------------------------------------------------
+-- ABOUT ENCOUNTER OF THE WEEK: the dialog from the Codex menu, in town and
+-- in an encounter
+----------------------------------------------------------------------------
+
+--The Codex menu item that opens the dialog, and the dialog's title.
+text("eotw.about.menu_item", [[About Encounter of the Week]])
+text("eotw.about.title", [[About Encounter of the Week]])
+--The credits, one line each. {name} is the credited name (it may be a link).
+text("eotw.about.credit.draw_steel", [[<b>Draw Steel</b> by {name}]])
+text("eotw.about.credit.eotw", [[<b>Encounter of the Week</b> concept and engineering by {name}]])
+text("eotw.about.credit.eotw_name", [[the Codex Development Team]])
+text("eotw.about.credit.montage", [[<b>Threats&Opportunities</b> Montage Concept by {name}]])
+text("eotw.about.credit.cartography", [[<b>Cartography</b> by {name}]])
+--In an encounter only: the heading over the encounter being played. {title}
+--is its name.
+text("eotw.about.encounter_heading", [[About {title}]])
+--Under that heading. {name} is the encounter's author, or the map's maker
+--(bold, and a link when they have a website).
+text("eotw.about.written_by", [[Written by {name}]])
+text("eotw.about.map_by", [[Map by {name}]])
+--Short: a button.
+text("eotw.about.close", [[Close]])
+
+----------------------------------------------------------------------------
 -- THE TOWN MAP: the plaque, the way out, the chat button
 ----------------------------------------------------------------------------
 
@@ -55,8 +79,12 @@ text("eotw.town.plaque_subtitle", [[Encounter of the Week]])
 --How many players are in town. {count} is the number.
 text("eotw.town.plaque_adventurers.one", [[{count} hero in town]])
 text("eotw.town.plaque_adventurers.other", [[{count} heroes in town]])
---The button at the bottom right that opens the chat. Short: a button.
-text("eotw.town.chat_button", [[Town Chat]])
+--How many players are away playing an encounter that has started. {count}
+--is the number. Shown after the line above, joined by plaque_counts.
+text("eotw.town.plaque_away.one", [[{count} out on an adventure]])
+text("eotw.town.plaque_away.other", [[{count} out on an adventure]])
+--Both counts on one line: {town} is plaque_adventurers, {away} is plaque_away.
+text("eotw.town.plaque_counts", [[{town}. {away}]])
 
 ----------------------------------------------------------------------------
 -- THE TOWN MAP: the locations
@@ -84,7 +112,7 @@ text("eotw.locations.market.tagline", [[Behind the honest shopfronts, carts and 
 
 text("eotw.locations.danger.label", [[Proving Pits]])
 text("eotw.locations.danger.title", [[The Proving Pits]])
-text("eotw.locations.danger.tagline", [[Untried horrors and visions of possible terrible futures dreamed up by the planners and strategicians who lurk in the Hero's Guild. Do they really foretell possible horrors that may soon come? Only practice: no Victories, no treasure, nothing kept. Try one, then tell the makers what you thought and shape future Encounters.]])
+text("eotw.locations.danger.tagline", [[Untried horrors and premonitions of possible terrible futures dreamed up by the planners and strategists who lurk in the Hero's Guild. Do they really foretell possible horrors that may soon come? Practice only and consequence free! Try one, then tell the makers what you thought and shape future Encounters.]])
 
 --The Graveyard opens as a dialog, so it has only a label.
 text("eotw.locations.graveyard.label", [[Graveyard]])
@@ -139,10 +167,10 @@ text("eotw.scene.back_to_town", [[Back to Town]])
 text("eotw.scene.overline", [[BLACKBOTTOM]])
 
 ----------------------------------------------------------------------------
--- THE CHAT DRAWER
+-- THE CHAT (in the social rail)
 ----------------------------------------------------------------------------
 
---The drawer's title (in town).
+--The chat's title (in town).
 text("eotw.chat.title", [[Town Chat]])
 --The two tabs, while the player is in a party. Short: tabs.
 text("eotw.chat.tab_town", [[Town Chat]])
@@ -172,6 +200,52 @@ text("eotw.chat.time_am", [[{time} AM]])
 text("eotw.chat.time_pm", [[{time} PM]])
 --In place of the chat when the app is too old for it.
 text("eotw.chat.engine_update", [[Chat requires the lobby engine update.]])
+
+----------------------------------------------------------------------------
+-- THE SOCIAL RAIL: friends, public games and the chat, down the right edge
+----------------------------------------------------------------------------
+
+--The header's buttons.
+text("eotw.rail.collapse_tooltip", [[Hide friends and chat]])
+text("eotw.rail.expand_tooltip", [[Show friends and chat]])
+text("eotw.rail.close_town_tooltip", [[Leave the town]])
+--The Friends section's title, and how many are online after it.
+text("eotw.rail.friends_title", [[Friends]])
+text("eotw.rail.friends_online", [[{count} online]])
+--The row that shows or hides the offline friends. {count} is how many.
+text("eotw.rail.offline_toggle", [[Offline ({count})]])
+--When no friend plays the Codex.
+text("eotw.rail.no_friends", [[Your Steam and Discord friends who play the Codex appear here.]])
+text("eotw.rail.no_friends_link_discord", [[Your Steam friends who play the Codex appear here. Link Discord in Settings to see your Discord friends too.]])
+--What a friend is doing. {encounter} is the encounter's name.
+text("eotw.rail.friend_forming", [[Forming a party: {encounter}]])
+text("eotw.rail.friend_underway", [[Encounter of the Week: {encounter}]])
+text("eotw.rail.friend_in_town", [[In Blackbottom]])
+text("eotw.rail.friend_in_codex", [[In the Codex]])
+text("eotw.rail.friend_online", [[Online]])
+text("eotw.rail.friend_away", [[Away]])
+text("eotw.rail.friend_busy", [[Busy]])
+text("eotw.rail.friend_other_game", [[Playing another game]])
+text("eotw.rail.friend_offline", [[Offline]])
+--A party's slots and whether it is open to all. {filled} and {total} are
+--numbers, {host} the host's name.
+text("eotw.rail.party_detail_public", [[{host} - {filled} of {total} heroes]])
+text("eotw.rail.party_detail_private", [[{host} - {filled} of {total} heroes - Private]])
+--Buttons on a friend or a game. Short: buttons.
+text("eotw.rail.join_button", [[Join]])
+text("eotw.rail.watch_button", [[Watch]])
+text("eotw.rail.ask_join_button", [[Ask to Join]])
+text("eotw.rail.ask_watch_button", [[Ask to Watch]])
+text("eotw.rail.open_button", [[Open]])
+--When Join on a friend did not work. {name} is the friend's name.
+text("eotw.rail.join_failed", [[{name}'s game can't be joined right now.]])
+--The Public Games section.
+text("eotw.rail.games_title", [[Public Games]])
+text("eotw.rail.no_games", [[No public games right now. Form a party at the Town Gate.]])
+text("eotw.rail.game_forming", [[Forming]])
+text("eotw.rail.game_underway", [[Under way]])
+--While a party's horn sounds. {time} is like 2:30.
+text("eotw.rail.horn_countdown", [[Horn {time}]])
 
 --The connection line.
 text("eotw.status.engine_update", [[Engine update required]])
@@ -257,6 +331,43 @@ text("eotw.party.row_byline", [[Hosted by {host} -- {filled}/{total} heroes{enco
 text("eotw.party.row_open_button", [[Open]])
 text("eotw.party.row_join_button", [[Join]])
 
+----------------------------------------------------------------------------
+-- JOINING A PARTY UNDER WAY: a public party that has already set out
+----------------------------------------------------------------------------
+
+--The board's title while looking at a party under way you are not in.
+text("eotw.late.board_title", [[A Party Under Way]])
+--The row's button to ask to watch a party under way. Short: a button.
+text("eotw.late.row_watch_button", [[Watch]])
+--After the name of a party under way, instead of "(launched)".
+text("eotw.late.row_tag_join", [[(under way -- heroes may still join)]])
+text("eotw.late.row_tag_watch", [[(under way -- watch only)]])
+--Shown in the party's view, above the heroes you would bring.
+text("eotw.late.view_note_join", [[This party has already set out. Ask the host to let you bring heroes in, or just watch.]])
+text("eotw.late.view_note_watch", [[This party is deep in combat: heroes can no longer join, but you can ask to watch.]])
+--{count} heroes picked of the {space} that fit.
+text("eotw.late.bring_heading", [[Heroes You Would Bring ({count}/{space})]])
+--On a picked hero's card.
+text("eotw.late.card_remove_note", [[Click to leave behind]])
+--The chip that opens the hero picker. Short: a button.
+text("eotw.late.add_hero_chip", [[+ Add a Hero]])
+--The view's buttons. Short: buttons.
+text("eotw.late.ask_join_button", [[Ask to Join]])
+text("eotw.late.ask_watch_button", [[Ask to Watch]])
+text("eotw.late.cancel_button", [[Cancel Request]])
+text("eotw.late.back_button", [[Back]])
+--While the host decides. {host} is the host's name, {seconds} the time left.
+text("eotw.late.waiting_join", [[Waiting for {host} to let your heroes join... ({seconds}s)]])
+text("eotw.late.waiting_watch", [[Waiting for {host} to let you watch... ({seconds}s)]])
+--A member who is only watching, in the party's view. {player} is their name.
+text("eotw.late.member_watching", [[{player} is watching]])
+--Why a request did not get in.
+text("eotw.late.declined", [[{host} declined your request.]])
+text("eotw.late.timeout", [[{host} did not answer. Try again, or find another party.]])
+text("eotw.late.closed", [[This party is no longer taking newcomers.]])
+text("eotw.late.gone", [[That party has ended.]])
+text("eotw.late.pick_heroes", [[Choose at least one hero to bring.]])
+
 --The player's own game in progress, at the top of the Gate's board.
 text("eotw.resume.heading", [[Your game in progress]])
 --Its name when it has none.
@@ -336,6 +447,11 @@ text("eotw.party.begin_button", [[Begin]])
 text("eotw.party.rejoin_button", [[Re-join]])
 text("eotw.party.invite_button", [[Invite Friends]])
 text("eotw.party.invite_tooltip", [[Invite Steam friends to join this party.]])
+text("eotw.party.invite_tooltip_discord", [[Invite Discord friends to join this party.]])
+text("eotw.party.invite_tooltip_both", [[Invite Steam or Discord friends to join this party.]])
+--The Invite Friends button's choices when both Steam and Discord can invite.
+text("eotw.party.invite_steam", [[Steam Friends...]])
+text("eotw.party.invite_discord", [[Discord Friends...]])
 --The host's button, which disbands the party, and a member's.
 text("eotw.party.abandon_button", [[Abandon]])
 text("eotw.party.leave_button", [[Leave]])
@@ -397,6 +513,13 @@ text("eotw.create.create_failed", [[The game could not be created. Please try ag
 
 --The button that closes a dialog with no other buttons.
 text("eotw.dialog.close_button", [[Close]])
+
+--Quitting the app (the window's close button, Alt+F4, Quit to Desktop) while
+--the town is open asks first.
+text("eotw.quit.title", [[Quit to Desktop?]])
+text("eotw.quit.body", [[Quitting will close Draw Steel Codex and leave the town.]])
+text("eotw.quit.cancel_button", [[Cancel]])
+text("eotw.quit.quit_button", [[Quit]])
 
 --Past Encounters (the Town Gate's button).
 text("eotw.past.title", [[Past Encounters]])
@@ -494,6 +617,33 @@ text("eotw.survey.leave.doomed", [[I saw the writing on the wall, I knew I was g
 text("eotw.survey.leave.other", [[Something else]])
 text("eotw.survey.leave.comment_placeholder", [[Anything to add? (optional)]])
 
+--Under each 1-to-5 question: which end is which.
+text("eotw.survey.scale_hint", [[1 = poor, 5 = excellent]])
+--The 1-to-5 comment box, shown for a rating of 3 or lower.
+text("eotw.survey.low_rating_comment_placeholder", [[What could have been better? (optional)]])
+
+--The narrative part of the encounter.
+text("eotw.survey.narrative_fun.prompt", [[How enjoyable was the NARRATIVE PART?]])
+text("eotw.survey.narrative_length.prompt", [[How did you feel about the length of the NARRATIVE PART?]])
+text("eotw.survey.narrative_length.too_short", [[Too short]])
+text("eotw.survey.narrative_length.just_right", [[Just right]])
+text("eotw.survey.narrative_length.too_long", [[Too long]])
+text("eotw.survey.narrative_presentation.prompt", [[How did you find the presentation of the NARRATIVE PART?]])
+text("eotw.survey.narrative_story.prompt", [[How much did you enjoy the storytelling of the NARRATIVE PART?]])
+text("eotw.survey.narrative_stakes.prompt", [[What did you think of the rewards and threats on offer in the NARRATIVE PART?]])
+text("eotw.survey.narrative_stakes.too_punishing", [[Too punishing]])
+text("eotw.survey.narrative_stakes.just_right", [[Just right]])
+text("eotw.survey.narrative_stakes.too_easy", [[Too easy]])
+
+--The combat part of the encounter.
+text("eotw.survey.combat_fun.prompt", [[How enjoyable was the COMBAT PART?]])
+text("eotw.survey.combat_ai.prompt", [[How did you find the behavior of the Monster AI in controlling the monsters?]])
+text("eotw.survey.combat_difficulty.prompt", [[What did you think of the difficulty of the COMBAT PART?]])
+text("eotw.survey.combat_difficulty.too_easy", [[Too easy]])
+text("eotw.survey.combat_difficulty.just_right", [[Just right]])
+text("eotw.survey.combat_difficulty.too_hard", [[Too hard]])
+text("eotw.survey.combat_design.prompt", [[How did you feel about the encounter design of the COMBAT PART?]])
+
 text("eotw.survey.length.prompt", [[How did the length of the session feel?]])
 text("eotw.survey.length.too_short", [[Too short]])
 text("eotw.survey.length.about_right", [[About right]])
@@ -540,11 +690,18 @@ text("eotw.survey.send_failed", [[Could not send: {message}]])
 text("eotw.inn_reveal.line", [[That was a tough challenge! We should head to the Blue Fish Inn to rest before continuing on more adventures.]])
 
 ----------------------------------------------------------------------------
--- WELCOME: the first time a player opens the town
+-- WELCOME: shown when a player opens the town until they accept it
 ----------------------------------------------------------------------------
 
-text("eotw.welcome.title", [[Welcome to Encounter of the Week]])
-text("eotw.welcome.intro", [[Play Draw Steel by yourself or with a few friends, or people you meet along the way. This game mode is experimental and in beta. Please report bugs using Feedback in the menus.]])
+text("eotw.welcome.title", [[Welcome to the Encounter of the Week Playtest]])
+text("eotw.welcome.intro", [[Play Draw Steel by yourself or with a few friends, or people you meet along the way.
+
+- This is an experimental playtest of a new game mode. You should not expect a final or polished experience.
+- Some features will be unbalanced as we look for feedback.
+- Progress will be wiped at the end of the playtest period.
+- Please report bugs in Feedback > Bug Report]])
+--The box the player must tick before Let's Go! works.
+text("eotw.welcome.understood_check", [[I have read and understand this message]])
 --{link} is the link below, underlined.
 text("eotw.welcome.discord", [[Discuss Encounter of the Week in the {link}!]])
 text("eotw.welcome.discord_link", [[DMHub Discord]])
@@ -552,6 +709,8 @@ text("eotw.welcome.be_kind", [[Encounter of the Week does let you play with othe
 --The buttons. Short: buttons.
 text("eotw.welcome.discord_button", [[Join the Discord]])
 text("eotw.welcome.go_button", [[Let's Go!]])
+--Closes the town back to the title screen.
+text("eotw.welcome.cancel_button", [[Cancel]])
 
 ----------------------------------------------------------------------------
 -- STEAM INVITES: joining a friend's party
@@ -737,6 +896,12 @@ text("graveyard.subtitle", [[Here lie the heroes of Blackbottom who did not come
 --Shown in place of the graves while they load, and when there are none.
 text("graveyard.loading", [[Reading the headstones...]])
 text("graveyard.empty", [[No one has fallen yet. May it stay that way.]])
+text("graveyard.empty_mine", [[None of your heroes lie here.]])
+text("graveyard.tab_everyone", [[Everyone]])
+text("graveyard.tab_mine", [[Your Fallen]])
+text("graveyard.awaken_button", [[Awaken]])
+text("graveyard.awaken_tooltip", [[This hero's ancestry does not stay dead. Awaken them and bring them back to your roster.]])
+text("graveyard.awaken_no_slots_tooltip", [[You don't have enough hero slots to awaken this hero]])
 --A fallen hero's name when the game cannot find it.
 text("graveyard.hero_fallback", [[Hero]])
 --The line saying where and when a hero fell. {where} is the encounter's
@@ -765,9 +930,14 @@ text("roster.hall.sort_recent", [[Most Recent]])
 text("roster.hall.sort_fastest", [[Fastest]])
 text("roster.hall.sort_rounds", [[Fewest Rounds]])
 text("roster.hall.sort_deaths", [[Fewest Deaths]])
+--A checkbox beside the sort buttons: list only parties with one of your heroes. Short.
+text("roster.hall.mine_check", [[My Heroes Only]])
+text("roster.hall.mine_tooltip", [[Show only the victories your own heroes were part of]])
 --Shown in place of the list while it loads, and when it is empty.
 text("roster.hall.loading", [[Reading the roll of honour...]])
 text("roster.hall.empty", [[No party has won here yet. Will yours be the first?]])
+--The empty list with My Heroes Only ticked.
+text("roster.hall.empty_mine", [[None of your heroes have won here yet. Will they be the first?]])
 --At the bottom of the list when there are more entries. Short: a button.
 text("roster.hall.more_button", [[More...]])
 --Tooltip on each entry.
@@ -866,6 +1036,18 @@ text("inn.respite.button", [[Take a Respite]])
 text("inn.respite.button_confirm", [[Rest Now? (Victories become XP)]])
 --Shown in red under the button when a respite cannot be taken.
 text("inn.respite.nobody_home", [[None of your heroes are at home to rest.]])
+--A single hero's respite was asked for, but that hero is not at home.
+text("inn.respite.hero_not_home", [[That hero is not at home to rest.]])
+
+--A hero's own Take a Respite button on their inn row (the footer button
+--rests everyone). Short: a small button.
+text("inn.hero_respite.button", [[Respite]])
+--After the first click; a second click within a few seconds rests.
+text("inn.hero_respite.button_confirm", [[Rest Now?]])
+text("inn.hero_respite.tooltip", [[This hero alone takes a respite: Victories become XP and Downtime Activities, and Stamina and Recoveries are restored. Like any respite, it closes your open series parts.]])
+--Why the hero's button is dimmed.
+text("inn.hero_respite.no_need", [[Unhurt and no Victories to bank: nothing to rest for.]])
+text("inn.hero_respite.busy", [[A respite is already under way.]])
 
 --An encounter in several parts: winning a part opens the next one only until
 --the player's next respite. {series} is the encounter's title, {won} the part

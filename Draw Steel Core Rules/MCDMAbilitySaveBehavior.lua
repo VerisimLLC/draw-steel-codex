@@ -61,6 +61,7 @@ function ActivatedAbilitySaveBehavior:GetSaveItems(targetCreature)
                 id = conditionid,
                 name = conditionInfo.name,
                 duration = entry.duration,
+                skipTurnEnd = entry.skipTurnEnd,
             }
         end
     end
@@ -130,6 +131,45 @@ function ActivatedAbilitySaveBehavior:GetSaveRollFormula(targetCreature, item)
     end
 
     return rollStr
+end
+
+--The token that imposed a save item, or nil when caster tracking is off or the
+--caster is gone. Ongoing effect instances and inflictedConditions entries both
+--store casterInfo = {tokenid = ...} when the effect/condition tracks its caster.
+function ActivatedAbilitySaveBehavior.GetSaveItemCasterToken(targetCreature, item)
+    local casterInfo = nil
+    if item.type == "ongoingEffect" then
+        for _, inst in ipairs(targetCreature:ActiveOngoingEffects()) do
+            if inst.id == item.instanceId then
+                casterInfo = inst:try_get("casterInfo")
+                break
+            end
+        end
+    else
+        local entry = targetCreature:try_get("inflictedConditions", {})[item.id]
+        if entry ~= nil then
+            casterInfo = entry.casterInfo
+        end
+    end
+    if casterInfo ~= nil and type(casterInfo.tokenid) == "string" then
+        local casterTok = dmhub.GetTokenById(casterInfo.tokenid)
+        if casterTok ~= nil and casterTok.valid and casterTok.properties ~= nil then
+            return casterTok
+        end
+    end
+    return nil
+end
+
+--Shadow elf malice "Home Is Where the Hurt Is": an enemy saving against an
+--effect imposed by a shadow elf must roll 8 or higher. The malice puts this
+--condition on every shadow elf, so we check the save item's caster for it.
+ActivatedAbilitySaveBehavior.homeIsWhereTheHurtIsThreshold = 8
+function ActivatedAbilitySaveBehavior.HomeIsWhereTheHurtIsApplies(targetToken, item)
+    local casterTok = ActivatedAbilitySaveBehavior.GetSaveItemCasterToken(targetToken.properties, item)
+    if casterTok == nil or casterTok.charid == targetToken.charid or casterTok:IsFriend(targetToken) then
+        return false
+    end
+    return casterTok.properties:HasNamedCondition("Home Is Where the Hurt Is")
 end
 
 -- Purge a condition or ongoing effect from a target without rolling.
@@ -526,6 +566,15 @@ function ActivatedAbilitySaveBehavior:RollSaveInTimeline(ability, casterToken, t
     --Worked out once, so the Results panel and the outcome agree.
     local saveEnds = ExecuteGoblinScript("Save Ends", targetCreature:LookupSymbol(options.symbols or {}), 6, "Save Ends threshold")
 
+    local modifiers = self:DescribeSaveModifiers(targetCreature, item, rollFormula)
+    if ActivatedAbilitySaveBehavior.HomeIsWhereTheHurtIsApplies(targetToken, item) then
+        local hurtThreshold = ActivatedAbilitySaveBehavior.homeIsWhereTheHurtIsThreshold
+        if hurtThreshold > saveEnds then
+            saveEnds = hurtThreshold
+        end
+        modifiers[#modifiers+1] = string.format("Save on %d+: Home Is Where the Hurt Is", hurtThreshold)
+    end
+
     --forced: a hero spent a Hero Token to succeed instead (see below).
     local saveState = { forced = false }
 
@@ -578,7 +627,7 @@ function ActivatedAbilitySaveBehavior:RollSaveInTimeline(ability, casterToken, t
             item = item,
             threshold = saveEnds,
             rollStr = rollStr,
-            modifiers = self:DescribeSaveModifiers(targetCreature, item, rollFormula),
+            modifiers = modifiers,
             saveState = saveState,
         },
         cancelRoll = function()
@@ -606,30 +655,9 @@ function ActivatedAbilitySaveBehavior:RollSaveInTimeline(ability, casterToken, t
                 -- so Caster.X formulas still evaluate to something safe
                 -- rather than 0.
                 local casterSymbol = targetCreature
-                local casterInfo = nil
-                if item.type == "ongoingEffect" then
-                    for _, inst in ipairs(targetCreature:ActiveOngoingEffects()) do
-                        if inst.id == item.instanceId then
-                            casterInfo = inst:try_get("casterInfo")
-                            break
-                        end
-                    end
-                else
-                    -- Conditions: caster tracking (when enabled on the
-                    -- CharacterCondition via trackCaster=true) writes a
-                    -- casterInfo table onto the per-condition entry inside
-                    -- targetCreature.inflictedConditions[<conditionid>].
-                    -- See creature:InflictCondition in Creature.lua.
-                    local entry = targetCreature:try_get("inflictedConditions", {})[item.id]
-                    if entry ~= nil then
-                        casterInfo = entry.casterInfo
-                    end
-                end
-                if casterInfo ~= nil and type(casterInfo.tokenid) == "string" then
-                    local casterTok = dmhub.GetTokenById(casterInfo.tokenid)
-                    if casterTok ~= nil and casterTok.valid and casterTok.properties ~= nil then
-                        casterSymbol = casterTok.properties
-                    end
+                local casterTok = ActivatedAbilitySaveBehavior.GetSaveItemCasterToken(targetCreature, item)
+                if casterTok ~= nil then
+                    casterSymbol = casterTok.properties
                 end
 
                 targetCreature:DispatchEvent("savefail", {
@@ -737,7 +765,21 @@ function ActivatedAbilitySaveBehavior:Cast(ability, casterToken, targets, option
 
         for _, item in ipairs(saveItems) do
             -- End-of-turn conditions are auto-purged without a roll.
-            if item.type == "condition" and item.duration == "eot" then
+            if item.type == "condition" and item.duration == "eot" and item.skipTurnEnd and self:try_get("durationScope", "all") == "eot" then
+                -- An "(end of next turn)" condition imposed on this turn: the turn
+                -- end expiry lets it survive this once. Player-facing removal
+                -- ("all" scope) still purges it outright.
+                local props = target.token.properties
+                target.token:ModifyProperties{
+                    description = "Keep condition until end of next turn",
+                    execute = function()
+                        local entry = props:try_get("inflictedConditions", {})[item.id]
+                        if entry ~= nil then
+                            entry.skipTurnEnd = nil
+                        end
+                    end,
+                }
+            elseif item.type == "condition" and item.duration == "eot" then
                 self:PurgeSaveItem(target.token, item)
             elseif self.rollMode == "purge" then
                 self:PurgeSaveItem(target.token, item)

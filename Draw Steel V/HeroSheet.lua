@@ -940,13 +940,13 @@ local function BuildContent()
 
     --The Treasures block fills the column under the card and the kit, never
     --shorter than its floor; a shorter column scrolls instead. Sizes are
-    --measured after layout, so this runs a moment later.
+    --measured after layout, so this runs once layout is done.
     local treasuresFitGen = 0
     local function FitTreasures()
         treasuresFitGen = treasuresFitGen + 1
         local gen = treasuresFitGen
-        dmhub.Schedule(0.05, function()
-            if mod.unloaded or gen ~= treasuresFitGen or left == nil or not left.valid or not treasures.valid then
+        HeroSheetWindow.AfterLayout(function()
+            if gen ~= treasuresFitGen or left == nil or not left.valid or not treasures.valid then
                 return
             end
             --at Narrow, Treasures sits in the Gear pane, which scrolls: its floor
@@ -1390,6 +1390,17 @@ function HeroSheet.Open(token, tabid, options)
 
     local viewOnly = access == "view"
     local tab = ResolveTab(tabid)
+    --a tab another mod shows for some Heroes only: one without it opens on Character.
+    local shown = false
+    for _,visible in ipairs(VisibleTabs(token.properties)) do
+        if visible.id == tab then
+            shown = true
+            break
+        end
+    end
+    if not shown then
+        tab = "CharacterSheet"
+    end
     if viewOnly then
         tab = "CharacterSheet"
     end
@@ -1497,6 +1508,10 @@ function HeroSheet.OpenFromHarness(token, tabid)
     --that the sheet already closed; the window fires it when it really does.
     --Handlers run newest first and true swallows the event, so one
     --registered just before the close sees it first.
+    --This is not reliable: the harness hides itself as soon as its panel
+    --collapses (its Update), often before this runs at high frame rates,
+    --and fires the event unswallowed. Listeners must therefore ignore
+    --characterSheetClosed while HeroSheet.IsShowing(their Hero) (VQJFWPK4).
     dmhub.Schedule(0.01, function()
         if mod.unloaded or not dmhub.inCharacterSheet then
             return

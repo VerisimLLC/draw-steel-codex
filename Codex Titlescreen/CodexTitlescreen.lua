@@ -930,6 +930,15 @@ local g_streamerModeSetting = setting {
 
 local g_gamePageSetting = g_playerGamePageSetting
 
+--The HEROES column shows this many cards (MakeHeroPanel slots) per page.
+local HEROES_PER_PAGE = 8
+
+local g_heroPageSetting = setting {
+    id = "playerheropage",
+    storage = "preference",
+    default = 1,
+}
+
 -- Maximum number of games a user may participate in at once. Admin
 -- accounts get a higher cap (48); everyone else is limited to 24.
 local function MaxGamesAllowed()
@@ -994,10 +1003,10 @@ local function TooManyGamesDialog(element)
 end
 
 
---The titlescreen HEROES roster in slot order, plus how many of those entries the
---player made. Ranked, not filtered: module NPCs that a lobby picked up before
---InstallModuleCo learned to skip them carry no ctime, so a plain ctime sort ties
---them at 0 and pushes the player's own heroes past the eighth slot. Filtering
+--The titlescreen HEROES roster in slot order (HEROES_PER_PAGE per page). Ranked,
+--not filtered: module NPCs that a lobby picked up before InstallModuleCo learned
+--to skip them carry no ctime, so a plain ctime sort ties them at 0 and pushes the
+--player's own heroes off the first page. Filtering
 --them out instead would hide monster-typed heroes, which are legitimate (see
 --HeroIsUnstarted).
 local function LobbyHeroes()
@@ -1040,15 +1049,11 @@ local function LobbyHeroes()
     end)
 
     local chars = {}
-    local nheroes = 0
     for i, entry in ipairs(entries) do
         chars[i] = entry.char
-        if entry.rank < 2 then
-            nheroes = nheroes + 1
-        end
     end
 
-    return chars, nheroes
+    return chars
 end
 
 --A hero the player abandoned in the builder without building anything: no
@@ -1110,6 +1115,13 @@ local function EditHero(element, character, onClosed)
 
     local handler
     handler = dmhub.RegisterEventHandler("characterSheetClosed", function()
+        --Heroes open in the Hero sheet window, and the old sheet closes itself
+        --(firing this event) as it hands over. Wait for the window to close.
+        local heroSheet = rawget(_G, "HeroSheet")
+        if heroSheet ~= nil and heroSheet.IsShowing(character.charid) then
+            return false
+        end
+
         g_titlescreen:SetClass("titlescreenHidden", false)
         dmhub.DeregisterEventHandler(handler)
         print("TITLESCREEN:: SHOW")
@@ -1239,13 +1251,22 @@ end
 --the hero's class and ancestry exist when it lands. The wrapper runs in the
 --destination game, after this file may have unloaded, so HeroModules is looked
 --up there rather than captured here.
---- @param paste fun()
+--A module with code only the game's owner can add, so the owner's client is
+--asked to (HeroModules.ServeOwnerRequests). The hero is pasted after at most
+--8 s of waiting for that answer -- an owner who is away adds it when they next
+--enter -- and the player is warned if the hero is missing its class.
+--- @param paste fun(): nil|string Pastes the hero; returns its charid.
 --- @return fun()
 local function AfterHeroModulesInstalled(paste)
     return function()
         local heroModules = rawget(_G, "HeroModules")
         if heroModules ~= nil and heroModules.InstallIntoGame ~= nil then
-            heroModules.InstallIntoGame(paste)
+            heroModules.InstallIntoGame(function()
+                local charid = paste()
+                if charid ~= nil and heroModules.WarnIfHeroesMissingContent ~= nil then
+                    heroModules.WarnIfHeroesMissingContent({ charid })
+                end
+            end, nil, { askOwner = true, ownerWaitSeconds = 8 })
         else
             paste()
         end
@@ -1636,7 +1657,7 @@ local function CreateJoinGameModal(tokenToImport)
                                         if tokenToImport ~= nil then
                                             dmhub.CopyTokenToClipboard(tokenToImport)
                                             callback = AfterHeroModulesInstalled(function()
-                                                dmhub.PasteTokenFromClipboard(core.Loc { x = 0, y = 0 })
+                                                return dmhub.PasteTokenFromClipboard(core.Loc { x = 0, y = 0 })
                                             end)
                                         end
                                         if devJoin ~= nil then
@@ -1719,7 +1740,7 @@ local function CreateJoinGameModal(tokenToImport)
                         local newCharId = dmhub.PasteTokenFromClipboard(core.Loc { x = 0, y = 0 })
                         print("AddCharacterToGame:: pasted charid =", tostring(newCharId), "addingAsDM =", tostring(addingAsDM))
                         if not addingAsDM or newCharId == nil then
-                            return
+                            return newCharId
                         end
                         -- The C# paste path clears partyid+ownerId on cross-game pastes
                         -- and only re-sets ownerId for non-DMs. For a DM-added lobby
@@ -1740,6 +1761,7 @@ local function CreateJoinGameModal(tokenToImport)
                             end
                             print("AddCharacterToGame:: gave up waiting for token/party to settle")
                         end)
+                        return newCharId
                     end)
 
                     if root ~= nil and root.valid then
@@ -6476,17 +6498,23 @@ end
 
 ----------------------------------------------------------------------------
 --"A little infernal contract for you to sign..." -- the first-run offer for
---the two things we want from a new player: a linked Patreon account and a
---confirmed email address. Shown once, the first time the selection screen
---comes up, and gated on the hidden "patreonsub" preference because the whole
---Patreon feature is still in development.
+--what we want from a new player: a linked Patreon account, a confirmed email
+--address and (in builds with Discord, while the hidden "discordsocial"
+--preference is on) a linked Discord account. Shown once,
+--the first time the selection screen comes up, and gated on the hidden
+--"patreonsub" preference because the whole Patreon feature is still in
+--development.
 --
 --It is an offer, not a nag: it is shown AT MOST ONCE per user, ever. The
 --session flag stops a second offer within one launch; the preference below
---stops it on every launch after the one that showed it. Either half is
---dropped if they have already done it, and if they have done both the dialog
---never opens at all (and the preference is left alone, so a user who has
---nothing to be asked for is still offered it if that ever changes).
+--stops it on every launch after the one that showed it. A finished ask shows
+--as a done row, and if every ask is already done the dialog never opens at
+--all (and the preference is left alone, so a user who has nothing to be
+--asked for is still offered it if that ever changes).
+--
+--Discord was added after the dialog first shipped, so it has its own "shown"
+--preference: someone who already had their look at the Patreon/email offer
+--gets the dialog once more with ONLY the Discord card.
 ----------------------------------------------------------------------------
 
 local g_infernalContractOffered = false
@@ -6499,6 +6527,47 @@ local g_infernalContractShownSetting = setting{
 	storage = "preference",
 	default = false,
 }
+
+--Hidden, like the one above: set when the Discord card is put on screen, in
+--the full dialog or the Discord-only one.
+local g_infernalContractDiscordShownSetting = setting{
+	id = "titlescreen:infernalcontractdiscordshown",
+	storage = "preference",
+	default = false,
+}
+
+--The Discord account state from dmhub.discordStatus: "notlinked", "linking",
+--"connecting", "ready", "error", or "off"/"unsupported" where this build or
+--this user's settings have no Discord. "provisional" is "ready" on a
+--provisional account: signed in to Discord, but no Discord account linked.
+--pcall: an older engine has no such property.
+local function DiscordAccountState()
+	local result = "off"
+	pcall(function()
+		local s = dmhub.discordStatus
+		result = s.account or "off"
+		if result == "ready" and s.provisional == true then
+			result = "provisional"
+		end
+	end)
+	return result
+end
+
+--Discord linking can be offered: an MCDM build on Windows/macOS with the
+--Discord Integration setting on, and the hidden "discordsocial" preference on
+--while the feature is in development.
+local function DiscordLinkAvailable(state)
+	if dmhub.GetSettingValue("discordsocial") ~= true then
+		return false
+	end
+	return state ~= "off" and state ~= "unsupported"
+end
+
+--"connecting" counts as linked: a linked user's token is still being fetched
+--when the titlescreen comes up.
+local function DiscordAccountLinked(state)
+	return state == "ready" or state == "connecting"
+end
 
 --pcall: an older engine build has no such property.
 local function PatreonAccountLinked()
@@ -6533,6 +6602,17 @@ local CreateInfernalContractDialog = function(titlescreen, args)
 	--compact done row) and the Close/Done button label.
 	local m_patreonDone = args.patreonLinked == true
 	local m_emailDone = args.emailConfirmed == true
+	local m_discordDone = args.discordLinked == true
+
+	--which cards this showing has: discordOnly is the follow-up for someone
+	--who already saw the Patreon/email offer; offerDiscord adds the Discord
+	--card to the full dialog.
+	local m_discordOnly = args.discordOnly == true
+	local m_offerDiscord = m_discordOnly or args.offerDiscord == true
+
+	--true from the Link Discord click until the link finishes or fails; the
+	--Discord card polls dmhub.discordStatus while it is set.
+	local m_discordWaiting = false
 
 	local contractDialog
 	local patreonSection
@@ -6547,6 +6627,11 @@ local CreateInfernalContractDialog = function(titlescreen, args)
 	local emailButton
 	local emailRetryLink
 	local emailStatus
+	local discordSection
+	local discordAsk
+	local discordDoneRow
+	local discordButton
+	local discordStatus
 	local closeButton
 
 	local STATUS_ERROR_COLOR = "#ff6666"
@@ -6559,17 +6644,35 @@ local CreateInfernalContractDialog = function(titlescreen, args)
 	local PATREON_FRAME = "#89301A"
 	local EMAIL_ACCENT = "#1B7196"
 	local EMAIL_FRAME = "#0F4258"
+	--Discord's own blurple, so the card reads as Discord at a glance.
+	local DISCORD_ACCENT = "#5865F2"
+	local DISCORD_FRAME = "#2F3784"
 
 	--swap a section between its ask panel and its done row, and let the
-	--Close button read "Done" once nothing is left to ask for.
+	--Close button read "Done" once nothing is left to ask for. In the
+	--Discord-only dialog the Patreon and email cards are never shown, so
+	--only Discord counts.
 	local function RefreshSections()
 		patreonAsk:SetClass("collapsed", m_patreonDone)
 		patreonDoneRow:SetClass("collapsed", not m_patreonDone)
 		emailAsk:SetClass("collapsed", m_emailDone)
 		emailDoneRow:SetClass("collapsed", not m_emailDone)
-		if m_patreonDone and m_emailDone then
+		discordAsk:SetClass("collapsed", m_discordDone)
+		discordDoneRow:SetClass("collapsed", not m_discordDone)
+
+		local allDone = (m_discordDone or not m_offerDiscord)
+		if not m_discordOnly then
+			allDone = allDone and m_patreonDone and m_emailDone
+		end
+		if allDone then
 			closeButton.text = "Done"
 		end
+	end
+
+	local function SetDiscordStatus(text, isError)
+		discordStatus.text = text or ""
+		discordStatus:SetClass("collapsed", text == nil or text == "")
+		discordStatus.selfStyle.color = cond(isError, STATUS_ERROR_COLOR, STATUS_GOOD_COLOR)
 	end
 
 	local function SetPatreonStatus(text, isError)
@@ -6955,6 +7058,136 @@ local CreateInfernalContractDialog = function(titlescreen, args)
 		emailDoneRow,
 	}, EMAIL_ACCENT, EMAIL_FRAME)
 
+	discordStatus = gui.Label{
+		classes = {"collapsed"},
+		fontSize = 15,
+		italics = true,
+		width = "100%",
+		height = "auto",
+		halign = "left",
+		vmargin = 2,
+		text = "",
+	}
+
+	--Discord's approval opens in the Discord app or a browser, so the result
+	--arrives later through dmhub.discordStatus; the card polls it while
+	--m_discordWaiting. Clicking again while still waiting abandons that
+	--attempt and starts over (the approval can go missing in a closed tab).
+	discordButton = gui.Button{
+		classes = {"discordAccent"},
+		text = "Link Discord",
+		width = 220,
+		height = 34,
+		fontSize = 16,
+		halign = "left",
+		vmargin = 6,
+		click = function(element)
+			if not dmhub.DiscordLink() then
+				SetDiscordStatus("Discord is not available right now.", true)
+				return
+			end
+			m_discordWaiting = true
+			element.text = "Try again"
+			SetDiscordStatus("Approve Codex in the Discord window or browser tab that opened. Nothing opened? Click Try again.", false)
+		end,
+	}
+
+	discordAsk = gui.Panel{
+		flow = "vertical",
+		width = "100%",
+		height = "auto",
+
+		thinkTime = 0.5,
+		think = function(element)
+			if not m_discordWaiting then
+				return
+			end
+
+			local state = DiscordAccountState()
+			if state == "ready" then
+				m_discordWaiting = false
+				m_discordDone = true
+				SetDiscordStatus(nil, false)
+				RefreshSections()
+			elseif state == "connecting" then
+				SetDiscordStatus("Connecting to Discord...", false)
+			elseif state == "error" or state == "provisional" then
+				--"provisional": the sign-in failed but the provisional account is still up.
+				m_discordWaiting = false
+				discordButton.text = "Link Discord"
+				local message = nil
+				pcall(function() message = dmhub.discordStatus.accountError end)
+				SetDiscordStatus(message or "Discord sign-in did not complete. Please try again.", true)
+			elseif state ~= "linking" then
+				--abandoned elsewhere (unlinked, or Discord switched off).
+				m_discordWaiting = false
+				discordButton.text = "Link Discord"
+				SetDiscordStatus(nil, false)
+			end
+		end,
+
+		BodyLabel("Link your Discord account to talk with your party over Discord voice in the Codex, and let your Discord friends see what you're playing and ask to join you."),
+		discordButton,
+		discordStatus,
+	}
+
+	discordDoneRow = DoneRow("Your Discord account is linked. Thank you!", DISCORD_ACCENT)
+
+	--the heading carries Discord's logo so the card is recognizable before
+	--it is read. Same face as SectionHeading, sized to its text.
+	local discordHeading = gui.Label{
+		color = Styles.textColor,
+		fontFace = "book",
+		fontSize = 20,
+		width = "auto",
+		height = "auto",
+		halign = "left",
+		valign = "center",
+		lmargin = 8,
+		text = "LINK YOUR DISCORD",
+	}
+
+	discordSection = AskCard({
+		gui.Panel{
+			flow = "horizontal",
+			width = "100%",
+			height = "auto",
+			--SectionHeading's spacing, moved to the row.
+			vmargin = 4,
+			bmargin = 6,
+
+			gui.Panel{
+				bgimage = "phosphor/discord-logo-fill.png",
+				bgcolor = DISCORD_ACCENT,
+				width = 26,
+				height = 26,
+				halign = "left",
+				valign = "center",
+			},
+			discordHeading,
+		},
+		discordAsk,
+		discordDoneRow,
+	}, DISCORD_ACCENT, DISCORD_FRAME)
+
+	--only the cards this showing asks about are on screen.
+	patreonSection:SetClass("collapsed", m_discordOnly)
+	emailSection:SetClass("collapsed", m_discordOnly)
+	discordSection:SetClass("collapsed", not m_offerDiscord)
+
+	--the card grows or shrinks with the number of asks; 560 fits two.
+	local cardCount = cond(m_discordOnly, 1, cond(m_offerDiscord, 3, 2))
+	local cardHeight = cond(cardCount == 1, 400, cond(cardCount == 3, 740, 560))
+
+	--the art keeps the same zoom at every card height, showing more or less of
+	--the figure below the face. The crop must match the panel's aspect or the
+	--engine stretches it: source 1564x2048, panel 418 x (cardHeight - 8), and
+	--a crop 0.5 of the source tall at the original 552px panel.
+	local artHeight = cardHeight - 8
+	local cropHeight = 0.5 * artHeight / 552
+	local cropWidth = cropHeight * (418 * 2048) / (1564 * artHeight)
+	local artRect = {x1 = 0.5 - cropWidth / 2, y1 = 0.925 - cropHeight, x2 = 0.5 + cropWidth / 2, y2 = 0.925}
+
 	contractDialog = gui.Panel{
 		id = "infernalContract",
 		floating = true,
@@ -7000,6 +7233,17 @@ local CreateInfernalContractDialog = function(titlescreen, args)
 				color = "#ffffff",
 				bgcolor = PATREON_ACCENT,
 			},
+			--the same treatment in Discord's blurple.
+			{
+				selectors = {"label", "button", "discordAccent"},
+				color = DISCORD_ACCENT,
+				borderColor = DISCORD_ACCENT,
+			},
+			{
+				selectors = {"label", "button", "discordAccent", "hover"},
+				color = "#ffffff",
+				bgcolor = DISCORD_ACCENT,
+			},
 		},
 
 		captureEscape = true,
@@ -7009,6 +7253,17 @@ local CreateInfernalContractDialog = function(titlescreen, args)
 
 		closeContract = function(element)
 			element:DestroySelf()
+
+			--closing without linking is declining Discord: the player goes on
+			--with a provisional account, so voice and friends still work, and can
+			--link later. Does nothing while a link is under way.
+			if m_offerDiscord and not m_discordDone and DiscordAccountState() == "notlinked" then
+				pcall(function()
+					if dmhub.discordStatus.provisionalUnavailable ~= true then
+						dmhub.DiscordUseProvisional()
+					end
+				end)
+			end
 
 			--anything the new-items dialog held back while we were up.
 			dmhub.Schedule(0.3, function()
@@ -7047,7 +7302,7 @@ local CreateInfernalContractDialog = function(titlescreen, args)
 		gui.Panel{
 			classes = {"framedPanel"},
 			width = 1040,
-			height = 560,
+			height = cardHeight,
 			halign = "center",
 			valign = "center",
 			flow = "horizontal",
@@ -7066,11 +7321,8 @@ local CreateInfernalContractDialog = function(titlescreen, args)
 				valign = "center",
 				lmargin = 4,
 				--portrait zoom on the upper-center of the art. imageRect y
-				--is BOTTOM-up, so y2 is the crop's top edge. The fractions
-				--must be aspect-matched or the engine stretches the crop to
-				--fill: source 1564x2048 (0.7637) vs panel 418x552 (0.7572)
-				--means width fraction = height fraction * 0.9915.
-				imageRect = {x1 = 0.2521, y1 = 0.425, x2 = 0.7479, y2 = 0.925},
+				--is BOTTOM-up, so y2 is the crop's top edge. See artRect.
+				imageRect = artRect,
 			},
 
 			gui.Panel{
@@ -7105,11 +7357,12 @@ local CreateInfernalContractDialog = function(titlescreen, args)
 					halign = "right",
 					textAlignment = "right",
 					bmargin = 10,
-					text = "...for you to sign.",
+					text = cond(m_discordOnly, "...with one more clause.", "...for you to sign."),
 				},
 
 				patreonSection,
 				emailSection,
+				discordSection,
 
 				(function()
 					closeButton = gui.Button{
@@ -7165,8 +7418,21 @@ local OfferInfernalContract = function(titlescreen)
 		return
 	end
 
-	--already had their one look at it on a previous launch.
+	--the Discord card is wanted where this build has Discord and it has not
+	--been shown to this user yet.
+	local offerDiscord = DiscordLinkAvailable(DiscordAccountState()) and not g_infernalContractDiscordShownSetting:Get()
+
+	--already had their one look at the Patreon/email offer on a previous
+	--launch: what is left is the Discord card on its own, if they have not
+	--linked Discord already. No cloud read is needed for that.
 	if g_infernalContractShownSetting:Get() then
+		if offerDiscord and not DiscordAccountLinked(DiscordAccountState()) then
+			g_infernalContractOffered = true
+			g_infernalContractDiscordShownSetting:Set(true)
+			titlescreen:AddChild(CreateInfernalContractDialog(titlescreen, {
+				discordOnly = true,
+			}))
+		end
 		return
 	end
 
@@ -7220,9 +7486,10 @@ local OfferInfernalContract = function(titlescreen)
 			end
 
 			local patreonLinked = PatreonAccountLinked()
+			local discordLinked = DiscordAccountLinked(DiscordAccountState())
 
 			--nothing left to ask for.
-			if patreonLinked and emailConfirmed then
+			if patreonLinked and emailConfirmed and (discordLinked or not offerDiscord) then
 				Release()
 				OfferPromoGrants(titlescreen)
 				return
@@ -7231,10 +7498,15 @@ local OfferInfernalContract = function(titlescreen)
 			--recorded here, not at the top: a launch where there was nothing
 			--to ask for has not spent their one showing.
 			g_infernalContractShownSetting:Set(true)
+			if offerDiscord then
+				g_infernalContractDiscordShownSetting:Set(true)
+			end
 
 			probe.dialog = CreateInfernalContractDialog(titlescreen, {
 				patreonLinked = patreonLinked,
 				emailConfirmed = emailConfirmed,
+				offerDiscord = offerDiscord,
+				discordLinked = discordLinked,
 				releaseMonitor = Release,
 			})
 
@@ -9101,12 +9373,26 @@ function CreateTitlescreen(dialog, options)
                             },
                         }
 
+                        --Hero paging state. The list panel works out the page
+                        --count on each refresh; the pager shows it.
+                        local m_numHeroPages = 1
+                        ---@type Panel|nil
+                        local m_heroList = nil
+                        ---@type Panel|nil
+                        local m_heroPager = nil
+
+                        --The stored page clamped to the pages that exist now: the
+                        --setting persists and heroes can be deleted.
+                        local function CurrentHeroPage()
+                            return clamp(round(g_heroPageSetting:Get()), 1, m_numHeroPages)
+                        end
+
                         return gui.Panel {
                         classes = { "hideOnDirector" },
 
                         -- Scoped ThemeEngine cascade for the Heroes column,
                         -- mirrors the Campaigns column. Catches the HEROES
-                        -- header strip and the 8 hero cards below.
+                        -- header strip and the page of 8 hero cards below.
                         styles = ThemeEngine.MergeStyles(m_heroesExtras),
 
                         bgimage = true,
@@ -9164,22 +9450,6 @@ function CreateTitlescreen(dialog, options)
                                         gui.Tooltip("Create a Hero")(element)
                                     end,
 
-                                    monitorGame = "/characters",
-                                    refreshGame = function(element)
-                                        --In a campaign /characters is the campaign's
-                                        --roster: sorting it on every token change is
-                                        --wasted work, and the count would be wrong.
-                                        if dmhub.inGame and not dmhub.isLobbyGame then
-                                            return
-                                        end
-                                        local _, nheroes = LobbyHeroes()
-                                        element:SetClass("hidden", nheroes >= 8)
-                                    end,
-
-                                    returnFromGameComplete = function(element)
-                                        element:FireEvent("refreshGame")
-                                    end,
-
                                     press = CreateHero,
 
                                     gui.Panel {
@@ -9213,22 +9483,6 @@ function CreateTitlescreen(dialog, options)
                                         gui.Tooltip("Import a Hero from Forge Steel")(element)
                                     end,
 
-                                    monitorGame = "/characters",
-                                    refreshGame = function(element)
-                                        --In a campaign /characters is the campaign's
-                                        --roster: sorting it on every token change is
-                                        --wasted work, and the count would be wrong.
-                                        if dmhub.inGame and not dmhub.isLobbyGame then
-                                            return
-                                        end
-                                        local _, nheroes = LobbyHeroes()
-                                        element:SetClass("hidden", nheroes >= 8)
-                                    end,
-
-                                    returnFromGameComplete = function(element)
-                                        element:FireEvent("refreshGame")
-                                    end,
-
                                     press = ImportForgeSteel,
                                 },
 
@@ -9244,22 +9498,6 @@ function CreateTitlescreen(dialog, options)
 
                                     hover = function(element)
                                         gui.Tooltip("Import a Hero from a Codex JSON file")(element)
-                                    end,
-
-                                    monitorGame = "/characters",
-                                    refreshGame = function(element)
-                                        --In a campaign /characters is the campaign's
-                                        --roster: sorting it on every token change is
-                                        --wasted work, and the count would be wrong.
-                                        if dmhub.inGame and not dmhub.isLobbyGame then
-                                            return
-                                        end
-                                        local _, nheroes = LobbyHeroes()
-                                        element:SetClass("hidden", nheroes >= 8)
-                                    end,
-
-                                    returnFromGameComplete = function(element)
-                                        element:FireEvent("refreshGame")
                                     end,
 
                                     press = ImportCodexJson,
@@ -9310,9 +9548,30 @@ function CreateTitlescreen(dialog, options)
                             end,
 
                             refreshGame = function(element)
+                                --In a campaign, GetAllCharacters() is the campaign's
+                                --roster, not the lobby's (see startMonitoring), and the
+                                --title screen is hidden; refreshLobby still fans out on
+                                --every game-info revision, which cost ~30 ms per bump
+                                --in a game with 1500 characters. returnFromGameComplete
+                                --refreshes the list on the way back.
+                                if dmhub.inGame and not dmhub.isLobbyGame then
+                                    return
+                                end
                                 local chars = LobbyHeroes()
                                 local games = lobby.games
-                                element:FireEventTree("characters", chars, games)
+                                m_numHeroPages = math.max(1, math.ceil(#chars / HEROES_PER_PAGE))
+
+                                --The slots index into this page's slice of the roster.
+                                local base = (CurrentHeroPage() - 1) * HEROES_PER_PAGE
+                                local pageChars = {}
+                                for i = 1, HEROES_PER_PAGE do
+                                    pageChars[i] = chars[base + i]
+                                end
+                                element:FireEventTree("characters", pageChars, games)
+
+                                if m_heroPager ~= nil and m_heroPager.valid then
+                                    m_heroPager:FireEventTree("refreshHeroPages", CurrentHeroPage(), m_numHeroPages)
+                                end
                             end,
 
                             beginLoading = function(element)
@@ -9346,6 +9605,7 @@ function CreateTitlescreen(dialog, options)
                             end,
 
                             create = function(element)
+                                m_heroList = element
                             end,
 
 
@@ -9357,6 +9617,73 @@ function CreateTitlescreen(dialog, options)
                             MakeHeroPanel(6),
                             MakeHeroPanel(7),
                             MakeHeroPanel(8),
+                        },
+
+                        --Hero paging panel: same look as the CAMPAIGNS one, under
+                        --the right edge of the hero cards. Hidden with one page.
+                        gui.Panel {
+                            styles = ThemeEngine.GetStyles(),
+                            classes = {"bgAlt", "hidden"},
+                            floating = true,
+                            minWidth = 100,
+                            width = "auto",
+                            height = 60,
+                            flow = "horizontal",
+                            halign = "right",
+                            valign = "bottom",
+                            y = 68,
+                            opacity = 0.8,
+
+                            create = function(element)
+                                m_heroPager = element
+                            end,
+
+                            refreshHeroPages = function(element, page, numPages)
+                                element:SetClass("hidden", numPages <= 1)
+                            end,
+
+                            gui.Button {
+                                classes = {"pagingArrow", "sizeL"},
+                                valign = "center",
+                                halign = "center",
+                                refreshHeroPages = function(element, page, numPages)
+                                    element:SetClass("hidden", page <= 1)
+                                end,
+                                press = function(element)
+                                    g_heroPageSetting:Set(CurrentHeroPage() - 1)
+                                    if m_heroList ~= nil and m_heroList.valid then
+                                        m_heroList:FireEvent("refreshGame")
+                                    end
+                                end,
+                            },
+
+                            gui.Label {
+                                textAlignment = "center",
+                                width = "auto",
+                                minWidth = 60,
+                                height = 50,
+                                fontSize = 20,
+                                halign = "center",
+                                valign = "center",
+                                refreshHeroPages = function(element, page, numPages)
+                                    element.text = string.format("Page\n%d/%d", page, numPages)
+                                end,
+                            },
+
+                            gui.Button {
+                                classes = {"pagingArrow", "right", "sizeL"},
+                                halign = "center",
+                                valign = "center",
+                                refreshHeroPages = function(element, page, numPages)
+                                    element:SetClass("hidden", page >= numPages)
+                                end,
+                                press = function(element)
+                                    g_heroPageSetting:Set(CurrentHeroPage() + 1)
+                                    if m_heroList ~= nil and m_heroList.valid then
+                                        m_heroList:FireEvent("refreshGame")
+                                    end
+                                end,
+                            },
                         },
                     }
                     end)(),
@@ -9486,8 +9813,6 @@ function CreateTitlescreen(dialog, options)
                         refreshLobby = function(element)
                             local orderedGames = {}
                             local directorMode = DirectorMode()
-
-                            print("REFRESH WITH DIRECTOR =", directorMode)
 
                             local viewGames = CampaignRearrange.OrderGames(CampaignRearrange.ViewGames(directorMode), directorMode)
                             for _, game in ipairs(viewGames) do
@@ -9961,6 +10286,45 @@ function CreateTitlescreen(dialog, options)
     -- Fade the label when the user advances past the titlescreen.
     progressDice.data.pressAnyKeyLabel = pressAnyKeyLabel
 
+    --The Discord friends button (DiscordFriends.lua) in the top-right corner of
+    --the visible screen, past the press-any-key screen. The root is wider than
+    --the screen, so the button and its panel sit in a screen-sized layer. When
+    --no Discord account is linked the button opens the Discord link offer.
+    --Gated on the hidden "discordsocial" preference while the feature is in development.
+    local discordFriends = rawget(_G, "DiscordFriends")
+    if discordFriends ~= nil and dmhub.GetSettingValue("discordsocial") == true then
+        local discordLayer
+        discordLayer = gui.Panel{
+            classes = {"hideOnStartingScreen"},
+            floating = true,
+            width = 1080 * (dmhub.screenDimensions.x / dmhub.screenDimensions.y),
+            height = 1080,
+            halign = "center",
+            valign = "center",
+            flow = "none",
+            create = function(element)
+                element:SetClass("starting-screen", titlescreen:HasClass("starting-screen"))
+            end,
+            screenResized = function(element)
+                element.selfStyle.width = 1080 * (dmhub.screenDimensions.x / dmhub.screenDimensions.y)
+            end,
+        }
+        local button = discordFriends.CreateButton{
+            parent = discordLayer,
+            x = -20,
+            y = 20,
+            panelX = -20,
+            panelY = 72,
+            offerLink = function()
+                if titlescreen:Get("infernalContract") == nil then
+                    titlescreen:AddChild(CreateInfernalContractDialog(titlescreen, {discordOnly = true}))
+                end
+            end,
+        }
+        discordLayer:AddChild(button)
+        titlescreen:AddChild(discordLayer)
+    end
+
     dialog.sheet = titlescreen
     titlescreen.data.dialog = dialog
     g_titlescreen = titlescreen
@@ -10106,13 +10470,13 @@ TitlescreenHeroes = {
             return false
         end)
     end,
-    --The heroes in the titlescreen's HEROES slots, in slot order: the first
-    --8 of LobbyHeroes() (one per hard-coded MakeHeroPanel slot), minus
-    --abandoned empty shells. The EotW Guild offers these to copy into town.
+    --The heroes in the titlescreen's HEROES slots, in slot order across every
+    --page of LobbyHeroes(), minus abandoned empty shells. The EotW Guild offers
+    --these to copy into town.
     List = function()
         local result = {}
         local chars = LobbyHeroes()
-        for i = 1, math.min(8, #chars) do
+        for i = 1, #chars do
             if not HeroIsUnstarted(chars[i]) then
                 result[#result+1] = chars[i]
             end

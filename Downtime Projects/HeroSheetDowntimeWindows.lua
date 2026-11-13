@@ -843,8 +843,9 @@ local function LangIds(source)
     return source.langIds --[[@as string[] ]]
 end
 
---- Open New project on the open Hero, or Replace project on one of their
---- projects (no Custom tab; the main button reads Replace).
+--- Open New project for a Hero, or Replace project on one of the open Hero's
+--- projects (no Custom tab; the main button reads Replace). New project also
+--- opens from outside the sheet (the Respite) and saves to this Hero.
 --- @param token CharacterToken the Hero
 --- @param opts nil|{tab: nil|string, itemid: nil|string, projectId: nil|string} tab "activity" / "crafting" / "custom"; itemid picks a craftable item (the Inventory's craft link); projectId replaces that project
 function HeroSheetDowntimeWindows.NewProject(token, opts)
@@ -1503,7 +1504,7 @@ function HeroSheetDowntimeWindows.NewProject(token, opts)
         local langIds = LangIds(source)
         for _, id in ipairs(langIds) do
             if langTable[id] ~= nil then
-                langNames[#langNames+1] = langTable[id].name
+                langNames[#langNames+1] = langTable[id]:DisplayName()
             end
         end
         langsDetail.value.text = cond(#langNames == 0, "None", table.concat(langNames, ", "))
@@ -1545,6 +1546,12 @@ function HeroSheetDowntimeWindows.NewProject(token, opts)
             local projectId = opts.projectId --[[@as string]]
             local saved = SaveProject(projectId, "Replace downtime project", function(project)
                 DTBusinessRules.ApplySourceToProject(project, chosen.kind, chosen.id)
+                --Replace is only offered before any progress, so it starts the
+                --project afresh: one whose recipe and components the Hero holds
+                --is ready to roll, as a new one would be.
+                if chosen.kind == "crafting" and DTBusinessRules.HasCraftingMaterials(token.properties, chosen.id) then
+                    project:Approve()
+                end
                 --a new goal moves the milestones: an Active project takes the
                 --book's next one for it, as Approve gives.
                 if project:GetStatus() == DTConstants.STATUS.ACTIVE.key then
@@ -1558,8 +1565,11 @@ function HeroSheetDowntimeWindows.NewProject(token, opts)
             return
         end
         local projectId = dmhub.GenerateGuid()
-        local waits = not DTCharSheetTab.CanManageProjects()
         local sourceType = state.tab
+        --StartProject's rule: a manager's project, or a crafting project the
+        --Hero has the recipe and components for, does not wait.
+        local waits = not DTCharSheetTab.CanManageProjects()
+            and not (sourceType == "crafting" and source ~= nil and DTBusinessRules.HasCraftingMaterials(token.properties, source.id))
         local name = trim(state.name)
         --- @type nil|{goal: nil|integer, chars: string[], prereq: string, source: string, langIds: string[]}
         local custom = nil
@@ -1573,26 +1583,48 @@ function HeroSheetDowntimeWindows.NewProject(token, opts)
                 langIds = typed.langIds or {},
             }
         end
-        local saved = HeroSheetWrite.Save{
-            description = "Start downtime project",
-            execute = function(props)
-                local info = HeroSheetDowntimeWindows.InfoForWrite(props)
-                if info ~= nil then
-                    DTProjectEditor.StartProject(info, token.charid, {
-                        projectId = projectId,
-                        sourceType = sourceType,
-                        selectedId = source ~= nil and source.id or nil,
-                        name = name,
-                        custom = custom,
-                    })
-                end
-            end,
-        }
+        --- @param props creature the live Hero
+        local function Start(props)
+            local info = HeroSheetDowntimeWindows.InfoForWrite(props)
+            if info ~= nil then
+                DTProjectEditor.StartProject(info, token.charid, {
+                    projectId = projectId,
+                    sourceType = sourceType,
+                    selectedId = source ~= nil and source.id or nil,
+                    name = name,
+                    custom = custom,
+                    hero = props,
+                })
+            end
+        end
+        --the sheet showing this Hero saves through it; opened anywhere else (the Respite), the Hero is written directly.
+        local onSheet = HeroSheet.IsShowing(token.charid)
+        local saved = false
+        if onSheet then
+            saved = HeroSheetWrite.Save{
+                description = "Start downtime project",
+                execute = Start,
+            }
+        elseif CharacterPanel.TokenAccessLevel(token) == "edit" then
+            local charid = token.charid
+            token:ModifyProperties{
+                description = "Start downtime project",
+                execute = function()
+                    local live = dmhub.GetCharacterById(charid) or token
+                    Start(live.properties)
+                end,
+            }
+            saved = true
+        else
+            audio.FireSoundEvent("UI.Error_Generic")
+        end
         if not saved then
             return false
         end
         HeroSheetDowntimeWindows.WakeWatchers()
-        HeroSheetDowntime.Select(projectId)
+        if onSheet then
+            HeroSheetDowntime.Select(projectId)
+        end
         local title = cond(sourceType == "custom", name, source ~= nil and source.name or "")
         HeroSheetWindow.Toast(string.format("%s started.", title) .. cond(waits, " It waits for the Director before the first roll.", ""))
     end

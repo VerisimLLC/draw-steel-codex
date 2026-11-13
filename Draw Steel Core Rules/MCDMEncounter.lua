@@ -89,6 +89,13 @@ Encounter.mapid = ''
 --which a game only has once the map is added (Encounter.ResolveMapRef).
 Encounter.mapRef = ''
 
+--Where the encounter sits in the Encounters panel: the id of the
+--EncounterFolder it is filed under ("" = the top level), and its place among
+--the encounters beside it (lower first; equal values sort by name). Both are
+--set by dragging cards in the panel.
+Encounter.folderid = ''
+Encounter.ord = 0
+
 Encounter.monsters = {}
 
 Encounter.groups = {}
@@ -1456,6 +1463,117 @@ function Encounter.VictoryUnitKey(token)
     return "squad:" .. tostring(props:MinionSquad())
 end
 
+--The name players may see for one unit in an objective's "still standing" list:
+--a minion squad by its squad name, a creature the players can't see or whose
+--name the Director keeps private by a stand-in, so the list never leaks either.
+--- @param token CharacterToken
+--- @return string
+function Encounter.VictoryUnitPublicName(token)
+    local props = token.properties
+    local hidden = token.invisibleToPlayers
+    if not hidden and props ~= nil then
+        pcall(function() hidden = props:IsHidden() and creature.HiddenCreaturesInvisible() end)
+    end
+    if hidden then
+        return "an unseen creature"
+    end
+    if token.namePrivate then
+        return cond(props ~= nil and props.minion, "a squad of minions", "an unnamed creature")
+    end
+    if props ~= nil and props.minion then
+        local squad = props:MinionSquad()
+        if squad ~= nil and squad ~= "" then
+            return squad
+        end
+    end
+    local name = token.name
+    if name == nil or name == "" then
+        name = token.description
+    end
+    if name == nil or name == "" then
+        return "a creature"
+    end
+    return name
+end
+
+--Turns a list of creature tokens and/or plain strings into the lines of an
+--objective's "still standing" list. Defeated tokens are dropped, each minion
+--squad becomes one line with how many of it stand, and token lines are sorted
+--by name; strings (e.g. "2 more coming from the tombs") follow in their order.
+--Used by the built-in objective tooltip and to network an encounter script's
+--victory.remaining, so the names are always the player-safe ones.
+--- @param units (CharacterToken|string)[]
+--- @return string[]
+function Encounter.DescribeVictoryUnits(units)
+    local lines = {}
+    local squads = {}
+    local seen = {}
+    local extra = {}
+    for _, unit in ipairs(units or {}) do
+        if type(unit) == "string" then
+            if unit ~= "" then
+                extra[#extra + 1] = unit
+            end
+        elseif type(unit) == "table" or type(unit) == "userdata" then
+            local token = unit --[[@as CharacterToken]]
+            local props = token.properties
+            if props ~= nil and token.valid and not seen[token.charid] then
+                seen[token.charid] = true
+                if props.minion then
+                    --a minion's Stamina is the squad's, so ask whether it is dead.
+                    if not props:IsDead() then
+                        local key = "squad:" .. tostring(props:MinionSquad())
+                        local squad = squads[key]
+                        if squad == nil then
+                            squad = { name = Encounter.VictoryUnitPublicName(token), count = 0 }
+                            squads[key] = squad
+                            lines[#lines + 1] = squad
+                        end
+                        squad.count = squad.count + 1
+                    end
+                elseif props:CurrentHitpoints() > 0 then
+                    lines[#lines + 1] = { name = Encounter.VictoryUnitPublicName(token) }
+                end
+            end
+        end
+    end
+
+    table.sort(lines, function(a, b) return a.name < b.name end)
+    local result = {}
+    for _, line in ipairs(lines) do
+        if line.count ~= nil then
+            result[#result + 1] = string.format("%s (%d standing)", line.name, line.count)
+        else
+            result[#result + 1] = line.name
+        end
+    end
+    for _, text in ipairs(extra) do
+        result[#result + 1] = text
+    end
+    return result
+end
+
+--The tooltip block for a "still standing" list: a heading, then one "- " line
+--per unit, capped so a horde can't make the tooltip run off the screen.
+--- @param heading string
+--- @param names string[]|nil
+--- @return string|nil nil when the list is empty
+function Encounter.FormatVictoryUnitList(heading, names)
+    if names == nil or #names == 0 then
+        return nil
+    end
+    local maxLines = 12
+    local lines = { heading }
+    for i, name in ipairs(names) do
+        if i > maxLines then
+            lines[#lines + 1] = string.format("- ...and %d more", #names - maxLines)
+            break
+        end
+        lines[#lines + 1] = "- " .. name
+    end
+    return table.concat(lines, "\n")
+end
+
 function Encounter.Describe(self)
     --Build a lookup of waveid -> wave so we can annotate reinforcement monsters.
     local wavesById = {}
@@ -2042,6 +2160,9 @@ end
 --   {
 --     groupid,      -- the initiative id
 --     statKey,      -- key into monsterStats (sanitized groupid)
+--     statKeys,     -- every monsterStats key this group's stats live under:
+--                   -- statKey plus the onset keys of groups merged into it.
+--                   -- Pass this to GetStatsForMonsterGroup(ByRound).
 --     name,         -- display name for the group
 --     tokens,       -- member tokens still resolvable on the map, heroes excluded
 --     memberCount,  -- #tokens plus onset members whose tokens are gone
@@ -2056,12 +2177,19 @@ end
 -- despawned or deleted) still count as dead members, so the victory screen shows
 -- the full roster rather than just the survivors. Groups with no resolvable
 -- members and no onset members are skipped. Returns a freshly-built list.
+--
+-- Groups follow their members, not the onset snapshot's ids: the Director can
+-- regroup monsters mid-fight (merge two groups into one initiative entry), after
+-- which their stats are recorded under the new id. Each onset member is placed
+-- on the card of the initiative id it has NOW, and the onset group's old stat key
+-- moves with its members, so the card shows stats from before and after the
+-- regroup (9ARZXATK).
 function LiveEncounter:GetMonsterGroups()
     local q = dmhub.initiativeQueue
     local result = {}
     local seenGroups = {}
 
-    local function AddGroup(groupid, name, memberids, memberinfo)
+    local function AddGroup(groupid, name, memberids, memberinfo, statKeys)
         if seenGroups[groupid] then
             return
         end
@@ -2217,6 +2345,7 @@ function LiveEncounter:GetMonsterGroups()
         result[#result+1] = {
             groupid = groupid,
             statKey = SanitizeStatKey(groupid),
+            statKeys = statKeys or { SanitizeStatKey(groupid) },
             name = displayName,
             tokens = tokens,
             memberCount = memberCount,
@@ -2229,8 +2358,85 @@ function LiveEncounter:GetMonsterGroups()
         }
     end
 
-    for _, g in ipairs(self:GetOnsetMonsterGroups()) do
-        AddGroup(g.groupid, g.name, g.memberids, g.memberinfo)
+    local onsetGroups = self:GetOnsetMonsterGroups()
+
+    --Each onset member's initiative id now. GetCharacterById finds dead
+    --monsters that left the map; a member that resolves nowhere stays in its
+    --onset group.
+    local currentId = {}
+    local liveIds = {}
+    for _, g in ipairs(onsetGroups) do
+        for _, mid in ipairs(g.memberids or {}) do
+            local tok = dmhub.GetTokenById(mid)
+            if tok == nil or not tok.valid then
+                tok = dmhub.GetCharacterById(mid)
+            end
+            local id = nil
+            if tok ~= nil and tok.valid and tok.properties ~= nil then
+                id = InitiativeQueue.GetInitiativeId(tok)
+            end
+            currentId[mid] = id or g.groupid
+            liveIds[currentId[mid]] = true
+        end
+    end
+
+    --Cards in onset order. A group that still holds members keeps its own
+    --slot; a group merged away shows up where its members' new group first does.
+    local cards = {}
+    local cardsById = {}
+    local function CardFor(groupid)
+        local card = cardsById[groupid]
+        if card == nil then
+            card = {
+                groupid = groupid,
+                memberids = {},
+                memberinfo = {},
+                statKeys = { SanitizeStatKey(groupid) },
+                seenKeys = { [SanitizeStatKey(groupid)] = true },
+            }
+            cardsById[groupid] = card
+            cards[#cards+1] = card
+        end
+        return card
+    end
+
+    local onsetById = {}
+    for _, g in ipairs(onsetGroups) do
+        onsetById[g.groupid] = g
+        --also keep the slot when tokens that were never snapshotted now hold
+        --this id, so its stat key is not handed to another card as well.
+        if liveIds[g.groupid] or #(g.memberids or {}) == 0 or #(InitiativeQueue.GetTokensForInitiativeId(g.groupid) or {}) > 0 then
+            CardFor(g.groupid)
+        end
+        --how many of this group's members went to each card, for the stat key below.
+        local counts = {}
+        local best = nil
+        for _, mid in ipairs(g.memberids or {}) do
+            local card = CardFor(currentId[mid])
+            card.memberids[#card.memberids+1] = mid
+            if g.memberinfo ~= nil and g.memberinfo[mid] ~= nil then
+                card.memberinfo[mid] = g.memberinfo[mid]
+            end
+            counts[card] = (counts[card] or 0) + 1
+            if best == nil or counts[card] > counts[best] then
+                best = card
+            end
+        end
+
+        --The stats this group recorded before it was regrouped. If the group
+        --still exists they stay on its own card; otherwise they go to the card
+        --that took most of its members (a split group's old stats count once).
+        local key = g.statKey or SanitizeStatKey(g.groupid)
+        local owner = cardsById[g.groupid] or best
+        if owner ~= nil and not owner.seenKeys[key] then
+            owner.seenKeys[key] = true
+            owner.statKeys[#owner.statKeys+1] = key
+        end
+    end
+
+    for _, card in ipairs(cards) do
+        local g = onsetById[card.groupid]
+        AddGroup(card.groupid, g ~= nil and g.name or nil, card.memberids, card.memberinfo, card.statKeys)
     end
 
     if q ~= nil then
@@ -2374,24 +2580,60 @@ function LiveEncounter:GetMonsterStats()
     return self:try_get("monsterStats") or {}
 end
 
+-- A group's stats can live under several keys after a mid-combat regroup (see
+-- GetMonsterGroups' statKeys); accept either one key or that list.
+---@param statKeys string|string[]
+---@return string[]
+local function MonsterStatKeyList(statKeys)
+    if type(statKeys) == "table" then
+        return statKeys
+    end
+    return { statKeys }
+end
+
 -- The whole-combat statistics for a single monster group (a map of statid ->
 -- total summed across rounds, nested sub-tables deep-merged), or an empty table.
--- statKey is the group's sanitized id from GetMonsterGroups. Freshly built --
--- safe for callers to keep.
-function LiveEncounter:GetStatsForMonsterGroup(statKey)
+-- Pass the group's statKeys from GetMonsterGroups (a single statKey also works).
+-- Freshly built -- safe for callers to keep.
+---@param statKeys string|string[]
+function LiveEncounter:GetStatsForMonsterGroup(statKeys)
+    local all = self:GetMonsterStats()
     local result = {}
-    for _, roundStats in pairs(self:GetMonsterStats()[statKey] or {}) do
-        if type(roundStats) == "table" then
-            SumStatsTables(result, roundStats)
+    for _, key in ipairs(MonsterStatKeyList(statKeys)) do
+        for _, roundStats in pairs(all[key] or {}) do
+            if type(roundStats) == "table" then
+                SumStatsTables(result, roundStats)
+            end
         end
     end
     return result
 end
 
 -- The per-round statistics recorded for a single monster group: a map of
--- "round<N>" -> { statid = total }, or an empty table. Read-only view.
-function LiveEncounter:GetStatsForMonsterGroupByRound(statKey)
-    return self:GetMonsterStats()[statKey] or {}
+-- "round<N>" -> { statid = total }, or an empty table. Takes statKeys like
+-- GetStatsForMonsterGroup. One key returns a read-only view; several return a
+-- freshly built per-round sum.
+---@param statKeys string|string[]
+function LiveEncounter:GetStatsForMonsterGroupByRound(statKeys)
+    local all = self:GetMonsterStats()
+    local keys = MonsterStatKeyList(statKeys)
+    if #keys == 1 then
+        return all[keys[1]] or {}
+    end
+    local result = {}
+    for _, key in ipairs(keys) do
+        for roundKey, roundStats in pairs(all[key] or {}) do
+            if type(roundStats) == "table" then
+                local dest = result[roundKey]
+                if dest == nil then
+                    dest = {}
+                    result[roundKey] = dest
+                end
+                SumStatsTables(dest, roundStats)
+            end
+        end
+    end
+    return result
 end
 
 -- Resolve the hero a stat should be attributed to. `tokenid` is the token that
@@ -3127,7 +3369,7 @@ function LiveEncounter:BuildBattleRecord(outcome, roles)
     local monsters = {}
     local monsterCount = 0
     for _, group in ipairs(groups) do
-        local totals = self:GetStatsForMonsterGroup(group.statKey) or {}
+        local totals = self:GetStatsForMonsterGroup(group.statKeys) or {}
         monsterCount = monsterCount + group.memberCount
 
         local monsterType = nil
@@ -4736,6 +4978,35 @@ function LiveEncounter:CountLiveNonMinions(org)
     return count
 end
 
+-- The monsters still standing that count toward a built-in monster-count victory,
+-- as the player-safe lines of the objective tooltip (see DescribeVictoryUnits).
+-- Counts the same units as CountLiveCombatants (org nil: a minion squad is one
+-- unit) or CountLiveNonMinions (org "*" for every non-minion, or an organization
+-- keyword such as "leader"). Reads tokens only, so it is safe on player clients.
+--- @param org nil|string
+--- @return string[]
+function LiveEncounter:GetStandingVictoryUnitNames(org)
+    local q = dmhub.initiativeQueue
+    if q == nil then
+        return {}
+    end
+    local tokens = {}
+    local seen = {}
+    for initiativeid, _ in pairs(q.entries) do
+        for _, token in ipairs(InitiativeQueue.GetTokensForInitiativeId(initiativeid) or {}) do
+            if token ~= nil and not seen[token.charid] then
+                seen[token.charid] = true
+                local props = token.properties
+                if props ~= nil and Encounter.VictoryUnitKey(token) ~= nil and
+                    (org == nil or (not props.minion and (org == "*" or OrganizationKeyword(props) == org))) then
+                    tokens[#tokens + 1] = token
+                end
+            end
+        end
+    end
+    return Encounter.DescribeVictoryUnits(tokens)
+end
+
 -- Returns the creature's token to display in the boss bar, or nil if no boss bar
 -- should be shown. A boss bar is appropriate when:
 --   * the victory condition is "Solo Exhausted" (the objective is literally to wear the
@@ -4979,7 +5250,13 @@ function LiveEncounter:GetObjectiveTooltip()
         if scriptInstance ~= nil then
             scriptName = scriptInstance:try_get("name", scriptName)
         end
-        return string.format("%s\n\nVictory condition set by the encounter script \"%s\".", scriptText, scriptName)
+        local result = scriptText
+        --the host-resolved victory.remaining list, when the script supplies one.
+        local remaining = Encounter.FormatVictoryUnitList("Still to defeat:", self:ScriptVictoryRemaining())
+        if remaining ~= nil then
+            result = result .. "\n\n" .. remaining
+        end
+        return string.format("%s\n\nVictory condition set by the encounter script \"%s\".", result, scriptName)
     end
 
     local condition = self:try_get("victoryCondition", "all_defeated")
@@ -5004,6 +5281,11 @@ function LiveEncounter:GetObjectiveTooltip()
         end
         if self:try_get("onsetNonMinionCount", 0) <= 0 then
             tooltipLines[#tooltipLines + 1] = "This encounter has no non-minions, so every monster must be defeated."
+        end
+        local standing = Encounter.FormatVictoryUnitList("Still standing:", self:GetStandingVictoryUnitNames(cond(self:try_get("onsetNonMinionCount", 0) > 0, "*", nil)))
+        if standing ~= nil then
+            tooltipLines[#tooltipLines + 1] = ""
+            tooltipLines[#tooltipLines + 1] = standing
         end
         return table.concat(tooltipLines, "\n")
     elseif condition == "half_defeated" then
@@ -5053,6 +5335,13 @@ function LiveEncounter:GetObjectiveTooltip()
 
     local defeated, needed = self:GetDefeatProgress()
     lines[#lines + 1] = string.format("Defeated %d of the %d needed to win.", defeated, needed)
+
+    --name what is left, so "3/4" says which monsters still count.
+    local standing = Encounter.FormatVictoryUnitList("Still standing:", self:GetStandingVictoryUnitNames(nil))
+    if standing ~= nil then
+        lines[#lines + 1] = ""
+        lines[#lines + 1] = standing
+    end
 
     return table.concat(lines, "\n")
 end
@@ -5294,6 +5583,14 @@ end
 -- script state, so progress text like "Survive 1/3 Rounds" updates on every
 -- client without player clients ever executing script code.
 --
+-- victory.remaining (optional) is function(ctx) returning a list of creature
+-- tokens and/or strings: what still counts toward a count-style objective
+-- ("Defeat 3/4 of the choir"). The host runs it each heartbeat; defeated tokens
+-- drop out, each minion squad shows once by its squad name, hidden or
+-- private-named creatures get a stand-in name, and the resulting strings ride
+-- in the networked script state (victoryRemaining). The objective tooltip lists
+-- them under "Still to defeat:". Strings pass through, e.g. "2 more from the tombs".
+--
 -- Parameter types: "number" (min/max/default), "string", "boolean",
 -- "choice" (options = {{id=..., text=...}, ...}), and "wave" (one of the
 -- encounter's reinforcement waves; the value is the wave id).
@@ -5396,6 +5693,9 @@ return {
     --     text = function(ctx) return string.format("Survive %d Rounds", ctx.params.rounds) end,
     --     check = function(ctx) return ctx.round > ctx.params.rounds end,
     -- },
+    -- For a "defeat N of these" objective, add remaining = function(ctx) that
+    -- returns the creature tokens (and/or strings) that still count; the
+    -- objective tooltip names them (defeated ones and squad duplicates drop out).
 
     -- Uncomment to add a defeat condition (script-only; there are no built-in
     -- ones). When check passes the director can Declare Defeat, which
@@ -5578,7 +5878,11 @@ local function NormalizeDefinition(def)
         if text ~= nil and type(text) ~= "string" and type(text) ~= "function" then
             return nil, "victory.text must be a string or a function"
         end
-        norm.victory = { check = def.victory.check, text = text }
+        local remaining = def.victory.remaining
+        if remaining ~= nil and type(remaining) ~= "function" then
+            return nil, "victory.remaining must be a function"
+        end
+        norm.victory = { check = def.victory.check, text = text, remaining = remaining }
     end
 
     if def.defeat ~= nil then
@@ -6011,6 +6315,22 @@ function LiveEncounter:ScriptVictoryText()
         end
     end
     return text, instance
+end
+
+--- The objective's "still to defeat" lines the host resolved from the victory
+--- script's victory.remaining, or nil when it supplies none. Networked plain
+--- strings, so any client can read them without running script code.
+--- @return string[]|nil
+function LiveEncounter:ScriptVictoryRemaining()
+    local _, instance = Encounter.ScriptVictoryText(self)
+    if instance == nil then
+        return nil
+    end
+    local st = self:GetScriptState(instance:try_get("guid", ""))
+    if st == nil or type(st.victoryRemaining) ~= "table" then
+        return nil
+    end
+    return st.victoryRemaining
 end
 
 function LiveEncounter:ScriptDefeatText()
@@ -6460,6 +6780,30 @@ local function ResolveLiveStatus(instance, def, ctx)
     return list
 end
 
+--Run a victory script's remaining function against the live host ctx and turn
+--what it returns (tokens and/or strings) into player-safe display lines.
+--Returns the list, false when the script declares no remaining function, or nil
+--when it errored (the caller then keeps the last good list).
+local function ResolveLiveRemaining(instance, def, ctx)
+    if def.victory == nil or def.victory.remaining == nil then
+        return false
+    end
+    local ok, result = pcall(def.victory.remaining, ctx)
+    if not ok then
+        PrintScriptError(instance, "victory.remaining error: " .. tostring(result))
+        return nil
+    end
+    if type(result) ~= "table" then
+        return {}
+    end
+    local describeOk, lines = pcall(Encounter.DescribeVictoryUnits, result)
+    if not describeOk then
+        PrintScriptError(instance, "victory.remaining must return a list of tokens or strings: " .. tostring(lines))
+        return nil
+    end
+    return lines
+end
+
 --Run one script instance for one heartbeat. Returns true when its persisted
 --state changed (the caller batches the upload). isLive is false once combat
 --has ended (queue hidden) - that is when onEnd fires.
@@ -6539,6 +6883,13 @@ local function RunInstanceTick(liveEncounter, instance, q, isLive)
         st.defeatText = ResolveLiveConditionText(def.defeat, ctx) or st.defeatText
         --an erroring status keeps showing the last good one.
         st.status = ResolveLiveStatus(instance, def, ctx) or st.status
+        --the objective tooltip's "still to defeat" names (victory.remaining).
+        local remaining = ResolveLiveRemaining(instance, def, ctx)
+        if remaining == false then
+            st.victoryRemaining = nil
+        elseif remaining ~= nil then
+            st.victoryRemaining = remaining
+        end
     end
 
     local afterOk, after = pcall(dmhub.ToJson, st)

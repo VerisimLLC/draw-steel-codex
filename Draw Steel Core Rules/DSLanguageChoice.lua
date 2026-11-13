@@ -38,6 +38,18 @@ dmhub.RegisterEventHandler("refreshTables", function(keys)
     g_languageVersion = g_languageVersion + 1
 end)
 
+--The cached option and feature names are display names, so flipping the Plain
+--Language Names setting must throw them away too.
+local g_displayVersion = nil
+local function CheckDisplayVersion()
+    if g_displayVersion ~= Language.DisplayVersion() then
+        g_displayVersion = Language.DisplayVersion()
+        g_tagCache = {}
+        g_optCache = {}
+        g_languageVersion = g_languageVersion + 1
+    end
+end
+
 function CharacterLanguageChoice:_cache()
     if g_tagCache[self.categories] ~= nil and g_optCache[self.categories] ~= nil then return end
 
@@ -46,10 +58,7 @@ function CharacterLanguageChoice:_cache()
 
 	local languagesTable = dmhub.GetTable(Language.tableName)
 	for k,lang in unhidden_pairs(languagesTable) do
-        local text = lang.name
-        if lang.speakers ~= "" then
-            text = string.format("%s (%s)", lang.name, lang.speakers)
-        end
+        local text = lang:DisplayNameWithDetail()
         tagCache[#tagCache+1] = {
             id = k,
             text = text,
@@ -71,11 +80,13 @@ function CharacterLanguageChoice:_cache()
 end
 
 function CharacterLanguageChoice:Choices(numOption, existingChoices, creature)
+    CheckDisplayVersion()
     if g_tagCache[self.categories] == nil then self:_cache() end
     return g_tagCache[self.categories]
 end
 
 function CharacterLanguageChoice:GetOptions(choices)
+    CheckDisplayVersion()
     if g_optCache[self.categories] == nil then self:_cache() end
     return g_optCache[self.categories]
 end
@@ -93,6 +104,7 @@ function CharacterLanguageChoice:CanRepeat()
 end
 
 function CharacterLanguageChoice:GetLanguageFeatures()
+    CheckDisplayVersion()
     local cachedKey = self:try_get("_tmp_languageFeaturesKey")
     if self:try_get("_tmp_languageFeatures") ~= nil
         and cachedKey ~= nil
@@ -114,8 +126,8 @@ function CharacterLanguageChoice:GetLanguageFeatures()
         if feature ~= nil then
             feature.id = k
             feature.guid = k
-            feature.name = lang.name
-            feature.modifiers[1].name = lang.name
+            feature.name = lang:DisplayName()
+            feature.modifiers[1].name = lang:DisplayName()
             feature.modifiers[1].skills = {[k] = true}
             feature.modifiers[1].sourceguid = self.guid
 
@@ -273,7 +285,7 @@ function CharacterForgetLanguageChoice:Choices(numOption, existingChoices, creat
         if lang ~= nil then
             result[#result+1] = {
                 id = langid,
-                text = lang.name,
+                text = lang:DisplayName(),
                 description = lang.description,
                 --not unique: the builder's uniqueness sweep hides any option chosen
                 --elsewhere, which here would hide exactly the languages we want listed.
@@ -301,7 +313,7 @@ function CharacterForgetLanguageChoice:GetOptions(choices, creature)
         if lang ~= nil then
             result[#result+1] = {
                 guid = langid,
-                name = lang.name,
+                name = lang:DisplayName(),
                 description = lang.description,
                 unique = false,
             }
@@ -329,6 +341,7 @@ end
 --- @param langid string
 --- @return CharacterFeature|nil
 function CharacterForgetLanguageChoice:GetForgetFeature(langid)
+    CheckDisplayVersion()
     local cache = self:try_get("_tmp_forgetFeatures")
     if cache == nil or cache.version ~= g_languageVersion then
         cache = { version = g_languageVersion, features = {} }
@@ -345,7 +358,7 @@ function CharacterForgetLanguageChoice:GetForgetFeature(langid)
         return nil
     end
 
-    local name = string.format("Forgotten: %s", lang.name)
+    local name = string.format("Forgotten: %s", lang:DisplayName())
     feature.id = langid
     --distinct from the "know this language" feature's guid, which is the bare langid.
     feature.guid = langid .. "-forget"

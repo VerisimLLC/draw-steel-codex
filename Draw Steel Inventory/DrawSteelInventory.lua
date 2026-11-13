@@ -1576,85 +1576,6 @@ function GameHud.CreateInventoryDialog(self, options)
 	local addItemsPanel = nil
 
 
-	if hasAddItem then
-		if dmhub.isDM then
-			refreshShopSlot = gui.Button{
-				icon = "panels/hud/clockwise-rotation.png",
-				classes = {"iconButton", "sizeXl"},
-				hmargin = 4,
-				hover = function(element)
-					local text = "Regenerate Loot"
-					if token ~= nil and token.properties:has_key("lootTable") then
-						local dataTable = dmhub.GetTableVisible("lootTables")
-						local lootTable = dataTable[token.properties.lootTable.key]
-						if lootTable ~= nil then
-							text = string.format("Re-roll Loot: %s", lootTable:Describe(token.properties.lootTable.choiceIndex))
-						end
-					end
-					gui.Tooltip(text)(element)
-				end,
-				click = function(element)
-					if token == nil then
-						return
-					end
-					token:BeginChanges()
-					token.properties:RollLoot{
-						clear = true,
-						newItems = newItems,
-					}
-					token:CompleteChanges('Generate loot')
-					resultPanel:FireEventTree('refreshInventory')
-				end,
-			}
-		end
-
-		partyItemsSlot = gui.Button{
-			icon = "icons/icon_app/icon_app_18.png",
-			classes = {"iconButton", "sizeXl"},
-			hmargin = 4,
-			tooltip = "Access Party Inventory",
-			click = function(element)
-				if token == nil or token.partyid == nil then
-					return
-				end
-				local basicInventoryDialog = GetBasicInventoryDialog(element) or self.basicInventoryDialog
-				local tradeInventoryDialog = GetTradeInventoryDialog(element) or self.tradeInventoryDialog
-				local partyInfo = dmhub.GetPartyInfo(token.partyid)
-				basicInventoryDialog.data.close()
-				tradeInventoryDialog.data.toggleOpen(partyInfo, { isobject = true, partyinventory = true, title = 'Party Inventory', tradewith = token })
-			end,
-		}
-		addItemSlot = gui.Button{
-			icon = "ui-icons/Plus.png",
-			classes = {"iconButton", "sizeXl"},
-			hmargin = 4,
-			tooltip = "Add Items",
-			click = function(element)
-				local basicInventoryDialog = GetBasicInventoryDialog(element) or self.basicInventoryDialog
-				local tradeInventoryDialog = GetTradeInventoryDialog(element) or self.tradeInventoryDialog
-				tradeInventoryDialog.data.close()
-				basicInventoryDialog.data.toggleOpen()
-			end,
-		}
-		addItemsPanel = gui.Panel{
-			id = "addItemsPanel",
-			halign = "right",
-			valign = "top",
-			width = "auto",
-			height = "auto",
-			hpad = 6,
-			gui.Panel{
-				width = "auto",
-				height = "auto",
-				uiscale = 0.7,
-				flow = "horizontal",
-				refreshShopSlot,
-				partyItemsSlot,
-				addItemSlot,
-			}
-		}
-	end
-
 	local displayedItems = {}
 	local NumPages = function()
 		local numItems = #displayedItems
@@ -1664,11 +1585,8 @@ function GameHud.CreateInventoryDialog(self, options)
 		return math.ceil(numItems / itemsPerPage)
 	end
 
+	--filled by BuildContent with the slot grid's panels.
 	local slots = {}
-	while #slots < NumRows*NumCols do
-		slots[#slots+1] = CreateInventorySlot(self, options)
-	end
-
 
 	local GetFreeSlotsInPages = function()
 		displayedItems[#displayedItems+1] = false --make sure there's an open slot on the last page.
@@ -1769,779 +1687,805 @@ function GameHud.CreateInventoryDialog(self, options)
 		end
 	end
 
-	local slotsContainer = gui.Panel{
+	--set by BuildContent (the basic inventory's search box); open() clears it.
+	---@type Input|nil
+	local searchInputElement = nil
 
-		styles = {
-			{
-				flow = 'horizontal',
-				wrap = true,
-				width = '100%',
-				height = '100%',
-			},
-		},
-
-		children = {
-			slots,
-		},
-
-		events = {
-			newItem = function(element, itemid)
-				focusItem = itemid
-				resultPanel:FireEventTree('refreshInventory')
-			end,
-			refreshInventory = function(element)
-				if not _opened then
-					return
-				end
-
-				local unarrangedInventory = inventory
-				local arrangedInventory = {}
-				if not basicInventory then
-					--an opened token dialog always has its token.
-					---@cast token -nil
-					--refresh the inventory from the token.
-					token.properties:SanitizeInventory()
-					inventory = token.properties.inventory
-					--the pairs() below already requires the token to have an inventory table.
-					---@cast inventory -nil
-
-					--divide into unarranged inventory and the inventory that has been manually arranged.
-					--iterate over the unarranged inventory and extract out arranged parts.
-					unarrangedInventory = DeepCopy(inventory)
-					for k,entry in pairs(inventory) do
-						if entry.slots ~= nil then
-							local mutableEntry = unarrangedInventory[k]
-							for _,slotEntry in ipairs(entry.slots) do
-								if slotEntry.slot > 0 then
-									local quantity = slotEntry.quantity
-									if quantity == nil then
-										quantity = token.properties:UnslottedQuantity(k)
-									end
-
-									arrangedInventory[#arrangedInventory+1] = {
-										id = k,
-										slot = slotEntry.slot,
-										entry = {
-											quantity = quantity,
-										},
-										item = gearTable[k],
-									}
-									if slotEntry.quantity == nil or slotEntry.quantity >= mutableEntry.quantity then
-										unarrangedInventory[k] = nil
-									else
-										mutableEntry.quantity = mutableEntry.quantity - slotEntry.quantity
-									end
-								end
+	--Builds the dialog's contents: the slot grid, search, paging, equipment and
+	--buttons. Called the first time the dialog opens (EnsureContent), not when it
+	--is created: every game hud makes three of these dialogs and most sessions
+	--never open them, so building them up front cost ~1000 panels and ~90 ms of
+	--every game load. Returns the children to add, in draw order.
+	local function BuildContent()
+		if hasAddItem then
+			if dmhub.isDM then
+				refreshShopSlot = gui.Button{
+					icon = "panels/hud/clockwise-rotation.png",
+					classes = {"iconButton", "sizeXl"},
+					hmargin = 4,
+					hover = function(element)
+						local text = "Regenerate Loot"
+						if token ~= nil and token.properties:has_key("lootTable") then
+							local dataTable = dmhub.GetTableVisible("lootTables")
+							local lootTable = dataTable[token.properties.lootTable.key]
+							if lootTable ~= nil then
+								text = string.format("Re-roll Loot: %s", lootTable:Describe(token.properties.lootTable.choiceIndex))
 							end
 						end
-					end
-
-					table.sort(arrangedInventory, function(a,b)
-						return a.slot < b.slot
-					end)
-				end
-
-
-				sortedInventory = {}
-
-                local categoryInfo = equipmentCategories[catIndex]
-				for k,entry in pairs(unarrangedInventory) do
-					if gearTable[k] ~= nil and (categoryInfo.id == "all" or gearTable[k]:try_get("equipmentCategory") == categoryInfo.id) then
-						sortedInventory[#sortedInventory+1] = {
-							id = k,
-							entry = entry,
-							item = gearTable[k],
+						gui.Tooltip(text)(element)
+					end,
+					click = function(element)
+						if token == nil then
+							return
+						end
+						token:BeginChanges()
+						token.properties:RollLoot{
+							clear = true,
+							newItems = newItems,
 						}
-					end
-				end
-
-				if basicInventory then
-					table.sort(sortedInventory, function(a,b) return a.item.name < b.item.name end)
-				end
-
-				--merge unarranged and arranged inventory together.
-				if #arrangedInventory > 0 then
-					local sorted = sortedInventory
-					sortedInventory = {}
-					local i = 1
-					for _,item in ipairs(sorted) do
-						while i <= #arrangedInventory and arrangedInventory[i].slot <= #sortedInventory+1 do
-							sortedInventory[#sortedInventory+1] = arrangedInventory[i]
-							i = i+1
-						end
-						
-						sortedInventory[#sortedInventory+1] = item
-					end
-
-					while i <= #arrangedInventory do
-						while #sortedInventory+1 < arrangedInventory[i].slot do
-							sortedInventory[#sortedInventory+1] = false
-						end
-
-						sortedInventory[#sortedInventory+1] = arrangedInventory[i]
-						i = i+1
-					end
-				end
-
-				if focusItem ~= nil then
-					for i,item in ipairs(sortedInventory) do
-						if focusItem ~= nil and item.id == focusItem then
-							local newPage = math.ceil(i / itemsPerPage)
-							newItems[item.id] = true
-							focusItem = nil
-
-							if newPage ~= npage then
-								npage = math.ceil(i / itemsPerPage)
-
-								--Fire the event again with the correct page set now.
-								resultPanel:FireEventTree('refreshInventory')
-								return
-							end
-						end
-					end
-				end
-
-				ShowInventory(sortedInventory)
+						token:CompleteChanges('Generate loot')
+						resultPanel:FireEventTree('refreshInventory')
+					end,
+				}
 			end
-		},
 
-	}
+			partyItemsSlot = gui.Button{
+				icon = "icons/icon_app/icon_app_18.png",
+				classes = {"iconButton", "sizeXl"},
+				hmargin = 4,
+				tooltip = "Access Party Inventory",
+				click = function(element)
+					if token == nil or token.partyid == nil then
+						return
+					end
+					local basicInventoryDialog = GetBasicInventoryDialog(element) or self.basicInventoryDialog
+					local tradeInventoryDialog = GetTradeInventoryDialog(element) or self.tradeInventoryDialog
+					local partyInfo = dmhub.GetPartyInfo(token.partyid)
+					basicInventoryDialog.data.close()
+					tradeInventoryDialog.data.toggleOpen(partyInfo, { isobject = true, partyinventory = true, title = 'Party Inventory', tradewith = token })
+				end,
+			}
+			addItemSlot = gui.Button{
+				icon = "ui-icons/Plus.png",
+				classes = {"iconButton", "sizeXl"},
+				hmargin = 4,
+				tooltip = "Add Items",
+				click = function(element)
+					local basicInventoryDialog = GetBasicInventoryDialog(element) or self.basicInventoryDialog
+					local tradeInventoryDialog = GetTradeInventoryDialog(element) or self.tradeInventoryDialog
+					tradeInventoryDialog.data.close()
+					basicInventoryDialog.data.toggleOpen()
+				end,
+			}
+			addItemsPanel = gui.Panel{
+				id = "addItemsPanel",
+				halign = "right",
+				valign = "top",
+				width = "auto",
+				height = "auto",
+				hpad = 6,
+				gui.Panel{
+					width = "auto",
+					height = "auto",
+					uiscale = 0.7,
+					flow = "horizontal",
+					refreshShopSlot,
+					partyItemsSlot,
+					addItemSlot,
+				}
+			}
+		end
 
-	local dragTarget = nil
-	
-	if not basicInventory then
-		dragTarget = gui.Panel{
-			bgimage = true,
-            bgcolor = "clear",
-			dragTarget = true,
-			interactable = false,
+		while #slots < NumRows*NumCols do
+			slots[#slots+1] = CreateInventorySlot(self, options)
+		end
 
-			styles = ThemeEngine.MergeTokens{
+		local slotsContainer = gui.Panel{
+
+			styles = {
 				{
+					flow = 'horizontal',
+					wrap = true,
 					width = '100%',
 					height = '100%',
 				},
-
-				{
-					selectors = 'drag-target',
-                    borderWidth = 2,
-                    borderColor = "@accent",
-				},
-				{
-					selectors = 'drag-target-hover',
-                    borderWidth = 2,
-                    borderColor = "@accentHover",
-				},
-
-			},
-
-			data = {
-				AddItem = AddItem,
-				inventoryDragTarget = not basicInventory,
-				GetToken = function()
-					return token
-				end,
-
-				CannotAfford = function()
-					if currencyPanel ~= nil then
-						currencyPanel:FireEventTree("cannotAfford")
-					end
-				end,
-			},
-		}
-	end
-
-	local containerAndDragTarget = gui.Panel{
-		style = {
-			width = NumCols*SlotDim,
-			height = NumRows*SlotDim,
-			flow = 'none',
-		},
-		children = {
-			slotsContainer,
-			dragTarget,
-		}
-	}
-
-
-	local searchInput = nil
-
-	local searchInputElement = nil
-
-	if basicInventory then
-
-		searchInput = gui.Panel{
-			style = {
-				--NOT a percentage: the enclosing 'inventory-main' column is a
-				--fixed 500 wide, deliberately wider than the dialog frame so
-				--the category paging arrows hang outside it. A percentage
-				--width here inherits that overhang and pushes the search field
-				--out through the frame. Match the slot grid instead -- the
-				--widest thing that is actually inside the frame -- so the field
-				--lines up with the slots below it.
-				width = NumCols*SlotDim,
-				fontSize = '30%',
-				height = 20,
-				halign = 'center',
-				valign = 'top',
-				vmargin = 0,
-			},
-			children = {
-				--the canonical search field; look comes from DefaultStyles'
-				--searchInput rules, borderBox keeps its hpad 24 inside the
-				--width. Height 20 is the minimum for the pill's cornerRadius 9.
-				--
-				--edit/change go in as TOP-LEVEL args, not in an events = {}
-				--table: gui.SearchInput installs its own top-level edit and
-				--change defaults, and when both forms are present the winner is
-				--whichever key the arg table happens to iterate last -- so the
-				--events form loses search-as-you-type at random, leaving only
-				--the change on Enter. Top level overwrites the default inside
-				--gui.SearchInput's merge loop, which is deterministic.
-				gui.SearchInput{
-					id = 'search-input',
-					placeholderText = 'Search...',
-					borderBox = true,
-					width = '100%',
-					height = 20,
-					editlag = 0.25,
-					edit = function(element)
-						if search ~= element.text then
-							npage = 1
-							search = element.text
-							resultPanel:FireEventTree('refreshInventory')
-						end
-					end,
-					change = function(element)
-						if search ~= element.text then
-							npage = 1
-							search = element.text
-							resultPanel:FireEventTree('refreshInventory')
-						end
-					end,
-				},
-
-			}
-		}
-
-		searchInputElement = searchInput.children[1]
-	end
-
-	local categoryPaging = nil
-	
-	if basicInventory then
-
-		categoryPaging = gui.Panel{
-			id = 'category-paging-panel',
-			styles = {
-				{
-					width = '100%',
-					height = 32,
-					flow = 'horizontal',
-				},
-				{
-					selectors = {'hover', 'paging-arrow'},
-					brightness = 2,
-				},
-				{
-					selectors = {'press', 'paging-arrow'},
-					brightness = 0.7,
-				},
 			},
 
 			children = {
-				gui.Panel{
-					bgimage = 'panels/InventoryArrow.png',
-					classes = {'paging-arrow', 'image'},
-					style = {
-						height = '100%',
-						width = '50% height',
-						halign = 'left',
-						hmargin = 40,
-					},
-
-					events = {
-						refreshInventory = function(element)
-						end,
-
-						click = function(element)
-							catIndex = catIndex - 1
-							npage = 1
-							if catIndex < 1 then
-								catIndex = #equipmentCategories
-							end
-							resultPanel:FireEventTree('refreshInventory')
-						end,
-					},
-
-				},
-
-				gui.Label{
-					style = {
-						fontSize = '35%',
-						width = 'auto',
-						height = 'auto',
-						halign = 'center',
-					},
-					events = {
-						refreshInventory = function(element)
-							if not _opened then
-								return
-							end
-							element.text = equipmentCategories[catIndex].text
-						end,
-					}
-				},
-
-				gui.Panel{
-					bgimage = 'panels/InventoryArrow.png',
-					classes = {'paging-arrow', 'image'},
-					style = {
-						scale = {x = -1, y = 1},
-						height = '100%',
-						width = '50% height',
-						halign = 'right',
-						hmargin = 40,
-					},
-
-					events = {
-						refreshInventory = function(element)
-						end,
-
-						click = function(element)
-							catIndex = catIndex + 1
-							npage = 1
-							if catIndex > #equipmentCategories then
-								catIndex = 1
-							end
-							resultPanel:FireEventTree('refreshInventory')
-						end,
-					},
-				},
-
+				slots,
 			},
-		}
 
-	end
-
-	local newItemButton = nil
-
-	if basicInventory then
-		newItemButton = gui.Button{
-			classes = {"addButton", "sizeL"},
-			id = 'create-item-inventory-button',
-			halign = 'right',
-			valign = 'bottom',
-			floating = true,
 			events = {
-				hover = gui.Tooltip('Add New Item'),
-				click = function(element)
-					self.createItemDialog.data.show(resultPanel)
+				newItem = function(element, itemid)
+					focusItem = itemid
+					resultPanel:FireEventTree('refreshInventory')
 				end,
-			},
-		}
-	end
-
-	if options.currency then
-
-		local CreateCurrencyIcon = function(id, iconid)
-
-			return gui.Panel{
-				bgimage = iconid,
-				styles = ThemeEngine.MergeTokens{
-					{
-						height = '100%',
-						width = '100% height',
-						bgcolor = "white",
-					},
-					{
-						selectors = {"cannotAfford"},
-						bgcolor = "@danger",
-					},
-
-				},
-
-				rightClick = function(element)
-
-					if (not options.basicInventory) and ((not options.tradeInventory) or token ~= nil and token.type == 'party') and token ~= nil then
-
-						local items = {}
-
-						if token.partyid ~= nil and token.type ~= 'party' then
-							items[#items+1] = {
-								token = dmhub.GetPartyInfo(token.partyid),
-								name = "Party Stash",
-							}
-						end
-
-						for i,otherToken in pairs(self.tokenInfo.tokens) do
-							if otherToken.playerControlled and otherToken.id ~= token.id and otherToken.properties ~= nil then
-								items[#items+1] = {
-									token = otherToken,
-									name = otherToken.name,
-								}
-							end
-						end
-
-						local sendToItems = {}
-						for i,entry in pairs(items) do
-							local otherToken = entry.token
-							sendToItems[#sendToItems+1] = {
-								text = entry.name,
-								click = function()
-
-									element.popup = nil
-									local GiveItem = function(quantity)
-										if otherToken.valid then
-											otherToken:BeginChanges()
-											otherToken.properties:SetCurrency(id, otherToken.properties:GetCurrency(id) + quantity, string.format(tr("Given by %s"), token.name or tr("Unknown")))
-											otherToken:CompleteChanges(tr('Receive currency'))
-
-											token:BeginChanges()
-											token.properties:SetCurrency(id, token.properties:GetCurrency(id) - quantity, string.format(tr("Transferred to %s"), otherToken.name or tr("Unknown")))
-											token:CompleteChanges(tr('Give currency'))
-
-											resultPanel:FireEventTree('refreshInventory')
-										end
-									end
-
-
-									local quantity = token.properties:GetCurrency(id)
-									if quantity == 1 then
-										dmhub.Debug('GIVE ITEM')
-										GiveItem(1)
-									elseif quantity > 1 then
-										element.popup = QuantityPopup{
-											value = quantity,
-											maxValue = quantity,
-											confirm = function(numItems)
-												element.popup = nil
-												GiveItem(numItems)
-											end,
-											cancel = function()
-												element.popup = nil
-											end,
-										}
-									end
-								end,
-							}
-						end
-
-						local contextMenuItems = {}
-						contextMenuItems[#contextMenuItems+1] =
-							{
-								text = 'Give To',
-								submenu = sendToItems
-							}
-						
-
-						element.popup = gui.ContextMenu {
-							entries = contextMenuItems,
-						}
-					end
-
-
-
-				end,
-
-				cannotAffordOn = function(element)
-					element:SetClass("cannotAfford", true)
-				end,
-
-				cannotAffordOff = function(element)
-					element:SetClass("cannotAfford", false)
-				end,
-
-				cannotAfford = function(element)
-					element:FireEvent("cannotAffordOn")
-					element:ScheduleEvent("cannotAffordOff", 0.1)
-					element:ScheduleEvent("cannotAffordOn", 0.2)
-					element:ScheduleEvent("cannotAffordOff", 0.3)
-					element:ScheduleEvent("cannotAffordOn", 0.4)
-					element:ScheduleEvent("cannotAffordOff", 0.5)
-				end,
-
-				linger = function(element)
-					--currency icons are only visible in an opened token dialog.
-					---@cast token -nil
-					local currencyTable = dmhub.GetTable(Currency.tableName) or {}
-					local currency = currencyTable[id]
-					if currency == nil then
+				refreshInventory = function(element)
+					if not _opened then
 						return
 					end
 
-					local totalValue = 0
-					for k,c in pairs(currencyTable) do
-						if c.standard == currency.standard and (not c.hidden) then
-							totalValue = totalValue + c:UnitValue()*token.properties:GetCurrency(k)
+					local unarrangedInventory = inventory
+					local arrangedInventory = {}
+					if not basicInventory then
+						--an opened token dialog always has its token.
+						---@cast token -nil
+						--refresh the inventory from the token.
+						token.properties:SanitizeInventory()
+						inventory = token.properties.inventory
+						--the pairs() below already requires the token to have an inventory table.
+						---@cast inventory -nil
+
+						--divide into unarranged inventory and the inventory that has been manually arranged.
+						--iterate over the unarranged inventory and extract out arranged parts.
+						unarrangedInventory = DeepCopy(inventory)
+						for k,entry in pairs(inventory) do
+							if entry.slots ~= nil then
+								local mutableEntry = unarrangedInventory[k]
+								for _,slotEntry in ipairs(entry.slots) do
+									if slotEntry.slot > 0 then
+										local quantity = slotEntry.quantity
+										if quantity == nil then
+											quantity = token.properties:UnslottedQuantity(k)
+										end
+
+										arrangedInventory[#arrangedInventory+1] = {
+											id = k,
+											slot = slotEntry.slot,
+											entry = {
+												quantity = quantity,
+											},
+											item = gearTable[k],
+										}
+										if slotEntry.quantity == nil or slotEntry.quantity >= mutableEntry.quantity then
+											unarrangedInventory[k] = nil
+										else
+											mutableEntry.quantity = mutableEntry.quantity - slotEntry.quantity
+										end
+									end
+								end
+							end
+						end
+
+						table.sort(arrangedInventory, function(a,b)
+							return a.slot < b.slot
+						end)
+					end
+
+
+					sortedInventory = {}
+
+	                local categoryInfo = equipmentCategories[catIndex]
+					for k,entry in pairs(unarrangedInventory) do
+						if gearTable[k] ~= nil and (categoryInfo.id == "all" or gearTable[k]:try_get("equipmentCategory") == categoryInfo.id) then
+							sortedInventory[#sortedInventory+1] = {
+								id = k,
+								entry = entry,
+								item = gearTable[k],
+							}
 						end
 					end
-					local text = currency.name
-					if currency.details ~= '' then
-						text = string.format("%s: %s", text, currency.details)
+
+					if basicInventory then
+						table.sort(sortedInventory, function(a,b) return a.item.name < b.item.name end)
 					end
 
-					local standardCurrency = currencyTable[currency.standard]
-					if currency:UnitValue() ~= 1 and token.properties:GetCurrency(id) ~= 0 and standardCurrency ~= nil then
-						text = string.format("%s\n%s %s = %s %s", text, format_decimal(token.properties:GetCurrency(id)), currency.name, format_decimal(token.properties:GetCurrency(id)*currency:UnitValue()), standardCurrency.name)
-					end
-
-					if standardCurrency ~= nil then
-						text = string.format("%s\nTotal = %s %s", text, format_decimal(totalValue), standardCurrency.name)
+					--merge unarranged and arranged inventory together.
+					if #arrangedInventory > 0 then
+						local sorted = sortedInventory
+						sortedInventory = {}
+						local i = 1
+						for _,item in ipairs(sorted) do
+							while i <= #arrangedInventory and arrangedInventory[i].slot <= #sortedInventory+1 do
+								sortedInventory[#sortedInventory+1] = arrangedInventory[i]
+								i = i+1
+							end
 						
+							sortedInventory[#sortedInventory+1] = item
+						end
+
+						while i <= #arrangedInventory do
+							while #sortedInventory+1 < arrangedInventory[i].slot do
+								sortedInventory[#sortedInventory+1] = false
+							end
+
+							sortedInventory[#sortedInventory+1] = arrangedInventory[i]
+							i = i+1
+						end
 					end
 
-					element.tooltip = gui.Tooltip(text)(element)
-				end,
+					if focusItem ~= nil then
+						for i,item in ipairs(sortedInventory) do
+							if focusItem ~= nil and item.id == focusItem then
+								local newPage = math.ceil(i / itemsPerPage)
+								newItems[item.id] = true
+								focusItem = nil
+
+								if newPage ~= npage then
+									npage = math.ceil(i / itemsPerPage)
+
+									--Fire the event again with the correct page set now.
+									resultPanel:FireEventTree('refreshInventory')
+									return
+								end
+							end
+						end
+					end
+
+					ShowInventory(sortedInventory)
+				end
+			},
+
+		}
+
+		local dragTarget = nil
+	
+		if not basicInventory then
+			dragTarget = gui.Panel{
+				bgimage = true,
+	            bgcolor = "clear",
+				dragTarget = true,
+				interactable = false,
+
+				styles = ThemeEngine.MergeTokens{
+					{
+						width = '100%',
+						height = '100%',
+					},
+
+					{
+						selectors = 'drag-target',
+	                    borderWidth = 2,
+	                    borderColor = "@accent",
+					},
+					{
+						selectors = 'drag-target-hover',
+	                    borderWidth = 2,
+	                    borderColor = "@accentHover",
+					},
+
+				},
+
+				data = {
+					AddItem = AddItem,
+					inventoryDragTarget = not basicInventory,
+					GetToken = function()
+						return token
+					end,
+
+					CannotAfford = function()
+						if currencyPanel ~= nil then
+							currencyPanel:FireEventTree("cannotAfford")
+						end
+					end,
+				},
 			}
 		end
 
-		local CreateCurrencyEntry = function(input)
-			return gui.Panel{
+		local containerAndDragTarget = gui.Panel{
+			style = {
+				width = NumCols*SlotDim,
+				height = NumRows*SlotDim,
+				flow = 'none',
+			},
+			children = {
+				slotsContainer,
+				dragTarget,
+			}
+		}
+
+
+		local searchInput = nil
+
+		if basicInventory then
+
+			searchInput = gui.Panel{
 				style = {
-					height = '80%',
-					width = "auto",
-					valign = 'center',
-					hmargin = 2,
+					--NOT a percentage: the enclosing 'inventory-main' column is a
+					--fixed 500 wide, deliberately wider than the dialog frame so
+					--the category paging arrows hang outside it. A percentage
+					--width here inherits that overhang and pushes the search field
+					--out through the frame. Match the slot grid instead -- the
+					--widest thing that is actually inside the frame -- so the field
+					--lines up with the slots below it.
+					width = NumCols*SlotDim,
+					fontSize = '30%',
+					height = 20,
+					halign = 'center',
+					valign = 'top',
+					vmargin = 0,
+				},
+				children = {
+					--the canonical search field; look comes from DefaultStyles'
+					--searchInput rules, borderBox keeps its hpad 24 inside the
+					--width. Height 20 is the minimum for the pill's cornerRadius 9.
+					--
+					--edit/change go in as TOP-LEVEL args, not in an events = {}
+					--table: gui.SearchInput installs its own top-level edit and
+					--change defaults, and when both forms are present the winner is
+					--whichever key the arg table happens to iterate last -- so the
+					--events form loses search-as-you-type at random, leaving only
+					--the change on Enter. Top level overwrites the default inside
+					--gui.SearchInput's merge loop, which is deterministic.
+					gui.SearchInput{
+						id = 'search-input',
+						placeholderText = 'Search...',
+						borderBox = true,
+						width = '100%',
+						height = 20,
+						editlag = 0.25,
+						edit = function(element)
+							if search ~= element.text then
+								npage = 1
+								search = element.text
+								resultPanel:FireEventTree('refreshInventory')
+							end
+						end,
+						change = function(element)
+							if search ~= element.text then
+								npage = 1
+								search = element.text
+								resultPanel:FireEventTree('refreshInventory')
+							end
+						end,
+					},
+
+				}
+			}
+
+			searchInputElement = searchInput.children[1] --[[@as Input]]
+		end
+
+		local categoryPaging = nil
+	
+		if basicInventory then
+
+			categoryPaging = gui.Panel{
+				id = 'category-paging-panel',
+				styles = {
+					{
+						width = '100%',
+						height = 32,
+						flow = 'horizontal',
+					},
+					{
+						selectors = {'hover', 'paging-arrow'},
+						brightness = 2,
+					},
+					{
+						selectors = {'press', 'paging-arrow'},
+						brightness = 0.7,
+					},
 				},
 
 				children = {
-					input,
+					gui.Panel{
+						bgimage = 'panels/InventoryArrow.png',
+						classes = {'paging-arrow', 'image'},
+						style = {
+							height = '100%',
+							width = '50% height',
+							halign = 'left',
+							hmargin = 40,
+						},
+
+						events = {
+							refreshInventory = function(element)
+							end,
+
+							click = function(element)
+								catIndex = catIndex - 1
+								npage = 1
+								if catIndex < 1 then
+									catIndex = #equipmentCategories
+								end
+								resultPanel:FireEventTree('refreshInventory')
+							end,
+						},
+
+					},
+
+					gui.Label{
+						style = {
+							fontSize = '35%',
+							width = 'auto',
+							height = 'auto',
+							halign = 'center',
+						},
+						events = {
+							refreshInventory = function(element)
+								if not _opened then
+									return
+								end
+								element.text = equipmentCategories[catIndex].text
+							end,
+						}
+					},
+
+					gui.Panel{
+						bgimage = 'panels/InventoryArrow.png',
+						classes = {'paging-arrow', 'image'},
+						style = {
+							scale = {x = -1, y = 1},
+							height = '100%',
+							width = '50% height',
+							halign = 'right',
+							hmargin = 40,
+						},
+
+						events = {
+							refreshInventory = function(element)
+							end,
+
+							click = function(element)
+								catIndex = catIndex + 1
+								npage = 1
+								if catIndex > #equipmentCategories then
+									catIndex = 1
+								end
+								resultPanel:FireEventTree('refreshInventory')
+							end,
+						},
+					},
+
+				},
+			}
+
+		end
+
+		local newItemButton = nil
+
+		if basicInventory then
+			newItemButton = gui.Button{
+				classes = {"addButton", "sizeL"},
+				id = 'create-item-inventory-button',
+				halign = 'right',
+				valign = 'bottom',
+				floating = true,
+				events = {
+					hover = gui.Tooltip('Add New Item'),
+					click = function(element)
+						self.createItemDialog.data.show(resultPanel)
+					end,
 				},
 			}
 		end
 
-		local currencyMainPanel
-		local currencyChildPanels = {}
+		if options.currency then
 
-		local currencyTable = dmhub.GetTable(Currency.tableName) or {}
+			local CreateCurrencyIcon = function(id, iconid)
 
-		--mapping of currency id of standard -> list of currencies using this standard.
-		local currencyStandards = Currency.MonetaryStandards()
+				return gui.Panel{
+					bgimage = iconid,
+					styles = ThemeEngine.MergeTokens{
+						{
+							height = '100%',
+							width = '100% height',
+							bgcolor = "white",
+						},
+						{
+							selectors = {"cannotAfford"},
+							bgcolor = "@danger",
+						},
 
-		for k,standardEntry in pairs(currencyStandards) do
-			local standardid = k
+					},
 
-			local childItems = {}
-			for i,currency in ipairs(standardEntry) do
-				childItems[#childItems+1] = CreateCurrencyIcon(currency.id, currency.iconid)
+					rightClick = function(element)
 
-				local currencyid = currency.id
+						if (not options.basicInventory) and ((not options.tradeInventory) or token ~= nil and token.type == 'party') and token ~= nil then
 
-				local input = gui.Label{
-					minWidth = 30,
-					width = 'auto',
-					editable = true,
-					text = '5',
-					events = {
-						change = function(element)
-							--only editable while an opened token dialog shows it.
-							---@cast token -nil
-							local baseval = 0
-							local mult = 1
-							local val = element.text
-							local note = nil
-							if string.starts_with(val, "+") then
-								baseval = token.properties:GetCurrency(currencyid)
-								val = string.sub(val, 2)
-								note = string.format("Added %s", val)
-							elseif string.starts_with(val, "-") then
-								val = string.sub(val, 2)
-								baseval = token.properties:GetCurrency(currencyid)
-								mult = -1
-								note = string.format("Subtracted %s", val)
+							local items = {}
+
+							if token.partyid ~= nil and token.type ~= 'party' then
+								items[#items+1] = {
+									token = dmhub.GetPartyInfo(token.partyid),
+									name = "Party Stash",
+								}
 							end
 
-							local num = tonumber(val)
-							if num == nil then
-								element.text = tostring(token.properties:GetCurrency(currencyid))
-								return
-							end
-
-							num = baseval + num*mult
-
-							--we are going negative, so re-normalize our currency.
-							if num < 0 then
-
-								local val = {}
-								for i,currency in ipairs(standardEntry) do
-									local quantity
-
-									if currencyid == currency.id then
-										quantity = num
-									else
-										quantity = token.properties:GetCurrency(currency.id)
-									end
-
-									val[currency.id] = quantity
+							for i,otherToken in pairs(self.tokenInfo.tokens) do
+								if otherToken.playerControlled and otherToken.id ~= token.id and otherToken.properties ~= nil then
+									items[#items+1] = {
+										token = otherToken,
+										name = otherToken.name,
+									}
 								end
-
-								local spend = Currency.CalculatePayment(Currency.CalculatePriceInStandard(val, standardid), standardid, true)
-
-								printf("SPEND:: %s", json(spend))
-
-								local canAfford = true
-								for k,v in pairs(spend) do
-									if v < 0 then
-										canAfford = false
-									end
-								end
-
-								if canAfford then
-
-									token:BeginChanges()
-									for i,currency in ipairs(standardEntry) do
-										local currencyid = currency.id
-										token.properties:SetCurrency(currencyid, spend[currencyid] or 0)
-									end
-									token:CompleteChanges('Normalized currency')
-
-								else
-									currencyMainPanel:FireEventTree('cannotAfford')
-									element.text = tostring(token.properties:GetCurrency(currencyid))
-								end
-
-							else
-								element.text = tostring(num)
-								token:BeginChanges()
-								token.properties:SetCurrency(currencyid, num, note)
-								token:CompleteChanges("Changed currency")
 							end
 
-						end,
-						refreshInventory = function(element)
-							if token == nil then
-								dmhub.Debug(string.format("TOKEN IS NULL: %s", permanentOptions.title or "(no title)"))
-								return
+							local sendToItems = {}
+							for i,entry in pairs(items) do
+								local otherToken = entry.token
+								sendToItems[#sendToItems+1] = {
+									text = entry.name,
+									click = function()
+
+										element.popup = nil
+										local GiveItem = function(quantity)
+											if otherToken.valid then
+												otherToken:BeginChanges()
+												otherToken.properties:SetCurrency(id, otherToken.properties:GetCurrency(id) + quantity, string.format(tr("Given by %s"), token.name or tr("Unknown")))
+												otherToken:CompleteChanges(tr('Receive currency'))
+
+												token:BeginChanges()
+												token.properties:SetCurrency(id, token.properties:GetCurrency(id) - quantity, string.format(tr("Transferred to %s"), otherToken.name or tr("Unknown")))
+												token:CompleteChanges(tr('Give currency'))
+
+												resultPanel:FireEventTree('refreshInventory')
+											end
+										end
+
+
+										local quantity = token.properties:GetCurrency(id)
+										if quantity == 1 then
+											dmhub.Debug('GIVE ITEM')
+											GiveItem(1)
+										elseif quantity > 1 then
+											element.popup = QuantityPopup{
+												value = quantity,
+												maxValue = quantity,
+												confirm = function(numItems)
+													element.popup = nil
+													GiveItem(numItems)
+												end,
+												cancel = function()
+													element.popup = nil
+												end,
+											}
+										end
+									end,
+								}
 							end
-							element.text = string.format("%d", toint(token.properties:GetCurrency(currencyid)))
-						end,
-					}
+
+							local contextMenuItems = {}
+							contextMenuItems[#contextMenuItems+1] =
+								{
+									text = 'Give To',
+									submenu = sendToItems
+								}
+						
+
+							element.popup = gui.ContextMenu {
+								entries = contextMenuItems,
+							}
+						end
+
+
+
+					end,
+
+					cannotAffordOn = function(element)
+						element:SetClass("cannotAfford", true)
+					end,
+
+					cannotAffordOff = function(element)
+						element:SetClass("cannotAfford", false)
+					end,
+
+					cannotAfford = function(element)
+						element:FireEvent("cannotAffordOn")
+						element:ScheduleEvent("cannotAffordOff", 0.1)
+						element:ScheduleEvent("cannotAffordOn", 0.2)
+						element:ScheduleEvent("cannotAffordOff", 0.3)
+						element:ScheduleEvent("cannotAffordOn", 0.4)
+						element:ScheduleEvent("cannotAffordOff", 0.5)
+					end,
+
+					linger = function(element)
+						--currency icons are only visible in an opened token dialog.
+						---@cast token -nil
+						local currencyTable = dmhub.GetTable(Currency.tableName) or {}
+						local currency = currencyTable[id]
+						if currency == nil then
+							return
+						end
+
+						local totalValue = 0
+						for k,c in pairs(currencyTable) do
+							if c.standard == currency.standard and (not c.hidden) then
+								totalValue = totalValue + c:UnitValue()*token.properties:GetCurrency(k)
+							end
+						end
+						local text = currency.name
+						if currency.details ~= '' then
+							text = string.format("%s: %s", text, currency.details)
+						end
+
+						local standardCurrency = currencyTable[currency.standard]
+						if currency:UnitValue() ~= 1 and token.properties:GetCurrency(id) ~= 0 and standardCurrency ~= nil then
+							text = string.format("%s\n%s %s = %s %s", text, format_decimal(token.properties:GetCurrency(id)), currency.name, format_decimal(token.properties:GetCurrency(id)*currency:UnitValue()), standardCurrency.name)
+						end
+
+						if standardCurrency ~= nil then
+							text = string.format("%s\nTotal = %s %s", text, format_decimal(totalValue), standardCurrency.name)
+						
+						end
+
+						element.tooltip = gui.Tooltip(text)(element)
+					end,
 				}
-				childItems[#childItems+1] = CreateCurrencyEntry(input)
 			end
 
-			childItems[#childItems+1] = gui.Button{
-				id = "normalizeInventoryButton",
-				classes = {"sizeS"},
-				icon = "ui-icons/icon-rotate.png",
-				valign = "center",
+			local CreateCurrencyEntry = function(input)
+				return gui.Panel{
+					style = {
+						height = '80%',
+						width = "auto",
+						valign = 'center',
+						hmargin = 2,
+					},
 
-				press = function(element)
-					--only pressable while an opened token dialog shows it.
-					---@cast token -nil
-					local val = {}
-					for i,currency in ipairs(standardEntry) do
-						local currencyid = currency.id
-						val[currencyid] = token.properties:GetCurrency(currencyid)
-					end
+					children = {
+						input,
+					},
+				}
+			end
 
-					local spend = Currency.CalculatePayment(Currency.CalculatePriceInStandard(val, standardid), standardid, true)
+			local currencyMainPanel
+			local currencyChildPanels = {}
 
-					token:BeginChanges()
-					for i,currency in ipairs(standardEntry) do
-						local currencyid = currency.id
-						token.properties:SetCurrency(currencyid, spend[currencyid] or 0)
-					end
-					token:CompleteChanges('Normalized currency')
+			local currencyTable = dmhub.GetTable(Currency.tableName) or {}
 
-				end,
-			}
+			--mapping of currency id of standard -> list of currencies using this standard.
+			local currencyStandards = Currency.MonetaryStandards()
 
-			currencyMainPanel = gui.Panel{
-				styles = {
-					{
-						flow = 'horizontal',
-						height = 30,
-						width = '80%',
-						halign = 'left',
-						valign = 'top',
+			for k,standardEntry in pairs(currencyStandards) do
+				local standardid = k
+
+				local childItems = {}
+				for i,currency in ipairs(standardEntry) do
+					childItems[#childItems+1] = CreateCurrencyIcon(currency.id, currency.iconid)
+
+					local currencyid = currency.id
+
+					local input = gui.Label{
+						minWidth = 30,
+						width = 'auto',
+						editable = true,
+						text = '5',
+						events = {
+							change = function(element)
+								--only editable while an opened token dialog shows it.
+								---@cast token -nil
+								local baseval = 0
+								local mult = 1
+								local val = element.text
+								local note = nil
+								if string.starts_with(val, "+") then
+									baseval = token.properties:GetCurrency(currencyid)
+									val = string.sub(val, 2)
+									note = string.format("Added %s", val)
+								elseif string.starts_with(val, "-") then
+									val = string.sub(val, 2)
+									baseval = token.properties:GetCurrency(currencyid)
+									mult = -1
+									note = string.format("Subtracted %s", val)
+								end
+
+								local num = tonumber(val)
+								if num == nil then
+									element.text = tostring(token.properties:GetCurrency(currencyid))
+									return
+								end
+
+								num = baseval + num*mult
+
+								--we are going negative, so re-normalize our currency.
+								if num < 0 then
+
+									local val = {}
+									for i,currency in ipairs(standardEntry) do
+										local quantity
+
+										if currencyid == currency.id then
+											quantity = num
+										else
+											quantity = token.properties:GetCurrency(currency.id)
+										end
+
+										val[currency.id] = quantity
+									end
+
+									local spend = Currency.CalculatePayment(Currency.CalculatePriceInStandard(val, standardid), standardid, true)
+
+									printf("SPEND:: %s", json(spend))
+
+									local canAfford = true
+									for k,v in pairs(spend) do
+										if v < 0 then
+											canAfford = false
+										end
+									end
+
+									if canAfford then
+
+										token:BeginChanges()
+										for i,currency in ipairs(standardEntry) do
+											local currencyid = currency.id
+											token.properties:SetCurrency(currencyid, spend[currencyid] or 0)
+										end
+										token:CompleteChanges('Normalized currency')
+
+									else
+										currencyMainPanel:FireEventTree('cannotAfford')
+										element.text = tostring(token.properties:GetCurrency(currencyid))
+									end
+
+								else
+									element.text = tostring(num)
+									token:BeginChanges()
+									token.properties:SetCurrency(currencyid, num, note)
+									token:CompleteChanges("Changed currency")
+								end
+
+							end,
+							refreshInventory = function(element)
+								if token == nil then
+									dmhub.Debug(string.format("TOKEN IS NULL: %s", permanentOptions.title or "(no title)"))
+									return
+								end
+								element.text = string.format("%d", toint(token.properties:GetCurrency(currencyid)))
+							end,
+						}
 					}
+					childItems[#childItems+1] = CreateCurrencyEntry(input)
+				end
+
+				childItems[#childItems+1] = gui.Button{
+					id = "normalizeInventoryButton",
+					classes = {"sizeS"},
+					icon = "ui-icons/icon-rotate.png",
+					valign = "center",
+
+					press = function(element)
+						--only pressable while an opened token dialog shows it.
+						---@cast token -nil
+						local val = {}
+						for i,currency in ipairs(standardEntry) do
+							local currencyid = currency.id
+							val[currencyid] = token.properties:GetCurrency(currencyid)
+						end
+
+						local spend = Currency.CalculatePayment(Currency.CalculatePriceInStandard(val, standardid), standardid, true)
+
+						token:BeginChanges()
+						for i,currency in ipairs(standardEntry) do
+							local currencyid = currency.id
+							token.properties:SetCurrency(currencyid, spend[currencyid] or 0)
+						end
+						token:CompleteChanges('Normalized currency')
+
+					end,
+				}
+
+				currencyMainPanel = gui.Panel{
+					styles = {
+						{
+							flow = 'horizontal',
+							height = 30,
+							width = '80%',
+							halign = 'left',
+							valign = 'top',
+						}
+					},
+
+					children = childItems,
+				}
+
+				currencyChildPanels[#currencyChildPanels+1] = currencyMainPanel
+			end
+
+			currencyPanel = gui.Panel{
+				style = {
+					width = '100%',
+					height = 'auto',
+					fontSize = '40%',
 				},
-
-				children = childItems,
+				children = currencyChildPanels,
 			}
-
-			currencyChildPanels[#currencyChildPanels+1] = currencyMainPanel
 		end
 
-		currencyPanel = gui.Panel{
-			style = {
-				width = '100%',
-				height = 'auto',
-				fontSize = '40%',
-			},
-			children = currencyChildPanels,
-		}
-	end
-
-	if options.equipment and GameSystem.encumbrance then
-		encumbrancePanel = gui.Panel{
-			width = 160,
-			height = 20,
-			floating = true,
-			valign = "bottom",
-			flow = "horizontal",
-			halign = "left",
-			vmargin = 20,
-			hmargin = 20,
-			refreshInventory = function(element)
-				element:SetClass("hidden", permanentOptions.isshop)
-			end,
-
-			hover = function(element)
-				--only hoverable while an opened token dialog shows it.
-				---@cast token -nil
-				local capacity = token.properties:CarryingCapacity()
-				local weight = round(token.properties:GetInventoryWeight()*100)*0.01
-				local text = string.format("Weight: %s lbs.", tostring(weight))
-				if capacity ~= nil then
-					text = text .. string.format("\nCarrying Capacity: %s lbs.", tostring(capacity))
-				end
-				gui.Tooltip(text)(element)
-			end,
-
-			gui.Panel{
-				bgimage = mod.images.weight,
-				width = 20,
-				height = 20,
-				styles = ThemeEngine.MergeTokens{
-					{
-						bgcolor = "@fg",
-					},
-				},
-				halign = "left",
-			},
-
-			gui.Label{
-				classes = {"sizeM"},
-				height = "auto",
-				width = "auto",
-				halign = "left",
-				hmargin = 4,
-				text = "Encumbrance",
-				refreshInventory = function(element)
-					--no _opened check here, so this also runs on a dialog never opened.
-					if permanentOptions.isshop or token == nil then
-						return
-					end
-
-					local capacity = token.properties:CarryingCapacity()
-					local weight = token.properties:GetInventoryWeight()
-					if capacity ~= nil then
-						element.text = string.format("%s/%s", tostring(math.floor(weight)), tostring(capacity))
-						element:SetClass("danger", weight > capacity)
-					else
-						element.text = tostring(weight)
-						element:SetClass("danger", false)
-					end
-				end,
-			},
-		}
-
-		if dmhub.isDM then
-			discountPanel = gui.Panel{
-
+		if options.equipment and GameSystem.encumbrance then
+			encumbrancePanel = gui.Panel{
 				width = 160,
 				height = 20,
 				floating = true,
@@ -2550,183 +2494,399 @@ function GameHud.CreateInventoryDialog(self, options)
 				halign = "left",
 				vmargin = 20,
 				hmargin = 20,
-
 				refreshInventory = function(element)
-					element:SetClass("hidden", not permanentOptions.isshop)
+					element:SetClass("hidden", permanentOptions.isshop)
 				end,
+
+				hover = function(element)
+					--only hoverable while an opened token dialog shows it.
+					---@cast token -nil
+					local capacity = token.properties:CarryingCapacity()
+					local weight = round(token.properties:GetInventoryWeight()*100)*0.01
+					local text = string.format("Weight: %s lbs.", tostring(weight))
+					if capacity ~= nil then
+						text = text .. string.format("\nCarrying Capacity: %s lbs.", tostring(capacity))
+					end
+					gui.Tooltip(text)(element)
+				end,
+
+				gui.Panel{
+					bgimage = mod.images.weight,
+					width = 20,
+					height = 20,
+					styles = ThemeEngine.MergeTokens{
+						{
+							bgcolor = "@fg",
+						},
+					},
+					halign = "left",
+				},
 
 				gui.Label{
 					classes = {"sizeM"},
-					textAlignment = "right",
-					width = 40,
-					height = "100%",
-					characterLimit = 4,
+					height = "auto",
+					width = "auto",
 					halign = "left",
-					editable = true,
+					hmargin = 4,
+					text = "Encumbrance",
 					refreshInventory = function(element)
-						if permanentOptions.isshop then
-							--isshop is only set by open(), which sets the token.
-							---@cast token -nil
-							element.text = tonumber(token.properties.discount)
+						--no _opened check here, so this also runs on a dialog never opened.
+						if permanentOptions.isshop or token == nil then
+							return
+						end
+
+						local capacity = token.properties:CarryingCapacity()
+						local weight = token.properties:GetInventoryWeight()
+						if capacity ~= nil then
+							element.text = string.format("%s/%s", tostring(math.floor(weight)), tostring(capacity))
+							element:SetClass("danger", weight > capacity)
+						else
+							element.text = tostring(weight)
+							element:SetClass("danger", false)
 						end
 					end,
+				},
+			}
 
-					change = function(element)
-						local n = tonumber(element.text)
-						if n ~= nil then
-							n = round(n)
-							--only editable while an opened shop dialog shows it.
-							---@cast token -nil
-							token:BeginChanges()
-							token.properties.discount = n
-							token:CompleteChanges("Changed discount")
+			if dmhub.isDM then
+				discountPanel = gui.Panel{
+
+					width = 160,
+					height = 20,
+					floating = true,
+					valign = "bottom",
+					flow = "horizontal",
+					halign = "left",
+					vmargin = 20,
+					hmargin = 20,
+
+					refreshInventory = function(element)
+						element:SetClass("hidden", not permanentOptions.isshop)
+					end,
+
+					gui.Label{
+						classes = {"sizeM"},
+						textAlignment = "right",
+						width = 40,
+						height = "100%",
+						characterLimit = 4,
+						halign = "left",
+						editable = true,
+						refreshInventory = function(element)
+							if permanentOptions.isshop then
+								--isshop is only set by open(), which sets the token.
+								---@cast token -nil
+								element.text = tonumber(token.properties.discount)
+							end
+						end,
+
+						change = function(element)
+							local n = tonumber(element.text)
+							if n ~= nil then
+								n = round(n)
+								--only editable while an opened shop dialog shows it.
+								---@cast token -nil
+								token:BeginChanges()
+								token.properties.discount = n
+								token:CompleteChanges("Changed discount")
+							end
+
+							resultPanel:FireEventTree('refreshInventory')
+						end,
+					},
+					gui.Label{
+						classes = {"sizeM"},
+						width = "auto",
+						height = "100%",
+						halign = "left",
+						text = "% Discount",
+
+					},
+				}
+			end
+		end
+
+		if options.equipment then
+			equipmentPanel = self:CreateEquipmentDialog(options)
+		end
+
+		---@type Label|Panel
+		local takeAllButton = nil
+		local lootPanel = nil
+		if tradeInventory then
+			takeAllButton = gui.Button{
+	            text = "<<Take All",
+	            classes = {"sizeS"},
+	            width = "auto",
+	            height = "auto",
+	            pad = 2,
+				events = {
+					refreshInventory = function(element)
+						if not _opened then
+							return
 						end
+						--an opened trade dialog always has its token.
+						---@cast token -nil
+
+						local totalCurrency = 0
+						for k,_ in pairs(token.properties:try_get("currency", {})) do
+							totalCurrency = totalCurrency + token.properties:GetCurrency(k)
+						end
+						element:SetClass('hidden', permanentOptions.isshop or ((token.properties.inventory == nil or next(token.properties.inventory) == nil) and totalCurrency == 0))
+					end,
+					click = function(element)
+						if tokenTradingWith == nil then
+							return
+						end
+						--only clickable while an opened trade dialog shows it.
+						---@cast token -nil
+
+						GameHud.LootAll(token, tokenTradingWith, self.inventoryDialog)
 
 						resultPanel:FireEventTree('refreshInventory')
+						self.inventoryDialog:FireEventTree('refreshInventory')
+
+						takeAllButton:SetClass('hidden', true)
+
+						if token.type == "component" and token.destroyOnEmpty then
+							---@cast token LuaObjectComponentLoot
+							resultPanel.data.close()
+							GameHud.DestroyEmptiedLoot(token)
+	                    elseif token.type == "component" and token.properties:Empty() then
+	                        local obj = token.levelObject
+	                        if obj ~= nil then
+	                            local appearanceComponent = obj:GetComponent("Appearance")
+	                            if appearanceComponent ~= nil then
+	                                appearanceComponent:SetProperty("imageNumber", 0)
+	                                appearanceComponent:Upload()
+	                            end
+	                        end
+						end
+
 					end,
 				},
-				gui.Label{
-					classes = {"sizeM"},
-					width = "auto",
-					height = "100%",
-					halign = "left",
-					text = "% Discount",
+			}
 
+			lootPanel = gui.Panel{
+				floating = true,
+				styles = {
+					{
+						halign = 'left',
+						valign = 'top',
+						width = 'auto',
+						height = 'auto',
+	                    vmargin = 34,
+						flow = 'vertical',
+					}
 				},
+				children = {
+					takeAllButton,
+
+				}
 			}
 		end
-	end
 
-	if options.equipment then
-		equipmentPanel = self:CreateEquipmentDialog(options)
-	end
-
-	---@type Label|Panel
-	local takeAllButton = nil
-	local lootPanel = nil
-	if tradeInventory then
-		takeAllButton = gui.Button{
-            text = "<<Take All",
-            classes = {"sizeS"},
-            width = "auto",
-            height = "auto",
-            pad = 2,
-			events = {
+		local slotBorder
+		local inventoryTitleLabel
+		local closeButton
+		if not options.charsheet then
+			slotBorder = SlotBorder{}
+			closeButton = gui.Button{
+				classes = {"closeButton"},
+				floating = true,
+				halign = 'right',
+				valign = 'top',
 				refreshInventory = function(element)
 					if not _opened then
 						return
 					end
-					--an opened trade dialog always has its token.
-					---@cast token -nil
-
-					local totalCurrency = 0
-					for k,_ in pairs(token.properties:try_get("currency", {})) do
-						totalCurrency = totalCurrency + token.properties:GetCurrency(k)
-					end
-					element:SetClass('hidden', permanentOptions.isshop or ((token.properties.inventory == nil or next(token.properties.inventory) == nil) and totalCurrency == 0))
+					element:SetClass('hidden', tradeInventory)
 				end,
 				click = function(element)
-					if tokenTradingWith == nil then
-						return
-					end
-					--only clickable while an opened trade dialog shows it.
-					---@cast token -nil
-
-					GameHud.LootAll(token, tokenTradingWith, self.inventoryDialog)
-
-					resultPanel:FireEventTree('refreshInventory')
-					self.inventoryDialog:FireEventTree('refreshInventory')
-
-					takeAllButton:SetClass('hidden', true)
-
-					if token.type == "component" and token.destroyOnEmpty then
-						---@cast token LuaObjectComponentLoot
-						resultPanel.data.close()
-						GameHud.DestroyEmptiedLoot(token)
-                    elseif token.type == "component" and token.properties:Empty() then
-                        local obj = token.levelObject
-                        if obj ~= nil then
-                            local appearanceComponent = obj:GetComponent("Appearance")
-                            if appearanceComponent ~= nil then
-                                appearanceComponent:SetProperty("imageNumber", 0)
-                                appearanceComponent:Upload()
-                            end
-                        end
-					end
-
+					resultPanel.data.close()
 				end,
-			},
-		}
-
-		lootPanel = gui.Panel{
-			floating = true,
-			styles = {
-				{
-					halign = 'left',
-					valign = 'top',
-					width = 'auto',
+			}
+			inventoryTitleLabel = gui.Label{
+				id = 'inventory-title',
+				classes = {"bold"},
+				text = '',
+				style = {
+					textAlignment = 'center',
+					fontSize = '70%',
+					vmargin = 4,
+					width = '100%',
 					height = 'auto',
-                    vmargin = 34,
-					flow = 'vertical',
-				}
-			},
-			children = {
-				takeAllButton,
+					halign = 'center',
+					valign = 'top',
+				},
+
+				events = {
+					refreshInventory = function(element)
+						if not _opened then
+							return
+						end
+						--only the untitled main dialog reads the token, and it has one once opened.
+						---@cast token -nil
+						if inventoryDialogTitle or token.name then
+							element.text = inventoryDialogTitle or string.format("%s's Inventory", token.description or token.name)
+						else
+							element.text = 'Inventory'
+						end
+					end,
+				},
 
 			}
-		}
+		end
+
+		--nil entries are parts this kind of dialog does not have.
+		local children = table.pack(
+
+			slotBorder,
+			closeButton,
+
+			gui.Panel{
+				id = 'inventory-main',
+				style = {
+					width = 500,
+					height = dialogHeight-14,
+					valign = 'center',
+					flow = 'vertical',
+				},
+
+				children = {
+					inventoryTitleLabel,
+
+					currencyPanel,
+
+					categoryPaging,
+					searchInput,
+
+					containerAndDragTarget,
+
+					addItemsPanel,
+
+					lootPanel,
+
+					gui.Panel{
+						id = 'paging-panel',
+						styles = {
+							{
+								width = '100%',
+								height = 32,
+								flow = 'horizontal',
+							},
+							{
+								selectors = {'hover', 'paging-arrow'},
+								brightness = 2,
+							},
+							{
+								selectors = {'press', 'paging-arrow'},
+								brightness = 0.7,
+							},
+						},
+
+						children = {
+							gui.Panel{
+								bgimage = 'panels/InventoryArrow.png',
+								classes = {'paging-arrow', 'image'},
+								style = {
+									height = '100%',
+									width = '50% height',
+									halign = 'left',
+									hmargin = 40,
+								},
+
+								events = {
+									refreshInventory = function(element)
+										if not _opened then
+											return
+										end
+										element:SetClass('hidden', npage == 1)
+									end,
+
+									click = function(element)
+										npage = npage - 1
+										resultPanel:FireEventTree('refreshInventory')
+									end,
+								},
+
+							},
+
+							gui.Label{
+								style = {
+									fontSize = '35%',
+									width = 'auto',
+									height = 'auto',
+									halign = 'center',
+								},
+								events = {
+									refreshInventory = function(element)
+										if not _opened then
+											return
+										end
+										element.text = string.format('Page %d/%d', math.tointeger(npage), math.tointeger(NumPages()))
+									end,
+								}
+							},
+
+							gui.Panel{
+								bgimage = 'panels/InventoryArrow.png',
+								classes = {'paging-arrow', 'image'},
+								style = {
+									scale = {x = -1, y = 1},
+									height = '100%',
+									width = '50% height',
+									halign = 'right',
+									hmargin = 40,
+								},
+
+								events = {
+									refreshInventory = function(element)
+										if not _opened then
+											return
+										end
+										element:SetClass('hidden', npage == NumPages())
+									end,
+
+									click = function(element)
+										npage = npage + 1
+										resultPanel:FireEventTree('refreshInventory')
+									end,
+								},
+							},
+
+						},
+					},
+				},
+			},
+
+			newItemButton,
+
+			equipmentPanel,
+			encumbrancePanel,
+			discountPanel
+		)
+		local result = {}
+		for i=1,children.n do
+			if children[i] ~= nil then
+				result[#result+1] = children[i]
+			end
+		end
+		return result
 	end
 
-	local slotBorder
-	local inventoryTitleLabel
-	local closeButton
-	if not options.charsheet then
-		slotBorder = SlotBorder{}
-		closeButton = gui.Button{
-			classes = {"closeButton"},
-			floating = true,
-			halign = 'right',
-			valign = 'top',
-			refreshInventory = function(element)
-				if not _opened then
-					return
-				end
-				element:SetClass('hidden', tradeInventory)
-			end,
-			click = function(element)
-				resultPanel.data.close()
-			end,
-		}
-		inventoryTitleLabel = gui.Label{
-			id = 'inventory-title',
-			classes = {"bold"},
-			text = '',
-			style = {
-				textAlignment = 'center',
-				fontSize = '70%',
-				vmargin = 4,
-				width = '100%',
-				height = 'auto',
-				halign = 'center',
-				valign = 'top',
-			},
-
-			events = {
-				refreshInventory = function(element)
-					if not _opened then
-						return
-					end
-					--only the untitled main dialog reads the token, and it has one once opened.
-					---@cast token -nil
-					if inventoryDialogTitle or token.name then
-						element.text = inventoryDialogTitle or string.format("%s's Inventory", token.description or token.name)
-					else
-						element.text = 'Inventory'
-					end
-				end,
-			},
-
-		}
+	local contentBuilt = false
+	local function EnsureContent()
+		if contentBuilt then
+			return
+		end
+		contentBuilt = true
+		for _,child in ipairs(BuildContent()) do
+			resultPanel:AddChild(child)
+		end
+		for i,slot in ipairs(slots) do
+			slot.data.inventoryDialog = resultPanel
+		end
 	end
 
 
@@ -2859,6 +3019,8 @@ function GameHud.CreateInventoryDialog(self, options)
 
 			open = function(tok, options)
 
+				EnsureContent()
+
 				self.openInventoryDialogs[#self.openInventoryDialogs+1] = resultPanel
 
 				for _,dialog in ipairs(self.openInventoryDialogs) do
@@ -2912,7 +3074,9 @@ function GameHud.CreateInventoryDialog(self, options)
 					--sets the dialog up to show basic inventory.
 					token = nil
 
-					searchInputElement.text = ''
+					if searchInputElement ~= nil then
+						searchInputElement.text = ''
+					end
 					search = ''
 
 					resultPanel.monitorGame = nil
@@ -2985,140 +3149,7 @@ function GameHud.CreateInventoryDialog(self, options)
 				end
 			end,
 		},
-
-
-		children = {
-
-			slotBorder,
-			closeButton,
-
-			gui.Panel{
-				id = 'inventory-main',
-				style = {
-					width = 500,
-					height = dialogHeight-14,
-					valign = 'center',
-					flow = 'vertical',
-				},
-
-				children = {
-					inventoryTitleLabel,
-
-					currencyPanel,
-
-					categoryPaging,
-					searchInput,
-
-					containerAndDragTarget,
-
-					addItemsPanel,
-
-					lootPanel,
-
-					gui.Panel{
-						id = 'paging-panel',
-						styles = {
-							{
-								width = '100%',
-								height = 32,
-								flow = 'horizontal',
-							},
-							{
-								selectors = {'hover', 'paging-arrow'},
-								brightness = 2,
-							},
-							{
-								selectors = {'press', 'paging-arrow'},
-								brightness = 0.7,
-							},
-						},
-
-						children = {
-							gui.Panel{
-								bgimage = 'panels/InventoryArrow.png',
-								classes = {'paging-arrow', 'image'},
-								style = {
-									height = '100%',
-									width = '50% height',
-									halign = 'left',
-									hmargin = 40,
-								},
-
-								events = {
-									refreshInventory = function(element)
-										if not _opened then
-											return
-										end
-										element:SetClass('hidden', npage == 1)
-									end,
-
-									click = function(element)
-										npage = npage - 1
-										resultPanel:FireEventTree('refreshInventory')
-									end,
-								},
-
-							},
-
-							gui.Label{
-								style = {
-									fontSize = '35%',
-									width = 'auto',
-									height = 'auto',
-									halign = 'center',
-								},
-								events = {
-									refreshInventory = function(element)
-										if not _opened then
-											return
-										end
-										element.text = string.format('Page %d/%d', math.tointeger(npage), math.tointeger(NumPages()))
-									end,
-								}
-							},
-
-							gui.Panel{
-								bgimage = 'panels/InventoryArrow.png',
-								classes = {'paging-arrow', 'image'},
-								style = {
-									scale = {x = -1, y = 1},
-									height = '100%',
-									width = '50% height',
-									halign = 'right',
-									hmargin = 40,
-								},
-
-								events = {
-									refreshInventory = function(element)
-										if not _opened then
-											return
-										end
-										element:SetClass('hidden', npage == NumPages())
-									end,
-
-									click = function(element)
-										npage = npage + 1
-										resultPanel:FireEventTree('refreshInventory')
-									end,
-								},
-							},
-
-						},
-					},
-				},
-			},
-
-			newItemButton,
-
-			equipmentPanel,
-			encumbrancePanel,
-			discountPanel,
-		}
 	}
-
-	for i,slot in ipairs(slots) do
-		slot.data.inventoryDialog = resultPanel
-	end
 
 	return resultPanel
 end

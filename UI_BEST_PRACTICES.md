@@ -61,7 +61,7 @@ Events: `change` fires when user edits (if `editable = true`).
 
 Key properties: `text`, `placeholderText`, `editlag` (delay in seconds before `edit` event fires).
 
-Events: `edit` (fires during typing after editlag), `change` (value committed), `confirm` (Enter pressed), `focus`, `defocus`.
+Events: `edit` (fires during typing after editlag), `change` (editing finished with new text -- by Enter or by clicking away), `submit` (Enter pressed; not fired by clicking away, and not by Enter in a `MultiLineNewLine` input), `focus`, `defocus`. There is no `confirm` on inputs (that is the slider's event).
 
 ### Button Controls
 
@@ -597,7 +597,7 @@ It is drawn only outside the panel, on whatever is behind it, so it suits panels
 
 **Interaction**: `press`, `rightClick`, `hover`, `dehover`, `linger` (fires after hovering for a delay), `doubleclick`
 
-**Input**: `edit` (during typing, respects `editlag`), `change` (value committed), `confirm` (Enter key), `focus`, `defocus`
+**Input**: `edit` (during typing, respects `editlag`), `change` (editing finished with new text), `submit` (Enter key), `focus`, `defocus`
 
 **Lifecycle**: `create` (panel initialized), `destroy` (panel removed), `rendered` (rendered size changed; receives `width, height` -- see Reacting to Rendered Size)
 

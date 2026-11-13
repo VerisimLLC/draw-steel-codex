@@ -18,6 +18,10 @@ CharacterModifier.displayCondition = ""
 CharacterModifier.afterRollExclusiveGroup = ""
 CharacterModifier.consumeOncePerRoll = false
 
+-- The name of another roll-dialog option this one follows: ticking or unticking
+-- that option does the same to this one, which can still be changed on its own.
+CharacterModifier.ticksWith = ""
+
 local g_powerRollTypes = {
     {
         id = "all",
@@ -635,16 +639,17 @@ CharacterModifier.TypeInfo.power = {
             }
         end
 
-        --No activation formula: never ticked for the roller. If it is a paid spend that would
-        --otherwise apply to this roll (keywords, skills, affordable), flag it optIn so the roll
-        --dialog still lets the roller choose it under Strictly Enforce Rolls.
+        --No activation formula: never ticked for the roller. If it is a paid spend or a
+        --limited-use option (Barbed Tail's once per round) that would otherwise apply to this
+        --roll (keywords, skills, affordable, uses left), flag it optIn so the roll dialog
+        --still lets the roller choose it under Strictly Enforce Rolls.
         if activationCondition == false or activationCondition == "" then
             local probeOptions = shallow_copy_table(options)
             probeOptions.assumeActivated = true
             return {
                 result = false,
                 justification = {},
-                optIn = self:IsPaidSpend(creature) and CharacterModifier.TypeInfo.power.hintPowerRoll(self, creature, rollType, probeOptions).result == true,
+                optIn = (self:IsPaidSpend(creature) or self:IsUsageLimited()) and CharacterModifier.TypeInfo.power.hintPowerRoll(self, creature, rollType, probeOptions).result == true,
             }
         end
 
@@ -872,7 +877,7 @@ CharacterModifier.TypeInfo.power = {
 
         local modtype = self:try_get("modtype", "none")
 
-        if modtype == "none" or modtype == "suppresseffects" then
+        if modtype == "none" or modtype == "suppresseffects" or modtype == "rolltwice" then
             return roll
         end
 
@@ -1419,7 +1424,7 @@ CharacterModifier.TypeInfo.power = {
                 tieredText[choiceTier] = StringInterpolateGoblinScript(addTextValue, lookupFunction)
             end
             for i,tier in ipairs(rollProperties.tiers) do
-                rollProperties.tiers[i] = AppendTieredText(tier, tieredText[i])
+                rollProperties.tiers[i] = AppendTieredText(tier, tieredText[math.min(i, #tieredText)])
             end
         end
 
@@ -1427,7 +1432,7 @@ CharacterModifier.TypeInfo.power = {
            self:has_key("replaceText") and trim(self.replaceText) ~= "" then
             local tieredText = BreakTextIntoTiers(StringInterpolateGoblinScript(self.replaceText, lookupFunction))
             for i,tier in ipairs(rollProperties.tiers) do
-                rollProperties.tiers[i] = string.replace_insensitive(rollProperties.tiers[i], self.replacePattern, tieredText[i])
+                rollProperties.tiers[i] = string.replace_insensitive(rollProperties.tiers[i], self.replacePattern, tieredText[math.min(i, #tieredText)])
             end
         end
     end,
@@ -2440,6 +2445,12 @@ CharacterModifier.TypeInfo.power = {
                                 {
                                     id = "none",
                                     text = "No Effects",
+                                },
+                                --the original target keeps the strike and half its
+                                --damage; the new one takes the rest of the damage.
+                                {
+                                    id = "split",
+                                    text = "Split Damage",
                                 },
                             },
                             valign = "center",

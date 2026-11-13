@@ -698,7 +698,7 @@ local function LanguagesText(c)
         for langid, _ in pairs(c:LanguagesKnown()) do
             local lang = languages[langid]
             if lang ~= nil then
-                names[#names+1] = lang.name
+                names[#names+1] = lang:DisplayName()
             end
         end
     end)

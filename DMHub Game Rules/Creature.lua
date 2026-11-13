@@ -232,6 +232,8 @@ end
 --- @field hiddenInvisibilityApplied? boolean Legacy: true when the old Hidden sync set invisibleToPlayers; cleared (and the token revealed) by the host on refresh.
 --- @field eotwAllyOf? string Encounter of the Week: charid of the hero this ally belongs to.
 --- @field eotwReinforcement? string Encounter of the Week: id of the reinforcements section this monster arrived with.
+--- @field eotwBaseLevel? integer Encounter of the Week: the Level this monster spawned at, before level balancing (ApplyLevelBoost).
+--- @field eotwBaseEV? number Encounter of the Week: this monster's EV when it spawned, for level balancing's strongest-first order.
 --- @field eotwMarket? table|false Encounter of the Week town heroes: the hero's Arcane Market visit since their last encounter (EotwMarket.lua).
 --- @field followers? table Characters: follower entries (legacy shape, migrated by validation).
 --- @field levelOverride? integer Characters: minimum character level (slow start / level picker).
@@ -2277,7 +2279,29 @@ end
 function creature.InflictDamageInstance(self, amount, damageType, keywords, sourceDescription, symbols)
 	amount = math.floor(amount)
 	local originalAmount = amount
+
+    --continuesInstance = { raw = N, landed = N }: this damage is added onto a hit that
+    --already landed (e.g. Tactician's Mark "the ability deals extra damage"), so the
+    --two count as ONE damage instance. If the hit landed anything, flat immunity and
+    --weakness were fully applied to it already, so the extra goes on unmodified. If it
+    --landed nothing, resist the combined raw amount instead (immunity may be left over).
+    local continuesInstance = symbols ~= nil and symbols.continuesInstance or nil
+    local priorLanded = 0
+    local skipResistance = false
+    if continuesInstance ~= nil then
+        priorLanded = math.max(0, math.floor(continuesInstance.landed or 0))
+        if priorLanded > 0 then
+            skipResistance = true
+        else
+            amount = amount + math.max(0, math.floor(continuesInstance.raw or 0))
+        end
+    end
+
 	local resistanceEntry = self:DamageResistance(damageType, keywords)
+    if skipResistance then
+        --an empty entry makes every resistance step below a no-op.
+        resistanceEntry = {} --[[@as table]]
+    end
 	local resistance = resistanceEntry.resistance
 
 
@@ -2312,7 +2336,12 @@ function creature.InflictDamageInstance(self, amount, damageType, keywords, sour
         ignoreImmunity = true
     end
 
-	local note = string.format('%d damage from %s', amount, sourceDescription)
+	local note = string.format('%d damage from %s', originalAmount, sourceDescription)
+    if skipResistance then
+        note = string.format('%s (added to a hit; its immunity and weakness already applied)', note)
+    elseif continuesInstance ~= nil then
+        note = string.format('%s (added to a hit that dealt no damage; resisted together as %d)', note, amount)
+    end
 
 	if resistanceEntry.percent ~= nil then
 		amount = math.floor(amount * resistanceEntry.percent)
@@ -2372,7 +2401,7 @@ function creature.InflictDamageInstance(self, amount, damageType, keywords, sour
     -- the ATTACKER carrying the "Relentless Damage Penalty" custom attribute, so this whole block
     -- is a no-op for every creature that isn't under the Relentless Taunt effect. Applies to the
     -- already-resistance-reduced amount (like a victim immunity), floored at 0.
-    if attacker ~= nil and amount > 0 then
+    if attacker ~= nil and amount > 0 and not skipResistance then
         local relentlessPenalty = attacker:CalculateNamedCustomAttribute("Relentless Damage Penalty") or 0
         if relentlessPenalty > 0 then
             local exemptToken = attacker:RelentlessDamageCaster()
@@ -10827,7 +10856,19 @@ function creature:LookupSymbol(symbolTable)
 	return GenerateSymbols(self, symbolTable)
 end
 
-function creature:BeginTurn()
+--- Starts this creature's turn: start-of-turn triggers and aura and effect expiry.
+--- options is passed only by the Monster AI, which must not act until the turn
+--- start has played out:
+---   aiActivityId: tags the turn start's events, so a hero prompt they raise holds
+---     the AI until the player answers it and the cast it starts finishes.
+---   onComplete: called once BeginTurn has finished, even if a trigger errored.
+---     Prompts its triggers raised may still be open; the AI waits on those
+---     because they carry aiActivityId.
+--- @param options? {aiActivityId: string|nil, onComplete: fun()|nil}
+function creature:BeginTurn(options)
+	local aiActivityId = options ~= nil and options.aiActivityId or nil
+	local onComplete = options ~= nil and options.onComplete or nil
+
 	--just in case some linger.
 	self:ClearMomentaryOngoingEffects()
 
@@ -10849,6 +10890,9 @@ function creature:BeginTurn()
     end
 
 	dmhub.Coroutine(function()
+        --Tell the Monster AI this turn start is over, even if something below errors.
+        coroutine.atexit(onComplete)
+
         --The initiative queue has already advanced to this creature's turn before
         --BeginTurn runs, so effects/auras that expire "at the start of this creature's
         --turn" would otherwise expire the instant the prestartturn (Before Start of
@@ -10863,7 +10907,7 @@ function creature:BeginTurn()
         end
 
         local ok, err = pcall(function()
-            self:DispatchEventAndWait("prestartturn", {})
+            self:DispatchEventAndWait("prestartturn", {aiActivityId = aiActivityId})
         end)
 
         --Clear the flag even if a trigger handler errored.
@@ -10929,7 +10973,7 @@ function creature:BeginTurn()
             end
         end
 
-        self:DispatchEvent("beginturn", {order = order})
+        self:DispatchEvent("beginturn", {order = order, aiActivityId = aiActivityId})
 
         --Surface a prestartturn trigger error after cleanup so a buggy trigger does not
         --abort the rest of BeginTurn.
@@ -11537,6 +11581,10 @@ function creature:TriggerEvent(eventName, info, alreadyTriggeredOnOthers, localF
 end
 
 local g_aiActivityReactionExpirySeconds = 600
+
+--Identifies this run of the app: kept in _G across Lua reloads, new on every
+--launch. See creature:CompleteReactionsOrphanedByRestart.
+g_appLaunchId = rawget(_G, "g_appLaunchId") or dmhub.GenerateGuid()
 
 --The Monster AI activity (a move or an ability cast) currently in flight on
 --this client, or nil. MonsterAI sets it around each action it takes; while it
@@ -12414,14 +12462,34 @@ function creature:CompletePendingAIActivityReaction(activityId, reactionId)
     }
 end
 
+--Who accepted the reaction and when are stamped on the marker, so a cast that
+--never reports back can be told apart from one still running (EMHPEMCY): the
+--banner offers Skip once it is old, and the accepter's next launch clears it.
 function creature:SetAIActivityReactionResolving(activityId, reactionId)
     local entry = self:try_get("pendingAIActivityReactions", {})[reactionId]
     local token = dmhub.LookupToken(self)
     if token ~= nil and entry ~= nil and entry.activityId == activityId and entry.state ~= "completed" then
         token:ModifyProperties{
             description = "Resolve AI Reaction", undoable = false,
-            execute = function() entry.state = "resolving" end,
+            execute = function()
+                entry.state = "resolving"
+                entry.resolvingSince = ServerTimestamp()
+                entry.resolvingBy = dmhub.userid
+                entry.resolvingLaunch = g_appLaunchId
+            end,
         }
+    end
+end
+
+--Completes the "resolving" markers this user accepted in an earlier run of the
+--app. Their casts died with that run (a crash or restart mid-roll), so nothing
+--else would complete them. Markers from before the stamps were added are left.
+function creature:CompleteReactionsOrphanedByRestart()
+    for id,entry in pairs(self:try_get("pendingAIActivityReactions", {})) do
+        if type(entry) == "table" and entry.state == "resolving" and entry.resolvingBy == dmhub.userid
+            and entry.resolvingLaunch ~= nil and entry.resolvingLaunch ~= g_appLaunchId then
+            self:CompletePendingAIActivityReaction(entry.activityId, id)
+        end
     end
 end
 
@@ -12463,6 +12531,31 @@ function creature:CountPendingAIActivityReactions(activityId)
         end
     end
     return result
+end
+
+--The name of this hero's accepted trigger whose cast may still claim the turn,
+--or nil. The prompt card goes the moment it is accepted, but Hesitation Is
+--Weakness only moves initiative once its cast runs, so TriggeredAbility.lua
+--leaves a "turn-claim" marker in the card's removal write. Anything that hands
+--the turn on (the Monster AI's turn choice, the end-of-turn handoff) must wait
+--on it, or its initiative write crosses the claim's (BR8M9Z2W, AH6SYXTP).
+--- @return string|nil
+function creature:TurnClaimResolving()
+    --Completed markers hold a little longer: the claim's initiative write
+    --lands just after the cast finishes. The limit stops a completion lost in
+    --transit from holding the table for good.
+    local waitSeconds = 60
+    local settleSeconds = 2
+    for _,entry in pairs(self:try_get("pendingAIActivityReactions", {})) do
+        if type(entry) == "table" and entry.activityId == "turn-claim" then
+            local age = EventTimestampAge(entry.timestamp)
+            local limit = entry.state == "completed" and settleSeconds or waitSeconds
+            if age ~= nil and age < limit then
+                return type(entry.ability) == "string" and entry.ability or "trigger"
+            end
+        end
+    end
+    return nil
 end
 
 --How long a trigger prompt stays available before it ages out. This is a
@@ -14741,13 +14834,25 @@ function creature:Render(args, options)
 		--languages.
 		gui.Label{
 			classes = "description",
+			--with plain language names on, hovering lists the in-world names.
+			hover = function(element)
+				local known = {}
+				local languagesTable = GetTableCached(Language.tableName)
+				for langid,b in pairs(self:LanguagesKnown()) do
+					known[#known+1] = languagesTable[langid]
+				end
+				local hover = Language.ListTooltipHover(known)
+				if hover ~= nil then
+					hover(element)
+				end
+			end,
 			create = function(element)
 				local textItems = {}
 				local languagesTable = GetTableCached(Language.tableName)
 				for langid,b in pairs(self:LanguagesKnown()) do
 					local lang = languagesTable[langid]
 					if lang ~= nil then
-						textItems[#textItems+1] = lang.name
+						textItems[#textItems+1] = lang:DisplayName()
 					end
 				end
 

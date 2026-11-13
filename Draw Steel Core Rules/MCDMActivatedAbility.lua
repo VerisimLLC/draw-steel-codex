@@ -805,6 +805,18 @@ RegisterGoblinScriptSymbol(ActivatedAbility, {
 
 })
 
+--A villain action's "Villain Action" action type is a label, not something the monster
+--holds: monsters have 0 of that resource, so counting it made every such ability
+--unaffordable. The encounter's villain action budget (VillainActionState and the
+--villain action strip) is what limits them, so the label costs 0 actions.
+local g_baseGetNumberOfActionsCost = ActivatedAbility.GetNumberOfActionsCost
+function ActivatedAbility:GetNumberOfActionsCost(caster, symbols)
+    if self:ActionResource() == CharacterResource.villainActionId then
+        return 0
+    end
+    return g_baseGetNumberOfActionsCost(self, caster, symbols)
+end
+
 --An ability invoked with suppressInvokedActionCost has its own cost cleared, but it is
 --still made as part of the invoker's action (e.g. Panther's Devastating Rush), so answer
 --with the invoker's action type. Critical Hit depends on this.
@@ -1293,6 +1305,54 @@ local function HasAutomaticTrigger(creatureProps, name)
     return false
 end
 
+--Manual trigger copies taken off a player's action bar entirely under Strictly
+--Enforce Action Economy, not just greyed. Hesitation Is Weakness by hand claims
+--the turn whenever it is pressed, so even its greyed chip invites trouble, and
+--its prompt already offers it at the one moment it is legal (6TTFJWFP). Lower
+--case ability names; only hidden while the creature has the automatic trigger.
+local g_manualTriggersHiddenUnderStrict = {
+    ["hesitation is weakness"] = true,
+}
+
+--- Should the action bar leave this ability out for this caster? True only for a
+--- player-controlled caster's manual copy of a listed trigger, under strict rules.
+--- @param ability ActivatedAbility
+--- @param casterToken CharacterToken|nil
+--- @return boolean
+function ActivatedAbility.HiddenUnderStrictActionEconomy(ability, casterToken)
+    if not g_manualTriggersHiddenUnderStrict[string.lower(ability.name or "")] then
+        return false
+    end
+    if not (ability:try_get("manualVersionOfTrigger", false) or ability.categorization == "Trigger") then
+        return false
+    end
+    if casterToken == nil or not casterToken.playerControlled or casterToken.properties == nil then
+        return false
+    end
+    if not StrictActionEconomyEnforced() then
+        return false
+    end
+    return HasAutomaticTrigger(casterToken.properties, ability.name)
+end
+
+--Cast gates: rules a game mode adds to stop players' creatures using
+--abilities by hand for a while (Encounter of the Week's "Arrange Your
+--Heroes" allows only Catch Breath and Null Field). A gate is
+--fn(ability, casterCreature, casterToken) returning a reason string to
+--refuse, or nil to allow. Gates bind only player-controlled casters, only
+--under Strictly Enforce Action Economy, and never a TriggeredAbility, so
+--the Director, the Monster AI and trigger prompts are never refused. The
+--action bar greys a refused chip, shows the reason and ignores the press.
+--- @type table<string, fun(ability: ActivatedAbility, casterCreature: creature, casterToken: CharacterToken): string|nil>
+local g_castGates = {}
+
+--- Adds (or, with the same id, replaces) a cast gate; pass nil to remove it.
+--- @param id string unique per gate, so a Lua reload replaces rather than adds
+--- @param fn nil|fun(ability: ActivatedAbility, casterCreature: creature, casterToken: CharacterToken): string|nil
+function ActivatedAbility.RegisterCastGate(id, fn)
+    g_castGates[id] = fn
+end
+
 local g_baseAbilityFilterFailureMessage = ActivatedAbility.AbilityFilterFailureMessage
 function ActivatedAbility:AbilityFilterFailureMessage(casterCreature)
     local message, filter = g_baseAbilityFilterFailureMessage(self, casterCreature)
@@ -1303,6 +1363,19 @@ function ActivatedAbility:AbilityFilterFailureMessage(casterCreature)
     --the prompt's own cast is the TriggeredAbility itself; never refuse that.
     if self.typeName == "TriggeredAbility" or casterCreature == nil then
         return nil
+    end
+
+    if next(g_castGates) ~= nil and StrictActionEconomyEnforced() then
+        local casterToken = dmhub.LookupToken(casterCreature)
+        if casterToken ~= nil and casterToken.playerControlled then
+            for _,gate in pairs(g_castGates) do
+                --a broken gate must not break every ability filter in the game.
+                local ok, reason = pcall(gate, self, casterCreature, casterToken)
+                if ok and reason ~= nil then
+                    return reason
+                end
+            end
+        end
     end
     local manualCopy = self:try_get("manualVersionOfTrigger", false)
     if not (manualCopy or self.categorization == "Trigger") then
@@ -1334,7 +1407,7 @@ end
 --flies: a hero pushed off a ledge starts flying and had no obvious way down.
 local g_dropToGroundAbility = nil
 
---- The Drop to Ground ability for creatureToken, or nil when it is not flying.
+--- The Drop to Ground ability for creatureToken, or nil when it is not flying or may only fly horizontally.
 --- @param creatureToken nil|CharacterToken
 --- @return nil|ActivatedAbility
 function ActivatedAbility.GetDropToGroundAbility(creatureToken)
@@ -1342,6 +1415,10 @@ function ActivatedAbility.GetDropToGroundAbility(creatureToken)
         return nil
     end
     if creatureToken.properties:CurrentMoveType() ~= "fly" then
+        return nil
+    end
+    --A horizontal-only flier (Spirited Away's levitation) can't choose to come down.
+    if creatureToken.properties:CanFly() and not creatureToken.properties:CanFlyVertically() then
         return nil
     end
     if g_dropToGroundAbility == nil then
@@ -3568,9 +3645,8 @@ end
 --- @param sys nil|MeasurementSystem Units to show distances in. Defaults to the viewer's chosen units.
 function ActivatedAbility:DescribeRange(castingCreature, sys)
     if self:try_get("rangeTextOverride", "") ~= "" then
-        if castingCreature == nil then
-            return self.rangeTextOverride
-        end
+        --With no caster (builder, compendium) {formula|fallback} shows its
+        --fallback; a {formula} with no fallback shows the formula without braces.
         return StringInterpolateGoblinScript(self.rangeTextOverride, castingCreature)
     end
 
@@ -4111,7 +4187,9 @@ function ActivatedAbilityReplenishBehavior:Cast(ability, casterToken, targets, o
         end
         targets = widened
     end
-    return g_replenishCast_base(self, ability, casterToken, targets, options)
+    local result = g_replenishCast_base(self, ability, casterToken, targets, options)
+    ActivatedAbility.GrantImmediateActionForCriticalHit(self, ability, casterToken)
+    return result
 end
 
 local function GetTargetsWithTokens(targets)
@@ -4124,6 +4202,249 @@ local function GetTargetsWithTokens(targets)
 
     return result
 end
+
+--Immediate actions: "take a main action now, even if it isn't your turn".
+--
+--A critical hit gives the creature an additional main action it may use right
+--away, even off its own turn. The Critical Hit global rule refills the main
+--action resource (the replenish above), which is all it takes on the
+--creature's own turn. Off turn that refill means nothing: the "turn" refresh
+--id belongs to whoever is acting, and under strict:resources the action bar
+--refuses turn-bound abilities off turn. So an off-turn critical hit also
+--records an immediate action grant on the creature:
+--  * creature.immediateActionGrants[resourceid] = ImmediateActionGrant.
+--  * A grant is live only during the turn it was given in (q:GetTurnId()), so
+--    it lapses by itself when that turn ends.
+--  * While one is live, the action bar treats abilities paying that resource
+--    as usable off turn, and shows a prompt (choose an action / decline).
+--  * The first cast off turn that would pay that resource uses the grant: it
+--    is marked inUse (so it can't be used twice), the cast does not pay the
+--    resource (the grant is the action, so a critical hit on it can grant
+--    another), and the grant is removed when the cast finishes, or put back if
+--    the cast is cancelled before paying.
+--  * The Monster AI waits for a hero's pending grant after its own cast, as it
+--    does for a hero's running cast (MonsterAI.WaitForHeroCasts).
+--Minions never get one: a squad acts together on its own turn.
+--Anything else that grants "take a main action (or maneuver) now" can call
+--creature:GrantImmediateAction inside a ModifyProperties.
+
+--- @class ImmediateActionGrant
+--- @field id string
+--- @field resourceid string
+--- @field turnid string the InitiativeQueue:GetTurnId() it was granted in
+--- @field source string what granted it, for the prompt ("Critical Hit!")
+--- @field inUse boolean a cast is using it right now
+
+--The Critical Hit! global rule's triggered ability (globalrulemods/critical-hit.yaml).
+ActivatedAbility.criticalHitTriggerGuid = "2f3eafd8-bb90-4714-9f14-d2f2cd1e9fb9"
+
+--- The creature's live grant for this resource, or nil.
+--- @param resourceid string
+--- @param includeInUse? boolean also return a grant a cast is using right now
+--- @return ImmediateActionGrant|nil
+function creature:GetImmediateActionGrant(resourceid, includeInUse)
+    local grants = self:try_get("immediateActionGrants")
+    if grants == nil or resourceid == nil then
+        return nil
+    end
+    local grant = grants[resourceid]
+    if grant == nil or (grant.inUse and not includeInUse) then
+        return nil
+    end
+    local q = dmhub.initiativeQueue
+    if q == nil or q.hidden or grant.turnid == nil or q:GetTurnId() ~= grant.turnid then
+        return nil
+    end
+    return grant
+end
+
+--- Every live grant the creature has.
+--- @param includeInUse? boolean
+--- @return ImmediateActionGrant[]
+function creature:GetImmediateActionGrants(includeInUse)
+    local result = {}
+    for resourceid,_ in pairs(self:try_get("immediateActionGrants") or {}) do
+        local grant = self:GetImmediateActionGrant(resourceid, includeInUse)
+        if grant ~= nil then
+            result[#result+1] = grant
+        end
+    end
+    table.sort(result, function(a, b) return a.resourceid < b.resourceid end)
+    return result
+end
+
+--- Lets the creature take an action paying this resource right now, even off
+--- its turn, until the current turn ends. Call inside ModifyProperties.
+--- @param resourceid string e.g. CharacterResource.actionResourceId
+--- @param source string shown on the prompt
+--- @return boolean granted false outside of combat
+function creature:GrantImmediateAction(resourceid, source)
+    local q = dmhub.initiativeQueue
+    if q == nil or q.hidden then
+        return false
+    end
+    local turnid = q:GetTurnId()
+    if turnid == nil then
+        return false
+    end
+    --drop grants from earlier turns while we are here.
+    local grants = {}
+    for key,grant in pairs(self:try_get("immediateActionGrants") or {}) do
+        if grant.turnid == turnid then
+            grants[key] = grant
+        end
+    end
+    grants[resourceid] = {
+        id = dmhub.GenerateGuid(),
+        resourceid = resourceid,
+        turnid = turnid,
+        source = source or "",
+        inUse = false,
+    }
+    self.immediateActionGrants = grants
+    return true
+end
+
+--- Removes the grant for this resource. Call inside ModifyProperties.
+--- @param resourceid string
+--- @param grantid? string only if it is still this grant
+function creature:ClearImmediateActionGrant(resourceid, grantid)
+    local grants = self:try_get("immediateActionGrants")
+    if grants == nil or grants[resourceid] == nil then
+        return
+    end
+    if grantid ~= nil and grants[resourceid].id ~= grantid then
+        return
+    end
+    grants[resourceid] = nil
+    if next(grants) == nil then
+        self.immediateActionGrants = nil
+    end
+end
+
+--- Declines a live grant (the prompt's Decline button).
+--- @param token CharacterToken
+--- @param resourceid string
+function ActivatedAbility.DeclineImmediateAction(token, resourceid)
+    if token == nil or not token.valid or token.properties == nil then
+        return
+    end
+    token:ModifyProperties{
+        description = "Decline Immediate Action",
+        undoable = false,
+        execute = function()
+            token.properties:ClearImmediateActionGrant(resourceid)
+        end,
+    }
+end
+
+--- Called after every replenish behavior: gives the off-turn grant when this
+--- is the Critical Hit! rule refilling the caster's main action.
+--- @param behavior ActivatedAbilityReplenishBehavior
+--- @param ability ActivatedAbility
+--- @param casterToken CharacterToken
+function ActivatedAbility.GrantImmediateActionForCriticalHit(behavior, ability, casterToken)
+    if behavior.applyto ~= "caster" or behavior:try_get("resourceid") ~= CharacterResource.actionResourceId then
+        return
+    end
+    if ability == nil or ability:try_get("guid") ~= ActivatedAbility.criticalHitTriggerGuid then
+        return
+    end
+    if casterToken == nil or not casterToken.valid or casterToken.properties == nil then
+        return
+    end
+    local props = casterToken.properties
+    local q = dmhub.initiativeQueue
+    if q == nil or q.hidden or props.minion or props:IsDead() or props:IsOurTurn() then
+        return
+    end
+    casterToken:ModifyProperties{
+        description = "Critical Hit: take a main action now",
+        undoable = false,
+        execute = function()
+            casterToken.properties:GrantImmediateAction(CharacterResource.actionResourceId, "Critical Hit!")
+        end,
+    }
+end
+
+--Does paying this cost spend the resource?
+local function CostPaysResource(cost, resourceid)
+    for _,entry in ipairs(cost.details or {}) do
+        for _,payment in ipairs(entry.paymentOptions or {}) do
+            if payment.resourceid == resourceid then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+--A cast off turn that would pay a granted resource uses the grant instead.
+--Positive priority: Turn Rewind's checkpoint (priority 0) runs first.
+ActivatedAbility.RegisterCastStartHandler(function(ability, casterToken, options)
+    if options == nil or casterToken == nil or not casterToken.valid or casterToken.properties == nil then
+        return
+    end
+    local props = casterToken.properties
+    if props:try_get("immediateActionGrants") == nil or ability.typeName == "TriggeredAbility" or props:IsOurTurn() then
+        return
+    end
+    local grants = props:GetImmediateActionGrants()
+    if #grants == 0 then
+        return
+    end
+    local cost = options.costOverride or ability:GetCost(casterToken)
+    for _,grant in ipairs(grants) do
+        local resourceid = grant.resourceid
+        if CostPaysResource(cost, resourceid) then
+            local grantid = grant.id
+            casterToken:ModifyProperties{
+                description = "Use Immediate Action",
+                undoable = false,
+                execute = function()
+                    local live = casterToken.properties:GetImmediateActionGrant(resourceid)
+                    if live ~= nil and live.id == grantid then
+                        live.inUse = true
+                    end
+                end,
+            }
+
+            --the grant is the action: the cast does not pay for it.
+            local details = {}
+            for _,entry in ipairs(cost.details or {}) do
+                if not CostPaysResource({details = {entry}}, resourceid) then
+                    details[#details+1] = entry
+                end
+            end
+            local override = table.shallow_copy(cost)
+            override.details = details
+            options.costOverride = override
+
+            options.OnFinishCastHandlers = options.OnFinishCastHandlers or {}
+            options.OnFinishCastHandlers[#options.OnFinishCastHandlers+1] = function(_finishAbility, _finishCaster, finishOptions)
+                if not casterToken.valid or casterToken.properties == nil then
+                    return
+                end
+                casterToken:ModifyProperties{
+                    description = "Used Immediate Action",
+                    undoable = false,
+                    execute = function()
+                        local live = casterToken.properties:GetImmediateActionGrant(resourceid, true)
+                        if live == nil or live.id ~= grantid then
+                            return
+                        end
+                        if finishOptions ~= nil and finishOptions.abort and not finishOptions.alreadyPaid then
+                            live.inUse = false
+                        else
+                            casterToken.properties:ClearImmediateActionGrant(resourceid, grantid)
+                        end
+                    end,
+                }
+            end
+            return
+        end
+    end
+end, 10)
 
 -- Build a minion-to-target adjacency table. adjacency[minionIdx] is a list of
 -- target indices that minion can reach (range overlap + line of effect).

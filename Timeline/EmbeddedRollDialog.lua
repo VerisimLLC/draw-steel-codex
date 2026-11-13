@@ -1123,7 +1123,7 @@ function GameHud.CreateEmbeddedRollDialog()
     --- @class EmbeddedRollModifierEntry
     --- @field modifier CharacterModifier
     --- @field context nil|table the modifier's GoblinScript context.
-    --- @field hint nil|{result: boolean|string, justification: string[], optIn: nil|boolean} some hints carry a string result (e.g. "true", a cover amount). optIn: an unticked paid spend the roller may choose (see the power modifier's hintPowerRoll).
+    --- @field hint nil|{result: boolean|string, justification: string[], optIn: nil|boolean} some hints carry a string result (e.g. "true", a cover amount). optIn: an unticked paid or limited-use option the roller may choose (see the power modifier's hintPowerRoll).
     --- @field override nil|boolean the user's explicit on/off choice.
     --- @field failsRequirement nil|boolean
     --- @field modFromTarget nil|boolean
@@ -2279,10 +2279,19 @@ function GameHud.CreateEmbeddedRollDialog()
         if isPowerRoll and rollProperties ~= nil and rollProperties.try_get ~= nil then
             tiers = rollProperties:try_get("tiers")
         end
+        --A secret Critical (RollPropertiesPowerTable.IsCriticalSecret) is shared
+        --only once the dice have landed on it.
+        local critSecret = RollPropertiesPowerTable.IsCriticalSecret(rollProperties)
+        local critLanded = false
+        if tiers ~= nil and tiers[4] ~= nil and rollState == "finished" and m_rollInfo ~= nil then
+            critLanded = (m_rollInfo.naturalRoll or 0) >= 19
+        end
         if tiers ~= nil then
             tierTexts = {}
             for i = 1, #tiers do
-                tierTexts[i] = tiers[i]
+                if i < 4 or critLanded or not critSecret then
+                    tierTexts[i] = tiers[i]
+                end
             end
         end
 
@@ -2299,6 +2308,11 @@ function GameHud.CreateEmbeddedRollDialog()
             end
             local effectiveRoll = EffectiveRollForTarget(currentTarget) --[[@as table]]
             highlightedTier = RollUtils.DiceResultToTier(effectiveRoll)
+            --the roller's power table promotes a natural 19-20 to the 4th
+            --"Critical" row of a table that has one; follow it.
+            if critLanded then
+                highlightedTier = 4
+            end
 
             -- Override tier from roll properties if the caster picked a
             -- different tier manually.
@@ -4434,8 +4448,9 @@ function GameHud.CreateEmbeddedRollDialog()
                         --not offered at all. (The ones that did are still built,
                         --read-only, below.) A rollerDecides chip is the
                         --exception: only the roller can say whether it applies.
-                        --So is an opt-in spend the roller can afford (hint.optIn, e.g.
-                        --To the Uttermost End's extra Ferocity): paying is their choice.
+                        --So is an opt-in option the roller can afford (hint.optIn, e.g.
+                        --To the Uttermost End's extra Ferocity, Barbed Tail's once per
+                        --round): paying or spending the use is their choice.
                         local rollerChoice = mod.rollerDecides == true
                         if not rollerChoice and mod.hint ~= nil and mod.hint.optIn == true and creature ~= nil then
                             local maxCharges = mod.modifier:MaxAffordableCharges(creature, options.expectedCostOfCurrentCast)
@@ -4552,6 +4567,17 @@ function GameHud.CreateEmbeddedRollDialog()
                                             if peer ~= mod and peer.isAfterRoll and peer.modifier ~= nil
                                                     and peer.modifier:try_get("afterRollExclusiveGroup", "") == group then
                                                 peer.override = false
+                                            end
+                                        end
+                                    end
+
+                                    --options that tick with this one follow it on and off.
+                                    local name = mod.modifier:try_get("name", "")
+                                    if name ~= "" then
+                                        for _, peer in ipairs(m_options.modifiers or {}) do
+                                            if peer ~= mod and peer.modifier ~= nil
+                                                    and peer.modifier:try_get("ticksWith", "") == name then
+                                                peer.override = element.value
                                             end
                                         end
                                     end
@@ -7223,6 +7249,19 @@ function GameHud.CreateEmbeddedRollDialog()
 
                 local showingDialog = showDialogDuringRoll
 
+                --A ticked "Roll Twice, Keep Best" option (Expert Artisan): a roll that
+                --closes once thrown is thrown again after it lands, and the higher
+                --total is handed on. A roll that stays open for Accept rolls once.
+                local rollTwiceName = nil
+                if not showingDialog then
+                    for _, entry in ipairs(GetEnabledModifiers()) do
+                        if entry.modifier ~= nil and entry.modifier:try_get("modtype", "none") == "rolltwice" then
+                            rollTwiceName = entry.modifier:try_get("name", "")
+                            break
+                        end
+                    end
+                end
+
                 local completeFunction
 
                 if showingDialog then
@@ -7741,6 +7780,7 @@ function GameHud.CreateEmbeddedRollDialog()
                 -- This guards against `complete` (or an AI auto-proceed) applying
                 -- the result a second time.
                 local m_crowsResolved = false
+                local ThrowSecondRoll
                 local rollArgs = {
                     guid = resultPanel.data.rollid,
                     description = m_options.description,
@@ -7757,6 +7797,22 @@ function GameHud.CreateEmbeddedRollDialog()
                     forcedDice = m_options.forcedDice,
                     creature = creature,
                     properties = rollProperties,
+                    --nil normally. An interrupted roll (an Encounter of the Week
+                    --fake test) fades its dice this many seconds into the throw
+                    --and never lands: `complete` never fires, `interrupted` does.
+                    interruptAfter = m_options.interruptAfter,
+                    interrupted = cond(m_options.interruptAfter ~= nil, function(rollInfo)
+                        print("ROLL:: INTERRUPTED")
+                        m_rerolling = false
+                        resultPanel:SetClass('hidden', true)
+                        RelinquishPanel()
+                        if g_activeRoll == activeRoll then
+                            g_activeRoll = nil
+                        end
+                        if m_options ~= nil and m_options.interrupted ~= nil then
+                            m_options.interrupted(rollInfo)
+                        end
+                    end, nil),
                     begin = function(rollInfo)
                         print("ROLL:: BEGIN", rollInfo, rollIsSilent, instant)
                         m_rollInfo = rollInfo
@@ -7997,7 +8053,11 @@ function GameHud.CreateEmbeddedRollDialog()
                             return
                         end
 
-                        completeFunction(rollInfo)
+                        if rollTwiceName ~= nil then
+                            ThrowSecondRoll(rollInfo)
+                        else
+                            completeFunction(rollInfo)
+                        end
 
 
                         if g_activeRoll == activeRoll then
@@ -8006,6 +8066,60 @@ function GameHud.CreateEmbeddedRollDialog()
                         end
                     end
                 }
+
+                if rollTwiceName ~= nil then
+                    local description = rollArgs.description or ""
+                    rollArgs.description = string.format("%s (%s 1 of 2)", description, rollTwiceName)
+
+                    --The second throw gets its own chat message and callbacks, so
+                    --nothing on the dialog follows it; the better roll completes.
+                    ThrowSecondRoll = function(firstInfo)
+                        local secondArgs = {}
+                        for k, v in pairs(rollArgs) do
+                            secondArgs[k] = v
+                        end
+                        secondArgs.guid = dmhub.GenerateGuid()
+                        secondArgs.description = string.format("%s (%s 2 of 2)", description, rollTwiceName)
+                        secondArgs.delay = nil
+                        secondArgs.begin = nil
+                        secondArgs.pending = nil
+                        secondArgs.complete = function(secondInfo)
+                            local kept = firstInfo
+                            if secondInfo ~= nil and (secondInfo.total or 0) > (firstInfo.total or 0) then
+                                kept = secondInfo
+                            end
+                            completeFunction(kept)
+                        end
+
+                        --hooks such as physical dice see this throw like the first.
+                        if RollDialog.OnBeforeRoll then
+                            local secondHook = RollDialog.OnBeforeRoll({
+                                rollArgs = secondArgs,
+                                roll = secondArgs.roll,
+                                description = secondArgs.description,
+                                creature = secondArgs.creature,
+                                tokenid = secondArgs.tokenid,
+                                properties = secondArgs.properties,
+                                dmonly = secondArgs.dmonly,
+                                dicetower = secondArgs.dicetower,
+                                instant = secondArgs.instant,
+                                silent = secondArgs.silent,
+                                delay = secondArgs.delay,
+                                guid = secondArgs.guid,
+                                modifiers = modifiersUsed,
+                                multitargets = multitargetsUsed,
+                                boons = m_boons,
+                                setActiveRoll = function(roll)
+                                end,
+                            })
+                            if secondHook == "intercept" then
+                                return
+                            end
+                        end
+
+                        dmhub.Roll(secondArgs)
+                    end
+                end
 
                 g_activeRollArgs = rollArgs
                 g_activeRollArgs.originalRoll = rollArgs.roll

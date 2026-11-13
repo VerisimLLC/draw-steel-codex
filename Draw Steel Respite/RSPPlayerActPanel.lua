@@ -921,6 +921,98 @@ local function BuildStage()
         return actions
     end
 
+    --- The playerChipActions buttons for one hero's card.
+    --- @param heroId string
+    --- @return Panel[]
+    local function HeroChipActions(heroId)
+        local actions = {}
+        local registry = rawget(_G, "RSPActivity")
+        if registry == nil then
+            return actions
+        end
+        for _, activity in ipairs(registry.All()) do
+            local paint = activity:try_get("playerChipActions")
+            if paint ~= nil then
+                local action = paint{
+                    selection = function()
+                        return {charid = heroId}
+                    end,
+                    host = function()
+                        return content
+                    end,
+                }
+                if action ~= nil then
+                    actions[#actions + 1] = action
+                end
+            end
+        end
+        return actions
+    end
+
+    -- charid -> {key, names}; the ability list is rebuilt only when the hero changes.
+    local respiteNames = {}
+
+    --- The hero's respite actions, by name, alphabetical: the action bar's Respite drawer filter.
+    --- @param charid string
+    --- @return string[]
+    local function RespiteNames(charid)
+        local token = dmhub.GetCharacterById(charid)
+        if token == nil or token.properties == nil then
+            return {}
+        end
+        local key = string.format("%d:%d", dmhub.CharacterRecordRevision(charid), CreatureCache.SerialOf(token.properties))
+        local cached = respiteNames[charid]
+        if cached ~= nil and cached.key == key then
+            return cached.names
+        end
+        local names = {}
+        for _, ability in ipairs(token.properties:GetActivatedAbilities{bindCaster = true}) do
+            if ability.actionResourceId == CharacterResource.respiteActivityId and ability.categorization ~= "Hidden" then
+                names[#names + 1] = ability.name
+            end
+        end
+        table.sort(names)
+        respiteNames[charid] = {key = key, names = names}
+        return names
+    end
+
+    --- @param charid string
+    --- @return string|nil why the hero can't be taken to their token, nil when they can
+    local function RespiteBlocked(charid)
+        local token = dmhub.GetCharacterById(charid)
+        if token == nil or token.mapid == nil or token.mapid == "" then
+            return string.format("%s isn't on a map.", token ~= nil and token.name or "This hero")
+        end
+        return nil
+    end
+
+    --- @type RSPStageCardRespite
+    local respite = {
+        names = RespiteNames,
+        why = RespiteBlocked,
+        canUse = function(charid)
+            return RespiteBlocked(charid) == nil
+        end,
+        -- The reveal waits for the camera, so its retries start after the map has loaded.
+        use = function(charid)
+            local names = RespiteNames(charid)
+            if #names == 0 or RespiteBlocked(charid) ~= nil then
+                return
+            end
+            RSPPlayerActPanel.StepAway()
+            dmhub.CenterOnToken(charid, function()
+                if mod.unloaded then
+                    return
+                end
+                dmhub.SelectToken(charid)
+                local search = rawget(_G, "Search")
+                if search ~= nil and search.RevealActionBarAbility ~= nil then
+                    search.RevealActionBarAbility(charid, names[1])
+                end
+            end)
+        end,
+    }
+
     local function BuildCards()
         local cards = {}
         local first = true
@@ -985,6 +1077,8 @@ local function BuildStage()
                 --The tooltip says where the button goes: the Builder, at the kit.
                 sheetTip = "Change this hero's kit in the Builder",
                 actions = entry.owner == nil and HeroActions(entry.charid) or nil,
+                chipActions = entry.owner == nil and HeroChipActions(entry.charid) or nil,
+                respite = entry.owner == nil and respite or nil,
             }
 
             if card ~= nil then

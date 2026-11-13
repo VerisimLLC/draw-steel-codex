@@ -831,7 +831,8 @@ CharacterModifier.TypeInfo.kitmodifyability = {
 function Kit:Render(args, params)
 	args = args or {}
 
-    if args.width ~= nil and args.width > 600 then
+    --only a pixel width is capped; a string width ("100%") would error the comparison.
+    if type(args.width) == "number" and args.width > 600 then
         args.width = 600
     end
 

@@ -415,7 +415,7 @@ local BaseFields = {
         for langid,_ in pairs(creature:LanguagesKnown()) do
             local lang = languagesTable[langid]
             if lang ~= nil then
-                names[#names+1] = lang.name
+                names[#names+1] = lang:DisplayName()
             end
         end
         table.sort(names)

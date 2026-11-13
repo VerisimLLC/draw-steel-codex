@@ -25,8 +25,12 @@ local mod = dmhub.GetModLoading()
 --  data.agents = { [charid] = { owner, controller } }
 --                tokens of an away player and who runs them meanwhile. The
 --                record goes when the owner comes back.
---  data.events = { { seq, kind = "left"|"abandoned"|"returned"|"given", userid, name,
---                    controller, controllerName, heroNames, at }, ... }
+--  data.events = { { seq, kind = "left"|"abandoned"|"returned"|"given"|"newhost"|
+--                    "latejoin"|"latehero", userid, name, controller,
+--                    controllerName, heroNames, mode, at }, ... }
+--                (latejoin: the host let a newcomer in, mode "join"|"observe";
+--                latehero: a newcomer's heroes reached a montage after
+--                round 1 and act twice)
 --                the newest MAX_EVENTS changes, for the notices
 --  data.seq    = the last event's seq
 --  data.host   = the userid whose host tick last ran here; when another
@@ -605,6 +609,16 @@ local function EventText(e)
             return T("presence.returned.no_heroes", { name = e.name })
         end
         return T("presence.returned.other_controls", { name = e.name, heroes = heroes })
+    elseif e.kind == "latejoin" then
+        if e.userid == me then
+            return nil
+        end
+        if e.mode == "observe" then
+            return T("presence.latejoin.watching", { name = e.name })
+        end
+        return T("presence.latejoin.joining", { name = e.name, heroes = heroes })
+    elseif e.kind == "latehero" then
+        return T("presence.latehero.twice", { heroes = heroes })
     elseif e.kind == "given" then
         if e.controller == me then
             if e.abandoned then
@@ -848,6 +862,230 @@ local function WatchHost()
         { { text = T("presence.hostgone.button"), click = function() RequestHost("claim") end } })
 end
 
+--- newcomers to a game under way (the host) ----------------------------------------
+
+--A public game takes newcomers while it plays (design: EncounterOfTheWeek.md,
+--"Joining a game under way"). The host's client keeps the party's lobby
+--record alive and says what newcomers may do now (set-late-join every 30s,
+--and at once when the phase changes: "join" before combat and in round 1,
+--"observe" after, "closed" once the encounter is decided). A newcomer's
+--request shows here as a notice with Accept / Decline; accepting makes them
+--a member, and their town screen then brings them in. The game side of
+--their heroes arriving is EncounterOfTheWeekGame.LateHeroesHostTick.
+
+local LATE_HEARTBEAT_SECONDS = 30
+--a request notice clicked away comes back this soon while it still waits.
+local LATE_NOTICE_REPEAT_SECONDS = 5
+--once the encounter is decided the host drops the party's record this long
+--after (the Hall of Heroes record goes first), so its heroes are free for
+--new parties at once.
+local LATE_CLOSE_DROP_SECONDS = 15
+
+---@type {conn: LuaLobbyConnection|nil, gameid: string|nil, mode: string|nil, sentAt: number, shown: table<string, number>, answering: table<string, boolean>, closedAt: number|nil, dropped: boolean}
+local m_lateWatch = {
+    conn = nil,         --the shared lobby connection while hosting
+    gameid = nil,
+    mode = nil,         --the mode last sent
+    sentAt = 0,
+    shown = {},         --{ [userid] = when its notice was last put up }
+    answering = {},     --{ [userid] = true } while an answer is on its way
+    closedAt = nil,     --when the phase became "closed"
+    dropped = false,
+}
+
+local function LateNoticeId(userid)
+    return "eotw-latejoin-" .. userid
+end
+
+local function ReleaseLateConnection()
+    if m_lateWatch.conn ~= nil then
+        m_lateWatch.conn = nil
+        local eotw = rawget(_G, "EncounterOfTheWeekGame")
+        if eotw ~= nil and eotw.ReleaseLobbyConnection ~= nil then
+            eotw.ReleaseLobbyConnection()
+        end
+    end
+end
+
+local function RequestHeroNames(request)
+    local names = {}
+    for _, h in ipairs(type(request.heroes) == "table" and request.heroes or {}) do
+        names[#names + 1] = h.name or T("presence.hero_fallback")
+    end
+    return names
+end
+
+local function AnswerLateJoin(userid, request, accept)
+    local conn = m_lateWatch.conn
+    if conn == nil or m_lateWatch.answering[userid] then
+        return
+    end
+    m_lateWatch.answering[userid] = true
+    local name = request.name or T("presence.player_fallback")
+    conn:Request{
+        action = "answer-late-join",
+        args = { gameid = m_lateWatch.gameid, userid = userid, accept = accept },
+        success = function(result)
+            m_lateWatch.answering[userid] = nil
+            if not accept then
+                return
+            end
+            result = result or {}
+            if result.accepted == true then
+                local doc = GetDoc()
+                doc:BeginChange()
+                AddEvent(doc.data, {
+                    kind = "latejoin",
+                    userid = userid,
+                    name = name,
+                    mode = request.mode,
+                    heroNames = RequestHeroNames(request),
+                })
+                doc:CompleteChange("Encounter of the Week: a newcomer", { undoable = false })
+                printf("EotW late join: let %s in (%s)", tostring(name), tostring(request.mode))
+            else
+                local text = T("presence.latejoin.refused_late", { name = name })
+                if result.reason == "full" then
+                    text = T("presence.latejoin.refused_full", { name = name })
+                end
+                ShowToast(text, { kind = "latejoin-refused" })
+            end
+        end,
+        error = function(err)
+            m_lateWatch.answering[userid] = nil
+            printf("EotW late join: could not answer %s: %s", tostring(name), tostring(err))
+        end,
+    }
+end
+
+local function ShowLateRequest(userid, request)
+    local titleBar = rawget(_G, "CodexTitleBar")
+    if titleBar == nil or titleBar.ShowPlayersToast == nil then
+        return
+    end
+    local name = request.name or T("presence.player_fallback")
+    local text
+    if request.mode == "observe" then
+        text = T("presence.latejoin.request_watch", { name = name })
+    else
+        text = T("presence.latejoin.request_join", { name = name, heroes = JoinNames(RequestHeroNames(request)) })
+    end
+    titleBar.ShowPlayersToast{
+        id = LateNoticeId(userid),
+        text = text,
+        duration = 0,
+        actions = {
+            { text = T("presence.latejoin.accept_button"), click = function() AnswerLateJoin(userid, request, true) end },
+            { text = T("presence.latejoin.decline_button"), danger = true, click = function() AnswerLateJoin(userid, request, false) end },
+        },
+    }
+    m_lateWatch.shown[userid] = dmhub.Time()
+end
+
+local function WatchLateJoin()
+    local eotw = rawget(_G, "EncounterOfTheWeekGame")
+    if eotw == nil or eotw.LateJoinPhase == nil or not IsDMOrPlayerHost() then
+        ReleaseLateConnection()
+        return
+    end
+    local gameid = dmhub.gameid
+    if m_lateWatch.gameid ~= gameid then
+        ReleaseLateConnection()
+        m_lateWatch.gameid = gameid
+        m_lateWatch.mode = nil
+        m_lateWatch.sentAt = 0
+        m_lateWatch.shown = {}
+        m_lateWatch.closedAt = nil
+        m_lateWatch.dropped = false
+    end
+    if m_lateWatch.dropped then
+        return
+    end
+    local conn = m_lateWatch.conn
+    --a connection closed for good never reconnects: let it go, and the
+    --next tick takes a fresh one.
+    if conn ~= nil and conn.status == "closed" then
+        ReleaseLateConnection()
+        return
+    end
+    if conn == nil then
+        conn = eotw.AcquireLobbyConnection()
+        if conn == nil then
+            return
+        end
+        m_lateWatch.conn = conn
+    end
+    if not conn.connected then
+        return
+    end
+    local record = conn:GetPath("/state/games/" .. gameid)
+    if type(record) ~= "table" or record.status == "open" then
+        return
+    end
+
+    local now = dmhub.Time()
+    local phase = eotw.LateJoinPhase()
+    if phase ~= m_lateWatch.mode or now - m_lateWatch.sentAt >= LATE_HEARTBEAT_SECONDS then
+        m_lateWatch.mode = phase
+        m_lateWatch.sentAt = now
+        conn:Request{
+            action = "set-late-join",
+            args = { gameid = gameid, mode = phase },
+            error = function(err)
+                printf("EotW late join: set-late-join failed: %s", tostring(err))
+            end,
+        }
+    end
+
+    --decided: once the closing word has gone, the record goes too.
+    if phase == "closed" then
+        m_lateWatch.closedAt = m_lateWatch.closedAt or now
+        if now - m_lateWatch.closedAt >= LATE_CLOSE_DROP_SECONDS and record.hostUserid == dmhub.loginUserid then
+            m_lateWatch.dropped = true
+            conn:Request{
+                action = "leave-game",
+                args = { gameid = gameid },
+                error = function() end,
+            }
+            printf("EotW late join: the encounter is decided; the party leaves the town's list")
+            ReleaseLateConnection()
+        end
+        return
+    end
+    m_lateWatch.closedAt = nil
+
+    --the requests waiting for an answer, each as a notice that stays up.
+    local titleBar = rawget(_G, "CodexTitleBar")
+    local requests = type(record.requests) == "table" and record.requests or {}
+    for userid, request in pairs(requests) do
+        if type(request) == "table" and not m_lateWatch.answering[userid] then
+            local showing = titleBar ~= nil and titleBar.HasPlayersToast ~= nil and titleBar.HasPlayersToast(LateNoticeId(userid))
+            local last = m_lateWatch.shown[userid]
+            if not showing and (last == nil or now - last >= LATE_NOTICE_REPEAT_SECONDS) then
+                ShowLateRequest(userid, request)
+            end
+        end
+    end
+    for userid, _ in pairs(m_lateWatch.shown) do
+        if requests[userid] == nil then
+            m_lateWatch.shown[userid] = nil
+            if titleBar ~= nil and titleBar.DismissPlayersToast ~= nil then
+                titleBar.DismissPlayersToast(LateNoticeId(userid))
+            end
+        end
+    end
+end
+
+--Host: a newcomer's heroes reached a montage after round 1, so they act
+--twice this round; everyone is told.
+---@param heroNames string[]
+function EncounterPresence.AnnounceLateHeroes(heroNames)
+    local doc = GetDoc()
+    doc:BeginChange()
+    AddEvent(doc.data, { kind = "latehero", heroNames = heroNames })
+    doc:CompleteChange("Encounter of the Week: latecomers in the montage", { undoable = false })
+end
+
 dmhub.Coroutine(function()
     while not mod.unloaded do
         local ok, err = pcall(WatchEvents)
@@ -859,6 +1097,10 @@ dmhub.Coroutine(function()
             ok, err = pcall(WatchHost)
             if not ok then
                 printf("EotW presence: host watcher failed: %s", tostring(err))
+            end
+            ok, err = pcall(WatchLateJoin)
+            if not ok then
+                printf("EotW presence: late join watcher failed: %s", tostring(err))
             end
         end
         coroutine.yield(0.5)
@@ -966,6 +1208,22 @@ function EncounterPresence.ConfirmExit(kind, proceed)
 
     local me = dmhub.loginUserid
     local isHost = IsDMOrPlayerHost()
+
+    --someone watching controls nothing, so there is nothing to come back to
+    --or give up: they just go. The town then takes them off the party, so
+    --they can ask again, to watch or to join.
+    if not isHost then
+        local controlsSomething = false
+        for _, tok in ipairs(dmhub.allTokens) do
+            if tok ~= nil and tok.valid and tok.ownerId == me then
+                controlsSomething = true
+                break
+            end
+        end
+        if not controlsSomething then
+            return false
+        end
+    end
     local othersPlaying = not EncounterPresence.IsLastMember(me)
 
     local notes = {}

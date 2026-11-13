@@ -94,6 +94,7 @@ Encounter = RegisterGameType('Encounter')
 --- @class EncounterFolder: GameType
 --- @field new fun(o?: table): EncounterFolder
 --- @field id string Key of this row in its data table; SetAndUploadTableItem sets it.
+--- @field hidden? boolean True once the folder is deleted (unhidden_pairs skips it).
 EncounterFolder = RegisterGameType('EncounterFolder')
 
 EncounterFolder.tableName = 'encounterfolders'
@@ -7654,6 +7655,131 @@ CreateEncounterPanel = function()
     --- @type table<string, boolean>
     local openDelveNodes = {}
 
+    --the same for the Director's own encounter folders, keyed by folder id.
+    --A folder not in openFolderNodes yet (e.g. just made) starts open.
+    --- @type table<string, Panel>
+    local folderNodes = {}
+    --- @type table<string, boolean>
+    local openFolderNodes = {}
+
+    --Drag-and-drop filing and ordering. A card dropped on a folder header goes
+    --to the end of that folder; dropped on one of the thin gaps between cards
+    --it is put there. Each gap remembers its folder and the encounter below it.
+
+    --Over the board (or the table, where the card becomes a map window) no
+    --list target counts: the engine picks drag targets by overlap, so a gap
+    --scrolled out of sight could otherwise catch a drop meant for the map.
+    local function DragIsOffPanel()
+        return dmhub.panelDropSurface ~= nil or Tabletop.MapRowOverTable()
+    end
+
+    --The folder an encounter shows under: "" (top level) when it has none or
+    --its folder has been deleted.
+    --- @param encounter Encounter
+    --- @param folders table<string, EncounterFolder>
+    --- @return string
+    local function EncounterFolderId(encounter, folders)
+        local id = encounter.folderid
+        if id ~= "" then
+            local folder = folders[id]
+            if folder ~= nil and not folder:try_get("hidden") then
+                return id
+            end
+        end
+        return ""
+    end
+
+    --- @param a Encounter
+    --- @param b Encounter
+    local function CompareEncounters(a, b)
+        if a.ord ~= b.ord then
+            return a.ord < b.ord
+        end
+        local an = string.lower(a.name or "")
+        local bn = string.lower(b.name or "")
+        if an ~= bn then
+            return an < bn
+        end
+        return a.id < b.id
+    end
+
+    --The encounters listed in one folder, in display order. Book encounters
+    --at the top level are not in the top-level list: they show under Delves.
+    --- @param folderid string
+    --- @return Encounter[]
+    local function ListMembers(folderid)
+        local folders = dmhub.GetTable(EncounterFolder.tableName) or {}
+        local result = {}
+        for _, enc in unhidden_pairs(dmhub.GetTable(Encounter.tableName) or {}) do
+            if EncounterFolderId(enc, folders) == folderid and (folderid ~= "" or enc:GetBookInfo() == nil) then
+                result[#result + 1] = enc
+            end
+        end
+        table.sort(result, CompareEncounters)
+        return result
+    end
+
+    --Files an encounter under folderid, just before the encounter beforeid
+    --(nil = at the end), and renumbers that list so the order sticks. Only
+    --the rows whose folder or place changed are uploaded.
+    --- @param encounter Encounter
+    --- @param folderid string
+    --- @param beforeid string|nil
+    local function MoveEncounter(encounter, folderid, beforeid)
+        if beforeid == encounter.id then
+            return
+        end
+        local list = {}
+        local placed = false
+        for _, enc in ipairs(ListMembers(folderid)) do
+            if enc.id ~= encounter.id then
+                if enc.id == beforeid then
+                    list[#list + 1] = encounter
+                    placed = true
+                end
+                list[#list + 1] = enc
+            end
+        end
+        if not placed then
+            list[#list + 1] = encounter
+        end
+        for i, enc in ipairs(list) do
+            if enc.ord ~= i or enc.folderid ~= folderid then
+                enc.ord = i
+                enc.folderid = folderid
+                dmhub.SetAndUploadTableItem(Encounter.tableName, enc)
+            end
+        end
+    end
+
+    --A drop point between two cards (beforeid = the card below it), or after
+    --the last card in a list (beforeid = nil).
+    --- @param folderid string
+    --- @param beforeid string|nil
+    --- @return Panel
+    local function DropGap(folderid, beforeid)
+        return gui.Panel {
+            classes = { "encounterDropGap" },
+            dragTarget = true,
+            data = { folderid = folderid, beforeid = beforeid },
+        }
+    end
+
+    --A list's cards, sorted, with a drop gap above each and one at the end.
+    --- @param entries {encounter: Encounter, card: Panel}[]
+    --- @param folderid string
+    --- @return Panel[]
+    local function CardsWithGaps(entries, folderid)
+        table.sort(entries, function(a, b) return CompareEncounters(a.encounter, b.encounter) end)
+        local result = {}
+        for _, entry in ipairs(entries) do
+            result[#result + 1] = DropGap(folderid, entry.encounter.id)
+            result[#result + 1] = entry.card
+        end
+        result[#result + 1] = DropGap(folderid, nil)
+        return result
+    end
+
     --monsters dragged off the map and dropped on the list become a new
     --encounter (Encounter.CreateFromTokens); minHeight keeps a drop zone when
     --the list is short or empty.
@@ -7664,6 +7790,21 @@ CreateEncounterPanel = function()
                 borderColor = "@accent",
                 borderWidth = 2,
                 cornerRadius = 4,
+            },
+            --drop gaps between cards: a hairline that grows into an accent
+            --bar under a dragged card, showing where it will land.
+            {
+                selectors = { "encounterDropGap" },
+                bgimage = true,
+                bgcolor = "clear",
+                width = "90%",
+                halign = "left",
+                height = 2,
+            },
+            {
+                selectors = { "encounterDropGap", "drag-target-hover" },
+                height = 10,
+                bgcolor = "@accent",
             },
         })
     end
@@ -7683,7 +7824,7 @@ CreateEncounterPanel = function()
 
         tokenDropTarget = true,
 
-        xrightClick = function(panel)
+        rightClick = function(panel)
             panel.popup = gui.ContextMenu {
                 entries = {
 
@@ -7727,35 +7868,23 @@ CreateEncounterPanel = function()
                 local children = {}
 
                 local encounters = dmhub.GetTable('encounters')
-                local encounterfolders = dmhub.GetTable('encounterfolders')
+                local encounterfolders = dmhub.GetTable('encounterfolders') or {}
 
                 local index = 1
 
-                for key, encounterfolder in unhidden_pairs(encounterfolders) do
-                    local folder = gui.TreeNode {
+                --cards by the folder they show in ("" = top level), built
+                --below and laid out once every card exists.
+                --- @type table<string, {encounter: Encounter, card: Panel}[]>
+                local folderCards = {}
+                --- @type {encounter: Encounter, card: Panel}[]
+                local rootCards = {}
 
-                        text = encounterfolder.name,
-                        width = "100%",
-                        editable = true,
-                        dragTarget = true,
-
-                        change = function(self, newname)
-                            encounterfolder.name = newname
-                            dmhub.SetAndUploadTableItem(encounterfolder.tableName, encounterfolder)
-                        end,
-
-                        contentPanel = gui.Panel {
-
-                            classes = { "bg" },
-                            height = 100,
-                            width = 100,
-                        }
-
-                    }
-
-                    children[index] = folder
-                    index = index + 1
+                for key, node in pairs(folderNodes) do
+                    if node.valid then
+                        openFolderNodes[key] = not node.data.isCollapsed()
+                    end
                 end
+                folderNodes = {}
 
                 --shipped book encounters (Encounter:GetBookInfo) go under a
                 --Delves section, grouped by delve, instead of the flat list.
@@ -7811,14 +7940,14 @@ CreateEncounterPanel = function()
                         vmargin = 8,
                         draggable = true,
 
-                        --The engine finds drag targets by rectangle overlap, so a
-                        --folder BEHIND a map window would catch a drop on the map:
-                        --over the board (panelDropSurface set) nothing else counts.
+                        --in the list it drops on a folder header (files it there)
+                        --or a gap between cards (puts it there); see
+                        --DragIsOffPanel for why nothing counts over the board.
                         canDragOnto = function(self, target)
-                            if dmhub.panelDropSurface ~= nil then
+                            if DragIsOffPanel() then
                                 return false
                             end
-                            return target ~= nil and target:HasClass("folder")
+                            return target ~= nil and (target:HasClass("encounterFolderDrop") or target:HasClass("encounterDropGap"))
                         end,
 
                         --over the bare table the card turns into the encounter's
@@ -7866,6 +7995,17 @@ CreateEncounterPanel = function()
                         drag = function(self, target)
                             Tabletop.MapRowDragEnded(self)
                             if ChatItemLinks.Dropped() then
+                                return
+                            end
+                            --dropped in the list: refile or reorder it. A folder
+                            --header is the TreeNode's first child, so the folder
+                            --id is on its parent.
+                            if target ~= nil then
+                                if target:HasClass("encounterDropGap") then
+                                    MoveEncounter(encounter, target.data.folderid, target.data.beforeid)
+                                elseif target:HasClass("encounterFolderDrop") and target.parent ~= nil then
+                                    MoveEncounter(encounter, target.parent.data.folderid, nil)
+                                end
                                 return
                             end
                             local surface = dmhub.panelDropSurface
@@ -8082,8 +8222,18 @@ CreateEncounterPanel = function()
 
                     }
 
+                    --a card filed in a folder shows there, even a book one;
+                    --otherwise book encounters go under Delves.
+                    local folderid = EncounterFolderId(encounter, encounterfolders)
                     local book = encounter:GetBookInfo()
-                    if book ~= nil then
+                    if folderid ~= "" then
+                        local list = folderCards[folderid]
+                        if list == nil then
+                            list = {}
+                            folderCards[folderid] = list
+                        end
+                        list[#list + 1] = { encounter = encounter, card = card }
+                    elseif book ~= nil then
                         local delve = delves[book.delve]
                         if delve == nil then
                             delve = { name = book.delve, level = tonumber(book.level) or 0, cards = {} }
@@ -8092,9 +8242,79 @@ CreateEncounterPanel = function()
                         end
                         delve.cards[#delve.cards + 1] = { area = tostring(book.area or ""), name = encounter.name, card = card }
                     else
-                        children[index] = card
-                        index = index + 1
+                        rootCards[#rootCards + 1] = { encounter = encounter, card = card }
                     end
+                end
+
+                --the Director's folders first (by name), each holding its
+                --cards, then the top-level cards, then Delves.
+                --- @type {id: string, folder: EncounterFolder}[]
+                local folderList = {}
+                for key, encounterfolder in unhidden_pairs(encounterfolders) do
+                    folderList[#folderList + 1] = { id = key, folder = encounterfolder }
+                end
+                table.sort(folderList, function(a, b)
+                    local an = string.lower(a.folder.name or "")
+                    local bn = string.lower(b.folder.name or "")
+                    if an ~= bn then
+                        return an < bn
+                    end
+                    return a.id < b.id
+                end)
+
+                for _, entry in ipairs(folderList) do
+                    local folderid = entry.id
+                    local encounterfolder = entry.folder
+                    local node = gui.TreeNode {
+                        text = encounterfolder.name,
+                        width = "100%",
+                        editable = true,
+                        dragTarget = true,
+                        headerExtraClasses = { "encounterFolderDrop" },
+                        expanded = openFolderNodes[folderid] ~= false,
+                        data = { folderid = folderid },
+
+                        change = function(self, newname)
+                            encounterfolder.name = newname
+                            dmhub.SetAndUploadTableItem(EncounterFolder.tableName, encounterfolder)
+                        end,
+
+                        --deleting a folder keeps its encounters: they move
+                        --to the end of the top-level list.
+                        contextMenu = function(self)
+                            self.popup = gui.ContextMenu {
+                                entries = {
+                                    {
+                                        text = "Delete folder",
+                                        click = function()
+                                            self.popup = nil
+                                            for _, enc in ipairs(ListMembers(folderid)) do
+                                                MoveEncounter(enc, "", nil)
+                                            end
+                                            encounterfolder.hidden = true
+                                            dmhub.SetAndUploadTableItem(EncounterFolder.tableName, encounterfolder)
+                                        end,
+                                    },
+                                },
+                            }
+                        end,
+
+                        contentPanel = gui.Panel {
+                            width = "100%",
+                            height = "auto",
+                            flow = "vertical",
+                            lmargin = 12,
+                            children = CardsWithGaps(folderCards[folderid] or {}, folderid),
+                        },
+                    }
+                    folderNodes[folderid] = node
+                    children[index] = node
+                    index = index + 1
+                end
+
+                for _, child in ipairs(CardsWithGaps(rootCards, "")) do
+                    children[index] = child
+                    index = index + 1
                 end
 
                 if #delveList > 0 then

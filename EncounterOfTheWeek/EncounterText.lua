@@ -49,6 +49,10 @@ text("encounter.about.title_with_part", [[{title} -- {part}]])
 text("encounter.arrange.title", [[Arrange Your Heroes]])
 text("encounter.arrange.intro", [[You have won the initiative. Choose starting locations, then press Ready.]])
 text("encounter.arrange.intro_lost", [[You have lost the initiative; the enemy acts first. Choose starting locations, then press Ready.]])
+--A smaller line under the intro: what heroes may do while they arrange.
+text("encounter.arrange.prepare_hint", [[Before the fight you can Catch Breath, and a Null can raise their Null Field.]])
+--Shown on any other ability (greyed in the action bar) while the heroes arrange.
+text("encounter.arrange.cast_blocked", [[While you arrange your heroes you can only use Catch Breath and Null Field.]])
 
 --The button. Short: it is a button.
 text("encounter.arrange.ready_button", [[Ready]])
@@ -99,11 +103,14 @@ text("encounter.story.title_with_part", [[{title} -- {part}]])
 --Garden").
 text("encounter.series_next.title", [[{part} is open]])
 text("encounter.series_next.body", [[You have access to this encounter until you take a respite]])
+--The same, for a part whose script says "Rest does not lock this part".
+text("encounter.series_next.body_rest_free", [[It stays open, even after you take a respite]])
 --The button, here and on the Conclusion screen: back to town, where the party
 --for the next part is ready to form.
 text("encounter.series_next.button", [[Continue to {part}]])
 --Above the buttons on the Conclusion screen.
 text("encounter.series_next.story_note", [[{part} is open until your heroes take a respite.]])
+text("encounter.series_next.story_note_rest_free", [[{part} is open, and stays open after a respite.]])
 
 --When the next part plays on the same map, the party goes straight on in the
 --same game instead, and the game's host decides for everyone. The victory
@@ -216,6 +223,8 @@ text("stage.round.summary_delve", [[{hero} delved into {entry}: {obstacles} met,
 text("stage.round.summary_passed", [[{hero} approached {entry} and did nothing.]])
 text("stage.round.summary_no_roll", [[{hero}: {entry} ({option}, no roll)]])
 text("stage.round.summary_tier", [[{hero}: {entry} ({option}, {tier})]])
+--Under the summary when the result granted nothing (only words).
+text("stage.round.summary_no_reward", [[No reward from this result.]])
 --A small line under the summary: the hero used a knack. {knack} says which.
 text("stage.round.summary_knack", [[Knack: {knack}]])
 --A temporary Threat that ran out at the end of the round. {threat} is its
@@ -307,6 +316,8 @@ text("stage.scene.option_ping_tooltip", [[Ping this option for everyone: suggest
 --The last option: do nothing. Short: a button.
 text("stage.scene.leave_button", [[Leave]])
 text("stage.scene.leave_tooltip", [[Leave without doing anything. This passes your turn -- not very heroic.]])
+--Turns the page to the next line of the scene. Short: a button.
+text("stage.scene.continue_button", [[Continue]])
 --The option to step back out of a wrong choice. Short: a button.
 text("stage.scene.back_out_button", [[Oops, back out]])
 text("stage.scene.back_out_tooltip", [[Wrong place? Step back and choose again. This does not use your turn.]])
@@ -323,6 +334,9 @@ text("stage.option.rider_locked", [[You are missing a requirement for this optio
 --An edge or bane an earlier outcome gave this test. {label} is like "Edge",
 --{entry} where it was earned.
 text("stage.option.granted_at", [[{label}: earned at {entry}]])
+--The same when the script gave a reason ("Bane on X: the body is charred").
+--{reason} is the author's words, shown instead of where it was earned.
+text("stage.option.granted_reason", [[{label}: {reason}]])
 --The hero has a knack that changes this option. {knack} says which.
 text("stage.option.knack", [[Knack: {knack}]])
 --A Ritualist blessed this test. {hero} is the Ritualist; the second entry
@@ -380,8 +394,6 @@ text("stage.dice.result_yours", [[your roll]])
 text("stage.dice.hint_yours", [[Roll your dice.]])
 text("stage.dice.hint_all_in", [[The dice are in.]])
 text("stage.dice.hint_waiting", [[Waiting on the dice for {heroes}...]])
---The button that rolls. Short: a button.
-text("stage.dice.roll_button", [[Roll]])
 
 ----------------------------------------------------------------------------
 -- THE SCENE STAGE: delves and chests
@@ -549,6 +561,8 @@ text("montage.script.implicit_encounter_title", [[Encounter]])
 --threat that has no scene of its own. {hero} is the hero's name, {entry}
 --the opportunity or threat.
 text("montage.scene.approaches", [[{hero} approaches {entry}...]])
+--The result of an interrupted ("fake") test: the roll never landed.
+text("montage.interrupted.result", [[Interrupted!]])
 --Stands in for the hero's name in scene lines when it is missing.
 text("montage.scene.hero_fallback", [[The hero]])
 
@@ -737,6 +751,8 @@ text("montage.effect.consumable_recovery_lost", [[{hero} loses 1 Recovery]])
 
 --Shown when something went wrong applying an outcome.
 text("montage.effect.failed", [[Some effects could not be applied (see log)]])
+--A result whose only rules are hidden (a secret the story uses later).
+text("montage.effect.secret", [[You learned something that may matter later.]])
 
 --The source written in damage, healing and resource histories.
 --{source} is "Montage" (below) or the beat type, {entry} the opportunity,
@@ -845,6 +861,100 @@ text("montage.assassin.option_name", [[Ambush the Assassin]])
 text("montage.assassin.tier1", [[The assassin slips away into the shadows.]])
 --The damage roll's label. Short.
 text("montage.assassin.dice_label", [[Assassin's blade]])
+
+----------------------------------------------------------------------------
+-- GAUNTLET: the words on a Gauntlet's rolls (EncounterGauntlet.lua)
+----------------------------------------------------------------------------
+--The fatigue chip on a roll: every roll a hero has made in this Gauntlet
+--adds a bane. {count} is how many rolls they have made so far.
+text("gauntlet.chip.weary_one", [[Weary (1 roll so far)]])
+text("gauntlet.chip.weary_many", [[Weary ({count} rolls so far)]])
+text("gauntlet.chip.weary_description", [[Every roll you have already made in this part of the story puts a bane on this one (at most a double bane).]])
+--The assist chip on the main roll. {hero} assisted; {tier} is the tier
+--their assist roll landed on.
+text("gauntlet.chip.assist_bane", [[Bane: {hero} assisted]])
+text("gauntlet.chip.assist_edge", [[Edge: {hero} assisted]])
+text("gauntlet.chip.assist_doubleedge", [[Double edge: {hero} assisted]])
+text("gauntlet.chip.assist_description", [[{hero} assisted and rolled tier {tier}.]])
+text("gauntlet.chip.assist_fallback", [[A hero]])
+--The assist roll itself. {hero} is the hero being helped, {test} the test.
+text("gauntlet.assist.roll_title", [[Assist {hero}: {test}]])
+text("gauntlet.assist.tier1", [[The test has a bane on it.]])
+text("gauntlet.assist.tier2", [[The test has an edge on it.]])
+text("gauntlet.assist.tier3", [[The test has a double edge on it.]])
+--Secret Twin's assassin, met at a Gauntlet's custom event point: tier 3.
+text("gauntlet.assassin.driven_off", [[The assassin is driven off.]])
+
+----------------------------------------------------------------------------
+-- GAUNTLET: the stage (EncounterMontageStage.lua, "the Gauntlet stage")
+----------------------------------------------------------------------------
+--Over the scene while a hero takes an option. {hero}, {option}.
+text("stage.gauntlet.title_claim", [[{hero} takes on {option}]])
+text("stage.gauntlet.arriving_title", [[The party is on its way]])
+text("stage.gauntlet.arriving_hint", [[The story starts once everyone has arrived.]])
+--The end of a narrative that does not lead straight into a fight.
+text("stage.gauntlet.done_title", [[The way ahead is clear]])
+text("stage.gauntlet.done_hint", [[The story carries on in a moment.]])
+--The end of a narrative that leads straight into a fight: one button (any
+--player's click starts the fight), then the same words as a title. Also the
+--Proceed of a last section with no options before a fight.
+text("stage.gauntlet.draw_steel_button", [[Draw Steel!]])
+--A section with no options: the one button under its text. Anyone's click
+--moves the whole party on.
+text("stage.gauntlet.proceed_button", [[Proceed]])
+--Under a challenge, above its options.
+text("stage.gauntlet.board_hint", [[Drag a hero onto a test]])
+--Beside a secret option: the heroes who may take it. Beside a knack: the
+--heroes who would take a better version.
+text("stage.gauntlet.only", [[Only]])
+text("stage.gauntlet.better_for", [[Better for]])
+--A vote. {players} lists the players still to vote.
+text("stage.gauntlet.vote_how", [[Choose together: one vote per player.]])
+text("stage.gauntlet.individual_how", [[Choose individually: one choice per hero.]])
+text("stage.gauntlet.vote_button", [[Vote for this]])
+text("stage.gauntlet.your_vote_button", [[Your vote]])
+text("stage.gauntlet.waiting_on", [[Waiting on: {players}]])
+--The result. {hero}, {option}, {tier} ("tier 2", "critical"), {player}.
+text("stage.gauntlet.result_test", [[{hero} took on {option}: {tier}]])
+text("stage.gauntlet.result_free", [[{hero} chose {option}]])
+text("stage.gauntlet.result_nothing", [[Nothing else comes of it.]])
+text("stage.gauntlet.result_vote", [[The party chose: {option}]])
+text("stage.gauntlet.result_decided", [[{player} decided]])
+--An individual section's result, one line per option taken: {option} its
+--name, {heroes} the heroes who took it.
+text("stage.gauntlet.result_group", [[{option}: {heroes}]])
+--Where the party goes next. {section} is the next section's name.
+text("stage.gauntlet.next", [[Next: {section}]])
+text("stage.gauntlet.next_unknown", [[The party moves on.]])
+text("stage.gauntlet.next_end", [[That is the end of this part of the story.]])
+--The assist step, in the scene's dialog box. {hero} takes the test,
+--{helper} assists, {tier} is the assist roll's tier, {list} what is on the roll.
+text("stage.gauntlet.assist_open", [[Another hero may assist {hero} before the roll.]])
+text("stage.gauntlet.assist_rolling", [[{helper} is rolling to assist {hero}.]])
+text("stage.gauntlet.assist_done", [[{helper} assisted: tier {tier}.]])
+text("stage.gauntlet.on_roll", [[On this roll: {list}.]])
+text("stage.gauntlet.on_roll_assist_edge", [[an edge from {helper}]])
+text("stage.gauntlet.on_roll_assist_doubleedge", [[a double edge from {helper}]])
+text("stage.gauntlet.on_roll_assist_bane", [[a bane from {helper}'s assist]])
+text("stage.gauntlet.on_roll_weary_one", [[a bane for being Weary]])
+text("stage.gauntlet.on_roll_weary_many", [[a double bane for being Weary]])
+text("stage.gauntlet.make_test_button", [[Make the test]])
+text("stage.gauntlet.step_back_button", [[Step back]])
+--On the other heroes' cards while a test is open to an assist.
+text("stage.gauntlet.assist_button", [[Assist]])
+text("stage.gauntlet.assist_tooltip", [[Roll to help: 11 or less gives the test a bane, 12-16 an edge, 17+ a double edge. An assist is a roll, so it adds to your Weary.]])
+--The Weary chip on a hero's card: its tooltip's first line.
+text("stage.gauntlet.weary_one", [[Weary: a bane]])
+text("stage.gauntlet.weary_double", [[Weary: double bane]])
+--A "(Spotlight)" section: one hero must take it.
+text("stage.gauntlet.spotlight_hint", [[{hero} is in the spotlight: only they can take this on.]])
+--An "Everyone rolls:" section: every hero makes the test at once.
+text("stage.gauntlet.group_hint", [[Everyone makes this test.]])
+text("stage.gauntlet.group_waiting", [[Waiting on: {heroes}]])
+text("stage.gauntlet.group_landed", [[{hero}: {tier}]])
+text("stage.gauntlet.group_auto", [[(rolled for them)]])
+--The big word across the stage when an interrupted roll fades mid-throw.
+text("stage.gauntlet.interrupted_banner", [[Interrupted!]])
 
 ----------------------------------------------------------------------------
 -- MONTAGE: boons and curses on the character sheet (the ongoing effects an
@@ -1011,26 +1121,8 @@ text("hud.rules_button.tooltip", [[Encounter Rules]])
 --the map maker's name follows it.
 text("hud.map_credit.lead", [[Map by]])
 
-----------------------------------------------------------------------------
--- ABOUT ENCOUNTER OF THE WEEK: the dialog from the Codex menu
-----------------------------------------------------------------------------
-
---The Codex menu item that opens the dialog, and the dialog's title.
-text("hud.about.menu_item", [[About Encounter of the Week]])
-text("hud.about.title", [[About Encounter of the Week]])
---The credits, one line each. {name} is the credited name (it may be a link).
-text("hud.about.credit.draw_steel", [[<b>Draw Steel</b> by {name}]])
-text("hud.about.credit.eotw", [[<b>Encounter of the Week</b> concept and engineering by {name}]])
-text("hud.about.credit.eotw_name", [[the Codex Development Team]])
-text("hud.about.credit.cartography", [[<b>Cartography</b> by {name}]])
---The heading over the encounter being played. {title} is its name.
-text("hud.about.encounter_heading", [[About {title}]])
---Under that heading. {name} is the encounter's author, or the map's maker
---(bold, and a link when they have a website).
-text("hud.about.written_by", [[Written by {name}]])
-text("hud.about.map_by", [[Map by {name}]])
---Short: a button.
-text("hud.about.close", [[Close]])
+--The About Encounter of the Week dialog's words are in
+--Codex Titlescreen/EotwTextTown.lua (it opens in town as well).
 
 ----------------------------------------------------------------------------
 -- PLAYERS LEAVING AND COMING BACK: the notices under the players row
@@ -1090,6 +1182,30 @@ text("presence.given.other_controls_abandoned", [[{controller} now controls {her
 --The button on a "has left" notice that opens the players list so the host
 --can hand the heroes on. Short: a button.
 text("presence.notice.reassign_button", [[Reassign]])
+
+----------------------------------------------------------------------------
+-- JOINING A GAME UNDER WAY: newcomers to a public game that has set out
+----------------------------------------------------------------------------
+
+--The host's notice when someone in town asks to come in. {name} is the
+--player; {heroes} the heroes they would bring.
+text("presence.latejoin.request_join", [[{name} asks to join with {heroes}.]])
+text("presence.latejoin.request_watch", [[{name} asks to watch the game.]])
+--The notice's buttons. Short: buttons.
+text("presence.latejoin.accept_button", [[Accept]])
+text("presence.latejoin.decline_button", [[Decline]])
+--The host accepted, but the newcomer could not come in after all.
+text("presence.latejoin.refused_full", [[{name} could not join: the party is full now.]])
+text("presence.latejoin.refused_late", [[{name} could not join: it is too late for heroes to join.]])
+--Seen by everyone once the host lets a newcomer in.
+text("presence.latejoin.joining", [[{name} is joining the party with {heroes}.]])
+text("presence.latejoin.watching", [[{name} is coming to watch.]])
+--Seen by everyone when a newcomer's heroes reach a montage after its first
+--round: they get two actions in that round.
+text("presence.latehero.twice", [[{heroes} join the montage late and may act twice this round.]])
+--The Hero Token history note when newcomers bring the party more. {count}
+--is how many heroes joined.
+text("encounter.late.hero_tokens_note", [[Heroes joined the game ({count})]])
 
 ----------------------------------------------------------------------------
 -- PLAYERS LEAVING AND COMING BACK: when the host leaves
@@ -1228,8 +1344,8 @@ text("script.effect.item.self", [[the hero gains {qty} x {item}]])
 text("script.effect.item.party", [[every hero gains {qty} x {item}]])
 text("script.effect.stamina.self", [[the hero loses {qty} stamina]])
 text("script.effect.stamina.party", [[every hero loses {qty} stamina]])
-text("script.effect.stamina_dice.self", [[the hero loses {dice} stamina (rolled for each hero)]])
-text("script.effect.stamina_dice.party", [[every hero loses {dice} stamina (rolled for each hero)]])
+text("script.effect.stamina_dice.self", [[the hero loses {dice} stamina]])
+text("script.effect.stamina_dice.party", [[every hero loses {dice} stamina (one roll for the whole party)]])
 text("script.effect.heal.self", [[the hero heals {qty} stamina]])
 text("script.effect.heal.party", [[every hero heals {qty} stamina]])
 text("script.effect.temp_stamina.self", [[the hero gains {qty} temporary stamina]])
@@ -1261,6 +1377,8 @@ text("script.effect.ally", [[{ally} joins the hero]])
 text("script.effect.vanquish", [[the threat is vanquished]])
 --{entry} is the name of a locked opportunity or threat.
 text("script.effect.unlock", [[unlock '{entry}']])
+--A Gauntlet route. {section} is the section the party goes to.
+text("script.effect.goto", [[the party goes to '{section}']])
 text("script.effect.uncover", [[uncover {clue}]])
 --{test} is the name of another test of the montage.
 text("script.effect.test_mod.edge", [[edge on '{test}']])

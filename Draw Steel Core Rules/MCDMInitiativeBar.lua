@@ -6110,6 +6110,27 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 					and cached.data ~= nil
 					and cached.data.isplayer == isplayer
 					and cached.data.container == desiredContainer
+
+				--Determine whether this entry has any token the local player can see.
+				--Entries with no visible tokens are excluded from the *Cards lists so
+				--FitCards and the underline bar ignore them for sizing.
+				local visible = false
+				local entryTokens = self:GetTokensForInitiativeId(info, k)
+				for _,tok in ipairs(entryTokens) do
+					if tok.canSee or tok.playerControlled then
+						visible = true
+						break
+					end
+				end
+
+				--No card yet and nothing to show: do not build one. A card would only
+				--collapse itself in its own refresh, and a queue can hold many entries
+				--with no token on this map (55 of 60 in one game, ~600 panels). This
+				--same refresh pass builds the card once a token becomes visible.
+				if not visible and not cacheHit then
+					return
+				end
+
 				if cacheHit then
 					newEntries[k] = cached
 				else
@@ -6158,20 +6179,8 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 				panel.parent:SetClass("unmoved", unmoved)
 				panel.parent:SetClass("hadTurn", not unmoved)
 
-				--Determine whether this entry has any token the local player can see.
-				--Entries with no visible tokens still get added to children (their
-				--wrapper will be collapsed by the card's own refresh), but they are
-				--excluded from the *Cards lists so FitCards and the underline bar
-				--ignore them for sizing.
-				local visible = false
-				local entryTokens = self:GetTokensForInitiativeId(info, k)
-				for _,tok in ipairs(entryTokens) do
-					if tok.canSee or tok.playerControlled then
-						visible = true
-						break
-					end
-				end
-
+				--An existing card whose tokens went out of view stays in children; its
+				--own refresh collapses its wrapper.
 				if turn then
 					centerChildren[#centerChildren+1] = panel.parent
 					if visible then centerCards[#centerCards+1] = panel end
@@ -6967,6 +6976,30 @@ function GameHud.FindOpenHeroTriggerPrompt()
 	return nil, nil
 end
 
+--The first hero whose accepted trigger is still resolving, and its name; nil
+--when none. Its card is already gone, but its cast may claim the turn
+--(Hesitation Is Weakness). Passing the turn before the claim lands crosses the
+--two initiative writes: a client can then see the hero's entry current with
+--the monsters' side to pick, and the Monster AI played the hero's stolen turn
+--and ended it (AH6SYXTP). Holding until the claim lands sends the handoff down
+--NextInitiative's "claimed during the handoff" path instead.
+---@return CharacterToken|nil, string|nil
+function GameHud.FindResolvingHeroTurnClaim()
+	local q = dmhub.initiativeQueue
+	if q ~= nil and q.hidden then
+		q = nil
+	end
+	for _,token in ipairs(dmhub.allTokens) do
+		if token.valid and token.properties ~= nil and IsHeroSide(token, q) then
+			local ability = token.properties:TurnClaimResolving()
+			if ability ~= nil then
+				return token, ability
+			end
+		end
+	end
+	return nil, nil
+end
+
 ---@param token CharacterToken
 ---@param trigger ActiveTrigger
 ---@return string
@@ -7007,10 +7040,18 @@ function GameHud.WaitForHeroTriggerPrompts(context)
 			result = "deadline"
 		else
 			local token, trigger = GameHud.FindOpenHeroTriggerPrompt()
-			if token == nil or trigger == nil then
+			local text = nil
+			if token ~= nil and trigger ~= nil then
+				text = HeroPromptWaitText(token, trigger)
+			else
+				local claimToken, claimAbility = GameHud.FindResolvingHeroTurnClaim()
+				if claimToken ~= nil then
+					text = string.format("Waiting for %s's %s to finish", claimToken.name or "a hero", claimAbility)
+				end
+			end
+			if text == nil then
 				result = wait == nil and "none" or "answered"
 			else
-				local text = HeroPromptWaitText(token, trigger)
 				if wait == nil then
 					wait = {text = text, released = false}
 					g_heroPromptWait = wait

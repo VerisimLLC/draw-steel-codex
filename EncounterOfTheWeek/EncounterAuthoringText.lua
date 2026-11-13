@@ -1193,6 +1193,8 @@ text("author.validator.report.setup_place", [[setup {label}: place {qty} x '{obj
 text("author.validator.report.setup_place_delete", [[setup {label}: place {qty} x '{object}' in {zone} zones, delete the other {zone} zones]])
 text("author.validator.report.setup_bystanders", [[setup {label}: bystanders (no initiative): {names}]])
 text("author.validator.report.setup_unrecognized", [[setup {label}: UNRECOGNIZED '{text}']])
+text("author.validator.report.setup_parallax", [[parallax set to {level} while this is played]])
+text("author.validator.report.setup_hero_level", [[balanced for Level {level} heroes: monsters are leveled up or down by the party's average Level minus {level}]])
 --A "Monster AI:" line. {text} reads like "Bully on for Goblin Sniper".
 text("author.validator.report.setup_ai_behavior", [[setup {label}: {text}]])
 --Reinforcements. {name} is the group's name, {schedule} when they arrive
@@ -1423,6 +1425,8 @@ text("author.script.narrative.names_montage_test", [['{clause}' is in a narrativ
 text("author.script.encounter.no_island", [=[encounter beat has no [[encounter]] island under it]=])
 text("author.script.encounter.unknown_section", [['## {title}' in an encounter beat is not 'Reinforcements: <Name>'; ignored]])
 text("author.script.encounter.victory_not_understood", [['Victory: {victory}' is not understood (write 'Victory: every enemy on the map is defeated' or 'Victory: every Dwarf on the map is defeated'); ignored]])
+text("author.script.encounter.parallax_not_understood", [['Parallax: {parallax}' is not understood (write 'Parallax: None', 'Parallax: Slight', 'Parallax: Normal' or 'Parallax: Pronounced'); ignored]])
+text("author.script.encounter.level_not_understood", [['Level: {level}' is not understood (write the hero Level this encounter is balanced for, 1 to {max}, e.g. 'Level: 2'); ignored]])
 text("author.script.encounter.unknown_setup", [[unrecognized encounter setup instruction '{label}: {instruction}'; ignored]])
 
 --Reinforcements ("## Reinforcements: <Name>"). {name} is the group's name,

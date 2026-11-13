@@ -284,6 +284,11 @@ end
 --"You fail. Rite's Progress +2" shows as "You fail."
 local g_hiddenTrackKeys = {}
 
+--Story tracks marked "(Secret)": key -> the script's "Secret result:"
+--line, or true for the general one. Raising one tells players they
+--learned something (EncounterScript.SecretResultLine).
+local g_secretTrackKeys = {}
+
 --Adds the parts of a line that change a hidden track to `ranges`.
 local function HiddenTrackRanges(text, ranges)
     local braced = #ranges
@@ -1546,6 +1551,77 @@ function EncounterScript.ParseVictoryInstruction(text)
     return { kind = "victory", condition = "clearmap", who = singular, whoText = shown }
 end
 
+--"Parallax: <level>" under "# Encounter": the game's Parallax setting
+--(parallaxratio) while this encounter or series part is played, from the
+--moment the heroes arrive. The levels are the setting's own dropdown values
+--(Settings.lua): "None" (also "off"), "Slight", "Normal", "Pronounced".
+--Returns { kind = "parallax", ratio = 0.3, level = "Slight" } or nil. A
+--player's own "Disable Parallax" preference still wins on their screen.
+local PARALLAX_LEVELS = {
+    none = { ratio = 0, level = "None" },
+    off = { ratio = 0, level = "None" },
+    slight = { ratio = 0.3, level = "Slight" },
+    normal = { ratio = 0.6, level = "Normal" },
+    pronounced = { ratio = 1, level = "Pronounced" },
+}
+
+function EncounterScript.ParseParallaxInstruction(text)
+    local lc = lower(trim(text or ""))
+    lc = string.gsub(lc, "[%.!]+$", "")
+    local entry = PARALLAX_LEVELS[trim(lc)]
+    if entry == nil then
+        return nil
+    end
+    return { kind = "parallax", ratio = entry.ratio, level = entry.level }
+end
+
+--The parallax instruction of a parsed script's "# Encounter" beat, or nil.
+function EncounterScript.FindParallaxInstruction(parse)
+    for _, beat in ipairs((parse and parse.beats) or {}) do
+        if beat.kind == "encounter" then
+            for _, ins in ipairs(beat.setup or {}) do
+                if ins.kind == "parallax" then
+                    return ins
+                end
+            end
+        end
+    end
+    return nil
+end
+
+--"Level: <n>" under "# Encounter" (also "Hero Level:" / "Party Level:"):
+--the hero Level this encounter or series part is balanced for. The game
+--levels its monsters up or down by the party's average Level minus this
+--(EncounterOfTheWeekGame.LevelDelta). No line means Level 1.
+EncounterScript.LEVEL_LABELS = { level = true, ["hero level"] = true, ["party level"] = true, ["heroes level"] = true }
+EncounterScript.DEFAULT_HERO_LEVEL = 1
+EncounterScript.MAX_HERO_LEVEL = 10
+
+--Returns { kind = "herolevel", level = n } or nil. Takes the first whole
+--number in the text, so "2", "Level 2" and "2 heroes" all work.
+function EncounterScript.ParseHeroLevelInstruction(text)
+    local n = tonumber(string.match(text or "", "%d+"))
+    if n == nil or n < 1 or n > EncounterScript.MAX_HERO_LEVEL then
+        return nil
+    end
+    return { kind = "herolevel", level = math.floor(n) }
+end
+
+--The hero Level a parsed script's "# Encounter" beat is balanced for:
+--its "Level:" line, else DEFAULT_HERO_LEVEL.
+function EncounterScript.FindHeroLevel(parse)
+    for _, beat in ipairs((parse and parse.beats) or {}) do
+        if beat.kind == "encounter" then
+            for _, ins in ipairs(beat.setup or {}) do
+                if ins.kind == "herolevel" then
+                    return ins.level
+                end
+            end
+        end
+    end
+    return EncounterScript.DEFAULT_HERO_LEVEL
+end
+
 --The player-facing line for a clear-the-map victory.
 function EncounterScript.DescribeVictory(instruction)
     if instruction == nil or instruction.condition ~= "clearmap" then
@@ -2157,6 +2233,19 @@ function EncounterScript.TierDisplayText(roll, t, landed, heroName, pronouns)
     local text
     if landed or teaser == nil then
         text = EncounterScript.VisibleText(roll.tiers[t])
+        --a tier that raises a Secret track says so, even when the rest of
+        --it is hidden.
+        local effects = roll.effects ~= nil and roll.effects[t] or EncounterScript.ParseEffects(roll.tiers[t])
+        local secret = EncounterScript.SecretResultLine(effects)
+        if secret ~= nil then
+            if text == "" then
+                text = secret
+            elseif string.find(text, "[%.!%?]$") then
+                text = text .. " " .. secret
+            else
+                text = text .. ". " .. secret
+            end
+        end
     else
         text = EncounterScript.VisibleText(teaser)
     end
@@ -3465,15 +3554,27 @@ end
 --a threat, at random. Locked threats are never picked. Returns
 --{ restore = entryId } or { double = entryId }, or nil when the beat has no
 --threat to pick.
-function EncounterScript.ChooseChallengeThreat(beat, removed, rand)
+--`times` (optional, { [entryId] = n }) is how often each threat must already
+--be vanquished: a double then picks among the least-repeated threats, so
+--several notches spread "x2" across threats before any reaches "x3".
+function EncounterScript.ChooseChallengeThreat(beat, removed, rand, times)
     rand = rand or function(n) return math.random(n) end
     removed = removed or {}
+    times = times or {}
     for _, how in ipairs({ "restore", "double" }) do
         for _, r in ipairs((beat and beat.rounds) or {}) do
             local pool = {}
+            local fewest = nil
             for _, e in ipairs(r.entries or {}) do
                 if e.kind == "threat" and not e.locked and (removed[e.id] == true) == (how == "restore") then
-                    pool[#pool + 1] = e.id
+                    local n = tonumber(times[e.id]) or 1
+                    if fewest == nil or n < fewest then
+                        fewest = n
+                        pool = {}
+                    end
+                    if n == fewest then
+                        pool[#pool + 1] = e.id
+                    end
                 end
             end
             if #pool > 0 then
@@ -3482,6 +3583,59 @@ function EncounterScript.ChooseChallengeThreat(beat, removed, rand)
         end
     end
     return nil
+end
+
+--A difficulty notch's montage threats (pure; rand as above). Each notch up
+--is one Challenge Mode pick (ChooseChallengeThreat): a threat the party-size
+--scaling removed comes back, else a threat must be vanquished once more.
+--Each notch down removes one more threat, at random, never a Required or
+--Locked one and never a round's last. `removed` is the scaling draw and is
+--not changed. Returns { removed = {[id]=true}, times = {[id]=n},
+--restored = {ids}, dropped = {ids} } -- removed is the draw after the notches.
+function EncounterScript.ChooseNotchThreats(beat, removed, notches, rand)
+    rand = rand or function(n) return math.random(n) end
+    local result = { removed = {}, times = {}, restored = {}, dropped = {} }
+    for id, on in pairs(removed or {}) do
+        result.removed[id] = on
+    end
+    notches = math.floor(tonumber(notches) or 0)
+    for _ = 1, math.max(0, notches) do
+        local pick = EncounterScript.ChooseChallengeThreat(beat, result.removed, rand, result.times)
+        if pick == nil then
+            break
+        end
+        if pick.restore ~= nil then
+            result.removed[pick.restore] = nil
+            result.restored[#result.restored + 1] = pick.restore
+        else
+            result.times[pick.double] = (result.times[pick.double] or 1) + 1
+        end
+    end
+    for _ = 1, math.max(0, -notches) do
+        local pool = {}
+        for _, r in ipairs((beat and beat.rounds) or {}) do
+            local left = {}
+            for _, e in ipairs(r.entries or {}) do
+                if e.kind == "threat" and not result.removed[e.id] then
+                    left[#left + 1] = e
+                end
+            end
+            if #left >= 2 then
+                for _, e in ipairs(left) do
+                    if not e.required and not e.locked then
+                        pool[#pool + 1] = e.id
+                    end
+                end
+            end
+        end
+        if #pool == 0 then
+            break
+        end
+        local id = pool[rand(#pool)]
+        result.removed[id] = true
+        result.dropped[#result.dropped + 1] = id
+    end
+    return result
 end
 
 --- the document ------------------------------------------------------------
@@ -3651,8 +3805,23 @@ function EncounterScript.ParseTrackClause(clause)
     return nil, nil
 end
 
+--Does a part's "Coming soon" mark lock it on this board? A plain mark
+--locks everywhere; "Coming soon at the Town Gate" (board "gate") locks it
+--only at the Gate, so the Proving Pits (practice) can still play it.
+---@param mark table|nil a part's comingSoon ({ text, line, board })
+---@param practice boolean true for the Proving Pits
+---@return boolean
+function EncounterScript.ComingSoonLocks(mark, practice)
+    if mark == nil then
+        return false
+    end
+    return mark.board ~= "gate" or not practice
+end
+
 --"Track: Rite's Progress (Hidden) -- how close the cult is" (the text
---after "Track:") -> { name, key, hidden, description } or nil.
+--after "Track:") -> { name, key, hidden, secret, description } or nil.
+--The marks in brackets are "Hidden", "Secret" or both ("(Hidden, Secret)").
+--A Secret track is also hidden: raising it shows the "Secret result:" line.
 function EncounterScript.ParseTrackDeclaration(rest)
     local text = trim(rest or "")
     local description = nil
@@ -3661,16 +3830,30 @@ function EncounterScript.ParseTrackDeclaration(rest)
         text = trim(before)
         description = trim(after)
     end
-    local hidden = false
-    local bare = string.match(text, "^(.-)%s*%(%s*[Hh][Ii][Dd][Dd][Ee][Nn]%s*%)$")
+    local hidden, secret = false, false
+    local bare, marks = string.match(text, "^(.-)%s*%(([^()]*)%)$")
     if bare ~= nil then
-        text = trim(bare)
-        hidden = true
+        --only a bracket made of known marks counts; "(Old)" stays in the name.
+        local h, s, other = false, false, false
+        for word in string.gmatch(string.lower(marks), "[^,%s]+") do
+            if word == "hidden" then
+                h = true
+            elseif word == "secret" then
+                s = true
+            else
+                other = true
+            end
+        end
+        if (h or s) and not other then
+            text = trim(bare)
+            hidden = true
+            secret = s
+        end
     end
     if text == "" then
         return nil
     end
-    return { name = text, key = EncounterScript.MatchKey(text), hidden = hidden, description = description }
+    return { name = text, key = EncounterScript.MatchKey(text), hidden = hidden, secret = secret, description = description }
 end
 
 local OUTCOME_WORDS = {
@@ -4579,6 +4762,8 @@ function EncounterScript.Parse(text)
     local reinforcement = nil
     local paragraph = {}  --accumulating prose lines
     local paragraphLine = 0
+    --lines read as "Secret result:" (any other one gets a warning).
+    local secretLines = {}
     --where scene lines go while one is being read (an entry's scene after
     --its "---", or a scripted entry's option above / below its roll); nil
     --when lines are ordinary prose.
@@ -4610,16 +4795,44 @@ function EncounterScript.Parse(text)
             local declText = string.match(t, "^[Tt][Rr][Aa][Cc][Kk]:%s*(.*)$")
             --"Coming soon" or "Coming soon: <hover text>": the town shows this
             --part locked until the author removes the line.
-            local soonRest = string.match(t, "^[Cc]oming [Ss]oon(.*)$")
+            --"Coming soon at the Town Gate" locks it at the Gate only; the
+            --Proving Pits can still play it.
+            local soonBoard = nil
+            local gatePrefix = "coming soon at the town gate"
+            local soonRest = nil
+            if lower(t):sub(1, #gatePrefix) == gatePrefix then
+                soonRest = t:sub(#gatePrefix + 1)
+                soonBoard = "gate"
+            else
+                soonRest = string.match(t, "^[Cc]oming [Ss]oon(.*)$")
+            end
             local soonText = nil
             if soonRest ~= nil then
                 soonText = string.match(soonRest, "^:%s*(.-)$") or (string.match(soonRest, "^%.?$") and "" or nil)
             end
+            --"Coming soon at ..." that is not the Town Gate form (a typo such
+            --as "at the Gate") would leave the part open everywhere: say so.
+            if soonText == nil and string.match(lower(t), "^coming soon at ") then
+                Warn(lineIndex, "'%s' is not a lock: write 'Coming soon at the Town Gate' (or plain 'Coming soon'); read as a note, so the part is open", t)
+            end
             --"Rest does not lock this part": a win of the part before
             --unlocks this one for good, even after the party rests.
             local restFree = string.match(lower(t), "^rest does not lock this part%.?$") ~= nil
-            if soonText ~= nil then
-                local mark = { text = cond(soonText ~= "", soonText, nil), line = lineIndex }
+            --"Secret result: <text>": the line a montage result shows when
+            --its only rules are hidden. Replaces the general line.
+            local secretText = string.match(t, "^[Ss]ecret [Rr]esult:%s*(.-)%s*$")
+            if secretText ~= nil then
+                secretLines[lineIndex] = true
+                if secretText == "" then
+                    Warn(lineIndex, "'Secret result:' needs the line to show (write 'Secret result: You learn something about her.'); ignored")
+                elseif result.secretResult ~= nil then
+                    Warn(lineIndex, "a second 'Secret result:' line; the first one counts")
+                else
+                    result.secretResult = secretText
+                    result.secretResultLine = lineIndex
+                end
+            elseif soonText ~= nil then
+                local mark = { text = cond(soonText ~= "", soonText, nil), line = lineIndex, board = soonBoard }
                 if result.part ~= nil then
                     result.part.comingSoon = mark
                 else
@@ -5009,6 +5222,23 @@ function EncounterScript.Parse(text)
                     local instruction
                     if lower(trim(label)) == "victory" then
                         instruction = EncounterScript.ParseVictoryInstruction(rest)
+                    elseif lower(trim(label)) == "parallax" then
+                        instruction = EncounterScript.ParseParallaxInstruction(rest)
+                        if instruction == nil then
+                            Warn(lineIndex, "%s", T("author.script.encounter.parallax_not_understood", { parallax = rest }))
+                            instruction = { kind = "unknown" }
+                        end
+                    elseif EncounterScript.LEVEL_LABELS[lower(trim(label))] then
+                        --a label is otherwise free text ("Trap: Place ..."),
+                        --so a "Level:" line that is not a Level stays one.
+                        instruction = EncounterScript.ParseHeroLevelInstruction(rest)
+                        if instruction == nil then
+                            instruction = EncounterScript.ParseSetupInstruction(rest)
+                            if instruction == nil then
+                                Warn(lineIndex, "%s", T("author.script.encounter.level_not_understood", { level = rest, max = EncounterScript.MAX_HERO_LEVEL }))
+                                instruction = { kind = "unknown" }
+                            end
+                        end
                     elseif EncounterScript.IsAIBehaviorLabel(label) then
                         instruction = EncounterScript.ParseAIBehaviorInstruction(rest)
                     else
@@ -6190,6 +6420,12 @@ function EncounterScript.Parse(text)
     if pendingComingSoon ~= nil then
         Warn(pendingComingSoon.line, "'Coming soon' only works in a series part (a document with a '# Part N' heading); ignored")
     end
+    --a "Secret result:" line anywhere else is read as prose.
+    for i, l in ipairs(lines) do
+        if not secretLines[i] and string.match(trim(l), "^[Ss]ecret [Rr]esult:") then
+            Warn(i, "'Secret result:' goes above the first heading or under '# Part N'; here it is shown as text")
+        end
+    end
     EncounterScript.CheckStory(result, Warn)
 
     --implicit encounter: no beats at all, but an [[encounter]] island
@@ -6315,6 +6551,21 @@ function EncounterScript.ResolveStoryText(holder, story)
     return EncounterScript.ResolveStoryBlocks(holder.storyBlocks, story)
 end
 
+--The line to show players when a result raises a track marked Secret:
+--the script's "Secret result:" line, else the general one. nil when no
+--Secret track rises (a hidden track without the mark never shows it).
+function EncounterScript.SecretResultLine(effects)
+    for _, effect in ipairs(effects or {}) do
+        local line = effect.kind == "track" and (effect.delta or 0) > 0 and g_secretTrackKeys[effect.key] or nil
+        if type(line) == "string" then
+            return line
+        elseif line == true then
+            return T("montage.effect.secret")
+        end
+    end
+    return nil
+end
+
 --Evaluate a condition made only of story atoms (When lines, gates, "#
 --Results", story text). A hero or roll atom is false here.
 function EncounterScript.EvalStoryCondition(tree, story)
@@ -6433,6 +6684,23 @@ function EncounterScript.CheckStory(result, Warn)
             g_hiddenTrackKeys[decl.key] = true
         else
             g_hiddenTrackKeys[decl.key] = nil
+        end
+        if decl.secret then
+            g_secretTrackKeys[decl.key] = result.secretResult or true
+        else
+            g_secretTrackKeys[decl.key] = nil
+        end
+    end
+    --the line only shows for a Secret track, so say so when there is none.
+    if result.secretResult ~= nil and result.secretResultLine ~= nil then
+        local anySecret = false
+        for _, decl in ipairs(result.tracks) do
+            if decl.secret then
+                anySecret = true
+            end
+        end
+        if not anySecret then
+            Warn(result.secretResultLine, "'Secret result:' only shows when a track marked Secret rises (write 'Track: Name (Hidden, Secret)'); no track here is")
         end
     end
     local warned = {}
@@ -6871,6 +7139,10 @@ function EncounterScript.Describe(parse)
                     line("  %s: %s", ins.label, EncounterScript.DescribeVictory(ins) or "?")
                 elseif ins.kind == "aibehavior" then
                     line("  setup %s: %s", ins.label, EncounterScript.DescribeAIBehavior(ins))
+                elseif ins.kind == "parallax" then
+                    line("  %s: %s (parallaxratio %s)", ins.label, ins.level, tostring(ins.ratio))
+                elseif ins.kind == "herolevel" then
+                    line("  %s: balanced for Level %d heroes", ins.label, ins.level)
                 else
                     line("  setup %s: UNRECOGNIZED '%s'", ins.label, ins.text)
                 end

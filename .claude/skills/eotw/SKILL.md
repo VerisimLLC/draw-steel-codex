@@ -83,8 +83,10 @@ Interview briefly (a few questions, not a form):
   reference, "Series" and "Carrying the story forward".
 
 Facts that shape the design:
-- **Party: 4 to 6 heroes, always exactly level 1** (the game normalizes every
-  hero to level 1 on arrival). Build the fight for level 1.
+- **Party: 4 to 6 heroes, at their own Levels.** Build the fight for one hero
+  Level (level 1 unless the author wants otherwise) and write it as `Level: N`
+  under `# Encounter` (no line = Level 1). The game levels the monsters up or
+  down to the party's average Level, so one build serves every party.
 - No Director: the Monster AI plays every monster, the game runs every beat.
 - Treasure: after a victory, every NON-consumable item a hero gained in the
   game (a montage reward, a chest on the map) goes home to town with them and
@@ -141,7 +143,7 @@ groups and saved positions. The author only has to put monsters on the map.
 1. **Choose the monsters** with the author: bestiary entries (toolkit monster
    search), counts for a 6-hero party, and how they group (groups take their
    turns together: a minion squad with its captain, a solo, a pair of elites).
-   Each hero is level 1 and worth 6 to the encounter budget (4 + 2 x level),
+   Each hero is worth 4 + 2 x level to the encounter budget (6 at level 1),
    so aim the EV (`enc:CountEDS()`) at the difficulty the author wants for 6
    heroes.
 2. **Place them** -- the friendliest way: the author drags each monster from the
@@ -213,7 +215,11 @@ Craft notes:
 - Every test needs a `###` option heading above it, exact skill names, and
   three tier lines. Make tier 1 meaningful, not just "nothing happens".
 - Use recognized clauses for anything mechanical (they light up green in the
-  validator); flavour prose is fine around them.
+  validator). A tier line is a short label plus effects only:
+  `|Shaken => {The threat is vanquished}. You lose 1d3 stamina`. The
+  narration goes in the test's `if tier1 then ... end` scene block, which
+  plays in the central montage box, never as a prose sentence in the tier
+  line (script-reference.md, "Options and tests").
 - Threats need a `Consequence:` line that bites; opportunities need rewards
   worth a hero's turn.
 - **Knacks are part of the job, not a polish pass.** Follow the standard in
@@ -243,7 +249,8 @@ documents" rules, keep the text's tag lines and the annotations in step (every
 
 Run the toolkit's "Full check" after every substantial edit and walk the author
 through what it reports:
-- parse warnings (unrecognized-effect warnings on pure flavour lines are fine;
+- parse warnings (unrecognized-effect warnings on prose in a `Consequence:`
+  line are fine; on a tier line, the prose belongs in the scene block;
   everything else should be fixed);
 - items and monsters named in clauses that do not resolve;
 - tests with no characteristic, or skill names that do not exist;

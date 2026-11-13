@@ -54,9 +54,16 @@ local function Available(s)
     return s.account ~= "off" and s.account ~= "unsupported"
 end
 
---"connecting" counts: a linked user's token is still being fetched.
+--"connecting" counts: a linked user's token is still being fetched. A
+--provisional account (no Discord account linked) counts too: it has friends,
+--messages and voice of its own.
 local function Linked(s)
     return s.account == "ready" or s.account == "connecting"
+end
+
+--signed in to a provisional account rather than a linked Discord account.
+local function Provisional(s)
+    return s.account == "ready" and s.provisional == true
 end
 
 --How each Discord status is drawn. A distinct glyph per status as well as a
@@ -563,6 +570,7 @@ local function CreatePanel(args)
     local m_chat = nil          --the relationship entry being chatted with.
     local m_chatLoading = false
     local m_confirm = nil       --{text, button, run} while a confirmation shows.
+    local m_linkCardKey = nil   --what the link card last showed.
 
     local root
     local tabBar
@@ -573,6 +581,8 @@ local function CreatePanel(args)
     local searchInput
     local confirmStrip
     local statusText
+    local linkCard
+    local addFriendButton
     local listPanel
     local listView
     local chatHeader
@@ -1116,7 +1126,13 @@ local function CreatePanel(args)
             m_emptyLabel = EmptyLabel("")
         end
         if m_tab == "friends" then
-            m_emptyLabel.text = cond(m_search ~= "", "No friends match your search.", "No Discord friends yet. Add one with the + button above.")
+            if m_search ~= "" then
+                m_emptyLabel.text = "No friends match your search."
+            elseif Provisional(Status()) then
+                m_emptyLabel.text = "No friends here yet."
+            else
+                m_emptyLabel.text = "No Discord friends yet. Add one with the + button above."
+            end
         elseif m_tab == "pending" then
             m_emptyLabel.text = "No pending friend requests."
         else
@@ -1599,6 +1615,38 @@ local function CreatePanel(args)
         text = "",
     }
 
+    --Shown to a provisional player: linking brings in all their Discord
+    --friends (the provisional account is merged into the real one).
+    linkCard = gui.Panel{
+        classes = {"dfStrip", "collapsed"},
+        refreshLinkCard = function(element)
+            local s = Status()
+            element:SetClass("collapsed", not Provisional(s))
+            if not Provisional(s) then
+                return
+            end
+            element.children = {
+                gui.Label{
+                    classes = {"dfStripText"},
+                    text = s.accountError or "Link your Discord account to see all your Discord friends here and let them ask to join you.",
+                    bmargin = 6,
+                },
+                gui.Button{
+                    classes = {"sizeM"},
+                    text = "Link Discord",
+                    halign = "left",
+                    click = function()
+                        if args.offerLink ~= nil then
+                            args.offerLink()
+                        else
+                            dmhub.DiscordLink()
+                        end
+                    end,
+                },
+            }
+        end,
+    }
+
     --scrolls the slots directly, so its scroll position maps onto them.
     listPanel = gui.Panel{
         flow = "vertical",
@@ -1760,7 +1808,8 @@ local function CreatePanel(args)
         classes = {"dfFooter"},
         refreshFooter = function(element)
             local s = Status()
-            if s.account ~= "ready" then
+            --a provisional account has nothing to unlink; the link card offers linking.
+            if s.account ~= "ready" or Provisional(s) then
                 element:SetClass("collapsed", true)
                 return
             end
@@ -1785,6 +1834,26 @@ local function CreatePanel(args)
                     end,
                 },
             }
+        end,
+    }
+
+    addFriendButton = gui.Button{
+        classes = {"sizeM"},
+        icon = "phosphor/user-plus-bold.png",
+        tooltip = "Add Friend",
+        valign = "center",
+        click = function()
+            if Status().account ~= "ready" or Provisional(Status()) then
+                return
+            end
+            if m_tab == "blocked" or m_chat ~= nil then
+                ShowSettings(false)
+            end
+            local show = addStrip:HasClass("collapsed")
+            addStrip:SetClass("collapsed", not show)
+            if show then
+                addInput.hasInputFocus = true
+            end
         end,
     }
 
@@ -1821,6 +1890,17 @@ local function CreatePanel(args)
         thinkTime = POLL_SECONDS,
         think = function(element)
             local s = Status()
+            local linkCardKey = string.format("%s|%s|%s", s.account, tostring(s.provisional), s.accountError or "")
+            if linkCardKey ~= m_linkCardKey then
+                m_linkCardKey = linkCardKey
+                linkCard:FireEvent("refreshLinkCard")
+                footer:FireEvent("refreshFooter")
+                --a provisional account cannot send requests by Discord username.
+                addFriendButton:SetClass("collapsed", Provisional(s))
+                if Provisional(s) then
+                    addStrip:SetClass("collapsed", true)
+                end
+            end
             if s.account ~= m_account then
                 m_account = s.account
                 m_socialRev = nil
@@ -1874,25 +1954,7 @@ local function CreatePanel(args)
                 classes = {"dfTitle"},
                 text = cond(m_invite ~= nil, "Invite Discord Friends", "Discord Friends"),
             },
-            gui.Button{
-                classes = {"sizeM"},
-                icon = "phosphor/user-plus-bold.png",
-                tooltip = "Add Friend",
-                valign = "center",
-                click = function()
-                    if Status().account ~= "ready" then
-                        return
-                    end
-                    if m_tab == "blocked" or m_chat ~= nil then
-                        ShowSettings(false)
-                    end
-                    local show = addStrip:HasClass("collapsed")
-                    addStrip:SetClass("collapsed", not show)
-                    if show then
-                        addInput.hasInputFocus = true
-                    end
-                end,
-            },
+            addFriendButton,
             gui.Button{
                 classes = {"sizeM"},
                 icon = "phosphor/gear-six-bold.png",
@@ -1919,6 +1981,7 @@ local function CreatePanel(args)
         },
         tabBar,
         settingsBar,
+        linkCard,
         addStrip,
         confirmStrip,
         statusText,
@@ -1929,6 +1992,13 @@ local function CreatePanel(args)
         },
         footer,
     }
+
+    --Opening the panel is a use of Discord: a player who has not linked gets a
+    --provisional account so friends and messages work without one.
+    local opened = Status()
+    if opened.account == "notlinked" and opened.provisionalUnavailable ~= true then
+        dmhub.DiscordUseProvisional()
+    end
 
     return root
 end

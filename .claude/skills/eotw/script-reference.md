@@ -41,7 +41,7 @@ Everything is case-insensitive unless noted. A journal soft break
 | `# Narrative` | a story beat on the stage: sections, choices, votes |
 | `# Montage` | a montage of rounds: opportunities and threats, tests |
 | `# Negotiation: <NPC>` | a negotiation on the stage: arguments, clues, a deal |
-| `# Encounter` | the fight: setup instructions (traps, bystanders, an extra `Victory:`), then the `[[encounter]]` island, then any `## Reinforcements: <Name>` sections |
+| `# Encounter` | the fight: setup instructions (traps, bystanders, an extra `Victory:`, `Parallax:`, `Level:`), then the `[[encounter]]` island, then any `## Reinforcements: <Name>` sections |
 
 Not beats (can sit anywhere, including in a sub-document):
 
@@ -53,6 +53,14 @@ Not beats (can sit anywhere, including in a sub-document):
 | `# Delve: <Name>` | a delve entered from a montage option (see Delves) |
 | `# Part <n>: <Title>` | marks the document as one part of a series (see Series) |
 | `# Results` | a series part's outcome bars and what its outcome does to the story (see "Carrying the story forward") |
+
+Beats after the `# Encounter` (an "Aftermath" narrative, say) play once the
+fight is **won**: after the victory screen's Proceed, the stage comes back
+with them, and the `# Conclusion` screen (or, in a test, the end of the test)
+follows when the last one is done. A defeat skips them and goes straight to
+`# Defeat`. Only one fight is played: a second `# Encounter` ends the script.
+Their rewards and story effects apply as before the fight, but a series part
+has already decided its `# Results` at the victory, so they do not change it.
 
 Any other `#` heading warns and is ignored. A document with no beats but an
 `[[encounter]]` island plays as a plain fight.
@@ -148,9 +156,9 @@ Witch is alert
 PC: Good morrow! We seek help.
 
 |Negotiation Test: Presence (Empathize, Persuade, Lie)
-|You fail. The witch is unimpressed.
-|You gain one Healing Potion
-|Each party member gains one Healing Potion
+|Unimpressed => You fail
+|A small gift => You gain one Healing Potion
+|Generous => Each party member gains one Healing Potion
 |Edge: You speak Hyrallic
 
 if tier1 then
@@ -162,7 +170,7 @@ end
 ### Search the garden
 
 |Search Test: Intuition (Search, Alertness)
-|You lose 3 stamina; nettles
+|Nettles => You lose 3 stamina
 |a small find => You gain 1 Healing Potion
 |a great find => You gain 1 Healing Potion. +1 hero token
 
@@ -230,6 +238,19 @@ is a journal power-roll block:
   header -- is taken without a test: its clauses apply at once. Lines above
   its rules are its own scene; lines below are its outcome scene.
 - Tier text is clauses (see the table). Make every tier say something.
+- **A tier line is a short label plus effects. The narration goes in the
+  scene block.** Write `|<Label> => <effects>`, for example
+  `|Shaken => {The threat is vanquished}. You lose 1d3 stamina`. The label
+  is the teaser players see before the roll. Say what happens in story terms
+  in the test's `if tier1 then ... elseif tier2 then ... else ... end` scene
+  block. It plays in the central montage box and is written with `PC` and
+  the pronoun tokens. Do not put a prose sentence in the tier line. It is
+  said a second time next to the scene, and each prose clause is an
+  unrecognized-effect warning. Put `{The threat is vanquished}` first, then
+  costs (stamina, recoveries, malice), then rewards. A knack version with its
+  own roll gets its own scene block. The one exception is a timing phrase
+  that belongs to an effect, such as
+  `At the start of the next combat, each party member gains 1 surge`.
 - **Every test has a critical** (natural 19 or 20). Leave the 4th line out
   and it is built for you: tier 3's full text plus "The party gains an
   additional hero token." Write a 4th line only when a critical should give
@@ -676,6 +697,22 @@ Trap: Place 4 Snare Trap objects in Trap zones and delete the other Trap zones.
   `enemy`/`monster`/`foe` means every enemy. Bystanders and allies never count,
   and reinforcements still to come do not either: clear the map and the fight
   is won before the next wave arrives.
+- **Parallax**: `Parallax: Slight` (or `None`/`Off`, `Normal`, `Pronounced`)
+  fixes the game's Parallax setting for the whole encounter -- narrative and
+  montage beats included, from the moment the heroes arrive. The host keeps it
+  applied; with no line the game's setting is left alone. Each part of a
+  series reads its own line, so Part 2 can turn parallax off and Part 3 back
+  on. A player's own Disable Parallax preference still wins on their screen.
+  An authoring test puts the old value back when it ends.
+- **Hero Level**: `Level: 2` (also `Hero Level:` / `Party Level:`, 1 to 10)
+  is the hero Level the fight is balanced for; with no line it is Level 1.
+  The game levels every monster by the party's average Level minus this (up
+  for a stronger party, down for a weaker one); the fraction left over levels
+  the strongest monsters (by EV) one more, until that fraction of the EV is
+  levelled. Reinforcement waves are levelled the same way, the opening fight
+  is re-levelled when heroes join late, and monsters an enemy summons
+  mid-fight move by the difference rounded (a 1.5 party in a Level 1
+  encounter meets Level 2 summons). Each part of a series reads its own line.
 - **Reinforcements**: a `## Reinforcements: <Name>` section, written AFTER the
   opening `[[encounter]]` and after every setup line (everything below it
   belongs to it until the next `##` or `#`):
@@ -745,6 +782,13 @@ time).
   feature do not offer it at all. A series can ship with its first parts
   playable and the rest as placeholders. Remove the line and publish an update
   to open it.
+- **Locked at the Town Gate only**: `Coming soon at the Town Gate` (or
+  `Coming soon at the Town Gate: <text>`) locks the part at the Gate, where the
+  weekly Encounter of the Week is played, but the Proving Pits can play it,
+  unlocked by a Pits win of the part before as usual. Use it to test later
+  parts in the Pits before they release at the Gate. The publisher treats the
+  part as playable (a missing `# Encounter` is an error), and apps older than
+  this feature still show it locked on both boards.
 - **Rests and later parts**: by default a part is playable only while the
   part before it is still fresh: won since the account last rested at the
   inn (Catching Breath keeps it). A rest locks it again until that part is won
@@ -806,8 +850,21 @@ a condition (the parser warns).
   changes it is stripped from what they read, as if it were in `{...}`, and the
   recap leaves it out. Players only notice what it causes (more Malice, a
   different paragraph, a harder fight).
+- **Secret track** (`(Hidden, Secret)`, or just `(Secret)`): hidden like
+  any hidden track, but a test or choice result that **raises** it also shows
+  one line so players know they learned something (by default "You learned
+  something that may matter later."). It shows on the landed tier and in the
+  result, whatever else the result gives. Lowering the track, a threat's
+  consequence, and a hidden track without the mark never show it, so a
+  looming threat like Rite's Progress stays plain `(Hidden)`.
+- **Secret result line**: set a part's own line with `Secret result: <text>`
+  above the first heading or under `# Part N`, next to the `Track:` lines
+  (`Secret result: You learn something about Velkhara.`). It is used for
+  every Secret track in that document. The parser warns about an empty one,
+  a second one (the first counts), one anywhere else, or one in a document
+  with no Secret track.
 - The town shows no track values. The validator panel lists each declared
-  track (and whether it is hidden), and the app log prints every change
+  track (and whether it is hidden or secret), and the app log prints every change
   ("EotW story: Alarm +1 -> 2").
 
 **Change** a track with a clause anywhere clauses go (tiers, consequences,

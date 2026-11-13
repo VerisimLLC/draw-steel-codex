@@ -30,7 +30,10 @@ function queue:IsEntryPlayer(id) return playerSide end
 stub("InitiativeQueue", {GetInitiativeId = function(token) return "hero" end})
 
 local heroProps = {}
+--The name of the hero's accepted trigger still resolving (creature:TurnClaimResolving), or nil.
+local claimResolving = nil
 function heroProps:GetAvailableTriggers() return next(heroTriggers) ~= nil and heroTriggers or nil end
+function heroProps:TurnClaimResolving() return claimResolving end
 local heroToken = {valid = true, playerControlled = true, name = "Villyroth", properties = heroProps}
 
 local function Prompt(fields)
@@ -144,6 +147,37 @@ result = drive(Context(), function(resumes)
 end)
 check(result == "turn moved on", "claimed turn ends the wait")
 queue.currentTurn = "hero"
+
+--An accepted prompt whose cast is still resolving keeps the hold: its card is
+--gone, but Hesitation Is Weakness has not claimed the turn yet. Passing the turn
+--now crossed the two initiative writes and the Monster AI played the hero's
+--stolen turn (AH6SYXTP). When the claim lands the wait reports it.
+heroTriggers = {p1 = Prompt()}
+bannerText = nil
+result = drive(Context(), function(resumes)
+    if resumes == 2 then
+        heroTriggers = {}
+        claimResolving = "Hesitation Is Weakness"
+    elseif resumes == 6 then
+        bannerText = notice.text()
+    elseif resumes == 8 then
+        queue.currentTurn = "other"
+    end
+end)
+check(result == "turn moved on", "hold lasts until the claim lands, got " .. tostring(result))
+check(bannerText == "Waiting for Villyroth's Hesitation Is Weakness to finish", "banner names the resolving trigger, got " .. tostring(bannerText))
+queue.currentTurn = "hero"
+
+--Accepted before the hold began (no card ever seen) still holds; a resolving
+--trigger that never claims the turn releases it when it finishes.
+heroTriggers = {}
+claimResolving = "Mark: Benefit"
+result = drive(Context(), function(resumes)
+    if resumes == 4 then claimResolving = nil end
+end)
+check(result == "answered", "resolving trigger released without a claim, got " .. tostring(result))
+claimResolving = nil
+heroTriggers = {p1 = Prompt()}
 
 --A prompt nobody answers is released at the deadline (it ages out then anyway).
 start = now

@@ -324,6 +324,14 @@ function EncounterZones.RunEncounterSetup(beat)
                     --nothing to set up: the host's outcome check reads it
                     --(EncounterReinforcements.ClearMapVictory).
                     setup.entries[#setup.entries + 1] = { label = instruction.label, kind = "victory", text = instruction.text }
+                elseif instruction.kind == "parallax" then
+                    --nothing to set up: the host keeps the setting applied
+                    --(EnforceStrictRules in EncounterOfTheWeek.lua).
+                    setup.entries[#setup.entries + 1] = { label = instruction.label, kind = "parallax", text = instruction.text }
+                elseif instruction.kind == "herolevel" then
+                    --nothing to set up: the monster spawn reads it
+                    --(EncounterOfTheWeekGame.LevelDelta).
+                    setup.entries[#setup.entries + 1] = { label = instruction.label, kind = "herolevel", text = instruction.text }
                 else
                     setup.entries[#setup.entries + 1] = { label = instruction.label, kind = "unknown", text = instruction.text, error = "unrecognized instruction" }
                     printf("EotW zones: setup '%s' is not understood: %s", tostring(instruction.label), tostring(instruction.text))

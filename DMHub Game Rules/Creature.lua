@@ -232,6 +232,8 @@ end
 --- @field hiddenInvisibilityApplied? boolean Legacy: true when the old Hidden sync set invisibleToPlayers; cleared (and the token revealed) by the host on refresh.
 --- @field eotwAllyOf? string Encounter of the Week: charid of the hero this ally belongs to.
 --- @field eotwReinforcement? string Encounter of the Week: id of the reinforcements section this monster arrived with.
+--- @field eotwBaseLevel? integer Encounter of the Week: the Level this monster spawned at, before level balancing (ApplyLevelBoost).
+--- @field eotwBaseEV? number Encounter of the Week: this monster's EV when it spawned, for level balancing's strongest-first order.
 --- @field eotwMarket? table|false Encounter of the Week town heroes: the hero's Arcane Market visit since their last encounter (EotwMarket.lua).
 --- @field followers? table Characters: follower entries (legacy shape, migrated by validation).
 --- @field levelOverride? integer Characters: minimum character level (slow start / level picker).
@@ -10854,7 +10856,19 @@ function creature:LookupSymbol(symbolTable)
 	return GenerateSymbols(self, symbolTable)
 end
 
-function creature:BeginTurn()
+--- Starts this creature's turn: start-of-turn triggers and aura and effect expiry.
+--- options is passed only by the Monster AI, which must not act until the turn
+--- start has played out:
+---   aiActivityId: tags the turn start's events, so a hero prompt they raise holds
+---     the AI until the player answers it and the cast it starts finishes.
+---   onComplete: called once BeginTurn has finished, even if a trigger errored.
+---     Prompts its triggers raised may still be open; the AI waits on those
+---     because they carry aiActivityId.
+--- @param options? {aiActivityId: string|nil, onComplete: fun()|nil}
+function creature:BeginTurn(options)
+	local aiActivityId = options ~= nil and options.aiActivityId or nil
+	local onComplete = options ~= nil and options.onComplete or nil
+
 	--just in case some linger.
 	self:ClearMomentaryOngoingEffects()
 
@@ -10876,6 +10890,9 @@ function creature:BeginTurn()
     end
 
 	dmhub.Coroutine(function()
+        --Tell the Monster AI this turn start is over, even if something below errors.
+        coroutine.atexit(onComplete)
+
         --The initiative queue has already advanced to this creature's turn before
         --BeginTurn runs, so effects/auras that expire "at the start of this creature's
         --turn" would otherwise expire the instant the prestartturn (Before Start of
@@ -10890,7 +10907,7 @@ function creature:BeginTurn()
         end
 
         local ok, err = pcall(function()
-            self:DispatchEventAndWait("prestartturn", {})
+            self:DispatchEventAndWait("prestartturn", {aiActivityId = aiActivityId})
         end)
 
         --Clear the flag even if a trigger handler errored.
@@ -10956,7 +10973,7 @@ function creature:BeginTurn()
             end
         end
 
-        self:DispatchEvent("beginturn", {order = order})
+        self:DispatchEvent("beginturn", {order = order, aiActivityId = aiActivityId})
 
         --Surface a prestartturn trigger error after cleanup so a buggy trigger does not
         --abort the rest of BeginTurn.
@@ -12514,6 +12531,31 @@ function creature:CountPendingAIActivityReactions(activityId)
         end
     end
     return result
+end
+
+--The name of this hero's accepted trigger whose cast may still claim the turn,
+--or nil. The prompt card goes the moment it is accepted, but Hesitation Is
+--Weakness only moves initiative once its cast runs, so TriggeredAbility.lua
+--leaves a "turn-claim" marker in the card's removal write. Anything that hands
+--the turn on (the Monster AI's turn choice, the end-of-turn handoff) must wait
+--on it, or its initiative write crosses the claim's (BR8M9Z2W, AH6SYXTP).
+--- @return string|nil
+function creature:TurnClaimResolving()
+    --Completed markers hold a little longer: the claim's initiative write
+    --lands just after the cast finishes. The limit stops a completion lost in
+    --transit from holding the table for good.
+    local waitSeconds = 60
+    local settleSeconds = 2
+    for _,entry in pairs(self:try_get("pendingAIActivityReactions", {})) do
+        if type(entry) == "table" and entry.activityId == "turn-claim" then
+            local age = EventTimestampAge(entry.timestamp)
+            local limit = entry.state == "completed" and settleSeconds or waitSeconds
+            if age ~= nil and age < limit then
+                return type(entry.ability) == "string" and entry.ability or "trigger"
+            end
+        end
+    end
+    return nil
 end
 
 --How long a trigger prompt stays available before it ages out. This is a

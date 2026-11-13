@@ -436,6 +436,51 @@ EotwDowntime.PROJECTS = {
             },
         },
     },
+    --The fourth COMMUNITY project, raised with the Tinkerer's Guild (10000
+    --points, in city-core.ts); completing it opens the Great Forge. Two
+    --STAGES like the Training Grounds: planning (Presence or Reason), then
+    --building (Might or Agility). No rollLines yet: a roll shows no hero line
+    --until they are written (EotwTextGreatForge.lua).
+    ["build-great-forge"] = {
+        id = "build-great-forge",
+        scope = "community",
+        title = T("downtime.projects.build_great_forge.title"),
+        icon = "phosphor/hammer-fill.png",
+        location = "greatforge",
+        locationName = T("downtime.projects.build_great_forge.place"),
+        --the first stage's; what the town reads goes through the stages.
+        characteristics = { "prs", "rea" },
+        skills = { "Lead", "Architecture", "Magic" },
+        stages = {
+            {
+                upTo = 0.5,
+                name = T("downtime.projects.build_great_forge.stage_planning"),
+                blurb = T("downtime.projects.build_great_forge.stage_planning_blurb"),
+                characteristics = { "prs", "rea" },
+                skills = { "Lead", "Architecture", "Magic" },
+            },
+            {
+                name = T("downtime.projects.build_great_forge.stage_building"),
+                blurb = T("downtime.projects.build_great_forge.stage_building_blurb"),
+                characteristics = { "mgt", "agl" },
+                skills = { "Alchemy", "Magic", "Blacksmithing", "Mechanics" },
+                --shown to the hero whose roll begins this stage.
+                banner = { text = T("downtime.projects.build_great_forge.stage_banner"), subtitle = T("downtime.projects.build_great_forge.stage_subtitle") },
+            },
+        },
+        benefit = T("downtime.projects.build_great_forge.benefit"),
+        completeBanner = { text = T("downtime.projects.build_great_forge.complete_banner"), subtitle = T("downtime.projects.build_great_forge.complete_subtitle") },
+        blurb = function(state)
+            if state ~= nil and state.maxed then
+                return T("downtime.projects.build_great_forge.blurb_maxed")
+            end
+            local stage = EotwDowntime.ProjectStage(EotwDowntime.PROJECTS["build-great-forge"], state)
+            if stage ~= nil and stage.blurb ~= nil and stage.blurb ~= "" then
+                return stage.blurb
+            end
+            return T("downtime.projects.build_great_forge.blurb")
+        end,
+    },
 }
 
 --A Draw Steel test's tier from a 2d10 roll: 11 or less, 12-16, 17+, and a
@@ -453,10 +498,25 @@ end
 local m_projects = {}
 --scope -> a list request is in flight.
 local m_listing = {}
+--scope -> the City has answered a list of it on this connection.
+local m_listed = {}
 
 --A project's last known state, or nil before the first list.
 function EotwDowntime.GetProject(projectid)
     return m_projects[projectid]
+end
+
+--Is this community project hidden from the town? The City leaves a hidden
+--project (an admin's Hide, or one this server does not have) out of its
+--listing, so once the town's community projects are listed, an absent one
+--is hidden: its place in town, built or not, must not show. False until the
+--first listing arrives.
+function EotwDowntime.CommunityProjectHidden(projectid)
+    local project = EotwDowntime.PROJECTS[projectid]
+    if project == nil or project.scope ~= "community" then
+        return false
+    end
+    return m_listed.community == true and m_projects[projectid] == nil
 end
 
 --Drop every cached project. EotwRoster.Attach calls this for each new city
@@ -465,6 +525,7 @@ end
 function EotwDowntime.ForgetProjects()
     m_projects = {}
     m_listing = {}
+    m_listed = {}
     Bump()
 end
 
@@ -487,6 +548,14 @@ function EotwDowntime.RefreshProjects()
                         return
                     end
                     m_listing[scope] = false
+                    m_listed[scope] = true
+                    --the listing is the whole scope: a project it no longer
+                    --has (an admin hid it) leaves the cache.
+                    for id, state in pairs(m_projects) do
+                        if state.scope == scope then
+                            m_projects[id] = nil
+                        end
+                    end
                     for _, project in ipairs(result.projects or {}) do
                         m_projects[project.projectid] = project
                     end
@@ -986,10 +1055,14 @@ local function ContinueRespite(onDone)
     }
 end
 
---Take a respite: every hero at home (not away in a party) rests at once.
---onDone(ok, message, closedParts) when it has all reached the City;
---closedParts lists the series parts it closed ({board, encounter}).
-function EotwDowntime.TakeRespite(onDone)
+--Take a respite: every hero at home (not away in a party) rests at once, or
+--only the hero heroid when given. Either way it closes the account's open
+--series parts; it earns a carouse only if a resting hero banks a Victory
+--(the City decides). onDone(ok, message, closedParts) when it has all
+--reached the City; closedParts lists the series parts it closed ({board, encounter}).
+---@param onDone? fun(ok: boolean, message?: string, closedParts?: table)
+---@param heroid? string
+function EotwDowntime.TakeRespite(onDone, heroid)
     if m_respiteBusy then
         return
     end
@@ -1002,10 +1075,12 @@ function EotwDowntime.TakeRespite(onDone)
     local grants = {}
     local count = 0
     local wounded = 0
+    local victories = 0
     for _, entry in ipairs(EotwDowntime.RestCandidates()) do
-        if entry.canRest then
+        if entry.canRest and (heroid == nil or entry.hero.heroid == heroid) then
             grants[entry.hero.heroid] = entry.victories
             count = count + 1
+            victories = victories + entry.victories
             if entry.wounded then
                 wounded = wounded + 1
             end
@@ -1013,15 +1088,16 @@ function EotwDowntime.TakeRespite(onDone)
     end
     if count == 0 then
         if onDone ~= nil then
-            onDone(false, T("inn.respite.nobody_home"))
+            onDone(false, cond(heroid == nil, T("inn.respite.nobody_home"), T("inn.respite.hero_not_home")))
         end
         return
     end
-    --a respite is for healing: with nobody hurt there is nothing to rest
-    --from (and each respite earns a carouse, so it must not be repeatable).
-    if wounded == 0 then
+    --a respite heals and turns Victories into XP: with nobody hurt and no
+    --Victories there is nothing to rest for (each respite earns a carouse, so
+    --it must not be repeatable; resting zeroes Victories).
+    if wounded == 0 and victories == 0 then
         if onDone ~= nil then
-            onDone(false, EotwDowntime.NO_WOUNDS_MESSAGE)
+            onDone(false, cond(heroid == nil, EotwDowntime.NO_WOUNDS_MESSAGE, T("inn.hero_respite.no_need")))
         end
         return
     end
@@ -3256,11 +3332,40 @@ function EotwDowntime.TrainingGroundsConstructionPanel(host)
     }
 end
 
+--The Great Forge's building site: the same, for the town's shared project
+--Build the Great Forge (planned, then built: see its stages).
+function EotwDowntime.GreatForgeConstructionPanel(host)
+    return gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        gui.Label{
+            text = T("downtime.great_forge_site.intro"),
+            fontSize = 20,
+            italics = true,
+            color = TEXT,
+            width = "100%",
+            height = "auto",
+            bmargin = 12,
+        },
+        gui.Label{
+            text = T("downtime.great_forge_site.community"),
+            fontSize = 15,
+            color = DIM,
+            width = "100%",
+            height = "auto",
+            bmargin = 16,
+        },
+        EotwDowntime.ProjectCard(host, "build-great-forge"),
+        EotwDowntime.TributeButton(host, "build-great-forge"),
+    }
+end
+
 --- the Blue Fish Inn ----------------------------------------------------------
 
 --One hero's row at the inn: portrait, name, Stamina and Recoveries, what a
 --respite would give them, and Catch Your Breath.
-local function InnRow(entry, onChanged)
+local function InnRow(entry, onChanged, onRespite)
     local hero = entry.hero
     local tok = entry.tok
     local summary = hero.summary or {}
@@ -3360,6 +3465,53 @@ local function InnRow(entry, onChanged)
         end,
     }
 
+    --this hero alone takes a respite (the footer button rests everyone).
+    --Two clicks, like the party button: it closes open series parts too.
+    local respiteReason = nil
+    if not entry.canRest then
+        respiteReason = entry.reason
+    elseif not entry.wounded and entry.victories == 0 then
+        respiteReason = T("inn.hero_respite.no_need")
+    elseif EotwDowntime.RespiteBusy() then
+        respiteReason = T("inn.hero_respite.busy")
+    end
+    local respiteConfirming = false
+    local heroRespiteButton = gui.Button{
+        text = T("inn.hero_respite.button"),
+        fontSize = 14,
+        width = 120,
+        height = 30,
+        valign = "center",
+        lmargin = 10,
+        opacity = cond(respiteReason == nil, 1, 0.4),
+        linger = function(element)
+            if respiteReason ~= nil then
+                gui.Tooltip(respiteReason)(element)
+            else
+                gui.Tooltip(T("inn.hero_respite.tooltip"))(element)
+            end
+        end,
+        resetConfirm = function(element)
+            respiteConfirming = false
+            element.text = T("inn.hero_respite.button")
+        end,
+        click = function(element)
+            if respiteReason ~= nil or EotwDowntime.RespiteBusy() then
+                return
+            end
+            audio.FireSoundEvent("Mouse.Click")
+            if not respiteConfirming then
+                respiteConfirming = true
+                element.text = T("inn.hero_respite.button_confirm")
+                element:ScheduleEvent("resetConfirm", 4)
+                return
+            end
+            respiteConfirming = false
+            element.text = T("inn.hero_respite.button")
+            onRespite(hero.heroid)
+        end,
+    }
+
     return gui.Panel{
         width = "100%",
         height = 68,
@@ -3373,7 +3525,7 @@ local function InnRow(entry, onChanged)
         opacity = cond(entry.away ~= nil, 0.5, 1),
         Portrait(tok, 42, 56),
         gui.Panel{
-            width = "100%-370",
+            width = "100%-500",
             height = "auto",
             flow = "vertical",
             valign = "center",
@@ -3414,6 +3566,7 @@ local function InnRow(entry, onChanged)
             },
         },
         gains,
+        heroRespiteButton,
         breathButton,
     }
 end
@@ -3433,6 +3586,38 @@ function EotwDowntime.InnPanel(host, openLocation)
     local seriesNote = nil
 
     local Rebuild
+
+    --Take a respite for everyone (heroid nil) or one hero, and show how it went.
+    local StartRespite = function(heroid)
+        if EotwDowntime.RespiteBusy() then
+            return
+        end
+        if statusLabel ~= nil and statusLabel.valid then
+            statusLabel.text = ""
+        end
+        EotwDowntime.TakeRespite(function(ok, message, closedParts)
+            if mod.unloaded then
+                return
+            end
+            if not ok and statusLabel ~= nil and statusLabel.valid then
+                statusLabel.text = tostring(message)
+            end
+            if ok then
+                ShowPastCatchesUp(host)
+                if seriesNote ~= nil and seriesNote.valid then
+                    local lines = {}
+                    for _, held in ipairs(EncounterOfTheWeek.PartsHeldOpen(closedParts or {})) do
+                        lines[#lines+1] = T("inn.series.closed", held)
+                    end
+                    seriesNote.text = table.concat(lines, "\n")
+                    seriesNote:SetClass("collapsed", #lines == 0)
+                end
+            end
+            Rebuild()
+        end, heroid)
+        Rebuild()
+    end
+
     Rebuild = function()
         if listPanel == nil or not listPanel.valid then
             return
@@ -3441,7 +3626,7 @@ function EotwDowntime.InnPanel(host, openLocation)
         local rows = {}
         local resting, victories, wounded = 0, 0, 0
         for _, entry in ipairs(candidates) do
-            rows[#rows+1] = InnRow(entry, Rebuild)
+            rows[#rows+1] = InnRow(entry, Rebuild, StartRespite)
             if entry.canRest then
                 resting = resting + 1
                 victories = victories + entry.victories
@@ -3460,7 +3645,7 @@ function EotwDowntime.InnPanel(host, openLocation)
         if footerLabel ~= nil and footerLabel.valid then
             if resting == 0 then
                 footerLabel.text = T("inn.footer.nobody_home")
-            elseif wounded == 0 then
+            elseif wounded == 0 and victories == 0 then
                 footerLabel.text = EotwDowntime.NO_WOUNDS_MESSAGE
             else
                 if victories > 0 then
@@ -3472,7 +3657,7 @@ function EotwDowntime.InnPanel(host, openLocation)
         end
         if seriesWarning ~= nil and seriesWarning.valid then
             local lines = {}
-            if resting > 0 and wounded > 0 then
+            if resting > 0 and (wounded > 0 or victories > 0) then
                 for _, held in ipairs(EncounterOfTheWeek.PartsHeldOpen()) do
                     lines[#lines+1] = T("inn.series.warning", held)
                 end
@@ -3482,19 +3667,18 @@ function EotwDowntime.InnPanel(host, openLocation)
         end
         if respiteButton ~= nil and respiteButton.valid then
             --on the button itself: opacity is not inherited from this wrapper.
-            local opacity = cond(resting > 0 and wounded > 0 and not EotwDowntime.RespiteBusy(), 1, 0.45)
+            local opacity = cond(resting > 0 and (wounded > 0 or victories > 0) and not EotwDowntime.RespiteBusy(), 1, 0.45)
             for _, child in ipairs(respiteButton.children) do
                 child.selfStyle.opacity = opacity
             end
         end
 
-        --where to spend Downtime: shown once any hero at home has some.
+        --where to spend Downtime: shown once any hero has some. Heroes away
+        --in a party count too, or their Downtime looks lost while they are out.
         if afterPanel ~= nil and afterPanel.valid then
             local total = 0
             for _, entry in ipairs(candidates) do
-                if entry.away == nil then
-                    total = total + EotwRoster.GetDowntime(entry.hero.heroid)
-                end
+                total = total + EotwRoster.GetDowntime(entry.hero.heroid)
             end
             local children = {}
             if total > 0 then
@@ -3607,7 +3791,9 @@ function EotwDowntime.InnPanel(host, openLocation)
         },
         gui.Panel{
             width = "100%",
-            height = "100%-390",
+            --takes only the height the footer rows leave, so warnings, the
+            --carouse panel and project buttons never push past the dialog.
+            height = "100% available",
             flow = "vertical",
             vscroll = true,
             rpad = 12,
@@ -3666,30 +3852,7 @@ function EotwDowntime.InnPanel(host, openLocation)
                         return
                     end
                     audio.FireSoundEvent("Mouse.Click")
-                    if statusLabel ~= nil and statusLabel.valid then
-                        statusLabel.text = ""
-                    end
-                    EotwDowntime.TakeRespite(function(ok, message, closedParts)
-                        if mod.unloaded then
-                            return
-                        end
-                        if not ok and statusLabel ~= nil and statusLabel.valid then
-                            statusLabel.text = tostring(message)
-                        end
-                        if ok then
-                            ShowPastCatchesUp(host)
-                            if seriesNote ~= nil and seriesNote.valid then
-                                local lines = {}
-                                for _, held in ipairs(EncounterOfTheWeek.PartsHeldOpen(closedParts or {})) do
-                                    lines[#lines+1] = T("inn.series.closed", held)
-                                end
-                                seriesNote.text = table.concat(lines, "\n")
-                                seriesNote:SetClass("collapsed", #lines == 0)
-                            end
-                        end
-                        Rebuild()
-                    end)
-                    Rebuild()
+                    StartRespite(nil)
                 end),
             },
         },
@@ -3761,12 +3924,17 @@ local function DevHeroName(hero)
     return (tok ~= nil and tok.name) or (hero.summary or {}).name or hero.heroid
 end
 
---Change a roster hero's working copy and push it (dev commands only).
+--Change a roster hero's working copy and push it (dev commands and the
+--admin Set Hero Victories dialog). Returns false when the hero is not loaded.
+---@param hero table a roster hero view (EotwRoster.GetHeroes)
+---@param description string
+---@param execute fun(props: creature)
+---@return boolean
 local function DevModifyHero(hero, description, execute)
     local tok = dmhub.GetCharacterById(hero.heroid)
     if tok == nil or not EotwRoster.IsInStep(hero.heroid) then
         printf("EotW town (dev): %s is not loaded yet; try again in a moment", DevHeroName(hero))
-        return
+        return false
     end
     tok:ModifyProperties{
         description = description,
@@ -3780,7 +3948,9 @@ local function DevModifyHero(hero, description, execute)
             EotwRoster.PushHero(hero.heroid)
         end
     end)
+    return true
 end
+EotwDowntime.DevModifyHero = DevModifyHero
 
 local DEV_USAGE = [[Usage: /eotwdowntime <command> (open the town first)
   grant <n> [hero]      give n Downtime Activities (project rolls) to the hero, or to every hero at home

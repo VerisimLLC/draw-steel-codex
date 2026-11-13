@@ -759,6 +759,177 @@ function MonsterAI.AssessSupport(props)
     return result
 end
 
+--- @class MonsterAIWeightableMove
+--- @field id string The move id score weights are keyed by (MonsterAI.ScoreWeights).
+--- @field name string What to call it: the move id, or the ability's name for the generic AI.
+--- @field abilities string[] The abilities it uses.
+--- @field status string "tailored", "generic", "synthesized" (supportStatus values), "malice" or "stale".
+--- @field description string
+--- @field disabled boolean Switched off for this monster type in the Monster AI panel.
+--- @field grantedBy? string For a move needing an ability the monster only gets from a condition or ongoing effect: which one, e.g. "the Grabbed condition".
+
+local g_weightableOrder = { tailored = 1, synthesized = 2, malice = 3, generic = 4, stale = 5 }
+
+--Abilities a condition or ongoing effect hands out while it lasts (Grabbed
+--gives Escape Grab), by ability name, with where each comes from. A monster
+--does not have these in its stat block but the AI can still use them.
+--- @return table<string, string>
+local function AbilitiesGrantedByEffects()
+    local result = {}
+    local sources = {
+        { table = CharacterCondition.tableName, kind = "condition" },
+        { table = CharacterOngoingEffect.tableName, kind = "effect" },
+    }
+    for _, source in ipairs(sources) do
+        for _, effect in unhidden_pairs(dmhub.GetTable(source.table) or {}) do
+            for _, modifier in ipairs(effect:try_get("modifiers", {})) do
+                if modifier:try_get("behavior") == "activated" then
+                    local ability = modifier:try_get("activatedAbility")
+                    if ability ~= nil and result[ability.name] == nil then
+                        result[ability.name] = string.format("the %s %s", effect.name, source.kind)
+                    end
+                end
+            end
+        end
+    end
+    return result
+end
+
+--- The turn moves the AI scores for a monster, so each can be given a score
+--- weight: hand-written moves for its type (or its "similar to" type), shared
+--- moves every monster has, and abilities the generic AI plans by itself.
+--- It mirrors FindAndExecuteMove. A move needing an ability that only a
+--- condition or ongoing effect grants (Escape Grab) is listed too, with
+--- grantedBy saying which. Malice registrations for its band are listed
+--- too (status "malice"), even for minions, since one may be the caster.
+--- Weights already set for a move that no longer applies come last as
+--- "stale", so they can be cleared. A minion's turn moves are left out: it
+--- only ever makes squad strikes, which are not weighted.
+--- @param props creature
+--- @return MonsterAIWeightableMove[]
+function MonsterAI.WeightableMoves(props)
+    local ai = MonsterAI
+    local result = {}
+    local minion = props:try_get("minion", false) == true
+    local monsterType = props:try_get("monster_type", "")
+    local monsterTypes = ai.AIMonsterTypes(props)
+    ---@diagnostic disable-next-line: missing-fields
+    local fakeToken = { properties = props, valid = true } --[[@as CharacterToken]]
+
+    local allAbilities = {}
+    pcall(function() allAbilities = props:GetActivatedAbilities() end)
+    local present = {}
+    for _, ability in ipairs(allAbilities) do
+        present[ability.name] = true
+    end
+
+    --Malice the monster can spend: its own plus its band's (as AssessSupport).
+    local maliceNames = {}
+    for _, ability in ipairs(allAbilities) do
+        if IsMalice(ability) then
+            maliceNames[ability.name] = true
+        end
+    end
+    local group = nil
+    pcall(function() group = props:MonsterGroup() end)
+    if group ~= nil then
+        for _, malice in ipairs(group:try_get("maliceAbilities", {})) do
+            maliceNames[malice.name] = true
+        end
+    end
+
+    local seen = {}
+    for id, registration in pairs(ai.maliceAbilities) do
+        local name = (registration.abilities or {})[1]
+        if name ~= nil and maliceNames[name] and ai.MaliceAbilityMatchesMonster(fakeToken, registration, true) then
+            seen[id] = true
+            result[#result + 1] = {
+                id = id,
+                name = id,
+                abilities = { name },
+                status = "malice",
+                description = registration.description or "",
+                disabled = registration.disabledForMonsters ~= nil and registration.disabledForMonsters[monsterType] == true,
+            }
+        end
+    end
+
+    local granted = AbilitiesGrantedByEffects()
+
+    local claimed = {}
+    for id, move in pairs(ai.moves) do
+        if not minion and ai.MoveMatchesMonster(fakeToken, move, true) then
+            --like GetClaimedAbilityNames: a matching move keeps its abilities
+            --from the generic AI even when it cannot run.
+            local allAvailable = true
+            local grantedBy = nil
+            for _, name in ipairs(move.abilities or {}) do
+                claimed[name] = true
+                if not present[name] then
+                    if granted[name] ~= nil then
+                        grantedBy = grantedBy or granted[name]
+                    else
+                        allAvailable = false
+                    end
+                end
+            end
+            if allAvailable then
+                seen[id] = true
+                result[#result + 1] = {
+                    id = id,
+                    name = id,
+                    abilities = move.abilities or {},
+                    status = ListsMonsterType(move, monsterTypes) and ai.supportStatus.tailored or ai.supportStatus.generic,
+                    description = move.description or "",
+                    disabled = move.disabledForMonsters ~= nil and move.disabledForMonsters[monsterType] == true,
+                    grantedBy = grantedBy,
+                }
+            end
+        end
+    end
+
+    for _, ability in ipairs(allAbilities) do
+        local id = ai.SynthesizedMoveId(ability)
+        if not minion and not claimed[ability.name] and not seen[id] then
+            local profile = nil
+            pcall(function() profile = ai:GetSynthesizedAbilityProfile(fakeToken, ability) end)
+            if profile ~= nil then
+                seen[id] = true
+                result[#result + 1] = {
+                    id = id,
+                    name = ability.name,
+                    abilities = { ability.name },
+                    status = ai.supportStatus.synthesized,
+                    description = string.format("The generic AI plans it from its targeting (%s).", profile.reason or "harmful effect"),
+                    disabled = false,
+                }
+            end
+        end
+    end
+
+    for id, _ in pairs(ai.ScoreWeights(props)) do
+        if not seen[id] then
+            result[#result + 1] = {
+                id = id,
+                name = id,
+                abilities = {},
+                status = "stale",
+                description = "This monster no longer has this move, so its weight does nothing.",
+                disabled = false,
+            }
+        end
+    end
+
+    table.sort(result, function(a, b)
+        local orderA, orderB = g_weightableOrder[a.status] or 9, g_weightableOrder[b.status] or 9
+        if orderA ~= orderB then
+            return orderA < orderB
+        end
+        return a.name < b.name
+    end)
+    return result
+end
+
 --Recent assessments by monster id, so a bestiary search can rate every
 --monster without redoing the work on each keystroke. A Lua reload re-runs
 --this file and starts it empty; callers that know a monster changed (its

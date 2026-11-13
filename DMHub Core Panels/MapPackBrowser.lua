@@ -157,6 +157,15 @@ mod.shared.MapPackTileStyles = function()
 			bgcolor = "white",
 		},
 		{
+			selectors = {"mapPackTileFullSceneIcon"},
+			width = 12,
+			height = 12,
+			valign = "center",
+			rmargin = 4,
+			bgimage = "phosphor/film-slate-fill.png",
+			bgcolor = "white",
+		},
+		{
 			selectors = {"mapPackObjectsPreviewCell"},
 			width = PROPS_PREVIEW_CELL,
 			height = PROPS_PREVIEW_CELL,
@@ -681,6 +690,120 @@ mod.shared.PropsIncludedBadge = function(args)
 	return gui.Panel(result)
 end
 
+--a "Full Scene" badge: the map is a whole scene (walls, doors, lights,
+--sounds and floors already set up, converted from a Foundry scene) rather
+--than just a picture. Same look as the Props Included badge.
+mod.shared.FullSceneBadge = function(args)
+	local result = {
+		classes = {"mapPackTileEnhancements"},
+		interactable = false,
+		gui.Panel{
+			classes = {"mapPackTileFullSceneIcon"},
+			interactable = false,
+		},
+		gui.Label{
+			classes = {"mapPackTileEnhancementsText"},
+			text = "Full Scene",
+			interactable = false,
+		},
+	}
+	for k, v in pairs(args or {}) do
+		result[k] = v
+	end
+	return gui.Panel(result)
+end
+
+--what a full scene carries, for the badge's hover text:
+--"Walls and doors, lighting and sound are set up: 3 floors, 45 walls, ..."
+--- @param entry MapPackIndexEntry
+--- @return string
+mod.shared.MapPackSceneText = function(entry)
+	local stats = entry.sceneStats
+	local text = "A full scene, not just a picture: walls and doors, lighting and sound are already set up."
+	if stats == nil then
+		return text
+	end
+	local parts = {}
+	local function Add(count, one, many)
+		count = tonumber(count) or 0
+		if count > 0 then
+			parts[#parts + 1] = cond(count == 1, one, string.format(many, count))
+		end
+	end
+	if (tonumber(stats.floors) or 0) > 1 then
+		Add(stats.floors, "1 floor", "%d floors")
+	end
+	Add(stats.walls, "1 wall", "%d walls")
+	Add(stats.doors, "1 door", "%d doors")
+	Add(stats.lights, "1 light", "%d lights")
+	Add(stats.sounds, "1 sound", "%d sounds")
+	if #parts == 0 then
+		return text
+	end
+	return string.format("%s\n%s.", text, table.concat(parts, ", "))
+end
+
+--What the Map Library lists under a Full Scene map's chip, in this order:
+--each key of entry.sceneStats.features (counted by the importer,
+--tools/foundry_import/mappack.py scene_stats) with its text for one and for
+--many. A key with no `many` is a feature that is present or not. Keys the
+--importer adds that are not here are not shown.
+local MAP_PACK_FEATURES = {
+	{key = "floors", one = "1 floor", many = "%d floors"},
+	{key = "walls", one = "1 wall", many = "%d walls"},
+	{key = "doors", one = "1 door", many = "%d doors"},
+	{key = "secretDoors", one = "1 secret door", many = "%d secret doors"},
+	{key = "windows", one = "1 window", many = "%d windows"},
+	{key = "lights", one = "1 light", many = "%d lights"},
+	{key = "animatedLights", one = "1 animated light", many = "%d animated lights"},
+	{key = "sounds", one = "1 ambient sound", many = "%d ambient sounds"},
+	{key = "soundEffects", one = "1 sound with echo or muffling", many = "%d sounds with echo or muffling"},
+	{key = "stairs", one = "1 stairway or ramp", many = "%d stairways and ramps"},
+	{key = "platforms", one = "1 raised platform", many = "%d raised platforms"},
+	{key = "roofs", one = "1 roof that opens as you enter", many = "%d roofs that open as you enter"},
+	{key = "canopies", one = "1 canopy that fades around creatures", many = "%d canopies that fade around creatures"},
+	{key = "overhead", one = "1 overhead detail", many = "%d overhead details"},
+	{key = "animatedArt", one = "1 animated picture", many = "%d animated pictures"},
+	{key = "weather", one = "Weather"},
+	{key = "sheltered", one = "Sheltered areas"},
+	{key = "darkness", one = "1 area of magical darkness", many = "%d areas of magical darkness"},
+	{key = "notes", one = "1 Director note", many = "%d Director notes"},
+}
+
+--The lines listing what a Full Scene map comes with ("3 floors", "Weather"),
+--for the details pane; empty for a map that is only a picture. Rows
+--published before the feature list fall back to the headline counts.
+--- @param entry MapPackIndexEntry
+--- @return string[]
+mod.shared.MapPackFeatureLines = function(entry)
+	local lines = {}
+	local stats = entry.sceneStats
+	if stats == nil then
+		return lines
+	end
+	local features = stats.features
+	if features == nil or next(features) == nil then
+		features = {
+			floors = cond((tonumber(stats.floors) or 0) > 1, stats.floors, 0),
+			walls = stats.walls,
+			doors = stats.doors,
+			lights = stats.lights,
+			sounds = stats.sounds,
+		}
+	end
+	for _, feature in ipairs(MAP_PACK_FEATURES) do
+		local count = tonumber(features[feature.key]) or 0
+		if count > 0 then
+			if count == 1 or feature.many == nil then
+				lines[#lines + 1] = feature.one
+			else
+				lines[#lines + 1] = string.format(feature.many, count)
+			end
+		end
+	end
+	return lines
+end
+
 --"321 props included"
 mod.shared.MapPackPropsText = function(entry)
 	local n = tonumber(entry.objectCount) or 0
@@ -925,6 +1048,9 @@ mod.shared.CreateMapPackTile = function(entry, onPress)
 	local propsBadge = mod.shared.PropsIncludedBadge{
 		classes = {"mapPackTileEnhancements", cond((tonumber(entry.objectCount) or 0) <= 0, "hidden")},
 	}
+	local fullSceneBadge = mod.shared.FullSceneBadge{
+		classes = {"mapPackTileEnhancements", cond(not entry.fullScene, "hidden")},
+	}
 
 	local tile = gui.Panel{
 		classes = {"mapPackTile"},
@@ -965,8 +1091,9 @@ mod.shared.CreateMapPackTile = function(entry, onPress)
 		end,
 		viewport,
 		--the name bar, with the Codex Enhancements badge stacked above it
-		--once the pack's shared-markup listing says this map has one, and
-		--the Props Included badge when the map ships objects.
+		--once the pack's shared-markup listing says this map has one, the
+		--Full Scene badge for a whole converted scene, and the Props
+		--Included badge when the map ships objects.
 		gui.Panel{
 			width = "100%",
 			height = "auto",
@@ -974,6 +1101,7 @@ mod.shared.CreateMapPackTile = function(entry, onPress)
 			flow = "vertical",
 			interactable = false,
 			enhancementsBadge,
+			fullSceneBadge,
 			propsBadge,
 			gui.Panel{
 				classes = {"mapPackTileLabelBand"},
@@ -1026,7 +1154,13 @@ end
 --- @param entry MapPackIndexEntry
 --- @param focus? {x1: number, y1: number, x2: number, y2: number}
 mod.shared.ShowMapPackFullPreview = function(entry, focus)
-	if entry.image == nil or entry.image == "" then
+	--a Full Scene map's picture of every layer composed, when the index has
+	--one; otherwise the map image itself.
+	local picture = entry.image
+	if entry.preview ~= nil and entry.preview ~= "" then
+		picture = entry.preview
+	end
+	if picture == nil or picture == "" then
 		return
 	end
 
@@ -1034,10 +1168,10 @@ mod.shared.ShowMapPackFullPreview = function(entry, focus)
 	local transientKey = nil
 	local fullImage
 	if locked then
-		transientKey = dmhub.LoadTransientImage(entry.image)
+		transientKey = dmhub.LoadTransientImage(picture)
 		fullImage = transientKey
 	else
-		fullImage = "md5:" .. entry.image
+		fullImage = "md5:" .. picture
 	end
 
 	--image size in pixels. Until the full image arrives the index's tile

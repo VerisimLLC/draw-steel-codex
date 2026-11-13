@@ -394,8 +394,6 @@ text("stage.dice.result_yours", [[your roll]])
 text("stage.dice.hint_yours", [[Roll your dice.]])
 text("stage.dice.hint_all_in", [[The dice are in.]])
 text("stage.dice.hint_waiting", [[Waiting on the dice for {heroes}...]])
---The button that rolls. Short: a button.
-text("stage.dice.roll_button", [[Roll]])
 
 ----------------------------------------------------------------------------
 -- THE SCENE STAGE: delves and chests
@@ -753,6 +751,8 @@ text("montage.effect.consumable_recovery_lost", [[{hero} loses 1 Recovery]])
 
 --Shown when something went wrong applying an outcome.
 text("montage.effect.failed", [[Some effects could not be applied (see log)]])
+--A result whose only rules are hidden (a secret the story uses later).
+text("montage.effect.secret", [[You learned something that may matter later.]])
 
 --The source written in damage, healing and resource histories.
 --{source} is "Montage" (below) or the beat type, {entry} the opportunity,

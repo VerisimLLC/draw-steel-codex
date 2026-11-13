@@ -1144,6 +1144,8 @@ end
 --- @field aiActivityId nil|string
 --- @field aiReactionId nil|string
 --- @field alreadyPaid nil|boolean
+--- @field triggerDispatched nil|boolean Set by Trigger once a cast is started or scheduled; that cast answers complete.
+--- @field triggerPrompting nil|boolean Set by Trigger while a prompt is open; the prompt's end answers complete.
 
 --- The square at the centre of an area: the one of its squares nearest the mean of
 --- them all (the exact centre of an odd cube or burst). nil for an empty area.
@@ -1173,6 +1175,12 @@ function TriggeredAbility.AreaCenterLoc(area)
 end
 
 --auraControllerToken: token controlling an aura this is triggered from, or can be nil for a regular trigger attached to the creature it's triggering on.
+--- Fires this trigger for creature. argOptions.complete, when given, is a
+--- callback the caller waits on (the trigger-before flows: the triggering
+--- roll is held until it runs). It is called exactly once on EVERY route:
+--- after the cast finishes, or at once if the trigger does not fire (a gate
+--- or its condition fails) or its prompt ends without a cast. A caller never
+--- has to guess whether it will come.
 --- @param characterModifier CharacterModifier
 --- @param creature Creature
 --- @param symbols table
@@ -1181,6 +1189,40 @@ end
 --- @param argOptions TriggeredAbilityTriggerOptions
 --- @return nil
 function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraControllerToken, modContext, argOptions)
+    argOptions = argOptions or {}
+    local complete = argOptions.complete
+    if complete == nil then
+        return self:TriggerUnguarded(characterModifier, creature, symbols, auraControllerToken, modContext, argOptions)
+    end
+
+    local completed = false
+    argOptions.complete = function()
+        if completed then
+            return
+        end
+        completed = true
+        complete()
+    end
+
+    self:TriggerUnguarded(characterModifier, creature, symbols, auraControllerToken, modContext, argOptions)
+
+    --Not handed to a cast and no prompt still open: the trigger did not fire.
+    if not argOptions.triggerDispatched and not argOptions.triggerPrompting then
+        argOptions.complete()
+    end
+end
+
+--- The body of Trigger. argOptions.triggerDispatched is set once a cast is
+--- started or scheduled (that cast then calls argOptions.complete), and
+--- argOptions.triggerPrompting while a prompt is open for the player.
+--- @param characterModifier CharacterModifier
+--- @param creature Creature
+--- @param symbols table
+--- @param auraControllerToken nil|CharacterToken
+--- @param modContext table
+--- @param argOptions TriggeredAbilityTriggerOptions
+--- @return nil
+function TriggeredAbility:TriggerUnguarded(characterModifier, creature, symbols, auraControllerToken, modContext, argOptions)
 
     argOptions = argOptions or {}
 
@@ -1631,6 +1673,7 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
     end
 
 	local executeTrigger = function(isDismiss)
+		argOptions.triggerDispatched = true
 		self:ExecuteTriggerCast{
 			dismiss = isDismiss,
 			argOptions = argOptions,
@@ -1688,7 +1731,10 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 	else
 		local guid = aiReactionId or dmhub.GenerateGuid()
 
-		dmhub.Coroutine(function()
+		--A waiting caller (argOptions.complete) is answered when the prompt
+		--ends: by the cast if it was accepted, else after promptBody returns.
+		argOptions.triggerPrompting = true
+		local promptBody = function()
 			--Register as the live watcher for this prompt before it becomes
 			--visible: an acceptance is consumed by this coroutine, never by
 			--the orphan-recovery path -- see ActivateOrphanedTrigger.
@@ -2122,6 +2168,8 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 				--look it up by, or when the caller is waiting on a completion
 				--callback (the triggerBefore flows), which cannot cross machines.
 				local controllerid = TokenPromptControllerId(casterToken)
+				--the cast below owns answering argOptions.complete from here.
+				argOptions.triggerDispatched = true
 				if controllerid ~= nil and self:try_get("guid") ~= nil and argOptions.complete == nil then
 					self:SendTriggerCastToController(controllerid, {
 						dismiss = isDismiss,
@@ -2146,6 +2194,13 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 				end
 			else
 				CompleteAIReaction()
+			end
+		end
+
+		dmhub.Coroutine(function()
+			promptBody()
+			if argOptions.complete ~= nil and not argOptions.triggerDispatched then
+				argOptions.complete()
 			end
 		end)
 	end
@@ -2215,10 +2270,15 @@ function TriggeredAbility:ExecuteTriggerCast(args)
 
 		-- Call OnFinishCastHandlers so that instant behaviors
 		-- (e.g. ActivatedAbilityApplyAbilityDurationEffect) can
-		-- schedule their cleanup and the triggerBefore complete
-		-- callback fires.
+		-- schedule their cleanup.
 		for i, handler in ipairs(options.OnFinishCastHandlers or {}) do
 			handler(self, casterToken, options)
+		end
+		--The cast is done, so release a trigger-before caller (e.g. Inertial
+		--Shield's Elemental Absorption, which is instant). These handlers come
+		--from the behaviors, not argOptions, so it would never be called otherwise.
+		if argOptions.complete then
+			argOptions.complete()
 		end
 		CompleteAIReactionFromOptions(casterToken, argOptions)
 		AckEventWaitFromSymbols(casterToken, symbols)
@@ -2247,6 +2307,9 @@ function TriggeredAbility:ExecuteTriggerCast(args)
 
 	if g_triggerDepth > 8 then
 		printf("Too many triggers stacked in the same frame, aborting.")
+		if argOptions.complete then
+			argOptions.complete()
+		end
 		CompleteAIReactionFromOptions(casterToken, argOptions)
 		return
 	end

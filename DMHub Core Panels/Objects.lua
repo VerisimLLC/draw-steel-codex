@@ -508,7 +508,8 @@ local ShowObjectTooltip = function(element)
 					children = {
 						gridPanel,
 						gui.Panel{
-							bgimageStreamed = node.thumbnailId,
+							--the 512 px preview; the grid's thumbnail shows until it is made.
+							bgimageStreamed = node.previewId,
 							selfStyle = {
 								width = imageDim,
 								height = imageDim,
@@ -522,9 +523,6 @@ local ShowObjectTooltip = function(element)
 								imageDimensions = function(element, info)
 									--node.components above already errors on a nil node.
 									---@cast node -nil
-									if element.bgsprite == nil then
-										dmhub.Debug('NO BG SPRITE')
-									end
 									local maxDim = max(info.width, info.height)*node.scale
 									local xratio = (info.width*node.scale)/maxDim
 									local yratio = (info.height*node.scale)/maxDim
@@ -619,7 +617,8 @@ local ShowObjectTooltip = function(element)
 		}
 	)
 
-    gui.GetImageDimensionsCallback(node.image, function(info)
+    --the size alone: GetImageDimensionsCallback would load the full image to measure it.
+    gui.GetImageSizeCallback(node.image, function(info)
         tooltip:FireEventTree("imageDimensions", info)
     end)
 
@@ -1176,9 +1175,8 @@ local function CreateObjectEntry(nodeid, parentElement, options)
                 element.data.nhighlights = nhighlights
 			end,
 
-			--Defer the tooltip preview until the user dwells on the entry, since each tooltip
-			--can load a multi-megapixel thumbnail texture and a fast scan of the palette would
-			--otherwise exhaust GPU memory.
+			--Defer the tooltip until the user dwells on the entry: each one builds a 512 px
+			--preview, decoding (or downloading) the full image the first time.
 			linger = function(element)
 				ShowObjectTooltip(element)
 			end,

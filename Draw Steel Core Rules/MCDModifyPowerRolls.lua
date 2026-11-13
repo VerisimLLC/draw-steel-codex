@@ -2446,6 +2446,12 @@ CharacterModifier.TypeInfo.power = {
                                     id = "none",
                                     text = "No Effects",
                                 },
+                                --the original target keeps the strike and half its
+                                --damage; the new one takes the rest of the damage.
+                                {
+                                    id = "split",
+                                    text = "Split Damage",
+                                },
                             },
                             valign = "center",
                             idChosen = modifier:try_get("changeTargetEffect", "all"),

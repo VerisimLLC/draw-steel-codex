@@ -365,6 +365,10 @@ local function Report(parse)
                 Row(1, "rule", "%s", T("author.validator.report.setup_bystanders", { label = tostring(ins.label), names = table.concat(ins.names or {}, ", ") }))
             elseif ins.kind == "victory" then
                 Row(1, "rule", "%s: %s", ins.label, EncounterScript.DescribeVictory(ins) or "?")
+            elseif ins.kind == "parallax" then
+                Row(1, "rule", "%s", T("author.validator.report.setup_parallax", { level = tostring(ins.level) }))
+            elseif ins.kind == "herolevel" then
+                Row(1, "rule", "%s", T("author.validator.report.setup_hero_level", { level = tostring(ins.level) }))
             elseif ins.kind == "aibehavior" then
                 Row(1, "rule", "%s", T("author.validator.report.setup_ai_behavior", { label = tostring(ins.label), text = EncounterScript.DescribeAIBehavior(ins) }))
                 local monsterAI = rawget(_G, "MonsterAI")
@@ -944,9 +948,13 @@ function EncounterScriptValidator.BuildReport(docid, partyid)
         else
             note = T("author.validator.report.part_later", { number = parse.part.number, previous = parse.part.number - 1 })
         end
-        if parse.part.comingSoon ~= nil then
-            note = string.format("Part %d%s of a series: marked 'Coming soon', so the town shows it locked%s", parse.part.number, title,
-                cond(parse.part.comingSoon.text ~= nil, " (\"" .. tostring(parse.part.comingSoon.text) .. "\")", ""))
+        local soon = parse.part.comingSoon
+        if soon ~= nil then
+            local marked = cond(soon.board == "gate",
+                "marked 'Coming soon at the Town Gate', so the Gate shows it locked and the Proving Pits can play it",
+                "marked 'Coming soon', so the town shows it locked")
+            note = string.format("Part %d%s of a series: %s%s", parse.part.number, title, marked,
+                cond(soon.text ~= nil, " (\"" .. tostring(soon.text) .. "\")", ""))
         elseif parse.part.restFree then
             note = note .. "; a rest does not lock it again"
         end
@@ -975,7 +983,7 @@ function EncounterScriptValidator.BuildReport(docid, partyid)
 
         --the story it carries forward: its tracks and its "# Results".
         for _, decl in ipairs(parse.tracks or {}) do
-            local text = string.format("story track '%s'%s", decl.name, cond(decl.hidden, " (hidden from players)", ""))
+            local text = string.format("story track '%s'%s", decl.name, cond(decl.secret, " (secret: hidden, and raising it shows the Secret result line)", cond(decl.hidden, " (hidden from players)", "")))
             if decl.description ~= nil then
                 text = text .. " -- " .. decl.description
             end

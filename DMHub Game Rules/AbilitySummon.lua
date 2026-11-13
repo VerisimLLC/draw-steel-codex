@@ -114,6 +114,34 @@ ActivatedAbilitySummonBehavior.copyAbilities = false
 ActivatedAbilitySummonBehavior.copyTriggers = false
 ActivatedAbilitySummonBehavior.duplicateTargetOrigin = "duplicate"
 
+--Summon hooks: functions run on every creature a summon creates, once it is
+--set up and before its first upload (so a hook writes token.properties
+--directly, no ModifyProperties). A game mode registers one to adjust summons:
+--Encounter of the Week levels the heroes' enemies' summons for the party's
+--Level. Keyed by id, so a reload replaces rather than duplicates. Not run for
+--duplicates (duplicate mode copies its source instead).
+---@type table<string, fun(casterToken: CharacterToken, token: CharacterToken)>
+local g_summonHooks = {}
+
+--- Register (or with fn nil, remove) a summon hook under `id`.
+--- @param id string
+--- @param fn nil|fun(casterToken: CharacterToken, token: CharacterToken)
+function ActivatedAbilitySummonBehavior.RegisterSummonHook(id, fn)
+    g_summonHooks[id] = fn
+end
+
+--- Run every summon hook on a freshly spawned, not yet uploaded summon.
+--- @param casterToken CharacterToken
+--- @param token CharacterToken
+function ActivatedAbilitySummonBehavior.RunSummonHooks(casterToken, token)
+    for id, fn in pairs(g_summonHooks) do
+        local ok, err = pcall(fn, casterToken, token)
+        if not ok then
+            printf("Summon hook '%s' failed: %s", tostring(id), tostring(err))
+        end
+    end
+end
+
 --Custom looks for the creatures a caster summons. Keyed by monster_type
 --(several bestiary entries can share one monster_type; monsters without one
 --fall back to their bestiary id). In each entry, nil means "not customized":
@@ -2489,6 +2517,12 @@ function ActivatedAbilitySummonBehavior:CastSummons(ability, casterToken, target
         --asking for placement, so we can expose the chosen creature as a symbol
         local choices = {}
         if self.monsterType == "custom" then
+            --The filter can read the creature this summon is for as `target`
+            --(e.g. Abyssal Evolution: "a horde demon of the target's level").
+            local previousTarget = args.symbols.target
+            if target.token ~= nil and target.token.properties ~= nil then
+                args.symbols.target = GenerateSymbols(target.token.properties)
+            end
             for k,monster in pairs(assets.monsters) do
                 --GetMonsterNode can return nil mid-import/reload; skip rather than throw.
                 local node = assets:GetMonsterNode(k)
@@ -2499,6 +2533,7 @@ function ActivatedAbilitySummonBehavior:CastSummons(ability, casterToken, target
                     end
                 end
             end
+            args.symbols.target = previousTarget
         else
             local monster = assets.monsters[self.monsterType]
             if monster ~= nil then
@@ -3065,6 +3100,8 @@ function ActivatedAbilitySummonBehavior:CastSummons(ability, casterToken, target
                 token.properties.summonEmergeHide = true
                 token.properties.summonEmergeDuration = emergeDuration
             end
+
+            ActivatedAbilitySummonBehavior.RunSummonHooks(casterToken, token)
 
             token:UploadToken("Summon Creature")
             game.UpdateCharacterTokens()

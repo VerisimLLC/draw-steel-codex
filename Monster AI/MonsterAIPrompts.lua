@@ -1048,3 +1048,23 @@ MonsterAI:RegisterTrigger{
         return decision
     end,
 }
+
+--A Beastheart's Covering Fire puts Taking Fire on each target that is not
+--prone: a free triggered action to fall prone, or take extra damage equal to
+--twice the Beastheart's Intuition. It is offered to any creature the hero
+--shoots, so it is registered by its prompt text for every monster. The trigger
+--costs nothing, and prone is the very thing the shot is meant to force, so the
+--monster always ducks.
+MonsterAI:RegisterTrigger{
+    id = "Covering Fire: Fall Prone",
+    triggers = {"Taking Fire"},
+    description = "Fall prone when targeted by a Beastheart's Covering Fire, rather than take the extra damage.",
+    handler = function(ai, token, triggerInfo)
+        ai:LogDecision("TAKING FIRE", {
+            ability = triggerInfo:GetText(),
+            result = "activate",
+            reason = "falling prone avoids twice the Beastheart's Intuition in extra damage",
+        })
+        return {activate = true}
+    end,
+}

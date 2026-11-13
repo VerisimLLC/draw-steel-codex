@@ -819,6 +819,7 @@ end
 
 function GameHud.FinishTokenMoving(self)
 	self.dialog.sheet.tooltip = nil
+	GameHud.dragMovingToken = nil
 end
 
 --function called by DMHub to indicate that a Loot object is being edited.
@@ -1923,6 +1924,8 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 
 			gamehud:CreateTipBanner(),
 
+			gamehud:CreateInputHintStrip(),
+
 			gamehud:ConnectionStatusPanel(),
 		}
 	})
@@ -2946,6 +2949,161 @@ function GameHud:CreateTipBanner()
 	self.tipBannerAction = actionButton
 
 	return banner
+end
+
+--Input hints: a small pill at the bottom of the screen, above the action bar,
+--reminding the player of a control that does something RIGHT NOW (e.g. "Use
+--<wheel> to fly up or down" while a flier is moving). Unlike tips it is never
+--learned: it shows every time its source says so and leaves when it stops.
+--A source registers with InputHint.Register{id, priority, text, visible}:
+--  text: the hint, where each {name} is replaced by the icon
+--        InputHint.icons[name] (e.g. "Use {wheel} to fly up or down").
+--  visible: fun(): boolean, polled ~10 times a second, so keep it cheap.
+--The highest-priority visible source wins. Stored on the InputHint global so
+--reloading this file keeps sources registered from other modules.
+InputHint = rawget(_G, "InputHint") or {}
+InputHint.sources = InputHint.sources or {}
+InputHint.icons = InputHint.icons or {}
+InputHint.icons.wheel = "phosphor/mouse-scroll-bold.png"
+InputHint.icons.middleclick = "phosphor/mouse-middle-click-bold.png"
+
+---@param spec {id: string, priority: nil|number, text: string, visible: fun(): boolean}
+function InputHint.Register(spec)
+	InputHint.sources[spec.id] = spec
+end
+
+function InputHint.Unregister(id)
+	InputHint.sources[id] = nil
+end
+
+--- The highest-priority source whose visible() is true, or nil.
+function InputHint.Current()
+	local best = nil
+	for _, spec in pairs(InputHint.sources) do
+		if best == nil or (spec.priority or 0) > (best.priority or 0) then
+			local ok, vis = pcall(spec.visible)
+			if ok and vis then
+				best = spec
+			end
+		end
+	end
+	return best
+end
+
+--- Turn a hint's text into label and icon panels, in order.
+--- @param text string
+--- @return Panel[]
+local function InputHintChildren(text)
+	local children = {}
+	local function AddLabel(s)
+		s = trim(s)
+		if s ~= "" then
+			children[#children + 1] = gui.Label{
+				classes = {"inputHintText", "inputHintPart"},
+				text = s,
+			}
+		end
+	end
+	local pos = 1
+	while true do
+		local a, b, name = string.find(text, "{(%w+)}", pos)
+		if a == nil then
+			break
+		end
+		AddLabel(string.sub(text, pos, a - 1))
+		local icon = InputHint.icons[name]
+		if icon ~= nil then
+			children[#children + 1] = gui.Panel{
+				classes = {"inputHintIcon", "inputHintPart"},
+				bgimage = icon,
+			}
+		end
+		pos = b + 1
+	end
+	AddLabel(string.sub(text, pos))
+	return children
+end
+
+--- The input hint pill (see InputHint). Polls its sources while the HUD is up.
+--- @return Panel
+function GameHud:CreateInputHintStrip()
+	local shownText = nil
+	local strip
+	strip = gui.Panel{
+		id = "inputHintStrip",
+		classes = {"inputHintStrip"},
+		floating = true,
+		interactable = false,
+		halign = "center",
+		valign = "bottom",
+		vmargin = 170,
+		flow = "horizontal",
+		width = "auto",
+		height = "auto",
+		hpad = 16,
+		vpad = 6,
+		borderBox = true,
+		bgimage = true,
+		bgcolor = "#000000e0",
+		cornerRadius = 14,
+
+		thinkTime = 0.1,
+		think = function(element)
+			local spec = InputHint.Current()
+			local text = spec ~= nil and spec.text or nil
+			if text == shownText then
+				return
+			end
+			shownText = text
+			if text ~= nil then
+				element.children = InputHintChildren(text)
+			end
+			element:SetClass("visible", text ~= nil)
+		end,
+
+		styles = {
+			{
+				selectors = {"inputHintStrip"},
+				opacity = 0,
+				transitionTime = 0.15,
+			},
+			{
+				selectors = {"inputHintStrip", "visible"},
+				opacity = 1,
+				transitionTime = 0.15,
+			},
+			{
+				selectors = {"inputHintText"},
+				width = "auto",
+				height = "auto",
+				fontSize = 16,
+				color = "white",
+				valign = "center",
+				hmargin = 3,
+			},
+			{
+				selectors = {"inputHintIcon"},
+				width = 28,
+				height = 28,
+				bgcolor = "white",
+				valign = "center",
+				hmargin = 2,
+			},
+			--A panel's opacity does not reach its children, so the text and
+			--icons fade with the pill through their own parent:visible rules.
+			{
+				selectors = {"inputHintPart"},
+				opacity = 0,
+				transitionTime = 0.15,
+			},
+			{
+				selectors = {"inputHintPart", "parent:visible"},
+				opacity = 1,
+				transitionTime = 0.15,
+			},
+		},
+	}
+	return strip
 end
 
 --Set the banner buttons from a notice's controls (see Tip.RegisterNotice).

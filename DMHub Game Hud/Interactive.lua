@@ -50,6 +50,21 @@ function InteractiveContainer.FieldEnabled(id, fieldName)
     return fields[fieldName] == true
 end
 
+--Which of the Interactable component's standard fields (locked, distance) the
+--given type hides, from its hiddenFields table. The engine's
+--GetFieldDisplayInfo calls this; types without hiddenFields show them all.
+function InteractiveContainer.FieldHidden(id, fieldName)
+    local info = g_registry[id]
+    if info == nil then
+        return false
+    end
+    local fields = rawget(info, "hiddenFields")
+    if fields == nil then
+        return false
+    end
+    return fields[fieldName] == true
+end
+
 function InteractiveContainer:Construct(id)
     local info = g_registry[id]
     if info == nil then

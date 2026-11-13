@@ -805,6 +805,18 @@ RegisterGoblinScriptSymbol(ActivatedAbility, {
 
 })
 
+--A villain action's "Villain Action" action type is a label, not something the monster
+--holds: monsters have 0 of that resource, so counting it made every such ability
+--unaffordable. The encounter's villain action budget (VillainActionState and the
+--villain action strip) is what limits them, so the label costs 0 actions.
+local g_baseGetNumberOfActionsCost = ActivatedAbility.GetNumberOfActionsCost
+function ActivatedAbility:GetNumberOfActionsCost(caster, symbols)
+    if self:ActionResource() == CharacterResource.villainActionId then
+        return 0
+    end
+    return g_baseGetNumberOfActionsCost(self, caster, symbols)
+end
+
 --An ability invoked with suppressInvokedActionCost has its own cost cleared, but it is
 --still made as part of the invoker's action (e.g. Panther's Devastating Rush), so answer
 --with the invoker's action type. Critical Hit depends on this.
@@ -1293,6 +1305,36 @@ local function HasAutomaticTrigger(creatureProps, name)
     return false
 end
 
+--Manual trigger copies taken off a player's action bar entirely under Strictly
+--Enforce Action Economy, not just greyed. Hesitation Is Weakness by hand claims
+--the turn whenever it is pressed, so even its greyed chip invites trouble, and
+--its prompt already offers it at the one moment it is legal (6TTFJWFP). Lower
+--case ability names; only hidden while the creature has the automatic trigger.
+local g_manualTriggersHiddenUnderStrict = {
+    ["hesitation is weakness"] = true,
+}
+
+--- Should the action bar leave this ability out for this caster? True only for a
+--- player-controlled caster's manual copy of a listed trigger, under strict rules.
+--- @param ability ActivatedAbility
+--- @param casterToken CharacterToken|nil
+--- @return boolean
+function ActivatedAbility.HiddenUnderStrictActionEconomy(ability, casterToken)
+    if not g_manualTriggersHiddenUnderStrict[string.lower(ability.name or "")] then
+        return false
+    end
+    if not (ability:try_get("manualVersionOfTrigger", false) or ability.categorization == "Trigger") then
+        return false
+    end
+    if casterToken == nil or not casterToken.playerControlled or casterToken.properties == nil then
+        return false
+    end
+    if not StrictActionEconomyEnforced() then
+        return false
+    end
+    return HasAutomaticTrigger(casterToken.properties, ability.name)
+end
+
 --Cast gates: rules a game mode adds to stop players' creatures using
 --abilities by hand for a while (Encounter of the Week's "Arrange Your
 --Heroes" allows only Catch Breath and Null Field). A gate is
@@ -1365,7 +1407,7 @@ end
 --flies: a hero pushed off a ledge starts flying and had no obvious way down.
 local g_dropToGroundAbility = nil
 
---- The Drop to Ground ability for creatureToken, or nil when it is not flying.
+--- The Drop to Ground ability for creatureToken, or nil when it is not flying or may only fly horizontally.
 --- @param creatureToken nil|CharacterToken
 --- @return nil|ActivatedAbility
 function ActivatedAbility.GetDropToGroundAbility(creatureToken)
@@ -1373,6 +1415,10 @@ function ActivatedAbility.GetDropToGroundAbility(creatureToken)
         return nil
     end
     if creatureToken.properties:CurrentMoveType() ~= "fly" then
+        return nil
+    end
+    --A horizontal-only flier (Spirited Away's levitation) can't choose to come down.
+    if creatureToken.properties:CanFly() and not creatureToken.properties:CanFlyVertically() then
         return nil
     end
     if g_dropToGroundAbility == nil then

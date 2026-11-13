@@ -2,6 +2,8 @@
 
 --- Represents an active player session in the game, providing access to connection info, display name, and performance data.
 --- @class LuaGameSession
+--- @field ping number The ping latency to this player in milliseconds.
+--- @field p2pheartbeat number The peer-to-peer heartbeat timestamp.
 --- @field version nil|string (Read-only) the version of the engine the user is using.
 --- @field perf {min: number, max: number, mean: number, median: number, screenWidth: number, screenHeight: number, meanCPU: number, meanGPU: number, memMono: number, memUnity: number, memReserved: number, memWorkingSet: number, memPrivate: number} Performance information from the user. The mem* values are in MB; memWorkingSet is the whole process's resident memory and memPrivate its commit charge, each -1 if the platform doesn't report it.
 --- @field loggedOut boolean True if this player has logged out of the session.
@@ -12,7 +14,5 @@
 --- @field lastContactKnown boolean True if we actually know when this player was last in contact. False when the session record carries no timestamp, in which case @see timeSinceLastContact is meaningless (see the note there).
 --- @field dm boolean True if this player is the Dungeon Master.
 --- @field primaryCharacter string The identifier of this player's primary character.
---- @field ping number The ping latency to this player in milliseconds.
---- @field p2pheartbeat number The peer-to-peer heartbeat timestamp.
 --- @field p2pconnection nil|string The peer-to-peer connection type: 'direct' for hole-punched connection, 'relay' for proxied connection, or nil if no P2P connection.
 LuaGameSession = {}

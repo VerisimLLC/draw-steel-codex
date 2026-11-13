@@ -2851,6 +2851,15 @@ function creature:CanTeleport()
     return false
 end
 
+--- Whether the creature can fly up or down under its own power. False for a creature
+--- that may only fly horizontally (the "Horizontal Flight Only" attribute, set by
+--- the levitation from the Ghost's Spirited Away). Effects that lift or drop it
+--- (rising each turn, falling when the effect ends) don't ask this.
+--- @return boolean
+function creature:CanFlyVertically()
+    return self:CanFly() and self:CalculateNamedCustomAttribute("Horizontal Flight Only") <= 0
+end
+
 creature.stability = 0
 creature.reach = 1
 creature.range = 0
@@ -5239,9 +5248,14 @@ function creature:RollCustomPowerTableTest(title, characteristics, skills, tiers
     end)
 end
 
-function creature:ShowCharacteristicRollDialog(attrid)
+--options (optional): onComplete(tier) is called with 1-3 when the roll lands,
+--for callers that act on the result (a puzzle lock's bypass test).
+---@param attrid string
+---@param options {onComplete: fun(tier: integer)|nil}|nil
+function creature:ShowCharacteristicRollDialog(attrid, options)
     local attrInfo = creature.attributesInfo[attrid]
     local title = string.format("%s Test", attrInfo.description)
+    local onComplete = options ~= nil and options.onComplete or nil
 
     local rollProperties = RollPropertiesPowerTable.new {
         tiers = {
@@ -5308,6 +5322,9 @@ function creature:ShowCharacteristicRollDialog(attrid)
                 end
 
                 local tier = RollUtils.DiceResultToTier(rollInfo)
+                if onComplete ~= nil then
+                    pcall(onComplete, tier)
+                end
 
                 token.properties:DispatchEvent("rollpower", {
                     surges = 0,
@@ -7552,17 +7569,25 @@ function creature:EndPersistentAbilityById(guid)
         local targetToken = dmhub.GetTokenById(targetid)
         if targetToken ~= nil then
             local target = targetToken.properties
-            local ongoingEffects = target:try_get("ongoingEffects", {})
-            for i, effect in ipairs(ongoingEffects) do
-                if effect and effect.casterInfo and effect.casterInfo.persistenceId == guid then
-                    targetToken:ModifyProperties {
-                        description = "End Persistent Ability Target",
-                        undoable = false,
-                        execute = function()
-                            target:RemoveOngoingEffect(ongoingEffects[i].ongoingEffectid)
-                        end,
-                    }
+            --collect first: removing while looping would skip effects.
+            --try_get, since not every effect has casterInfo.
+            local removeIds = {}
+            for _, effect in ipairs(target:try_get("ongoingEffects", {})) do
+                local casterInfo = effect and effect:try_get("casterInfo")
+                if casterInfo ~= nil and casterInfo.persistenceId == guid then
+                    removeIds[#removeIds + 1] = effect.ongoingEffectid
                 end
+            end
+            if #removeIds > 0 then
+                targetToken:ModifyProperties {
+                    description = "End Persistent Ability Target",
+                    undoable = false,
+                    execute = function()
+                        for _, effectid in ipairs(removeIds) do
+                            target:RemoveOngoingEffect(effectid)
+                        end
+                    end,
+                }
             end
         end
     end

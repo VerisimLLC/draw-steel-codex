@@ -18,6 +18,7 @@ local DEFAULT_TEXT = {
     "Codex Titlescreen/EotwTextTown.lua",
     "Codex Titlescreen/EotwTextHeroes.lua",
     "Codex Titlescreen/EotwTextTrainingGrounds.lua",
+    "Codex Titlescreen/EotwTextGreatForge.lua",
     "EncounterOfTheWeek/EncounterText.lua",
     "EncounterOfTheWeek/EncounterAuthoringText.lua",
     --the main game's Hero Builder, which EotW runs too.

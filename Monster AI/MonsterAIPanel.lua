@@ -92,26 +92,11 @@ end
 
 --An accepted prompt's cast holds the monsters too: its card is gone, but a
 --turn-claim cast (Hesitation Is Weakness) has not moved initiative yet. The
---move lands just after the cast completes, hence the settle time. The limit
---stops a completion lost in transit from holding the table for good.
-local g_acceptedTriggerWaitSeconds = 60
-local g_acceptedTriggerSettleSeconds = 2
-
---The name of the hero's accepted trigger whose cast still holds the monsters
---(see the "turn-claim" marker in TriggeredAbility.lua), or nil.
+--rule lives in creature:TurnClaimResolving, shared with the end-of-turn handoff.
 ---@param token CharacterToken
 ---@return string|nil
 local function AcceptedTriggerResolving(token)
-    for _,entry in pairs(token.properties:try_get("pendingAIActivityReactions", {})) do
-        if type(entry) == "table" and entry.activityId == "turn-claim" then
-            local age = EventTimestampAge(entry.timestamp)
-            local limit = entry.state == "completed" and g_acceptedTriggerSettleSeconds or g_acceptedTriggerWaitSeconds
-            if age ~= nil and age < limit then
-                return type(entry.ability) == "string" and entry.ability or "trigger"
-            end
-        end
-    end
-    return nil
+    return token.properties:TurnClaimResolving()
 end
 
 --A hero's trigger the monsters wait for before choosing their next turn: a
@@ -224,6 +209,12 @@ local function MonsterAIThread(process)
     --document read per iteration.
     local turnClaimWaiting = false
     local saveWaiting = false
+    --The players' entry the AI last refused to play, so the refusal logs once.
+    local refusedPlayerTurn = nil
+    --The monster turn this process last began. The turn is not played until its
+    --start-of-turn triggers have finished. nil for turns begun by anyone else.
+    ---@type {initiativeid: string, activityId: string, pending: {count: integer}}|nil
+    local turnStart = nil
     MonsterAI.ClearWaiting()
     pcall(MonsterAI.ClearPlanPreview)
     creature.SetAIActivityInProgress(nil)
@@ -485,14 +476,65 @@ local function MonsterAIThread(process)
                     dmhub:UploadInitiativeQueue()
 
                     local tokens = GameHud.GetTokensForInitiativeId(GameHud.instance, GameHud.instance.initiativeInterface, initiativeid)
+                    local pending = {count = 0}
+                    turnStart = {initiativeid = initiativeid, activityId = "turn-start:" .. dmhub.GenerateGuid(), pending = pending}
                     for i,tok in ipairs(tokens) do
                         if tok.properties ~= nil then
-                            tok.properties:BeginTurn()
+                            --done makes the count drop once per creature: BeginTurn
+                            --can error after its coroutine already reported back.
+                            local done = false
+                            local function finished()
+                                if not done then
+                                    done = true
+                                    pending.count = pending.count - 1
+                                end
+                            end
+                            pending.count = pending.count + 1
+                            --An error here would skip the group's other creatures
+                            --and leave the turn-start wait spinning to its cap.
+                            local ok, err = pcall(tok.properties.BeginTurn, tok.properties, {
+                                aiActivityId = turnStart.activityId,
+                                onComplete = finished,
+                            })
+                            if not ok then
+                                finished()
+                                pcall(function()
+                                    lifecycleAI:LogDecision("BEGIN TURN ERROR", {
+                                        turn = initiativeid,
+                                        actor = tok.name,
+                                        reason = tostring(err),
+                                        result = "turn start skipped for this creature",
+                                    })
+                                end)
+                            end
                         end
                     end
                 end
+            elseif queue:IsEntryPlayer(initiativeid) == true then
+                --The side says monsters but the current entry is the players'.
+                --Crossed initiative writes can leave this (a turn claim landing
+                --as the previous hero's turn passed, AH6SYXTP); playing it would
+                --end the hero's turn with nothing done. Leave it to its player.
+                if refusedPlayerTurn ~= initiativeid then
+                    refusedPlayerTurn = initiativeid
+                    lifecycleAI:SetLogContext(nil, {
+                        turn = initiativeid,
+                        round = queue.round,
+                    })
+                    lifecycleAI:LogDecision("TURN REFUSED", {
+                        reason = "the current initiative entry belongs to the players",
+                        result = "not playing it",
+                    })
+                end
             else
                 local ai = MonsterAI.new{}
+                if turnStart ~= nil and turnStart.initiativeid == initiativeid then
+                    ai:SetLogContext(nil, {turn = initiativeid, round = queue.round})
+                    if not ai:WaitForTurnStart(turnStart) then
+                        return
+                    end
+                end
+                turnStart = nil
                 g_status = "Playing Turn"
                 ai:PlayTurnSafely(initiativeid)
                 g_status = nil
@@ -599,7 +641,8 @@ end
 --- not driving at this moment, such as a dying Abyssal Hyena's Death Snap on a
 --- hero's turn: mandatory triggers fire with no AI control installed. Same rule
 --- as RollsForCreature. A prompt with no registered handler still goes to the
---- Director. nil when the AI does not play this creature.
+--- Director, or is skipped when nobody plays the Director. nil when the AI
+--- does not play this creature.
 --- @param token CharacterToken
 --- @return nil|fun(invokerToken: CharacterToken, casterToken: CharacterToken, abilityClone: ActivatedAbility, symbols: table, options: table): string
 function MonsterAI.PromptCallbackForCreature(token)

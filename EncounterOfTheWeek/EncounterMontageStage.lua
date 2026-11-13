@@ -3230,31 +3230,6 @@ local function DiceHint(m)
     return T("stage.dice.hint_waiting", { heroes = table.concat(waiting, ", ") })
 end
 
---The Roll button for this user's montage dice, or nil when they have none
---waiting (or have already clicked it).
-local function DiceRollButton(halign)
-    if not EncounterMontage.MyDiceWaiting() then
-        return nil
-    end
-    return gui.Panel{
-        classes = {"eotwSceneOption", "actionable"},
-        width = "auto",
-        height = "auto",
-        halign = halign or "left",
-        hpad = 14,
-        vpad = 5,
-        borderBox = true,
-        vmargin = 2,
-        bgimage = "panels/square.png",
-        gui.Label{ classes = {"eotwSceneOptionName"}, text = T("stage.dice.roll_button"), interactable = false },
-        press = function(element)
-            audio.FireSoundEvent("Mouse.Click")
-            element:SetClass("hidden", true)
-            EncounterMontage.RollMyDice()
-        end,
-    }
-end
-
 --- the scene stage -------------------------------------------------------------------
 --
 --While a hero is at an entry the centre panel is a small stage (user
@@ -4361,8 +4336,12 @@ local function CreateSceneStage()
         --(t.forced) skipped the board, so the section's text is read here,
         --typed once, above the test.
         local leadText = nil
-        if t.gauntlet and t.forced and not t.arrival and (entry.description or "") ~= "" then
-            leadText = entry.description
+        if t.gauntlet and t.forced and not t.arrival then
+            --its "If ...:" blocks read for the story so far.
+            local lead = EncounterScript.ResolveStoryText(entry, EncounterMontage.Story())
+            if lead ~= "" then
+                leadText = lead
+            end
         end
         local leadKey = leadText ~= nil and string.format("lead:%s", tostring(t.seq)) or nil
         if leadText ~= nil then
@@ -4452,7 +4431,6 @@ local function CreateSceneStage()
             m_detailDefault = { DiceCard(m, beat) }
             boxExtra.children = {
                 gui.Label{ classes = {"eotwSceneHint"}, text = DiceHint(m) },
-                DiceRollButton(),
             }
         else
             if option ~= nil then
@@ -4703,10 +4681,6 @@ local function BuildTurnChildren(m, beat, consequenceStart)
         if m.dice ~= nil then
             Add(DiceCard(m, beat))
             Add(gui.Label{ classes = {"eotwTurnHint"}, text = DiceHint(m) })
-            local rollButton = DiceRollButton("center")
-            if rollButton ~= nil then
-                Add(rollButton)
-            end
             return children
         end
         Add(gui.Button{
@@ -6062,7 +6036,7 @@ local function CreateStage(args)
         local phase = m.phase
         --the draw landing is a rebuild: the entries it let through have to
         --arrive, and the round number has not changed to bring them in.
-        local drawPending = m.removed == nil and EncounterScript.HasScaling(beat)
+        local drawPending = m.removed == nil and (EncounterScript.HasScaling(beat) or EncounterMontage.Notches() < 0)
         local drawLanded = m_entryDrawPending and not drawPending
         m_entryDrawPending = drawPending
         --an "Unlock <name>" outcome can land at any moment; the count only
@@ -7692,16 +7666,18 @@ local function GauntletBoardChildren(beat, m, heroes, prose)
         return children
     end
     Add(gui.Label{ classes = {"eotwGauntletSectionName"}, text = section.name })
-    if (section.description or "") ~= "" then
+    --description keeps every "If ...:" block; this reads them for the story.
+    local sectionText = EncounterScript.ResolveStoryText(section, EncounterMontage.Story())
+    if sectionText ~= "" then
         if prose ~= nil and prose.typer ~= nil then
             --keyed by the arrival (path length), so a section met again
             --types again but a rebuild of this one does not.
             local key = string.format("section:%s:%d", tostring(section.id), #(((m.gauntlet or {}).path) or {}))
             Add(prose.typer.Label{ classes = {"eotwNarrativeText"}, halign = "center",
-                prose = section.description, proseKey = key, proseAfter = prose.after })
+                prose = sectionText, proseKey = key, proseAfter = prose.after })
             prose.gateFrom, prose.gateKey = #children + 1, key
         else
-            Add(gui.Label{ classes = {"eotwNarrativeText"}, text = section.description, halign = "center" })
+            Add(gui.Label{ classes = {"eotwNarrativeText"}, text = sectionText, halign = "center" })
         end
     end
 

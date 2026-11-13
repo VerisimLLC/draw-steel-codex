@@ -775,6 +775,26 @@ check(EncounterScript.ChooseChallengeThreat(sb, { ["r1-opportunity-standing-ston
 check(EncounterScript.ChooseChallengeThreat(EncounterScript.Parse("# Montage\n\n## Opportunity: Rest\n\n### Sit\n|Sit: Might\n|a\n|b\n|c\n").beats[1], {}, first) == nil,
     "a montage with no threat gets no extra one")
 end
+
+--Difficulty notches: each one up is a Challenge Mode pick, each one down removes a threat.
+do
+local first = function(n) return 1 end
+local up = EncounterScript.ChooseNotchThreats(sb, removed, 3, first)
+check(#up.restored == 2 and up.removed["r1-threat-mire"] == nil and up.removed["r1-threat-fog"] == nil,
+    "notches up restore every threat the scaling removed first")
+check(up.times["r1-threat-mire"] == 2 and up.times["r1-threat-fog"] == nil, "the notch left over doubles a threat")
+check(removed["r1-threat-mire"] == true, "the scaling draw passed in is not changed")
+local spread = EncounterScript.ChooseNotchThreats(sb, {}, 3, first)
+check(spread.times["r1-threat-mire"] == 3 and spread.times["r1-threat-fog"] == 2,
+    "doubles spread across the threats before any is tripled")
+local down = EncounterScript.ChooseNotchThreats(sb, {}, -2, first)
+check(#down.dropped == 1 and down.removed["r1-threat-mire"] == true and down.removed["r1-threat-fog"] == nil,
+    "notches down never remove a round's last threat")
+check(next(EncounterScript.ChooseNotchThreats(sb, removed, -1, first).dropped) == nil,
+    "a round already down to one threat loses no more")
+local none = EncounterScript.ChooseNotchThreats(sb, removed, 0, first)
+check(#none.restored == 0 and #none.dropped == 0 and none.removed["r1-threat-mire"] == true, "no notches change nothing")
+end
 check(EncounterScript.HasScaling(sb) and EncounterScript.RoundHasScaling(sb, 2), "HasScaling / RoundHasScaling")
 check(not EncounterScript.HasScaling(EncounterScript.Parse(SAMPLE).beats[1]), "a montage with no directives has no scaling")
 
@@ -3271,6 +3291,23 @@ Witch exits
     local b = entries[2]
     check(b ~= nil and b.actors["witch"] == nil and b.scene[1] ~= nil and b.scene[1].kind ~= "exit",
         "a montage entry does not know another entry's characters")
+end)()
+
+--- "Level:" under "# Encounter": the hero Level the fight is balanced for.
+;(function()
+    local NL = string.char(10)
+    local P = EncounterScript.ParseHeroLevelInstruction
+    local ins = P("2")
+    check(ins ~= nil and ins.kind == "herolevel" and ins.level == 2, "Level: 2")
+    check((P("Level 3 heroes") or {}).level == 3, "the first number is the Level")
+    check(P("0") == nil and P("11") == nil and P("high") == nil, "out of range or no number is not a Level")
+    local none = EncounterScript.Parse("# Encounter" .. NL .. NL .. "[[encounter]]" .. NL)
+    check(EncounterScript.FindHeroLevel(none) == 1, "no Level line means Level 1")
+    local script = EncounterScript.Parse("# Encounter" .. NL .. NL .. "Hero Level: 4" .. NL .. NL .. "[[encounter]]" .. NL)
+    check(#script.warnings == 0, "a Level line parses clean: " .. table.concat(script.warnings, " | "))
+    check(script.beats[1].setup[1].kind == "herolevel" and EncounterScript.FindHeroLevel(script) == 4, "Hero Level: 4 on the encounter beat")
+    local bad = EncounterScript.Parse("# Encounter" .. NL .. NL .. "Level: very hard" .. NL .. NL .. "[[encounter]]" .. NL)
+    check(#bad.warnings > 0 and bad.beats[1].setup[1].kind == "unknown" and EncounterScript.FindHeroLevel(bad) == 1, "a Level line with no Level warns and leaves Level 1")
 end)()
 
 print(string.format("encounter_script_test: %d checks passed", passed))

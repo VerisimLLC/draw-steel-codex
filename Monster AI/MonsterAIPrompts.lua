@@ -402,6 +402,92 @@ local function PreferForcedMovementCandidate(candidateAltitude, candidateScore, 
     return candidateScore < bestScore
 end
 
+--Pull scoring weights for what the target is slammed into, shared by pulls
+--that move it and pulls that leave it in place.
+local pullCollideEnemyValue = 3
+local pullCollideObjectValue = 4
+local pullCollideAllyPenalty = 4
+
+--Collision damage a creature takes when force moved into something with
+--`speed` squares left, per the Collision global rule (speed, less Forced
+--Movement Damage Reduction; none with No Damage From Forced Movement).
+local function ExpectedCollisionDamage(token, speed)
+    local props = token.properties
+    if props:CalculateNamedCustomAttribute("No Damage From Forced Movement") >= 1 then
+        return 0
+    end
+    return math.max(0, speed - props:CalculateNamedCustomAttribute("Forced Movement Damage Reduction"))
+end
+
+--Whether pulling an enemy into the puller is worth it: both take the squares
+--left as damage. Never for minions (the hit comes off the squad's Stamina and
+--can kill members) or when the puller would drop. Yes when the puller takes
+--nothing or the hit drops the target; otherwise only while the puller stays
+--above half its Stamina. Returns the decision and the target's damage.
+local function SelfCollisionWorthIt(pullerToken, movedToken, speed)
+    if pullerToken.isObject or movedToken.isObject then
+        return false, 0
+    end
+    local puller = pullerToken.properties
+    if puller.minion then
+        return false, 0
+    end
+    local dealt = ExpectedCollisionDamage(movedToken, speed)
+    if dealt <= 0 then
+        return false, 0
+    end
+    local taken = ExpectedCollisionDamage(pullerToken, speed)
+    local staminaAfter = puller:CurrentHitpoints() - taken
+    if staminaAfter <= 0 then
+        return false, dealt
+    end
+    --Temporary Stamina soaks the hit first. A hero already dying has 0 or
+    --less Stamina, so hitting them drops nobody.
+    local targetStamina = movedToken.properties:CurrentHitpoints()
+    if targetStamina > 0 then
+        targetStamina = targetStamina + movedToken.properties:TemporaryHitpoints()
+    end
+    if taken == 0 or (targetStamina > 0 and dealt >= targetStamina) then
+        return true, dealt
+    end
+    return staminaAfter > puller:MaxHitpoints()/2, dealt
+end
+
+--Value of a pull that leaves the target where it is (it is next to the puller,
+--or blocked at once): only the collision counts. nil when it is not worth
+--doing; the second result is true when a pull into the puller was turned down.
+local function StandingPullCollisionValue(invokerToken, casterToken, movementInfo, range)
+    local path = movementInfo.path
+    local value = 0
+    for _,collideToken in ipairs(movementInfo.collideWith or {}) do
+        if collideToken.charid == invokerToken.charid then
+            --Force left when the target hits the puller. Missing or -1 with a
+            --blocked path: the cast counts the full pull, so do the same.
+            local speed = path.collisionForce
+            if speed == nil or speed < 0 then
+                speed = cond(path.hasCollision, range, 0)
+            end
+            local worth, dealt = SelfCollisionWorthIt(invokerToken, casterToken, speed)
+            if not worth then
+                return nil, true
+            end
+            value = value + pullCollideEnemyValue + dealt
+        elseif collideToken.isObject then
+            value = value + pullCollideObjectValue
+        elseif collideToken:IsFriend(invokerToken) then
+            value = value - pullCollideAllyPenalty
+        else
+            value = value + pullCollideEnemyValue
+        end
+    end
+    if value <= 0 then
+        return nil, false
+    end
+    return value, false
+end
+
+--Returns the best target square (nil when none), and true when no pull works
+--and a pull into the puller was turned down as not worth the damage.
 local function FindBestPullLocation(invokerToken, casterToken, abilityClone, symbols, range, forcedMovement, preferAltitude)
     ---@type fun(loc: Loc): boolean
     local filterTargetPredicate = abilityClone:TargetLocPassesFilterPredicate(casterToken, symbols)
@@ -415,6 +501,14 @@ local function FindBestPullLocation(invokerToken, casterToken, abilityClone, sym
     local bestLoc = nil
     local bestScore = nil
     local bestAltitude = nil
+    --A pull that leaves the target in place is only used when no pull moves
+    --it, only on an enemy creature (never to slam an ally or an object), and
+    --only by a creature: a pull by an object (a trap) still goes to a Director.
+    local pullingAnEnemy = not invokerToken.isObject and not casterToken.isObject
+        and not casterToken:IsFriend(invokerToken)
+    local bestStandingLoc = nil
+    local bestStandingValue = nil
+    local declinedSelfCollision = false
 
     for _,testLoc in ipairs(shape.locations) do
         if filterTargetPredicate(testLoc) then
@@ -424,6 +518,16 @@ local function FindBestPullLocation(invokerToken, casterToken, abilityClone, sym
             if movementInfo ~= nil then
                 local path = movementInfo.path
                 local dist = path.destination:DistanceInTiles(path.origin)
+                if dist == 0 and pullingAnEnemy then
+                    local value, declined = StandingPullCollisionValue(invokerToken, casterToken, movementInfo, range)
+                    if declined then
+                        declinedSelfCollision = true
+                    end
+                    if value ~= nil and (bestStandingValue == nil or value > bestStandingValue) then
+                        bestStandingValue = value
+                        bestStandingLoc = testLoc
+                    end
+                end
                 if dist > 0 then
                     local collideWithAllies = 0
                     local collideWithEnemies = 0
@@ -460,11 +564,11 @@ local function FindBestPullLocation(invokerToken, casterToken, abilityClone, sym
                     -- position threatened by the puller's allies. Avoid colliding
                     -- with those allies.
                     local score = dist*10
-                        + collideWithEnemies*3
-                        + cond(collideWithObject, 4, 0)
+                        + collideWithEnemies*pullCollideEnemyValue
+                        + cond(collideWithObject, pullCollideObjectValue, 0)
                         + fallDistance*2
                         + adjacentAllies
-                        - collideWithAllies*4
+                        - collideWithAllies*pullCollideAllyPenalty
                         - invokerToken:Distance(path.destination)*0.01
                     local altitude = cond(verticalForcedMovementTypes[forcedMovement], testLoc.altitude, nil)
                     if PreferForcedMovementCandidate(altitude, score, bestAltitude, bestScore, true) then
@@ -478,7 +582,13 @@ local function FindBestPullLocation(invokerToken, casterToken, abilityClone, sym
     end
 
     casterToken:ClearMovementArrow()
-    return bestLoc
+    if bestLoc ~= nil then
+        return bestLoc, false
+    end
+    if bestStandingLoc ~= nil then
+        return bestStandingLoc, false
+    end
+    return nil, declinedSelfCollision
 end
 
 --Zone directive "Force Into": when an enemy can be moved so it ends inside a
@@ -588,7 +698,7 @@ MonsterAI:RegisterPrompt{
         end
 
         if forcedMovement == "pull" or forcedMovement == "vertical_pull" then
-            local bestLoc = FindBestPullLocation(invokerToken, casterToken, abilityClone,
+            local bestLoc, declinedSelfCollision = FindBestPullLocation(invokerToken, casterToken, abilityClone,
                 movementSymbols, range, forcedMovement, preferAltitude)
             if bestLoc ~= nil then
                 casterToken:MarkMovementArrow(ArrowLoc(casterToken, forcedMovement, bestLoc), ForcedMovementArrowOptions(forcedMovement, range))
@@ -597,6 +707,17 @@ MonsterAI:RegisterPrompt{
                 return {
                     targets = {{loc = bestLoc}},
                 }
+            end
+            --Every pull left would slam the target into the puller, and that
+            --trade is not worth it: leave the target where it is rather than
+            --ask a Director.
+            if declinedSelfCollision then
+                ai:LogDecision("PULL DECLINED", {
+                    ability = abilityClone.name,
+                    targets = ai.TargetsLogName({{token = casterToken}}),
+                    reason = "only a pull into the puller remained, and the collision is not worth taking",
+                })
+                return {targets = {}}
             end
             return nil
         end
